@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: messaging-ingress
+spec:
+  ingressClassName: traefik
+  rules:
+
+    - host: messaging.renukaprasad.in
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: messaging-frontend
+                port:
+                  number: 80
+
+    - host: api.messaging.renukaprasad.in
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: messaging-backend
+                port:
+                  number: 8001
