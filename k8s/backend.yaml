@@ -42,7 +42,7 @@ spec:
       containers:
         - name: backend
           image: messaging-backend:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8001
