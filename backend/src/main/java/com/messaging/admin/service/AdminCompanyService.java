@@ -85,6 +85,7 @@ public class AdminCompanyService {
         company.getBusinessEmail(),
         company.getCountry(),
         company.getTimezone(),
+        company.getLogoMediaId() == null ? null : company.getLogoMediaId().toString(),
         company.getStatus(),
         null);
   }
