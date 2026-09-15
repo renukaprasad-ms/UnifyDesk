@@ -28,44 +28,29 @@ public class PriorityKafkaListeners {
     this.kafkaProperties = kafkaProperties;
   }
 
-  @KafkaListener(
-      id = "criticalKafkaListener",
-      topics = "${app.kafka.topics.critical.name}",
-      groupId = "${app.kafka.topics.critical.consumer-group}",
-      containerFactory = "criticalKafkaListenerContainerFactory")
+  @KafkaListener(id = "criticalKafkaListener", topics = "${app.kafka.topics.critical.name}", groupId = "${app.kafka.topics.critical.consumer-group}", containerFactory = "criticalKafkaListenerContainerFactory")
   public void critical(ConsumerRecord<String, KafkaEvent<?>> record, Acknowledgment acknowledgment) {
     process(record, acknowledgment, kafkaProperties.getTopics().getCritical().getConsumerGroup());
   }
 
-  @KafkaListener(
-      id = "highKafkaListener",
-      topics = "${app.kafka.topics.high.name}",
-      groupId = "${app.kafka.topics.high.consumer-group}",
-      containerFactory = "highKafkaListenerContainerFactory")
+  @KafkaListener(id = "highKafkaListener", topics = "${app.kafka.topics.high.name}", groupId = "${app.kafka.topics.high.consumer-group}", containerFactory = "highKafkaListenerContainerFactory")
   public void high(ConsumerRecord<String, KafkaEvent<?>> record, Acknowledgment acknowledgment) {
     process(record, acknowledgment, kafkaProperties.getTopics().getHigh().getConsumerGroup());
   }
 
-  @KafkaListener(
-      id = "mediumKafkaListener",
-      topics = "${app.kafka.topics.medium.name}",
-      groupId = "${app.kafka.topics.medium.consumer-group}",
-      containerFactory = "mediumKafkaListenerContainerFactory")
+  @KafkaListener(id = "mediumKafkaListener", topics = "${app.kafka.topics.medium.name}", groupId = "${app.kafka.topics.medium.consumer-group}", containerFactory = "mediumKafkaListenerContainerFactory")
   public void medium(ConsumerRecord<String, KafkaEvent<?>> record, Acknowledgment acknowledgment) {
     process(record, acknowledgment, kafkaProperties.getTopics().getMedium().getConsumerGroup());
   }
 
-  @KafkaListener(
-      id = "lowKafkaListener",
-      topics = "${app.kafka.topics.low.name}",
-      groupId = "${app.kafka.topics.low.consumer-group}",
-      containerFactory = "lowKafkaListenerContainerFactory")
+  @KafkaListener(id = "lowKafkaListener", topics = "${app.kafka.topics.low.name}", groupId = "${app.kafka.topics.low.consumer-group}", containerFactory = "lowKafkaListenerContainerFactory")
   public void low(ConsumerRecord<String, KafkaEvent<?>> record, Acknowledgment acknowledgment) {
     process(record, acknowledgment, kafkaProperties.getTopics().getLow().getConsumerGroup());
   }
 
   private void process(
       ConsumerRecord<String, KafkaEvent<?>> record, Acknowledgment acknowledgment, String consumerGroup) {
+    long startedAt = System.nanoTime();
     KafkaEvent<?> event = record.value();
 
     if (event == null) {
@@ -78,24 +63,33 @@ public class PriorityKafkaListeners {
       return;
     }
 
-    if (isEmailEvent(event)) {
-      LOGGER.info(
-          "Email event consumed eventId={} eventType={} topic={} partition={} offset={} consumerGroup={} correlationId={}",
-          event.eventId(),
-          event.eventType(),
-          record.topic(),
-          record.partition(),
-          record.offset(),
-          consumerGroup,
-          event.correlationId());
-    }
+    LOGGER.info(
+        "Event consumed eventId={} eventType={} topic={} partition={} offset={} consumerGroup={} correlationId={}",
+        event.eventId(),
+        event.eventType(),
+        record.topic(),
+        record.partition(),
+        record.offset(),
+        consumerGroup,
+        event.correlationId());
 
+    long dispatchStartedAt = System.nanoTime();
     dispatcher.dispatch(event);
+    LOGGER.info(
+        "Event dispatched eventId={} eventType={} dispatchDurationMs={}",
+        event.eventId(),
+        event.eventType(),
+        elapsedMs(dispatchStartedAt));
     idempotencyService.markProcessed(event);
     acknowledgment.acknowledge();
+    LOGGER.info(
+        "Event acknowledged eventId={} eventType={} totalDurationMs={}",
+        event.eventId(),
+        event.eventType(),
+        elapsedMs(startedAt));
   }
 
-  private boolean isEmailEvent(KafkaEvent<?> event) {
-    return "auth.otp.requested".equals(event.eventType());
+  private long elapsedMs(long startedAt) {
+    return (System.nanoTime() - startedAt) / 1_000_000;
   }
 }

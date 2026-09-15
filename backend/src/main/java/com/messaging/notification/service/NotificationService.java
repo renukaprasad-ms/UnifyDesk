@@ -23,22 +23,51 @@ public class NotificationService {
   private final Executor notificationExecutor;
 
   public void send(SendNotificationRequest request) {
+    long startedAt = System.nanoTime();
     validate(request);
     NotificationSender sender = senderFactory.get(request.channel());
 
     if (!notificationProperties.isAsync()) {
+      long senderStartedAt = System.nanoTime();
       sender.send(request);
+      LOGGER.info(
+          "Notification sent channel={} recipient={} mode=sync senderDurationMs={} totalDurationMs={}",
+          request.channel(),
+          request.recipient(),
+          elapsedMs(senderStartedAt),
+          elapsedMs(startedAt));
       return;
     }
 
+    long queuedAt = System.nanoTime();
     notificationExecutor.execute(
         () -> {
+          long asyncStartedAt = System.nanoTime();
           try {
             sender.send(request);
+            LOGGER.info(
+                "Notification sent channel={} recipient={} mode=async queueWaitMs={} senderDurationMs={} totalDurationMs={}",
+                request.channel(),
+                request.recipient(),
+                elapsedMsBetween(queuedAt, asyncStartedAt),
+                elapsedMs(asyncStartedAt),
+                elapsedMs(startedAt));
           } catch (RuntimeException exception) {
-            LOGGER.error("Notification send failed for channel {}", request.channel(), exception);
+            LOGGER.error(
+                "Notification send failed channel={} recipient={} mode=async queueWaitMs={} senderDurationMs={} totalDurationMs={}",
+                request.channel(),
+                request.recipient(),
+                elapsedMsBetween(queuedAt, asyncStartedAt),
+                elapsedMs(asyncStartedAt),
+                elapsedMs(startedAt),
+                exception);
           }
         });
+    LOGGER.info(
+        "Notification queued channel={} recipient={} mode=async submitDurationMs={}",
+        request.channel(),
+        request.recipient(),
+        elapsedMs(startedAt));
   }
 
   private void validate(SendNotificationRequest request) {
@@ -54,5 +83,13 @@ public class NotificationService {
     if (!StringUtils.hasText(request.body())) {
       throw new BadRequestException("Notification body is required");
     }
+  }
+
+  private long elapsedMs(long startedAt) {
+    return (System.nanoTime() - startedAt) / 1_000_000;
+  }
+
+  private long elapsedMsBetween(long startedAt, long finishedAt) {
+    return (finishedAt - startedAt) / 1_000_000;
   }
 }

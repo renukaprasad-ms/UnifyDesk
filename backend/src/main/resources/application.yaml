@@ -205,5 +205,10 @@ server:
 logging:
   level:
     root: OFF
+    com.messaging.auth.service.AuthService: INFO
+    com.messaging.auth.service.AuthOtpService: INFO
+    com.messaging.auth.service.OtpRequestedEventHandler: INFO
     com.messaging.kafka.producer.EventPublisher: INFO
     com.messaging.kafka.consumer.PriorityKafkaListeners: INFO
+    com.messaging.notification.service.NotificationService: INFO
+    com.messaging.notification.sender.EmailNotificationSender: INFO

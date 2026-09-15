@@ -20,6 +20,7 @@ public class EventPublisher {
   private final KafkaKeyResolver keyResolver;
 
   public void publish(KafkaEvent<?> event) {
+    long startedAt = System.nanoTime();
     String topic = kafkaTopics.topic(event.priority());
     String key = keyResolver.resolve(event);
     kafkaTemplate
@@ -27,22 +28,29 @@ public class EventPublisher {
         .whenComplete(
             (result, exception) -> {
               if (exception != null) {
-                return;
-              }
-              if (isEmailEvent(event)) {
-                LOGGER.info(
-                    "Email event enqueued eventId={} eventType={} topic={} partition={} offset={} correlationId={}",
+                LOGGER.error(
+                    "Event enqueue failed eventId={} eventType={} topic={} correlationId={} durationMs={}",
                     event.eventId(),
                     event.eventType(),
                     topic,
-                    result.getRecordMetadata().partition(),
-                    result.getRecordMetadata().offset(),
-                    event.correlationId());
+                    event.correlationId(),
+                    elapsedMs(startedAt),
+                    exception);
+                return;
               }
+              LOGGER.info(
+                  "Event enqueued eventId={} eventType={} topic={} partition={} offset={} correlationId={} durationMs={}",
+                  event.eventId(),
+                  event.eventType(),
+                  topic,
+                  result.getRecordMetadata().partition(),
+                  result.getRecordMetadata().offset(),
+                  event.correlationId(),
+                  elapsedMs(startedAt));
             });
   }
 
-  private boolean isEmailEvent(KafkaEvent<?> event) {
-    return "auth.otp.requested".equals(event.eventType());
+  private long elapsedMs(long startedAt) {
+    return (System.nanoTime() - startedAt) / 1_000_000;
   }
 }

@@ -18,10 +18,12 @@ import java.security.SecureRandom;
 import java.util.HexFormat;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthOtpService {
 
   private static final int OTP_BOUND = 1_000_000;
@@ -35,17 +37,33 @@ public class AuthOtpService {
   private final SecureRandom secureRandom = new SecureRandom();
 
   public void issueEmailVerificationOtp(String email) {
+    long startedAt = System.nanoTime();
     String normalizedEmail = normalizeEmail(email);
+
+    long rateLimitStartedAt = System.nanoTime();
     RateLimitResult result =
         rateLimitService.consume(
             RedisKey.rateLimitOtp(normalizedEmail), OTP_LIMIT, ttlProperties.getOtpAttempts());
+    log.info(
+        "Email OTP step completed step=rateLimit email={} allowed={} durationMs={}",
+        normalizedEmail,
+        result.allowed(),
+        elapsedMs(rateLimitStartedAt));
     if (!result.allowed()) {
       throw new TooManyRequestsException("Too many OTP requests");
     }
 
     String otp = "%06d".formatted(secureRandom.nextInt(OTP_BOUND));
+
+    long redisStartedAt = System.nanoTime();
     redisService.set(RedisKey.authOtp(normalizedEmail), hash(otp), ttlProperties.getOtp());
-    eventPublisher.publish(
+    log.info(
+        "Email OTP step completed step=storeOtpHash email={} ttlSeconds={} durationMs={}",
+        normalizedEmail,
+        ttlProperties.getOtp().toSeconds(),
+        elapsedMs(redisStartedAt));
+
+    KafkaEvent<OtpRequestedEvent> event =
         KafkaEvent.of(
             EventMetadata.create(
                 OtpRequestedEventHandler.EVENT_TYPE,
@@ -61,7 +79,20 @@ public class AuthOtpService {
                 OTP_SUBJECT,
                 "Your verification code is %s. It expires in %d minutes."
                     .formatted(otp, Math.max(1, ttlProperties.getOtp().toMinutes())),
-                false)));
+                false));
+
+    long publishStartedAt = System.nanoTime();
+    eventPublisher.publish(event);
+    log.info(
+        "Email OTP step completed step=publishOtpEvent email={} eventId={} durationMs={}",
+        normalizedEmail,
+        event.eventId(),
+        elapsedMs(publishStartedAt));
+    log.info(
+        "Email OTP issued email={} eventId={} totalDurationMs={}",
+        normalizedEmail,
+        event.eventId(),
+        elapsedMs(startedAt));
   }
 
   public void verifyEmailOtp(String email, String otp) {
@@ -91,5 +122,9 @@ public class AuthOtpService {
     } catch (Exception exception) {
       throw new IllegalStateException("Unable to hash OTP", exception);
     }
+  }
+
+  private long elapsedMs(long startedAt) {
+    return (System.nanoTime() - startedAt) / 1_000_000;
   }
 }
