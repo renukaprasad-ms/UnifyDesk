@@ -42,6 +42,15 @@ public class Company {
   @Column(nullable = false, unique = true, length = 180)
   private String slug;
 
+  @Column(name = "business_email", length = 254)
+  private String businessEmail;
+
+  @Column(length = 80)
+  private String country;
+
+  @Column(length = 80)
+  private String timezone;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
   private CompanyStatus status;

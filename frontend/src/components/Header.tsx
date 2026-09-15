@@ -1,5 +1,7 @@
 import { FiMenu } from 'react-icons/fi'
+import { useSelector } from 'react-redux'
 import { useLocation } from 'react-router'
+import type { RootState } from '../store/store'
 
 export default function Header({
   menuOpen,
@@ -9,6 +11,7 @@ export default function Header({
   onToggleMenu: () => void
 }) {
   const { pathname } = useLocation()
+  const selectedCompany = useSelector((state: RootState) => state.user.selectedCompany)
   const title = pathname === '/auth' ? 'Auth layout' : 'Home'
 
   return (
@@ -34,6 +37,11 @@ export default function Header({
         </div>
       </div>
       <div className="flex items-center gap-3">
+        {selectedCompany && (
+          <span className="hidden max-w-[220px] truncate rounded-[8px] border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 sm:inline">
+            {selectedCompany.name}
+          </span>
+        )}
         <span className="flex size-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
           U
         </span>

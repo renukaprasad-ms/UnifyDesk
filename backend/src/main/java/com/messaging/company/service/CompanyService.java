@@ -38,6 +38,9 @@ public class CompanyService {
     Company company = new Company();
     company.setName(request.name().trim());
     company.setSlug(uniqueSlug(request.name()));
+    company.setBusinessEmail(normalizeOptional(request.businessEmail()));
+    company.setCountry(normalizeOptional(request.country()));
+    company.setTimezone(normalizeOptional(request.timezone()));
     company.setStatus(CompanyStatus.ACTIVE);
     company.setCreatedBy(user);
     company = companyRepository.saveAndFlush(company);
@@ -54,9 +57,19 @@ public class CompanyService {
   @Transactional(readOnly = true)
   public List<CompanyResponse> myCompanies() {
     Long userId = currentUserService.currentUserId();
+    return companiesForUser(userId);
+  }
+
+  @Transactional(readOnly = true)
+  public List<CompanyResponse> companiesForUser(Long userId) {
     return memberRepository.findByUserIdAndStatus(userId, CompanyMemberStatus.ACTIVE).stream()
         .map(member -> toResponse(member.getCompany(), member.getRole()))
         .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public long companyCountForUser(Long userId) {
+    return memberRepository.countByUserIdAndStatus(userId, CompanyMemberStatus.ACTIVE);
   }
 
   @Transactional(readOnly = true)
@@ -68,7 +81,21 @@ public class CompanyService {
 
   private CompanyResponse toResponse(Company company, CompanyRole role) {
     return new CompanyResponse(
-        company.getId().toString(), company.getName(), company.getSlug(), company.getStatus(), role);
+        company.getId().toString(),
+        company.getName(),
+        company.getSlug(),
+        company.getBusinessEmail(),
+        company.getCountry(),
+        company.getTimezone(),
+        company.getStatus(),
+        role);
+  }
+
+  private String normalizeOptional(String value) {
+    if (value == null || value.isBlank()) {
+      return null;
+    }
+    return value.trim();
   }
 
   private String uniqueSlug(String name) {

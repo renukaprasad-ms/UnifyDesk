@@ -3,6 +3,8 @@ export type AuthUser = {
   username: string
   email: string
   verified: boolean
+  hasCompanies: boolean
+  companyCount: number
 }
 
 export type RegisterPayload = {

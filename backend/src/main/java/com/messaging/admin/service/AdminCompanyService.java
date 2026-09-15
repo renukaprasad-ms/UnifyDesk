@@ -31,12 +31,12 @@ public class AdminCompanyService {
     Long userId = currentUserService.currentUserId();
     if (adminAuthorizationService.isSuperAdmin(userId)) {
       return companyRepository.findAll().stream()
-          .map(company -> new CompanyResponse(company.getId().toString(), company.getName(), company.getSlug(), company.getStatus(), null))
+          .map(this::toCompanyResponse)
           .toList();
     }
     return assignmentRepository.findByAdminUserId(userId).stream()
         .map(AdminCompanyAssignment::getCompany)
-        .map(company -> new CompanyResponse(company.getId().toString(), company.getName(), company.getSlug(), company.getStatus(), null))
+        .map(this::toCompanyResponse)
         .toList();
   }
 
@@ -75,5 +75,17 @@ public class AdminCompanyService {
     } catch (NumberFormatException exception) {
       throw new NotFoundException("Resource not found");
     }
+  }
+
+  private CompanyResponse toCompanyResponse(Company company) {
+    return new CompanyResponse(
+        company.getId().toString(),
+        company.getName(),
+        company.getSlug(),
+        company.getBusinessEmail(),
+        company.getCountry(),
+        company.getTimezone(),
+        company.getStatus(),
+        null);
   }
 }

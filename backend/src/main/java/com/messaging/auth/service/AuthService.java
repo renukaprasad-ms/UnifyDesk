@@ -5,6 +5,7 @@ import com.messaging.auth.dto.LoginRequest;
 import com.messaging.auth.dto.RegisterRequest;
 import com.messaging.auth.dto.VerifyEmailRequest;
 import com.messaging.common.exception.UnauthorizedException;
+import com.messaging.company.service.CompanyService;
 import com.messaging.media.entity.Media;
 import com.messaging.media.service.MediaService;
 import com.messaging.security.jwt.TokenPair;
@@ -38,6 +39,7 @@ public class AuthService {
   private final AuthOtpService authOtpService;
   private final PasswordEncoder passwordEncoder;
   private final MediaService mediaService;
+  private final CompanyService companyService;
 
   @Transactional
   public AuthUserResponse register(
@@ -138,8 +140,14 @@ public class AuthService {
   }
 
   private AuthUserResponse toResponse(User user) {
+    long companyCount = companyService.companyCountForUser(user.getId());
     return new AuthUserResponse(
-        user.getId().toString(), user.getUsername(), user.getEmail(), user.isVerified());
+        user.getId().toString(),
+        user.getUsername(),
+        user.getEmail(),
+        user.isVerified(),
+        companyCount > 0,
+        companyCount);
   }
 
   private long currentUserId() {
