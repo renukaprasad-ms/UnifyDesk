@@ -1,5 +1,6 @@
 package com.messaging.kafka.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.kafka.event.KafkaEvent;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,12 +30,12 @@ public class KafkaProducerConfig {
       @Value("${KAFKA_BATCH_SIZE:32768}") int batchSize,
       @Value("${KAFKA_COMPRESSION_TYPE:snappy}") String compressionType,
       @Value("${KAFKA_MAX_IN_FLIGHT_REQUESTS:5}") int maxInFlightRequests,
-      com.messaging.kafka.config.KafkaProperties appKafkaProperties) {
+      com.messaging.kafka.config.KafkaProperties appKafkaProperties,
+      ObjectMapper objectMapper) {
     Map<String, Object> properties = new HashMap<>();
     properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
     properties.put(ProducerConfig.CLIENT_ID_CONFIG, clientId);
     properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-    properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
     properties.put(ProducerConfig.ACKS_CONFIG, "all");
     properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
     properties.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, deliveryTimeoutMs);
@@ -54,7 +55,10 @@ public class KafkaProducerConfig {
     if (StringUtils.hasText(appKafkaProperties.getSecurity().getSaslJaasConfig())) {
       properties.put("sasl.jaas.config", appKafkaProperties.getSecurity().getSaslJaasConfig());
     }
-    return new DefaultKafkaProducerFactory<>(properties);
+    JsonSerializer<KafkaEvent<?>> valueSerializer = new JsonSerializer<>(objectMapper);
+    valueSerializer.setAddTypeInfo(false);
+    return new DefaultKafkaProducerFactory<>(
+        properties, new StringSerializer(), valueSerializer);
   }
 
   @Bean
