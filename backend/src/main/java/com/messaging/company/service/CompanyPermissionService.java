@@ -4,6 +4,7 @@ import com.messaging.company.entity.CompanyAccessProfilePermission;
 import com.messaging.company.entity.CompanyMember;
 import com.messaging.company.entity.CompanyMemberAccessProfileGrant;
 import com.messaging.company.entity.CompanyMemberPermissionOverride;
+import com.messaging.company.entity.CompanyRolePermission;
 import com.messaging.company.enums.CompanyMemberStatus;
 import com.messaging.company.enums.CompanyPermission;
 import com.messaging.company.enums.CompanyRole;
