@@ -27,27 +27,22 @@ public class EventPublisher {
         .whenComplete(
             (result, exception) -> {
               if (exception != null) {
-                LOGGER.error(
-                    "Kafka publish failed eventId={} eventType={} priority={} topic={} companyId={} correlationId={}",
-                    event.eventId(),
-                    event.eventType(),
-                    event.priority(),
-                    topic,
-                    event.companyId(),
-                    event.correlationId(),
-                    exception);
                 return;
               }
-              LOGGER.info(
-                  "Kafka publish succeeded eventId={} eventType={} priority={} topic={} partition={} offset={} companyId={} correlationId={}",
-                  event.eventId(),
-                  event.eventType(),
-                  event.priority(),
-                  topic,
-                  result.getRecordMetadata().partition(),
-                  result.getRecordMetadata().offset(),
-                  event.companyId(),
-                  event.correlationId());
+              if (isEmailEvent(event)) {
+                LOGGER.info(
+                    "Email event enqueued eventId={} eventType={} topic={} partition={} offset={} correlationId={}",
+                    event.eventId(),
+                    event.eventType(),
+                    topic,
+                    result.getRecordMetadata().partition(),
+                    result.getRecordMetadata().offset(),
+                    event.correlationId());
+              }
             });
+  }
+
+  private boolean isEmailEvent(KafkaEvent<?> event) {
+    return "auth.otp.requested".equals(event.eventType());
   }
 }

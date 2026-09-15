@@ -3,7 +3,6 @@ package com.messaging.kafka.consumer;
 import com.messaging.kafka.config.KafkaProperties;
 import com.messaging.kafka.event.KafkaEvent;
 import com.messaging.kafka.idempotency.KafkaEventIdempotencyService;
-import java.time.Duration;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,7 +66,6 @@ public class PriorityKafkaListeners {
 
   private void process(
       ConsumerRecord<String, KafkaEvent<?>> record, Acknowledgment acknowledgment, String consumerGroup) {
-    long startedAt = System.nanoTime();
     KafkaEvent<?> event = record.value();
 
     if (event == null) {
@@ -76,36 +74,28 @@ public class PriorityKafkaListeners {
     }
 
     if (idempotencyService.isProcessed(event)) {
+      acknowledgment.acknowledge();
+      return;
+    }
+
+    if (isEmailEvent(event)) {
       LOGGER.info(
-          "Skipping duplicate Kafka event eventId={} eventType={} priority={} topic={} partition={} offset={} consumerGroup={} correlationId={}",
+          "Email event consumed eventId={} eventType={} topic={} partition={} offset={} consumerGroup={} correlationId={}",
           event.eventId(),
           event.eventType(),
-          event.priority(),
           record.topic(),
           record.partition(),
           record.offset(),
           consumerGroup,
           event.correlationId());
-      acknowledgment.acknowledge();
-      return;
     }
 
     dispatcher.dispatch(event);
     idempotencyService.markProcessed(event);
     acknowledgment.acknowledge();
+  }
 
-    long durationMs = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
-    LOGGER.info(
-        "Processed Kafka event eventId={} eventType={} priority={} topic={} partition={} offset={} consumerGroup={} companyId={} correlationId={} processingDurationMs={}",
-        event.eventId(),
-        event.eventType(),
-        event.priority(),
-        record.topic(),
-        record.partition(),
-        record.offset(),
-        consumerGroup,
-        event.companyId(),
-        event.correlationId(),
-        durationMs);
+  private boolean isEmailEvent(KafkaEvent<?> event) {
+    return "auth.otp.requested".equals(event.eventType());
   }
 }

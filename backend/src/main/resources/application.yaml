@@ -201,3 +201,9 @@ server:
       min-spare: 2
     max-connections: 200
     accept-count: 50
+
+logging:
+  level:
+    root: OFF
+    com.messaging.kafka.producer.EventPublisher: INFO
+    com.messaging.kafka.consumer.PriorityKafkaListeners: INFO
