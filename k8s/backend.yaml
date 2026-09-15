@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: messaging-backend-headless
+spec:
+  clusterIP: None
+  selector:
+    app: messaging-backend
+  ports:
+    - name: http
+      port: 8001
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: messaging-backend
+spec:
+  selector:
+    app: messaging-backend
+  ports:
+    - name: http
+      port: 8001
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: messaging-backend
+spec:
+  serviceName: messaging-backend-headless
+  replicas: 1
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: messaging-backend
+  template:
+    metadata:
+      labels:
+        app: messaging-backend
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:18.6-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until pg_isready -h postgres -p "${POSTGRES_CONTAINER_PORT}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}"; do
+                sleep 2
+              done
+          envFrom:
+            - secretRef:
+                name: messaging-env
+      containers:
+        - name: backend
+          image: messaging-backend:latest
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8001
+          command:
+            - /bin/sh
+            - -c
+            - |
+              export SNOWFLAKE_NODE_ID="${HOSTNAME##*-}"
+              echo "Starting backend with SNOWFLAKE_NODE_ID=${SNOWFLAKE_NODE_ID}"
+              exec java -jar /app/app.jar
+          envFrom:
+            - secretRef:
+                name: messaging-env
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xms128m -Xmx512m -XX:MaxMetaspaceSize=192m -XX:ReservedCodeCacheSize=64m -Xss512k -XX:ActiveProcessorCount=2"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "1Gi"
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20

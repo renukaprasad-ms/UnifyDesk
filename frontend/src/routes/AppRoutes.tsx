@@ -1,33 +1,41 @@
 import { Navigate, Route, Routes } from 'react-router'
 import AuthLayout from '../layouts/AuthLayout'
 import MainLayout from '../layouts/MainLayout'
+import Login from '../pages/auth/Login'
+import Register from '../pages/auth/Register'
+import VerifyOtp from '../pages/auth/VerifyOtp'
+import Home from '../pages/home/Home'
+import CreateWorkspace from '../pages/workspace/CreateWorkspace'
+import SelectPlan from '../pages/workspace/SelectPlan'
+import SelectWorkspace from '../pages/workspace/SelectWorkspace'
+import GuestRoute from './guards/GuestRoute'
+import ProtectedRoute from './guards/ProtectedRoute'
+import VerifiedRoute from './guards/VerifiedRoute'
+import WorkspaceRoute from './guards/WorkspaceRoute'
 
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route element={<MainLayout />}>
-        <Route
-          index
-          element={
-            <section className="p-6">
-              <p className="eyebrow">Starter</p>
-              <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
-                Frontend setup is ready.
-              </h1>
-            </section>
-          }
-        />
-      </Route>
       <Route element={<AuthLayout />}>
-        <Route
-          path="/auth"
-          element={
-            <div className="panel p-6">
-              <p className="eyebrow">Auth</p>
-              <h1 className="mt-2 text-xl font-bold text-slate-950">Auth layout ready.</h1>
-            </div>
-          }
-        />
+        <Route element={<GuestRoute />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+        </Route>
+        <Route element={<ProtectedRoute />}>
+          <Route path="/verifyotp" element={<VerifyOtp />} />
+        </Route>
+      </Route>
+      <Route element={<ProtectedRoute />}>
+        <Route element={<VerifiedRoute />}>
+          <Route path="/select-workspace" element={<SelectWorkspace />} />
+          <Route path="/create-workspace" element={<CreateWorkspace />} />
+          <Route path="/select-plan/:companyId" element={<SelectPlan />} />
+          <Route element={<WorkspaceRoute />}>
+            <Route element={<MainLayout />}>
+              <Route index element={<Home />} />
+            </Route>
+          </Route>
+        </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

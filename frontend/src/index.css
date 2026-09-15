@@ -127,12 +127,61 @@
     color: #6366f1;
     background: #f0f1ff;
   }
+  .profile-upload {
+    display: flex;
+    min-height: 72px;
+    width: 100%;
+    align-items: center;
+    gap: 12px;
+    border: 1px dashed #c8d1e2;
+    border-radius: 9px;
+    background: #f8fafd;
+    padding: 10px 12px;
+    transition:
+      border-color 0.16s,
+      background 0.16s;
+  }
+  .profile-upload:hover {
+    border-color: #6366f1;
+    background: #f0f1ff;
+  }
+  .profile-upload-preview {
+    display: inline-flex;
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 9px;
+    background: #ffffff;
+    color: #6366f1;
+    box-shadow: inset 0 0 0 1px #e0e5f0;
+  }
+  .profile-upload-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .upload-progress {
+    height: 6px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e0e5f0;
+  }
+  .upload-progress span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: #6366f1;
+    transition: width 0.16s;
+  }
   .workspace-switcher {
     display: inline-flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    width: min(260px, 42vw);
+    width: 100%;
     min-height: 38px;
     border: 1px solid #e0e5f0;
     border-radius: 9px;
@@ -144,10 +193,10 @@
   }
   .workspace-menu {
     position: absolute;
-    right: 0;
+    left: 0;
     top: calc(100% + 8px);
     z-index: 30;
-    width: min(300px, 82vw);
+    width: min(300px, calc(100vw - 34px));
     overflow: hidden;
     border: 1px solid #e0e5f0;
     border-radius: 9px;

@@ -1,9 +1,1 @@
-import axios from 'axios'
-
-export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001',
-  withCredentials: true,
-  timeout: 15000,
-})
-
-export default apiClient
+export { apiClient, default } from '../lib/api/apiClient'

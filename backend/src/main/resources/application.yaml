@@ -1,6 +1,210 @@
 spring:
   application:
     name: app
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5001/messaging}
+    username: ${SPRING_DATASOURCE_USERNAME:messaging}
+    password: ${SPRING_DATASOURCE_PASSWORD:messaging}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
+    open-in-view: false
+  flyway:
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
+    url: ${SPRING_FLYWAY_URL:${APP_DATASOURCE_WRITE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5001/messaging}}}
+    user: ${SPRING_FLYWAY_USER:${APP_DATASOURCE_WRITE_USERNAME:${SPRING_DATASOURCE_USERNAME:messaging}}}
+    password: ${SPRING_FLYWAY_PASSWORD:${APP_DATASOURCE_WRITE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:messaging}}}
+    locations: classpath:db/migration
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: ${FLYWAY_BASELINE_VERSION:0}
+  data:
+    redis:
+      host: ${REDIS_HOST:${SPRING_DATA_REDIS_HOST:localhost}}
+      port: ${REDIS_PORT:${SPRING_DATA_REDIS_PORT:6001}}
+      username: ${REDIS_USERNAME:}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:2s}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:2s}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:20}
+          max-idle: ${REDIS_POOL_MAX_IDLE:10}
+          min-idle: ${REDIS_POOL_MIN_IDLE:2}
+          max-wait: ${REDIS_POOL_MAX_WAIT:1s}
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:true}
+          starttls:
+            enable: ${SMTP_STARTTLS_ENABLE:true}
+          connectiontimeout: ${SMTP_CONNECTION_TIMEOUT:5000}
+          timeout: ${SMTP_TIMEOUT:5000}
+          writetimeout: ${SMTP_WRITE_TIMEOUT:5000}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9001}}
+    client-id: ${KAFKA_CLIENT_ID:messaging-api}
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        enable.idempotence: true
+        delivery.timeout.ms: ${KAFKA_DELIVERY_TIMEOUT_MS:120000}
+        request.timeout.ms: ${KAFKA_REQUEST_TIMEOUT_MS:30000}
+        linger.ms: ${KAFKA_LINGER_MS:5}
+        batch.size: ${KAFKA_BATCH_SIZE:16384}
+        compression.type: ${KAFKA_COMPRESSION_TYPE:none}
+        max.in.flight.requests.per.connection: ${KAFKA_MAX_IN_FLIGHT_REQUESTS:5}
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:messaging-workers}
+      auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:earliest}
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.messaging.kafka.event
+        spring.json.value.default.type: com.messaging.kafka.event.KafkaEvent
+        max.poll.records: ${KAFKA_MAX_POLL_RECORDS:50}
+        max.poll.interval.ms: ${KAFKA_MAX_POLL_INTERVAL_MS:300000}
+        session.timeout.ms: ${KAFKA_SESSION_TIMEOUT_MS:45000}
+        heartbeat.interval.ms: ${KAFKA_HEARTBEAT_INTERVAL_MS:15000}
+
+app:
+  datasource:
+    write:
+      url: ${APP_DATASOURCE_WRITE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5001/messaging}}
+      username: ${APP_DATASOURCE_WRITE_USERNAME:${SPRING_DATASOURCE_USERNAME:messaging}}
+      password: ${APP_DATASOURCE_WRITE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:messaging}}
+      max-pool-size: ${APP_DATASOURCE_WRITE_MAX_POOL_SIZE:25}
+      min-idle: ${APP_DATASOURCE_WRITE_MIN_IDLE:1}
+    read:
+      url: ${APP_DATASOURCE_READ_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5001/messaging}}
+      username: ${APP_DATASOURCE_READ_USERNAME:${SPRING_DATASOURCE_USERNAME:messaging}}
+      password: ${APP_DATASOURCE_READ_PASSWORD:${SPRING_DATASOURCE_PASSWORD:messaging}}
+      max-pool-size: ${APP_DATASOURCE_READ_MAX_POOL_SIZE:25}
+      min-idle: ${APP_DATASOURCE_READ_MIN_IDLE:1}
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:messaging}
+      private-key: ${JWT_PRIVATE_KEY:}
+      public-key: ${JWT_PUBLIC_KEY:}
+      access-expiration: ${JWT_ACCESS_EXPIRATION:15m}
+      refresh-expiration: ${JWT_REFRESH_EXPIRATION:7d}
+      untrusted-refresh-expiration: ${JWT_UNTRUSTED_REFRESH_EXPIRATION:1d}
+      pre-auth-expiration: ${JWT_PRE_AUTH_EXPIRATION:10m}
+    cookie:
+      access-name: ${JWT_ACCESS_COOKIE_NAME:msid}
+      refresh-name: ${JWT_REFRESH_COOKIE_NAME:msid_r}
+      pre-auth-name: ${JWT_PRE_AUTH_COOKIE_NAME:msid_pre}
+      access-max-age: ${JWT_ACCESS_COOKIE_MAX_AGE:15m}
+      refresh-max-age: ${JWT_REFRESH_COOKIE_MAX_AGE:7d}
+      pre-auth-max-age: ${JWT_PRE_AUTH_COOKIE_MAX_AGE:10m}
+      path: ${JWT_COOKIE_PATH:/}
+      domain: ${JWT_COOKIE_DOMAIN:}
+      http-only: ${JWT_COOKIE_HTTP_ONLY:true}
+      secure: ${JWT_COOKIE_SECURE:false}
+      same-site: ${JWT_COOKIE_SAME_SITE:Strict}
+  redis:
+    key-prefix: ${REDIS_KEY_PREFIX:messaging}
+    ttl:
+      otp: ${REDIS_TTL_OTP:5m}
+      otp-attempts: ${REDIS_TTL_OTP_ATTEMPTS:10m}
+      login-attempts: ${REDIS_TTL_LOGIN_ATTEMPTS:15m}
+      idempotency: ${REDIS_TTL_IDEMPOTENCY:24h}
+      short-cache: ${REDIS_TTL_SHORT_CACHE:5m}
+      configuration-cache: ${REDIS_TTL_CONFIGURATION_CACHE:30m}
+      broadcast-progress: ${REDIS_TTL_BROADCAST_PROGRESS:7d}
+  notification:
+    async: ${APP_NOTIFICATION_ASYNC:true}
+    email:
+      from: ${SMTP_FROM:${SMTP_USERNAME:}}
+  media:
+    cleanup:
+      initial-delay: ${MEDIA_PENDING_CLEANUP_INITIAL_DELAY:1m}
+      interval: ${MEDIA_PENDING_CLEANUP_INTERVAL:12h}
+    storage:
+      default-provider: ${MEDIA_STORAGE_DEFAULT_PROVIDER}
+      upload-url-expiry: ${MEDIA_UPLOAD_URL_EXPIRY}
+      download-url-expiry: ${MEDIA_DOWNLOAD_URL_EXPIRY}
+      http-connect-timeout: ${MEDIA_STORAGE_HTTP_CONNECT_TIMEOUT:3s}
+      http-read-timeout: ${MEDIA_STORAGE_HTTP_READ_TIMEOUT:5s}
+      supabase:
+        base-url: ${SUPABASE_URL}
+        service-role-key: ${SUPABASE_SERVICE_ROLE_KEY}
+        bucket: ${SUPABASE_MEDIA_BUCKET}
+    validation:
+      image-max-size: ${MEDIA_IMAGE_MAX_SIZE}
+      document-max-size: ${MEDIA_DOCUMENT_MAX_SIZE}
+      video-max-size: ${MEDIA_VIDEO_MAX_SIZE}
+      audio-max-size: ${MEDIA_AUDIO_MAX_SIZE}
+      other-max-size: ${MEDIA_OTHER_MAX_SIZE}
+      pending-ttl: ${MEDIA_PENDING_TTL}
+      allowed-mime-types: ${MEDIA_ALLOWED_MIME_TYPES}
+  kafka:
+    security:
+      protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      sasl-mechanism: ${KAFKA_SASL_MECHANISM:}
+      sasl-jaas-config: ${KAFKA_SASL_JAAS_CONFIG:}
+    retry:
+      max-attempts: ${KAFKA_RETRY_MAX_ATTEMPTS:4}
+      initial-delay: ${KAFKA_RETRY_INITIAL_DELAY:5s}
+      multiplier: ${KAFKA_RETRY_MULTIPLIER:2}
+      max-delay: ${KAFKA_RETRY_MAX_DELAY:2m}
+    idempotency:
+      ttl: ${KAFKA_IDEMPOTENCY_TTL:7d}
+    topics:
+      replication-factor: ${KAFKA_REPLICATION_FACTOR:1}
+      min-insync-replicas: ${KAFKA_MIN_INSYNC_REPLICAS:1}
+      dlt-retention: ${KAFKA_DLT_RETENTION:14d}
+      critical:
+        name: ${KAFKA_CRITICAL_TOPIC:messaging.jobs.critical}
+        retry-name: ${KAFKA_CRITICAL_RETRY_TOPIC:messaging.jobs.critical.retry}
+        dlt-name: ${KAFKA_CRITICAL_DLT_TOPIC:messaging.jobs.critical.dlt}
+        partitions: ${KAFKA_CRITICAL_PARTITIONS:6}
+        concurrency: ${KAFKA_CRITICAL_CONCURRENCY:4}
+        max-poll-records: ${KAFKA_CRITICAL_MAX_POLL_RECORDS:10}
+        retention: ${KAFKA_CRITICAL_RETENTION:3d}
+        consumer-group: ${KAFKA_CRITICAL_CONSUMER_GROUP:messaging-critical-workers}
+      high:
+        name: ${KAFKA_HIGH_TOPIC:messaging.jobs.high}
+        retry-name: ${KAFKA_HIGH_RETRY_TOPIC:messaging.jobs.high.retry}
+        dlt-name: ${KAFKA_HIGH_DLT_TOPIC:messaging.jobs.high.dlt}
+        partitions: ${KAFKA_HIGH_PARTITIONS:8}
+        concurrency: ${KAFKA_HIGH_CONCURRENCY:4}
+        max-poll-records: ${KAFKA_HIGH_MAX_POLL_RECORDS:25}
+        retention: ${KAFKA_HIGH_RETENTION:5d}
+        consumer-group: ${KAFKA_HIGH_CONSUMER_GROUP:messaging-high-workers}
+      medium:
+        name: ${KAFKA_MEDIUM_TOPIC:messaging.jobs.medium}
+        retry-name: ${KAFKA_MEDIUM_RETRY_TOPIC:messaging.jobs.medium.retry}
+        dlt-name: ${KAFKA_MEDIUM_DLT_TOPIC:messaging.jobs.medium.dlt}
+        partitions: ${KAFKA_MEDIUM_PARTITIONS:6}
+        concurrency: ${KAFKA_MEDIUM_CONCURRENCY:2}
+        max-poll-records: ${KAFKA_MEDIUM_MAX_POLL_RECORDS:50}
+        retention: ${KAFKA_MEDIUM_RETENTION:5d}
+        consumer-group: ${KAFKA_MEDIUM_CONSUMER_GROUP:messaging-medium-workers}
+      low:
+        name: ${KAFKA_LOW_TOPIC:messaging.jobs.low}
+        retry-name: ${KAFKA_LOW_RETRY_TOPIC:messaging.jobs.low.retry}
+        dlt-name: ${KAFKA_LOW_DLT_TOPIC:messaging.jobs.low.dlt}
+        partitions: ${KAFKA_LOW_PARTITIONS:3}
+        concurrency: ${KAFKA_LOW_CONCURRENCY:1}
+        max-poll-records: ${KAFKA_LOW_MAX_POLL_RECORDS:100}
+        retention: ${KAFKA_LOW_RETENTION:7d}
+        consumer-group: ${KAFKA_LOW_CONSUMER_GROUP:messaging-low-workers}
 
 server:
   tomcat:
@@ -9,3 +213,7 @@ server:
       min-spare: 2
     max-connections: 200
     accept-count: 50
+
+logging:
+  level:
+    root: OFF

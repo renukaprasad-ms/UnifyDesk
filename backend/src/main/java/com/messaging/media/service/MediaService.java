@@ -1,0 +1,326 @@
+package com.messaging.media.service;
+
+import com.messaging.common.id.IdGenerator;
+import com.messaging.media.config.MediaStorageProperties;
+import com.messaging.media.config.MediaValidationProperties;
+import com.messaging.media.dto.InitiateMediaUploadRequest;
+import com.messaging.media.dto.InitiateMediaUploadResponse;
+import com.messaging.media.dto.MediaAccessResponse;
+import com.messaging.media.dto.MediaResponse;
+import com.messaging.media.entity.Media;
+import com.messaging.media.enums.MediaPurpose;
+import com.messaging.media.enums.MediaStatus;
+import com.messaging.media.exception.MediaException;
+import com.messaging.media.mapper.MediaMapper;
+import com.messaging.media.provider.SignedDownloadResult;
+import com.messaging.media.provider.SignedUploadRequest;
+import com.messaging.media.provider.SignedUploadResult;
+import com.messaging.media.provider.StorageObjectMetadata;
+import com.messaging.media.provider.StorageProvider;
+import com.messaging.media.provider.StorageProviderResolver;
+import com.messaging.media.repository.MediaRepository;
+import com.messaging.redis.key.RedisKey;
+import com.messaging.redis.service.RedisService;
+import com.messaging.security.service.CurrentUserService;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.util.Base64;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+public class MediaService {
+
+  private static final long PRE_REGISTER_OWNER_ID = 0L;
+
+  private final MediaRepository mediaRepository;
+  private final CurrentUserService currentUserService;
+  private final MediaValidationService validationService;
+  private final MediaObjectKeyFactory objectKeyFactory;
+  private final StorageProviderResolver storageProviderResolver;
+  private final MediaStorageProperties storageProperties;
+  private final MediaValidationProperties validationProperties;
+  private final MediaAuthorizationService authorizationService;
+  private final MediaMapper mediaMapper;
+  private final RedisService redisService;
+  private final SecureRandom secureRandom = new SecureRandom();
+
+  public InitiateMediaUploadResponse initiateUpload(InitiateMediaUploadRequest request) {
+    MediaValidationService.ValidatedMedia validated =
+        validationService.validateForUpload(
+            request.fileName(), request.contentType(), request.sizeBytes());
+    Long userId = currentUserService.currentUserIdOrEmpty().orElse(null);
+    boolean preRegisterUpload = userId == null;
+    if (preRegisterUpload && request.purpose() != MediaPurpose.USER_PROFILE) {
+      throw new MediaException(HttpStatus.BAD_REQUEST, "MEDIA_INVALID_PURPOSE");
+    }
+
+    Media media =
+        preRegisterUpload
+            ? createPreRegisterPendingMedia(request, validated)
+            : createPendingMedia(userId, request, validated);
+    StorageProvider provider = storageProviderResolver.resolve(media.getStorageProvider());
+    SignedUploadResult signedUpload =
+        provider.createSignedUpload(
+            new SignedUploadRequest(
+                media.getBucket(),
+                media.getObjectKey(),
+                media.getContentType(),
+                media.getSizeBytes(),
+                storageProperties.getUploadUrlExpiry()));
+    String uploadToken = preRegisterUpload ? secureToken() : null;
+    if (uploadToken != null) {
+      redisService.set(
+          RedisKey.preRegisterMedia(media.getId().toString()),
+          uploadToken,
+          validationProperties.getPendingTtl());
+    }
+
+    return new InitiateMediaUploadResponse(
+        media.getId().toString(),
+        uploadToken,
+        signedUpload.uploadUrl(),
+        signedUpload.expiresAt(),
+        signedUpload.requiredHeaders());
+  }
+
+  @Transactional
+  protected Media createPendingMedia(
+      long userId,
+      InitiateMediaUploadRequest request,
+      MediaValidationService.ValidatedMedia validated) {
+    long mediaId = IdGenerator.nextId();
+    Media media = new Media();
+    media.setId(mediaId);
+    media.setOwnerUserId(userId);
+    media.setStorageProvider(storageProperties.getDefaultProvider());
+    media.setBucket(storageProperties.getSupabase().getBucket());
+    media.setObjectKey(objectKeyFactory.createTemporaryObjectKey(userId, mediaId, validated.extension()));
+    media.setOriginalFileName(validated.fileName());
+    media.setContentType(validated.contentType());
+    media.setSizeBytes(validated.sizeBytes());
+    media.setMediaType(validated.mediaType());
+    media.setPurpose(request.purpose());
+    media.setStatus(MediaStatus.PENDING);
+    return mediaRepository.saveAndFlush(media);
+  }
+
+  @Transactional
+  protected Media createPreRegisterPendingMedia(
+      InitiateMediaUploadRequest request, MediaValidationService.ValidatedMedia validated) {
+    long mediaId = IdGenerator.nextId();
+    Media media = new Media();
+    media.setId(mediaId);
+    media.setOwnerUserId(PRE_REGISTER_OWNER_ID);
+    media.setStorageProvider(storageProperties.getDefaultProvider());
+    media.setBucket(storageProperties.getSupabase().getBucket());
+    media.setObjectKey(objectKeyFactory.createPreRegisterObjectKey(mediaId, validated.extension()));
+    media.setOriginalFileName(validated.fileName());
+    media.setContentType(validated.contentType());
+    media.setSizeBytes(validated.sizeBytes());
+    media.setMediaType(validated.mediaType());
+    media.setPurpose(request.purpose());
+    media.setStatus(MediaStatus.PENDING);
+    return mediaRepository.saveAndFlush(media);
+  }
+
+  public MediaResponse completeUpload(String mediaId) {
+    long userId = currentUserService.currentUserId();
+    Media media = loadOwnedMedia(parseMediaId(mediaId), userId);
+    if (media.getStatus() == MediaStatus.ACTIVE) {
+      return mediaMapper.toResponse(media);
+    }
+    if (media.getStatus() != MediaStatus.PENDING) {
+      throw new MediaException(HttpStatus.CONFLICT, "MEDIA_INVALID_STATE");
+    }
+
+    return mediaMapper.toResponse(completePendingMedia(media, userId));
+  }
+
+  public Media completePreRegisterProfilePictureUpload(
+      String mediaId, String uploadToken, long userId) {
+    long parsedMediaId = parseMediaId(mediaId);
+    String redisKey = RedisKey.preRegisterMedia(mediaId);
+    String storedToken = redisService.get(redisKey, String.class);
+    if (!tokenMatches(storedToken, uploadToken)) {
+      throw new MediaException(HttpStatus.BAD_REQUEST, "MEDIA_UPLOAD_TOKEN_INVALID");
+    }
+    Media media =
+        mediaRepository
+            .findById(parsedMediaId)
+            .orElseThrow(() -> new MediaException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND"));
+    if (media.getStatus() != MediaStatus.PENDING) {
+      throw new MediaException(HttpStatus.CONFLICT, "MEDIA_INVALID_STATE");
+    }
+    if (media.getOwnerUserId() != PRE_REGISTER_OWNER_ID
+        || media.getPurpose() != MediaPurpose.USER_PROFILE) {
+      throw new MediaException(HttpStatus.BAD_REQUEST, "MEDIA_UPLOAD_TOKEN_INVALID");
+    }
+
+    Media completed = completePendingMedia(media, userId);
+    redisService.delete(redisKey);
+    return completed;
+  }
+
+  private Media completePendingMedia(Media media, long ownerUserId) {
+    StorageProvider provider = storageProviderResolver.resolve(media.getStorageProvider());
+    StorageObjectMetadata metadata =
+        provider.getObjectMetadata(media.getBucket(), media.getObjectKey());
+    try {
+      if (!metadata.exists()) {
+        markFailed(media.getId());
+        throw new MediaException(HttpStatus.BAD_REQUEST, "MEDIA_STORAGE_OBJECT_MISSING");
+      }
+      validationService.validateUploadedObject(
+          media.getContentType(),
+          media.getSizeBytes(),
+          metadata.contentType(),
+          metadata.sizeBytes());
+    } catch (MediaException exception) {
+      markFailed(media.getId());
+      throw exception;
+    }
+
+    String finalObjectKey = finalObjectKey(media, ownerUserId);
+    if (!media.getObjectKey().equals(finalObjectKey)) {
+      provider.move(media.getBucket(), media.getObjectKey(), finalObjectKey);
+    }
+    return markActive(media.getId(), ownerUserId, finalObjectKey, metadata.checksum());
+  }
+
+  public MediaAccessResponse createAccessUrl(String mediaId) {
+    long userId = currentUserService.currentUserId();
+    Media media = loadOwnedMedia(parseMediaId(mediaId), userId);
+    if (media.getStatus() != MediaStatus.ACTIVE) {
+      throw new MediaException(HttpStatus.CONFLICT, "MEDIA_NOT_ACTIVE");
+    }
+    StorageProvider provider = storageProviderResolver.resolve(media.getStorageProvider());
+    SignedDownloadResult signedDownload =
+        provider.createSignedDownloadUrl(
+            media.getBucket(), media.getObjectKey(), storageProperties.getDownloadUrlExpiry());
+    return new MediaAccessResponse(signedDownload.url(), signedDownload.expiresAt());
+  }
+
+  public MediaResponse delete(String mediaId) {
+    long userId = currentUserService.currentUserId();
+    Media media = loadOwnedMedia(parseMediaId(mediaId), userId);
+    if (media.getStatus() == MediaStatus.DELETED) {
+      return mediaMapper.toResponse(media);
+    }
+    Media deleted = markDeleted(media.getId());
+    try {
+      storageProviderResolver
+          .resolve(deleted.getStorageProvider())
+          .delete(deleted.getBucket(), deleted.getObjectKey());
+    } catch (MediaException exception) {
+      // Physical delete failures do not block logical delete.
+    }
+    return mediaMapper.toResponse(deleted);
+  }
+
+  @Transactional(readOnly = true)
+  public Media loadOwnedMedia(long mediaId, long userId) {
+    Media media =
+        mediaRepository
+            .findById(mediaId)
+            .orElseThrow(() -> new MediaException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND"));
+    authorizationService.requireOwner(media, userId);
+    return media;
+  }
+
+  @Transactional(readOnly = true)
+  public Media getActiveOwnedMedia(long mediaId, long userId) {
+    Media media = loadOwnedMedia(mediaId, userId);
+    if (media.getStatus() != MediaStatus.ACTIVE) {
+      throw new MediaException(HttpStatus.CONFLICT, "MEDIA_NOT_ACTIVE");
+    }
+    return media;
+  }
+
+  @Transactional
+  protected Media markActive(long mediaId, Long ownerUserId, String objectKey, String checksum) {
+    Media media =
+        mediaRepository
+            .findById(mediaId)
+            .orElseThrow(() -> new MediaException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND"));
+    if (media.getStatus() == MediaStatus.ACTIVE) {
+      return media;
+    }
+    if (media.getStatus() != MediaStatus.PENDING) {
+      throw new MediaException(HttpStatus.CONFLICT, "MEDIA_INVALID_STATE");
+    }
+    if (objectKey != null) {
+      media.setObjectKey(objectKey);
+    }
+    if (ownerUserId != null) {
+      media.setOwnerUserId(ownerUserId);
+    }
+    media.setStatus(MediaStatus.ACTIVE);
+    media.setCompletedAt(Instant.now());
+    media.setChecksum(checksum);
+    return mediaRepository.saveAndFlush(media);
+  }
+
+  @Transactional
+  protected void markFailed(long mediaId) {
+    mediaRepository
+        .findById(mediaId)
+        .filter(media -> media.getStatus() == MediaStatus.PENDING)
+        .ifPresent(
+            media -> {
+              media.setStatus(MediaStatus.FAILED);
+              mediaRepository.saveAndFlush(media);
+            });
+  }
+
+  @Transactional
+  protected Media markDeleted(long mediaId) {
+    Media media =
+        mediaRepository
+            .findById(mediaId)
+            .orElseThrow(() -> new MediaException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND"));
+    media.setStatus(MediaStatus.DELETED);
+    media.setDeletedAt(Instant.now());
+    return mediaRepository.saveAndFlush(media);
+  }
+
+  private String finalObjectKey(Media media, long ownerUserId) {
+    return objectKeyFactory.createUserObjectKey(
+        ownerUserId, media.getPurpose(), media.getId(), extension(media.getObjectKey()));
+  }
+
+  private String secureToken() {
+    byte[] bytes = new byte[32];
+    secureRandom.nextBytes(bytes);
+    return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+  }
+
+  private boolean tokenMatches(String expected, String actual) {
+    if (expected == null || actual == null) {
+      return false;
+    }
+    return MessageDigest.isEqual(
+        expected.getBytes(StandardCharsets.UTF_8), actual.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private String extension(String objectKey) {
+    int dotIndex = objectKey.lastIndexOf('.');
+    if (dotIndex < 0 || dotIndex == objectKey.length() - 1) {
+      throw new MediaException(HttpStatus.BAD_REQUEST, "MEDIA_INVALID_EXTENSION");
+    }
+    return objectKey.substring(dotIndex + 1);
+  }
+
+  private long parseMediaId(String mediaId) {
+    try {
+      return Long.parseLong(mediaId);
+    } catch (NumberFormatException exception) {
+      throw new MediaException(HttpStatus.BAD_REQUEST, "MEDIA_INVALID_ID");
+    }
+  }
+}
