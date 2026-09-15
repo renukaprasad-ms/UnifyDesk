@@ -1,13 +1,3 @@
--- Billing catalog and usage history
--- Added tables represented by JPA entities:
--- - plans
--- - plan_entitlements
--- - company_subscriptions
--- - rate_cards
--- - usage_events
---
--- Initial FREE plan seed. Apply after the billing tables exist.
-
 insert into plans (
   id,
   code,

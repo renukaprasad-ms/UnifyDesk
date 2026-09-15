@@ -8,8 +8,16 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
     open-in-view: false
+  flyway:
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
+    url: ${SPRING_FLYWAY_URL:${APP_DATASOURCE_WRITE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5001/messaging}}}
+    user: ${SPRING_FLYWAY_USER:${APP_DATASOURCE_WRITE_USERNAME:${SPRING_DATASOURCE_USERNAME:messaging}}}
+    password: ${SPRING_FLYWAY_PASSWORD:${APP_DATASOURCE_WRITE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:messaging}}}
+    locations: classpath:db/migration
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: ${FLYWAY_BASELINE_VERSION:0}
   data:
     redis:
       host: ${REDIS_HOST:${SPRING_DATA_REDIS_HOST:localhost}}
