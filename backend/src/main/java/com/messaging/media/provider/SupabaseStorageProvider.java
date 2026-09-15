@@ -62,7 +62,7 @@ public class SupabaseStorageProvider implements StorageProvider {
     try {
       return restClient
           .head()
-          .uri(storageUri("/object/info/authenticated/%s/%s", bucket, objectKey))
+          .uri(storageUri("/object/authenticated/%s/%s", bucket, objectKey))
           .headers(this::addAuthHeaders)
           .exchange(
               (request, response) -> {

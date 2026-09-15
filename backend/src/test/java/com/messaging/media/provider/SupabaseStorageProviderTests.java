@@ -95,7 +95,7 @@ class SupabaseStorageProviderTests {
         .expect(
             once(),
             requestTo(
-                "https://project.supabase.co/storage/v1/object/info/authenticated/private-media/users/1/profile/2.jpg"))
+                "https://project.supabase.co/storage/v1/object/authenticated/private-media/users/1/profile/2.jpg"))
         .andExpect(method(HttpMethod.HEAD))
         .andRespond(
             withSuccess()
