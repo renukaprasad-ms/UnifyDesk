@@ -155,16 +155,29 @@ public class MediaService {
 
   public Media completePreRegisterProfilePictureUpload(
       String mediaId, String uploadToken, long userId) {
+    long startedAt = System.nanoTime();
     long parsedMediaId = parseMediaId(mediaId);
     String redisKey = RedisKey.preRegisterMedia(mediaId);
+    long redisGetStartedAt = System.nanoTime();
     String storedToken = redisService.get(redisKey, String.class);
+    LOGGER.info(
+        "Pre-register profile picture step completed step=loadUploadToken mediaId={} userId={} durationMs={}",
+        mediaId,
+        userId,
+        elapsedMs(redisGetStartedAt));
     if (!tokenMatches(storedToken, uploadToken)) {
       throw new MediaException(HttpStatus.BAD_REQUEST, "MEDIA_UPLOAD_TOKEN_INVALID");
     }
+    long dbLoadStartedAt = System.nanoTime();
     Media media =
         mediaRepository
             .findById(parsedMediaId)
             .orElseThrow(() -> new MediaException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND"));
+    LOGGER.info(
+        "Pre-register profile picture step completed step=loadMedia mediaId={} userId={} durationMs={}",
+        mediaId,
+        userId,
+        elapsedMs(dbLoadStartedAt));
     if (media.getStatus() != MediaStatus.PENDING) {
       throw new MediaException(HttpStatus.CONFLICT, "MEDIA_INVALID_STATE");
     }
@@ -173,15 +186,40 @@ public class MediaService {
       throw new MediaException(HttpStatus.BAD_REQUEST, "MEDIA_UPLOAD_TOKEN_INVALID");
     }
 
+    long completeStartedAt = System.nanoTime();
     Media completed = completePendingMedia(media, userId);
+    LOGGER.info(
+        "Pre-register profile picture step completed step=completePendingMedia mediaId={} userId={} durationMs={}",
+        mediaId,
+        userId,
+        elapsedMs(completeStartedAt));
+    long redisDeleteStartedAt = System.nanoTime();
     redisService.delete(redisKey);
+    LOGGER.info(
+        "Pre-register profile picture step completed step=deleteUploadToken mediaId={} userId={} durationMs={}",
+        mediaId,
+        userId,
+        elapsedMs(redisDeleteStartedAt));
+    LOGGER.info(
+        "Pre-register profile picture completed mediaId={} userId={} totalDurationMs={}",
+        mediaId,
+        userId,
+        elapsedMs(startedAt));
     return completed;
   }
 
   private Media completePendingMedia(Media media, long ownerUserId) {
+    long startedAt = System.nanoTime();
     StorageProvider provider = storageProviderResolver.resolve(media.getStorageProvider());
+    long metadataStartedAt = System.nanoTime();
     StorageObjectMetadata metadata =
         provider.getObjectMetadata(media.getBucket(), media.getObjectKey());
+    LOGGER.info(
+        "Media completion step completed step=getObjectMetadata mediaId={} userId={} provider={} durationMs={}",
+        media.getId(),
+        ownerUserId,
+        media.getStorageProvider(),
+        elapsedMs(metadataStartedAt));
     try {
       if (!metadata.exists()) {
         markFailed(media.getId());
@@ -199,9 +237,28 @@ public class MediaService {
 
     String finalObjectKey = finalObjectKey(media, ownerUserId);
     if (!media.getObjectKey().equals(finalObjectKey)) {
+      long moveStartedAt = System.nanoTime();
       provider.move(media.getBucket(), media.getObjectKey(), finalObjectKey);
+      LOGGER.info(
+          "Media completion step completed step=moveObject mediaId={} userId={} provider={} durationMs={}",
+          media.getId(),
+          ownerUserId,
+          media.getStorageProvider(),
+          elapsedMs(moveStartedAt));
     }
-    return markActive(media.getId(), ownerUserId, finalObjectKey, metadata.checksum());
+    long markActiveStartedAt = System.nanoTime();
+    Media completed = markActive(media.getId(), ownerUserId, finalObjectKey, metadata.checksum());
+    LOGGER.info(
+        "Media completion step completed step=markActive mediaId={} userId={} durationMs={}",
+        media.getId(),
+        ownerUserId,
+        elapsedMs(markActiveStartedAt));
+    LOGGER.info(
+        "Media completion completed mediaId={} userId={} totalDurationMs={}",
+        media.getId(),
+        ownerUserId,
+        elapsedMs(startedAt));
+    return completed;
   }
 
   public MediaAccessResponse createAccessUrl(String mediaId) {
@@ -344,5 +401,9 @@ public class MediaService {
     } catch (NumberFormatException exception) {
       throw new MediaException(HttpStatus.BAD_REQUEST, "MEDIA_INVALID_ID");
     }
+  }
+
+  private long elapsedMs(long startedAt) {
+    return (System.nanoTime() - startedAt) / 1_000_000;
   }
 }
