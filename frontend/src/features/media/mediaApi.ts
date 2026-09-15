@@ -1,7 +1,7 @@
 import axios from 'axios'
 import apiClient, { type ApiRequestConfig } from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
-import type { InitiateMediaUploadResponse, MediaPurpose } from './types'
+import type { InitiateMediaUploadResponse, MediaAccessResponse, MediaPurpose } from './types'
 
 const unwrap = <T>(response: ApiResponse<T>) => {
   if (!response.data) {
@@ -42,4 +42,10 @@ export const mediaApi = {
     })
   },
 
+  async access(mediaId: string) {
+    const response = await apiClient.get<ApiResponse<MediaAccessResponse>>(
+      `/api/v1/media/${mediaId}/access`,
+    )
+    return unwrap(response.data)
+  },
 }

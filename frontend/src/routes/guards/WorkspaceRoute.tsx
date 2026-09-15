@@ -4,13 +4,13 @@ import type { RootState } from '../../store/store'
 
 export default function WorkspaceRoute() {
   const user = useSelector((state: RootState) => state.user.user)
-  const selectedCompany = useSelector((state: RootState) => state.user.selectedCompany)
+  const selectedCompanyId = useSelector((state: RootState) => state.user.selectedCompanyId)
 
   if (!user?.hasCompanies) {
     return <Navigate to="/create-workspace" replace />
   }
 
-  if (!selectedCompany) {
+  if (!selectedCompanyId) {
     return <Navigate to="/select-workspace" replace />
   }
 

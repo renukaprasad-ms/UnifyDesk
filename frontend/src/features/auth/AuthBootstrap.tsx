@@ -1,7 +1,13 @@
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { authApi } from './authApi'
-import { clearAuthUser, setAuthUser, setBootstrapped } from '../../store/user/userSlice'
+import {
+  clearAuthUser,
+  selectCompany,
+  setAuthUser,
+  setBootstrapped,
+} from '../../store/user/userSlice'
+import { readSelectedCompanyId } from '../../store/store'
 import type { AppDispatch, RootState } from '../../store/store'
 
 export default function AuthBootstrap({ children }: { children: React.ReactNode }) {
@@ -14,7 +20,12 @@ export default function AuthBootstrap({ children }: { children: React.ReactNode 
     authApi
       .refresh()
       .then((user) => {
-        if (active) dispatch(setAuthUser(user))
+        if (!active) return
+        dispatch(setAuthUser(user))
+        const selectedCompanyId = readSelectedCompanyId()
+        if (user.hasCompanies && selectedCompanyId) {
+          dispatch(selectCompany(selectedCompanyId))
+        }
       })
       .catch(() => {
         if (active) dispatch(clearAuthUser())

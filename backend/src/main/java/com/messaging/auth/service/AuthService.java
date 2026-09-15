@@ -143,8 +143,10 @@ public class AuthService {
     long companyCount = companyService.companyCountForUser(user.getId());
     return new AuthUserResponse(
         user.getId().toString(),
+        user.getName(),
         user.getUsername(),
         user.getEmail(),
+        user.getProfilePicture() == null ? null : user.getProfilePicture().getId().toString(),
         user.isVerified(),
         companyCount > 0,
         companyCount);

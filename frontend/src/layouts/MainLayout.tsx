@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { FiHome, FiShield } from 'react-icons/fi'
 import { NavLink, Outlet } from 'react-router'
 import Header from '../components/Header'
+import WorkspaceSwitcher from '../components/WorkspaceSwitcher'
 
 export default function MainLayout() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -18,19 +19,9 @@ export default function MainLayout() {
         />
       )}
       <aside id="main-navigation" className={`app-sidebar ${menuOpen ? 'is-open' : ''}`}>
-        <NavLink
-          to="/"
-          className="flex items-center gap-3 px-1 pb-8 pt-1"
-          onClick={() => setMenuOpen(false)}
-        >
-          <span
-            className="flex size-[34px] items-center justify-center rounded-[10px] bg-indigo-500 text-sm font-bold text-white"
-            aria-hidden="true"
-          >
-            ...
-          </span>
-          <span className="text-[19px] font-bold tracking-tight">Messaging</span>
-        </NavLink>
+        <div className="pb-8 pt-1">
+          <WorkspaceSwitcher />
+        </div>
         <nav aria-label="Main navigation" className="space-y-1" onClick={() => setMenuOpen(false)}>
           <p className="sidebar-label">APP</p>
           <NavLink to="/" end className={linkClass}>

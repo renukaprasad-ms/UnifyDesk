@@ -1,6 +1,7 @@
+import { useEffect, useState } from 'react'
 import { FiMenu } from 'react-icons/fi'
 import { useSelector } from 'react-redux'
-import { useLocation } from 'react-router'
+import { mediaApi } from '../features/media/mediaApi'
 import type { RootState } from '../store/store'
 
 export default function Header({
@@ -10,9 +11,38 @@ export default function Header({
   menuOpen: boolean
   onToggleMenu: () => void
 }) {
-  const { pathname } = useLocation()
-  const selectedCompany = useSelector((state: RootState) => state.user.selectedCompany)
-  const title = pathname === '/auth' ? 'Auth layout' : 'Home'
+  const user = useSelector((state: RootState) => state.user.user)
+  const [profilePictureUrl, setProfilePictureUrl] = useState('')
+  const displayName = user?.name || user?.username || 'User'
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('')
+    .slice(0, 2)
+
+  useEffect(() => {
+    let active = true
+
+    if (!user?.profilePictureMediaId) {
+      setProfilePictureUrl('')
+      return
+    }
+
+    mediaApi
+      .access(user.profilePictureMediaId)
+      .then((access) => {
+        if (active) setProfilePictureUrl(access.url)
+      })
+      .catch(() => {
+        if (active) setProfilePictureUrl('')
+      })
+
+    return () => {
+      active = false
+    }
+  }, [user?.profilePictureMediaId])
 
   return (
     <header className="app-header">
@@ -27,25 +57,22 @@ export default function Header({
           <FiMenu aria-hidden="true" />
         </button>
         <div className="flex items-center gap-3">
-          <span className="flex size-9 items-center justify-center rounded-[10px] bg-indigo-500 text-sm font-bold text-white">
-            ...
+          <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
+            {profilePictureUrl ? (
+              <img src={profilePictureUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              initials || 'U'
+            )}
           </span>
-          <div>
-            <p className="text-lg font-semibold tracking-tight">Messaging</p>
-            <p className="mt-1 hidden text-[11px] text-slate-500 sm:block">{title}</p>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-slate-950">{displayName}</p>
+            <p className="mt-0.5 hidden truncate text-[11px] text-slate-500 sm:block">
+              {user?.email}
+            </p>
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-3">
-        {selectedCompany && (
-          <span className="hidden max-w-[220px] truncate rounded-[8px] border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 sm:inline">
-            {selectedCompany.name}
-          </span>
-        )}
-        <span className="flex size-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
-          U
-        </span>
-      </div>
+      <div />
     </header>
   )
 }

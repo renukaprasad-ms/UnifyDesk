@@ -1,11 +1,12 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type { AuthUser } from '../../features/auth/types'
 import type { Company } from '../../features/company/types'
+import type { RootState } from '../store'
 
 type UserState = {
   user: AuthUser | null
   companies: Company[]
-  selectedCompany: Company | null
+  selectedCompanyId: string | null
   isAuthenticated: boolean
   bootstrapped: boolean
 }
@@ -13,7 +14,7 @@ type UserState = {
 const initialState: UserState = {
   user: null,
   companies: [],
-  selectedCompany: null,
+  selectedCompanyId: null,
   isAuthenticated: false,
   bootstrapped: false,
 }
@@ -28,13 +29,13 @@ const userSlice = createSlice({
       state.bootstrapped = true
       if (!action.payload.hasCompanies) {
         state.companies = []
-        state.selectedCompany = null
+        state.selectedCompanyId = null
       }
     },
     clearAuthUser: (state) => {
       state.user = null
       state.companies = []
-      state.selectedCompany = null
+      state.selectedCompanyId = null
       state.isAuthenticated = false
       state.bootstrapped = true
     },
@@ -45,17 +46,17 @@ const userSlice = createSlice({
         state.user.companyCount = action.payload.length
       }
       if (
-        state.selectedCompany &&
-        !action.payload.some((company) => company.companyId === state.selectedCompany?.companyId)
+        state.selectedCompanyId &&
+        !action.payload.some((company) => company.companyId === state.selectedCompanyId)
       ) {
-        state.selectedCompany = null
+        state.selectedCompanyId = null
       }
-      if (!state.selectedCompany && action.payload.length === 1) {
-        state.selectedCompany = action.payload[0]
+      if (!state.selectedCompanyId && action.payload.length === 1) {
+        state.selectedCompanyId = action.payload[0].companyId
       }
     },
-    selectCompany: (state, action: PayloadAction<Company>) => {
-      state.selectedCompany = action.payload
+    selectCompany: (state, action: PayloadAction<string>) => {
+      state.selectedCompanyId = action.payload
     },
     setBootstrapped: (state) => {
       state.bootstrapped = true
@@ -65,4 +66,8 @@ const userSlice = createSlice({
 
 export const { setAuthUser, clearAuthUser, setCompanies, selectCompany, setBootstrapped } =
   userSlice.actions
+
+export const selectSelectedCompany = (state: RootState) =>
+  state.user.companies.find((company) => company.companyId === state.user.selectedCompanyId) ?? null
+
 export default userSlice.reducer

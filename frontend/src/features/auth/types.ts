@@ -1,7 +1,9 @@
 export type AuthUser = {
   userId: string
+  name: string
   username: string
   email: string
+  profilePictureMediaId?: string | null
   verified: boolean
   hasCompanies: boolean
   companyCount: number

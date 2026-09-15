@@ -9,4 +9,6 @@ public interface CompanyRolePermissionRepository
     extends JpaRepository<CompanyRolePermission, Long> {
 
   List<CompanyRolePermission> findByCompanyIdAndRole(Long companyId, CompanyRole role);
+
+  List<CompanyRolePermission> findByCompanyIsNullAndRole(CompanyRole role);
 }

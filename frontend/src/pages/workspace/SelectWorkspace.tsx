@@ -24,7 +24,7 @@ export default function SelectWorkspace() {
         if (!active) return
         dispatch(setCompanies(items))
         if (items.length === 1) {
-          dispatch(selectCompany(items[0]))
+          dispatch(selectCompany(items[0].companyId))
           navigate('/', { replace: true })
         }
       })
@@ -63,7 +63,7 @@ export default function SelectWorkspace() {
                 type="button"
                 className="flex min-h-[58px] w-full items-center justify-between rounded-[8px] border border-slate-200 bg-white px-4 text-left hover:border-indigo-500 hover:bg-indigo-50"
                 onClick={() => {
-                  dispatch(selectCompany(company))
+                  dispatch(selectCompany(company.companyId))
                   navigate('/', { replace: true })
                 }}
               >

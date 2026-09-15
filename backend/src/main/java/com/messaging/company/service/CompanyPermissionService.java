@@ -52,11 +52,27 @@ public class CompanyPermissionService {
       return EnumSet.allOf(CompanyPermission.class);
     }
 
-    EnumSet<CompanyPermission> permissions =
-        EnumSet.copyOf(roleDefaults.permissionsFor(member.getRole()));
+    EnumSet<CompanyPermission> permissions = globalRolePermissions(member.getRole());
     applyCompanyRoleOverrides(companyId, member.getRole(), permissions);
     applyAccessProfiles(companyId, userId, permissions);
     applyUserOverrides(companyId, userId, permissions);
+    return permissions;
+  }
+
+  private EnumSet<CompanyPermission> globalRolePermissions(CompanyRole role) {
+    List<CompanyRolePermission> seededPermissions =
+        rolePermissionRepository.findByCompanyIsNullAndRole(role);
+    if (seededPermissions.isEmpty()) {
+      return EnumSet.copyOf(roleDefaults.permissionsFor(role));
+    }
+
+    EnumSet<CompanyPermission> permissions = EnumSet.noneOf(CompanyPermission.class);
+    seededPermissions.forEach(
+        rolePermission -> {
+          if (rolePermission.getEffect() == PermissionEffect.ALLOW) {
+            permissions.add(rolePermission.getPermission());
+          }
+        });
     return permissions;
   }
 

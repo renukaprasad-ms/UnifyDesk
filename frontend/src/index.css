@@ -181,7 +181,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    width: min(260px, 42vw);
+    width: 100%;
     min-height: 38px;
     border: 1px solid #e0e5f0;
     border-radius: 9px;
@@ -193,10 +193,10 @@
   }
   .workspace-menu {
     position: absolute;
-    right: 0;
+    left: 0;
     top: calc(100% + 8px);
     z-index: 30;
-    width: min(300px, 82vw);
+    width: min(300px, calc(100vw - 34px));
     overflow: hidden;
     border: 1px solid #e0e5f0;
     border-radius: 9px;

@@ -6,6 +6,7 @@ import Register from '../pages/auth/Register'
 import VerifyOtp from '../pages/auth/VerifyOtp'
 import Home from '../pages/home/Home'
 import CreateWorkspace from '../pages/workspace/CreateWorkspace'
+import SelectPlan from '../pages/workspace/SelectPlan'
 import SelectWorkspace from '../pages/workspace/SelectWorkspace'
 import GuestRoute from './guards/GuestRoute'
 import ProtectedRoute from './guards/ProtectedRoute'
@@ -28,6 +29,7 @@ const AppRoutes = () => {
         <Route element={<VerifiedRoute />}>
           <Route path="/select-workspace" element={<SelectWorkspace />} />
           <Route path="/create-workspace" element={<CreateWorkspace />} />
+          <Route path="/select-plan/:companyId" element={<SelectPlan />} />
           <Route element={<WorkspaceRoute />}>
             <Route element={<MainLayout />}>
               <Route index element={<Home />} />

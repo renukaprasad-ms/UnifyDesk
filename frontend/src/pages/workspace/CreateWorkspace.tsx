@@ -1,13 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router'
 import { apiErrorMessage } from '../../lib/api/apiClient'
-import type { AppDispatch } from '../../store/store'
-import { selectCompany, setCompanies } from '../../store/user/userSlice'
 import { companyApi } from '../../features/company/companyApi'
 
 export default function CreateWorkspace() {
-  const dispatch = useDispatch<AppDispatch>()
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [businessEmail, setBusinessEmail] = useState('')
@@ -27,10 +23,7 @@ export default function CreateWorkspace() {
         country,
         timezone,
       })
-      const companies = await companyApi.myCompanies()
-      dispatch(setCompanies(companies))
-      dispatch(selectCompany(company))
-      navigate('/', { replace: true })
+      navigate(`/select-plan/${company.companyId}`, { replace: true })
     } catch (submitError) {
       setError(apiErrorMessage(submitError, 'Unable to create workspace'))
     } finally {

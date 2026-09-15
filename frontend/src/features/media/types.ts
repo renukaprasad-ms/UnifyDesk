@@ -12,3 +12,8 @@ export type MediaResponse = {
   mediaId: string
   status: 'PENDING' | 'ACTIVE' | 'FAILED' | 'DELETED'
 }
+
+export type MediaAccessResponse = {
+  url: string
+  expiresAt: string
+}
