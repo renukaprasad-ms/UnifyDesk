@@ -11,6 +11,9 @@ import com.messaging.company.enums.CompanyRole;
 import com.messaging.company.enums.CompanyStatus;
 import com.messaging.company.repository.CompanyMemberRepository;
 import com.messaging.company.repository.CompanyRepository;
+import com.messaging.media.entity.Media;
+import com.messaging.media.enums.MediaPurpose;
+import com.messaging.media.service.MediaService;
 import com.messaging.security.service.CurrentUserService;
 import com.messaging.user.entity.User;
 import com.messaging.user.repository.UserRepository;
@@ -29,6 +32,7 @@ public class CompanyService {
   private final CompanyMemberRepository memberRepository;
   private final UserRepository userRepository;
   private final CurrentUserService currentUserService;
+  private final MediaService mediaService;
 
   @Transactional
   public CompanyResponse create(CreateCompanyRequest request) {
@@ -41,6 +45,7 @@ public class CompanyService {
     company.setBusinessEmail(normalizeOptional(request.businessEmail()));
     company.setCountry(normalizeOptional(request.country()));
     company.setTimezone(normalizeOptional(request.timezone()));
+    company.setLogoMediaId(resolveLogoMediaId(request.logoMediaId(), userId));
     company.setStatus(CompanyStatus.ACTIVE);
     company.setCreatedBy(user);
     company = companyRepository.saveAndFlush(company);
@@ -87,8 +92,26 @@ public class CompanyService {
         company.getBusinessEmail(),
         company.getCountry(),
         company.getTimezone(),
+        company.getLogoMediaId() == null ? null : company.getLogoMediaId().toString(),
         company.getStatus(),
         role);
+  }
+
+  private Long resolveLogoMediaId(String logoMediaId, long userId) {
+    if (logoMediaId == null || logoMediaId.isBlank()) {
+      return null;
+    }
+    long parsedLogoMediaId;
+    try {
+      parsedLogoMediaId = Long.parseLong(logoMediaId);
+    } catch (NumberFormatException exception) {
+      throw new BadRequestException("Invalid company logo media id");
+    }
+    Media media = mediaService.getActiveOwnedMedia(parsedLogoMediaId, userId);
+    if (media.getPurpose() != MediaPurpose.COMPANY_LOGO) {
+      throw new BadRequestException("Invalid company logo media purpose");
+    }
+    return parsedLogoMediaId;
   }
 
   private String normalizeOptional(String value) {

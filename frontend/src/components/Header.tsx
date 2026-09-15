@@ -56,23 +56,20 @@ export default function Header({
         >
           <FiMenu aria-hidden="true" />
         </button>
-        <div className="flex items-center gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
-            {profilePictureUrl ? (
-              <img src={profilePictureUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              initials || 'U'
-            )}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-slate-950">{displayName}</p>
-            <p className="mt-0.5 hidden truncate text-[11px] text-slate-500 sm:block">
-              {user?.email}
-            </p>
-          </div>
+      </div>
+      <div className="ml-auto flex min-w-0 items-center gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
+          {profilePictureUrl ? (
+            <img src={profilePictureUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            initials || 'U'
+          )}
+        </span>
+        <div className="hidden min-w-0 text-right sm:block">
+          <p className="truncate text-sm font-semibold text-slate-950">{displayName}</p>
+          <p className="mt-0.5 truncate text-[11px] text-slate-500">{user?.email}</p>
         </div>
       </div>
-      <div />
     </header>
   )
 }

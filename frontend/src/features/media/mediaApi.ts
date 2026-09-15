@@ -11,19 +11,27 @@ const unwrap = <T>(response: ApiResponse<T>) => {
 }
 
 export const mediaApi = {
-  async initiateProfilePictureUpload(file: File) {
-    const skipAuthRefreshConfig: ApiRequestConfig = { _skipAuthRefresh: true }
+  async initiateUpload(file: File, purpose: MediaPurpose, skipAuthRefresh = false) {
+    const config: ApiRequestConfig | undefined = skipAuthRefresh ? { _skipAuthRefresh: true } : undefined
     const initiate = await apiClient.post<ApiResponse<InitiateMediaUploadResponse>>(
       '/api/v1/media/uploads',
       {
         fileName: file.name,
         contentType: file.type,
         sizeBytes: file.size,
-        purpose: 'USER_PROFILE' satisfies MediaPurpose,
+        purpose,
       },
-      skipAuthRefreshConfig,
+      config,
     )
     return unwrap(initiate.data)
+  },
+
+  async initiateProfilePictureUpload(file: File) {
+    return mediaApi.initiateUpload(file, 'USER_PROFILE', true)
+  },
+
+  async initiateCompanyLogoUpload(file: File) {
+    return mediaApi.initiateUpload(file, 'COMPANY_LOGO')
   },
 
   async uploadFileToStorage(
@@ -46,6 +54,11 @@ export const mediaApi = {
     const response = await apiClient.get<ApiResponse<MediaAccessResponse>>(
       `/api/v1/media/${mediaId}/access`,
     )
+    return unwrap(response.data)
+  },
+
+  async completeUpload(mediaId: string) {
+    const response = await apiClient.post<ApiResponse<unknown>>(`/api/v1/media/${mediaId}/complete`)
     return unwrap(response.data)
   },
 }

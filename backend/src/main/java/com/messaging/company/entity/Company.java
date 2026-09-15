@@ -51,6 +51,9 @@ public class Company {
   @Column(length = 80)
   private String timezone;
 
+  @Column(name = "logo_media_id")
+  private Long logoMediaId;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
   private CompanyStatus status;

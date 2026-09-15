@@ -10,5 +10,6 @@ public record CompanyResponse(
     String businessEmail,
     String country,
     String timezone,
+    String logoMediaId,
     CompanyStatus status,
     CompanyRole role) {}

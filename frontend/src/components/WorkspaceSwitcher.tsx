@@ -3,8 +3,18 @@ import { FiCheck, FiChevronDown, FiPlus } from 'react-icons/fi'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router'
 import { companyApi } from '../features/company/companyApi'
+import { mediaApi } from '../features/media/mediaApi'
 import type { AppDispatch, RootState } from '../store/store'
 import { selectCompany, selectSelectedCompany, setCompanies } from '../store/user/userSlice'
+
+const companyInitials = (name: string) =>
+  name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('')
+    .slice(0, 2) || 'CO'
 
 export default function WorkspaceSwitcher() {
   const dispatch = useDispatch<AppDispatch>()
@@ -16,6 +26,7 @@ export default function WorkspaceSwitcher() {
   const selectedCompany = useSelector(selectSelectedCompany)
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [logoUrls, setLogoUrls] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (!open) return
@@ -50,7 +61,37 @@ export default function WorkspaceSwitcher() {
     }
   }, [companies.length, dispatch, open, selectedCompanyId, user?.hasCompanies])
 
+  useEffect(() => {
+    let active = true
+    const companiesWithLogos = companies.filter(
+      (company) => company.logoMediaId && !logoUrls[company.companyId],
+    )
+    if (companiesWithLogos.length === 0) return
+
+    Promise.all(
+      companiesWithLogos.map(async (company) => {
+        try {
+          const access = await mediaApi.access(company.logoMediaId!)
+          return [company.companyId, access.url] as const
+        } catch {
+          return [company.companyId, ''] as const
+        }
+      }),
+    ).then((entries) => {
+      if (!active) return
+      setLogoUrls((current) => ({
+        ...current,
+        ...Object.fromEntries(entries.filter(([, url]) => url)),
+      }))
+    })
+
+    return () => {
+      active = false
+    }
+  }, [companies, logoUrls])
+
   const label = selectedCompany?.name ?? 'Select workspace'
+  const selectedLogoUrl = selectedCompany ? logoUrls[selectedCompany.companyId] : ''
 
   return (
     <div ref={menuRef} className="relative">
@@ -61,6 +102,15 @@ export default function WorkspaceSwitcher() {
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
+        <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-indigo-50 text-[11px] font-bold text-indigo-500">
+          {selectedLogoUrl ? (
+            <img src={selectedLogoUrl} alt="" className="h-full w-full object-cover" />
+          ) : selectedCompany ? (
+            companyInitials(selectedCompany.name)
+          ) : (
+            'WS'
+          )}
+        </span>
         <span className="min-w-0">
           <span className="block truncate text-[13px] font-semibold text-slate-950">{label}</span>
           <span className="mt-0.5 block text-[10px] font-medium text-slate-500">Workspace</span>
@@ -85,6 +135,17 @@ export default function WorkspaceSwitcher() {
                   navigate('/', { replace: true })
                 }}
               >
+                <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-indigo-50 text-[11px] font-bold text-indigo-500">
+                  {logoUrls[company.companyId] ? (
+                    <img
+                      src={logoUrls[company.companyId]}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    companyInitials(company.name)
+                  )}
+                </span>
                 <span className="min-w-0">
                   <span className="block truncate">{company.name}</span>
                   <span className="mt-0.5 block text-[10px] font-medium text-slate-500">

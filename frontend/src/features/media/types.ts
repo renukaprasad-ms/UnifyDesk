@@ -1,4 +1,4 @@
-export type MediaPurpose = 'USER_PROFILE'
+export type MediaPurpose = 'USER_PROFILE' | 'COMPANY_LOGO'
 
 export type InitiateMediaUploadResponse = {
   mediaId: string

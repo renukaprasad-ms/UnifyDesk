@@ -9,6 +9,7 @@ export type Company = {
   businessEmail?: string | null
   country?: string | null
   timezone?: string | null
+  logoMediaId?: string | null
   status: CompanyStatus
   role: CompanyRole
 }
@@ -18,4 +19,5 @@ export type CreateCompanyPayload = {
   businessEmail?: string
   country?: string
   timezone?: string
+  logoMediaId?: string
 }
