@@ -53,7 +53,7 @@ spring:
         request.timeout.ms: ${KAFKA_REQUEST_TIMEOUT_MS:30000}
         linger.ms: ${KAFKA_LINGER_MS:5}
         batch.size: ${KAFKA_BATCH_SIZE:16384}
-        compression.type: ${KAFKA_COMPRESSION_TYPE:snappy}
+        compression.type: ${KAFKA_COMPRESSION_TYPE:none}
         max.in.flight.requests.per.connection: ${KAFKA_MAX_IN_FLIGHT_REQUESTS:5}
         spring.json.add.type.headers: false
     consumer:

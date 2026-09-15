@@ -28,7 +28,7 @@ public class KafkaProducerConfig {
       @Value("${KAFKA_REQUEST_TIMEOUT_MS:30000}") int requestTimeoutMs,
       @Value("${KAFKA_LINGER_MS:10}") int lingerMs,
       @Value("${KAFKA_BATCH_SIZE:32768}") int batchSize,
-      @Value("${KAFKA_COMPRESSION_TYPE:snappy}") String compressionType,
+      @Value("${KAFKA_COMPRESSION_TYPE:none}") String compressionType,
       @Value("${KAFKA_MAX_IN_FLIGHT_REQUESTS:5}") int maxInFlightRequests,
       com.messaging.kafka.config.KafkaProperties appKafkaProperties,
       ObjectMapper objectMapper) {
