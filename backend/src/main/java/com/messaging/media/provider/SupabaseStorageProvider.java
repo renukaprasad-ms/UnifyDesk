@@ -7,8 +7,6 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -22,8 +20,6 @@ import org.springframework.web.util.UriUtils;
 
 @Component
 public class SupabaseStorageProvider implements StorageProvider {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(SupabaseStorageProvider.class);
 
   private final MediaStorageProperties properties;
   private final RestClient restClient;
@@ -48,7 +44,6 @@ public class SupabaseStorageProvider implements StorageProvider {
             "create signed upload");
     String signedUrl = firstText(body, "signedURL", "signedUrl", "url");
     if (!StringUtils.hasText(signedUrl)) {
-      LOGGER.warn("Supabase signed upload response did not include a URL");
       throw new MediaException(HttpStatus.SERVICE_UNAVAILABLE, "MEDIA_STORAGE_ERROR");
     }
     return new SignedUploadResult(
@@ -109,7 +104,6 @@ public class SupabaseStorageProvider implements StorageProvider {
             "create signed download");
     String signedUrl = firstText(body, "signedURL", "signedUrl", "url");
     if (!StringUtils.hasText(signedUrl)) {
-      LOGGER.warn("Supabase signed download response did not include a URL");
       throw new MediaException(HttpStatus.SERVICE_UNAVAILABLE, "MEDIA_STORAGE_ERROR");
     }
     return new SignedDownloadResult(absoluteStorageUrl(signedUrl), expiresAt);
@@ -224,10 +218,6 @@ public class SupabaseStorageProvider implements StorageProvider {
           responseException.getStatusCode().value(),
           responseException.getResponseBodyAsString());
     }
-    LOGGER.warn(
-        "Supabase storage operation failed operation={} error={}",
-        operation,
-        exception.getClass().getSimpleName());
     return new MediaException(HttpStatus.SERVICE_UNAVAILABLE, "MEDIA_STORAGE_ERROR", exception);
   }
 
@@ -236,15 +226,6 @@ public class SupabaseStorageProvider implements StorageProvider {
   }
 
   private MediaException storageException(String operation, int status, String responseBody) {
-    String trimmedBody =
-        responseBody == null || responseBody.isBlank()
-            ? ""
-            : responseBody.substring(0, Math.min(responseBody.length(), 300));
-    LOGGER.warn(
-        "Supabase storage operation failed operation={} status={} response={}",
-        operation,
-        status,
-        trimmedBody);
     if (status == HttpStatus.NOT_FOUND.value()) {
       return new MediaException(HttpStatus.SERVICE_UNAVAILABLE, "MEDIA_BUCKET_NOT_FOUND");
     }

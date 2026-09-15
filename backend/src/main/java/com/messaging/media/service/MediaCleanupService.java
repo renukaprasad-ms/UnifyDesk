@@ -8,16 +8,12 @@ import com.messaging.media.repository.MediaRepository;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class MediaCleanupService {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(MediaCleanupService.class);
 
   private final MediaRepository mediaRepository;
   private final MediaValidationProperties validationProperties;
@@ -45,10 +41,7 @@ public class MediaCleanupService {
             .resolve(media.getStorageProvider())
             .delete(media.getBucket(), media.getObjectKey());
       } catch (RuntimeException exception) {
-        LOGGER.warn(
-            "Expired pending media cleanup storage step failed mediaId={}",
-            media.getId(),
-            exception);
+        // Storage cleanup failure does not block marking the expired upload deleted.
       }
       media.setStatus(MediaStatus.DELETED);
       media.setDeletedAt(Instant.now());

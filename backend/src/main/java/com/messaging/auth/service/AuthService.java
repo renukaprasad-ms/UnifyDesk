@@ -19,7 +19,6 @@ import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -27,7 +26,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class AuthService {
 
   private static final int MAX_IP_LENGTH = 45;
@@ -44,10 +42,6 @@ public class AuthService {
   @Transactional
   public AuthUserResponse register(
       RegisterRequest request, HttpServletRequest servletRequest, HttpHeaders headers) {
-    long startedAt = System.nanoTime();
-    log.info("Register started email={}", request.email());
-
-    long createUserStartedAt = System.nanoTime();
     User user =
         userService.createUser(
             new CreateUserRequest(
@@ -56,37 +50,11 @@ public class AuthService {
                 request.username(),
                 request.password(),
                 false));
-    log.info(
-        "Register step completed step=createUser userId={} durationMs={}",
-        user.getId(),
-        elapsedMs(createUserStartedAt));
-
-    long profilePictureStartedAt = System.nanoTime();
     attachPreRegisterProfilePicture(user, request);
-    log.info(
-        "Register step completed step=attachPreRegisterProfilePicture userId={} durationMs={}",
-        user.getId(),
-        elapsedMs(profilePictureStartedAt));
 
-    long issueSessionStartedAt = System.nanoTime();
     issueSession(user, servletRequest, headers);
-    log.info(
-        "Register step completed step=issueSession userId={} durationMs={}",
-        user.getId(),
-        elapsedMs(issueSessionStartedAt));
-
-    long otpStartedAt = System.nanoTime();
     authOtpService.issueEmailVerificationOtp(user.getEmail());
-    log.info(
-        "Register step completed step=issueEmailVerificationOtp userId={} durationMs={}",
-        user.getId(),
-        elapsedMs(otpStartedAt));
 
-    log.info(
-        "Register completed userId={} email={} totalDurationMs={}",
-        user.getId(),
-        user.getEmail(),
-        elapsedMs(startedAt));
     return toResponse(user);
   }
 
@@ -196,9 +164,5 @@ public class AuthService {
     }
     String trimmed = value.trim();
     return trimmed.length() <= maxLength ? trimmed : trimmed.substring(0, maxLength);
-  }
-
-  private long elapsedMs(long startedAt) {
-    return (System.nanoTime() - startedAt) / 1_000_000;
   }
 }

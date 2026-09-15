@@ -4,8 +4,6 @@ import com.messaging.kafka.event.KafkaEvent;
 import com.messaging.kafka.key.KafkaKeyResolver;
 import com.messaging.kafka.topic.KafkaTopics;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -13,44 +11,13 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class EventPublisher {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(EventPublisher.class);
-
   private final KafkaTemplate<String, KafkaEvent<?>> kafkaTemplate;
   private final KafkaTopics kafkaTopics;
   private final KafkaKeyResolver keyResolver;
 
   public void publish(KafkaEvent<?> event) {
-    long startedAt = System.nanoTime();
     String topic = kafkaTopics.topic(event.priority());
     String key = keyResolver.resolve(event);
-    kafkaTemplate
-        .send(topic, key, event)
-        .whenComplete(
-            (result, exception) -> {
-              if (exception != null) {
-                LOGGER.error(
-                    "Event enqueue failed eventId={} eventType={} topic={} correlationId={} durationMs={}",
-                    event.eventId(),
-                    event.eventType(),
-                    topic,
-                    event.correlationId(),
-                    elapsedMs(startedAt),
-                    exception);
-                return;
-              }
-              LOGGER.info(
-                  "Event enqueued eventId={} eventType={} topic={} partition={} offset={} correlationId={} durationMs={}",
-                  event.eventId(),
-                  event.eventType(),
-                  topic,
-                  result.getRecordMetadata().partition(),
-                  result.getRecordMetadata().offset(),
-                  event.correlationId(),
-                  elapsedMs(startedAt));
-            });
-  }
-
-  private long elapsedMs(long startedAt) {
-    return (System.nanoTime() - startedAt) / 1_000_000;
+    kafkaTemplate.send(topic, key, event);
   }
 }
