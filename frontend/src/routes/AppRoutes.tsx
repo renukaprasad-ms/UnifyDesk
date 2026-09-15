@@ -5,6 +5,7 @@ import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
 import VerifyOtp from '../pages/auth/VerifyOtp'
 import Home from '../pages/home/Home'
+import PlaceholderPage from '../pages/placeholder/PlaceholderPage'
 import CreateWorkspace from '../pages/workspace/CreateWorkspace'
 import SelectPlan from '../pages/workspace/SelectPlan'
 import SelectWorkspace from '../pages/workspace/SelectWorkspace'
@@ -33,6 +34,18 @@ const AppRoutes = () => {
           <Route element={<WorkspaceRoute />}>
             <Route element={<MainLayout />}>
               <Route index element={<Home />} />
+              <Route path="inbox/social-media" element={<PlaceholderPage />} />
+              <Route path="inbox/sms" element={<PlaceholderPage />} />
+              <Route path="inbox/email" element={<PlaceholderPage />} />
+              <Route path="broadcast/sms" element={<PlaceholderPage />} />
+              <Route path="broadcast/social-media" element={<PlaceholderPage />} />
+              <Route path="broadcast/email" element={<PlaceholderPage />} />
+              <Route path="templates" element={<PlaceholderPage />} />
+              <Route path="company/details" element={<PlaceholderPage />} />
+              <Route path="company/plan" element={<PlaceholderPage />} />
+              <Route path="company/users" element={<PlaceholderPage />} />
+              <Route path="account/profile" element={<PlaceholderPage />} />
+              <Route path="account/reset-password" element={<PlaceholderPage />} />
             </Route>
           </Route>
         </Route>
