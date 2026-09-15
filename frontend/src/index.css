@@ -90,9 +90,24 @@
     font-size: 11px;
   }
   .sidebar-submenu {
-    margin: 3px 0 7px;
     display: grid;
     gap: 2px;
+    max-height: 0;
+    margin: 0;
+    opacity: 0;
+    overflow: hidden;
+    transform: translateY(-4px);
+    transition:
+      max-height 0.2s ease,
+      margin 0.2s ease,
+      opacity 0.16s ease,
+      transform 0.2s ease;
+  }
+  .sidebar-submenu.is-open {
+    max-height: 140px;
+    margin: 3px 0 7px;
+    opacity: 1;
+    transform: translateY(0);
   }
   .sidebar-label {
     padding: 20px 1px 8px;

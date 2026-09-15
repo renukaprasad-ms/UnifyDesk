@@ -93,8 +93,10 @@ export default function MainLayout() {
                 className={`shrink-0 transition-transform ${openSections.inbox ? 'rotate-180' : ''}`}
               />
             </button>
-            {openSections.inbox && (
-              <div className="sidebar-submenu" onClick={() => setMenuOpen(false)}>
+            <div
+              className={`sidebar-submenu ${openSections.inbox ? 'is-open' : ''}`}
+              onClick={() => setMenuOpen(false)}
+            >
                 <NavLink to="/inbox/social-media" className={nestedLinkClass}>
                   <FiMessageSquare aria-hidden="true" />Social media
                 </NavLink>
@@ -104,8 +106,7 @@ export default function MainLayout() {
                 <NavLink to="/inbox/email" className={nestedLinkClass}>
                   <FiMail aria-hidden="true" />Email
                 </NavLink>
-              </div>
-            )}
+            </div>
           </div>
 
           <div>
@@ -125,8 +126,10 @@ export default function MainLayout() {
                 className={`shrink-0 transition-transform ${openSections.broadcast ? 'rotate-180' : ''}`}
               />
             </button>
-            {openSections.broadcast && (
-              <div className="sidebar-submenu" onClick={() => setMenuOpen(false)}>
+            <div
+              className={`sidebar-submenu ${openSections.broadcast ? 'is-open' : ''}`}
+              onClick={() => setMenuOpen(false)}
+            >
                 <NavLink to="/broadcast/sms" className={nestedLinkClass}>
                   <FiSmartphone aria-hidden="true" />SMS
                 </NavLink>
@@ -136,8 +139,7 @@ export default function MainLayout() {
                 <NavLink to="/broadcast/email" className={nestedLinkClass}>
                   <FiMail aria-hidden="true" />Email
                 </NavLink>
-              </div>
-            )}
+            </div>
           </div>
 
           <NavLink to="/templates" className={linkClass}>
@@ -161,8 +163,10 @@ export default function MainLayout() {
                 className={`shrink-0 transition-transform ${openSections.company ? 'rotate-180' : ''}`}
               />
             </button>
-            {openSections.company && (
-              <div className="sidebar-submenu" onClick={() => setMenuOpen(false)}>
+            <div
+              className={`sidebar-submenu ${openSections.company ? 'is-open' : ''}`}
+              onClick={() => setMenuOpen(false)}
+            >
                 <NavLink to="/company/details" className={nestedLinkClass}>
                   <FiSettings aria-hidden="true" />Company details
                 </NavLink>
@@ -172,8 +176,7 @@ export default function MainLayout() {
                 <NavLink to="/company/users" className={nestedLinkClass}>
                   <FiUsers aria-hidden="true" />Users
                 </NavLink>
-              </div>
-            )}
+            </div>
           </div>
 
           <div>
@@ -193,16 +196,17 @@ export default function MainLayout() {
                 className={`shrink-0 transition-transform ${openSections.account ? 'rotate-180' : ''}`}
               />
             </button>
-            {openSections.account && (
-              <div className="sidebar-submenu" onClick={() => setMenuOpen(false)}>
+            <div
+              className={`sidebar-submenu ${openSections.account ? 'is-open' : ''}`}
+              onClick={() => setMenuOpen(false)}
+            >
                 <NavLink to="/account/profile" className={nestedLinkClass}>
                   <FiShield aria-hidden="true" />Profile
                 </NavLink>
                 <NavLink to="/account/reset-password" className={nestedLinkClass}>
                   <FiLock aria-hidden="true" />Reset password
                 </NavLink>
-              </div>
-            )}
+            </div>
           </div>
         </nav>
         <div className="mt-auto border-t border-slate-100 pt-5">
