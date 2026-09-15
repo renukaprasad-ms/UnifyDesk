@@ -45,7 +45,6 @@ public class KafkaProducerConfig {
     properties.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, compressionType);
     properties.put(
         ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, maxInFlightRequests);
-    properties.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
     properties.put(
         CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
         appKafkaProperties.getSecurity().getProtocol());
