@@ -9,6 +9,7 @@ import com.messaging.company.service.CompanyService;
 import com.messaging.media.entity.Media;
 import com.messaging.media.service.MediaService;
 import com.messaging.security.jwt.TokenPair;
+import com.messaging.security.service.CurrentUserService;
 import com.messaging.session.dto.CreateOrUpdateSessionRequest;
 import com.messaging.session.entity.SessionPlatform;
 import com.messaging.session.entity.UserSession;
@@ -20,6 +21,7 @@ import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -40,6 +42,10 @@ public class AuthService {
   private final PasswordEncoder passwordEncoder;
   private final MediaService mediaService;
   private final CompanyService companyService;
+  private final CurrentUserService currentUserService;
+
+  @Value("${app.security.trust-forwarded-headers:false}")
+  private boolean trustForwardedHeaders;
 
   @Transactional
   public AuthUserResponse register(
@@ -101,7 +107,7 @@ public class AuthService {
 
   @Transactional
   public AuthUserResponse verifyEmail(VerifyEmailRequest request) {
-    User user = userService.getUser(currentUserId());
+    User user = userService.getUser(currentUserService.currentUserId());
     authOtpService.verifyEmailOtp(user.getEmail(), request.otp());
     user.setVerified(true);
     return toResponse(user);
@@ -152,17 +158,9 @@ public class AuthService {
         companyCount);
   }
 
-  private long currentUserId() {
-    return Long.parseLong(
-        org.springframework.security.core.context.SecurityContextHolder.getContext()
-            .getAuthentication()
-            .getPrincipal()
-            .toString());
-  }
-
   private String clientIp(HttpServletRequest request) {
     String forwardedFor = request.getHeader("X-Forwarded-For");
-    if (forwardedFor != null && !forwardedFor.isBlank()) {
+    if (trustForwardedHeaders && forwardedFor != null && !forwardedFor.isBlank()) {
       return truncate(forwardedFor.split(",", 2)[0].trim(), MAX_IP_LENGTH);
     }
     return truncate(request.getRemoteAddr(), MAX_IP_LENGTH);
