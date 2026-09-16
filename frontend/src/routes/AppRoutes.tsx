@@ -9,6 +9,7 @@ import VerifyOtp from '../pages/auth/VerifyOtp'
 import CompanyPlan from '../pages/company/CompanyPlan'
 import CompanyUsers from '../pages/company/CompanyUsers'
 import Home from '../pages/home/Home'
+import HomeRoute from './guards/HomeRoute'
 import PlaceholderPage from '../pages/placeholder/PlaceholderPage'
 import PlatformDashboard from '../pages/platform/PlatformDashboard'
 import CreateWorkspace from '../pages/workspace/CreateWorkspace'
@@ -35,12 +36,13 @@ const AppRoutes = () => {
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route element={<VerifiedRoute />}>
+          <Route path="/" element={<HomeRoute />} />
           <Route path="/select-workspace" element={<SelectWorkspace />} />
           <Route path="/create-workspace" element={<CreateWorkspace />} />
           <Route path="/select-plan/:companyId" element={<SelectPlan />} />
           <Route element={<WorkspaceRoute />}>
             <Route element={<MainLayout />}>
-              <Route index element={<Home />} />
+              <Route path="/workspace" element={<Home />} />
               <Route path="inbox/social-media" element={<PlaceholderPage />} />
               <Route path="inbox/sms" element={<PlaceholderPage />} />
               <Route path="inbox/email" element={<PlaceholderPage />} />
