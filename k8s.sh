@@ -11,7 +11,7 @@ usage() {
 Usage:
   ./k8s.sh start
   ./k8s.sh stop
-  ./k8s.sh restart
+  ./k8s.sh restart [service|all]
   ./k8s.sh delete
   ./k8s.sh logs <service> [tail]
   ./k8s.sh describe <service>
@@ -21,6 +21,9 @@ Services:
   backend | frontend | postgres | redis | kafka
 
 Examples:
+  ./k8s.sh restart
+  ./k8s.sh restart backend
+  ./k8s.sh restart postgres
   ./k8s.sh logs backend
   ./k8s.sh logs kafka 200
   ./k8s.sh describe backend
@@ -46,17 +49,28 @@ apply_env() {
 }
 
 build_and_load_images() {
-  docker build -t "${BACKEND_IMAGE}" "${ROOT_DIR}/backend"
-  docker build \
-    -t "${FRONTEND_IMAGE}" \
-    --build-arg VITE_API_BASE_URL="${K8S_VITE_API_BASE_URL:-}" \
-    "${ROOT_DIR}/frontend"
+  build_and_load_service_image backend
+  build_and_load_service_image frontend
+}
 
-  docker save "${BACKEND_IMAGE}" -o /tmp/messaging-backend.tar
-  docker save "${FRONTEND_IMAGE}" -o /tmp/messaging-frontend.tar
+build_and_load_service_image() {
+  local service="$1"
 
-  sudo k3s ctr images import /tmp/messaging-backend.tar
-  sudo k3s ctr images import /tmp/messaging-frontend.tar
+  case "${service}" in
+    backend)
+      docker build -t "${BACKEND_IMAGE}" "${ROOT_DIR}/backend"
+      docker save "${BACKEND_IMAGE}" -o /tmp/messaging-backend.tar
+      sudo k3s ctr images import /tmp/messaging-backend.tar
+      ;;
+    frontend)
+      docker build \
+        -t "${FRONTEND_IMAGE}" \
+        --build-arg VITE_API_BASE_URL="${K8S_VITE_API_BASE_URL:-}" \
+        "${ROOT_DIR}/frontend"
+      docker save "${FRONTEND_IMAGE}" -o /tmp/messaging-frontend.tar
+      sudo k3s ctr images import /tmp/messaging-frontend.tar
+      ;;
+  esac
 }
 
 load_env() {
@@ -99,17 +113,62 @@ stop() {
   kubectl get pods
 }
 
+workload_for_service() {
+  local service="${1:-}"
+
+  case "${service}" in
+    backend) echo "statefulset/messaging-backend" ;;
+    frontend) echo "deployment/messaging-frontend" ;;
+    postgres) echo "deployment/postgres" ;;
+    redis) echo "deployment/redis" ;;
+    kafka) echo "deployment/kafka" ;;
+    *)
+      usage
+      exit 1
+      ;;
+  esac
+}
+
+apply_manifest_for_service() {
+  local service="$1"
+
+  case "${service}" in
+    backend) kubectl apply -f "${ROOT_DIR}/k8s/backend.yaml" ;;
+    frontend) kubectl apply -f "${ROOT_DIR}/k8s/frontend.yaml" ;;
+    postgres|redis|kafka) kubectl apply -f "${ROOT_DIR}/k8s/dependencies.yaml" ;;
+  esac
+}
+
+restart_service() {
+  local service="$1"
+  local workload
+
+  build_and_load_service_image "${service}"
+  apply_manifest_for_service "${service}"
+  workload="$(workload_for_service "${service}")"
+  kubectl rollout restart "${workload}"
+}
+
 restart() {
+  local service="${1:-all}"
+
   load_env
 
   apply_env
-  build_and_load_images
-  kubectl delete deployment postgres redis kafka --ignore-not-found
-  kubectl apply -f "${ROOT_DIR}/k8s/dependencies.yaml"
-  kubectl apply -f "${ROOT_DIR}/k8s/backend.yaml"
-  kubectl apply -f "${ROOT_DIR}/k8s/frontend.yaml"
-  kubectl rollout restart deployment/messaging-frontend
-  kubectl delete pod -l app=messaging-backend --ignore-not-found
+
+  if [[ "${service}" == "all" ]]; then
+    build_and_load_images
+    kubectl apply -f "${ROOT_DIR}/k8s/dependencies.yaml"
+    kubectl apply -f "${ROOT_DIR}/k8s/backend.yaml"
+    kubectl apply -f "${ROOT_DIR}/k8s/frontend.yaml"
+    kubectl rollout restart deployment/redis
+    kubectl rollout restart deployment/kafka
+    kubectl rollout restart statefulset/messaging-backend
+    kubectl rollout restart deployment/messaging-frontend
+  else
+    restart_service "${service}"
+  fi
+
   kubectl get pods
 }
 
@@ -203,7 +262,7 @@ command="${1:-}"
 case "${command}" in
   start) start ;;
   stop) stop ;;
-  restart) restart ;;
+  restart) shift; restart "$@" ;;
   delete) delete_all ;;
   logs) shift; logs "$@" ;;
   describe) shift; describe "$@" ;;

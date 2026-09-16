@@ -4,6 +4,7 @@ import MainLayout from '../layouts/MainLayout'
 import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
 import VerifyOtp from '../pages/auth/VerifyOtp'
+import CompanyUsers from '../pages/company/CompanyUsers'
 import Home from '../pages/home/Home'
 import PlaceholderPage from '../pages/placeholder/PlaceholderPage'
 import CreateWorkspace from '../pages/workspace/CreateWorkspace'
@@ -43,7 +44,7 @@ const AppRoutes = () => {
               <Route path="templates" element={<PlaceholderPage />} />
               <Route path="company/details" element={<PlaceholderPage />} />
               <Route path="company/plan" element={<PlaceholderPage />} />
-              <Route path="company/users" element={<PlaceholderPage />} />
+              <Route path="company/users" element={<CompanyUsers />} />
               <Route path="account/profile" element={<PlaceholderPage />} />
               <Route path="account/reset-password" element={<PlaceholderPage />} />
             </Route>

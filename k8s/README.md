@@ -11,9 +11,17 @@ chmod +x k8s.sh
 ./k8s.sh top 5
 ./k8s.sh top 1 once
 ./k8s.sh restart
+./k8s.sh restart backend
+./k8s.sh restart frontend
+./k8s.sh restart postgres
 ./k8s.sh stop
 ./k8s.sh delete
 ```
+
+`restart` accepts `backend`, `frontend`, `postgres`, `redis`, `kafka`, or `all`. The default is
+`all`. `restart all` does not restart Postgres automatically. Use `restart postgres` only when you
+intentionally want to restart the database pod. Postgres uses a `postgres-data` PersistentVolumeClaim
+so future database pod restarts keep database files.
 
 This runs 3 backend pods with unique Snowflake node IDs from the StatefulSet ordinal:
 
