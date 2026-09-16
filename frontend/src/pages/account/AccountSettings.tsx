@@ -14,7 +14,9 @@ export default function AccountSettings() {
   const navigate = useNavigate()
   const authUser = useSelector((state: RootState) => state.user.user)
   const [user, setUser] = useState<User | null>(null)
+  const [currentPassword, setCurrentPassword] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -46,14 +48,25 @@ export default function AccountSettings() {
     event.preventDefault()
     if (!userId) return
 
+    if (password !== confirmPassword) {
+      setError('New passwords do not match')
+      return
+    }
+    if (currentPassword === password) {
+      setError('New password must be different from current password')
+      return
+    }
+
     setSaving(true)
     setError('')
     setNotice('')
     try {
-      const updated = await userApi.resetPassword(userId, { password })
+      const updated = await userApi.resetPassword(userId, { currentPassword, password })
       setUser(updated)
+      setCurrentPassword('')
       setPassword('')
-      setNotice('Password reset successfully')
+      setConfirmPassword('')
+      setNotice('Password changed successfully')
     } catch (resetError) {
       setError(apiErrorMessage(resetError, 'Unable to reset password'))
     } finally {
@@ -123,20 +136,45 @@ export default function AccountSettings() {
                 <FiKey aria-hidden="true" />
               </span>
               <div className="min-w-0 flex-1">
-                <h2 className="text-base font-bold text-slate-950">Reset password</h2>
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                <h2 className="text-base font-bold text-slate-950">Change password</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Confirm your current password before choosing a new one.
+                </p>
+                <div className="mt-4 grid gap-3">
                   <input
                     className="form-input"
                     type="password"
+                    autoComplete="current-password"
+                    value={currentPassword}
+                    placeholder="Current password"
+                    onChange={(event) => setCurrentPassword(event.target.value)}
+                    required
+                  />
+                  <input
+                    className="form-input"
+                    type="password"
+                    autoComplete="new-password"
                     minLength={8}
                     value={password}
                     placeholder="New password"
                     onChange={(event) => setPassword(event.target.value)}
                     required
                   />
-                  <button className="primary-button inline-flex" disabled={saving || loading}>
-                    Save
-                  </button>
+                  <input
+                    className="form-input"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    value={confirmPassword}
+                    placeholder="Confirm new password"
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    required
+                  />
+                  <div>
+                    <button className="primary-button inline-flex" disabled={saving || loading}>
+                      {saving ? 'Saving…' : 'Change password'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
