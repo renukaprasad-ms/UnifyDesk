@@ -2,6 +2,7 @@ package com.messaging.user.service;
 
 import com.messaging.common.exception.ConflictException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.common.exception.ForbiddenException;
 import com.messaging.media.dto.ProfilePictureResponse;
 import com.messaging.media.entity.Media;
 import com.messaging.media.enums.MediaPurpose;
@@ -118,7 +119,19 @@ public class UserService {
 
   @Transactional
   public UserResponse resetPassword(long userId, ResetPasswordRequest request) {
+    long currentUserId = currentUserService.currentUserId();
+    if (currentUserId != userId) {
+      throw new ForbiddenException("You can only change your own password");
+    }
+
     User user = getUser(userId);
+    if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+      throw new ForbiddenException("Current password is incorrect");
+    }
+    if (passwordEncoder.matches(request.password(), user.getPassword())) {
+      throw new ConflictException("New password must be different from current password");
+    }
+
     user.setPassword(passwordEncoder.encode(request.password()));
     return toResponse(user);
   }
