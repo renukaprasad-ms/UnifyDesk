@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router'
 import { authApi } from '../../features/auth/authApi'
@@ -16,6 +16,7 @@ const Login = () => {
   const [preAuthToken, setPreAuthToken] = useState<string | null>(null)
   const [otp, setOtp] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const otpRefs = useRef<Array<HTMLInputElement | null>>([])
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -39,7 +40,7 @@ const Login = () => {
 
   const onVerifyTwoFactor = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!preAuthToken) return
+    if (!preAuthToken || otp.length !== 6) return
     setError('')
     setSubmitting(true)
     try {
@@ -62,17 +63,48 @@ const Login = () => {
           Enter the 6-digit verification code sent to your email.
         </p>
         <form className="mt-6 space-y-4" onSubmit={onVerifyTwoFactor}>
-          <input
-            className="form-input"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="\\d{6}"
-            maxLength={6}
-            value={otp}
-            placeholder="6-digit code"
-            onChange={(event) => setOtp(event.target.value.replace(/\\D/g, '').slice(0, 6))}
-            required
-          />
+          <div className="flex gap-2" role="group" aria-label="6-digit verification code">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <input
+                key={index}
+                ref={(element) => {
+                  otpRefs.current[index] = element
+                }}
+                className="h-12 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white text-center text-lg font-semibold text-slate-950 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                type="text"
+                inputMode="numeric"
+                autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                maxLength={1}
+                value={otp[index] ?? ''}
+                aria-label={`Verification code digit ${index + 1}`}
+                onChange={(event) => {
+                  const digit = event.target.value.replace(/\D/g, '').slice(-1)
+                  const digits = otp.split('')
+                  digits[index] = digit
+                  const nextOtp = Array.from({ length: 6 }, (_, digitIndex) => digits[digitIndex] ?? '').join('')
+                  setOtp(nextOtp)
+                  setError('')
+                  if (digit && index < 5) otpRefs.current[index + 1]?.focus()
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Backspace' && !otp[index] && index > 0) {
+                    otpRefs.current[index - 1]?.focus()
+                  }
+                  if (event.key === 'ArrowLeft' && index > 0) otpRefs.current[index - 1]?.focus()
+                  if (event.key === 'ArrowRight' && index < 5) otpRefs.current[index + 1]?.focus()
+                }}
+                onPaste={(event) => {
+                  event.preventDefault()
+                  const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+                  if (!pasted) return
+                  setOtp(pasted)
+                  setError('')
+                  otpRefs.current[Math.min(pasted.length, 6) - 1]?.focus()
+                }}
+                required
+              />
+            ))}
+          </div>
           {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
           <button type="submit" className="primary-button flex w-full" disabled={submitting || otp.length !== 6}>
             {submitting ? 'Verifying...' : 'Verify and login'}
