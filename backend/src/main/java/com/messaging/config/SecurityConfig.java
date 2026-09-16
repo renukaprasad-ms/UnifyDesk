@@ -34,6 +34,7 @@ public class SecurityConfig {
                     .ignoringRequestMatchers(
                         "/api/auth/register",
                         "/api/auth/login",
+                        "/api/auth/2fa/verify",
                         "/api/auth/refresh",
                         "/api/v1/media/uploads"))
         .sessionManagement(
@@ -45,6 +46,7 @@ public class SecurityConfig {
                         "/api/auth/csrf",
                         "/api/v1/media/uploads",
                         "/api/auth/login",
+                        "/api/auth/2fa/verify",
                         "/api/auth/refresh")
                     .permitAll()
                     .anyRequest()
