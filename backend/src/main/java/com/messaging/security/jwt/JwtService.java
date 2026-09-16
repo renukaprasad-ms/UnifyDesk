@@ -25,6 +25,8 @@ public class JwtService {
   private static final String TOKEN_TYPE_CLAIM = "token_type";
   private static final String ACCESS_TOKEN_TYPE = "access";
   private static final String REFRESH_TOKEN_TYPE = "refresh";
+  private static final String PRE_AUTH_TOKEN_TYPE = "pre_auth";
+  private static final Duration PRE_AUTH_EXPIRATION = Duration.ofMinutes(5);
 
   private final JwtProperties properties;
 
@@ -46,6 +48,15 @@ public class JwtService {
 
   public String createRefreshToken(String subject) {
     return createToken(subject, REFRESH_TOKEN_TYPE, properties.getRefreshExpiration(), Map.of());
+  }
+
+  public String createPreAuthToken(String subject, String challengeId) {
+    return createToken(
+        subject, PRE_AUTH_TOKEN_TYPE, PRE_AUTH_EXPIRATION, Map.of("challenge_id", challengeId));
+  }
+
+  public Optional<Claims> parsePreAuthToken(String token) {
+    return parseToken(token, PRE_AUTH_TOKEN_TYPE);
   }
 
   public boolean isValidAccessToken(String token) {
