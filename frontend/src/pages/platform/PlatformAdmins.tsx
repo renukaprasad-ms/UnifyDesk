@@ -7,7 +7,7 @@ export default function PlatformAdmins() {
   const [email,setEmail]=useState('')
   const [error,setError]=useState('')
   const load=()=>platformApi.admins('',0).then(setData).catch(e=>setError(e instanceof Error?e.message:'Unable to load admins'))
-  useEffect(load,[])
+  useEffect(() => { void load() },[])
   const create=async(e:React.FormEvent)=>{e.preventDefault();setError('');try{await platformApi.createAdmin(email,[]);setEmail('');load()}catch(x){setError(x instanceof Error?x.message:'Unable to create admin')}}
   return <section>
     <h1 className="text-2xl font-bold">Platform admins</h1>
