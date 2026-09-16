@@ -23,6 +23,7 @@ export type UpdateUserPayload = {
 }
 
 export type ResetPasswordPayload = {
+  currentPassword: string
   password: string
 }
 
