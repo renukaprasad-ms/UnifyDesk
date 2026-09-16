@@ -47,6 +47,7 @@ public class CompanyAccessService {
   @Transactional(readOnly = true)
   public CompanyPermissionResponse myPermissions(Long companyId) {
     Long userId = currentUserService.currentUserId();
+    authorizationService.requireActiveMembership(userId, companyId);
     return new CompanyPermissionResponse(
         companyId.toString(), permissionService.effectivePermissions(userId, companyId));
   }
