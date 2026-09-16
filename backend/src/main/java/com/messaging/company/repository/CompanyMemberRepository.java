@@ -12,6 +12,9 @@ public interface CompanyMemberRepository extends JpaRepository<CompanyMember, Lo
   Optional<CompanyMember> findByCompanyIdAndUserIdAndStatus(
       Long companyId, Long userId, CompanyMemberStatus status);
 
+  boolean existsByCompanyIdAndUserIdAndStatus(
+      Long companyId, Long userId, CompanyMemberStatus status);
+
   List<CompanyMember> findByUserIdAndStatus(Long userId, CompanyMemberStatus status);
 
   long countByUserIdAndStatus(Long userId, CompanyMemberStatus status);
