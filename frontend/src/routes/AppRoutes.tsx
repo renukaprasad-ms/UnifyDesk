@@ -1,7 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router'
 import AuthLayout from '../layouts/AuthLayout'
 import MainLayout from '../layouts/MainLayout'
-import PlatformAdminLayout from '../layouts/PlatformAdminLayout'
 import AccountSettings from '../pages/account/AccountSettings'
 import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
@@ -14,6 +13,8 @@ import PlaceholderPage from '../pages/placeholder/PlaceholderPage'
 import PlatformDashboard from '../pages/platform/PlatformDashboard'
 import PlatformCompanies from '../pages/platform/PlatformCompanies'
 import PlatformAdmins from '../pages/platform/PlatformAdmins'
+import PlatformUsers from '../pages/platform/PlatformUsers'
+import PlatformPlans from '../pages/platform/PlatformPlans'
 import CreateWorkspace from '../pages/workspace/CreateWorkspace'
 import SelectPlan from '../pages/workspace/SelectPlan'
 import SelectWorkspace from '../pages/workspace/SelectWorkspace'
@@ -67,11 +68,11 @@ const AppRoutes = () => {
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route element={<PlatformRoute />}>
-          <Route element={<PlatformAdminLayout />}>
+          <Route element={<MainLayout platform />}>
             <Route path="/platform" element={<PlatformDashboard />} />
             <Route path="/platform/companies" element={<PlatformCompanies />} />
-            <Route path="/platform/users" element={<PlaceholderPage />} />
-            <Route path="/platform/plans" element={<PlaceholderPage />} />
+            <Route path="/platform/users" element={<PlatformUsers />} />
+            <Route path="/platform/plans" element={<PlatformPlans />} />
             <Route path="/platform/billing" element={<PlaceholderPage />} />
             <Route path="/platform/admins" element={<PlatformAdmins />} />
             <Route path="/platform/audit" element={<PlaceholderPage />} />
