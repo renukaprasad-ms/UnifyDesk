@@ -1,6 +1,6 @@
 import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
-import type { AuthUser, LoginPayload, RegisterPayload } from './types'
+import type { AuthUser, LoginPayload, LoginResponse, RegisterPayload } from './types'
 
 const unwrap = <T>(response: ApiResponse<T>) => {
   if (!response.data) {
@@ -16,7 +16,15 @@ export const authApi = {
   },
 
   async login(payload: LoginPayload) {
-    const response = await apiClient.post<ApiResponse<AuthUser>>('/api/auth/login', payload)
+    const response = await apiClient.post<ApiResponse<LoginResponse>>('/api/auth/login', payload)
+    return unwrap(response.data)
+  },
+
+  async verifyTwoFactor(preAuthToken: string, otp: string) {
+    const response = await apiClient.post<ApiResponse<AuthUser>>('/api/auth/2fa/verify', {
+      preAuthToken,
+      otp,
+    })
     return unwrap(response.data)
   },
 
