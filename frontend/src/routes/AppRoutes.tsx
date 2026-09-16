@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router'
 import AuthLayout from '../layouts/AuthLayout'
 import MainLayout from '../layouts/MainLayout'
+import PlatformAdminLayout from '../layouts/PlatformAdminLayout'
 import AccountSettings from '../pages/account/AccountSettings'
 import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
@@ -9,12 +10,14 @@ import CompanyPlan from '../pages/company/CompanyPlan'
 import CompanyUsers from '../pages/company/CompanyUsers'
 import Home from '../pages/home/Home'
 import PlaceholderPage from '../pages/placeholder/PlaceholderPage'
+import PlatformDashboard from '../pages/platform/PlatformDashboard'
 import CreateWorkspace from '../pages/workspace/CreateWorkspace'
 import SelectPlan from '../pages/workspace/SelectPlan'
 import SelectWorkspace from '../pages/workspace/SelectWorkspace'
 import GuestRoute from './guards/GuestRoute'
 import CompanyPermissionRoute from './guards/CompanyPermissionRoute'
 import ProtectedRoute from './guards/ProtectedRoute'
+import PlatformRoute from './guards/PlatformRoute'
 import VerifiedRoute from './guards/VerifiedRoute'
 import WorkspaceRoute from './guards/WorkspaceRoute'
 
@@ -55,6 +58,19 @@ const AppRoutes = () => {
               <Route path="account/profile" element={<PlaceholderPage />} />
               <Route path="account/settings" element={<AccountSettings />} />
             </Route>
+          </Route>
+        </Route>
+      </Route>
+      <Route element={<ProtectedRoute />}>
+        <Route element={<PlatformRoute />}>
+          <Route element={<PlatformAdminLayout />}>
+            <Route path="/platform" element={<PlatformDashboard />} />
+            <Route path="/platform/companies" element={<PlaceholderPage />} />
+            <Route path="/platform/users" element={<PlaceholderPage />} />
+            <Route path="/platform/plans" element={<PlaceholderPage />} />
+            <Route path="/platform/billing" element={<PlaceholderPage />} />
+            <Route path="/platform/admins" element={<PlaceholderPage />} />
+            <Route path="/platform/audit" element={<PlaceholderPage />} />
           </Route>
         </Route>
       </Route>
