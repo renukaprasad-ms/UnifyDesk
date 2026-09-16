@@ -10,3 +10,7 @@ export type PlatformAccess = {
   role: 'SUPER_ADMIN' | 'PLATFORM_ADMIN' | null
   permissions: PlatformPermission[]
 }
+
+export type PlatformAdmin = { id:string; userId:string; name:string; email:string; role:'SUPER_ADMIN'|'ADMIN'; status:'ACTIVE'|'SUSPENDED'; permissions:PlatformPermission[] }
+export type PlatformCompany = { id:string; name:string; slug:string; businessEmail?:string; country?:string; timezone?:string; status:'ACTIVE'|'SUSPENDED'|'DELETED' }
+export type Page<T> = { content:T[]; number:number; size:number; totalElements:number; totalPages:number; first:boolean; last:boolean }

@@ -12,6 +12,8 @@ import Home from '../pages/home/Home'
 import HomeRoute from './guards/HomeRoute'
 import PlaceholderPage from '../pages/placeholder/PlaceholderPage'
 import PlatformDashboard from '../pages/platform/PlatformDashboard'
+import PlatformCompanies from '../pages/platform/PlatformCompanies'
+import PlatformAdmins from '../pages/platform/PlatformAdmins'
 import CreateWorkspace from '../pages/workspace/CreateWorkspace'
 import SelectPlan from '../pages/workspace/SelectPlan'
 import SelectWorkspace from '../pages/workspace/SelectWorkspace'
@@ -67,11 +69,11 @@ const AppRoutes = () => {
         <Route element={<PlatformRoute />}>
           <Route element={<PlatformAdminLayout />}>
             <Route path="/platform" element={<PlatformDashboard />} />
-            <Route path="/platform/companies" element={<PlaceholderPage />} />
+            <Route path="/platform/companies" element={<PlatformCompanies />} />
             <Route path="/platform/users" element={<PlaceholderPage />} />
             <Route path="/platform/plans" element={<PlaceholderPage />} />
             <Route path="/platform/billing" element={<PlaceholderPage />} />
-            <Route path="/platform/admins" element={<PlaceholderPage />} />
+            <Route path="/platform/admins" element={<PlatformAdmins />} />
             <Route path="/platform/audit" element={<PlaceholderPage />} />
           </Route>
         </Route>

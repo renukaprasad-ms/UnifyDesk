@@ -3,10 +3,14 @@ package com.messaging.company.repository;
 import com.messaging.company.entity.Company;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface CompanyRepository extends JpaRepository<Company, Long> {
 
   boolean existsBySlug(String slug);
 
   Optional<Company> findBySlug(String slug);
+
+  Page<Company> findByNameContainingIgnoreCaseOrBusinessEmailContainingIgnoreCase(String name, String email, Pageable pageable);
 }
