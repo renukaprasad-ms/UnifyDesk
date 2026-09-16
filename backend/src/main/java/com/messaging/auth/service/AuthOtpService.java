@@ -27,6 +27,7 @@ public class AuthOtpService {
   private static final int OTP_BOUND = 1_000_000;
   private static final int OTP_LIMIT = 5;
   private static final String OTP_SUBJECT = "Verify your email";
+  private static final String LOGIN_OTP_SUBJECT = "Your login verification code";
 
   private final RedisService redisService;
   private final RedisRateLimitService rateLimitService;
@@ -65,6 +66,49 @@ public class AuthOtpService {
                 false));
 
     eventPublisher.publish(event);
+  }
+
+  public void issueLoginOtp(String challengeId, String email) {
+    String normalizedEmail = normalizeEmail(email);
+    RateLimitResult result =
+        rateLimitService.consume(
+            RedisKey.rateLimitOtp(normalizedEmail), OTP_LIMIT, ttlProperties.getOtpAttempts());
+    if (!result.allowed()) {
+      throw new TooManyRequestsException("Too many OTP requests");
+    }
+
+    String otp = "%06d".formatted(secureRandom.nextInt(OTP_BOUND));
+    redisService.set(RedisKey.loginTwoFactorOtp(challengeId), hash(otp), ttlProperties.getOtp());
+
+    eventPublisher.publish(
+        KafkaEvent.of(
+            EventMetadata.create(
+                OtpRequestedEventHandler.EVENT_TYPE,
+                "v1",
+                null,
+                null,
+                null,
+                null,
+                MessagePriority.CRITICAL),
+            new OtpRequestedEvent(
+                normalizedEmail,
+                "EMAIL",
+                LOGIN_OTP_SUBJECT,
+                "Your login verification code is %s. It expires in %d minutes."
+                    .formatted(otp, Math.max(1, ttlProperties.getOtp().toMinutes())),
+                false)));
+  }
+
+  public void verifyLoginOtp(String challengeId, String otp) {
+    String key = RedisKey.loginTwoFactorOtp(challengeId);
+    String storedHash = redisService.get(key, String.class);
+    if (storedHash == null
+        || !MessageDigest.isEqual(
+            storedHash.getBytes(StandardCharsets.UTF_8),
+            hash(otp).getBytes(StandardCharsets.UTF_8))) {
+      throw new BadRequestException("Invalid or expired OTP");
+    }
+    redisService.delete(key);
   }
 
   public void verifyEmailOtp(String email, String otp) {

@@ -2,6 +2,8 @@ package com.messaging.auth.service;
 
 import com.messaging.auth.dto.AuthUserResponse;
 import com.messaging.auth.dto.LoginRequest;
+import com.messaging.auth.dto.LoginResponse;
+import com.messaging.auth.dto.VerifyTwoFactorRequest;
 import com.messaging.auth.dto.RegisterRequest;
 import com.messaging.auth.dto.VerifyEmailRequest;
 import com.messaging.common.exception.UnauthorizedException;
@@ -20,6 +22,7 @@ import com.messaging.user.service.UserService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -79,12 +82,47 @@ public class AuthService {
   }
 
   @Transactional
-  public AuthUserResponse login(
+  public LoginResponse login(
       LoginRequest request, HttpServletRequest servletRequest, HttpHeaders headers) {
     User user = userService.getByEmail(request.email());
     if (!passwordEncoder.matches(request.password(), user.getPassword())) {
       throw new UnauthorizedException("Invalid email or password");
     }
+    if (user.isTwoFactorEnabled()) {
+      String challengeId = UUID.randomUUID().toString();
+      authOtpService.issueLoginOtp(challengeId, user.getEmail());
+      String preAuthToken = authTokenService.createPreAuthToken(user.getId().toString(), challengeId);
+      return LoginResponse.twoFactorRequired(preAuthToken, 300);
+    }
+
+    issueSession(user, servletRequest, headers);
+    return LoginResponse.authenticated(toResponse(user));
+  }
+
+  @Transactional
+  public AuthUserResponse verifyTwoFactor(
+      VerifyTwoFactorRequest request, HttpServletRequest servletRequest, HttpHeaders headers) {
+    Claims claims =
+        authTokenService
+            .parsePreAuthToken(request.preAuthToken())
+            .orElseThrow(() -> new UnauthorizedException("Invalid or expired pre-auth token"));
+    String challengeId = claims.get("challenge_id", String.class);
+    if (challengeId == null || challengeId.isBlank()) {
+      throw new UnauthorizedException("Invalid pre-auth token");
+    }
+
+    authOtpService.verifyLoginOtp(challengeId, request.otp());
+    long userId;
+    try {
+      userId = Long.parseLong(claims.getSubject());
+    } catch (NumberFormatException exception) {
+      throw new UnauthorizedException("Invalid pre-auth token");
+    }
+    User user = userService.getUser(userId);
+    if (!user.isTwoFactorEnabled()) {
+      throw new UnauthorizedException("Two-factor authentication is not enabled");
+    }
+
     issueSession(user, servletRequest, headers);
     return toResponse(user);
   }

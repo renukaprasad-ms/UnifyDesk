@@ -22,3 +22,8 @@ export type LoginPayload = {
   email: string
   password: string
 }
+
+
+export type LoginResponse =
+  | { status: 'AUTHENTICATED'; user: AuthUser; preAuthToken: null; expiresInSeconds: number }
+  | { status: 'TWO_FACTOR_REQUIRED'; user: null; preAuthToken: string; expiresInSeconds: number }

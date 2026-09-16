@@ -25,6 +25,14 @@ public class AuthTokenService {
     return jwtService.createTokenPair(userId, accessClaims);
   }
 
+  public String createPreAuthToken(String userId, String challengeId) {
+    return jwtService.createPreAuthToken(userId, challengeId);
+  }
+
+  public Optional<Claims> parsePreAuthToken(String token) {
+    return jwtService.parsePreAuthToken(token);
+  }
+
   public void addTokenCookies(HttpHeaders headers, TokenPair tokenPair) {
     authCookieService.addTokenCookies(headers, tokenPair);
   }
