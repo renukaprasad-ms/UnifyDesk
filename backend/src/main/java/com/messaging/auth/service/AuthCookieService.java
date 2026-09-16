@@ -34,6 +34,17 @@ public class AuthCookieService {
     return tokenCookie(properties.getRefreshName(), "", Duration.ZERO);
   }
 
+  public String clearXsrfTokenCookie() {
+    return ResponseCookie.from("XSRF-TOKEN", "")
+        .httpOnly(false)
+        .secure(properties.isSecure())
+        .path("/")
+        .maxAge(Duration.ZERO)
+        .sameSite(properties.getSameSite())
+        .build()
+        .toString();
+  }
+
   public void addTokenCookies(HttpHeaders headers, TokenPair tokenPair) {
     addAccessTokenCookie(headers, tokenPair.accessToken());
     addRefreshTokenCookie(headers, tokenPair.refreshToken());
@@ -50,6 +61,7 @@ public class AuthCookieService {
   public void clearTokenCookies(HttpHeaders headers) {
     headers.add(HttpHeaders.SET_COOKIE, clearAccessTokenCookie());
     headers.add(HttpHeaders.SET_COOKIE, clearRefreshTokenCookie());
+    headers.add(HttpHeaders.SET_COOKIE, clearXsrfTokenCookie());
   }
 
   public Optional<String> accessToken(HttpServletRequest request) {
