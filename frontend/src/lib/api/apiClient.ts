@@ -25,6 +25,8 @@ export const apiClient = axios.create({
   baseURL,
   withCredentials: true,
   timeout: 15000,
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
 })
 
 const refreshClient = axios.create({
@@ -34,6 +36,27 @@ const refreshClient = axios.create({
 })
 
 let refreshPromise: Promise<AuthUser> | null = null
+let csrfPromise: Promise<void> | null = null
+
+const isMutation = (method?: string) =>
+  ['post', 'put', 'patch', 'delete'].includes(method?.toLowerCase() ?? '')
+
+const ensureCsrfToken = async () => {
+  csrfPromise ??= refreshClient
+    .get('/api/auth/csrf')
+    .then(() => undefined)
+    .finally(() => {
+      csrfPromise = null
+    })
+  await csrfPromise
+}
+
+apiClient.interceptors.request.use(async (config) => {
+  if (isMutation(config.method) && !config.url?.includes('/api/auth/csrf')) {
+    await ensureCsrfToken()
+  }
+  return config
+})
 
 const refreshSession = async () => {
   const response = await refreshClient.post<ApiResponse<AuthUser>>('/api/auth/refresh')
