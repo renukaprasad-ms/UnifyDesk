@@ -26,7 +26,7 @@ import { useCompanyPermissions } from '../features/company/useCompanyPermissions
 import type { AppDispatch } from '../store/store'
 import { clearAuthUser } from '../store/user/userSlice'
 
-export default function MainLayout() {
+export default function MainLayout({ platform = false }: { platform?: boolean }) {
   const dispatch = useDispatch<AppDispatch>()
   const navigate = useNavigate()
   const { can } = useCompanyPermissions()
@@ -72,10 +72,19 @@ export default function MainLayout() {
       )}
       <aside id="main-navigation" className={`app-sidebar ${menuOpen ? 'is-open' : ''}`}>
         <div className="pb-8 pt-1">
-          <WorkspaceSwitcher />
+          {platform ? <div className="px-3"><div className="font-bold text-slate-950">Messaging</div><div className="text-xs text-slate-500">Platform administration</div></div> : <WorkspaceSwitcher />}
         </div>
         <nav aria-label="Main navigation" className="space-y-1" onClick={() => setMenuOpen(false)}>
-          <p className="sidebar-label">APP</p>
+          <p className="sidebar-label">{platform ? 'PLATFORM' : 'APP'}</p>
+          {platform ? <>
+            <NavLink to="/platform" end className={linkClass}><FiHome aria-hidden="true" />Dashboard</NavLink>
+            <NavLink to="/platform/companies" className={linkClass}><FiBriefcase aria-hidden="true" />Companies</NavLink>
+            <NavLink to="/platform/users" className={linkClass}><FiUsers aria-hidden="true" />Users</NavLink>
+            <NavLink to="/platform/plans" className={linkClass}><FiCreditCard aria-hidden="true" />Plans</NavLink>
+            <NavLink to="/platform/admins" className={linkClass}><FiShield aria-hidden="true" />Admins</NavLink>
+            <NavLink to="/platform/billing" className={linkClass}><FiCreditCard aria-hidden="true" />Billing</NavLink>
+            <NavLink to="/platform/audit" className={linkClass}><FiFileText aria-hidden="true" />Audit logs</NavLink>
+          </> : <>
           <NavLink to="/" end className={linkClass}>
             <FiHome aria-hidden="true" />Dashboard
           </NavLink>
@@ -191,6 +200,7 @@ export default function MainLayout() {
             </div>
           )}
 
+          </>}
           <div>
             <button
               type="button"
