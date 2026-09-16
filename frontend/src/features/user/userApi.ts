@@ -26,7 +26,7 @@ export const userApi = {
     return unwrap(response.data)
   },
 
-  async get(userId: number) {
+  async get(userId: string) {
     const response = await apiClient.get<ApiResponse<User>>(`/api/users/${userId}`)
     return unwrap(response.data)
   },
@@ -36,22 +36,22 @@ export const userApi = {
     return unwrap(response.data)
   },
 
-  async update(userId: number, payload: UpdateUserPayload) {
+  async update(userId: string, payload: UpdateUserPayload) {
     const response = await apiClient.patch<ApiResponse<User>>(`/api/users/${userId}`, payload)
     return unwrap(response.data)
   },
 
-  async resetPassword(userId: number, payload: ResetPasswordPayload) {
+  async resetPassword(userId: string, payload: ResetPasswordPayload) {
     const response = await apiClient.patch<ApiResponse<User>>(`/api/users/${userId}/password`, payload)
     return unwrap(response.data)
   },
 
-  async toggleTwoFactor(userId: number, payload: ToggleTwoFactorPayload) {
+  async toggleTwoFactor(userId: string, payload: ToggleTwoFactorPayload) {
     const response = await apiClient.patch<ApiResponse<User>>(`/api/users/${userId}/2fa`, payload)
     return unwrap(response.data)
   },
 
-  async delete(userId: number) {
+  async delete(userId: string) {
     await apiClient.delete<ApiResponse<void>>(`/api/users/${userId}`)
   },
 }

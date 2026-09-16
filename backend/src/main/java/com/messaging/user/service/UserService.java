@@ -193,7 +193,7 @@ public class UserService {
 
   public UserResponse toResponse(User user) {
     return new UserResponse(
-        user.getId(),
+        user.getId().toString(),
         user.getEmail(),
         user.getName(),
         user.isVerified(),

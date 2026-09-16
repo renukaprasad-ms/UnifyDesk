@@ -20,7 +20,7 @@ export default function AccountSettings() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
-  const userId = authUser ? Number(authUser.userId) : null
+  const userId = authUser?.userId ?? null
 
   useEffect(() => {
     let active = true
