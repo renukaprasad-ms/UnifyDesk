@@ -9,8 +9,13 @@ import com.messaging.media.exception.MediaException;
 import com.messaging.media.service.MediaService;
 import com.messaging.security.service.CurrentUserService;
 import com.messaging.user.dto.CreateUserRequest;
+import com.messaging.user.dto.ResetPasswordRequest;
+import com.messaging.user.dto.ToggleTwoFactorRequest;
+import com.messaging.user.dto.UpdateUserRequest;
+import com.messaging.user.dto.UserResponse;
 import com.messaging.user.entity.User;
 import com.messaging.user.repository.UserRepository;
+import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -63,6 +68,72 @@ public class UserService {
     return userRepository
         .findById(userId)
         .orElseThrow(() -> new NotFoundException("User not found"));
+  }
+
+  @Transactional(readOnly = true)
+  public List<UserResponse> getUsers() {
+    return userRepository.findAll().stream().map(this::toResponse).toList();
+  }
+
+  @Transactional(readOnly = true)
+  public UserResponse getUserResponse(long userId) {
+    return toResponse(getUser(userId));
+  }
+
+  @Transactional(readOnly = true)
+  public UserResponse getCurrentUserResponse() {
+    return toResponse(getUser(currentUserService.currentUserId()));
+  }
+
+  @Transactional
+  public UserResponse updateUser(long userId, UpdateUserRequest request) {
+    User user = getUser(userId);
+
+    if (request.email() != null && !request.email().isBlank()) {
+      String email = normalizeEmail(request.email());
+      if (userRepository.existsByEmailAndIdNot(email, userId)) {
+        throw new ConflictException("Email already exists");
+      }
+      user.setEmail(email);
+    }
+
+    if (request.username() != null && !request.username().isBlank()) {
+      String username = normalizeUsername(request.username());
+      if (userRepository.existsByUsernameAndIdNot(username, userId)) {
+        throw new ConflictException("Username already exists");
+      }
+      user.setUsername(username);
+    }
+
+    if (request.name() != null && !request.name().isBlank()) {
+      user.setName(request.name().trim());
+    }
+
+    if (request.verified() != null) {
+      user.setVerified(request.verified());
+    }
+
+    return toResponse(user);
+  }
+
+  @Transactional
+  public UserResponse resetPassword(long userId, ResetPasswordRequest request) {
+    User user = getUser(userId);
+    user.setPassword(passwordEncoder.encode(request.password()));
+    return toResponse(user);
+  }
+
+  @Transactional
+  public UserResponse toggleTwoFactor(long userId, ToggleTwoFactorRequest request) {
+    User user = getUser(userId);
+    user.setTwoFactorEnabled(request.enabled());
+    return toResponse(user);
+  }
+
+  @Transactional
+  public void deleteUser(long userId) {
+    User user = getUser(userId);
+    userRepository.delete(user);
   }
 
   @Transactional
@@ -118,5 +189,15 @@ public class UserService {
     } catch (NumberFormatException exception) {
       throw new MediaException(HttpStatus.BAD_REQUEST, "MEDIA_INVALID_ID");
     }
+  }
+
+  public UserResponse toResponse(User user) {
+    return new UserResponse(
+        user.getId(),
+        user.getEmail(),
+        user.getName(),
+        user.isVerified(),
+        user.getUsername(),
+        user.isTwoFactorEnabled());
   }
 }

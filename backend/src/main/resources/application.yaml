@@ -217,4 +217,4 @@ server:
 
 logging:
   level:
-    root: OFF
+    root: ON
