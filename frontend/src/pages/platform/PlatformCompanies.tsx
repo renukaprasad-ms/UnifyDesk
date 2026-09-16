@@ -8,7 +8,7 @@ export default function PlatformCompanies() {
   const [page,setPage]=useState(0)
   const [error,setError]=useState('')
   const load=()=>platformApi.companies(search,page).then(setData).catch(e=>setError(e instanceof Error?e.message:'Unable to load companies'))
-  useEffect(load,[page])
+  useEffect(() => { void load() },[page])
   return <section>
     <h1 className="text-2xl font-bold">Companies</h1>
     <form className="my-5 flex gap-2" onSubmit={e=>{e.preventDefault();setPage(0);load()}}>
