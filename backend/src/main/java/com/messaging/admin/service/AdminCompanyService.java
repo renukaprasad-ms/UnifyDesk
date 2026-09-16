@@ -4,6 +4,7 @@ import com.messaging.admin.dto.AdminCompanyAssignmentResponse;
 import com.messaging.admin.dto.AssignAdminCompanyRequest;
 import com.messaging.admin.entity.AdminCompanyAssignment;
 import com.messaging.admin.repository.AdminCompanyAssignmentRepository;
+import com.messaging.admin.enums.PlatformPermission;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.company.dto.CompanyResponse;
 import com.messaging.company.entity.Company;
@@ -29,6 +30,7 @@ public class AdminCompanyService {
   @Transactional(readOnly = true)
   public List<CompanyResponse> visibleCompanies() {
     Long userId = currentUserService.currentUserId();
+    adminAuthorizationService.requirePermission(userId, PlatformPermission.COMPANY_VIEW);
     if (adminAuthorizationService.isSuperAdmin(userId)) {
       return companyRepository.findAll().stream()
           .map(this::toCompanyResponse)
