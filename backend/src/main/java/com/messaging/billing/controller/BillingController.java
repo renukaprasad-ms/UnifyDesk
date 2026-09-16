@@ -1,6 +1,7 @@
 package com.messaging.billing.controller;
 
 import com.messaging.billing.dto.AssignSubscriptionRequest;
+import com.messaging.billing.dto.CompanyPlanDetailsResponse;
 import com.messaging.billing.dto.CompanySubscriptionResponse;
 import com.messaging.billing.dto.PlanResponse;
 import com.messaging.billing.service.BillingCatalogService;
@@ -46,5 +47,17 @@ public class BillingController {
         .body(
             ApiResponse.success(
                 HttpStatus.CREATED.value(), response, "Company subscription selected"));
+  }
+
+  @GetMapping("/companies/{companyId}/plan")
+  public ResponseEntity<ApiResponse<CompanyPlanDetailsResponse>> companyPlan(
+      @PathVariable Long companyId) {
+    companyAuthorizationService.requirePermission(
+        currentUserService.currentUserId(), companyId, CompanyPermission.BILLING_VIEW);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            billingCatalogService.companyPlanDetails(companyId),
+            "Company plan fetched"));
   }
 }

@@ -26,3 +26,8 @@ export type CompanySubscription = {
   startedAt: string
   endsAt?: string | null
 }
+
+export type CompanyPlanDetails = {
+  subscription: CompanySubscription
+  plan: Plan
+}

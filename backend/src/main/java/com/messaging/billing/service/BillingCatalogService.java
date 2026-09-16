@@ -2,6 +2,7 @@ package com.messaging.billing.service;
 
 import com.messaging.billing.dto.AssignSubscriptionRequest;
 import com.messaging.billing.dto.CompanySubscriptionResponse;
+import com.messaging.billing.dto.CompanyPlanDetailsResponse;
 import com.messaging.billing.dto.CreatePlanRequest;
 import com.messaging.billing.dto.CreateRateCardRequest;
 import com.messaging.billing.dto.EntitlementResponse;
@@ -170,6 +171,17 @@ public class BillingCatalogService {
         .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(companyId, SubscriptionStatus.ACTIVE)
         .map(this::toSubscriptionResponse)
         .orElseThrow(() -> new NotFoundException("Company subscription not found"));
+  }
+
+  @Transactional(readOnly = true)
+  public CompanyPlanDetailsResponse companyPlanDetails(Long companyId) {
+    CompanySubscription subscription =
+        subscriptionRepository
+            .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+                companyId, SubscriptionStatus.ACTIVE)
+            .orElseThrow(() -> new NotFoundException("Company subscription not found"));
+    return new CompanyPlanDetailsResponse(
+        toSubscriptionResponse(subscription), toPlanResponse(subscription.getPlan()));
   }
 
   private Plan getPlan(Long planId) {

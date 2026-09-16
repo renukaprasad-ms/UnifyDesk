@@ -22,12 +22,14 @@ import { useDispatch } from 'react-redux'
 import Header from '../components/Header'
 import WorkspaceSwitcher from '../components/WorkspaceSwitcher'
 import { authApi } from '../features/auth/authApi'
+import { useCompanyPermissions } from '../features/company/useCompanyPermissions'
 import type { AppDispatch } from '../store/store'
 import { clearAuthUser } from '../store/user/userSlice'
 
 export default function MainLayout() {
   const dispatch = useDispatch<AppDispatch>()
   const navigate = useNavigate()
+  const { can } = useCompanyPermissions()
   const [menuOpen, setMenuOpen] = useState(false)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     inbox: false,
@@ -40,6 +42,9 @@ export default function MainLayout() {
     `sidebar-link ${isActive ? 'sidebar-link-active' : ''}`
   const nestedLinkClass = ({ isActive }: { isActive: boolean }) =>
     `sidebar-link sidebar-link-nested ${isActive ? 'sidebar-link-active' : ''}`
+  const canViewCompany = can('COMPANY_VIEW')
+  const canViewBilling = can('BILLING_VIEW')
+  const showCompanySection = canViewCompany || canViewBilling
 
   const toggleSection = (section: string) => {
     setOpenSections((current) => ({ ...current, [section]: !current[section] }))
@@ -145,38 +150,46 @@ export default function MainLayout() {
             <FiFileText aria-hidden="true" />Templates
           </NavLink>
 
-          <div>
-            <button
-              type="button"
-              className="sidebar-link w-full"
-              onClick={(event) => {
-                event.stopPropagation()
-                toggleSection('company')
-              }}
-              aria-expanded={openSections.company}
-            >
-              <FiBriefcase aria-hidden="true" />
-              <span className="min-w-0 flex-1 text-left">Company</span>
-              <FiChevronDown
-                aria-hidden="true"
-                className={`shrink-0 transition-transform ${openSections.company ? 'rotate-180' : ''}`}
-              />
-            </button>
-            <div
-              className={`sidebar-submenu ${openSections.company ? 'is-open' : ''}`}
-              onClick={() => setMenuOpen(false)}
-            >
+          {showCompanySection && (
+            <div>
+              <button
+                type="button"
+                className="sidebar-link w-full"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  toggleSection('company')
+                }}
+                aria-expanded={openSections.company}
+              >
+                <FiBriefcase aria-hidden="true" />
+                <span className="min-w-0 flex-1 text-left">Company</span>
+                <FiChevronDown
+                  aria-hidden="true"
+                  className={`shrink-0 transition-transform ${openSections.company ? 'rotate-180' : ''}`}
+                />
+              </button>
+              <div
+                className={`sidebar-submenu ${openSections.company ? 'is-open' : ''}`}
+                onClick={() => setMenuOpen(false)}
+              >
+                {canViewCompany && (
                 <NavLink to="/company/details" className={nestedLinkClass}>
                   <FiSettings aria-hidden="true" />Company details
                 </NavLink>
+                )}
+                {canViewBilling && (
                 <NavLink to="/company/plan" className={nestedLinkClass}>
                   <FiCreditCard aria-hidden="true" />Plan details
                 </NavLink>
+                )}
+                {canViewCompany && (
                 <NavLink to="/company/users" className={nestedLinkClass}>
                   <FiUsers aria-hidden="true" />Users
                 </NavLink>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             <button

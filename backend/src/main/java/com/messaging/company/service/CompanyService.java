@@ -3,6 +3,7 @@ package com.messaging.company.service;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.company.dto.CompanyResponse;
+import com.messaging.company.dto.CompanyUserResponse;
 import com.messaging.company.dto.CreateCompanyRequest;
 import com.messaging.company.entity.Company;
 import com.messaging.company.entity.CompanyMember;
@@ -73,6 +74,14 @@ public class CompanyService {
   }
 
   @Transactional(readOnly = true)
+  public List<CompanyUserResponse> companyUsers(Long companyId) {
+    getCompany(companyId);
+    return memberRepository.findByCompanyIdAndStatus(companyId, CompanyMemberStatus.ACTIVE).stream()
+        .map(this::toCompanyUserResponse)
+        .toList();
+  }
+
+  @Transactional(readOnly = true)
   public long companyCountForUser(Long userId) {
     return memberRepository.countByUserIdAndStatus(userId, CompanyMemberStatus.ACTIVE);
   }
@@ -95,6 +104,21 @@ public class CompanyService {
         company.getLogoMediaId() == null ? null : company.getLogoMediaId().toString(),
         company.getStatus(),
         role);
+  }
+
+  private CompanyUserResponse toCompanyUserResponse(CompanyMember member) {
+    User user = member.getUser();
+    return new CompanyUserResponse(
+        member.getId().toString(),
+        user.getId().toString(),
+        user.getName(),
+        user.getUsername(),
+        user.getEmail(),
+        user.isVerified(),
+        user.isTwoFactorEnabled(),
+        member.getRole(),
+        member.getStatus(),
+        member.getCreatedAt());
   }
 
   private Long resolveLogoMediaId(String logoMediaId, long userId) {

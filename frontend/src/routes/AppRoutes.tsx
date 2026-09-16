@@ -5,6 +5,7 @@ import AccountSettings from '../pages/account/AccountSettings'
 import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
 import VerifyOtp from '../pages/auth/VerifyOtp'
+import CompanyPlan from '../pages/company/CompanyPlan'
 import CompanyUsers from '../pages/company/CompanyUsers'
 import Home from '../pages/home/Home'
 import PlaceholderPage from '../pages/placeholder/PlaceholderPage'
@@ -12,6 +13,7 @@ import CreateWorkspace from '../pages/workspace/CreateWorkspace'
 import SelectPlan from '../pages/workspace/SelectPlan'
 import SelectWorkspace from '../pages/workspace/SelectWorkspace'
 import GuestRoute from './guards/GuestRoute'
+import CompanyPermissionRoute from './guards/CompanyPermissionRoute'
 import ProtectedRoute from './guards/ProtectedRoute'
 import VerifiedRoute from './guards/VerifiedRoute'
 import WorkspaceRoute from './guards/WorkspaceRoute'
@@ -43,9 +45,13 @@ const AppRoutes = () => {
               <Route path="broadcast/social-media" element={<PlaceholderPage />} />
               <Route path="broadcast/email" element={<PlaceholderPage />} />
               <Route path="templates" element={<PlaceholderPage />} />
-              <Route path="company/details" element={<PlaceholderPage />} />
-              <Route path="company/plan" element={<PlaceholderPage />} />
-              <Route path="company/users" element={<CompanyUsers />} />
+              <Route element={<CompanyPermissionRoute permissions={['COMPANY_VIEW']} />}>
+                <Route path="company/details" element={<PlaceholderPage />} />
+                <Route path="company/users" element={<CompanyUsers />} />
+              </Route>
+              <Route element={<CompanyPermissionRoute permissions={['BILLING_VIEW']} />}>
+                <Route path="company/plan" element={<CompanyPlan />} />
+              </Route>
               <Route path="account/profile" element={<PlaceholderPage />} />
               <Route path="account/settings" element={<AccountSettings />} />
             </Route>

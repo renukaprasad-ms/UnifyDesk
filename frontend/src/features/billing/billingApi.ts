@@ -1,6 +1,6 @@
 import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
-import type { CompanySubscription, Plan } from './types'
+import type { CompanyPlanDetails, CompanySubscription, Plan } from './types'
 
 const unwrap = <T>(response: ApiResponse<T>) => {
   if (!response.data) {
@@ -19,6 +19,13 @@ export const billingApi = {
     const response = await apiClient.post<ApiResponse<CompanySubscription>>(
       `/api/v1/companies/${companyId}/subscription`,
       { planId },
+    )
+    return unwrap(response.data)
+  },
+
+  async companyPlan(companyId: string) {
+    const response = await apiClient.get<ApiResponse<CompanyPlanDetails>>(
+      `/api/v1/companies/${companyId}/plan`,
     )
     return unwrap(response.data)
   },
