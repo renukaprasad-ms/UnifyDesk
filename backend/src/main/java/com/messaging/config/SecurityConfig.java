@@ -42,6 +42,7 @@ public class SecurityConfig {
             auth ->
                 auth.requestMatchers(
                         "/api/auth/register",
+                        "/api/auth/csrf",
                         "/api/v1/media/uploads",
                         "/api/auth/login",
                         "/api/auth/refresh")
