@@ -6,7 +6,6 @@ import {
   FiFileText,
   FiHome,
   FiInbox,
-  FiLock,
   FiLogOut,
   FiMail,
   FiMessageSquare,
@@ -203,8 +202,8 @@ export default function MainLayout() {
                 <NavLink to="/account/profile" className={nestedLinkClass}>
                   <FiShield aria-hidden="true" />Profile
                 </NavLink>
-                <NavLink to="/account/reset-password" className={nestedLinkClass}>
-                  <FiLock aria-hidden="true" />Reset password
+                <NavLink to="/account/settings" className={nestedLinkClass}>
+                  <FiSettings aria-hidden="true" />Settings
                 </NavLink>
             </div>
           </div>

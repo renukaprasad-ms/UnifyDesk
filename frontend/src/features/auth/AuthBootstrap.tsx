@@ -1,11 +1,13 @@
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
+import { companyApi } from '../company/companyApi'
 import { authApi } from './authApi'
 import {
   clearAuthUser,
   selectCompany,
   setAuthUser,
   setBootstrapped,
+  setCompanies,
 } from '../../store/user/userSlice'
 import { readSelectedCompanyId } from '../../store/store'
 import type { AppDispatch, RootState } from '../../store/store'
@@ -19,12 +21,18 @@ export default function AuthBootstrap({ children }: { children: React.ReactNode 
 
     authApi
       .refresh()
-      .then((user) => {
+      .then(async (user) => {
         if (!active) return
         dispatch(setAuthUser(user))
-        const selectedCompanyId = readSelectedCompanyId()
-        if (user.hasCompanies && selectedCompanyId) {
-          dispatch(selectCompany(selectedCompanyId))
+
+        if (user.hasCompanies) {
+          const companies = await companyApi.myCompanies()
+          if (!active) return
+
+          dispatch(setCompanies(companies))
+          const selectedCompanyId = readSelectedCompanyId()
+          const selectedCompany = companies.find((company) => company.companyId === selectedCompanyId)
+          dispatch(selectCompany(selectedCompany?.companyId ?? companies[0]?.companyId))
         }
       })
       .catch(() => {

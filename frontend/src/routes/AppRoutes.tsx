@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router'
 import AuthLayout from '../layouts/AuthLayout'
 import MainLayout from '../layouts/MainLayout'
+import AccountSettings from '../pages/account/AccountSettings'
 import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
 import VerifyOtp from '../pages/auth/VerifyOtp'
@@ -46,7 +47,7 @@ const AppRoutes = () => {
               <Route path="company/plan" element={<PlaceholderPage />} />
               <Route path="company/users" element={<CompanyUsers />} />
               <Route path="account/profile" element={<PlaceholderPage />} />
-              <Route path="account/reset-password" element={<PlaceholderPage />} />
+              <Route path="account/settings" element={<AccountSettings />} />
             </Route>
           </Route>
         </Route>

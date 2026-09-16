@@ -13,7 +13,7 @@ const titles: Record<string, string> = {
   '/company/plan': 'Plan Details',
   '/company/users': 'Company Users',
   '/account/profile': 'User Profile',
-  '/account/reset-password': 'Reset Password',
+  '/account/settings': 'Settings',
 }
 
 export default function PlaceholderPage() {
