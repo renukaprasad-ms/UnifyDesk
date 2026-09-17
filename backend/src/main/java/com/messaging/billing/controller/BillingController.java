@@ -5,6 +5,7 @@ import com.messaging.billing.dto.CompanyPlanDetailsResponse;
 import com.messaging.billing.dto.CompanySubscriptionResponse;
 import com.messaging.billing.dto.PlanResponse;
 import com.messaging.billing.service.BillingCatalogService;
+import com.messaging.common.exception.NotFoundException;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
@@ -60,9 +61,16 @@ public class BillingController {
       @PathVariable Long companyId) {
     companyAuthorizationService.requirePermission(
         currentUserService.currentUserId(), companyId, CompanyPermissionKeys.BILLING_SUBSCRIPTION_READ);
+
+    CompanyPlanDetailsResponse details;
+    try {
+      details = billingCatalogService.companyPlanDetails(companyId);
+    } catch (NotFoundException exception) {
+      details = new CompanyPlanDetailsResponse(null, null);
+    }
+
     return ResponseEntity.ok(ApiResponse.success(
-        HttpStatus.OK.value(), billingCatalogService.companyPlanDetails(companyId),
-        "Company plan fetched"));
+        HttpStatus.OK.value(), details, "Company plan fetched"));
   }
 
   private void requireSubscriptionModify(Long companyId) {
