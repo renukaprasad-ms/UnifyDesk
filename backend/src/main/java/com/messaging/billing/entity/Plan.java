@@ -41,10 +41,17 @@ public class Plan {
   @Column(nullable = false, length = 120)
   private String name;
 
+  @Column(length = 500)
+  private String description;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
   private PlanStatus status;
 
+  /*
+   * Legacy compatibility fields. New commercial pricing is stored in plan_prices.
+   * They remain mapped until the current frontend has migrated to PlanPrice.
+   */
   @Enumerated(EnumType.STRING)
   @Column(name = "billing_cycle", nullable = false, length = 32)
   private BillingCycle billingCycle;
@@ -70,12 +77,8 @@ public class Plan {
       id = IdGenerator.nextId();
     }
     Instant now = Instant.now();
-    if (createdAt == null) {
-      createdAt = now;
-    }
-    if (updatedAt == null) {
-      updatedAt = now;
-    }
+    if (createdAt == null) createdAt = now;
+    if (updatedAt == null) updatedAt = now;
   }
 
   @PreUpdate
