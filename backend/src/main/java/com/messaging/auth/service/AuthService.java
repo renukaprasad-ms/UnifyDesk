@@ -11,7 +11,6 @@ import com.messaging.auth.dto.VerifyEmailRequest;
 import com.messaging.auth.dto.VerifyPasswordResetOtpRequest;
 import com.messaging.auth.dto.VerifyTwoFactorRequest;
 import com.messaging.common.exception.BadRequestException;
-import com.messaging.common.exception.TooManyRequestsException;
 import com.messaging.common.exception.UnauthorizedException;
 import com.messaging.company.service.CompanyService;
 import com.messaging.media.entity.Media;
@@ -136,18 +135,14 @@ public class AuthService {
   }
 
   public PasswordResetChallengeResponse requestPasswordReset(PasswordResetRequest request) {
+    authOtpService.enforcePasswordResetRateLimit(request.identifier());
     String challengeId = UUID.randomUUID().toString();
     userService
         .findByIdentifier(request.identifier())
         .ifPresent(
-            user -> {
-              try {
+            user ->
                 authOtpService.issuePasswordResetOtp(
-                    challengeId, user.getEmail(), user.getId());
-              } catch (TooManyRequestsException ignored) {
-                // Keep the response indistinguishable from an unknown identifier.
-              }
-            });
+                    challengeId, user.getEmail(), user.getId()));
     return new PasswordResetChallengeResponse(challengeId, PASSWORD_RESET_OTP_EXPIRES_SECONDS);
   }
 
