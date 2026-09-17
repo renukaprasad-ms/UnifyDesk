@@ -1,15 +1,15 @@
 package com.messaging.admin.service;
 
+import com.messaging.admin.entity.PlatformAdmin;
 import com.messaging.admin.enums.PlatformAdminRole;
 import com.messaging.admin.enums.PlatformAdminStatus;
 import com.messaging.admin.enums.PlatformPermission;
-import com.messaging.admin.entity.PlatformAdmin;
-import com.messaging.admin.repository.PlatformAdminPermissionRepository;
-import java.util.EnumSet;
-import java.util.Set;
 import com.messaging.admin.repository.AdminCompanyAssignmentRepository;
+import com.messaging.admin.repository.PlatformAdminPermissionRepository;
 import com.messaging.admin.repository.PlatformAdminRepository;
 import com.messaging.common.exception.ForbiddenException;
+import java.util.EnumSet;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,7 +49,8 @@ public class PlatformAdminAuthorizationService {
       return EnumSet.allOf(PlatformPermission.class);
     }
     EnumSet<PlatformPermission> permissions = EnumSet.noneOf(PlatformPermission.class);
-    permissionRepository.findByPlatformAdminId(admin.getId())
+    permissionRepository
+        .findByPlatformAdminId(admin.getId())
         .forEach(item -> permissions.add(item.getPermission()));
     return Set.copyOf(permissions);
   }
@@ -59,7 +60,10 @@ public class PlatformAdminAuthorizationService {
     if (isSuperAdmin(userId)) return true;
     return platformAdminRepository
         .findByUserIdAndStatus(userId, PlatformAdminStatus.ACTIVE)
-        .map(admin -> permissionRepository.existsByPlatformAdminIdAndPermission(admin.getId(), permission))
+        .map(
+            admin ->
+                permissionRepository.existsByPlatformAdminIdAndPermission(
+                    admin.getId(), permission))
         .orElse(false);
   }
 

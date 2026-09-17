@@ -118,6 +118,9 @@ app:
       http-only: ${JWT_COOKIE_HTTP_ONLY:true}
       secure: ${JWT_COOKIE_SECURE:false}
       same-site: ${JWT_COOKIE_SAME_SITE:Strict}
+  channel:
+    credentials:
+      master-key: ${CHANNEL_CREDENTIAL_MASTER_KEY:}
   redis:
     key-prefix: ${REDIS_KEY_PREFIX:messaging}
     ttl:

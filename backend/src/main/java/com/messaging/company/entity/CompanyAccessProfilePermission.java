@@ -29,7 +29,9 @@ import lombok.Setter;
           name = "uk_company_access_profile_permissions",
           columnNames = {"profile_id", "permission"})
     },
-    indexes = {@Index(name = "idx_company_access_profile_permissions_profile", columnList = "profile_id")})
+    indexes = {
+      @Index(name = "idx_company_access_profile_permissions_profile", columnList = "profile_id")
+    })
 public class CompanyAccessProfilePermission {
 
   @Id private Long id;

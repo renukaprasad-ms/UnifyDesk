@@ -1,11 +1,15 @@
 import { configureStore } from '@reduxjs/toolkit'
-import userReducer from './user/userSlice'
+import authReducer from './auth/authSlice'
+import iamReducer from './iam/iamSlice'
+import workspaceReducer from './workspace/workspaceSlice'
 
 const SELECTED_COMPANY_KEY = 'messaging.selectedCompanyId'
 
 export const store = configureStore({
   reducer: {
-    user: userReducer,
+    auth: authReducer,
+    workspace: workspaceReducer,
+    iam: iamReducer,
   },
 })
 
@@ -13,23 +17,17 @@ export type RootState = ReturnType<typeof store.getState>
 export type AppDispatch = typeof store.dispatch
 
 export const readSelectedCompanyId = () => {
-  if (typeof window === 'undefined') {
-    return null
-  }
+  if (typeof window === 'undefined') return null
   return window.localStorage.getItem(SELECTED_COMPANY_KEY)
 }
 
 let persistedCompanyId = readSelectedCompanyId()
 
 store.subscribe(() => {
-  if (typeof window === 'undefined') {
-    return
-  }
+  if (typeof window === 'undefined') return
 
-  const selectedCompanyId = store.getState().user.selectedCompanyId
-  if (selectedCompanyId === persistedCompanyId) {
-    return
-  }
+  const selectedCompanyId = store.getState().workspace.selectedCompanyId
+  if (selectedCompanyId === persistedCompanyId) return
 
   persistedCompanyId = selectedCompanyId
   if (selectedCompanyId) {

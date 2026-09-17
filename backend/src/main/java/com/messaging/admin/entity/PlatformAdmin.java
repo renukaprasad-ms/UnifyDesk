@@ -27,7 +27,9 @@ import lombok.Setter;
 @Entity
 @Table(
     name = "platform_admins",
-    uniqueConstraints = {@UniqueConstraint(name = "uk_platform_admins_user", columnNames = "user_id")},
+    uniqueConstraints = {
+      @UniqueConstraint(name = "uk_platform_admins_user", columnNames = "user_id")
+    },
     indexes = {@Index(name = "idx_platform_admins_role", columnList = "role")})
 public class PlatformAdmin {
 

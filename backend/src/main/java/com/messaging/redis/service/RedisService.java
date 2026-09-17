@@ -30,7 +30,8 @@ public class RedisService {
   }
 
   public <T> T get(String key, Class<T> type) {
-    return run("get", key, () -> objectMapper.convertValue(redisTemplate.opsForValue().get(key), type));
+    return run(
+        "get", key, () -> objectMapper.convertValue(redisTemplate.opsForValue().get(key), type));
   }
 
   public boolean delete(String key) {
@@ -61,7 +62,8 @@ public class RedisService {
     try {
       return operationCallback.execute();
     } catch (RuntimeException exception) {
-      throw new RedisOperationException("Redis " + operation + " failed for key " + namespace(key), exception);
+      throw new RedisOperationException(
+          "Redis " + operation + " failed for key " + namespace(key), exception);
     }
   }
 

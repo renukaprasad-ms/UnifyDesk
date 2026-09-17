@@ -1,0 +1,38 @@
+name: Format backend once
+
+on:
+  push:
+    branches:
+      - feat/channel-provider-foundation
+    paths:
+      - 'backend/**'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/channel-provider-foundation
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Apply Spotless formatting
+        working-directory: backend
+        run: chmod +x mvnw && ./mvnw -B spotless:apply
+      - name: Commit formatting changes
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No formatting changes required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend
+          git commit -m "chore: apply backend formatting"
+          git push origin HEAD:feat/channel-provider-foundation

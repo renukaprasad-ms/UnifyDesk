@@ -4,7 +4,7 @@ import com.messaging.common.response.ApiResponse;
 import com.messaging.company.dto.CompanyResponse;
 import com.messaging.company.dto.CompanyUserResponse;
 import com.messaging.company.dto.CreateCompanyRequest;
-import com.messaging.company.enums.CompanyPermission;
+import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
 import com.messaging.company.service.CompanyService;
 import com.messaging.security.service.CurrentUserService;
@@ -48,9 +48,11 @@ public class CompanyController {
   public ResponseEntity<ApiResponse<List<CompanyUserResponse>>> companyUsers(
       @PathVariable Long companyId) {
     companyAuthorizationService.requirePermission(
-        currentUserService.currentUserId(), companyId, CompanyPermission.COMPANY_VIEW);
+        currentUserService.currentUserId(), companyId, CompanyPermissionKeys.USER_READ);
     return ResponseEntity.ok(
         ApiResponse.success(
-            HttpStatus.OK.value(), companyService.companyUsers(companyId), "Company users fetched"));
+            HttpStatus.OK.value(),
+            companyService.companyUsers(companyId),
+            "Company users fetched"));
   }
 }

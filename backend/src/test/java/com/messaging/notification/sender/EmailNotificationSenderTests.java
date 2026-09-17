@@ -37,7 +37,8 @@ class EmailNotificationSenderTests {
 
   @Test
   void sendFailsWhenFromAddressIsMissing() {
-    EmailNotificationSender sender = new EmailNotificationSender(mailSender, new NotificationProperties());
+    EmailNotificationSender sender =
+        new EmailNotificationSender(mailSender, new NotificationProperties());
 
     assertThatThrownBy(
             () ->

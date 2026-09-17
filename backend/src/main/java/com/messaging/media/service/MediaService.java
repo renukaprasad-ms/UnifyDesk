@@ -100,7 +100,8 @@ public class MediaService {
     media.setOwnerUserId(userId);
     media.setStorageProvider(storageProperties.getDefaultProvider());
     media.setBucket(storageProperties.getSupabase().getBucket());
-    media.setObjectKey(objectKeyFactory.createTemporaryObjectKey(userId, mediaId, validated.extension()));
+    media.setObjectKey(
+        objectKeyFactory.createTemporaryObjectKey(userId, mediaId, validated.extension()));
     media.setOriginalFileName(validated.fileName());
     media.setContentType(validated.contentType());
     media.setSizeBytes(validated.sizeBytes());

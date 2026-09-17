@@ -18,19 +18,14 @@ class EventPublisherTests {
 
   @Test
   void publishesCriticalEventToCriticalTopic() {
-    KafkaTemplate<String, KafkaEvent<?>> kafkaTemplate = org.mockito.Mockito.mock(KafkaTemplate.class);
+    KafkaTemplate<String, KafkaEvent<?>> kafkaTemplate =
+        org.mockito.Mockito.mock(KafkaTemplate.class);
     KafkaTopics topics = new KafkaTopics(properties());
     EventPublisher publisher = new EventPublisher(kafkaTemplate, topics, new KafkaKeyResolver());
     KafkaEvent<OtpRequestedEvent> event =
         KafkaEvent.of(
             EventMetadata.create(
-                "auth.otp.requested",
-                "v1",
-                1L,
-                2L,
-                "corr",
-                null,
-                MessagePriority.CRITICAL),
+                "auth.otp.requested", "v1", 1L, 2L, "corr", null, MessagePriority.CRITICAL),
             new OtpRequestedEvent(
                 "user@example.com", "EMAIL", "Verify your email", "Your code is 123456", false));
     when(kafkaTemplate.send("messaging.jobs.critical", "1:user:2", event))

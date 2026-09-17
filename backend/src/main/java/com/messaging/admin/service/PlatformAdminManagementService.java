@@ -27,9 +27,10 @@ public class PlatformAdminManagementService {
   public Page<PlatformAdminResponse> list(String search, Pageable pageable) {
     Long actor = currentUserService.currentUserId();
     authorizationService.requirePermission(actor, PlatformPermission.ADMIN_VIEW);
-    Page<PlatformAdmin> page = search == null || search.isBlank()
-        ? adminRepository.findAll(pageable)
-        : adminRepository.findByUserEmailContainingIgnoreCase(search.trim(), pageable);
+    Page<PlatformAdmin> page =
+        search == null || search.isBlank()
+            ? adminRepository.findAll(pageable)
+            : adminRepository.findByUserEmailContainingIgnoreCase(search.trim(), pageable);
     return page.map(this::response);
   }
 
@@ -37,8 +38,11 @@ public class PlatformAdminManagementService {
   public PlatformAdminResponse create(CreatePlatformAdminRequest request) {
     Long actor = currentUserService.currentUserId();
     authorizationService.requirePermission(actor, PlatformPermission.ADMIN_CREATE);
-    User user = userRepository.findByEmail(request.email().trim().toLowerCase())
-        .orElseThrow(() -> new NotFoundException("User must register before becoming a platform admin"));
+    User user =
+        userRepository
+            .findByEmail(request.email().trim().toLowerCase())
+            .orElseThrow(
+                () -> new NotFoundException("User must register before becoming a platform admin"));
     PlatformAdmin admin = adminRepository.findByUserId(user.getId()).orElseGet(PlatformAdmin::new);
     admin.setUser(user);
     admin.setRole(PlatformAdminRole.ADMIN);
@@ -52,8 +56,10 @@ public class PlatformAdminManagementService {
   public PlatformAdminResponse update(Long adminId, UpdatePlatformAdminRequest request) {
     Long actor = currentUserService.currentUserId();
     authorizationService.requirePermission(actor, PlatformPermission.ADMIN_ASSIGN);
-    PlatformAdmin admin = adminRepository.findById(adminId)
-        .orElseThrow(() -> new NotFoundException("Platform admin not found"));
+    PlatformAdmin admin =
+        adminRepository
+            .findById(adminId)
+            .orElseThrow(() -> new NotFoundException("Platform admin not found"));
     if (admin.getRole() == PlatformAdminRole.SUPER_ADMIN) {
       authorizationService.requireSuperAdmin(actor);
     }
@@ -76,10 +82,19 @@ public class PlatformAdminManagementService {
 
   private PlatformAdminResponse response(PlatformAdmin admin) {
     User u = admin.getUser();
-    Set<PlatformPermission> permissions = admin.getRole() == PlatformAdminRole.SUPER_ADMIN
-        ? EnumSet.allOf(PlatformPermission.class)
-        : permissionRepository.findByPlatformAdminId(admin.getId()).stream()
-            .map(PlatformAdminPermission::getPermission).collect(java.util.stream.Collectors.toUnmodifiableSet());
-    return new PlatformAdminResponse(admin.getId().toString(), u.getId().toString(), u.getName(), u.getEmail(), admin.getRole(), admin.getStatus(), permissions);
+    Set<PlatformPermission> permissions =
+        admin.getRole() == PlatformAdminRole.SUPER_ADMIN
+            ? EnumSet.allOf(PlatformPermission.class)
+            : permissionRepository.findByPlatformAdminId(admin.getId()).stream()
+                .map(PlatformAdminPermission::getPermission)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    return new PlatformAdminResponse(
+        admin.getId().toString(),
+        u.getId().toString(),
+        u.getName(),
+        u.getEmail(),
+        admin.getRole(),
+        admin.getStatus(),
+        permissions);
   }
 }

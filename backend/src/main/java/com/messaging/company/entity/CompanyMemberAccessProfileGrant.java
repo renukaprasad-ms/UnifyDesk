@@ -23,7 +23,9 @@ import lombok.Setter;
 @Table(
     name = "company_member_access_profile_grants",
     indexes = {
-      @Index(name = "idx_company_member_access_profile_grants_lookup", columnList = "company_id,user_id"),
+      @Index(
+          name = "idx_company_member_access_profile_grants_lookup",
+          columnList = "company_id,user_id"),
       @Index(name = "idx_company_member_access_profile_grants_profile", columnList = "profile_id"),
       @Index(name = "idx_company_member_access_profile_grants_expires", columnList = "expires_at")
     })

@@ -1,9 +1,8 @@
-import { useSelector } from 'react-redux'
 import { Navigate, Outlet } from 'react-router'
-import type { RootState } from '../../store/store'
+import { useAppSelector } from '../../store/hooks'
+import { selectAuthUser } from '../../store/auth/authSlice'
 
 export default function VerifiedRoute() {
-  const user = useSelector((state: RootState) => state.user.user)
-
+  const user = useAppSelector(selectAuthUser)
   return user?.verified ? <Outlet /> : <Navigate to="/verifyotp" replace />
 }

@@ -42,9 +42,7 @@ public class KafkaTopicConfig {
 
   private NewTopic dltTopic(KafkaProperties.PriorityTopic topic) {
     return baseTopic(
-        topic.getDltName(),
-        topic.getPartitions(),
-        kafkaProperties.getTopics().getDltRetention());
+        topic.getDltName(), topic.getPartitions(), kafkaProperties.getTopics().getDltRetention());
   }
 
   private NewTopic baseTopic(String name, int partitions, java.time.Duration retention) {

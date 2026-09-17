@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CompanyAuthorizationService {
 
   private final CompanyPermissionService permissionService;
+  private final CompanyIamPermissionService iamPermissionService;
   private final CompanyMemberRepository memberRepository;
 
   @Transactional(readOnly = true)
@@ -27,5 +28,15 @@ public class CompanyAuthorizationService {
     if (!permissionService.hasPermission(userId, companyId, permission)) {
       throw new ForbiddenException("Company permission denied");
     }
+  }
+
+  public void requirePermission(Long userId, Long companyId, String permissionKey) {
+    if (!iamPermissionService.hasPermission(userId, companyId, permissionKey)) {
+      throw new ForbiddenException("Company permission denied: " + permissionKey);
+    }
+  }
+
+  public boolean hasPermission(Long userId, Long companyId, String permissionKey) {
+    return iamPermissionService.hasPermission(userId, companyId, permissionKey);
   }
 }

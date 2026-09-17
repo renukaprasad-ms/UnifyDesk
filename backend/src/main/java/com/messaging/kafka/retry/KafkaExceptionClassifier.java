@@ -15,7 +15,8 @@ public class KafkaExceptionClassifier {
       if (current instanceof NonRetryableKafkaException || current instanceof BadRequestException) {
         return false;
       }
-      if (current instanceof RetryableKafkaException || current instanceof ServiceUnavailableException) {
+      if (current instanceof RetryableKafkaException
+          || current instanceof ServiceUnavailableException) {
         return true;
       }
       current = current.getCause();

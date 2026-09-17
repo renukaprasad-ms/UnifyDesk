@@ -43,8 +43,7 @@ public class KafkaProducerConfig {
     properties.put(ProducerConfig.LINGER_MS_CONFIG, lingerMs);
     properties.put(ProducerConfig.BATCH_SIZE_CONFIG, batchSize);
     properties.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, compressionType);
-    properties.put(
-        ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, maxInFlightRequests);
+    properties.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, maxInFlightRequests);
     properties.put(
         CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
         appKafkaProperties.getSecurity().getProtocol());
@@ -56,8 +55,7 @@ public class KafkaProducerConfig {
     }
     JsonSerializer<KafkaEvent<?>> valueSerializer = new JsonSerializer<>(objectMapper);
     valueSerializer.setAddTypeInfo(false);
-    return new DefaultKafkaProducerFactory<>(
-        properties, new StringSerializer(), valueSerializer);
+    return new DefaultKafkaProducerFactory<>(properties, new StringSerializer(), valueSerializer);
   }
 
   @Bean

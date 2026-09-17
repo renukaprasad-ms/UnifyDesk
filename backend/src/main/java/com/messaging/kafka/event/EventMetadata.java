@@ -24,7 +24,9 @@ public record EventMetadata(
       String causationId,
       MessagePriority priority) {
     String resolvedCorrelationId =
-        correlationId == null || correlationId.isBlank() ? UUID.randomUUID().toString() : correlationId;
+        correlationId == null || correlationId.isBlank()
+            ? UUID.randomUUID().toString()
+            : correlationId;
     return new EventMetadata(
         UUID.randomUUID().toString(),
         eventType,

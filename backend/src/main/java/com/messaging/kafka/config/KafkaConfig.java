@@ -25,8 +25,7 @@ public class KafkaConfig {
     Map<String, Object> configs = new HashMap<>();
     configs.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
     configs.put(
-        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
-        kafkaProperties.getSecurity().getProtocol());
+        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, kafkaProperties.getSecurity().getProtocol());
     if (StringUtils.hasText(kafkaProperties.getSecurity().getSaslMechanism())) {
       configs.put("sasl.mechanism", kafkaProperties.getSecurity().getSaslMechanism());
     }

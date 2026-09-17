@@ -42,7 +42,8 @@ class NotificationServiceTests {
     assertThatThrownBy(
             () ->
                 service.send(
-                    new SendNotificationRequest(NotificationChannel.EMAIL, " ", "Subject", "Body", false)))
+                    new SendNotificationRequest(
+                        NotificationChannel.EMAIL, " ", "Subject", "Body", false)))
         .isInstanceOf(BadRequestException.class)
         .hasMessage("Notification recipient is required");
   }

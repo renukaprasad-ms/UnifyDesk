@@ -14,7 +14,8 @@ public class MediaObjectKeyFactory {
   }
 
   public String createTemporaryObjectKey(long ownerUserId, long mediaId, String extension) {
-    return "tmp/uploads/%d/%d.%s".formatted(ownerUserId, mediaId, extension.toLowerCase(Locale.ROOT));
+    return "tmp/uploads/%d/%d.%s"
+        .formatted(ownerUserId, mediaId, extension.toLowerCase(Locale.ROOT));
   }
 
   public String createPreRegisterObjectKey(long mediaId, String extension) {
