@@ -15,4 +15,5 @@ public class JwtProperties {
   private String publicKey;
   private Duration accessExpiration = Duration.ofMinutes(15);
   private Duration refreshExpiration = Duration.ofDays(7);
+  private Duration passwordResetExpiration = Duration.ofMinutes(10);
 }
