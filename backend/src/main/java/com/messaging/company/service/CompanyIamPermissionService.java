@@ -35,7 +35,7 @@ public class CompanyIamPermissionService {
       return false;
     }
     if (member.getRole() == CompanyRole.OWNER) {
-      return true;
+      return permissionDefinitionRepository.existsById(permissionKey);
     }
     return effectivePermissions(member, companyId, userId).contains(permissionKey);
   }
@@ -63,7 +63,7 @@ public class CompanyIamPermissionService {
   @Transactional(readOnly = true)
   public boolean canDelegate(Long userId, Long companyId, Set<String> permissionKeys) {
     if (isOwner(userId, companyId)) {
-      return true;
+      return permissionDefinitionRepository.findAllById(permissionKeys).size() == permissionKeys.size();
     }
     return effectivePermissions(userId, companyId).containsAll(permissionKeys);
   }
