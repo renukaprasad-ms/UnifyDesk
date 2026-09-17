@@ -7,7 +7,7 @@ export type PlatformPermission =
 
 export type PlatformAccess = {
   platformAdmin: boolean
-  role: 'SUPER_ADMIN' | 'PLATFORM_ADMIN' | null
+  role: 'SUPER_ADMIN' | 'ADMIN' | null
   permissions: PlatformPermission[]
 }
 
