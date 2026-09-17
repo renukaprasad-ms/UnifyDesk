@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { FiArrowLeft, FiCheckCircle, FiEye, FiEyeOff, FiKey } from 'react-icons/fi'
 import { useNavigate } from 'react-router'
 import { userApi } from '../../features/user/userApi'
@@ -62,7 +62,7 @@ export default function ChangePassword() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
-  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!user) return
 
@@ -127,7 +127,9 @@ export default function ChangePassword() {
             <FiCheckCircle className="mt-0.5 shrink-0" aria-hidden="true" />
             <div>
               <p className="font-semibold">Password changed successfully</p>
-              <p className="mt-1 text-emerald-700/80">Use your new password the next time you sign in.</p>
+              <p className="mt-1 text-emerald-700/80">
+                Use your new password the next time you sign in.
+              </p>
             </div>
           </div>
         )}
