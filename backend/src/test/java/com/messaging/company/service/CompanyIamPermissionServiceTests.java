@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.messaging.admin.service.PlatformAdminAuthorizationService;
 import com.messaging.company.entity.CompanyCustomRole;
 import com.messaging.company.entity.CompanyCustomRolePermission;
 import com.messaging.company.entity.CompanyMember;
@@ -36,6 +37,7 @@ class CompanyIamPermissionServiceTests {
   @Mock private CompanyMemberRoleAssignmentRepository assignmentRepository;
   @Mock private CompanyCustomRolePermissionRepository rolePermissionRepository;
   @Mock private PermissionDefinitionRepository permissionDefinitionRepository;
+  @Mock private PlatformAdminAuthorizationService platformAdminAuthorizationService;
 
   private CompanyIamPermissionService service;
 
@@ -46,7 +48,8 @@ class CompanyIamPermissionServiceTests {
             memberRepository,
             assignmentRepository,
             rolePermissionRepository,
-            permissionDefinitionRepository);
+            permissionDefinitionRepository,
+            platformAdminAuthorizationService);
   }
 
   @Test
