@@ -15,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
 @Configuration
 @RequiredArgsConstructor
@@ -28,9 +29,17 @@ public class SecurityConfig {
     CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
     csrfTokenRepository.setCookiePath("/");
 
+    // This is a JSON API consumed by our React SPA. The SPA reads/requests the CSRF token and
+    // sends that raw value in X-XSRF-TOKEN. Using the plain request handler makes Spring Security
+    // validate the header value directly instead of expecting the XOR/BREACH encoded form that is
+    // primarily intended for server-rendered forms.
+    CsrfTokenRequestAttributeHandler csrfTokenRequestHandler =
+        new CsrfTokenRequestAttributeHandler();
+
     http.csrf(
             csrf ->
                 csrf.csrfTokenRepository(csrfTokenRepository)
+                    .csrfTokenRequestHandler(csrfTokenRequestHandler)
                     .ignoringRequestMatchers(
                         "/api/auth/register",
                         "/api/auth/login",
