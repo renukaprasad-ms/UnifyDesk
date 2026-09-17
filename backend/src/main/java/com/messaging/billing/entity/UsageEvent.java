@@ -1,9 +1,11 @@
 package com.messaging.billing.entity;
 
-import com.messaging.billing.enums.ChannelType;
-import com.messaging.billing.enums.CommunicationDirection;
-import com.messaging.billing.enums.MessageType;
+import com.messaging.billing.enums.BillingCategory;
+import com.messaging.billing.enums.PricingDirection;
+import com.messaging.billing.enums.PricingSource;
 import com.messaging.billing.enums.UsageUnit;
+import com.messaging.channel.enums.ChannelType;
+import com.messaging.channel.enums.ProviderType;
 import com.messaging.common.id.IdGenerator;
 import com.messaging.company.entity.Company;
 import jakarta.persistence.Column;
@@ -17,6 +19,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.Instant;
 import lombok.Getter;
@@ -29,9 +32,13 @@ import lombok.Setter;
 @Entity
 @Table(
     name = "usage_events",
+    uniqueConstraints = {
+      @UniqueConstraint(name = "uk_usage_events_idempotency_key", columnNames = "idempotency_key")
+    },
     indexes = {
       @Index(name = "idx_usage_events_company_time", columnList = "company_id,occurred_at"),
-      @Index(name = "idx_usage_events_channel", columnList = "channel")
+      @Index(name = "idx_usage_events_channel", columnList = "channel"),
+      @Index(name = "idx_usage_events_source", columnList = "source_type,source_id")
     })
 public class UsageEvent {
 
@@ -47,12 +54,20 @@ public class UsageEvent {
   @Column(name = "rate_card_id")
   private Long rateCardIdSnapshot;
 
+  @Column(name = "pricing_rule_id")
+  private Long pricingRuleIdSnapshot;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "pricing_source", length = 32)
+  private PricingSource pricingSource;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
   private ChannelType channel;
 
+  @Enumerated(EnumType.STRING)
   @Column(length = 80)
-  private String provider;
+  private ProviderType provider;
 
   @Column(length = 2)
   private String country;
@@ -61,12 +76,12 @@ public class UsageEvent {
   private String carrier;
 
   @Enumerated(EnumType.STRING)
-  @Column(name = "message_type", nullable = false, length = 32)
-  private MessageType messageType;
+  @Column(name = "billing_category", nullable = false, length = 48)
+  private BillingCategory billingCategory;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
-  private CommunicationDirection direction;
+  private PricingDirection direction;
 
   @Column(nullable = false)
   private long quantity;
@@ -84,6 +99,15 @@ public class UsageEvent {
   @Column(nullable = false, length = 3)
   private String currency;
 
+  @Column(name = "source_type", length = 48)
+  private String sourceType;
+
+  @Column(name = "source_id", length = 120)
+  private String sourceId;
+
+  @Column(name = "idempotency_key", nullable = false, length = 200)
+  private String idempotencyKey;
+
   @Column(name = "occurred_at", nullable = false)
   private Instant occurredAt;
 
@@ -92,15 +116,9 @@ public class UsageEvent {
 
   @PrePersist
   private void beforeInsert() {
-    if (id == null) {
-      id = IdGenerator.nextId();
-    }
+    if (id == null) id = IdGenerator.nextId();
     Instant now = Instant.now();
-    if (occurredAt == null) {
-      occurredAt = now;
-    }
-    if (createdAt == null) {
-      createdAt = now;
-    }
+    if (occurredAt == null) occurredAt = now;
+    if (createdAt == null) createdAt = now;
   }
 }
