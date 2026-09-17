@@ -6,7 +6,7 @@ import com.messaging.billing.dto.CompanySubscriptionResponse;
 import com.messaging.billing.dto.PlanResponse;
 import com.messaging.billing.service.BillingCatalogService;
 import com.messaging.common.response.ApiResponse;
-import com.messaging.company.enums.CompanyPermission;
+import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
 import com.messaging.security.service.CurrentUserService;
 import jakarta.validation.Valid;
@@ -40,7 +40,9 @@ public class BillingController {
   public ResponseEntity<ApiResponse<CompanySubscriptionResponse>> assignSubscription(
       @PathVariable Long companyId, @Valid @RequestBody AssignSubscriptionRequest request) {
     companyAuthorizationService.requirePermission(
-        currentUserService.currentUserId(), companyId, CompanyPermission.BILLING_MANAGE);
+        currentUserService.currentUserId(),
+        companyId,
+        CompanyPermissionKeys.BILLING_SUBSCRIPTION_MODIFY);
     CompanySubscriptionResponse response =
         billingCatalogService.assignSubscription(companyId, request);
     return ResponseEntity.status(HttpStatus.CREATED)
@@ -53,7 +55,9 @@ public class BillingController {
   public ResponseEntity<ApiResponse<CompanyPlanDetailsResponse>> companyPlan(
       @PathVariable Long companyId) {
     companyAuthorizationService.requirePermission(
-        currentUserService.currentUserId(), companyId, CompanyPermission.BILLING_VIEW);
+        currentUserService.currentUserId(),
+        companyId,
+        CompanyPermissionKeys.BILLING_SUBSCRIPTION_READ);
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
