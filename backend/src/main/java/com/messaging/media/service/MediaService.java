@@ -196,7 +196,11 @@ public class MediaService {
 
   public MediaAccessResponse createAccessUrl(String mediaId) {
     long userId = currentUserService.currentUserId();
-    Media media = loadOwnedMedia(parseMediaId(mediaId), userId);
+    Media media =
+        mediaRepository
+            .findById(parseMediaId(mediaId))
+            .orElseThrow(() -> new MediaException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND"));
+    authorizationService.requireReadAccess(media, userId);
     if (media.getStatus() != MediaStatus.ACTIVE) {
       throw new MediaException(HttpStatus.CONFLICT, "MEDIA_NOT_ACTIVE");
     }
