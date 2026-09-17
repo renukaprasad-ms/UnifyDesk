@@ -4,8 +4,10 @@ import AuthLayout from '../layouts/AuthLayout'
 import MainLayout from '../layouts/MainLayout'
 import AccountSettings from '../pages/account/AccountSettings'
 import ChangePassword from '../pages/account/ChangePassword'
+import ForgotPassword from '../pages/auth/ForgotPassword'
 import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
+import ResetPassword from '../pages/auth/ResetPassword'
 import VerifyOtp from '../pages/auth/VerifyOtp'
 import CompanyPlan from '../pages/company/CompanyPlan'
 import CompanyUsers from '../pages/company/CompanyUsers'
@@ -33,6 +35,8 @@ const AppRoutes = () => (
       <Route element={<GuestRoute />}>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route path="/verifyotp" element={<VerifyOtp />} />
