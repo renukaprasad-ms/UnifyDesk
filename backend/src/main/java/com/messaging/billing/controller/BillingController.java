@@ -45,7 +45,7 @@ public class BillingController {
         companyId,
         CompanyPermissionKeys.BILLING_SUBSCRIPTION_MODIFY);
     CompanySubscriptionResponse response =
-        billingCatalogService.assignSubscription(companyId, request);
+        billingCatalogService.selectFreeSubscription(companyId, request);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(
             ApiResponse.success(
