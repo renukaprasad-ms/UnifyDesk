@@ -1,5 +1,6 @@
 package com.messaging.company.service;
 
+import com.messaging.billing.service.DefaultPlanAssignmentService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.company.dto.CompanyResponse;
@@ -34,6 +35,7 @@ public class CompanyService {
   private final UserRepository userRepository;
   private final CurrentUserService currentUserService;
   private final MediaService mediaService;
+  private final DefaultPlanAssignmentService defaultPlanAssignmentService;
 
   @Transactional
   public CompanyResponse create(CreateCompanyRequest request) {
@@ -57,6 +59,8 @@ public class CompanyService {
     owner.setRole(CompanyRole.OWNER);
     owner.setStatus(CompanyMemberStatus.ACTIVE);
     memberRepository.saveAndFlush(owner);
+
+    defaultPlanAssignmentService.assignToNewCompany(company);
     return toResponse(company, CompanyRole.OWNER);
   }
 
