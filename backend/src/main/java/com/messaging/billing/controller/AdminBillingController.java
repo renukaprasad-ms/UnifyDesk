@@ -2,12 +2,19 @@ package com.messaging.billing.controller;
 
 import com.messaging.admin.service.PlatformAdminAuthorizationService;
 import com.messaging.billing.dto.AssignSubscriptionRequest;
+import com.messaging.billing.dto.CompanyRateOverrideResponse;
 import com.messaging.billing.dto.CompanySubscriptionResponse;
+import com.messaging.billing.dto.CreateCompanyRateOverrideRequest;
+import com.messaging.billing.dto.CreatePlanPriceRequest;
 import com.messaging.billing.dto.CreatePlanRequest;
 import com.messaging.billing.dto.CreateRateCardRequest;
+import com.messaging.billing.dto.EntitlementDefinitionResponse;
 import com.messaging.billing.dto.EntitlementResponse;
+import com.messaging.billing.dto.PlanPriceResponse;
 import com.messaging.billing.dto.PlanResponse;
 import com.messaging.billing.dto.RateCardResponse;
+import com.messaging.billing.dto.UpdateCompanyRateOverrideRequest;
+import com.messaging.billing.dto.UpdatePlanPriceRequest;
 import com.messaging.billing.dto.UpdatePlanRequest;
 import com.messaging.billing.dto.UpdateRateCardRequest;
 import com.messaging.billing.dto.UpsertEntitlementRequest;
@@ -60,9 +67,45 @@ public class AdminBillingController {
     requireSuperAdmin();
     return ResponseEntity.ok(
         ApiResponse.success(
+            HttpStatus.OK.value(), billingCatalogService.updatePlan(planId, request), "Plan updated"));
+  }
+
+  @GetMapping("/plans/{planId}/prices")
+  public ResponseEntity<ApiResponse<List<PlanPriceResponse>>> planPrices(@PathVariable Long planId) {
+    requireSuperAdmin();
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(), billingCatalogService.planPrices(planId), "Plan prices fetched"));
+  }
+
+  @PostMapping("/plans/{planId}/prices")
+  public ResponseEntity<ApiResponse<PlanPriceResponse>> createPlanPrice(
+      @PathVariable Long planId, @Valid @RequestBody CreatePlanPriceRequest request) {
+    requireSuperAdmin();
+    PlanPriceResponse response = billingCatalogService.createPlanPrice(planId, request);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponse.success(HttpStatus.CREATED.value(), response, "Plan price created"));
+  }
+
+  @PatchMapping("/plan-prices/{planPriceId}")
+  public ResponseEntity<ApiResponse<PlanPriceResponse>> updatePlanPrice(
+      @PathVariable Long planPriceId, @Valid @RequestBody UpdatePlanPriceRequest request) {
+    requireSuperAdmin();
+    return ResponseEntity.ok(
+        ApiResponse.success(
             HttpStatus.OK.value(),
-            billingCatalogService.updatePlan(planId, request),
-            "Plan updated"));
+            billingCatalogService.updatePlanPrice(planPriceId, request),
+            "Plan price updated"));
+  }
+
+  @GetMapping("/entitlement-definitions")
+  public ResponseEntity<ApiResponse<List<EntitlementDefinitionResponse>>> entitlementDefinitions() {
+    requireSuperAdmin();
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            billingCatalogService.entitlementDefinitions(),
+            "Entitlement definitions fetched"));
   }
 
   @PostMapping("/plans/{planId}/entitlements")
@@ -111,12 +154,48 @@ public class AdminBillingController {
             "Rate card updated"));
   }
 
+  @GetMapping("/companies/{companyId}/rate-overrides")
+  public ResponseEntity<ApiResponse<List<CompanyRateOverrideResponse>>> companyRateOverrides(
+      @PathVariable Long companyId) {
+    requireSuperAdmin();
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            billingCatalogService.companyRateOverrides(companyId),
+            "Company rate overrides fetched"));
+  }
+
+  @PostMapping("/companies/{companyId}/rate-overrides")
+  public ResponseEntity<ApiResponse<CompanyRateOverrideResponse>> createCompanyRateOverride(
+      @PathVariable Long companyId,
+      @Valid @RequestBody CreateCompanyRateOverrideRequest request) {
+    requireSuperAdmin();
+    CompanyRateOverrideResponse response =
+        billingCatalogService.createCompanyRateOverride(
+            companyId, currentUserService.currentUserId(), request);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                HttpStatus.CREATED.value(), response, "Company rate override created"));
+  }
+
+  @PatchMapping("/rate-overrides/{overrideId}")
+  public ResponseEntity<ApiResponse<CompanyRateOverrideResponse>> updateCompanyRateOverride(
+      @PathVariable Long overrideId,
+      @Valid @RequestBody UpdateCompanyRateOverrideRequest request) {
+    requireSuperAdmin();
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            billingCatalogService.updateCompanyRateOverride(overrideId, request),
+            "Company rate override updated"));
+  }
+
   @PostMapping("/companies/{companyId}/subscription")
   public ResponseEntity<ApiResponse<CompanySubscriptionResponse>> assignCompanySubscription(
       @PathVariable Long companyId, @Valid @RequestBody AssignSubscriptionRequest request) {
     requireSuperAdmin();
-    CompanySubscriptionResponse response =
-        billingCatalogService.assignSubscription(companyId, request);
+    CompanySubscriptionResponse response = billingCatalogService.assignSubscription(companyId, request);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(
             ApiResponse.success(
