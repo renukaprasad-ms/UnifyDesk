@@ -29,7 +29,9 @@ import lombok.Setter;
           columnNames = {"company_id", "user_id", "role_id"})
     },
     indexes = {
-      @Index(name = "idx_company_member_role_assignments_member", columnList = "company_id,user_id"),
+      @Index(
+          name = "idx_company_member_role_assignments_member",
+          columnList = "company_id,user_id"),
       @Index(name = "idx_company_member_role_assignments_role", columnList = "role_id"),
       @Index(name = "idx_company_member_role_assignments_expires", columnList = "expires_at")
     })

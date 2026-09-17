@@ -172,7 +172,8 @@ public class ChannelConnectionService {
         .orElseThrow(() -> new NotFoundException("Channel connection not found"));
   }
 
-  private void validateProvider(ChannelType channelType, com.messaging.channel.enums.ProviderType providerType) {
+  private void validateProvider(
+      ChannelType channelType, com.messaging.channel.enums.ProviderType providerType) {
     if (!providerType.supports(channelType)) {
       throw new BadRequestException(
           "Provider " + providerType + " does not support channel " + channelType);

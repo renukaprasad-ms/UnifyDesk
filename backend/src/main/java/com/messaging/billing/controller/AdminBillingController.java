@@ -60,7 +60,9 @@ public class AdminBillingController {
     requireSuperAdmin();
     return ResponseEntity.ok(
         ApiResponse.success(
-            HttpStatus.OK.value(), billingCatalogService.updatePlan(planId, request), "Plan updated"));
+            HttpStatus.OK.value(),
+            billingCatalogService.updatePlan(planId, request),
+            "Plan updated"));
   }
 
   @PostMapping("/plans/{planId}/entitlements")

@@ -24,7 +24,9 @@ class RedisRateLimitServiceTests {
   @Test
   void allowsBelowLimit() {
     when(stringRedisTemplate.execute(
-            any(RedisScript.class), eq(List.of("messaging:rate-limit:login:127.0.0.1")), eq("60000")))
+            any(RedisScript.class),
+            eq(List.of("messaging:rate-limit:login:127.0.0.1")),
+            eq("60000")))
         .thenReturn("2:60000");
 
     RateLimitResult result =
@@ -39,7 +41,9 @@ class RedisRateLimitServiceTests {
   @Test
   void blocksAboveLimitWithRetryAfter() {
     when(stringRedisTemplate.execute(
-            any(RedisScript.class), eq(List.of("messaging:rate-limit:login:127.0.0.1")), eq("60000")))
+            any(RedisScript.class),
+            eq(List.of("messaging:rate-limit:login:127.0.0.1")),
+            eq("60000")))
         .thenReturn("4:42000");
 
     RateLimitResult result =

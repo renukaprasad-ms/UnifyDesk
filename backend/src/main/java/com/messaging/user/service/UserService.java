@@ -1,8 +1,8 @@
 package com.messaging.user.service;
 
 import com.messaging.common.exception.ConflictException;
-import com.messaging.common.exception.NotFoundException;
 import com.messaging.common.exception.ForbiddenException;
+import com.messaging.common.exception.NotFoundException;
 import com.messaging.media.dto.ProfilePictureResponse;
 import com.messaging.media.entity.Media;
 import com.messaging.media.enums.MediaPurpose;

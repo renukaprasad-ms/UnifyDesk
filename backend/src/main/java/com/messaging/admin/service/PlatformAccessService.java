@@ -18,9 +18,12 @@ public class PlatformAccessService {
   @Transactional(readOnly = true)
   public PlatformAccessResponse me() {
     Long userId = currentUserService.currentUserId();
-    return adminRepository.findByUserIdAndStatus(userId, PlatformAdminStatus.ACTIVE)
-        .map(admin -> new PlatformAccessResponse(
-            true, admin.getRole(), authorizationService.permissions(userId)))
+    return adminRepository
+        .findByUserIdAndStatus(userId, PlatformAdminStatus.ACTIVE)
+        .map(
+            admin ->
+                new PlatformAccessResponse(
+                    true, admin.getRole(), authorizationService.permissions(userId)))
         .orElseGet(() -> new PlatformAccessResponse(false, null, java.util.Set.of()));
   }
 }

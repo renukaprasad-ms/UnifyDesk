@@ -14,10 +14,12 @@ import lombok.Setter;
 @Entity
 @Table(
     name = "platform_admin_permissions",
-    uniqueConstraints = @UniqueConstraint(
-        name = "uk_platform_admin_permission",
-        columnNames = {"platform_admin_id", "permission"}),
-    indexes = @Index(name = "idx_platform_admin_permission_admin", columnList = "platform_admin_id"))
+    uniqueConstraints =
+        @UniqueConstraint(
+            name = "uk_platform_admin_permission",
+            columnNames = {"platform_admin_id", "permission"}),
+    indexes =
+        @Index(name = "idx_platform_admin_permission_admin", columnList = "platform_admin_id"))
 public class PlatformAdminPermission {
   @Id private Long id;
 

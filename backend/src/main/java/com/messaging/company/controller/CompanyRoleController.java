@@ -52,8 +52,7 @@ public class CompanyRoleController {
 
   @PostMapping("/roles")
   public ResponseEntity<ApiResponse<CompanyRoleResponse>> createRole(
-      @PathVariable Long companyId,
-      @Valid @RequestBody CreateCompanyRoleRequest request) {
+      @PathVariable Long companyId, @Valid @RequestBody CreateCompanyRoleRequest request) {
     CompanyRoleResponse response = roleManagementService.createRole(companyId, request);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(ApiResponse.success(HttpStatus.CREATED.value(), response, "Role created"));
@@ -108,9 +107,7 @@ public class CompanyRoleController {
 
   @DeleteMapping("/members/{userId}/roles/{roleId}")
   public ResponseEntity<ApiResponse<Void>> revokeRole(
-      @PathVariable Long companyId,
-      @PathVariable Long userId,
-      @PathVariable Long roleId) {
+      @PathVariable Long companyId, @PathVariable Long userId, @PathVariable Long roleId) {
     roleManagementService.revokeRole(companyId, userId, roleId);
     return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Role revoked"));
   }

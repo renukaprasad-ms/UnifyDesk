@@ -3,8 +3,8 @@ package com.messaging.admin.service;
 import com.messaging.admin.dto.AdminCompanyAssignmentResponse;
 import com.messaging.admin.dto.AssignAdminCompanyRequest;
 import com.messaging.admin.entity.AdminCompanyAssignment;
-import com.messaging.admin.repository.AdminCompanyAssignmentRepository;
 import com.messaging.admin.enums.PlatformPermission;
+import com.messaging.admin.repository.AdminCompanyAssignmentRepository;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.company.dto.CompanyResponse;
 import com.messaging.company.entity.Company;
@@ -32,9 +32,7 @@ public class AdminCompanyService {
     Long userId = currentUserService.currentUserId();
     adminAuthorizationService.requirePermission(userId, PlatformPermission.COMPANY_VIEW);
     if (adminAuthorizationService.isSuperAdmin(userId)) {
-      return companyRepository.findAll().stream()
-          .map(this::toCompanyResponse)
-          .toList();
+      return companyRepository.findAll().stream().map(this::toCompanyResponse).toList();
     }
     return assignmentRepository.findByAdminUserId(userId).stream()
         .map(AdminCompanyAssignment::getCompany)

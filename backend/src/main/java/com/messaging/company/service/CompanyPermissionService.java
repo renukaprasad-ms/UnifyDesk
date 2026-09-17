@@ -108,7 +108,8 @@ public class CompanyPermissionService {
 
   private void applyUserOverrides(
       Long companyId, Long userId, EnumSet<CompanyPermission> permissions) {
-    Collection<CompanyMemberPermissionOverride> activeOverrides = activeOverrides(companyId, userId);
+    Collection<CompanyMemberPermissionOverride> activeOverrides =
+        activeOverrides(companyId, userId);
     activeOverrides.stream()
         .filter(override -> override.getEffect() == PermissionEffect.ALLOW)
         .map(CompanyMemberPermissionOverride::getPermission)

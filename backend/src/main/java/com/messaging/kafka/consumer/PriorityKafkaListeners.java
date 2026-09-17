@@ -24,7 +24,8 @@ public class PriorityKafkaListeners {
       topics = "${app.kafka.topics.critical.name}",
       groupId = "${app.kafka.topics.critical.consumer-group}",
       containerFactory = "criticalKafkaListenerContainerFactory")
-  public void critical(ConsumerRecord<String, KafkaEvent<?>> record, Acknowledgment acknowledgment) {
+  public void critical(
+      ConsumerRecord<String, KafkaEvent<?>> record, Acknowledgment acknowledgment) {
     process(record, acknowledgment);
   }
 
@@ -55,7 +56,8 @@ public class PriorityKafkaListeners {
     process(record, acknowledgment);
   }
 
-  private void process(ConsumerRecord<String, KafkaEvent<?>> record, Acknowledgment acknowledgment) {
+  private void process(
+      ConsumerRecord<String, KafkaEvent<?>> record, Acknowledgment acknowledgment) {
     KafkaEvent<?> event = record.value();
 
     if (event == null) {

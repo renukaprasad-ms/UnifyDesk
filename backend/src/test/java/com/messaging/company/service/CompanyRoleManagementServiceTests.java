@@ -69,8 +69,7 @@ class CompanyRoleManagementServiceTests {
     when(companyService.getCompany(COMPANY_ID)).thenReturn(new Company());
     when(roleRepository.existsByCompanyIdAndNameIgnoreCase(COMPANY_ID, "Billing Admin"))
         .thenReturn(false);
-    when(permissionDefinitionRepository.findAllById(any()))
-        .thenReturn(List.of(billingCardAdd));
+    when(permissionDefinitionRepository.findAllById(any())).thenReturn(List.of(billingCardAdd));
     when(iamPermissionService.canDelegate(
             ACTOR_ID, COMPANY_ID, Set.of(CompanyPermissionKeys.BILLING_CARD_ADD)))
         .thenReturn(false);

@@ -123,7 +123,8 @@ class CompanyIamPermissionServiceTests {
     when(permissionDefinitionRepository.findAll()).thenReturn(List.of(read, send));
 
     assertThat(service.effectivePermissions(USER_ID, COMPANY_ID))
-        .containsExactlyInAnyOrder(CompanyPermissionKeys.EMAIL_READ, CompanyPermissionKeys.EMAIL_SEND);
+        .containsExactlyInAnyOrder(
+            CompanyPermissionKeys.EMAIL_READ, CompanyPermissionKeys.EMAIL_SEND);
   }
 
   private CompanyMember member(CompanyRole role) {

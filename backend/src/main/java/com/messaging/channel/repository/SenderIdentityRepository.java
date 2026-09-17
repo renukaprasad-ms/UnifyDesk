@@ -16,6 +16,5 @@ public interface SenderIdentityRepository extends JpaRepository<SenderIdentity, 
 
   long countByConnectionCompanyId(Long companyId);
 
-  long countByConnectionCompanyIdAndIdentityType(
-      Long companyId, SenderIdentityType identityType);
+  long countByConnectionCompanyIdAndIdentityType(Long companyId, SenderIdentityType identityType);
 }

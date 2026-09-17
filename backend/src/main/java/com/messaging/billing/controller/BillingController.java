@@ -33,7 +33,8 @@ public class BillingController {
   @GetMapping("/plans")
   public ResponseEntity<ApiResponse<List<PlanResponse>>> plans() {
     return ResponseEntity.ok(
-        ApiResponse.success(HttpStatus.OK.value(), billingCatalogService.activePlans(), "Plans fetched"));
+        ApiResponse.success(
+            HttpStatus.OK.value(), billingCatalogService.activePlans(), "Plans fetched"));
   }
 
   @PostMapping("/companies/{companyId}/subscription")

@@ -22,9 +22,11 @@ public class PlatformCompanyManagementService {
   public Page<PlatformCompanyResponse> list(String search, Pageable pageable) {
     Long actor = currentUserService.currentUserId();
     authorizationService.requirePermission(actor, PlatformPermission.COMPANY_VIEW);
-    Page<Company> page = search == null || search.isBlank()
-        ? companyRepository.findAll(pageable)
-        : companyRepository.findByNameContainingIgnoreCaseOrBusinessEmailContainingIgnoreCase(search.trim(), search.trim(), pageable);
+    Page<Company> page =
+        search == null || search.isBlank()
+            ? companyRepository.findAll(pageable)
+            : companyRepository.findByNameContainingIgnoreCaseOrBusinessEmailContainingIgnoreCase(
+                search.trim(), search.trim(), pageable);
     return page.map(this::response);
   }
 
@@ -32,13 +34,22 @@ public class PlatformCompanyManagementService {
   public PlatformCompanyResponse updateStatus(Long id, UpdateCompanyStatusRequest request) {
     Long actor = currentUserService.currentUserId();
     authorizationService.requirePermission(actor, PlatformPermission.COMPANY_SUSPEND);
-    Company company = companyRepository.findById(id)
-        .orElseThrow(() -> new NotFoundException("Company not found"));
+    Company company =
+        companyRepository
+            .findById(id)
+            .orElseThrow(() -> new NotFoundException("Company not found"));
     company.setStatus(request.status());
     return response(company);
   }
 
   private PlatformCompanyResponse response(Company c) {
-    return new PlatformCompanyResponse(c.getId().toString(), c.getName(), c.getSlug(), c.getBusinessEmail(), c.getCountry(), c.getTimezone(), c.getStatus());
+    return new PlatformCompanyResponse(
+        c.getId().toString(),
+        c.getName(),
+        c.getSlug(),
+        c.getBusinessEmail(),
+        c.getCountry(),
+        c.getTimezone(),
+        c.getStatus());
   }
 }

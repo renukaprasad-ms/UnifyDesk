@@ -38,8 +38,7 @@ public class ChannelConnectionController {
 
   @PostMapping
   public ResponseEntity<ApiResponse<ChannelConnectionResponse>> create(
-      @PathVariable Long companyId,
-      @Valid @RequestBody CreateChannelConnectionRequest request) {
+      @PathVariable Long companyId, @Valid @RequestBody CreateChannelConnectionRequest request) {
     Long userId = currentUserService.currentUserId();
     companyAuthorizationService.requirePermission(
         userId, companyId, connectPermission(request.channelType()));
@@ -53,15 +52,13 @@ public class ChannelConnectionController {
 
   @GetMapping
   public ResponseEntity<ApiResponse<List<ChannelConnectionResponse>>> list(
-      @PathVariable Long companyId,
-      @RequestParam(required = false) ChannelType channelType) {
+      @PathVariable Long companyId, @RequestParam(required = false) ChannelType channelType) {
     Long userId = currentUserService.currentUserId();
     companyAuthorizationService.requireActiveMembership(userId, companyId);
 
     List<ChannelConnectionResponse> connections;
     if (channelType != null) {
-      companyAuthorizationService.requirePermission(
-          userId, companyId, readPermission(channelType));
+      companyAuthorizationService.requirePermission(userId, companyId, readPermission(channelType));
       connections = channelConnectionService.list(companyId, channelType);
     } else {
       connections =
@@ -76,8 +73,7 @@ public class ChannelConnectionController {
     }
 
     return ResponseEntity.ok(
-        ApiResponse.success(
-            HttpStatus.OK.value(), connections, "Channel connections fetched"));
+        ApiResponse.success(HttpStatus.OK.value(), connections, "Channel connections fetched"));
   }
 
   @GetMapping("/{connectionId}")
@@ -88,8 +84,7 @@ public class ChannelConnectionController {
     companyAuthorizationService.requirePermission(
         userId, companyId, readPermission(connection.channelType()));
     return ResponseEntity.ok(
-        ApiResponse.success(
-            HttpStatus.OK.value(), connection, "Channel connection fetched"));
+        ApiResponse.success(HttpStatus.OK.value(), connection, "Channel connection fetched"));
   }
 
   @PatchMapping("/{connectionId}")
@@ -134,9 +129,7 @@ public class ChannelConnectionController {
     SenderIdentityResponse response =
         channelConnectionService.addSender(companyId, connectionId, request);
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(
-            ApiResponse.success(
-                HttpStatus.CREATED.value(), response, "Sender identity created"));
+        .body(ApiResponse.success(HttpStatus.CREATED.value(), response, "Sender identity created"));
   }
 
   @GetMapping("/{connectionId}/senders")
@@ -165,8 +158,7 @@ public class ChannelConnectionController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            channelConnectionService.makeDefaultSender(
-                companyId, connectionId, senderIdentityId),
+            channelConnectionService.makeDefaultSender(companyId, connectionId, senderIdentityId),
             "Default sender updated"));
   }
 

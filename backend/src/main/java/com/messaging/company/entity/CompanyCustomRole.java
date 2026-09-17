@@ -22,9 +22,7 @@ import lombok.Setter;
 @Entity
 @Table(
     name = "company_custom_roles",
-    indexes = {
-      @Index(name = "idx_company_custom_roles_company", columnList = "company_id")
-    })
+    indexes = {@Index(name = "idx_company_custom_roles_company", columnList = "company_id")})
 public class CompanyCustomRole {
 
   @Id private Long id;

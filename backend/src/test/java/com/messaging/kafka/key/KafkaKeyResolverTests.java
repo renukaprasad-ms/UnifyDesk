@@ -14,15 +14,10 @@ class KafkaKeyResolverTests {
   void prefersCompanyAndUserForOrderingKey() {
     EventMetadata metadata =
         EventMetadata.create(
-            "notification.requested",
-            "v1",
-            7L,
-            9L,
-            "corr-1",
-            null,
-            MessagePriority.MEDIUM);
+            "notification.requested", "v1", 7L, 9L, "corr-1", null, MessagePriority.MEDIUM);
     KafkaEvent<NotificationRequestedEvent> event =
-        KafkaEvent.of(metadata, new NotificationRequestedEvent(7L, "user@example.com", "EMAIL", "welcome"));
+        KafkaEvent.of(
+            metadata, new NotificationRequestedEvent(7L, "user@example.com", "EMAIL", "welcome"));
 
     assertThat(new KafkaKeyResolver().resolve(event)).isEqualTo("7:user:9");
   }

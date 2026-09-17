@@ -63,7 +63,8 @@ public class CompanyIamPermissionService {
   @Transactional(readOnly = true)
   public boolean canDelegate(Long userId, Long companyId, Set<String> permissionKeys) {
     if (isOwner(userId, companyId)) {
-      return permissionDefinitionRepository.findAllById(permissionKeys).size() == permissionKeys.size();
+      return permissionDefinitionRepository.findAllById(permissionKeys).size()
+          == permissionKeys.size();
     }
     return effectivePermissions(userId, companyId).containsAll(permissionKeys);
   }

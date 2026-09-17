@@ -37,7 +37,8 @@ public class AesGcmCredentialCipher implements CredentialCipher {
       cipher.init(Cipher.ENCRYPT_MODE, key(), new GCMParameterSpec(TAG_LENGTH_BITS, iv));
       byte[] encrypted = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
       return Base64.getEncoder()
-          .encodeToString(ByteBuffer.allocate(iv.length + encrypted.length).put(iv).put(encrypted).array());
+          .encodeToString(
+              ByteBuffer.allocate(iv.length + encrypted.length).put(iv).put(encrypted).array());
     } catch (GeneralSecurityException e) {
       throw new IllegalStateException("Unable to encrypt provider credential", e);
     }
@@ -75,7 +76,8 @@ public class AesGcmCredentialCipher implements CredentialCipher {
     try {
       decoded = Base64.getDecoder().decode(configuredKey);
     } catch (IllegalArgumentException e) {
-      throw new IllegalStateException("app.channel.credentials.master-key must be Base64 encoded", e);
+      throw new IllegalStateException(
+          "app.channel.credentials.master-key must be Base64 encoded", e);
     }
     if (decoded.length != 32) {
       throw new IllegalStateException(

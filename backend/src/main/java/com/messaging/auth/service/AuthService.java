@@ -3,9 +3,9 @@ package com.messaging.auth.service;
 import com.messaging.auth.dto.AuthUserResponse;
 import com.messaging.auth.dto.LoginRequest;
 import com.messaging.auth.dto.LoginResponse;
-import com.messaging.auth.dto.VerifyTwoFactorRequest;
 import com.messaging.auth.dto.RegisterRequest;
 import com.messaging.auth.dto.VerifyEmailRequest;
+import com.messaging.auth.dto.VerifyTwoFactorRequest;
 import com.messaging.common.exception.UnauthorizedException;
 import com.messaging.company.service.CompanyService;
 import com.messaging.media.entity.Media;
@@ -56,11 +56,7 @@ public class AuthService {
     User user =
         userService.createUser(
             new CreateUserRequest(
-                request.email(),
-                request.name(),
-                request.username(),
-                request.password(),
-                false));
+                request.email(), request.name(), request.username(), request.password(), false));
     attachPreRegisterProfilePicture(user, request);
 
     issueSession(user, servletRequest, headers);
@@ -76,8 +72,9 @@ public class AuthService {
         || request.profilePictureUploadToken().isBlank()) {
       return;
     }
-    Media media = mediaService.completePreRegisterProfilePictureUpload(
-        request.profilePictureMediaId(), request.profilePictureUploadToken(), user.getId());
+    Media media =
+        mediaService.completePreRegisterProfilePictureUpload(
+            request.profilePictureMediaId(), request.profilePictureUploadToken(), user.getId());
     userService.attachUserProfilePicture(user.getId(), media);
   }
 
@@ -91,7 +88,8 @@ public class AuthService {
     if (user.isTwoFactorEnabled()) {
       String challengeId = UUID.randomUUID().toString();
       authOtpService.issueLoginOtp(challengeId, user.getEmail());
-      String preAuthToken = authTokenService.createPreAuthToken(user.getId().toString(), challengeId);
+      String preAuthToken =
+          authTokenService.createPreAuthToken(user.getId().toString(), challengeId);
       return LoginResponse.twoFactorRequired(preAuthToken, 300);
     }
 
@@ -129,15 +127,18 @@ public class AuthService {
 
   @Transactional
   public AuthUserResponse refresh(HttpServletRequest servletRequest, HttpHeaders headers) {
-    String refreshToken = authCookieService
-        .refreshToken(servletRequest)
-        .orElseThrow(() -> new UnauthorizedException("Refresh token is required"));
-    Claims claims = authTokenService
-        .parseRefreshToken(refreshToken)
-        .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
-    UserSession session = userSessionService
-        .findActiveByRefreshTokenId(claims.getId())
-        .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
+    String refreshToken =
+        authCookieService
+            .refreshToken(servletRequest)
+            .orElseThrow(() -> new UnauthorizedException("Refresh token is required"));
+    Claims claims =
+        authTokenService
+            .parseRefreshToken(refreshToken)
+            .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
+    UserSession session =
+        userSessionService
+            .findActiveByRefreshTokenId(claims.getId())
+            .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
     User user = session.getUser();
     issueSession(user, servletRequest, headers);
     return toResponse(user);
@@ -155,20 +156,22 @@ public class AuthService {
     authCookieService
         .refreshToken(servletRequest)
         .ifPresent(
-            refreshToken -> authTokenService
-                .parseRefreshToken(refreshToken)
-                .ifPresent(claims -> userSessionService.revoke(claims.getId())));
+            refreshToken ->
+                authTokenService
+                    .parseRefreshToken(refreshToken)
+                    .ifPresent(claims -> userSessionService.revoke(claims.getId())));
     authTokenService.clearTokenCookies(headers);
   }
 
   private TokenPair issueSession(
       User user, HttpServletRequest servletRequest, HttpHeaders headers) {
-    TokenPair tokenPair = authTokenService.createTokens(
-        user.getId().toString(),
-        Map.of(
-            "username", user.getUsername(),
-            "email", user.getEmail(),
-            "verified", user.isVerified()));
+    TokenPair tokenPair =
+        authTokenService.createTokens(
+            user.getId().toString(),
+            Map.of(
+                "username", user.getUsername(),
+                "email", user.getEmail(),
+                "verified", user.isVerified()));
 
     userSessionService.createOrUpdate(
         new CreateOrUpdateSessionRequest(

@@ -16,8 +16,8 @@ import com.messaging.company.enums.CompanyPermission;
 import com.messaging.company.repository.CompanyAccessProfilePermissionRepository;
 import com.messaging.company.repository.CompanyAccessProfileRepository;
 import com.messaging.company.repository.CompanyMemberAccessProfileGrantRepository;
-import com.messaging.company.repository.CompanyMemberRepository;
 import com.messaging.company.repository.CompanyMemberPermissionOverrideRepository;
+import com.messaging.company.repository.CompanyMemberRepository;
 import com.messaging.security.service.CurrentUserService;
 import com.messaging.user.entity.User;
 import com.messaging.user.repository.UserRepository;
@@ -56,7 +56,8 @@ public class CompanyAccessService {
   public void grantPermissionOverride(
       Long companyId, Long targetUserId, GrantPermissionOverrideRequest request) {
     Long actorId = currentUserService.currentUserId();
-    authorizationService.requirePermission(actorId, companyId, CompanyPermission.MEMBER_ROLE_UPDATE);
+    authorizationService.requirePermission(
+        actorId, companyId, CompanyPermission.MEMBER_ROLE_UPDATE);
     Company company = companyService.getCompany(companyId);
     requireActiveMember(companyId, targetUserId);
     User target =
@@ -106,7 +107,8 @@ public class CompanyAccessService {
   public void grantAccessProfile(
       Long companyId, Long targetUserId, Long profileId, GrantAccessProfileRequest request) {
     Long actorId = currentUserService.currentUserId();
-    authorizationService.requirePermission(actorId, companyId, CompanyPermission.MEMBER_ROLE_UPDATE);
+    authorizationService.requirePermission(
+        actorId, companyId, CompanyPermission.MEMBER_ROLE_UPDATE);
     Company company = companyService.getCompany(companyId);
     requireActiveMember(companyId, targetUserId);
     User target =

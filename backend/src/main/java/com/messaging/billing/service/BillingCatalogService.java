@@ -1,8 +1,8 @@
 package com.messaging.billing.service;
 
 import com.messaging.billing.dto.AssignSubscriptionRequest;
-import com.messaging.billing.dto.CompanySubscriptionResponse;
 import com.messaging.billing.dto.CompanyPlanDetailsResponse;
+import com.messaging.billing.dto.CompanySubscriptionResponse;
 import com.messaging.billing.dto.CreatePlanRequest;
 import com.messaging.billing.dto.CreateRateCardRequest;
 import com.messaging.billing.dto.EntitlementResponse;
@@ -61,7 +61,9 @@ public class BillingCatalogService {
 
   @Transactional(readOnly = true)
   public List<PlanResponse> activePlans() {
-    return planRepository.findByStatus(PlanStatus.ACTIVE).stream().map(this::toPlanResponse).toList();
+    return planRepository.findByStatus(PlanStatus.ACTIVE).stream()
+        .map(this::toPlanResponse)
+        .toList();
   }
 
   @Transactional
@@ -115,7 +117,8 @@ public class BillingCatalogService {
     rateCard.setDirection(request.direction());
     rateCard.setUnit(request.unit());
     rateCard.setPrice(request.price());
-    rateCard.setCurrency(normalizeCurrency(request.currency() == null ? plan.getCurrency() : request.currency()));
+    rateCard.setCurrency(
+        normalizeCurrency(request.currency() == null ? plan.getCurrency() : request.currency()));
     rateCard.setEffectiveFrom(request.effectiveFrom());
     rateCard.setEffectiveTo(request.effectiveTo());
     rateCard.setStatus(RateCardStatus.ACTIVE);
@@ -177,15 +180,16 @@ public class BillingCatalogService {
   public CompanyPlanDetailsResponse companyPlanDetails(Long companyId) {
     CompanySubscription subscription =
         subscriptionRepository
-            .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
-                companyId, SubscriptionStatus.ACTIVE)
+            .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(companyId, SubscriptionStatus.ACTIVE)
             .orElseThrow(() -> new NotFoundException("Company subscription not found"));
     return new CompanyPlanDetailsResponse(
         toSubscriptionResponse(subscription), toPlanResponse(subscription.getPlan()));
   }
 
   private Plan getPlan(Long planId) {
-    return planRepository.findById(planId).orElseThrow(() -> new NotFoundException("Plan not found"));
+    return planRepository
+        .findById(planId)
+        .orElseThrow(() -> new NotFoundException("Plan not found"));
   }
 
   private Long parseId(String value, String message) {

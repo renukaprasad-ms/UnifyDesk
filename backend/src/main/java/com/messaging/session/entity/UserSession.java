@@ -31,8 +31,7 @@ import lombok.Setter;
     })
 public class UserSession {
 
-  @Id
-  private Long id;
+  @Id private Long id;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "user_id", nullable = false)

@@ -14,13 +14,7 @@ class KafkaEventTests {
   void createsEnvelopeWithRequiredMetadata() {
     EventMetadata metadata =
         EventMetadata.create(
-            "auth.otp.requested",
-            "v1",
-            10L,
-            20L,
-            null,
-            null,
-            MessagePriority.CRITICAL);
+            "auth.otp.requested", "v1", 10L, 20L, null, null, MessagePriority.CRITICAL);
 
     KafkaEvent<OtpRequestedEvent> event =
         KafkaEvent.of(
@@ -48,13 +42,7 @@ class KafkaEventTests {
     KafkaEvent<OtpRequestedEvent> event =
         KafkaEvent.of(
             EventMetadata.create(
-                "auth.otp.requested",
-                "v1",
-                null,
-                null,
-                "corr",
-                null,
-                MessagePriority.CRITICAL),
+                "auth.otp.requested", "v1", null, null, "corr", null, MessagePriority.CRITICAL),
             new OtpRequestedEvent(
                 "user@example.com", "EMAIL", "Verify your email", "Your code is 123456", false));
 

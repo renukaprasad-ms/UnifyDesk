@@ -51,6 +51,8 @@ public class CompanyController {
         currentUserService.currentUserId(), companyId, CompanyPermissionKeys.USER_READ);
     return ResponseEntity.ok(
         ApiResponse.success(
-            HttpStatus.OK.value(), companyService.companyUsers(companyId), "Company users fetched"));
+            HttpStatus.OK.value(),
+            companyService.companyUsers(companyId),
+            "Company users fetched"));
   }
 }

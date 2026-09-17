@@ -9,7 +9,8 @@ class RedisKeyTests {
 
   @Test
   void createsNamespacedKeys() {
-    assertThat(RedisKey.authOtp("USER@Example.COM")).isEqualTo("messaging:auth:otp:user@example.com");
+    assertThat(RedisKey.authOtp("USER@Example.COM"))
+        .isEqualTo("messaging:auth:otp:user@example.com");
     assertThat(RedisKey.companySettings("Company-1"))
         .isEqualTo("messaging:company:company-1:settings");
     assertThat(RedisKey.idempotency("Webhook", "Request-1"))

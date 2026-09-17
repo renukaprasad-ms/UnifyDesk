@@ -34,7 +34,9 @@ import lombok.Setter;
     },
     indexes = {
       @Index(name = "idx_sender_identity_connection", columnList = "connection_id"),
-      @Index(name = "idx_sender_identity_connection_default", columnList = "connection_id,is_default"),
+      @Index(
+          name = "idx_sender_identity_connection_default",
+          columnList = "connection_id,is_default"),
       @Index(name = "idx_sender_identity_connection_status", columnList = "connection_id,status")
     })
 public class SenderIdentity {

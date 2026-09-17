@@ -144,10 +144,7 @@ public class CompanyRoleManagementService {
 
   @Transactional
   public CompanyMemberRoleAssignmentResponse assignRole(
-      Long companyId,
-      Long targetUserId,
-      Long roleId,
-      AssignCompanyRoleRequest request) {
+      Long companyId, Long targetUserId, Long roleId, AssignCompanyRoleRequest request) {
     Long actorId = currentUserService.currentUserId();
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_ASSIGN);
     CompanyMember target = requireActiveMember(companyId, targetUserId);
@@ -205,7 +202,8 @@ public class CompanyRoleManagementService {
       authorizationService.requireActiveMembership(actorId, companyId);
     }
     requireActiveMember(companyId, targetUserId);
-    return assignmentRepository.findByCompanyIdAndUserIdOrderByCreatedAtDesc(companyId, targetUserId)
+    return assignmentRepository
+        .findByCompanyIdAndUserIdOrderByCreatedAtDesc(companyId, targetUserId)
         .stream()
         .map(this::toAssignmentResponse)
         .toList();
@@ -215,9 +213,7 @@ public class CompanyRoleManagementService {
       Long actorId, Long companyId, Set<String> requestedPermissionKeys) {
     Set<String> requested = new LinkedHashSet<>();
     if (requestedPermissionKeys != null) {
-      requestedPermissionKeys.stream()
-          .map(this::normalizePermissionKey)
-          .forEach(requested::add);
+      requestedPermissionKeys.stream().map(this::normalizePermissionKey).forEach(requested::add);
     }
     if (requested.isEmpty()) {
       return Set.of();

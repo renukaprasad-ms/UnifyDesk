@@ -16,9 +16,7 @@ public interface CompanyMemberRoleAssignmentRepository
           + "where a.companyId = :companyId and a.userId = :userId "
           + "and a.revokedAt is null and (a.expiresAt is null or a.expiresAt > :now)")
   List<CompanyMemberRoleAssignment> findActive(
-      @Param("companyId") Long companyId,
-      @Param("userId") Long userId,
-      @Param("now") Instant now);
+      @Param("companyId") Long companyId, @Param("userId") Long userId, @Param("now") Instant now);
 
   Optional<CompanyMemberRoleAssignment> findByCompanyIdAndUserIdAndRoleId(
       Long companyId, Long userId, Long roleId);
