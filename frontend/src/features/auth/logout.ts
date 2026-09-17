@@ -1,13 +1,11 @@
-import { authApi } from './authApi'
+import { sessionCleared } from '../../store/auth/authSlice'
 import type { AppDispatch } from '../../store/store'
-import { clearAuthUser } from '../../store/user/userSlice'
+import { authApi } from './authApi'
 
 export const logout = async (dispatch: AppDispatch) => {
   try {
     await authApi.logout()
   } finally {
-    dispatch(clearAuthUser())
-    localStorage.removeItem('selectedCompanyId')
-    sessionStorage.clear()
+    dispatch(sessionCleared())
   }
 }

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { FiMenu } from 'react-icons/fi'
-import { useSelector } from 'react-redux'
 import { mediaApi } from '../features/media/mediaApi'
-import type { RootState } from '../store/store'
+import { selectAuthUser } from '../store/auth/authSlice'
+import { useAppSelector } from '../store/hooks'
 
 export default function Header({
   menuOpen,
@@ -11,7 +11,7 @@ export default function Header({
   menuOpen: boolean
   onToggleMenu: () => void
 }) {
-  const user = useSelector((state: RootState) => state.user.user)
+  const user = useAppSelector(selectAuthUser)
   const [profilePictureUrl, setProfilePictureUrl] = useState('')
   const displayName = user?.name || user?.username || 'User'
   const initials = displayName

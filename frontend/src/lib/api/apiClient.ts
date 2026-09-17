@@ -1,5 +1,5 @@
 import axios, { AxiosError, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios'
-import { setAuthUser, clearAuthUser } from '../../store/user/userSlice'
+import { sessionCleared, setAuthUser } from '../../store/auth/authSlice'
 import { store } from '../../store/store'
 import type { AuthUser } from '../../features/auth/types'
 import type { ApiResponse } from './types'
@@ -29,7 +29,7 @@ export const apiClient = axios.create({
   xsrfHeaderName: 'X-XSRF-TOKEN',
 })
 
-const refreshClient = axios.create({
+const sessionClient = axios.create({
   baseURL,
   withCredentials: true,
   timeout: 15000,
@@ -42,7 +42,7 @@ const isMutation = (method?: string) =>
   ['post', 'put', 'patch', 'delete'].includes(method?.toLowerCase() ?? '')
 
 const ensureCsrfToken = async () => {
-  csrfPromise ??= refreshClient
+  csrfPromise ??= sessionClient
     .get('/api/auth/csrf')
     .then(() => undefined)
     .finally(() => {
@@ -59,11 +59,9 @@ apiClient.interceptors.request.use(async (config) => {
 })
 
 const refreshSession = async () => {
-  const response = await refreshClient.post<ApiResponse<AuthUser>>('/api/auth/refresh')
+  const response = await sessionClient.post<ApiResponse<AuthUser>>('/api/auth/refresh')
   const user = response.data.data
-  if (!user) {
-    throw new Error('Refresh response did not include a user')
-  }
+  if (!user) throw new Error('Refresh response did not include a user')
   store.dispatch(setAuthUser(user))
   return user
 }
@@ -72,15 +70,15 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiResponse<never>>) => {
     const originalRequest = error.config as RetryableRequestConfig | undefined
-    const isUnauthorized = error.response?.status === 401
-    const isRefreshRequest = originalRequest?.url?.includes('/api/auth/refresh')
+    const unauthorized = error.response?.status === 401
+    const refreshRequest = originalRequest?.url?.includes('/api/auth/refresh')
 
     if (
       !originalRequest ||
-      !isUnauthorized ||
+      !unauthorized ||
       originalRequest._retry ||
       originalRequest._skipAuthRefresh ||
-      isRefreshRequest
+      refreshRequest
     ) {
       return Promise.reject(error)
     }
@@ -93,7 +91,7 @@ apiClient.interceptors.response.use(
       await refreshPromise
       return apiClient(originalRequest)
     } catch (refreshError) {
-      store.dispatch(clearAuthUser())
+      store.dispatch(sessionCleared())
       return Promise.reject(refreshError)
     }
   },

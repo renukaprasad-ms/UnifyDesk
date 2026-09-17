@@ -1,7 +1,7 @@
 import type { PermissionKey } from './permissions'
 
 export type CompanyIamPermissions = {
-  companyId: string | number
+  companyId: string
   owner: boolean
   permissions: PermissionKey[]
 }
@@ -23,4 +23,12 @@ export type CompanyRole = {
   permissions: PermissionKey[]
   createdAt: string
   updatedAt: string
+}
+
+export type MemberRoleAssignment = {
+  roleId: string
+  roleName: string
+  expiresAt?: string | null
+  revokedAt?: string | null
+  createdAt: string
 }

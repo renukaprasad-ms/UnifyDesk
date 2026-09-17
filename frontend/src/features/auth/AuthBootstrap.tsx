@@ -1,47 +1,47 @@
 import { useEffect } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
-import { companyApi } from '../company/companyApi'
+import { workspaceApi } from '../workspace/workspaceApi'
 import { authApi } from './authApi'
+import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
-  clearAuthUser,
-  selectCompany,
+  selectAuthBootstrapped,
+  sessionCleared,
   setAuthUser,
   setBootstrapped,
-  setCompanies,
-} from '../../store/user/userSlice'
+} from '../../store/auth/authSlice'
 import { readSelectedCompanyId } from '../../store/store'
-import type { AppDispatch, RootState } from '../../store/store'
+import { selectCompany, setCompanies } from '../../store/workspace/workspaceSlice'
 
 export default function AuthBootstrap({ children }: { children: React.ReactNode }) {
-  const dispatch = useDispatch<AppDispatch>()
-  const bootstrapped = useSelector((state: RootState) => state.user.bootstrapped)
+  const dispatch = useAppDispatch()
+  const bootstrapped = useAppSelector(selectAuthBootstrapped)
 
   useEffect(() => {
     let active = true
 
-    authApi
-      .refresh()
-      .then(async (user) => {
+    const bootstrap = async () => {
+      try {
+        const user = await authApi.refresh()
         if (!active) return
         dispatch(setAuthUser(user))
 
-        if (user.hasCompanies) {
-          const companies = await companyApi.myCompanies()
-          if (!active) return
+        const companies = await workspaceApi.list()
+        if (!active) return
+        dispatch(setCompanies(companies))
 
-          dispatch(setCompanies(companies))
-          const selectedCompanyId = readSelectedCompanyId()
-          const selectedCompany = companies.find((company) => company.companyId === selectedCompanyId)
-          dispatch(selectCompany(selectedCompany?.companyId ?? companies[0]?.companyId))
-        }
-      })
-      .catch(() => {
-        if (active) dispatch(clearAuthUser())
-      })
-      .finally(() => {
+        const persistedCompanyId = readSelectedCompanyId()
+        const selectedCompany = companies.find(
+          (company) => company.companyId === persistedCompanyId,
+        )
+        const nextCompanyId = selectedCompany?.companyId ?? companies[0]?.companyId
+        if (nextCompanyId) dispatch(selectCompany(nextCompanyId))
+      } catch {
+        if (active) dispatch(sessionCleared())
+      } finally {
         if (active) dispatch(setBootstrapped())
-      })
+      }
+    }
 
+    void bootstrap()
     return () => {
       active = false
     }

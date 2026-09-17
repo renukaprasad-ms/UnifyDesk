@@ -1,17 +1,15 @@
-import { Link } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { useState } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
-import { useLocation, useNavigate } from 'react-router'
 import { authApi } from '../../features/auth/authApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
-import { setAuthUser } from '../../store/user/userSlice'
-import type { AppDispatch, RootState } from '../../store/store'
+import { selectAuthUser, setAuthUser } from '../../store/auth/authSlice'
+import { useAppDispatch, useAppSelector } from '../../store/hooks'
 
 const VerifyOtp = () => {
-  const dispatch = useDispatch<AppDispatch>()
+  const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const location = useLocation()
-  const user = useSelector((state: RootState) => state.user.user)
+  const user = useAppSelector(selectAuthUser)
   const routeState = location.state as
     | { email?: string; profilePictureWarning?: string }
     | null
@@ -47,7 +45,6 @@ const VerifyOtp = () => {
           {routeState.profilePictureWarning}. You can update it later.
         </p>
       )}
-
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
         <label className="block">
           <span className="mb-1.5 block text-xs font-semibold text-slate-700">OTP</span>
@@ -67,12 +64,9 @@ const VerifyOtp = () => {
           {submitting ? 'Verifying...' : 'Verify OTP'}
         </button>
       </form>
-
       <p className="mt-5 text-center text-sm text-slate-500">
         Need to start over?{' '}
-        <Link className="font-semibold text-indigo-500" to="/login">
-          Back to login
-        </Link>
+        <Link className="font-semibold text-indigo-500" to="/login">Back to login</Link>
       </p>
     </div>
   )
