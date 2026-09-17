@@ -12,6 +12,8 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
 
   Optional<Company> findBySlug(String slug);
 
+  Optional<Company> findByLogoMediaId(Long logoMediaId);
+
   Page<Company> findByNameContainingIgnoreCaseOrBusinessEmailContainingIgnoreCase(
       String name, String email, Pageable pageable);
 }
