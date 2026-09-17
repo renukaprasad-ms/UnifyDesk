@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { FiCheck, FiChevronDown, FiPlus } from 'react-icons/fi'
-import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router'
-import { companyApi } from '../features/company/companyApi'
 import { mediaApi } from '../features/media/mediaApi'
-import type { AppDispatch, RootState } from '../store/store'
-import { selectCompany, selectSelectedCompany, setCompanies } from '../store/user/userSlice'
+import { workspaceApi } from '../features/workspace/workspaceApi'
+import { selectAuthUser } from '../store/auth/authSlice'
+import { useAppDispatch, useAppSelector } from '../store/hooks'
+import {
+  selectCompanies,
+  selectCompany,
+  selectSelectedCompany,
+  selectSelectedCompanyId,
+  setCompanies,
+} from '../store/workspace/workspaceSlice'
 
 const companyInitials = (name: string) =>
   name
@@ -17,26 +23,22 @@ const companyInitials = (name: string) =>
     .slice(0, 2) || 'CO'
 
 export default function WorkspaceSwitcher() {
-  const dispatch = useDispatch<AppDispatch>()
+  const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const menuRef = useRef<HTMLDivElement | null>(null)
-  const user = useSelector((state: RootState) => state.user.user)
-  const companies = useSelector((state: RootState) => state.user.companies)
-  const selectedCompanyId = useSelector((state: RootState) => state.user.selectedCompanyId)
-  const selectedCompany = useSelector(selectSelectedCompany)
+  const user = useAppSelector(selectAuthUser)
+  const companies = useAppSelector(selectCompanies)
+  const selectedCompanyId = useAppSelector(selectSelectedCompanyId)
+  const selectedCompany = useAppSelector(selectSelectedCompany)
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [logoUrls, setLogoUrls] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (!open) return
-
     const onPointerDown = (event: PointerEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        setOpen(false)
-      }
+      if (!menuRef.current?.contains(event.target as Node)) setOpen(false)
     }
-
     document.addEventListener('pointerdown', onPointerDown)
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [open])
@@ -47,15 +49,14 @@ export default function WorkspaceSwitcher() {
 
     let active = true
     setLoading(true)
-    companyApi
-      .myCompanies()
+    workspaceApi
+      .list()
       .then((items) => {
         if (active) dispatch(setCompanies(items))
       })
       .finally(() => {
         if (active) setLoading(false)
       })
-
     return () => {
       active = false
     }
@@ -63,13 +64,13 @@ export default function WorkspaceSwitcher() {
 
   useEffect(() => {
     let active = true
-    const companiesWithLogos = companies.filter(
+    const missingLogos = companies.filter(
       (company) => company.logoMediaId && !logoUrls[company.companyId],
     )
-    if (companiesWithLogos.length === 0) return
+    if (missingLogos.length === 0) return
 
     Promise.all(
-      companiesWithLogos.map(async (company) => {
+      missingLogos.map(async (company) => {
         try {
           const access = await mediaApi.access(company.logoMediaId!)
           return [company.companyId, access.url] as const
@@ -84,7 +85,6 @@ export default function WorkspaceSwitcher() {
         ...Object.fromEntries(entries.filter(([, url]) => url)),
       }))
     })
-
     return () => {
       active = false
     }
@@ -121,7 +121,6 @@ export default function WorkspaceSwitcher() {
       {open && (
         <div className="workspace-menu left-0 right-auto" role="menu">
           {loading && <div className="px-3 py-3 text-xs font-semibold text-slate-500">Loading...</div>}
-
           {!loading &&
             companies.map((company) => (
               <button
@@ -132,32 +131,25 @@ export default function WorkspaceSwitcher() {
                 onClick={() => {
                   dispatch(selectCompany(company.companyId))
                   setOpen(false)
-                  navigate('/', { replace: true })
+                  navigate('/workspace', { replace: true })
                 }}
               >
                 <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-indigo-50 text-[11px] font-bold text-indigo-500">
                   {logoUrls[company.companyId] ? (
-                    <img
-                      src={logoUrls[company.companyId]}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
+                    <img src={logoUrls[company.companyId]} alt="" className="h-full w-full object-cover" />
                   ) : (
                     companyInitials(company.name)
                   )}
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate">{company.name}</span>
-                  <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
-                    {company.role}
-                  </span>
+                  <span className="mt-0.5 block text-[10px] font-medium text-slate-500">{company.role}</span>
                 </span>
                 {selectedCompanyId === company.companyId && (
                   <FiCheck aria-hidden="true" className="shrink-0 text-indigo-500" />
                 )}
               </button>
             ))}
-
           <button
             type="button"
             className="workspace-menu-item border-t border-slate-100 text-indigo-500"
@@ -167,10 +159,7 @@ export default function WorkspaceSwitcher() {
               navigate('/create-workspace')
             }}
           >
-            <span className="flex items-center gap-2">
-              <FiPlus aria-hidden="true" />
-              Create workspace
-            </span>
+            <span className="flex items-center gap-2"><FiPlus aria-hidden="true" />Create workspace</span>
           </button>
         </div>
       )}
