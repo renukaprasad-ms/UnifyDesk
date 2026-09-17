@@ -16,22 +16,33 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AuthCookieService {
 
+  private static final String PASSWORD_RESET_PATH = "/api/auth/password-reset";
+
   private final CookieProperties properties;
 
   public String accessTokenCookie(String token) {
-    return tokenCookie(properties.getAccessName(), token, properties.getAccessMaxAge());
+    return tokenCookie(properties.getAccessName(), token, properties.getAccessMaxAge(), properties.getPath());
   }
 
   public String refreshTokenCookie(String token) {
-    return tokenCookie(properties.getRefreshName(), token, properties.getRefreshMaxAge());
+    return tokenCookie(properties.getRefreshName(), token, properties.getRefreshMaxAge(), properties.getPath());
+  }
+
+  public String passwordResetTokenCookie(String token) {
+    return tokenCookie(
+        properties.getPasswordResetName(), token, properties.getPasswordResetMaxAge(), PASSWORD_RESET_PATH);
   }
 
   public String clearAccessTokenCookie() {
-    return tokenCookie(properties.getAccessName(), "", Duration.ZERO);
+    return tokenCookie(properties.getAccessName(), "", Duration.ZERO, properties.getPath());
   }
 
   public String clearRefreshTokenCookie() {
-    return tokenCookie(properties.getRefreshName(), "", Duration.ZERO);
+    return tokenCookie(properties.getRefreshName(), "", Duration.ZERO, properties.getPath());
+  }
+
+  public String clearPasswordResetTokenCookie() {
+    return tokenCookie(properties.getPasswordResetName(), "", Duration.ZERO, PASSWORD_RESET_PATH);
   }
 
   public String clearXsrfTokenCookie() {
@@ -58,6 +69,14 @@ public class AuthCookieService {
     headers.add(HttpHeaders.SET_COOKIE, refreshTokenCookie(token));
   }
 
+  public void addPasswordResetTokenCookie(HttpHeaders headers, String token) {
+    headers.add(HttpHeaders.SET_COOKIE, passwordResetTokenCookie(token));
+  }
+
+  public void clearPasswordResetTokenCookie(HttpHeaders headers) {
+    headers.add(HttpHeaders.SET_COOKIE, clearPasswordResetTokenCookie());
+  }
+
   public void clearTokenCookies(HttpHeaders headers) {
     headers.add(HttpHeaders.SET_COOKIE, clearAccessTokenCookie());
     headers.add(HttpHeaders.SET_COOKIE, clearRefreshTokenCookie());
@@ -72,6 +91,10 @@ public class AuthCookieService {
     return cookieValue(request, properties.getRefreshName());
   }
 
+  public Optional<String> passwordResetToken(HttpServletRequest request) {
+    return cookieValue(request, properties.getPasswordResetName());
+  }
+
   private Optional<String> cookieValue(HttpServletRequest request, String name) {
     Cookie[] cookies = request.getCookies();
     if (cookies == null) {
@@ -84,12 +107,12 @@ public class AuthCookieService {
         .findFirst();
   }
 
-  private String tokenCookie(String name, String value, Duration maxAge) {
+  private String tokenCookie(String name, String value, Duration maxAge, String path) {
     ResponseCookie.ResponseCookieBuilder builder =
         ResponseCookie.from(name, value)
             .httpOnly(properties.isHttpOnly())
             .secure(properties.isSecure())
-            .path(properties.getPath())
+            .path(path)
             .maxAge(maxAge)
             .sameSite(properties.getSameSite());
 
