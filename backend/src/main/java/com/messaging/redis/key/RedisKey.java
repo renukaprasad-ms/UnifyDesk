@@ -16,6 +16,14 @@ public final class RedisKey {
     return join("auth", "2fa-login", normalize(challengeId));
   }
 
+  public static String passwordResetOtp(String challengeId) {
+    return join("auth", "password-reset", "otp", normalize(challengeId));
+  }
+
+  public static String passwordResetUser(String challengeId) {
+    return join("auth", "password-reset", "user", normalize(challengeId));
+  }
+
   public static String authOtpAttempts(String identifier) {
     return join("auth", "otp-attempts", normalize(identifier));
   }
