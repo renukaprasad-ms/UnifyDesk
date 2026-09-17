@@ -21,7 +21,7 @@ public class AesGcmCredentialCipher implements CredentialCipher {
   private final String configuredKey;
 
   public AesGcmCredentialCipher(
-      @Value("${channel.credentials.master-key:}") String configuredKey) {
+      @Value("${app.channel.credentials.master-key:}") String configuredKey) {
     this.configuredKey = configuredKey;
   }
 
@@ -69,17 +69,17 @@ public class AesGcmCredentialCipher implements CredentialCipher {
   private SecretKeySpec key() {
     if (configuredKey == null || configuredKey.isBlank()) {
       throw new IllegalStateException(
-          "channel.credentials.master-key must be configured before storing provider credentials");
+          "app.channel.credentials.master-key must be configured before storing provider credentials");
     }
     byte[] decoded;
     try {
       decoded = Base64.getDecoder().decode(configuredKey);
     } catch (IllegalArgumentException e) {
-      throw new IllegalStateException("channel.credentials.master-key must be Base64 encoded", e);
+      throw new IllegalStateException("app.channel.credentials.master-key must be Base64 encoded", e);
     }
     if (decoded.length != 32) {
       throw new IllegalStateException(
-          "channel.credentials.master-key must decode to exactly 32 bytes for AES-256");
+          "app.channel.credentials.master-key must decode to exactly 32 bytes for AES-256");
     }
     return new SecretKeySpec(decoded, "AES");
   }
