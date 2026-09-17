@@ -99,9 +99,15 @@ export default function PlatformBilling() {
     if (overrideResult.status === 'fulfilled') setOverrides(overrideResult.value)
     else setError(overrideResult.reason instanceof Error ? overrideResult.reason.message : 'Unable to load rate overrides')
     if (planResult.status === 'fulfilled') {
-      setDetails(planResult.value)
-      setSelectedPlanId(planResult.value.plan.planId)
-      setSelectedPlanPriceId(planResult.value.subscription.planPriceId ?? '')
+      const nextDetails = planResult.value
+      setDetails(nextDetails)
+      if (nextDetails.plan && nextDetails.subscription) {
+        setSelectedPlanId(nextDetails.plan.planId)
+        setSelectedPlanPriceId(nextDetails.subscription.planPriceId ?? '')
+      } else {
+        setSelectedPlanId('')
+        setSelectedPlanPriceId('')
+      }
     } else {
       setDetails(null)
       setSelectedPlanId('')
@@ -169,6 +175,9 @@ export default function PlatformBilling() {
   if (loading) return <div className="p-6 lg:p-8 text-sm font-medium text-slate-500">Loading billing operations…</div>
   if (superAdmin === false) return <section className="p-6 lg:p-8"><div className="panel max-w-2xl p-6"><p className="eyebrow">BILLING</p><h1 className="mt-2 text-xl font-bold">Super Admin access required</h1><p className="mt-2 text-sm text-slate-500">Global subscriptions and negotiated rate overrides are restricted to Super Admins.</p></div></section>
 
+  const currentPlan = details?.plan ?? null
+  const currentSubscription = details?.subscription ?? null
+
   return (
     <section className="p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
@@ -184,7 +193,7 @@ export default function PlatformBilling() {
             <div className="mt-6 grid gap-6 xl:grid-cols-2">
               <article className="panel p-5">
                 <div className="flex items-start justify-between gap-4"><div className="flex items-start gap-3"><span className="security-icon"><FiCreditCard /></span><div><h2 className="text-sm font-bold text-slate-950">Current subscription</h2><p className="mt-1 text-xs text-slate-500">The plan currently used for limits and default pricing.</p></div></div><button type="button" className="secondary-button" onClick={() => void loadCompany(companyId)}><FiRefreshCw /></button></div>
-                {details ? <div className="mt-5 rounded-xl bg-slate-50 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-base font-bold text-slate-950">{details.plan.name}</p><p className="mt-1 text-xs text-slate-500">{details.plan.code} · v{details.plan.version} · {details.subscription.status}</p></div><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">{details.subscription.cancelAtPeriodEnd ? 'CANCELS AT PERIOD END' : 'ACTIVE'}</span></div><div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-600"><span>{details.plan.currency} {details.plan.basePrice}</span><span>Started {new Date(details.subscription.startedAt).toLocaleDateString()}</span>{details.subscription.currentPeriodEnd && <span>Renews {new Date(details.subscription.currentPeriodEnd).toLocaleDateString()}</span>}</div>{details.subscription.status !== 'CANCELLED' && <button type="button" className="mt-4 text-xs font-semibold text-rose-600" disabled={saving} onClick={async () => { await adminBillingApi.cancelCompanySubscription(companyId, true); await loadCompany(companyId) }}>Cancel at period end</button>}</div> : <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">No active subscription found.</p>}
+                {currentPlan && currentSubscription ? <div className="mt-5 rounded-xl bg-slate-50 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-base font-bold text-slate-950">{currentPlan.name}</p><p className="mt-1 text-xs text-slate-500">{currentPlan.code} · v{currentPlan.version} · {currentSubscription.status}</p></div><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">{currentSubscription.cancelAtPeriodEnd ? 'CANCELS AT PERIOD END' : 'ACTIVE'}</span></div><div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-600"><span>{currentPlan.currency} {currentPlan.basePrice}</span><span>Started {new Date(currentSubscription.startedAt).toLocaleDateString()}</span>{currentSubscription.currentPeriodEnd && <span>Renews {new Date(currentSubscription.currentPeriodEnd).toLocaleDateString()}</span>}</div>{currentSubscription.status !== 'CANCELLED' && <button type="button" className="mt-4 text-xs font-semibold text-rose-600" disabled={saving} onClick={async () => { await adminBillingApi.cancelCompanySubscription(companyId, true); await loadCompany(companyId) }}>Cancel at period end</button>}</div> : <div className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5"><p className="text-sm font-semibold text-slate-800">No plan assigned</p><p className="mt-1 text-xs text-slate-500">This company has no active subscription. Choose a published plan and assign it when ready.</p></div>}
               </article>
 
               <form onSubmit={assignPlan} className="panel p-5">
