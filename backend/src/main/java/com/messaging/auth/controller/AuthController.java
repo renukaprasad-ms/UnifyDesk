@@ -29,9 +29,10 @@ public class AuthController {
   private final AuthService authService;
 
   @GetMapping("/csrf")
-  public ResponseEntity<ApiResponse<Void>> csrf(CsrfToken csrfToken) {
-    csrfToken.getToken();
-    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "CSRF token initialized"));
+  public ResponseEntity<ApiResponse<String>> csrf(CsrfToken csrfToken) {
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(), csrfToken.getToken(), "CSRF token initialized"));
   }
 
   @PostMapping("/register")
