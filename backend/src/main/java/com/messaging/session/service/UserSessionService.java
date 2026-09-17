@@ -56,4 +56,12 @@ public class UserSessionService {
               userSessionRepository.save(session);
             });
   }
+
+  @Transactional
+  public void revokeAllForUser(long userId) {
+    Instant now = Instant.now();
+    var sessions = userSessionRepository.findAllByUserId(userId);
+    sessions.forEach(session -> session.setRevokedAt(now));
+    userSessionRepository.saveAll(sessions);
+  }
 }
