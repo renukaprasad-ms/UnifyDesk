@@ -183,7 +183,7 @@ public class CompanyRoleManagementService {
     Long actorId = currentUserService.currentUserId();
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_ASSIGN);
     requireActiveMember(companyId, targetUserId);
-    CompanyCustomRole role = requireRole(companyId, roleId);
+    requireRole(companyId, roleId);
     requireCanDelegate(actorId, companyId, permissionKeys(roleId));
 
     CompanyMemberRoleAssignment assignment =
@@ -258,7 +258,7 @@ public class CompanyRoleManagementService {
     rolePermissionRepository.deleteByRoleId(role.getId());
     rolePermissionRepository.flush();
     for (String permissionKey : permissions) {
-      CompanyCustomRolePermission rolePermission = new CompanyCustomRolePermissionPermission();
+      CompanyCustomRolePermission rolePermission = new CompanyCustomRolePermission();
       rolePermission.setRole(role);
       rolePermission.setPermissionKey(permissionKey);
       rolePermissionRepository.save(rolePermission);
