@@ -1,23 +1,13 @@
 package com.messaging.billing.entity;
 
-import com.messaging.billing.enums.ChannelType;
+import com.messaging.billing.enums.BillingCategory;
 import com.messaging.billing.enums.CommunicationDirection;
-import com.messaging.billing.enums.MessageType;
 import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.enums.UsageUnit;
+import com.messaging.channel.enums.ChannelType;
+import com.messaging.channel.enums.ProviderType;
 import com.messaging.common.id.IdGenerator;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import lombok.Getter;
@@ -46,8 +36,9 @@ public class RateCard {
   @Column(nullable = false, length = 32)
   private ChannelType channel;
 
-  @Column(length = 80)
-  private String provider;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 80)
+  private ProviderType provider;
 
   @Column(length = 2)
   private String country;
@@ -56,8 +47,8 @@ public class RateCard {
   private String carrier;
 
   @Enumerated(EnumType.STRING)
-  @Column(name = "message_type", nullable = false, length = 32)
-  private MessageType messageType;
+  @Column(name = "message_type", nullable = false, length = 64)
+  private BillingCategory billingCategory;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
@@ -91,19 +82,11 @@ public class RateCard {
 
   @PrePersist
   private void beforeInsert() {
-    if (id == null) {
-      id = IdGenerator.nextId();
-    }
+    if (id == null) id = IdGenerator.nextId();
     Instant now = Instant.now();
-    if (effectiveFrom == null) {
-      effectiveFrom = now;
-    }
-    if (createdAt == null) {
-      createdAt = now;
-    }
-    if (updatedAt == null) {
-      updatedAt = now;
-    }
+    if (effectiveFrom == null) effectiveFrom = now;
+    if (createdAt == null) createdAt = now;
+    if (updatedAt == null) updatedAt = now;
   }
 
   @PreUpdate
