@@ -1,6 +1,7 @@
 export type BillingCycle = 'FREE' | 'MONTHLY' | 'YEARLY'
 export type PlanStatus = 'DRAFT' | 'PUBLISHED' | 'RETIRED'
 export type RateCardStatus = 'ACTIVE' | 'ARCHIVED'
+export type SubscriptionStatus = 'ACTIVE' | 'TRIALING' | 'PAST_DUE' | 'CANCELLED'
 export type EntitlementValueType = 'INTEGER' | 'BOOLEAN' | 'DECIMAL' | 'TEXT'
 export type EntitlementCategory = 'WORKSPACE' | 'CHANNEL' | 'BROADCAST' | 'TEMPLATE' | 'FEATURE'
 export type ChannelType = 'EMAIL' | 'WHATSAPP' | 'SMS'
@@ -127,4 +128,53 @@ export type UpdateRateCardInput = {
   effectiveFrom?: string | null
   effectiveTo?: string | null
   status?: RateCardStatus
+}
+
+export type CompanyRateOverride = Omit<RateCard, 'rateCardId' | 'planId'> & {
+  overrideId: string
+  companyId: string
+  createdByUserId: string
+  reason?: string | null
+}
+
+export type CreateCompanyRateOverrideInput = {
+  channel: ChannelType
+  provider: ProviderType
+  billingCategory: BillingCategory
+  direction: CommunicationDirection
+  country?: string
+  carrier?: string
+  unit: UsageUnit
+  price: number
+  currency: string
+  effectiveFrom?: string | null
+  effectiveTo?: string | null
+  reason?: string
+}
+
+export type CompanySubscription = {
+  subscriptionId: string
+  companyId: string
+  planId: string
+  planPriceId?: string | null
+  planCode: string
+  planName: string
+  status: SubscriptionStatus
+  startedAt: string
+  endsAt?: string | null
+  currentPeriodStart?: string | null
+  currentPeriodEnd?: string | null
+  trialEndsAt?: string | null
+  cancelAtPeriodEnd: boolean
+  cancelledAt?: string | null
+}
+
+export type AssignCompanySubscriptionInput = {
+  planId: string
+  planPriceId?: string | null
+  status?: SubscriptionStatus
+  startedAt?: string | null
+  endsAt?: string | null
+  trialEndsAt?: string | null
+  currentPeriodEnd?: string | null
 }
