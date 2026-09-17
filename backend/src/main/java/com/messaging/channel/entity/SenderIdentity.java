@@ -1,5 +1,6 @@
 package com.messaging.channel.entity;
 
+import com.messaging.channel.enums.SenderIdentityStatus;
 import com.messaging.channel.enums.SenderIdentityType;
 import com.messaging.common.id.IdGenerator;
 import jakarta.persistence.Column;
@@ -33,7 +34,8 @@ import lombok.Setter;
     },
     indexes = {
       @Index(name = "idx_sender_identity_connection", columnList = "connection_id"),
-      @Index(name = "idx_sender_identity_connection_default", columnList = "connection_id,is_default")
+      @Index(name = "idx_sender_identity_connection_default", columnList = "connection_id,is_default"),
+      @Index(name = "idx_sender_identity_connection_status", columnList = "connection_id,status")
     })
 public class SenderIdentity {
 
@@ -53,6 +55,10 @@ public class SenderIdentity {
   @Column(name = "external_id", length = 255)
   private String externalId;
 
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 24)
+  private SenderIdentityStatus status;
+
   @Column(name = "is_default", nullable = false)
   private boolean defaultIdentity;
 
@@ -68,6 +74,9 @@ public class SenderIdentity {
       id = IdGenerator.nextId();
     }
     Instant now = Instant.now();
+    if (status == null) {
+      status = SenderIdentityStatus.PENDING;
+    }
     if (createdAt == null) {
       createdAt = now;
     }
