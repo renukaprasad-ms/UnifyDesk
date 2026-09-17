@@ -13,6 +13,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -24,6 +25,11 @@ import lombok.Setter;
 @Entity
 @Table(
     name = "channel_connections",
+    uniqueConstraints = {
+      @UniqueConstraint(
+          name = "uk_channel_connection_provider_account",
+          columnNames = {"company_id", "provider_type", "external_account_id"})
+    },
     indexes = {
       @Index(name = "idx_channel_connections_company", columnList = "company_id"),
       @Index(
