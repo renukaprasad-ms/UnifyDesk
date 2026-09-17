@@ -8,10 +8,12 @@ import com.messaging.channel.dto.UpdateChannelConnectionRequest;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.service.ChannelConnectionService;
 import com.messaging.common.response.ApiResponse;
-import com.messaging.company.enums.CompanyPermission;
+import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
 import com.messaging.security.service.CurrentUserService;
 import jakarta.validation.Valid;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -39,7 +41,8 @@ public class ChannelConnectionController {
       @PathVariable Long companyId,
       @Valid @RequestBody CreateChannelConnectionRequest request) {
     Long userId = currentUserService.currentUserId();
-    requireManage(userId, companyId);
+    companyAuthorizationService.requirePermission(
+        userId, companyId, connectPermission(request.channelType()));
     ChannelConnectionResponse response =
         channelConnectionService.create(companyId, userId, request);
     return ResponseEntity.status(HttpStatus.CREATED)
@@ -52,23 +55,41 @@ public class ChannelConnectionController {
   public ResponseEntity<ApiResponse<List<ChannelConnectionResponse>>> list(
       @PathVariable Long companyId,
       @RequestParam(required = false) ChannelType channelType) {
-    requireView(currentUserService.currentUserId(), companyId);
+    Long userId = currentUserService.currentUserId();
+    companyAuthorizationService.requireActiveMembership(userId, companyId);
+
+    List<ChannelConnectionResponse> connections;
+    if (channelType != null) {
+      companyAuthorizationService.requirePermission(
+          userId, companyId, readPermission(channelType));
+      connections = channelConnectionService.list(companyId, channelType);
+    } else {
+      connections =
+          Arrays.stream(ChannelType.values())
+              .filter(
+                  type ->
+                      companyAuthorizationService.hasPermission(
+                          userId, companyId, readPermission(type)))
+              .flatMap(type -> channelConnectionService.list(companyId, type).stream())
+              .sorted(Comparator.comparing(ChannelConnectionResponse::createdAt).reversed())
+              .toList();
+    }
+
     return ResponseEntity.ok(
         ApiResponse.success(
-            HttpStatus.OK.value(),
-            channelConnectionService.list(companyId, channelType),
-            "Channel connections fetched"));
+            HttpStatus.OK.value(), connections, "Channel connections fetched"));
   }
 
   @GetMapping("/{connectionId}")
   public ResponseEntity<ApiResponse<ChannelConnectionResponse>> get(
       @PathVariable Long companyId, @PathVariable Long connectionId) {
-    requireView(currentUserService.currentUserId(), companyId);
+    Long userId = currentUserService.currentUserId();
+    ChannelConnectionResponse connection = channelConnectionService.get(companyId, connectionId);
+    companyAuthorizationService.requirePermission(
+        userId, companyId, readPermission(connection.channelType()));
     return ResponseEntity.ok(
         ApiResponse.success(
-            HttpStatus.OK.value(),
-            channelConnectionService.get(companyId, connectionId),
-            "Channel connection fetched"));
+            HttpStatus.OK.value(), connection, "Channel connection fetched"));
   }
 
   @PatchMapping("/{connectionId}")
@@ -76,7 +97,10 @@ public class ChannelConnectionController {
       @PathVariable Long companyId,
       @PathVariable Long connectionId,
       @Valid @RequestBody UpdateChannelConnectionRequest request) {
-    requireManage(currentUserService.currentUserId(), companyId);
+    Long userId = currentUserService.currentUserId();
+    ChannelConnectionResponse existing = channelConnectionService.get(companyId, connectionId);
+    companyAuthorizationService.requirePermission(
+        userId, companyId, modifyPermission(existing.channelType()));
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
@@ -87,7 +111,10 @@ public class ChannelConnectionController {
   @PostMapping("/{connectionId}/disconnect")
   public ResponseEntity<ApiResponse<ChannelConnectionResponse>> disconnect(
       @PathVariable Long companyId, @PathVariable Long connectionId) {
-    requireManage(currentUserService.currentUserId(), companyId);
+    Long userId = currentUserService.currentUserId();
+    ChannelConnectionResponse existing = channelConnectionService.get(companyId, connectionId);
+    companyAuthorizationService.requirePermission(
+        userId, companyId, disconnectPermission(existing.channelType()));
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
@@ -100,7 +127,10 @@ public class ChannelConnectionController {
       @PathVariable Long companyId,
       @PathVariable Long connectionId,
       @Valid @RequestBody CreateSenderIdentityRequest request) {
-    requireManage(currentUserService.currentUserId(), companyId);
+    Long userId = currentUserService.currentUserId();
+    ChannelConnectionResponse existing = channelConnectionService.get(companyId, connectionId);
+    companyAuthorizationService.requirePermission(
+        userId, companyId, createSenderPermission(existing.channelType()));
     SenderIdentityResponse response =
         channelConnectionService.addSender(companyId, connectionId, request);
     return ResponseEntity.status(HttpStatus.CREATED)
@@ -112,7 +142,10 @@ public class ChannelConnectionController {
   @GetMapping("/{connectionId}/senders")
   public ResponseEntity<ApiResponse<List<SenderIdentityResponse>>> listSenders(
       @PathVariable Long companyId, @PathVariable Long connectionId) {
-    requireView(currentUserService.currentUserId(), companyId);
+    Long userId = currentUserService.currentUserId();
+    ChannelConnectionResponse existing = channelConnectionService.get(companyId, connectionId);
+    companyAuthorizationService.requirePermission(
+        userId, companyId, readSenderPermission(existing.channelType()));
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
@@ -125,7 +158,10 @@ public class ChannelConnectionController {
       @PathVariable Long companyId,
       @PathVariable Long connectionId,
       @PathVariable Long senderIdentityId) {
-    requireManage(currentUserService.currentUserId(), companyId);
+    Long userId = currentUserService.currentUserId();
+    ChannelConnectionResponse existing = channelConnectionService.get(companyId, connectionId);
+    companyAuthorizationService.requirePermission(
+        userId, companyId, modifySenderPermission(existing.channelType()));
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
@@ -134,13 +170,59 @@ public class ChannelConnectionController {
             "Default sender updated"));
   }
 
-  private void requireView(Long userId, Long companyId) {
-    companyAuthorizationService.requirePermission(
-        userId, companyId, CompanyPermission.SETTINGS_VIEW);
+  private String connectPermission(ChannelType type) {
+    return switch (type) {
+      case EMAIL -> CompanyPermissionKeys.EMAIL_CONNECT;
+      case WHATSAPP -> CompanyPermissionKeys.WHATSAPP_CONNECT;
+      case SMS -> CompanyPermissionKeys.SMS_CONNECT;
+    };
   }
 
-  private void requireManage(Long userId, Long companyId) {
-    companyAuthorizationService.requirePermission(
-        userId, companyId, CompanyPermission.SETTINGS_MANAGE);
+  private String disconnectPermission(ChannelType type) {
+    return switch (type) {
+      case EMAIL -> CompanyPermissionKeys.EMAIL_DISCONNECT;
+      case WHATSAPP -> CompanyPermissionKeys.WHATSAPP_DISCONNECT;
+      case SMS -> CompanyPermissionKeys.SMS_DISCONNECT;
+    };
+  }
+
+  private String readPermission(ChannelType type) {
+    return switch (type) {
+      case EMAIL -> CompanyPermissionKeys.EMAIL_READ;
+      case WHATSAPP -> CompanyPermissionKeys.WHATSAPP_READ;
+      case SMS -> CompanyPermissionKeys.SMS_READ;
+    };
+  }
+
+  private String modifyPermission(ChannelType type) {
+    return switch (type) {
+      case EMAIL -> CompanyPermissionKeys.EMAIL_MODIFY;
+      case WHATSAPP -> CompanyPermissionKeys.WHATSAPP_MODIFY;
+      case SMS -> CompanyPermissionKeys.SMS_MODIFY;
+    };
+  }
+
+  private String createSenderPermission(ChannelType type) {
+    return switch (type) {
+      case EMAIL -> CompanyPermissionKeys.EMAIL_MODIFY;
+      case WHATSAPP -> CompanyPermissionKeys.WHATSAPP_MODIFY;
+      case SMS -> CompanyPermissionKeys.SMS_SENDER_CREATE;
+    };
+  }
+
+  private String readSenderPermission(ChannelType type) {
+    return switch (type) {
+      case EMAIL -> CompanyPermissionKeys.EMAIL_READ;
+      case WHATSAPP -> CompanyPermissionKeys.WHATSAPP_READ;
+      case SMS -> CompanyPermissionKeys.SMS_SENDER_READ;
+    };
+  }
+
+  private String modifySenderPermission(ChannelType type) {
+    return switch (type) {
+      case EMAIL -> CompanyPermissionKeys.EMAIL_MODIFY;
+      case WHATSAPP -> CompanyPermissionKeys.WHATSAPP_MODIFY;
+      case SMS -> CompanyPermissionKeys.SMS_SENDER_MODIFY;
+    };
   }
 }
