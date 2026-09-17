@@ -18,12 +18,14 @@ import {
   FiUsers,
 } from 'react-icons/fi'
 import { NavLink } from 'react-router'
-import WorkspaceSwitcher from '../WorkspaceSwitcher'
+import type { PlatformAccess } from '../../features/platform/types'
 import { PERMISSIONS, type PermissionKey } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
+import WorkspaceSwitcher from '../WorkspaceSwitcher'
 
 type AppSidebarProps = {
-  platform: boolean
+  platformAccess: PlatformAccess | null
+  compact?: boolean
   loggingOut: boolean
   onNavigate: () => void
   onLogout: () => void
@@ -54,7 +56,7 @@ const companyLinks: WorkspaceLink[] = [
   { label: 'Users', to: '/company/users', icon: <FiUsers />, permission: PERMISSIONS.USER_READ },
 ]
 
-export default function AppSidebar({ platform, loggingOut, onNavigate, onLogout }: AppSidebarProps) {
+export default function AppSidebar({ platformAccess, compact = false, loggingOut, onNavigate, onLogout }: AppSidebarProps) {
   const { can } = useIam()
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     inbox: false,
@@ -76,11 +78,11 @@ export default function AppSidebar({ platform, loggingOut, onNavigate, onLogout 
     if (items.length === 0) return null
     return (
       <div>
-        <button type="button" className="sidebar-link w-full" onClick={(event) => { event.stopPropagation(); toggleSection(key) }} aria-expanded={openSections[key]}>
-          {icon}<span className="min-w-0 flex-1 text-left">{label}</span><FiChevronDown aria-hidden="true" className={`shrink-0 transition-transform ${openSections[key] ? 'rotate-180' : ''}`} />
+        <button type="button" title={compact ? label : undefined} className="sidebar-link w-full" onClick={(event) => { event.stopPropagation(); toggleSection(key) }} aria-expanded={openSections[key]}>
+          <span className="sidebar-icon">{icon}</span><span className="sidebar-copy min-w-0 flex-1 text-left">{label}</span><FiChevronDown aria-hidden="true" className={`sidebar-copy shrink-0 transition-transform ${openSections[key] ? 'rotate-180' : ''}`} />
         </button>
         <div className={`sidebar-submenu ${openSections[key] ? 'is-open' : ''}`}>
-          {items.map((item) => <NavLink key={item.to} to={item.to} className={nestedLinkClass} onClick={onNavigate}><span aria-hidden="true">{item.icon}</span>{item.label}</NavLink>)}
+          {items.map((item) => <NavLink key={item.to} to={item.to} className={nestedLinkClass} onClick={onNavigate}><span aria-hidden="true" className="sidebar-icon">{item.icon}</span><span className="sidebar-copy">{item.label}</span></NavLink>)}
         </div>
       </div>
     )
@@ -88,41 +90,40 @@ export default function AppSidebar({ platform, loggingOut, onNavigate, onLogout 
 
   return (
     <>
-      <div className="pb-8 pt-1">{platform ? <div className="px-3"><div className="font-bold text-slate-950">Messaging</div><div className="text-xs text-slate-500">Platform administration</div></div> : <WorkspaceSwitcher />}</div>
+      <div className="sidebar-workspace pb-8 pt-1">
+        <WorkspaceSwitcher platformAdmin={Boolean(platformAccess?.platformAdmin)} />
+      </div>
       <nav aria-label="Main navigation" className="space-y-1">
-        <p className="sidebar-label">{platform ? 'PLATFORM' : 'APP'}</p>
-        {platform ? (
-          <>
-            <NavLink to="/platform" end className={linkClass} onClick={onNavigate}><FiHome />Dashboard</NavLink>
-            <NavLink to="/platform/companies" className={linkClass} onClick={onNavigate}><FiBriefcase />Companies</NavLink>
-            <NavLink to="/platform/users" className={linkClass} onClick={onNavigate}><FiUsers />Users</NavLink>
-            <NavLink to="/platform/plans" className={linkClass} onClick={onNavigate}><FiCreditCard />Plans</NavLink>
-            <NavLink to="/platform/admins" className={linkClass} onClick={onNavigate}><FiShield />Admins</NavLink>
-            <NavLink to="/platform/billing" className={linkClass} onClick={onNavigate}><FiCreditCard />Billing</NavLink>
-            <NavLink to="/platform/audit" className={linkClass} onClick={onNavigate}><FiFileText />Audit logs</NavLink>
-          </>
-        ) : (
-          <>
-            <NavLink to="/workspace" end className={linkClass} onClick={onNavigate}><FiHome aria-hidden="true" />Dashboard</NavLink>
-            {renderSection('inbox', 'Inbox', <FiInbox aria-hidden="true" />, inboxLinks)}
-            {renderSection('broadcast', 'Broadcast', <FiRadio aria-hidden="true" />, broadcastLinks)}
-            {can(PERMISSIONS.TEMPLATE_READ) && <NavLink to="/templates" className={linkClass} onClick={onNavigate}><FiFileText aria-hidden="true" />Templates</NavLink>}
-            {renderSection('company', 'Company', <FiBriefcase aria-hidden="true" />, companyLinks)}
-          </>
-        )}
-        {!platform && (
-          <div>
-            <button type="button" className="sidebar-link w-full" onClick={(event) => { event.stopPropagation(); toggleSection('account') }} aria-expanded={openSections.account}>
-              <FiUser aria-hidden="true" /><span className="min-w-0 flex-1 text-left">Account</span><FiChevronDown aria-hidden="true" className={`shrink-0 transition-transform ${openSections.account ? 'rotate-180' : ''}`} />
-            </button>
-            <div className={`sidebar-submenu ${openSections.account ? 'is-open' : ''}`}>
-              <NavLink to="/account/profile" className={nestedLinkClass} onClick={onNavigate}><FiShield aria-hidden="true" />Profile</NavLink>
-              <NavLink to="/account/settings" className={nestedLinkClass} onClick={onNavigate}><FiSettings aria-hidden="true" />Settings</NavLink>
-            </div>
+        <p className="sidebar-label sidebar-copy">APP</p>
+        <NavLink to="/workspace" end className={linkClass} onClick={onNavigate} title={compact ? 'Dashboard' : undefined}><FiHome className="sidebar-icon" aria-hidden="true" /><span className="sidebar-copy">Dashboard</span></NavLink>
+        {renderSection('inbox', 'Inbox', <FiInbox aria-hidden="true" />, inboxLinks)}
+        {renderSection('broadcast', 'Broadcast', <FiRadio aria-hidden="true" />, broadcastLinks)}
+        {can(PERMISSIONS.TEMPLATE_READ) && <NavLink to="/templates" className={linkClass} onClick={onNavigate} title={compact ? 'Templates' : undefined}><FiFileText className="sidebar-icon" aria-hidden="true" /><span className="sidebar-copy">Templates</span></NavLink>}
+        {renderSection('company', 'Company', <FiBriefcase aria-hidden="true" />, companyLinks)}
+
+        {platformAccess?.platformAdmin && (
+          <div className="pt-3">
+            <p className="sidebar-label sidebar-copy">PLATFORM</p>
+            <NavLink to="/platform" className={linkClass} onClick={onNavigate} title={compact ? 'Administration' : undefined}>
+              <FiShield className="sidebar-icon" aria-hidden="true" />
+              <span className="sidebar-copy min-w-0 flex-1">Administration</span>
+              <span className="sidebar-copy rounded-md bg-indigo-50 px-1.5 py-0.5 text-[9px] font-bold text-indigo-500">ADMIN</span>
+            </NavLink>
           </div>
         )}
+
+        <div className="pt-3">
+          <p className="sidebar-label sidebar-copy">YOU</p>
+          <button type="button" title={compact ? 'Account' : undefined} className="sidebar-link w-full" onClick={(event) => { event.stopPropagation(); toggleSection('account') }} aria-expanded={openSections.account}>
+            <FiUser className="sidebar-icon" aria-hidden="true" /><span className="sidebar-copy min-w-0 flex-1 text-left">Account</span><FiChevronDown aria-hidden="true" className={`sidebar-copy shrink-0 transition-transform ${openSections.account ? 'rotate-180' : ''}`} />
+          </button>
+          <div className={`sidebar-submenu ${openSections.account ? 'is-open' : ''}`}>
+            <NavLink to="/account/profile" className={nestedLinkClass} onClick={onNavigate}><FiShield className="sidebar-icon" aria-hidden="true" /><span className="sidebar-copy">Profile</span></NavLink>
+            <NavLink to="/account/settings" className={nestedLinkClass} onClick={onNavigate}><FiSettings className="sidebar-icon" aria-hidden="true" /><span className="sidebar-copy">Settings</span></NavLink>
+          </div>
+        </div>
       </nav>
-      <div className="mt-auto border-t border-slate-100 pt-5"><button type="button" className="sidebar-link w-full text-left" onClick={onLogout} disabled={loggingOut}><FiLogOut aria-hidden="true" />{loggingOut ? 'Logging out...' : 'Logout'}</button></div>
+      <div className="mt-auto border-t border-slate-100 pt-5"><button type="button" title={compact ? 'Logout' : undefined} className="sidebar-link w-full text-left" onClick={onLogout} disabled={loggingOut}><FiLogOut className="sidebar-icon" aria-hidden="true" /><span className="sidebar-copy">{loggingOut ? 'Logging out...' : 'Logout'}</span></button></div>
     </>
   )
 }
