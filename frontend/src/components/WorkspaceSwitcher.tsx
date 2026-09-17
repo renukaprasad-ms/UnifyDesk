@@ -3,7 +3,6 @@ import { FiCheck, FiChevronDown, FiPlus } from 'react-icons/fi'
 import { useNavigate } from 'react-router'
 import { mediaApi } from '../features/media/mediaApi'
 import { workspaceApi } from '../features/workspace/workspaceApi'
-import { selectAuthUser } from '../store/auth/authSlice'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import {
   selectCompanies,
@@ -14,19 +13,12 @@ import {
 } from '../store/workspace/workspaceSlice'
 
 const companyInitials = (name: string) =>
-  name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('')
-    .slice(0, 2) || 'CO'
+  name.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('').slice(0, 2) || 'CO'
 
 export default function WorkspaceSwitcher() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const menuRef = useRef<HTMLDivElement | null>(null)
-  const user = useAppSelector(selectAuthUser)
   const companies = useAppSelector(selectCompanies)
   const selectedCompanyId = useAppSelector(selectSelectedCompanyId)
   const selectedCompany = useAppSelector(selectSelectedCompany)
@@ -44,23 +36,18 @@ export default function WorkspaceSwitcher() {
   }, [open])
 
   useEffect(() => {
-    const shouldHydrateCompanies = open || Boolean(selectedCompanyId)
-    if (!shouldHydrateCompanies || companies.length > 0 || !user?.hasCompanies) return
-
+    if (!open || companies.length > 0) return
     let active = true
     setLoading(true)
-    workspaceApi
-      .list()
-      .then((items) => {
-        if (active) dispatch(setCompanies(items))
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
+    workspaceApi.list().then((items) => {
+      if (active) dispatch(setCompanies(items))
+    }).finally(() => {
+      if (active) setLoading(false)
+    })
     return () => {
       active = false
     }
-  }, [companies.length, dispatch, open, selectedCompanyId, user?.hasCompanies])
+  }, [companies.length, dispatch, open])
 
   useEffect(() => {
     let active = true
@@ -68,7 +55,6 @@ export default function WorkspaceSwitcher() {
       (company) => company.logoMediaId && !logoUrls[company.companyId],
     )
     if (missingLogos.length === 0) return
-
     Promise.all(
       missingLogos.map(async (company) => {
         try {
@@ -95,70 +81,24 @@ export default function WorkspaceSwitcher() {
 
   return (
     <div ref={menuRef} className="relative">
-      <button
-        type="button"
-        className="workspace-switcher"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-      >
+      <button type="button" className="workspace-switcher" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
         <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-indigo-50 text-[11px] font-bold text-indigo-500">
-          {selectedLogoUrl ? (
-            <img src={selectedLogoUrl} alt="" className="h-full w-full object-cover" />
-          ) : selectedCompany ? (
-            companyInitials(selectedCompany.name)
-          ) : (
-            'WS'
-          )}
+          {selectedLogoUrl ? <img src={selectedLogoUrl} alt="" className="h-full w-full object-cover" /> : selectedCompany ? companyInitials(selectedCompany.name) : 'WS'}
         </span>
-        <span className="min-w-0">
-          <span className="block truncate text-[13px] font-semibold text-slate-950">{label}</span>
-          <span className="mt-0.5 block text-[10px] font-medium text-slate-500">Workspace</span>
-        </span>
+        <span className="min-w-0"><span className="block truncate text-[13px] font-semibold text-slate-950">{label}</span><span className="mt-0.5 block text-[10px] font-medium text-slate-500">Workspace</span></span>
         <FiChevronDown aria-hidden="true" className="shrink-0 text-slate-500" />
       </button>
-
       {open && (
         <div className="workspace-menu left-0 right-auto" role="menu">
           {loading && <div className="px-3 py-3 text-xs font-semibold text-slate-500">Loading...</div>}
-          {!loading &&
-            companies.map((company) => (
-              <button
-                key={company.companyId}
-                type="button"
-                className="workspace-menu-item"
-                role="menuitem"
-                onClick={() => {
-                  dispatch(selectCompany(company.companyId))
-                  setOpen(false)
-                  navigate('/workspace', { replace: true })
-                }}
-              >
-                <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-indigo-50 text-[11px] font-bold text-indigo-500">
-                  {logoUrls[company.companyId] ? (
-                    <img src={logoUrls[company.companyId]} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    companyInitials(company.name)
-                  )}
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate">{company.name}</span>
-                  <span className="mt-0.5 block text-[10px] font-medium text-slate-500">{company.role}</span>
-                </span>
-                {selectedCompanyId === company.companyId && (
-                  <FiCheck aria-hidden="true" className="shrink-0 text-indigo-500" />
-                )}
-              </button>
-            ))}
-          <button
-            type="button"
-            className="workspace-menu-item border-t border-slate-100 text-indigo-500"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false)
-              navigate('/create-workspace')
-            }}
-          >
+          {!loading && companies.map((company) => (
+            <button key={company.companyId} type="button" className="workspace-menu-item" role="menuitem" onClick={() => { dispatch(selectCompany(company.companyId)); setOpen(false); navigate('/workspace', { replace: true }) }}>
+              <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-indigo-50 text-[11px] font-bold text-indigo-500">{logoUrls[company.companyId] ? <img src={logoUrls[company.companyId]} alt="" className="h-full w-full object-cover" /> : companyInitials(company.name)}</span>
+              <span className="min-w-0"><span className="block truncate">{company.name}</span><span className="mt-0.5 block text-[10px] font-medium text-slate-500">{company.role}</span></span>
+              {selectedCompanyId === company.companyId && <FiCheck aria-hidden="true" className="shrink-0 text-indigo-500" />}
+            </button>
+          ))}
+          <button type="button" className="workspace-menu-item border-t border-slate-100 text-indigo-500" role="menuitem" onClick={() => { setOpen(false); navigate('/create-workspace') }}>
             <span className="flex items-center gap-2"><FiPlus aria-hidden="true" />Create workspace</span>
           </button>
         </div>
