@@ -30,6 +30,7 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
@@ -115,6 +116,7 @@ public class CompanyRoleManagementService {
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_MODIFY);
     CompanyCustomRole role = requireRole(companyId, roleId);
     requireEditable(role);
+    requireCanDelegate(actorId, companyId, permissionKeys(roleId));
 
     String name = normalizeName(request.name());
     if (roleRepository.existsByCompanyIdAndNameIgnoreCaseAndIdNot(companyId, name, roleId)) {
@@ -256,7 +258,7 @@ public class CompanyRoleManagementService {
     rolePermissionRepository.deleteByRoleId(role.getId());
     rolePermissionRepository.flush();
     for (String permissionKey : permissions) {
-      CompanyCustomRolePermission rolePermission = new CompanyCustomRolePermission();
+      CompanyCustomRolePermission rolePermission = new CompanyCustomRolePermissionPermission();
       rolePermission.setRole(role);
       rolePermission.setPermissionKey(permissionKey);
       rolePermissionRepository.save(rolePermission);
@@ -336,6 +338,6 @@ public class CompanyRoleManagementService {
     if (value == null || value.isBlank()) {
       throw new BadRequestException("Permission key cannot be blank");
     }
-    return value.trim().toLowerCase();
+    return value.trim().toLowerCase(Locale.ROOT);
   }
 }
