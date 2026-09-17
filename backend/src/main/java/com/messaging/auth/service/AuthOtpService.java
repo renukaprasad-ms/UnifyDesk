@@ -64,10 +64,12 @@ public class AuthOtpService {
             .formatted(otp, otpExpiryMinutes()));
   }
 
+  public void enforcePasswordResetRateLimit(String identifier) {
+    enforceOtpRateLimit(normalizeIdentifier(identifier));
+  }
+
   public void issuePasswordResetOtp(String challengeId, String email, long userId) {
     String normalizedEmail = normalizeEmail(email);
-    enforceOtpRateLimit(normalizedEmail);
-
     String otp = newOtp();
     redisService.set(RedisKey.passwordResetOtp(challengeId), hash(otp), ttlProperties.getOtp());
     redisService.set(
@@ -118,10 +120,10 @@ public class AuthOtpService {
     redisService.delete(key);
   }
 
-  private void enforceOtpRateLimit(String normalizedEmail) {
+  private void enforceOtpRateLimit(String identifier) {
     RateLimitResult result =
         rateLimitService.consume(
-            RedisKey.rateLimitOtp(normalizedEmail), OTP_LIMIT, ttlProperties.getOtpAttempts());
+            RedisKey.rateLimitOtp(identifier), OTP_LIMIT, ttlProperties.getOtpAttempts());
     if (!result.allowed()) {
       throw new TooManyRequestsException("Too many OTP requests");
     }
@@ -154,6 +156,13 @@ public class AuthOtpService {
       throw new BadRequestException("Email is required");
     }
     return email.trim().toLowerCase(Locale.ROOT);
+  }
+
+  private String normalizeIdentifier(String identifier) {
+    if (identifier == null || identifier.isBlank()) {
+      throw new BadRequestException("Identifier is required");
+    }
+    return identifier.trim().toLowerCase(Locale.ROOT);
   }
 
   private String hash(String value) {
