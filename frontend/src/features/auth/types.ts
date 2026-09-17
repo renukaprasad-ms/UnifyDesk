@@ -19,10 +19,14 @@ export type RegisterPayload = {
 }
 
 export type LoginPayload = {
-  email: string
+  identifier: string
   password: string
 }
 
+export type PasswordResetChallenge = {
+  challengeId: string
+  expiresInSeconds: number
+}
 
 export type LoginResponse =
   | { status: 'AUTHENTICATED'; user: AuthUser; preAuthToken: null; expiresInSeconds: number }
