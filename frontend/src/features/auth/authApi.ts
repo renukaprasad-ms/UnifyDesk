@@ -1,6 +1,12 @@
 import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
-import type { AuthUser, LoginPayload, LoginResponse, RegisterPayload } from './types'
+import type {
+  AuthUser,
+  LoginPayload,
+  LoginResponse,
+  PasswordResetChallenge,
+  RegisterPayload,
+} from './types'
 
 const unwrap = <T>(response: ApiResponse<T>) => {
   if (!response.data) {
@@ -26,6 +32,25 @@ export const authApi = {
       otp,
     })
     return unwrap(response.data)
+  },
+
+  async requestPasswordReset(identifier: string) {
+    const response = await apiClient.post<ApiResponse<PasswordResetChallenge>>(
+      '/api/auth/password-reset/request',
+      { identifier },
+    )
+    return unwrap(response.data)
+  },
+
+  async verifyPasswordResetOtp(challengeId: string, otp: string) {
+    await apiClient.post<ApiResponse<void>>('/api/auth/password-reset/verify', {
+      challengeId,
+      otp,
+    })
+  },
+
+  async completePasswordReset(password: string) {
+    await apiClient.post<ApiResponse<void>>('/api/auth/password-reset/complete', { password })
   },
 
   async refresh() {
