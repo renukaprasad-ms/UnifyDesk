@@ -1,8 +1,12 @@
 import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
 import type {
+  AssignCompanySubscriptionInput,
   BillingPlan,
+  CompanyRateOverride,
+  CompanySubscription,
   CreateBillingPlanInput,
+  CreateCompanyRateOverrideInput,
   CreatePlanPriceInput,
   CreateRateCardInput,
   EntitlementDefinition,
@@ -100,5 +104,37 @@ export const adminBillingApi = {
       input,
     )
     return unwrap(response.data, 'Unable to update rate card')
+  },
+
+  async companyRateOverrides(companyId: string) {
+    const response = await apiClient.get<ApiResponse<CompanyRateOverride[]>>(
+      `/api/v1/admin/billing/companies/${companyId}/rate-overrides`,
+    )
+    return unwrap(response.data, 'Unable to load company rate overrides')
+  },
+
+  async createCompanyRateOverride(companyId: string, input: CreateCompanyRateOverrideInput) {
+    const response = await apiClient.post<ApiResponse<CompanyRateOverride>>(
+      `/api/v1/admin/billing/companies/${companyId}/rate-overrides`,
+      input,
+    )
+    return unwrap(response.data, 'Unable to create company rate override')
+  },
+
+  async assignCompanySubscription(companyId: string, input: AssignCompanySubscriptionInput) {
+    const response = await apiClient.post<ApiResponse<CompanySubscription>>(
+      `/api/v1/admin/billing/companies/${companyId}/subscription`,
+      input,
+    )
+    return unwrap(response.data, 'Unable to assign company subscription')
+  },
+
+  async cancelCompanySubscription(companyId: string, atPeriodEnd = true) {
+    const response = await apiClient.post<ApiResponse<CompanySubscription>>(
+      `/api/v1/admin/billing/companies/${companyId}/subscription/cancel`,
+      undefined,
+      { params: { atPeriodEnd } },
+    )
+    return unwrap(response.data, 'Unable to cancel company subscription')
   },
 }
