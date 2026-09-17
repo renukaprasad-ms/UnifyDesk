@@ -120,6 +120,7 @@ public final class CompanyPermissionKeys {
           TEMPLATE_MODIFY,
           BILLING_READ,
           BILLING_INVOICE_READ,
+          BILLING_SUBSCRIPTION_READ,
           MEDIA_READ,
           MEDIA_UPLOAD,
           SETTINGS_READ);
