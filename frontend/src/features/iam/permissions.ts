@@ -1,0 +1,82 @@
+export const PERMISSIONS = {
+  COMPANY_READ: 'company.read',
+  COMPANY_MODIFY: 'company.modify',
+  COMPANY_DELETE: 'company.delete',
+  COMPANY_TRANSFER_OWNERSHIP: 'company.transfer_ownership',
+
+  USER_READ: 'user.read',
+  USER_INVITE: 'user.invite',
+  USER_MODIFY: 'user.modify',
+  USER_REMOVE: 'user.remove',
+
+  ROLE_READ: 'role.read',
+  ROLE_CREATE: 'role.create',
+  ROLE_MODIFY: 'role.modify',
+  ROLE_DELETE: 'role.delete',
+  ROLE_ASSIGN: 'role.assign',
+
+  EMAIL_CONNECT: 'email.connect',
+  EMAIL_DISCONNECT: 'email.disconnect',
+  EMAIL_READ: 'email.read',
+  EMAIL_SEND: 'email.send',
+  EMAIL_MODIFY: 'email.modify',
+
+  WHATSAPP_CONNECT: 'whatsapp.connect',
+  WHATSAPP_DISCONNECT: 'whatsapp.disconnect',
+  WHATSAPP_READ: 'whatsapp.read',
+  WHATSAPP_SEND: 'whatsapp.send',
+  WHATSAPP_MODIFY: 'whatsapp.modify',
+  WHATSAPP_TEMPLATE_READ: 'whatsapp.template.read',
+  WHATSAPP_TEMPLATE_CREATE: 'whatsapp.template.create',
+  WHATSAPP_TEMPLATE_MODIFY: 'whatsapp.template.modify',
+  WHATSAPP_TEMPLATE_DELETE: 'whatsapp.template.delete',
+
+  SMS_CONNECT: 'sms.connect',
+  SMS_DISCONNECT: 'sms.disconnect',
+  SMS_READ: 'sms.read',
+  SMS_SEND: 'sms.send',
+  SMS_MODIFY: 'sms.modify',
+  SMS_SENDER_READ: 'sms.sender.read',
+  SMS_SENDER_CREATE: 'sms.sender.create',
+  SMS_SENDER_MODIFY: 'sms.sender.modify',
+  SMS_SENDER_DELETE: 'sms.sender.delete',
+
+  BROADCAST_READ: 'broadcast.read',
+  BROADCAST_CREATE: 'broadcast.create',
+  BROADCAST_SEND: 'broadcast.send',
+  BROADCAST_MODIFY: 'broadcast.modify',
+  BROADCAST_DELETE: 'broadcast.delete',
+
+  TEMPLATE_READ: 'template.read',
+  TEMPLATE_CREATE: 'template.create',
+  TEMPLATE_MODIFY: 'template.modify',
+  TEMPLATE_DELETE: 'template.delete',
+
+  BILLING_READ: 'billing.read',
+  BILLING_BALANCE_READ: 'billing.balance.read',
+  BILLING_BALANCE_ADD: 'billing.balance.add',
+  BILLING_CARD_READ: 'billing.card.read',
+  BILLING_CARD_ADD: 'billing.card.add',
+  BILLING_CARD_MODIFY: 'billing.card.modify',
+  BILLING_CARD_DELETE: 'billing.card.delete',
+  BILLING_INVOICE_READ: 'billing.invoice.read',
+  BILLING_INVOICE_DOWNLOAD: 'billing.invoice.download',
+  BILLING_SUBSCRIPTION_READ: 'billing.subscription.read',
+  BILLING_SUBSCRIPTION_MODIFY: 'billing.subscription.modify',
+  BILLING_SUBSCRIPTION_CANCEL: 'billing.subscription.cancel',
+
+  ADS_READ: 'ads.read',
+  ADS_CREATE: 'ads.create',
+  ADS_MODIFY: 'ads.modify',
+  ADS_DELETE: 'ads.delete',
+  ADS_BALANCE_ADD: 'ads.balance.add',
+
+  MEDIA_READ: 'media.read',
+  MEDIA_UPLOAD: 'media.upload',
+  MEDIA_DELETE: 'media.delete',
+
+  SETTINGS_READ: 'settings.read',
+  SETTINGS_MODIFY: 'settings.modify',
+} as const
+
+export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

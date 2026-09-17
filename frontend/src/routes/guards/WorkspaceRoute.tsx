@@ -1,18 +1,18 @@
-import { useSelector } from 'react-redux'
 import { Navigate, Outlet } from 'react-router'
-import type { RootState } from '../../store/store'
+import WorkspaceIamBootstrap from '../../features/iam/WorkspaceIamBootstrap'
+import { useAppSelector } from '../../store/hooks'
+import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
 
 export default function WorkspaceRoute() {
-  const user = useSelector((state: RootState) => state.user.user)
-  const selectedCompanyId = useSelector((state: RootState) => state.user.selectedCompanyId)
-
-  if (!user?.hasCompanies) {
-    return <Navigate to="/create-workspace" replace />
-  }
+  const selectedCompanyId = useAppSelector(selectSelectedCompanyId)
 
   if (!selectedCompanyId) {
     return <Navigate to="/select-workspace" replace />
   }
 
-  return <Outlet />
+  return (
+    <WorkspaceIamBootstrap>
+      <Outlet />
+    </WorkspaceIamBootstrap>
+  )
 }

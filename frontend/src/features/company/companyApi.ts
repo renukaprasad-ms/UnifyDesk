@@ -1,6 +1,7 @@
 import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
-import type { Company, CompanyPermissionResponse, CompanyUser, CreateCompanyPayload } from './types'
+import { workspaceApi } from '../workspace/workspaceApi'
+import type { CompanyUser, CreateCompanyPayload } from './types'
 
 const unwrap = <T>(response: ApiResponse<T>) => {
   if (!response.data) {
@@ -10,22 +11,10 @@ const unwrap = <T>(response: ApiResponse<T>) => {
 }
 
 export const companyApi = {
-  async myCompanies() {
-    const response = await apiClient.get<ApiResponse<Company[]>>('/api/v1/companies/me')
-    return unwrap(response.data)
-  },
-
-  async create(payload: CreateCompanyPayload) {
-    const response = await apiClient.post<ApiResponse<Company>>('/api/v1/companies', payload)
-    return unwrap(response.data)
-  },
-
-  async permissions(companyId: string) {
-    const response = await apiClient.get<ApiResponse<CompanyPermissionResponse>>(
-      `/api/v1/companies/${companyId}/permissions/me`,
-    )
-    return unwrap(response.data)
-  },
+  // Kept as forwarding methods for existing workspace creation screens.
+  // New workspace-level code should use workspaceApi directly.
+  myCompanies: workspaceApi.list,
+  create: (payload: CreateCompanyPayload) => workspaceApi.create(payload),
 
   async users(companyId: string) {
     const response = await apiClient.get<ApiResponse<CompanyUser[]>>(
