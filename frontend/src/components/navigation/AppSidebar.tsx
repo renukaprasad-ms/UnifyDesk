@@ -58,6 +58,7 @@ const companyLinks: WorkspaceLink[] = [
 
 export default function AppSidebar({ platformAccess, compact = false, loggingOut, onNavigate, onLogout }: AppSidebarProps) {
   const { can } = useIam()
+  const platformWorkspaceAccess = Boolean(platformAccess?.platformAdmin)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     inbox: false,
     broadcast: false,
@@ -71,7 +72,9 @@ export default function AppSidebar({ platformAccess, compact = false, loggingOut
     `sidebar-link sidebar-link-nested ${isActive ? 'sidebar-link-active' : ''}`
   const toggleSection = (section: string) =>
     setOpenSections((current) => ({ ...current, [section]: !current[section] }))
-  const visible = (links: WorkspaceLink[]) => links.filter((link) => !link.permission || can(link.permission))
+  const hasWorkspacePermission = (permission?: PermissionKey) =>
+    platformWorkspaceAccess || !permission || can(permission)
+  const visible = (links: WorkspaceLink[]) => links.filter((link) => hasWorkspacePermission(link.permission))
 
   const renderSection = (key: string, label: string, icon: ReactNode, links: WorkspaceLink[]) => {
     const items = visible(links)
@@ -91,17 +94,17 @@ export default function AppSidebar({ platformAccess, compact = false, loggingOut
   return (
     <>
       <div className="sidebar-workspace pb-8 pt-1">
-        <WorkspaceSwitcher platformAdmin={Boolean(platformAccess?.platformAdmin)} />
+        <WorkspaceSwitcher platformAdmin={platformWorkspaceAccess} />
       </div>
       <nav aria-label="Main navigation" className="space-y-1">
         <p className="sidebar-label sidebar-copy">APP</p>
         <NavLink to="/workspace" end className={linkClass} onClick={onNavigate} title={compact ? 'Dashboard' : undefined}><FiHome className="sidebar-icon" aria-hidden="true" /><span className="sidebar-copy">Dashboard</span></NavLink>
         {renderSection('inbox', 'Inbox', <FiInbox aria-hidden="true" />, inboxLinks)}
         {renderSection('broadcast', 'Broadcast', <FiRadio aria-hidden="true" />, broadcastLinks)}
-        {can(PERMISSIONS.TEMPLATE_READ) && <NavLink to="/templates" className={linkClass} onClick={onNavigate} title={compact ? 'Templates' : undefined}><FiFileText className="sidebar-icon" aria-hidden="true" /><span className="sidebar-copy">Templates</span></NavLink>}
+        {hasWorkspacePermission(PERMISSIONS.TEMPLATE_READ) && <NavLink to="/templates" className={linkClass} onClick={onNavigate} title={compact ? 'Templates' : undefined}><FiFileText className="sidebar-icon" aria-hidden="true" /><span className="sidebar-copy">Templates</span></NavLink>}
         {renderSection('company', 'Company', <FiBriefcase aria-hidden="true" />, companyLinks)}
 
-        {platformAccess?.platformAdmin && (
+        {platformWorkspaceAccess && (
           <div className="pt-3">
             <p className="sidebar-label sidebar-copy">PLATFORM</p>
             <NavLink to="/platform" className={linkClass} onClick={onNavigate} title={compact ? 'Administration' : undefined}>
