@@ -1,0 +1,143 @@
+package com.messaging.company.iam;
+
+import com.messaging.company.enums.CompanyRole;
+import java.util.Set;
+
+public final class CompanyPermissionKeys {
+
+  public static final String COMPANY_READ = "company.read";
+  public static final String COMPANY_MODIFY = "company.modify";
+  public static final String COMPANY_DELETE = "company.delete";
+  public static final String COMPANY_TRANSFER_OWNERSHIP = "company.transfer_ownership";
+
+  public static final String USER_READ = "user.read";
+  public static final String USER_INVITE = "user.invite";
+  public static final String USER_MODIFY = "user.modify";
+  public static final String USER_REMOVE = "user.remove";
+
+  public static final String ROLE_READ = "role.read";
+  public static final String ROLE_CREATE = "role.create";
+  public static final String ROLE_MODIFY = "role.modify";
+  public static final String ROLE_DELETE = "role.delete";
+  public static final String ROLE_ASSIGN = "role.assign";
+
+  public static final String EMAIL_CONNECT = "email.connect";
+  public static final String EMAIL_DISCONNECT = "email.disconnect";
+  public static final String EMAIL_READ = "email.read";
+  public static final String EMAIL_SEND = "email.send";
+  public static final String EMAIL_MODIFY = "email.modify";
+
+  public static final String WHATSAPP_CONNECT = "whatsapp.connect";
+  public static final String WHATSAPP_DISCONNECT = "whatsapp.disconnect";
+  public static final String WHATSAPP_READ = "whatsapp.read";
+  public static final String WHATSAPP_SEND = "whatsapp.send";
+  public static final String WHATSAPP_MODIFY = "whatsapp.modify";
+  public static final String WHATSAPP_TEMPLATE_READ = "whatsapp.template.read";
+  public static final String WHATSAPP_TEMPLATE_CREATE = "whatsapp.template.create";
+  public static final String WHATSAPP_TEMPLATE_MODIFY = "whatsapp.template.modify";
+  public static final String WHATSAPP_TEMPLATE_DELETE = "whatsapp.template.delete";
+
+  public static final String SMS_CONNECT = "sms.connect";
+  public static final String SMS_DISCONNECT = "sms.disconnect";
+  public static final String SMS_READ = "sms.read";
+  public static final String SMS_SEND = "sms.send";
+  public static final String SMS_MODIFY = "sms.modify";
+  public static final String SMS_SENDER_READ = "sms.sender.read";
+  public static final String SMS_SENDER_CREATE = "sms.sender.create";
+  public static final String SMS_SENDER_MODIFY = "sms.sender.modify";
+  public static final String SMS_SENDER_DELETE = "sms.sender.delete";
+
+  public static final String BROADCAST_READ = "broadcast.read";
+  public static final String BROADCAST_CREATE = "broadcast.create";
+  public static final String BROADCAST_SEND = "broadcast.send";
+  public static final String BROADCAST_MODIFY = "broadcast.modify";
+  public static final String BROADCAST_DELETE = "broadcast.delete";
+
+  public static final String TEMPLATE_READ = "template.read";
+  public static final String TEMPLATE_CREATE = "template.create";
+  public static final String TEMPLATE_MODIFY = "template.modify";
+  public static final String TEMPLATE_DELETE = "template.delete";
+
+  public static final String BILLING_READ = "billing.read";
+  public static final String BILLING_BALANCE_READ = "billing.balance.read";
+  public static final String BILLING_BALANCE_ADD = "billing.balance.add";
+  public static final String BILLING_CARD_READ = "billing.card.read";
+  public static final String BILLING_CARD_ADD = "billing.card.add";
+  public static final String BILLING_CARD_MODIFY = "billing.card.modify";
+  public static final String BILLING_CARD_DELETE = "billing.card.delete";
+  public static final String BILLING_INVOICE_READ = "billing.invoice.read";
+  public static final String BILLING_INVOICE_DOWNLOAD = "billing.invoice.download";
+  public static final String BILLING_SUBSCRIPTION_READ = "billing.subscription.read";
+  public static final String BILLING_SUBSCRIPTION_MODIFY = "billing.subscription.modify";
+  public static final String BILLING_SUBSCRIPTION_CANCEL = "billing.subscription.cancel";
+
+  public static final String ADS_READ = "ads.read";
+  public static final String ADS_CREATE = "ads.create";
+  public static final String ADS_MODIFY = "ads.modify";
+  public static final String ADS_DELETE = "ads.delete";
+  public static final String ADS_BALANCE_ADD = "ads.balance.add";
+
+  public static final String MEDIA_READ = "media.read";
+  public static final String MEDIA_UPLOAD = "media.upload";
+  public static final String MEDIA_DELETE = "media.delete";
+
+  public static final String SETTINGS_READ = "settings.read";
+  public static final String SETTINGS_MODIFY = "settings.modify";
+
+  private static final Set<String> MANAGER_DEFAULTS =
+      Set.of(
+          COMPANY_READ,
+          USER_READ,
+          USER_INVITE,
+          ROLE_READ,
+          EMAIL_CONNECT,
+          EMAIL_DISCONNECT,
+          EMAIL_READ,
+          EMAIL_SEND,
+          EMAIL_MODIFY,
+          WHATSAPP_CONNECT,
+          WHATSAPP_DISCONNECT,
+          WHATSAPP_READ,
+          WHATSAPP_SEND,
+          WHATSAPP_MODIFY,
+          SMS_CONNECT,
+          SMS_DISCONNECT,
+          SMS_READ,
+          SMS_SEND,
+          SMS_MODIFY,
+          BROADCAST_READ,
+          BROADCAST_CREATE,
+          BROADCAST_SEND,
+          BROADCAST_MODIFY,
+          TEMPLATE_READ,
+          TEMPLATE_CREATE,
+          TEMPLATE_MODIFY,
+          BILLING_READ,
+          BILLING_INVOICE_READ,
+          MEDIA_READ,
+          MEDIA_UPLOAD,
+          SETTINGS_READ);
+
+  private static final Set<String> MEMBER_DEFAULTS =
+      Set.of(
+          COMPANY_READ,
+          EMAIL_READ,
+          EMAIL_SEND,
+          WHATSAPP_READ,
+          WHATSAPP_SEND,
+          SMS_SEND,
+          BROADCAST_READ,
+          TEMPLATE_READ,
+          MEDIA_READ,
+          MEDIA_UPLOAD);
+
+  private CompanyPermissionKeys() {}
+
+  public static Set<String> defaultsFor(CompanyRole role) {
+    return switch (role) {
+      case OWNER -> Set.of();
+      case MANAGER -> MANAGER_DEFAULTS;
+      case MEMBER -> MEMBER_DEFAULTS;
+    };
+  }
+}
