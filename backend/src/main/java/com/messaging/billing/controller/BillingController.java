@@ -14,12 +14,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -32,37 +27,47 @@ public class BillingController {
 
   @GetMapping("/plans")
   public ResponseEntity<ApiResponse<List<PlanResponse>>> plans() {
-    return ResponseEntity.ok(
-        ApiResponse.success(
-            HttpStatus.OK.value(), billingCatalogService.activePlans(), "Plans fetched"));
+    return ResponseEntity.ok(ApiResponse.success(
+        HttpStatus.OK.value(), billingCatalogService.activePlans(), "Plans fetched"));
   }
 
+  /*
+   * Until checkout/payment is implemented, customers may only activate a zero-cost plan.
+   * Paid subscriptions can be assigned by Super Admin or later by the payment webhook flow.
+   */
   @PostMapping("/companies/{companyId}/subscription")
-  public ResponseEntity<ApiResponse<CompanySubscriptionResponse>> assignSubscription(
+  public ResponseEntity<ApiResponse<CompanySubscriptionResponse>> selectSubscription(
       @PathVariable Long companyId, @Valid @RequestBody AssignSubscriptionRequest request) {
-    companyAuthorizationService.requirePermission(
-        currentUserService.currentUserId(),
-        companyId,
-        CompanyPermissionKeys.BILLING_SUBSCRIPTION_MODIFY);
-    CompanySubscriptionResponse response =
-        billingCatalogService.assignSubscription(companyId, request);
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(
-            ApiResponse.success(
-                HttpStatus.CREATED.value(), response, "Company subscription selected"));
+    requireSubscriptionModify(companyId);
+    return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(
+        HttpStatus.CREATED.value(),
+        billingCatalogService.selectFreeSubscription(companyId, request),
+        "Company subscription selected"));
+  }
+
+  @PostMapping("/companies/{companyId}/subscription/cancel")
+  public ResponseEntity<ApiResponse<CompanySubscriptionResponse>> cancelSubscription(
+      @PathVariable Long companyId,
+      @RequestParam(defaultValue = "true") boolean atPeriodEnd) {
+    requireSubscriptionModify(companyId);
+    return ResponseEntity.ok(ApiResponse.success(
+        HttpStatus.OK.value(), billingCatalogService.cancelSubscription(companyId, atPeriodEnd),
+        "Subscription cancellation updated"));
   }
 
   @GetMapping("/companies/{companyId}/plan")
   public ResponseEntity<ApiResponse<CompanyPlanDetailsResponse>> companyPlan(
       @PathVariable Long companyId) {
     companyAuthorizationService.requirePermission(
-        currentUserService.currentUserId(),
-        companyId,
-        CompanyPermissionKeys.BILLING_SUBSCRIPTION_READ);
-    return ResponseEntity.ok(
-        ApiResponse.success(
-            HttpStatus.OK.value(),
-            billingCatalogService.companyPlanDetails(companyId),
-            "Company plan fetched"));
+        currentUserService.currentUserId(), companyId, CompanyPermissionKeys.BILLING_SUBSCRIPTION_READ);
+    return ResponseEntity.ok(ApiResponse.success(
+        HttpStatus.OK.value(), billingCatalogService.companyPlanDetails(companyId),
+        "Company plan fetched"));
+  }
+
+  private void requireSubscriptionModify(Long companyId) {
+    companyAuthorizationService.requirePermission(
+        currentUserService.currentUserId(), companyId,
+        CompanyPermissionKeys.BILLING_SUBSCRIPTION_MODIFY);
   }
 }
