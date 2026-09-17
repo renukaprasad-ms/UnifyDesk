@@ -18,6 +18,7 @@ import com.messaging.user.entity.User;
 import com.messaging.user.repository.UserRepository;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -134,6 +135,16 @@ public class UserService {
   }
 
   @Transactional
+  public UserResponse resetForgottenPassword(long userId, String password) {
+    User user = getUser(userId);
+    if (passwordEncoder.matches(password, user.getPassword())) {
+      throw new ConflictException("New password must be different from current password");
+    }
+    user.setPassword(passwordEncoder.encode(password));
+    return toResponse(user);
+  }
+
+  @Transactional
   public UserResponse toggleTwoFactor(long userId, ToggleTwoFactorRequest request) {
     requireCurrentUser(userId, "You can only change your own two-factor authentication settings");
 
@@ -180,6 +191,15 @@ public class UserService {
     }
     user.setProfilePicture(media);
     return new ProfilePictureResponse(user.getId().toString(), media.getId().toString());
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<User> findByIdentifier(String identifier) {
+    if (identifier == null || identifier.isBlank()) {
+      return Optional.empty();
+    }
+    String normalized = identifier.trim().toLowerCase(Locale.ROOT);
+    return userRepository.findByEmailOrUsername(normalized, normalized);
   }
 
   private void requireCurrentUser(long userId, String message) {
