@@ -1,9 +1,9 @@
-import { useSelector } from 'react-redux'
 import { Link } from 'react-router'
-import type { RootState } from '../../store/store'
+import { selectAuthUser } from '../../store/auth/authSlice'
+import { useAppSelector } from '../../store/hooks'
 
 export default function Home() {
-  const user = useSelector((state: RootState) => state.user.user)
+  const user = useAppSelector(selectAuthUser)
 
   return (
     <section className="p-6 sm:p-8">
