@@ -57,19 +57,36 @@ export default function PlatformBilling() {
 
   useEffect(() => {
     let active = true
-    Promise.all([platformApi.me(), workspaceApi.adminVisible(), adminBillingApi.plans()])
-      .then(([access, visibleCompanies, availablePlans]) => {
+
+    const load = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const access = await platformApi.me()
         if (!active) return
         const allowed = access.role === 'SUPER_ADMIN'
         setSuperAdmin(allowed)
         if (!allowed) return
+
+        const [visibleCompanies, availablePlans] = await Promise.all([
+          workspaceApi.adminVisible(),
+          adminBillingApi.plans(),
+        ])
+        if (!active) return
         setCompanies(visibleCompanies)
         setPlans(availablePlans.filter((plan) => plan.status === 'PUBLISHED'))
         if (visibleCompanies[0]) setCompanyId(visibleCompanies[0].companyId)
-      })
-      .catch((cause) => active && setError(cause instanceof Error ? cause.message : 'Unable to load billing operations'))
-      .finally(() => active && setLoading(false))
-    return () => { active = false }
+      } catch (cause) {
+        if (active) setError(cause instanceof Error ? cause.message : 'Unable to load billing operations')
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
+    void load()
+    return () => {
+      active = false
+    }
   }, [])
 
   const loadCompany = async (id: string) => {
@@ -150,7 +167,7 @@ export default function PlatformBilling() {
   }
 
   if (loading) return <div className="p-6 lg:p-8 text-sm font-medium text-slate-500">Loading billing operations…</div>
-  if (superAdmin === false) return <section className="p-6 lg:p-8"><div className="panel max-w-2xl p-6"><p className="eyebrow">BILLING</p><h1 className="mt-2 text-xl font-bold">Super Admin access required</h1></div></section>
+  if (superAdmin === false) return <section className="p-6 lg:p-8"><div className="panel max-w-2xl p-6"><p className="eyebrow">BILLING</p><h1 className="mt-2 text-xl font-bold">Super Admin access required</h1><p className="mt-2 text-sm text-slate-500">Global subscriptions and negotiated rate overrides are restricted to Super Admins.</p></div></section>
 
   return (
     <section className="p-6 lg:p-8">
