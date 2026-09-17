@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
@@ -14,10 +14,15 @@ export default function WorkspaceIamBootstrap({ children }: { children: React.Re
   const dispatch = useAppDispatch()
   const companyId = useAppSelector(selectSelectedCompanyId)
   const iam = useAppSelector(selectIamState)
+  const [retryNonce, setRetryNonce] = useState(0)
 
   useEffect(() => {
     if (!companyId) return
-    if (iam.companyId === companyId && (iam.status === 'loading' || iam.status === 'ready')) {
+    if (
+      retryNonce === 0 &&
+      iam.companyId === companyId &&
+      (iam.status === 'loading' || iam.status === 'ready')
+    ) {
       return
     }
 
@@ -48,7 +53,7 @@ export default function WorkspaceIamBootstrap({ children }: { children: React.Re
     return () => {
       active = false
     }
-  }, [companyId, dispatch, iam.companyId, iam.status])
+  }, [companyId, dispatch, retryNonce])
 
   if (!companyId) return null
 
@@ -68,7 +73,7 @@ export default function WorkspaceIamBootstrap({ children }: { children: React.Re
           <button
             type="button"
             className="secondary-button mt-4"
-            onClick={() => dispatch(iamLoadStarted(companyId))}
+            onClick={() => setRetryNonce((value) => value + 1)}
           >
             Retry
           </button>
