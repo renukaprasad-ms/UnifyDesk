@@ -1,0 +1,13 @@
+package com.messaging.billing.enums;
+
+public enum BillingCategory {
+  SMS_PROMOTIONAL,
+  SMS_TRANSACTIONAL,
+  SMS_OTP,
+  WHATSAPP_MARKETING,
+  WHATSAPP_UTILITY,
+  WHATSAPP_AUTHENTICATION,
+  WHATSAPP_SERVICE,
+  EMAIL_OUTBOUND,
+  EMAIL_INBOUND
+}
