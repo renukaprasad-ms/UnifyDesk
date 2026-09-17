@@ -3,16 +3,12 @@ package com.messaging.billing.service;
 import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.entity.EntitlementDefinition;
 import com.messaging.billing.entity.PlanEntitlement;
-import com.messaging.billing.enums.EntitlementValueType;
 import com.messaging.billing.enums.SubscriptionStatus;
+import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.billing.repository.CompanySubscriptionRepository;
 import com.messaging.billing.repository.EntitlementDefinitionRepository;
 import com.messaging.billing.repository.PlanEntitlementRepository;
-import com.messaging.channel.exception.PlanLimitExceededException;
-import com.messaging.common.exception.BadRequestException;
-import com.messaging.common.exception.NotFoundException;
 import java.math.BigDecimal;
-import java.util.EnumSet;
 import java.util.Locale;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -23,99 +19,85 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class EntitlementService {
 
-  private static final EnumSet<SubscriptionStatus> CURRENT_STATUSES =
-      EnumSet.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING, SubscriptionStatus.PAST_DUE);
-
   private final CompanySubscriptionRepository subscriptionRepository;
   private final PlanEntitlementRepository entitlementRepository;
   private final EntitlementDefinitionRepository definitionRepository;
 
   @Transactional(readOnly = true)
-  public Optional<CompanySubscription> currentSubscription(Long companyId) {
-    return subscriptionRepository.findFirstByCompanyIdAndStatusInOrderByStartedAtDesc(
-        companyId, CURRENT_STATUSES);
-  }
-
-  @Transactional(readOnly = true)
-  public long limit(Long companyId, String key) {
-    String value = value(companyId, key).orElse(null);
-    if (value == null || value.isBlank()) return 0;
-    String normalized = value.trim().toLowerCase(Locale.ROOT);
-    if (normalized.equals("unlimited") || normalized.equals("-1")) return -1;
-    try {
-      return Long.parseLong(normalized);
-    } catch (NumberFormatException exception) {
-      throw new IllegalStateException("Entitlement " + key + " is not an integer", exception);
-    }
-  }
-
-  @Transactional(readOnly = true)
-  public boolean enabled(Long companyId, String key) {
-    return value(companyId, key).map(Boolean::parseBoolean).orElse(false);
-  }
-
-  @Transactional(readOnly = true)
-  public Optional<String> value(Long companyId, String key) {
-    CompanySubscription subscription = currentSubscription(companyId).orElse(null);
-    if (subscription == null) return Optional.empty();
-    return entitlementRepository
-        .findByPlanIdAndKey(subscription.getPlan().getId(), normalizeKey(key))
-        .map(PlanEntitlement::getValue);
-  }
-
-  @Transactional(readOnly = true)
   public void assertWithinLimit(Long companyId, String key, long currentUsage) {
-    long limit = limit(companyId, key);
-    if (limit == -1) return;
-    if (currentUsage >= limit) {
-      throw new PlanLimitExceededException(
+    long limit = integerValue(companyId, key);
+    if (limit >= 0 && currentUsage >= limit) {
+      throw new PlanEntitlementException(
           "Plan limit reached for " + normalizeKey(key) + " (limit=" + limit + ")");
     }
   }
 
   @Transactional(readOnly = true)
-  public EntitlementDefinition requireDefinition(String key) {
-    return definitionRepository
-        .findById(normalizeKey(key))
-        .filter(EntitlementDefinition::isActive)
-        .orElseThrow(() -> new NotFoundException("Unknown entitlement: " + key));
+  public long integerValue(Long companyId, String key) {
+    String raw = resolvedValue(companyId, key);
+    String normalized = raw.trim().toLowerCase(Locale.ROOT);
+    if (normalized.equals("unlimited") || normalized.equals("-1")) {
+      return -1;
+    }
+    try {
+      return Long.parseLong(normalized);
+    } catch (NumberFormatException exception) {
+      throw new IllegalStateException("Invalid integer entitlement value for " + key, exception);
+    }
   }
 
-  public String validateValue(EntitlementDefinition definition, String rawValue) {
-    if (rawValue == null || rawValue.isBlank()) {
-      throw new BadRequestException("Entitlement value is required");
+  @Transactional(readOnly = true)
+  public boolean booleanValue(Long companyId, String key) {
+    String raw = resolvedValue(companyId, key).trim().toLowerCase(Locale.ROOT);
+    if (!raw.equals("true") && !raw.equals("false")) {
+      throw new IllegalStateException("Invalid boolean entitlement value for " + key);
     }
-    String value = rawValue.trim();
-    if (definition.isAllowUnlimited()
-        && (value.equalsIgnoreCase("unlimited") || value.equals("-1"))) {
-      return "-1";
-    }
+    return Boolean.parseBoolean(raw);
+  }
 
+  @Transactional(readOnly = true)
+  public BigDecimal decimalValue(Long companyId, String key) {
     try {
-      if (definition.getValueType() == EntitlementValueType.INTEGER) {
-        long parsed = Long.parseLong(value);
-        if (parsed < 0) throw new NumberFormatException();
-        return Long.toString(parsed);
-      }
-      if (definition.getValueType() == EntitlementValueType.DECIMAL) {
-        BigDecimal parsed = new BigDecimal(value);
-        if (parsed.signum() < 0) throw new NumberFormatException();
-        return parsed.stripTrailingZeros().toPlainString();
-      }
-      if (definition.getValueType() == EntitlementValueType.BOOLEAN) {
-        if (!value.equalsIgnoreCase("true") && !value.equalsIgnoreCase("false")) {
-          throw new IllegalArgumentException();
-        }
-        return Boolean.toString(Boolean.parseBoolean(value));
-      }
-      return value;
-    } catch (RuntimeException exception) {
-      throw new BadRequestException(
-          "Invalid value for " + definition.getKey() + " (expected " + definition.getValueType() + ")");
+      return new BigDecimal(resolvedValue(companyId, key).trim());
+    } catch (NumberFormatException exception) {
+      throw new IllegalStateException("Invalid decimal entitlement value for " + key, exception);
     }
+  }
+
+  @Transactional(readOnly = true)
+  public String resolvedValue(Long companyId, String key) {
+    String normalizedKey = normalizeKey(key);
+    EntitlementDefinition definition =
+        definitionRepository
+            .findByKey(normalizedKey)
+            .filter(EntitlementDefinition::isActive)
+            .orElseThrow(() -> new IllegalStateException("Unknown entitlement " + normalizedKey));
+
+    CompanySubscription subscription =
+        effectiveSubscription(companyId)
+            .orElseThrow(() -> new PlanEntitlementException("Company has no active plan"));
+
+    return entitlementRepository
+        .findByPlanIdAndKey(subscription.getPlan().getId(), normalizedKey)
+        .map(PlanEntitlement::getValue)
+        .filter(value -> value != null && !value.isBlank())
+        .orElse(definition.getDefaultValue());
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<CompanySubscription> effectiveSubscription(Long companyId) {
+    Optional<CompanySubscription> active =
+        subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+            companyId, SubscriptionStatus.ACTIVE);
+    if (active.isPresent()) return active;
+    return subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+        companyId, SubscriptionStatus.TRIALING);
   }
 
   private String normalizeKey(String key) {
+    if (key == null || key.isBlank()) {
+      throw new IllegalArgumentException("Entitlement key is required");
+    }
     return key.trim().toUpperCase(Locale.ROOT);
   }
 }

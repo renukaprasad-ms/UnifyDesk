@@ -4,5 +4,5 @@ public enum EntitlementValueType {
   INTEGER,
   BOOLEAN,
   DECIMAL,
-  STRING
+  TEXT
 }

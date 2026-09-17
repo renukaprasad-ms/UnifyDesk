@@ -3,22 +3,19 @@ package com.messaging.admin.service;
 import com.messaging.admin.dto.PlatformPlanRequest;
 import com.messaging.admin.dto.PlatformPlanResponse;
 import com.messaging.admin.enums.PlatformPermission;
-import com.messaging.billing.entity.EntitlementDefinition;
+import com.messaging.billing.dto.CreatePlanRequest;
+import com.messaging.billing.dto.UpdatePlanRequest;
+import com.messaging.billing.dto.UpsertEntitlementRequest;
 import com.messaging.billing.entity.Plan;
 import com.messaging.billing.entity.PlanEntitlement;
-import com.messaging.billing.entity.PlanPrice;
-import com.messaging.billing.enums.PlanPriceStatus;
 import com.messaging.billing.enums.PlanStatus;
 import com.messaging.billing.repository.PlanEntitlementRepository;
-import com.messaging.billing.repository.PlanPriceRepository;
 import com.messaging.billing.repository.PlanRepository;
-import com.messaging.billing.service.EntitlementService;
-import com.messaging.common.exception.BadRequestException;
+import com.messaging.billing.service.BillingCatalogService;
+import com.messaging.common.exception.ConflictException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.security.service.CurrentUserService;
-import java.time.Instant;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -32,8 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PlatformPlanManagementService {
   private final PlanRepository plans;
   private final PlanEntitlementRepository entitlements;
-  private final PlanPriceRepository planPrices;
-  private final EntitlementService entitlementService;
+  private final BillingCatalogService billingCatalogService;
   private final CurrentUserService currentUser;
   private final PlatformAdminAuthorizationService auth;
 
@@ -57,19 +53,19 @@ public class PlatformPlanManagementService {
   @Transactional
   public PlatformPlanResponse create(PlatformPlanRequest request) {
     auth.requirePermission(currentUser.currentUserId(), PlatformPermission.PLAN_CREATE);
-    String code = request.code().trim().toUpperCase(Locale.ROOT);
-    if (plans.existsByCodeAndVersion(code, request.version())) {
-      throw new BadRequestException("Plan code/version already exists");
-    }
-
-    Plan plan = new Plan();
-    apply(plan, request, code);
-    plan.setStatus(request.status() == null ? PlanStatus.DRAFT : request.status());
-    plan = plans.saveAndFlush(plan);
-    syncPrimaryPrice(plan, request);
-    replaceEntitlements(plan, request.entitlements());
-    validatePublishable(plan);
-    return response(plan);
+    var created =
+        billingCatalogService.createPlan(
+            new CreatePlanRequest(
+                request.code(),
+                request.name(),
+                null,
+                request.billingCycle(),
+                request.basePrice(),
+                request.currency(),
+                request.version()));
+    Long planId = Long.parseLong(created.planId());
+    upsertEntitlements(planId, request.entitlements());
+    return response(find(planId));
   }
 
   @Transactional
@@ -77,88 +73,87 @@ public class PlatformPlanManagementService {
     auth.requirePermission(currentUser.currentUserId(), PlatformPermission.PLAN_UPDATE);
     Plan plan = find(id);
     String code = request.code().trim().toUpperCase(Locale.ROOT);
-    if ((!plan.getCode().equals(code) || plan.getVersion() != request.version())
-        && plans.existsByCodeAndVersion(code, request.version())) {
-      throw new BadRequestException("Plan code/version already exists");
+    if (!plan.getCode().equals(code) || plan.getVersion() != request.version()) {
+      throw new ConflictException(
+          "Plan code and version are immutable; create a new plan version instead");
     }
 
-    apply(plan, request, code);
-    if (request.status() != null) plan.setStatus(request.status());
-    syncPrimaryPrice(plan, request);
-    replaceEntitlements(plan, request.entitlements());
-    validatePublishable(plan);
-    return response(plan);
+    boolean cycleChanged = plan.getBillingCycle() != request.billingCycle();
+    boolean priceChanged = plan.getBasePrice().compareTo(request.basePrice()) != 0;
+    boolean currencyChanged = !plan.getCurrency().equalsIgnoreCase(request.currency());
+
+    billingCatalogService.updatePlan(
+        id,
+        new UpdatePlanRequest(
+            request.name(),
+            null,
+            cycleChanged ? request.billingCycle() : null,
+            priceChanged ? request.basePrice() : null,
+            currencyChanged ? request.currency() : null,
+            null));
+
+    Map<String, String> existing = entitlementMap(plan.getId());
+    Map<String, String> requested = normalizeEntitlements(request.entitlements());
+    if (!existing.equals(requested)) {
+      replaceEntitlements(id, requested);
+    }
+    return response(find(id));
+  }
+
+  @Transactional
+  public PlatformPlanResponse publish(Long id) {
+    auth.requirePermission(currentUser.currentUserId(), PlatformPermission.PLAN_UPDATE);
+    billingCatalogService.updatePlan(
+        id, new UpdatePlanRequest(null, null, null, null, null, PlanStatus.PUBLISHED));
+    return response(find(id));
   }
 
   @Transactional
   public void archive(Long id) {
     auth.requirePermission(currentUser.currentUserId(), PlatformPermission.PLAN_DISABLE);
-    Plan plan = find(id);
-    plan.setStatus(PlanStatus.RETIRED);
+    billingCatalogService.updatePlan(
+        id, new UpdatePlanRequest(null, null, null, null, null, PlanStatus.RETIRED));
   }
 
   private Plan find(Long id) {
     return plans.findById(id).orElseThrow(() -> new NotFoundException("Plan not found"));
   }
 
-  private void apply(Plan plan, PlatformPlanRequest request, String code) {
-    plan.setCode(code);
-    plan.setName(request.name().trim());
-    plan.setBillingCycle(request.billingCycle());
-    plan.setBasePrice(request.basePrice());
-    plan.setCurrency(request.currency().toUpperCase(Locale.ROOT));
-    plan.setVersion(request.version());
+  private void replaceEntitlements(Long planId, Map<String, String> values) {
+    for (PlanEntitlement entitlement : entitlements.findByPlanId(planId)) {
+      billingCatalogService.deleteEntitlement(entitlement.getId());
+    }
+    upsertEntitlements(planId, values);
   }
 
-  private void syncPrimaryPrice(Plan plan, PlatformPlanRequest request) {
-    List<PlanPrice> prices =
-        planPrices.findByPlanIdAndBillingCycleAndStatus(
-            plan.getId(), request.billingCycle(), PlanPriceStatus.ACTIVE);
-    PlanPrice price;
-    if (prices.isEmpty()) {
-      price = new PlanPrice();
-      price.setPlan(plan);
-      price.setBillingCycle(request.billingCycle());
-      price.setEffectiveFrom(Instant.now());
-      price.setStatus(PlanPriceStatus.ACTIVE);
-    } else {
-      price = prices.getFirst();
-    }
-    price.setAmount(request.basePrice());
-    price.setCurrency(request.currency().toUpperCase(Locale.ROOT));
-    planPrices.save(price);
-  }
-
-  private void replaceEntitlements(Plan plan, Map<String, String> values) {
-    for (PlanEntitlement entitlement : entitlements.findByPlanId(plan.getId())) {
-      entitlements.delete(entitlement);
-    }
+  private void upsertEntitlements(Long planId, Map<String, String> values) {
     if (values == null) return;
+    values.forEach(
+        (key, value) ->
+            billingCatalogService.upsertEntitlement(
+                planId, new UpsertEntitlementRequest(key, value)));
+  }
 
+  private Map<String, String> normalizeEntitlements(Map<String, String> values) {
+    Map<String, String> normalized = new LinkedHashMap<>();
+    if (values == null) return normalized;
     values.forEach(
         (key, value) -> {
           if (key == null || key.isBlank() || value == null) return;
-          EntitlementDefinition definition = entitlementService.requireDefinition(key);
-          PlanEntitlement entitlement = new PlanEntitlement();
-          entitlement.setPlan(plan);
-          entitlement.setKey(definition.getKey());
-          entitlement.setValue(entitlementService.validateValue(definition, value));
-          entitlements.save(entitlement);
+          normalized.put(key.trim().toUpperCase(Locale.ROOT), value.trim());
         });
+    return normalized;
   }
 
-  private void validatePublishable(Plan plan) {
-    if (plan.getStatus() == PlanStatus.PUBLISHED
-        && planPrices.findByPlanIdAndStatus(plan.getId(), PlanPriceStatus.ACTIVE).isEmpty()) {
-      throw new BadRequestException("A published plan must have at least one active price");
+  private Map<String, String> entitlementMap(Long planId) {
+    Map<String, String> map = new LinkedHashMap<>();
+    for (PlanEntitlement entitlement : entitlements.findByPlanId(planId)) {
+      map.put(entitlement.getKey(), entitlement.getValue());
     }
+    return map;
   }
 
   private PlatformPlanResponse response(Plan plan) {
-    Map<String, String> map = new LinkedHashMap<>();
-    for (PlanEntitlement entitlement : entitlements.findByPlanId(plan.getId())) {
-      map.put(entitlement.getKey(), entitlement.getValue());
-    }
     return new PlatformPlanResponse(
         plan.getId().toString(),
         plan.getCode(),
@@ -168,6 +163,6 @@ public class PlatformPlanManagementService {
         plan.getBasePrice(),
         plan.getCurrency(),
         plan.getVersion(),
-        map);
+        entitlementMap(plan.getId()));
   }
 }

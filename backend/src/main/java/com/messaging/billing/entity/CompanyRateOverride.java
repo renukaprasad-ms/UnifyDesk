@@ -1,25 +1,14 @@
 package com.messaging.billing.entity;
 
 import com.messaging.billing.enums.BillingCategory;
-import com.messaging.billing.enums.PricingDirection;
+import com.messaging.billing.enums.CommunicationDirection;
 import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.enums.UsageUnit;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.common.id.IdGenerator;
 import com.messaging.company.entity.Company;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import lombok.Getter;
@@ -30,14 +19,11 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(
-    name = "company_rate_overrides",
-    indexes = {
-      @Index(name = "idx_company_rate_overrides_lookup", columnList = "company_id,provider,billing_category,status"),
-      @Index(name = "idx_company_rate_overrides_effective", columnList = "effective_from,effective_to")
-    })
+@Table(name = "company_rate_overrides", indexes = {
+    @Index(name = "idx_company_rate_overrides_company_status", columnList = "company_id,status"),
+    @Index(name = "idx_company_rate_overrides_effective", columnList = "effective_from,effective_to")
+})
 public class CompanyRateOverride {
-
   @Id private Long id;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -53,12 +39,12 @@ public class CompanyRateOverride {
   private ProviderType provider;
 
   @Enumerated(EnumType.STRING)
-  @Column(name = "billing_category", nullable = false, length = 48)
+  @Column(name = "billing_category", nullable = false, length = 64)
   private BillingCategory billingCategory;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
-  private PricingDirection direction;
+  private CommunicationDirection direction;
 
   @Column(length = 2)
   private String country;
@@ -99,16 +85,16 @@ public class CompanyRateOverride {
   private Instant updatedAt;
 
   @PrePersist
-  private void beforeInsert() {
+  void prePersist() {
     if (id == null) id = IdGenerator.nextId();
     Instant now = Instant.now();
     if (effectiveFrom == null) effectiveFrom = now;
     if (createdAt == null) createdAt = now;
-    if (updatedAt == null) updatedAt = now;
+    updatedAt = now;
   }
 
   @PreUpdate
-  private void beforeUpdate() {
+  void preUpdate() {
     updatedAt = Instant.now();
   }
 }

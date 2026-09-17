@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 public record CreatePlanRequest(
     @NotBlank @Size(max = 64) String code,
     @NotBlank @Size(max = 120) String name,
+    @Size(max = 500) String description,
     @NotNull BillingCycle billingCycle,
     @NotNull @DecimalMin("0.000000") BigDecimal basePrice,
     @NotBlank @Size(min = 3, max = 3) String currency,

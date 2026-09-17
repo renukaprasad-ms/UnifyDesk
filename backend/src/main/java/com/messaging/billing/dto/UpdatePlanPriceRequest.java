@@ -1,6 +1,6 @@
 package com.messaging.billing.dto;
 
-import com.messaging.billing.enums.PlanPriceStatus;
+import com.messaging.billing.enums.RateCardStatus;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
@@ -11,4 +11,4 @@ public record UpdatePlanPriceRequest(
     @Size(min = 3, max = 3) String currency,
     Instant effectiveFrom,
     Instant effectiveTo,
-    PlanPriceStatus status) {}
+    RateCardStatus status) {}

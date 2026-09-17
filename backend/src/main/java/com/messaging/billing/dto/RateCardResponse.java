@@ -1,7 +1,7 @@
 package com.messaging.billing.dto;
 
 import com.messaging.billing.enums.BillingCategory;
-import com.messaging.billing.enums.PricingDirection;
+import com.messaging.billing.enums.CommunicationDirection;
 import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.enums.UsageUnit;
 import com.messaging.channel.enums.ChannelType;
@@ -17,7 +17,7 @@ public record RateCardResponse(
     String country,
     String carrier,
     BillingCategory billingCategory,
-    PricingDirection direction,
+    CommunicationDirection direction,
     UsageUnit unit,
     BigDecimal price,
     String currency,

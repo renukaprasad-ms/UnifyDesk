@@ -1,7 +1,7 @@
 package com.messaging.billing.dto;
 
 import com.messaging.billing.enums.BillingCategory;
-import com.messaging.billing.enums.PricingDirection;
+import com.messaging.billing.enums.CommunicationDirection;
 import com.messaging.billing.enums.UsageUnit;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.ProviderType;
@@ -15,7 +15,7 @@ public record CreateCompanyRateOverrideRequest(
     @NotNull ChannelType channel,
     @NotNull ProviderType provider,
     @NotNull BillingCategory billingCategory,
-    @NotNull PricingDirection direction,
+    @NotNull CommunicationDirection direction,
     @Size(max = 2) String country,
     @Size(max = 80) String carrier,
     @NotNull UsageUnit unit,

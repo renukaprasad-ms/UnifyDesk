@@ -2,12 +2,9 @@ package com.messaging.billing.entity;
 
 import com.messaging.billing.enums.EntitlementCategory;
 import com.messaging.billing.enums.EntitlementValueType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.messaging.common.id.IdGenerator;
+import jakarta.persistence.*;
+import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -16,15 +13,15 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "entitlement_definitions")
+@Table(name = "entitlement_definitions", uniqueConstraints = @UniqueConstraint(name = "uk_entitlement_definitions_key", columnNames = "entitlement_key"))
 public class EntitlementDefinition {
+  @Id private Long id;
 
-  @Id
-  @Column(name = "entitlement_key", length = 120)
+  @Column(name = "entitlement_key", nullable = false, length = 120)
   private String key;
 
   @Column(nullable = false, length = 160)
-  private String label;
+  private String name;
 
   @Column(length = 500)
   private String description;
@@ -37,12 +34,28 @@ public class EntitlementDefinition {
   @Column(nullable = false, length = 32)
   private EntitlementCategory category;
 
-  @Column(name = "default_value", length = 512)
+  @Column(name = "default_value", nullable = false, length = 512)
   private String defaultValue;
 
-  @Column(name = "allow_unlimited", nullable = false)
-  private boolean allowUnlimited;
-
   @Column(nullable = false)
-  private boolean active;
+  private boolean active = true;
+
+  @Column(name = "created_at", nullable = false)
+  private Instant createdAt;
+
+  @Column(name = "updated_at", nullable = false)
+  private Instant updatedAt;
+
+  @PrePersist
+  void prePersist() {
+    if (id == null) id = IdGenerator.nextId();
+    Instant now = Instant.now();
+    if (createdAt == null) createdAt = now;
+    updatedAt = now;
+  }
+
+  @PreUpdate
+  void preUpdate() {
+    updatedAt = Instant.now();
+  }
 }

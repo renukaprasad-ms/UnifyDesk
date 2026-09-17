@@ -1,9 +1,13 @@
 package com.messaging.billing.service;
 
+import com.messaging.billing.dto.ResolvedPrice;
 import com.messaging.billing.entity.UsageEvent;
-import com.messaging.billing.enums.PricingSource;
+import com.messaging.billing.enums.BillingCategory;
+import com.messaging.billing.enums.CommunicationDirection;
+import com.messaging.billing.enums.UsageUnit;
 import com.messaging.billing.repository.UsageEventRepository;
-import com.messaging.common.exception.BadRequestException;
+import com.messaging.channel.enums.ChannelType;
+import com.messaging.channel.enums.ProviderType;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.company.entity.Company;
 import com.messaging.company.repository.CompanyRepository;
@@ -23,83 +27,64 @@ public class UsageBillingService {
   private final PricingResolver pricingResolver;
 
   @Transactional
-  public UsageEvent record(UsageChargeRequest request) {
-    validate(request);
+  public UsageEvent record(
+      Long companyId,
+      String sourceType,
+      String sourceId,
+      String idempotencyKey,
+      ChannelType channel,
+      ProviderType provider,
+      BillingCategory billingCategory,
+      CommunicationDirection direction,
+      String country,
+      String carrier,
+      UsageUnit unit,
+      long quantity,
+      Instant occurredAt) {
 
-    return usageEventRepository
-        .findByIdempotencyKey(request.idempotencyKey())
-        .orElseGet(() -> createUsageEvent(request));
-  }
-
-  private UsageEvent createUsageEvent(UsageChargeRequest request) {
-    ResolvedPrice resolved =
-        pricingResolver.resolve(
-            new PricingRequest(
-                request.companyId(),
-                request.channel(),
-                request.provider(),
-                request.billingCategory(),
-                request.direction(),
-                request.country(),
-                request.carrier(),
-                request.unit(),
-                request.occurredAt()));
-
-    Company company =
-        companyRepository
-            .findById(request.companyId())
-            .orElseThrow(() -> new NotFoundException("Company not found"));
-
-    UsageEvent event = new UsageEvent();
-    event.setCompany(company);
-    event.setPlanIdSnapshot(Long.parseLong(resolved.planId()));
-    event.setPricingSource(resolved.source());
-    event.setPricingRuleIdSnapshot(Long.parseLong(resolved.pricingRuleId()));
-    if (resolved.source() == PricingSource.PLAN_RATE) {
-      event.setRateCardIdSnapshot(Long.parseLong(resolved.pricingRuleId()));
+    if (quantity <= 0) throw new IllegalArgumentException("Quantity must be positive");
+    if (idempotencyKey == null || idempotencyKey.isBlank()) {
+      throw new IllegalArgumentException("Idempotency key is required");
     }
-    event.setChannel(request.channel());
-    event.setProvider(request.provider());
-    event.setCountry(normalizeCountry(request.country()));
-    event.setCarrier(normalizeOptional(request.carrier()));
-    event.setBillingCategory(request.billingCategory());
-    event.setDirection(request.direction());
-    event.setQuantity(request.quantity());
-    event.setUnit(request.unit());
-    event.setUnitPriceSnapshot(resolved.unitPrice());
-    event.setTotalPrice(resolved.unitPrice().multiply(BigDecimal.valueOf(request.quantity())));
-    event.setCurrency(resolved.currency());
-    event.setSourceType(normalizeOptional(request.sourceType()));
-    event.setSourceId(normalizeOptional(request.sourceId()));
-    event.setIdempotencyKey(request.idempotencyKey().trim());
-    event.setOccurredAt(request.occurredAt() == null ? Instant.now() : request.occurredAt());
 
-    try {
-      return usageEventRepository.saveAndFlush(event);
-    } catch (DataIntegrityViolationException duplicate) {
-      return usageEventRepository
-          .findByIdempotencyKey(request.idempotencyKey().trim())
-          .orElseThrow(() -> duplicate);
-    }
-  }
+    return usageEventRepository.findByIdempotencyKey(idempotencyKey).orElseGet(() -> {
+      Company company = companyRepository.findById(companyId)
+          .orElseThrow(() -> new NotFoundException("Company not found"));
+      Instant at = occurredAt == null ? Instant.now() : occurredAt;
+      ResolvedPrice price = pricingResolver.resolve(
+          companyId, channel, provider, billingCategory, direction, country, carrier, unit, at);
 
-  private void validate(UsageChargeRequest request) {
-    if (request == null || request.companyId() == null) {
-      throw new BadRequestException("Usage charge request is incomplete");
-    }
-    if (request.quantity() <= 0) {
-      throw new BadRequestException("Usage quantity must be greater than zero");
-    }
-    if (request.idempotencyKey() == null || request.idempotencyKey().isBlank()) {
-      throw new BadRequestException("Idempotency key is required");
-    }
-  }
+      UsageEvent event = new UsageEvent();
+      event.setCompany(company);
+      event.setPlanIdSnapshot(Long.parseLong(price.planId()));
+      event.setPricingRuleIdSnapshot(Long.parseLong(price.pricingRuleId()));
+      event.setRateCardIdSnapshot(
+          price.source() == com.messaging.billing.enums.PricingSource.PLAN_RATE
+              ? Long.parseLong(price.pricingRuleId())
+              : null);
+      event.setPricingSource(price.source());
+      event.setSourceType(sourceType.trim().toUpperCase(java.util.Locale.ROOT));
+      event.setSourceId(sourceId.trim());
+      event.setIdempotencyKey(idempotencyKey.trim());
+      event.setChannel(channel);
+      event.setProvider(provider);
+      event.setCountry(country == null || country.isBlank() ? null : country.trim().toUpperCase(java.util.Locale.ROOT));
+      event.setCarrier(carrier == null || carrier.isBlank() ? null : carrier.trim());
+      event.setBillingCategory(billingCategory);
+      event.setDirection(direction);
+      event.setQuantity(quantity);
+      event.setUnit(unit);
+      event.setUnitPriceSnapshot(price.unitPrice());
+      event.setTotalPrice(price.unitPrice().multiply(BigDecimal.valueOf(quantity)));
+      event.setCurrency(price.currency());
+      event.setOccurredAt(at);
 
-  private String normalizeCountry(String value) {
-    return value == null || value.isBlank() ? null : value.trim().toUpperCase(java.util.Locale.ROOT);
-  }
-
-  private String normalizeOptional(String value) {
-    return value == null || value.isBlank() ? null : value.trim();
+      try {
+        return usageEventRepository.saveAndFlush(event);
+      } catch (DataIntegrityViolationException duplicate) {
+        return usageEventRepository.findByIdempotencyKey(idempotencyKey)
+            .orElseThrow(() -> duplicate);
+      }
+    });
   }
 }

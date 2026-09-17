@@ -1,6 +1,5 @@
 package com.messaging.channel.service;
 
-import com.messaging.billing.entitlement.EntitlementKeys;
 import com.messaging.billing.service.EntitlementService;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
@@ -15,6 +14,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ChannelEntitlementService {
 
+  public static final String EMAIL_ACCOUNTS = "EMAIL_ACCOUNTS";
+  public static final String WHATSAPP_ACCOUNTS = "WHATSAPP_ACCOUNTS";
+  public static final String WHATSAPP_NUMBERS = "WHATSAPP_NUMBERS";
+  public static final String SMS_ACCOUNTS = "SMS_ACCOUNTS";
+  public static final String SMS_SENDER_IDS = "SMS_SENDER_IDS";
+
   private final EntitlementService entitlementService;
   private final ChannelConnectionRepository connectionRepository;
   private final SenderIdentityRepository senderIdentityRepository;
@@ -23,9 +28,9 @@ public class ChannelEntitlementService {
   public void assertCanCreateConnection(Long companyId, ChannelType channelType) {
     String key =
         switch (channelType) {
-          case EMAIL -> EntitlementKeys.EMAIL_ACCOUNTS;
-          case WHATSAPP -> EntitlementKeys.WHATSAPP_ACCOUNTS;
-          case SMS -> EntitlementKeys.SMS_ACCOUNTS;
+          case EMAIL -> EMAIL_ACCOUNTS;
+          case WHATSAPP -> WHATSAPP_ACCOUNTS;
+          case SMS -> SMS_ACCOUNTS;
         };
     long current =
         connectionRepository.countByCompanyIdAndChannelTypeAndStatusNot(
@@ -37,8 +42,8 @@ public class ChannelEntitlementService {
   public void assertCanCreateSender(Long companyId, SenderIdentityType identityType) {
     String key =
         switch (identityType) {
-          case PHONE_NUMBER -> EntitlementKeys.WHATSAPP_NUMBERS;
-          case SMS_HEADER -> EntitlementKeys.SMS_SENDER_IDS;
+          case PHONE_NUMBER -> WHATSAPP_NUMBERS;
+          case SMS_HEADER -> SMS_SENDER_IDS;
           case EMAIL_ADDRESS -> null;
         };
     if (key == null) return;

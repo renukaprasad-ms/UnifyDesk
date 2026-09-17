@@ -1,7 +1,7 @@
 package com.messaging.billing.dto;
 
 import com.messaging.billing.enums.BillingCategory;
-import com.messaging.billing.enums.PricingDirection;
+import com.messaging.billing.enums.CommunicationDirection;
 import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.enums.UsageUnit;
 import com.messaging.channel.enums.ChannelType;
@@ -15,7 +15,7 @@ public record CompanyRateOverrideResponse(
     ChannelType channel,
     ProviderType provider,
     BillingCategory billingCategory,
-    PricingDirection direction,
+    CommunicationDirection direction,
     String country,
     String carrier,
     UsageUnit unit,
@@ -24,4 +24,5 @@ public record CompanyRateOverrideResponse(
     Instant effectiveFrom,
     Instant effectiveTo,
     RateCardStatus status,
+    String createdByUserId,
     String reason) {}

@@ -26,8 +26,7 @@ import com.messaging.billing.entity.PlanEntitlement;
 import com.messaging.billing.entity.PlanPrice;
 import com.messaging.billing.entity.RateCard;
 import com.messaging.billing.enums.BillingCategory;
-import com.messaging.billing.enums.BillingCycle;
-import com.messaging.billing.enums.PlanPriceStatus;
+import com.messaging.billing.enums.EntitlementValueType;
 import com.messaging.billing.enums.PlanStatus;
 import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.enums.SubscriptionStatus;
@@ -40,14 +39,15 @@ import com.messaging.billing.repository.PlanRepository;
 import com.messaging.billing.repository.RateCardRepository;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.common.exception.BadRequestException;
+import com.messaging.common.exception.ConflictException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.company.entity.Company;
 import com.messaging.company.repository.CompanyRepository;
+import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.EnumSet;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,30 +56,33 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class BillingCatalogService {
 
-  private static final EnumSet<SubscriptionStatus> CURRENT_SUBSCRIPTION_STATUSES =
-      EnumSet.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING, SubscriptionStatus.PAST_DUE);
-
   private final PlanRepository planRepository;
-  private final PlanEntitlementRepository entitlementRepository;
-  private final EntitlementDefinitionRepository entitlementDefinitionRepository;
   private final PlanPriceRepository planPriceRepository;
+  private final EntitlementDefinitionRepository entitlementDefinitionRepository;
+  private final PlanEntitlementRepository entitlementRepository;
   private final RateCardRepository rateCardRepository;
   private final CompanyRateOverrideRepository companyRateOverrideRepository;
   private final CompanySubscriptionRepository subscriptionRepository;
   private final CompanyRepository companyRepository;
-  private final EntitlementService entitlementService;
 
   @Transactional
   public PlanResponse createPlan(CreatePlanRequest request) {
+    String code = normalizeCode(request.code());
+    int version = request.version() <= 0 ? nextVersion(code) : request.version();
+    if (planRepository.existsByCodeAndVersion(code, version)) {
+      throw new ConflictException("Plan code/version already exists");
+    }
+
     Plan plan = new Plan();
-    plan.setCode(normalizeCode(request.code()));
+    plan.setCode(code);
     plan.setName(request.name().trim());
+    plan.setDescription(normalizeOptional(request.description()));
     plan.setBillingCycle(request.billingCycle());
     plan.setBasePrice(request.basePrice());
     plan.setCurrency(normalizeCurrency(request.currency()));
-    plan.setVersion(request.version() <= 0 ? 1 : request.version());
+    plan.setVersion(version);
     plan.setStatus(PlanStatus.DRAFT);
-    plan = planRepository.saveAndFlush(plan);
+    planRepository.saveAndFlush(plan);
 
     PlanPrice price = new PlanPrice();
     price.setPlan(plan);
@@ -87,14 +90,18 @@ public class BillingCatalogService {
     price.setAmount(request.basePrice());
     price.setCurrency(normalizeCurrency(request.currency()));
     price.setEffectiveFrom(Instant.now());
-    price.setStatus(PlanPriceStatus.ACTIVE);
+    price.setStatus(RateCardStatus.ACTIVE);
     planPriceRepository.saveAndFlush(price);
+
     return toPlanResponse(plan);
   }
 
   @Transactional(readOnly = true)
   public List<PlanResponse> plans() {
-    return planRepository.findAll().stream().map(this::toPlanResponse).toList();
+    return planRepository.findAll().stream()
+        .sorted(Comparator.comparing(Plan::getCode).thenComparing(Plan::getVersion))
+        .map(this::toPlanResponse)
+        .toList();
   }
 
   @Transactional(readOnly = true)
@@ -107,20 +114,78 @@ public class BillingCatalogService {
   @Transactional
   public PlanResponse updatePlan(Long planId, UpdatePlanRequest request) {
     Plan plan = getPlan(planId);
+
     if (request.name() != null && !request.name().isBlank()) plan.setName(request.name().trim());
-    if (request.billingCycle() != null) plan.setBillingCycle(request.billingCycle());
-    if (request.basePrice() != null) plan.setBasePrice(request.basePrice());
-    if (request.currency() != null && !request.currency().isBlank()) {
-      plan.setCurrency(normalizeCurrency(request.currency()));
-    }
-    if (request.status() != null) {
-      if (request.status() == PlanStatus.PUBLISHED
-          && planPriceRepository.findByPlanIdAndStatus(planId, PlanPriceStatus.ACTIVE).isEmpty()) {
-        throw new BadRequestException("A plan must have at least one active price before publishing");
+    if (request.description() != null) plan.setDescription(normalizeOptional(request.description()));
+
+    if (request.billingCycle() != null || request.basePrice() != null || request.currency() != null) {
+      assertDraft(plan);
+      if (request.billingCycle() != null) plan.setBillingCycle(request.billingCycle());
+      if (request.basePrice() != null) plan.setBasePrice(request.basePrice());
+      if (request.currency() != null && !request.currency().isBlank()) {
+        plan.setCurrency(normalizeCurrency(request.currency()));
       }
-      plan.setStatus(request.status());
     }
+
+    if (request.status() != null && request.status() != plan.getStatus()) {
+      transitionPlan(plan, request.status());
+    }
+
     return toPlanResponse(planRepository.saveAndFlush(plan));
+  }
+
+  @Transactional(readOnly = true)
+  public List<EntitlementDefinitionResponse> entitlementDefinitions() {
+    return entitlementDefinitionRepository.findByActiveTrueOrderByCategoryAscNameAsc().stream()
+        .map(this::toEntitlementDefinitionResponse)
+        .toList();
+  }
+
+  @Transactional
+  public EntitlementResponse upsertEntitlement(Long planId, UpsertEntitlementRequest request) {
+    Plan plan = getPlan(planId);
+    assertDraft(plan);
+    String key = normalizeEntitlementKey(request.key());
+    EntitlementDefinition definition = entitlementDefinitionRepository.findByKey(key)
+        .filter(EntitlementDefinition::isActive)
+        .orElseThrow(() -> new BadRequestException("Unknown entitlement key: " + key));
+    String value = request.value().trim();
+    validateEntitlementValue(definition, value);
+
+    PlanEntitlement entitlement = entitlementRepository.findByPlanIdAndKey(planId, key)
+        .orElseGet(PlanEntitlement::new);
+    entitlement.setPlan(plan);
+    entitlement.setKey(key);
+    entitlement.setValue(value);
+    return toEntitlementResponse(entitlementRepository.saveAndFlush(entitlement));
+  }
+
+  @Transactional
+  public void deleteEntitlement(Long entitlementId) {
+    PlanEntitlement entitlement = entitlementRepository.findById(entitlementId)
+        .orElseThrow(() -> new NotFoundException("Entitlement not found"));
+    assertDraft(entitlement.getPlan());
+    entitlementRepository.delete(entitlement);
+  }
+
+  @Transactional
+  public PlanPriceResponse createPlanPrice(Long planId, CreatePlanPriceRequest request) {
+    Plan plan = getPlan(planId);
+    assertDraft(plan);
+    validatePeriod(request.effectiveFrom(), request.effectiveTo());
+    String currency = normalizeCurrency(request.currency());
+    assertNoOverlappingPlanPrice(planId, request.billingCycle(), currency,
+        request.effectiveFrom(), request.effectiveTo(), null);
+
+    PlanPrice price = new PlanPrice();
+    price.setPlan(plan);
+    price.setBillingCycle(request.billingCycle());
+    price.setAmount(request.amount());
+    price.setCurrency(currency);
+    price.setEffectiveFrom(request.effectiveFrom());
+    price.setEffectiveTo(request.effectiveTo());
+    price.setStatus(RateCardStatus.ACTIVE);
+    return toPlanPriceResponse(planPriceRepository.saveAndFlush(price));
   }
 
   @Transactional(readOnly = true)
@@ -132,102 +197,53 @@ public class BillingCatalogService {
   }
 
   @Transactional
-  public PlanPriceResponse createPlanPrice(Long planId, CreatePlanPriceRequest request) {
-    Plan plan = getPlan(planId);
-    Instant from = request.effectiveFrom() == null ? Instant.now() : request.effectiveFrom();
-    validateWindow(from, request.effectiveTo());
-    assertNoPlanPriceOverlap(planId, request.billingCycle(), from, request.effectiveTo(), null);
-
-    PlanPrice price = new PlanPrice();
-    price.setPlan(plan);
-    price.setBillingCycle(request.billingCycle());
-    price.setAmount(request.amount());
-    price.setCurrency(normalizeCurrency(request.currency()));
-    price.setEffectiveFrom(from);
-    price.setEffectiveTo(request.effectiveTo());
-    price.setStatus(PlanPriceStatus.ACTIVE);
-    return toPlanPriceResponse(planPriceRepository.saveAndFlush(price));
-  }
-
-  @Transactional
   public PlanPriceResponse updatePlanPrice(Long planPriceId, UpdatePlanPriceRequest request) {
-    PlanPrice price =
-        planPriceRepository
-            .findById(planPriceId)
-            .orElseThrow(() -> new NotFoundException("Plan price not found"));
+    PlanPrice price = planPriceRepository.findById(planPriceId)
+        .orElseThrow(() -> new NotFoundException("Plan price not found"));
+    assertDraft(price.getPlan());
+
+    BigDecimal amount = request.amount() == null ? price.getAmount() : request.amount();
+    String currency = request.currency() == null
+        ? price.getCurrency() : normalizeCurrency(request.currency());
     Instant from = request.effectiveFrom() == null ? price.getEffectiveFrom() : request.effectiveFrom();
-    Instant to = request.effectiveTo();
-    if (request.effectiveTo() == null && price.getEffectiveTo() != null) to = price.getEffectiveTo();
-    validateWindow(from, to);
+    Instant to = request.effectiveTo() == null ? price.getEffectiveTo() : request.effectiveTo();
+    validatePeriod(from, to);
+    assertNoOverlappingPlanPrice(price.getPlan().getId(), price.getBillingCycle(), currency,
+        from, to, price.getId());
 
-    if (request.amount() != null) price.setAmount(request.amount());
-    if (request.currency() != null && !request.currency().isBlank()) {
-      price.setCurrency(normalizeCurrency(request.currency()));
-    }
-    if (request.effectiveFrom() != null) price.setEffectiveFrom(request.effectiveFrom());
-    if (request.effectiveTo() != null) price.setEffectiveTo(request.effectiveTo());
+    price.setAmount(amount);
+    price.setCurrency(currency);
+    price.setEffectiveFrom(from);
+    price.setEffectiveTo(to);
     if (request.status() != null) price.setStatus(request.status());
-
-    if (price.getStatus() == PlanPriceStatus.ACTIVE) {
-      assertNoPlanPriceOverlap(
-          price.getPlan().getId(), price.getBillingCycle(), price.getEffectiveFrom(), price.getEffectiveTo(), price.getId());
-    }
     return toPlanPriceResponse(planPriceRepository.saveAndFlush(price));
-  }
-
-  @Transactional(readOnly = true)
-  public List<EntitlementDefinitionResponse> entitlementDefinitions() {
-    return entitlementDefinitionRepository.findByActiveTrueOrderByCategoryAscLabelAsc().stream()
-        .map(this::toEntitlementDefinitionResponse)
-        .toList();
-  }
-
-  @Transactional
-  public EntitlementResponse upsertEntitlement(Long planId, UpsertEntitlementRequest request) {
-    Plan plan = getPlan(planId);
-    EntitlementDefinition definition = entitlementService.requireDefinition(request.key());
-    String key = definition.getKey();
-    String validatedValue = entitlementService.validateValue(definition, request.value());
-
-    PlanEntitlement entitlement =
-        entitlementRepository.findByPlanIdAndKey(planId, key).orElseGet(PlanEntitlement::new);
-    entitlement.setPlan(plan);
-    entitlement.setKey(key);
-    entitlement.setValue(validatedValue);
-    return toEntitlementResponse(entitlementRepository.saveAndFlush(entitlement));
-  }
-
-  @Transactional
-  public void deleteEntitlement(Long entitlementId) {
-    if (!entitlementRepository.existsById(entitlementId)) {
-      throw new NotFoundException("Entitlement not found");
-    }
-    entitlementRepository.deleteById(entitlementId);
   }
 
   @Transactional
   public RateCardResponse createRateCard(CreateRateCardRequest request) {
-    Plan plan = getPlan(request.planId());
-    validatePricingDimensions(request.channel(), request.provider(), request.billingCategory());
-    Instant from = request.effectiveFrom() == null ? Instant.now() : request.effectiveFrom();
-    validateWindow(from, request.effectiveTo());
+    Plan plan = getPlan(parseId(request.planId(), "Plan not found"));
+    assertDraft(plan);
+    validateRateDimensions(request.channel(), request.provider(), request.billingCategory());
+    validatePeriod(request.effectiveFrom(), request.effectiveTo());
+    String country = normalizeCountry(request.country());
+    String carrier = normalizeOptional(request.carrier());
+    assertNoOverlappingRateCard(plan.getId(), request, country, carrier, null);
 
     RateCard rateCard = new RateCard();
     rateCard.setPlan(plan);
     rateCard.setChannel(request.channel());
     rateCard.setProvider(request.provider());
-    rateCard.setCountry(normalizeCountry(request.country()));
-    rateCard.setCarrier(normalizeOptional(request.carrier()));
+    rateCard.setCountry(country);
+    rateCard.setCarrier(carrier);
     rateCard.setBillingCategory(request.billingCategory());
     rateCard.setDirection(request.direction());
     rateCard.setUnit(request.unit());
     rateCard.setPrice(request.price());
-    rateCard.setCurrency(
-        normalizeCurrency(request.currency() == null ? plan.getCurrency() : request.currency()));
-    rateCard.setEffectiveFrom(from);
+    rateCard.setCurrency(normalizeCurrency(
+        request.currency() == null ? plan.getCurrency() : request.currency()));
+    rateCard.setEffectiveFrom(request.effectiveFrom());
     rateCard.setEffectiveTo(request.effectiveTo());
     rateCard.setStatus(RateCardStatus.ACTIVE);
-    assertNoRateCardOverlap(rateCard, null);
     return toRateCardResponse(rateCardRepository.saveAndFlush(rateCard));
   }
 
@@ -241,26 +257,32 @@ public class BillingCatalogService {
 
   @Transactional
   public RateCardResponse updateRateCard(Long rateCardId, UpdateRateCardRequest request) {
-    RateCard rateCard =
-        rateCardRepository
-            .findById(rateCardId)
-            .orElseThrow(() -> new NotFoundException("Rate card not found"));
+    RateCard rateCard = rateCardRepository.findById(rateCardId)
+        .orElseThrow(() -> new NotFoundException("Rate card not found"));
+    assertDraft(rateCard.getPlan());
+
+    Instant from = request.effectiveFrom() == null ? rateCard.getEffectiveFrom() : request.effectiveFrom();
+    Instant to = request.effectiveTo() == null ? rateCard.getEffectiveTo() : request.effectiveTo();
+    validatePeriod(from, to);
+    assertNoOverlappingRateCard(rateCard, from, to);
+
     if (request.price() != null) rateCard.setPrice(request.price());
-    if (request.effectiveFrom() != null) rateCard.setEffectiveFrom(request.effectiveFrom());
-    if (request.effectiveTo() != null) rateCard.setEffectiveTo(request.effectiveTo());
+    rateCard.setEffectiveFrom(from);
+    rateCard.setEffectiveTo(to);
     if (request.status() != null) rateCard.setStatus(request.status());
-    validateWindow(rateCard.getEffectiveFrom(), rateCard.getEffectiveTo());
-    if (rateCard.getStatus() == RateCardStatus.ACTIVE) assertNoRateCardOverlap(rateCard, rateCard.getId());
     return toRateCardResponse(rateCardRepository.saveAndFlush(rateCard));
   }
 
   @Transactional
   public CompanyRateOverrideResponse createCompanyRateOverride(
       Long companyId, Long createdByUserId, CreateCompanyRateOverrideRequest request) {
-    Company company = getCompany(companyId);
-    validatePricingDimensions(request.channel(), request.provider(), request.billingCategory());
-    Instant from = request.effectiveFrom() == null ? Instant.now() : request.effectiveFrom();
-    validateWindow(from, request.effectiveTo());
+    Company company = companyRepository.findById(companyId)
+        .orElseThrow(() -> new NotFoundException("Company not found"));
+    validateRateDimensions(request.channel(), request.provider(), request.billingCategory());
+    validatePeriod(request.effectiveFrom(), request.effectiveTo());
+    String country = normalizeCountry(request.country());
+    String carrier = normalizeOptional(request.carrier());
+    assertNoOverlappingOverride(companyId, request, country, carrier, null);
 
     CompanyRateOverride override = new CompanyRateOverride();
     override.setCompany(company);
@@ -268,24 +290,22 @@ public class BillingCatalogService {
     override.setProvider(request.provider());
     override.setBillingCategory(request.billingCategory());
     override.setDirection(request.direction());
-    override.setCountry(normalizeCountry(request.country()));
-    override.setCarrier(normalizeOptional(request.carrier()));
+    override.setCountry(country);
+    override.setCarrier(carrier);
     override.setUnit(request.unit());
     override.setPrice(request.price());
     override.setCurrency(normalizeCurrency(request.currency()));
-    override.setEffectiveFrom(from);
+    override.setEffectiveFrom(request.effectiveFrom());
     override.setEffectiveTo(request.effectiveTo());
     override.setStatus(RateCardStatus.ACTIVE);
     override.setCreatedByUserId(createdByUserId);
     override.setReason(normalizeOptional(request.reason()));
-    assertNoCompanyOverrideOverlap(override, null);
     return toCompanyRateOverrideResponse(companyRateOverrideRepository.saveAndFlush(override));
   }
 
   @Transactional(readOnly = true)
   public List<CompanyRateOverrideResponse> companyRateOverrides(Long companyId) {
-    getCompany(companyId);
-    return companyRateOverrideRepository.findByCompanyIdAndStatus(companyId, RateCardStatus.ACTIVE).stream()
+    return companyRateOverrideRepository.findByCompanyIdOrderByEffectiveFromDesc(companyId).stream()
         .map(this::toCompanyRateOverrideResponse)
         .toList();
   }
@@ -293,74 +313,44 @@ public class BillingCatalogService {
   @Transactional
   public CompanyRateOverrideResponse updateCompanyRateOverride(
       Long overrideId, UpdateCompanyRateOverrideRequest request) {
-    CompanyRateOverride override =
-        companyRateOverrideRepository
-            .findById(overrideId)
-            .orElseThrow(() -> new NotFoundException("Company rate override not found"));
+    CompanyRateOverride override = companyRateOverrideRepository.findById(overrideId)
+        .orElseThrow(() -> new NotFoundException("Company rate override not found"));
+
+    Instant from = request.effectiveFrom() == null ? override.getEffectiveFrom() : request.effectiveFrom();
+    Instant to = request.effectiveTo() == null ? override.getEffectiveTo() : request.effectiveTo();
+    validatePeriod(from, to);
+    assertNoOverlappingOverride(override, from, to);
+
     if (request.price() != null) override.setPrice(request.price());
-    if (request.currency() != null && !request.currency().isBlank()) {
-      override.setCurrency(normalizeCurrency(request.currency()));
-    }
-    if (request.effectiveFrom() != null) override.setEffectiveFrom(request.effectiveFrom());
-    if (request.effectiveTo() != null) override.setEffectiveTo(request.effectiveTo());
+    if (request.currency() != null) override.setCurrency(normalizeCurrency(request.currency()));
+    override.setEffectiveFrom(from);
+    override.setEffectiveTo(to);
     if (request.status() != null) override.setStatus(request.status());
     if (request.reason() != null) override.setReason(normalizeOptional(request.reason()));
-    validateWindow(override.getEffectiveFrom(), override.getEffectiveTo());
-    if (override.getStatus() == RateCardStatus.ACTIVE) {
-      assertNoCompanyOverrideOverlap(override, override.getId());
-    }
     return toCompanyRateOverrideResponse(companyRateOverrideRepository.saveAndFlush(override));
   }
 
   @Transactional
   public CompanySubscriptionResponse assignSubscription(
       Long companyId, AssignSubscriptionRequest request) {
-    return assignSubscriptionInternal(companyId, request, true);
-  }
-
-  @Transactional
-  public CompanySubscriptionResponse selectFreeSubscription(
-      Long companyId, AssignSubscriptionRequest request) {
-    return assignSubscriptionInternal(companyId, request, false);
-  }
-
-  @Transactional(readOnly = true)
-  public CompanySubscriptionResponse activeSubscription(Long companyId) {
-    return currentSubscription(companyId)
-        .map(this::toSubscriptionResponse)
-        .orElseThrow(() -> new NotFoundException("Company subscription not found"));
-  }
-
-  @Transactional(readOnly = true)
-  public CompanyPlanDetailsResponse companyPlanDetails(Long companyId) {
-    CompanySubscription subscription =
-        currentSubscription(companyId)
-            .orElseThrow(() -> new NotFoundException("Company subscription not found"));
-    return new CompanyPlanDetailsResponse(
-        toSubscriptionResponse(subscription), toPlanResponse(subscription.getPlan()));
-  }
-
-  private CompanySubscriptionResponse assignSubscriptionInternal(
-      Long companyId, AssignSubscriptionRequest request, boolean allowPaid) {
-    Company company = getCompany(companyId);
+    Company company = companyRepository.findById(companyId)
+        .orElseThrow(() -> new NotFoundException("Company not found"));
     Plan plan = getPlan(parseId(request.planId(), "Plan not found"));
-    if (plan.getStatus() != PlanStatus.PUBLISHED && !allowPaid) {
-      throw new BadRequestException("Only published plans can be selected");
+    if (plan.getStatus() != PlanStatus.PUBLISHED) {
+      throw new BadRequestException("Only published plans can be assigned");
     }
-    PlanPrice planPrice = resolvePlanPrice(plan, request.planPriceId());
-    if (!allowPaid && planPrice.getAmount().signum() > 0) {
-      throw new BadRequestException("Paid plans require a checkout flow");
+
+    PlanPrice planPrice = null;
+    if (request.planPriceId() != null && !request.planPriceId().isBlank()) {
+      planPrice = planPriceRepository.findById(parseId(request.planPriceId(), "Plan price not found"))
+          .orElseThrow(() -> new NotFoundException("Plan price not found"));
+      if (!planPrice.getPlan().getId().equals(plan.getId()) || planPrice.getStatus() != RateCardStatus.ACTIVE) {
+        throw new BadRequestException("Plan price does not belong to the selected plan");
+      }
     }
 
     Instant now = Instant.now();
-    subscriptionRepository.findByCompanyIdOrderByStartedAtDesc(companyId).stream()
-        .filter(existing -> CURRENT_SUBSCRIPTION_STATUSES.contains(existing.getStatus()))
-        .forEach(
-            existing -> {
-              existing.setStatus(SubscriptionStatus.CANCELLED);
-              existing.setCancelledAt(now);
-              existing.setEndsAt(now);
-            });
+    closeCurrentSubscriptions(companyId, now);
 
     CompanySubscription subscription = new CompanySubscription();
     subscription.setCompany(company);
@@ -368,124 +358,250 @@ public class BillingCatalogService {
     subscription.setPlanPrice(planPrice);
     subscription.setStatus(request.status() == null ? SubscriptionStatus.ACTIVE : request.status());
     subscription.setStartedAt(request.startedAt() == null ? now : request.startedAt());
-    subscription.setEndsAt(request.endsAt());
-    subscription.setCurrentPeriodStart(
-        request.currentPeriodStart() == null ? subscription.getStartedAt() : request.currentPeriodStart());
+    subscription.setCurrentPeriodStart(subscription.getStartedAt());
     subscription.setCurrentPeriodEnd(request.currentPeriodEnd());
     subscription.setTrialEndsAt(request.trialEndsAt());
-    subscription.setCancelAtPeriodEnd(Boolean.TRUE.equals(request.cancelAtPeriodEnd()));
+    subscription.setEndsAt(request.endsAt());
     return toSubscriptionResponse(subscriptionRepository.saveAndFlush(subscription));
   }
 
-  private PlanPrice resolvePlanPrice(Plan plan, String planPriceId) {
-    if (planPriceId != null && !planPriceId.isBlank()) {
-      PlanPrice price =
-          planPriceRepository
-              .findById(parseId(planPriceId, "Plan price not found"))
-              .orElseThrow(() -> new NotFoundException("Plan price not found"));
-      if (!price.getPlan().getId().equals(plan.getId()) || price.getStatus() != PlanPriceStatus.ACTIVE) {
-        throw new BadRequestException("Plan price does not belong to the selected plan");
-      }
-      return price;
+  @Transactional
+  public CompanySubscriptionResponse selectFreeSubscription(
+      Long companyId, AssignSubscriptionRequest request) {
+    Plan plan = getPlan(parseId(request.planId(), "Plan not found"));
+    if (plan.getStatus() != PlanStatus.PUBLISHED) {
+      throw new BadRequestException("Plan is not available");
     }
-
-    List<PlanPrice> prices = planPriceRepository.findByPlanIdAndStatus(plan.getId(), PlanPriceStatus.ACTIVE);
-    if (prices.isEmpty()) throw new BadRequestException("Plan does not have an active price");
-    if (prices.size() > 1) throw new BadRequestException("planPriceId is required for this plan");
-    return prices.getFirst();
+    boolean free = planPriceRepository.findByPlanIdAndStatusOrderByEffectiveFromDesc(
+            plan.getId(), RateCardStatus.ACTIVE).stream()
+        .anyMatch(price -> price.getAmount().compareTo(BigDecimal.ZERO) == 0);
+    if (!free) {
+      throw new BadRequestException("Paid plans require checkout");
+    }
+    return assignSubscription(companyId, request);
   }
 
-  private java.util.Optional<CompanySubscription> currentSubscription(Long companyId) {
-    return subscriptionRepository.findFirstByCompanyIdAndStatusInOrderByStartedAtDesc(
-        companyId, CURRENT_SUBSCRIPTION_STATUSES);
+  @Transactional
+  public CompanySubscriptionResponse cancelSubscription(Long companyId, boolean atPeriodEnd) {
+    CompanySubscription subscription = effectiveSubscription(companyId);
+    if (atPeriodEnd && subscription.getCurrentPeriodEnd() != null) {
+      subscription.setCancelAtPeriodEnd(true);
+    } else {
+      Instant now = Instant.now();
+      subscription.setStatus(SubscriptionStatus.CANCELLED);
+      subscription.setCancelledAt(now);
+      subscription.setEndsAt(now);
+    }
+    return toSubscriptionResponse(subscriptionRepository.saveAndFlush(subscription));
   }
 
-  private void assertNoPlanPriceOverlap(
-      Long planId, BillingCycle cycle, Instant from, Instant to, Long excludeId) {
-    boolean overlaps =
-        planPriceRepository.findByPlanIdAndBillingCycleAndStatus(planId, cycle, PlanPriceStatus.ACTIVE).stream()
-            .filter(existing -> excludeId == null || !existing.getId().equals(excludeId))
-            .anyMatch(existing -> overlaps(from, to, existing.getEffectiveFrom(), existing.getEffectiveTo()));
-    if (overlaps) throw new BadRequestException("An active plan price already overlaps this period");
+  @Transactional(readOnly = true)
+  public CompanySubscriptionResponse activeSubscription(Long companyId) {
+    return toSubscriptionResponse(effectiveSubscription(companyId));
   }
 
-  private void assertNoRateCardOverlap(RateCard candidate, Long excludeId) {
-    boolean overlaps =
-        rateCardRepository.findByPlanIdAndStatus(candidate.getPlan().getId(), RateCardStatus.ACTIVE).stream()
-            .filter(existing -> excludeId == null || !existing.getId().equals(excludeId))
-            .filter(existing -> sameRateDimensions(existing, candidate))
-            .anyMatch(existing -> overlaps(candidate.getEffectiveFrom(), candidate.getEffectiveTo(), existing.getEffectiveFrom(), existing.getEffectiveTo()));
-    if (overlaps) throw new BadRequestException("An active rate card already overlaps these pricing dimensions");
+  @Transactional(readOnly = true)
+  public CompanyPlanDetailsResponse companyPlanDetails(Long companyId) {
+    CompanySubscription subscription = effectiveSubscription(companyId);
+    return new CompanyPlanDetailsResponse(
+        toSubscriptionResponse(subscription), toPlanResponse(subscription.getPlan()));
   }
 
-  private void assertNoCompanyOverrideOverlap(CompanyRateOverride candidate, Long excludeId) {
-    boolean overlaps =
-        companyRateOverrideRepository.findByCompanyIdAndStatus(candidate.getCompany().getId(), RateCardStatus.ACTIVE).stream()
-            .filter(existing -> excludeId == null || !existing.getId().equals(excludeId))
-            .filter(existing -> sameOverrideDimensions(existing, candidate))
-            .anyMatch(existing -> overlaps(candidate.getEffectiveFrom(), candidate.getEffectiveTo(), existing.getEffectiveFrom(), existing.getEffectiveTo()));
-    if (overlaps) throw new BadRequestException("An active company rate override already overlaps these pricing dimensions");
+  private CompanySubscription effectiveSubscription(Long companyId) {
+    return subscriptionRepository
+        .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(companyId, SubscriptionStatus.ACTIVE)
+        .or(() -> subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+            companyId, SubscriptionStatus.TRIALING))
+        .orElseThrow(() -> new NotFoundException("Company subscription not found"));
   }
 
-  private boolean sameRateDimensions(RateCard left, RateCard right) {
-    return left.getChannel() == right.getChannel()
-        && left.getProvider() == right.getProvider()
-        && left.getBillingCategory() == right.getBillingCategory()
-        && left.getDirection() == right.getDirection()
-        && left.getUnit() == right.getUnit()
-        && Objects.equals(left.getCountry(), right.getCountry())
-        && Objects.equals(left.getCarrier(), right.getCarrier());
+  private void closeCurrentSubscriptions(Long companyId, Instant now) {
+    subscriptionRepository.findByCompanyIdOrderByStartedAtDesc(companyId).stream()
+        .filter(subscription -> subscription.getStatus() == SubscriptionStatus.ACTIVE
+            || subscription.getStatus() == SubscriptionStatus.TRIALING
+            || subscription.getStatus() == SubscriptionStatus.PAST_DUE)
+        .forEach(subscription -> {
+          subscription.setStatus(SubscriptionStatus.CANCELLED);
+          subscription.setCancelledAt(now);
+          subscription.setEndsAt(now);
+          subscription.setCancelAtPeriodEnd(false);
+          subscriptionRepository.save(subscription);
+        });
   }
 
-  private boolean sameOverrideDimensions(CompanyRateOverride left, CompanyRateOverride right) {
-    return left.getChannel() == right.getChannel()
-        && left.getProvider() == right.getProvider()
-        && left.getBillingCategory() == right.getBillingCategory()
-        && left.getDirection() == right.getDirection()
-        && left.getUnit() == right.getUnit()
-        && Objects.equals(left.getCountry(), right.getCountry())
-        && Objects.equals(left.getCarrier(), right.getCarrier());
+  private void transitionPlan(Plan plan, PlanStatus target) {
+    if (plan.getStatus() == PlanStatus.RETIRED) {
+      throw new ConflictException("Retired plans cannot be changed");
+    }
+    if (target == PlanStatus.DRAFT && plan.getStatus() != PlanStatus.DRAFT) {
+      throw new ConflictException("Published plans cannot return to draft");
+    }
+    if (target == PlanStatus.PUBLISHED) {
+      validatePublishable(plan);
+    }
+    plan.setStatus(target);
   }
 
-  private boolean overlaps(Instant leftFrom, Instant leftTo, Instant rightFrom, Instant rightTo) {
-    return (leftTo == null || rightFrom.isBefore(leftTo))
-        && (rightTo == null || leftFrom.isBefore(rightTo));
+  private void validatePublishable(Plan plan) {
+    boolean hasPrice = !planPriceRepository.findByPlanIdAndStatusOrderByEffectiveFromDesc(
+        plan.getId(), RateCardStatus.ACTIVE).isEmpty();
+    if (!hasPrice) throw new BadRequestException("Plan requires at least one active price");
   }
 
-  private void validateWindow(Instant from, Instant to) {
-    if (from == null) throw new BadRequestException("effectiveFrom is required");
-    if (to != null && !to.isAfter(from)) {
+  private void assertDraft(Plan plan) {
+    if (plan.getStatus() != PlanStatus.DRAFT) {
+      throw new ConflictException(
+          "Published commercial terms are immutable; create a new plan version instead");
+    }
+  }
+
+  private void validateRateDimensions(
+      ChannelType channel,
+      com.messaging.channel.enums.ProviderType provider,
+      BillingCategory category) {
+    if (!provider.supports(channel)) {
+      throw new BadRequestException(provider + " does not support channel " + channel);
+    }
+    boolean valid = switch (channel) {
+      case EMAIL -> category == BillingCategory.EMAIL_OUTBOUND || category == BillingCategory.EMAIL_INBOUND;
+      case SMS -> category == BillingCategory.SMS_PROMOTIONAL
+          || category == BillingCategory.SMS_TRANSACTIONAL
+          || category == BillingCategory.SMS_OTP;
+      case WHATSAPP -> category == BillingCategory.WHATSAPP_MARKETING
+          || category == BillingCategory.WHATSAPP_UTILITY
+          || category == BillingCategory.WHATSAPP_AUTHENTICATION
+          || category == BillingCategory.WHATSAPP_SERVICE;
+    };
+    if (!valid) throw new BadRequestException("Billing category does not belong to channel " + channel);
+  }
+
+  private void validatePeriod(Instant from, Instant to) {
+    if (from != null && to != null && !to.isAfter(from)) {
       throw new BadRequestException("effectiveTo must be after effectiveFrom");
     }
   }
 
-  private void validatePricingDimensions(
-      ChannelType channel,
-      com.messaging.channel.enums.ProviderType provider,
-      BillingCategory category) {
-    if (provider != null && !provider.supports(channel)) {
-      throw new BadRequestException("Provider does not support selected channel");
+  private void assertNoOverlappingPlanPrice(
+      Long planId,
+      com.messaging.billing.enums.BillingCycle cycle,
+      String currency,
+      Instant from,
+      Instant to,
+      Long excludedId) {
+    Instant start = from == null ? Instant.now() : from;
+    boolean overlap = planPriceRepository.findByPlanIdAndStatusOrderByEffectiveFromDesc(
+            planId, RateCardStatus.ACTIVE).stream()
+        .filter(existing -> excludedId == null || !existing.getId().equals(excludedId))
+        .filter(existing -> existing.getBillingCycle() == cycle)
+        .filter(existing -> existing.getCurrency().equalsIgnoreCase(currency))
+        .anyMatch(existing -> periodsOverlap(start, to, existing.getEffectiveFrom(), existing.getEffectiveTo()));
+    if (overlap) throw new ConflictException("An active plan price overlaps this effective period");
+  }
+
+  private void assertNoOverlappingRateCard(
+      Long planId, CreateRateCardRequest request, String country, String carrier, Long excludedId) {
+    Instant start = request.effectiveFrom() == null ? Instant.now() : request.effectiveFrom();
+    boolean overlap = rateCardRepository.findByPlanIdAndStatus(planId, RateCardStatus.ACTIVE).stream()
+        .filter(existing -> excludedId == null || !existing.getId().equals(excludedId))
+        .filter(existing -> existing.getChannel() == request.channel())
+        .filter(existing -> existing.getProvider() == request.provider())
+        .filter(existing -> existing.getBillingCategory() == request.billingCategory())
+        .filter(existing -> existing.getDirection() == request.direction())
+        .filter(existing -> existing.getUnit() == request.unit())
+        .filter(existing -> equalOptional(existing.getCountry(), country))
+        .filter(existing -> equalOptional(existing.getCarrier(), carrier))
+        .anyMatch(existing -> periodsOverlap(start, request.effectiveTo(), existing.getEffectiveFrom(), existing.getEffectiveTo()));
+    if (overlap) throw new ConflictException("An active rate card overlaps this pricing rule");
+  }
+
+  private void assertNoOverlappingRateCard(RateCard card, Instant from, Instant to) {
+    boolean overlap = rateCardRepository.findByPlanIdAndStatus(card.getPlan().getId(), RateCardStatus.ACTIVE).stream()
+        .filter(existing -> !existing.getId().equals(card.getId()))
+        .filter(existing -> existing.getChannel() == card.getChannel())
+        .filter(existing -> existing.getProvider() == card.getProvider())
+        .filter(existing -> existing.getBillingCategory() == card.getBillingCategory())
+        .filter(existing -> existing.getDirection() == card.getDirection())
+        .filter(existing -> existing.getUnit() == card.getUnit())
+        .filter(existing -> equalOptional(existing.getCountry(), card.getCountry()))
+        .filter(existing -> equalOptional(existing.getCarrier(), card.getCarrier()))
+        .anyMatch(existing -> periodsOverlap(from, to, existing.getEffectiveFrom(), existing.getEffectiveTo()));
+    if (overlap) throw new ConflictException("An active rate card overlaps this pricing rule");
+  }
+
+  private void assertNoOverlappingOverride(
+      Long companyId, CreateCompanyRateOverrideRequest request, String country, String carrier, Long excludedId) {
+    Instant start = request.effectiveFrom() == null ? Instant.now() : request.effectiveFrom();
+    boolean overlap = companyRateOverrideRepository.findByCompanyIdAndStatus(companyId, RateCardStatus.ACTIVE).stream()
+        .filter(existing -> excludedId == null || !existing.getId().equals(excludedId))
+        .filter(existing -> existing.getChannel() == request.channel())
+        .filter(existing -> existing.getProvider() == request.provider())
+        .filter(existing -> existing.getBillingCategory() == request.billingCategory())
+        .filter(existing -> existing.getDirection() == request.direction())
+        .filter(existing -> existing.getUnit() == request.unit())
+        .filter(existing -> equalOptional(existing.getCountry(), country))
+        .filter(existing -> equalOptional(existing.getCarrier(), carrier))
+        .anyMatch(existing -> periodsOverlap(start, request.effectiveTo(), existing.getEffectiveFrom(), existing.getEffectiveTo()));
+    if (overlap) throw new ConflictException("An active company override overlaps this pricing rule");
+  }
+
+  private void assertNoOverlappingOverride(CompanyRateOverride rule, Instant from, Instant to) {
+    boolean overlap = companyRateOverrideRepository.findByCompanyIdAndStatus(
+            rule.getCompany().getId(), RateCardStatus.ACTIVE).stream()
+        .filter(existing -> !existing.getId().equals(rule.getId()))
+        .filter(existing -> existing.getChannel() == rule.getChannel())
+        .filter(existing -> existing.getProvider() == rule.getProvider())
+        .filter(existing -> existing.getBillingCategory() == rule.getBillingCategory())
+        .filter(existing -> existing.getDirection() == rule.getDirection())
+        .filter(existing -> existing.getUnit() == rule.getUnit())
+        .filter(existing -> equalOptional(existing.getCountry(), rule.getCountry()))
+        .filter(existing -> equalOptional(existing.getCarrier(), rule.getCarrier()))
+        .anyMatch(existing -> periodsOverlap(from, to, existing.getEffectiveFrom(), existing.getEffectiveTo()));
+    if (overlap) throw new ConflictException("An active company override overlaps this pricing rule");
+  }
+
+  private boolean periodsOverlap(Instant aFrom, Instant aTo, Instant bFrom, Instant bTo) {
+    boolean aBeforeBEnds = bTo == null || aFrom.isBefore(bTo);
+    boolean bBeforeAEnds = aTo == null || bFrom.isBefore(aTo);
+    return aBeforeBEnds && bBeforeAEnds;
+  }
+
+  private boolean equalOptional(String left, String right) {
+    if (left == null && right == null) return true;
+    return left != null && right != null && left.equalsIgnoreCase(right);
+  }
+
+  private void validateEntitlementValue(EntitlementDefinition definition, String value) {
+    try {
+      if (definition.getValueType() == EntitlementValueType.INTEGER) {
+        if (!value.equalsIgnoreCase("unlimited")) {
+          long parsed = Long.parseLong(value);
+          if (parsed < -1) throw new NumberFormatException();
+        }
+      } else if (definition.getValueType() == EntitlementValueType.BOOLEAN) {
+        if (!value.equalsIgnoreCase("true") && !value.equalsIgnoreCase("false")) {
+          throw new IllegalArgumentException();
+        }
+      } else if (definition.getValueType() == EntitlementValueType.DECIMAL) {
+        if (new BigDecimal(value).compareTo(BigDecimal.ZERO) < 0) throw new NumberFormatException();
+      }
+    } catch (RuntimeException exception) {
+      throw new BadRequestException(
+          "Invalid " + definition.getValueType().name().toLowerCase(Locale.ROOT)
+              + " value for " + definition.getKey());
     }
-    boolean valid =
-        switch (channel) {
-          case EMAIL -> category == BillingCategory.EMAIL_OUTBOUND || category == BillingCategory.EMAIL_INBOUND;
-          case SMS -> category == BillingCategory.SMS_PROMOTIONAL
-              || category == BillingCategory.SMS_TRANSACTIONAL
-              || category == BillingCategory.SMS_OTP;
-          case WHATSAPP -> category == BillingCategory.WHATSAPP_MARKETING
-              || category == BillingCategory.WHATSAPP_UTILITY
-              || category == BillingCategory.WHATSAPP_AUTHENTICATION
-              || category == BillingCategory.WHATSAPP_SERVICE;
-        };
-    if (!valid) throw new BadRequestException("Billing category does not belong to selected channel");
+  }
+
+  private int nextVersion(String code) {
+    return planRepository.findAll().stream()
+        .filter(plan -> plan.getCode().equalsIgnoreCase(code))
+        .mapToInt(Plan::getVersion)
+        .max()
+        .orElse(0) + 1;
   }
 
   private Plan getPlan(Long planId) {
-    return planRepository.findById(planId).orElseThrow(() -> new NotFoundException("Plan not found"));
-  }
-
-  private Company getCompany(Long companyId) {
-    return companyRepository.findById(companyId).orElseThrow(() -> new NotFoundException("Company not found"));
+    return planRepository.findById(planId)
+        .orElseThrow(() -> new NotFoundException("Plan not found"));
   }
 
   private Long parseId(String value, String message) {
@@ -501,98 +617,73 @@ public class BillingCatalogService {
         plan.getId().toString(),
         plan.getCode(),
         plan.getName(),
+        plan.getDescription(),
         plan.getStatus(),
         plan.getBillingCycle(),
         plan.getBasePrice(),
         plan.getCurrency(),
         plan.getVersion(),
-        entitlementRepository.findByPlanId(plan.getId()).stream().map(this::toEntitlementResponse).toList(),
-        planPriceRepository.findByPlanIdOrderByEffectiveFromDesc(plan.getId()).stream().map(this::toPlanPriceResponse).toList());
-  }
-
-  private EntitlementResponse toEntitlementResponse(PlanEntitlement entitlement) {
-    return new EntitlementResponse(entitlement.getId().toString(), entitlement.getKey(), entitlement.getValue());
-  }
-
-  private EntitlementDefinitionResponse toEntitlementDefinitionResponse(EntitlementDefinition definition) {
-    return new EntitlementDefinitionResponse(
-        definition.getKey(),
-        definition.getLabel(),
-        definition.getDescription(),
-        definition.getValueType(),
-        definition.getCategory(),
-        definition.getDefaultValue(),
-        definition.isAllowUnlimited());
+        planPriceRepository.findByPlanIdOrderByEffectiveFromDesc(plan.getId()).stream()
+            .map(this::toPlanPriceResponse)
+            .toList(),
+        entitlementRepository.findByPlanId(plan.getId()).stream()
+            .map(this::toEntitlementResponse)
+            .toList());
   }
 
   private PlanPriceResponse toPlanPriceResponse(PlanPrice price) {
     return new PlanPriceResponse(
-        price.getId().toString(),
-        price.getBillingCycle(),
-        price.getAmount(),
-        price.getCurrency(),
-        price.getEffectiveFrom(),
-        price.getEffectiveTo(),
+        price.getId().toString(), price.getPlan().getId().toString(), price.getBillingCycle(),
+        price.getAmount(), price.getCurrency(), price.getEffectiveFrom(), price.getEffectiveTo(),
         price.getStatus());
+  }
+
+  private EntitlementDefinitionResponse toEntitlementDefinitionResponse(EntitlementDefinition definition) {
+    return new EntitlementDefinitionResponse(
+        definition.getId().toString(), definition.getKey(), definition.getName(),
+        definition.getDescription(), definition.getValueType(), definition.getCategory(),
+        definition.getDefaultValue(), definition.isActive());
+  }
+
+  private EntitlementResponse toEntitlementResponse(PlanEntitlement entitlement) {
+    return new EntitlementResponse(
+        entitlement.getId().toString(), entitlement.getKey(), entitlement.getValue());
   }
 
   private RateCardResponse toRateCardResponse(RateCard rateCard) {
     return new RateCardResponse(
-        rateCard.getId().toString(),
-        rateCard.getPlan().getId().toString(),
-        rateCard.getChannel(),
-        rateCard.getProvider(),
-        rateCard.getCountry(),
-        rateCard.getCarrier(),
-        rateCard.getBillingCategory(),
-        rateCard.getDirection(),
-        rateCard.getUnit(),
-        rateCard.getPrice(),
-        rateCard.getCurrency(),
-        rateCard.getEffectiveFrom(),
-        rateCard.getEffectiveTo(),
-        rateCard.getStatus());
+        rateCard.getId().toString(), rateCard.getPlan().getId().toString(), rateCard.getChannel(),
+        rateCard.getProvider(), rateCard.getCountry(), rateCard.getCarrier(),
+        rateCard.getBillingCategory(), rateCard.getDirection(), rateCard.getUnit(),
+        rateCard.getPrice(), rateCard.getCurrency(), rateCard.getEffectiveFrom(),
+        rateCard.getEffectiveTo(), rateCard.getStatus());
   }
 
   private CompanyRateOverrideResponse toCompanyRateOverrideResponse(CompanyRateOverride override) {
     return new CompanyRateOverrideResponse(
-        override.getId().toString(),
-        override.getCompany().getId().toString(),
-        override.getChannel(),
-        override.getProvider(),
-        override.getBillingCategory(),
-        override.getDirection(),
-        override.getCountry(),
-        override.getCarrier(),
-        override.getUnit(),
-        override.getPrice(),
-        override.getCurrency(),
-        override.getEffectiveFrom(),
-        override.getEffectiveTo(),
-        override.getStatus(),
+        override.getId().toString(), override.getCompany().getId().toString(), override.getChannel(),
+        override.getProvider(), override.getBillingCategory(), override.getDirection(),
+        override.getCountry(), override.getCarrier(), override.getUnit(), override.getPrice(),
+        override.getCurrency(), override.getEffectiveFrom(), override.getEffectiveTo(),
+        override.getStatus(), override.getCreatedByUserId() == null ? null : override.getCreatedByUserId().toString(),
         override.getReason());
   }
 
   private CompanySubscriptionResponse toSubscriptionResponse(CompanySubscription subscription) {
     Plan plan = subscription.getPlan();
     return new CompanySubscriptionResponse(
-        subscription.getId().toString(),
-        subscription.getCompany().getId().toString(),
-        plan.getId().toString(),
-        plan.getCode(),
-        plan.getName(),
-        subscription.getPlanPrice() == null ? null : subscription.getPlanPrice().getId().toString(),
-        subscription.getStatus(),
-        subscription.getStartedAt(),
-        subscription.getEndsAt(),
-        subscription.getCurrentPeriodStart(),
-        subscription.getCurrentPeriodEnd(),
-        subscription.getTrialEndsAt(),
-        subscription.isCancelAtPeriodEnd(),
-        subscription.getCancelledAt());
+        subscription.getId().toString(), subscription.getCompany().getId().toString(),
+        plan.getId().toString(), subscription.getPlanPrice() == null ? null : subscription.getPlanPrice().getId().toString(),
+        plan.getCode(), plan.getName(), subscription.getStatus(), subscription.getStartedAt(),
+        subscription.getEndsAt(), subscription.getCurrentPeriodStart(), subscription.getCurrentPeriodEnd(),
+        subscription.getTrialEndsAt(), subscription.isCancelAtPeriodEnd(), subscription.getCancelledAt());
   }
 
   private String normalizeCode(String value) {
+    return value.trim().toUpperCase(Locale.ROOT);
+  }
+
+  private String normalizeEntitlementKey(String value) {
     return value.trim().toUpperCase(Locale.ROOT);
   }
 

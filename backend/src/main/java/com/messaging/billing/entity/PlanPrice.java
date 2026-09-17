@@ -1,20 +1,9 @@
 package com.messaging.billing.entity;
 
 import com.messaging.billing.enums.BillingCycle;
-import com.messaging.billing.enums.PlanPriceStatus;
+import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.common.id.IdGenerator;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import lombok.Getter;
@@ -25,14 +14,8 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(
-    name = "plan_prices",
-    indexes = {
-      @Index(name = "idx_plan_prices_plan_cycle_status", columnList = "plan_id,billing_cycle,status"),
-      @Index(name = "idx_plan_prices_effective", columnList = "effective_from,effective_to")
-    })
+@Table(name = "plan_prices", indexes = {@Index(name = "idx_plan_prices_plan_status", columnList = "plan_id,status")})
 public class PlanPrice {
-
   @Id private Long id;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -57,7 +40,7 @@ public class PlanPrice {
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
-  private PlanPriceStatus status;
+  private RateCardStatus status;
 
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
@@ -66,16 +49,16 @@ public class PlanPrice {
   private Instant updatedAt;
 
   @PrePersist
-  private void beforeInsert() {
+  void prePersist() {
     if (id == null) id = IdGenerator.nextId();
     Instant now = Instant.now();
     if (effectiveFrom == null) effectiveFrom = now;
     if (createdAt == null) createdAt = now;
-    if (updatedAt == null) updatedAt = now;
+    updatedAt = now;
   }
 
   @PreUpdate
-  private void beforeUpdate() {
+  void preUpdate() {
     updatedAt = Instant.now();
   }
 }

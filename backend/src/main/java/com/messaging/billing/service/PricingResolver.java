@@ -1,18 +1,25 @@
 package com.messaging.billing.service;
 
+import com.messaging.billing.dto.ResolvedPrice;
 import com.messaging.billing.entity.CompanyRateOverride;
 import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.entity.RateCard;
+import com.messaging.billing.enums.BillingCategory;
+import com.messaging.billing.enums.CommunicationDirection;
 import com.messaging.billing.enums.PricingSource;
 import com.messaging.billing.enums.RateCardStatus;
+import com.messaging.billing.enums.SubscriptionStatus;
+import com.messaging.billing.enums.UsageUnit;
 import com.messaging.billing.repository.CompanyRateOverrideRepository;
+import com.messaging.billing.repository.CompanySubscriptionRepository;
 import com.messaging.billing.repository.RateCardRepository;
-import com.messaging.common.exception.BadRequestException;
+import com.messaging.channel.enums.ChannelType;
+import com.messaging.channel.enums.ProviderType;
+import com.messaging.common.exception.NotFoundException;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,109 +28,133 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PricingResolver {
 
-  private final EntitlementService entitlementService;
   private final CompanyRateOverrideRepository overrideRepository;
+  private final CompanySubscriptionRepository subscriptionRepository;
   private final RateCardRepository rateCardRepository;
 
   @Transactional(readOnly = true)
-  public ResolvedPrice resolve(PricingRequest request) {
-    validateRequest(request);
-    Instant at = request.occurredAt() == null ? Instant.now() : request.occurredAt();
+  public ResolvedPrice resolve(
+      Long companyId,
+      ChannelType channel,
+      ProviderType provider,
+      BillingCategory billingCategory,
+      CommunicationDirection direction,
+      String country,
+      String carrier,
+      UsageUnit unit,
+      Instant occurredAt) {
 
-    CompanySubscription subscription =
-        entitlementService
-            .currentSubscription(request.companyId())
-            .orElseThrow(() -> new BadRequestException("Company does not have an active subscription"));
+    if (!provider.supports(channel)) {
+      throw new IllegalArgumentException(provider + " does not support channel " + channel);
+    }
 
-    Optional<CompanyRateOverride> override =
-        overrideRepository.findByCompanyIdAndStatus(request.companyId(), RateCardStatus.ACTIVE).stream()
-            .filter(rate -> matches(rate, request, at))
-            .max(Comparator.comparingInt(rate -> specificity(rate.getCountry(), rate.getCarrier())));
-    if (override.isPresent()) {
-      CompanyRateOverride rate = override.get();
+    Instant at = occurredAt == null ? Instant.now() : occurredAt;
+    String normalizedCountry = normalizeCountry(country);
+    String normalizedCarrier = normalizeOptional(carrier);
+
+    List<CompanyRateOverride> overrides =
+        overrideRepository.findByCompanyIdAndStatus(companyId, RateCardStatus.ACTIVE).stream()
+            .filter(rule -> matches(
+                rule.getChannel(), rule.getProvider(), rule.getBillingCategory(),
+                rule.getDirection(), rule.getCountry(), rule.getCarrier(), rule.getUnit(),
+                rule.getEffectiveFrom(), rule.getEffectiveTo(),
+                channel, provider, billingCategory, direction, normalizedCountry,
+                normalizedCarrier, unit, at))
+            .sorted(Comparator.comparingInt(
+                    (CompanyRateOverride rule) -> specificity(rule.getCountry(), rule.getCarrier(), normalizedCountry, normalizedCarrier))
+                .reversed()
+                .thenComparing(CompanyRateOverride::getEffectiveFrom, Comparator.reverseOrder()))
+            .toList();
+
+    CompanySubscription subscription = effectiveSubscription(companyId);
+
+    if (!overrides.isEmpty()) {
+      CompanyRateOverride rule = overrides.getFirst();
       return new ResolvedPrice(
-          subscription.getPlan().getId().toString(),
+          rule.getPrice(),
+          rule.getCurrency(),
           PricingSource.COMPANY_OVERRIDE,
-          rate.getId().toString(),
-          rate.getPrice(),
-          rate.getCurrency());
+          rule.getId().toString(),
+          subscription.getPlan().getId().toString());
     }
 
-    Optional<RateCard> planRate =
+    List<RateCard> planRates =
         rateCardRepository.findByPlanIdAndStatus(subscription.getPlan().getId(), RateCardStatus.ACTIVE).stream()
-            .filter(rate -> matches(rate, request, at))
-            .max(Comparator.comparingInt(rate -> specificity(rate.getProvider() != null, rate.getCountry(), rate.getCarrier())));
-    if (planRate.isPresent()) {
-      RateCard rate = planRate.get();
-      return new ResolvedPrice(
-          subscription.getPlan().getId().toString(),
-          PricingSource.PLAN_RATE,
-          rate.getId().toString(),
-          rate.getPrice(),
-          rate.getCurrency());
+            .filter(rule -> matches(
+                rule.getChannel(), rule.getProvider(), rule.getBillingCategory(),
+                rule.getDirection(), rule.getCountry(), rule.getCarrier(), rule.getUnit(),
+                rule.getEffectiveFrom(), rule.getEffectiveTo(),
+                channel, provider, billingCategory, direction, normalizedCountry,
+                normalizedCarrier, unit, at))
+            .sorted(Comparator.comparingInt(
+                    (RateCard rule) -> specificity(rule.getCountry(), rule.getCarrier(), normalizedCountry, normalizedCarrier))
+                .reversed()
+                .thenComparing(RateCard::getEffectiveFrom, Comparator.reverseOrder()))
+            .toList();
+
+    if (planRates.isEmpty()) {
+      throw new NotFoundException(
+          "No pricing rule configured for " + provider + " / " + billingCategory);
     }
 
-    throw new BadRequestException(
-        "No pricing rule configured for " + request.provider() + " / " + request.billingCategory());
+    RateCard rule = planRates.getFirst();
+    return new ResolvedPrice(
+        rule.getPrice(),
+        rule.getCurrency(),
+        PricingSource.PLAN_RATE,
+        rule.getId().toString(),
+        subscription.getPlan().getId().toString());
   }
 
-  private boolean matches(CompanyRateOverride rate, PricingRequest request, Instant at) {
-    return rate.getChannel() == request.channel()
-        && rate.getProvider() == request.provider()
-        && rate.getBillingCategory() == request.billingCategory()
-        && rate.getDirection() == request.direction()
-        && rate.getUnit() == request.unit()
-        && dimensionMatches(rate.getCountry(), request.country())
-        && dimensionMatches(rate.getCarrier(), request.carrier())
-        && effective(rate.getEffectiveFrom(), rate.getEffectiveTo(), at);
+  private CompanySubscription effectiveSubscription(Long companyId) {
+    return subscriptionRepository
+        .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(companyId, SubscriptionStatus.ACTIVE)
+        .or(() -> subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+            companyId, SubscriptionStatus.TRIALING))
+        .orElseThrow(() -> new NotFoundException("Company subscription not found"));
   }
 
-  private boolean matches(RateCard rate, PricingRequest request, Instant at) {
-    return rate.getChannel() == request.channel()
-        && (rate.getProvider() == null || rate.getProvider() == request.provider())
-        && rate.getBillingCategory() == request.billingCategory()
-        && rate.getDirection() == request.direction()
-        && rate.getUnit() == request.unit()
-        && dimensionMatches(rate.getCountry(), request.country())
-        && dimensionMatches(rate.getCarrier(), request.carrier())
-        && effective(rate.getEffectiveFrom(), rate.getEffectiveTo(), at);
+  private boolean matches(
+      ChannelType ruleChannel,
+      ProviderType ruleProvider,
+      BillingCategory ruleCategory,
+      CommunicationDirection ruleDirection,
+      String ruleCountry,
+      String ruleCarrier,
+      UsageUnit ruleUnit,
+      Instant from,
+      Instant to,
+      ChannelType channel,
+      ProviderType provider,
+      BillingCategory category,
+      CommunicationDirection direction,
+      String country,
+      String carrier,
+      UsageUnit unit,
+      Instant at) {
+    return ruleChannel == channel
+        && ruleProvider == provider
+        && ruleCategory == category
+        && ruleDirection == direction
+        && ruleUnit == unit
+        && (ruleCountry == null || ruleCountry.equalsIgnoreCase(country))
+        && (ruleCarrier == null || ruleCarrier.equalsIgnoreCase(carrier))
+        && !from.isAfter(at)
+        && (to == null || to.isAfter(at));
   }
 
-  private boolean dimensionMatches(String configured, String actual) {
-    if (configured == null || configured.isBlank()) return true;
-    return actual != null && configured.equalsIgnoreCase(actual.trim());
-  }
-
-  private boolean effective(Instant from, Instant to, Instant at) {
-    return !at.isBefore(from) && (to == null || at.isBefore(to));
-  }
-
-  private int specificity(String country, String carrier) {
-    return specificity(true, country, carrier);
-  }
-
-  private int specificity(boolean exactProvider, String country, String carrier) {
-    int score = exactProvider ? 4 : 0;
-    if (country != null && !country.isBlank()) score += 2;
-    if (carrier != null && !carrier.isBlank()) score += 1;
+  private int specificity(String ruleCountry, String ruleCarrier, String country, String carrier) {
+    int score = 0;
+    if (ruleCountry != null && ruleCountry.equalsIgnoreCase(country)) score += 1;
+    if (ruleCarrier != null && ruleCarrier.equalsIgnoreCase(carrier)) score += 2;
     return score;
   }
 
-  private void validateRequest(PricingRequest request) {
-    Objects.requireNonNull(request, "Pricing request is required");
-    if (request.companyId() == null
-        || request.channel() == null
-        || request.provider() == null
-        || request.billingCategory() == null
-        || request.direction() == null
-        || request.unit() == null) {
-      throw new BadRequestException("Pricing request is incomplete");
-    }
-    if (!request.provider().supports(request.channel())) {
-      throw new BadRequestException("Provider does not support selected channel");
-    }
-    if (request.country() != null && !request.country().isBlank() && request.country().trim().length() != 2) {
-      throw new BadRequestException("Country must be a 2-letter code");
-    }
+  private String normalizeCountry(String value) {
+    return value == null || value.isBlank() ? null : value.trim().toUpperCase(Locale.ROOT);
+  }
+
+  private String normalizeOptional(String value) {
+    return value == null || value.isBlank() ? null : value.trim();
   }
 }

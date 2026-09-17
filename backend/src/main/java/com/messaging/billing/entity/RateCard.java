@@ -1,24 +1,13 @@
 package com.messaging.billing.entity;
 
 import com.messaging.billing.enums.BillingCategory;
-import com.messaging.billing.enums.PricingDirection;
+import com.messaging.billing.enums.CommunicationDirection;
 import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.enums.UsageUnit;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.common.id.IdGenerator;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import lombok.Getter;
@@ -33,8 +22,7 @@ import lombok.Setter;
     name = "rate_cards",
     indexes = {
       @Index(name = "idx_rate_cards_plan_channel", columnList = "plan_id,channel,status"),
-      @Index(name = "idx_rate_cards_effective", columnList = "effective_from,effective_to"),
-      @Index(name = "idx_rate_cards_lookup", columnList = "plan_id,provider,billing_category,direction,status")
+      @Index(name = "idx_rate_cards_effective", columnList = "effective_from,effective_to")
     })
 public class RateCard {
 
@@ -49,7 +37,7 @@ public class RateCard {
   private ChannelType channel;
 
   @Enumerated(EnumType.STRING)
-  @Column(length = 80)
+  @Column(nullable = false, length = 80)
   private ProviderType provider;
 
   @Column(length = 2)
@@ -59,12 +47,12 @@ public class RateCard {
   private String carrier;
 
   @Enumerated(EnumType.STRING)
-  @Column(name = "billing_category", nullable = false, length = 48)
+  @Column(name = "message_type", nullable = false, length = 64)
   private BillingCategory billingCategory;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
-  private PricingDirection direction;
+  private CommunicationDirection direction;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)

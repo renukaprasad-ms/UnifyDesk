@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 
 public record UpdatePlanRequest(
     @Size(max = 120) String name,
+    @Size(max = 500) String description,
     BillingCycle billingCycle,
     @DecimalMin("0.000000") BigDecimal basePrice,
     @Size(min = 3, max = 3) String currency,

@@ -1,11 +1,11 @@
-package com.messaging.billing.service;
+package com.messaging.billing.dto;
 
 import com.messaging.billing.enums.PricingSource;
 import java.math.BigDecimal;
 
 public record ResolvedPrice(
-    String planId,
+    BigDecimal unitPrice,
+    String currency,
     PricingSource source,
     String pricingRuleId,
-    BigDecimal unitPrice,
-    String currency) {}
+    String planId) {}
