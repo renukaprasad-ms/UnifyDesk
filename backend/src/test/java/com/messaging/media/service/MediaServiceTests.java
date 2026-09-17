@@ -7,6 +7,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.messaging.admin.service.PlatformAdminAuthorizationService;
+import com.messaging.company.repository.CompanyMemberRepository;
+import com.messaging.company.repository.CompanyRepository;
 import com.messaging.media.config.MediaStorageProperties;
 import com.messaging.media.config.MediaValidationProperties;
 import com.messaging.media.dto.InitiateMediaUploadRequest;
@@ -47,6 +50,9 @@ class MediaServiceTests {
   @Mock private CurrentUserService currentUserService;
   @Mock private StorageProvider storageProvider;
   @Mock private RedisService redisService;
+  @Mock private CompanyRepository companyRepository;
+  @Mock private CompanyMemberRepository companyMemberRepository;
+  @Mock private PlatformAdminAuthorizationService platformAdminAuthorizationService;
 
   private MediaService service;
 
@@ -77,7 +83,8 @@ class MediaServiceTests {
             new StorageProviderResolver(List.of(storageProvider)),
             storageProperties,
             validationProperties,
-            new MediaAuthorizationService(),
+            new MediaAuthorizationService(
+                companyRepository, companyMemberRepository, platformAdminAuthorizationService),
             new MediaMapper(),
             redisService);
   }
