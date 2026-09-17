@@ -24,8 +24,6 @@ export default function AuthBootstrap({ children }: { children: React.ReactNode 
         if (!active) return
         dispatch(setAuthUser(user))
 
-        if (!user.hasCompanies) return
-
         const companies = await workspaceApi.list()
         if (!active) return
         dispatch(setCompanies(companies))
