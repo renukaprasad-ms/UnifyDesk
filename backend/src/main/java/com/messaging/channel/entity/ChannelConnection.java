@@ -4,17 +4,12 @@ import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.common.id.IdGenerator;
-import com.messaging.company.entity.Company;
-import com.messaging.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -42,9 +37,8 @@ public class ChannelConnection {
 
   @Id private Long id;
 
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "company_id", nullable = false)
-  private Company company;
+  @Column(name = "company_id", nullable = false)
+  private Long companyId;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "channel_type", nullable = false, length = 24)
@@ -64,9 +58,8 @@ public class ChannelConnection {
   @Column(nullable = false, length = 24)
   private ChannelConnectionStatus status;
 
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "created_by_user_id", nullable = false)
-  private User createdBy;
+  @Column(name = "created_by_user_id", nullable = false)
+  private Long createdByUserId;
 
   @Column(name = "last_sync_at")
   private Instant lastSyncAt;
