@@ -14,4 +14,5 @@ public record PlanResponse(
     BigDecimal basePrice,
     String currency,
     int version,
-    List<EntitlementResponse> entitlements) {}
+    List<EntitlementResponse> entitlements,
+    List<PlanPriceResponse> prices) {}
