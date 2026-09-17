@@ -29,10 +29,6 @@ public class SecurityConfig {
     CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
     csrfTokenRepository.setCookiePath("/");
 
-    // This is a JSON API consumed by our React SPA. The SPA reads/requests the CSRF token and
-    // sends that raw value in X-XSRF-TOKEN. Using the plain request handler makes Spring Security
-    // validate the header value directly instead of expecting the XOR/BREACH encoded form that is
-    // primarily intended for server-rendered forms.
     CsrfTokenRequestAttributeHandler csrfTokenRequestHandler =
         new CsrfTokenRequestAttributeHandler();
 
@@ -56,7 +52,10 @@ public class SecurityConfig {
                         "/api/v1/media/uploads",
                         "/api/auth/login",
                         "/api/auth/2fa/verify",
-                        "/api/auth/refresh")
+                        "/api/auth/refresh",
+                        "/api/auth/password-reset/request",
+                        "/api/auth/password-reset/verify",
+                        "/api/auth/password-reset/complete")
                     .permitAll()
                     .anyRequest()
                     .authenticated())
