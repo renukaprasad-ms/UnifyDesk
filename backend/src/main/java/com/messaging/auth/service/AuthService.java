@@ -1,11 +1,17 @@
 package com.messaging.auth.service;
 
 import com.messaging.auth.dto.AuthUserResponse;
+import com.messaging.auth.dto.CompletePasswordResetRequest;
 import com.messaging.auth.dto.LoginRequest;
 import com.messaging.auth.dto.LoginResponse;
+import com.messaging.auth.dto.PasswordResetChallengeResponse;
+import com.messaging.auth.dto.PasswordResetRequest;
 import com.messaging.auth.dto.RegisterRequest;
 import com.messaging.auth.dto.VerifyEmailRequest;
+import com.messaging.auth.dto.VerifyPasswordResetOtpRequest;
 import com.messaging.auth.dto.VerifyTwoFactorRequest;
+import com.messaging.common.exception.BadRequestException;
+import com.messaging.common.exception.TooManyRequestsException;
 import com.messaging.common.exception.UnauthorizedException;
 import com.messaging.company.service.CompanyService;
 import com.messaging.media.entity.Media;
@@ -36,6 +42,7 @@ public class AuthService {
 
   private static final int MAX_IP_LENGTH = 45;
   private static final int MAX_USER_AGENT_LENGTH = 512;
+  private static final long PASSWORD_RESET_OTP_EXPIRES_SECONDS = 300;
 
   private final UserService userService;
   private final UserSessionService userSessionService;
@@ -81,9 +88,12 @@ public class AuthService {
   @Transactional
   public LoginResponse login(
       LoginRequest request, HttpServletRequest servletRequest, HttpHeaders headers) {
-    User user = userService.getByEmail(request.email());
+    User user =
+        userService
+            .findByIdentifier(request.identifier())
+            .orElseThrow(() -> new UnauthorizedException("Invalid username/email or password"));
     if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-      throw new UnauthorizedException("Invalid email or password");
+      throw new UnauthorizedException("Invalid username/email or password");
     }
     if (user.isTwoFactorEnabled()) {
       String challengeId = UUID.randomUUID().toString();
@@ -123,6 +133,56 @@ public class AuthService {
 
     issueSession(user, servletRequest, headers);
     return toResponse(user);
+  }
+
+  public PasswordResetChallengeResponse requestPasswordReset(PasswordResetRequest request) {
+    String challengeId = UUID.randomUUID().toString();
+    userService
+        .findByIdentifier(request.identifier())
+        .ifPresent(
+            user -> {
+              try {
+                authOtpService.issuePasswordResetOtp(
+                    challengeId, user.getEmail(), user.getId());
+              } catch (TooManyRequestsException ignored) {
+                // Keep the response indistinguishable from an unknown identifier.
+              }
+            });
+    return new PasswordResetChallengeResponse(challengeId, PASSWORD_RESET_OTP_EXPIRES_SECONDS);
+  }
+
+  public void verifyPasswordResetOtp(
+      VerifyPasswordResetOtpRequest request, HttpHeaders headers) {
+    long userId = authOtpService.verifyPasswordResetOtp(request.challengeId(), request.otp());
+    String resetToken = authTokenService.createPasswordResetToken(Long.toString(userId));
+    authTokenService.addPasswordResetTokenCookie(headers, resetToken);
+  }
+
+  @Transactional
+  public void completePasswordReset(
+      CompletePasswordResetRequest request,
+      HttpServletRequest servletRequest,
+      HttpHeaders headers) {
+    String resetToken =
+        authCookieService
+            .passwordResetToken(servletRequest)
+            .orElseThrow(() -> new BadRequestException("Password reset session expired"));
+    Claims claims =
+        authTokenService
+            .parsePasswordResetToken(resetToken)
+            .orElseThrow(() -> new BadRequestException("Password reset session expired"));
+
+    long userId;
+    try {
+      userId = Long.parseLong(claims.getSubject());
+    } catch (NumberFormatException exception) {
+      throw new BadRequestException("Password reset session expired");
+    }
+
+    userService.resetForgottenPassword(userId, request.password());
+    userSessionService.revokeAllForUser(userId);
+    authTokenService.clearPasswordResetTokenCookie(headers);
+    authTokenService.clearTokenCookies(headers);
   }
 
   @Transactional
