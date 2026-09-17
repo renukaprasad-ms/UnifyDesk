@@ -1,10 +1,14 @@
 package com.messaging.auth.controller;
 
 import com.messaging.auth.dto.AuthUserResponse;
+import com.messaging.auth.dto.CompletePasswordResetRequest;
 import com.messaging.auth.dto.LoginRequest;
 import com.messaging.auth.dto.LoginResponse;
+import com.messaging.auth.dto.PasswordResetChallengeResponse;
+import com.messaging.auth.dto.PasswordResetRequest;
 import com.messaging.auth.dto.RegisterRequest;
 import com.messaging.auth.dto.VerifyEmailRequest;
+import com.messaging.auth.dto.VerifyPasswordResetOtpRequest;
 import com.messaging.auth.dto.VerifyTwoFactorRequest;
 import com.messaging.auth.service.AuthService;
 import com.messaging.common.response.ApiResponse;
@@ -64,6 +68,38 @@ public class AuthController {
     return ResponseEntity.ok()
         .headers(headers)
         .body(ApiResponse.success(HttpStatus.OK.value(), response, "Login successful"));
+  }
+
+  @PostMapping("/password-reset/request")
+  public ResponseEntity<ApiResponse<PasswordResetChallengeResponse>> requestPasswordReset(
+      @Valid @RequestBody PasswordResetRequest request) {
+    PasswordResetChallengeResponse response = authService.requestPasswordReset(request);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            response,
+            "If the account exists, a password reset code has been sent"));
+  }
+
+  @PostMapping("/password-reset/verify")
+  public ResponseEntity<ApiResponse<Void>> verifyPasswordResetOtp(
+      @Valid @RequestBody VerifyPasswordResetOtpRequest request) {
+    HttpHeaders headers = new HttpHeaders();
+    authService.verifyPasswordResetOtp(request, headers);
+    return ResponseEntity.ok()
+        .headers(headers)
+        .body(ApiResponse.success(HttpStatus.OK.value(), "Password reset code verified"));
+  }
+
+  @PostMapping("/password-reset/complete")
+  public ResponseEntity<ApiResponse<Void>> completePasswordReset(
+      @Valid @RequestBody CompletePasswordResetRequest request,
+      HttpServletRequest servletRequest) {
+    HttpHeaders headers = new HttpHeaders();
+    authService.completePasswordReset(request, servletRequest, headers);
+    return ResponseEntity.ok()
+        .headers(headers)
+        .body(ApiResponse.success(HttpStatus.OK.value(), "Password reset successful"));
   }
 
   @PostMapping("/refresh")
