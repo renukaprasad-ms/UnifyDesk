@@ -7,8 +7,14 @@ public record CompanySubscriptionResponse(
     String subscriptionId,
     String companyId,
     String planId,
+    String planPriceId,
     String planCode,
     String planName,
     SubscriptionStatus status,
     Instant startedAt,
-    Instant endsAt) {}
+    Instant endsAt,
+    Instant currentPeriodStart,
+    Instant currentPeriodEnd,
+    Instant trialEndsAt,
+    boolean cancelAtPeriodEnd,
+    Instant cancelledAt) {}
