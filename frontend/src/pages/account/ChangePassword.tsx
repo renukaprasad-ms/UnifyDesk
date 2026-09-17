@@ -1,0 +1,197 @@
+import { useState } from 'react'
+import { FiArrowLeft, FiCheckCircle, FiEye, FiEyeOff, FiKey } from 'react-icons/fi'
+import { useNavigate } from 'react-router'
+import { userApi } from '../../features/user/userApi'
+import { apiErrorMessage } from '../../lib/api/apiClient'
+import { selectAuthUser } from '../../store/auth/authSlice'
+import { useAppSelector } from '../../store/hooks'
+
+type PasswordFieldProps = {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  autoComplete: string
+  placeholder: string
+  minLength?: number
+}
+
+function PasswordField({
+  label,
+  value,
+  onChange,
+  autoComplete,
+  placeholder,
+  minLength,
+}: PasswordFieldProps) {
+  const [visible, setVisible] = useState(false)
+
+  return (
+    <label className="block">
+      <span className="mb-2 block text-xs font-semibold text-slate-700">{label}</span>
+      <span className="relative block">
+        <input
+          className="form-input pr-11"
+          type={visible ? 'text' : 'password'}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          autoComplete={autoComplete}
+          placeholder={placeholder}
+          minLength={minLength}
+          required
+        />
+        <button
+          type="button"
+          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-400 hover:text-slate-700"
+          onClick={() => setVisible((current) => !current)}
+          aria-label={visible ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+        >
+          {visible ? <FiEyeOff aria-hidden="true" /> : <FiEye aria-hidden="true" />}
+        </button>
+      </span>
+    </label>
+  )
+}
+
+export default function ChangePassword() {
+  const navigate = useNavigate()
+  const user = useAppSelector(selectAuthUser)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!user) return
+
+    setError('')
+    setSuccess(false)
+
+    if (newPassword !== confirmPassword) {
+      setError('New passwords do not match')
+      return
+    }
+
+    if (currentPassword === newPassword) {
+      setError('New password must be different from your current password')
+      return
+    }
+
+    setSaving(true)
+    try {
+      await userApi.resetPassword(user.userId, {
+        currentPassword,
+        password: newPassword,
+      })
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setSuccess(true)
+    } catch (submitError) {
+      setError(apiErrorMessage(submitError, 'Unable to change password'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section className="px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-2xl">
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-slate-950"
+          onClick={() => navigate('/account/settings')}
+        >
+          <FiArrowLeft aria-hidden="true" />
+          Back to settings
+        </button>
+
+        <header className="mt-6">
+          <p className="eyebrow">Account security</p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Change password</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            Enter your current password, then choose a new password for your account.
+          </p>
+        </header>
+
+        {error && (
+          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="mt-6 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            <FiCheckCircle className="mt-0.5 shrink-0" aria-hidden="true" />
+            <div>
+              <p className="font-semibold">Password changed successfully</p>
+              <p className="mt-1 text-emerald-700/80">Use your new password the next time you sign in.</p>
+            </div>
+          </div>
+        )}
+
+        <form className="panel mt-6 p-6 sm:p-7" onSubmit={(event) => void submit(event)}>
+          <div className="flex items-start gap-4 border-b border-slate-100 pb-5">
+            <span className="security-icon shrink-0">
+              <FiKey aria-hidden="true" />
+            </span>
+            <div>
+              <h2 className="text-base font-bold text-slate-950">Set a new password</h2>
+              <p className="mt-1 text-sm leading-6 text-slate-500">
+                Use at least 8 characters and avoid reusing a password from another account.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-5">
+            <PasswordField
+              label="Current password"
+              value={currentPassword}
+              onChange={setCurrentPassword}
+              autoComplete="current-password"
+              placeholder="Enter your current password"
+            />
+
+            <PasswordField
+              label="New password"
+              value={newPassword}
+              onChange={setNewPassword}
+              autoComplete="new-password"
+              placeholder="Enter a new password"
+              minLength={8}
+            />
+
+            <PasswordField
+              label="Confirm new password"
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              autoComplete="new-password"
+              placeholder="Re-enter the new password"
+              minLength={8}
+            />
+          </div>
+
+          <div className="mt-7 flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              className="secondary-button inline-flex justify-center"
+              onClick={() => navigate('/account/settings')}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="primary-button inline-flex justify-center"
+              disabled={saving}
+            >
+              {saving ? 'Changing password…' : 'Change password'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+  )
+}
