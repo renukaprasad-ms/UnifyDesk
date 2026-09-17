@@ -78,17 +78,25 @@ public class PlatformPlanManagementService {
           "Plan code and version are immutable; create a new plan version instead");
     }
 
+    boolean cycleChanged = plan.getBillingCycle() != request.billingCycle();
+    boolean priceChanged = plan.getBasePrice().compareTo(request.basePrice()) != 0;
+    boolean currencyChanged = !plan.getCurrency().equalsIgnoreCase(request.currency());
+
     billingCatalogService.updatePlan(
         id,
         new UpdatePlanRequest(
             request.name(),
             null,
-            request.billingCycle(),
-            request.basePrice(),
-            request.currency(),
+            cycleChanged ? request.billingCycle() : null,
+            priceChanged ? request.basePrice() : null,
+            currencyChanged ? request.currency() : null,
             null));
 
-    replaceEntitlements(id, request.entitlements());
+    Map<String, String> existing = entitlementMap(plan.getId());
+    Map<String, String> requested = normalizeEntitlements(request.entitlements());
+    if (!existing.equals(requested)) {
+      replaceEntitlements(id, requested);
+    }
     return response(find(id));
   }
 
@@ -113,18 +121,31 @@ public class PlatformPlanManagementService {
   private void upsertEntitlements(Long planId, Map<String, String> values) {
     if (values == null) return;
     values.forEach(
+        (key, value) ->
+            billingCatalogService.upsertEntitlement(
+                planId, new UpsertEntitlementRequest(key, value)));
+  }
+
+  private Map<String, String> normalizeEntitlements(Map<String, String> values) {
+    Map<String, String> normalized = new LinkedHashMap<>();
+    if (values == null) return normalized;
+    values.forEach(
         (key, value) -> {
           if (key == null || key.isBlank() || value == null) return;
-          billingCatalogService.upsertEntitlement(
-              planId, new UpsertEntitlementRequest(key, value));
+          normalized.put(key.trim().toUpperCase(Locale.ROOT), value.trim());
         });
+    return normalized;
+  }
+
+  private Map<String, String> entitlementMap(Long planId) {
+    Map<String, String> map = new LinkedHashMap<>();
+    for (PlanEntitlement entitlement : entitlements.findByPlanId(planId)) {
+      map.put(entitlement.getKey(), entitlement.getValue());
+    }
+    return map;
   }
 
   private PlatformPlanResponse response(Plan plan) {
-    Map<String, String> map = new LinkedHashMap<>();
-    for (PlanEntitlement entitlement : entitlements.findByPlanId(plan.getId())) {
-      map.put(entitlement.getKey(), entitlement.getValue());
-    }
     return new PlatformPlanResponse(
         plan.getId().toString(),
         plan.getCode(),
@@ -134,6 +155,6 @@ public class PlatformPlanManagementService {
         plan.getBasePrice(),
         plan.getCurrency(),
         plan.getVersion(),
-        map);
+        entitlementMap(plan.getId()));
   }
 }
