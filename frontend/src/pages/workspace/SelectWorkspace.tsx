@@ -1,10 +1,19 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router'
 import { FiPlus } from 'react-icons/fi'
+import type { Company } from '../../features/company/types'
+import { platformApi } from '../../features/platform/platformApi'
 import { workspaceApi } from '../../features/workspace/workspaceApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectCompanies, selectCompany, setCompanies } from '../../store/workspace/workspaceSlice'
+
+const mergeCompanies = (memberCompanies: Company[], adminCompanies: Company[]) => {
+  const byId = new Map<string, Company>()
+  adminCompanies.forEach((company) => byId.set(company.companyId, company))
+  memberCompanies.forEach((company) => byId.set(company.companyId, company))
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name))
+}
 
 export default function SelectWorkspace() {
   const dispatch = useAppDispatch()
@@ -15,22 +24,32 @@ export default function SelectWorkspace() {
 
   useEffect(() => {
     let active = true
-    workspaceApi
-      .list()
-      .then((items) => {
+
+    const load = async () => {
+      try {
+        const memberCompanies = await workspaceApi.list()
+        let adminCompanies: Company[] = []
+        try {
+          const access = await platformApi.me()
+          if (access.platformAdmin) adminCompanies = await workspaceApi.adminVisible()
+        } catch {
+          adminCompanies = []
+        }
+        const items = mergeCompanies(memberCompanies, adminCompanies)
         if (!active) return
         dispatch(setCompanies(items))
         if (items.length === 1) {
           dispatch(selectCompany(items[0].companyId))
           navigate('/workspace', { replace: true })
         }
-      })
-      .catch((loadError) => {
+      } catch (loadError) {
         if (active) setError(apiErrorMessage(loadError, 'Unable to load workspaces'))
-      })
-      .finally(() => {
+      } finally {
         if (active) setLoading(false)
-      })
+      }
+    }
+
+    void load()
     return () => {
       active = false
     }
@@ -59,7 +78,7 @@ export default function SelectWorkspace() {
                   navigate('/workspace', { replace: true })
                 }}
               >
-                <span><span className="block text-sm font-semibold text-slate-950">{company.name}</span><span className="mt-1 block text-xs text-slate-500">{company.role}</span></span>
+                <span><span className="block text-sm font-semibold text-slate-950">{company.name}</span><span className="mt-1 block text-xs text-slate-500">{company.role ?? 'Platform access'}</span></span>
                 <span className="text-xs font-semibold text-indigo-500">Open</span>
               </button>
             ))}
