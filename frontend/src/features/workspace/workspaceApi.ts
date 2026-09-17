@@ -15,6 +15,11 @@ export const workspaceApi = {
     return unwrap(response.data)
   },
 
+  async adminVisible() {
+    const response = await apiClient.get<ApiResponse<Company[]>>('/api/v1/admin/companies')
+    return unwrap(response.data)
+  },
+
   async create(payload: CreateCompanyPayload) {
     const response = await apiClient.post<ApiResponse<Company>>('/api/v1/companies', payload)
     return unwrap(response.data)
