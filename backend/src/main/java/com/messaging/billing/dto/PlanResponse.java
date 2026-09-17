@@ -9,9 +9,11 @@ public record PlanResponse(
     String planId,
     String code,
     String name,
+    String description,
     PlanStatus status,
     BillingCycle billingCycle,
     BigDecimal basePrice,
     String currency,
     int version,
+    List<PlanPriceResponse> prices,
     List<EntitlementResponse> entitlements) {}
