@@ -14,8 +14,10 @@ import CompanyUsers from '../pages/company/CompanyUsers'
 import Home from '../pages/home/Home'
 import PlaceholderPage from '../pages/placeholder/PlaceholderPage'
 import PlatformAdmins from '../pages/platform/PlatformAdmins'
+import PlatformBilling from '../pages/platform/PlatformBilling'
 import PlatformCompanies from '../pages/platform/PlatformCompanies'
 import PlatformDashboard from '../pages/platform/PlatformDashboard'
+import PlatformPlanDetails from '../pages/platform/PlatformPlanDetails'
 import PlatformPlans from '../pages/platform/PlatformPlans'
 import PlatformUsers from '../pages/platform/PlatformUsers'
 import CreateWorkspace from '../pages/workspace/CreateWorkspace'
@@ -98,7 +100,8 @@ const AppRoutes = () => (
           <Route path="/platform/companies" element={<PlatformCompanies />} />
           <Route path="/platform/users" element={<PlatformUsers />} />
           <Route path="/platform/plans" element={<PlatformPlans />} />
-          <Route path="/platform/billing" element={<PlaceholderPage />} />
+          <Route path="/platform/plans/:planId" element={<PlatformPlanDetails />} />
+          <Route path="/platform/billing" element={<PlatformBilling />} />
           <Route path="/platform/admins" element={<PlatformAdmins />} />
           <Route path="/platform/audit" element={<PlaceholderPage />} />
         </Route>
