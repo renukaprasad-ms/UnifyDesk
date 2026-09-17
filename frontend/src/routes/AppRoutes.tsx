@@ -3,6 +3,7 @@ import { PERMISSIONS } from '../features/iam/permissions'
 import AuthLayout from '../layouts/AuthLayout'
 import MainLayout from '../layouts/MainLayout'
 import AccountSettings from '../pages/account/AccountSettings'
+import ChangePassword from '../pages/account/ChangePassword'
 import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
 import VerifyOtp from '../pages/auth/VerifyOtp'
@@ -80,6 +81,7 @@ const AppRoutes = () => (
 
             <Route path="account/profile" element={<PlaceholderPage />} />
             <Route path="account/settings" element={<AccountSettings />} />
+            <Route path="account/settings/password" element={<ChangePassword />} />
           </Route>
         </Route>
       </Route>
