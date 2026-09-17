@@ -1,5 +1,7 @@
 package com.messaging.company.service;
 
+import com.messaging.admin.enums.PlatformPermission;
+import com.messaging.admin.service.PlatformAdminAuthorizationService;
 import com.messaging.company.entity.CompanyCustomRolePermission;
 import com.messaging.company.entity.CompanyMember;
 import com.messaging.company.entity.CompanyMemberRoleAssignment;
@@ -27,9 +29,13 @@ public class CompanyIamPermissionService {
   private final CompanyMemberRoleAssignmentRepository assignmentRepository;
   private final CompanyCustomRolePermissionRepository rolePermissionRepository;
   private final PermissionDefinitionRepository permissionDefinitionRepository;
+  private final PlatformAdminAuthorizationService platformAdminAuthorizationService;
 
   @Transactional(readOnly = true)
   public boolean hasPermission(Long userId, Long companyId, String permissionKey) {
+    if (hasPlatformWorkspaceAccess(userId, companyId)) {
+      return permissionDefinitionRepository.existsById(permissionKey);
+    }
     CompanyMember member = activeMember(userId, companyId);
     if (member == null) {
       return false;
@@ -42,14 +48,15 @@ public class CompanyIamPermissionService {
 
   @Transactional(readOnly = true)
   public Set<String> effectivePermissions(Long userId, Long companyId) {
+    if (hasPlatformWorkspaceAccess(userId, companyId)) {
+      return allPermissions();
+    }
     CompanyMember member = activeMember(userId, companyId);
     if (member == null) {
       return Set.of();
     }
     if (member.getRole() == CompanyRole.OWNER) {
-      TreeSet<String> all = new TreeSet<>();
-      permissionDefinitionRepository.findAll().forEach(permission -> all.add(permission.getKey()));
-      return Set.copyOf(all);
+      return allPermissions();
     }
     return Set.copyOf(effectivePermissions(member, companyId, userId));
   }
@@ -62,6 +69,10 @@ public class CompanyIamPermissionService {
 
   @Transactional(readOnly = true)
   public boolean canDelegate(Long userId, Long companyId, Set<String> permissionKeys) {
+    if (hasPlatformWorkspaceAccess(userId, companyId)) {
+      return permissionDefinitionRepository.findAllById(permissionKeys).size()
+          == permissionKeys.size();
+    }
     if (isOwner(userId, companyId)) {
       return permissionDefinitionRepository.findAllById(permissionKeys).size()
           == permissionKeys.size();
@@ -89,5 +100,16 @@ public class CompanyIamPermissionService {
         .map(CompanyCustomRolePermission::getPermissionKey)
         .forEach(permissions::add);
     return permissions;
+  }
+
+  private Set<String> allPermissions() {
+    TreeSet<String> all = new TreeSet<>();
+    permissionDefinitionRepository.findAll().forEach(permission -> all.add(permission.getKey()));
+    return Set.copyOf(all);
+  }
+
+  private boolean hasPlatformWorkspaceAccess(Long userId, Long companyId) {
+    return platformAdminAuthorizationService.canAccessCompany(userId, companyId)
+        && platformAdminAuthorizationService.hasPermission(userId, PlatformPermission.COMPANY_VIEW);
   }
 }
