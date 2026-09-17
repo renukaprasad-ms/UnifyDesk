@@ -101,6 +101,14 @@ public class PlatformPlanManagementService {
   }
 
   @Transactional
+  public PlatformPlanResponse publish(Long id) {
+    auth.requirePermission(currentUser.currentUserId(), PlatformPermission.PLAN_UPDATE);
+    billingCatalogService.updatePlan(
+        id, new UpdatePlanRequest(null, null, null, null, null, PlanStatus.PUBLISHED));
+    return response(find(id));
+  }
+
+  @Transactional
   public void archive(Long id) {
     auth.requirePermission(currentUser.currentUserId(), PlatformPermission.PLAN_DISABLE);
     billingCatalogService.updatePlan(
