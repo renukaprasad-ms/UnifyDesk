@@ -119,10 +119,7 @@ public class UserService {
 
   @Transactional
   public UserResponse resetPassword(long userId, ResetPasswordRequest request) {
-    long currentUserId = currentUserService.currentUserId();
-    if (currentUserId != userId) {
-      throw new ForbiddenException("You can only change your own password");
-    }
+    requireCurrentUser(userId, "You can only change your own password");
 
     User user = getUser(userId);
     if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
@@ -138,6 +135,8 @@ public class UserService {
 
   @Transactional
   public UserResponse toggleTwoFactor(long userId, ToggleTwoFactorRequest request) {
+    requireCurrentUser(userId, "You can only change your own two-factor authentication settings");
+
     User user = getUser(userId);
     user.setTwoFactorEnabled(request.enabled());
     return toResponse(user);
@@ -145,6 +144,8 @@ public class UserService {
 
   @Transactional
   public void deleteUser(long userId) {
+    requireCurrentUser(userId, "You can only delete your own account");
+
     User user = getUser(userId);
     userRepository.delete(user);
   }
@@ -179,6 +180,12 @@ public class UserService {
     }
     user.setProfilePicture(media);
     return new ProfilePictureResponse(user.getId().toString(), media.getId().toString());
+  }
+
+  private void requireCurrentUser(long userId, String message) {
+    if (currentUserService.currentUserId() != userId) {
+      throw new ForbiddenException(message);
+    }
   }
 
   private String normalizeEmail(String email) {
