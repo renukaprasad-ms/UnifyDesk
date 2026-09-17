@@ -11,7 +11,7 @@ export type Company = {
   timezone?: string | null
   logoMediaId?: string | null
   status: CompanyStatus
-  role: CompanyRole
+  role: CompanyRole | null
 }
 
 export type CompanyUser = {
