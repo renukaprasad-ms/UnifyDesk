@@ -33,6 +33,22 @@ public class AuthTokenService {
     return jwtService.parsePreAuthToken(token);
   }
 
+  public String createPasswordResetToken(String userId) {
+    return jwtService.createPasswordResetToken(userId);
+  }
+
+  public Optional<Claims> parsePasswordResetToken(String token) {
+    return jwtService.parsePasswordResetToken(token);
+  }
+
+  public void addPasswordResetTokenCookie(HttpHeaders headers, String token) {
+    authCookieService.addPasswordResetTokenCookie(headers, token);
+  }
+
+  public void clearPasswordResetTokenCookie(HttpHeaders headers) {
+    authCookieService.clearPasswordResetTokenCookie(headers);
+  }
+
   public void addTokenCookies(HttpHeaders headers, TokenPair tokenPair) {
     authCookieService.addTokenCookies(headers, tokenPair);
   }
