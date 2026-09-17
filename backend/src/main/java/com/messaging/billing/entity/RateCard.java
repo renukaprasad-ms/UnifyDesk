@@ -1,10 +1,11 @@
 package com.messaging.billing.entity;
 
-import com.messaging.billing.enums.ChannelType;
-import com.messaging.billing.enums.CommunicationDirection;
-import com.messaging.billing.enums.MessageType;
+import com.messaging.billing.enums.BillingCategory;
+import com.messaging.billing.enums.PricingDirection;
 import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.enums.UsageUnit;
+import com.messaging.channel.enums.ChannelType;
+import com.messaging.channel.enums.ProviderType;
 import com.messaging.common.id.IdGenerator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -32,7 +33,8 @@ import lombok.Setter;
     name = "rate_cards",
     indexes = {
       @Index(name = "idx_rate_cards_plan_channel", columnList = "plan_id,channel,status"),
-      @Index(name = "idx_rate_cards_effective", columnList = "effective_from,effective_to")
+      @Index(name = "idx_rate_cards_effective", columnList = "effective_from,effective_to"),
+      @Index(name = "idx_rate_cards_lookup", columnList = "plan_id,provider,billing_category,direction,status")
     })
 public class RateCard {
 
@@ -46,8 +48,9 @@ public class RateCard {
   @Column(nullable = false, length = 32)
   private ChannelType channel;
 
+  @Enumerated(EnumType.STRING)
   @Column(length = 80)
-  private String provider;
+  private ProviderType provider;
 
   @Column(length = 2)
   private String country;
@@ -56,12 +59,12 @@ public class RateCard {
   private String carrier;
 
   @Enumerated(EnumType.STRING)
-  @Column(name = "message_type", nullable = false, length = 32)
-  private MessageType messageType;
+  @Column(name = "billing_category", nullable = false, length = 48)
+  private BillingCategory billingCategory;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
-  private CommunicationDirection direction;
+  private PricingDirection direction;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
@@ -91,19 +94,11 @@ public class RateCard {
 
   @PrePersist
   private void beforeInsert() {
-    if (id == null) {
-      id = IdGenerator.nextId();
-    }
+    if (id == null) id = IdGenerator.nextId();
     Instant now = Instant.now();
-    if (effectiveFrom == null) {
-      effectiveFrom = now;
-    }
-    if (createdAt == null) {
-      createdAt = now;
-    }
-    if (updatedAt == null) {
-      updatedAt = now;
-    }
+    if (effectiveFrom == null) effectiveFrom = now;
+    if (createdAt == null) createdAt = now;
+    if (updatedAt == null) updatedAt = now;
   }
 
   @PreUpdate
