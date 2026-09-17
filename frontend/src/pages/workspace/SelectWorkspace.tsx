@@ -3,18 +3,12 @@ import { Navigate, useNavigate } from 'react-router'
 import { FiPlus } from 'react-icons/fi'
 import { workspaceApi } from '../../features/workspace/workspaceApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
-import { selectAuthUser } from '../../store/auth/authSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import {
-  selectCompanies,
-  selectCompany,
-  setCompanies,
-} from '../../store/workspace/workspaceSlice'
+import { selectCompanies, selectCompany, setCompanies } from '../../store/workspace/workspaceSlice'
 
 export default function SelectWorkspace() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
-  const user = useAppSelector(selectAuthUser)
   const companies = useAppSelector(selectCompanies)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -42,7 +36,9 @@ export default function SelectWorkspace() {
     }
   }, [dispatch, navigate])
 
-  if (!user?.hasCompanies) return <Navigate to="/create-workspace" replace />
+  if (!loading && !error && companies.length === 0) {
+    return <Navigate to="/create-workspace" replace />
+  }
 
   return (
     <div className="min-h-dvh bg-white px-6 py-12">
@@ -63,20 +59,13 @@ export default function SelectWorkspace() {
                   navigate('/workspace', { replace: true })
                 }}
               >
-                <span>
-                  <span className="block text-sm font-semibold text-slate-950">{company.name}</span>
-                  <span className="mt-1 block text-xs text-slate-500">{company.role}</span>
-                </span>
+                <span><span className="block text-sm font-semibold text-slate-950">{company.name}</span><span className="mt-1 block text-xs text-slate-500">{company.role}</span></span>
                 <span className="text-xs font-semibold text-indigo-500">Open</span>
               </button>
             ))}
           </div>
         )}
-        <button
-          type="button"
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-[8px] border border-slate-200 px-4 py-3 text-sm font-semibold text-indigo-500 hover:bg-indigo-50"
-          onClick={() => navigate('/create-workspace')}
-        >
+        <button type="button" className="mt-5 flex w-full items-center justify-center gap-2 rounded-[8px] border border-slate-200 px-4 py-3 text-sm font-semibold text-indigo-500 hover:bg-indigo-50" onClick={() => navigate('/create-workspace')}>
           <FiPlus aria-hidden="true" />Create workspace
         </button>
       </div>
