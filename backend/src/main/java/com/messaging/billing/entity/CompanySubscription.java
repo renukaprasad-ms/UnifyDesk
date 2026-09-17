@@ -3,18 +3,7 @@ package com.messaging.billing.entity;
 import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.common.id.IdGenerator;
 import com.messaging.company.entity.Company;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -42,6 +31,10 @@ public class CompanySubscription {
   @JoinColumn(name = "plan_id", nullable = false)
   private Plan plan;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "plan_price_id")
+  private PlanPrice planPrice;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
   private SubscriptionStatus status;
@@ -52,6 +45,21 @@ public class CompanySubscription {
   @Column(name = "ends_at")
   private Instant endsAt;
 
+  @Column(name = "current_period_start")
+  private Instant currentPeriodStart;
+
+  @Column(name = "current_period_end")
+  private Instant currentPeriodEnd;
+
+  @Column(name = "trial_ends_at")
+  private Instant trialEndsAt;
+
+  @Column(name = "cancel_at_period_end", nullable = false)
+  private boolean cancelAtPeriodEnd;
+
+  @Column(name = "cancelled_at")
+  private Instant cancelledAt;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
@@ -60,19 +68,12 @@ public class CompanySubscription {
 
   @PrePersist
   private void beforeInsert() {
-    if (id == null) {
-      id = IdGenerator.nextId();
-    }
+    if (id == null) id = IdGenerator.nextId();
     Instant now = Instant.now();
-    if (startedAt == null) {
-      startedAt = now;
-    }
-    if (createdAt == null) {
-      createdAt = now;
-    }
-    if (updatedAt == null) {
-      updatedAt = now;
-    }
+    if (startedAt == null) startedAt = now;
+    if (currentPeriodStart == null) currentPeriodStart = startedAt;
+    if (createdAt == null) createdAt = now;
+    if (updatedAt == null) updatedAt = now;
   }
 
   @PreUpdate
