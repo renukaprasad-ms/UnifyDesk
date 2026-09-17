@@ -47,6 +47,6 @@ export type CompanySubscription = {
 }
 
 export type CompanyPlanDetails = {
-  subscription: CompanySubscription
-  plan: Plan
+  subscription: CompanySubscription | null
+  plan: Plan | null
 }
