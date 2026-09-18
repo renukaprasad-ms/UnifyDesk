@@ -4,7 +4,6 @@ import {
   FiCheckCircle,
   FiClock,
   FiEdit2,
-  FiImage,
   FiMail,
   FiMapPin,
   FiUploadCloud,
