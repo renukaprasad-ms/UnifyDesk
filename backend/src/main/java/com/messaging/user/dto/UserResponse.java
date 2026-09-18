@@ -6,4 +6,5 @@ public record UserResponse(
     String name,
     boolean verified,
     String username,
-    Boolean twoFactorEnabled) {}
+    Boolean twoFactorEnabled,
+    String profilePictureMediaId) {}
