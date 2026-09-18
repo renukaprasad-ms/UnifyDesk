@@ -256,8 +256,7 @@ public class GmailInboxPersistenceService {
   }
 
   private String htmlToText(String html) {
-    String withoutNonContent =
-        html.replaceAll("(?is)<(script|style|head)[^>]*>.*?</\\1>", " ");
+    String withoutNonContent = html.replaceAll("(?is)<(script|style|head)[^>]*>.*?</\\1>", " ");
     String withLineBreaks =
         withoutNonContent
             .replaceAll("(?i)<br\\s*/?>", "\n")
