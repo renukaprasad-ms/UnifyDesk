@@ -5,6 +5,7 @@ export type User = {
   verified: boolean
   username: string
   twoFactorEnabled: boolean
+  profilePictureMediaId?: string | null
 }
 
 export type CreateUserPayload = {
@@ -29,4 +30,10 @@ export type ResetPasswordPayload = {
 
 export type ToggleTwoFactorPayload = {
   enabled: boolean
+}
+
+
+export type UpdateOwnProfilePayload = {
+  name: string
+  username: string
 }
