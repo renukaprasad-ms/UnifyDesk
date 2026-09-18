@@ -17,6 +17,7 @@ public class MetaWhatsAppProperties {
   private String appSecret;
   private String configurationId;
   private String graphApiVersion = "v26.0";
+  private String webhookVerifyToken;
   private Duration signupSessionTtl = Duration.ofMinutes(10);
   private boolean registerPhoneNumber = true;
 
