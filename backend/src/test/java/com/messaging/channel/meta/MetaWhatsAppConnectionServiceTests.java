@@ -3,6 +3,7 @@ package com.messaging.channel.meta;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -95,13 +96,7 @@ class MetaWhatsAppConnectionServiceTests {
     when(graphClient.getWaba("waba-1", "access-token")).thenReturn(waba);
     when(graphClient.getPhoneNumbers("waba-1", "access-token")).thenReturn(List.of(phone));
     when(persistenceService.persist(
-            COMPANY_ID,
-            USER_ID,
-            "waba-1",
-            waba,
-            phone,
-            token,
-            org.mockito.ArgumentMatchers.anyString()))
+            eq(COMPANY_ID), eq(USER_ID), eq("waba-1"), eq(waba), eq(phone), eq(token), anyString()))
         .thenReturn(expected);
 
     MetaWhatsAppConnectionResponse actual = service.complete(COMPANY_ID, USER_ID, request);
@@ -112,7 +107,7 @@ class MetaWhatsAppConnectionServiceTests {
     verify(entitlementService).assertCanCreateSender(COMPANY_ID, SenderIdentityType.PHONE_NUMBER);
 
     ArgumentCaptor<String> pinCaptor = ArgumentCaptor.forClass(String.class);
-    verify(graphClient).registerPhoneNumber("phone-1", "access-token", pinCaptor.capture());
+    verify(graphClient).registerPhoneNumber(eq("phone-1"), eq("access-token"), pinCaptor.capture());
     assertThat(pinCaptor.getValue()).matches("\\d{6}");
     verify(graphClient).subscribeApp("waba-1", "access-token");
   }
@@ -184,13 +179,7 @@ class MetaWhatsAppConnectionServiceTests {
     when(graphClient.getWaba("waba-1", "access-token")).thenReturn(waba);
     when(graphClient.getPhoneNumbers("waba-1", "access-token")).thenReturn(List.of(phone));
     when(persistenceService.persist(
-            COMPANY_ID,
-            USER_ID,
-            "waba-1",
-            waba,
-            phone,
-            token,
-            org.mockito.ArgumentMatchers.anyString()))
+            eq(COMPANY_ID), eq(USER_ID), eq("waba-1"), eq(waba), eq(phone), eq(token), anyString()))
         .thenReturn(expected);
 
     service.complete(COMPANY_ID, USER_ID, request);

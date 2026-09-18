@@ -57,7 +57,8 @@ public class SecurityConfig {
                         "/api/auth/password-reset/request",
                         "/api/auth/password-reset/verify",
                         "/api/auth/password-reset/complete",
-                        "/api/v1/webhooks/meta/whatsapp")
+                        "/api/v1/webhooks/meta/whatsapp",
+                        "/api/v1/oauth/gmail/callback")
                     .permitAll()
                     .anyRequest()
                     .authenticated())

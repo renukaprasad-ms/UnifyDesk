@@ -59,3 +59,7 @@ export type MetaWhatsAppConnection = {
     status: SenderIdentityStatus
   }
 }
+
+export type GmailAuthorization = {
+  authorizationUrl: string
+}
