@@ -127,6 +127,7 @@ app:
       app-secret: ${META_WHATSAPP_APP_SECRET:}
       configuration-id: ${META_WHATSAPP_CONFIGURATION_ID:}
       graph-api-version: ${META_WHATSAPP_GRAPH_API_VERSION:v26.0}
+      webhook-verify-token: ${META_WHATSAPP_WEBHOOK_VERIFY_TOKEN:}
       signup-session-ttl: ${META_WHATSAPP_SIGNUP_SESSION_TTL:10m}
       register-phone-number: ${META_WHATSAPP_REGISTER_PHONE_NUMBER:true}
   redis:
