@@ -248,11 +248,35 @@ public class GmailInboxPersistenceService {
   private String bodyText(GmailPayload payload, String fallback) {
     String plain = findBody(payload, "text/plain");
     if (hasText(plain)) {
-      return plain;
+      return normalizeBody(plain);
     }
 
     String html = findBody(payload, "text/html");
-    return hasText(html) ? htmlToText(html) : fallback;
+    return hasText(html) ? normalizeBody(html) : fallback;
+  }
+
+  private String normalizeBody(String value) {
+    String trimmed = value == null ? null : value.trim();
+    if (!hasText(trimmed)) {
+      return trimmed;
+    }
+
+    if (looksLikeHtml(trimmed)) {
+      return htmlToText(trimmed);
+    }
+
+    return trimmed;
+  }
+
+  private boolean looksLikeHtml(String value) {
+    String lower = value.toLowerCase(Locale.ROOT);
+    return lower.startsWith("<!doctype html")
+        || lower.startsWith("<html")
+        || lower.contains("<body")
+        || lower.contains("<table")
+        || lower.contains("<div")
+        || lower.contains("<p>")
+        || lower.contains("<br");
   }
 
   private String htmlToText(String html) {

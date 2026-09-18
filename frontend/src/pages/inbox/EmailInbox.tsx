@@ -32,6 +32,26 @@ const displayParticipant = (conversation: InboxConversation, ownAddress?: string
 const messageTitle = (message: InboxMessage) =>
   message.subject || message.snippet || (message.direction === 'OUTBOUND' ? 'Sent email' : 'Email')
 
+const readableBody = (value?: string | null) => {
+  if (!value) return ''
+  const trimmed = value.trim()
+  const looksLikeHtml =
+    /^<!doctype html/i.test(trimmed) ||
+    /^<html/i.test(trimmed) ||
+    /<(body|table|div|p|br|head|style)[\s>]/i.test(trimmed)
+
+  if (!looksLikeHtml) return trimmed
+
+  const doc = new DOMParser().parseFromString(trimmed, 'text/html')
+  doc.querySelectorAll('script, style, head').forEach((node) => node.remove())
+  return (doc.body.textContent || '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t\f\r]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 export default function EmailInbox() {
   const companyId = useAppSelector(selectSelectedCompanyId)
   const [connections, setConnections] = useState<ChannelConnection[]>([])
@@ -368,7 +388,9 @@ export default function EmailInbox() {
                           {messageTitle(message)}
                         </p>
                         <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
-                          {message.bodyText || message.snippet || 'No message body available.'}
+                          {readableBody(message.bodyText) ||
+                            message.snippet ||
+                            'No message body available.'}
                         </pre>
 
                         {message.attachments.length > 0 && (
