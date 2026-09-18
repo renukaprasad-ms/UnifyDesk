@@ -17,6 +17,9 @@ public interface ChannelConnectionRepository extends JpaRepository<ChannelConnec
 
   Optional<ChannelConnection> findByIdAndCompanyId(Long id, Long companyId);
 
+  Optional<ChannelConnection> findByCompanyIdAndProviderTypeAndExternalAccountId(
+      Long companyId, ProviderType providerType, String externalAccountId);
+
   long countByCompanyIdAndChannelTypeAndStatusNot(
       Long companyId, ChannelType channelType, ChannelConnectionStatus status);
 
