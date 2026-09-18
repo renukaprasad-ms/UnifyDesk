@@ -36,18 +36,18 @@ public class DefaultPlanAssignmentService {
     Plan plan =
         planRepository
             .findFirstByCodeAndStatusOrderByVersionDesc(DEFAULT_PLAN_CODE, PlanStatus.PUBLISHED)
-            .orElseThrow(() ->
-                new IllegalStateException("Published FREE plan is not configured"));
+            .orElseThrow(() -> new IllegalStateException("Published FREE plan is not configured"));
 
     PlanPrice price =
-        planPriceRepository.findByPlanIdAndStatusOrderByEffectiveFromDesc(
-                plan.getId(), RateCardStatus.ACTIVE)
+        planPriceRepository
+            .findByPlanIdAndStatusOrderByEffectiveFromDesc(plan.getId(), RateCardStatus.ACTIVE)
             .stream()
             .filter(candidate -> candidate.getBillingCycle() == BillingCycle.FREE)
             .filter(candidate -> candidate.getAmount().compareTo(BigDecimal.ZERO) == 0)
             .findFirst()
-            .orElseThrow(() ->
-                new IllegalStateException("Published FREE plan has no active zero-cost price"));
+            .orElseThrow(
+                () ->
+                    new IllegalStateException("Published FREE plan has no active zero-cost price"));
 
     Instant now = Instant.now();
     CompanySubscription subscription = new CompanySubscription();
@@ -66,10 +66,12 @@ public class DefaultPlanAssignmentService {
             .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(companyId, SubscriptionStatus.ACTIVE)
             .isPresent()
         || subscriptionRepository
-            .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(companyId, SubscriptionStatus.TRIALING)
+            .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+                companyId, SubscriptionStatus.TRIALING)
             .isPresent()
         || subscriptionRepository
-            .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(companyId, SubscriptionStatus.PAST_DUE)
+            .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+                companyId, SubscriptionStatus.PAST_DUE)
             .isPresent();
   }
 }

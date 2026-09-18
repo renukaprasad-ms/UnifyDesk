@@ -67,8 +67,7 @@ public class CompanyInvitationService {
   private final CompanyInvitationProperties properties;
 
   @Transactional
-  public CompanyInvitationResponse invite(
-      Long companyId, CreateCompanyInvitationRequest request) {
+  public CompanyInvitationResponse invite(Long companyId, CreateCompanyInvitationRequest request) {
     Long actorId = currentUserService.currentUserId();
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.USER_INVITE);
 
@@ -188,9 +187,7 @@ public class CompanyInvitationService {
 
     Long userId = currentUserService.currentUserId();
     User user =
-        userRepository
-            .findById(userId)
-            .orElseThrow(() -> new NotFoundException("User not found"));
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
 
     if (!user.isVerified()) {
       throw new ForbiddenException("Verify your email before accepting the invitation");
@@ -240,8 +237,7 @@ public class CompanyInvitationService {
                 throw new ConflictException("This user is already a company member");
               }
               if (member.getStatus() == CompanyMemberStatus.SUSPENDED) {
-                throw new ConflictException(
-                    "This user already has a suspended company membership");
+                throw new ConflictException("This user already has a suspended company membership");
               }
             });
   }
@@ -266,8 +262,7 @@ public class CompanyInvitationService {
     return Set.copyOf(roles);
   }
 
-  private void validateExistingRoles(
-      Long actorId, Long companyId, Set<CompanyCustomRole> roles) {
+  private void validateExistingRoles(Long actorId, Long companyId, Set<CompanyCustomRole> roles) {
     if (roles.isEmpty()) return;
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_ASSIGN);
 
@@ -291,16 +286,13 @@ public class CompanyInvitationService {
         invitationRepository.countByCompanyIdAndStatusAndExpiresAtAfter(
             companyId, CompanyInvitationStatus.PENDING, now);
     entitlementService.assertWithinLimit(
-        companyId,
-        "MAX_WORKSPACE_USERS",
-        activeMembers + pendingInvitations);
+        companyId, "MAX_WORKSPACE_USERS", activeMembers + pendingInvitations);
   }
 
   private void assertSeatAvailableForAcceptance(Long companyId) {
     long activeMembers =
         memberRepository.countByCompanyIdAndStatus(companyId, CompanyMemberStatus.ACTIVE);
-    entitlementService.assertWithinLimit(
-        companyId, "MAX_WORKSPACE_USERS", activeMembers);
+    entitlementService.assertWithinLimit(companyId, "MAX_WORKSPACE_USERS", activeMembers);
   }
 
   private void assignInvitationRoles(CompanyInvitation invitation, Long userId) {
@@ -400,8 +392,7 @@ public class CompanyInvitationService {
   private String hashToken(String rawToken) {
     try {
       MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      return HexFormat.of()
-          .formatHex(digest.digest(rawToken.getBytes(StandardCharsets.UTF_8)));
+      return HexFormat.of().formatHex(digest.digest(rawToken.getBytes(StandardCharsets.UTF_8)));
     } catch (NoSuchAlgorithmException exception) {
       throw new IllegalStateException("SHA-256 is unavailable", exception);
     }

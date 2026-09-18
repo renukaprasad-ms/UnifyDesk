@@ -21,7 +21,8 @@ import lombok.Setter;
 @Entity
 @Table(
     name = "usage_events",
-    uniqueConstraints = @UniqueConstraint(name = "uk_usage_events_idempotency", columnNames = "idempotency_key"),
+    uniqueConstraints =
+        @UniqueConstraint(name = "uk_usage_events_idempotency", columnNames = "idempotency_key"),
     indexes = {
       @Index(name = "idx_usage_events_company_time", columnList = "company_id,occurred_at"),
       @Index(name = "idx_usage_events_channel", columnList = "channel")

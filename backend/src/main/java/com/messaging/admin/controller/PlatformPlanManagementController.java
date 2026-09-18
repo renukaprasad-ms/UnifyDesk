@@ -23,7 +23,8 @@ public class PlatformPlanManagementController {
   public ResponseEntity<ApiResponse<Page<PlatformPlanResponse>>> list(
       @RequestParam(defaultValue = "") String search,
       @PageableDefault(size = 20, sort = "name") Pageable pageable) {
-    return ResponseEntity.ok(ApiResponse.success(200, service.list(search, pageable), "Plans fetched"));
+    return ResponseEntity.ok(
+        ApiResponse.success(200, service.list(search, pageable), "Plans fetched"));
   }
 
   @GetMapping("/{id}")

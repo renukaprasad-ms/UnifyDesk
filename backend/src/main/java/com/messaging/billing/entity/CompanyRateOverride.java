@@ -19,10 +19,14 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "company_rate_overrides", indexes = {
-    @Index(name = "idx_company_rate_overrides_company_status", columnList = "company_id,status"),
-    @Index(name = "idx_company_rate_overrides_effective", columnList = "effective_from,effective_to")
-})
+@Table(
+    name = "company_rate_overrides",
+    indexes = {
+      @Index(name = "idx_company_rate_overrides_company_status", columnList = "company_id,status"),
+      @Index(
+          name = "idx_company_rate_overrides_effective",
+          columnList = "effective_from,effective_to")
+    })
 public class CompanyRateOverride {
   @Id private Long id;
 

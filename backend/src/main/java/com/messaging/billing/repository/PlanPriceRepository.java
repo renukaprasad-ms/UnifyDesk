@@ -7,5 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PlanPriceRepository extends JpaRepository<PlanPrice, Long> {
   List<PlanPrice> findByPlanIdAndStatusOrderByEffectiveFromDesc(Long planId, RateCardStatus status);
+
   List<PlanPrice> findByPlanIdOrderByEffectiveFromDesc(Long planId);
 }

@@ -17,9 +17,8 @@ public interface CompanyInvitationRepository extends JpaRepository<CompanyInvita
   Optional<CompanyInvitation> findByIdAndCompanyId(Long id, Long companyId);
 
   @EntityGraph(attributePaths = {"company", "roles"})
-  Optional<CompanyInvitation>
-      findFirstByCompanyIdAndEmailIgnoreCaseAndStatusOrderByCreatedAtDesc(
-          Long companyId, String email, CompanyInvitationStatus status);
+  Optional<CompanyInvitation> findFirstByCompanyIdAndEmailIgnoreCaseAndStatusOrderByCreatedAtDesc(
+      Long companyId, String email, CompanyInvitationStatus status);
 
   @EntityGraph(attributePaths = {"company", "roles"})
   List<CompanyInvitation> findByCompanyIdOrderByCreatedAtDesc(Long companyId);

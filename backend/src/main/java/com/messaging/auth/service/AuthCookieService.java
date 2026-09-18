@@ -21,16 +21,21 @@ public class AuthCookieService {
   private final CookieProperties properties;
 
   public String accessTokenCookie(String token) {
-    return tokenCookie(properties.getAccessName(), token, properties.getAccessMaxAge(), properties.getPath());
+    return tokenCookie(
+        properties.getAccessName(), token, properties.getAccessMaxAge(), properties.getPath());
   }
 
   public String refreshTokenCookie(String token) {
-    return tokenCookie(properties.getRefreshName(), token, properties.getRefreshMaxAge(), properties.getPath());
+    return tokenCookie(
+        properties.getRefreshName(), token, properties.getRefreshMaxAge(), properties.getPath());
   }
 
   public String passwordResetTokenCookie(String token) {
     return tokenCookie(
-        properties.getPasswordResetName(), token, properties.getPasswordResetMaxAge(), PASSWORD_RESET_PATH);
+        properties.getPasswordResetName(),
+        token,
+        properties.getPasswordResetMaxAge(),
+        PASSWORD_RESET_PATH);
   }
 
   public String clearAccessTokenCookie() {

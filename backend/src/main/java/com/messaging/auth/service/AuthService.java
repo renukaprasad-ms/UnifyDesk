@@ -141,13 +141,11 @@ public class AuthService {
         .findByIdentifier(request.identifier())
         .ifPresent(
             user ->
-                authOtpService.issuePasswordResetOtp(
-                    challengeId, user.getEmail(), user.getId()));
+                authOtpService.issuePasswordResetOtp(challengeId, user.getEmail(), user.getId()));
     return new PasswordResetChallengeResponse(challengeId, PASSWORD_RESET_OTP_EXPIRES_SECONDS);
   }
 
-  public void verifyPasswordResetOtp(
-      VerifyPasswordResetOtpRequest request, HttpHeaders headers) {
+  public void verifyPasswordResetOtp(VerifyPasswordResetOtpRequest request, HttpHeaders headers) {
     long userId = authOtpService.verifyPasswordResetOtp(request.challengeId(), request.otp());
     String resetToken = authTokenService.createPasswordResetToken(Long.toString(userId));
     authTokenService.addPasswordResetTokenCookie(headers, resetToken);

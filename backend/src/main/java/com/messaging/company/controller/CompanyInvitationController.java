@@ -21,8 +21,7 @@ public class CompanyInvitationController {
 
   @PostMapping("/companies/{companyId}/invitations")
   public ResponseEntity<ApiResponse<CompanyInvitationResponse>> invite(
-      @PathVariable Long companyId,
-      @Valid @RequestBody CreateCompanyInvitationRequest request) {
+      @PathVariable Long companyId, @Valid @RequestBody CreateCompanyInvitationRequest request) {
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(
             ApiResponse.success(
@@ -63,8 +62,6 @@ public class CompanyInvitationController {
       @PathVariable String token) {
     return ResponseEntity.ok(
         ApiResponse.success(
-            HttpStatus.OK.value(),
-            invitationService.accept(token),
-            "Invitation accepted"));
+            HttpStatus.OK.value(), invitationService.accept(token), "Invitation accepted"));
   }
 }
