@@ -1,0 +1,39 @@
+name: Temporary Profile UI Formatter
+
+on:
+  push:
+    branches:
+      - feat/company-user-profile-pages
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: feat/company-user-profile-pages
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - name: Format touched frontend files
+        run: npx prettier --write src/features/company/types.ts src/features/user/types.ts src/pages/company/CompanyDetails.tsx
+        working-directory: frontend
+      - name: Commit formatting
+        run: |
+          if git diff --quiet; then
+            echo "No formatting changes needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend
+          git commit -m "style: format profile pages"
+          git push origin HEAD:feat/company-user-profile-pages
