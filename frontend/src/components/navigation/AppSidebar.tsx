@@ -14,6 +14,7 @@ import {
   FiSettings,
   FiShield,
   FiSmartphone,
+  FiKey,
   FiUser,
   FiUsers,
 } from 'react-icons/fi'
@@ -84,6 +85,12 @@ const companyLinks: WorkspaceLink[] = [
     permission: PERMISSIONS.BILLING_READ,
   },
   { label: 'Users', to: '/company/users', icon: <FiUsers />, permission: PERMISSIONS.USER_READ },
+  {
+    label: 'Roles & permissions',
+    to: '/company/roles',
+    icon: <FiKey />,
+    permission: PERMISSIONS.ROLE_READ,
+  },
 ]
 
 export default function AppSidebar({
