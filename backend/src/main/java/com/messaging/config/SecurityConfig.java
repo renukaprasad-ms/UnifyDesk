@@ -41,7 +41,8 @@ public class SecurityConfig {
                         "/api/auth/login",
                         "/api/auth/2fa/verify",
                         "/api/auth/refresh",
-                        "/api/v1/media/uploads"))
+                        "/api/v1/media/uploads",
+                        "/api/v1/webhooks/meta/whatsapp"))
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
@@ -55,7 +56,8 @@ public class SecurityConfig {
                         "/api/auth/refresh",
                         "/api/auth/password-reset/request",
                         "/api/auth/password-reset/verify",
-                        "/api/auth/password-reset/complete")
+                        "/api/auth/password-reset/complete",
+                        "/api/v1/webhooks/meta/whatsapp")
                     .permitAll()
                     .anyRequest()
                     .authenticated())
