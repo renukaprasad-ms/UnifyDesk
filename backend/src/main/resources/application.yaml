@@ -135,6 +135,9 @@ app:
     async: ${APP_NOTIFICATION_ASYNC:true}
     email:
       from: ${SMTP_FROM:${SMTP_USERNAME:}}
+  invitation:
+    frontend-base-url: ${APP_FRONTEND_BASE_URL:https://messaging.renukaprasad.in}
+    expiry: ${APP_INVITATION_EXPIRY:72h}
   media:
     cleanup:
       initial-delay: ${MEDIA_PENDING_CLEANUP_INITIAL_DELAY:1m}
