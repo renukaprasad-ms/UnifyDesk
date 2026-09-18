@@ -60,7 +60,6 @@ export type MetaWhatsAppConnection = {
   }
 }
 
-
 export type GmailAuthorization = {
   authorizationUrl: string
 }

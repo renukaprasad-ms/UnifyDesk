@@ -327,8 +327,8 @@ export default function CompanyConnections() {
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="text-sm font-bold text-slate-950">Gmail accounts</h2>
             <p className="mt-1 text-xs text-slate-500">
-              Gmail OAuth credentials are encrypted on the backend. The connected address becomes
-              an email sender identity for this workspace.
+              Gmail OAuth credentials are encrypted on the backend. The connected address becomes an
+              email sender identity for this workspace.
             </p>
           </div>
 
