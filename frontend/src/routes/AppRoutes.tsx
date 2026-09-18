@@ -12,6 +12,7 @@ import VerifyOtp from '../pages/auth/VerifyOtp'
 import CompanyPlan from '../pages/company/CompanyPlan'
 import CompanyUsers from '../pages/company/CompanyUsers'
 import Home from '../pages/home/Home'
+import InviteAccept from '../pages/invitations/InviteAccept'
 import PlaceholderPage from '../pages/placeholder/PlaceholderPage'
 import PlatformAdmins from '../pages/platform/PlatformAdmins'
 import PlatformBilling from '../pages/platform/PlatformBilling'
@@ -34,6 +35,7 @@ import WorkspaceRoute from './guards/WorkspaceRoute'
 const AppRoutes = () => (
   <Routes>
     <Route element={<AuthLayout />}>
+      <Route path="/invite/:token" element={<InviteAccept />} />
       <Route element={<GuestRoute />}>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
