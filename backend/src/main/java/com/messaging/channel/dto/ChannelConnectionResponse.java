@@ -6,14 +6,14 @@ import com.messaging.channel.enums.ProviderType;
 import java.time.Instant;
 
 public record ChannelConnectionResponse(
-    Long id,
-    Long companyId,
+    String id,
+    String companyId,
     ChannelType channelType,
     ProviderType providerType,
     String name,
     String externalAccountId,
     ChannelConnectionStatus status,
-    Long createdByUserId,
+    String createdByUserId,
     Instant lastSyncAt,
     Instant createdAt,
     Instant updatedAt,
