@@ -12,6 +12,7 @@ import com.messaging.company.enums.CompanyMemberStatus;
 import com.messaging.company.enums.CompanyRole;
 import com.messaging.company.enums.CompanyStatus;
 import com.messaging.company.repository.CompanyMemberRepository;
+import com.messaging.company.repository.CompanyMemberRoleAssignmentRepository;
 import com.messaging.company.repository.CompanyRepository;
 import com.messaging.media.entity.Media;
 import com.messaging.media.enums.MediaPurpose;
@@ -32,6 +33,7 @@ public class CompanyService {
 
   private final CompanyRepository companyRepository;
   private final CompanyMemberRepository memberRepository;
+  private final CompanyMemberRoleAssignmentRepository roleAssignmentRepository;
   private final UserRepository userRepository;
   private final CurrentUserService currentUserService;
   private final MediaService mediaService;
@@ -122,7 +124,13 @@ public class CompanyService {
         user.isTwoFactorEnabled(),
         member.getRole(),
         member.getStatus(),
-        member.getCreatedAt());
+        member.getCreatedAt(),
+        roleAssignmentRepository
+            .findActive(member.getCompany().getId(), user.getId(), java.time.Instant.now())
+            .stream()
+            .map(assignment -> assignment.getRole().getName())
+            .sorted()
+            .toList());
   }
 
   private Long resolveLogoMediaId(String logoMediaId, long userId) {
