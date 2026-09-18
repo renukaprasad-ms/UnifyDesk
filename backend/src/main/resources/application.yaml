@@ -134,10 +134,13 @@ app:
       enabled: ${GMAIL_OAUTH_ENABLED:false}
       client-id: ${GMAIL_OAUTH_CLIENT_ID:}
       client-secret: ${GMAIL_OAUTH_CLIENT_SECRET:}
-      redirect-uri: ${GMAIL_OAUTH_REDIRECT_URI:https://api.messaging.renukaprasad.in/api/v1/oauth/gmail/callback}
+      redirect-uri: ${GMAIL_OAUTH_REDIRECT_URI:https://messaging.renukaprasad.in/api/v1/oauth/gmail/callback}
       frontend-base-url: ${APP_FRONTEND_BASE_URL:https://messaging.renukaprasad.in}
       scope: ${GMAIL_OAUTH_SCOPE:https://www.googleapis.com/auth/gmail.modify}
       oauth-state-ttl: ${GMAIL_OAUTH_STATE_TTL:10m}
+      token-refresh-skew: ${GMAIL_OAUTH_TOKEN_REFRESH_SKEW:2m}
+      initial-sync-days: ${GMAIL_INITIAL_SYNC_DAYS:30}
+      initial-sync-max-messages: ${GMAIL_INITIAL_SYNC_MAX_MESSAGES:50}
   redis:
     key-prefix: ${REDIS_KEY_PREFIX:messaging}
     ttl:
