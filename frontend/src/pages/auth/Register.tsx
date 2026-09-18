@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { useEffect, useRef, useState } from 'react'
 import { FiImage, FiUploadCloud, FiX } from 'react-icons/fi'
 import { authApi } from '../../features/auth/authApi'
@@ -11,6 +11,8 @@ import { useAppDispatch } from '../../store/hooks'
 const Register = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
+  const redirectTo = (location.state as { redirectTo?: string } | null)?.redirectTo
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
@@ -109,7 +111,10 @@ const Register = () => {
         profilePictureUploadToken: profileUpload?.uploadToken ?? undefined,
       })
       dispatch(setAuthUser(user))
-      navigate('/verifyotp', { replace: true, state: { email: user.email } })
+      navigate('/verifyotp', {
+        replace: true,
+        state: { email: user.email, redirectTo },
+      })
     } catch (submitError) {
       setError(apiErrorMessage(submitError, 'Unable to register'))
     } finally {
@@ -142,7 +147,13 @@ const Register = () => {
         {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
         <button type="submit" className="primary-button flex w-full" disabled={submitting}>{submitting ? 'Creating account...' : 'Register'}</button>
       </form>
-      <p className="mt-5 text-center text-sm text-slate-500">Already registered? <Link className="font-semibold text-indigo-500" to="/login">Login</Link></p>
+      <p className="mt-5 text-center text-sm text-slate-500">Already registered? <Link
+          className="font-semibold text-indigo-500"
+          to="/login"
+          state={redirectTo ? { redirectTo } : undefined}
+        >
+          Login
+        </Link></p>
     </div>
   )
 }
