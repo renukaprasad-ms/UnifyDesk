@@ -51,8 +51,10 @@ export default function EmailInbox() {
 
   const ownAddress = useMemo(() => {
     if (!selectedConversation) return undefined
-    return connections.find((connection) => connection.id === selectedConversation.connectionId)
-      ?.externalAccountId
+    return (
+      connections.find((connection) => connection.id === selectedConversation.connectionId)
+        ?.externalAccountId ?? undefined
+    )
   }, [connections, selectedConversation])
 
   const loadConversations = useCallback(async () => {
