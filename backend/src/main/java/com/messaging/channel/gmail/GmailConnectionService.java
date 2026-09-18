@@ -3,15 +3,16 @@ package com.messaging.channel.gmail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.channel.credential.ProviderCredentialService;
 import com.messaging.channel.dto.ChannelConnectionResponse;
+import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.CredentialType;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.gmail.GmailApiClient.GmailProfile;
 import com.messaging.channel.gmail.GmailApiClient.TokenResponse;
 import com.messaging.channel.gmail.GmailOAuthStateService.OAuthState;
-import com.messaging.channel.gmail.GmailPersistenceService.StoredGmailToken;
 import com.messaging.channel.gmail.dto.GmailAuthorizationResponse;
 import com.messaging.channel.gmail.dto.GmailConnectionResponse;
+import com.messaging.channel.gmail.dto.GmailSyncQueuedResponse;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.channel.service.ChannelConnectionService;
 import com.messaging.channel.service.ChannelEntitlementService;
@@ -19,8 +20,10 @@ import com.messaging.common.exception.BadRequestException;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GmailConnectionService {
@@ -29,6 +32,7 @@ public class GmailConnectionService {
   private final GmailOAuthStateService stateService;
   private final GmailApiClient gmailApiClient;
   private final GmailPersistenceService persistenceService;
+  private final GmailSyncQueueService syncQueueService;
   private final ChannelConnectionRepository connectionRepository;
   private final ChannelEntitlementService entitlementService;
   private final CompanyAuthorizationService authorizationService;
@@ -77,11 +81,37 @@ public class GmailConnectionService {
       entitlementService.assertCanCreateConnection(oauthState.companyId(), ChannelType.EMAIL);
     }
 
-    return persistenceService.persist(oauthState.companyId(), oauthState.userId(), profile, token);
+    GmailConnectionResponse response =
+        persistenceService.persist(oauthState.companyId(), oauthState.userId(), profile, token);
+
+    try {
+      syncQueueService.enqueue(
+          oauthState.companyId(), oauthState.userId(), Long.valueOf(response.connectionId()), true);
+    } catch (RuntimeException exception) {
+      log.warn(
+          "Gmail connected but initial sync could not be queued companyId={} connectionId={}",
+          oauthState.companyId(),
+          response.connectionId());
+    }
+
+    return response;
   }
 
   public void consumeCancelledState(String state) {
     stateService.consume(state);
+  }
+
+  public GmailSyncQueuedResponse queueSync(Long companyId, Long userId, Long connectionId) {
+    ChannelConnectionResponse connection = channelConnectionService.get(companyId, connectionId);
+    if (connection.providerType() != ProviderType.GMAIL) {
+      throw new BadRequestException("Channel connection is not a Gmail account");
+    }
+    if (connection.status() != ChannelConnectionStatus.ACTIVE) {
+      throw new BadRequestException("Gmail connection is not active");
+    }
+
+    syncQueueService.enqueue(companyId, userId, connectionId, false);
+    return new GmailSyncQueuedResponse(connectionId.toString(), "QUEUED");
   }
 
   public ChannelConnectionResponse disconnect(Long companyId, Long connectionId) {
@@ -92,13 +122,17 @@ public class GmailConnectionService {
 
     try {
       String raw = credentialService.read(connectionId, CredentialType.OAUTH_TOKEN_SET);
-      StoredGmailToken stored = objectMapper.readValue(raw, StoredGmailToken.class);
+      GmailStoredToken stored = objectMapper.readValue(raw, GmailStoredToken.class);
       String token =
           stored.refreshToken() == null || stored.refreshToken().isBlank()
               ? stored.accessToken()
               : stored.refreshToken();
       gmailApiClient.revokeBestEffort(token);
-    } catch (Exception ignored) {
+    } catch (Exception exception) {
+      log.warn(
+          "Unable to revoke Gmail token during disconnect connectionId={} reason={}",
+          connectionId,
+          exception.getClass().getSimpleName());
       // Local disconnect must still succeed if the Google grant is already missing or invalid.
     }
 

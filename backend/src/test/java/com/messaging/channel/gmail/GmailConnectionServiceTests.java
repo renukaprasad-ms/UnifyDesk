@@ -40,6 +40,7 @@ class GmailConnectionServiceTests {
   @Mock private GmailOAuthStateService stateService;
   @Mock private GmailApiClient gmailApiClient;
   @Mock private GmailPersistenceService persistenceService;
+  @Mock private GmailSyncQueueService syncQueueService;
   @Mock private ChannelConnectionRepository connectionRepository;
   @Mock private ChannelEntitlementService entitlementService;
   @Mock private CompanyAuthorizationService authorizationService;
@@ -63,6 +64,7 @@ class GmailConnectionServiceTests {
             stateService,
             gmailApiClient,
             persistenceService,
+            syncQueueService,
             connectionRepository,
             entitlementService,
             authorizationService,
@@ -97,7 +99,7 @@ class GmailConnectionServiceTests {
     GmailProfile profile = new GmailProfile("owner@example.com", 120L, 40L, "history-1");
     GmailConnectionResponse expected =
         new GmailConnectionResponse(
-            "connection-1",
+            "303",
             "owner@example.com",
             ChannelConnectionStatus.ACTIVE,
             new GmailConnectionResponse.Sender(
@@ -118,6 +120,7 @@ class GmailConnectionServiceTests {
         .requirePermission(USER_ID, COMPANY_ID, CompanyPermissionKeys.EMAIL_CONNECT);
     verify(entitlementService).assertCanCreateConnection(COMPANY_ID, ChannelType.EMAIL);
     verify(persistenceService).persist(COMPANY_ID, USER_ID, profile, token);
+    verify(syncQueueService).enqueue(COMPANY_ID, USER_ID, 303L, true);
   }
 
   @Test

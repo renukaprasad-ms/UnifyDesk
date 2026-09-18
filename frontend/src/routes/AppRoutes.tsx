@@ -17,6 +17,7 @@ import CompanyRoles from '../pages/company/CompanyRoles'
 import CompanyUsers from '../pages/company/CompanyUsers'
 import Home from '../pages/home/Home'
 import InviteAccept from '../pages/invitations/InviteAccept'
+import EmailInbox from '../pages/inbox/EmailInbox'
 import PlaceholderPage from '../pages/placeholder/PlaceholderPage'
 import PlatformAdmins from '../pages/platform/PlatformAdmins'
 import PlatformBilling from '../pages/platform/PlatformBilling'
@@ -69,7 +70,7 @@ const AppRoutes = () => (
               <Route path="inbox/sms" element={<PlaceholderPage />} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.EMAIL_READ]} />}>
-              <Route path="inbox/email" element={<PlaceholderPage />} />
+              <Route path="inbox/email" element={<EmailInbox />} />
             </Route>
 
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.BROADCAST_READ]} />}>

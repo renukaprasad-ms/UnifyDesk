@@ -1,0 +1,112 @@
+package com.messaging.inbox.service;
+
+import com.messaging.common.exception.NotFoundException;
+import com.messaging.inbox.dto.InboxAttachmentResponse;
+import com.messaging.inbox.dto.InboxConversationResponse;
+import com.messaging.inbox.dto.InboxMessageResponse;
+import com.messaging.inbox.dto.InboxPageResponse;
+import com.messaging.inbox.dto.InboxParticipantResponse;
+import com.messaging.inbox.entity.InboxConversation;
+import com.messaging.inbox.entity.InboxMessage;
+import com.messaging.inbox.repository.InboxConversationRepository;
+import com.messaging.inbox.repository.InboxMessageAttachmentRepository;
+import com.messaging.inbox.repository.InboxMessageRepository;
+import com.messaging.inbox.repository.InboxParticipantRepository;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+public class InboxQueryService {
+
+  private final InboxConversationRepository conversationRepository;
+  private final InboxParticipantRepository participantRepository;
+  private final InboxMessageRepository messageRepository;
+  private final InboxMessageAttachmentRepository attachmentRepository;
+
+  @Transactional(readOnly = true)
+  public InboxPageResponse<InboxConversationResponse> listConversations(
+      Long companyId, int page, int size) {
+    Page<InboxConversation> result =
+        conversationRepository.findByCompanyIdOrderByLastMessageAtDescCreatedAtDesc(
+            companyId, PageRequest.of(page, size));
+
+    List<InboxConversationResponse> items =
+        result.getContent().stream().map(this::conversation).toList();
+
+    return new InboxPageResponse<>(
+        items,
+        result.getNumber(),
+        result.getSize(),
+        result.getTotalElements(),
+        result.getTotalPages());
+  }
+
+  @Transactional(readOnly = true)
+  public List<InboxMessageResponse> listMessages(Long companyId, Long conversationId) {
+    InboxConversation conversation =
+        conversationRepository
+            .findByIdAndCompanyId(conversationId, companyId)
+            .orElseThrow(() -> new NotFoundException("Inbox conversation not found"));
+
+    return messageRepository
+        .findByConversationIdOrderBySentAtAscCreatedAtAsc(conversation.getId())
+        .stream()
+        .map(this::message)
+        .toList();
+  }
+
+  private InboxConversationResponse conversation(InboxConversation conversation) {
+    List<InboxParticipantResponse> participants =
+        participantRepository.findByConversationIdOrderByAddressAsc(conversation.getId()).stream()
+            .map(
+                participant ->
+                    new InboxParticipantResponse(
+                        participant.getAddress(),
+                        participant.getDisplayName(),
+                        participant.getParticipantType()))
+            .toList();
+
+    return new InboxConversationResponse(
+        conversation.getId().toString(),
+        conversation.getConnection().getId().toString(),
+        conversation.getProviderType(),
+        conversation.getSubject(),
+        conversation.getLastMessagePreview(),
+        conversation.getLastMessageAt(),
+        conversation.getUnreadCount(),
+        conversation.getStatus(),
+        participants);
+  }
+
+  private InboxMessageResponse message(InboxMessage message) {
+    List<InboxAttachmentResponse> attachments =
+        attachmentRepository.findByMessageIdOrderByFilenameAsc(message.getId()).stream()
+            .map(
+                attachment ->
+                    new InboxAttachmentResponse(
+                        attachment.getId().toString(),
+                        attachment.getExternalAttachmentId(),
+                        attachment.getFilename(),
+                        attachment.getMimeType(),
+                        attachment.getSizeBytes()))
+            .toList();
+
+    return new InboxMessageResponse(
+        message.getId().toString(),
+        message.getExternalMessageId(),
+        message.getInternetMessageId(),
+        message.getDirection(),
+        message.getStatus(),
+        message.getSubject(),
+        message.getSnippet(),
+        message.getBodyText(),
+        message.getSentAt(),
+        message.isRead(),
+        attachments);
+  }
+}

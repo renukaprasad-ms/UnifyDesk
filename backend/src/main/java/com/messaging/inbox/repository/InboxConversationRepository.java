@@ -1,0 +1,18 @@
+package com.messaging.inbox.repository;
+
+import com.messaging.inbox.entity.InboxConversation;
+import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface InboxConversationRepository extends JpaRepository<InboxConversation, Long> {
+
+  Optional<InboxConversation> findByConnectionIdAndExternalConversationId(
+      Long connectionId, String externalConversationId);
+
+  Optional<InboxConversation> findByIdAndCompanyId(Long id, Long companyId);
+
+  Page<InboxConversation> findByCompanyIdOrderByLastMessageAtDescCreatedAtDesc(
+      Long companyId, Pageable pageable);
+}

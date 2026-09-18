@@ -21,6 +21,9 @@ public class GmailOAuthProperties {
   private String frontendBaseUrl = "https://messaging.renukaprasad.in";
   private String scope = DEFAULT_SCOPE;
   private Duration oauthStateTtl = Duration.ofMinutes(10);
+  private Duration tokenRefreshSkew = Duration.ofMinutes(2);
+  private int initialSyncDays = 30;
+  private int initialSyncMaxMessages = 50;
 
   public boolean configured() {
     return enabled
