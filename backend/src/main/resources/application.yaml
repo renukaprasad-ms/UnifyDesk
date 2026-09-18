@@ -140,7 +140,7 @@ app:
       oauth-state-ttl: ${GMAIL_OAUTH_STATE_TTL:10m}
       token-refresh-skew: ${GMAIL_OAUTH_TOKEN_REFRESH_SKEW:2m}
       initial-sync-days: ${GMAIL_INITIAL_SYNC_DAYS:30}
-      initial-sync-max-messages: ${GMAIL_INITIAL_SYNC_MAX_MESSAGES:50}
+      initial-sync-max-messages: ${GMAIL_INITIAL_SYNC_MAX_MESSAGES:200}
   redis:
     key-prefix: ${REDIS_KEY_PREFIX:messaging}
     ttl:

@@ -101,13 +101,17 @@ public class GmailApiClient {
                 .body(GmailProfile.class));
   }
 
-  public MessageListResponse listMessages(String accessToken, int maxResults, String query) {
+  public MessageListResponse listMessages(
+      String accessToken, int maxResults, String query, String pageToken) {
     UriComponentsBuilder builder =
         UriComponentsBuilder.fromPath("/gmail/v1/users/me/messages")
             .queryParam("maxResults", maxResults);
 
     if (query != null && !query.isBlank()) {
       builder.queryParam("q", query);
+    }
+    if (pageToken != null && !pageToken.isBlank()) {
+      builder.queryParam("pageToken", pageToken);
     }
 
     String uri = builder.build().encode().toUriString();

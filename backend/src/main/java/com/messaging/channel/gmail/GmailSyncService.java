@@ -40,13 +40,24 @@ public class GmailSyncService {
     }
 
     String accessToken = tokenService.accessToken(connection);
-    int maxMessages = Math.min(Math.max(properties.getInitialSyncMaxMessages(), 1), 100);
+    int maxMessages = Math.min(Math.max(properties.getInitialSyncMaxMessages(), 1), 500);
     int days = Math.max(properties.getInitialSyncDays(), 1);
     String query = "newer_than:" + days + "d";
 
-    MessageListResponse listResponse = gmailApiClient.listMessages(accessToken, maxMessages, query);
-    List<MessageReference> references =
-        listResponse.messages() == null ? List.of() : listResponse.messages();
+    List<MessageReference> references = new ArrayList<>(maxMessages);
+    String pageToken = null;
+
+    do {
+      int remaining = maxMessages - references.size();
+      MessageListResponse listResponse =
+          gmailApiClient.listMessages(accessToken, Math.min(remaining, 100), query, pageToken);
+
+      if (listResponse.messages() != null) {
+        references.addAll(listResponse.messages());
+      }
+
+      pageToken = listResponse.nextPageToken();
+    } while (references.size() < maxMessages && pageToken != null && !pageToken.isBlank());
 
     List<GmailMessage> messages = new ArrayList<>(references.size());
     for (MessageReference reference : references) {
