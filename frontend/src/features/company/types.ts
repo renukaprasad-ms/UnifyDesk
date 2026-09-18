@@ -25,6 +25,36 @@ export type CompanyUser = {
   role: CompanyRole
   status: 'ACTIVE' | 'INVITED' | 'SUSPENDED' | 'LEFT'
   joinedAt: string
+  customRoles: string[]
+}
+
+export type CompanyInvitationStatus = 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED'
+
+export type CompanyInvitationRole = {
+  roleId: string
+  name: string
+}
+
+export type CompanyInvitation = {
+  invitationId: string
+  companyId: string
+  companyName: string
+  email: string
+  status: CompanyInvitationStatus
+  roles: CompanyInvitationRole[]
+  expiresAt: string
+  createdAt: string
+}
+
+export type CreateCompanyInvitationPayload = {
+  email: string
+  roleIds: string[]
+}
+
+export type AcceptCompanyInvitationResponse = {
+  companyId: string
+  companyName: string
+  memberId: string
 }
 
 export type CreateCompanyPayload = {
