@@ -232,7 +232,7 @@ public class CompanyInvitationService {
 
   private void rejectExistingMember(Long companyId, String email) {
     userRepository
-        .findByEmail(email)
+        .findByEmailIgnoreCase(email)
         .flatMap(user -> memberRepository.findByCompanyIdAndUserId(companyId, user.getId()))
         .ifPresent(
             member -> {
