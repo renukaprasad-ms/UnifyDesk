@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   FiClock,
+  FiKey,
   FiMail,
   FiRefreshCw,
   FiSend,
@@ -13,7 +14,7 @@ import { companyApi } from '../../features/company/companyApi'
 import type { CompanyInvitation, CompanyUser } from '../../features/company/types'
 import { iamApi } from '../../features/iam/iamApi'
 import { PERMISSIONS } from '../../features/iam/permissions'
-import type { CompanyRole } from '../../features/iam/types'
+import type { CompanyRole, MemberRoleAssignment } from '../../features/iam/types'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
@@ -44,6 +45,9 @@ export default function CompanyUsers() {
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
   const [submittingInvite, setSubmittingInvite] = useState(false)
   const [workingInvitationId, setWorkingInvitationId] = useState<string | null>(null)
+  const [managingUser, setManagingUser] = useState<CompanyUser | null>(null)
+  const [memberAssignments, setMemberAssignments] = useState<MemberRoleAssignment[]>([])
+  const [roleActionId, setRoleActionId] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   const sortedUsers = useMemo(
@@ -138,6 +142,48 @@ export default function CompanyUsers() {
     }
   }
 
+  const openRoleManager = async (user: CompanyUser) => {
+    if (!selectedCompany || user.role === 'OWNER') return
+    setManagingUser(user)
+    setError('')
+    try {
+      setMemberAssignments(await iamApi.memberRoles(selectedCompany.companyId, user.userId))
+    } catch (roleError) {
+      setError(apiErrorMessage(roleError, 'Unable to load member roles'))
+    }
+  }
+
+  const activeRoleIds = new Set(
+    memberAssignments
+      .filter(
+        (assignment) =>
+          !assignment.revokedAt &&
+          (!assignment.expiresAt || new Date(assignment.expiresAt).getTime() > Date.now()),
+      )
+      .map((assignment) => assignment.roleId),
+  )
+
+  const toggleMemberRole = async (role: CompanyRole) => {
+    if (!selectedCompany || !managingUser) return
+    setRoleActionId(role.id)
+    setError('')
+    try {
+      if (activeRoleIds.has(role.id)) {
+        await iamApi.revokeRole(selectedCompany.companyId, managingUser.userId, role.id)
+      } else {
+        await iamApi.assignRole(selectedCompany.companyId, managingUser.userId, role.id)
+      }
+      setMemberAssignments(
+        await iamApi.memberRoles(selectedCompany.companyId, managingUser.userId),
+      )
+      await loadUsers()
+    } catch (roleError) {
+      setError(apiErrorMessage(roleError, 'Unable to update member role'))
+    } finally {
+      setRoleActionId(null)
+    }
+  }
+
   const toggleRole = (roleId: string) => {
     setSelectedRoleIds((current) =>
       current.includes(roleId) ? current.filter((id) => id !== roleId) : [...current, roleId],
@@ -209,18 +255,19 @@ export default function CompanyUsers() {
                   <th className="px-4 py-3">Access</th>
                   <th className="px-4 py-3">Security</th>
                   <th className="px-4 py-3">Joined</th>
+                  {can(PERMISSIONS.ROLE_ASSIGN) && <th className="px-4 py-3">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
                 {loading ? (
                   <tr>
-                    <td className="px-4 py-8 text-center text-slate-500" colSpan={4}>
+                    <td className="px-4 py-8 text-center text-slate-500" colSpan={can(PERMISSIONS.ROLE_ASSIGN) ? 5 : 4}>
                       Loading users…
                     </td>
                   </tr>
                 ) : sortedUsers.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-8 text-center text-slate-500" colSpan={4}>
+                    <td className="px-4 py-8 text-center text-slate-500" colSpan={can(PERMISSIONS.ROLE_ASSIGN) ? 5 : 4}>
                       No users found
                     </td>
                   </tr>
@@ -284,6 +331,22 @@ export default function CompanyUsers() {
                       <td className="px-4 py-3 text-slate-500">
                         {new Date(user.joinedAt).toLocaleDateString()}
                       </td>
+                      {can(PERMISSIONS.ROLE_ASSIGN) && (
+                        <td className="px-4 py-3">
+                          {user.role === 'OWNER' ? (
+                            <span className="text-xs font-medium text-slate-400">Full access</span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="secondary-button inline-flex items-center gap-2"
+                              onClick={() => void openRoleManager(user)}
+                            >
+                              <FiKey aria-hidden="true" />
+                              Manage roles
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -374,6 +437,90 @@ export default function CompanyUsers() {
           )}
         </div>
       </div>
+
+      {managingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <p className="eyebrow">Member access</p>
+                <h2 className="mt-1 text-lg font-bold text-slate-950">
+                  Manage roles for {managingUser.name}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">{managingUser.email}</p>
+              </div>
+              <button
+                type="button"
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+                onClick={() => {
+                  setManagingUser(null)
+                  setMemberAssignments([])
+                }}
+                disabled={Boolean(roleActionId)}
+              >
+                <FiX aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="max-h-[65vh] overflow-y-auto p-5">
+              {roles.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center">
+                  <p className="text-sm font-semibold text-slate-800">No custom roles</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Create roles from Company → Roles & permissions first.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {roles.map((role) => {
+                    const assigned = activeRoleIds.has(role.id)
+                    return (
+                      <label
+                        key={role.id}
+                        className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 hover:border-indigo-200 hover:bg-indigo-50/30"
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={assigned}
+                          disabled={roleActionId === role.id}
+                          onChange={() => void toggleMemberRole(role)}
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold text-slate-900">
+                            {role.name}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-slate-500">
+                            {role.description || `${role.permissions.length} permissions`}
+                          </span>
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+
+              {error && (
+                <p className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>
+              )}
+            </div>
+
+            <div className="flex justify-end border-t border-slate-100 px-5 py-4">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setManagingUser(null)
+                  setMemberAssignments([])
+                }}
+                disabled={Boolean(roleActionId)}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showInvite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
