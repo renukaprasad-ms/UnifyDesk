@@ -178,14 +178,11 @@ public class GmailInboxPersistenceService {
             continue;
           }
 
-          String normalizedAddress =
-              internetAddress.getAddress().trim().toLowerCase(Locale.ROOT);
+          String normalizedAddress = internetAddress.getAddress().trim().toLowerCase(Locale.ROOT);
           InboxParticipant participant =
               participantRepository
                   .findByConversationIdAndParticipantTypeAndAddressIgnoreCase(
-                      conversation.getId(),
-                      InboxParticipantType.EMAIL_ADDRESS,
-                      normalizedAddress)
+                      conversation.getId(), InboxParticipantType.EMAIL_ADDRESS, normalizedAddress)
                   .orElseGet(InboxParticipant::new);
 
           if (participant.getId() == null) {

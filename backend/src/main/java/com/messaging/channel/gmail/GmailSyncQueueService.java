@@ -19,13 +19,7 @@ public class GmailSyncQueueService {
   public void enqueue(Long companyId, Long userId, Long connectionId, boolean initialSync) {
     EventMetadata metadata =
         EventMetadata.create(
-            EVENT_TYPE,
-            "1",
-            companyId,
-            userId,
-            null,
-            null,
-            MessagePriority.MEDIUM);
+            EVENT_TYPE, "1", companyId, userId, null, null, MessagePriority.MEDIUM);
 
     eventPublisher.publish(
         KafkaEvent.of(metadata, new GmailSyncRequestedEvent(connectionId, initialSync)));

@@ -86,10 +86,7 @@ public class GmailConnectionService {
 
     try {
       syncQueueService.enqueue(
-          oauthState.companyId(),
-          oauthState.userId(),
-          Long.valueOf(response.connectionId()),
-          true);
+          oauthState.companyId(), oauthState.userId(), Long.valueOf(response.connectionId()), true);
     } catch (RuntimeException exception) {
       log.warn(
           "Gmail connected but initial sync could not be queued companyId={} connectionId={}",

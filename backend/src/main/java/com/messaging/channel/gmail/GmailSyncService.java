@@ -44,8 +44,7 @@ public class GmailSyncService {
     int days = Math.max(properties.getInitialSyncDays(), 1);
     String query = "newer_than:" + days + "d";
 
-    MessageListResponse listResponse =
-        gmailApiClient.listMessages(accessToken, maxMessages, query);
+    MessageListResponse listResponse = gmailApiClient.listMessages(accessToken, maxMessages, query);
     List<MessageReference> references =
         listResponse.messages() == null ? List.of() : listResponse.messages();
 

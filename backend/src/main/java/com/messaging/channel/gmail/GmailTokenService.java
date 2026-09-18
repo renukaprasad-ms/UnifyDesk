@@ -55,17 +55,10 @@ public class GmailTokenService {
 
     GmailStoredToken updated =
         new GmailStoredToken(
-            refreshed.accessToken(),
-            refreshToken,
-            tokenType,
-            scope,
-            stored.emailAddress());
+            refreshed.accessToken(), refreshToken, tokenType, scope, stored.emailAddress());
 
     credentialService.upsert(
-        connection,
-        CredentialType.OAUTH_TOKEN_SET,
-        write(updated),
-        newExpiresAt);
+        connection, CredentialType.OAUTH_TOKEN_SET, write(updated), newExpiresAt);
 
     return updated.accessToken();
   }

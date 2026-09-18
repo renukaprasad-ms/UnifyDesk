@@ -16,9 +16,10 @@ import lombok.Setter;
 @Entity
 @Table(
     name = "inbox_messages",
-    uniqueConstraints = @UniqueConstraint(
-        name = "uk_inbox_message_external",
-        columnNames = {"connection_id", "external_message_id"}),
+    uniqueConstraints =
+        @UniqueConstraint(
+            name = "uk_inbox_message_external",
+            columnNames = {"connection_id", "external_message_id"}),
     indexes = {
       @Index(name = "idx_inbox_messages_conversation_sent", columnList = "conversation_id,sent_at"),
       @Index(name = "idx_inbox_messages_connection", columnList = "connection_id"),
@@ -26,24 +27,52 @@ import lombok.Setter;
     })
 public class InboxMessage {
   @Id private Long id;
+
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "conversation_id", nullable = false) private InboxConversation conversation;
+  @JoinColumn(name = "conversation_id", nullable = false)
+  private InboxConversation conversation;
+
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "connection_id", nullable = false) private ChannelConnection connection;
-  @Column(name = "external_message_id", nullable = false, length = 255) private String externalMessageId;
-  @Column(name = "internet_message_id", length = 998) private String internetMessageId;
-  @Column(name = "provider_history_id", length = 255) private String providerHistoryId;
+  @JoinColumn(name = "connection_id", nullable = false)
+  private ChannelConnection connection;
+
+  @Column(name = "external_message_id", nullable = false, length = 255)
+  private String externalMessageId;
+
+  @Column(name = "internet_message_id", length = 998)
+  private String internetMessageId;
+
+  @Column(name = "provider_history_id", length = 255)
+  private String providerHistoryId;
+
   @Enumerated(EnumType.STRING)
-  @Column(nullable = false, length = 24) private InboxMessageDirection direction;
+  @Column(nullable = false, length = 24)
+  private InboxMessageDirection direction;
+
   @Enumerated(EnumType.STRING)
-  @Column(nullable = false, length = 24) private InboxMessageStatus status;
-  @Column(length = 998) private String subject;
-  @Column(columnDefinition = "TEXT") private String snippet;
-  @Column(name = "body_text", columnDefinition = "TEXT") private String bodyText;
-  @Column(name = "sent_at") private Instant sentAt;
-  @Column(name = "is_read", nullable = false) private boolean read;
-  @Column(name = "created_at", nullable = false) private Instant createdAt;
-  @Column(name = "updated_at", nullable = false) private Instant updatedAt;
+  @Column(nullable = false, length = 24)
+  private InboxMessageStatus status;
+
+  @Column(length = 998)
+  private String subject;
+
+  @Column(columnDefinition = "TEXT")
+  private String snippet;
+
+  @Column(name = "body_text", columnDefinition = "TEXT")
+  private String bodyText;
+
+  @Column(name = "sent_at")
+  private Instant sentAt;
+
+  @Column(name = "is_read", nullable = false)
+  private boolean read;
+
+  @Column(name = "created_at", nullable = false)
+  private Instant createdAt;
+
+  @Column(name = "updated_at", nullable = false)
+  private Instant updatedAt;
 
   @PrePersist
   private void beforeInsert() {
@@ -54,5 +83,7 @@ public class InboxMessage {
   }
 
   @PreUpdate
-  private void beforeUpdate() { updatedAt = Instant.now(); }
+  private void beforeUpdate() {
+    updatedAt = Instant.now();
+  }
 }

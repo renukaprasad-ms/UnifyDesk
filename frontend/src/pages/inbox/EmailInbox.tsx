@@ -200,9 +200,7 @@ export default function EmailInbox() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-bold text-slate-900">Conversations</h2>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {conversations.length} loaded
-                  </p>
+                  <p className="mt-1 text-xs text-slate-500">{conversations.length} loaded</p>
                 </div>
                 <FiInbox className="text-slate-400" aria-hidden="true" />
               </div>
@@ -279,12 +277,8 @@ export default function EmailInbox() {
               <div className="flex min-h-[560px] items-center justify-center px-6 text-center">
                 <div>
                   <FiMail className="mx-auto text-4xl text-slate-300" aria-hidden="true" />
-                  <p className="mt-4 text-sm font-semibold text-slate-800">
-                    Select a conversation
-                  </p>
-                  <p className="mt-2 text-xs text-slate-500">
-                    Email messages will appear here.
-                  </p>
+                  <p className="mt-4 text-sm font-semibold text-slate-800">Select a conversation</p>
+                  <p className="mt-2 text-xs text-slate-500">Email messages will appear here.</p>
                 </div>
               </div>
             ) : (
@@ -301,9 +295,7 @@ export default function EmailInbox() {
 
                 <div className="max-h-[555px] space-y-4 overflow-y-auto p-4 sm:p-6">
                   {messagesLoading ? (
-                    <p className="py-10 text-center text-sm text-slate-500">
-                      Loading messages...
-                    </p>
+                    <p className="py-10 text-center text-sm text-slate-500">Loading messages...</p>
                   ) : messages.length === 0 ? (
                     <p className="py-10 text-center text-sm text-slate-500">
                       No messages found in this conversation.
