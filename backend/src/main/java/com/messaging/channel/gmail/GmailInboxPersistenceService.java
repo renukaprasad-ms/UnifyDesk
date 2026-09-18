@@ -35,6 +35,7 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.util.HtmlUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -251,7 +252,25 @@ public class GmailInboxPersistenceService {
     }
 
     String html = findBody(payload, "text/html");
-    return hasText(html) ? html : fallback;
+    return hasText(html) ? htmlToText(html) : fallback;
+  }
+
+  private String htmlToText(String html) {
+    String withoutNonContent =
+        html.replaceAll("(?is)<(script|style|head)[^>]*>.*?</\\1>", " ");
+    String withLineBreaks =
+        withoutNonContent
+            .replaceAll("(?i)<br\\s*/?>", "\n")
+            .replaceAll("(?i)</(p|div|tr|li|h[1-6])\\s*>", "\n");
+    String withoutTags = withLineBreaks.replaceAll("(?s)<[^>]+>", " ");
+    String decoded = HtmlUtils.htmlUnescape(withoutTags);
+
+    return decoded
+        .replace('\u00A0', ' ')
+        .replaceAll("[ \\t\\x0B\\f\\r]+", " ")
+        .replaceAll(" *\\n *", "\n")
+        .replaceAll("\\n{3,}", "\n\n")
+        .trim();
   }
 
   private String findBody(GmailPayload payload, String mimeType) {
