@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
-import { FiEdit2, FiPlus, FiRefreshCw, FiShield, FiTrash2, FiX } from 'react-icons/fi'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  FiEdit2,
+  FiPlus,
+  FiRefreshCw,
+  FiSearch,
+  FiShield,
+  FiTrash2,
+  FiX,
+} from 'react-icons/fi'
 import { iamApi } from '../../features/iam/iamApi'
 import { PERMISSIONS, type PermissionKey } from '../../features/iam/permissions'
 import type { CompanyRole, PermissionDefinition } from '../../features/iam/types'
@@ -35,6 +43,49 @@ const actionLabel = (action: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
 
+const permissionModule = (permission: PermissionDefinition) =>
+  permission.key.split('.')[0] || permission.resource.split('.')[0] || permission.resource
+
+type ModuleSelectAllProps = {
+  checked: boolean
+  indeterminate: boolean
+  disabled: boolean
+  selectedCount: number
+  totalCount: number
+  onChange: () => void
+}
+
+function ModuleSelectAll({
+  checked,
+  indeterminate,
+  disabled,
+  selectedCount,
+  totalCount,
+  onChange,
+}: ModuleSelectAllProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    if (inputRef.current) inputRef.current.indeterminate = indeterminate
+  }, [indeterminate])
+
+  return (
+    <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-indigo-700">
+      <input
+        ref={inputRef}
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={onChange}
+      />
+      <span>Select all</span>
+      <span className="font-normal text-slate-400">
+        {selectedCount}/{totalCount}
+      </span>
+    </label>
+  )
+}
+
 export default function CompanyRoles() {
   const selectedCompany = useAppSelector(selectSelectedCompany)
   const { owner, can } = useIam()
@@ -43,17 +94,49 @@ export default function CompanyRoles() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [draft, setDraft] = useState<RoleDraft | null>(null)
+  const [permissionSearch, setPermissionSearch] = useState('')
   const [error, setError] = useState('')
 
   const groupedPermissions = useMemo(() => {
+    const query = permissionSearch.trim().toLowerCase()
     const groups = new Map<string, PermissionDefinition[]>()
+
     catalog.forEach((permission) => {
-      const current = groups.get(permission.resource) ?? []
+      const module = permissionModule(permission)
+      const searchable = [
+        module,
+        resourceLabel(module),
+        permission.key,
+        permission.resource,
+        permission.action,
+        actionLabel(permission.action),
+        permission.description,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+
+      if (query && !searchable.includes(query)) return
+
+      const current = groups.get(module) ?? []
       current.push(permission)
-      groups.set(permission.resource, current)
+      groups.set(module, current)
     })
-    return [...groups.entries()].sort(([first], [second]) => first.localeCompare(second))
-  }, [catalog])
+
+    return [...groups.entries()]
+      .map(
+        ([module, permissions]) =>
+          [
+            module,
+            permissions.sort(
+              (first, second) =>
+                first.resource.localeCompare(second.resource) ||
+                first.action.localeCompare(second.action),
+            ),
+          ] as const,
+      )
+      .sort(([first], [second]) => first.localeCompare(second))
+  }, [catalog, permissionSearch])
 
   const load = async () => {
     if (!selectedCompany) return
@@ -77,15 +160,20 @@ export default function CompanyRoles() {
     void load()
   }, [selectedCompany?.companyId])
 
-  const beginCreate = () => setDraft(emptyDraft)
+  const beginCreate = () => {
+    setPermissionSearch('')
+    setDraft(emptyDraft)
+  }
 
-  const beginEdit = (role: CompanyRole) =>
+  const beginEdit = (role: CompanyRole) => {
+    setPermissionSearch('')
     setDraft({
       id: role.id,
       name: role.name,
       description: role.description ?? '',
       permissions: [...role.permissions],
     })
+  }
 
   const togglePermission = (key: PermissionKey) => {
     setDraft((current) => {
@@ -97,6 +185,26 @@ export default function CompanyRoles() {
           : [...current.permissions, key],
       }
     })
+  }
+
+  const toggleModulePermissions = (module: string) => {
+    if (!draft) return
+
+    const moduleKeys = catalog
+      .filter(
+        (permission) => permission.assignable && permissionModule(permission) === module,
+      )
+      .map((permission) => permission.key as PermissionKey)
+
+    const selected = new Set(draft.permissions)
+    const allSelected = moduleKeys.length > 0 && moduleKeys.every((key) => selected.has(key))
+
+    moduleKeys.forEach((key) => {
+      if (allSelected) selected.delete(key)
+      else selected.add(key)
+    })
+
+    setDraft({ ...draft, permissions: [...selected] })
   }
 
   const saveRole = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -341,53 +449,121 @@ export default function CompanyRoles() {
                 </div>
 
                 <div className="mt-6">
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                    Permissions
-                  </p>
+                  <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Permissions
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Search permissions or grant all assignable access for a module.
+                      </p>
+                    </div>
+                    <label className="relative block w-full sm:w-80">
+                      <FiSearch
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                        aria-hidden="true"
+                      />
+                      <input
+                        type="search"
+                        className="form-input pl-9"
+                        placeholder="Search permissions..."
+                        value={permissionSearch}
+                        onChange={(event) => setPermissionSearch(event.target.value)}
+                      />
+                    </label>
+                  </div>
+
                   <div className="mt-3 space-y-4">
-                    {groupedPermissions.map(([resource, permissions]) => (
-                      <fieldset
-                        key={resource}
-                        className="rounded-xl border border-slate-200 bg-white p-4"
-                      >
-                        <legend className="px-1 text-sm font-bold text-slate-900">
-                          {resourceLabel(resource)}
-                        </legend>
-                        <div className="mt-2 grid gap-2 md:grid-cols-2">
-                          {permissions.map((permission) => {
-                            const permissionKey = permission.key as PermissionKey
-                            const disabled = !permission.assignable
-                            return (
-                              <label
-                                key={permission.key}
-                                className={`flex gap-3 rounded-lg p-2.5 ${
-                                  disabled
-                                    ? 'cursor-not-allowed bg-slate-50 opacity-60'
-                                    : 'cursor-pointer hover:bg-indigo-50/50'
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="mt-1"
-                                  disabled={disabled}
-                                  checked={draft.permissions.includes(permissionKey)}
-                                  onChange={() => togglePermission(permissionKey)}
-                                />
-                                <span>
-                                  <span className="block text-xs font-semibold text-slate-800">
-                                    {actionLabel(permission.action)}
-                                  </span>
-                                  <span className="mt-0.5 block text-[11px] leading-4 text-slate-500">
-                                    {permission.description || permission.key}
-                                    {!permission.assignable && ' · Owner only'}
-                                  </span>
-                                </span>
-                              </label>
-                            )
-                          })}
-                        </div>
-                      </fieldset>
-                    ))}
+                    {groupedPermissions.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center">
+                        <p className="text-sm font-semibold text-slate-700">
+                          No permissions match “{permissionSearch}”
+                        </p>
+                        <button
+                          type="button"
+                          className="mt-2 text-xs font-semibold text-indigo-600"
+                          onClick={() => setPermissionSearch('')}
+                        >
+                          Clear search
+                        </button>
+                      </div>
+                    ) : (
+                      groupedPermissions.map(([module, permissions]) => {
+                        const moduleAssignableKeys = catalog
+                          .filter(
+                            (permission) =>
+                              permission.assignable && permissionModule(permission) === module,
+                          )
+                          .map((permission) => permission.key as PermissionKey)
+                        const selectedCount = moduleAssignableKeys.filter((key) =>
+                          draft.permissions.includes(key),
+                        ).length
+                        const allSelected =
+                          moduleAssignableKeys.length > 0 &&
+                          selectedCount === moduleAssignableKeys.length
+                        const partiallySelected = selectedCount > 0 && !allSelected
+
+                        return (
+                          <fieldset
+                            key={module}
+                            className="rounded-xl border border-slate-200 bg-white p-4"
+                          >
+                            <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                              <legend className="text-sm font-bold text-slate-900">
+                                {resourceLabel(module)}
+                              </legend>
+                              <ModuleSelectAll
+                                checked={allSelected}
+                                indeterminate={partiallySelected}
+                                disabled={moduleAssignableKeys.length === 0}
+                                selectedCount={selectedCount}
+                                totalCount={moduleAssignableKeys.length}
+                                onChange={() => toggleModulePermissions(module)}
+                              />
+                            </div>
+
+                            <div className="grid gap-2 md:grid-cols-2">
+                              {permissions.map((permission) => {
+                                const permissionKey = permission.key as PermissionKey
+                                const disabled = !permission.assignable
+                                return (
+                                  <label
+                                    key={permission.key}
+                                    className={`flex gap-3 rounded-lg p-2.5 ${
+                                      disabled
+                                        ? 'cursor-not-allowed bg-slate-50 opacity-60'
+                                        : 'cursor-pointer hover:bg-indigo-50/50'
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      className="mt-1"
+                                      disabled={disabled}
+                                      checked={draft.permissions.includes(permissionKey)}
+                                      onChange={() => togglePermission(permissionKey)}
+                                    />
+                                    <span>
+                                      <span className="block text-xs font-semibold text-slate-800">
+                                        {actionLabel(permission.action)}
+                                      </span>
+                                      <span className="mt-0.5 block text-[11px] leading-4 text-slate-500">
+                                        {permission.description || permission.key}
+                                        {!permission.assignable && ' · Owner only'}
+                                      </span>
+                                      {permission.resource !== module && (
+                                        <span className="mt-1 block text-[10px] font-medium text-slate-400">
+                                          {resourceLabel(permission.resource)}
+                                        </span>
+                                      )}
+                                    </span>
+                                  </label>
+                                )
+                              })}
+                            </div>
+                          </fieldset>
+                        )
+                      })
+                    )}
                   </div>
                 </div>
               </div>
