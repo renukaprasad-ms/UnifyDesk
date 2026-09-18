@@ -65,7 +65,6 @@ export type CreateCompanyPayload = {
   logoMediaId?: string
 }
 
-
 export type UpdateCompanyPayload = {
   name: string
   businessEmail?: string | null

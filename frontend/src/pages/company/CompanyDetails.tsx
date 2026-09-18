@@ -146,7 +146,7 @@ export default function CompanyDetails() {
     setNotice('')
 
     try {
-      let logoMediaId = removeLogo ? null : company.logoMediaId ?? null
+      let logoMediaId = removeLogo ? null : (company.logoMediaId ?? null)
 
       if (logoFile) {
         const upload = await mediaApi.initiateCompanyLogoUpload(logoFile)

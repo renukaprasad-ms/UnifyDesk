@@ -32,7 +32,6 @@ export type ToggleTwoFactorPayload = {
   enabled: boolean
 }
 
-
 export type UpdateOwnProfilePayload = {
   name: string
   username: string
