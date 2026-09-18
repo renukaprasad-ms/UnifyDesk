@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router'
 import { useEffect, useRef, useState } from 'react'
 import { FiImage, FiUploadCloud, FiX } from 'react-icons/fi'
 import { authApi } from '../../features/auth/authApi'
+import { resolvePostAuthRedirect } from '../../features/company/invitationContinuation'
 import { mediaApi } from '../../features/media/mediaApi'
 import type { InitiateMediaUploadResponse } from '../../features/media/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -12,7 +13,9 @@ const Register = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const location = useLocation()
-  const redirectTo = (location.state as { redirectTo?: string } | null)?.redirectTo
+  const redirectTo = resolvePostAuthRedirect(
+    (location.state as { redirectTo?: string } | null)?.redirectTo,
+  )
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')

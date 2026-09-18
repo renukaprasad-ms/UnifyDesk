@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useState } from 'react'
 import { authApi } from '../../features/auth/authApi'
+import { resolvePostAuthRedirect } from '../../features/company/invitationContinuation'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { selectAuthUser, setAuthUser } from '../../store/auth/authSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
@@ -16,6 +17,7 @@ const VerifyOtp = () => {
     redirectTo?: string
   } | null
   const email = routeState?.email ?? user?.email
+  const redirectTo = resolvePostAuthRedirect(routeState?.redirectTo)
   const [otp, setOtp] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -27,7 +29,7 @@ const VerifyOtp = () => {
     try {
       const verifiedUser = await authApi.verifyEmail(otp)
       dispatch(setAuthUser(verifiedUser))
-      navigate(routeState?.redirectTo ?? '/', { replace: true })
+      navigate(redirectTo, { replace: true })
     } catch (submitError) {
       setError(apiErrorMessage(submitError, 'Unable to verify OTP'))
     } finally {
@@ -71,7 +73,7 @@ const VerifyOtp = () => {
         <Link
           className="font-semibold text-indigo-500"
           to="/login"
-          state={routeState?.redirectTo ? { redirectTo: routeState.redirectTo } : undefined}
+          state={redirectTo !== '/' ? { redirectTo } : undefined}
         >
           Back to login
         </Link>

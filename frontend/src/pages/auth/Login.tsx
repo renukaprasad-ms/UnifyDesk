@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useRef, useState } from 'react'
 import { authApi } from '../../features/auth/authApi'
+import { resolvePostAuthRedirect } from '../../features/company/invitationContinuation'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { setAuthUser } from '../../store/auth/authSlice'
 import { useAppDispatch } from '../../store/hooks'
@@ -18,7 +19,7 @@ const Login = () => {
   const otpRefs = useRef<Array<HTMLInputElement | null>>([])
   const routeState = location.state as { passwordReset?: boolean; redirectTo?: string } | null
   const passwordReset = Boolean(routeState?.passwordReset)
-  const redirectTo = routeState?.redirectTo
+  const redirectTo = resolvePostAuthRedirect(routeState?.redirectTo)
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -33,7 +34,7 @@ const Login = () => {
       }
       dispatch(setAuthUser(result.user))
       if (result.user.verified) {
-        navigate(redirectTo ?? '/', { replace: true })
+        navigate(redirectTo, { replace: true })
       } else {
         navigate('/verifyotp', {
           replace: true,
@@ -56,7 +57,7 @@ const Login = () => {
       const user = await authApi.verifyTwoFactor(preAuthToken, otp)
       dispatch(setAuthUser(user))
       if (user.verified) {
-        navigate(redirectTo ?? '/', { replace: true })
+        navigate(redirectTo, { replace: true })
       } else {
         navigate('/verifyotp', {
           replace: true,
