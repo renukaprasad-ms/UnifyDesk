@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router'
 import { PERMISSIONS } from '../features/iam/permissions'
 import AuthLayout from '../layouts/AuthLayout'
 import MainLayout from '../layouts/MainLayout'
+import AccountProfile from '../pages/account/AccountProfile'
 import AccountSettings from '../pages/account/AccountSettings'
 import ChangePassword from '../pages/account/ChangePassword'
 import ForgotPassword from '../pages/auth/ForgotPassword'
@@ -9,6 +10,7 @@ import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
 import ResetPassword from '../pages/auth/ResetPassword'
 import VerifyOtp from '../pages/auth/VerifyOtp'
+import CompanyDetails from '../pages/company/CompanyDetails'
 import CompanyPlan from '../pages/company/CompanyPlan'
 import CompanyRoles from '../pages/company/CompanyRoles'
 import CompanyUsers from '../pages/company/CompanyUsers'
@@ -79,7 +81,7 @@ const AppRoutes = () => (
             </Route>
 
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.COMPANY_READ]} />}>
-              <Route path="company/details" element={<PlaceholderPage />} />
+              <Route path="company/details" element={<CompanyDetails />} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.USER_READ]} />}>
               <Route path="company/users" element={<CompanyUsers />} />
@@ -91,7 +93,7 @@ const AppRoutes = () => (
               <Route path="company/plan" element={<CompanyPlan />} />
             </Route>
 
-            <Route path="account/profile" element={<PlaceholderPage />} />
+            <Route path="account/profile" element={<AccountProfile />} />
             <Route path="account/settings" element={<AccountSettings />} />
             <Route path="account/settings/password" element={<ChangePassword />} />
           </Route>
