@@ -35,8 +35,7 @@ public class AuthController {
   @GetMapping("/csrf")
   public ResponseEntity<ApiResponse<String>> csrf(CsrfToken csrfToken) {
     return ResponseEntity.ok(
-        ApiResponse.success(
-            HttpStatus.OK.value(), csrfToken.getToken(), "CSRF token initialized"));
+        ApiResponse.success(HttpStatus.OK.value(), csrfToken.getToken(), "CSRF token initialized"));
   }
 
   @PostMapping("/register")
@@ -93,8 +92,7 @@ public class AuthController {
 
   @PostMapping("/password-reset/complete")
   public ResponseEntity<ApiResponse<Void>> completePasswordReset(
-      @Valid @RequestBody CompletePasswordResetRequest request,
-      HttpServletRequest servletRequest) {
+      @Valid @RequestBody CompletePasswordResetRequest request, HttpServletRequest servletRequest) {
     HttpHeaders headers = new HttpHeaders();
     authService.completePasswordReset(request, servletRequest, headers);
     return ResponseEntity.ok()

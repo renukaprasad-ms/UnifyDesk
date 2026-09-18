@@ -21,15 +21,31 @@ type AdminLink = {
 
 const links: AdminLink[] = [
   { label: 'Overview', to: '/platform', icon: <FiHome /> },
-  { label: 'Companies', to: '/platform/companies', icon: <FiBriefcase />, permission: 'COMPANY_VIEW' },
+  {
+    label: 'Companies',
+    to: '/platform/companies',
+    icon: <FiBriefcase />,
+    permission: 'COMPANY_VIEW',
+  },
   { label: 'Users', to: '/platform/users', icon: <FiUsers />, permission: 'USER_VIEW' },
   { label: 'Plans & pricing', to: '/platform/plans', icon: <FiCreditCard />, superAdminOnly: true },
-  { label: 'Billing operations', to: '/platform/billing', icon: <FiActivity />, superAdminOnly: true },
+  {
+    label: 'Billing operations',
+    to: '/platform/billing',
+    icon: <FiActivity />,
+    superAdminOnly: true,
+  },
   { label: 'Admins', to: '/platform/admins', icon: <FiShield />, permission: 'ADMIN_VIEW' },
   { label: 'Audit logs', to: '/platform/audit', icon: <FiFileText />, permission: 'AUDIT_VIEW' },
 ]
 
-export default function AdminSidebar({ access, onNavigate }: { access: PlatformAccess; onNavigate: () => void }) {
+export default function AdminSidebar({
+  access,
+  onNavigate,
+}: {
+  access: PlatformAccess
+  onNavigate: () => void
+}) {
   const isSuperAdmin = access.role === 'SUPER_ADMIN'
   const allowed = (link: AdminLink) => {
     if (isSuperAdmin) return true
@@ -47,7 +63,12 @@ export default function AdminSidebar({ access, onNavigate }: { access: PlatformA
             {isSuperAdmin ? 'Super Admin' : 'Platform Admin'}
           </p>
         </div>
-        <NavLink to="/workspace" className="admin-back-button" onClick={onNavigate} title="Back to workspace">
+        <NavLink
+          to="/workspace"
+          className="admin-back-button"
+          onClick={onNavigate}
+          title="Back to workspace"
+        >
           <FiArrowLeft aria-hidden="true" />
         </NavLink>
       </div>
@@ -61,7 +82,9 @@ export default function AdminSidebar({ access, onNavigate }: { access: PlatformA
             onClick={onNavigate}
             className={({ isActive }) => `admin-nav-link ${isActive ? 'is-active' : ''}`}
           >
-            <span aria-hidden="true" className="admin-nav-icon">{link.icon}</span>
+            <span aria-hidden="true" className="admin-nav-icon">
+              {link.icon}
+            </span>
             <span>{link.label}</span>
           </NavLink>
         ))}

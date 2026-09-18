@@ -13,7 +13,10 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "entitlement_definitions", uniqueConstraints = @UniqueConstraint(name = "uk_entitlement_definitions_key", columnNames = "entitlement_key"))
+@Table(
+    name = "entitlement_definitions",
+    uniqueConstraints =
+        @UniqueConstraint(name = "uk_entitlement_definitions_key", columnNames = "entitlement_key"))
 public class EntitlementDefinition {
   @Id private Long id;
 

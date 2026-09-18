@@ -45,9 +45,7 @@ export default function InviteAccept() {
         <FiMail aria-hidden="true" />
       </span>
       <p className="eyebrow mt-5">Company invitation</p>
-      <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
-        Join a workspace
-      </h1>
+      <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Join a workspace</h1>
 
       {!isAuthenticated ? (
         <>
@@ -56,18 +54,10 @@ export default function InviteAccept() {
             Messaging account yet, create one first.
           </p>
           <div className="mt-6 grid gap-3">
-            <Link
-              className="primary-button flex"
-              to="/login"
-              state={{ redirectTo }}
-            >
+            <Link className="primary-button flex" to="/login" state={{ redirectTo }}>
               Sign in to accept
             </Link>
-            <Link
-              className="secondary-button flex"
-              to="/register"
-              state={{ redirectTo }}
-            >
+            <Link className="secondary-button flex" to="/register" state={{ redirectTo }}>
               Create account
             </Link>
           </div>
@@ -95,9 +85,7 @@ export default function InviteAccept() {
               accepted if it was sent to this email.
             </p>
           </div>
-          {error && (
-            <p className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>
-          )}
+          {error && <p className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
           <button
             type="button"
             className="primary-button mt-5 flex w-full"

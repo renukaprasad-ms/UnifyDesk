@@ -42,7 +42,10 @@ export const userApi = {
   },
 
   async resetPassword(userId: string, payload: ResetPasswordPayload) {
-    const response = await apiClient.patch<ApiResponse<User>>(`/api/users/${userId}/password`, payload)
+    const response = await apiClient.patch<ApiResponse<User>>(
+      `/api/users/${userId}/password`,
+      payload,
+    )
     return unwrap(response.data)
   },
 

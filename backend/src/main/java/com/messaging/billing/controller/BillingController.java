@@ -28,8 +28,9 @@ public class BillingController {
 
   @GetMapping("/plans")
   public ResponseEntity<ApiResponse<List<PlanResponse>>> plans() {
-    return ResponseEntity.ok(ApiResponse.success(
-        HttpStatus.OK.value(), billingCatalogService.activePlans(), "Plans fetched"));
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(), billingCatalogService.activePlans(), "Plans fetched"));
   }
 
   /*
@@ -40,27 +41,32 @@ public class BillingController {
   public ResponseEntity<ApiResponse<CompanySubscriptionResponse>> selectSubscription(
       @PathVariable Long companyId, @Valid @RequestBody AssignSubscriptionRequest request) {
     requireSubscriptionModify(companyId);
-    return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(
-        HttpStatus.CREATED.value(),
-        billingCatalogService.selectFreeSubscription(companyId, request),
-        "Company subscription selected"));
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                HttpStatus.CREATED.value(),
+                billingCatalogService.selectFreeSubscription(companyId, request),
+                "Company subscription selected"));
   }
 
   @PostMapping("/companies/{companyId}/subscription/cancel")
   public ResponseEntity<ApiResponse<CompanySubscriptionResponse>> cancelSubscription(
-      @PathVariable Long companyId,
-      @RequestParam(defaultValue = "true") boolean atPeriodEnd) {
+      @PathVariable Long companyId, @RequestParam(defaultValue = "true") boolean atPeriodEnd) {
     requireSubscriptionModify(companyId);
-    return ResponseEntity.ok(ApiResponse.success(
-        HttpStatus.OK.value(), billingCatalogService.cancelSubscription(companyId, atPeriodEnd),
-        "Subscription cancellation updated"));
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            billingCatalogService.cancelSubscription(companyId, atPeriodEnd),
+            "Subscription cancellation updated"));
   }
 
   @GetMapping("/companies/{companyId}/plan")
   public ResponseEntity<ApiResponse<CompanyPlanDetailsResponse>> companyPlan(
       @PathVariable Long companyId) {
     companyAuthorizationService.requirePermission(
-        currentUserService.currentUserId(), companyId, CompanyPermissionKeys.BILLING_SUBSCRIPTION_READ);
+        currentUserService.currentUserId(),
+        companyId,
+        CompanyPermissionKeys.BILLING_SUBSCRIPTION_READ);
 
     CompanyPlanDetailsResponse details;
     try {
@@ -69,13 +75,14 @@ public class BillingController {
       details = new CompanyPlanDetailsResponse(null, null);
     }
 
-    return ResponseEntity.ok(ApiResponse.success(
-        HttpStatus.OK.value(), details, "Company plan fetched"));
+    return ResponseEntity.ok(
+        ApiResponse.success(HttpStatus.OK.value(), details, "Company plan fetched"));
   }
 
   private void requireSubscriptionModify(Long companyId) {
     companyAuthorizationService.requirePermission(
-        currentUserService.currentUserId(), companyId,
+        currentUserService.currentUserId(),
+        companyId,
         CompanyPermissionKeys.BILLING_SUBSCRIPTION_MODIFY);
   }
 }

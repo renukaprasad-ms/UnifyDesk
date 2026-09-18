@@ -54,16 +54,37 @@ public class PricingResolver {
 
     List<CompanyRateOverride> overrides =
         overrideRepository.findByCompanyIdAndStatus(companyId, RateCardStatus.ACTIVE).stream()
-            .filter(rule -> matches(
-                rule.getChannel(), rule.getProvider(), rule.getBillingCategory(),
-                rule.getDirection(), rule.getCountry(), rule.getCarrier(), rule.getUnit(),
-                rule.getEffectiveFrom(), rule.getEffectiveTo(),
-                channel, provider, billingCategory, direction, normalizedCountry,
-                normalizedCarrier, unit, at))
-            .sorted(Comparator.comparingInt(
-                    (CompanyRateOverride rule) -> specificity(rule.getCountry(), rule.getCarrier(), normalizedCountry, normalizedCarrier))
-                .reversed()
-                .thenComparing(CompanyRateOverride::getEffectiveFrom, Comparator.reverseOrder()))
+            .filter(
+                rule ->
+                    matches(
+                        rule.getChannel(),
+                        rule.getProvider(),
+                        rule.getBillingCategory(),
+                        rule.getDirection(),
+                        rule.getCountry(),
+                        rule.getCarrier(),
+                        rule.getUnit(),
+                        rule.getEffectiveFrom(),
+                        rule.getEffectiveTo(),
+                        channel,
+                        provider,
+                        billingCategory,
+                        direction,
+                        normalizedCountry,
+                        normalizedCarrier,
+                        unit,
+                        at))
+            .sorted(
+                Comparator.comparingInt(
+                        (CompanyRateOverride rule) ->
+                            specificity(
+                                rule.getCountry(),
+                                rule.getCarrier(),
+                                normalizedCountry,
+                                normalizedCarrier))
+                    .reversed()
+                    .thenComparing(
+                        CompanyRateOverride::getEffectiveFrom, Comparator.reverseOrder()))
             .toList();
 
     CompanySubscription subscription = effectiveSubscription(companyId);
@@ -79,17 +100,39 @@ public class PricingResolver {
     }
 
     List<RateCard> planRates =
-        rateCardRepository.findByPlanIdAndStatus(subscription.getPlan().getId(), RateCardStatus.ACTIVE).stream()
-            .filter(rule -> matches(
-                rule.getChannel(), rule.getProvider(), rule.getBillingCategory(),
-                rule.getDirection(), rule.getCountry(), rule.getCarrier(), rule.getUnit(),
-                rule.getEffectiveFrom(), rule.getEffectiveTo(),
-                channel, provider, billingCategory, direction, normalizedCountry,
-                normalizedCarrier, unit, at))
-            .sorted(Comparator.comparingInt(
-                    (RateCard rule) -> specificity(rule.getCountry(), rule.getCarrier(), normalizedCountry, normalizedCarrier))
-                .reversed()
-                .thenComparing(RateCard::getEffectiveFrom, Comparator.reverseOrder()))
+        rateCardRepository
+            .findByPlanIdAndStatus(subscription.getPlan().getId(), RateCardStatus.ACTIVE)
+            .stream()
+            .filter(
+                rule ->
+                    matches(
+                        rule.getChannel(),
+                        rule.getProvider(),
+                        rule.getBillingCategory(),
+                        rule.getDirection(),
+                        rule.getCountry(),
+                        rule.getCarrier(),
+                        rule.getUnit(),
+                        rule.getEffectiveFrom(),
+                        rule.getEffectiveTo(),
+                        channel,
+                        provider,
+                        billingCategory,
+                        direction,
+                        normalizedCountry,
+                        normalizedCarrier,
+                        unit,
+                        at))
+            .sorted(
+                Comparator.comparingInt(
+                        (RateCard rule) ->
+                            specificity(
+                                rule.getCountry(),
+                                rule.getCarrier(),
+                                normalizedCountry,
+                                normalizedCarrier))
+                    .reversed()
+                    .thenComparing(RateCard::getEffectiveFrom, Comparator.reverseOrder()))
             .toList();
 
     if (planRates.isEmpty()) {
@@ -109,8 +152,10 @@ public class PricingResolver {
   private CompanySubscription effectiveSubscription(Long companyId) {
     return subscriptionRepository
         .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(companyId, SubscriptionStatus.ACTIVE)
-        .or(() -> subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
-            companyId, SubscriptionStatus.TRIALING))
+        .or(
+            () ->
+                subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+                    companyId, SubscriptionStatus.TRIALING))
         .orElseThrow(() -> new NotFoundException("Company subscription not found"));
   }
 

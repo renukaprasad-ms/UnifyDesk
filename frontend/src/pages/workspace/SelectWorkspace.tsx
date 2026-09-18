@@ -63,7 +63,9 @@ export default function SelectWorkspace() {
     <div className="min-h-dvh bg-white px-6 py-12">
       <div className="mx-auto w-full max-w-[420px]">
         <h1 className="text-[26px] font-bold leading-tight text-slate-950">Select workspace</h1>
-        <p className="mt-2 text-sm text-slate-500">Choose the company context you want to work in.</p>
+        <p className="mt-2 text-sm text-slate-500">
+          Choose the company context you want to work in.
+        </p>
         {loading && <p className="mt-7 text-sm font-semibold text-slate-500">Loading...</p>}
         {error && <p className="mt-7 text-sm font-semibold text-red-600">{error}</p>}
         {!loading && !error && (
@@ -78,14 +80,24 @@ export default function SelectWorkspace() {
                   navigate('/workspace', { replace: true })
                 }}
               >
-                <span><span className="block text-sm font-semibold text-slate-950">{company.name}</span><span className="mt-1 block text-xs text-slate-500">{company.role ?? 'Platform access'}</span></span>
+                <span>
+                  <span className="block text-sm font-semibold text-slate-950">{company.name}</span>
+                  <span className="mt-1 block text-xs text-slate-500">
+                    {company.role ?? 'Platform access'}
+                  </span>
+                </span>
                 <span className="text-xs font-semibold text-indigo-500">Open</span>
               </button>
             ))}
           </div>
         )}
-        <button type="button" className="mt-5 flex w-full items-center justify-center gap-2 rounded-[8px] border border-slate-200 px-4 py-3 text-sm font-semibold text-indigo-500 hover:bg-indigo-50" onClick={() => navigate('/create-workspace')}>
-          <FiPlus aria-hidden="true" />Create workspace
+        <button
+          type="button"
+          className="mt-5 flex w-full items-center justify-center gap-2 rounded-[8px] border border-slate-200 px-4 py-3 text-sm font-semibold text-indigo-500 hover:bg-indigo-50"
+          onClick={() => navigate('/create-workspace')}
+        >
+          <FiPlus aria-hidden="true" />
+          Create workspace
         </button>
       </div>
     </div>

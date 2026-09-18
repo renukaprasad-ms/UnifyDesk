@@ -31,7 +31,9 @@ const PlatformAdminLayout = () => {
       <aside className="flex border-b bg-slate-950 p-5 text-white lg:min-h-screen lg:w-64 lg:flex-col lg:border-b-0">
         <div>
           <div className="text-lg font-bold">Messaging Platform</div>
-          <div className="mt-1 text-xs uppercase tracking-widest text-slate-400">Administration</div>
+          <div className="mt-1 text-xs uppercase tracking-widest text-slate-400">
+            Administration
+          </div>
         </div>
         <nav className="mt-8 grid gap-1">
           {links.map(([label, to]) => (
@@ -56,7 +58,9 @@ const PlatformAdminLayout = () => {
           {loggingOut ? 'Logging out…' : 'Logout'}
         </button>
       </aside>
-      <main className="min-w-0 flex-1 p-6 lg:p-8"><Outlet /></main>
+      <main className="min-w-0 flex-1 p-6 lg:p-8">
+        <Outlet />
+      </main>
     </div>
   )
 }

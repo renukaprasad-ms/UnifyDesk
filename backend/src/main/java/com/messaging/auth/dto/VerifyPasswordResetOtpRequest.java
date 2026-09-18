@@ -4,5 +4,4 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
 public record VerifyPasswordResetOtpRequest(
-    @NotBlank String challengeId,
-    @NotBlank @Pattern(regexp = "\\d{6}") String otp) {}
+    @NotBlank String challengeId, @NotBlank @Pattern(regexp = "\\d{6}") String otp) {}

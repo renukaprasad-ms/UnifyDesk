@@ -19,11 +19,14 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
 
   useEffect(() => {
     let active = true
-    platformApi.me().then((access) => {
-      if (active && access.platformAdmin) setPlatformAccess(access)
-    }).catch(() => {
-      if (active) setPlatformAccess(null)
-    })
+    platformApi
+      .me()
+      .then((access) => {
+        if (active && access.platformAdmin) setPlatformAccess(access)
+      })
+      .catch(() => {
+        if (active) setPlatformAccess(null)
+      })
     return () => {
       active = false
     }

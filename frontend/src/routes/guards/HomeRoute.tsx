@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router'
 import { platformApi } from '../../features/platform/platformApi'
 import { useAppSelector } from '../../store/hooks'
-import {
-  selectCompanies,
-  selectSelectedCompanyId,
-} from '../../store/workspace/workspaceSlice'
+import { selectCompanies, selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
 
 export default function HomeRoute() {
   const companies = useAppSelector(selectCompanies)

@@ -14,7 +14,9 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "plan_prices", indexes = {@Index(name = "idx_plan_prices_plan_status", columnList = "plan_id,status")})
+@Table(
+    name = "plan_prices",
+    indexes = {@Index(name = "idx_plan_prices_plan_status", columnList = "plan_id,status")})
 public class PlanPrice {
   @Id private Long id;
 

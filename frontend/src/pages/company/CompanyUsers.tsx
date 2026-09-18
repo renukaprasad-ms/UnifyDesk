@@ -50,7 +50,9 @@ export default function CompanyUsers() {
     () =>
       [...users].sort((first, second) => {
         const roleOrder = { OWNER: 0, MANAGER: 1, MEMBER: 2 }
-        return roleOrder[first.role] - roleOrder[second.role] || first.name.localeCompare(second.name)
+        return (
+          roleOrder[first.role] - roleOrder[second.role] || first.name.localeCompare(second.name)
+        )
       }),
     [users],
   )
@@ -138,9 +140,7 @@ export default function CompanyUsers() {
 
   const toggleRole = (roleId: string) => {
     setSelectedRoleIds((current) =>
-      current.includes(roleId)
-        ? current.filter((id) => id !== roleId)
-        : [...current, roleId],
+      current.includes(roleId) ? current.filter((id) => id !== roleId) : [...current, roleId],
     )
   }
 
@@ -242,7 +242,9 @@ export default function CompanyUsers() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex max-w-sm flex-wrap gap-1.5">
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${roleClass[user.role]}`}>
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${roleClass[user.role]}`}
+                          >
                             {user.role}
                           </span>
                           {user.customRoles?.map((role) => (
