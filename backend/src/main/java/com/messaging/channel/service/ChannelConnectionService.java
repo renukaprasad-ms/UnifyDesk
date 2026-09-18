@@ -195,14 +195,14 @@ public class ChannelConnectionService {
 
   private ChannelConnectionResponse toResponse(ChannelConnection connection) {
     return new ChannelConnectionResponse(
-        connection.getId(),
-        connection.getCompanyId(),
+        connection.getId().toString(),
+        connection.getCompanyId().toString(),
         connection.getChannelType(),
         connection.getProviderType(),
         connection.getName(),
         connection.getExternalAccountId(),
         connection.getStatus(),
-        connection.getCreatedByUserId(),
+        connection.getCreatedByUserId().toString(),
         connection.getLastSyncAt(),
         connection.getCreatedAt(),
         connection.getUpdatedAt(),
@@ -211,8 +211,8 @@ public class ChannelConnectionService {
 
   private SenderIdentityResponse toResponse(SenderIdentity sender) {
     return new SenderIdentityResponse(
-        sender.getId(),
-        sender.getConnection().getId(),
+        sender.getId().toString(),
+        sender.getConnection().getId().toString(),
         sender.getIdentityType(),
         sender.getValue(),
         sender.getExternalId(),

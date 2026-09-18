@@ -15,6 +15,7 @@ import {
   FiShield,
   FiSmartphone,
   FiKey,
+  FiLink,
   FiUser,
   FiUsers,
 } from 'react-icons/fi'
@@ -37,6 +38,7 @@ type WorkspaceLink = {
   to: string
   icon: ReactNode
   permission?: PermissionKey
+  anyOf?: PermissionKey[]
 }
 
 const inboxLinks: WorkspaceLink[] = [
@@ -79,6 +81,19 @@ const companyLinks: WorkspaceLink[] = [
     permission: PERMISSIONS.COMPANY_READ,
   },
   {
+    label: 'Connections',
+    to: '/company/connections',
+    icon: <FiLink />,
+    anyOf: [
+      PERMISSIONS.WHATSAPP_READ,
+      PERMISSIONS.WHATSAPP_CONNECT,
+      PERMISSIONS.EMAIL_READ,
+      PERMISSIONS.EMAIL_CONNECT,
+      PERMISSIONS.SMS_READ,
+      PERMISSIONS.SMS_CONNECT,
+    ],
+  },
+  {
     label: 'Plan details',
     to: '/company/plan',
     icon: <FiCreditCard />,
@@ -118,7 +133,13 @@ export default function AppSidebar({
   const hasWorkspacePermission = (permission?: PermissionKey) =>
     platformWorkspaceAccess || !permission || can(permission)
   const visible = (links: WorkspaceLink[]) =>
-    links.filter((link) => hasWorkspacePermission(link.permission))
+    links.filter(
+      (link) =>
+        hasWorkspacePermission(link.permission) &&
+        (!link.anyOf ||
+          platformWorkspaceAccess ||
+          link.anyOf.some((permission) => can(permission))),
+    )
 
   const renderSection = (key: string, label: string, icon: ReactNode, links: WorkspaceLink[]) => {
     const items = visible(links)

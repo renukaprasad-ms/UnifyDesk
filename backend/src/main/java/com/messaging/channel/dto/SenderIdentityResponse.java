@@ -5,8 +5,8 @@ import com.messaging.channel.enums.SenderIdentityType;
 import java.time.Instant;
 
 public record SenderIdentityResponse(
-    Long id,
-    Long connectionId,
+    String id,
+    String connectionId,
     SenderIdentityType identityType,
     String value,
     String externalId,
