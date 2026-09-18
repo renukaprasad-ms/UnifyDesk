@@ -4,6 +4,7 @@ import com.messaging.common.response.ApiResponse;
 import com.messaging.user.dto.CreateUserRequest;
 import com.messaging.user.dto.ResetPasswordRequest;
 import com.messaging.user.dto.ToggleTwoFactorRequest;
+import com.messaging.user.dto.UpdateOwnProfileRequest;
 import com.messaging.user.dto.UpdateUserRequest;
 import com.messaging.user.dto.UserResponse;
 import com.messaging.user.service.UserService;
@@ -47,6 +48,16 @@ public class UserController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(), userService.getCurrentUserResponse(), "User fetched"));
+  }
+
+  @PatchMapping("/me/profile")
+  public ResponseEntity<ApiResponse<UserResponse>> updateCurrentProfile(
+      @Valid @RequestBody UpdateOwnProfileRequest request) {
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            userService.updateOwnProfile(request),
+            "Profile updated"));
   }
 
   @GetMapping("/{userId}")
