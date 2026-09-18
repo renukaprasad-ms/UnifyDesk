@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  FiEdit2,
-  FiPlus,
-  FiRefreshCw,
-  FiSearch,
-  FiShield,
-  FiTrash2,
-  FiX,
-} from 'react-icons/fi'
+import { FiEdit2, FiPlus, FiRefreshCw, FiSearch, FiShield, FiTrash2, FiX } from 'react-icons/fi'
 import { iamApi } from '../../features/iam/iamApi'
 import { PERMISSIONS, type PermissionKey } from '../../features/iam/permissions'
 import type { CompanyRole, PermissionDefinition } from '../../features/iam/types'
@@ -191,9 +183,7 @@ export default function CompanyRoles() {
     if (!draft) return
 
     const moduleKeys = catalog
-      .filter(
-        (permission) => permission.assignable && permissionModule(permission) === module,
-      )
+      .filter((permission) => permission.assignable && permissionModule(permission) === module)
       .map((permission) => permission.key as PermissionKey)
 
     const selected = new Set(draft.permissions)
