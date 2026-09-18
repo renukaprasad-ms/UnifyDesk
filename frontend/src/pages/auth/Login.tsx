@@ -16,7 +16,11 @@ const Login = () => {
   const [otp, setOtp] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const otpRefs = useRef<Array<HTMLInputElement | null>>([])
-  const passwordReset = Boolean((location.state as { passwordReset?: boolean } | null)?.passwordReset)
+  const routeState = location.state as
+    | { passwordReset?: boolean; redirectTo?: string }
+    | null
+  const passwordReset = Boolean(routeState?.passwordReset)
+  const redirectTo = routeState?.redirectTo
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -30,7 +34,14 @@ const Login = () => {
         return
       }
       dispatch(setAuthUser(result.user))
-      navigate(result.user.verified ? '/' : '/verifyotp', { replace: true })
+      if (result.user.verified) {
+        navigate(redirectTo ?? '/', { replace: true })
+      } else {
+        navigate('/verifyotp', {
+          replace: true,
+          state: { email: result.user.email, redirectTo },
+        })
+      }
     } catch (submitError) {
       setError(apiErrorMessage(submitError, 'Unable to login'))
     } finally {
@@ -46,7 +57,14 @@ const Login = () => {
     try {
       const user = await authApi.verifyTwoFactor(preAuthToken, otp)
       dispatch(setAuthUser(user))
-      navigate(user.verified ? '/' : '/verifyotp', { replace: true })
+      if (user.verified) {
+        navigate(redirectTo ?? '/', { replace: true })
+      } else {
+        navigate('/verifyotp', {
+          replace: true,
+          state: { email: user.email, redirectTo },
+        })
+      }
     } catch (submitError) {
       setError(apiErrorMessage(submitError, 'Unable to verify code'))
     } finally {
@@ -186,7 +204,11 @@ const Login = () => {
       </form>
       <p className="mt-5 text-center text-sm text-slate-500">
         New here?{' '}
-        <Link className="font-semibold text-indigo-500" to="/register">
+        <Link
+          className="font-semibold text-indigo-500"
+          to="/register"
+          state={redirectTo ? { redirectTo } : undefined}
+        >
           Create account
         </Link>
       </p>
