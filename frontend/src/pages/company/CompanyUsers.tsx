@@ -35,7 +35,7 @@ const invitationClass: Record<CompanyInvitation['status'], string> = {
 
 export default function CompanyUsers() {
   const selectedCompany = useAppSelector(selectSelectedCompany)
-  const { can } = useIam()
+  const { can, canAll } = useIam()
   const [users, setUsers] = useState<CompanyUser[]>([])
   const [invitations, setInvitations] = useState<CompanyInvitation[]>([])
   const [roles, setRoles] = useState<CompanyRole[]>([])
@@ -249,7 +249,11 @@ export default function CompanyUsers() {
                   <th className="px-4 py-3">Access</th>
                   <th className="px-4 py-3">Security</th>
                   <th className="px-4 py-3">Joined</th>
-                  {can(PERMISSIONS.ROLE_ASSIGN) && <th className="px-4 py-3">Action</th>}
+                  {canAll([
+                    PERMISSIONS.USER_MODIFY,
+                    PERMISSIONS.ROLE_READ,
+                    PERMISSIONS.ROLE_ASSIGN,
+                  ]) && <th className="px-4 py-3">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
@@ -257,7 +261,15 @@ export default function CompanyUsers() {
                   <tr>
                     <td
                       className="px-4 py-8 text-center text-slate-500"
-                      colSpan={can(PERMISSIONS.ROLE_ASSIGN) ? 5 : 4}
+                      colSpan={
+                        canAll([
+                          PERMISSIONS.USER_MODIFY,
+                          PERMISSIONS.ROLE_READ,
+                          PERMISSIONS.ROLE_ASSIGN,
+                        ])
+                          ? 5
+                          : 4
+                      }
                     >
                       Loading users…
                     </td>
@@ -266,7 +278,15 @@ export default function CompanyUsers() {
                   <tr>
                     <td
                       className="px-4 py-8 text-center text-slate-500"
-                      colSpan={can(PERMISSIONS.ROLE_ASSIGN) ? 5 : 4}
+                      colSpan={
+                        canAll([
+                          PERMISSIONS.USER_MODIFY,
+                          PERMISSIONS.ROLE_READ,
+                          PERMISSIONS.ROLE_ASSIGN,
+                        ])
+                          ? 5
+                          : 4
+                      }
                     >
                       No users found
                     </td>
@@ -331,7 +351,11 @@ export default function CompanyUsers() {
                       <td className="px-4 py-3 text-slate-500">
                         {new Date(user.joinedAt).toLocaleDateString()}
                       </td>
-                      {can(PERMISSIONS.ROLE_ASSIGN) && (
+                      {canAll([
+                        PERMISSIONS.USER_MODIFY,
+                        PERMISSIONS.ROLE_READ,
+                        PERMISSIONS.ROLE_ASSIGN,
+                      ]) && (
                         <td className="px-4 py-3">
                           {user.role === 'OWNER' ? (
                             <span className="text-xs font-medium text-slate-400">Full access</span>
@@ -555,7 +579,7 @@ export default function CompanyUsers() {
                 />
               </label>
 
-              {can(PERMISSIONS.ROLE_ASSIGN) && roles.length > 0 && (
+              {canAll([PERMISSIONS.ROLE_READ, PERMISSIONS.ROLE_ASSIGN]) && roles.length > 0 && (
                 <fieldset className="mt-5">
                   <legend className="text-xs font-semibold text-slate-700">
                     IAM roles <span className="font-normal text-slate-400">(optional)</span>

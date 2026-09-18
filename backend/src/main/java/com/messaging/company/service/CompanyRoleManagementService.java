@@ -146,7 +146,7 @@ public class CompanyRoleManagementService {
   public CompanyMemberRoleAssignmentResponse assignRole(
       Long companyId, Long targetUserId, Long roleId, AssignCompanyRoleRequest request) {
     Long actorId = currentUserService.currentUserId();
-    authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_ASSIGN);
+    requireMemberRoleManagementPermissions(actorId, companyId);
     CompanyMember target = requireActiveMember(companyId, targetUserId);
     if (target.getRole() == CompanyRole.OWNER) {
       throw new BadRequestException("Owner has full access and cannot receive custom roles");
@@ -178,7 +178,7 @@ public class CompanyRoleManagementService {
   @Transactional
   public void revokeRole(Long companyId, Long targetUserId, Long roleId) {
     Long actorId = currentUserService.currentUserId();
-    authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_ASSIGN);
+    requireMemberRoleManagementPermissions(actorId, companyId);
     requireActiveMember(companyId, targetUserId);
     requireRole(companyId, roleId);
     requireCanDelegate(actorId, companyId, permissionKeys(roleId));
@@ -241,6 +241,12 @@ public class CompanyRoleManagementService {
 
     requireCanDelegate(actorId, companyId, requested);
     return Set.copyOf(requested);
+  }
+
+  private void requireMemberRoleManagementPermissions(Long actorId, Long companyId) {
+    authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.USER_MODIFY);
+    authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_READ);
+    authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_ASSIGN);
   }
 
   private void requireCanDelegate(Long actorId, Long companyId, Set<String> permissions) {
