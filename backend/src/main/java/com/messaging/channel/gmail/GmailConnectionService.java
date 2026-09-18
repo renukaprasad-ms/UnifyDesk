@@ -3,7 +3,6 @@ package com.messaging.channel.gmail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.channel.credential.ProviderCredentialService;
 import com.messaging.channel.dto.ChannelConnectionResponse;
-import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.CredentialType;
 import com.messaging.channel.enums.ProviderType;
@@ -78,8 +77,7 @@ public class GmailConnectionService {
       entitlementService.assertCanCreateConnection(oauthState.companyId(), ChannelType.EMAIL);
     }
 
-    return persistenceService.persist(
-        oauthState.companyId(), oauthState.userId(), profile, token);
+    return persistenceService.persist(oauthState.companyId(), oauthState.userId(), profile, token);
   }
 
   public void consumeCancelledState(String state) {
