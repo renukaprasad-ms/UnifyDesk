@@ -11,7 +11,7 @@ const VerifyOtp = () => {
   const location = useLocation()
   const user = useAppSelector(selectAuthUser)
   const routeState = location.state as
-    | { email?: string; profilePictureWarning?: string }
+    | { email?: string; profilePictureWarning?: string; redirectTo?: string }
     | null
   const email = routeState?.email ?? user?.email
   const [otp, setOtp] = useState('')
@@ -25,7 +25,7 @@ const VerifyOtp = () => {
     try {
       const verifiedUser = await authApi.verifyEmail(otp)
       dispatch(setAuthUser(verifiedUser))
-      navigate('/', { replace: true })
+      navigate(routeState?.redirectTo ?? '/', { replace: true })
     } catch (submitError) {
       setError(apiErrorMessage(submitError, 'Unable to verify OTP'))
     } finally {
@@ -66,7 +66,13 @@ const VerifyOtp = () => {
       </form>
       <p className="mt-5 text-center text-sm text-slate-500">
         Need to start over?{' '}
-        <Link className="font-semibold text-indigo-500" to="/login">Back to login</Link>
+        <Link
+          className="font-semibold text-indigo-500"
+          to="/login"
+          state={routeState?.redirectTo ? { redirectTo: routeState.redirectTo } : undefined}
+        >
+          Back to login
+        </Link>
       </p>
     </div>
   )
