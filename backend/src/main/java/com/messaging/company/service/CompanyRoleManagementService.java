@@ -290,8 +290,8 @@ public class CompanyRoleManagementService {
 
   private CompanyRoleResponse toRoleResponse(CompanyCustomRole role, Set<String> permissions) {
     return new CompanyRoleResponse(
-        role.getId(),
-        role.getCompany().getId(),
+        role.getId().toString(),
+        role.getCompany().getId().toString(),
         role.getName(),
         role.getDescription(),
         role.isSystemRole(),
@@ -312,7 +312,7 @@ public class CompanyRoleManagementService {
   private CompanyMemberRoleAssignmentResponse toAssignmentResponse(
       CompanyMemberRoleAssignment assignment) {
     return new CompanyMemberRoleAssignmentResponse(
-        assignment.getRole().getId(),
+        assignment.getRole().getId().toString(),
         assignment.getRole().getName(),
         assignment.getExpiresAt(),
         assignment.getRevokedAt(),
