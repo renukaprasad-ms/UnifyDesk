@@ -123,16 +123,14 @@ class MetaWhatsAppConnectionServiceTests {
         new CompleteMetaWhatsAppSignupRequest("state", "code", "waba-1", "phone-1");
     TokenResponse token = new TokenResponse("access-token", "bearer", null);
     WabaDetails waba = new WabaDetails("waba-1", "Acme WhatsApp", "INR", "5");
-    PhoneNumber differentPhone =
-        new PhoneNumber("phone-2", "+91 91111 11111", "Other", "GREEN");
+    PhoneNumber differentPhone = new PhoneNumber("phone-2", "+91 91111 11111", "Other", "GREEN");
 
     when(connectionRepository.findByCompanyIdAndProviderTypeAndExternalAccountId(
             COMPANY_ID, ProviderType.META_WHATSAPP, "waba-1"))
         .thenReturn(Optional.empty());
     when(graphClient.exchangeCode("code")).thenReturn(token);
     when(graphClient.getWaba("waba-1", "access-token")).thenReturn(waba);
-    when(graphClient.getPhoneNumbers("waba-1", "access-token"))
-        .thenReturn(List.of(differentPhone));
+    when(graphClient.getPhoneNumbers("waba-1", "access-token")).thenReturn(List.of(differentPhone));
 
     assertThatThrownBy(() -> service.complete(COMPANY_ID, USER_ID, request))
         .isInstanceOf(BadRequestException.class)
