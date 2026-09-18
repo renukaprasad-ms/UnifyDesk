@@ -437,6 +437,10 @@ export default function CompanyUsers() {
                 </fieldset>
               )}
 
+              {error && (
+                <p className="mt-5 rounded-lg bg-rose-50 p-3 text-sm text-rose-600">{error}</p>
+              )}
+
               <div className="mt-6 flex justify-end gap-2">
                 <button
                   type="button"
