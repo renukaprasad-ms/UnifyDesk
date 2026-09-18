@@ -63,3 +63,8 @@ export type MetaWhatsAppConnection = {
 export type GmailAuthorization = {
   authorizationUrl: string
 }
+
+export type GmailSyncQueued = {
+  connectionId: string
+  status: 'QUEUED'
+}
