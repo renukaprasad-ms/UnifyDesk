@@ -155,11 +155,7 @@ export default function CompanyUsers() {
 
   const activeRoleIds = new Set(
     memberAssignments
-      .filter(
-        (assignment) =>
-          !assignment.revokedAt &&
-          (!assignment.expiresAt || new Date(assignment.expiresAt).getTime() > Date.now()),
-      )
+      .filter((assignment) => !assignment.revokedAt)
       .map((assignment) => assignment.roleId),
   )
 
