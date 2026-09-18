@@ -5,6 +5,8 @@ import type {
   CompanyInvitation,
   CompanyUser,
   CreateCompanyInvitationPayload,
+  Company,
+  UpdateCompanyPayload,
 } from './types'
 
 const unwrap = <T>(response: ApiResponse<T>) => {
@@ -15,6 +17,19 @@ const unwrap = <T>(response: ApiResponse<T>) => {
 }
 
 export const companyApi = {
+  async get(companyId: string) {
+    const response = await apiClient.get<ApiResponse<Company>>(`/api/v1/companies/${companyId}`)
+    return unwrap(response.data)
+  },
+
+  async update(companyId: string, payload: UpdateCompanyPayload) {
+    const response = await apiClient.put<ApiResponse<Company>>(
+      `/api/v1/companies/${companyId}`,
+      payload,
+    )
+    return unwrap(response.data)
+  },
+
   async users(companyId: string) {
     const response = await apiClient.get<ApiResponse<CompanyUser[]>>(
       `/api/v1/companies/${companyId}/users`,

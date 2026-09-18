@@ -4,6 +4,7 @@ import com.messaging.common.response.ApiResponse;
 import com.messaging.company.dto.CompanyResponse;
 import com.messaging.company.dto.CompanyUserResponse;
 import com.messaging.company.dto.CreateCompanyRequest;
+import com.messaging.company.dto.UpdateCompanyRequest;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
 import com.messaging.company.service.CompanyService;
@@ -16,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -42,6 +44,31 @@ public class CompanyController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(), companyService.myCompanies(), "Companies fetched"));
+  }
+
+  @GetMapping("/{companyId}")
+  public ResponseEntity<ApiResponse<CompanyResponse>> company(@PathVariable Long companyId) {
+    Long userId = currentUserService.currentUserId();
+    companyAuthorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.COMPANY_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            companyService.companyForUser(companyId, userId),
+            "Company fetched"));
+  }
+
+  @PutMapping("/{companyId}")
+  public ResponseEntity<ApiResponse<CompanyResponse>> update(
+      @PathVariable Long companyId, @Valid @RequestBody UpdateCompanyRequest request) {
+    Long userId = currentUserService.currentUserId();
+    companyAuthorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.COMPANY_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            companyService.update(companyId, userId, request),
+            "Company updated"));
   }
 
   @GetMapping("/{companyId}/users")

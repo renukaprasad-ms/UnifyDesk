@@ -64,3 +64,11 @@ export type CreateCompanyPayload = {
   timezone?: string
   logoMediaId?: string
 }
+
+export type UpdateCompanyPayload = {
+  name: string
+  businessEmail?: string | null
+  country?: string | null
+  timezone?: string | null
+  logoMediaId?: string | null
+}

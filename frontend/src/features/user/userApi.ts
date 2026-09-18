@@ -4,6 +4,7 @@ import type {
   CreateUserPayload,
   ResetPasswordPayload,
   ToggleTwoFactorPayload,
+  UpdateOwnProfilePayload,
   UpdateUserPayload,
   User,
 } from './types'
@@ -23,6 +24,11 @@ export const userApi = {
 
   async me() {
     const response = await apiClient.get<ApiResponse<User>>('/api/users/me')
+    return unwrap(response.data)
+  },
+
+  async updateProfile(payload: UpdateOwnProfilePayload) {
+    const response = await apiClient.patch<ApiResponse<User>>('/api/users/me/profile', payload)
     return unwrap(response.data)
   },
 

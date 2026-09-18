@@ -1,5 +1,6 @@
 package com.messaging.user.service;
 
+import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ConflictException;
 import com.messaging.common.exception.ForbiddenException;
 import com.messaging.common.exception.NotFoundException;
@@ -12,6 +13,7 @@ import com.messaging.security.service.CurrentUserService;
 import com.messaging.user.dto.CreateUserRequest;
 import com.messaging.user.dto.ResetPasswordRequest;
 import com.messaging.user.dto.ToggleTwoFactorRequest;
+import com.messaging.user.dto.UpdateOwnProfileRequest;
 import com.messaging.user.dto.UpdateUserRequest;
 import com.messaging.user.dto.UserResponse;
 import com.messaging.user.entity.User;
@@ -88,15 +90,34 @@ public class UserService {
   }
 
   @Transactional
+  public UserResponse updateOwnProfile(UpdateOwnProfileRequest request) {
+    long userId = currentUserService.currentUserId();
+    User user = getUser(userId);
+    String username = normalizeUsername(request.username());
+
+    if (userRepository.existsByUsernameAndIdNot(username, userId)) {
+      throw new ConflictException("Username already exists");
+    }
+
+    user.setName(request.name().trim());
+    user.setUsername(username);
+    return toResponse(user);
+  }
+
+  @Transactional
   public UserResponse updateUser(long userId, UpdateUserRequest request) {
+    requireCurrentUser(userId, "You can only update your own user profile");
     User user = getUser(userId);
 
     if (request.email() != null && !request.email().isBlank()) {
       String email = normalizeEmail(request.email());
-      if (userRepository.existsByEmailAndIdNot(email, userId)) {
-        throw new ConflictException("Email already exists");
+      if (!email.equals(user.getEmail())) {
+        if (userRepository.existsByEmailAndIdNot(email, userId)) {
+          throw new ConflictException("Email already exists");
+        }
+        user.setEmail(email);
+        user.setVerified(false);
       }
-      user.setEmail(email);
     }
 
     if (request.username() != null && !request.username().isBlank()) {
@@ -112,7 +133,7 @@ public class UserService {
     }
 
     if (request.verified() != null) {
-      user.setVerified(request.verified());
+      throw new BadRequestException("Email verification status cannot be changed directly");
     }
 
     return toResponse(user);
@@ -238,6 +259,7 @@ public class UserService {
         user.getName(),
         user.isVerified(),
         user.getUsername(),
-        user.isTwoFactorEnabled());
+        user.isTwoFactorEnabled(),
+        user.getProfilePicture() == null ? null : user.getProfilePicture().getId().toString());
   }
 }
