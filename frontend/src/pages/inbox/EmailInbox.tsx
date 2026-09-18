@@ -39,6 +39,10 @@ export default function EmailInbox() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [messages, setMessages] = useState<InboxMessage[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [currentPage, setCurrentPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalElements, setTotalElements] = useState(0)
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -57,35 +61,54 @@ export default function EmailInbox() {
     )
   }, [connections, selectedConversation])
 
-  const loadConversations = useCallback(async () => {
-    if (!companyId) return
-    setError(null)
+  const loadConversations = useCallback(
+    async (page = 0, append = false) => {
+      if (!companyId) return
+      setError(null)
 
-    try {
-      const [inbox, emailConnections] = await Promise.all([
-        inboxApi.conversations(companyId),
-        channelApi.list(companyId, 'EMAIL'),
-      ])
-      setConversations(inbox.items)
-      setConnections(emailConnections)
+      if (append) {
+        setLoadingMore(true)
+      } else {
+        setLoading(true)
+      }
 
-      setSelectedId((current) => {
-        if (current && inbox.items.some((conversation) => conversation.id === current)) {
-          return current
-        }
-        return inbox.items[0]?.id ?? null
-      })
-    } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to load email inbox'))
-    } finally {
-      setLoading(false)
-    }
-  }, [companyId])
+      try {
+        const [inbox, emailConnections] = await Promise.all([
+          inboxApi.conversations(companyId, page, 30),
+          channelApi.list(companyId, 'EMAIL'),
+        ])
+
+        setConversations((current) => {
+          if (!append) return inbox.items
+          const byId = new Map(current.map((conversation) => [conversation.id, conversation]))
+          inbox.items.forEach((conversation) => byId.set(conversation.id, conversation))
+          return Array.from(byId.values())
+        })
+        setConnections(emailConnections)
+        setCurrentPage(inbox.page)
+        setTotalPages(inbox.totalPages)
+        setTotalElements(inbox.totalElements)
+
+        setSelectedId((current) => {
+          const available = append ? [...conversations, ...inbox.items] : inbox.items
+          if (current && available.some((conversation) => conversation.id === current)) {
+            return current
+          }
+          return available[0]?.id ?? null
+        })
+      } catch (requestError) {
+        setError(apiErrorMessage(requestError, 'Unable to load email inbox'))
+      } finally {
+        setLoading(false)
+        setLoadingMore(false)
+      }
+    },
+    [companyId, conversations],
+  )
 
   useEffect(() => {
-    setLoading(true)
-    void loadConversations()
-  }, [loadConversations])
+    void loadConversations(0, false)
+  }, [companyId])
 
   useEffect(() => {
     if (!companyId || !selectedId) {
@@ -165,7 +188,7 @@ export default function EmailInbox() {
             <button
               type="button"
               className="secondary-button gap-2"
-              onClick={() => void loadConversations()}
+              onClick={() => void loadConversations(0, false)}
               disabled={loading}
             >
               <FiRefreshCw aria-hidden="true" />
@@ -200,7 +223,9 @@ export default function EmailInbox() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-bold text-slate-900">Conversations</h2>
-                  <p className="mt-1 text-xs text-slate-500">{conversations.length} loaded</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {conversations.length} of {totalElements} loaded
+                  </p>
                 </div>
                 <FiInbox className="text-slate-400" aria-hidden="true" />
               </div>
@@ -268,6 +293,19 @@ export default function EmailInbox() {
                     </button>
                   )
                 })
+              )}
+
+              {!loading && currentPage + 1 < totalPages && (
+                <div className="p-3">
+                  <button
+                    type="button"
+                    className="secondary-button w-full justify-center"
+                    onClick={() => void loadConversations(currentPage + 1, true)}
+                    disabled={loadingMore}
+                  >
+                    {loadingMore ? 'Loading...' : 'Load more'}
+                  </button>
+                </div>
               )}
             </div>
           </aside>
