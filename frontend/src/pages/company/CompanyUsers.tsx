@@ -1,7 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FiRefreshCw, FiShield, FiUsers } from 'react-icons/fi'
+import {
+  FiClock,
+  FiMail,
+  FiRefreshCw,
+  FiSend,
+  FiShield,
+  FiUserPlus,
+  FiUsers,
+  FiX,
+} from 'react-icons/fi'
 import { companyApi } from '../../features/company/companyApi'
-import type { CompanyUser } from '../../features/company/types'
+import type { CompanyInvitation, CompanyUser } from '../../features/company/types'
+import { iamApi } from '../../features/iam/iamApi'
+import { PERMISSIONS } from '../../features/iam/permissions'
+import type { CompanyRole } from '../../features/iam/types'
+import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
@@ -12,10 +25,25 @@ const roleClass: Record<CompanyUser['role'], string> = {
   MEMBER: 'bg-slate-100 text-slate-700',
 }
 
+const invitationClass: Record<CompanyInvitation['status'], string> = {
+  PENDING: 'bg-amber-50 text-amber-700',
+  ACCEPTED: 'bg-emerald-50 text-emerald-700',
+  REVOKED: 'bg-slate-100 text-slate-600',
+  EXPIRED: 'bg-rose-50 text-rose-700',
+}
+
 export default function CompanyUsers() {
   const selectedCompany = useAppSelector(selectSelectedCompany)
+  const { can } = useIam()
   const [users, setUsers] = useState<CompanyUser[]>([])
+  const [invitations, setInvitations] = useState<CompanyInvitation[]>([])
+  const [roles, setRoles] = useState<CompanyRole[]>([])
   const [loading, setLoading] = useState(true)
+  const [showInvite, setShowInvite] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
+  const [submittingInvite, setSubmittingInvite] = useState(false)
+  const [workingInvitationId, setWorkingInvitationId] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   const sortedUsers = useMemo(
@@ -27,12 +55,26 @@ export default function CompanyUsers() {
     [users],
   )
 
+  const activeInvitations = useMemo(
+    () => invitations.filter((invitation) => ['PENDING', 'EXPIRED'].includes(invitation.status)),
+    [invitations],
+  )
+
   const loadUsers = async () => {
     if (!selectedCompany) return
     setError('')
     setLoading(true)
     try {
-      setUsers(await companyApi.users(selectedCompany.companyId))
+      const [loadedUsers, loadedInvitations, loadedRoles] = await Promise.all([
+        companyApi.users(selectedCompany.companyId),
+        companyApi.invitations(selectedCompany.companyId),
+        can(PERMISSIONS.ROLE_READ)
+          ? iamApi.roles(selectedCompany.companyId)
+          : Promise.resolve([] as CompanyRole[]),
+      ])
+      setUsers(loadedUsers)
+      setInvitations(loadedInvitations)
+      setRoles(loadedRoles)
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load company users'))
     } finally {
@@ -44,37 +86,379 @@ export default function CompanyUsers() {
     void loadUsers()
   }, [selectedCompany?.companyId])
 
+  const sendInvite = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!selectedCompany) return
+    setSubmittingInvite(true)
+    setError('')
+    try {
+      await companyApi.invite(selectedCompany.companyId, {
+        email: inviteEmail.trim(),
+        roleIds: can(PERMISSIONS.ROLE_ASSIGN) ? selectedRoleIds : [],
+      })
+      setInviteEmail('')
+      setSelectedRoleIds([])
+      setShowInvite(false)
+      await loadUsers()
+    } catch (inviteError) {
+      setError(apiErrorMessage(inviteError, 'Unable to send invitation'))
+    } finally {
+      setSubmittingInvite(false)
+    }
+  }
+
+  const resend = async (invitationId: string) => {
+    if (!selectedCompany) return
+    setWorkingInvitationId(invitationId)
+    setError('')
+    try {
+      await companyApi.resendInvitation(selectedCompany.companyId, invitationId)
+      await loadUsers()
+    } catch (inviteError) {
+      setError(apiErrorMessage(inviteError, 'Unable to resend invitation'))
+    } finally {
+      setWorkingInvitationId(null)
+    }
+  }
+
+  const revoke = async (invitation: CompanyInvitation) => {
+    if (!selectedCompany) return
+    if (!window.confirm(`Revoke the invitation for ${invitation.email}?`)) return
+    setWorkingInvitationId(invitation.invitationId)
+    setError('')
+    try {
+      await companyApi.revokeInvitation(selectedCompany.companyId, invitation.invitationId)
+      await loadUsers()
+    } catch (inviteError) {
+      setError(apiErrorMessage(inviteError, 'Unable to revoke invitation'))
+    } finally {
+      setWorkingInvitationId(null)
+    }
+  }
+
+  const toggleRole = (roleId: string) => {
+    setSelectedRoleIds((current) =>
+      current.includes(roleId)
+        ? current.filter((id) => id !== roleId)
+        : [...current, roleId],
+    )
+  }
+
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><p className="eyebrow">Company</p><h1 className="mt-2 text-2xl font-bold text-slate-950">Users</h1></div>
-          <button type="button" className="secondary-button inline-flex" onClick={loadUsers}><FiRefreshCw aria-hidden="true" /><span className="ml-2">Refresh</span></button>
+          <div>
+            <p className="eyebrow">Company</p>
+            <h1 className="mt-2 text-2xl font-bold text-slate-950">Users & access</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Invite teammates and control their access with company IAM roles.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button type="button" className="secondary-button inline-flex" onClick={loadUsers}>
+              <FiRefreshCw aria-hidden="true" />
+              <span className="ml-2">Refresh</span>
+            </button>
+            {can(PERMISSIONS.USER_INVITE) && (
+              <button
+                type="button"
+                className="primary-button inline-flex items-center gap-2"
+                onClick={() => setShowInvite(true)}
+              >
+                <FiUserPlus aria-hidden="true" />
+                Invite user
+              </button>
+            )}
+          </div>
         </div>
-        {error && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
-          <div className="panel p-5"><p className="text-xs font-semibold text-slate-500">Total users</p><p className="mt-2 text-3xl font-bold text-slate-950">{users.length}</p></div>
-          <div className="panel p-5"><p className="text-xs font-semibold text-slate-500">Verified</p><p className="mt-2 text-3xl font-bold text-slate-950">{users.filter((user) => user.verified).length}</p></div>
-          <div className="panel p-5"><p className="text-xs font-semibold text-slate-500">2FA enabled</p><p className="mt-2 text-3xl font-bold text-slate-950">{users.filter((user) => user.twoFactorEnabled).length}</p></div>
+          <div className="panel p-5">
+            <p className="text-xs font-semibold text-slate-500">Active users</p>
+            <p className="mt-2 text-3xl font-bold text-slate-950">{users.length}</p>
+          </div>
+          <div className="panel p-5">
+            <p className="text-xs font-semibold text-slate-500">Pending invitations</p>
+            <p className="mt-2 text-3xl font-bold text-slate-950">{activeInvitations.length}</p>
+          </div>
+          <div className="panel p-5">
+            <p className="text-xs font-semibold text-slate-500">Custom IAM roles</p>
+            <p className="mt-2 text-3xl font-bold text-slate-950">{roles.length}</p>
+          </div>
         </div>
+
         <div className="panel mt-5 overflow-hidden">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h2 className="text-sm font-bold text-slate-950">Members</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              A user account is created only when the invited person registers.
+            </p>
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-              <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">User</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Security</th><th className="px-4 py-3">Joined</th></tr></thead>
+              <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">User</th>
+                  <th className="px-4 py-3">Access</th>
+                  <th className="px-4 py-3">Security</th>
+                  <th className="px-4 py-3">Joined</th>
+                </tr>
+              </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {loading ? <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={4}>Loading users</td></tr> : sortedUsers.length === 0 ? <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={4}>No users found</td></tr> : sortedUsers.map((user) => (
-                  <tr key={user.memberId}>
-                    <td className="px-4 py-3"><div className="flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-lg bg-indigo-50 text-xs font-bold text-indigo-500">{user.name.slice(0, 2).toUpperCase()}</span><span className="min-w-0"><span className="block font-semibold text-slate-950">{user.name}</span><span className="block truncate text-xs text-slate-500">@{user.username} / {user.email}</span></span></div></td>
-                    <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${roleClass[user.role]}`}>{user.role}</span></td>
-                    <td className="px-4 py-3"><div className="flex flex-wrap gap-2"><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${user.verified ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}><FiUsers aria-hidden="true" />{user.verified ? 'Verified' : 'Pending'}</span><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${user.twoFactorEnabled ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}><FiShield aria-hidden="true" />2FA {user.twoFactorEnabled ? 'On' : 'Off'}</span></div></td>
-                    <td className="px-4 py-3 text-slate-500">{new Date(user.joinedAt).toLocaleDateString()}</td>
+                {loading ? (
+                  <tr>
+                    <td className="px-4 py-8 text-center text-slate-500" colSpan={4}>
+                      Loading users…
+                    </td>
                   </tr>
-                ))}
+                ) : sortedUsers.length === 0 ? (
+                  <tr>
+                    <td className="px-4 py-8 text-center text-slate-500" colSpan={4}>
+                      No users found
+                    </td>
+                  </tr>
+                ) : (
+                  sortedUsers.map((user) => (
+                    <tr key={user.memberId} className="hover:bg-slate-50/60">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <span className="flex size-9 items-center justify-center rounded-lg bg-indigo-50 text-xs font-bold text-indigo-500">
+                            {user.name.slice(0, 2).toUpperCase()}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block font-semibold text-slate-950">{user.name}</span>
+                            <span className="block truncate text-xs text-slate-500">
+                              @{user.username} · {user.email}
+                            </span>
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex max-w-sm flex-wrap gap-1.5">
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${roleClass[user.role]}`}>
+                            {user.role}
+                          </span>
+                          {user.customRoles?.map((role) => (
+                            <span
+                              key={role}
+                              className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700"
+                            >
+                              {role}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              user.verified
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-amber-50 text-amber-700'
+                            }`}
+                          >
+                            <FiUsers aria-hidden="true" />
+                            {user.verified ? 'Verified' : 'Pending'}
+                          </span>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              user.twoFactorEnabled
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            <FiShield aria-hidden="true" />
+                            2FA {user.twoFactorEnabled ? 'On' : 'Off'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">
+                        {new Date(user.joinedAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
+
+        <div className="panel mt-5 overflow-hidden">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h2 className="text-sm font-bold text-slate-950">Invitations</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Pending invitations reserve a workspace seat until they expire or are revoked.
+            </p>
+          </div>
+
+          {loading ? (
+            <p className="px-5 py-8 text-center text-sm text-slate-500">Loading invitations…</p>
+          ) : activeInvitations.length === 0 ? (
+            <div className="px-5 py-10 text-center">
+              <FiMail className="mx-auto text-slate-400" size={24} />
+              <p className="mt-3 text-sm font-semibold text-slate-800">No pending invitations</p>
+              <p className="mt-1 text-xs text-slate-500">Invite a teammate when you are ready.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {activeInvitations.map((invitation) => (
+                <div
+                  key={invitation.invitationId}
+                  className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-slate-950">
+                        {invitation.email}
+                      </p>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${invitationClass[invitation.status]}`}
+                      >
+                        {invitation.status}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {invitation.roles.length === 0 ? (
+                        <span className="text-xs text-slate-500">Default member access</span>
+                      ) : (
+                        invitation.roles.map((role) => (
+                          <span
+                            key={role.roleId}
+                            className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700"
+                          >
+                            {role.name}
+                          </span>
+                        ))
+                      )}
+                    </div>
+                    <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-slate-500">
+                      <FiClock aria-hidden="true" />
+                      {invitation.status === 'EXPIRED' ? 'Expired' : 'Expires'}{' '}
+                      {new Date(invitation.expiresAt).toLocaleString()}
+                    </p>
+                  </div>
+
+                  {can(PERMISSIONS.USER_INVITE) && (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        className="secondary-button inline-flex items-center gap-2"
+                        disabled={workingInvitationId === invitation.invitationId}
+                        onClick={() => void resend(invitation.invitationId)}
+                      >
+                        <FiSend aria-hidden="true" />
+                        Resend
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                        disabled={workingInvitationId === invitation.invitationId}
+                        onClick={() => void revoke(invitation)}
+                      >
+                        Revoke
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {showInvite && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-950">Invite user</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  If the email has no account, they will register before joining.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+                onClick={() => setShowInvite(false)}
+              >
+                <FiX aria-hidden="true" />
+              </button>
+            </div>
+
+            <form onSubmit={sendInvite} className="p-5">
+              <label className="block text-xs font-semibold text-slate-700">
+                Email
+                <input
+                  type="email"
+                  className="form-input mt-1.5"
+                  placeholder="teammate@example.com"
+                  value={inviteEmail}
+                  onChange={(event) => setInviteEmail(event.target.value)}
+                  autoFocus
+                  required
+                />
+              </label>
+
+              {can(PERMISSIONS.ROLE_ASSIGN) && roles.length > 0 && (
+                <fieldset className="mt-5">
+                  <legend className="text-xs font-semibold text-slate-700">
+                    IAM roles <span className="font-normal text-slate-400">(optional)</span>
+                  </legend>
+                  <div className="mt-2 max-h-64 space-y-2 overflow-y-auto">
+                    {roles.map((role) => (
+                      <label
+                        key={role.id}
+                        className="flex cursor-pointer gap-3 rounded-xl border border-slate-200 p-3 hover:border-indigo-200 hover:bg-indigo-50/30"
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={selectedRoleIds.includes(role.id)}
+                          onChange={() => toggleRole(role.id)}
+                        />
+                        <span>
+                          <span className="block text-sm font-semibold text-slate-900">
+                            {role.name}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-slate-500">
+                            {role.description || `${role.permissions.length} permissions`}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
+
+              <div className="mt-6 flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setShowInvite(false)}
+                  disabled={submittingInvite}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="primary-button inline-flex items-center gap-2"
+                  disabled={submittingInvite}
+                >
+                  <FiSend aria-hidden="true" />
+                  {submittingInvite ? 'Sending…' : 'Send invitation'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
