@@ -4,8 +4,8 @@ import java.time.Instant;
 import java.util.Set;
 
 public record CompanyRoleResponse(
-    Long id,
-    Long companyId,
+    String id,
+    String companyId,
     String name,
     String description,
     boolean systemRole,
