@@ -6,6 +6,7 @@ import com.messaging.common.exception.NotFoundException;
 import com.messaging.company.dto.CompanyResponse;
 import com.messaging.company.dto.CompanyUserResponse;
 import com.messaging.company.dto.CreateCompanyRequest;
+import com.messaging.company.dto.UpdateCompanyRequest;
 import com.messaging.company.entity.Company;
 import com.messaging.company.entity.CompanyMember;
 import com.messaging.company.enums.CompanyMemberStatus;
@@ -64,6 +65,35 @@ public class CompanyService {
 
     defaultPlanAssignmentService.assignToNewCompany(company);
     return toResponse(company, CompanyRole.OWNER);
+  }
+
+  @Transactional(readOnly = true)
+  public CompanyResponse companyForUser(Long companyId, Long userId) {
+    Company company = getCompany(companyId);
+    CompanyRole role =
+        memberRepository
+            .findByCompanyIdAndUserIdAndStatus(companyId, userId, CompanyMemberStatus.ACTIVE)
+            .map(CompanyMember::getRole)
+            .orElse(null);
+    return toResponse(company, role);
+  }
+
+  @Transactional
+  public CompanyResponse update(Long companyId, Long userId, UpdateCompanyRequest request) {
+    Company company = getCompany(companyId);
+    company.setName(request.name().trim());
+    company.setBusinessEmail(normalizeOptional(request.businessEmail()));
+    company.setCountry(normalizeOptional(request.country()));
+    company.setTimezone(normalizeOptional(request.timezone()));
+    company.setLogoMediaId(resolveLogoMediaId(request.logoMediaId(), userId));
+    company = companyRepository.saveAndFlush(company);
+
+    CompanyRole role =
+        memberRepository
+            .findByCompanyIdAndUserIdAndStatus(companyId, userId, CompanyMemberStatus.ACTIVE)
+            .map(CompanyMember::getRole)
+            .orElse(null);
+    return toResponse(company, role);
   }
 
   @Transactional(readOnly = true)
