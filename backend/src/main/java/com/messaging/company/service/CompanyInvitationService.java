@@ -247,6 +247,7 @@ public class CompanyInvitationService {
     if (requestedRoleIds == null || requestedRoleIds.isEmpty()) {
       return Set.of();
     }
+    authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_READ);
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_ASSIGN);
 
     LinkedHashSet<CompanyCustomRole> roles = new LinkedHashSet<>();
@@ -264,6 +265,7 @@ public class CompanyInvitationService {
 
   private void validateExistingRoles(Long actorId, Long companyId, Set<CompanyCustomRole> roles) {
     if (roles.isEmpty()) return;
+    authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_READ);
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_ASSIGN);
 
     LinkedHashSet<String> permissions = new LinkedHashSet<>();
