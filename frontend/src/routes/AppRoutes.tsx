@@ -10,6 +10,7 @@ import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
 import ResetPassword from '../pages/auth/ResetPassword'
 import VerifyOtp from '../pages/auth/VerifyOtp'
+import CompanyConnections from '../pages/company/CompanyConnections'
 import CompanyDetails from '../pages/company/CompanyDetails'
 import CompanyPlan from '../pages/company/CompanyPlan'
 import CompanyRoles from '../pages/company/CompanyRoles'
@@ -82,6 +83,22 @@ const AppRoutes = () => (
 
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.COMPANY_READ]} />}>
               <Route path="company/details" element={<CompanyDetails />} />
+            </Route>
+            <Route
+              element={
+                <PermissionRoute
+                  anyOf={[
+                    PERMISSIONS.WHATSAPP_READ,
+                    PERMISSIONS.WHATSAPP_CONNECT,
+                    PERMISSIONS.EMAIL_READ,
+                    PERMISSIONS.EMAIL_CONNECT,
+                    PERMISSIONS.SMS_READ,
+                    PERMISSIONS.SMS_CONNECT,
+                  ]}
+                />
+              }
+            >
+              <Route path="company/connections" element={<CompanyConnections />} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.USER_READ]} />}>
               <Route path="company/users" element={<CompanyUsers />} />
