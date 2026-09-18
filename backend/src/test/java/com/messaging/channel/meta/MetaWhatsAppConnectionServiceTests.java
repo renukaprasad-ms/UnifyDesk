@@ -107,8 +107,7 @@ class MetaWhatsAppConnectionServiceTests {
     verify(entitlementService).assertCanCreateSender(COMPANY_ID, SenderIdentityType.PHONE_NUMBER);
 
     ArgumentCaptor<String> pinCaptor = ArgumentCaptor.forClass(String.class);
-    verify(graphClient)
-        .registerPhoneNumber(eq("phone-1"), eq("access-token"), pinCaptor.capture());
+    verify(graphClient).registerPhoneNumber(eq("phone-1"), eq("access-token"), pinCaptor.capture());
     assertThat(pinCaptor.getValue()).matches("\\d{6}");
     verify(graphClient).subscribeApp("waba-1", "access-token");
   }
