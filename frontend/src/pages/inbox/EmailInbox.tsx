@@ -90,11 +90,11 @@ export default function EmailInbox() {
         setTotalElements(inbox.totalElements)
 
         setSelectedId((current) => {
-          const available = append ? [...conversations, ...inbox.items] : inbox.items
-          if (current && available.some((conversation) => conversation.id === current)) {
+          if (append && current) return current
+          if (current && inbox.items.some((conversation) => conversation.id === current)) {
             return current
           }
-          return available[0]?.id ?? null
+          return inbox.items[0]?.id ?? null
         })
       } catch (requestError) {
         setError(apiErrorMessage(requestError, 'Unable to load email inbox'))
@@ -103,7 +103,7 @@ export default function EmailInbox() {
         setLoadingMore(false)
       }
     },
-    [companyId, conversations],
+    [companyId],
   )
 
   useEffect(() => {
