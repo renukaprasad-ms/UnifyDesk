@@ -1,14 +1,21 @@
-import { Link, useNavigate, useParams } from 'react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FiCheckCircle, FiMail, FiShield } from 'react-icons/fi'
+import { Link, useNavigate, useParams } from 'react-router'
 import { companyApi } from '../../features/company/companyApi'
+import {
+  clearPendingInvitationPath,
+  rememberInvitationPath,
+} from '../../features/company/invitationContinuation'
+import { workspaceApi } from '../../features/workspace/workspaceApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { selectAuthUser, selectIsAuthenticated } from '../../store/auth/authSlice'
-import { useAppSelector } from '../../store/hooks'
+import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { selectCompany, setCompanies } from '../../store/workspace/workspaceSlice'
 
 export default function InviteAccept() {
   const { token } = useParams()
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
   const user = useAppSelector(selectAuthUser)
   const [accepting, setAccepting] = useState(false)
@@ -16,13 +23,26 @@ export default function InviteAccept() {
 
   const redirectTo = token ? `/invite/${token}` : '/'
 
+  useEffect(() => {
+    if (token) rememberInvitationPath(redirectTo)
+  }, [redirectTo, token])
+
   const accept = async () => {
     if (!token) return
     setAccepting(true)
     setError('')
     try {
-      await companyApi.acceptInvitation(token)
-      navigate('/select-workspace', { replace: true })
+      const accepted = await companyApi.acceptInvitation(token)
+      clearPendingInvitationPath()
+
+      try {
+        const companies = await workspaceApi.list()
+        dispatch(setCompanies(companies))
+        dispatch(selectCompany(accepted.companyId))
+        navigate('/workspace', { replace: true })
+      } catch {
+        navigate('/select-workspace', { replace: true })
+      }
     } catch (acceptError) {
       setError(apiErrorMessage(acceptError, 'Unable to accept invitation'))
     } finally {
