@@ -96,13 +96,7 @@ class MetaWhatsAppConnectionServiceTests {
     when(graphClient.getWaba("waba-1", "access-token")).thenReturn(waba);
     when(graphClient.getPhoneNumbers("waba-1", "access-token")).thenReturn(List.of(phone));
     when(persistenceService.persist(
-            eq(COMPANY_ID),
-            eq(USER_ID),
-            eq("waba-1"),
-            eq(waba),
-            eq(phone),
-            eq(token),
-            anyString()))
+            eq(COMPANY_ID), eq(USER_ID), eq("waba-1"), eq(waba), eq(phone), eq(token), anyString()))
         .thenReturn(expected);
 
     MetaWhatsAppConnectionResponse actual = service.complete(COMPANY_ID, USER_ID, request);
@@ -185,13 +179,7 @@ class MetaWhatsAppConnectionServiceTests {
     when(graphClient.getWaba("waba-1", "access-token")).thenReturn(waba);
     when(graphClient.getPhoneNumbers("waba-1", "access-token")).thenReturn(List.of(phone));
     when(persistenceService.persist(
-            eq(COMPANY_ID),
-            eq(USER_ID),
-            eq("waba-1"),
-            eq(waba),
-            eq(phone),
-            eq(token),
-            anyString()))
+            eq(COMPANY_ID), eq(USER_ID), eq("waba-1"), eq(waba), eq(phone), eq(token), anyString()))
         .thenReturn(expected);
 
     service.complete(COMPANY_ID, USER_ID, request);
