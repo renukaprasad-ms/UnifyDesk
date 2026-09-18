@@ -126,7 +126,9 @@ export default function CompanyRoles() {
 
   const deleteRole = async (role: CompanyRole) => {
     if (!selectedCompany) return
-    if (!window.confirm(`Delete the role "${role.name}"? Existing assignments will lose this role.`)) {
+    if (
+      !window.confirm(`Delete the role "${role.name}"? Existing assignments will lose this role.`)
+    ) {
       return
     }
     setSaving(true)
@@ -154,7 +156,11 @@ export default function CompanyRoles() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" className="secondary-button inline-flex" onClick={() => void load()}>
+            <button
+              type="button"
+              className="secondary-button inline-flex"
+              onClick={() => void load()}
+            >
               <FiRefreshCw aria-hidden="true" />
               <span className="ml-2">Refresh</span>
             </button>
@@ -177,8 +183,8 @@ export default function CompanyRoles() {
             <div>
               <p className="text-sm font-semibold text-indigo-950">Owner access</p>
               <p className="mt-1 text-xs leading-5 text-indigo-700">
-                The company owner always has full access. Custom roles are for other company
-                members and cannot reduce the owner's permissions.
+                The company owner always has full access. Custom roles are for other company members
+                and cannot reduce the owner's permissions.
               </p>
             </div>
           </div>

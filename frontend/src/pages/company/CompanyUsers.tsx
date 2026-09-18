@@ -169,9 +169,7 @@ export default function CompanyUsers() {
       } else {
         await iamApi.assignRole(selectedCompany.companyId, managingUser.userId, role.id)
       }
-      setMemberAssignments(
-        await iamApi.memberRoles(selectedCompany.companyId, managingUser.userId),
-      )
+      setMemberAssignments(await iamApi.memberRoles(selectedCompany.companyId, managingUser.userId))
       await loadUsers()
     } catch (roleError) {
       setError(apiErrorMessage(roleError, 'Unable to update member role'))
@@ -257,13 +255,19 @@ export default function CompanyUsers() {
               <tbody className="divide-y divide-slate-100 bg-white">
                 {loading ? (
                   <tr>
-                    <td className="px-4 py-8 text-center text-slate-500" colSpan={can(PERMISSIONS.ROLE_ASSIGN) ? 5 : 4}>
+                    <td
+                      className="px-4 py-8 text-center text-slate-500"
+                      colSpan={can(PERMISSIONS.ROLE_ASSIGN) ? 5 : 4}
+                    >
                       Loading users…
                     </td>
                   </tr>
                 ) : sortedUsers.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-8 text-center text-slate-500" colSpan={can(PERMISSIONS.ROLE_ASSIGN) ? 5 : 4}>
+                    <td
+                      className="px-4 py-8 text-center text-slate-500"
+                      colSpan={can(PERMISSIONS.ROLE_ASSIGN) ? 5 : 4}
+                    >
                       No users found
                     </td>
                   </tr>

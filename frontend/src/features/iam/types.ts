@@ -33,7 +33,6 @@ export type MemberRoleAssignment = {
   createdAt: string
 }
 
-
 export type CreateCompanyRoleInput = {
   name: string
   description?: string | null

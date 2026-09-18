@@ -74,8 +74,6 @@ export const iamApi = {
   },
 
   async revokeRole(companyId: string, userId: string, roleId: string) {
-    await apiClient.delete(
-      `/api/v1/companies/${companyId}/iam/members/${userId}/roles/${roleId}`,
-    )
+    await apiClient.delete(`/api/v1/companies/${companyId}/iam/members/${userId}/roles/${roleId}`)
   },
 }
