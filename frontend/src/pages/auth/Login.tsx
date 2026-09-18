@@ -16,9 +16,7 @@ const Login = () => {
   const [otp, setOtp] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const otpRefs = useRef<Array<HTMLInputElement | null>>([])
-  const routeState = location.state as
-    | { passwordReset?: boolean; redirectTo?: string }
-    | null
+  const routeState = location.state as { passwordReset?: boolean; redirectTo?: string } | null
   const passwordReset = Boolean(routeState?.passwordReset)
   const redirectTo = routeState?.redirectTo
 
@@ -183,7 +181,10 @@ const Login = () => {
         <label className="block">
           <span className="mb-1.5 flex items-center justify-between gap-3 text-xs font-semibold text-slate-700">
             <span>Password</span>
-            <Link className="font-semibold text-indigo-500 hover:text-indigo-600" to="/forgot-password">
+            <Link
+              className="font-semibold text-indigo-500 hover:text-indigo-600"
+              to="/forgot-password"
+            >
               Forgot password?
             </Link>
           </span>

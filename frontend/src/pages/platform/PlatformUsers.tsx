@@ -99,7 +99,10 @@ export default function PlatformUsers() {
               <tbody className="divide-y divide-slate-100">
                 {loading && users.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-5 py-14 text-center text-sm font-medium text-slate-500">
+                    <td
+                      colSpan={4}
+                      className="px-5 py-14 text-center text-sm font-medium text-slate-500"
+                    >
                       Loading users…
                     </td>
                   </tr>
@@ -122,12 +125,16 @@ export default function PlatformUsers() {
                             {initials(user.name)}
                           </span>
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-950">{user.name}</p>
+                            <p className="truncate text-sm font-semibold text-slate-950">
+                              {user.name}
+                            </p>
                             <p className="mt-0.5 truncate text-xs text-slate-500">{user.email}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-sm font-medium text-slate-700">@{user.username}</td>
+                      <td className="px-5 py-4 text-sm font-medium text-slate-700">
+                        @{user.username}
+                      </td>
                       <td className="px-5 py-4">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${
@@ -160,8 +167,8 @@ export default function PlatformUsers() {
 
           <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-500">
-              Page <span className="font-semibold text-slate-800">{(data?.number ?? 0) + 1}</span> of{' '}
-              <span className="font-semibold text-slate-800">{totalPages}</span>
+              Page <span className="font-semibold text-slate-800">{(data?.number ?? 0) + 1}</span>{' '}
+              of <span className="font-semibold text-slate-800">{totalPages}</span>
             </p>
             <div className="flex items-center gap-2">
               <button

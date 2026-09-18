@@ -39,7 +39,9 @@ export default function ResetPassword() {
         <FiKey aria-hidden="true" />
       </div>
       <p className="eyebrow mt-5">Password recovery</p>
-      <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Create a new password</h1>
+      <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+        Create a new password
+      </h1>
       <p className="mt-2 text-sm leading-6 text-slate-500">
         Your reset code was verified. Choose a new password for your account.
       </p>
@@ -71,7 +73,9 @@ export default function ResetPassword() {
         </label>
 
         <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold text-slate-700">Confirm password</span>
+          <span className="mb-1.5 block text-xs font-semibold text-slate-700">
+            Confirm password
+          </span>
           <span className="relative block">
             <input
               className="form-input pr-11"
@@ -88,7 +92,9 @@ export default function ResetPassword() {
               type="button"
               className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-400 hover:text-slate-700"
               onClick={() => setShowConfirmPassword((current) => !current)}
-              aria-label={showConfirmPassword ? 'Hide confirmation password' : 'Show confirmation password'}
+              aria-label={
+                showConfirmPassword ? 'Hide confirmation password' : 'Show confirmation password'
+              }
             >
               {showConfirmPassword ? <FiEyeOff aria-hidden="true" /> : <FiEye aria-hidden="true" />}
             </button>

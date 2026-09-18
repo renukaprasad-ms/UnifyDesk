@@ -79,7 +79,9 @@ export default function PlatformCompanies() {
             </p>
           </div>
           <div className="text-sm font-medium text-slate-500">
-            {data ? `${data.totalElements} ${data.totalElements === 1 ? 'company' : 'companies'}` : '—'}
+            {data
+              ? `${data.totalElements} ${data.totalElements === 1 ? 'company' : 'companies'}`
+              : '—'}
           </div>
         </div>
 
@@ -124,7 +126,10 @@ export default function PlatformCompanies() {
               <tbody className="divide-y divide-slate-100">
                 {loading && companies.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-5 py-14 text-center text-sm font-medium text-slate-500">
+                    <td
+                      colSpan={5}
+                      className="px-5 py-14 text-center text-sm font-medium text-slate-500"
+                    >
                       Loading companies…
                     </td>
                   </tr>
@@ -134,7 +139,9 @@ export default function PlatformCompanies() {
                       <span className="mx-auto flex size-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
                         <FiBriefcase aria-hidden="true" />
                       </span>
-                      <p className="mt-3 text-sm font-semibold text-slate-800">No companies found</p>
+                      <p className="mt-3 text-sm font-semibold text-slate-800">
+                        No companies found
+                      </p>
                       <p className="mt-1 text-sm text-slate-500">Try another search term.</p>
                     </td>
                   </tr>
@@ -147,12 +154,16 @@ export default function PlatformCompanies() {
                             {companyInitials(company.name)}
                           </span>
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-950">{company.name}</p>
+                            <p className="truncate text-sm font-semibold text-slate-950">
+                              {company.name}
+                            </p>
                             <p className="mt-0.5 truncate text-xs text-slate-500">{company.slug}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-sm text-slate-600">{company.businessEmail || '—'}</td>
+                      <td className="px-5 py-4 text-sm text-slate-600">
+                        {company.businessEmail || '—'}
+                      </td>
                       <td className="px-5 py-4 text-sm text-slate-600">{company.country || '—'}</td>
                       <td className="px-5 py-4">
                         <span
@@ -190,8 +201,8 @@ export default function PlatformCompanies() {
 
           <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-500">
-              Page <span className="font-semibold text-slate-800">{(data?.number ?? 0) + 1}</span> of{' '}
-              <span className="font-semibold text-slate-800">{totalPages}</span>
+              Page <span className="font-semibold text-slate-800">{(data?.number ?? 0) + 1}</span>{' '}
+              of <span className="font-semibold text-slate-800">{totalPages}</span>
             </p>
             <div className="flex items-center gap-2">
               <button

@@ -129,7 +129,9 @@ export default function AccountSettings() {
                 </span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-base font-bold text-slate-950">Two-factor authentication</h2>
+                    <h2 className="text-base font-bold text-slate-950">
+                      Two-factor authentication
+                    </h2>
                     {!loading && user && (
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -153,7 +155,11 @@ export default function AccountSettings() {
                 className={`switch shrink-0 ${user?.twoFactorEnabled ? 'is-on' : ''}`}
                 onClick={() => void toggleTwoFactor()}
                 disabled={saving || loading || !user}
-                aria-label={user?.twoFactorEnabled ? 'Disable two-factor authentication' : 'Enable two-factor authentication'}
+                aria-label={
+                  user?.twoFactorEnabled
+                    ? 'Disable two-factor authentication'
+                    : 'Enable two-factor authentication'
+                }
                 aria-pressed={Boolean(user?.twoFactorEnabled)}
               >
                 <span />

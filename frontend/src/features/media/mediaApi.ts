@@ -12,7 +12,9 @@ const unwrap = <T>(response: ApiResponse<T>) => {
 
 export const mediaApi = {
   async initiateUpload(file: File, purpose: MediaPurpose, skipAuthRefresh = false) {
-    const config: ApiRequestConfig | undefined = skipAuthRefresh ? { _skipAuthRefresh: true } : undefined
+    const config: ApiRequestConfig | undefined = skipAuthRefresh
+      ? { _skipAuthRefresh: true }
+      : undefined
     const initiate = await apiClient.post<ApiResponse<InitiateMediaUploadResponse>>(
       '/api/v1/media/uploads',
       {

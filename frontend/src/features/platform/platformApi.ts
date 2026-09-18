@@ -1,36 +1,79 @@
 import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
-import type { Page, PlatformAccess, PlatformAdmin, PlatformCompany, PlatformPermission, PlatformUser, PlatformPlan, PlatformPlanInput } from './types'
+import type {
+  Page,
+  PlatformAccess,
+  PlatformAdmin,
+  PlatformCompany,
+  PlatformPermission,
+  PlatformUser,
+  PlatformPlan,
+  PlatformPlanInput,
+} from './types'
 
 export const platformApi = {
   async me() {
     const response = await apiClient.get<ApiResponse<PlatformAccess>>('/api/v1/platform/me')
-    if (!response.data.data) throw new Error(response.data.error_message ?? 'Unable to load platform access')
+    if (!response.data.data)
+      throw new Error(response.data.error_message ?? 'Unable to load platform access')
     return response.data.data
   },
   async admins(search = '', page = 0) {
-    const r = await apiClient.get<ApiResponse<Page<PlatformAdmin>>>('/api/v1/platform/admins', { params: { search, page, size: 20 } })
+    const r = await apiClient.get<ApiResponse<Page<PlatformAdmin>>>('/api/v1/platform/admins', {
+      params: { search, page, size: 20 },
+    })
     if (!r.data.data) throw new Error(r.data.error_message ?? 'Unable to load admins')
     return r.data.data
   },
   async createAdmin(email: string, permissions: PlatformPermission[]) {
-    const r = await apiClient.post<ApiResponse<PlatformAdmin>>('/api/v1/platform/admins', { email, permissions })
+    const r = await apiClient.post<ApiResponse<PlatformAdmin>>('/api/v1/platform/admins', {
+      email,
+      permissions,
+    })
     if (!r.data.data) throw new Error(r.data.error_message ?? 'Unable to create admin')
     return r.data.data
   },
   async companies(search = '', page = 0) {
-    const r = await apiClient.get<ApiResponse<Page<PlatformCompany>>>('/api/v1/platform/companies', { params: { search, page, size: 20 } })
+    const r = await apiClient.get<ApiResponse<Page<PlatformCompany>>>(
+      '/api/v1/platform/companies',
+      { params: { search, page, size: 20 } },
+    )
     if (!r.data.data) throw new Error(r.data.error_message ?? 'Unable to load companies')
     return r.data.data
   },
   async updateCompanyStatus(id: string, status: PlatformCompany['status']) {
-    const r = await apiClient.patch<ApiResponse<PlatformCompany>>(`/api/v1/platform/companies/${id}/status`, { status })
+    const r = await apiClient.patch<ApiResponse<PlatformCompany>>(
+      `/api/v1/platform/companies/${id}/status`,
+      { status },
+    )
     if (!r.data.data) throw new Error(r.data.error_message ?? 'Unable to update company')
     return r.data.data
   },
-  async users(search='',page=0){const r=await apiClient.get<ApiResponse<Page<PlatformUser>>>('/api/v1/platform/users',{params:{search,page,size:20}});if(!r.data.data)throw new Error(r.data.error_message??'Unable to load users');return r.data.data},
-  async plans(search='',page=0){const r=await apiClient.get<ApiResponse<Page<PlatformPlan>>>('/api/v1/platform/plans',{params:{search,page,size:20}});if(!r.data.data)throw new Error(r.data.error_message??'Unable to load plans');return r.data.data},
-  async createPlan(input:PlatformPlanInput){const r=await apiClient.post<ApiResponse<PlatformPlan>>('/api/v1/platform/plans',input);if(!r.data.data)throw new Error(r.data.error_message??'Unable to create plan');return r.data.data},
-  async updatePlan(id:string,input:PlatformPlanInput){const r=await apiClient.put<ApiResponse<PlatformPlan>>(`/api/v1/platform/plans/${id}`,input);if(!r.data.data)throw new Error(r.data.error_message??'Unable to update plan');return r.data.data},
-  async deletePlan(id:string){await apiClient.delete(`/api/v1/platform/plans/${id}`)},
+  async users(search = '', page = 0) {
+    const r = await apiClient.get<ApiResponse<Page<PlatformUser>>>('/api/v1/platform/users', {
+      params: { search, page, size: 20 },
+    })
+    if (!r.data.data) throw new Error(r.data.error_message ?? 'Unable to load users')
+    return r.data.data
+  },
+  async plans(search = '', page = 0) {
+    const r = await apiClient.get<ApiResponse<Page<PlatformPlan>>>('/api/v1/platform/plans', {
+      params: { search, page, size: 20 },
+    })
+    if (!r.data.data) throw new Error(r.data.error_message ?? 'Unable to load plans')
+    return r.data.data
+  },
+  async createPlan(input: PlatformPlanInput) {
+    const r = await apiClient.post<ApiResponse<PlatformPlan>>('/api/v1/platform/plans', input)
+    if (!r.data.data) throw new Error(r.data.error_message ?? 'Unable to create plan')
+    return r.data.data
+  },
+  async updatePlan(id: string, input: PlatformPlanInput) {
+    const r = await apiClient.put<ApiResponse<PlatformPlan>>(`/api/v1/platform/plans/${id}`, input)
+    if (!r.data.data) throw new Error(r.data.error_message ?? 'Unable to update plan')
+    return r.data.data
+  },
+  async deletePlan(id: string) {
+    await apiClient.delete(`/api/v1/platform/plans/${id}`)
+  },
 }

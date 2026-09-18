@@ -32,7 +32,10 @@ export const adminBillingApi = {
   },
 
   async createPlan(input: CreateBillingPlanInput) {
-    const response = await apiClient.post<ApiResponse<BillingPlan>>('/api/v1/admin/billing/plans', input)
+    const response = await apiClient.post<ApiResponse<BillingPlan>>(
+      '/api/v1/admin/billing/plans',
+      input,
+    )
     return unwrap(response.data, 'Unable to create billing plan')
   },
 
@@ -87,14 +90,20 @@ export const adminBillingApi = {
   },
 
   async rateCards(planId: string) {
-    const response = await apiClient.get<ApiResponse<RateCard[]>>('/api/v1/admin/billing/rate-cards', {
-      params: { planId },
-    })
+    const response = await apiClient.get<ApiResponse<RateCard[]>>(
+      '/api/v1/admin/billing/rate-cards',
+      {
+        params: { planId },
+      },
+    )
     return unwrap(response.data, 'Unable to load rate cards')
   },
 
   async createRateCard(input: CreateRateCardInput) {
-    const response = await apiClient.post<ApiResponse<RateCard>>('/api/v1/admin/billing/rate-cards', input)
+    const response = await apiClient.post<ApiResponse<RateCard>>(
+      '/api/v1/admin/billing/rate-cards',
+      input,
+    )
     return unwrap(response.data, 'Unable to create rate card')
   },
 

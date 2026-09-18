@@ -135,11 +135,16 @@ export default function WorkspaceSwitcher({ platformAdmin = false }: { platformA
           <span className="block truncate text-[13px] font-semibold text-slate-950">{label}</span>
           <span className="mt-0.5 block text-[10px] font-medium text-slate-500">Workspace</span>
         </span>
-        <FiChevronDown aria-hidden="true" className="workspace-switcher-chevron shrink-0 text-slate-500" />
+        <FiChevronDown
+          aria-hidden="true"
+          className="workspace-switcher-chevron shrink-0 text-slate-500"
+        />
       </button>
       {open && (
         <div className="workspace-menu left-0 right-auto" role="menu">
-          {loading && <div className="px-3 py-3 text-xs font-semibold text-slate-500">Loading...</div>}
+          {loading && (
+            <div className="px-3 py-3 text-xs font-semibold text-slate-500">Loading...</div>
+          )}
           {!loading &&
             companies.map((company) => (
               <button
@@ -155,7 +160,11 @@ export default function WorkspaceSwitcher({ platformAdmin = false }: { platformA
               >
                 <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-indigo-50 text-[11px] font-bold text-indigo-500">
                   {logoUrls[company.companyId] ? (
-                    <img src={logoUrls[company.companyId]} alt="" className="h-full w-full object-cover" />
+                    <img
+                      src={logoUrls[company.companyId]}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
                     companyInitials(company.name)
                   )}
@@ -181,7 +190,8 @@ export default function WorkspaceSwitcher({ platformAdmin = false }: { platformA
             }}
           >
             <span className="flex items-center gap-2">
-              <FiPlus aria-hidden="true" />Create workspace
+              <FiPlus aria-hidden="true" />
+              Create workspace
             </span>
           </button>
         </div>

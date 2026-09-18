@@ -10,9 +10,11 @@ const VerifyOtp = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useAppSelector(selectAuthUser)
-  const routeState = location.state as
-    | { email?: string; profilePictureWarning?: string; redirectTo?: string }
-    | null
+  const routeState = location.state as {
+    email?: string
+    profilePictureWarning?: string
+    redirectTo?: string
+  } | null
   const email = routeState?.email ?? user?.email
   const [otp, setOtp] = useState('')
   const [error, setError] = useState('')

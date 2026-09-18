@@ -49,7 +49,8 @@ export default function ForgotPassword() {
         <p className="eyebrow">Password recovery</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Check your email</h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          If an account matches <span className="font-semibold text-slate-700">{identifier}</span>, we sent a 6-digit reset code to its registered email address.
+          If an account matches <span className="font-semibold text-slate-700">{identifier}</span>,
+          we sent a 6-digit reset code to its registered email address.
         </p>
 
         <form className="mt-6 space-y-4" onSubmit={verifyOtp}>
@@ -140,14 +141,19 @@ export default function ForgotPassword() {
         <FiMail aria-hidden="true" />
       </div>
       <p className="eyebrow mt-5">Password recovery</p>
-      <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Forgot your password?</h1>
+      <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+        Forgot your password?
+      </h1>
       <p className="mt-2 text-sm leading-6 text-slate-500">
-        Enter your email address or username. We’ll send a one-time code to the email registered on the account.
+        Enter your email address or username. We’ll send a one-time code to the email registered on
+        the account.
       </p>
 
       <form className="mt-6 space-y-4" onSubmit={requestReset}>
         <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold text-slate-700">Email or username</span>
+          <span className="mb-1.5 block text-xs font-semibold text-slate-700">
+            Email or username
+          </span>
           <input
             className="form-input"
             type="text"

@@ -70,7 +70,9 @@ export default function SelectPlan() {
     <div className="min-h-dvh bg-white px-6 py-12 sm:py-20">
       <main className="mx-auto w-full max-w-[760px]">
         <h1 className="text-[26px] font-bold leading-tight text-slate-950">Select a plan</h1>
-        <p className="mt-2 text-sm text-slate-500">Choose how this workspace should start. You can change plans later.</p>
+        <p className="mt-2 text-sm text-slate-500">
+          Choose how this workspace should start. You can change plans later.
+        </p>
         {loading && <p className="mt-8 text-sm font-semibold text-slate-500">Loading...</p>}
         {error && <p className="mt-8 text-sm font-semibold text-red-600">{error}</p>}
         {!loading && !error && (
@@ -80,11 +82,16 @@ export default function SelectPlan() {
                 <p className="text-xs font-semibold uppercase text-indigo-500">{plan.code}</p>
                 <h2 className="mt-2 text-xl font-bold text-slate-950">{plan.name}</h2>
                 <p className="mt-3 text-2xl font-bold text-slate-950">
-                  {Number(plan.basePrice) === 0 ? 'Free' : `${plan.currency} ${plan.basePrice}/${plan.billingCycle.toLowerCase()}`}
+                  {Number(plan.basePrice) === 0
+                    ? 'Free'
+                    : `${plan.currency} ${plan.basePrice}/${plan.billingCycle.toLowerCase()}`}
                 </p>
                 <ul className="mt-5 space-y-2">
                   {plan.entitlements.map((entitlement) => (
-                    <li key={entitlement.entitlementId} className="flex gap-2 text-xs leading-5 text-slate-600">
+                    <li
+                      key={entitlement.entitlementId}
+                      className="flex gap-2 text-xs leading-5 text-slate-600"
+                    >
                       <FiCheck aria-hidden="true" className="mt-0.5 shrink-0 text-indigo-500" />
                       {entitlementLabel(entitlement.key, entitlement.value)}
                     </li>
