@@ -6,7 +6,7 @@ import {
   FiMessageCircle,
   FiRefreshCw,
   FiSmartphone,
-  FiUnlink,
+  FiSlash,
 } from 'react-icons/fi'
 import { channelApi } from '../../features/channel/channelApi'
 import { metaWhatsAppApi } from '../../features/channel/metaWhatsAppApi'
@@ -335,7 +335,7 @@ export default function CompanyConnections() {
                         disabled={workingConnectionId === connection.id}
                         onClick={() => void disconnect(connection)}
                       >
-                        <FiUnlink aria-hidden="true" />
+                        <FiSlash aria-hidden="true" />
                         Disconnect
                       </button>
                     )}
