@@ -36,15 +36,24 @@ public class ProviderCredentialService {
 
   @Transactional(readOnly = true)
   public String read(Long connectionId, CredentialType credentialType) {
+    return readWithMetadata(connectionId, credentialType).plaintextPayload();
+  }
+
+  @Transactional(readOnly = true)
+  public CredentialValue readWithMetadata(Long connectionId, CredentialType credentialType) {
     ProviderCredential credential =
         credentialRepository
             .findByConnectionIdAndCredentialType(connectionId, credentialType)
             .orElseThrow(() -> new NotFoundException("Provider credential not found"));
-    return credentialCipher.decrypt(credential.getEncryptedPayload());
+
+    return new CredentialValue(
+        credentialCipher.decrypt(credential.getEncryptedPayload()), credential.getExpiresAt());
   }
 
   @Transactional
   public void deleteAll(Long connectionId) {
     credentialRepository.deleteByConnectionId(connectionId);
   }
+
+  public record CredentialValue(String plaintextPayload, Instant expiresAt) {}
 }

@@ -49,7 +49,6 @@ public class GmailPersistenceService {
     connection.setName(profile.emailAddress());
     connection.setExternalAccountId(profile.emailAddress());
     connection.setStatus(ChannelConnectionStatus.ACTIVE);
-    connection.setLastSyncAt(Instant.now());
     connection = connectionRepository.saveAndFlush(connection);
 
     Instant expiresAt =
@@ -61,7 +60,7 @@ public class GmailPersistenceService {
         connection,
         CredentialType.OAUTH_TOKEN_SET,
         json(
-            new StoredGmailToken(
+            new GmailStoredToken(
                 token.accessToken(),
                 token.refreshToken(),
                 token.tokenType(),
@@ -107,11 +106,4 @@ public class GmailPersistenceService {
       throw new IllegalStateException("Unable to serialize Gmail credential", exception);
     }
   }
-
-  public record StoredGmailToken(
-      String accessToken,
-      String refreshToken,
-      String tokenType,
-      String scope,
-      String emailAddress) {}
 }

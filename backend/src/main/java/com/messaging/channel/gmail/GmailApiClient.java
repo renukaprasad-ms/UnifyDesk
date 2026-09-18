@@ -3,7 +3,9 @@ package com.messaging.channel.gmail;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.messaging.common.exception.BadRequestException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -13,6 +15,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
+@Slf4j
 @Component
 public class GmailApiClient {
 
@@ -54,6 +57,28 @@ public class GmailApiClient {
     form.add("grant_type", "authorization_code");
 
     return execute(
+        "token_exchange",
+        () ->
+            googleOAuth
+                .post()
+                .uri("/token")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(form)
+                .retrieve()
+                .body(TokenResponse.class));
+  }
+
+  public TokenResponse refreshAccessToken(String refreshToken) {
+    requireConfigured();
+
+    MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+    form.add("refresh_token", refreshToken);
+    form.add("client_id", properties.getClientId());
+    form.add("client_secret", properties.getClientSecret());
+    form.add("grant_type", "refresh_token");
+
+    return execute(
+        "token_refresh",
         () ->
             googleOAuth
                 .post()
@@ -66,6 +91,7 @@ public class GmailApiClient {
 
   public GmailProfile profile(String accessToken) {
     return execute(
+        "gmail_profile",
         () ->
             gmailApi
                 .get()
@@ -73,6 +99,46 @@ public class GmailApiClient {
                 .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .retrieve()
                 .body(GmailProfile.class));
+  }
+
+  public MessageListResponse listMessages(String accessToken, int maxResults, String query) {
+    UriComponentsBuilder builder =
+        UriComponentsBuilder.fromPath("/gmail/v1/users/me/messages")
+            .queryParam("maxResults", maxResults);
+
+    if (query != null && !query.isBlank()) {
+      builder.queryParam("q", query);
+    }
+
+    String uri = builder.build().encode().toUriString();
+    return execute(
+        "gmail_messages_list",
+        () ->
+            gmailApi
+                .get()
+                .uri(uri)
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(MessageListResponse.class));
+  }
+
+  public GmailMessage message(String accessToken, String messageId) {
+    String uri =
+        UriComponentsBuilder.fromPath("/gmail/v1/users/me/messages/{messageId}")
+            .queryParam("format", "full")
+            .buildAndExpand(messageId)
+            .encode()
+            .toUriString();
+
+    return execute(
+        "gmail_message_get",
+        () ->
+            gmailApi
+                .get()
+                .uri(uri)
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(GmailMessage.class));
   }
 
   public void revokeBestEffort(String token) {
@@ -89,7 +155,8 @@ public class GmailApiClient {
           .body(form)
           .retrieve()
           .toBodilessEntity();
-    } catch (RestClientResponseException ignored) {
+    } catch (RestClientResponseException exception) {
+      log.warn("Google token revoke failed status={}", exception.getStatusCode().value());
       // Local disconnect still proceeds when Google already revoked or expired the grant.
     }
   }
@@ -105,7 +172,7 @@ public class GmailApiClient {
     return "Bearer " + accessToken;
   }
 
-  private <T> T execute(GoogleCall<T> call) {
+  private <T> T execute(String operation, GoogleCall<T> call) {
     try {
       T result = call.execute();
       if (result == null) {
@@ -113,6 +180,10 @@ public class GmailApiClient {
       }
       return result;
     } catch (RestClientResponseException exception) {
+      log.warn(
+          "Google API request failed operation={} status={}",
+          operation,
+          exception.getStatusCode().value());
       throw new BadRequestException(
           "Google API request failed with HTTP " + exception.getStatusCode().value());
     }
@@ -135,4 +206,32 @@ public class GmailApiClient {
       @JsonProperty("messagesTotal") Long messagesTotal,
       @JsonProperty("threadsTotal") Long threadsTotal,
       @JsonProperty("historyId") String historyId) {}
+
+  public record MessageListResponse(
+      List<MessageReference> messages,
+      @JsonProperty("nextPageToken") String nextPageToken,
+      @JsonProperty("resultSizeEstimate") Integer resultSizeEstimate) {}
+
+  public record MessageReference(String id, String threadId) {}
+
+  public record GmailMessage(
+      String id,
+      String threadId,
+      List<String> labelIds,
+      String snippet,
+      String historyId,
+      String internalDate,
+      GmailPayload payload) {}
+
+  public record GmailPayload(
+      String mimeType,
+      String filename,
+      List<GmailHeader> headers,
+      GmailBody body,
+      List<GmailPayload> parts) {}
+
+  public record GmailHeader(String name, String value) {}
+
+  public record GmailBody(
+      @JsonProperty("attachmentId") String attachmentId, Integer size, String data) {}
 }

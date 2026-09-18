@@ -2,6 +2,7 @@ package com.messaging.channel.gmail;
 
 import com.messaging.channel.dto.ChannelConnectionResponse;
 import com.messaging.channel.gmail.dto.GmailAuthorizationResponse;
+import com.messaging.channel.gmail.dto.GmailSyncQueuedResponse;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
@@ -34,6 +35,20 @@ public class GmailConnectionController {
             HttpStatus.OK.value(),
             gmailConnectionService.authorization(companyId, userId),
             "Gmail authorization created"));
+  }
+
+  @PostMapping("/{connectionId}/sync")
+  public ResponseEntity<ApiResponse<GmailSyncQueuedResponse>> sync(
+      @PathVariable Long companyId, @PathVariable Long connectionId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_READ);
+
+    return ResponseEntity.status(HttpStatus.ACCEPTED)
+        .body(
+            ApiResponse.success(
+                HttpStatus.ACCEPTED.value(),
+                gmailConnectionService.queueSync(companyId, userId, connectionId),
+                "Gmail sync queued"));
   }
 
   @PostMapping("/{connectionId}/disconnect")
