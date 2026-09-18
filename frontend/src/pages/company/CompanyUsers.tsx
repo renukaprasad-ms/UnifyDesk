@@ -579,8 +579,7 @@ export default function CompanyUsers() {
                 />
               </label>
 
-              {canAll([PERMISSIONS.ROLE_READ, PERMISSIONS.ROLE_ASSIGN]) &&
-                roles.length > 0 && (
+              {canAll([PERMISSIONS.ROLE_READ, PERMISSIONS.ROLE_ASSIGN]) && roles.length > 0 && (
                 <fieldset className="mt-5">
                   <legend className="text-xs font-semibold text-slate-700">
                     IAM roles <span className="font-normal text-slate-400">(optional)</span>
