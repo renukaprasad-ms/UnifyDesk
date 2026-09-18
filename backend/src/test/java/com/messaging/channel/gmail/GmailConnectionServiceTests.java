@@ -125,11 +125,7 @@ class GmailConnectionServiceTests {
     OAuthState oauthState = new OAuthState(COMPANY_ID, USER_ID, Instant.now());
     TokenResponse token =
         new TokenResponse(
-            "access-token",
-            null,
-            3600L,
-            "Bearer",
-            "https://www.googleapis.com/auth/gmail.modify");
+            "access-token", null, 3600L, "Bearer", "https://www.googleapis.com/auth/gmail.modify");
 
     when(stateService.consume("oauth-state")).thenReturn(oauthState);
     when(gmailApiClient.exchangeCode("code")).thenReturn(token);
