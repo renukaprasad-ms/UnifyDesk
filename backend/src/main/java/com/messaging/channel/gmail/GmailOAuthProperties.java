@@ -1,0 +1,37 @@
+package com.messaging.channel.gmail;
+
+import java.time.Duration;
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+@Getter
+@Setter
+@Component
+@ConfigurationProperties(prefix = "app.channel.gmail")
+public class GmailOAuthProperties {
+
+  private static final String DEFAULT_SCOPE = "https://www.googleapis.com/auth/gmail.modify";
+
+  private boolean enabled;
+  private String clientId;
+  private String clientSecret;
+  private String redirectUri;
+  private String frontendBaseUrl = "https://messaging.renukaprasad.in";
+  private String scope = DEFAULT_SCOPE;
+  private Duration oauthStateTtl = Duration.ofMinutes(10);
+
+  public boolean configured() {
+    return enabled
+        && hasText(clientId)
+        && hasText(clientSecret)
+        && hasText(redirectUri)
+        && hasText(frontendBaseUrl)
+        && hasText(scope);
+  }
+
+  private boolean hasText(String value) {
+    return value != null && !value.isBlank();
+  }
+}
