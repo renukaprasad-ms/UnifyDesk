@@ -7,7 +7,7 @@ public record GmailConnectionResponse(
     String connectionId,
     String emailAddress,
     ChannelConnectionStatus status,
-    SenderIdentity sender) {
+    Sender sender) {
 
   public record Sender(
       String senderIdentityId,
