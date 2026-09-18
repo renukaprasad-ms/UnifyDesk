@@ -52,6 +52,13 @@ export const mediaApi = {
     })
   },
 
+  async attachCurrentUserProfilePicture(mediaId: string) {
+    const response = await apiClient.put<ApiResponse<{ userId: string; mediaId: string }>>(
+      `/api/v1/users/me/profile-picture/${mediaId}`,
+    )
+    return unwrap(response.data)
+  },
+
   async access(mediaId: string) {
     const response = await apiClient.get<ApiResponse<MediaAccessResponse>>(
       `/api/v1/media/${mediaId}/access`,
