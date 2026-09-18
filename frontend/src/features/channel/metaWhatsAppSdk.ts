@@ -8,12 +8,7 @@ type FacebookLoginResponse = {
 }
 
 type FacebookSdk = {
-  init: (options: {
-    appId: string
-    cookie: boolean
-    xfbml: boolean
-    version: string
-  }) => void
+  init: (options: { appId: string; cookie: boolean; xfbml: boolean; version: string }) => void
   login: (
     callback: (response: FacebookLoginResponse) => void,
     options: Record<string, unknown>,
@@ -113,8 +108,7 @@ export const launchMetaWhatsAppSignup = (
       }
 
       try {
-        const data =
-          typeof event.data === 'string' ? JSON.parse(event.data) : event.data
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
         if (!data || data.type !== 'WA_EMBEDDED_SIGNUP') return
 
         if (typeof data.event === 'string' && data.event.startsWith('FINISH')) {

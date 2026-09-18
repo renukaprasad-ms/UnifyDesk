@@ -92,10 +92,7 @@ public class MetaGraphClient {
         () -> {
           restClient
               .post()
-              .uri(
-                  "/{version}/{wabaId}/subscribed_apps",
-                  properties.getGraphApiVersion(),
-                  wabaId)
+              .uri("/{version}/{wabaId}/subscribed_apps", properties.getGraphApiVersion(), wabaId)
               .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
               .retrieve()
               .toBodilessEntity();
@@ -137,7 +134,8 @@ public class MetaGraphClient {
       @JsonProperty("token_type") String tokenType,
       @JsonProperty("expires_in") Long expiresIn) {}
 
-  public record WabaDetails(String id, String name, String currency, @JsonProperty("timezone_id") String timezoneId) {}
+  public record WabaDetails(
+      String id, String name, String currency, @JsonProperty("timezone_id") String timezoneId) {}
 
   public record PhoneNumbersResponse(List<PhoneNumber> data) {}
 

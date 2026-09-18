@@ -83,8 +83,7 @@ public class MetaWhatsAppConnectionService {
     graphClient.registerPhoneNumber(phone.id(), token.accessToken(), pin);
     graphClient.subscribeApp(request.wabaId(), token.accessToken());
 
-    return persistenceService.persist(
-        companyId, userId, request.wabaId(), waba, phone, token, pin);
+    return persistenceService.persist(companyId, userId, request.wabaId(), waba, phone, token, pin);
   }
 
   private PhoneNumber requirePhoneNumber(

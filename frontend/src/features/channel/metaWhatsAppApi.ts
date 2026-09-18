@@ -19,11 +19,7 @@ export const metaWhatsAppApi = {
     return unwrap(response.data)
   },
 
-  async complete(
-    companyId: string,
-    state: string,
-    result: MetaWhatsAppSignupResult,
-  ) {
+  async complete(companyId: string, state: string, result: MetaWhatsAppSignupResult) {
     const response = await apiClient.post<ApiResponse<MetaWhatsAppConnection>>(
       `/api/v1/companies/${companyId}/channels/whatsapp/meta/complete`,
       {

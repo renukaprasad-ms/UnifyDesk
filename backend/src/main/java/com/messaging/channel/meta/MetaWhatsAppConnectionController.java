@@ -42,8 +42,7 @@ public class MetaWhatsAppConnectionController {
 
   @PostMapping("/complete")
   public ResponseEntity<ApiResponse<MetaWhatsAppConnectionResponse>> complete(
-      @PathVariable Long companyId,
-      @Valid @RequestBody CompleteMetaWhatsAppSignupRequest request) {
+      @PathVariable Long companyId, @Valid @RequestBody CompleteMetaWhatsAppSignupRequest request) {
     Long userId = currentUserService.currentUserId();
     authorizationService.requirePermission(
         userId, companyId, CompanyPermissionKeys.WHATSAPP_CONNECT);

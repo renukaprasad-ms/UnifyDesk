@@ -10,10 +10,7 @@ import {
 } from 'react-icons/fi'
 import { channelApi } from '../../features/channel/channelApi'
 import { metaWhatsAppApi } from '../../features/channel/metaWhatsAppApi'
-import {
-  launchMetaWhatsAppSignup,
-  loadMetaSdk,
-} from '../../features/channel/metaWhatsAppSdk'
+import { launchMetaWhatsAppSignup, loadMetaSdk } from '../../features/channel/metaWhatsAppSdk'
 import type {
   ChannelConnection,
   MetaWhatsAppSignupConfig,
@@ -67,8 +64,7 @@ export default function CompanyConnections() {
       setConnections(visible)
 
       const whatsapp = visible.filter(
-        (connection) =>
-          connection.channelType === 'WHATSAPP' && can(PERMISSIONS.WHATSAPP_READ),
+        (connection) => connection.channelType === 'WHATSAPP' && can(PERMISSIONS.WHATSAPP_READ),
       )
       const senderEntries = await Promise.all(
         whatsapp.map(async (connection) => {
@@ -275,8 +271,8 @@ export default function CompanyConnections() {
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="text-sm font-bold text-slate-950">WhatsApp Business accounts</h2>
             <p className="mt-1 text-xs text-slate-500">
-              Each connected WABA is stored as a channel connection and its phone number as a
-              sender identity.
+              Each connected WABA is stored as a channel connection and its phone number as a sender
+              identity.
             </p>
           </div>
 
@@ -327,18 +323,17 @@ export default function CompanyConnections() {
                     </div>
                   </div>
 
-                  {connection.status !== 'DISCONNECTED' &&
-                    can(PERMISSIONS.WHATSAPP_DISCONNECT) && (
-                      <button
-                        type="button"
-                        className="secondary-button inline-flex shrink-0 items-center gap-2 text-rose-600"
-                        disabled={workingConnectionId === connection.id}
-                        onClick={() => void disconnect(connection)}
-                      >
-                        <FiSlash aria-hidden="true" />
-                        Disconnect
-                      </button>
-                    )}
+                  {connection.status !== 'DISCONNECTED' && can(PERMISSIONS.WHATSAPP_DISCONNECT) && (
+                    <button
+                      type="button"
+                      className="secondary-button inline-flex shrink-0 items-center gap-2 text-rose-600"
+                      disabled={workingConnectionId === connection.id}
+                      onClick={() => void disconnect(connection)}
+                    >
+                      <FiSlash aria-hidden="true" />
+                      Disconnect
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
