@@ -10,6 +10,7 @@ import Register from '../pages/auth/Register'
 import ResetPassword from '../pages/auth/ResetPassword'
 import VerifyOtp from '../pages/auth/VerifyOtp'
 import CompanyPlan from '../pages/company/CompanyPlan'
+import CompanyRoles from '../pages/company/CompanyRoles'
 import CompanyUsers from '../pages/company/CompanyUsers'
 import Home from '../pages/home/Home'
 import InviteAccept from '../pages/invitations/InviteAccept'
@@ -82,6 +83,9 @@ const AppRoutes = () => (
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.USER_READ]} />}>
               <Route path="company/users" element={<CompanyUsers />} />
+            </Route>
+            <Route element={<PermissionRoute anyOf={[PERMISSIONS.ROLE_READ]} />}>
+              <Route path="company/roles" element={<CompanyRoles />} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.BILLING_READ]} />}>
               <Route path="company/plan" element={<CompanyPlan />} />

@@ -32,3 +32,11 @@ export type MemberRoleAssignment = {
   revokedAt?: string | null
   createdAt: string
 }
+
+export type CreateCompanyRoleInput = {
+  name: string
+  description?: string | null
+  permissions: PermissionKey[]
+}
+
+export type UpdateCompanyRoleInput = CreateCompanyRoleInput
