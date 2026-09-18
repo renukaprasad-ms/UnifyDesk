@@ -23,7 +23,7 @@ public class GmailOAuthProperties {
   private Duration oauthStateTtl = Duration.ofMinutes(10);
   private Duration tokenRefreshSkew = Duration.ofMinutes(2);
   private int initialSyncDays = 30;
-  private int initialSyncMaxMessages = 50;
+  private int initialSyncMaxMessages = 200;
 
   public boolean configured() {
     return enabled
