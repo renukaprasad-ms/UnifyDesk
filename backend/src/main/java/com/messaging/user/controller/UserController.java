@@ -55,9 +55,7 @@ public class UserController {
       @Valid @RequestBody UpdateOwnProfileRequest request) {
     return ResponseEntity.ok(
         ApiResponse.success(
-            HttpStatus.OK.value(),
-            userService.updateOwnProfile(request),
-            "Profile updated"));
+            HttpStatus.OK.value(), userService.updateOwnProfile(request), "Profile updated"));
   }
 
   @GetMapping("/{userId}")
