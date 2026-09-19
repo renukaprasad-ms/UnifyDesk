@@ -24,5 +24,9 @@ public interface CompanyMemberRoleAssignmentRepository
   List<CompanyMemberRoleAssignment> findByCompanyIdAndUserIdOrderByCreatedAtDesc(
       Long companyId, Long userId);
 
+  List<CompanyMemberRoleAssignment> findByRoleIdAndRevokedAtIsNull(Long roleId);
+
+  List<CompanyMemberRoleAssignment> findByUserIdAndRevokedAtIsNull(Long userId);
+
   long countByRoleIdAndRevokedAtIsNull(Long roleId);
 }
