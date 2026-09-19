@@ -110,6 +110,13 @@ public class GmailInboxPersistenceService {
       InboxMessageDirection direction = direction(gmailMessage.labelIds());
       message.setInternetMessageId(header(gmailMessage.payload(), "Message-ID"));
       message.setProviderHistoryId(gmailMessage.historyId());
+      message.setFromAddress(firstAddress(header(gmailMessage.payload(), "From")));
+      message.setReplyToAddress(firstAddress(header(gmailMessage.payload(), "Reply-To")));
+      message.setToAddresses(addressesCsv(header(gmailMessage.payload(), "To")));
+      message.setCcAddresses(addressesCsv(header(gmailMessage.payload(), "Cc")));
+      message.setBccAddresses(addressesCsv(header(gmailMessage.payload(), "Bcc")));
+      message.setInReplyTo(trimToNull(header(gmailMessage.payload(), "In-Reply-To")));
+      message.setReferencesHeader(trimToNull(header(gmailMessage.payload(), "References")));
       message.setDirection(direction);
       message.setStatus(
           direction == InboxMessageDirection.OUTBOUND
@@ -387,6 +394,36 @@ public class GmailInboxPersistenceService {
 
   private boolean containsLabel(List<String> labels, String label) {
     return labels != null && labels.stream().anyMatch(label::equalsIgnoreCase);
+  }
+
+  private String firstAddress(String value) {
+    List<String> addresses = addresses(value);
+    return addresses.isEmpty() ? null : addresses.getFirst();
+  }
+
+  private String addressesCsv(String value) {
+    List<String> addresses = addresses(value);
+    return addresses.isEmpty() ? null : String.join(",", addresses);
+  }
+
+  private List<String> addresses(String value) {
+    if (!hasText(value)) {
+      return List.of();
+    }
+
+    try {
+      Address[] parsed = InternetAddress.parse(value, false);
+      List<String> addresses = new ArrayList<>(parsed.length);
+      for (Address address : parsed) {
+        if (address instanceof InternetAddress internetAddress
+            && hasText(internetAddress.getAddress())) {
+          addresses.add(internetAddress.getAddress().trim().toLowerCase(Locale.ROOT));
+        }
+      }
+      return addresses;
+    } catch (Exception ignored) {
+      return List.of();
+    }
   }
 
   private String trimToNull(String value) {
