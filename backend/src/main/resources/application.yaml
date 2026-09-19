@@ -83,6 +83,9 @@ spring:
         heartbeat.interval.ms: ${KAFKA_HEARTBEAT_INTERVAL_MS:15000}
 
 app:
+  realtime:
+    redis-channel: ${REALTIME_REDIS_CHANNEL:messaging:realtime}
+    heartbeat-interval-ms: ${REALTIME_HEARTBEAT_INTERVAL_MS:30000}
   datasource:
     write:
       url: ${APP_DATASOURCE_WRITE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5001/messaging}}
