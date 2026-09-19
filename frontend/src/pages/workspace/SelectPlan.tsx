@@ -63,9 +63,7 @@ const entitlementLabel = (key: string, value: string) => {
     BROADCAST_BATCH_LIMIT: unlimited
       ? 'Unlimited recipients per broadcast'
       : `${value} recipients per broadcast`,
-    BROADCASTS_PER_DAY: unlimited
-      ? 'Unlimited broadcasts per day'
-      : `${value} broadcasts per day`,
+    BROADCASTS_PER_DAY: unlimited ? 'Unlimited broadcasts per day' : `${value} broadcasts per day`,
     BROADCASTS_PER_MONTH: unlimited
       ? 'Unlimited broadcasts per month'
       : `${value} broadcasts per month`,
@@ -173,10 +171,7 @@ export default function SelectPlan() {
               const visibleEntitlements = expanded
                 ? entitlements
                 : entitlements.slice(0, COLLAPSED_ENTITLEMENT_COUNT)
-              const hiddenCount = Math.max(
-                entitlements.length - COLLAPSED_ENTITLEMENT_COUNT,
-                0,
-              )
+              const hiddenCount = Math.max(entitlements.length - COLLAPSED_ENTITLEMENT_COUNT, 0)
 
               return (
                 <article key={plan.planId} className="rounded-[8px] border border-slate-200 p-5">
