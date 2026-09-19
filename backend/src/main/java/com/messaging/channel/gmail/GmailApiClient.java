@@ -126,6 +126,20 @@ public class GmailApiClient {
                 .body(MessageListResponse.class));
   }
 
+  public SendMessageResponse sendMessage(String accessToken, String rawMessage) {
+    return execute(
+        "gmail_message_send",
+        () ->
+            gmailApi
+                .post()
+                .uri("/gmail/v1/users/me/messages/send")
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new SendMessageRequest(rawMessage))
+                .retrieve()
+                .body(SendMessageResponse.class));
+  }
+
   public GmailMessage message(String accessToken, String messageId) {
     String uri =
         UriComponentsBuilder.fromPath("/gmail/v1/users/me/messages/{messageId}")
@@ -217,6 +231,10 @@ public class GmailApiClient {
       @JsonProperty("resultSizeEstimate") Integer resultSizeEstimate) {}
 
   public record MessageReference(String id, String threadId) {}
+
+  public record SendMessageRequest(String raw) {}
+
+  public record SendMessageResponse(String id, String threadId, List<String> labelIds) {}
 
   public record GmailMessage(
       String id,
