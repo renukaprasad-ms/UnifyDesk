@@ -8,8 +8,10 @@ import com.messaging.realtime.dto.RealtimeDispatch;
 import com.messaging.realtime.dto.RealtimeEnvelope;
 import com.messaging.session.entity.SessionPlatform;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RealtimeService {
@@ -19,6 +21,7 @@ public class RealtimeService {
   private final ObjectMapper objectMapper;
 
   public void sendToAllUserSessions(Long userId, String type, Object payload) {
+    log.debug("WS_DIAG service_event target=USER userId={} type={}", userId, type);
     publish(
         new RealtimeDispatch(
             RealtimeDispatch.Target.USER, userId, null, null, serialize(type, payload)));
@@ -59,6 +62,12 @@ public class RealtimeService {
   }
 
   private void publish(RealtimeDispatch dispatch) {
+    log.debug(
+        "WS_DIAG service_publish target={} userId={} platform={} socketId={}",
+        dispatch.target(),
+        dispatch.userId(),
+        dispatch.platform(),
+        dispatch.socketId());
     redisPublisher.publish(dispatch);
   }
 
