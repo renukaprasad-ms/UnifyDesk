@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FiArrowLeft, FiInbox, FiMail, FiRefreshCw } from 'react-icons/fi'
 import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
+import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'
+import type { AsyncJob } from '../../features/asyncJob/types'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import type { ChannelConnection } from '../../features/channel/types'
 import { inboxApi } from '../../features/inbox/inboxApi'
 import type { InboxConversation, InboxMessage } from '../../features/inbox/types'
+import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
@@ -43,6 +46,20 @@ const isHtmlBody = (value?: string | null) => {
   )
 }
 
+const localDateInput = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const defaultSyncRange = () => {
+  const to = new Date()
+  const from = new Date()
+  from.setDate(from.getDate() - 30)
+  return { from: localDateInput(from), to: localDateInput(to) }
+}
+
 export default function EmailInbox() {
   const companyId = useAppSelector(selectSelectedCompanyId)
   const [connections, setConnections] = useState<ChannelConnection[]>([])
@@ -57,6 +74,11 @@ export default function EmailInbox() {
   const [totalElements, setTotalElements] = useState(0)
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [showSyncDialog, setShowSyncDialog] = useState(false)
+  const initialSyncRange = useMemo(() => defaultSyncRange(), [])
+  const [syncFrom, setSyncFrom] = useState(initialSyncRange.from)
+  const [syncTo, setSyncTo] = useState(initialSyncRange.to)
+  const [syncJobs, setSyncJobs] = useState<Record<string, AsyncJob>>({})
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
