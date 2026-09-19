@@ -16,8 +16,11 @@ public class EventPublisher {
   private final KafkaKeyResolver keyResolver;
 
   public void publish(KafkaEvent<?> event) {
+    publish(keyResolver.resolve(event), event);
+  }
+
+  public void publish(String key, KafkaEvent<?> event) {
     String topic = kafkaTopics.topic(event.priority());
-    String key = keyResolver.resolve(event);
     kafkaTemplate.send(topic, key, event);
   }
 }
