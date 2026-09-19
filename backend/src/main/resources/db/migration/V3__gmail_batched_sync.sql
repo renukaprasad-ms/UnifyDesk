@@ -13,6 +13,7 @@ create unique index if not exists uk_async_jobs_active_resource
 create table if not exists gmail_sync_runs (
   job_id bigint primary key,
   company_id bigint not null,
+  user_id bigint not null,
   connection_id bigint not null,
   from_date date not null,
   to_date date not null,
