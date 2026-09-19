@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.messaging.admin.service.PlatformAdminAuthorizationService;
 import com.messaging.company.repository.CompanyMemberRepository;
 import com.messaging.company.repository.CompanyRepository;
+import com.messaging.company.service.CompanyAuthorizationService;
 import com.messaging.media.config.MediaStorageProperties;
 import com.messaging.media.config.MediaValidationProperties;
 import com.messaging.media.dto.InitiateMediaUploadRequest;
@@ -30,6 +31,7 @@ import com.messaging.media.provider.StorageProviderResolver;
 import com.messaging.media.repository.MediaRepository;
 import com.messaging.redis.service.RedisService;
 import com.messaging.security.service.CurrentUserService;
+import com.messaging.storage.service.StorageQuotaService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -53,6 +55,8 @@ class MediaServiceTests {
   @Mock private CompanyRepository companyRepository;
   @Mock private CompanyMemberRepository companyMemberRepository;
   @Mock private PlatformAdminAuthorizationService platformAdminAuthorizationService;
+  @Mock private StorageQuotaService storageQuotaService;
+  @Mock private CompanyAuthorizationService companyAuthorizationService;
 
   private MediaService service;
 
@@ -86,7 +90,9 @@ class MediaServiceTests {
             new MediaAuthorizationService(
                 companyRepository, companyMemberRepository, platformAdminAuthorizationService),
             new MediaMapper(),
-            redisService);
+            redisService,
+            storageQuotaService,
+            companyAuthorizationService);
   }
 
   @Test
@@ -102,7 +108,7 @@ class MediaServiceTests {
     InitiateMediaUploadResponse response =
         service.initiateUpload(
             new InitiateMediaUploadRequest(
-                "avatar.jpg", "image/jpeg", 203942L, MediaPurpose.USER_PROFILE));
+                "avatar.jpg", "image/jpeg", 203942L, MediaPurpose.USER_PROFILE, null));
 
     ArgumentCaptor<Media> mediaCaptor = ArgumentCaptor.forClass(Media.class);
     verify(mediaRepository).saveAndFlush(mediaCaptor.capture());
@@ -119,7 +125,7 @@ class MediaServiceTests {
             () ->
                 service.initiateUpload(
                     new InitiateMediaUploadRequest(
-                        "avatar.gif", "image/gif", 100L, MediaPurpose.USER_PROFILE)))
+                        "avatar.gif", "image/gif", 100L, MediaPurpose.USER_PROFILE, null)))
         .isInstanceOf(MediaException.class)
         .hasMessage("MEDIA_INVALID_TYPE");
     verify(mediaRepository, never()).saveAndFlush(any());
@@ -134,7 +140,7 @@ class MediaServiceTests {
                         "avatar.jpg",
                         "image/jpeg",
                         11L * 1024L * 1024L,
-                        MediaPurpose.USER_PROFILE)))
+                        MediaPurpose.USER_PROFILE, null)))
         .isInstanceOf(MediaException.class)
         .hasMessage("MEDIA_TOO_LARGE");
   }
@@ -267,7 +273,9 @@ class MediaServiceTests {
         MediaValidationProperties validationProperties,
         MediaAuthorizationService authorizationService,
         MediaMapper mediaMapper,
-        RedisService redisService) {
+        RedisService redisService,
+        StorageQuotaService storageQuotaService,
+        CompanyAuthorizationService companyAuthorizationService) {
       super(
           mediaRepository,
           currentUserService,
@@ -278,7 +286,9 @@ class MediaServiceTests {
           validationProperties,
           authorizationService,
           mediaMapper,
-          redisService);
+          redisService,
+          storageQuotaService,
+          companyAuthorizationService);
       this.mediaRepository = mediaRepository;
     }
 
