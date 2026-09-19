@@ -42,13 +42,21 @@ public class GmailConnectionService {
   private final ObjectMapper objectMapper;
 
   public GmailAuthorizationResponse authorization(Long companyId, Long userId) {
+    return authorization(companyId, userId, null);
+  }
+
+  public GmailAuthorizationResponse authorization(Long companyId, Long userId, String returnTo) {
     requireConfigured();
     entitlementService.assertCanCreateConnection(companyId, ChannelType.EMAIL);
-    String state = stateService.create(companyId, userId);
+    String state = stateService.create(companyId, userId, returnTo);
     return new GmailAuthorizationResponse(gmailApiClient.authorizationUrl(state));
   }
 
   public GmailConnectionResponse complete(String state, String code) {
+    return completeWithReturn(state, code).connection();
+  }
+
+  public GmailCompletion completeWithReturn(String state, String code) {
     requireConfigured();
     if (code == null || code.isBlank()) {
       throw new BadRequestException("Google authorization code is missing");
@@ -85,11 +93,15 @@ public class GmailConnectionService {
     GmailConnectionResponse response =
         persistenceService.persist(oauthState.companyId(), oauthState.userId(), profile, token);
 
-    return response;
+    return new GmailCompletion(response, oauthState.returnTo());
   }
 
   public void consumeCancelledState(String state) {
     stateService.consume(state);
+  }
+
+  public String consumeCancelledStateWithReturn(String state) {
+    return stateService.consume(state).returnTo();
   }
 
   public GmailSyncQueuedResponse queueSync(
@@ -134,6 +146,8 @@ public class GmailConnectionService {
   public boolean configured() {
     return properties.configured();
   }
+
+  public record GmailCompletion(GmailConnectionResponse connection, String returnTo) {}
 
   private void requireConfigured() {
     if (!properties.configured()) {
