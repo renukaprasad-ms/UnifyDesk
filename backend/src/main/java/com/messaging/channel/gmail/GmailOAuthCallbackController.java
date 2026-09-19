@@ -25,21 +25,22 @@ public class GmailOAuthCallbackController {
       @RequestParam(required = false) String error) {
     try {
       if (error != null && !error.isBlank()) {
-        gmailConnectionService.consumeCancelledState(state);
-        return redirect("cancelled");
+        String returnTo = gmailConnectionService.consumeCancelledStateWithReturn(state);
+        return redirect("cancelled", returnTo);
       }
 
-      gmailConnectionService.complete(state, code);
-      return redirect("connected");
+      GmailConnectionService.GmailCompletion completion =
+          gmailConnectionService.completeWithReturn(state, code);
+      return redirect("connected", completion.returnTo());
     } catch (RuntimeException exception) {
-      return redirect("error");
+      return redirect("error", "/company/connections");
     }
   }
 
-  private ResponseEntity<Void> redirect(String result) {
+  private ResponseEntity<Void> redirect(String result, String returnTo) {
     URI location =
         UriComponentsBuilder.fromUriString(properties.getFrontendBaseUrl())
-            .path("/company/connections")
+            .path(returnTo == null || returnTo.isBlank() ? "/company/connections" : returnTo)
             .queryParam("gmail", result)
             .build()
             .encode()
