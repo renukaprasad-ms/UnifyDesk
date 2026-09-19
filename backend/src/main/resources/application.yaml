@@ -147,6 +147,9 @@ app:
       initial-sync-max-messages: ${GMAIL_INITIAL_SYNC_MAX_MESSAGES:200}
       sync-max-range-days: ${GMAIL_SYNC_MAX_RANGE_DAYS:366}
       sync-max-messages: ${GMAIL_SYNC_MAX_MESSAGES:5000}
+      api-retry-max-attempts: ${GMAIL_API_RETRY_MAX_ATTEMPTS:4}
+      api-retry-initial-backoff: ${GMAIL_API_RETRY_INITIAL_BACKOFF:1s}
+      api-retry-max-backoff: ${GMAIL_API_RETRY_MAX_BACKOFF:8s}
   redis:
     key-prefix: ${REDIS_KEY_PREFIX:messaging}
     ttl:
