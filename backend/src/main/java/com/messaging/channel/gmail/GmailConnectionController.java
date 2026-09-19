@@ -3,16 +3,19 @@ package com.messaging.channel.gmail;
 import com.messaging.channel.dto.ChannelConnectionResponse;
 import com.messaging.channel.gmail.dto.GmailAuthorizationResponse;
 import com.messaging.channel.gmail.dto.GmailSyncQueuedResponse;
+import com.messaging.channel.gmail.dto.GmailSyncRequest;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
 import com.messaging.security.service.CurrentUserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -39,7 +42,9 @@ public class GmailConnectionController {
 
   @PostMapping("/{connectionId}/sync")
   public ResponseEntity<ApiResponse<GmailSyncQueuedResponse>> sync(
-      @PathVariable Long companyId, @PathVariable Long connectionId) {
+      @PathVariable Long companyId,
+      @PathVariable Long connectionId,
+      @Valid @RequestBody GmailSyncRequest request) {
     Long userId = currentUserService.currentUserId();
     authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_READ);
 
@@ -47,7 +52,7 @@ public class GmailConnectionController {
         .body(
             ApiResponse.success(
                 HttpStatus.ACCEPTED.value(),
-                gmailConnectionService.queueSync(companyId, userId, connectionId),
+                gmailConnectionService.queueSync(companyId, userId, connectionId, request),
                 "Gmail sync queued"));
   }
 
