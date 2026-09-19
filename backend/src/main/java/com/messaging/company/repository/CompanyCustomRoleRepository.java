@@ -9,6 +9,8 @@ public interface CompanyCustomRoleRepository extends JpaRepository<CompanyCustom
 
   List<CompanyCustomRole> findByCompanyIdAndDeletedAtIsNullOrderByNameAsc(Long companyId);
 
+  List<CompanyCustomRole> findByCompanyIdAndDeletedAtIsNull(Long companyId);
+
   Optional<CompanyCustomRole> findByIdAndCompanyIdAndDeletedAtIsNull(Long id, Long companyId);
 
   boolean existsByCompanyIdAndNameIgnoreCaseAndDeletedAtIsNull(Long companyId, String name);
