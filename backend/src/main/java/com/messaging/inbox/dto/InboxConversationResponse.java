@@ -8,6 +8,7 @@ import java.util.List;
 public record InboxConversationResponse(
     String id,
     String connectionId,
+    String externalConversationId,
     ProviderType providerType,
     String subject,
     String lastMessagePreview,
