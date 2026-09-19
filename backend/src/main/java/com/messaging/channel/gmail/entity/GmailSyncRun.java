@@ -41,6 +41,9 @@ public class GmailSyncRun {
   @Column(name = "discovery_complete", nullable = false)
   private boolean discoveryComplete;
 
+  @Column(nullable = false)
+  private boolean finalized;
+
   @Column(name = "discovered_count", nullable = false)
   private long discoveredCount;
 
