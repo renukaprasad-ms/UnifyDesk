@@ -1,6 +1,8 @@
 package com.messaging.company.service;
 
 import com.messaging.billing.service.DefaultPlanAssignmentService;
+import com.messaging.channel.dto.ChannelConnectionResponse;
+import com.messaging.channel.service.ChannelConnectionService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.company.dto.CompanyResponse;
@@ -12,9 +14,12 @@ import com.messaging.company.entity.CompanyMember;
 import com.messaging.company.enums.CompanyMemberStatus;
 import com.messaging.company.enums.CompanyRole;
 import com.messaging.company.enums.CompanyStatus;
+import com.messaging.company.repository.CompanyCustomRoleRepository;
 import com.messaging.company.repository.CompanyMemberRepository;
 import com.messaging.company.repository.CompanyMemberRoleAssignmentRepository;
 import com.messaging.company.repository.CompanyRepository;
+import com.messaging.lifecycle.enums.LifecycleEntityType;
+import com.messaging.lifecycle.service.DeletionQueueService;
 import com.messaging.media.entity.Media;
 import com.messaging.media.enums.MediaPurpose;
 import com.messaging.media.service.MediaService;
@@ -22,6 +27,7 @@ import com.messaging.security.service.CurrentUserService;
 import com.messaging.user.entity.User;
 import com.messaging.user.repository.UserRepository;
 import java.text.Normalizer;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
@@ -35,10 +41,13 @@ public class CompanyService {
   private final CompanyRepository companyRepository;
   private final CompanyMemberRepository memberRepository;
   private final CompanyMemberRoleAssignmentRepository roleAssignmentRepository;
+  private final CompanyCustomRoleRepository customRoleRepository;
   private final UserRepository userRepository;
   private final CurrentUserService currentUserService;
   private final MediaService mediaService;
   private final DefaultPlanAssignmentService defaultPlanAssignmentService;
+  private final ChannelConnectionService channelConnectionService;
+  private final DeletionQueueService deletionQueueService;
 
   @Transactional
   public CompanyResponse create(CreateCompanyRequest request) {
@@ -100,6 +109,51 @@ public class CompanyService {
             .map(CompanyMember::getRole)
             .orElse(null);
     return toResponse(company, role);
+  }
+
+  @Transactional
+  public void delete(Long companyId, Long actorUserId) {
+    Company company = getCompany(companyId);
+    if (company.getStatus() == CompanyStatus.DELETED) {
+      return;
+    }
+
+    Instant now = Instant.now();
+
+    List<ChannelConnectionResponse> connections = channelConnectionService.list(companyId, null);
+    for (ChannelConnectionResponse connection : connections) {
+      channelConnectionService.disconnect(
+          companyId, Long.valueOf(connection.id()), actorUserId);
+    }
+
+    var assignments = roleAssignmentRepository.findByCompanyIdAndRevokedAtIsNull(companyId);
+    assignments.forEach(assignment -> assignment.setRevokedAt(now));
+    roleAssignmentRepository.saveAll(assignments);
+
+    var roles = customRoleRepository.findByCompanyIdAndDeletedAtIsNull(companyId);
+    roles.forEach(
+        role -> {
+          role.setDeletedAt(now);
+          role.setDeletedByUserId(actorUserId);
+        });
+    customRoleRepository.saveAll(roles);
+
+    var members = memberRepository.findByCompanyId(companyId);
+    members.forEach(member -> member.setStatus(CompanyMemberStatus.LEFT));
+    memberRepository.saveAll(members);
+
+    company.setStatus(CompanyStatus.DELETED);
+    company.setDeletedAt(now);
+    company.setName("Deleted company");
+    company.setSlug("deleted-" + companyId);
+    company.setBusinessEmail(null);
+    company.setCountry(null);
+    company.setTimezone(null);
+    company.setLogoMediaId(null);
+    companyRepository.saveAndFlush(company);
+
+    deletionQueueService.enqueue(
+        LifecycleEntityType.COMPANY, companyId, companyId, actorUserId);
   }
 
   @Transactional(readOnly = true)
