@@ -17,8 +17,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GmailSyncService {
@@ -32,6 +34,14 @@ public class GmailSyncService {
 
   public GmailSyncResult sync(
       Long companyId, Long connectionId, Long jobId, LocalDate fromDate, LocalDate toDate) {
+    long startedAt = System.nanoTime();
+    log.info(
+        "GMAIL_SYNC_DIAG sync_start jobId={} companyId={} connectionId={} fromDate={} toDate={}",
+        jobId,
+        companyId,
+        connectionId,
+        fromDate,
+        toDate);
     validateRange(fromDate, toDate);
 
     ChannelConnection connection =
@@ -46,25 +56,58 @@ public class GmailSyncService {
       throw new BadRequestException("Gmail connection is not active");
     }
 
+    log.info(
+        "GMAIL_SYNC_DIAG connection_valid jobId={} connectionId={} provider={} status={}",
+        jobId,
+        connectionId,
+        connection.getProviderType(),
+        connection.getStatus());
+
     asyncJobService.start(jobId, 0, "Finding Gmail messages");
     String accessToken = tokenService.accessToken(connection);
     int maxMessages = Math.max(1, properties.getSyncMaxMessages());
     String query = query(fromDate, toDate);
+    log.info(
+        "GMAIL_SYNC_DIAG query_ready jobId={} connectionId={} query={} maxMessages={}",
+        jobId,
+        connectionId,
+        query,
+        maxMessages);
 
     List<MessageReference> references = new ArrayList<>(Math.min(maxMessages, 1000));
     String pageToken = null;
 
+    int page = 0;
     do {
       int remaining = maxMessages - references.size();
+      int requestedPageSize = Math.min(remaining, 100);
       MessageListResponse listResponse =
-          gmailApiClient.listMessages(accessToken, Math.min(remaining, 100), query, pageToken);
+          gmailApiClient.listMessages(accessToken, requestedPageSize, query, pageToken);
 
+      int pageMessages = listResponse.messages() == null ? 0 : listResponse.messages().size();
       if (listResponse.messages() != null) {
         references.addAll(listResponse.messages());
       }
 
+      log.info(
+          "GMAIL_SYNC_DIAG list_page jobId={} page={} requested={} returned={} accumulated={} estimate={} nextPage={}",
+          jobId,
+          page,
+          requestedPageSize,
+          pageMessages,
+          references.size(),
+          listResponse.resultSizeEstimate(),
+          listResponse.nextPageToken() != null && !listResponse.nextPageToken().isBlank());
+
+      page++;
       pageToken = listResponse.nextPageToken();
     } while (references.size() < maxMessages && pageToken != null && !pageToken.isBlank());
+
+    log.info(
+        "GMAIL_SYNC_DIAG list_complete jobId={} references={} pages={}",
+        jobId,
+        references.size(),
+        page);
 
     long totalUnits = references.size() + 1L;
     asyncJobService.progress(
@@ -79,7 +122,14 @@ public class GmailSyncService {
     int processed = 0;
     for (MessageReference reference : references) {
       if (reference != null && reference.id() != null && !reference.id().isBlank()) {
-        messages.add(gmailApiClient.message(accessToken, reference.id()));
+        GmailMessage fetched = gmailApiClient.message(accessToken, reference.id());
+        messages.add(fetched);
+        log.debug(
+            "GMAIL_SYNC_DIAG message_fetched jobId={} index={} hasPayload={} labels={}",
+            jobId,
+            processed + 1,
+            fetched != null && fetched.payload() != null,
+            fetched == null || fetched.labelIds() == null ? 0 : fetched.labelIds().size());
       }
       processed++;
       asyncJobService.progress(
@@ -91,8 +141,21 @@ public class GmailSyncService {
 
     asyncJobService.progress(jobId, processed, totalUnits, "Saving Gmail messages");
     GmailProfile profile = gmailApiClient.profile(accessToken);
+    log.info(
+        "GMAIL_SYNC_DIAG profile_loaded jobId={} messagesTotal={} threadsTotal={} historyPresent={}",
+        jobId,
+        profile.messagesTotal(),
+        profile.threadsTotal(),
+        profile.historyId() != null && !profile.historyId().isBlank());
+
     GmailSyncResult result =
         persistenceService.persistFullSync(connection, messages, profile.historyId());
+    log.info(
+        "GMAIL_SYNC_DIAG persistence_complete jobId={} fetchedMessages={} createdMessages={} touchedConversations={}",
+        jobId,
+        result.fetchedMessages(),
+        result.createdMessages(),
+        result.touchedConversations());
 
     asyncJobService.complete(
         jobId,
@@ -101,6 +164,13 @@ public class GmailSyncService {
             + " new messages across "
             + result.touchedConversations()
             + " conversations");
+    log.info(
+        "GMAIL_SYNC_DIAG sync_complete jobId={} connectionId={} durationMs={} createdMessages={} touchedConversations={}",
+        jobId,
+        connectionId,
+        (System.nanoTime() - startedAt) / 1_000_000,
+        result.createdMessages(),
+        result.touchedConversations());
     return result;
   }
 
