@@ -10,6 +10,7 @@ import com.messaging.storage.repository.StorageAccountingRepository;
 import com.messaging.storage.repository.StorageAccountingRepository.StorageEventInsert;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.Statement;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -158,7 +159,7 @@ public class StorageQuotaService {
     long appliedBytes = 0;
     int inserted = 0;
     for (int i = 0; i < results.length; i++) {
-      if (results[i] > 0) {
+      if (results[i] > 0 || results[i] == Statement.SUCCESS_NO_INFO) {
         inserted++;
         appliedBytes = safeAdd(appliedBytes, pending.get(i).getValue().bytes());
       }
