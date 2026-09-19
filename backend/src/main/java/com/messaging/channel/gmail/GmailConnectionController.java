@@ -2,6 +2,8 @@ package com.messaging.channel.gmail;
 
 import com.messaging.channel.dto.ChannelConnectionResponse;
 import com.messaging.channel.gmail.dto.GmailAuthorizationResponse;
+import com.messaging.channel.gmail.dto.GmailSendRequest;
+import com.messaging.channel.gmail.dto.GmailSendResponse;
 import com.messaging.channel.gmail.dto.GmailSyncQueuedResponse;
 import com.messaging.channel.gmail.dto.GmailSyncRequest;
 import com.messaging.common.response.ApiResponse;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class GmailConnectionController {
 
   private final GmailConnectionService gmailConnectionService;
+  private final GmailSendService gmailSendService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -54,6 +57,21 @@ public class GmailConnectionController {
                 HttpStatus.ACCEPTED.value(),
                 gmailConnectionService.queueSync(companyId, userId, connectionId, request),
                 "Gmail sync queued"));
+  }
+
+  @PostMapping("/{connectionId}/send")
+  public ResponseEntity<ApiResponse<GmailSendResponse>> send(
+      @PathVariable Long companyId,
+      @PathVariable Long connectionId,
+      @Valid @RequestBody GmailSendRequest request) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_SEND);
+
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            gmailSendService.send(companyId, connectionId, request),
+            "Email sent"));
   }
 
   @PostMapping("/{connectionId}/disconnect")
