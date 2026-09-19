@@ -66,10 +66,7 @@ const channelFromPath = (pathname: string): ChannelType => {
 const identityFallback = (connection: ChannelConnection) =>
   connection.externalAccountId || connection.name
 
-export default function ChannelContextSidebar({
-  mode,
-  onNavigate,
-}: ChannelContextSidebarProps) {
+export default function ChannelContextSidebar({ mode, onNavigate }: ChannelContextSidebarProps) {
   const companyId = useAppSelector(selectSelectedCompanyId)
   const { can } = useIam()
   const location = useLocation()
@@ -135,7 +132,8 @@ export default function ChannelContextSidebar({
         if (active) setSenders(Object.fromEntries(senderEntries))
       })
       .catch((requestError) => {
-        if (active) setError(apiErrorMessage(requestError, `Unable to load connected ${meta.label}`))
+        if (active)
+          setError(apiErrorMessage(requestError, `Unable to load connected ${meta.label}`))
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -297,11 +295,7 @@ export default function ChannelContextSidebar({
             onClick={() => setMenuOpen((current) => !current)}
           >
             <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-indigo-50 text-indigo-500">
-              {channelType === 'WHATSAPP' ? (
-                <FiRadio aria-hidden="true" />
-              ) : (
-                meta.icon
-              )}
+              {channelType === 'WHATSAPP' ? <FiRadio aria-hidden="true" /> : meta.icon}
             </span>
             <span className="workspace-switcher-copy min-w-0 flex-1 text-left">
               <span className="block truncate text-[12px] font-semibold text-slate-950">
@@ -374,11 +368,7 @@ export default function ChannelContextSidebar({
           </button>
 
           {canCompose && (
-            <button
-              type="button"
-              className="admin-nav-link w-full text-left"
-              onClick={openCompose}
-            >
+            <button type="button" className="admin-nav-link w-full text-left" onClick={openCompose}>
               <span className="admin-nav-icon">
                 <FiSend aria-hidden="true" />
               </span>

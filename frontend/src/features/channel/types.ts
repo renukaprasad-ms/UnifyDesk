@@ -77,7 +77,6 @@ export type GmailSyncRequest = {
   toDate: string
 }
 
-
 export type GmailSendRequest = {
   to: string
   subject: string

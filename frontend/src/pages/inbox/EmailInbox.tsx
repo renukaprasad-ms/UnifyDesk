@@ -149,12 +149,7 @@ export default function EmailInbox() {
           return
         }
 
-        const inbox = await inboxApi.conversations(
-          companyId,
-          page,
-          30,
-          selectedConnectionId,
-        )
+        const inbox = await inboxApi.conversations(companyId, page, 30, selectedConnectionId)
 
         setConversations((current) => {
           if (!append) return inbox.items
@@ -188,7 +183,6 @@ export default function EmailInbox() {
     setSelectedId(null)
     void loadConversations(0, false)
   }, [companyId, selectedConnectionId, loadConversations])
-
 
   useEffect(() => {
     const gmailResult = searchParams.get('gmail')
@@ -370,7 +364,6 @@ export default function EmailInbox() {
 
   const canSendSelectedGmail =
     can(PERMISSIONS.EMAIL_SEND) && selectedConnection?.providerType === 'GMAIL'
-
 
   if (!companyId) {
     return (
