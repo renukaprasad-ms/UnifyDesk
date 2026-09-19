@@ -248,10 +248,6 @@ public class GmailApiClient {
       results.add(parseBatchHttpPart(messageIds.get(index), httpPayload));
     }
 
-    if (results.size() == messageIds.size()) {
-      return results;
-    }
-
     Map<String, BatchMessageResult> byMessageId = new LinkedHashMap<>();
     for (BatchMessageResult result : results) {
       byMessageId.put(result.messageId(), result);
