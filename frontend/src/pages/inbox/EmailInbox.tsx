@@ -352,8 +352,8 @@ export default function EmailInbox() {
                   </button>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-slate-950">
-                    {selectedConversation.subject || '(no subject)'}
-                  </p>
+                      {selectedConversation.subject || '(no subject)'}
+                    </p>
                     <p className="mt-1 truncate text-xs text-slate-500">
                       {displayParticipant(selectedConversation, ownAddress)}
                       {ownAddress ? ` · ${ownAddress}` : ''}

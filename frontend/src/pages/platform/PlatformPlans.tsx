@@ -102,7 +102,9 @@ export default function PlatformPlans() {
 
   if (loading)
     return (
-      <div className="p-4 sm:p-6 lg:p-8 text-sm font-medium text-slate-500">Loading billing catalog…</div>
+      <div className="p-4 sm:p-6 lg:p-8 text-sm font-medium text-slate-500">
+        Loading billing catalog…
+      </div>
     )
 
   if (superAdmin === false) {

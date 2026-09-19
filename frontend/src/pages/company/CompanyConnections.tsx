@@ -209,7 +209,9 @@ export default function CompanyConnections() {
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="eyebrow">Company</p>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Connections</h1>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+              Connections
+            </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
               Connect the communication providers this workspace will use for inboxes, sending,
               templates, and broadcasts.

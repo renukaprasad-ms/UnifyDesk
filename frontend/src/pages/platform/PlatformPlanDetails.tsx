@@ -249,7 +249,9 @@ export default function PlatformPlanDetails() {
     )
   if (!plan)
     return (
-      <div className="p-4 sm:p-6 lg:p-8 text-sm font-medium text-red-600">{error || 'Plan not found'}</div>
+      <div className="p-4 sm:p-6 lg:p-8 text-sm font-medium text-red-600">
+        {error || 'Plan not found'}
+      </div>
     )
 
   return (
