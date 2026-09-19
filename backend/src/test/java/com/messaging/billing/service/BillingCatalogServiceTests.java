@@ -56,7 +56,8 @@ class BillingCatalogServiceTests {
     Plan plan = plan(20L, "FREE");
     PlanPrice price = freePrice(30L, plan);
     Company company = company(companyId);
-    CompanySubscription current = subscription(40L, company, plan, price, SubscriptionStatus.ACTIVE);
+    CompanySubscription current =
+        subscription(40L, company, plan, price, SubscriptionStatus.ACTIVE);
 
     when(planRepository.findById(plan.getId())).thenReturn(Optional.of(plan));
     when(planPriceRepository.findByPlanIdAndStatusOrderByEffectiveFromDesc(
@@ -147,11 +148,7 @@ class BillingCatalogServiceTests {
   }
 
   private CompanySubscription subscription(
-      Long id,
-      Company company,
-      Plan plan,
-      PlanPrice planPrice,
-      SubscriptionStatus status) {
+      Long id, Company company, Plan plan, PlanPrice planPrice, SubscriptionStatus status) {
     CompanySubscription subscription = new CompanySubscription();
     subscription.setId(id);
     subscription.setCompany(company);
