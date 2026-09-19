@@ -8,3 +8,8 @@ alter table company_custom_roles add column if not exists deleted_by_user_id big
 
 create index if not exists idx_company_custom_roles_active
   on company_custom_roles(company_id, deleted_at);
+
+drop index if exists uk_company_custom_roles_name_ci;
+create unique index if not exists uk_company_custom_roles_name_ci
+  on company_custom_roles(company_id, lower(name))
+  where deleted_at is null;
