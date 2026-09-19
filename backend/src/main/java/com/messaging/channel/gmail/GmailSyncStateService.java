@@ -144,7 +144,7 @@ public class GmailSyncStateService {
   }
 
   @Transactional
-  public void retryBatch(
+  public boolean retryBatch(
       Long batchId,
       List<String> retryIds,
       int processedDelta,
@@ -152,7 +152,7 @@ public class GmailSyncStateService {
       String error) {
     GmailSyncBatch batch = requireBatchForUpdate(batchId);
     if (isTerminal(batch.getStatus())) {
-      return;
+      return false;
     }
 
     batch.setProcessedCount(batch.getProcessedCount() + Math.max(0, processedDelta));
@@ -161,14 +161,15 @@ public class GmailSyncStateService {
     batch.setStatus(GmailSyncBatchStatus.RETRY);
     batch.setLastError(truncate(error));
     batchRepository.save(batch);
+    return true;
   }
 
   @Transactional
-  public void completeBatch(
+  public boolean completeBatch(
       Long batchId, int processedDelta, int failedDelta, String error) {
     GmailSyncBatch batch = requireBatchForUpdate(batchId);
     if (isTerminal(batch.getStatus())) {
-      return;
+      return false;
     }
 
     batch.setProcessedCount(batch.getProcessedCount() + Math.max(0, processedDelta));
@@ -178,6 +179,7 @@ public class GmailSyncStateService {
     batch.setLastError(truncate(error));
     batch.setCompletedAt(Instant.now());
     batchRepository.save(batch);
+    return true;
   }
 
   @Transactional
