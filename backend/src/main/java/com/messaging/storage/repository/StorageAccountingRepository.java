@@ -113,8 +113,7 @@ public class StorageAccountingRepository {
             from company_storage_usage
             where company_id = ? and usage_type = ?
             """,
-            (rs, rowNum) ->
-                new BucketUsage(rs.getLong("used_bytes"), rs.getLong("reserved_bytes")),
+            (rs, rowNum) -> new BucketUsage(rs.getLong("used_bytes"), rs.getLong("reserved_bytes")),
             companyId,
             usageType.name());
     return rows.isEmpty() ? new BucketUsage(0, 0) : rows.getFirst();
