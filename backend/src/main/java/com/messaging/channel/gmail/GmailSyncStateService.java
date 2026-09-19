@@ -281,6 +281,11 @@ public class GmailSyncStateService {
     return batchRepository.sumFailedCountByJobId(jobId);
   }
 
+  @Transactional
+  public void deferNextPendingBatch(Long connectionId, Instant eligibleAt) {
+    batchRepository.deferNextPendingBatch(connectionId, eligibleAt);
+  }
+
   @Transactional(readOnly = true)
   public String latestFailureReason(Long jobId) {
     return batchRepository
