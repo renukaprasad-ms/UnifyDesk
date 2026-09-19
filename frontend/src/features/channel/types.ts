@@ -76,3 +76,20 @@ export type GmailSyncRequest = {
   fromDate: string
   toDate: string
 }
+
+
+export type GmailSendRequest = {
+  to: string
+  subject: string
+  bodyText: string
+}
+
+export type GmailSendResponse = {
+  connectionId: string
+  messageId: string
+  threadId: string
+  from: string
+  to: string
+  subject?: string | null
+  sentAt: string
+}
