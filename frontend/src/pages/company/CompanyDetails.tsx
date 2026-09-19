@@ -149,7 +149,7 @@ export default function CompanyDetails() {
       let logoMediaId = removeLogo ? null : (company.logoMediaId ?? null)
 
       if (logoFile) {
-        const upload = await mediaApi.initiateCompanyLogoUpload(logoFile)
+        const upload = await mediaApi.initiateCompanyLogoUpload(logoFile, selectedCompany.companyId)
         await mediaApi.uploadFileToStorage(upload, logoFile, setUploadProgress)
         await mediaApi.completeUpload(upload.mediaId)
         logoMediaId = upload.mediaId
