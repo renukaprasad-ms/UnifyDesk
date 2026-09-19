@@ -30,6 +30,7 @@ public class InboxController {
   @GetMapping("/conversations")
   public ResponseEntity<ApiResponse<InboxPageResponse<InboxConversationResponse>>> conversations(
       @PathVariable Long companyId,
+      @RequestParam(required = false) Long connectionId,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "30") int size) {
     Long userId = currentUserService.currentUserId();
@@ -41,7 +42,8 @@ public class InboxController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            inboxQueryService.listConversations(companyId, resolvedPage, resolvedSize),
+            inboxQueryService.listConversations(
+                companyId, connectionId, resolvedPage, resolvedSize),
             "Inbox conversations fetched"));
   }
 
