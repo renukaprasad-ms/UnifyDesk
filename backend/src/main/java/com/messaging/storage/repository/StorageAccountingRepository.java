@@ -25,6 +25,15 @@ public class StorageAccountingRepository {
         "select id from companies where id = ? for update", Long.class, companyId);
   }
 
+  public boolean hasEvent(String idempotencyKey) {
+    Integer count =
+        jdbcTemplate.queryForObject(
+            "select count(*) from storage_usage_events where idempotency_key = ?",
+            Integer.class,
+            idempotencyKey);
+    return count != null && count > 0;
+  }
+
   public boolean appendEvent(
       long id,
       long companyId,
