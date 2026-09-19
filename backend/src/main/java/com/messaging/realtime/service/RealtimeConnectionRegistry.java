@@ -5,10 +5,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 
+@Slf4j
 @Component
 public class RealtimeConnectionRegistry {
 
@@ -25,11 +27,19 @@ public class RealtimeConnectionRegistry {
     socketIdsByUser
         .computeIfAbsent(userId, ignored -> ConcurrentHashMap.newKeySet())
         .add(rawSession.getId());
+    log.info(
+        "WS_DIAG registry_register socketId={} userId={} platform={} userSockets={} totalSockets={}",
+        rawSession.getId(),
+        userId,
+        platform,
+        socketIdsByUser.get(userId).size(),
+        bySocketId.size());
   }
 
   public void unregister(String socketId) {
     RealtimeConnection connection = bySocketId.remove(socketId);
     if (connection == null) {
+      log.debug("WS_DIAG registry_unregister_missing socketId={}", socketId);
       return;
     }
 
@@ -40,6 +50,12 @@ public class RealtimeConnectionRegistry {
         socketIdsByUser.remove(connection.userId(), ids);
       }
     }
+    log.info(
+        "WS_DIAG registry_unregister socketId={} userId={} remainingUserSockets={} totalSockets={}",
+        socketId,
+        connection.userId(),
+        socketIdsByUser.getOrDefault(connection.userId(), Set.of()).size(),
+        bySocketId.size());
   }
 
   public Collection<RealtimeConnection> forUser(Long userId) {
