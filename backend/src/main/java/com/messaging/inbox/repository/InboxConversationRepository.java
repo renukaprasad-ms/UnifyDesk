@@ -15,4 +15,7 @@ public interface InboxConversationRepository extends JpaRepository<InboxConversa
 
   Page<InboxConversation> findByCompanyIdOrderByLastMessageAtDescCreatedAtDesc(
       Long companyId, Pageable pageable);
+
+  Page<InboxConversation> findByCompanyIdAndConnectionIdOrderByLastMessageAtDescCreatedAtDesc(
+      Long companyId, Long connectionId, Pageable pageable);
 }
