@@ -12,11 +12,14 @@ import com.messaging.channel.gmail.dto.GmailSyncResult;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.inbox.repository.InboxMessageRepository;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +31,7 @@ public class GmailSyncService {
   private final GmailApiClient gmailApiClient;
   private final GmailTokenService tokenService;
   private final GmailInboxPersistenceService persistenceService;
+  private final InboxMessageRepository messageRepository;
   private final ChannelConnectionRepository connectionRepository;
   private final AsyncJobService asyncJobService;
 
@@ -67,18 +71,30 @@ public class GmailSyncService {
       pageToken = listResponse.nextPageToken();
     } while (references.size() < maxMessages && pageToken != null && !pageToken.isBlank());
 
-    long totalUnits = references.size() + 1L;
+    Set<String> existingMessageIds = existingMessageIds(connectionId, references);
+    List<MessageReference> pendingReferences =
+        references.stream()
+            .filter(
+                reference ->
+                    reference != null
+                        && reference.id() != null
+                        && !existingMessageIds.contains(reference.id()))
+            .toList();
+
+    long totalUnits = pendingReferences.size() + 1L;
     asyncJobService.progress(
         jobId,
         0,
         totalUnits,
         references.isEmpty()
             ? "No Gmail messages found in selected range"
-            : "Fetching " + references.size() + " Gmail messages");
+            : pendingReferences.isEmpty()
+                ? "All Gmail messages in this range are already synced"
+                : "Fetching " + pendingReferences.size() + " new Gmail messages");
 
-    List<GmailMessage> messages = new ArrayList<>(references.size());
+    List<GmailMessage> messages = new ArrayList<>(pendingReferences.size());
     int processed = 0;
-    for (MessageReference reference : references) {
+    for (MessageReference reference : pendingReferences) {
       if (reference != null && reference.id() != null && !reference.id().isBlank()) {
         messages.add(gmailApiClient.message(accessToken, reference.id()));
       }
@@ -87,7 +103,7 @@ public class GmailSyncService {
           jobId,
           processed,
           totalUnits,
-          "Fetched " + processed + " of " + references.size() + " Gmail messages");
+          "Fetched " + processed + " of " + pendingReferences.size() + " Gmail messages");
     }
 
     asyncJobService.progress(jobId, processed, totalUnits, "Saving Gmail messages");
@@ -103,6 +119,28 @@ public class GmailSyncService {
             + result.touchedConversations()
             + " conversations");
     return result;
+  }
+
+  private Set<String> existingMessageIds(
+      Long connectionId, List<MessageReference> references) {
+    List<String> ids =
+        references.stream()
+            .filter(reference -> reference != null && reference.id() != null)
+            .map(MessageReference::id)
+            .distinct()
+            .toList();
+    if (ids.isEmpty()) {
+      return Set.of();
+    }
+
+    Set<String> existing = new HashSet<>();
+    int batchSize = 500;
+    for (int from = 0; from < ids.size(); from += batchSize) {
+      int to = Math.min(ids.size(), from + batchSize);
+      existing.addAll(
+          messageRepository.findExistingExternalMessageIds(connectionId, ids.subList(from, to)));
+    }
+    return existing;
   }
 
   private void validateRange(LocalDate fromDate, LocalDate toDate) {
