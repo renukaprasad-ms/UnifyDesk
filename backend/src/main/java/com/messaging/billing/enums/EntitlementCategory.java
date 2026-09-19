@@ -5,5 +5,6 @@ public enum EntitlementCategory {
   CHANNEL,
   BROADCAST,
   TEMPLATE,
+  STORAGE,
   FEATURE
 }
