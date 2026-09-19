@@ -17,6 +17,8 @@ import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.channel.repository.SenderIdentityRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.lifecycle.enums.LifecycleEntityType;
+import com.messaging.lifecycle.service.DeletionQueueService;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ public class ChannelConnectionService {
   private final ChannelEntitlementService entitlementService;
   private final ProviderCredentialService credentialService;
   private final ChannelProviderRegistry providerRegistry;
+  private final DeletionQueueService deletionQueueService;
 
   @Transactional
   public ChannelConnectionResponse create(
@@ -82,10 +85,33 @@ public class ChannelConnectionService {
 
   @Transactional
   public ChannelConnectionResponse disconnect(Long companyId, Long connectionId) {
+    return disconnect(companyId, connectionId, null);
+  }
+
+  @Transactional
+  public ChannelConnectionResponse disconnect(
+      Long companyId, Long connectionId, Long requestedByUserId) {
     ChannelConnection connection = requireConnection(companyId, connectionId);
+    if (connection.getStatus() == ChannelConnectionStatus.DISCONNECTED) {
+      return toResponse(connection);
+    }
+
     connection.setStatus(ChannelConnectionStatus.DISCONNECTED);
     credentialService.deleteAll(connection.getId());
-    return toResponse(connectionRepository.save(connection));
+
+    List<SenderIdentity> senders =
+        senderIdentityRepository.findByConnectionIdOrderByCreatedAtAsc(connectionId);
+    senders.forEach(
+        sender -> {
+          sender.setStatus(SenderIdentityStatus.DISABLED);
+          sender.setDefaultIdentity(false);
+        });
+    senderIdentityRepository.saveAll(senders);
+
+    ChannelConnectionResponse response = toResponse(connectionRepository.save(connection));
+    deletionQueueService.enqueue(
+        LifecycleEntityType.CHANNEL_CONNECTION, connectionId, companyId, requestedByUserId);
+    return response;
   }
 
   @Transactional
