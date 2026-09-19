@@ -1,4 +1,5 @@
 import apiClient from '../../lib/api/apiClient'
+import type { AsyncJob } from '../asyncJob/types'
 import type { ApiResponse } from '../../lib/api/types'
 import type {
   ChannelConnection,
@@ -21,6 +22,13 @@ export const gmailApi = {
       { params: returnTo ? { returnTo } : undefined },
     )
     return unwrap(response.data)
+  },
+
+  async activeSync(companyId: string, connectionId: string) {
+    const response = await apiClient.get<ApiResponse<AsyncJob>>(
+      `/api/v1/companies/${companyId}/channels/email/gmail/${connectionId}/sync/active`,
+    )
+    return response.data.data ?? null
   },
 
   async sync(companyId: string, connectionId: string, request: GmailSyncRequest) {
