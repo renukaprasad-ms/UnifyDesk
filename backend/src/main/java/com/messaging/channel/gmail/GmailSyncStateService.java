@@ -268,6 +268,15 @@ public class GmailSyncStateService {
     return batchRepository.sumFailedCountByJobId(jobId);
   }
 
+  @Transactional(readOnly = true)
+  public String latestFailureReason(Long jobId) {
+    return batchRepository
+        .findFirstByJobIdAndLastErrorIsNotNullOrderByUpdatedAtDesc(jobId)
+        .map(GmailSyncBatch::getLastError)
+        .filter(error -> error != null && !error.isBlank())
+        .orElse(null);
+  }
+
   private ClaimedBatch toClaimedBatch(GmailSyncBatch batch) {
     return new ClaimedBatch(
         batch.getId(),
