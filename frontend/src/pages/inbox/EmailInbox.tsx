@@ -299,11 +299,11 @@ export default function EmailInbox() {
             <button
               type="button"
               className="primary-button flex-1 gap-2 sm:flex-none"
-              onClick={() => void syncGmail()}
-              disabled={syncing}
+              onClick={() => setShowSyncDialog(true)}
+              disabled={syncing || activeSyncJobs.length > 0}
             >
               <FiMail aria-hidden="true" />
-              {syncing ? 'Queuing...' : 'Sync Gmail'}
+              {syncing ? 'Queuing...' : activeSyncJobs.length > 0 ? 'Syncing...' : 'Sync Gmail'}
             </button>
           </div>
         </div>
@@ -316,6 +316,108 @@ export default function EmailInbox() {
         {notice && (
           <div className="mb-4 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
             {notice}
+          </div>
+        )}
+
+        {trackedSyncJobs.length > 0 && (
+          <div className="panel mb-4 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-900">
+                  {activeSyncJobs.length > 0
+                    ? 'Syncing Gmail'
+                    : trackedSyncJobs.every((job) => job.status === 'COMPLETED')
+                      ? 'Gmail sync complete'
+                      : 'Gmail sync finished'}
+                </p>
+                <p className="mt-1 truncate text-xs text-slate-500">
+                  {activeSyncJobs[0]?.statusMessage ||
+                    trackedSyncJobs.at(-1)?.statusMessage ||
+                    'Preparing sync'}
+                </p>
+              </div>
+              <span className="text-sm font-bold text-indigo-600">{overallSyncProgress}%</span>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-indigo-500 transition-[width] duration-300"
+                style={{ width: `${overallSyncProgress}%` }}
+              />
+            </div>
+            {trackedSyncJobs.length > 1 && (
+              <p className="mt-2 text-[11px] text-slate-400">
+                {trackedSyncJobs.length} connected Gmail accounts are included in this sync.
+              </p>
+            )}
+          </div>
+        )}
+
+        {showSyncDialog && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.currentTarget === event.target && !syncing) setShowSyncDialog(false)
+            }}
+          >
+            <div
+              className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="gmail-sync-title"
+            >
+              <p className="eyebrow">GMAIL SYNC</p>
+              <h2 id="gmail-sync-title" className="mt-2 text-lg font-bold text-slate-950">
+                Choose email date range
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                ReachFly will import Gmail messages within this range and show live progress.
+              </p>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <label className="text-xs font-semibold text-slate-600">
+                  From
+                  <input
+                    type="date"
+                    className="form-input mt-1.5"
+                    value={syncFrom}
+                    max={syncTo}
+                    onChange={(event) => setSyncFrom(event.target.value)}
+                  />
+                </label>
+                <label className="text-xs font-semibold text-slate-600">
+                  To
+                  <input
+                    type="date"
+                    className="form-input mt-1.5"
+                    value={syncTo}
+                    min={syncFrom}
+                    max={localDateInput(new Date())}
+                    onChange={(event) => setSyncTo(event.target.value)}
+                  />
+                </label>
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  className="secondary-button justify-center"
+                  disabled={syncing}
+                  onClick={() => setShowSyncDialog(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="primary-button justify-center gap-2"
+                  disabled={syncing}
+                  onClick={() => void syncGmail()}
+                >
+                  <FiMail aria-hidden="true" />
+                  {syncing ? 'Starting...' : 'Start sync'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
