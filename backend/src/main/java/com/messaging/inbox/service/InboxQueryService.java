@@ -30,10 +30,15 @@ public class InboxQueryService {
 
   @Transactional(readOnly = true)
   public InboxPageResponse<InboxConversationResponse> listConversations(
-      Long companyId, int page, int size) {
+      Long companyId, Long connectionId, int page, int size) {
+    PageRequest pageable = PageRequest.of(page, size);
     Page<InboxConversation> result =
-        conversationRepository.findByCompanyIdOrderByLastMessageAtDescCreatedAtDesc(
-            companyId, PageRequest.of(page, size));
+        connectionId == null
+            ? conversationRepository.findByCompanyIdOrderByLastMessageAtDescCreatedAtDesc(
+                companyId, pageable)
+            : conversationRepository
+                .findByCompanyIdAndConnectionIdOrderByLastMessageAtDescCreatedAtDesc(
+                    companyId, connectionId, pageable);
 
     List<InboxConversationResponse> items =
         result.getContent().stream().map(this::conversation).toList();
