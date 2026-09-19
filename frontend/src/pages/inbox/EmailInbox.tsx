@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
 import { FiArrowLeft, FiInbox, FiMail, FiRefreshCw, FiSend } from 'react-icons/fi'
 import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
@@ -93,6 +93,7 @@ export default function EmailInbox() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [realtimeConnected, setRealtimeConnected] = useState(realtimeClient.isConnected())
+  const inboxRefreshTimerRef = useRef<number | null>(null)
 
   const selectedConnection = useMemo(
     () => connections.find((connection) => connection.id === selectedConnectionId) ?? null,
@@ -179,11 +180,53 @@ export default function EmailInbox() {
     [companyId, searchParams, selectedConnectionId, setSearchParams],
   )
 
+  const scheduleInboxRefresh = useCallback(() => {
+    if (inboxRefreshTimerRef.current !== null) return
+    inboxRefreshTimerRef.current = window.setTimeout(() => {
+      inboxRefreshTimerRef.current = null
+      void loadConversations(0, false)
+    }, 1000)
+  }, [scheduleInboxRefresh])
+
+  useEffect(
+    () => () => {
+      if (inboxRefreshTimerRef.current !== null) {
+        window.clearTimeout(inboxRefreshTimerRef.current)
+      }
+    },
+    [],
+  )
+
   useEffect(() => {
     setMobileConversationOpen(false)
     setSelectedId(null)
     void loadConversations(0, false)
   }, [companyId, selectedConnectionId, loadConversations])
+
+  useEffect(() => {
+    if (!companyId || !selectedConnectionId) {
+      setSyncJobs({})
+      return
+    }
+
+    let active = true
+    gmailApi
+      .activeSync(companyId, selectedConnectionId)
+      .then((job) => {
+        if (!active) return
+        setSyncJobs(job ? { [job.jobId]: job } : {})
+        if (job && job.completedUnits > 0) {
+          scheduleInboxRefresh()
+        }
+      })
+      .catch(() => {
+        if (active) setSyncJobs({})
+      })
+
+    return () => {
+      active = false
+    }
+  }, [companyId, selectedConnectionId, scheduleInboxRefresh])
 
   useEffect(() => {
     const gmailResult = searchParams.get('gmail')
@@ -250,8 +293,8 @@ export default function EmailInbox() {
         return { ...current, [job.jobId]: job }
       })
 
-      if (job.status === 'COMPLETED') {
-        void loadConversations(0, false)
+      if (job.completedUnits > 0) {
+        scheduleInboxRefresh()
       }
       if (job.status === 'FAILED') {
         setError(job.errorMessage || 'Gmail sync failed')
@@ -455,6 +498,12 @@ export default function EmailInbox() {
                     trackedSyncJobs.at(-1)?.statusMessage ||
                     'Preparing sync'}
                 </p>
+                {trackedSyncJobs.at(-1)?.totalUnits ? (
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    {trackedSyncJobs.at(-1)?.completedUnits.toLocaleString()} of{' '}
+                    {trackedSyncJobs.at(-1)?.totalUnits.toLocaleString()} processed
+                  </p>
+                ) : null}
               </div>
               <span className="text-sm font-bold text-indigo-600">{overallSyncProgress}%</span>
             </div>
