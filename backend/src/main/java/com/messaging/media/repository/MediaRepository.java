@@ -19,6 +19,9 @@ public interface MediaRepository extends JpaRepository<Media, Long> {
 
   List<Media> findByStatusAndCreatedAtBefore(MediaStatus status, Instant createdBefore);
 
+  List<Media> findByOwnerUserIdAndCompanyIdIsNullAndStatusNot(
+      Long ownerUserId, MediaStatus status);
+
   List<Media> findByStatusAndCreatedAtBefore(
       MediaStatus status, Instant createdBefore, Pageable pageable);
 }
