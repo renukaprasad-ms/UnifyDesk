@@ -6,6 +6,10 @@ alter table async_jobs
 create index if not exists idx_async_jobs_company_type_resource_status
   on async_jobs (company_id, job_type, resource_id, status, created_at desc);
 
+create unique index if not exists uk_async_jobs_active_resource
+  on async_jobs (company_id, job_type, resource_id)
+  where resource_id is not null and status in ('QUEUED', 'RUNNING');
+
 create table if not exists gmail_sync_runs (
   job_id bigint primary key,
   company_id bigint not null,
