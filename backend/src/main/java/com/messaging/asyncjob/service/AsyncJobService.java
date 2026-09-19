@@ -65,6 +65,29 @@ public class AsyncJobService {
   }
 
   @Transactional
+  public AsyncJobResponse startOrResume(Long jobId, long totalUnits, String message) {
+    AsyncJob job = requireForUpdate(jobId);
+    if (job.getStatus() == AsyncJobStatus.COMPLETED || job.getStatus() == AsyncJobStatus.FAILED) {
+      return toResponse(job);
+    }
+
+    job.setStatus(AsyncJobStatus.RUNNING);
+    job.setStartedAt(job.getStartedAt() == null ? Instant.now() : job.getStartedAt());
+    job.setTotalUnits(Math.max(job.getTotalUnits(), Math.max(totalUnits, 0)));
+    job.setProgressPercent(
+        job.getTotalUnits() <= 0
+            ? 0
+            : (int)
+                Math.min(
+                    99,
+                    (Math.max(0, job.getCompletedUnits()) * 100)
+                        / Math.max(1, job.getTotalUnits())));
+    job.setStatusMessage(message);
+    job.setErrorMessage(null);
+    return saveAndPublish(job);
+  }
+
+  @Transactional
   public AsyncJobResponse progress(
       Long jobId, long completedUnits, long totalUnits, String message) {
     AsyncJob job = require(jobId);
