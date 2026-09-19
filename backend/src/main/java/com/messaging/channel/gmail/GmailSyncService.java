@@ -36,6 +36,7 @@ public class GmailSyncService {
   private final ChannelConnectionRepository connectionRepository;
   private final AsyncJobService asyncJobService;
   private final GmailSyncStateService stateService;
+  private final GmailQuotaPolicy quotaPolicy;
   private final GmailSyncFinalizerService finalizerService;
 
   public void sync(
@@ -118,7 +119,8 @@ public class GmailSyncService {
               companyId,
               connectionId,
               nextBatchIndex,
-              List.copyOf(carry));
+              List.copyOf(carry),
+              quotaPolicy.initialEligibility(run.getCreatedAt(), nextBatchIndex));
           nextBatchIndex++;
           batchCount++;
           carry.clear();
@@ -140,7 +142,12 @@ public class GmailSyncService {
 
     if (!carry.isEmpty()) {
       stateService.createBatchIfAbsent(
-          jobId, companyId, connectionId, nextBatchIndex, List.copyOf(carry));
+          jobId,
+          companyId,
+          connectionId,
+          nextBatchIndex,
+          List.copyOf(carry),
+          quotaPolicy.initialEligibility(run.getCreatedAt(), nextBatchIndex));
       nextBatchIndex++;
       batchCount++;
       carry.clear();
