@@ -1,7 +1,11 @@
 package com.messaging.channel.gmail;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.messaging.common.exception.BadRequestException;
+import java.util.List;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
 class GmailApiClientTests {
@@ -44,5 +48,36 @@ class GmailApiClientTests {
         .contains("prompt=consent")
         .contains("state=state-value")
         .contains("gmail.modify");
+  }
+
+  @Test
+  void batchRequestBuildsOneMultipartPartPerMessage() {
+    GmailOAuthProperties properties = new GmailOAuthProperties();
+    properties.setSyncBatchSize(50);
+    GmailApiClient client = new GmailApiClient(properties);
+
+    List<String> ids = IntStream.range(0, 50).mapToObj(index -> "message-" + index).toList();
+    String body = client.batchRequestBody("test-boundary", ids);
+
+    assertThat(body)
+        .contains("Content-ID: <gmail-0>")
+        .contains("Content-ID: <gmail-49>")
+        .contains("GET /gmail/v1/users/me/messages/message-0?format=full HTTP/1.1")
+        .contains("GET /gmail/v1/users/me/messages/message-49?format=full HTTP/1.1")
+        .endsWith("--test-boundary--\r\n");
+    assertThat(body.split("GET /gmail/v1/users/me/messages/", -1)).hasSize(51);
+  }
+
+  @Test
+  void batchMessagesRejectsMoreThanFiftyMessagesBeforeCallingGoogle() {
+    GmailOAuthProperties properties = new GmailOAuthProperties();
+    properties.setSyncBatchSize(100);
+    GmailApiClient client = new GmailApiClient(properties);
+
+    List<String> ids = IntStream.range(0, 51).mapToObj(index -> "message-" + index).toList();
+
+    assertThatThrownBy(() -> client.batchMessages("token", ids))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("50");
   }
 }
