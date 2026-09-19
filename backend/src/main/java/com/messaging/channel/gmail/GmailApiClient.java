@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.exception.BadRequestException;
-import com.messaging.common.exception.ServiceUnavailableException;
 import com.messaging.common.exception.TooManyRequestsException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -218,7 +217,7 @@ public class GmailApiClient {
     return matcher.group(1);
   }
 
-  private List<BatchMessageResult> parseBatchResponse(
+  List<BatchMessageResult> parseBatchResponse(
       byte[] responseBody, String boundary, List<String> messageIds) {
     String payload = new String(responseBody, StandardCharsets.UTF_8);
     String[] parts = payload.split(Pattern.quote("--" + boundary));
