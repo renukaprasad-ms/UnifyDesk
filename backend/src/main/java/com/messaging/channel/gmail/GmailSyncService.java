@@ -12,7 +12,9 @@ import com.messaging.channel.gmail.dto.GmailSyncResult;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -109,6 +111,10 @@ public class GmailSyncService {
         references.size(),
         page);
 
+    if (references.isEmpty()) {
+      probeNewestMessage(accessToken, jobId);
+    }
+
     long totalUnits = references.size() + 1L;
     asyncJobService.progress(
         jobId,
@@ -174,6 +180,39 @@ public class GmailSyncService {
     return result;
   }
 
+  private void probeNewestMessage(String accessToken, Long jobId) {
+    try {
+      MessageListResponse latest = gmailApiClient.listMessages(accessToken, 1, null, null);
+      if (latest.messages() == null || latest.messages().isEmpty()) {
+        log.info("GMAIL_SYNC_DIAG mailbox_probe jobId={} newestMessage=none", jobId);
+        return;
+      }
+
+      MessageReference reference = latest.messages().getFirst();
+      GmailMessage message = gmailApiClient.message(accessToken, reference.id());
+      String internalDate = message == null ? null : message.internalDate();
+      String newestAt = "unknown";
+      if (internalDate != null && !internalDate.isBlank()) {
+        try {
+          newestAt = Instant.ofEpochMilli(Long.parseLong(internalDate)).toString();
+        } catch (NumberFormatException ignored) {
+          newestAt = "invalid_internal_date";
+        }
+      }
+
+      log.info(
+          "GMAIL_SYNC_DIAG mailbox_probe jobId={} newestMessagePresent=true newestInternalDate={} newestAt={}",
+          jobId,
+          internalDate != null && !internalDate.isBlank(),
+          newestAt);
+    } catch (RuntimeException exception) {
+      log.warn(
+          "GMAIL_SYNC_DIAG mailbox_probe_failed jobId={} reason={}",
+          jobId,
+          exception.getClass().getSimpleName());
+    }
+  }
+
   private void validateRange(LocalDate fromDate, LocalDate toDate) {
     if (fromDate == null || toDate == null) {
       throw new BadRequestException("Gmail sync fromDate and toDate are required");
@@ -189,11 +228,8 @@ public class GmailSyncService {
   }
 
   private String query(LocalDate fromDate, LocalDate toDate) {
-    LocalDate inclusiveEnd = toDate.plusDays(1);
-    return "after:" + slashDate(fromDate) + " before:" + slashDate(inclusiveEnd);
-  }
-
-  private String slashDate(LocalDate value) {
-    return value.getYear() + "/" + value.getMonthValue() + "/" + value.getDayOfMonth();
+    long startExclusive = fromDate.atStartOfDay().toEpochSecond(ZoneOffset.UTC) - 1;
+    long endExclusive = toDate.plusDays(1).atStartOfDay().toEpochSecond(ZoneOffset.UTC);
+    return "after:" + startExclusive + " before:" + endExclusive;
   }
 }
