@@ -7,11 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CompanyCustomRoleRepository extends JpaRepository<CompanyCustomRole, Long> {
 
-  List<CompanyCustomRole> findByCompanyIdOrderByNameAsc(Long companyId);
+  List<CompanyCustomRole> findByCompanyIdAndDeletedAtIsNullOrderByNameAsc(Long companyId);
 
-  Optional<CompanyCustomRole> findByIdAndCompanyId(Long id, Long companyId);
+  Optional<CompanyCustomRole> findByIdAndCompanyIdAndDeletedAtIsNull(Long id, Long companyId);
 
-  boolean existsByCompanyIdAndNameIgnoreCase(Long companyId, String name);
+  boolean existsByCompanyIdAndNameIgnoreCaseAndDeletedAtIsNull(Long companyId, String name);
 
-  boolean existsByCompanyIdAndNameIgnoreCaseAndIdNot(Long companyId, String name, Long id);
+  boolean existsByCompanyIdAndNameIgnoreCaseAndIdNotAndDeletedAtIsNull(Long companyId, String name, Long id);
 }
