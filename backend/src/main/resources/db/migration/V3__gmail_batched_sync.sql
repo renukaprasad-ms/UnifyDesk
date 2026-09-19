@@ -1,3 +1,13 @@
+-- Gmail message addressing/thread headers used for compose, reply and reply-all.
+alter table inbox_messages
+  add column if not exists from_address varchar(320),
+  add column if not exists reply_to_address varchar(320),
+  add column if not exists to_addresses text,
+  add column if not exists cc_addresses text,
+  add column if not exists bcc_addresses text,
+  add column if not exists in_reply_to varchar(998),
+  add column if not exists references_header text;
+
 -- Durable, resumable Gmail batch synchronization.
 
 alter table async_jobs
