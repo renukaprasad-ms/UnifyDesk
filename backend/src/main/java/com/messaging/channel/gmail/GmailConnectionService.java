@@ -42,10 +42,16 @@ public class GmailConnectionService {
   private final ObjectMapper objectMapper;
 
   public GmailAuthorizationResponse authorization(Long companyId, Long userId) {
-    return authorization(companyId, userId, null);
+    requireConfigured();
+    entitlementService.assertCanCreateConnection(companyId, ChannelType.EMAIL);
+    String state = stateService.create(companyId, userId);
+    return new GmailAuthorizationResponse(gmailApiClient.authorizationUrl(state));
   }
 
   public GmailAuthorizationResponse authorization(Long companyId, Long userId, String returnTo) {
+    if (returnTo == null || returnTo.isBlank()) {
+      return authorization(companyId, userId);
+    }
     requireConfigured();
     entitlementService.assertCanCreateConnection(companyId, ChannelType.EMAIL);
     String state = stateService.create(companyId, userId, returnTo);
