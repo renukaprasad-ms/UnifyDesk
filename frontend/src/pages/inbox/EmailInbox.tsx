@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
-import { FiArrowLeft, FiInbox, FiMail, FiRefreshCw } from 'react-icons/fi'
+import { FiArrowLeft, FiInbox, FiMail, FiRefreshCw, FiSend } from 'react-icons/fi'
 import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
 import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'
 import type { AsyncJob } from '../../features/asyncJob/types'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import type { ChannelConnection } from '../../features/channel/types'
+import { PERMISSIONS } from '../../features/iam/permissions'
+import { useIam } from '../../features/iam/useIam'
 import { inboxApi } from '../../features/inbox/inboxApi'
 import type { InboxConversation, InboxMessage } from '../../features/inbox/types'
 import { realtimeClient } from '../../features/realtime/realtimeClient'
@@ -63,8 +65,10 @@ const defaultSyncRange = () => {
 
 export default function EmailInbox() {
   const companyId = useAppSelector(selectSelectedCompanyId)
-  const [searchParams] = useSearchParams()
+  const { can } = useIam()
+  const [searchParams, setSearchParams] = useSearchParams()
   const selectedConnectionId = searchParams.get('connectionId')
+  const composeOpen = searchParams.get('compose') === '1'
   const [connections, setConnections] = useState<ChannelConnection[]>([])
   const [conversations, setConversations] = useState<InboxConversation[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -77,7 +81,11 @@ export default function EmailInbox() {
   const [totalElements, setTotalElements] = useState(0)
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [sending, setSending] = useState(false)
   const [showSyncDialog, setShowSyncDialog] = useState(false)
+  const [composeTo, setComposeTo] = useState('')
+  const [composeSubject, setComposeSubject] = useState('')
+  const [composeBody, setComposeBody] = useState('')
   const initialSyncRange = useMemo(() => defaultSyncRange(), [])
   const [syncFrom, setSyncFrom] = useState(initialSyncRange.from)
   const [syncTo, setSyncTo] = useState(initialSyncRange.to)
@@ -115,10 +123,38 @@ export default function EmailInbox() {
       }
 
       try {
-        const [inbox, emailConnections] = await Promise.all([
-          inboxApi.conversations(companyId, page, 30, selectedConnectionId),
-          channelApi.list(companyId, 'EMAIL'),
-        ])
+        const emailConnections = await channelApi.list(companyId, 'EMAIL')
+        setConnections(emailConnections)
+
+        const activeConnections = emailConnections.filter(
+          (connection) => connection.status === 'ACTIVE',
+        )
+        const selectedIsActive = activeConnections.some(
+          (connection) => connection.id === selectedConnectionId,
+        )
+
+        if (!selectedConnectionId || !selectedIsActive) {
+          const first = activeConnections[0]
+          setConversations([])
+          setSelectedId(null)
+          setCurrentPage(0)
+          setTotalPages(0)
+          setTotalElements(0)
+
+          if (first) {
+            const params = new URLSearchParams(searchParams)
+            params.set('connectionId', first.id)
+            setSearchParams(params, { replace: true })
+          }
+          return
+        }
+
+        const inbox = await inboxApi.conversations(
+          companyId,
+          page,
+          30,
+          selectedConnectionId,
+        )
 
         setConversations((current) => {
           if (!append) return inbox.items
@@ -126,7 +162,6 @@ export default function EmailInbox() {
           inbox.items.forEach((conversation) => byId.set(conversation.id, conversation))
           return Array.from(byId.values())
         })
-        setConnections(emailConnections)
         setCurrentPage(inbox.page)
         setTotalPages(inbox.totalPages)
         setTotalElements(inbox.totalElements)
@@ -145,7 +180,7 @@ export default function EmailInbox() {
         setLoadingMore(false)
       }
     },
-    [companyId, selectedConnectionId],
+    [companyId, searchParams, selectedConnectionId, setSearchParams],
   )
 
   useEffect(() => {
@@ -153,6 +188,24 @@ export default function EmailInbox() {
     setSelectedId(null)
     void loadConversations(0, false)
   }, [companyId, selectedConnectionId, loadConversations])
+
+
+  useEffect(() => {
+    const gmailResult = searchParams.get('gmail')
+    if (!gmailResult) return
+
+    if (gmailResult === 'connected') {
+      setNotice('Gmail connected successfully')
+    } else if (gmailResult === 'cancelled') {
+      setNotice('Gmail connection was cancelled')
+    } else {
+      setError('Unable to connect Gmail. Please try again.')
+    }
+
+    const params = new URLSearchParams(searchParams)
+    params.delete('gmail')
+    setSearchParams(params, { replace: true })
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
     if (!companyId || !selectedId) {
@@ -228,6 +281,16 @@ export default function EmailInbox() {
 
   const syncGmail = async () => {
     if (!companyId || syncing) return
+    if (!selectedConnection) {
+      setNotice('Select an email account before syncing.')
+      setShowSyncDialog(false)
+      return
+    }
+    if (selectedConnection.providerType !== 'GMAIL' || selectedConnection.status !== 'ACTIVE') {
+      setNotice('The selected email account is not an active Gmail connection.')
+      setShowSyncDialog(false)
+      return
+    }
     if (!syncFrom || !syncTo) {
       setError('Choose both Gmail sync dates.')
       return
@@ -237,36 +300,20 @@ export default function EmailInbox() {
       return
     }
 
-    const gmailConnections = connections.filter(
-      (connection) =>
-        connection.providerType === 'GMAIL' &&
-        connection.status === 'ACTIVE' &&
-        (!selectedConnectionId || connection.id === selectedConnectionId),
-    )
-
-    if (gmailConnections.length === 0) {
-      setNotice('Connect a Gmail account before syncing your inbox.')
-      setShowSyncDialog(false)
-      return
-    }
-
     setSyncing(true)
     setError(null)
     setNotice(null)
 
     try {
-      const queued = await Promise.all(
-        gmailConnections.map((connection) =>
-          gmailApi.sync(companyId, connection.id, { fromDate: syncFrom, toDate: syncTo }),
-        ),
-      )
-      const jobs = await Promise.all(queued.map((item) => asyncJobApi.get(item.jobId)))
-      setSyncJobs(Object.fromEntries(jobs.map((job) => [job.jobId, job])))
+      const queued = await gmailApi.sync(companyId, selectedConnection.id, {
+        fromDate: syncFrom,
+        toDate: syncTo,
+      })
+      const job = await asyncJobApi.get(queued.jobId)
+      setSyncJobs({ [job.jobId]: job })
       setShowSyncDialog(false)
       setNotice(
-        `Gmail sync started for ${gmailConnections.length} account${
-          gmailConnections.length === 1 ? '' : 's'
-        }.`,
+        `Gmail sync started for ${selectedConnection.externalAccountId || selectedConnection.name}.`,
       )
     } catch (requestError) {
       setError(apiErrorMessage(requestError, 'Unable to queue Gmail sync'))
@@ -274,6 +321,56 @@ export default function EmailInbox() {
       setSyncing(false)
     }
   }
+
+  const closeCompose = () => {
+    const params = new URLSearchParams(searchParams)
+    params.delete('compose')
+    setSearchParams(params, { replace: true })
+  }
+
+  const openCompose = () => {
+    if (!selectedConnection) {
+      setNotice('Select an email account before composing.')
+      return
+    }
+    const params = new URLSearchParams(searchParams)
+    params.set('connectionId', selectedConnection.id)
+    params.set('compose', '1')
+    setSearchParams(params)
+  }
+
+  const sendEmail = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!companyId || !selectedConnection || sending) return
+    if (selectedConnection.providerType !== 'GMAIL') {
+      setError('Sending is currently available for Gmail connections.')
+      return
+    }
+
+    setSending(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const sent = await gmailApi.send(companyId, selectedConnection.id, {
+        to: composeTo.trim(),
+        subject: composeSubject.trim(),
+        bodyText: composeBody,
+      })
+      setComposeTo('')
+      setComposeSubject('')
+      setComposeBody('')
+      closeCompose()
+      setNotice(`Email sent from ${sent.from} to ${sent.to}.`)
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, 'Unable to send email'))
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const canSendSelectedGmail =
+    can(PERMISSIONS.EMAIL_SEND) && selectedConnection?.providerType === 'GMAIL'
+
 
   if (!companyId) {
     return (
@@ -298,25 +395,40 @@ export default function EmailInbox() {
                 : 'Gmail conversations synchronized into your ReachFly workspace.'}
             </p>
           </div>
-          <div className="flex w-full items-center gap-2 sm:w-auto">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             <button
               type="button"
               className="secondary-button flex-1 gap-2 sm:flex-none"
               onClick={() => void loadConversations(0, false)}
-              disabled={loading}
+              disabled={loading || !selectedConnection}
             >
               <FiRefreshCw aria-hidden="true" />
               Refresh
             </button>
             <button
               type="button"
-              className="primary-button flex-1 gap-2 sm:flex-none"
+              className="secondary-button flex-1 gap-2 sm:flex-none"
               onClick={() => setShowSyncDialog(true)}
-              disabled={syncing || activeSyncJobs.length > 0}
+              disabled={
+                !selectedConnection ||
+                selectedConnection.providerType !== 'GMAIL' ||
+                syncing ||
+                activeSyncJobs.length > 0
+              }
             >
               <FiMail aria-hidden="true" />
               {syncing ? 'Queuing...' : activeSyncJobs.length > 0 ? 'Syncing...' : 'Sync Gmail'}
             </button>
+            {canSendSelectedGmail && (
+              <button
+                type="button"
+                className="primary-button flex-1 gap-2 sm:flex-none"
+                onClick={openCompose}
+              >
+                <FiSend aria-hidden="true" />
+                Compose
+              </button>
+            )}
           </div>
         </div>
 
@@ -356,11 +468,93 @@ export default function EmailInbox() {
                 style={{ width: `${overallSyncProgress}%` }}
               />
             </div>
-            {trackedSyncJobs.length > 1 && (
+            {selectedConnection?.externalAccountId && (
               <p className="mt-2 text-[11px] text-slate-400">
-                {trackedSyncJobs.length} connected Gmail accounts are included in this sync.
+                {selectedConnection.externalAccountId}
               </p>
             )}
+          </div>
+        )}
+
+        {composeOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.currentTarget === event.target && !sending) closeCompose()
+            }}
+          >
+            <form
+              className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
+              onSubmit={(event) => void sendEmail(event)}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="gmail-compose-title"
+            >
+              <p className="eyebrow">NEW EMAIL</p>
+              <h2 id="gmail-compose-title" className="mt-2 text-lg font-bold text-slate-950">
+                Compose email
+              </h2>
+              <p className="mt-2 text-xs text-slate-500">
+                From: {selectedConnection?.externalAccountId || selectedConnection?.name || 'Email'}
+              </p>
+
+              <div className="mt-5 space-y-4">
+                <label className="block text-xs font-semibold text-slate-600">
+                  To
+                  <input
+                    type="email"
+                    className="form-input mt-1.5"
+                    value={composeTo}
+                    onChange={(event) => setComposeTo(event.target.value)}
+                    placeholder="recipient@example.com"
+                    required
+                    autoFocus
+                  />
+                </label>
+                <label className="block text-xs font-semibold text-slate-600">
+                  Subject
+                  <input
+                    type="text"
+                    className="form-input mt-1.5"
+                    value={composeSubject}
+                    onChange={(event) => setComposeSubject(event.target.value)}
+                    placeholder="Subject"
+                    maxLength={998}
+                  />
+                </label>
+                <label className="block text-xs font-semibold text-slate-600">
+                  Message
+                  <textarea
+                    className="form-input mt-1.5 min-h-48"
+                    value={composeBody}
+                    onChange={(event) => setComposeBody(event.target.value)}
+                    placeholder="Write your message..."
+                    required
+                    maxLength={100000}
+                  />
+                </label>
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  className="secondary-button justify-center"
+                  disabled={sending}
+                  onClick={closeCompose}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="primary-button justify-center gap-2"
+                  disabled={sending || !composeTo.trim() || !composeBody.trim()}
+                >
+                  <FiSend aria-hidden="true" />
+                  {sending ? 'Sending...' : 'Send email'}
+                </button>
+              </div>
+            </form>
           </div>
         )}
 
