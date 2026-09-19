@@ -20,6 +20,8 @@ import com.messaging.company.entity.PermissionDefinition;
 import com.messaging.company.enums.CompanyMemberStatus;
 import com.messaging.company.enums.CompanyRole;
 import com.messaging.company.iam.CompanyPermissionKeys;
+import com.messaging.lifecycle.enums.LifecycleEntityType;
+import com.messaging.lifecycle.service.DeletionQueueService;
 import com.messaging.company.repository.CompanyCustomRolePermissionRepository;
 import com.messaging.company.repository.CompanyCustomRoleRepository;
 import com.messaging.company.repository.CompanyMemberRepository;
@@ -50,6 +52,7 @@ public class CompanyRoleManagementService {
   private final CompanyCustomRolePermissionRepository rolePermissionRepository;
   private final CompanyMemberRoleAssignmentRepository assignmentRepository;
   private final CurrentUserService currentUserService;
+  private final DeletionQueueService deletionQueueService;
 
   @Transactional(readOnly = true)
   public List<PermissionDefinitionResponse> permissionCatalog(Long companyId) {
@@ -76,7 +79,7 @@ public class CompanyRoleManagementService {
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_CREATE);
     Company company = companyService.getCompany(companyId);
     String name = normalizeName(request.name());
-    if (roleRepository.existsByCompanyIdAndNameIgnoreCase(companyId, name)) {
+    if (roleRepository.existsByCompanyIdAndNameIgnoreCaseAndDeletedAtIsNull(companyId, name)) {
       throw new ConflictException("A role with this name already exists");
     }
 
@@ -96,7 +99,7 @@ public class CompanyRoleManagementService {
   public List<CompanyRoleResponse> roles(Long companyId) {
     Long actorId = currentUserService.currentUserId();
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_READ);
-    return roleRepository.findByCompanyIdOrderByNameAsc(companyId).stream()
+    return roleRepository.findByCompanyIdAndDeletedAtIsNullOrderByNameAsc(companyId).stream()
         .map(role -> toRoleResponse(role, permissionKeys(role.getId())))
         .toList();
   }
@@ -119,7 +122,7 @@ public class CompanyRoleManagementService {
     requireCanDelegate(actorId, companyId, permissionKeys(roleId));
 
     String name = normalizeName(request.name());
-    if (roleRepository.existsByCompanyIdAndNameIgnoreCaseAndIdNot(companyId, name, roleId)) {
+    if (roleRepository.existsByCompanyIdAndNameIgnoreCaseAndIdNotAndDeletedAtIsNull(companyId, name, roleId)) {
       throw new ConflictException("A role with this name already exists");
     }
 
@@ -139,7 +142,18 @@ public class CompanyRoleManagementService {
     requireEditable(role);
     Set<String> permissions = permissionKeys(roleId);
     requireCanDelegate(actorId, companyId, permissions);
-    roleRepository.delete(role);
+    Instant now = Instant.now();
+    List<CompanyMemberRoleAssignment> assignments =
+        assignmentRepository.findByRoleIdAndRevokedAtIsNull(roleId);
+    assignments.forEach(assignment -> assignment.setRevokedAt(now));
+    assignmentRepository.saveAll(assignments);
+
+    role.setDeletedAt(now);
+    role.setDeletedByUserId(actorId);
+    roleRepository.saveAndFlush(role);
+
+    deletionQueueService.enqueue(
+        LifecycleEntityType.COMPANY_ROLE, roleId, companyId, actorId);
   }
 
   @Transactional
@@ -278,7 +292,7 @@ public class CompanyRoleManagementService {
 
   private CompanyCustomRole requireRole(Long companyId, Long roleId) {
     return roleRepository
-        .findByIdAndCompanyId(roleId, companyId)
+        .findByIdAndCompanyIdAndDeletedAtIsNull(roleId, companyId)
         .orElseThrow(() -> new NotFoundException("Company role not found"));
   }
 
