@@ -37,9 +37,7 @@ class StorageQuotaServiceTests {
     when(repository.hasEvent("MEDIA:20:reserve")).thenReturn(false);
 
     assertThatThrownBy(
-            () ->
-                service.reserve(
-                    10L, StorageUsageType.EMAIL_ATTACHMENT, "MEDIA", "20", 100))
+            () -> service.reserve(10L, StorageUsageType.EMAIL_ATTACHMENT, "MEDIA", "20", 100))
         .isInstanceOf(PlanEntitlementException.class);
 
     verify(accountingService, never())
@@ -59,12 +57,10 @@ class StorageQuotaServiceTests {
     StorageQuotaService service = service();
     when(repository.hasEvent("MEDIA:20:reserve")).thenReturn(true);
 
-    boolean created =
-        service.reserve(10L, StorageUsageType.EMAIL_ATTACHMENT, "MEDIA", "20", 100);
+    boolean created = service.reserve(10L, StorageUsageType.EMAIL_ATTACHMENT, "MEDIA", "20", 100);
 
     assertThat(created).isFalse();
-    verify(entitlementService, never())
-        .decimalValue(10L, StorageQuotaService.STORAGE_ENTITLEMENT);
+    verify(entitlementService, never()).decimalValue(10L, StorageQuotaService.STORAGE_ENTITLEMENT);
     verify(accountingService, never())
         .record(
             10L,
@@ -82,8 +78,7 @@ class StorageQuotaServiceTests {
     StorageQuotaService service = service();
     when(entitlementService.decimalValue(10L, StorageQuotaService.STORAGE_ENTITLEMENT))
         .thenReturn(BigDecimal.ONE);
-    when(repository.totals(10L))
-        .thenReturn(new StorageAccountingRepository.UsageTotals(200, 100));
+    when(repository.totals(10L)).thenReturn(new StorageAccountingRepository.UsageTotals(200, 100));
     when(repository.breakdown(10L)).thenReturn(List.of());
 
     var usage = service.usage(10L);
