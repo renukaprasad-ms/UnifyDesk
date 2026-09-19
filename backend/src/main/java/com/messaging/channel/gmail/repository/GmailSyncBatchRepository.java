@@ -36,16 +36,31 @@ public interface GmailSyncBatchRepository extends JpaRepository<GmailSyncBatch, 
           select b.*
           from gmail_sync_batches b
           join (
-            select id,
-                   row_number() over (
-                     partition by connection_id
-                     order by batch_index asc, created_at asc
-                   ) as connection_rank
-            from gmail_sync_batches
-            where status in ('PENDING', 'RETRY')
-          ) ranked on ranked.id = b.id
-          where b.status in ('PENDING', 'RETRY')
-          order by ranked.connection_rank asc, b.updated_at asc, b.batch_index asc
+            select distinct on (candidate.connection_id) candidate.id
+            from gmail_sync_batches candidate
+            where (
+                    candidate.status = 'PENDING'
+                    or (
+                      candidate.status = 'RETRY'
+                      and (candidate.next_attempt_at is null or candidate.next_attempt_at <= now())
+                    )
+                  )
+              and not exists (
+                select 1
+                from gmail_sync_batches running
+                where running.connection_id = candidate.connection_id
+                  and running.status = 'RUNNING'
+              )
+              and not exists (
+                select 1
+                from gmail_sync_batches delayed
+                where delayed.connection_id = candidate.connection_id
+                  and delayed.status = 'RETRY'
+                  and delayed.next_attempt_at > now()
+              )
+            order by candidate.connection_id, candidate.batch_index asc, candidate.created_at asc
+          ) claimable on claimable.id = b.id
+          order by b.updated_at asc, b.batch_index asc
           for update of b skip locked
           limit :limit
           """,
