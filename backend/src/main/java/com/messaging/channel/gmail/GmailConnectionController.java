@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -33,13 +34,13 @@ public class GmailConnectionController {
 
   @GetMapping("/authorize")
   public ResponseEntity<ApiResponse<GmailAuthorizationResponse>> authorize(
-      @PathVariable Long companyId) {
+      @PathVariable Long companyId, @RequestParam(required = false) String returnTo) {
     Long userId = currentUserService.currentUserId();
     authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_CONNECT);
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            gmailConnectionService.authorization(companyId, userId),
+            gmailConnectionService.authorization(companyId, userId, returnTo),
             "Gmail authorization created"));
   }
 
