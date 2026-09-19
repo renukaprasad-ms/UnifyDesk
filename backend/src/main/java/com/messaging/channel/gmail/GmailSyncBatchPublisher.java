@@ -35,9 +35,10 @@ public class GmailSyncBatchPublisher {
             new GmailSyncBatchRequestedEvent(
                 batch.getId(), batch.getJobId(), batch.getConnectionId()));
 
-    // Each batch is independently claimable and idempotent, so a batch-specific key
-    // allows batches from the same mailbox sync to be processed across partitions.
-    String partitionKey = "gmail-sync:" + run.getJobId() + ":batch:" + batch.getId();
+    // Preserve ordering within one Gmail mailbox so batches cannot race on the same
+    // Gmail thread/conversation. Different Gmail connections still spread across
+    // partitions and can be processed concurrently by separate consumers.
+    String partitionKey = "gmail-connection:" + batch.getConnectionId();
     eventPublisher.publish(partitionKey, event);
   }
 }
