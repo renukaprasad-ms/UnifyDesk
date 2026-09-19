@@ -21,8 +21,12 @@ public class DeletionCleanupService {
   private final StorageProviderResolver storageProviderResolver;
 
   public void cleanup(EntityDeletionRequestedEvent event) {
-    if (event.entityType() == LifecycleEntityType.USER) {
-      cleanupPersonalMedia(event.entityId());
+    switch (event.entityType()) {
+      case USER -> cleanupPersonalMedia(event.entityId());
+      case COMPANY -> cleanupCompanyMedia(event.entityId());
+      case CHANNEL_CONNECTION, COMPANY_ROLE -> {
+        // Relational state is already disabled/revoked in the transaction that queued this event.
+      }
     }
 
     log.info(
@@ -33,13 +37,20 @@ public class DeletionCleanupService {
   }
 
   private void cleanupPersonalMedia(Long userId) {
-    List<Media> media =
+    cleanupMedia(
         mediaRepository.findByOwnerUserIdAndCompanyIdIsNullAndStatusNot(
-            userId, MediaStatus.DELETED);
+            userId, MediaStatus.DELETED));
+  }
 
+  private void cleanupCompanyMedia(Long companyId) {
+    cleanupMedia(mediaRepository.findByCompanyIdAndStatusNot(companyId, MediaStatus.DELETED));
+  }
+
+  private void cleanupMedia(List<Media> media) {
+    Instant now = Instant.now();
     for (Media item : media) {
       item.setStatus(MediaStatus.DELETED);
-      item.setDeletedAt(Instant.now());
+      item.setDeletedAt(now);
       mediaRepository.save(item);
 
       try {
