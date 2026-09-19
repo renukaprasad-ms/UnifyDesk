@@ -30,8 +30,7 @@ public class GmailSendService {
   private final GmailTokenService tokenService;
   private final GmailApiClient gmailApiClient;
 
-  public GmailSendResponse send(
-      Long companyId, Long connectionId, GmailSendRequest request) {
+  public GmailSendResponse send(Long companyId, Long connectionId, GmailSendRequest request) {
     ChannelConnection connection =
         connectionRepository
             .findByIdAndCompanyId(connectionId, companyId)
