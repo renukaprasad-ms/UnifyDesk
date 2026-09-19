@@ -28,11 +28,13 @@ public class GmailSyncFinalizerService {
     long failed = stateService.failedCount(jobId);
 
     if (failed > 0) {
-      asyncJobService.fail(
-          jobId,
+      String reason = stateService.latestFailureReason(jobId);
+      String message =
           "Gmail sync finished with "
               + failed
-              + " messages that could not be imported. Run sync again to retry them.");
+              + " messages that could not be imported."
+              + (reason == null ? "" : " Reason: " + reason);
+      asyncJobService.fail(jobId, message);
       return;
     }
 
