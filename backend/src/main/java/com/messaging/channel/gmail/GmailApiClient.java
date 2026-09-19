@@ -104,6 +104,19 @@ public class GmailApiClient {
 
   public MessageListResponse listMessages(
       String accessToken, int maxResults, String query, String pageToken) {
+    URI uri = messagesListUri(maxResults, query, pageToken);
+    return execute(
+        "gmail_messages_list",
+        () ->
+            gmailApi
+                .get()
+                .uri(uri)
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(MessageListResponse.class));
+  }
+
+  URI messagesListUri(int maxResults, String query, String pageToken) {
     UriComponentsBuilder builder =
         UriComponentsBuilder.fromPath("/gmail/v1/users/me/messages")
             .queryParam("maxResults", maxResults);
@@ -115,16 +128,7 @@ public class GmailApiClient {
       builder.queryParam("pageToken", pageToken);
     }
 
-    URI uri = builder.build().encode().toUri();
-    return execute(
-        "gmail_messages_list",
-        () ->
-            gmailApi
-                .get()
-                .uri(uri)
-                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
-                .retrieve()
-                .body(MessageListResponse.class));
+    return builder.build().encode().toUri();
   }
 
   public SendMessageResponse sendMessage(String accessToken, String rawMessage) {
