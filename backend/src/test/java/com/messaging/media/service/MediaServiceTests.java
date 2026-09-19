@@ -140,7 +140,8 @@ class MediaServiceTests {
                         "avatar.jpg",
                         "image/jpeg",
                         11L * 1024L * 1024L,
-                        MediaPurpose.USER_PROFILE, null)))
+                        MediaPurpose.USER_PROFILE,
+                        null)))
         .isInstanceOf(MediaException.class)
         .hasMessage("MEDIA_TOO_LARGE");
   }
