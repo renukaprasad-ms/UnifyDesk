@@ -1,6 +1,7 @@
 package com.messaging.billing.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -9,10 +10,15 @@ import static org.mockito.Mockito.when;
 
 import com.messaging.billing.dto.AssignSubscriptionRequest;
 import com.messaging.billing.dto.CompanySubscriptionResponse;
+import com.messaging.billing.dto.UpsertEntitlementRequest;
 import com.messaging.billing.entity.CompanySubscription;
+import com.messaging.billing.entity.EntitlementDefinition;
+import com.messaging.billing.entity.PlanEntitlement;
 import com.messaging.billing.entity.Plan;
 import com.messaging.billing.entity.PlanPrice;
 import com.messaging.billing.enums.BillingCycle;
+import com.messaging.billing.enums.EntitlementCategory;
+import com.messaging.billing.enums.EntitlementValueType;
 import com.messaging.billing.enums.PlanStatus;
 import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.enums.SubscriptionStatus;
@@ -23,6 +29,7 @@ import com.messaging.billing.repository.PlanEntitlementRepository;
 import com.messaging.billing.repository.PlanPriceRepository;
 import com.messaging.billing.repository.PlanRepository;
 import com.messaging.billing.repository.RateCardRepository;
+import com.messaging.common.exception.ConflictException;
 import com.messaging.company.entity.Company;
 import com.messaging.company.repository.CompanyRepository;
 import java.math.BigDecimal;
@@ -76,6 +83,52 @@ class BillingCatalogServiceTests {
     assertEquals(current.getId().toString(), response.subscriptionId());
     assertEquals(plan.getId().toString(), response.planId());
     verify(subscriptionRepository, never()).saveAndFlush(any(CompanySubscription.class));
+  }
+
+  @Test
+  void publishedPlanEntitlementsRemainEditable() {
+    Plan plan = plan(20L, "FREE");
+    EntitlementDefinition definition = new EntitlementDefinition();
+    definition.setId(30L);
+    definition.setKey("EMAIL_ACCOUNTS");
+    definition.setName("Email accounts");
+    definition.setValueType(EntitlementValueType.INTEGER);
+    definition.setCategory(EntitlementCategory.CHANNEL);
+    definition.setDefaultValue("0");
+    definition.setActive(true);
+
+    when(planRepository.findById(plan.getId())).thenReturn(Optional.of(plan));
+    when(entitlementDefinitionRepository.findByKey("EMAIL_ACCOUNTS"))
+        .thenReturn(Optional.of(definition));
+    when(entitlementRepository.findByPlanIdAndKey(plan.getId(), "EMAIL_ACCOUNTS"))
+        .thenReturn(Optional.empty());
+    when(entitlementRepository.saveAndFlush(any(PlanEntitlement.class)))
+        .thenAnswer(
+            invocation -> {
+              PlanEntitlement entitlement = invocation.getArgument(0);
+              entitlement.setId(40L);
+              return entitlement;
+            });
+
+    var response =
+        billingCatalogService.upsertEntitlement(
+            plan.getId(), new UpsertEntitlementRequest("EMAIL_ACCOUNTS", "3"));
+
+    assertEquals("EMAIL_ACCOUNTS", response.key());
+    assertEquals("3", response.value());
+  }
+
+  @Test
+  void retiredPlanEntitlementsCannotBeChanged() {
+    Plan plan = plan(20L, "FREE");
+    plan.setStatus(PlanStatus.RETIRED);
+    when(planRepository.findById(plan.getId())).thenReturn(Optional.of(plan));
+
+    assertThrows(
+        ConflictException.class,
+        () ->
+            billingCatalogService.upsertEntitlement(
+                plan.getId(), new UpsertEntitlementRequest("EMAIL_ACCOUNTS", "3")));
   }
 
   @Test
