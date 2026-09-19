@@ -45,7 +45,9 @@ public class GmailSyncBatchCommitService {
 
     int terminalDelta = successfulMessages.size() + Math.max(0, permanentFailures);
     int maxAttempts = Math.max(1, properties.getSyncBatchRetryMaxAttempts());
-    boolean retry = !retryIds.isEmpty() && batch.attempt() < maxAttempts;
+    boolean retry =
+        !retryIds.isEmpty()
+            && (isRateLimit(error) || batch.attempt() < maxAttempts);
 
     if (retry) {
       Instant nextAttemptAt = Instant.now().plus(retryDelay(batch.attempt()));
@@ -89,7 +91,7 @@ public class GmailSyncBatchCommitService {
   @Transactional
   public boolean failAttempt(ClaimedBatch batch, String error, boolean retryable) {
     int maxAttempts = Math.max(1, properties.getSyncBatchRetryMaxAttempts());
-    if (retryable && batch.attempt() < maxAttempts) {
+    if (retryable && (isRateLimit(error) || batch.attempt() < maxAttempts)) {
       Instant nextAttemptAt = Instant.now().plus(retryDelay(batch.attempt()));
       boolean applied =
           stateService.retryBatch(
@@ -117,10 +119,7 @@ public class GmailSyncBatchCommitService {
   private String retryMessage(
       String reason, int saved, int retrying, Instant nextAttemptAt) {
     String prefix =
-        reason != null
-                && (reason.contains("rateLimitExceeded")
-                    || reason.contains("userRateLimitExceeded")
-                    || reason.toLowerCase().contains("rate limit"))
+        isRateLimit(reason)
             ? "Gmail rate limited; retrying automatically"
             : "Temporary Gmail error; retrying automatically";
     return prefix
@@ -131,6 +130,17 @@ public class GmailSyncBatchCommitService {
         + ", nextAttemptAt="
         + nextAttemptAt
         + ")";
+  }
+
+  private boolean isRateLimit(String reason) {
+    if (reason == null || reason.isBlank()) {
+      return false;
+    }
+    String normalized = reason.toLowerCase(java.util.Locale.ROOT);
+    return normalized.contains("ratelimitexceeded")
+        || normalized.contains("userratelimitexceeded")
+        || normalized.contains("rate limit")
+        || normalized.contains("rate limited");
   }
 
   private Duration retryDelay(int attempt) {
