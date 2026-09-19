@@ -117,6 +117,28 @@ public class GmailSyncStateService {
   }
 
   @Transactional
+  public List<ClaimedBatch> claimNextBatches(int limit) {
+    if (limit <= 0) {
+      return List.of();
+    }
+
+    List<GmailSyncBatch> batches = batchRepository.findNextClaimableForUpdate(limit);
+    if (batches.isEmpty()) {
+      return List.of();
+    }
+
+    List<ClaimedBatch> claimed = new java.util.ArrayList<>(batches.size());
+    for (GmailSyncBatch batch : batches) {
+      batch.setStatus(GmailSyncBatchStatus.RUNNING);
+      batch.setAttemptCount(batch.getAttemptCount() + 1);
+      batch.setLastError(null);
+      claimed.add(toClaimedBatch(batch));
+    }
+    batchRepository.saveAll(batches);
+    return claimed;
+  }
+
+  @Transactional
   public Optional<ClaimedBatch> claimBatch(Long batchId) {
     GmailSyncBatch batch =
         batchRepository
@@ -133,14 +155,7 @@ public class GmailSyncStateService {
     batch.setLastError(null);
     batchRepository.save(batch);
 
-    return Optional.of(
-        new ClaimedBatch(
-            batch.getId(),
-            batch.getJobId(),
-            batch.getCompanyId(),
-            batch.getConnectionId(),
-            batch.getAttemptCount(),
-            readIds(batch.getMessageIdsJson())));
+    return Optional.of(toClaimedBatch(batch));
   }
 
   @Transactional
@@ -251,6 +266,16 @@ public class GmailSyncStateService {
   @Transactional(readOnly = true)
   public long failedCount(Long jobId) {
     return batchRepository.sumFailedCountByJobId(jobId);
+  }
+
+  private ClaimedBatch toClaimedBatch(GmailSyncBatch batch) {
+    return new ClaimedBatch(
+        batch.getId(),
+        batch.getJobId(),
+        batch.getCompanyId(),
+        batch.getConnectionId(),
+        batch.getAttemptCount(),
+        readIds(batch.getMessageIdsJson()));
   }
 
   private GmailSyncRun requireRunForUpdate(Long jobId) {

@@ -7,11 +7,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -34,6 +38,56 @@ public class StorageAccountingRepository {
             idempotencyKey);
     return count != null && count > 0;
   }
+
+  public Set<String> existingEventKeys(List<String> idempotencyKeys) {
+    if (idempotencyKeys == null || idempotencyKeys.isEmpty()) {
+      return Set.of();
+    }
+
+    List<String> keys =
+        namedJdbcTemplate.queryForList(
+            "select idempotency_key from storage_usage_events where idempotency_key in (:keys)",
+            Map.of("keys", idempotencyKeys),
+            String.class);
+    return new HashSet<>(keys);
+  }
+
+  public int[] appendEvents(List<StorageEventInsert> events) {
+    if (events == null || events.isEmpty()) {
+      return new int[0];
+    }
+
+    SqlParameterSource[] batch =
+        events.stream()
+            .map(
+                event ->
+                    new MapSqlParameterSource()
+                        .addValue("id", event.id())
+                        .addValue("companyId", event.companyId())
+                        .addValue("usageType", event.usageType().name())
+                        .addValue("resourceType", event.resourceType())
+                        .addValue("resourceId", event.resourceId())
+                        .addValue("eventType", event.eventType().name())
+                        .addValue("usedDelta", event.usedBytesDelta())
+                        .addValue("reservedDelta", event.reservedBytesDelta())
+                        .addValue("idempotencyKey", event.idempotencyKey())
+                        .addValue("createdAt", Timestamp.from(event.createdAt())))
+            .toArray(SqlParameterSource[]::new);
+
+    return namedJdbcTemplate.batchUpdate(
+        """
+        insert into storage_usage_events (
+          id, company_id, usage_type, resource_type, resource_id, event_type,
+          used_bytes_delta, reserved_bytes_delta, idempotency_key, created_at
+        ) values (
+          :id, :companyId, :usageType, :resourceType, :resourceId, :eventType,
+          :usedDelta, :reservedDelta, :idempotencyKey, :createdAt
+        )
+        on conflict (idempotency_key) do nothing
+        """,
+        batch);
+  }
+
 
   public boolean appendEvent(
       long id,
@@ -160,6 +214,18 @@ public class StorageAccountingRepository {
         rs.getLong("used_bytes"),
         rs.getLong("reserved_bytes"));
   }
+
+  public record StorageEventInsert(
+      long id,
+      long companyId,
+      StorageUsageType usageType,
+      String resourceType,
+      String resourceId,
+      StorageEventType eventType,
+      long usedBytesDelta,
+      long reservedBytesDelta,
+      String idempotencyKey,
+      Instant createdAt) {}
 
   public record UsageTotals(long usedBytes, long reservedBytes) {}
 

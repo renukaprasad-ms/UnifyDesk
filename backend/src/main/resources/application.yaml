@@ -152,6 +152,8 @@ app:
       sync-batch-recovery-interval: ${GMAIL_SYNC_BATCH_RECOVERY_INTERVAL:1m}
       sync-batch-stale-after: ${GMAIL_SYNC_BATCH_STALE_AFTER:5m}
       sync-batch-recovery-size: ${GMAIL_SYNC_BATCH_RECOVERY_SIZE:100}
+      worker-concurrency: ${GMAIL_WORKER_CONCURRENCY:12}
+      worker-poll-interval-ms: ${GMAIL_WORKER_POLL_INTERVAL_MS:250}
       api-retry-max-attempts: ${GMAIL_API_RETRY_MAX_ATTEMPTS:4}
       api-retry-initial-backoff: ${GMAIL_API_RETRY_INITIAL_BACKOFF:1s}
       api-retry-max-backoff: ${GMAIL_API_RETRY_MAX_BACKOFF:8s}
