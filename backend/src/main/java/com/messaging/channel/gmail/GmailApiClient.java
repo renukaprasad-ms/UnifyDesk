@@ -1,5 +1,6 @@
 package com.messaging.channel.gmail;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -294,6 +295,11 @@ public class GmailApiClient {
   }
 
   public SendMessageResponse sendMessage(String accessToken, String rawMessage) {
+    return sendMessage(accessToken, rawMessage, null);
+  }
+
+  public SendMessageResponse sendMessage(
+      String accessToken, String rawMessage, String threadId) {
     return execute(
         "gmail_message_send",
         () ->
@@ -302,7 +308,7 @@ public class GmailApiClient {
                 .uri("/gmail/v1/users/me/messages/send")
                 .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(new SendMessageRequest(rawMessage))
+                .body(new SendMessageRequest(rawMessage, threadId))
                 .retrieve()
                 .body(SendMessageResponse.class));
   }
@@ -492,7 +498,8 @@ public class GmailApiClient {
     }
   }
 
-  public record SendMessageRequest(String raw) {}
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public record SendMessageRequest(String raw, String threadId) {}
 
   public record SendMessageResponse(String id, String threadId, List<String> labelIds) {}
 
