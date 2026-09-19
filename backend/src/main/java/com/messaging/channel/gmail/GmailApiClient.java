@@ -1,18 +1,25 @@
 package com.messaging.channel.gmail;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.TooManyRequestsException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -31,6 +38,7 @@ public class GmailApiClient {
 
   private final RestClient googleOAuth = RestClient.create("https://oauth2.googleapis.com");
   private final RestClient gmailApi = RestClient.create("https://gmail.googleapis.com");
+  private final ObjectMapper objectMapper = new ObjectMapper();
   private final GmailOAuthProperties properties;
 
   public GmailApiClient(GmailOAuthProperties properties) {
@@ -140,7 +148,158 @@ public class GmailApiClient {
     return builder.build().encode().toUri();
   }
 
+  public List<BatchMessageResult> batchMessages(String accessToken, List<String> messageIds) {
+    if (messageIds == null || messageIds.isEmpty()) {
+      return List.of();
+    }
+    if (messageIds.size() > Math.max(1, properties.getSyncBatchSize())) {
+      throw new BadRequestException("Gmail batch exceeds configured batch size");
+    }
+
+    String boundary = "messaging_" + UUID.randomUUID().toString().replace("-", "");
+    String requestBody = batchRequestBody(boundary, messageIds);
+
+    ResponseEntity<byte[]> response =
+        execute(
+            "gmail_messages_batch_get",
+            () ->
+                gmailApi
+                    .post()
+                    .uri("/batch/gmail/v1")
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .header(HttpHeaders.CONTENT_TYPE, "multipart/mixed; boundary=" + boundary)
+                    .body(requestBody)
+                    .retrieve()
+                    .toEntity(byte[].class));
+
+    byte[] body = response.getBody();
+    if (body == null || body.length == 0) {
+      throw new BadRequestException("Google returned an empty Gmail batch response");
+    }
+
+    String contentType = response.getHeaders().getFirst(HttpHeaders.CONTENT_TYPE);
+    String responseBoundary = multipartBoundary(contentType);
+    return parseBatchResponse(body, responseBoundary, messageIds);
+  }
+
+  private String batchRequestBody(String boundary, List<String> messageIds) {
+    StringBuilder body = new StringBuilder(messageIds.size() * 180);
+    for (int index = 0; index < messageIds.size(); index++) {
+      String messageId = messageIds.get(index);
+      body.append("--").append(boundary).append("\r\n");
+      body.append("Content-Type: application/http\r\n");
+      body.append("Content-ID: <gmail-").append(index).append(">\r\n\r\n");
+      body.append("GET /gmail/v1/users/me/messages/")
+          .append(messageId)
+          .append("?format=full HTTP/1.1\r\n\r\n");
+    }
+    body.append("--").append(boundary).append("--\r\n");
+    return body.toString();
+  }
+
+  private String multipartBoundary(String contentType) {
+    if (contentType == null || contentType.isBlank()) {
+      throw new BadRequestException("Google Gmail batch response is missing Content-Type");
+    }
+    Matcher matcher =
+        Pattern.compile("boundary=\\\"?([^\\\";]+)\\\"?", Pattern.CASE_INSENSITIVE)
+            .matcher(contentType);
+    if (!matcher.find()) {
+      throw new BadRequestException("Google Gmail batch response boundary is missing");
+    }
+    return matcher.group(1);
+  }
+
+  private List<BatchMessageResult> parseBatchResponse(
+      byte[] responseBody, String boundary, List<String> messageIds) {
+    String payload = new String(responseBody, StandardCharsets.UTF_8);
+    String[] parts = payload.split(Pattern.quote("--" + boundary));
+    List<BatchMessageResult> results = new ArrayList<>(messageIds.size());
+    int fallbackIndex = 0;
+
+    for (String rawPart : parts) {
+      String part = rawPart.trim();
+      if (part.isEmpty() || "--".equals(part)) {
+        continue;
+      }
+
+      int mimeEnd = part.indexOf("\r\n\r\n");
+      if (mimeEnd < 0) {
+        mimeEnd = part.indexOf("\n\n");
+      }
+      if (mimeEnd < 0) {
+        continue;
+      }
+
+      String mimeHeaders = part.substring(0, mimeEnd);
+      String httpPayload = part.substring(mimeEnd + (part.startsWith("\r\n", mimeEnd) ? 4 : 2));
+      int index = batchResponseIndex(mimeHeaders, fallbackIndex++);
+      if (index < 0 || index >= messageIds.size()) {
+        continue;
+      }
+
+      results.add(parseBatchHttpPart(messageIds.get(index), httpPayload));
+    }
+
+    if (results.size() != messageIds.size()) {
+      throw new TooManyRequestsException(
+          "Gmail returned an incomplete batch response. The batch will be retried.");
+    }
+    return results;
+  }
+
+  private int batchResponseIndex(String headers, int fallback) {
+    Matcher matcher =
+        Pattern.compile("Content-ID:\\s*<response-gmail-(\\d+)>", Pattern.CASE_INSENSITIVE)
+            .matcher(headers);
+    return matcher.find() ? Integer.parseInt(matcher.group(1)) : fallback;
+  }
+
+  private BatchMessageResult parseBatchHttpPart(String messageId, String httpPayload) {
+    String normalized = httpPayload.startsWith("\r\n") ? httpPayload.substring(2) : httpPayload;
+    int firstLineEnd = normalized.indexOf("\r\n");
+    if (firstLineEnd < 0) {
+      firstLineEnd = normalized.indexOf('\n');
+    }
+    if (firstLineEnd < 0) {
+      return new BatchMessageResult(messageId, null, 500, "malformedResponse", true);
+    }
+
+    String statusLine = normalized.substring(0, firstLineEnd).trim();
+    int status = httpStatus(statusLine);
+    int headersEnd = normalized.indexOf("\r\n\r\n", firstLineEnd);
+    int separatorLength = 4;
+    if (headersEnd < 0) {
+      headersEnd = normalized.indexOf("\n\n", firstLineEnd);
+      separatorLength = 2;
+    }
+    String json =
+        headersEnd < 0 ? "" : normalized.substring(headersEnd + separatorLength).trim();
+
+    if (status >= 200 && status < 300) {
+      try {
+        GmailMessage message = objectMapper.readValue(json, GmailMessage.class);
+        return new BatchMessageResult(messageId, message, status, null, false);
+      } catch (JsonProcessingException exception) {
+        return new BatchMessageResult(messageId, null, 500, "invalidJson", true);
+      }
+    }
+
+    String reason = extract(json, GOOGLE_REASON_PATTERN, "unknown");
+    return new BatchMessageResult(messageId, null, status, reason, retryable(status, reason));
+  }
+
+  private int httpStatus(String statusLine) {
+    Matcher matcher = Pattern.compile("HTTP/\\S+\\s+(\\d{3})").matcher(statusLine);
+    return matcher.find() ? Integer.parseInt(matcher.group(1)) : 500;
+  }
+
   public SendMessageResponse sendMessage(String accessToken, String rawMessage) {
+    return sendMessage(accessToken, rawMessage, null);
+  }
+
+  public SendMessageResponse sendMessage(
+      String accessToken, String rawMessage, String threadId) {
     return execute(
         "gmail_message_send",
         () ->
@@ -149,7 +308,7 @@ public class GmailApiClient {
                 .uri("/gmail/v1/users/me/messages/send")
                 .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(new SendMessageRequest(rawMessage))
+                .body(new SendMessageRequest(rawMessage, threadId))
                 .retrieve()
                 .body(SendMessageResponse.class));
   }
@@ -331,7 +490,16 @@ public class GmailApiClient {
 
   public record MessageReference(String id, String threadId) {}
 
-  public record SendMessageRequest(String raw) {}
+  public record BatchMessageResult(
+      String messageId, GmailMessage message, int status, String reason, boolean retryable) {
+
+    public boolean successful() {
+      return message != null && status >= 200 && status < 300;
+    }
+  }
+
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public record SendMessageRequest(String raw, String threadId) {}
 
   public record SendMessageResponse(String id, String threadId, List<String> labelIds) {}
 

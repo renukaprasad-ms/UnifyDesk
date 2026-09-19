@@ -28,6 +28,9 @@ public class AsyncJob {
   @Column(name = "user_id", nullable = false)
   private Long userId;
 
+  @Column(name = "resource_id", length = 160)
+  private String resourceId;
+
   @Enumerated(EnumType.STRING)
   @Column(name = "job_type", nullable = false, length = 48)
   private AsyncJobType jobType;

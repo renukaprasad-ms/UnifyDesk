@@ -3,6 +3,8 @@ package com.messaging.channel.gmail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.asyncjob.service.AsyncJobService;
 import com.messaging.common.exception.ApiException;
+import com.messaging.common.exception.BadRequestException;
+import com.messaging.kafka.exception.RetryableKafkaException;
 import com.messaging.kafka.consumer.KafkaEventHandler;
 import com.messaging.kafka.event.GmailSyncRequestedEvent;
 import com.messaging.kafka.event.KafkaEvent;
@@ -42,9 +44,11 @@ public class GmailSyncEventHandler implements KafkaEventHandler {
           payload.jobId(),
           payload.fromDate(),
           payload.toDate());
-    } catch (RuntimeException exception) {
+    } catch (BadRequestException exception) {
       asyncJobService.fail(payload.jobId(), userSafeMessage(exception));
       throw exception;
+    } catch (RuntimeException exception) {
+      throw new RetryableKafkaException("Gmail sync coordinator failed", exception);
     }
   }
 

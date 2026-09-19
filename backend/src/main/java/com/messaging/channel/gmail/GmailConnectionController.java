@@ -1,5 +1,6 @@
 package com.messaging.channel.gmail;
 
+import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.channel.dto.ChannelConnectionResponse;
 import com.messaging.channel.gmail.dto.GmailAuthorizationResponse;
 import com.messaging.channel.gmail.dto.GmailSendRequest;
@@ -42,6 +43,19 @@ public class GmailConnectionController {
             HttpStatus.OK.value(),
             gmailConnectionService.authorization(companyId, userId, returnTo),
             "Gmail authorization created"));
+  }
+
+  @GetMapping("/{connectionId}/sync/active")
+  public ResponseEntity<ApiResponse<AsyncJobResponse>> activeSync(
+      @PathVariable Long companyId, @PathVariable Long connectionId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_READ);
+
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            gmailConnectionService.activeSync(companyId, connectionId),
+            "Active Gmail sync fetched"));
   }
 
   @PostMapping("/{connectionId}/sync")

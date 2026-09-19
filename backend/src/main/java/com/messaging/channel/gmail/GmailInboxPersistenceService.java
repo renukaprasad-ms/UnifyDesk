@@ -54,8 +54,7 @@ public class GmailInboxPersistenceService {
   private final StorageQuotaService storageQuotaService;
 
   @Transactional
-  public GmailSyncResult persistFullSync(
-      ChannelConnection connection, List<GmailMessage> messages, String historyId) {
+  public GmailSyncResult persistBatch(ChannelConnection connection, List<GmailMessage> messages) {
     Instant syncedAt = Instant.now();
     int createdMessages = 0;
     Set<Long> touchedConversationIds = new HashSet<>();
@@ -111,6 +110,13 @@ public class GmailInboxPersistenceService {
       InboxMessageDirection direction = direction(gmailMessage.labelIds());
       message.setInternetMessageId(header(gmailMessage.payload(), "Message-ID"));
       message.setProviderHistoryId(gmailMessage.historyId());
+      message.setFromAddress(firstAddress(header(gmailMessage.payload(), "From")));
+      message.setReplyToAddress(firstAddress(header(gmailMessage.payload(), "Reply-To")));
+      message.setToAddresses(addressesCsv(header(gmailMessage.payload(), "To")));
+      message.setCcAddresses(addressesCsv(header(gmailMessage.payload(), "Cc")));
+      message.setBccAddresses(addressesCsv(header(gmailMessage.payload(), "Bcc")));
+      message.setInReplyTo(trimToNull(header(gmailMessage.payload(), "In-Reply-To")));
+      message.setReferencesHeader(trimToNull(header(gmailMessage.payload(), "References")));
       message.setDirection(direction);
       message.setStatus(
           direction == InboxMessageDirection.OUTBOUND
@@ -169,6 +175,18 @@ public class GmailInboxPersistenceService {
               });
     }
 
+    return new GmailSyncResult(
+        connection.getId().toString(),
+        messages.size(),
+        createdMessages,
+        touchedConversationIds.size(),
+        null,
+        syncedAt);
+  }
+
+  @Transactional
+  public void completeFullSync(ChannelConnection connection, String historyId) {
+    Instant syncedAt = Instant.now();
     ChannelSyncState syncState =
         syncStateRepository
             .findByConnectionIdAndProviderType(connection.getId(), ProviderType.GMAIL)
@@ -183,15 +201,8 @@ public class GmailInboxPersistenceService {
 
     connection.setLastSyncAt(syncedAt);
     connectionRepository.save(connection);
-
-    return new GmailSyncResult(
-        connection.getId().toString(),
-        messages.size(),
-        createdMessages,
-        touchedConversationIds.size(),
-        historyId,
-        syncedAt);
   }
+
 
   private void upsertParticipants(InboxConversation conversation, GmailPayload payload) {
     for (String headerName : List.of("From", "To", "Cc", "Bcc")) {
@@ -383,6 +394,36 @@ public class GmailInboxPersistenceService {
 
   private boolean containsLabel(List<String> labels, String label) {
     return labels != null && labels.stream().anyMatch(label::equalsIgnoreCase);
+  }
+
+  private String firstAddress(String value) {
+    List<String> addresses = addresses(value);
+    return addresses.isEmpty() ? null : addresses.getFirst();
+  }
+
+  private String addressesCsv(String value) {
+    List<String> addresses = addresses(value);
+    return addresses.isEmpty() ? null : String.join(",", addresses);
+  }
+
+  private List<String> addresses(String value) {
+    if (!hasText(value)) {
+      return List.of();
+    }
+
+    try {
+      Address[] parsed = InternetAddress.parse(value, false);
+      List<String> addresses = new ArrayList<>(parsed.length);
+      for (Address address : parsed) {
+        if (address instanceof InternetAddress internetAddress
+            && hasText(internetAddress.getAddress())) {
+          addresses.add(internetAddress.getAddress().trim().toLowerCase(Locale.ROOT));
+        }
+      }
+      return addresses;
+    } catch (Exception ignored) {
+      return List.of();
+    }
   }
 
   private String trimToNull(String value) {
