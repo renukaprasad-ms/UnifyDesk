@@ -67,7 +67,7 @@ export type GmailAuthorization = {
 export type GmailSyncQueued = {
   connectionId: string
   jobId: string
-  status: 'QUEUED'
+  status: 'QUEUED' | 'RUNNING'
   fromDate: string
   toDate: string
 }
@@ -78,9 +78,14 @@ export type GmailSyncRequest = {
 }
 
 export type GmailSendRequest = {
-  to: string
+  to: string[]
+  cc?: string[]
+  bcc?: string[]
   subject: string
   bodyText: string
+  threadId?: string | null
+  inReplyTo?: string | null
+  references?: string | null
 }
 
 export type GmailSendResponse = {
@@ -88,7 +93,9 @@ export type GmailSendResponse = {
   messageId: string
   threadId: string
   from: string
-  to: string
+  to: string[]
+  cc: string[]
+  bcc: string[]
   subject?: string | null
   sentAt: string
 }
