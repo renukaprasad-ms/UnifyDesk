@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { FiArrowLeft, FiInbox, FiMail, FiRefreshCw } from 'react-icons/fi'
 import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
 import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'
@@ -62,6 +63,8 @@ const defaultSyncRange = () => {
 
 export default function EmailInbox() {
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const [searchParams] = useSearchParams()
+  const selectedConnectionId = searchParams.get('connectionId')
   const [connections, setConnections] = useState<ChannelConnection[]>([])
   const [conversations, setConversations] = useState<InboxConversation[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -81,6 +84,11 @@ export default function EmailInbox() {
   const [syncJobs, setSyncJobs] = useState<Record<string, AsyncJob>>({})
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+
+  const selectedConnection = useMemo(
+    () => connections.find((connection) => connection.id === selectedConnectionId) ?? null,
+    [connections, selectedConnectionId],
+  )
 
   const selectedConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
@@ -108,7 +116,7 @@ export default function EmailInbox() {
 
       try {
         const [inbox, emailConnections] = await Promise.all([
-          inboxApi.conversations(companyId, page, 30),
+          inboxApi.conversations(companyId, page, 30, selectedConnectionId),
           channelApi.list(companyId, 'EMAIL'),
         ])
 
@@ -137,13 +145,14 @@ export default function EmailInbox() {
         setLoadingMore(false)
       }
     },
-    [companyId],
+    [companyId, selectedConnectionId],
   )
 
   useEffect(() => {
     setMobileConversationOpen(false)
+    setSelectedId(null)
     void loadConversations(0, false)
-  }, [companyId])
+  }, [companyId, selectedConnectionId, loadConversations])
 
   useEffect(() => {
     if (!companyId || !selectedId) {
@@ -229,7 +238,10 @@ export default function EmailInbox() {
     }
 
     const gmailConnections = connections.filter(
-      (connection) => connection.providerType === 'GMAIL' && connection.status === 'ACTIVE',
+      (connection) =>
+        connection.providerType === 'GMAIL' &&
+        connection.status === 'ACTIVE' &&
+        (!selectedConnectionId || connection.id === selectedConnectionId),
     )
 
     if (gmailConnections.length === 0) {
@@ -281,7 +293,9 @@ export default function EmailInbox() {
             <p className="eyebrow">INBOX</p>
             <h1 className="mt-1 text-xl font-bold text-slate-950 sm:text-2xl">Email</h1>
             <p className="mt-1 text-sm text-slate-500">
-              Gmail conversations synchronized into your ReachFly workspace.
+              {selectedConnection
+                ? `Showing conversations for ${selectedConnection.externalAccountId || selectedConnection.name}.`
+                : 'Gmail conversations synchronized into your ReachFly workspace.'}
             </p>
           </div>
           <div className="flex w-full items-center gap-2 sm:w-auto">

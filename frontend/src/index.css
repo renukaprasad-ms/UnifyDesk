@@ -130,7 +130,8 @@
     letter-spacing: 0.04em;
     color: #63738c;
   }
-  .admin-sidebar {
+  .admin-sidebar,
+  .channel-context-sidebar {
     position: fixed;
     inset: 0 auto 0 72px;
     z-index: 35;
@@ -429,13 +430,15 @@
       overflow-x: visible;
       box-shadow: 18px 0 40px rgb(15 23 42 / 10%);
     }
-    .app-content.with-admin-sidebar {
+    .app-content.with-admin-sidebar,
+    .app-content.with-channel-context-sidebar {
       margin-left: 320px;
     }
   }
 
   @media (max-width: 1023px) {
-    .admin-sidebar {
+    .admin-sidebar,
+    .channel-context-sidebar {
       display: none;
     }
   }
