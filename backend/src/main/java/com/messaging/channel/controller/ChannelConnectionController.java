@@ -113,7 +113,7 @@ public class ChannelConnectionController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            channelConnectionService.disconnect(companyId, connectionId),
+            channelConnectionService.disconnect(companyId, connectionId, userId),
             "Channel disconnected"));
   }
 
