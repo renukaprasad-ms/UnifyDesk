@@ -255,6 +255,11 @@ logging:
   level:
     root: INFO
     org.springframework.web: INFO
+    com.messaging.realtime: ${LOGGING_LEVEL_REALTIME:DEBUG}
+    com.messaging.channel.gmail: ${LOGGING_LEVEL_GMAIL_SYNC:DEBUG}
+    com.messaging.asyncjob: ${LOGGING_LEVEL_ASYNC_JOB:DEBUG}
+    com.messaging.kafka: ${LOGGING_LEVEL_KAFKA:INFO}
+    com.messaging.security.filter.JwtAuthenticationFilter: ${LOGGING_LEVEL_WS_AUTH:INFO}
   pattern:
     level: "%5p [requestId=%X{requestId:-}]"
 
