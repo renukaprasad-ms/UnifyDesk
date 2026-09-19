@@ -57,8 +57,7 @@ public class StorageReconciliationService {
 
     for (Map.Entry<StorageUsageType, MutableUsage> entry : expected.entrySet()) {
       MutableUsage usage = entry.getValue();
-      accountingService.reconcile(
-          companyId, entry.getKey(), usage.usedBytes, usage.reservedBytes);
+      accountingService.reconcile(companyId, entry.getKey(), usage.usedBytes, usage.reservedBytes);
     }
   }
 
