@@ -67,7 +67,10 @@ public class RealtimeLocalDeliveryService {
       return;
     }
 
-    log.debug("WS_DIAG local_delivery_send_attempt connections={} bytes={}", connections.size(), json.length());
+    log.debug(
+        "WS_DIAG local_delivery_send_attempt connections={} bytes={}",
+        connections.size(),
+        json.length());
     TextMessage message = new TextMessage(json);
     for (RealtimeConnection connection : connections) {
       try {
