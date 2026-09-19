@@ -19,9 +19,14 @@ public interface GmailSyncBatchRepository extends JpaRepository<GmailSyncBatch, 
   @Query("select b from GmailSyncBatch b where b.id = :batchId")
   Optional<GmailSyncBatch> findByIdForUpdate(@Param("batchId") Long batchId);
 
+  Optional<GmailSyncBatch> findByJobIdAndBatchIndex(Long jobId, int batchIndex);
+
   long countByJobIdAndStatusIn(Long jobId, Collection<GmailSyncBatchStatus> statuses);
 
   long countByJobIdAndStatus(Long jobId, GmailSyncBatchStatus status);
+
+  @Query("select coalesce(sum(b.failedCount), 0) from GmailSyncBatch b where b.jobId = :jobId")
+  long sumFailedCountByJobId(@Param("jobId") Long jobId);
 
   @Query(
       "select b from GmailSyncBatch b where b.status in :statuses "
