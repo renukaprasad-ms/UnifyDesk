@@ -40,6 +40,10 @@ public class StorageQuotaService {
     }
 
     accountingRepository.lockCompany(companyId);
+    String idempotencyKey = resourceType + ":" + resourceId + ":reserve";
+    if (accountingRepository.hasEvent(idempotencyKey)) {
+      return false;
+    }
     assertAvailable(companyId, requestedBytes, accountingRepository.totals(companyId));
 
     return accountingService.record(
@@ -50,7 +54,7 @@ public class StorageQuotaService {
         StorageEventType.RESERVE,
         0,
         requestedBytes,
-        resourceType + ":" + resourceId + ":reserve");
+        idempotencyKey);
   }
 
   @Transactional
@@ -65,6 +69,10 @@ public class StorageQuotaService {
     }
 
     accountingRepository.lockCompany(companyId);
+    String idempotencyKey = resourceType + ":" + resourceId + ":add-used";
+    if (accountingRepository.hasEvent(idempotencyKey)) {
+      return false;
+    }
     assertAvailable(companyId, requestedBytes, accountingRepository.totals(companyId));
 
     return accountingService.record(
@@ -75,7 +83,7 @@ public class StorageQuotaService {
         StorageEventType.ADD_USED,
         requestedBytes,
         0,
-        resourceType + ":" + resourceId + ":add-used");
+        idempotencyKey);
   }
 
   @Transactional(readOnly = true)
