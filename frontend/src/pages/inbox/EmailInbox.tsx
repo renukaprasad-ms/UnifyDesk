@@ -240,11 +240,25 @@ export default function EmailInbox() {
     )
   }, [trackedSyncJobs])
 
-  useEffect(() => realtimeClient.subscribeConnection(setRealtimeConnected), [])
+  useEffect(
+    () =>
+      realtimeClient.subscribeConnection((connected) => {
+        console.info('[WS_DIAG] inbox_connection_state', { connected })
+        setRealtimeConnected(connected)
+      }),
+    [],
+  )
 
   useEffect(() => {
     return realtimeClient.subscribe<AsyncJob>('async.job.progress', (event) => {
       const job = event.payload
+      console.info('[GMAIL_SYNC_DIAG] realtime_progress', {
+        jobId: job.jobId,
+        status: job.status,
+        progressPercent: job.progressPercent,
+        completedUnits: job.completedUnits,
+        totalUnits: job.totalUnits,
+      })
       setSyncJobs((current) => {
         if (!current[job.jobId]) return current
         return { ...current, [job.jobId]: job }
@@ -262,12 +276,23 @@ export default function EmailInbox() {
   useEffect(() => {
     if (activeSyncJobs.length === 0 || realtimeConnected) return
 
+    console.warn('[GMAIL_SYNC_DIAG] polling_fallback_enabled', {
+      activeJobIds: activeSyncJobs.map((job) => job.jobId),
+    })
+
     const timer = window.setInterval(() => {
       void Promise.all(
         activeSyncJobs.map((job) =>
           asyncJobApi
             .get(job.jobId)
-            .then((latest) => setSyncJobs((current) => ({ ...current, [latest.jobId]: latest })))
+            .then((latest) => {
+              console.debug('[GMAIL_SYNC_DIAG] polling_progress', {
+                jobId: latest.jobId,
+                status: latest.status,
+                progressPercent: latest.progressPercent,
+              })
+              setSyncJobs((current) => ({ ...current, [latest.jobId]: latest }))
+            })
             .catch(() => undefined),
         ),
       )
@@ -302,18 +327,42 @@ export default function EmailInbox() {
     setNotice(null)
 
     try {
+      console.info('[GMAIL_SYNC_DIAG] sync_request', {
+        companyId,
+        connectionId: selectedConnection.id,
+        fromDate: syncFrom,
+        toDate: syncTo,
+        realtimeConnected,
+      })
+
       const queued = await gmailApi.sync(companyId, selectedConnection.id, {
         fromDate: syncFrom,
         toDate: syncTo,
       })
+      console.info('[GMAIL_SYNC_DIAG] sync_queued', {
+        connectionId: queued.connectionId,
+        jobId: queued.jobId,
+        status: queued.status,
+      })
       const job = await asyncJobApi.get(queued.jobId)
+      console.info('[GMAIL_SYNC_DIAG] initial_job_state', {
+        jobId: job.jobId,
+        status: job.status,
+        progressPercent: job.progressPercent,
+      })
       setSyncJobs({ [job.jobId]: job })
       setShowSyncDialog(false)
       setNotice(
         `Gmail sync started for ${selectedConnection.externalAccountId || selectedConnection.name}.`,
       )
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to queue Gmail sync'))
+      const message = apiErrorMessage(requestError, 'Unable to queue Gmail sync')
+      console.error('[GMAIL_SYNC_DIAG] sync_request_failed', {
+        companyId,
+        connectionId: selectedConnection.id,
+        message,
+      })
+      setError(message)
     } finally {
       setSyncing(false)
     }
