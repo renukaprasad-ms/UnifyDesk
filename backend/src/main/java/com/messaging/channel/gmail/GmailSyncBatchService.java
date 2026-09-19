@@ -4,6 +4,7 @@ import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.gmail.GmailApiClient.BatchMessageResult;
 import com.messaging.channel.gmail.GmailApiClient.GmailMessage;
 import com.messaging.channel.gmail.GmailSyncStateService.ClaimedBatch;
+import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
@@ -116,32 +117,46 @@ public class GmailSyncBatchService {
       if (!retry) {
         finalizerService.tryFinalize(batch.jobId());
       }
-    } catch (BadRequestException | NotFoundException exception) {
-      commitService.failAttempt(batch, exception.getMessage(), false);
+    } catch (BadRequestException | NotFoundException | PlanEntitlementException exception) {
+      commitService.failAttempt(batch, safeMessage(exception), false);
       log.warn(
           "gmail_sync_batch_failed batchId={} jobId={} connectionId={} attempt={} reason={}",
           batch.batchId(),
           batch.jobId(),
           batch.connectionId(),
           batch.attempt(),
-          exception.getMessage());
+          safeMessage(exception));
       finalizerService.tryFinalize(batch.jobId());
     } catch (RuntimeException exception) {
-      boolean retry =
-          commitService.failAttempt(batch, "Temporary Gmail batch processing failure", true);
+      String failure = safeMessage(exception);
+      boolean retry = commitService.failAttempt(batch, failure, true);
       log.warn(
-          "gmail_sync_batch_error batchId={} jobId={} connectionId={} attempt={} retry={} totalMs={} error={}",
+          "gmail_sync_batch_error batchId={} jobId={} connectionId={} attempt={} retry={} totalMs={} error={} reason={}",
           batch.batchId(),
           batch.jobId(),
           batch.connectionId(),
           batch.attempt(),
           retry,
           elapsedMillis(startedNanos),
-          exception.getClass().getSimpleName());
+          exception.getClass().getSimpleName(),
+          failure,
+          exception);
       if (!retry) {
         finalizerService.tryFinalize(batch.jobId());
       }
     }
+  }
+
+  private String safeMessage(Throwable throwable) {
+    Throwable current = throwable;
+    String message = null;
+    while (current != null) {
+      if (current.getMessage() != null && !current.getMessage().isBlank()) {
+        message = current.getMessage();
+      }
+      current = current.getCause();
+    }
+    return message == null ? throwable.getClass().getSimpleName() : message;
   }
 
   private long elapsedMillis(long startedNanos) {
