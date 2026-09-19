@@ -42,9 +42,10 @@ public class GmailSyncBatchCommitService {
     boolean retry = !retryIds.isEmpty() && batch.attempt() < maxAttempts;
 
     if (retry) {
-      stateService.retryBatch(
-          batch.batchId(), retryIds, terminalDelta, permanentFailures, error);
-      if (terminalDelta > 0) {
+      boolean applied =
+          stateService.retryBatch(
+              batch.batchId(), retryIds, terminalDelta, permanentFailures, error);
+      if (applied && terminalDelta > 0) {
         asyncJobService.incrementProgress(
             batch.jobId(),
             terminalDelta,
@@ -58,13 +59,14 @@ public class GmailSyncBatchCommitService {
 
     int exhaustedFailures = retryIds.size();
     int finalDelta = terminalDelta + exhaustedFailures;
-    stateService.completeBatch(
-        batch.batchId(),
-        finalDelta,
-        permanentFailures + exhaustedFailures,
-        error);
+    boolean applied =
+        stateService.completeBatch(
+            batch.batchId(),
+            finalDelta,
+            permanentFailures + exhaustedFailures,
+            error);
 
-    if (finalDelta > 0) {
+    if (applied && finalDelta > 0) {
       asyncJobService.incrementProgress(
           batch.jobId(),
           finalDelta,
@@ -79,8 +81,7 @@ public class GmailSyncBatchCommitService {
   public boolean failAttempt(ClaimedBatch batch, String error, boolean retryable) {
     int maxAttempts = Math.max(1, properties.getSyncBatchRetryMaxAttempts());
     if (retryable && batch.attempt() < maxAttempts) {
-      stateService.retryBatch(batch.batchId(), batch.messageIds(), 0, 0, error);
-      return true;
+      return stateService.retryBatch(batch.batchId(), batch.messageIds(), 0, 0, error);
     }
 
     int failed = stateService.failRemainingBatch(batch.batchId(), error);
