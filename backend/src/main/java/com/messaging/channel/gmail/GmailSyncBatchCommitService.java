@@ -24,6 +24,7 @@ public class GmailSyncBatchCommitService {
   private final ChannelConnectionRepository connectionRepository;
   private final AsyncJobService asyncJobService;
   private final GmailOAuthProperties properties;
+  private final GmailQuotaPolicy quotaPolicy;
 
   @Transactional
   public boolean commitResults(
@@ -77,13 +78,16 @@ public class GmailSyncBatchCommitService {
             permanentFailures + exhaustedFailures,
             error);
 
-    if (applied && finalDelta > 0) {
-      asyncJobService.incrementProgress(
-          batch.jobId(),
-          finalDelta,
-          exhaustedFailures + permanentFailures > 0
-              ? "Processed Gmail batch with failures"
-              : "Saved " + successfulMessages.size() + " Gmail messages");
+    if (applied) {
+      stateService.deferNextPendingBatch(batch.connectionId(), quotaPolicy.nextEligibility());
+      if (finalDelta > 0) {
+        asyncJobService.incrementProgress(
+            batch.jobId(),
+            finalDelta,
+            exhaustedFailures + permanentFailures > 0
+                ? "Processed Gmail batch with failures"
+                : "Saved " + successfulMessages.size() + " Gmail messages");
+      }
     }
     return false;
   }
