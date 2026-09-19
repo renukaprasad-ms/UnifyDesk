@@ -188,13 +188,13 @@ export default function PlatformBilling() {
 
   if (loading)
     return (
-      <div className="p-6 lg:p-8 text-sm font-medium text-slate-500">
+      <div className="p-4 sm:p-6 lg:p-8 text-sm font-medium text-slate-500">
         Loading billing operations…
       </div>
     )
   if (superAdmin === false)
     return (
-      <section className="p-6 lg:p-8">
+      <section className="p-4 sm:p-6 lg:p-8">
         <div className="panel max-w-2xl p-6">
           <p className="eyebrow">BILLING</p>
           <h1 className="mt-2 text-xl font-bold">Super Admin access required</h1>
@@ -209,7 +209,7 @@ export default function PlatformBilling() {
   const currentSubscription = details?.subscription ?? null
 
   return (
-    <section className="p-6 lg:p-8">
+    <section className="p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -220,7 +220,7 @@ export default function PlatformBilling() {
               without changing the public plan catalog.
             </p>
           </div>
-          <label className="min-w-[280px] text-xs font-semibold text-slate-600">
+          <label className="w-full text-xs font-semibold text-slate-600 sm:w-auto sm:min-w-[280px]">
             Company
             <select
               className="form-input mt-1.5"
