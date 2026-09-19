@@ -9,6 +9,8 @@ import com.messaging.lifecycle.enums.LifecycleEntityType;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -33,10 +35,22 @@ public class DeletionQueueService {
             null,
             MessagePriority.LOW);
 
-    eventPublisher.publish(
+    KafkaEvent<EntityDeletionRequestedEvent> event =
         KafkaEvent.of(
             metadata,
             new EntityDeletionRequestedEvent(
-                entityType, entityId, companyId, requestedByUserId, Instant.now())));
+                entityType, entityId, companyId, requestedByUserId, Instant.now()));
+
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              eventPublisher.publish(event);
+            }
+          });
+    } else {
+      eventPublisher.publish(event);
+    }
   }
 }
