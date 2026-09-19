@@ -198,6 +198,13 @@ public class GmailSyncStateService {
   }
 
   @Transactional
+  public void touchRun(Long jobId) {
+    GmailSyncRun run = requireRunForUpdate(jobId);
+    run.setUpdatedAt(Instant.now());
+    runRepository.save(run);
+  }
+
+  @Transactional
   public boolean resetStaleForRecovery(Long batchId, Instant cutoff) {
     GmailSyncBatch batch = requireBatchForUpdate(batchId);
     if (isTerminal(batch.getStatus()) || !batch.getUpdatedAt().isBefore(cutoff)) {
@@ -205,10 +212,15 @@ public class GmailSyncStateService {
     }
     if (batch.getStatus() == GmailSyncBatchStatus.RUNNING) {
       batch.setStatus(GmailSyncBatchStatus.RETRY);
+    }
+    boolean recoverable =
+        batch.getStatus() == GmailSyncBatchStatus.PENDING
+            || batch.getStatus() == GmailSyncBatchStatus.RETRY;
+    if (recoverable) {
+      batch.setUpdatedAt(Instant.now());
       batchRepository.save(batch);
     }
-    return batch.getStatus() == GmailSyncBatchStatus.PENDING
-        || batch.getStatus() == GmailSyncBatchStatus.RETRY;
+    return recoverable;
   }
 
   @Transactional
