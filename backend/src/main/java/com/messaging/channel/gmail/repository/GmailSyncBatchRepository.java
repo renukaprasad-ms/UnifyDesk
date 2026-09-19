@@ -28,6 +28,8 @@ public interface GmailSyncBatchRepository extends JpaRepository<GmailSyncBatch, 
   @Query("select coalesce(sum(b.failedCount), 0) from GmailSyncBatch b where b.jobId = :jobId")
   long sumFailedCountByJobId(@Param("jobId") Long jobId);
 
+  Optional<GmailSyncBatch> findFirstByJobIdAndLastErrorIsNotNullOrderByUpdatedAtDesc(Long jobId);
+
   @Query(
       value =
           """
