@@ -13,6 +13,7 @@ import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -119,11 +120,8 @@ public class GmailSyncService {
   }
 
   private String query(LocalDate fromDate, LocalDate toDate) {
-    LocalDate inclusiveEnd = toDate.plusDays(1);
-    return "after:" + slashDate(fromDate) + " before:" + slashDate(inclusiveEnd);
-  }
-
-  private String slashDate(LocalDate value) {
-    return value.getYear() + "/" + value.getMonthValue() + "/" + value.getDayOfMonth();
+    long startExclusive = fromDate.atStartOfDay().toEpochSecond(ZoneOffset.UTC) - 1;
+    long endExclusive = toDate.plusDays(1).atStartOfDay().toEpochSecond(ZoneOffset.UTC);
+    return "after:" + startExclusive + " before:" + endExclusive;
   }
 }
