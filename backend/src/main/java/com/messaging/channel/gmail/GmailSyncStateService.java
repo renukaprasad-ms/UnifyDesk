@@ -55,7 +55,12 @@ public class GmailSyncStateService {
 
   @Transactional
   public GmailSyncBatch createBatchIfAbsent(
-      Long jobId, Long companyId, Long connectionId, int batchIndex, List<String> messageIds) {
+      Long jobId,
+      Long companyId,
+      Long connectionId,
+      int batchIndex,
+      List<String> messageIds,
+      Instant eligibleAt) {
     return batchRepository
         .findByJobIdAndBatchIndex(jobId, batchIndex)
         .orElseGet(
@@ -68,6 +73,7 @@ public class GmailSyncStateService {
               batch.setStatus(GmailSyncBatchStatus.PENDING);
               batch.setMessageIdsJson(writeIds(messageIds));
               batch.setMessageCount(messageIds.size());
+              batch.setNextAttemptAt(eligibleAt);
               return batchRepository.saveAndFlush(batch);
             });
   }
