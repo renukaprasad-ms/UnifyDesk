@@ -121,8 +121,7 @@ public class GmailSyncService {
     return result;
   }
 
-  private Set<String> existingMessageIds(
-      Long connectionId, List<MessageReference> references) {
+  private Set<String> existingMessageIds(Long connectionId, List<MessageReference> references) {
     List<String> ids =
         references.stream()
             .filter(reference -> reference != null && reference.id() != null)
