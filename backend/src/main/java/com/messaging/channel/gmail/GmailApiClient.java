@@ -299,8 +299,7 @@ public class GmailApiClient {
     return switch (reason) {
       case "insufficientPermissions" ->
           "Gmail permission is insufficient. Disconnect and reconnect the Gmail account.";
-      case "domainPolicy" ->
-          "Google Workspace policy blocks Gmail API access for this account.";
+      case "domainPolicy" -> "Google Workspace policy blocks Gmail API access for this account.";
       default -> "Google denied Gmail API access (" + reason + ").";
     };
   }
