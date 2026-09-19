@@ -1,0 +1,15 @@
+package com.messaging.storage.enums;
+
+public enum StorageUsageType {
+  MESSAGE,
+  MESSAGE_ATTACHMENT,
+  EMAIL_ATTACHMENT,
+  WHATSAPP_MEDIA,
+  SMS_ATTACHMENT,
+  TEMPLATE_MEDIA,
+  COMPANY_MEDIA,
+  CONTACT_DATA,
+  AD_CREATIVE,
+  EXPORT,
+  OTHER
+}
