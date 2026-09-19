@@ -64,6 +64,9 @@ public class CompanyService {
     memberRepository.saveAndFlush(owner);
 
     defaultPlanAssignmentService.assignToNewCompany(company);
+    if (company.getLogoMediaId() != null) {
+      mediaService.assignCompanyMedia(company.getLogoMediaId(), company.getId(), userId);
+    }
     return toResponse(company, CompanyRole.OWNER);
   }
 
@@ -87,6 +90,9 @@ public class CompanyService {
     company.setTimezone(normalizeOptional(request.timezone()));
     company.setLogoMediaId(resolveLogoMediaId(request.logoMediaId(), userId));
     company = companyRepository.saveAndFlush(company);
+    if (company.getLogoMediaId() != null) {
+      mediaService.assignCompanyMedia(company.getLogoMediaId(), company.getId(), userId);
+    }
 
     CompanyRole role =
         memberRepository
