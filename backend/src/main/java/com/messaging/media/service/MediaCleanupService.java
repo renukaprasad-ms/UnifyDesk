@@ -5,6 +5,7 @@ import com.messaging.media.entity.Media;
 import com.messaging.media.enums.MediaStatus;
 import com.messaging.media.provider.StorageProviderResolver;
 import com.messaging.media.repository.MediaRepository;
+import com.messaging.storage.adapter.MediaStorageAccountingAdapter;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ public class MediaCleanupService {
   private final MediaRepository mediaRepository;
   private final MediaValidationProperties validationProperties;
   private final StorageProviderResolver storageProviderResolver;
+  private final MediaStorageAccountingAdapter storageAccounting;
 
   public int cleanupExpiredPendingUploads() {
     Instant cutoff = Instant.now().minus(validationProperties.getPendingTtl());
@@ -30,6 +32,7 @@ public class MediaCleanupService {
     return totalDeleted;
   }
 
+  @org.springframework.transaction.annotation.Transactional
   public int cleanupExpiredPendingUploads(Instant cutoff, int batchSize) {
     List<Media> expired =
         mediaRepository.findByStatusAndCreatedAtBefore(
@@ -43,6 +46,7 @@ public class MediaCleanupService {
       } catch (RuntimeException exception) {
         // Storage cleanup failure does not block marking the expired upload deleted.
       }
+      storageAccounting.release(media);
       media.setStatus(MediaStatus.DELETED);
       media.setDeletedAt(Instant.now());
       mediaRepository.saveAndFlush(media);

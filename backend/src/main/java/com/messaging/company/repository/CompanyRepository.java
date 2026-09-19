@@ -1,6 +1,7 @@
 package com.messaging.company.repository;
 
 import com.messaging.company.entity.Company;
+import com.messaging.company.enums.CompanyStatus;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,4 +17,6 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
 
   Page<Company> findByNameContainingIgnoreCaseOrBusinessEmailContainingIgnoreCase(
       String name, String email, Pageable pageable);
+
+  Page<Company> findByStatusNot(CompanyStatus status, Pageable pageable);
 }

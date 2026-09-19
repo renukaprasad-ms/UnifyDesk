@@ -31,7 +31,7 @@ import com.messaging.media.provider.StorageProviderResolver;
 import com.messaging.media.repository.MediaRepository;
 import com.messaging.redis.service.RedisService;
 import com.messaging.security.service.CurrentUserService;
-import com.messaging.storage.service.StorageQuotaService;
+import com.messaging.storage.adapter.MediaStorageAccountingAdapter;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -55,7 +55,7 @@ class MediaServiceTests {
   @Mock private CompanyRepository companyRepository;
   @Mock private CompanyMemberRepository companyMemberRepository;
   @Mock private PlatformAdminAuthorizationService platformAdminAuthorizationService;
-  @Mock private StorageQuotaService storageQuotaService;
+  @Mock private MediaStorageAccountingAdapter storageAccounting;
   @Mock private CompanyAuthorizationService companyAuthorizationService;
 
   private MediaService service;
@@ -91,7 +91,7 @@ class MediaServiceTests {
                 companyRepository, companyMemberRepository, platformAdminAuthorizationService),
             new MediaMapper(),
             redisService,
-            storageQuotaService,
+            storageAccounting,
             companyAuthorizationService);
   }
 
@@ -275,7 +275,7 @@ class MediaServiceTests {
         MediaAuthorizationService authorizationService,
         MediaMapper mediaMapper,
         RedisService redisService,
-        StorageQuotaService storageQuotaService,
+        MediaStorageAccountingAdapter storageAccounting,
         CompanyAuthorizationService companyAuthorizationService) {
       super(
           mediaRepository,
@@ -288,7 +288,7 @@ class MediaServiceTests {
           authorizationService,
           mediaMapper,
           redisService,
-          storageQuotaService,
+          storageAccounting,
           companyAuthorizationService);
       this.mediaRepository = mediaRepository;
     }

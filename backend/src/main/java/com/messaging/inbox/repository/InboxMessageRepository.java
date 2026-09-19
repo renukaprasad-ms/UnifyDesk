@@ -5,6 +5,8 @@ import com.messaging.inbox.enums.InboxMessageDirection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface InboxMessageRepository extends JpaRepository<InboxMessage, Long> {
 
@@ -15,4 +17,9 @@ public interface InboxMessageRepository extends JpaRepository<InboxMessage, Long
 
   long countByConversationIdAndDirectionAndReadFalse(
       Long conversationId, InboxMessageDirection direction);
+
+  @Query(
+      "select coalesce(sum(m.storageBytes), 0) from InboxMessage m "
+          + "where m.conversation.companyId = :companyId")
+  long sumStorageBytesByCompanyId(@Param("companyId") Long companyId);
 }

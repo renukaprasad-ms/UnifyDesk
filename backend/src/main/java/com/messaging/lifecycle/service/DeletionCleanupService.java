@@ -5,6 +5,7 @@ import com.messaging.media.entity.Media;
 import com.messaging.media.enums.MediaStatus;
 import com.messaging.media.provider.StorageProviderResolver;
 import com.messaging.media.repository.MediaRepository;
+import com.messaging.storage.adapter.MediaStorageAccountingAdapter;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ public class DeletionCleanupService {
 
   private final MediaRepository mediaRepository;
   private final StorageProviderResolver storageProviderResolver;
+  private final MediaStorageAccountingAdapter storageAccounting;
 
   public void cleanup(EntityDeletionRequestedEvent event) {
     switch (event.entityType()) {
@@ -48,6 +50,7 @@ public class DeletionCleanupService {
   private void cleanupMedia(List<Media> media) {
     Instant now = Instant.now();
     for (Media item : media) {
+      storageAccounting.release(item);
       item.setStatus(MediaStatus.DELETED);
       item.setDeletedAt(now);
       mediaRepository.save(item);

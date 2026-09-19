@@ -22,6 +22,9 @@ import com.messaging.inbox.repository.InboxConversationRepository;
 import com.messaging.inbox.repository.InboxMessageAttachmentRepository;
 import com.messaging.inbox.repository.InboxMessageRepository;
 import com.messaging.inbox.repository.InboxParticipantRepository;
+import com.messaging.storage.enums.StorageUsageType;
+import com.messaging.storage.service.MessageStorageMeter;
+import com.messaging.storage.service.StorageQuotaService;
 import jakarta.mail.Address;
 import jakarta.mail.internet.InternetAddress;
 import java.nio.charset.StandardCharsets;
@@ -47,6 +50,8 @@ public class GmailInboxPersistenceService {
   private final InboxMessageAttachmentRepository attachmentRepository;
   private final ChannelSyncStateRepository syncStateRepository;
   private final ChannelConnectionRepository connectionRepository;
+  private final MessageStorageMeter messageStorageMeter;
+  private final StorageQuotaService storageQuotaService;
 
   @Transactional
   public GmailSyncResult persistFullSync(
@@ -117,7 +122,30 @@ public class GmailInboxPersistenceService {
       message.setBodyHtml(bodyHtml(gmailMessage.payload()));
       message.setSentAt(sentAt);
       message.setRead(!containsLabel(gmailMessage.labelIds(), "UNREAD"));
+
+      boolean needsStorageAccounting = created || message.getStorageBytes() == 0;
+      if (needsStorageAccounting) {
+        message.setStorageBytes(
+            messageStorageMeter.measure(
+                message.getExternalMessageId(),
+                message.getInternetMessageId(),
+                message.getProviderHistoryId(),
+                message.getSubject(),
+                message.getSnippet(),
+                message.getBodyText(),
+                message.getBodyHtml()));
+      }
+
       message = messageRepository.saveAndFlush(message);
+
+      if (needsStorageAccounting) {
+        storageQuotaService.consume(
+            connection.getCompanyId(),
+            StorageUsageType.MESSAGE,
+            "INBOX_MESSAGE",
+            message.getId().toString(),
+            message.getStorageBytes());
+      }
 
       if (created) {
         createdMessages++;

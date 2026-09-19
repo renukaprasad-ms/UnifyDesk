@@ -22,6 +22,20 @@ const entitlementLabel = (key: string, value: string) => {
   return labels[key] ?? `${key.replaceAll('_', ' ').toLowerCase()}: ${value}`
 }
 
+const storageTypeLabel: Record<string, string> = {
+  MESSAGE: 'Messages',
+  MESSAGE_ATTACHMENT: 'Message attachments',
+  EMAIL_ATTACHMENT: 'Email attachments',
+  WHATSAPP_MEDIA: 'WhatsApp media',
+  SMS_ATTACHMENT: 'SMS attachments',
+  TEMPLATE_MEDIA: 'Template media',
+  COMPANY_MEDIA: 'Company media',
+  CONTACT_DATA: 'Contacts',
+  AD_CREATIVE: 'Ad creatives',
+  EXPORT: 'Exports',
+  OTHER: 'Other',
+}
+
 const formatBytes = (bytes: number) => {
   if (bytes < 0) return 'Unlimited'
   if (bytes === 0) return '0 B'
@@ -148,8 +162,30 @@ export default function CompanyPlan() {
                     />
                   </div>
                   <p className="mt-2 text-xs text-slate-500">
-                    {formatBytes(storage.reservedBytes)} used of {formatBytes(storage.limitBytes)}
+                    {formatBytes(storage.usedBytes)} used of {formatBytes(storage.limitBytes)}
                   </p>
+                  {storage.reservedBytes > 0 && (
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      {formatBytes(storage.reservedBytes)} reserved by pending uploads
+                    </p>
+                  )}
+                  {storage.breakdown.length > 0 && (
+                    <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
+                      {storage.breakdown.map((item) => (
+                        <div
+                          key={item.type}
+                          className="flex items-center justify-between gap-3 text-xs"
+                        >
+                          <span className="text-slate-500">
+                            {storageTypeLabel[item.type] ?? item.type}
+                          </span>
+                          <span className="font-semibold text-slate-700">
+                            {formatBytes(item.usedBytes + item.reservedBytes)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </aside>

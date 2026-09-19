@@ -71,6 +71,9 @@ public class InboxMessage {
   @Column(name = "is_read", nullable = false)
   private boolean read;
 
+  @Column(name = "storage_bytes", nullable = false)
+  private long storageBytes;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 

@@ -2,12 +2,12 @@ package com.messaging.storage.service;
 
 import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.billing.service.EntitlementService;
-import com.messaging.media.enums.MediaStatus;
-import com.messaging.media.repository.MediaRepository;
 import com.messaging.storage.dto.StorageUsageResponse;
+import com.messaging.storage.enums.StorageEventType;
+import com.messaging.storage.enums.StorageUsageType;
+import com.messaging.storage.repository.StorageAccountingRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,38 +19,116 @@ public class StorageQuotaService {
   public static final String STORAGE_ENTITLEMENT = "STORAGE_GB";
   private static final BigDecimal BYTES_PER_GIB = BigDecimal.valueOf(1024L * 1024L * 1024L);
 
-  private final MediaRepository mediaRepository;
+  private final StorageAccountingRepository accountingRepository;
+  private final StorageAccountingService accountingService;
   private final EntitlementService entitlementService;
 
   @Transactional(readOnly = true)
   public void assertCanReserve(Long companyId, long requestedBytes) {
-    StorageUsageResponse usage = usage(companyId);
-    if (usage.limitBytes() >= 0
-        && requestedBytes > Math.max(0, usage.limitBytes() - usage.reservedBytes())) {
-      throw new PlanEntitlementException(
-          "Workspace storage limit reached (limit=" + usage.limitBytes() + " bytes)");
+    assertAvailable(companyId, requestedBytes, accountingRepository.totals(companyId));
+  }
+
+  @Transactional
+  public boolean reserve(
+      long companyId,
+      StorageUsageType usageType,
+      String resourceType,
+      String resourceId,
+      long requestedBytes) {
+    if (requestedBytes <= 0) {
+      return false;
     }
+
+    accountingRepository.lockCompany(companyId);
+    String idempotencyKey = resourceType + ":" + resourceId + ":reserve";
+    if (accountingRepository.hasEvent(idempotencyKey)) {
+      return false;
+    }
+    assertAvailable(companyId, requestedBytes, accountingRepository.totals(companyId));
+
+    return accountingService.record(
+        companyId,
+        usageType,
+        resourceType,
+        resourceId,
+        StorageEventType.RESERVE,
+        0,
+        requestedBytes,
+        idempotencyKey);
+  }
+
+  @Transactional
+  public boolean consume(
+      long companyId,
+      StorageUsageType usageType,
+      String resourceType,
+      String resourceId,
+      long requestedBytes) {
+    if (requestedBytes <= 0) {
+      return false;
+    }
+
+    accountingRepository.lockCompany(companyId);
+    String idempotencyKey = resourceType + ":" + resourceId + ":add-used";
+    if (accountingRepository.hasEvent(idempotencyKey)) {
+      return false;
+    }
+    assertAvailable(companyId, requestedBytes, accountingRepository.totals(companyId));
+
+    return accountingService.record(
+        companyId,
+        usageType,
+        resourceType,
+        resourceId,
+        StorageEventType.ADD_USED,
+        requestedBytes,
+        0,
+        idempotencyKey);
   }
 
   @Transactional(readOnly = true)
   public StorageUsageResponse usage(Long companyId) {
-    long used =
-        mediaRepository.sumSizeBytesByCompanyAndStatuses(companyId, List.of(MediaStatus.ACTIVE));
-    long reserved =
-        mediaRepository.sumSizeBytesByCompanyAndStatuses(
-            companyId, List.of(MediaStatus.ACTIVE, MediaStatus.PENDING));
+    var totals = accountingRepository.totals(companyId);
+    long used = totals.usedBytes();
+    long reserved = totals.reservedBytes();
     long limit = limitBytes(companyId);
-    long remaining = limit < 0 ? -1 : Math.max(0, limit - reserved);
+    long billable = safeAdd(used, reserved);
+    long remaining = limit < 0 ? -1 : Math.max(0, limit - billable);
     double percent =
         limit <= 0
             ? 0
-            : BigDecimal.valueOf(reserved)
+            : BigDecimal.valueOf(billable)
                 .multiply(BigDecimal.valueOf(100))
                 .divide(BigDecimal.valueOf(limit), 2, RoundingMode.HALF_UP)
                 .doubleValue();
 
     return new StorageUsageResponse(
-        companyId.toString(), used, reserved, limit, remaining, Math.min(percent, 100));
+        companyId.toString(),
+        used,
+        reserved,
+        limit,
+        remaining,
+        Math.min(percent, 100),
+        accountingRepository.breakdown(companyId));
+  }
+
+  private void assertAvailable(
+      long companyId, long requestedBytes, StorageAccountingRepository.UsageTotals totals) {
+    long limit = limitBytes(companyId);
+    if (limit < 0) {
+      return;
+    }
+
+    long allocated = safeAdd(totals.usedBytes(), totals.reservedBytes());
+    long remaining = Math.max(0, limit - allocated);
+    if (requestedBytes > remaining) {
+      throw new PlanEntitlementException(
+          "Workspace storage limit reached (remaining="
+              + remaining
+              + " bytes, requested="
+              + requestedBytes
+              + " bytes)");
+    }
   }
 
   private long limitBytes(Long companyId) {
@@ -59,5 +137,13 @@ public class StorageQuotaService {
       return -1;
     }
     return gigabytes.multiply(BYTES_PER_GIB).longValue();
+  }
+
+  private long safeAdd(long left, long right) {
+    try {
+      return Math.addExact(left, right);
+    } catch (ArithmeticException exception) {
+      return Long.MAX_VALUE;
+    }
   }
 }

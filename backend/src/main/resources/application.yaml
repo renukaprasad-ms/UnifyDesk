@@ -163,6 +163,11 @@ app:
   invitation:
     frontend-base-url: ${APP_FRONTEND_BASE_URL:https://messaging.renukaprasad.in}
     expiry: ${APP_INVITATION_EXPIRY:72h}
+  storage:
+    reconciliation:
+      cron: ${STORAGE_RECONCILIATION_CRON:0 30 3 * * *}
+      zone: ${STORAGE_RECONCILIATION_ZONE:UTC}
+      batch-size: ${STORAGE_RECONCILIATION_BATCH_SIZE:100}
   media:
     cleanup:
       initial-delay: ${MEDIA_PENDING_CLEANUP_INITIAL_DELAY:1m}
