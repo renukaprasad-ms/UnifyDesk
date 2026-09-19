@@ -170,8 +170,65 @@ export default function EmailInbox() {
     }
   }, [companyId, selectedId])
 
+  const trackedSyncJobs = useMemo(() => Object.values(syncJobs), [syncJobs])
+  const activeSyncJobs = useMemo(
+    () => trackedSyncJobs.filter((job) => job.status === 'QUEUED' || job.status === 'RUNNING'),
+    [trackedSyncJobs],
+  )
+  const overallSyncProgress = useMemo(() => {
+    if (trackedSyncJobs.length === 0) return 0
+    return Math.round(
+      trackedSyncJobs.reduce((total, job) => total + job.progressPercent, 0) /
+        trackedSyncJobs.length,
+    )
+  }, [trackedSyncJobs])
+
+  useEffect(() => {
+    return realtimeClient.subscribe<AsyncJob>('async.job.progress', (event) => {
+      const job = event.payload
+      setSyncJobs((current) => {
+        if (!current[job.jobId]) return current
+        return { ...current, [job.jobId]: job }
+      })
+
+      if (job.status === 'COMPLETED') {
+        void loadConversations(0, false)
+      }
+      if (job.status === 'FAILED') {
+        setError(job.errorMessage || 'Gmail sync failed')
+      }
+    })
+  }, [loadConversations])
+
+  useEffect(() => {
+    if (activeSyncJobs.length === 0) return
+
+    const timer = window.setInterval(() => {
+      void Promise.all(
+        activeSyncJobs.map((job) =>
+          asyncJobApi
+            .get(job.jobId)
+            .then((latest) =>
+              setSyncJobs((current) => ({ ...current, [latest.jobId]: latest })),
+            )
+            .catch(() => undefined),
+        ),
+      )
+    }, 3000)
+
+    return () => window.clearInterval(timer)
+  }, [activeSyncJobs])
+
   const syncGmail = async () => {
     if (!companyId || syncing) return
+    if (!syncFrom || !syncTo) {
+      setError('Choose both Gmail sync dates.')
+      return
+    }
+    if (syncFrom > syncTo) {
+      setError('From date must be before or equal to the to date.')
+      return
+    }
 
     const gmailConnections = connections.filter(
       (connection) => connection.providerType === 'GMAIL' && connection.status === 'ACTIVE',
@@ -179,6 +236,7 @@ export default function EmailInbox() {
 
     if (gmailConnections.length === 0) {
       setNotice('Connect a Gmail account before syncing your inbox.')
+      setShowSyncDialog(false)
       return
     }
 
@@ -187,10 +245,19 @@ export default function EmailInbox() {
     setNotice(null)
 
     try {
-      await Promise.all(
-        gmailConnections.map((connection) => gmailApi.sync(companyId, connection.id)),
+      const queued = await Promise.all(
+        gmailConnections.map((connection) =>
+          gmailApi.sync(companyId, connection.id, { fromDate: syncFrom, toDate: syncTo }),
+        ),
       )
-      setNotice('Gmail sync queued. Refresh in a few seconds to see new messages.')
+      const jobs = await Promise.all(queued.map((item) => asyncJobApi.get(item.jobId)))
+      setSyncJobs(Object.fromEntries(jobs.map((job) => [job.jobId, job])))
+      setShowSyncDialog(false)
+      setNotice(
+        `Gmail sync started for ${gmailConnections.length} account${
+          gmailConnections.length === 1 ? '' : 's'
+        }.`,
+      )
     } catch (requestError) {
       setError(apiErrorMessage(requestError, 'Unable to queue Gmail sync'))
     } finally {
