@@ -6,7 +6,10 @@ import com.messaging.channel.gmail.GmailApiClient.GmailMessage;
 import com.messaging.channel.gmail.GmailSyncStateService.ClaimedBatch;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.NotFoundException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,9 +48,15 @@ public class GmailSyncBatchCommitService {
     boolean retry = !retryIds.isEmpty() && batch.attempt() < maxAttempts;
 
     if (retry) {
+      Instant nextAttemptAt = Instant.now().plus(retryDelay(batch.attempt()));
       boolean applied =
           stateService.retryBatch(
-              batch.batchId(), retryIds, terminalDelta, permanentFailures, error);
+              batch.batchId(),
+              retryIds,
+              terminalDelta,
+              permanentFailures,
+              error,
+              nextAttemptAt);
       if (applied && terminalDelta > 0) {
         asyncJobService.incrementProgress(
             batch.jobId(),
@@ -84,7 +93,13 @@ public class GmailSyncBatchCommitService {
   public boolean failAttempt(ClaimedBatch batch, String error, boolean retryable) {
     int maxAttempts = Math.max(1, properties.getSyncBatchRetryMaxAttempts());
     if (retryable && batch.attempt() < maxAttempts) {
-      return stateService.retryBatch(batch.batchId(), batch.messageIds(), 0, 0, error);
+      return stateService.retryBatch(
+          batch.batchId(),
+          batch.messageIds(),
+          0,
+          0,
+          error,
+          Instant.now().plus(retryDelay(batch.attempt())));
     }
 
     int failed = stateService.failRemainingBatch(batch.batchId(), error);
@@ -93,5 +108,21 @@ public class GmailSyncBatchCommitService {
           batch.jobId(), failed, "Gmail batch failed after " + batch.attempt() + " attempts");
     }
     return false;
+  }
+
+  private Duration retryDelay(int attempt) {
+    long initialMs =
+        Math.max(1000L, properties.getSyncBatchRetryInitialBackoff().toMillis());
+    long maxMs =
+        Math.max(initialMs, properties.getSyncBatchRetryMaxBackoff().toMillis());
+    int exponent = Math.min(Math.max(0, attempt - 1), 20);
+    long exponential;
+    try {
+      exponential = Math.multiplyExact(initialMs, 1L << exponent);
+    } catch (ArithmeticException exception) {
+      exponential = maxMs;
+    }
+    long jitterMs = ThreadLocalRandom.current().nextLong(0, 1001);
+    return Duration.ofMillis(Math.min(maxMs, exponential + jitterMs));
   }
 }
