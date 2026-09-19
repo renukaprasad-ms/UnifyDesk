@@ -29,6 +29,28 @@ public interface GmailSyncBatchRepository extends JpaRepository<GmailSyncBatch, 
   long sumFailedCountByJobId(@Param("jobId") Long jobId);
 
   @Query(
+      value =
+          """
+          select b.*
+          from gmail_sync_batches b
+          join (
+            select id,
+                   row_number() over (
+                     partition by connection_id
+                     order by batch_index asc, created_at asc
+                   ) as connection_rank
+            from gmail_sync_batches
+            where status in ('PENDING', 'RETRY')
+          ) ranked on ranked.id = b.id
+          where b.status in ('PENDING', 'RETRY')
+          order by ranked.connection_rank asc, b.updated_at asc, b.batch_index asc
+          for update of b skip locked
+          limit :limit
+          """,
+      nativeQuery = true)
+  List<GmailSyncBatch> findNextClaimableForUpdate(@Param("limit") int limit);
+
+  @Query(
       "select b from GmailSyncBatch b where b.status in :statuses "
           + "and b.updatedAt < :cutoff order by b.updatedAt asc")
   List<GmailSyncBatch> findRecoverable(
