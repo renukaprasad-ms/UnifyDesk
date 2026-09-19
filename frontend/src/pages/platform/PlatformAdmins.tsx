@@ -26,26 +26,26 @@ export default function PlatformAdmins() {
     }
   }
   return (
-    <section>
+    <section className="p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-bold">Platform admins</h1>
       <p className="mt-1 text-sm text-slate-500">
         Add registered users as internal admins. Assign least-privilege permissions before giving
         company access.
       </p>
-      <form onSubmit={create} className="my-5 flex gap-2">
+      <form onSubmit={create} className="my-5 flex flex-col gap-2 sm:flex-row">
         <input
-          className="form-input max-w-md"
+          className="form-input w-full sm:max-w-md"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Registered user email"
           required
         />
-        <button className="primary-button">Add admin</button>
+        <button className="primary-button w-full sm:w-auto">Add admin</button>
       </form>
       {error && <p className="mb-3 text-sm text-rose-600">{error}</p>}
       <div className="overflow-x-auto rounded-xl border bg-white">
-        <table className="w-full text-left text-sm">
+        <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
             <tr className="border-b">
               <th className="p-3">Admin</th>

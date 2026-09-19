@@ -6,8 +6,8 @@ export default function Home() {
   const user = useAppSelector(selectAuthUser)
 
   return (
-    <section className="p-6 sm:p-8">
-      <div className="panel max-w-3xl p-6">
+    <section className="p-4 sm:p-6 lg:p-8">
+      <div className="panel max-w-3xl p-4 sm:p-6">
         <p className="eyebrow">Workspace</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
           Welcome{user ? `, ${user.username}` : ''}
