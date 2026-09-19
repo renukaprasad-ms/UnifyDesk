@@ -221,6 +221,21 @@ public class MediaService {
     return new MediaAccessResponse(signedDownload.url(), signedDownload.expiresAt());
   }
 
+  @Transactional
+  public void assignCompanyMedia(long mediaId, long companyId, long ownerUserId) {
+    Media media = getActiveOwnedMedia(mediaId, ownerUserId);
+    if (media.getCompanyId() != null && media.getCompanyId().equals(companyId)) {
+      return;
+    }
+    if (media.getCompanyId() != null) {
+      throw new MediaException(HttpStatus.CONFLICT, "MEDIA_ALREADY_ASSIGNED");
+    }
+
+    storageQuotaService.assertCanReserve(companyId, media.getSizeBytes());
+    media.setCompanyId(companyId);
+    mediaRepository.saveAndFlush(media);
+  }
+
   public MediaResponse delete(String mediaId) {
     long userId = currentUserService.currentUserId();
     Media media = loadOwnedMedia(parseMediaId(mediaId), userId);
@@ -308,13 +323,12 @@ public class MediaService {
       long userId, InitiateMediaUploadRequest request, long sizeBytes) {
     boolean companyPurpose =
         switch (request.purpose()) {
-          case COMPANY_LOGO,
-              MESSAGE_ATTACHMENT,
+          case MESSAGE_ATTACHMENT,
               EMAIL_ATTACHMENT,
               WHATSAPP_MEDIA,
               TEMPLATE_MEDIA,
               AD_CREATIVE -> true;
-          case USER_PROFILE, USER_COVER, OTHER -> false;
+          case USER_PROFILE, USER_COVER, COMPANY_LOGO, OTHER -> false;
         };
 
     if (companyPurpose && request.companyId() == null) {
