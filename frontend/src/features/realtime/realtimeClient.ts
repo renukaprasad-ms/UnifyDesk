@@ -5,6 +5,7 @@ export type RealtimeEnvelope<T = unknown> = {
 }
 
 type Listener<T = unknown> = (event: RealtimeEnvelope<T>) => void
+type ConnectionListener = (connected: boolean) => void
 
 class RealtimeClient {
   private socket: WebSocket | null = null
@@ -13,6 +14,8 @@ class RealtimeClient {
   private heartbeatTimer: number | null = null
   private reconnectAttempts = 0
   private stopped = true
+  private connected = false
+  private connectionListeners = new Set<ConnectionListener>()
 
   connect() {
     if (
@@ -29,6 +32,7 @@ class RealtimeClient {
 
     socket.onopen = () => {
       this.reconnectAttempts = 0
+      this.setConnected(true)
       this.startHeartbeat()
     }
 
@@ -42,6 +46,7 @@ class RealtimeClient {
     }
 
     socket.onclose = () => {
+      this.setConnected(false)
       this.stopHeartbeat()
       if (this.socket === socket) this.socket = null
       if (!this.stopped) this.scheduleReconnect()
@@ -54,10 +59,24 @@ class RealtimeClient {
 
   disconnect() {
     this.stopped = true
+    this.setConnected(false)
     this.clearReconnect()
     this.stopHeartbeat()
     this.socket?.close()
     this.socket = null
+  }
+
+  isConnected() {
+    return this.connected
+  }
+
+  subscribeConnection(listener: ConnectionListener) {
+    this.connectionListeners.add(listener)
+    listener(this.connected)
+
+    return () => {
+      this.connectionListeners.delete(listener)
+    }
   }
 
   subscribe<T>(type: string, listener: Listener<T>) {
@@ -70,6 +89,12 @@ class RealtimeClient {
       current?.delete(listener as Listener)
       if (current?.size === 0) this.listeners.delete(type)
     }
+  }
+
+  private setConnected(connected: boolean) {
+    if (this.connected === connected) return
+    this.connected = connected
+    this.connectionListeners.forEach((listener) => listener(connected))
   }
 
   private emit(event: RealtimeEnvelope) {
