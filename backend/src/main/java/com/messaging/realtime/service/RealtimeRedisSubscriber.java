@@ -20,9 +20,15 @@ public class RealtimeRedisSubscriber implements MessageListener {
   @Override
   public void onMessage(Message message, byte[] pattern) {
     try {
-      RealtimeDispatch dispatch =
-          objectMapper.readValue(
-              new String(message.getBody(), StandardCharsets.UTF_8), RealtimeDispatch.class);
+      String body = new String(message.getBody(), StandardCharsets.UTF_8);
+      RealtimeDispatch dispatch = objectMapper.readValue(body, RealtimeDispatch.class);
+      log.debug(
+          "WS_DIAG redis_receive target={} userId={} platform={} socketId={} bytes={}",
+          dispatch.target(),
+          dispatch.userId(),
+          dispatch.platform(),
+          dispatch.socketId(),
+          body.length());
       localDeliveryService.deliver(dispatch);
     } catch (Exception exception) {
       log.warn(
