@@ -21,19 +21,10 @@ public class DeletionQueueService {
   private final EventPublisher eventPublisher;
 
   public void enqueue(
-      LifecycleEntityType entityType,
-      Long entityId,
-      Long companyId,
-      Long requestedByUserId) {
+      LifecycleEntityType entityType, Long entityId, Long companyId, Long requestedByUserId) {
     EventMetadata metadata =
         EventMetadata.create(
-            EVENT_TYPE,
-            "1",
-            companyId,
-            requestedByUserId,
-            null,
-            null,
-            MessagePriority.LOW);
+            EVENT_TYPE, "1", companyId, requestedByUserId, null, null, MessagePriority.LOW);
 
     KafkaEvent<EntityDeletionRequestedEvent> event =
         KafkaEvent.of(

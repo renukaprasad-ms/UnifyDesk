@@ -13,5 +13,6 @@ public interface CompanyCustomRoleRepository extends JpaRepository<CompanyCustom
 
   boolean existsByCompanyIdAndNameIgnoreCaseAndDeletedAtIsNull(Long companyId, String name);
 
-  boolean existsByCompanyIdAndNameIgnoreCaseAndIdNotAndDeletedAtIsNull(Long companyId, String name, Long id);
+  boolean existsByCompanyIdAndNameIgnoreCaseAndIdNotAndDeletedAtIsNull(
+      Long companyId, String name, Long id);
 }

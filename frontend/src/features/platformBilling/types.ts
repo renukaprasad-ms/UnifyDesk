@@ -4,12 +4,7 @@ export type RateCardStatus = 'ACTIVE' | 'ARCHIVED'
 export type SubscriptionStatus = 'ACTIVE' | 'TRIALING' | 'PAST_DUE' | 'CANCELLED'
 export type EntitlementValueType = 'INTEGER' | 'BOOLEAN' | 'DECIMAL' | 'TEXT'
 export type EntitlementCategory =
-  | 'WORKSPACE'
-  | 'CHANNEL'
-  | 'BROADCAST'
-  | 'TEMPLATE'
-  | 'STORAGE'
-  | 'FEATURE'
+  'WORKSPACE' | 'CHANNEL' | 'BROADCAST' | 'TEMPLATE' | 'STORAGE' | 'FEATURE'
 export type ChannelType = 'EMAIL' | 'WHATSAPP' | 'SMS'
 export type ProviderType = 'GMAIL' | 'MICROSOFT' | 'SMTP' | 'META_WHATSAPP' | 'MSG91'
 export type BillingCategory =

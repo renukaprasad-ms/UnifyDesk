@@ -50,7 +50,8 @@ public class RealtimeWebSocketHandler extends TextWebSocketHandler {
   protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
     if ("ping".equalsIgnoreCase(message.getPayload().trim())) {
       session.sendMessage(
-          new TextMessage(objectMapper.writeValueAsString(RealtimeEnvelope.of("realtime.pong", null))));
+          new TextMessage(
+              objectMapper.writeValueAsString(RealtimeEnvelope.of("realtime.pong", null))));
     }
   }
 

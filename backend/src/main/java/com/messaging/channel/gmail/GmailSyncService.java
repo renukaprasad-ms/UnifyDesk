@@ -31,11 +31,7 @@ public class GmailSyncService {
   private final AsyncJobService asyncJobService;
 
   public GmailSyncResult sync(
-      Long companyId,
-      Long connectionId,
-      Long jobId,
-      LocalDate fromDate,
-      LocalDate toDate) {
+      Long companyId, Long connectionId, Long jobId, LocalDate fromDate, LocalDate toDate) {
     validateRange(fromDate, toDate);
 
     ChannelConnection connection =
@@ -124,10 +120,7 @@ public class GmailSyncService {
 
   private String query(LocalDate fromDate, LocalDate toDate) {
     LocalDate inclusiveEnd = toDate.plusDays(1);
-    return "after:"
-        + slashDate(fromDate)
-        + " before:"
-        + slashDate(inclusiveEnd);
+    return "after:" + slashDate(fromDate) + " before:" + slashDate(inclusiveEnd);
   }
 
   private String slashDate(LocalDate value) {

@@ -323,11 +323,8 @@ public class MediaService {
       long userId, InitiateMediaUploadRequest request, long sizeBytes) {
     boolean companyPurpose =
         switch (request.purpose()) {
-          case MESSAGE_ATTACHMENT,
-              EMAIL_ATTACHMENT,
-              WHATSAPP_MEDIA,
-              TEMPLATE_MEDIA,
-              AD_CREATIVE -> true;
+          case MESSAGE_ATTACHMENT, EMAIL_ATTACHMENT, WHATSAPP_MEDIA, TEMPLATE_MEDIA, AD_CREATIVE ->
+              true;
           case USER_PROFILE, USER_COVER, COMPANY_LOGO, OTHER -> false;
         };
 

@@ -15,7 +15,10 @@ class RealtimeClient {
   private stopped = true
 
   connect() {
-    if (this.socket?.readyState === WebSocket.OPEN || this.socket?.readyState === WebSocket.CONNECTING)
+    if (
+      this.socket?.readyState === WebSocket.OPEN ||
+      this.socket?.readyState === WebSocket.CONNECTING
+    )
       return
 
     this.stopped = false

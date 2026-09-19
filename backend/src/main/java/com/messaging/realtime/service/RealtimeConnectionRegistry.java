@@ -12,15 +12,18 @@ import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorato
 @Component
 public class RealtimeConnectionRegistry {
 
-  private final ConcurrentHashMap<String, RealtimeConnection> bySocketId = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, RealtimeConnection> bySocketId =
+      new ConcurrentHashMap<>();
   private final ConcurrentHashMap<Long, Set<String>> socketIdsByUser = new ConcurrentHashMap<>();
 
   public void register(Long userId, SessionPlatform platform, WebSocketSession rawSession) {
-    WebSocketSession session = new ConcurrentWebSocketSessionDecorator(rawSession, 5_000, 256 * 1024);
+    WebSocketSession session =
+        new ConcurrentWebSocketSessionDecorator(rawSession, 5_000, 256 * 1024);
     RealtimeConnection connection =
         new RealtimeConnection(rawSession.getId(), userId, platform, session);
     bySocketId.put(rawSession.getId(), connection);
-    socketIdsByUser.computeIfAbsent(userId, ignored -> ConcurrentHashMap.newKeySet())
+    socketIdsByUser
+        .computeIfAbsent(userId, ignored -> ConcurrentHashMap.newKeySet())
         .add(rawSession.getId());
   }
 

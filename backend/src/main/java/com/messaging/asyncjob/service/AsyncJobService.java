@@ -51,7 +51,8 @@ public class AsyncJobService {
   }
 
   @Transactional
-  public AsyncJobResponse progress(Long jobId, long completedUnits, long totalUnits, String message) {
+  public AsyncJobResponse progress(
+      Long jobId, long completedUnits, long totalUnits, String message) {
     AsyncJob job = require(jobId);
     long total = Math.max(totalUnits, 0);
     long completed = Math.max(0, Math.min(completedUnits, total == 0 ? completedUnits : total));
@@ -93,7 +94,9 @@ public class AsyncJobService {
   }
 
   private AsyncJob require(Long jobId) {
-    return repository.findById(jobId).orElseThrow(() -> new NotFoundException("Async job not found"));
+    return repository
+        .findById(jobId)
+        .orElseThrow(() -> new NotFoundException("Async job not found"));
   }
 
   private AsyncJobResponse saveAndPublish(AsyncJob job) {

@@ -27,11 +27,7 @@ public class GmailSyncQueueService {
   private final ObjectMapper objectMapper;
 
   public GmailSyncQueuedResponse enqueue(
-      Long companyId,
-      Long userId,
-      Long connectionId,
-      LocalDate fromDate,
-      LocalDate toDate) {
+      Long companyId, Long userId, Long connectionId, LocalDate fromDate, LocalDate toDate) {
     AsyncJobResponse job =
         asyncJobService.create(
             companyId,

@@ -22,8 +22,6 @@ public class AsyncJobController {
     Long userId = currentUserService.currentUserId();
     return ResponseEntity.ok(
         ApiResponse.success(
-            HttpStatus.OK.value(),
-            asyncJobService.getForUser(jobId, userId),
-            "Async job fetched"));
+            HttpStatus.OK.value(), asyncJobService.getForUser(jobId, userId), "Async job fetched"));
   }
 }

@@ -35,8 +35,7 @@ public class StorageQuotaService {
   @Transactional(readOnly = true)
   public StorageUsageResponse usage(Long companyId) {
     long used =
-        mediaRepository.sumSizeBytesByCompanyAndStatuses(
-            companyId, List.of(MediaStatus.ACTIVE));
+        mediaRepository.sumSizeBytesByCompanyAndStatuses(companyId, List.of(MediaStatus.ACTIVE));
     long reserved =
         mediaRepository.sumSizeBytesByCompanyAndStatuses(
             companyId, List.of(MediaStatus.ACTIVE, MediaStatus.PENDING));

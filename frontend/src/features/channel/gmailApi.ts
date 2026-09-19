@@ -1,6 +1,11 @@
 import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
-import type { ChannelConnection, GmailAuthorization, GmailSyncQueued, GmailSyncRequest } from './types'
+import type {
+  ChannelConnection,
+  GmailAuthorization,
+  GmailSyncQueued,
+  GmailSyncRequest,
+} from './types'
 
 const unwrap = <T>(response: ApiResponse<T>) => {
   if (!response.data) throw new Error(response.error_message ?? 'Empty API response')

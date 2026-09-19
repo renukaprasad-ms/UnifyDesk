@@ -208,9 +208,7 @@ export default function EmailInbox() {
         activeSyncJobs.map((job) =>
           asyncJobApi
             .get(job.jobId)
-            .then((latest) =>
-              setSyncJobs((current) => ({ ...current, [latest.jobId]: latest })),
-            )
+            .then((latest) => setSyncJobs((current) => ({ ...current, [latest.jobId]: latest })))
             .catch(() => undefined),
         ),
       )

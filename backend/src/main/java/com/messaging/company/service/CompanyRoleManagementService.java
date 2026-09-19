@@ -20,13 +20,13 @@ import com.messaging.company.entity.PermissionDefinition;
 import com.messaging.company.enums.CompanyMemberStatus;
 import com.messaging.company.enums.CompanyRole;
 import com.messaging.company.iam.CompanyPermissionKeys;
-import com.messaging.lifecycle.enums.LifecycleEntityType;
-import com.messaging.lifecycle.service.DeletionQueueService;
 import com.messaging.company.repository.CompanyCustomRolePermissionRepository;
 import com.messaging.company.repository.CompanyCustomRoleRepository;
 import com.messaging.company.repository.CompanyMemberRepository;
 import com.messaging.company.repository.CompanyMemberRoleAssignmentRepository;
 import com.messaging.company.repository.PermissionDefinitionRepository;
+import com.messaging.lifecycle.enums.LifecycleEntityType;
+import com.messaging.lifecycle.service.DeletionQueueService;
 import com.messaging.security.service.CurrentUserService;
 import java.time.Instant;
 import java.util.HashSet;
@@ -122,7 +122,8 @@ public class CompanyRoleManagementService {
     requireCanDelegate(actorId, companyId, permissionKeys(roleId));
 
     String name = normalizeName(request.name());
-    if (roleRepository.existsByCompanyIdAndNameIgnoreCaseAndIdNotAndDeletedAtIsNull(companyId, name, roleId)) {
+    if (roleRepository.existsByCompanyIdAndNameIgnoreCaseAndIdNotAndDeletedAtIsNull(
+        companyId, name, roleId)) {
       throw new ConflictException("A role with this name already exists");
     }
 
@@ -152,8 +153,7 @@ public class CompanyRoleManagementService {
     role.setDeletedByUserId(actorId);
     roleRepository.saveAndFlush(role);
 
-    deletionQueueService.enqueue(
-        LifecycleEntityType.COMPANY_ROLE, roleId, companyId, actorId);
+    deletionQueueService.enqueue(LifecycleEntityType.COMPANY_ROLE, roleId, companyId, actorId);
   }
 
   @Transactional

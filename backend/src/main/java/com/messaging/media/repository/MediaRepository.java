@@ -4,10 +4,10 @@ import com.messaging.media.entity.Media;
 import com.messaging.media.enums.MediaStatus;
 import java.time.Instant;
 import java.util.List;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface MediaRepository extends JpaRepository<Media, Long> {
 
@@ -19,8 +19,7 @@ public interface MediaRepository extends JpaRepository<Media, Long> {
 
   List<Media> findByStatusAndCreatedAtBefore(MediaStatus status, Instant createdBefore);
 
-  List<Media> findByOwnerUserIdAndCompanyIdIsNullAndStatusNot(
-      Long ownerUserId, MediaStatus status);
+  List<Media> findByOwnerUserIdAndCompanyIdIsNullAndStatusNot(Long ownerUserId, MediaStatus status);
 
   List<Media> findByStatusAndCreatedAtBefore(
       MediaStatus status, Instant createdBefore, Pageable pageable);
