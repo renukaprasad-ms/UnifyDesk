@@ -79,6 +79,7 @@ public class InboxQueryService {
     return new InboxConversationResponse(
         conversation.getId().toString(),
         conversation.getConnection().getId().toString(),
+        conversation.getExternalConversationId(),
         conversation.getProviderType(),
         conversation.getSubject(),
         conversation.getLastMessagePreview(),
