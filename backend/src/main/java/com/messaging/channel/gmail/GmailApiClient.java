@@ -2,10 +2,14 @@ package com.messaging.channel.gmail;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.messaging.common.exception.BadRequestException;
+import com.messaging.common.exception.TooManyRequestsException;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -19,6 +23,11 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Slf4j
 @Component
 public class GmailApiClient {
+
+  private static final Pattern GOOGLE_REASON_PATTERN =
+      Pattern.compile("\\\"reason\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
+  private static final Pattern GOOGLE_MESSAGE_PATTERN =
+      Pattern.compile("\\\"message\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
 
   private final RestClient googleOAuth = RestClient.create("https://oauth2.googleapis.com");
   private final RestClient gmailApi = RestClient.create("https://gmail.googleapis.com");
@@ -196,21 +205,107 @@ public class GmailApiClient {
   }
 
   private <T> T execute(String operation, GoogleCall<T> call) {
-    try {
-      T result = call.execute();
-      if (result == null) {
-        throw new BadRequestException("Google returned an empty response");
+    int maxAttempts = Math.max(1, properties.getApiRetryMaxAttempts());
+
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        T result = call.execute();
+        if (result == null) {
+          throw new BadRequestException("Google returned an empty response");
+        }
+        return result;
+      } catch (RestClientResponseException exception) {
+        GoogleFailure failure = googleFailure(exception);
+        boolean retryable = retryable(exception.getStatusCode().value(), failure.reason());
+
+        if (retryable && attempt < maxAttempts) {
+          long delayMs = retryDelayMillis(attempt);
+          log.warn(
+              "Google API request retrying operation={} status={} reason={} attempt={}/{} delayMs={}",
+              operation,
+              exception.getStatusCode().value(),
+              failure.reason(),
+              attempt,
+              maxAttempts,
+              delayMs);
+          sleep(delayMs);
+          continue;
+        }
+
+        log.warn(
+            "Google API request failed operation={} status={} reason={} attempts={}",
+            operation,
+            exception.getStatusCode().value(),
+            failure.reason(),
+            attempt);
+
+        if (retryable) {
+          throw new TooManyRequestsException(
+              "Gmail is temporarily rate limited. Please wait a moment and try again.");
+        }
+
+        if (exception.getStatusCode().value() == 403) {
+          throw new BadRequestException(googleForbiddenMessage(failure.reason()));
+        }
+
+        throw new BadRequestException(
+            "Google API request failed with HTTP " + exception.getStatusCode().value());
       }
-      return result;
-    } catch (RestClientResponseException exception) {
-      log.warn(
-          "Google API request failed operation={} status={}",
-          operation,
-          exception.getStatusCode().value());
-      throw new BadRequestException(
-          "Google API request failed with HTTP " + exception.getStatusCode().value());
+    }
+
+    throw new BadRequestException("Google API request failed");
+  }
+
+  private boolean retryable(int status, String reason) {
+    return status == 429
+        || status >= 500
+        || "rateLimitExceeded".equals(reason)
+        || "userRateLimitExceeded".equals(reason);
+  }
+
+  private long retryDelayMillis(int attempt) {
+    long initial = Math.max(100, properties.getApiRetryInitialBackoff().toMillis());
+    long maximum = Math.max(initial, properties.getApiRetryMaxBackoff().toMillis());
+    long exponential = initial * (1L << Math.min(attempt - 1, 20));
+    long jitter = ThreadLocalRandom.current().nextLong(0, 501);
+    return Math.min(maximum, exponential + jitter);
+  }
+
+  private void sleep(long delayMs) {
+    try {
+      Thread.sleep(delayMs);
+    } catch (InterruptedException exception) {
+      Thread.currentThread().interrupt();
+      throw new BadRequestException("Gmail sync was interrupted");
     }
   }
+
+  private GoogleFailure googleFailure(RestClientResponseException exception) {
+    String responseBody = exception.getResponseBodyAsString();
+    return new GoogleFailure(
+        extract(responseBody, GOOGLE_REASON_PATTERN, "unknown"),
+        extract(responseBody, GOOGLE_MESSAGE_PATTERN, "Google API request failed"));
+  }
+
+  private String extract(String value, Pattern pattern, String fallback) {
+    if (value == null || value.isBlank()) {
+      return fallback;
+    }
+    Matcher matcher = pattern.matcher(value);
+    return matcher.find() ? matcher.group(1) : fallback;
+  }
+
+  private String googleForbiddenMessage(String reason) {
+    return switch (reason) {
+      case "insufficientPermissions" ->
+          "Gmail permission is insufficient. Disconnect and reconnect the Gmail account.";
+      case "domainPolicy" ->
+          "Google Workspace policy blocks Gmail API access for this account.";
+      default -> "Google denied Gmail API access (" + reason + ").";
+    };
+  }
+
+  private record GoogleFailure(String reason, String message) {}
 
   @FunctionalInterface
   private interface GoogleCall<T> {
