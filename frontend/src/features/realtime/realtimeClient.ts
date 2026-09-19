@@ -27,10 +27,20 @@ class RealtimeClient {
     this.stopped = false
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const url = `${protocol}//${window.location.host}/api/v1/realtime/ws?platform=WEB`
+    console.info('[WS_DIAG] connect_attempt', {
+      url,
+      reconnectAttempt: this.reconnectAttempts,
+      previousReadyState: this.socket?.readyState ?? null,
+    })
     const socket = new WebSocket(url)
     this.socket = socket
 
     socket.onopen = () => {
+      console.info('[WS_DIAG] open', {
+        url,
+        protocol: socket.protocol || null,
+        extensions: socket.extensions || null,
+      })
       this.reconnectAttempts = 0
       this.setConnected(true)
       this.startHeartbeat()
@@ -39,13 +49,36 @@ class RealtimeClient {
     socket.onmessage = (message) => {
       try {
         const event = JSON.parse(message.data) as RealtimeEnvelope
+        if (event.type === 'async.job.progress') {
+          const payload = event.payload as {
+            jobId?: string
+            status?: string
+            progressPercent?: number
+          }
+          console.info('[WS_DIAG] async_job_event', {
+            type: event.type,
+            jobId: payload?.jobId,
+            status: payload?.status,
+            progressPercent: payload?.progressPercent,
+          })
+        } else {
+          console.debug('[WS_DIAG] message', { type: event.type })
+        }
         this.emit(event)
-      } catch {
-        // Ignore malformed server frames; the socket remains usable.
+      } catch (error) {
+        console.warn('[WS_DIAG] malformed_message', {
+          reason: error instanceof Error ? error.message : 'unknown',
+        })
       }
     }
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
+      console.warn('[WS_DIAG] close', {
+        code: event.code,
+        reason: event.reason || null,
+        wasClean: event.wasClean,
+        stopped: this.stopped,
+      })
       this.setConnected(false)
       this.stopHeartbeat()
       if (this.socket === socket) this.socket = null
@@ -53,11 +86,16 @@ class RealtimeClient {
     }
 
     socket.onerror = () => {
+      console.error('[WS_DIAG] error', {
+        readyState: socket.readyState,
+        url,
+      })
       socket.close()
     }
   }
 
   disconnect() {
+    console.info('[WS_DIAG] disconnect_requested')
     this.stopped = true
     this.setConnected(false)
     this.clearReconnect()
@@ -106,6 +144,10 @@ class RealtimeClient {
     this.clearReconnect()
     const delay = Math.min(30_000, 1_000 * 2 ** Math.min(this.reconnectAttempts, 5))
     this.reconnectAttempts += 1
+    console.info('[WS_DIAG] reconnect_scheduled', {
+      delayMs: delay,
+      attempt: this.reconnectAttempts,
+    })
     this.reconnectTimer = window.setTimeout(() => this.connect(), delay)
   }
 
