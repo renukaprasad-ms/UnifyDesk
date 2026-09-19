@@ -219,8 +219,8 @@ app:
         name: ${KAFKA_CRITICAL_TOPIC:messaging.jobs.critical}
         retry-name: ${KAFKA_CRITICAL_RETRY_TOPIC:messaging.jobs.critical.retry}
         dlt-name: ${KAFKA_CRITICAL_DLT_TOPIC:messaging.jobs.critical.dlt}
-        partitions: ${KAFKA_CRITICAL_PARTITIONS:6}
-        concurrency: ${KAFKA_CRITICAL_CONCURRENCY:4}
+        partitions: ${KAFKA_CRITICAL_PARTITIONS:12}
+        concurrency: ${KAFKA_CRITICAL_CONCURRENCY:6}
         max-poll-records: ${KAFKA_CRITICAL_MAX_POLL_RECORDS:10}
         retention: ${KAFKA_CRITICAL_RETENTION:3d}
         consumer-group: ${KAFKA_CRITICAL_CONSUMER_GROUP:messaging-critical-workers}
@@ -228,8 +228,8 @@ app:
         name: ${KAFKA_HIGH_TOPIC:messaging.jobs.high}
         retry-name: ${KAFKA_HIGH_RETRY_TOPIC:messaging.jobs.high.retry}
         dlt-name: ${KAFKA_HIGH_DLT_TOPIC:messaging.jobs.high.dlt}
-        partitions: ${KAFKA_HIGH_PARTITIONS:8}
-        concurrency: ${KAFKA_HIGH_CONCURRENCY:4}
+        partitions: ${KAFKA_HIGH_PARTITIONS:12}
+        concurrency: ${KAFKA_HIGH_CONCURRENCY:6}
         max-poll-records: ${KAFKA_HIGH_MAX_POLL_RECORDS:25}
         retention: ${KAFKA_HIGH_RETENTION:5d}
         consumer-group: ${KAFKA_HIGH_CONSUMER_GROUP:messaging-high-workers}
@@ -237,8 +237,8 @@ app:
         name: ${KAFKA_MEDIUM_TOPIC:messaging.jobs.medium}
         retry-name: ${KAFKA_MEDIUM_RETRY_TOPIC:messaging.jobs.medium.retry}
         dlt-name: ${KAFKA_MEDIUM_DLT_TOPIC:messaging.jobs.medium.dlt}
-        partitions: ${KAFKA_MEDIUM_PARTITIONS:6}
-        concurrency: ${KAFKA_MEDIUM_CONCURRENCY:2}
+        partitions: ${KAFKA_MEDIUM_PARTITIONS:12}
+        concurrency: ${KAFKA_MEDIUM_CONCURRENCY:6}
         max-poll-records: ${KAFKA_MEDIUM_MAX_POLL_RECORDS:50}
         retention: ${KAFKA_MEDIUM_RETENTION:5d}
         consumer-group: ${KAFKA_MEDIUM_CONSUMER_GROUP:messaging-medium-workers}
@@ -246,8 +246,8 @@ app:
         name: ${KAFKA_LOW_TOPIC:messaging.jobs.low}
         retry-name: ${KAFKA_LOW_RETRY_TOPIC:messaging.jobs.low.retry}
         dlt-name: ${KAFKA_LOW_DLT_TOPIC:messaging.jobs.low.dlt}
-        partitions: ${KAFKA_LOW_PARTITIONS:3}
-        concurrency: ${KAFKA_LOW_CONCURRENCY:1}
+        partitions: ${KAFKA_LOW_PARTITIONS:6}
+        concurrency: ${KAFKA_LOW_CONCURRENCY:2}
         max-poll-records: ${KAFKA_LOW_MAX_POLL_RECORDS:100}
         retention: ${KAFKA_LOW_RETENTION:7d}
         consumer-group: ${KAFKA_LOW_CONSUMER_GROUP:messaging-low-workers}
