@@ -18,7 +18,8 @@ public class RealtimeRedisPublisher {
 
   public void publish(RealtimeDispatch dispatch) {
     try {
-      redisTemplate.convertAndSend(realtimeChannel.getTopic(), objectMapper.writeValueAsString(dispatch));
+      redisTemplate.convertAndSend(
+          realtimeChannel.getTopic(), objectMapper.writeValueAsString(dispatch));
     } catch (JsonProcessingException exception) {
       throw new IllegalStateException("Unable to serialize realtime dispatch", exception);
     }

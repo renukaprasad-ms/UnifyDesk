@@ -25,7 +25,9 @@ public class RealtimeRedisSubscriber implements MessageListener {
               new String(message.getBody(), StandardCharsets.UTF_8), RealtimeDispatch.class);
       localDeliveryService.deliver(dispatch);
     } catch (Exception exception) {
-      log.warn("Ignoring invalid realtime Redis message reason={}", exception.getClass().getSimpleName());
+      log.warn(
+          "Ignoring invalid realtime Redis message reason={}",
+          exception.getClass().getSimpleName());
     }
   }
 }
