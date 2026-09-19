@@ -66,5 +66,13 @@ export type GmailAuthorization = {
 
 export type GmailSyncQueued = {
   connectionId: string
+  jobId: string
   status: 'QUEUED'
+  fromDate: string
+  toDate: string
+}
+
+export type GmailSyncRequest = {
+  fromDate: string
+  toDate: string
 }
