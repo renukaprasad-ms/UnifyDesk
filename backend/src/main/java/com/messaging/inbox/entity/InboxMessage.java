@@ -62,6 +62,9 @@ public class InboxMessage {
   @Column(name = "body_text", columnDefinition = "TEXT")
   private String bodyText;
 
+  @Column(name = "body_html", columnDefinition = "TEXT")
+  private String bodyHtml;
+
   @Column(name = "sent_at")
   private Instant sentAt;
 

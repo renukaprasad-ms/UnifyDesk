@@ -114,6 +114,7 @@ public class GmailInboxPersistenceService {
       message.setSubject(subject);
       message.setSnippet(preview);
       message.setBodyText(bodyText(gmailMessage.payload(), preview));
+      message.setBodyHtml(bodyHtml(gmailMessage.payload()));
       message.setSentAt(sentAt);
       message.setRead(!containsLabel(gmailMessage.labelIds(), "UNREAD"));
       message = messageRepository.saveAndFlush(message);
@@ -247,29 +248,26 @@ public class GmailInboxPersistenceService {
 
   private String bodyText(GmailPayload payload, String fallback) {
     String plain = findBody(payload, "text/plain");
-    if (hasText(plain)) {
-      return normalizeBody(plain);
+    if (hasText(plain) && !looksLikeHtml(plain)) {
+      return plain.trim();
     }
 
-    String html = findBody(payload, "text/html");
-    return hasText(html) ? normalizeBody(html) : fallback;
+    String html = bodyHtml(payload);
+    return hasText(html) ? htmlToText(html) : fallback;
   }
 
-  private String normalizeBody(String value) {
-    String trimmed = value == null ? null : value.trim();
-    if (!hasText(trimmed)) {
-      return trimmed;
+  private String bodyHtml(GmailPayload payload) {
+    String html = findBody(payload, "text/html");
+    if (hasText(html)) {
+      return html.trim();
     }
 
-    if (looksLikeHtml(trimmed)) {
-      return htmlToText(trimmed);
-    }
-
-    return trimmed;
+    String plain = findBody(payload, "text/plain");
+    return hasText(plain) && looksLikeHtml(plain) ? plain.trim() : null;
   }
 
   private boolean looksLikeHtml(String value) {
-    String lower = value.toLowerCase(Locale.ROOT);
+    String lower = value.toLowerCase(Locale.ROOT).trim();
     return lower.startsWith("<!doctype html")
         || lower.startsWith("<html")
         || lower.contains("<body")
