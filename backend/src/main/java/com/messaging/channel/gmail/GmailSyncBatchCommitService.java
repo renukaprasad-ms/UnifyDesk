@@ -57,14 +57,11 @@ public class GmailSyncBatchCommitService {
               permanentFailures,
               error,
               nextAttemptAt);
-      if (applied && terminalDelta > 0) {
+      if (applied) {
         asyncJobService.incrementProgress(
             batch.jobId(),
             terminalDelta,
-            "Saved "
-                + successfulMessages.size()
-                + " Gmail messages; retrying "
-                + retryIds.size());
+            retryMessage(error, successfulMessages.size(), retryIds.size(), nextAttemptAt));
       }
       return true;
     }
@@ -93,13 +90,20 @@ public class GmailSyncBatchCommitService {
   public boolean failAttempt(ClaimedBatch batch, String error, boolean retryable) {
     int maxAttempts = Math.max(1, properties.getSyncBatchRetryMaxAttempts());
     if (retryable && batch.attempt() < maxAttempts) {
-      return stateService.retryBatch(
-          batch.batchId(),
-          batch.messageIds(),
-          0,
-          0,
-          error,
-          Instant.now().plus(retryDelay(batch.attempt())));
+      Instant nextAttemptAt = Instant.now().plus(retryDelay(batch.attempt()));
+      boolean applied =
+          stateService.retryBatch(
+              batch.batchId(),
+              batch.messageIds(),
+              0,
+              0,
+              error,
+              nextAttemptAt);
+      if (applied) {
+        asyncJobService.incrementProgress(
+            batch.jobId(), 0, retryMessage(error, 0, batch.messageIds().size(), nextAttemptAt));
+      }
+      return applied;
     }
 
     int failed = stateService.failRemainingBatch(batch.batchId(), error);
@@ -108,6 +112,25 @@ public class GmailSyncBatchCommitService {
           batch.jobId(), failed, "Gmail batch failed after " + batch.attempt() + " attempts");
     }
     return false;
+  }
+
+  private String retryMessage(
+      String reason, int saved, int retrying, Instant nextAttemptAt) {
+    String prefix =
+        reason != null
+                && (reason.contains("rateLimitExceeded")
+                    || reason.contains("userRateLimitExceeded")
+                    || reason.toLowerCase().contains("rate limit"))
+            ? "Gmail rate limited; retrying automatically"
+            : "Temporary Gmail error; retrying automatically";
+    return prefix
+        + " (saved="
+        + saved
+        + ", retrying="
+        + retrying
+        + ", nextAttemptAt="
+        + nextAttemptAt
+        + ")";
   }
 
   private Duration retryDelay(int attempt) {
