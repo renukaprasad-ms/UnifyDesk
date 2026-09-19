@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
-import { FiArrowLeft, FiInbox, FiMail, FiRefreshCw, FiSend } from 'react-icons/fi'
+import {
+  FiArrowLeft,
+  FiCornerUpLeft,
+  FiInbox,
+  FiMail,
+  FiRefreshCw,
+  FiSend,
+  FiShare2,
+  FiUsers,
+} from 'react-icons/fi'
 import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
 import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'
 import type { AsyncJob } from '../../features/asyncJob/types'
@@ -56,6 +65,28 @@ const localDateInput = (date: Date) => {
   return `${year}-${month}-${day}`
 }
 
+const recipientInput = (values: string[]) => values.join(', ')
+
+const parseRecipients = (value: string) =>
+  Array.from(
+    new Set(
+      value
+        .split(/[;,]/)
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  )
+
+const replySubject = (subject?: string | null) => {
+  const value = subject?.trim() || ''
+  return /^re:/i.test(value) ? value : `Re: ${value || '(no subject)'}`
+}
+
+const forwardSubject = (subject?: string | null) => {
+  const value = subject?.trim() || ''
+  return /^fwd?:/i.test(value) ? value : `Fwd: ${value || '(no subject)'}`
+}
+
 const defaultSyncRange = () => {
   const to = new Date()
   const from = new Date()
@@ -83,9 +114,17 @@ export default function EmailInbox() {
   const [syncing, setSyncing] = useState(false)
   const [sending, setSending] = useState(false)
   const [showSyncDialog, setShowSyncDialog] = useState(false)
+  const [composeMode, setComposeMode] = useState<'compose' | 'reply' | 'replyAll' | 'forward'>(
+    'compose',
+  )
   const [composeTo, setComposeTo] = useState('')
+  const [composeCc, setComposeCc] = useState('')
+  const [composeBcc, setComposeBcc] = useState('')
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
+  const [composeThreadId, setComposeThreadId] = useState('')
+  const [composeInReplyTo, setComposeInReplyTo] = useState('')
+  const [composeReferences, setComposeReferences] = useState('')
   const initialSyncRange = useMemo(() => defaultSyncRange(), [])
   const [syncFrom, setSyncFrom] = useState(initialSyncRange.from)
   const [syncTo, setSyncTo] = useState(initialSyncRange.to)
@@ -186,7 +225,7 @@ export default function EmailInbox() {
       inboxRefreshTimerRef.current = null
       void loadConversations(0, false)
     }, 1000)
-  }, [scheduleInboxRefresh])
+  }, [loadConversations])
 
   useEffect(
     () => () => {
@@ -300,7 +339,7 @@ export default function EmailInbox() {
         setError(job.errorMessage || 'Gmail sync failed')
       }
     })
-  }, [loadConversations])
+  }, [scheduleInboxRefresh])
 
   useEffect(() => {
     if (activeSyncJobs.length === 0 || realtimeConnected) return
@@ -362,13 +401,19 @@ export default function EmailInbox() {
     }
   }
 
-  const closeCompose = () => {
-    const params = new URLSearchParams(searchParams)
-    params.delete('compose')
-    setSearchParams(params, { replace: true })
+  const resetCompose = () => {
+    setComposeMode('compose')
+    setComposeTo('')
+    setComposeCc('')
+    setComposeBcc('')
+    setComposeSubject('')
+    setComposeBody('')
+    setComposeThreadId('')
+    setComposeInReplyTo('')
+    setComposeReferences('')
   }
 
-  const openCompose = () => {
+  const showCompose = () => {
     if (!selectedConnection) {
       setNotice('Select an email account before composing.')
       return
@@ -379,6 +424,102 @@ export default function EmailInbox() {
     setSearchParams(params)
   }
 
+  const closeCompose = () => {
+    const params = new URLSearchParams(searchParams)
+    params.delete('compose')
+    setSearchParams(params, { replace: true })
+  }
+
+  const openCompose = () => {
+    resetCompose()
+    showCompose()
+  }
+
+  const replyRecipients = (message: InboxMessage, replyAll: boolean) => {
+    const own = selectedConnection?.externalAccountId?.trim().toLowerCase()
+    const inboundPrimary =
+      message.replyToAddress?.trim().toLowerCase() || message.fromAddress?.trim().toLowerCase()
+    const outboundPrimary = message.to.find((address) => address.toLowerCase() !== own)
+    const primary = message.direction === 'INBOUND' ? inboundPrimary : outboundPrimary
+
+    const candidates = replyAll
+      ? [
+          primary,
+          message.fromAddress,
+          message.replyToAddress,
+          ...message.to,
+          ...message.cc,
+        ]
+      : [primary]
+
+    const unique = Array.from(
+      new Set(
+        candidates
+          .filter((address): address is string => Boolean(address?.trim()))
+          .map((address) => address.trim().toLowerCase())
+          .filter((address) => address !== own),
+      ),
+    )
+
+    return {
+      to: unique.slice(0, 1),
+      cc: replyAll ? unique.slice(1) : [],
+    }
+  }
+
+  const openReply = (message: InboxMessage, replyAll: boolean) => {
+    if (!selectedConversation) return
+    const recipients = replyRecipients(message, replyAll)
+    if (recipients.to.length === 0) {
+      setError('Unable to determine a recipient for this reply.')
+      return
+    }
+
+    setComposeMode(replyAll ? 'replyAll' : 'reply')
+    setComposeTo(recipientInput(recipients.to))
+    setComposeCc(recipientInput(recipients.cc))
+    setComposeBcc('')
+    setComposeSubject(replySubject(message.subject || selectedConversation.subject))
+    setComposeBody('')
+    setComposeThreadId(selectedConversation.externalConversationId)
+    setComposeInReplyTo(message.internetMessageId || '')
+    setComposeReferences(
+      [message.references?.trim(), message.internetMessageId?.trim()].filter(Boolean).join(' '),
+    )
+    showCompose()
+  }
+
+  const openForward = (message: InboxMessage) => {
+    const sentAt = message.sentAt ? new Date(message.sentAt).toLocaleString() : ''
+    const to = message.to.join(', ')
+    const originalBody = message.bodyText || message.snippet || ''
+
+    setComposeMode('forward')
+    setComposeTo('')
+    setComposeCc('')
+    setComposeBcc('')
+    setComposeSubject(forwardSubject(message.subject))
+    setComposeThreadId('')
+    setComposeInReplyTo('')
+    setComposeReferences('')
+    setComposeBody(
+      [
+        '',
+        '',
+        '---------- Forwarded message ----------',
+        message.fromAddress ? `From: ${message.fromAddress}` : '',
+        sentAt ? `Date: ${sentAt}` : '',
+        message.subject ? `Subject: ${message.subject}` : '',
+        to ? `To: ${to}` : '',
+        '',
+        originalBody,
+      ]
+        .filter((line, index) => line !== '' || index < 2 || index > 6)
+        .join('\n'),
+    )
+    showCompose()
+  }
+
   const sendEmail = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!companyId || !selectedConnection || sending) return
@@ -387,20 +528,38 @@ export default function EmailInbox() {
       return
     }
 
+    const to = parseRecipients(composeTo)
+    const cc = parseRecipients(composeCc)
+    const bcc = parseRecipients(composeBcc)
+    if (to.length === 0 && cc.length === 0 && bcc.length === 0) {
+      setError('Add at least one To, CC, or BCC recipient.')
+      return
+    }
+
     setSending(true)
     setError(null)
     setNotice(null)
     try {
       const sent = await gmailApi.send(companyId, selectedConnection.id, {
-        to: composeTo.trim(),
+        to,
+        cc,
+        bcc,
         subject: composeSubject.trim(),
         bodyText: composeBody,
+        threadId: composeThreadId || null,
+        inReplyTo: composeInReplyTo || null,
+        references: composeReferences || null,
       })
-      setComposeTo('')
-      setComposeSubject('')
-      setComposeBody('')
+      resetCompose()
       closeCompose()
-      setNotice(`Email sent from ${sent.from} to ${sent.to}.`)
+      setNotice(
+        `Email sent from ${sent.from} to ${[...sent.to, ...sent.cc, ...sent.bcc].join(', ')}.`,
+      )
+      await loadConversations(0, false)
+      if (selectedId) {
+        const latestMessages = await inboxApi.messages(companyId, selectedId)
+        setMessages(latestMessages)
+      }
     } catch (requestError) {
       setError(apiErrorMessage(requestError, 'Unable to send email'))
     } finally {
@@ -536,9 +695,17 @@ export default function EmailInbox() {
               aria-modal="true"
               aria-labelledby="gmail-compose-title"
             >
-              <p className="eyebrow">NEW EMAIL</p>
+              <p className="eyebrow">
+                {composeMode === 'reply'
+                  ? 'REPLY'
+                  : composeMode === 'replyAll'
+                    ? 'REPLY ALL'
+                    : composeMode === 'forward'
+                      ? 'FORWARD'
+                      : 'NEW EMAIL'}
+              </p>
               <h2 id="gmail-compose-title" className="mt-2 text-lg font-bold text-slate-950">
-                Compose email
+                {composeMode === 'compose' ? 'Compose email' : composeSubject || 'Email'}
               </h2>
               <p className="mt-2 text-xs text-slate-500">
                 From: {selectedConnection?.externalAccountId || selectedConnection?.name || 'Email'}
@@ -548,15 +715,36 @@ export default function EmailInbox() {
                 <label className="block text-xs font-semibold text-slate-600">
                   To
                   <input
-                    type="email"
+                    type="text"
                     className="form-input mt-1.5"
                     value={composeTo}
                     onChange={(event) => setComposeTo(event.target.value)}
-                    placeholder="recipient@example.com"
-                    required
+                    placeholder="one@example.com, two@example.com"
                     autoFocus
                   />
                 </label>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block text-xs font-semibold text-slate-600">
+                    CC
+                    <input
+                      type="text"
+                      className="form-input mt-1.5"
+                      value={composeCc}
+                      onChange={(event) => setComposeCc(event.target.value)}
+                      placeholder="cc@example.com"
+                    />
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-600">
+                    BCC
+                    <input
+                      type="text"
+                      className="form-input mt-1.5"
+                      value={composeBcc}
+                      onChange={(event) => setComposeBcc(event.target.value)}
+                      placeholder="bcc@example.com"
+                    />
+                  </label>
+                </div>
                 <label className="block text-xs font-semibold text-slate-600">
                   Subject
                   <input
@@ -593,7 +781,11 @@ export default function EmailInbox() {
                 <button
                   type="submit"
                   className="primary-button justify-center gap-2"
-                  disabled={sending || !composeTo.trim() || !composeBody.trim()}
+                  disabled={
+                    sending ||
+                    (!composeTo.trim() && !composeCc.trim() && !composeBcc.trim()) ||
+                    !composeBody.trim()
+                  }
                 >
                   <FiSend aria-hidden="true" />
                   {sending ? 'Sending...' : 'Send email'}
@@ -866,6 +1058,34 @@ export default function EmailInbox() {
                                 {attachment.filename || 'Attachment'}
                               </span>
                             ))}
+                          </div>
+                        )}
+                        {canSendSelectedGmail && (
+                          <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                            <button
+                              type="button"
+                              className="secondary-button gap-2 px-3 py-2 text-xs"
+                              onClick={() => openReply(message, false)}
+                            >
+                              <FiCornerUpLeft aria-hidden="true" />
+                              Reply
+                            </button>
+                            <button
+                              type="button"
+                              className="secondary-button gap-2 px-3 py-2 text-xs"
+                              onClick={() => openReply(message, true)}
+                            >
+                              <FiUsers aria-hidden="true" />
+                              Reply all
+                            </button>
+                            <button
+                              type="button"
+                              className="secondary-button gap-2 px-3 py-2 text-xs"
+                              onClick={() => openForward(message)}
+                            >
+                              <FiShare2 aria-hidden="true" />
+                              Forward
+                            </button>
                           </div>
                         )}
                       </article>
