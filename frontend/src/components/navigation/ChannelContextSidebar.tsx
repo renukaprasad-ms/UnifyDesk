@@ -10,11 +10,7 @@ import {
 } from 'react-icons/fi'
 import { Link, useLocation } from 'react-router'
 import { channelApi } from '../../features/channel/channelApi'
-import type {
-  ChannelConnection,
-  ChannelType,
-  SenderIdentity,
-} from '../../features/channel/types'
+import type { ChannelConnection, ChannelType, SenderIdentity } from '../../features/channel/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
@@ -61,10 +57,7 @@ const identityFallback = (connection: ChannelConnection) => {
   return connection.name
 }
 
-export default function ChannelContextSidebar({
-  mode,
-  onNavigate,
-}: ChannelContextSidebarProps) {
+export default function ChannelContextSidebar({ mode, onNavigate }: ChannelContextSidebarProps) {
   const companyId = useAppSelector(selectSelectedCompanyId)
   const location = useLocation()
   const [connections, setConnections] = useState<ChannelConnection[]>([])
@@ -146,9 +139,7 @@ export default function ChannelContextSidebar({
           sender,
           label: sender.value,
           secondary:
-            sender.identityType === 'SMS_HEADER'
-              ? `${connection.name} · Header`
-              : connection.name,
+            sender.identityType === 'SMS_HEADER' ? `${connection.name} · Header` : connection.name,
         })
       }
     }
@@ -247,7 +238,8 @@ export default function ChannelContextSidebar({
                                     : 'bg-white text-slate-400'
                                 }`}
                               >
-                                {channelType === 'SMS' && item.sender?.identityType === 'SMS_HEADER' ? (
+                                {channelType === 'SMS' &&
+                                item.sender?.identityType === 'SMS_HEADER' ? (
                                   <FiHash aria-hidden="true" />
                                 ) : channelType === 'WHATSAPP' ? (
                                   <FiRadio aria-hidden="true" />

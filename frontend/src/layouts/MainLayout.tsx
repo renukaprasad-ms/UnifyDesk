@@ -125,11 +125,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
 
       <div
         className={`app-content min-w-0 ${
-          platform
-            ? 'with-admin-sidebar'
-            : channelContextMode
-              ? 'with-channel-context-sidebar'
-              : ''
+          platform ? 'with-admin-sidebar' : channelContextMode ? 'with-channel-context-sidebar' : ''
         }`}
       >
         <Header menuOpen={menuOpen} onToggleMenu={() => setMenuOpen((open) => !open)} />
