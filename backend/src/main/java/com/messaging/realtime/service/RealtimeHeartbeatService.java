@@ -10,10 +10,11 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class RealtimeHeartbeatService {
 
-  private final RealtimeService realtimeService;
+  private final RealtimeLocalDeliveryService localDeliveryService;
 
   @Scheduled(fixedDelayString = "${app.realtime.heartbeat-interval-ms:30000}")
   public void heartbeat() {
-    realtimeService.broadcast("realtime.heartbeat", Map.of("at", Instant.now().toString()));
+    localDeliveryService.broadcastLocal(
+        "realtime.heartbeat", Map.of("at", Instant.now().toString()));
   }
 }
