@@ -86,6 +86,7 @@ app:
   realtime:
     redis-channel: ${REALTIME_REDIS_CHANNEL:messaging:realtime}
     heartbeat-interval-ms: ${REALTIME_HEARTBEAT_INTERVAL_MS:30000}
+    allowed-origins: ${REALTIME_ALLOWED_ORIGINS:https://messaging.renukaprasad.in}
   datasource:
     write:
       url: ${APP_DATASOURCE_WRITE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5001/messaging}}
