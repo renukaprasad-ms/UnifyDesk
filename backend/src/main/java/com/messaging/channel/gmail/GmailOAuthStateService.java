@@ -32,7 +32,8 @@ public class GmailOAuthStateService {
     byte[] bytes = new byte[32];
     RANDOM.nextBytes(bytes);
     String state = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    OAuthState payload = new OAuthState(companyId, userId, Instant.now(), normalizeReturnTo(returnTo));
+    OAuthState payload =
+        new OAuthState(companyId, userId, Instant.now(), normalizeReturnTo(returnTo));
 
     try {
       redisTemplate
