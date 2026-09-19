@@ -1,6 +1,7 @@
 package com.messaging.channel.gmail;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.messaging.asyncjob.service.AsyncJobService;
 import com.messaging.kafka.consumer.KafkaEventHandler;
 import com.messaging.kafka.event.GmailSyncRequestedEvent;
 import com.messaging.kafka.event.KafkaEvent;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
 public class GmailSyncEventHandler implements KafkaEventHandler {
 
   private final GmailSyncService syncService;
+  private final AsyncJobService asyncJobService;
   private final ObjectMapper objectMapper;
 
   @Override
@@ -24,10 +26,24 @@ public class GmailSyncEventHandler implements KafkaEventHandler {
     GmailSyncRequestedEvent payload =
         objectMapper.convertValue(event.payload(), GmailSyncRequestedEvent.class);
 
-    if (event.companyId() == null || payload.connectionId() == null) {
-      throw new IllegalArgumentException("Gmail sync event is missing company or connection id");
+    if (event.companyId() == null
+        || payload.connectionId() == null
+        || payload.jobId() == null
+        || payload.fromDate() == null
+        || payload.toDate() == null) {
+      throw new IllegalArgumentException("Gmail sync event is incomplete");
     }
 
-    syncService.sync(event.companyId(), payload.connectionId());
+    try {
+      syncService.sync(
+          event.companyId(),
+          payload.connectionId(),
+          payload.jobId(),
+          payload.fromDate(),
+          payload.toDate());
+    } catch (RuntimeException exception) {
+      asyncJobService.fail(payload.jobId(), exception.getMessage());
+      throw exception;
+    }
   }
 }

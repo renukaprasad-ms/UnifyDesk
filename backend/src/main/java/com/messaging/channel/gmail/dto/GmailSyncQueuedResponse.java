@@ -1,3 +1,6 @@
 package com.messaging.channel.gmail.dto;
 
-public record GmailSyncQueuedResponse(String connectionId, String status) {}
+import java.time.LocalDate;
+
+public record GmailSyncQueuedResponse(
+    String connectionId, String jobId, String status, LocalDate fromDate, LocalDate toDate) {}

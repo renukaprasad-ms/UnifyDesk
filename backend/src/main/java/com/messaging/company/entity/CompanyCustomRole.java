@@ -49,6 +49,12 @@ public class CompanyCustomRole {
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
+  @Column(name = "deleted_at")
+  private Instant deletedAt;
+
+  @Column(name = "deleted_by_user_id")
+  private Long deletedByUserId;
+
   @PrePersist
   private void beforeInsert() {
     if (id == null) {

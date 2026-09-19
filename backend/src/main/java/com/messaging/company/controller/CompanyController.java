@@ -14,6 +14,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -69,6 +70,15 @@ public class CompanyController {
             HttpStatus.OK.value(),
             companyService.update(companyId, userId, request),
             "Company updated"));
+  }
+
+  @DeleteMapping("/{companyId}")
+  public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long companyId) {
+    Long userId = currentUserService.currentUserId();
+    companyAuthorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.COMPANY_DELETE);
+    companyService.delete(companyId, userId);
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Company deleted"));
   }
 
   @GetMapping("/{companyId}/users")

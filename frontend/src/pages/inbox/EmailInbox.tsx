@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FiArrowLeft, FiInbox, FiMail, FiRefreshCw } from 'react-icons/fi'
 import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
+import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'
+import type { AsyncJob } from '../../features/asyncJob/types'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import type { ChannelConnection } from '../../features/channel/types'
 import { inboxApi } from '../../features/inbox/inboxApi'
 import type { InboxConversation, InboxMessage } from '../../features/inbox/types'
+import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
@@ -43,6 +46,20 @@ const isHtmlBody = (value?: string | null) => {
   )
 }
 
+const localDateInput = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const defaultSyncRange = () => {
+  const to = new Date()
+  const from = new Date()
+  from.setDate(from.getDate() - 30)
+  return { from: localDateInput(from), to: localDateInput(to) }
+}
+
 export default function EmailInbox() {
   const companyId = useAppSelector(selectSelectedCompanyId)
   const [connections, setConnections] = useState<ChannelConnection[]>([])
@@ -57,6 +74,11 @@ export default function EmailInbox() {
   const [totalElements, setTotalElements] = useState(0)
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [showSyncDialog, setShowSyncDialog] = useState(false)
+  const initialSyncRange = useMemo(() => defaultSyncRange(), [])
+  const [syncFrom, setSyncFrom] = useState(initialSyncRange.from)
+  const [syncTo, setSyncTo] = useState(initialSyncRange.to)
+  const [syncJobs, setSyncJobs] = useState<Record<string, AsyncJob>>({})
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -148,8 +170,63 @@ export default function EmailInbox() {
     }
   }, [companyId, selectedId])
 
+  const trackedSyncJobs = useMemo(() => Object.values(syncJobs), [syncJobs])
+  const activeSyncJobs = useMemo(
+    () => trackedSyncJobs.filter((job) => job.status === 'QUEUED' || job.status === 'RUNNING'),
+    [trackedSyncJobs],
+  )
+  const overallSyncProgress = useMemo(() => {
+    if (trackedSyncJobs.length === 0) return 0
+    return Math.round(
+      trackedSyncJobs.reduce((total, job) => total + job.progressPercent, 0) /
+        trackedSyncJobs.length,
+    )
+  }, [trackedSyncJobs])
+
+  useEffect(() => {
+    return realtimeClient.subscribe<AsyncJob>('async.job.progress', (event) => {
+      const job = event.payload
+      setSyncJobs((current) => {
+        if (!current[job.jobId]) return current
+        return { ...current, [job.jobId]: job }
+      })
+
+      if (job.status === 'COMPLETED') {
+        void loadConversations(0, false)
+      }
+      if (job.status === 'FAILED') {
+        setError(job.errorMessage || 'Gmail sync failed')
+      }
+    })
+  }, [loadConversations])
+
+  useEffect(() => {
+    if (activeSyncJobs.length === 0) return
+
+    const timer = window.setInterval(() => {
+      void Promise.all(
+        activeSyncJobs.map((job) =>
+          asyncJobApi
+            .get(job.jobId)
+            .then((latest) => setSyncJobs((current) => ({ ...current, [latest.jobId]: latest })))
+            .catch(() => undefined),
+        ),
+      )
+    }, 3000)
+
+    return () => window.clearInterval(timer)
+  }, [activeSyncJobs])
+
   const syncGmail = async () => {
     if (!companyId || syncing) return
+    if (!syncFrom || !syncTo) {
+      setError('Choose both Gmail sync dates.')
+      return
+    }
+    if (syncFrom > syncTo) {
+      setError('From date must be before or equal to the to date.')
+      return
+    }
 
     const gmailConnections = connections.filter(
       (connection) => connection.providerType === 'GMAIL' && connection.status === 'ACTIVE',
@@ -157,6 +234,7 @@ export default function EmailInbox() {
 
     if (gmailConnections.length === 0) {
       setNotice('Connect a Gmail account before syncing your inbox.')
+      setShowSyncDialog(false)
       return
     }
 
@@ -165,10 +243,19 @@ export default function EmailInbox() {
     setNotice(null)
 
     try {
-      await Promise.all(
-        gmailConnections.map((connection) => gmailApi.sync(companyId, connection.id)),
+      const queued = await Promise.all(
+        gmailConnections.map((connection) =>
+          gmailApi.sync(companyId, connection.id, { fromDate: syncFrom, toDate: syncTo }),
+        ),
       )
-      setNotice('Gmail sync queued. Refresh in a few seconds to see new messages.')
+      const jobs = await Promise.all(queued.map((item) => asyncJobApi.get(item.jobId)))
+      setSyncJobs(Object.fromEntries(jobs.map((job) => [job.jobId, job])))
+      setShowSyncDialog(false)
+      setNotice(
+        `Gmail sync started for ${gmailConnections.length} account${
+          gmailConnections.length === 1 ? '' : 's'
+        }.`,
+      )
     } catch (requestError) {
       setError(apiErrorMessage(requestError, 'Unable to queue Gmail sync'))
     } finally {
@@ -210,11 +297,11 @@ export default function EmailInbox() {
             <button
               type="button"
               className="primary-button flex-1 gap-2 sm:flex-none"
-              onClick={() => void syncGmail()}
-              disabled={syncing}
+              onClick={() => setShowSyncDialog(true)}
+              disabled={syncing || activeSyncJobs.length > 0}
             >
               <FiMail aria-hidden="true" />
-              {syncing ? 'Queuing...' : 'Sync Gmail'}
+              {syncing ? 'Queuing...' : activeSyncJobs.length > 0 ? 'Syncing...' : 'Sync Gmail'}
             </button>
           </div>
         </div>
@@ -227,6 +314,108 @@ export default function EmailInbox() {
         {notice && (
           <div className="mb-4 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
             {notice}
+          </div>
+        )}
+
+        {trackedSyncJobs.length > 0 && (
+          <div className="panel mb-4 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-900">
+                  {activeSyncJobs.length > 0
+                    ? 'Syncing Gmail'
+                    : trackedSyncJobs.every((job) => job.status === 'COMPLETED')
+                      ? 'Gmail sync complete'
+                      : 'Gmail sync finished'}
+                </p>
+                <p className="mt-1 truncate text-xs text-slate-500">
+                  {activeSyncJobs[0]?.statusMessage ||
+                    trackedSyncJobs.at(-1)?.statusMessage ||
+                    'Preparing sync'}
+                </p>
+              </div>
+              <span className="text-sm font-bold text-indigo-600">{overallSyncProgress}%</span>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-indigo-500 transition-[width] duration-300"
+                style={{ width: `${overallSyncProgress}%` }}
+              />
+            </div>
+            {trackedSyncJobs.length > 1 && (
+              <p className="mt-2 text-[11px] text-slate-400">
+                {trackedSyncJobs.length} connected Gmail accounts are included in this sync.
+              </p>
+            )}
+          </div>
+        )}
+
+        {showSyncDialog && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.currentTarget === event.target && !syncing) setShowSyncDialog(false)
+            }}
+          >
+            <div
+              className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="gmail-sync-title"
+            >
+              <p className="eyebrow">GMAIL SYNC</p>
+              <h2 id="gmail-sync-title" className="mt-2 text-lg font-bold text-slate-950">
+                Choose email date range
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                ReachFly will import Gmail messages within this range and show live progress.
+              </p>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <label className="text-xs font-semibold text-slate-600">
+                  From
+                  <input
+                    type="date"
+                    className="form-input mt-1.5"
+                    value={syncFrom}
+                    max={syncTo}
+                    onChange={(event) => setSyncFrom(event.target.value)}
+                  />
+                </label>
+                <label className="text-xs font-semibold text-slate-600">
+                  To
+                  <input
+                    type="date"
+                    className="form-input mt-1.5"
+                    value={syncTo}
+                    min={syncFrom}
+                    max={localDateInput(new Date())}
+                    onChange={(event) => setSyncTo(event.target.value)}
+                  />
+                </label>
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  className="secondary-button justify-center"
+                  disabled={syncing}
+                  onClick={() => setShowSyncDialog(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="primary-button justify-center gap-2"
+                  disabled={syncing}
+                  onClick={() => void syncGmail()}
+                >
+                  <FiMail aria-hidden="true" />
+                  {syncing ? 'Starting...' : 'Start sync'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

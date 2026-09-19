@@ -120,7 +120,6 @@ class GmailConnectionServiceTests {
         .requirePermission(USER_ID, COMPANY_ID, CompanyPermissionKeys.EMAIL_CONNECT);
     verify(entitlementService).assertCanCreateConnection(COMPANY_ID, ChannelType.EMAIL);
     verify(persistenceService).persist(COMPANY_ID, USER_ID, profile, token);
-    verify(syncQueueService).enqueue(COMPANY_ID, USER_ID, 303L, true);
   }
 
   @Test

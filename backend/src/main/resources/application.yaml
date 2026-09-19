@@ -83,6 +83,9 @@ spring:
         heartbeat.interval.ms: ${KAFKA_HEARTBEAT_INTERVAL_MS:15000}
 
 app:
+  realtime:
+    redis-channel: ${REALTIME_REDIS_CHANNEL:messaging:realtime}
+    heartbeat-interval-ms: ${REALTIME_HEARTBEAT_INTERVAL_MS:30000}
   datasource:
     write:
       url: ${APP_DATASOURCE_WRITE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5001/messaging}}
@@ -141,6 +144,8 @@ app:
       token-refresh-skew: ${GMAIL_OAUTH_TOKEN_REFRESH_SKEW:2m}
       initial-sync-days: ${GMAIL_INITIAL_SYNC_DAYS:30}
       initial-sync-max-messages: ${GMAIL_INITIAL_SYNC_MAX_MESSAGES:200}
+      sync-max-range-days: ${GMAIL_SYNC_MAX_RANGE_DAYS:366}
+      sync-max-messages: ${GMAIL_SYNC_MAX_MESSAGES:5000}
   redis:
     key-prefix: ${REDIS_KEY_PREFIX:messaging}
     ttl:

@@ -13,6 +13,7 @@ import com.messaging.channel.gmail.GmailOAuthStateService.OAuthState;
 import com.messaging.channel.gmail.dto.GmailAuthorizationResponse;
 import com.messaging.channel.gmail.dto.GmailConnectionResponse;
 import com.messaging.channel.gmail.dto.GmailSyncQueuedResponse;
+import com.messaging.channel.gmail.dto.GmailSyncRequest;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.channel.service.ChannelConnectionService;
 import com.messaging.channel.service.ChannelEntitlementService;
@@ -84,16 +85,6 @@ public class GmailConnectionService {
     GmailConnectionResponse response =
         persistenceService.persist(oauthState.companyId(), oauthState.userId(), profile, token);
 
-    try {
-      syncQueueService.enqueue(
-          oauthState.companyId(), oauthState.userId(), Long.valueOf(response.connectionId()), true);
-    } catch (RuntimeException exception) {
-      log.warn(
-          "Gmail connected but initial sync could not be queued companyId={} connectionId={}",
-          oauthState.companyId(),
-          response.connectionId());
-    }
-
     return response;
   }
 
@@ -101,7 +92,8 @@ public class GmailConnectionService {
     stateService.consume(state);
   }
 
-  public GmailSyncQueuedResponse queueSync(Long companyId, Long userId, Long connectionId) {
+  public GmailSyncQueuedResponse queueSync(
+      Long companyId, Long userId, Long connectionId, GmailSyncRequest request) {
     ChannelConnectionResponse connection = channelConnectionService.get(companyId, connectionId);
     if (connection.providerType() != ProviderType.GMAIL) {
       throw new BadRequestException("Channel connection is not a Gmail account");
@@ -110,8 +102,8 @@ public class GmailConnectionService {
       throw new BadRequestException("Gmail connection is not active");
     }
 
-    syncQueueService.enqueue(companyId, userId, connectionId, false);
-    return new GmailSyncQueuedResponse(connectionId.toString(), "QUEUED");
+    return syncQueueService.enqueue(
+        companyId, userId, connectionId, request.fromDate(), request.toDate());
   }
 
   public ChannelConnectionResponse disconnect(Long companyId, Long connectionId) {

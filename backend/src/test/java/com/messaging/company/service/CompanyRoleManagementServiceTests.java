@@ -14,6 +14,7 @@ import com.messaging.company.repository.CompanyCustomRoleRepository;
 import com.messaging.company.repository.CompanyMemberRepository;
 import com.messaging.company.repository.CompanyMemberRoleAssignmentRepository;
 import com.messaging.company.repository.PermissionDefinitionRepository;
+import com.messaging.lifecycle.service.DeletionQueueService;
 import com.messaging.security.service.CurrentUserService;
 import java.util.List;
 import java.util.Set;
@@ -38,6 +39,7 @@ class CompanyRoleManagementServiceTests {
   @Mock private CompanyCustomRolePermissionRepository rolePermissionRepository;
   @Mock private CompanyMemberRoleAssignmentRepository assignmentRepository;
   @Mock private CurrentUserService currentUserService;
+  @Mock private DeletionQueueService deletionQueueService;
 
   private CompanyRoleManagementService service;
 
@@ -53,7 +55,8 @@ class CompanyRoleManagementServiceTests {
             roleRepository,
             rolePermissionRepository,
             assignmentRepository,
-            currentUserService);
+            currentUserService,
+            deletionQueueService);
   }
 
   @Test
@@ -67,7 +70,8 @@ class CompanyRoleManagementServiceTests {
 
     when(currentUserService.currentUserId()).thenReturn(ACTOR_ID);
     when(companyService.getCompany(COMPANY_ID)).thenReturn(new Company());
-    when(roleRepository.existsByCompanyIdAndNameIgnoreCase(COMPANY_ID, "Billing Admin"))
+    when(roleRepository.existsByCompanyIdAndNameIgnoreCaseAndDeletedAtIsNull(
+            COMPANY_ID, "Billing Admin"))
         .thenReturn(false);
     when(permissionDefinitionRepository.findAllById(any())).thenReturn(List.of(billingCardAdd));
     when(iamPermissionService.canDelegate(

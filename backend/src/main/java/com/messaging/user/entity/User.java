@@ -2,8 +2,11 @@ package com.messaging.user.entity;
 
 import com.messaging.common.id.IdGenerator;
 import com.messaging.media.entity.Media;
+import com.messaging.user.enums.UserStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -11,6 +14,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -50,6 +54,13 @@ public class User {
 
   @Column(name = "two_factor_enabled", nullable = false)
   private boolean twoFactorEnabled;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 24)
+  private UserStatus status = UserStatus.ACTIVE;
+
+  @Column(name = "deleted_at")
+  private Instant deletedAt;
 
   @PrePersist
   private void assignId() {

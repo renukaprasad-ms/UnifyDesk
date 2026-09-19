@@ -6,10 +6,22 @@ import java.time.Instant;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface MediaRepository extends JpaRepository<Media, Long> {
 
+  @Query(
+      "select coalesce(sum(m.sizeBytes), 0) from Media m "
+          + "where m.companyId = :companyId and m.status in :statuses")
+  long sumSizeBytesByCompanyAndStatuses(
+      @Param("companyId") Long companyId, @Param("statuses") List<MediaStatus> statuses);
+
   List<Media> findByStatusAndCreatedAtBefore(MediaStatus status, Instant createdBefore);
+
+  List<Media> findByOwnerUserIdAndCompanyIdIsNullAndStatusNot(Long ownerUserId, MediaStatus status);
+
+  List<Media> findByCompanyIdAndStatusNot(Long companyId, MediaStatus status);
 
   List<Media> findByStatusAndCreatedAtBefore(
       MediaStatus status, Instant createdBefore, Pageable pageable);

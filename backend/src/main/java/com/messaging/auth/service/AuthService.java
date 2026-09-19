@@ -23,6 +23,7 @@ import com.messaging.session.entity.UserSession;
 import com.messaging.session.service.UserSessionService;
 import com.messaging.user.dto.CreateUserRequest;
 import com.messaging.user.entity.User;
+import com.messaging.user.enums.UserStatus;
 import com.messaging.user.service.UserService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
@@ -91,6 +92,9 @@ public class AuthService {
         userService
             .findByIdentifier(request.identifier())
             .orElseThrow(() -> new UnauthorizedException("Invalid username/email or password"));
+    if (user.getStatus() != UserStatus.ACTIVE) {
+      throw new UnauthorizedException("Invalid username/email or password");
+    }
     if (!passwordEncoder.matches(request.password(), user.getPassword())) {
       throw new UnauthorizedException("Invalid username/email or password");
     }
@@ -193,6 +197,10 @@ public class AuthService {
             .findActiveByRefreshTokenId(claims.getId())
             .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
     User user = session.getUser();
+    if (user.getStatus() != UserStatus.ACTIVE) {
+      userSessionService.revokeAllForUser(user.getId());
+      throw new UnauthorizedException("Account is not active");
+    }
     issueSession(user, servletRequest, headers);
     return toResponse(user);
   }
