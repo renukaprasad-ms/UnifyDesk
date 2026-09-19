@@ -36,10 +36,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.HtmlUtils;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GmailInboxPersistenceService {
@@ -58,12 +60,26 @@ public class GmailInboxPersistenceService {
       ChannelConnection connection, List<GmailMessage> messages, String historyId) {
     Instant syncedAt = Instant.now();
     int createdMessages = 0;
+    int existingMessages = 0;
+    int skippedMessages = 0;
+    long accountedBytes = 0;
     Set<Long> touchedConversationIds = new HashSet<>();
+
+    log.info(
+        "GMAIL_SYNC_DIAG persist_start companyId={} connectionId={} fetchedMessages={} historyPresent={}",
+        connection.getCompanyId(),
+        connection.getId(),
+        messages.size(),
+        historyId != null && !historyId.isBlank());
 
     for (GmailMessage gmailMessage : messages) {
       if (gmailMessage == null
           || !hasText(gmailMessage.id())
           || !hasText(gmailMessage.threadId())) {
+        skippedMessages++;
+        log.debug(
+            "GMAIL_SYNC_DIAG persist_skip connectionId={} reason=missing_message_or_thread_id",
+            connection.getId());
         continue;
       }
 
@@ -149,7 +165,19 @@ public class GmailInboxPersistenceService {
 
       if (created) {
         createdMessages++;
+      } else {
+        existingMessages++;
       }
+      accountedBytes += Math.max(0, message.getStorageBytes());
+
+      log.debug(
+          "GMAIL_SYNC_DIAG persist_message connectionId={} created={} direction={} storageBytes={} hasTextBody={} hasHtmlBody={}",
+          connection.getId(),
+          created,
+          direction,
+          message.getStorageBytes(),
+          hasText(message.getBodyText()),
+          hasText(message.getBodyHtml()));
 
       upsertParticipants(conversation, gmailMessage.payload());
       upsertAttachments(message, gmailMessage.payload());
@@ -183,6 +211,17 @@ public class GmailInboxPersistenceService {
 
     connection.setLastSyncAt(syncedAt);
     connectionRepository.save(connection);
+
+    log.info(
+        "GMAIL_SYNC_DIAG persist_complete companyId={} connectionId={} fetchedMessages={} createdMessages={} existingMessages={} skippedMessages={} touchedConversations={} logicalBytes={}",
+        connection.getCompanyId(),
+        connection.getId(),
+        messages.size(),
+        createdMessages,
+        existingMessages,
+        skippedMessages,
+        touchedConversationIds.size(),
+        accountedBytes);
 
     return new GmailSyncResult(
         connection.getId().toString(),
