@@ -45,6 +45,27 @@ public class InboxMessage {
   @Column(name = "provider_history_id", length = 255)
   private String providerHistoryId;
 
+  @Column(name = "from_address", length = 320)
+  private String fromAddress;
+
+  @Column(name = "reply_to_address", length = 320)
+  private String replyToAddress;
+
+  @Column(name = "to_addresses", columnDefinition = "TEXT")
+  private String toAddresses;
+
+  @Column(name = "cc_addresses", columnDefinition = "TEXT")
+  private String ccAddresses;
+
+  @Column(name = "bcc_addresses", columnDefinition = "TEXT")
+  private String bccAddresses;
+
+  @Column(name = "in_reply_to", length = 998)
+  private String inReplyTo;
+
+  @Column(name = "references_header", columnDefinition = "TEXT")
+  private String referencesHeader;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 24)
   private InboxMessageDirection direction;
