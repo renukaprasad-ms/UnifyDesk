@@ -1,6 +1,6 @@
 import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
-import type { ChannelConnection, GmailAuthorization, GmailSyncQueued } from './types'
+import type { ChannelConnection, GmailAuthorization, GmailSyncQueued, GmailSyncRequest } from './types'
 
 const unwrap = <T>(response: ApiResponse<T>) => {
   if (!response.data) throw new Error(response.error_message ?? 'Empty API response')
@@ -15,9 +15,10 @@ export const gmailApi = {
     return unwrap(response.data)
   },
 
-  async sync(companyId: string, connectionId: string) {
+  async sync(companyId: string, connectionId: string, request: GmailSyncRequest) {
     const response = await apiClient.post<ApiResponse<GmailSyncQueued>>(
       `/api/v1/companies/${companyId}/channels/email/gmail/${connectionId}/sync`,
+      request,
     )
     return unwrap(response.data)
   },
