@@ -29,8 +29,7 @@ class MessageStorageMeterTests {
             + bytes(bodyHtml);
 
     assertThat(
-            meter.measure(
-                externalId, internetId, historyId, subject, snippet, bodyText, bodyHtml))
+            meter.measure(externalId, internetId, historyId, subject, snippet, bodyText, bodyHtml))
         .isEqualTo(256 + variableBytes);
   }
 
