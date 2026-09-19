@@ -22,8 +22,16 @@ public class RealtimeLocalDeliveryService {
 
   public void deliver(RealtimeDispatch dispatch) {
     if (dispatch == null || dispatch.target() == null || dispatch.messageJson() == null) {
+      log.warn("WS_DIAG local_delivery_skip reason=invalid_dispatch");
       return;
     }
+
+    log.debug(
+        "WS_DIAG local_delivery target={} userId={} platform={} socketId={}",
+        dispatch.target(),
+        dispatch.userId(),
+        dispatch.platform(),
+        dispatch.socketId());
 
     switch (dispatch.target()) {
       case USER -> send(registry.forUser(dispatch.userId()), dispatch.messageJson());
@@ -55,9 +63,11 @@ public class RealtimeLocalDeliveryService {
 
   private void send(Collection<RealtimeConnection> connections, String json) {
     if (connections == null || connections.isEmpty()) {
+      log.debug("WS_DIAG local_delivery_no_connections bytes={}", json.length());
       return;
     }
 
+    log.debug("WS_DIAG local_delivery_send_attempt connections={} bytes={}", connections.size(), json.length());
     TextMessage message = new TextMessage(json);
     for (RealtimeConnection connection : connections) {
       try {
