@@ -24,7 +24,7 @@ import com.messaging.media.repository.MediaRepository;
 import com.messaging.redis.key.RedisKey;
 import com.messaging.redis.service.RedisService;
 import com.messaging.security.service.CurrentUserService;
-import com.messaging.storage.service.StorageQuotaService;
+import com.messaging.storage.adapter.MediaStorageAccountingAdapter;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -51,10 +51,11 @@ public class MediaService {
   private final MediaAuthorizationService authorizationService;
   private final MediaMapper mediaMapper;
   private final RedisService redisService;
-  private final StorageQuotaService storageQuotaService;
+  private final MediaStorageAccountingAdapter storageAccounting;
   private final CompanyAuthorizationService companyAuthorizationService;
   private final SecureRandom secureRandom = new SecureRandom();
 
+  @Transactional
   public InitiateMediaUploadResponse initiateUpload(InitiateMediaUploadRequest request) {
     MediaValidationService.ValidatedMedia validated =
         validationService.validateForUpload(
@@ -73,6 +74,8 @@ public class MediaService {
         preRegisterUpload
             ? createPreRegisterPendingMedia(request, validated)
             : createPendingMedia(userId, request, validated);
+    storageAccounting.reserve(media);
+
     StorageProvider provider = storageProviderResolver.resolve(media.getStorageProvider());
     SignedUploadResult signedUpload =
         provider.createSignedUpload(
@@ -140,6 +143,7 @@ public class MediaService {
     return mediaRepository.saveAndFlush(media);
   }
 
+  @Transactional
   public MediaResponse completeUpload(String mediaId) {
     long userId = currentUserService.currentUserId();
     Media media = loadOwnedMedia(parseMediaId(mediaId), userId);
@@ -153,6 +157,7 @@ public class MediaService {
     return mediaMapper.toResponse(completePendingMedia(media, userId));
   }
 
+  @Transactional
   public Media completePreRegisterProfilePictureUpload(
       String mediaId, String uploadToken, long userId) {
     long parsedMediaId = parseMediaId(mediaId);
@@ -201,7 +206,9 @@ public class MediaService {
     if (!media.getObjectKey().equals(finalObjectKey)) {
       provider.move(media.getBucket(), media.getObjectKey(), finalObjectKey);
     }
-    return markActive(media.getId(), ownerUserId, finalObjectKey, metadata.checksum());
+    Media active = markActive(media.getId(), ownerUserId, finalObjectKey, metadata.checksum());
+    storageAccounting.commit(active);
+    return active;
   }
 
   public MediaAccessResponse createAccessUrl(String mediaId) {
@@ -231,17 +238,19 @@ public class MediaService {
       throw new MediaException(HttpStatus.CONFLICT, "MEDIA_ALREADY_ASSIGNED");
     }
 
-    storageQuotaService.assertCanReserve(companyId, media.getSizeBytes());
+    storageAccounting.attachActiveMediaToCompany(media, companyId);
     media.setCompanyId(companyId);
     mediaRepository.saveAndFlush(media);
   }
 
+  @Transactional
   public MediaResponse delete(String mediaId) {
     long userId = currentUserService.currentUserId();
     Media media = loadOwnedMedia(parseMediaId(mediaId), userId);
     if (media.getStatus() == MediaStatus.DELETED) {
       return mediaMapper.toResponse(media);
     }
+    storageAccounting.release(media);
     Media deleted = markDeleted(media.getId());
     try {
       storageProviderResolver
@@ -303,6 +312,7 @@ public class MediaService {
         .filter(media -> media.getStatus() == MediaStatus.PENDING)
         .ifPresent(
             media -> {
+              storageAccounting.release(media);
               media.setStatus(MediaStatus.FAILED);
               mediaRepository.saveAndFlush(media);
             });
@@ -335,7 +345,6 @@ public class MediaService {
     if (request.companyId() != null) {
       companyAuthorizationService.requirePermission(
           userId, request.companyId(), CompanyPermissionKeys.MEDIA_UPLOAD);
-      storageQuotaService.assertCanReserve(request.companyId(), sizeBytes);
     }
   }
 
