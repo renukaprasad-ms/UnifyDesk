@@ -62,6 +62,7 @@ public class GmailInboxPersistenceService {
     int createdMessages = 0;
     Set<Long> touchedConversationIds = new HashSet<>();
     List<StorageConsumption> storageConsumptions = new ArrayList<>();
+    Map<Long, Map<String, InboxParticipant>> participantCache = new HashMap<>();
 
     List<GmailMessage> validMessages =
         messages == null
@@ -99,7 +100,8 @@ public class GmailInboxPersistenceService {
 
     for (GmailMessage gmailMessage : validMessages) {
       InboxConversation conversation = conversationsByExternalId.get(gmailMessage.threadId());
-      if (conversation == null) {
+      boolean conversationCreated = conversation == null;
+      if (conversationCreated) {
         conversation = new InboxConversation();
         conversation.setCompanyId(connection.getCompanyId());
         conversation.setConnection(connection);
@@ -184,8 +186,9 @@ public class GmailInboxPersistenceService {
         createdMessages++;
       }
 
-      upsertParticipants(conversation, gmailMessage.payload());
-      upsertAttachments(message, gmailMessage.payload());
+      upsertParticipants(
+          conversation, gmailMessage.payload(), conversationCreated, participantCache);
+      upsertAttachments(message, gmailMessage.payload(), created);
       touchedConversationIds.add(conversation.getId());
     }
 
@@ -237,7 +240,26 @@ public class GmailInboxPersistenceService {
   }
 
 
-  private void upsertParticipants(InboxConversation conversation, GmailPayload payload) {
+  private void upsertParticipants(
+      InboxConversation conversation,
+      GmailPayload payload,
+      boolean conversationCreated,
+      Map<Long, Map<String, InboxParticipant>> participantCache) {
+    Map<String, InboxParticipant> participants =
+        participantCache.computeIfAbsent(
+            conversation.getId(),
+            ignored -> {
+              Map<String, InboxParticipant> existing = new HashMap<>();
+              if (!conversationCreated) {
+                for (InboxParticipant participant :
+                    participantRepository.findByConversationIdOrderByAddressAsc(
+                        conversation.getId())) {
+                  existing.put(participantKey(participant.getAddress()), participant);
+                }
+              }
+              return existing;
+            });
+
     for (String headerName : List.of("From", "To", "Cc", "Bcc")) {
       String value = header(payload, headerName);
       if (!hasText(value)) {
@@ -253,16 +275,15 @@ public class GmailInboxPersistenceService {
           }
 
           String normalizedAddress = internetAddress.getAddress().trim().toLowerCase(Locale.ROOT);
-          InboxParticipant participant =
-              participantRepository
-                  .findByConversationIdAndParticipantTypeAndAddressIgnoreCase(
-                      conversation.getId(), InboxParticipantType.EMAIL_ADDRESS, normalizedAddress)
-                  .orElseGet(InboxParticipant::new);
+          String key = participantKey(normalizedAddress);
+          InboxParticipant participant = participants.get(key);
 
-          if (participant.getId() == null) {
+          if (participant == null) {
+            participant = new InboxParticipant();
             participant.setConversation(conversation);
             participant.setParticipantType(InboxParticipantType.EMAIL_ADDRESS);
             participant.setAddress(normalizedAddress);
+            participants.put(key, participant);
           }
           if (hasText(internetAddress.getPersonal())) {
             participant.setDisplayName(internetAddress.getPersonal());
@@ -276,16 +297,23 @@ public class GmailInboxPersistenceService {
     }
   }
 
-  private void upsertAttachments(InboxMessage message, GmailPayload payload) {
+  private String participantKey(String address) {
+    return InboxParticipantType.EMAIL_ADDRESS.name() + ":" + address.toLowerCase(Locale.ROOT);
+  }
+
+  private void upsertAttachments(
+      InboxMessage message, GmailPayload payload, boolean messageCreated) {
     List<AttachmentMetadata> attachments = new ArrayList<>();
     collectAttachments(payload, attachments);
 
     for (AttachmentMetadata metadata : attachments) {
       InboxMessageAttachment attachment =
-          attachmentRepository
-              .findByMessageIdAndExternalAttachmentId(
-                  message.getId(), metadata.externalAttachmentId())
-              .orElseGet(InboxMessageAttachment::new);
+          messageCreated
+              ? new InboxMessageAttachment()
+              : attachmentRepository
+                  .findByMessageIdAndExternalAttachmentId(
+                      message.getId(), metadata.externalAttachmentId())
+                  .orElseGet(InboxMessageAttachment::new);
 
       if (attachment.getId() == null) {
         attachment.setMessage(message);
