@@ -147,7 +147,7 @@ public class BillingCatalogService {
   @Transactional
   public EntitlementResponse upsertEntitlement(Long planId, UpsertEntitlementRequest request) {
     Plan plan = getPlan(planId);
-    assertDraft(plan);
+    assertEntitlementsMutable(plan);
     String key = normalizeEntitlementKey(request.key());
     EntitlementDefinition definition =
         entitlementDefinitionRepository
@@ -171,7 +171,7 @@ public class BillingCatalogService {
         entitlementRepository
             .findById(entitlementId)
             .orElseThrow(() -> new NotFoundException("Entitlement not found"));
-    assertDraft(entitlement.getPlan());
+    assertEntitlementsMutable(entitlement.getPlan());
     entitlementRepository.delete(entitlement);
   }
 
@@ -509,6 +509,12 @@ public class BillingCatalogService {
     if (plan.getStatus() != PlanStatus.DRAFT) {
       throw new ConflictException(
           "Published commercial terms are immutable; create a new plan version instead");
+    }
+  }
+
+  private void assertEntitlementsMutable(Plan plan) {
+    if (plan.getStatus() == PlanStatus.RETIRED) {
+      throw new ConflictException("Retired plan limits and features cannot be changed");
     }
   }
 
