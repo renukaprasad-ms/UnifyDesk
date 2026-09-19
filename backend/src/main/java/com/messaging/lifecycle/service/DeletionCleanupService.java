@@ -1,7 +1,6 @@
 package com.messaging.lifecycle.service;
 
 import com.messaging.kafka.event.EntityDeletionRequestedEvent;
-import com.messaging.lifecycle.enums.LifecycleEntityType;
 import com.messaging.media.entity.Media;
 import com.messaging.media.enums.MediaStatus;
 import com.messaging.media.provider.StorageProviderResolver;

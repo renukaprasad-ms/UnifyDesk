@@ -122,8 +122,7 @@ public class CompanyService {
 
     List<ChannelConnectionResponse> connections = channelConnectionService.list(companyId, null);
     for (ChannelConnectionResponse connection : connections) {
-      channelConnectionService.disconnect(
-          companyId, Long.valueOf(connection.id()), actorUserId);
+      channelConnectionService.disconnect(companyId, Long.valueOf(connection.id()), actorUserId);
     }
 
     var assignments = roleAssignmentRepository.findByCompanyIdAndRevokedAtIsNull(companyId);
@@ -152,8 +151,7 @@ public class CompanyService {
     company.setLogoMediaId(null);
     companyRepository.saveAndFlush(company);
 
-    deletionQueueService.enqueue(
-        LifecycleEntityType.COMPANY, companyId, companyId, actorUserId);
+    deletionQueueService.enqueue(LifecycleEntityType.COMPANY, companyId, companyId, actorUserId);
   }
 
   @Transactional(readOnly = true)
