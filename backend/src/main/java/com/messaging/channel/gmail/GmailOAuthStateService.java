@@ -73,5 +73,9 @@ public class GmailOAuthStateService {
     return "/company/connections";
   }
 
-  public record OAuthState(Long companyId, Long userId, Instant createdAt, String returnTo) {}
+  public record OAuthState(Long companyId, Long userId, Instant createdAt, String returnTo) {
+    public OAuthState(Long companyId, Long userId, Instant createdAt) {
+      this(companyId, userId, createdAt, "/company/connections");
+    }
+  }
 }
