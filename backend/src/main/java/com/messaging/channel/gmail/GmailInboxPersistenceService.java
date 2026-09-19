@@ -54,8 +54,7 @@ public class GmailInboxPersistenceService {
   private final StorageQuotaService storageQuotaService;
 
   @Transactional
-  public GmailSyncResult persistFullSync(
-      ChannelConnection connection, List<GmailMessage> messages, String historyId) {
+  public GmailSyncResult persistBatch(ChannelConnection connection, List<GmailMessage> messages) {
     Instant syncedAt = Instant.now();
     int createdMessages = 0;
     Set<Long> touchedConversationIds = new HashSet<>();
@@ -169,6 +168,18 @@ public class GmailInboxPersistenceService {
               });
     }
 
+    return new GmailSyncResult(
+        connection.getId().toString(),
+        messages.size(),
+        createdMessages,
+        touchedConversationIds.size(),
+        null,
+        syncedAt);
+  }
+
+  @Transactional
+  public void completeFullSync(ChannelConnection connection, String historyId) {
+    Instant syncedAt = Instant.now();
     ChannelSyncState syncState =
         syncStateRepository
             .findByConnectionIdAndProviderType(connection.getId(), ProviderType.GMAIL)
@@ -183,15 +194,8 @@ public class GmailInboxPersistenceService {
 
     connection.setLastSyncAt(syncedAt);
     connectionRepository.save(connection);
-
-    return new GmailSyncResult(
-        connection.getId().toString(),
-        messages.size(),
-        createdMessages,
-        touchedConversationIds.size(),
-        historyId,
-        syncedAt);
   }
+
 
   private void upsertParticipants(InboxConversation conversation, GmailPayload payload) {
     for (String headerName : List.of("From", "To", "Cc", "Bcc")) {
