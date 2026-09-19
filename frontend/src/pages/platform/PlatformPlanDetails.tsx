@@ -201,6 +201,27 @@ export default function PlatformPlanDetails() {
     }
   }
 
+  const saveAllEntitlements = async () => {
+    setSaving(true)
+    setError('')
+    try {
+      await Promise.all(
+        definitions.map((definition) =>
+          adminBillingApi.saveEntitlement(
+            planId,
+            definition.key,
+            entitlementValues[definition.key] ?? definition.defaultValue,
+          ),
+        ),
+      )
+      await load()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to save plan limits and features')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const removeEntitlement = async (key: string) => {
     const current = plan?.entitlements.find((item) => item.key === key)
     if (!current) return
@@ -502,6 +523,24 @@ export default function PlatformPlanDetails() {
 
         {tab === 'entitlements' && (
           <div className="mt-6 space-y-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-slate-950">Limits & features</h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Update multiple plan limits, then save the entire catalogue at once.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="primary-button gap-2 self-start sm:self-auto"
+                disabled={saving || definitions.length === 0}
+                onClick={() => void saveAllEntitlements()}
+              >
+                <FiSave />
+                {saving ? 'Saving...' : 'Save all'}
+              </button>
+            </div>
+
             {Object.entries(entitlementsByCategory).map(([category, items]) => (
               <div key={category} className="panel overflow-hidden">
                 <div className="border-b border-slate-100 px-5 py-4">
