@@ -7,13 +7,16 @@ import com.messaging.channel.gmail.GmailSyncStateService.ClaimedBatch;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.common.exception.ServiceUnavailableException;
 import com.messaging.common.exception.TooManyRequestsException;
-import com.messaging.kafka.exception.RetryableKafkaException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GmailSyncBatchService {
@@ -39,15 +42,27 @@ public class GmailSyncBatchService {
       return;
     }
 
+    processClaimed(batch);
+  }
+
+  public void processClaimed(ClaimedBatch batch) {
+    long startedNanos = System.nanoTime();
+    long fetchMs = 0;
+    long persistMs = 0;
+
     try {
       ChannelConnection connection =
           connectionRepository
-              .findByIdAndCompanyId(connectionId, batch.companyId())
+              .findByIdAndCompanyId(batch.connectionId(), batch.companyId())
               .orElseThrow(() -> new NotFoundException("Gmail connection not found"));
+
       String accessToken = tokenService.accessToken(connection);
 
+      long fetchStartedNanos = System.nanoTime();
       List<BatchMessageResult> results =
           gmailApiClient.batchMessages(accessToken, batch.messageIds());
+      fetchMs = elapsedMillis(fetchStartedNanos);
+
       List<GmailMessage> successful = new ArrayList<>(results.size());
       List<String> retryIds = new ArrayList<>();
       int permanentFailures = 0;
@@ -65,33 +80,71 @@ public class GmailSyncBatchService {
         }
       }
 
+      long persistStartedNanos = System.nanoTime();
       boolean retry =
           commitService.commitResults(
               batch, successful, retryIds, permanentFailures, lastError);
-      if (retry) {
-        throw new RetryableKafkaException(
-            "Gmail batch has " + retryIds.size() + " transient message failures");
-      }
+      persistMs = elapsedMillis(persistStartedNanos);
 
-      finalizerService.tryFinalize(jobId);
-    } catch (RetryableKafkaException exception) {
-      throw exception;
-    } catch (TooManyRequestsException exception) {
-      boolean retry = commitService.failAttempt(batch, exception.getMessage(), true);
-      if (retry) {
-        throw new RetryableKafkaException("Gmail batch is rate limited", exception);
+      log.info(
+          "gmail_sync_batch_processed batchId={} jobId={} connectionId={} requested={} successful={} retry={} permanentFailures={} fetchMs={} persistMs={} totalMs={}",
+          batch.batchId(),
+          batch.jobId(),
+          batch.connectionId(),
+          batch.messageIds().size(),
+          successful.size(),
+          retryIds.size(),
+          permanentFailures,
+          fetchMs,
+          persistMs,
+          elapsedMillis(startedNanos));
+
+      if (!retry) {
+        finalizerService.tryFinalize(batch.jobId());
       }
-      finalizerService.tryFinalize(jobId);
+    } catch (TooManyRequestsException | ServiceUnavailableException exception) {
+      boolean retry = commitService.failAttempt(batch, exception.getMessage(), true);
+      log.warn(
+          "gmail_sync_batch_retry batchId={} jobId={} connectionId={} attempt={} fetchMs={} persistMs={} reason={}",
+          batch.batchId(),
+          batch.jobId(),
+          batch.connectionId(),
+          batch.attempt(),
+          fetchMs,
+          persistMs,
+          exception.getClass().getSimpleName());
+      if (!retry) {
+        finalizerService.tryFinalize(batch.jobId());
+      }
     } catch (BadRequestException | NotFoundException exception) {
       commitService.failAttempt(batch, exception.getMessage(), false);
-      finalizerService.tryFinalize(jobId);
+      log.warn(
+          "gmail_sync_batch_failed batchId={} jobId={} connectionId={} attempt={} reason={}",
+          batch.batchId(),
+          batch.jobId(),
+          batch.connectionId(),
+          batch.attempt(),
+          exception.getMessage());
+      finalizerService.tryFinalize(batch.jobId());
     } catch (RuntimeException exception) {
       boolean retry =
           commitService.failAttempt(batch, "Temporary Gmail batch processing failure", true);
-      if (retry) {
-        throw new RetryableKafkaException("Temporary Gmail batch processing failure", exception);
+      log.warn(
+          "gmail_sync_batch_error batchId={} jobId={} connectionId={} attempt={} retry={} totalMs={} error={}",
+          batch.batchId(),
+          batch.jobId(),
+          batch.connectionId(),
+          batch.attempt(),
+          retry,
+          elapsedMillis(startedNanos),
+          exception.getClass().getSimpleName());
+      if (!retry) {
+        finalizerService.tryFinalize(batch.jobId());
       }
-      finalizerService.tryFinalize(jobId);
     }
+  }
+
+  private long elapsedMillis(long startedNanos) {
+    return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos);
   }
 }
