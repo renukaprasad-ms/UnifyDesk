@@ -7,11 +7,6 @@ import com.messaging.asyncjob.enums.AsyncJobType;
 import com.messaging.asyncjob.service.AsyncJobService;
 import com.messaging.channel.gmail.dto.GmailSyncQueuedResponse;
 import com.messaging.channel.gmail.entity.GmailSyncRun;
-import com.messaging.kafka.event.EventMetadata;
-import com.messaging.kafka.event.GmailSyncRequestedEvent;
-import com.messaging.kafka.event.KafkaEvent;
-import com.messaging.kafka.priority.MessagePriority;
-import com.messaging.kafka.producer.EventPublisher;
 import java.time.LocalDate;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -24,8 +19,8 @@ public class GmailSyncQueueService {
 
   public static final String EVENT_TYPE = "gmail.sync.requested";
 
-  private final EventPublisher eventPublisher;
   private final AsyncJobService asyncJobService;
+  private final GmailSyncCoordinatorPublisher coordinatorPublisher;
   private final GmailSyncJobFactory jobFactory;
   private final GmailSyncStateService stateService;
   private final ObjectMapper objectMapper;
@@ -56,16 +51,8 @@ public class GmailSyncQueueService {
       return queuedResponse(job);
     }
 
-    EventMetadata eventMetadata =
-        EventMetadata.create(
-            EVENT_TYPE, "3", companyId, userId, job.jobId(), null, MessagePriority.MEDIUM);
-
     try {
-      eventPublisher.publish(
-          KafkaEvent.of(
-              eventMetadata,
-              new GmailSyncRequestedEvent(
-                  connectionId, Long.valueOf(job.jobId()), fromDate, toDate)));
+      coordinatorPublisher.publish(stateService.requireRun(Long.valueOf(job.jobId())), null);
     } catch (RuntimeException exception) {
       asyncJobService.fail(Long.valueOf(job.jobId()), "Unable to queue Gmail sync");
       throw exception;
