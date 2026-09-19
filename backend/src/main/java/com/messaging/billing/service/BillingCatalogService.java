@@ -400,15 +400,30 @@ public class BillingCatalogService {
     if (plan.getStatus() != PlanStatus.PUBLISHED) {
       throw new BadRequestException("Plan is not available");
     }
-    boolean free =
+
+    PlanPrice freePrice =
         planPriceRepository
             .findByPlanIdAndStatusOrderByEffectiveFromDesc(plan.getId(), RateCardStatus.ACTIVE)
             .stream()
-            .anyMatch(price -> price.getAmount().compareTo(BigDecimal.ZERO) == 0);
-    if (!free) {
-      throw new BadRequestException("Paid plans require checkout");
+            .filter(price -> price.getAmount().compareTo(BigDecimal.ZERO) == 0)
+            .findFirst()
+            .orElseThrow(() -> new BadRequestException("Paid plans require checkout"));
+
+    CompanySubscription current = currentEffectiveSubscription(companyId).orElse(null);
+    if (current != null && current.getPlan().getId().equals(plan.getId())) {
+      return toSubscriptionResponse(current);
     }
-    return assignSubscription(companyId, request);
+
+    AssignSubscriptionRequest resolvedRequest =
+        new AssignSubscriptionRequest(
+            request.planId(),
+            freePrice.getId().toString(),
+            request.status(),
+            request.startedAt(),
+            request.endsAt(),
+            request.trialEndsAt(),
+            request.currentPeriodEnd());
+    return assignSubscription(companyId, resolvedRequest);
   }
 
   @Transactional
@@ -438,13 +453,17 @@ public class BillingCatalogService {
   }
 
   private CompanySubscription effectiveSubscription(Long companyId) {
+    return currentEffectiveSubscription(companyId)
+        .orElseThrow(() -> new NotFoundException("Company subscription not found"));
+  }
+
+  private java.util.Optional<CompanySubscription> currentEffectiveSubscription(Long companyId) {
     return subscriptionRepository
         .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(companyId, SubscriptionStatus.ACTIVE)
         .or(
             () ->
                 subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
-                    companyId, SubscriptionStatus.TRIALING))
-        .orElseThrow(() -> new NotFoundException("Company subscription not found"));
+                    companyId, SubscriptionStatus.TRIALING));
   }
 
   private void closeCurrentSubscriptions(Long companyId, Instant now) {
@@ -462,6 +481,7 @@ public class BillingCatalogService {
               subscription.setCancelAtPeriodEnd(false);
               subscriptionRepository.save(subscription);
             });
+    subscriptionRepository.flush();
   }
 
   private void transitionPlan(Plan plan, PlanStatus target) {
