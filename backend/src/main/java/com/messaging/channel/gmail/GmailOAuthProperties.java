@@ -31,6 +31,8 @@ public class GmailOAuthProperties {
   private Duration syncBatchRecoveryInterval = Duration.ofMinutes(1);
   private Duration syncBatchStaleAfter = Duration.ofMinutes(5);
   private int syncBatchRecoverySize = 100;
+  private int workerConcurrency = 12;
+  private int workerPollIntervalMs = 250;
   private int apiRetryMaxAttempts = 4;
   private Duration apiRetryInitialBackoff = Duration.ofSeconds(1);
   private Duration apiRetryMaxBackoff = Duration.ofSeconds(8);
