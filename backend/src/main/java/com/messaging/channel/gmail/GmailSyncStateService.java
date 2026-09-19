@@ -211,19 +211,27 @@ public class GmailSyncStateService {
         || batch.getStatus() == GmailSyncBatchStatus.RETRY;
   }
 
-  @Transactional(readOnly = true)
-  public boolean readyToFinalize(Long jobId) {
-    GmailSyncRun run = requireRun(jobId);
-    if (!run.isDiscoveryComplete()) {
+  @Transactional
+  public boolean claimFinalization(Long jobId) {
+    GmailSyncRun run = requireRunForUpdate(jobId);
+    if (!run.isDiscoveryComplete() || run.isFinalized()) {
       return false;
     }
-    return batchRepository.countByJobIdAndStatusIn(
+
+    long activeBatches =
+        batchRepository.countByJobIdAndStatusIn(
             jobId,
             List.of(
                 GmailSyncBatchStatus.PENDING,
                 GmailSyncBatchStatus.RUNNING,
-                GmailSyncBatchStatus.RETRY))
-        == 0;
+                GmailSyncBatchStatus.RETRY));
+    if (activeBatches > 0) {
+      return false;
+    }
+
+    run.setFinalized(true);
+    runRepository.save(run);
+    return true;
   }
 
   @Transactional(readOnly = true)
