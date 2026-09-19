@@ -43,7 +43,9 @@ const entitlementLabel = (key: string, value: string) => {
   const amount = unlimited ? 'Unlimited' : value
 
   const labels: Record<string, string> = {
-    MAX_WORKSPACE_USERS: unlimited ? 'Unlimited workspace users' : pluralize(value, 'workspace user'),
+    MAX_WORKSPACE_USERS: unlimited
+      ? 'Unlimited workspace users'
+      : pluralize(value, 'workspace user'),
     CONTACT_LIMIT: unlimited ? 'Unlimited contacts' : pluralize(value, 'contact'),
     SEGMENT_LIMIT: unlimited ? 'Unlimited segments' : pluralize(value, 'segment'),
     BROADCAST_GROUP_LIMIT: unlimited
@@ -210,7 +212,8 @@ export default function SelectPlan() {
 
                   <button
                     type="button"
-                    className="mt-6 flex h-10 w-full items-center justify-center rounded-[8px] bg-indigo-500 text-xs font-semibold text-white"
+                    className="mt-6 flex h-10 w-full items-center justify-center rounded-[8px] bg-indigo-500
+                      text-xs font-semibold text-white"
                     disabled={Boolean(submittingPlanId)}
                     onClick={() => choosePlan(plan)}
                   >
