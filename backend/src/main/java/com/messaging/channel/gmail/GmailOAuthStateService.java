@@ -25,10 +25,14 @@ public class GmailOAuthStateService {
   private String keyPrefix;
 
   public String create(Long companyId, Long userId) {
+    return create(companyId, userId, null);
+  }
+
+  public String create(Long companyId, Long userId, String returnTo) {
     byte[] bytes = new byte[32];
     RANDOM.nextBytes(bytes);
     String state = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    OAuthState payload = new OAuthState(companyId, userId, Instant.now());
+    OAuthState payload = new OAuthState(companyId, userId, Instant.now(), normalizeReturnTo(returnTo));
 
     try {
       redisTemplate
@@ -61,5 +65,12 @@ public class GmailOAuthStateService {
     return keyPrefix + ":channel:gmail:oauth:" + state;
   }
 
-  public record OAuthState(Long companyId, Long userId, Instant createdAt) {}
+  private String normalizeReturnTo(String returnTo) {
+    if ("/inbox/email".equals(returnTo) || "/broadcast/email".equals(returnTo)) {
+      return returnTo;
+    }
+    return "/company/connections";
+  }
+
+  public record OAuthState(Long companyId, Long userId, Instant createdAt, String returnTo) {}
 }
