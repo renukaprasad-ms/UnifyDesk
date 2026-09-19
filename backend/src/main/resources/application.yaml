@@ -148,6 +148,9 @@ app:
       sync-max-range-days: ${GMAIL_SYNC_MAX_RANGE_DAYS:366}
       sync-max-messages: ${GMAIL_SYNC_MAX_MESSAGES:100000}
       sync-batch-size: ${GMAIL_SYNC_BATCH_SIZE:50}
+      sync-user-quota-units-per-minute: ${GMAIL_SYNC_USER_QUOTA_UNITS_PER_MINUTE:6000}
+      sync-message-get-quota-units: ${GMAIL_SYNC_MESSAGE_GET_QUOTA_UNITS:20}
+      sync-quota-utilization-percent: ${GMAIL_SYNC_QUOTA_UTILIZATION_PERCENT:90}
       sync-batch-retry-max-attempts: ${GMAIL_SYNC_BATCH_RETRY_MAX_ATTEMPTS:12}
       sync-batch-retry-initial-backoff: ${GMAIL_SYNC_BATCH_RETRY_INITIAL_BACKOFF:2s}
       sync-batch-retry-max-backoff: ${GMAIL_SYNC_BATCH_RETRY_MAX_BACKOFF:64s}
