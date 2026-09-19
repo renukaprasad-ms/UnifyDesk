@@ -2,11 +2,13 @@ package com.messaging.kafka.consumer;
 
 import com.messaging.kafka.event.KafkaEvent;
 import com.messaging.kafka.idempotency.KafkaEventIdempotencyService;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class PriorityKafkaListeners {
 
@@ -61,11 +63,34 @@ public class PriorityKafkaListeners {
     KafkaEvent<?> event = record.value();
 
     if (event == null) {
+      log.warn(
+          "KAFKA_DIAG consume_null topic={} partition={} offset={}",
+          record.topic(),
+          record.partition(),
+          record.offset());
       acknowledgment.acknowledge();
       return;
     }
 
+    log.info(
+        "KAFKA_DIAG consume eventId={} eventType={} topic={} partition={} offset={} key={} companyId={} correlationId={}",
+        event.eventId(),
+        event.eventType(),
+        record.topic(),
+        record.partition(),
+        record.offset(),
+        record.key(),
+        event.companyId(),
+        event.correlationId());
+
     if (idempotencyService.isProcessed(event)) {
+      log.info(
+          "KAFKA_DIAG duplicate_skip eventId={} eventType={} topic={} partition={} offset={}",
+          event.eventId(),
+          event.eventType(),
+          record.topic(),
+          record.partition(),
+          record.offset());
       acknowledgment.acknowledge();
       return;
     }
@@ -73,5 +98,12 @@ public class PriorityKafkaListeners {
     dispatcher.dispatch(event);
     idempotencyService.markProcessed(event);
     acknowledgment.acknowledge();
+    log.info(
+        "KAFKA_DIAG consume_ack eventId={} eventType={} topic={} partition={} offset={}",
+        event.eventId(),
+        event.eventType(),
+        record.topic(),
+        record.partition(),
+        record.offset());
   }
 }
