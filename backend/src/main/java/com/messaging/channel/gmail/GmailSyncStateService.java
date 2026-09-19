@@ -132,6 +132,7 @@ public class GmailSyncStateService {
       batch.setStatus(GmailSyncBatchStatus.RUNNING);
       batch.setAttemptCount(batch.getAttemptCount() + 1);
       batch.setLastError(null);
+      batch.setNextAttemptAt(null);
       claimed.add(toClaimedBatch(batch));
     }
     batchRepository.saveAll(batches);
@@ -153,6 +154,7 @@ public class GmailSyncStateService {
     batch.setStatus(GmailSyncBatchStatus.RUNNING);
     batch.setAttemptCount(batch.getAttemptCount() + 1);
     batch.setLastError(null);
+    batch.setNextAttemptAt(null);
     batchRepository.save(batch);
 
     return Optional.of(toClaimedBatch(batch));
@@ -164,7 +166,8 @@ public class GmailSyncStateService {
       List<String> retryIds,
       int processedDelta,
       int failedDelta,
-      String error) {
+      String error,
+      Instant nextAttemptAt) {
     GmailSyncBatch batch = requireBatchForUpdate(batchId);
     if (isTerminal(batch.getStatus())) {
       return false;
@@ -175,6 +178,7 @@ public class GmailSyncStateService {
     batch.setMessageIdsJson(writeIds(retryIds));
     batch.setStatus(GmailSyncBatchStatus.RETRY);
     batch.setLastError(truncate(error));
+    batch.setNextAttemptAt(nextAttemptAt);
     batchRepository.save(batch);
     return true;
   }
@@ -192,6 +196,7 @@ public class GmailSyncStateService {
     batch.setStatus(
         batch.getFailedCount() > 0 ? GmailSyncBatchStatus.FAILED : GmailSyncBatchStatus.COMPLETED);
     batch.setLastError(truncate(error));
+    batch.setNextAttemptAt(null);
     batch.setCompletedAt(Instant.now());
     batchRepository.save(batch);
     return true;
@@ -209,6 +214,7 @@ public class GmailSyncStateService {
     batch.setFailedCount(batch.getFailedCount() + remaining);
     batch.setStatus(GmailSyncBatchStatus.FAILED);
     batch.setLastError(truncate(error));
+    batch.setNextAttemptAt(null);
     batch.setCompletedAt(Instant.now());
     batchRepository.save(batch);
     return remaining;
@@ -229,6 +235,7 @@ public class GmailSyncStateService {
     }
     if (batch.getStatus() == GmailSyncBatchStatus.RUNNING) {
       batch.setStatus(GmailSyncBatchStatus.RETRY);
+      batch.setNextAttemptAt(Instant.now());
     }
     boolean recoverable =
         batch.getStatus() == GmailSyncBatchStatus.PENDING
