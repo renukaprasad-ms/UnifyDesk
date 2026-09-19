@@ -111,8 +111,24 @@ public class InboxQueryService {
         message.getSnippet(),
         message.getBodyText(),
         message.getBodyHtml(),
+        message.getFromAddress(),
+        message.getReplyToAddress(),
+        addresses(message.getToAddresses()),
+        addresses(message.getCcAddresses()),
+        addresses(message.getBccAddresses()),
+        message.getInReplyTo(),
+        message.getReferencesHeader(),
         message.getSentAt(),
         message.isRead(),
         attachments);
+  }
+  private List<String> addresses(String value) {
+    if (value == null || value.isBlank()) {
+      return List.of();
+    }
+    return java.util.Arrays.stream(value.split(","))
+        .map(String::trim)
+        .filter(address -> !address.isBlank())
+        .toList();
   }
 }
