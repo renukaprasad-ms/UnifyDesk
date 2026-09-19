@@ -25,7 +25,12 @@ public class GmailOAuthProperties {
   private int initialSyncDays = 30;
   private int initialSyncMaxMessages = 200;
   private int syncMaxRangeDays = 366;
-  private int syncMaxMessages = 5000;
+  private int syncMaxMessages = 100000;
+  private int syncBatchSize = 50;
+  private int syncBatchRetryMaxAttempts = 4;
+  private Duration syncBatchRecoveryInterval = Duration.ofMinutes(1);
+  private Duration syncBatchStaleAfter = Duration.ofMinutes(5);
+  private int syncBatchRecoverySize = 100;
   private int apiRetryMaxAttempts = 4;
   private Duration apiRetryInitialBackoff = Duration.ofSeconds(1);
   private Duration apiRetryMaxBackoff = Duration.ofSeconds(8);
