@@ -53,6 +53,15 @@ public class GmailSyncRun {
   @Column(name = "failed_count", nullable = false)
   private long failedCount;
 
+  @Column(name = "next_batch_index", nullable = false)
+  private int nextBatchIndex;
+
+  @Column(name = "next_page_token", columnDefinition = "TEXT")
+  private String nextPageToken;
+
+  @Column(name = "carry_ids_json", nullable = false, columnDefinition = "TEXT")
+  private String carryIdsJson = "[]";
+
   @Column(name = "history_id", length = 128)
   private String historyId;
 
