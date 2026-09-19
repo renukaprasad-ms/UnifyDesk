@@ -18,6 +18,7 @@ import com.messaging.user.dto.UpdateUserRequest;
 import com.messaging.user.dto.UserResponse;
 import com.messaging.user.entity.User;
 import com.messaging.user.repository.UserRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -36,6 +37,10 @@ public class UserService {
   private final PasswordEncoder passwordEncoder;
   private final CurrentUserService currentUserService;
   private final MediaService mediaService;
+  private final UserSessionService userSessionService;
+  private final CompanyMemberRepository companyMemberRepository;
+  private final CompanyMemberRoleAssignmentRepository roleAssignmentRepository;
+  private final DeletionQueueService deletionQueueService;
 
   @Transactional
   public User createUser(CreateUserRequest request) {
@@ -59,6 +64,7 @@ public class UserService {
     user.setUsername(username);
     user.setPassword(passwordEncoder.encode(request.password()));
     user.setTwoFactorEnabled(request.twoFactorEnabled());
+    user.setStatus(UserStatus.ACTIVE);
 
     try {
       return userRepository.saveAndFlush(user);
@@ -179,7 +185,40 @@ public class UserService {
     requireCurrentUser(userId, "You can only delete your own account");
 
     User user = getUser(userId);
-    userRepository.delete(user);
+    if (user.getStatus() == UserStatus.DELETED) {
+      return;
+    }
+
+    var activeMemberships =
+        companyMemberRepository.findByUserIdAndStatus(userId, CompanyMemberStatus.ACTIVE);
+    boolean ownsCompany =
+        activeMemberships.stream().anyMatch(member -> member.getRole() == CompanyRole.OWNER);
+    if (ownsCompany) {
+      throw new BadRequestException(
+          "Transfer ownership or delete owned companies before deleting your account");
+    }
+
+    Instant now = Instant.now();
+    activeMemberships.forEach(member -> member.setStatus(CompanyMemberStatus.LEFT));
+    companyMemberRepository.saveAll(activeMemberships);
+
+    var assignments = roleAssignmentRepository.findByUserIdAndRevokedAtIsNull(userId);
+    assignments.forEach(assignment -> assignment.setRevokedAt(now));
+    roleAssignmentRepository.saveAll(assignments);
+
+    userSessionService.revokeAllForUser(userId);
+
+    user.setStatus(UserStatus.DELETED);
+    user.setDeletedAt(now);
+    user.setEmail("deleted-" + userId + "@deleted.invalid");
+    user.setUsername("deleted_" + userId);
+    user.setName("Deleted user");
+    user.setVerified(false);
+    user.setTwoFactorEnabled(false);
+    user.setProfilePicture(null);
+    userRepository.saveAndFlush(user);
+
+    deletionQueueService.enqueue(LifecycleEntityType.USER, userId, null, userId);
   }
 
   @Transactional
