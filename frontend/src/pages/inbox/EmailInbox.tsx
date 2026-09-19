@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FiInbox, FiMail, FiRefreshCw } from 'react-icons/fi'
+import { FiArrowLeft, FiInbox, FiMail, FiRefreshCw } from 'react-icons/fi'
+import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import type { ChannelConnection } from '../../features/channel/types'
@@ -32,24 +33,14 @@ const displayParticipant = (conversation: InboxConversation, ownAddress?: string
 const messageTitle = (message: InboxMessage) =>
   message.subject || message.snippet || (message.direction === 'OUTBOUND' ? 'Sent email' : 'Email')
 
-const readableBody = (value?: string | null) => {
-  if (!value) return ''
+const isHtmlBody = (value?: string | null) => {
+  if (!value) return false
   const trimmed = value.trim()
-  const looksLikeHtml =
+  return (
     /^<!doctype html/i.test(trimmed) ||
     /^<html/i.test(trimmed) ||
-    /<(body|table|div|p|br|head|style)[\s>]/i.test(trimmed)
-
-  if (!looksLikeHtml) return trimmed
-
-  const doc = new DOMParser().parseFromString(trimmed, 'text/html')
-  doc.querySelectorAll('script, style, head').forEach((node) => node.remove())
-  return (doc.body.textContent || '')
-    .replace(/\u00a0/g, ' ')
-    .replace(/[ \t\f\r]+/g, ' ')
-    .replace(/ *\n */g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
+    /<(body|table|div|p|br|head|style)[\\s>]/i.test(trimmed)
+  )
 }
 
 export default function EmailInbox() {
@@ -57,6 +48,7 @@ export default function EmailInbox() {
   const [connections, setConnections] = useState<ChannelConnection[]>([])
   const [conversations, setConversations] = useState<InboxConversation[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [mobileConversationOpen, setMobileConversationOpen] = useState(false)
   const [messages, setMessages] = useState<InboxMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -127,6 +119,7 @@ export default function EmailInbox() {
   )
 
   useEffect(() => {
+    setMobileConversationOpen(false)
     void loadConversations(0, false)
   }, [companyId])
 
@@ -194,20 +187,20 @@ export default function EmailInbox() {
   }
 
   return (
-    <section className="px-4 py-5 sm:px-6 sm:py-7">
+    <section className="px-3 py-4 sm:px-5 sm:py-6 lg:px-6">
       <div className="mx-auto max-w-[1500px]">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
           <div>
             <p className="eyebrow">INBOX</p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-950">Email</h1>
+            <h1 className="mt-1 text-xl font-bold text-slate-950 sm:text-2xl">Email</h1>
             <p className="mt-1 text-sm text-slate-500">
               Gmail conversations synchronized into your ReachFly workspace.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             <button
               type="button"
-              className="secondary-button gap-2"
+              className="secondary-button flex-1 gap-2 sm:flex-none"
               onClick={() => void loadConversations(0, false)}
               disabled={loading}
             >
@@ -216,7 +209,7 @@ export default function EmailInbox() {
             </button>
             <button
               type="button"
-              className="primary-button gap-2"
+              className="primary-button flex-1 gap-2 sm:flex-none"
               onClick={() => void syncGmail()}
               disabled={syncing}
             >
@@ -237,8 +230,10 @@ export default function EmailInbox() {
           </div>
         )}
 
-        <div className="panel grid min-h-[620px] overflow-hidden lg:grid-cols-[360px_minmax(0,1fr)]">
-          <aside className="border-b border-slate-200 lg:border-b-0 lg:border-r">
+        <div className="panel grid min-h-[calc(100dvh-220px)] overflow-hidden md:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]">
+          <aside
+            className={`${mobileConversationOpen ? 'hidden md:block' : 'block'} border-b border-slate-200 md:border-b-0 md:border-r`}
+          >
             <div className="border-b border-slate-100 px-4 py-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -251,7 +246,7 @@ export default function EmailInbox() {
               </div>
             </div>
 
-            <div className="max-h-[555px] overflow-y-auto">
+            <div className="max-h-[calc(100dvh-300px)] overflow-y-auto md:max-h-[calc(100dvh-210px)]">
               {loading ? (
                 <div className="px-5 py-10 text-center text-sm text-slate-500">
                   Loading conversations...
@@ -279,7 +274,10 @@ export default function EmailInbox() {
                     <button
                       key={conversation.id}
                       type="button"
-                      onClick={() => setSelectedId(conversation.id)}
+                      onClick={() => {
+                        setSelectedId(conversation.id)
+                        setMobileConversationOpen(true)
+                      }}
                       className={`w-full border-b border-slate-100 px-4 py-4 text-left transition ${
                         active ? 'bg-indigo-50' : 'bg-white hover:bg-slate-50'
                       }`}
@@ -330,7 +328,9 @@ export default function EmailInbox() {
             </div>
           </aside>
 
-          <main className="min-w-0 bg-slate-50/40">
+          <main
+            className={`${mobileConversationOpen ? 'block' : 'hidden md:block'} min-w-0 bg-slate-50/40`}
+          >
             {!selectedConversation ? (
               <div className="flex min-h-[560px] items-center justify-center px-6 text-center">
                 <div>
@@ -341,17 +341,27 @@ export default function EmailInbox() {
               </div>
             ) : (
               <>
-                <header className="border-b border-slate-200 bg-white px-5 py-4">
-                  <p className="text-sm font-bold text-slate-950">
+                <header className="flex items-start gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
+                  <button
+                    type="button"
+                    className="secondary-button shrink-0 px-3 md:hidden"
+                    onClick={() => setMobileConversationOpen(false)}
+                    aria-label="Back to conversations"
+                  >
+                    <FiArrowLeft aria-hidden="true" />
+                  </button>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-950">
                     {selectedConversation.subject || '(no subject)'}
                   </p>
-                  <p className="mt-1 truncate text-xs text-slate-500">
-                    {displayParticipant(selectedConversation, ownAddress)}
-                    {ownAddress ? ` · ${ownAddress}` : ''}
-                  </p>
+                    <p className="mt-1 truncate text-xs text-slate-500">
+                      {displayParticipant(selectedConversation, ownAddress)}
+                      {ownAddress ? ` · ${ownAddress}` : ''}
+                    </p>
+                  </div>
                 </header>
 
-                <div className="max-h-[555px] space-y-4 overflow-y-auto p-4 sm:p-6">
+                <div className="max-h-[calc(100dvh-290px)] space-y-4 overflow-y-auto p-3 sm:p-5 md:max-h-[calc(100dvh-210px)]">
                   {messagesLoading ? (
                     <p className="py-10 text-center text-sm text-slate-500">Loading messages...</p>
                   ) : messages.length === 0 ? (
@@ -362,7 +372,7 @@ export default function EmailInbox() {
                     messages.map((message) => (
                       <article
                         key={message.id}
-                        className={`max-w-3xl rounded-xl border p-4 ${
+                        className={`w-full max-w-3xl rounded-xl border p-3 sm:p-4 ${
                           message.direction === 'OUTBOUND'
                             ? 'ml-auto border-indigo-100 bg-indigo-50'
                             : 'border-slate-200 bg-white'
@@ -387,11 +397,22 @@ export default function EmailInbox() {
                         <p className="mt-3 text-xs font-semibold text-slate-700">
                           {messageTitle(message)}
                         </p>
-                        <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
-                          {readableBody(message.bodyText) ||
-                            message.snippet ||
-                            'No message body available.'}
-                        </pre>
+                        {message.bodyHtml ||
+                        (isHtmlBody(message.bodyText) ? message.bodyText : null) ? (
+                          <div className="mt-3 overflow-hidden rounded-xl bg-white">
+                            <EmailHtmlFrame
+                              html={
+                                message.bodyHtml ||
+                                (isHtmlBody(message.bodyText) ? message.bodyText || '' : '')
+                              }
+                              title={message.subject || 'Email message'}
+                            />
+                          </div>
+                        ) : (
+                          <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
+                            {message.bodyText || message.snippet || 'No message body available.'}
+                          </pre>
+                        )}
 
                         {message.attachments.length > 0 && (
                           <div className="mt-4 flex flex-wrap gap-2">
