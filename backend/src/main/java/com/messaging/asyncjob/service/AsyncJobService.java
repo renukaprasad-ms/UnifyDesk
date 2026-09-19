@@ -9,9 +9,11 @@ import com.messaging.common.exception.NotFoundException;
 import com.messaging.realtime.service.RealtimeService;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AsyncJobService {
@@ -32,6 +34,13 @@ public class AsyncJobService {
     job.setStatusMessage(message);
     job.setMetadataJson(metadataJson);
     job = repository.saveAndFlush(job);
+    log.info(
+        "ASYNC_JOB_DIAG created jobId={} type={} companyId={} userId={} status={}",
+        job.getId(),
+        job.getJobType(),
+        job.getCompanyId(),
+        job.getUserId(),
+        job.getStatus());
     AsyncJobResponse response = toResponse(job);
     realtimeService.sendToAllUserSessions(userId, PROGRESS_EVENT, response);
     return response;
@@ -47,6 +56,13 @@ public class AsyncJobService {
     job.setProgressPercent(0);
     job.setStatusMessage(message);
     job.setErrorMessage(null);
+    log.info(
+        "ASYNC_JOB_DIAG started jobId={} type={} companyId={} userId={} totalUnits={}",
+        job.getId(),
+        job.getJobType(),
+        job.getCompanyId(),
+        job.getUserId(),
+        job.getTotalUnits());
     return saveAndPublish(job);
   }
 
@@ -61,6 +77,13 @@ public class AsyncJobService {
     job.setCompletedUnits(completed);
     job.setProgressPercent(total <= 0 ? 0 : (int) Math.min(99, (completed * 100) / total));
     job.setStatusMessage(message);
+    log.debug(
+        "ASYNC_JOB_DIAG progress jobId={} completedUnits={} totalUnits={} percent={} message={}",
+        job.getId(),
+        completed,
+        total,
+        job.getProgressPercent(),
+        message);
     return saveAndPublish(job);
   }
 
@@ -72,6 +95,13 @@ public class AsyncJobService {
     job.setProgressPercent(100);
     job.setStatusMessage(message);
     job.setCompletedAt(Instant.now());
+    log.info(
+        "ASYNC_JOB_DIAG completed jobId={} type={} companyId={} userId={} totalUnits={}",
+        job.getId(),
+        job.getJobType(),
+        job.getCompanyId(),
+        job.getUserId(),
+        job.getTotalUnits());
     return saveAndPublish(job);
   }
 
@@ -82,6 +112,13 @@ public class AsyncJobService {
     job.setStatusMessage("Failed");
     job.setErrorMessage(truncate(error, 1000));
     job.setCompletedAt(Instant.now());
+    log.error(
+        "ASYNC_JOB_DIAG failed jobId={} type={} companyId={} userId={} error={}",
+        job.getId(),
+        job.getJobType(),
+        job.getCompanyId(),
+        job.getUserId(),
+        job.getErrorMessage());
     return saveAndPublish(job);
   }
 
