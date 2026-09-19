@@ -1,7 +1,7 @@
 -- Messaging database schema baseline.
 -- This is the only Flyway migration for fresh installations.
--- No application/business data is seeded here except permission definitions/default
--- role permission mappings required by authorization.
+-- No application/business data is seeded here except system metadata: permission definitions,
+-- default role permission mappings, and the entitlement catalogue.
 --
 -- IMPORTANT: This file replaces the historical V1-V17 chain. Existing databases
 -- that already contain Flyway history for the old migrations must be reset/rebaselined
@@ -655,6 +655,47 @@ create table if not exists entitlement_definitions (
   updated_at timestamp(6) with time zone not null,
   constraint uk_entitlement_definitions_key unique (entitlement_key)
 );
+
+-- System entitlement catalogue. These are definitions/default fallbacks only.
+-- Plan-specific values are configured through plan_entitlements by Super Admin.
+insert into entitlement_definitions
+  (id, entitlement_key, name, description, value_type, category, default_value, active, created_at, updated_at)
+values
+  (910000000000000001, 'MAX_WORKSPACE_USERS', 'Workspace users', 'Maximum active users in the workspace, including the owner', 'INTEGER', 'WORKSPACE', '1', true, now(), now()),
+  (910000000000000002, 'CONTACT_LIMIT', 'Contacts', 'Maximum contacts stored in the workspace', 'INTEGER', 'WORKSPACE', '0', true, now(), now()),
+  (910000000000000003, 'SEGMENT_LIMIT', 'Segments', 'Maximum audience segments in the workspace', 'INTEGER', 'WORKSPACE', '0', true, now(), now()),
+  (910000000000000004, 'BROADCAST_GROUP_LIMIT', 'Broadcast groups', 'Maximum reusable broadcast recipient groups', 'INTEGER', 'WORKSPACE', '0', true, now(), now()),
+
+  (910000000000000005, 'EMAIL_ACCOUNTS', 'Email connections', 'Maximum connected email accounts', 'INTEGER', 'CHANNEL', '0', true, now(), now()),
+  (910000000000000006, 'WHATSAPP_ACCOUNTS', 'WhatsApp connections', 'Maximum connected WhatsApp Business accounts', 'INTEGER', 'CHANNEL', '0', true, now(), now()),
+  (910000000000000007, 'WHATSAPP_NUMBERS', 'WhatsApp numbers', 'Maximum WhatsApp sender phone numbers', 'INTEGER', 'CHANNEL', '0', true, now(), now()),
+  (910000000000000008, 'SMS_ACCOUNTS', 'SMS connections', 'Maximum connected SMS provider accounts', 'INTEGER', 'CHANNEL', '0', true, now(), now()),
+  (910000000000000009, 'SMS_SENDER_IDS', 'SMS sender IDs', 'Maximum SMS sender IDs or headers', 'INTEGER', 'CHANNEL', '0', true, now(), now()),
+
+  (910000000000000010, 'BROADCAST_BATCH_LIMIT', 'Recipients per broadcast', 'Maximum recipients in a single broadcast', 'INTEGER', 'BROADCAST', '0', true, now(), now()),
+  (910000000000000011, 'BROADCASTS_PER_DAY', 'Broadcasts per day', 'Maximum broadcasts sent per calendar day', 'INTEGER', 'BROADCAST', '0', true, now(), now()),
+  (910000000000000012, 'BROADCASTS_PER_MONTH', 'Broadcasts per month', 'Maximum broadcasts sent per billing month', 'INTEGER', 'BROADCAST', '0', true, now(), now()),
+  (910000000000000013, 'BROADCAST_RECIPIENTS_PER_DAY', 'Broadcast recipients per day', 'Maximum total broadcast recipients reached per calendar day', 'INTEGER', 'BROADCAST', '0', true, now(), now()),
+  (910000000000000014, 'BROADCAST_RECIPIENTS_PER_MONTH', 'Broadcast recipients per month', 'Maximum total broadcast recipients reached per billing month', 'INTEGER', 'BROADCAST', '0', true, now(), now()),
+  (910000000000000015, 'SCHEDULED_BROADCASTS_ENABLED', 'Scheduled broadcasts', 'Allow broadcasts to be scheduled for later delivery', 'BOOLEAN', 'BROADCAST', 'false', true, now(), now()),
+
+  (910000000000000016, 'EMAIL_TEMPLATE_LIMIT', 'Email templates', 'Maximum saved email templates', 'INTEGER', 'TEMPLATE', '0', true, now(), now()),
+  (910000000000000017, 'WHATSAPP_TEMPLATE_LIMIT', 'WhatsApp templates', 'Maximum saved WhatsApp templates managed by the workspace', 'INTEGER', 'TEMPLATE', '0', true, now(), now()),
+  (910000000000000018, 'SMS_TEMPLATE_LIMIT', 'SMS templates', 'Maximum saved SMS templates', 'INTEGER', 'TEMPLATE', '0', true, now(), now()),
+
+  (910000000000000019, 'STORAGE_GB', 'Storage', 'Maximum private workspace storage in GiB; use -1 for unlimited', 'DECIMAL', 'STORAGE', '0', true, now(), now()),
+
+  (910000000000000020, 'AUTO_REPLY_ENABLED', 'Auto reply', 'Enable automated replies', 'BOOLEAN', 'FEATURE', 'false', true, now(), now()),
+  (910000000000000021, 'USER_SIGNATURE_ENABLED', 'User signatures', 'Enable per-user message signatures', 'BOOLEAN', 'FEATURE', 'false', true, now(), now()),
+  (910000000000000022, 'API_ACCESS_ENABLED', 'API access', 'Enable customer API access', 'BOOLEAN', 'FEATURE', 'false', true, now(), now())
+on conflict (entitlement_key) do update set
+  name = excluded.name,
+  description = excluded.description,
+  value_type = excluded.value_type,
+  category = excluded.category,
+  default_value = excluded.default_value,
+  active = excluded.active,
+  updated_at = now();
 
 create table if not exists plan_prices (
   id bigint primary key,
