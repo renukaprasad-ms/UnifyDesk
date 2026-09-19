@@ -11,7 +11,12 @@ const unwrap = <T>(response: ApiResponse<T>) => {
 }
 
 export const mediaApi = {
-  async initiateUpload(file: File, purpose: MediaPurpose, skipAuthRefresh = false) {
+  async initiateUpload(
+    file: File,
+    purpose: MediaPurpose,
+    companyId?: string,
+    skipAuthRefresh = false,
+  ) {
     const config: ApiRequestConfig | undefined = skipAuthRefresh
       ? { _skipAuthRefresh: true }
       : undefined
@@ -22,6 +27,7 @@ export const mediaApi = {
         contentType: file.type,
         sizeBytes: file.size,
         purpose,
+        companyId,
       },
       config,
     )
@@ -29,11 +35,11 @@ export const mediaApi = {
   },
 
   async initiateProfilePictureUpload(file: File) {
-    return mediaApi.initiateUpload(file, 'USER_PROFILE', true)
+    return mediaApi.initiateUpload(file, 'USER_PROFILE', undefined, true)
   },
 
-  async initiateCompanyLogoUpload(file: File) {
-    return mediaApi.initiateUpload(file, 'COMPANY_LOGO')
+  async initiateCompanyLogoUpload(file: File, companyId: string) {
+    return mediaApi.initiateUpload(file, 'COMPANY_LOGO', companyId)
   },
 
   async uploadFileToStorage(
