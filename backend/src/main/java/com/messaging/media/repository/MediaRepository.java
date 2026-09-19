@@ -25,4 +25,24 @@ public interface MediaRepository extends JpaRepository<Media, Long> {
 
   List<Media> findByStatusAndCreatedAtBefore(
       MediaStatus status, Instant createdBefore, Pageable pageable);
+
+  @Query(
+      value =
+          """
+          select purpose as purpose, status as status, coalesce(sum(size_bytes), 0) as bytes
+          from media
+          where company_id = :companyId
+            and status in ('ACTIVE', 'PENDING')
+          group by purpose, status
+          """,
+      nativeQuery = true)
+  List<MediaStorageAggregate> aggregateStorageByCompany(@Param("companyId") Long companyId);
+
+  interface MediaStorageAggregate {
+    String getPurpose();
+
+    String getStatus();
+
+    Long getBytes();
+  }
 }
