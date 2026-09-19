@@ -18,6 +18,7 @@ create table if not exists gmail_sync_runs (
   from_date date not null,
   to_date date not null,
   discovery_complete boolean not null default false,
+  finalized boolean not null default false,
   discovered_count bigint not null default 0,
   existing_count bigint not null default 0,
   batch_count integer not null default 0,
