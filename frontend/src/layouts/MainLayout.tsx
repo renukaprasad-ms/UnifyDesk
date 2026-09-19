@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import Header from '../components/Header'
 import AdminSidebar from '../components/navigation/AdminSidebar'
+import ChannelContextSidebar from '../components/navigation/ChannelContextSidebar'
 import AppSidebar from '../components/navigation/AppSidebar'
 import { authApi } from '../features/auth/authApi'
 import { platformApi } from '../features/platform/platformApi'
@@ -19,7 +20,9 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
   const [platformAccess, setPlatformAccess] = useState<PlatformAccess | null>(null)
   const [railHovered, setRailHovered] = useState(false)
   const inboxMode = location.pathname.startsWith('/inbox/')
-  const compactNavigation = platform || inboxMode
+  const broadcastMode = location.pathname.startsWith('/broadcast/')
+  const channelContextMode = inboxMode || broadcastMode
+  const compactNavigation = platform || channelContextMode
 
   useEffect(() => {
     realtimeClient.connect()
@@ -111,8 +114,23 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
         </aside>
       )}
 
+      {!platform && channelContextMode && (
+        <aside className="channel-context-sidebar">
+          <ChannelContextSidebar
+            mode={inboxMode ? 'inbox' : 'broadcast'}
+            onNavigate={closeNavigation}
+          />
+        </aside>
+      )}
+
       <div
-        className={`app-content min-w-0 ${platform ? 'with-admin-sidebar' : inboxMode ? 'with-compact-sidebar' : ''}`}
+        className={`app-content min-w-0 ${
+          platform
+            ? 'with-admin-sidebar'
+            : channelContextMode
+              ? 'with-channel-context-sidebar'
+              : ''
+        }`}
       >
         <Header menuOpen={menuOpen} onToggleMenu={() => setMenuOpen((open) => !open)} />
         <main id="main-content">
