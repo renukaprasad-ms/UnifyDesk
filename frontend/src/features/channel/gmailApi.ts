@@ -3,6 +3,8 @@ import type { ApiResponse } from '../../lib/api/types'
 import type {
   ChannelConnection,
   GmailAuthorization,
+  GmailSendRequest,
+  GmailSendResponse,
   GmailSyncQueued,
   GmailSyncRequest,
 } from './types'
@@ -13,9 +15,10 @@ const unwrap = <T>(response: ApiResponse<T>) => {
 }
 
 export const gmailApi = {
-  async authorize(companyId: string) {
+  async authorize(companyId: string, returnTo?: string) {
     const response = await apiClient.get<ApiResponse<GmailAuthorization>>(
       `/api/v1/companies/${companyId}/channels/email/gmail/authorize`,
+      { params: returnTo ? { returnTo } : undefined },
     )
     return unwrap(response.data)
   },
@@ -23,6 +26,14 @@ export const gmailApi = {
   async sync(companyId: string, connectionId: string, request: GmailSyncRequest) {
     const response = await apiClient.post<ApiResponse<GmailSyncQueued>>(
       `/api/v1/companies/${companyId}/channels/email/gmail/${connectionId}/sync`,
+      request,
+    )
+    return unwrap(response.data)
+  },
+
+  async send(companyId: string, connectionId: string, request: GmailSendRequest) {
+    const response = await apiClient.post<ApiResponse<GmailSendResponse>>(
+      `/api/v1/companies/${companyId}/channels/email/gmail/${connectionId}/send`,
       request,
     )
     return unwrap(response.data)
