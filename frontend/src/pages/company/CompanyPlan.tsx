@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { FiCheck, FiCreditCard, FiRefreshCw } from 'react-icons/fi'
 import { billingApi } from '../../features/billing/billingApi'
 import type { CompanyPlanDetails } from '../../features/billing/types'
+import { storageApi } from '../../features/storage/storageApi'
+import type { StorageUsage } from '../../features/storage/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
@@ -15,14 +17,24 @@ const entitlementLabel = (key: string, value: string) => {
     AUTO_REPLY_ENABLED: value === 'true' ? 'Auto reply included' : 'Auto reply not included',
     USER_SIGNATURE_ENABLED:
       value === 'true' ? 'User signature included' : 'User signature not included',
+    STORAGE_GB: `${value} GiB workspace storage`,
   }
   return labels[key] ?? `${key.replaceAll('_', ' ').toLowerCase()}: ${value}`
+}
+
+const formatBytes = (bytes: number) => {
+  if (bytes < 0) return 'Unlimited'
+  if (bytes === 0) return '0 B'
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  return `${(bytes / 1024 ** index).toFixed(index >= 3 ? 2 : 1)} ${units[index]}`
 }
 
 export default function CompanyPlan() {
   const selectedCompany = useAppSelector(selectSelectedCompany)
   const [details, setDetails] = useState<CompanyPlanDetails | null>(null)
   const [loading, setLoading] = useState(true)
+  const [storage, setStorage] = useState<StorageUsage | null>(null)
   const [error, setError] = useState('')
 
   const loadPlan = async () => {
@@ -30,7 +42,12 @@ export default function CompanyPlan() {
     setError('')
     setLoading(true)
     try {
-      setDetails(await billingApi.companyPlan(selectedCompany.companyId))
+      const [planDetails, storageUsage] = await Promise.all([
+        billingApi.companyPlan(selectedCompany.companyId),
+        storageApi.usage(selectedCompany.companyId).catch(() => null),
+      ])
+      setDetails(planDetails)
+      setStorage(storageUsage)
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load company plan'))
     } finally {
@@ -116,6 +133,25 @@ export default function CompanyPlan() {
                   </dd>
                 </div>
               </dl>
+              {storage && (
+                <div className="mt-6 border-t border-slate-100 pt-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-bold text-slate-950">Storage</h3>
+                    <span className="text-xs font-semibold text-slate-500">
+                      {storage.usedPercent.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-indigo-500"
+                      style={{ width: `${Math.min(storage.usedPercent, 100)}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {formatBytes(storage.reservedBytes)} used of {formatBytes(storage.limitBytes)}
+                  </p>
+                </div>
+              )}
             </aside>
           </div>
         ) : (
