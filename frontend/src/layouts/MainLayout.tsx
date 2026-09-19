@@ -6,6 +6,7 @@ import AppSidebar from '../components/navigation/AppSidebar'
 import { authApi } from '../features/auth/authApi'
 import { platformApi } from '../features/platform/platformApi'
 import type { PlatformAccess } from '../features/platform/types'
+import { realtimeClient } from '../features/realtime/realtimeClient'
 import { sessionCleared } from '../store/auth/authSlice'
 import { useAppDispatch } from '../store/hooks'
 
@@ -19,6 +20,11 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
   const [railHovered, setRailHovered] = useState(false)
   const inboxMode = location.pathname.startsWith('/inbox/')
   const compactNavigation = platform || inboxMode
+
+  useEffect(() => {
+    realtimeClient.connect()
+    return () => realtimeClient.disconnect()
+  }, [])
 
   useEffect(() => {
     let active = true
