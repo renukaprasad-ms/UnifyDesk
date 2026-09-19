@@ -38,13 +38,8 @@ public interface GmailSyncBatchRepository extends JpaRepository<GmailSyncBatch, 
           join (
             select distinct on (candidate.connection_id) candidate.id
             from gmail_sync_batches candidate
-            where (
-                    candidate.status = 'PENDING'
-                    or (
-                      candidate.status = 'RETRY'
-                      and (candidate.next_attempt_at is null or candidate.next_attempt_at <= now())
-                    )
-                  )
+            where candidate.status in ('PENDING', 'RETRY')
+              and (candidate.next_attempt_at is null or candidate.next_attempt_at <= now())
               and not exists (
                 select 1
                 from gmail_sync_batches running
