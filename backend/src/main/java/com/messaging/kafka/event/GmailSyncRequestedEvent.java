@@ -1,3 +1,6 @@
 package com.messaging.kafka.event;
 
-public record GmailSyncRequestedEvent(Long connectionId, boolean initialSync) {}
+import java.time.LocalDate;
+
+public record GmailSyncRequestedEvent(
+    Long connectionId, Long jobId, LocalDate fromDate, LocalDate toDate) {}
