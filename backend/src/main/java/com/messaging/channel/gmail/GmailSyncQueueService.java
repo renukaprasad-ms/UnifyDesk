@@ -14,8 +14,10 @@ import com.messaging.kafka.producer.EventPublisher;
 import java.time.LocalDate;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GmailSyncQueueService {
@@ -28,6 +30,13 @@ public class GmailSyncQueueService {
 
   public GmailSyncQueuedResponse enqueue(
       Long companyId, Long userId, Long connectionId, LocalDate fromDate, LocalDate toDate) {
+    log.info(
+        "GMAIL_SYNC_DIAG enqueue_start companyId={} userId={} connectionId={} fromDate={} toDate={}",
+        companyId,
+        userId,
+        connectionId,
+        fromDate,
+        toDate);
     AsyncJobResponse job =
         asyncJobService.create(
             companyId,
@@ -35,6 +44,12 @@ public class GmailSyncQueueService {
             AsyncJobType.GMAIL_SYNC,
             metadata(connectionId, fromDate, toDate),
             "Gmail sync queued");
+
+    log.info(
+        "GMAIL_SYNC_DIAG job_created jobId={} companyId={} connectionId={}",
+        job.jobId(),
+        companyId,
+        connectionId);
 
     EventMetadata metadata =
         EventMetadata.create(
@@ -46,7 +61,21 @@ public class GmailSyncQueueService {
               metadata,
               new GmailSyncRequestedEvent(
                   connectionId, Long.valueOf(job.jobId()), fromDate, toDate)));
+      log.info(
+          "GMAIL_SYNC_DIAG event_published eventId={} jobId={} companyId={} connectionId={} priority={}",
+          metadata.eventId(),
+          job.jobId(),
+          companyId,
+          connectionId,
+          metadata.priority());
     } catch (RuntimeException exception) {
+      log.error(
+          "GMAIL_SYNC_DIAG enqueue_failed jobId={} companyId={} connectionId={} reason={}",
+          job.jobId(),
+          companyId,
+          connectionId,
+          exception.getClass().getSimpleName(),
+          exception);
       asyncJobService.fail(Long.valueOf(job.jobId()), "Unable to queue Gmail sync");
       throw exception;
     }
