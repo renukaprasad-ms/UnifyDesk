@@ -1,6 +1,8 @@
 package com.messaging.media.service;
 
 import com.messaging.common.id.IdGenerator;
+import com.messaging.company.iam.CompanyPermissionKeys;
+import com.messaging.company.service.CompanyAuthorizationService;
 import com.messaging.media.config.MediaStorageProperties;
 import com.messaging.media.config.MediaValidationProperties;
 import com.messaging.media.dto.InitiateMediaUploadRequest;
@@ -22,6 +24,7 @@ import com.messaging.media.repository.MediaRepository;
 import com.messaging.redis.key.RedisKey;
 import com.messaging.redis.service.RedisService;
 import com.messaging.security.service.CurrentUserService;
+import com.messaging.storage.service.StorageQuotaService;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -48,6 +51,8 @@ public class MediaService {
   private final MediaAuthorizationService authorizationService;
   private final MediaMapper mediaMapper;
   private final RedisService redisService;
+  private final StorageQuotaService storageQuotaService;
+  private final CompanyAuthorizationService companyAuthorizationService;
   private final SecureRandom secureRandom = new SecureRandom();
 
   public InitiateMediaUploadResponse initiateUpload(InitiateMediaUploadRequest request) {
@@ -58,6 +63,10 @@ public class MediaService {
     boolean preRegisterUpload = userId == null;
     if (preRegisterUpload && request.purpose() != MediaPurpose.USER_PROFILE) {
       throw new MediaException(HttpStatus.BAD_REQUEST, "MEDIA_INVALID_PURPOSE");
+    }
+
+    if (!preRegisterUpload) {
+      validateCompanyScope(userId, request, validated.sizeBytes());
     }
 
     Media media =
@@ -98,6 +107,7 @@ public class MediaService {
     Media media = new Media();
     media.setId(mediaId);
     media.setOwnerUserId(userId);
+    media.setCompanyId(request.companyId());
     media.setStorageProvider(storageProperties.getDefaultProvider());
     media.setBucket(storageProperties.getSupabase().getBucket());
     media.setObjectKey(
@@ -292,6 +302,30 @@ public class MediaService {
     media.setStatus(MediaStatus.DELETED);
     media.setDeletedAt(Instant.now());
     return mediaRepository.saveAndFlush(media);
+  }
+
+  private void validateCompanyScope(
+      long userId, InitiateMediaUploadRequest request, long sizeBytes) {
+    boolean companyPurpose =
+        switch (request.purpose()) {
+          case COMPANY_LOGO,
+              MESSAGE_ATTACHMENT,
+              EMAIL_ATTACHMENT,
+              WHATSAPP_MEDIA,
+              TEMPLATE_MEDIA,
+              AD_CREATIVE -> true;
+          case USER_PROFILE, USER_COVER, OTHER -> false;
+        };
+
+    if (companyPurpose && request.companyId() == null) {
+      throw new MediaException(HttpStatus.BAD_REQUEST, "MEDIA_COMPANY_REQUIRED");
+    }
+
+    if (request.companyId() != null) {
+      companyAuthorizationService.requirePermission(
+          userId, request.companyId(), CompanyPermissionKeys.MEDIA_UPLOAD);
+      storageQuotaService.assertCanReserve(request.companyId(), sizeBytes);
+    }
   }
 
   private String finalObjectKey(Media media, long ownerUserId) {
