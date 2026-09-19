@@ -10,4 +10,5 @@ public record InitiateMediaUploadRequest(
     @NotBlank @Size(max = 255) String fileName,
     @NotBlank @Size(max = 120) String contentType,
     @Min(1) long sizeBytes,
-    @NotNull MediaPurpose purpose) {}
+    @NotNull MediaPurpose purpose,
+    Long companyId) {}
