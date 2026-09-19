@@ -28,8 +28,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class GmailSyncService {
 
-  private static final int GMAIL_LIST_PAGE_SIZE = 100;
-  private static final int MAX_HTTP_BATCH_SIZE = 50;
+  private static final int GMAIL_LIST_PAGE_SIZE = 500;
+  private static final int MAX_HTTP_BATCH_SIZE = GmailApiClient.MAX_BATCH_SIZE;
 
   private final GmailOAuthProperties properties;
   private final GmailApiClient gmailApiClient;
