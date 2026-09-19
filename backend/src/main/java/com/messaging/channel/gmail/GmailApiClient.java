@@ -2,6 +2,7 @@ package com.messaging.channel.gmail;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.messaging.common.exception.BadRequestException;
+import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -114,7 +115,7 @@ public class GmailApiClient {
       builder.queryParam("pageToken", pageToken);
     }
 
-    String uri = builder.build().encode().toUriString();
+    URI uri = builder.build().encode().toUri();
     return execute(
         "gmail_messages_list",
         () ->
@@ -141,12 +142,12 @@ public class GmailApiClient {
   }
 
   public GmailMessage message(String accessToken, String messageId) {
-    String uri =
+    URI uri =
         UriComponentsBuilder.fromPath("/gmail/v1/users/me/messages/{messageId}")
             .queryParam("format", "full")
             .buildAndExpand(messageId)
             .encode()
-            .toUriString();
+            .toUri();
 
     return execute(
         "gmail_message_get",
