@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Outlet, useNavigate } from 'react-router'
+import { Outlet, useLocation, useNavigate } from 'react-router'
 import Header from '../components/Header'
 import AdminSidebar from '../components/navigation/AdminSidebar'
 import AppSidebar from '../components/navigation/AppSidebar'
@@ -12,10 +12,13 @@ import { useAppDispatch } from '../store/hooks'
 export default function MainLayout({ platform = false }: { platform?: boolean }) {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [platformAccess, setPlatformAccess] = useState<PlatformAccess | null>(null)
   const [railHovered, setRailHovered] = useState(false)
+  const inboxMode = location.pathname.startsWith('/inbox/')
+  const compactNavigation = platform || inboxMode
 
   useEffect(() => {
     let active = true
@@ -56,17 +59,44 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
       )}
       <aside
         id="main-navigation"
-        className={`app-sidebar ${platform ? 'is-compact' : ''} ${railHovered ? 'is-hover-expanded' : ''} ${menuOpen ? 'is-open' : ''}`}
-        onMouseEnter={() => platform && setRailHovered(true)}
-        onMouseLeave={() => platform && setRailHovered(false)}
+        className={`app-sidebar ${compactNavigation ? 'is-compact' : ''} ${railHovered ? 'is-hover-expanded' : ''} ${menuOpen ? 'is-open' : ''}`}
+        onMouseEnter={() => compactNavigation && setRailHovered(true)}
+        onMouseLeave={() => compactNavigation && setRailHovered(false)}
       >
-        <AppSidebar
-          platformAccess={platformAccess}
-          compact={platform}
-          loggingOut={loggingOut}
-          onNavigate={closeNavigation}
-          onLogout={() => void logout()}
-        />
+        {platform && platformAccess ? (
+          <>
+            <div className="flex min-h-full flex-col lg:hidden">
+              <AdminSidebar access={platformAccess} onNavigate={closeNavigation} />
+              <div className="mt-auto border-t border-slate-100 pt-5">
+                <button
+                  type="button"
+                  className="sidebar-link w-full text-left"
+                  onClick={() => void logout()}
+                  disabled={loggingOut}
+                >
+                  {loggingOut ? 'Logging out...' : 'Logout'}
+                </button>
+              </div>
+            </div>
+            <div className="hidden lg:contents">
+              <AppSidebar
+                platformAccess={platformAccess}
+                compact
+                loggingOut={loggingOut}
+                onNavigate={closeNavigation}
+                onLogout={() => void logout()}
+              />
+            </div>
+          </>
+        ) : (
+          <AppSidebar
+            platformAccess={platformAccess}
+            compact={compactNavigation}
+            loggingOut={loggingOut}
+            onNavigate={closeNavigation}
+            onLogout={() => void logout()}
+          />
+        )}
       </aside>
 
       {platform && platformAccess && (
@@ -75,7 +105,9 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
         </aside>
       )}
 
-      <div className={`app-content min-w-0 ${platform ? 'with-admin-sidebar' : ''}`}>
+      <div
+        className={`app-content min-w-0 ${platform ? 'with-admin-sidebar' : inboxMode ? 'with-compact-sidebar' : ''}`}
+      >
         <Header menuOpen={menuOpen} onToggleMenu={() => setMenuOpen((open) => !open)} />
         <main id="main-content">
           <Outlet />

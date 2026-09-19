@@ -39,7 +39,7 @@ const cards = [
 ]
 
 const PlatformDashboard = () => (
-  <section className="p-6 lg:p-8">
+  <section className="p-4 sm:p-6 lg:p-8">
     <div className="mx-auto max-w-7xl">
       <p className="eyebrow">PLATFORM ADMINISTRATION</p>
       <h1 className="mt-2 text-2xl font-bold text-slate-950">Admin workspace</h1>

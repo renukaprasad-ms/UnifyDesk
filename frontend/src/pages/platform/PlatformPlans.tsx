@@ -102,12 +102,14 @@ export default function PlatformPlans() {
 
   if (loading)
     return (
-      <div className="p-6 lg:p-8 text-sm font-medium text-slate-500">Loading billing catalog…</div>
+      <div className="p-4 sm:p-6 lg:p-8 text-sm font-medium text-slate-500">
+        Loading billing catalog…
+      </div>
     )
 
   if (superAdmin === false) {
     return (
-      <section className="p-6 lg:p-8">
+      <section className="p-4 sm:p-6 lg:p-8">
         <div className="panel max-w-2xl p-6">
           <p className="eyebrow">PLANS & PRICING</p>
           <h1 className="mt-2 text-xl font-bold text-slate-950">Super Admin access required</h1>
@@ -121,7 +123,7 @@ export default function PlatformPlans() {
   }
 
   return (
-    <section className="p-6 lg:p-8">
+    <section className="p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>

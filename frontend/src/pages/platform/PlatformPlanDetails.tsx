@@ -243,17 +243,19 @@ export default function PlatformPlanDetails() {
 
   if (loading)
     return (
-      <div className="p-6 lg:p-8 text-sm font-medium text-slate-500">
+      <div className="p-4 sm:p-6 lg:p-8 text-sm font-medium text-slate-500">
         Loading plan configuration…
       </div>
     )
   if (!plan)
     return (
-      <div className="p-6 lg:p-8 text-sm font-medium text-red-600">{error || 'Plan not found'}</div>
+      <div className="p-4 sm:p-6 lg:p-8 text-sm font-medium text-red-600">
+        {error || 'Plan not found'}
+      </div>
     )
 
   return (
-    <section className="p-6 lg:p-8">
+    <section className="p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
         <button
           type="button"

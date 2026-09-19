@@ -40,6 +40,7 @@ export type InboxMessage = {
   subject?: string | null
   snippet?: string | null
   bodyText?: string | null
+  bodyHtml?: string | null
   sentAt?: string | null
   read: boolean
   attachments: InboxAttachment[]

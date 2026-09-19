@@ -14,6 +14,7 @@ public record InboxMessageResponse(
     String subject,
     String snippet,
     String bodyText,
+    String bodyHtml,
     Instant sentAt,
     boolean read,
     List<InboxAttachmentResponse> attachments) {}

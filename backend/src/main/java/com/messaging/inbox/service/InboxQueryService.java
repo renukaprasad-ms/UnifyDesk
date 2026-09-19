@@ -105,6 +105,7 @@ public class InboxQueryService {
         message.getSubject(),
         message.getSnippet(),
         message.getBodyText(),
+        message.getBodyHtml(),
         message.getSentAt(),
         message.isRead(),
         attachments);

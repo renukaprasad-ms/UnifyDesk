@@ -195,7 +195,7 @@ export default function CompanyConnections() {
 
   if (!selectedCompany) {
     return (
-      <section className="px-4 py-8 sm:px-6 lg:px-8">
+      <section className="px-4 py-6 sm:px-6 lg:px-8">
         <div className="panel mx-auto max-w-5xl p-8 text-center text-sm text-slate-500">
           Select a workspace to manage channel connections.
         </div>
@@ -204,12 +204,14 @@ export default function CompanyConnections() {
   }
 
   return (
-    <section className="px-4 py-8 sm:px-6 lg:px-8">
+    <section className="px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="eyebrow">Company</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Connections</h1>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+              Connections
+            </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
               Connect the communication providers this workspace will use for inboxes, sending,
               templates, and broadcasts.
@@ -238,7 +240,7 @@ export default function CompanyConnections() {
           </div>
         )}
 
-        <div className="mt-7 grid gap-4 md:grid-cols-3">
+        <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="panel p-5">
             <div className="flex items-center justify-between">
               <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
@@ -382,7 +384,7 @@ export default function CompanyConnections() {
                   {connection.status !== 'DISCONNECTED' && can(PERMISSIONS.EMAIL_DISCONNECT) && (
                     <button
                       type="button"
-                      className="secondary-button inline-flex shrink-0 items-center gap-2 text-rose-600"
+                      className="secondary-button inline-flex w-full shrink-0 items-center gap-2 text-rose-600 sm:w-auto"
                       disabled={workingConnectionId === connection.id}
                       onClick={() => void disconnect(connection)}
                     >

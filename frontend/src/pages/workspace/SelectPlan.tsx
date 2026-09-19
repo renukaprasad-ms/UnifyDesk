@@ -67,7 +67,7 @@ export default function SelectPlan() {
   }
 
   return (
-    <div className="min-h-dvh bg-white px-6 py-12 sm:py-20">
+    <div className="min-h-dvh bg-white px-4 py-10 sm:px-6 sm:py-20">
       <main className="mx-auto w-full max-w-[760px]">
         <h1 className="text-[26px] font-bold leading-tight text-slate-950">Select a plan</h1>
         <p className="mt-2 text-sm text-slate-500">
