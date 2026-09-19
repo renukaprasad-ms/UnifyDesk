@@ -38,7 +38,7 @@ export const mediaApi = {
     return mediaApi.initiateUpload(file, 'USER_PROFILE', undefined, true)
   },
 
-  async initiateCompanyLogoUpload(file: File, companyId: string) {
+  async initiateCompanyLogoUpload(file: File, companyId?: string) {
     return mediaApi.initiateUpload(file, 'COMPANY_LOGO', companyId)
   },
 
