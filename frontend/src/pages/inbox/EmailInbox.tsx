@@ -92,6 +92,7 @@ export default function EmailInbox() {
   const [syncJobs, setSyncJobs] = useState<Record<string, AsyncJob>>({})
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [realtimeConnected, setRealtimeConnected] = useState(realtimeClient.isConnected())
 
   const selectedConnection = useMemo(
     () => connections.find((connection) => connection.id === selectedConnectionId) ?? null,
@@ -239,6 +240,8 @@ export default function EmailInbox() {
     )
   }, [trackedSyncJobs])
 
+  useEffect(() => realtimeClient.subscribeConnection(setRealtimeConnected), [])
+
   useEffect(() => {
     return realtimeClient.subscribe<AsyncJob>('async.job.progress', (event) => {
       const job = event.payload
@@ -257,7 +260,7 @@ export default function EmailInbox() {
   }, [loadConversations])
 
   useEffect(() => {
-    if (activeSyncJobs.length === 0) return
+    if (activeSyncJobs.length === 0 || realtimeConnected) return
 
     const timer = window.setInterval(() => {
       void Promise.all(
@@ -271,7 +274,7 @@ export default function EmailInbox() {
     }, 3000)
 
     return () => window.clearInterval(timer)
-  }, [activeSyncJobs])
+  }, [activeSyncJobs, realtimeConnected])
 
   const syncGmail = async () => {
     if (!companyId || syncing) return
