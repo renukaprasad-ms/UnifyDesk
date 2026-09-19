@@ -2,6 +2,7 @@ package com.messaging.channel.gmail;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.asyncjob.service.AsyncJobService;
+import com.messaging.common.exception.ApiException;
 import com.messaging.kafka.consumer.KafkaEventHandler;
 import com.messaging.kafka.event.GmailSyncRequestedEvent;
 import com.messaging.kafka.event.KafkaEvent;
@@ -72,8 +73,15 @@ public class GmailSyncEventHandler implements KafkaEventHandler {
           exception.getClass().getSimpleName(),
           exception.getMessage(),
           exception);
-      asyncJobService.fail(payload.jobId(), exception.getMessage());
+      asyncJobService.fail(payload.jobId(), userSafeMessage(exception));
       throw exception;
     }
+  }
+
+  private String userSafeMessage(RuntimeException exception) {
+    if (exception instanceof ApiException && exception.getMessage() != null) {
+      return exception.getMessage();
+    }
+    return "Gmail sync failed. Please try again.";
   }
 }
