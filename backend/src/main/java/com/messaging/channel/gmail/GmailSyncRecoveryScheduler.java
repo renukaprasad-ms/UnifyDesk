@@ -22,7 +22,6 @@ public class GmailSyncRecoveryScheduler {
   private final GmailSyncBatchRepository batchRepository;
   private final GmailSyncStateService stateService;
   private final GmailSyncCoordinatorPublisher coordinatorPublisher;
-  private final GmailSyncBatchPublisher batchPublisher;
 
   @Scheduled(fixedDelayString = "${app.channel.gmail.sync-batch-recovery-interval:1m}")
   public void recover() {
@@ -56,8 +55,10 @@ public class GmailSyncRecoveryScheduler {
         if (!stateService.resetStaleForRecovery(batch.getId(), cutoff)) {
           continue;
         }
-        var run = stateService.requireRun(batch.getJobId());
-        batchPublisher.publish(run, batch, "recovery");
+        log.info(
+            "Recovered stale Gmail batch batchId={} jobId={} for DB worker retry",
+            batch.getId(),
+            batch.getJobId());
       } catch (RuntimeException exception) {
         log.warn(
             "Unable to recover Gmail sync batch batchId={} jobId={} reason={}",
