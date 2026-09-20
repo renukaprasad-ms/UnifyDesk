@@ -1,22 +1,24 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   FiCheck,
   FiChevronDown,
-  FiInbox,
   FiLink,
   FiMail,
   FiMessageSquare,
   FiPlus,
   FiRadio,
-  FiSend,
   FiSmartphone,
 } from 'react-icons/fi'
 import { useLocation, useNavigate } from 'react-router'
+import ConversationList from '../inbox/ConversationList'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import type { ChannelConnection, ChannelType, SenderIdentity } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
+import { inboxApi } from '../../features/inbox/inboxApi'
+import type { InboxConversation } from '../../features/inbox/types'
+import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
@@ -80,10 +82,17 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const [menuOpen, setMenuOpen] = useState(false)
   const [addingEmail, setAddingEmail] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [conversations, setConversations] = useState<InboxConversation[]>([])
+  const [conversationLoading, setConversationLoading] = useState(false)
+  const [conversationLoadingMore, setConversationLoadingMore] = useState(false)
+  const [conversationPage, setConversationPage] = useState(0)
+  const [conversationTotalPages, setConversationTotalPages] = useState(0)
+  const [conversationTotalElements, setConversationTotalElements] = useState(0)
 
   const search = useMemo(() => new URLSearchParams(location.search), [location.search])
   const selectedConnectionId = search.get('connectionId')
   const selectedSenderId = search.get('senderId')
+  const selectedConversationId = search.get('conversationId')
 
   useEffect(() => {
     if (!menuOpen) return
@@ -132,8 +141,9 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         if (active) setSenders(Object.fromEntries(senderEntries))
       })
       .catch((requestError) => {
-        if (active)
+        if (active) {
           setError(apiErrorMessage(requestError, `Unable to load connected ${meta.label}`))
+        }
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -202,6 +212,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     params.set('connectionId', first.connection.id)
     if (first.sender) params.set('senderId', first.sender.id)
     else params.delete('senderId')
+    params.delete('conversationId')
 
     navigate(
       {
@@ -212,11 +223,91 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     )
   }, [identities, loading, location.pathname, location.search, navigate, selectedItem])
 
+  const loadConversations = useCallback(
+    async (page = 0, append = false) => {
+      if (
+        !companyId ||
+        mode !== 'inbox' ||
+        channelType !== 'EMAIL' ||
+        !selectedConnectionId
+      ) {
+        setConversations([])
+        setConversationPage(0)
+        setConversationTotalPages(0)
+        setConversationTotalElements(0)
+        return
+      }
+
+      if (append) setConversationLoadingMore(true)
+      else setConversationLoading(true)
+
+      try {
+        const inbox = await inboxApi.conversations(companyId, page, 30, selectedConnectionId)
+        setConversations((current) => {
+          if (!append) return inbox.items
+          const byId = new Map(current.map((conversation) => [conversation.id, conversation]))
+          inbox.items.forEach((conversation) => byId.set(conversation.id, conversation))
+          return Array.from(byId.values())
+        })
+        setConversationPage(inbox.page)
+        setConversationTotalPages(inbox.totalPages)
+        setConversationTotalElements(inbox.totalElements)
+      } catch (requestError) {
+        setError(apiErrorMessage(requestError, 'Unable to load conversations'))
+      } finally {
+        setConversationLoading(false)
+        setConversationLoadingMore(false)
+      }
+    },
+    [channelType, companyId, mode, selectedConnectionId],
+  )
+
+  useEffect(() => {
+    void loadConversations(0, false)
+  }, [loadConversations])
+
+  useEffect(() => {
+    if (
+      mode !== 'inbox' ||
+      channelType !== 'EMAIL' ||
+      selectedConversationId ||
+      conversations.length === 0
+    ) {
+      return
+    }
+
+    const params = new URLSearchParams(location.search)
+    params.set('conversationId', conversations[0].id)
+    navigate(
+      {
+        pathname: location.pathname,
+        search: `?${params.toString()}`,
+      },
+      { replace: true },
+    )
+  }, [
+    channelType,
+    conversations,
+    location.pathname,
+    location.search,
+    mode,
+    navigate,
+    selectedConversationId,
+  ])
+
+  useEffect(() => {
+    if (mode !== 'inbox' || channelType !== 'EMAIL') return
+    return realtimeClient.subscribe('inbox.email.changed', () => {
+      void loadConversations(0, false)
+    })
+  }, [channelType, loadConversations, mode])
+
   const selectIdentity = (item: IdentityItem) => {
     const params = new URLSearchParams(location.search)
     params.set('connectionId', item.connection.id)
     if (item.sender) params.set('senderId', item.sender.id)
     else params.delete('senderId')
+    params.delete('conversationId')
     params.delete('compose')
 
     setMenuOpen(false)
@@ -227,13 +318,12 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     onNavigate()
   }
 
-  const openCompose = () => {
-    if (!selectedItem || channelType !== 'EMAIL') return
+  const selectConversation = (conversation: InboxConversation) => {
     const params = new URLSearchParams(location.search)
-    params.set('connectionId', selectedItem.connection.id)
-    params.set('compose', '1')
+    params.set('conversationId', conversation.id)
+    params.delete('compose')
     navigate({
-      pathname: '/inbox/email',
+      pathname: location.pathname,
       search: `?${params.toString()}`,
     })
     onNavigate()
@@ -259,28 +349,21 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         ? can(PERMISSIONS.WHATSAPP_CONNECT)
         : can(PERMISSIONS.SMS_CONNECT)
 
-  const canCompose =
-    mode === 'inbox' &&
-    channelType === 'EMAIL' &&
-    Boolean(selectedItem) &&
-    can(PERMISSIONS.EMAIL_SEND)
+  const emptyListLabel = mode === 'inbox' ? 'Chats' : 'Broadcasts'
 
   return (
-    <>
+    <div className="flex min-h-full flex-col">
       <div className="admin-sidebar-header">
         <div className="min-w-0">
-          <p className="eyebrow">WORKSPACE</p>
+          <p className="eyebrow">{mode === 'inbox' ? 'INBOX' : 'BROADCAST'}</p>
           <h2 className="mt-1 text-[15px] font-bold text-slate-950">{meta.label}</h2>
-          <p className="mt-1 text-[11px] leading-4 text-slate-500">
-            {mode === 'inbox' ? 'Inbox' : 'Broadcast'}
-          </p>
         </div>
         <span className="admin-back-button" aria-hidden="true">
           {meta.icon}
         </span>
       </div>
 
-      <div className="mt-5">
+      <div className="mt-4">
         <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
           {channelType === 'EMAIL' ? 'Email account' : 'Sender'}
         </p>
@@ -358,55 +441,78 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         </div>
 
         {error && <p className="mt-3 px-1 text-xs leading-5 text-rose-600">{error}</p>}
-
-        <nav className="mt-5 space-y-1" aria-label={`${meta.label} actions`}>
-          <button type="button" className="admin-nav-link is-active w-full text-left">
-            <span className="admin-nav-icon">
-              {mode === 'inbox' ? <FiInbox aria-hidden="true" /> : <FiSend aria-hidden="true" />}
-            </span>
-            <span>{mode === 'inbox' ? 'Inbox' : 'Broadcast'}</span>
-          </button>
-
-          {canCompose && (
-            <button type="button" className="admin-nav-link w-full text-left" onClick={openCompose}>
-              <span className="admin-nav-icon">
-                <FiSend aria-hidden="true" />
-              </span>
-              <span>Compose email</span>
-            </button>
-          )}
-
-          {channelType === 'EMAIL' && connectAllowed && (
-            <button
-              type="button"
-              className="admin-nav-link w-full text-left"
-              disabled={addingEmail}
-              onClick={() => void addEmail()}
-            >
-              <span className="admin-nav-icon">
-                <FiPlus aria-hidden="true" />
-              </span>
-              <span>{addingEmail ? 'Opening Google…' : 'Add email'}</span>
-            </button>
-          )}
-
-          {channelType !== 'EMAIL' && connectAllowed && (
-            <button
-              type="button"
-              className="admin-nav-link w-full text-left"
-              onClick={() => {
-                navigate('/company/connections')
-                onNavigate()
-              }}
-            >
-              <span className="admin-nav-icon">
-                <FiLink aria-hidden="true" />
-              </span>
-              <span>{meta.connectLabel}</span>
-            </button>
-          )}
-        </nav>
       </div>
-    </>
+
+      <div className="mt-5 min-h-0 flex-1 border-t border-slate-100 pt-4">
+        <div className="mb-2 flex items-center justify-between gap-2 px-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+            {emptyListLabel}
+          </p>
+          {mode === 'inbox' && channelType === 'EMAIL' && conversationTotalElements > 0 && (
+            <span className="text-[10px] font-medium text-slate-400">
+              {conversationTotalElements}
+            </span>
+          )}
+        </div>
+
+        {mode === 'inbox' && channelType === 'EMAIL' ? (
+          <div className="-mx-3 overflow-hidden border-t border-slate-100">
+            <ConversationList
+              compact
+              conversations={conversations}
+              connections={connections}
+              selectedId={selectedConversationId}
+              loading={conversationLoading}
+              loadingMore={conversationLoadingMore}
+              totalElements={conversationTotalElements}
+              hasMore={conversationPage + 1 < conversationTotalPages}
+              onSelect={selectConversation}
+              onLoadMore={() => void loadConversations(conversationPage + 1, true)}
+            />
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center">
+            <p className="text-xs font-semibold text-slate-700">
+              No {emptyListLabel.toLowerCase()} yet
+            </p>
+            <p className="mt-1 text-[11px] leading-5 text-slate-500">
+              {mode === 'broadcast'
+                ? 'Created broadcasts will appear in this list.'
+                : 'Conversations will appear here when this channel is available.'}
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 border-t border-slate-100 pt-4">
+        {channelType === 'EMAIL' && connectAllowed ? (
+          <button
+            type="button"
+            className="admin-nav-link w-full text-left"
+            disabled={addingEmail}
+            onClick={() => void addEmail()}
+          >
+            <span className="admin-nav-icon">
+              <FiPlus aria-hidden="true" />
+            </span>
+            <span>{addingEmail ? 'Opening Google…' : 'Add email'}</span>
+          </button>
+        ) : channelType !== 'EMAIL' && connectAllowed ? (
+          <button
+            type="button"
+            className="admin-nav-link w-full text-left"
+            onClick={() => {
+              navigate('/company/connections')
+              onNavigate()
+            }}
+          >
+            <span className="admin-nav-icon">
+              <FiLink aria-hidden="true" />
+            </span>
+            <span>{meta.connectLabel}</span>
+          </button>
+        ) : null}
+      </div>
+    </div>
   )
 }
