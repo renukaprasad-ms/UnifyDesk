@@ -1,6 +1,8 @@
 package com.messaging.channel.gmail;
 
 import com.messaging.asyncjob.service.AsyncJobService;
+import com.messaging.channel.email.EmailFolder;
+import com.messaging.channel.email.EmailSyncMode;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ProviderType;
@@ -42,8 +44,15 @@ public class GmailSyncService {
   private final GmailSyncFinalizerService finalizerService;
 
   public void sync(
-      Long companyId, Long connectionId, Long jobId, LocalDate fromDate, LocalDate toDate) {
-    validateRange(fromDate, toDate);
+      Long companyId,
+      Long connectionId,
+      Long jobId,
+      EmailSyncMode mode,
+      EmailFolder folder,
+      LocalDate fromDate,
+      LocalDate toDate,
+      Integer messageCount) {
+    validateRequest(mode, folder, fromDate, toDate, messageCount);
 
     ChannelConnection connection =
         connectionRepository
@@ -66,9 +75,13 @@ public class GmailSyncService {
     asyncJobService.startOrResume(jobId, run.getDiscoveredCount(), "Discovering Gmail messages");
 
     String accessToken = tokenService.accessToken(connection);
-    int maxMessages = Math.max(1, properties.getSyncMaxMessages());
+    int configuredMaxMessages = Math.max(1, properties.getSyncMaxMessages());
+    int maxMessages =
+        mode == EmailSyncMode.LATEST_MESSAGES
+            ? Math.min(configuredMaxMessages, messageCount)
+            : configuredMaxMessages;
     int batchSize = Math.min(MAX_HTTP_BATCH_SIZE, Math.max(1, properties.getSyncBatchSize()));
-    String query = query(fromDate, toDate);
+    String query = query(mode, folder, fromDate, toDate);
 
     long discovered = run.getDiscoveredCount();
     long existing = run.getExistingCount();
@@ -219,24 +232,50 @@ public class GmailSyncService {
     return new HashSet<>(messageRepository.findExistingExternalMessageIds(connectionId, ids));
   }
 
-  private void validateRange(LocalDate fromDate, LocalDate toDate) {
+  private void validateRequest(
+      EmailSyncMode mode,
+      EmailFolder folder,
+      LocalDate fromDate,
+      LocalDate toDate,
+      Integer messageCount) {
+    if (mode == null || folder == null) {
+      throw new BadRequestException("Email sync mode and folder are required");
+    }
+
+    if (mode == EmailSyncMode.LATEST_MESSAGES) {
+      if (messageCount == null || messageCount < 1) {
+        throw new BadRequestException("messageCount is required for latest-message sync");
+      }
+      if (messageCount > Math.max(1, properties.getSyncMaxMessages())) {
+        throw new BadRequestException(
+            "messageCount cannot exceed " + properties.getSyncMaxMessages());
+      }
+      return;
+    }
+
     if (fromDate == null || toDate == null) {
-      throw new BadRequestException("Gmail sync fromDate and toDate are required");
+      throw new BadRequestException("fromDate and toDate are required for date-range sync");
     }
     if (fromDate.isAfter(toDate)) {
-      throw new BadRequestException("Gmail sync fromDate must be on or before toDate");
+      throw new BadRequestException("fromDate must be on or before toDate");
     }
     long days = ChronoUnit.DAYS.between(fromDate, toDate);
     if (days > Math.max(1, properties.getSyncMaxRangeDays())) {
       throw new BadRequestException(
-          "Gmail sync range cannot exceed " + properties.getSyncMaxRangeDays() + " days");
+          "Email sync range cannot exceed " + properties.getSyncMaxRangeDays() + " days");
     }
   }
 
-  private String query(LocalDate fromDate, LocalDate toDate) {
+  private String query(
+      EmailSyncMode mode, EmailFolder folder, LocalDate fromDate, LocalDate toDate) {
+    String folderQuery = folder.gmailSearchToken();
+    if (mode == EmailSyncMode.LATEST_MESSAGES) {
+      return folderQuery;
+    }
+
     long startExclusive = fromDate.atStartOfDay().toEpochSecond(ZoneOffset.UTC) - 1;
     long endExclusive = toDate.plusDays(1).atStartOfDay().toEpochSecond(ZoneOffset.UTC);
-    return "after:" + startExclusive + " before:" + endExclusive;
+    return folderQuery + " after:" + startExclusive + " before:" + endExclusive;
   }
 
   private boolean hasText(String value) {
