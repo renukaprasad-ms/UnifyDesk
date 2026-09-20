@@ -91,6 +91,17 @@ public class MicrosoftSyncStateService {
   }
 
   @Transactional
+  public void stop(Long stateId, String reason) {
+    MicrosoftSyncState state =
+        repository.findByIdForUpdate(stateId).orElseThrow();
+    state.setStatus(MicrosoftSyncStatus.ERROR);
+    state.setClaimedAt(null);
+    state.setNextAttemptAt(null);
+    state.setLastError(truncate(reason));
+    repository.save(state);
+  }
+
+  @Transactional
   public void retry(Long stateId, String error) {
     MicrosoftSyncState state =
         repository.findByIdForUpdate(stateId).orElseThrow();
