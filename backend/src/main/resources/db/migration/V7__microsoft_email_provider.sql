@@ -1,3 +1,10 @@
+-- Track provider folder ownership for folder-scoped delta streams.
+alter table inbox_messages
+  add column if not exists provider_folder_key varchar(64);
+
+create index if not exists idx_inbox_messages_connection_provider_folder
+  on inbox_messages (connection_id, provider_folder_key);
+
 -- Durable Microsoft Graph mailbox delta sync and webhook subscription state.
 
 create table if not exists microsoft_sync_states (
