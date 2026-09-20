@@ -1,5 +1,6 @@
 package com.messaging.inbox.controller;
 
+import com.messaging.channel.email.EmailFolder;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
@@ -31,6 +32,7 @@ public class InboxController {
   public ResponseEntity<ApiResponse<InboxPageResponse<InboxConversationResponse>>> conversations(
       @PathVariable Long companyId,
       @RequestParam(required = false) Long connectionId,
+      @RequestParam(defaultValue = "INBOX") EmailFolder folder,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "30") int size) {
     Long userId = currentUserService.currentUserId();
@@ -43,7 +45,7 @@ public class InboxController {
         ApiResponse.success(
             HttpStatus.OK.value(),
             inboxQueryService.listConversations(
-                companyId, connectionId, resolvedPage, resolvedSize),
+                companyId, connectionId, folder, resolvedPage, resolvedSize),
             "Inbox conversations fetched"));
   }
 
