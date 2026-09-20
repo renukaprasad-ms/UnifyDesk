@@ -58,7 +58,7 @@ insert into deletion_purge_jobs (
   purge_after, attempt_count, created_at, updated_at
 )
 select
-  910000000000000000 + row_number() over (order by id),
+  900000000000000000 + row_number() over (order by id),
   'COMPANY',
   id,
   id,
@@ -69,5 +69,25 @@ select
   now(),
   now()
 from companies
+where status = 'DELETION_PENDING'
+on conflict (entity_type, entity_id) do nothing;
+
+
+insert into deletion_purge_jobs (
+  id, entity_type, entity_id, company_id, requested_by_user_id, status,
+  purge_after, attempt_count, created_at, updated_at
+)
+select
+  920000000000000000 + row_number() over (order by id),
+  'USER',
+  id,
+  null,
+  coalesce(deletion_requested_by, id),
+  'PENDING',
+  purge_after,
+  0,
+  now(),
+  now()
+from users
 where status = 'DELETION_PENDING'
 on conflict (entity_type, entity_id) do nothing;
