@@ -255,7 +255,7 @@ public class CompanyInvitationService {
       Long roleId = parseId(rawRoleId);
       CompanyCustomRole role =
           roleRepository
-              .findByIdAndCompanyId(roleId, companyId)
+              .findByIdAndCompanyIdAndDeletedAtIsNull(roleId, companyId)
               .orElseThrow(() -> new NotFoundException("Company role not found"));
       roles.add(role);
     }
@@ -299,6 +299,9 @@ public class CompanyInvitationService {
 
   private void assignInvitationRoles(CompanyInvitation invitation, Long userId) {
     for (CompanyCustomRole role : invitation.getRoles()) {
+      if (role.getDeletedAt() != null) {
+        continue;
+      }
       CompanyMemberRoleAssignment assignment =
           assignmentRepository
               .findByCompanyIdAndUserIdAndRoleId(
