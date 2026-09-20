@@ -1,5 +1,6 @@
 package com.messaging.company.service;
 
+import com.messaging.billing.service.BillingCatalogService;
 import com.messaging.billing.service.DefaultPlanAssignmentService;
 import com.messaging.channel.dto.ChannelConnectionResponse;
 import com.messaging.channel.service.ChannelConnectionService;
@@ -47,6 +48,7 @@ public class CompanyService {
   private final CurrentUserService currentUserService;
   private final MediaService mediaService;
   private final DefaultPlanAssignmentService defaultPlanAssignmentService;
+  private final BillingCatalogService billingCatalogService;
   private final ChannelConnectionService channelConnectionService;
   private final DeletionPurgeService deletionPurgeService;
   private final DeletionLifecycleProperties deletionProperties;
@@ -132,6 +134,10 @@ public class CompanyService {
       channelConnectionService.disconnect(companyId, Long.valueOf(connection.id()), actorUserId);
     }
 
+    // Stop future billing immediately. Historical subscriptions and usage remain
+    // retained for financial/audit purposes after the operational tenant is purged.
+    billingCatalogService.cancelSubscription(companyId, false);
+
     // Preserve memberships, roles, invitations, messages and other tenant data
     // during retention. CompanyStatus is the access gate for the entire workspace.
     company.setStatus(CompanyStatus.DELETION_PENDING);
@@ -171,7 +177,10 @@ public class CompanyService {
 
   @Transactional(readOnly = true)
   public long companyCountForUser(Long userId) {
-    return memberRepository.countByUserIdAndStatus(userId, CompanyMemberStatus.ACTIVE);
+    return memberRepository.findByUserIdAndStatus(userId, CompanyMemberStatus.ACTIVE).stream()
+        .filter(member -> member.getCompany().getStatus() == CompanyStatus.ACTIVE
+            || member.getCompany().getStatus() == CompanyStatus.SUSPENDED)
+        .count();
   }
 
   @Transactional(readOnly = true)
