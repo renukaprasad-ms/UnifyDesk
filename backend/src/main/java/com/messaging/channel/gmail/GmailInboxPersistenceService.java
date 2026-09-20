@@ -223,6 +223,18 @@ public class GmailInboxPersistenceService {
         syncedAt);
   }
 
+  @Transactional(readOnly = true)
+  public Set<String> activeFolderMessageIdsSince(
+      ChannelConnection connection, Instant since) {
+    return messageRepository
+        .findByConnectionIdAndProviderFolderKeyIsNotNullAndSentAtGreaterThanEqualAndStatusNot(
+            connection.getId(), since, InboxMessageStatus.DELETED)
+        .stream()
+        .map(InboxMessage::getExternalMessageId)
+        .filter(this::hasText)
+        .collect(java.util.stream.Collectors.toSet());
+  }
+
   @Transactional
   public int markDeleted(ChannelConnection connection, java.util.Collection<String> externalMessageIds) {
     if (externalMessageIds == null || externalMessageIds.isEmpty()) {
