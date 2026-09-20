@@ -54,14 +54,6 @@ export default function CompanyConnections() {
     () => connections.filter((connection) => connection.channelType === 'EMAIL'),
     [connections],
   )
-  const gmailConnections = useMemo(
-    () => emailConnections.filter((connection) => connection.providerType === 'GMAIL'),
-    [emailConnections],
-  )
-  const microsoftConnections = useMemo(
-    () => emailConnections.filter((connection) => connection.providerType === 'MICROSOFT'),
-    [emailConnections],
-  )
   const smsConnections = useMemo(
     () => connections.filter((connection) => connection.channelType === 'SMS'),
     [connections],
