@@ -82,6 +82,35 @@ public class ImapSmtpMailClient {
     }
   }
 
+  public FolderCursor currentCursor(
+      ImapSmtpStoredCredentials credentials, EmailFolder emailFolder) {
+    String folderName = folderName(credentials, emailFolder);
+    try (Store store = openStore(credentials)) {
+      Folder folder = store.getFolder(folderName);
+      ensureFolder(folder, folderName);
+      folder.open(Folder.READ_ONLY);
+      try {
+        if (!(folder instanceof UIDFolder uidFolder)) {
+          throw new BadRequestException("IMAP server does not support UID-based synchronization");
+        }
+        long uidValidity = uidFolder.getUIDValidity();
+        int count = folder.getMessageCount();
+        long lastUid = 0;
+        if (count > 0) {
+          Message last = folder.getMessage(count);
+          lastUid = Math.max(0, uidFolder.getUID(last));
+        }
+        return new FolderCursor(uidValidity, lastUid);
+      } finally {
+        folder.close(false);
+      }
+    } catch (BadRequestException exception) {
+      throw exception;
+    } catch (Exception exception) {
+      throw new ServiceUnavailableException("Unable to read IMAP folder state", exception);
+    }
+  }
+
   public List<MailboxMessage> history(
       ImapSmtpStoredCredentials credentials, EmailSyncRequest request, int maxMessages) {
     String folderName = folderName(credentials, request.folder());
@@ -126,17 +155,25 @@ public class ImapSmtpMailClient {
         }
 
         long uidValidity = uidFolder.getUIDValidity();
-        long startUid =
-            previousUidValidity > 0 && previousUidValidity == uidValidity
-                ? Math.max(1, previousUid + 1)
-                : 1;
-
-        Message[] messages = uidFolder.getMessagesByUID(startUid, UIDFolder.LASTUID);
-        if (messages == null) messages = new Message[0];
+        boolean uidValidityChanged = previousUidValidity > 0 && previousUidValidity != uidValidity;
+        Message[] messages;
 
         int limit = Math.max(1, maxMessages);
-        if (messages.length > limit) {
-          messages = java.util.Arrays.copyOfRange(messages, 0, limit);
+        if (uidValidityChanged) {
+          int messageCount = folder.getMessageCount();
+          if (messageCount <= 0) {
+            messages = new Message[0];
+          } else {
+            int start = Math.max(1, messageCount - limit + 1);
+            messages = folder.getMessages(start, messageCount);
+          }
+        } else {
+          long startUid = Math.max(1, previousUid + 1);
+          messages = uidFolder.getMessagesByUID(startUid, UIDFolder.LASTUID);
+          if (messages == null) messages = new Message[0];
+          if (messages.length > limit) {
+            messages = java.util.Arrays.copyOfRange(messages, 0, limit);
+          }
         }
 
         List<MailboxMessage> snapshots = snapshots(folder, messages, emailFolder);
@@ -519,6 +556,8 @@ public class ImapSmtpMailClient {
   }
 
   public record TestedMailbox(String sentFolder) {}
+
+  public record FolderCursor(long uidValidity, long lastUid) {}
 
   public record FolderDelta(long uidValidity, long lastUid, List<MailboxMessage> messages) {}
 
