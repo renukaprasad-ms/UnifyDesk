@@ -136,3 +136,55 @@ export type MicrosoftSendResponse = {
   subject: string
   acceptedAt: string
 }
+
+
+export type MailSecurityMode = 'SSL_TLS' | 'STARTTLS'
+
+export type ImapSmtpConnectRequest = {
+  email: string
+  displayName?: string
+  username: string
+  password: string
+  imapHost: string
+  imapPort: number
+  imapSecurity: MailSecurityMode
+  smtpHost: string
+  smtpPort: number
+  smtpSecurity: MailSecurityMode
+  sentFolder?: string
+}
+
+export type ImapSmtpConnection = {
+  connectionId: string
+  email: string
+  name: string
+  status: ChannelConnectionStatus
+  imapHost: string
+  imapPort: number
+  imapSecurity: MailSecurityMode
+  smtpHost: string
+  smtpPort: number
+  smtpSecurity: MailSecurityMode
+  sentFolder: string
+}
+
+export type ImapSmtpSendRequest = {
+  to: string[]
+  cc?: string[]
+  bcc?: string[]
+  subject?: string
+  bodyText: string
+  inReplyTo?: string | null
+  references?: string | null
+}
+
+export type ImapSmtpSendResponse = {
+  connectionId: string
+  messageId: string
+  from: string
+  to: string[]
+  cc: string[]
+  bcc: string[]
+  subject: string
+  sentAt: string
+}
