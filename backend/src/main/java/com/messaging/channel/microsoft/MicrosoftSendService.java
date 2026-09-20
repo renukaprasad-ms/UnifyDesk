@@ -44,19 +44,26 @@ public class MicrosoftSendService {
       throw new BadRequestException("At least one email recipient is required");
     }
 
-    GraphSendMessage message =
-        new GraphSendMessage(
-            trimToEmpty(request.subject()),
-            new GraphBody("Text", request.bodyText()),
-            recipients(to),
-            recipients(cc),
-            recipients(bcc));
+    String accessToken = tokenService.accessToken(connection);
+    if (request.replyToMessageId() != null && !request.replyToMessageId().isBlank()) {
+      apiClient.reply(
+          accessToken,
+          request.replyToMessageId().trim(),
+          request.bodyText(),
+          Boolean.TRUE.equals(request.replyAll()));
+    } else {
+      GraphSendMessage message =
+          new GraphSendMessage(
+              trimToEmpty(request.subject()),
+              new GraphBody("Text", request.bodyText()),
+              recipients(to),
+              recipients(cc),
+              recipients(bcc));
+      apiClient.sendMail(accessToken, new SendMailRequest(message, true));
+    }
 
-    apiClient.sendMail(
-        tokenService.accessToken(connection), new SendMailRequest(message, true));
-
-    // Graph sendMail is asynchronous (202). Delta sync will reconcile the provider-assigned
-    // message ID and conversation ID from Sent Items without fabricating local identifiers.
+    // Graph send/reply is asynchronous (202). Delta sync reconciles provider-assigned IDs
+    // from Sent Items without fabricating local identifiers.
     syncStateService.triggerConnection(connectionId);
 
     return new MicrosoftSendResponse(
