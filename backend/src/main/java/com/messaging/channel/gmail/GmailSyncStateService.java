@@ -3,6 +3,7 @@ package com.messaging.channel.gmail;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.messaging.channel.email.EmailSyncRequest;
 import com.messaging.channel.gmail.entity.GmailSyncBatch;
 import com.messaging.channel.gmail.entity.GmailSyncRun;
 import com.messaging.channel.gmail.enums.GmailSyncBatchStatus;
@@ -10,7 +11,6 @@ import com.messaging.channel.gmail.repository.GmailSyncBatchRepository;
 import com.messaging.channel.gmail.repository.GmailSyncRunRepository;
 import com.messaging.common.exception.NotFoundException;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -33,15 +33,17 @@ public class GmailSyncStateService {
       Long companyId,
       Long userId,
       Long connectionId,
-      LocalDate fromDate,
-      LocalDate toDate) {
+      EmailSyncRequest request) {
     GmailSyncRun run = new GmailSyncRun();
     run.setJobId(jobId);
     run.setCompanyId(companyId);
     run.setUserId(userId);
     run.setConnectionId(connectionId);
-    run.setFromDate(fromDate);
-    run.setToDate(toDate);
+    run.setSyncMode(request.mode());
+    run.setFolder(request.folder());
+    run.setFromDate(request.fromDate());
+    run.setToDate(request.toDate());
+    run.setMessageCount(request.messageCount());
     run.setCarryIdsJson("[]");
     return runRepository.saveAndFlush(run);
   }
