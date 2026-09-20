@@ -10,6 +10,7 @@ import {
   FiPlus,
   FiRadio,
   FiSend,
+  FiServer,
   FiSmartphone,
 } from 'react-icons/fi'
 import { SiGmail } from 'react-icons/si'
@@ -75,6 +76,7 @@ const identityFallback = (connection: ChannelConnection) =>
 const emailProviderIcon = (providerType: string) => {
   if (providerType === 'GMAIL') return <SiGmail aria-hidden="true" />
   if (providerType === 'MICROSOFT') return <FiGrid aria-hidden="true" />
+  if (providerType === 'IMAP_SMTP') return <FiServer aria-hidden="true" />
   return <FiMail aria-hidden="true" />
 }
 
@@ -461,6 +463,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                     buttonIcon="plus"
                     onClose={() => setMenuOpen(false)}
                     onError={setError}
+                    onConnected={() => window.location.reload()}
                   />
                   <button
                     type="button"
