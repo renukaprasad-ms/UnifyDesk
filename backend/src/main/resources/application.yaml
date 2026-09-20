@@ -173,6 +173,26 @@ app:
       api-retry-max-attempts: ${GMAIL_API_RETRY_MAX_ATTEMPTS:4}
       api-retry-initial-backoff: ${GMAIL_API_RETRY_INITIAL_BACKOFF:1s}
       api-retry-max-backoff: ${GMAIL_API_RETRY_MAX_BACKOFF:8s}
+    microsoft:
+      enabled: ${MICROSOFT_OAUTH_ENABLED:false}
+      tenant: ${MICROSOFT_OAUTH_TENANT:common}
+      client-id: ${MICROSOFT_OAUTH_CLIENT_ID:}
+      client-secret: ${MICROSOFT_OAUTH_CLIENT_SECRET:}
+      redirect-uri: ${MICROSOFT_OAUTH_REDIRECT_URI:https://messaging.renukaprasad.in/api/v1/oauth/microsoft/callback}
+      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://messaging.renukaprasad.in}
+      webhook-notification-url: ${MICROSOFT_WEBHOOK_NOTIFICATION_URL:https://messaging.renukaprasad.in/api/v1/webhooks/microsoft}
+      scope: ${MICROSOFT_OAUTH_SCOPE:openid profile email offline_access User.Read Mail.ReadWrite Mail.Send}
+      oauth-state-ttl: ${MICROSOFT_OAUTH_STATE_TTL:10m}
+      token-refresh-skew: ${MICROSOFT_OAUTH_TOKEN_REFRESH_SKEW:2m}
+      subscription-lifetime: ${MICROSOFT_SUBSCRIPTION_LIFETIME:6d23h}
+      subscription-renew-before: ${MICROSOFT_SUBSCRIPTION_RENEW_BEFORE:24h}
+      subscription-renew-interval: ${MICROSOFT_SUBSCRIPTION_RENEW_INTERVAL:12h}
+      delta-page-size: ${MICROSOFT_DELTA_PAGE_SIZE:50}
+      worker-concurrency: ${MICROSOFT_WORKER_CONCURRENCY:8}
+      worker-poll-interval-ms: ${MICROSOFT_WORKER_POLL_INTERVAL_MS:500}
+      api-retry-max-attempts: ${MICROSOFT_API_RETRY_MAX_ATTEMPTS:4}
+      api-retry-initial-backoff: ${MICROSOFT_API_RETRY_INITIAL_BACKOFF:1s}
+      api-retry-max-backoff: ${MICROSOFT_API_RETRY_MAX_BACKOFF:30s}
   redis:
     key-prefix: ${REDIS_KEY_PREFIX:messaging}
     ttl:
