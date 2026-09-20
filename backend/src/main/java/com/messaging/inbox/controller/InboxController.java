@@ -47,6 +47,19 @@ public class InboxController {
             "Inbox conversations fetched"));
   }
 
+  @GetMapping("/conversations/{conversationId}")
+  public ResponseEntity<ApiResponse<InboxConversationResponse>> conversation(
+      @PathVariable Long companyId, @PathVariable Long conversationId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_READ);
+
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            inboxQueryService.getConversation(companyId, conversationId),
+            "Inbox conversation fetched"));
+  }
+
   @GetMapping("/conversations/{conversationId}/messages")
   public ResponseEntity<ApiResponse<List<InboxMessageResponse>>> messages(
       @PathVariable Long companyId, @PathVariable Long conversationId) {
