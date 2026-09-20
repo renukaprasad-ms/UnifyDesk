@@ -2,6 +2,7 @@ package com.messaging.storage.service;
 
 import com.messaging.company.enums.CompanyStatus;
 import com.messaging.company.repository.CompanyRepository;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,6 +15,12 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class StorageReconciliationScheduler {
 
+  private static final Set<CompanyStatus> RECONCILABLE_STATUSES =
+      Set.of(
+          CompanyStatus.ACTIVE,
+          CompanyStatus.SUSPENDED,
+          CompanyStatus.DELETION_PENDING);
+
   private final CompanyRepository companyRepository;
   private final StorageReconciliationService reconciliationService;
 
@@ -24,15 +31,21 @@ public class StorageReconciliationScheduler {
       cron = "${app.storage.reconciliation.cron:0 30 3 * * *}",
       zone = "${app.storage.reconciliation.zone:UTC}")
   public void reconcile() {
-    int page = 0;
+    long afterId = 0L;
     int reconciled = 0;
+    int effectiveBatchSize = Math.max(1, batchSize);
 
     while (true) {
       var companies =
-          companyRepository.findByStatusNot(
-              CompanyStatus.DELETED, PageRequest.of(page, Math.max(1, batchSize)));
+          companyRepository.findStorageReconciliationBatch(
+              afterId, RECONCILABLE_STATUSES, PageRequest.of(0, effectiveBatchSize));
 
-      for (var company : companies.getContent()) {
+      if (companies.isEmpty()) {
+        break;
+      }
+
+      for (var company : companies) {
+        afterId = company.getId();
         try {
           reconciliationService.reconcileCompany(company.getId());
           reconciled++;
@@ -44,11 +57,6 @@ public class StorageReconciliationScheduler {
               exception);
         }
       }
-
-      if (!companies.hasNext()) {
-        break;
-      }
-      page++;
     }
 
     log.info("Storage reconciliation completed companies={}", reconciled);
