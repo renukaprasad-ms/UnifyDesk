@@ -265,6 +265,9 @@ public class MicrosoftApiClient {
           throw new TooManyRequestsException(
               "Microsoft Graph is temporarily unavailable or rate limited");
         }
+        if (status == 404) {
+          throw new GraphResourceNotFoundException();
+        }
         if (status == 401 || status == 403) {
           throw new BadRequestException(
               "Microsoft mailbox authorization is invalid or missing required permissions");
@@ -344,6 +347,8 @@ public class MicrosoftApiClient {
   }
 
   public static final class DeltaCursorExpiredException extends RuntimeException {}
+
+  public static final class GraphResourceNotFoundException extends RuntimeException {}
 
   @FunctionalInterface
   private interface GraphCall<T> {
