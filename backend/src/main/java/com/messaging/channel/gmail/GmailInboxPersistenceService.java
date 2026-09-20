@@ -286,7 +286,15 @@ public class GmailInboxPersistenceService {
       syncState.setConnection(connection);
       syncState.setProviderType(ProviderType.GMAIL);
     }
-    syncState.setCursorValue(historyId);
+    if (historyId != null
+        && !historyId.isBlank()
+        && (syncState.getCursorValue() == null
+            || syncState.getCursorValue().isBlank()
+            || GmailRealtimeStateService.compareHistoryId(
+                    historyId, syncState.getCursorValue())
+                > 0)) {
+      syncState.setCursorValue(historyId);
+    }
     syncState.setLastFullSyncAt(syncedAt);
     syncStateRepository.save(syncState);
 
