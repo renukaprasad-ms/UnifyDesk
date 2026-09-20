@@ -1,6 +1,7 @@
 package com.messaging.channel.gmail;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.channel.credential.ProviderCredentialService;
 import com.messaging.channel.dto.ChannelConnectionResponse;
 import com.messaging.channel.enums.ChannelConnectionStatus;
@@ -122,6 +123,14 @@ public class GmailConnectionService {
 
     return syncQueueService.enqueue(
         companyId, userId, connectionId, request.fromDate(), request.toDate());
+  }
+
+  public AsyncJobResponse activeSync(Long companyId, Long connectionId) {
+    ChannelConnectionResponse connection = channelConnectionService.get(companyId, connectionId);
+    if (connection.providerType() != ProviderType.GMAIL) {
+      throw new BadRequestException("Channel connection is not a Gmail account");
+    }
+    return syncQueueService.active(companyId, connectionId);
   }
 
   public ChannelConnectionResponse disconnect(Long companyId, Long connectionId) {

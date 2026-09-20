@@ -16,12 +16,19 @@ import jakarta.mail.internet.MimeMessage;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GmailSendService {
@@ -29,6 +36,7 @@ public class GmailSendService {
   private final ChannelConnectionRepository connectionRepository;
   private final GmailTokenService tokenService;
   private final GmailApiClient gmailApiClient;
+  private final GmailInboxPersistenceService persistenceService;
 
   public GmailSendResponse send(Long companyId, Long connectionId, GmailSendRequest request) {
     ChannelConnection connection =
@@ -46,38 +54,121 @@ public class GmailSendService {
       throw new BadRequestException("Gmail sender address is missing");
     }
 
+    List<String> to = normalizeRecipients(request.to());
+    List<String> cc = normalizeRecipients(request.cc());
+    List<String> bcc = normalizeRecipients(request.bcc());
+    if (to.isEmpty() && cc.isEmpty() && bcc.isEmpty()) {
+      throw new BadRequestException("At least one email recipient is required");
+    }
+
     String accessToken = tokenService.accessToken(connection);
-    String rawMessage = rawMessage(connection.getExternalAccountId(), request);
-    SendMessageResponse sent = gmailApiClient.sendMessage(accessToken, rawMessage);
+    String rawMessage = rawMessage(connection.getExternalAccountId(), request, to, cc, bcc);
+    String threadId = trimToNull(request.threadId());
+    SendMessageResponse sent = gmailApiClient.sendMessage(accessToken, rawMessage, threadId);
     Instant sentAt = Instant.now();
+
+    try {
+      var storedMessage = gmailApiClient.message(accessToken, sent.id());
+      if (storedMessage != null) {
+        persistenceService.persistBatch(connection, List.of(storedMessage));
+      }
+    } catch (RuntimeException exception) {
+      log.warn(
+          "Gmail message sent but local inbox refresh failed connectionId={} gmailMessageId={} reason={}",
+          connectionId,
+          sent.id(),
+          exception.getClass().getSimpleName());
+    }
 
     return new GmailSendResponse(
         connection.getId().toString(),
         sent.id(),
         sent.threadId(),
         connection.getExternalAccountId(),
-        request.to().trim(),
-        request.subject() == null ? null : request.subject().trim(),
+        to,
+        cc,
+        bcc,
+        trimToNull(request.subject()),
         sentAt);
   }
 
-  private String rawMessage(String from, GmailSendRequest request) {
+  private String rawMessage(
+      String from,
+      GmailSendRequest request,
+      List<String> to,
+      List<String> cc,
+      List<String> bcc) {
     try {
       Session session = Session.getInstance(new Properties());
       MimeMessage message = new MimeMessage(session);
       message.setFrom(new InternetAddress(from));
-      message.setRecipient(Message.RecipientType.TO, new InternetAddress(request.to().trim()));
+
+      if (!to.isEmpty()) {
+        message.setRecipients(Message.RecipientType.TO, recipients(to));
+      }
+      if (!cc.isEmpty()) {
+        message.setRecipients(Message.RecipientType.CC, recipients(cc));
+      }
+      if (!bcc.isEmpty()) {
+        message.setRecipients(Message.RecipientType.BCC, recipients(bcc));
+      }
+
       message.setSubject(
           request.subject() == null ? "" : request.subject().trim(), StandardCharsets.UTF_8.name());
       message.setText(request.bodyText(), StandardCharsets.UTF_8.name());
+
+      String inReplyTo = trimToNull(request.inReplyTo());
+      if (inReplyTo != null) {
+        message.setHeader("In-Reply-To", inReplyTo);
+      }
+      String references = trimToNull(request.references());
+      if (references != null) {
+        message.setHeader("References", references);
+      }
+
       message.setSentDate(new Date());
       message.saveChanges();
 
       ByteArrayOutputStream output = new ByteArrayOutputStream();
       message.writeTo(output);
       return Base64.getUrlEncoder().withoutPadding().encodeToString(output.toByteArray());
+    } catch (BadRequestException exception) {
+      throw exception;
     } catch (Exception exception) {
       throw new BadRequestException("Unable to create Gmail message");
     }
+  }
+
+  private InternetAddress[] recipients(List<String> recipients) {
+    List<InternetAddress> addresses = new ArrayList<>(recipients.size());
+    for (String recipient : recipients) {
+      try {
+        InternetAddress address = new InternetAddress(recipient, true);
+        address.validate();
+        addresses.add(address);
+      } catch (Exception exception) {
+        throw new BadRequestException("Invalid email recipient: " + recipient);
+      }
+    }
+    return addresses.toArray(InternetAddress[]::new);
+  }
+
+  private List<String> normalizeRecipients(List<String> values) {
+    if (values == null || values.isEmpty()) {
+      return List.of();
+    }
+
+    Set<String> unique = new LinkedHashSet<>();
+    for (String value : values) {
+      String normalized = trimToNull(value);
+      if (normalized != null) {
+        unique.add(normalized.toLowerCase(Locale.ROOT));
+      }
+    }
+    return List.copyOf(unique);
+  }
+
+  private String trimToNull(String value) {
+    return value == null || value.isBlank() ? null : value.trim();
   }
 }

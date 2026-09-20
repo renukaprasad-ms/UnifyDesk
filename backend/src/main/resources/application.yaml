@@ -86,6 +86,7 @@ app:
   realtime:
     redis-channel: ${REALTIME_REDIS_CHANNEL:messaging:realtime}
     heartbeat-interval-ms: ${REALTIME_HEARTBEAT_INTERVAL_MS:30000}
+    allowed-origins: ${REALTIME_ALLOWED_ORIGINS:https://messaging.renukaprasad.in}
   datasource:
     write:
       url: ${APP_DATASOURCE_WRITE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5001/messaging}}
@@ -145,7 +146,15 @@ app:
       initial-sync-days: ${GMAIL_INITIAL_SYNC_DAYS:30}
       initial-sync-max-messages: ${GMAIL_INITIAL_SYNC_MAX_MESSAGES:200}
       sync-max-range-days: ${GMAIL_SYNC_MAX_RANGE_DAYS:366}
-      sync-max-messages: ${GMAIL_SYNC_MAX_MESSAGES:5000}
+      sync-max-messages: ${GMAIL_SYNC_MAX_MESSAGES:100000}
+      sync-batch-size: ${GMAIL_SYNC_BATCH_SIZE:50}
+      sync-batch-retry-max-attempts: ${GMAIL_SYNC_BATCH_RETRY_MAX_ATTEMPTS:4}
+      sync-batch-recovery-interval: ${GMAIL_SYNC_BATCH_RECOVERY_INTERVAL:1m}
+      sync-batch-stale-after: ${GMAIL_SYNC_BATCH_STALE_AFTER:5m}
+      sync-batch-recovery-size: ${GMAIL_SYNC_BATCH_RECOVERY_SIZE:100}
+      api-retry-max-attempts: ${GMAIL_API_RETRY_MAX_ATTEMPTS:4}
+      api-retry-initial-backoff: ${GMAIL_API_RETRY_INITIAL_BACKOFF:1s}
+      api-retry-max-backoff: ${GMAIL_API_RETRY_MAX_BACKOFF:8s}
   redis:
     key-prefix: ${REDIS_KEY_PREFIX:messaging}
     ttl:

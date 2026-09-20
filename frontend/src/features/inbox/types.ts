@@ -14,6 +14,7 @@ export type InboxParticipant = {
 export type InboxConversation = {
   id: string
   connectionId: string
+  externalConversationId: string
   providerType: ProviderType
   subject?: string | null
   lastMessagePreview?: string | null
@@ -41,6 +42,13 @@ export type InboxMessage = {
   snippet?: string | null
   bodyText?: string | null
   bodyHtml?: string | null
+  fromAddress?: string | null
+  replyToAddress?: string | null
+  to: string[]
+  cc: string[]
+  bcc: string[]
+  inReplyTo?: string | null
+  references?: string | null
   sentAt?: string | null
   read: boolean
   attachments: InboxAttachment[]

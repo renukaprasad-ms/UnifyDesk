@@ -5,6 +5,7 @@ import com.messaging.storage.enums.StorageEventType;
 import com.messaging.storage.enums.StorageUsageType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -67,7 +68,7 @@ public class StorageAccountingRepository {
                 "usedDelta", usedBytesDelta,
                 "reservedDelta", reservedBytesDelta,
                 "idempotencyKey", idempotencyKey,
-                "createdAt", createdAt));
+                "createdAt", Timestamp.from(createdAt)));
     return updated == 1;
   }
 

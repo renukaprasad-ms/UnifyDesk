@@ -15,6 +15,13 @@ public record InboxMessageResponse(
     String snippet,
     String bodyText,
     String bodyHtml,
+    String fromAddress,
+    String replyToAddress,
+    List<String> to,
+    List<String> cc,
+    List<String> bcc,
+    String inReplyTo,
+    String references,
     Instant sentAt,
     boolean read,
     List<InboxAttachmentResponse> attachments) {}
