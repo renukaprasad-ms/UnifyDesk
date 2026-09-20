@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { FiMail } from 'react-icons/fi'
 import type { ChannelConnection } from '../../features/channel/types'
 import type { InboxConversation } from '../../features/inbox/types'
@@ -50,6 +51,26 @@ export default function ConversationList({
   onLoadMore,
   hasMore = false,
 }: ConversationListProps) {
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!hasMore || !onLoadMore || loadingMore) return
+    const sentinel = loadMoreRef.current
+    if (!sentinel) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          onLoadMore()
+        }
+      },
+      { rootMargin: '180px 0px' },
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMore, loadingMore, onLoadMore])
+
   if (loading) {
     return (
       <div className="px-4 py-10 text-center text-xs text-slate-500">
@@ -129,15 +150,12 @@ export default function ConversationList({
       })}
 
       {hasMore && onLoadMore && (
-        <div className="p-3">
-          <button
-            type="button"
-            className="secondary-button w-full justify-center text-[11px]"
-            disabled={loadingMore}
-            onClick={onLoadMore}
-          >
-            {loadingMore ? 'Loading...' : 'Load more'}
-          </button>
+        <div
+          ref={loadMoreRef}
+          className="flex min-h-12 items-center justify-center px-3 py-2 text-[10px] text-slate-400"
+          aria-live="polite"
+        >
+          {loadingMore ? 'Loading more conversations…' : 'Scroll for more'}
         </div>
       )}
     </>
