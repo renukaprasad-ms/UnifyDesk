@@ -180,9 +180,17 @@ public class AsyncJobService {
     Instant now = Instant.now();
 
     for (AsyncJob job : jobs) {
+      boolean recoveredRunningJob = job.getStatus() == AsyncJobStatus.RUNNING;
       job.setStatus(AsyncJobStatus.RUNNING);
       if (job.getStartedAt() == null) job.setStartedAt(now);
-      job.setStatusMessage("Processing");
+      if (recoveredRunningJob) {
+        // Provider history workers restart idempotently from their request metadata.
+        // Reset progress so a reclaimed job cannot double-count work after a pod crash.
+        job.setTotalUnits(0);
+        job.setCompletedUnits(0);
+        job.setProgressPercent(0);
+      }
+      job.setStatusMessage(recoveredRunningJob ? "Restarting after worker recovery" : "Processing");
       job.setErrorMessage(null);
     }
     repository.saveAll(jobs);
