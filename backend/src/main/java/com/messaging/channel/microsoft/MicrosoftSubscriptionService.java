@@ -18,6 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @Service
@@ -125,18 +127,30 @@ public class MicrosoftSubscriptionService {
         repository.findByConnectionId(connection.getId()).orElse(null);
     if (subscription == null) return;
 
-    try {
-      String token = tokenService.accessToken(connection);
-      apiClient.deleteSubscriptionBestEffort(token, subscription.getExternalSubscriptionId());
-    } catch (RuntimeException exception) {
-      log.warn(
-          "Unable to delete Microsoft Graph subscription connectionId={} reason={}",
-          connection.getId(),
-          exception.getClass().getSimpleName());
-    }
+    String accessToken = tokenService.storedAccessToken(connection);
+    String externalSubscriptionId = subscription.getExternalSubscriptionId();
 
     subscription.setStatus(MicrosoftSubscriptionStatus.DELETED);
     repository.save(subscription);
+
+    if (accessToken == null || accessToken.isBlank()) {
+      return;
+    }
+
+    Runnable providerCleanup =
+        () -> apiClient.deleteSubscriptionBestEffort(accessToken, externalSubscriptionId);
+
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              providerCleanup.run();
+            }
+          });
+    } else {
+      providerCleanup.run();
+    }
   }
 
   @Scheduled(fixedDelayString = "${app.channel.microsoft.subscription-renew-interval:12h}")
