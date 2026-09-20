@@ -1,5 +1,7 @@
 package com.messaging.channel.gmail.entity;
 
+import com.messaging.channel.email.EmailFolder;
+import com.messaging.channel.email.EmailSyncMode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -32,11 +34,22 @@ public class GmailSyncRun {
   @Column(name = "connection_id", nullable = false)
   private Long connectionId;
 
-  @Column(name = "from_date", nullable = false)
+  @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+  @Column(name = "sync_mode", nullable = false, length = 32)
+  private EmailSyncMode syncMode;
+
+  @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+  @Column(name = "folder_key", nullable = false, length = 32)
+  private EmailFolder folder;
+
+  @Column(name = "from_date")
   private LocalDate fromDate;
 
-  @Column(name = "to_date", nullable = false)
+  @Column(name = "to_date")
   private LocalDate toDate;
+
+  @Column(name = "message_count")
+  private Integer messageCount;
 
   @Column(name = "discovery_complete", nullable = false)
   private boolean discoveryComplete;
@@ -77,6 +90,8 @@ public class GmailSyncRun {
   @PrePersist
   void prePersist() {
     Instant now = Instant.now();
+    if (syncMode == null) syncMode = EmailSyncMode.DATE_RANGE;
+    if (folder == null) folder = EmailFolder.INBOX;
     if (createdAt == null) createdAt = now;
     updatedAt = now;
   }
