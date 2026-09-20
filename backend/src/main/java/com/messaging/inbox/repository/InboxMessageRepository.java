@@ -27,6 +27,9 @@ public interface InboxMessageRepository extends JpaRepository<InboxMessage, Long
 
   List<InboxMessage> findByConversationIdOrderBySentAtAscCreatedAtAsc(Long conversationId);
 
+  Optional<InboxMessage> findFirstByConversationIdAndStatusNotOrderBySentAtDescCreatedAtDesc(
+      Long conversationId, com.messaging.inbox.enums.InboxMessageStatus status);
+
   long countByConversationIdAndDirectionAndReadFalse(
       Long conversationId, InboxMessageDirection direction);
 
