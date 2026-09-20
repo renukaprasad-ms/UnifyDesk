@@ -46,6 +46,29 @@ public interface MicrosoftSyncStateRepository extends JpaRepository<MicrosoftSyn
   @Query(
       value =
           """
+          update microsoft_sync_states s
+          set status = 'PENDING',
+              next_url = s.delta_url,
+              next_attempt_at = now(),
+              updated_at = now()
+          where s.status = 'SYNCED'
+            and s.delta_url is not null
+            and (s.last_synced_at is null or s.last_synced_at < :cutoff)
+            and exists (
+              select 1
+              from channel_connections c
+              where c.id = s.connection_id
+                and c.provider_type = 'MICROSOFT'
+                and c.status = 'ACTIVE'
+            )
+          """,
+      nativeQuery = true)
+  int scheduleSafetySync(@Param("cutoff") Instant cutoff);
+
+  @Modifying
+  @Query(
+      value =
+          """
           update microsoft_sync_states
           set status = 'RETRY',
               claimed_at = null,
