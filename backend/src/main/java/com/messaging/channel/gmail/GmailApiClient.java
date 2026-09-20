@@ -81,7 +81,7 @@ public class GmailApiClient {
     form.add("redirect_uri", properties.getRedirectUri());
     form.add("grant_type", "authorization_code");
 
-    return execute(
+    return executeOAuth(
         "token_exchange",
         () ->
             googleOAuth
@@ -102,7 +102,7 @@ public class GmailApiClient {
     form.add("client_secret", properties.getClientSecret());
     form.add("grant_type", "refresh_token");
 
-    return execute(
+    return executeOAuth(
         "token_refresh",
         () ->
             googleOAuth
@@ -391,6 +391,14 @@ public class GmailApiClient {
   }
 
   private <T> T execute(String operation, GoogleCall<T> call) {
+    return execute(operation, call, true);
+  }
+
+  private <T> T executeOAuth(String operation, GoogleCall<T> call) {
+    return execute(operation, call, false);
+  }
+
+  private <T> T execute(String operation, GoogleCall<T> call, boolean gmailQuotaAware) {
     int maxAttempts = Math.max(1, properties.getApiRetryMaxAttempts());
 
     for (int attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -404,7 +412,7 @@ public class GmailApiClient {
         int status = exception.getStatusCode().value();
         GoogleFailure failure = googleFailure(exception);
 
-        if (isRateLimit(status, failure.reason())) {
+        if (gmailQuotaAware && isRateLimit(status, failure.reason())) {
           Duration retryAfter = retryAfter(exception.getResponseHeaders());
           log.warn(
               "Google Gmail quota response operation={} status={} reason={} retryAfterMs={}",
@@ -415,7 +423,8 @@ public class GmailApiClient {
           throw new GmailRateLimitException(failure.reason(), retryAfter);
         }
 
-        if (status >= 500 && attempt < maxAttempts) {
+        boolean transientFailure = status == 429 || status >= 500;
+        if (transientFailure && attempt < maxAttempts) {
           long delayMs = retryDelayMillis(attempt);
           log.warn(
               "Google API request retrying operation={} status={} reason={} attempt={}/{} delayMs={}",
@@ -436,9 +445,11 @@ public class GmailApiClient {
             failure.reason(),
             attempt);
 
-        if (status >= 500) {
+        if (transientFailure) {
           throw new ServiceUnavailableException(
-              "Gmail is temporarily unavailable. The request will be retried automatically.");
+              gmailQuotaAware
+                  ? "Gmail is temporarily unavailable. The request will be retried automatically."
+                  : "Google OAuth is temporarily unavailable. Please try again.");
         }
 
         if (status == 403) {
