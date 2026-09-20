@@ -6,6 +6,7 @@ import {
   FiLink,
   FiMail,
   FiMessageSquare,
+  FiPlus,
   FiRadio,
   FiSend,
   FiSmartphone,
@@ -356,7 +357,12 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         ? can(PERMISSIONS.WHATSAPP_CONNECT)
         : can(PERMISSIONS.SMS_CONNECT)
 
-  const emptyListLabel = mode === 'inbox' ? 'Chats' : 'Broadcasts'
+  const emptyListLabel =
+    mode === 'inbox' && channelType === 'EMAIL'
+      ? 'Conversations'
+      : mode === 'inbox'
+        ? 'Chats'
+        : 'Broadcasts'
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -429,6 +435,40 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                 </button>
               ))}
 
+              {channelType === 'EMAIL' && connectAllowed && companyId && (
+                <div className="border-t border-slate-100 pt-1">
+                  <EmailProviderPicker
+                    companyId={companyId}
+                    returnTo={location.pathname}
+                    label="Connect email"
+                    className="workspace-menu-item justify-start"
+                    onOpen={() => setMenuOpen(false)}
+                    onError={setError}
+                  />
+                  <button
+                    type="button"
+                    className="workspace-menu-item justify-start"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      navigate('/company/connections')
+                      onNavigate()
+                    }}
+                  >
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
+                      <FiPlus aria-hidden="true" />
+                    </span>
+                    <span className="text-left">
+                      <span className="block text-[12px] font-semibold text-slate-800">
+                        Manage email accounts
+                      </span>
+                      <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                        Connections and provider settings
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -437,37 +477,37 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       </div>
 
       {mode === 'inbox' && channelType === 'EMAIL' && (
-        <nav className="mt-4 space-y-1" aria-label="Email folders">
+        <div className="email-folder-switcher" role="tablist" aria-label="Email folders">
           <button
             type="button"
-            className={`admin-nav-link w-full text-left ${
-              selectedFolder === 'INBOX' ? 'active' : ''
+            role="tab"
+            aria-selected={selectedFolder === 'INBOX'}
+            className={`email-folder-tab ${
+              selectedFolder === 'INBOX' ? 'is-active' : ''
             }`}
             onClick={() => selectFolder('INBOX')}
           >
-            <span className="admin-nav-icon">
-              <FiInbox aria-hidden="true" />
-            </span>
+            <FiInbox aria-hidden="true" />
             <span>Inbox</span>
           </button>
           <button
             type="button"
-            className={`admin-nav-link w-full text-left ${
-              selectedFolder === 'SENT' ? 'active' : ''
+            role="tab"
+            aria-selected={selectedFolder === 'SENT'}
+            className={`email-folder-tab ${
+              selectedFolder === 'SENT' ? 'is-active' : ''
             }`}
             onClick={() => selectFolder('SENT')}
           >
-            <span className="admin-nav-icon">
-              <FiSend aria-hidden="true" />
-            </span>
+            <FiSend aria-hidden="true" />
             <span>Sent</span>
           </button>
-        </nav>
+        </div>
       )}
 
-      <div className="mt-5 flex min-h-0 flex-1 flex-col border-t border-slate-100 pt-4">
+      <div className="mt-4 flex min-h-0 flex-1 flex-col border-t border-slate-100 pt-4">
         <div className="mb-2 flex items-center justify-between gap-2 px-1">
-          <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
             {emptyListLabel}
           </p>
           {mode === 'inbox' && channelType === 'EMAIL' && conversationTotalElements > 0 && (
@@ -506,16 +546,8 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         )}
       </div>
 
-      <div className="mt-4 border-t border-slate-100 pt-4">
-        {channelType === 'EMAIL' && connectAllowed && companyId ? (
-          <EmailProviderPicker
-            companyId={companyId}
-            returnTo={location.pathname}
-            label="Connect email"
-            className="admin-nav-link w-full justify-start text-left"
-            onError={setError}
-          />
-        ) : channelType !== 'EMAIL' && connectAllowed ? (
+      {channelType !== 'EMAIL' && connectAllowed && (
+        <div className="mt-4 border-t border-slate-100 pt-4">
           <button
             type="button"
             className="admin-nav-link w-full text-left"
@@ -529,8 +561,8 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
             </span>
             <span>{meta.connectLabel}</span>
           </button>
-        ) : null}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
