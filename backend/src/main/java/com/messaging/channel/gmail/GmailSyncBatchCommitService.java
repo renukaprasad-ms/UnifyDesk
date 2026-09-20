@@ -32,7 +32,8 @@ public class GmailSyncBatchCommitService {
       List<GmailMessage> successfulMessages,
       List<String> retryIds,
       int permanentFailures,
-      String error) {
+      String error,
+      Instant retryNotBefore) {
     persistenceLock.lockConnection(batch.connectionId());
 
     ChannelConnection connection =
@@ -51,7 +52,8 @@ public class GmailSyncBatchCommitService {
             && (isRateLimit(error) || batch.attempt() < maxAttempts);
 
     if (retry) {
-      Instant nextAttemptAt = Instant.now().plus(retryDelay(batch.attempt()));
+      Instant nextAttemptAt =
+          laterOf(Instant.now().plus(retryDelay(batch.attempt())), retryNotBefore);
       boolean applied =
           stateService.retryBatch(
               batch.batchId(),
@@ -94,9 +96,16 @@ public class GmailSyncBatchCommitService {
 
   @Transactional
   public boolean failAttempt(ClaimedBatch batch, String error, boolean retryable) {
+    return failAttempt(batch, error, retryable, null);
+  }
+
+  @Transactional
+  public boolean failAttempt(
+      ClaimedBatch batch, String error, boolean retryable, Instant retryNotBefore) {
     int maxAttempts = Math.max(1, properties.getSyncBatchRetryMaxAttempts());
     if (retryable && (isRateLimit(error) || batch.attempt() < maxAttempts)) {
-      Instant nextAttemptAt = Instant.now().plus(retryDelay(batch.attempt()));
+      Instant nextAttemptAt =
+          laterOf(Instant.now().plus(retryDelay(batch.attempt())), retryNotBefore);
       boolean applied =
           stateService.retryBatch(
               batch.batchId(),
@@ -120,13 +129,16 @@ public class GmailSyncBatchCommitService {
     return false;
   }
 
+  public boolean deferForQuota(ClaimedBatch batch, Instant availableAt) {
+    return stateService.deferForQuota(batch.batchId(), availableAt);
+  }
+
   private String retryMessage(
       String reason, int saved, int retrying, Instant nextAttemptAt) {
-    String prefix =
-        isRateLimit(reason)
-            ? "Gmail rate limited; retrying automatically"
-            : "Temporary Gmail error; retrying automatically";
-    return prefix
+    if (isRateLimit(reason)) {
+      return "Syncing Gmail in background";
+    }
+    return "Temporary Gmail error; retrying automatically"
         + " (saved="
         + saved
         + ", retrying="
@@ -145,6 +157,13 @@ public class GmailSyncBatchCommitService {
         || normalized.contains("userratelimitexceeded")
         || normalized.contains("rate limit")
         || normalized.contains("rate limited");
+  }
+
+  private Instant laterOf(Instant first, Instant second) {
+    if (second == null) {
+      return first;
+    }
+    return second.isAfter(first) ? second : first;
   }
 
   private Duration retryDelay(int attempt) {

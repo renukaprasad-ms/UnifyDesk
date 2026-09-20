@@ -11,6 +11,7 @@ import com.messaging.channel.gmail.entity.GmailSyncRun;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.common.exception.ServiceUnavailableException;
 import com.messaging.inbox.repository.InboxMessageRepository;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -37,6 +38,7 @@ public class GmailSyncService {
   private final AsyncJobService asyncJobService;
   private final GmailSyncStateService stateService;
   private final GmailQuotaPolicy quotaPolicy;
+  private final GmailDistributedQuotaManager quotaManager;
   private final GmailSyncFinalizerService finalizerService;
 
   public void sync(
@@ -78,9 +80,19 @@ public class GmailSyncService {
     boolean fetchNextPage = discovered == 0 || pageToken != null;
     while (fetchNextPage && discovered < maxMessages) {
       int remaining = (int) Math.min(Integer.MAX_VALUE, maxMessages - discovered);
-      MessageListResponse page =
-          gmailApiClient.listMessages(
-              accessToken, Math.min(remaining, GMAIL_LIST_PAGE_SIZE), query, pageToken);
+      reserveBackgroundQuota(
+          connection, GmailQuotaOperation.LIST_MESSAGES, 1);
+      MessageListResponse page;
+      try {
+        page =
+            gmailApiClient.listMessages(
+                accessToken, Math.min(remaining, GMAIL_LIST_PAGE_SIZE), query, pageToken);
+      } catch (GmailRateLimitException exception) {
+        quotaManager.penalize(
+            connection.getExternalAccountId(), 1, exception.retryAfter());
+        throw new ServiceUnavailableException(
+            "Gmail sync is waiting for provider capacity", exception);
+      }
 
       List<MessageReference> references =
           page.messages() == null
@@ -153,7 +165,16 @@ public class GmailSyncService {
       carry.clear();
     }
 
-    GmailProfile profile = gmailApiClient.profile(accessToken);
+    reserveBackgroundQuota(connection, GmailQuotaOperation.GET_PROFILE, 1);
+    GmailProfile profile;
+    try {
+      profile = gmailApiClient.profile(accessToken);
+    } catch (GmailRateLimitException exception) {
+      quotaManager.penalize(
+          connection.getExternalAccountId(), 1, exception.retryAfter());
+      throw new ServiceUnavailableException(
+          "Gmail sync is waiting for provider capacity", exception);
+    }
     stateService.completeDiscovery(
         jobId,
         nextBatchIndex,
@@ -172,6 +193,21 @@ public class GmailSyncService {
     finalizerService.tryFinalize(jobId);
   }
 
+
+  private void reserveBackgroundQuota(
+      ChannelConnection connection, GmailQuotaOperation operation, int count) {
+    String account = connection.getExternalAccountId();
+    if (account == null || account.isBlank()) {
+      throw new BadRequestException("Gmail account identity is missing");
+    }
+    GmailQuotaReservation reservation =
+        quotaManager.reserve(
+            account, operation, count, GmailQuotaTrafficClass.BACKGROUND);
+    if (!reservation.allowed()) {
+      throw new ServiceUnavailableException(
+          "Gmail sync is waiting for provider capacity");
+    }
+  }
 
   private Set<String> existingMessageIds(
       Long connectionId, List<MessageReference> references) {

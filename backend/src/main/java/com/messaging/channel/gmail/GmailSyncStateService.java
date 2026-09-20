@@ -136,7 +136,6 @@ public class GmailSyncStateService {
     List<ClaimedBatch> claimed = new java.util.ArrayList<>(batches.size());
     for (GmailSyncBatch batch : batches) {
       batch.setStatus(GmailSyncBatchStatus.RUNNING);
-      batch.setAttemptCount(batch.getAttemptCount() + 1);
       batch.setLastError(null);
       batch.setNextAttemptAt(null);
       claimed.add(toClaimedBatch(batch));
@@ -158,12 +157,39 @@ public class GmailSyncStateService {
     }
 
     batch.setStatus(GmailSyncBatchStatus.RUNNING);
-    batch.setAttemptCount(batch.getAttemptCount() + 1);
     batch.setLastError(null);
     batch.setNextAttemptAt(null);
     batchRepository.save(batch);
 
     return Optional.of(toClaimedBatch(batch));
+  }
+
+  @Transactional
+  public ClaimedBatch startAttempt(Long batchId) {
+    GmailSyncBatch batch = requireBatchForUpdate(batchId);
+    if (batch.getStatus() != GmailSyncBatchStatus.RUNNING) {
+      throw new IllegalStateException("Gmail sync batch is not running");
+    }
+    batch.setAttemptCount(batch.getAttemptCount() + 1);
+    batchRepository.save(batch);
+    return toClaimedBatch(batch);
+  }
+
+  @Transactional
+  public boolean deferForQuota(Long batchId, Instant eligibleAt) {
+    GmailSyncBatch batch = requireBatchForUpdate(batchId);
+    if (isTerminal(batch.getStatus())) {
+      return false;
+    }
+    if (batch.getStatus() != GmailSyncBatchStatus.RUNNING) {
+      return false;
+    }
+
+    batch.setStatus(GmailSyncBatchStatus.RETRY);
+    batch.setLastError(null);
+    batch.setNextAttemptAt(eligibleAt);
+    batchRepository.save(batch);
+    return true;
   }
 
   @Transactional

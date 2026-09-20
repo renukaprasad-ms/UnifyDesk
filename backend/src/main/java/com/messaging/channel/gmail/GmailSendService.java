@@ -9,6 +9,7 @@ import com.messaging.channel.gmail.dto.GmailSendResponse;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.common.exception.ServiceUnavailableException;
 import jakarta.mail.Message;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
@@ -37,6 +38,7 @@ public class GmailSendService {
   private final GmailTokenService tokenService;
   private final GmailApiClient gmailApiClient;
   private final GmailInboxPersistenceService persistenceService;
+  private final GmailDistributedQuotaManager quotaManager;
 
   public GmailSendResponse send(Long companyId, Long connectionId, GmailSendRequest request) {
     ChannelConnection connection =
@@ -61,17 +63,51 @@ public class GmailSendService {
       throw new BadRequestException("At least one email recipient is required");
     }
 
+    String gmailAccount = connection.getExternalAccountId();
+    GmailQuotaReservation sendReservation =
+        quotaManager.reserve(
+            gmailAccount,
+            GmailQuotaOperation.SEND_MESSAGE,
+            1,
+            GmailQuotaTrafficClass.INTERACTIVE);
+    if (!sendReservation.allowed()) {
+      throw new ServiceUnavailableException(
+          "Gmail is temporarily busy. Please try sending again shortly.");
+    }
+
     String accessToken = tokenService.accessToken(connection);
-    String rawMessage = rawMessage(connection.getExternalAccountId(), request, to, cc, bcc);
+    String rawMessage = rawMessage(gmailAccount, request, to, cc, bcc);
     String threadId = trimToNull(request.threadId());
-    SendMessageResponse sent = gmailApiClient.sendMessage(accessToken, rawMessage, threadId);
+
+    SendMessageResponse sent;
+    try {
+      sent = gmailApiClient.sendMessage(accessToken, rawMessage, threadId);
+    } catch (GmailRateLimitException exception) {
+      quotaManager.penalize(gmailAccount, 1, exception.retryAfter());
+      throw new ServiceUnavailableException(
+          "Gmail is temporarily busy. Please try sending again shortly.");
+    }
     Instant sentAt = Instant.now();
 
     try {
-      var storedMessage = gmailApiClient.message(accessToken, sent.id());
-      if (storedMessage != null) {
-        persistenceService.persistBatch(connection, List.of(storedMessage));
+      GmailQuotaReservation refreshReservation =
+          quotaManager.reserve(
+              gmailAccount,
+              GmailQuotaOperation.GET_MESSAGE,
+              1,
+              GmailQuotaTrafficClass.INTERACTIVE);
+      if (refreshReservation.allowed()) {
+        var storedMessage = gmailApiClient.message(accessToken, sent.id());
+        if (storedMessage != null) {
+          persistenceService.persistBatch(connection, List.of(storedMessage));
+        }
       }
+    } catch (GmailRateLimitException exception) {
+      quotaManager.penalize(gmailAccount, 1, exception.retryAfter());
+      log.info(
+          "Gmail message sent; local refresh deferred by provider backpressure connectionId={} gmailMessageId={}",
+          connectionId,
+          sent.id());
     } catch (RuntimeException exception) {
       log.warn(
           "Gmail message sent but local inbox refresh failed connectionId={} gmailMessageId={} reason={}",

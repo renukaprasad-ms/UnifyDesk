@@ -20,9 +20,11 @@ public class GmailQuotaPolicy {
     long configuredQuota = Math.max(1, properties.getSyncUserQuotaUnitsPerMinute());
     int utilization = Math.clamp(properties.getSyncQuotaUtilizationPercent(), 1, 100);
     long usableQuota = Math.max(1, (configuredQuota * utilization) / 100);
+    int reserve = Math.clamp(properties.getQuotaInteractiveReservePercent(), 0, 90);
+    long backgroundQuota = Math.max(1, (usableQuota * (100L - reserve)) / 100L);
 
     long numerator = Math.multiplyExact(unitsPerBatch, 60_000L);
-    long intervalMs = Math.max(1, (numerator + usableQuota - 1) / usableQuota);
+    long intervalMs = Math.max(1, (numerator + backgroundQuota - 1) / backgroundQuota);
     return Duration.ofMillis(intervalMs);
   }
 
