@@ -28,8 +28,12 @@ public class DeletionPurgeScheduler {
     for (Long jobId : jobs) {
       try {
         DeletionPurgeJob job = purgeService.require(jobId);
-        entityPurgeService.purge(job);
-        purgeService.complete(jobId);
+        boolean completed = entityPurgeService.purge(job);
+        if (completed) {
+          purgeService.complete(jobId);
+        } else {
+          purgeService.continueLater(jobId);
+        }
       } catch (RuntimeException exception) {
         log.error("Deletion purge failed jobId={}", jobId, exception);
         purgeService.fail(jobId, exception);
