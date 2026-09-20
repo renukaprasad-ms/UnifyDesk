@@ -8,10 +8,23 @@ const unwrap = <T>(response: ApiResponse<T>) => {
 }
 
 export const inboxApi = {
-  async conversations(companyId: string, page = 0, size = 30, connectionId?: string | null) {
+  async conversations(
+    companyId: string,
+    page = 0,
+    size = 30,
+    connectionId?: string | null,
+    folder: 'INBOX' | 'SENT' = 'INBOX',
+  ) {
     const response = await apiClient.get<ApiResponse<InboxPage<InboxConversation>>>(
       `/api/v1/companies/${companyId}/inbox/conversations`,
-      { params: { page, size, connectionId: connectionId || undefined } },
+      { params: { page, size, connectionId: connectionId || undefined, folder } },
+    )
+    return unwrap(response.data)
+  },
+
+  async conversation(companyId: string, conversationId: string) {
+    const response = await apiClient.get<ApiResponse<InboxConversation>>(
+      `/api/v1/companies/${companyId}/inbox/conversations/${conversationId}`,
     )
     return unwrap(response.data)
   },

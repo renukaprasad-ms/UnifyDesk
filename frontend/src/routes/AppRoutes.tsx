@@ -17,6 +17,7 @@ import CompanyRoles from '../pages/company/CompanyRoles'
 import CompanyUsers from '../pages/company/CompanyUsers'
 import Home from '../pages/home/Home'
 import InviteAccept from '../pages/invitations/InviteAccept'
+import BroadcastWorkspace from '../pages/broadcast/BroadcastWorkspace'
 import EmailInbox from '../pages/inbox/EmailInbox'
 import PlaceholderPage from '../pages/placeholder/PlaceholderPage'
 import PlatformAdmins from '../pages/platform/PlatformAdmins'
@@ -74,9 +75,9 @@ const AppRoutes = () => (
             </Route>
 
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.BROADCAST_READ]} />}>
-              <Route path="broadcast/sms" element={<PlaceholderPage />} />
-              <Route path="broadcast/social-media" element={<PlaceholderPage />} />
-              <Route path="broadcast/email" element={<PlaceholderPage />} />
+              <Route path="broadcast/sms" element={<BroadcastWorkspace />} />
+              <Route path="broadcast/social-media" element={<BroadcastWorkspace />} />
+              <Route path="broadcast/email" element={<BroadcastWorkspace />} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.TEMPLATE_READ]} />}>
               <Route path="templates" element={<PlaceholderPage />} />

@@ -1,5 +1,6 @@
 package com.messaging.inbox.service;
 
+import com.messaging.channel.email.EmailFolder;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.inbox.dto.InboxAttachmentResponse;
 import com.messaging.inbox.dto.InboxConversationResponse;
@@ -30,15 +31,12 @@ public class InboxQueryService {
 
   @Transactional(readOnly = true)
   public InboxPageResponse<InboxConversationResponse> listConversations(
-      Long companyId, Long connectionId, int page, int size) {
+      Long companyId, Long connectionId, EmailFolder folder, int page, int size) {
     PageRequest pageable = PageRequest.of(page, size);
+    EmailFolder resolvedFolder = folder == null ? EmailFolder.INBOX : folder;
     Page<InboxConversation> result =
-        connectionId == null
-            ? conversationRepository.findByCompanyIdOrderByLastMessageAtDescCreatedAtDesc(
-                companyId, pageable)
-            : conversationRepository
-                .findByCompanyIdAndConnectionIdOrderByLastMessageAtDescCreatedAtDesc(
-                    companyId, connectionId, pageable);
+        conversationRepository.findByFolder(
+            companyId, connectionId, resolvedFolder.providerKey(), pageable);
 
     List<InboxConversationResponse> items =
         result.getContent().stream().map(this::conversation).toList();
@@ -49,6 +47,15 @@ public class InboxQueryService {
         result.getSize(),
         result.getTotalElements(),
         result.getTotalPages());
+  }
+
+  @Transactional(readOnly = true)
+  public InboxConversationResponse getConversation(Long companyId, Long conversationId) {
+    InboxConversation conversation =
+        conversationRepository
+            .findByIdAndCompanyId(conversationId, companyId)
+            .orElseThrow(() -> new NotFoundException("Inbox conversation not found"));
+    return conversation(conversation);
   }
 
   @Transactional(readOnly = true)

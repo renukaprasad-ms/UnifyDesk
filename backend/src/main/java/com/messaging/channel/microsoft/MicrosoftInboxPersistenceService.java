@@ -1,5 +1,6 @@
 package com.messaging.channel.microsoft;
 
+import com.messaging.channel.email.EmailFolder;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.microsoft.MicrosoftApiClient.*;
@@ -36,6 +37,12 @@ public class MicrosoftInboxPersistenceService {
   @Transactional
   public SyncResult persistPage(
       ChannelConnection connection, String folderKey, List<GraphMessage> graphMessages) {
+    EmailFolder normalizedFolder =
+        "sentitems".equalsIgnoreCase(folderKey) || "SENT".equalsIgnoreCase(folderKey)
+            ? EmailFolder.SENT
+            : EmailFolder.INBOX;
+    String normalizedFolderKey = normalizedFolder.providerKey();
+
     List<GraphMessage> messages =
         graphMessages == null
             ? List.of()
@@ -85,7 +92,7 @@ public class MicrosoftInboxPersistenceService {
                 .orElse(null);
         if (existing != null
             && (existing.getProviderFolderKey() == null
-                || folderKey.equalsIgnoreCase(existing.getProviderFolderKey()))) {
+                || normalizedFolderKey.equalsIgnoreCase(existing.getProviderFolderKey()))) {
           Long conversationId = existing.getConversation().getId();
           if (existing.getStorageBytes() > 0) {
             storageAccountingService.releaseUsage(
@@ -137,7 +144,7 @@ public class MicrosoftInboxPersistenceService {
       }
 
       InboxMessageDirection direction =
-          "sentitems".equalsIgnoreCase(folderKey)
+          normalizedFolder == EmailFolder.SENT
               ? InboxMessageDirection.OUTBOUND
               : InboxMessageDirection.INBOUND;
       String html = bodyHtml(graphMessage.body());
@@ -146,7 +153,7 @@ public class MicrosoftInboxPersistenceService {
       message.setConversation(conversation);
       message.setInternetMessageId(trimToNull(graphMessage.internetMessageId()));
       message.setProviderHistoryId(null);
-      message.setProviderFolderKey(folderKey);
+      message.setProviderFolderKey(normalizedFolderKey);
       message.setFromAddress(address(graphMessage.from()));
       message.setReplyToAddress(firstAddress(graphMessage.replyTo()));
       message.setToAddresses(addressesCsv(graphMessage.toRecipients()));

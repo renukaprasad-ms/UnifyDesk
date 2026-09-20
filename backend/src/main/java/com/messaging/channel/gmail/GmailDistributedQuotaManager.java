@@ -131,7 +131,7 @@ public class GmailDistributedQuotaManager {
     }
 
     try {
-      String raw = redis.execute(RESERVE_SCRIPT, keys, args.toArray(String[]::new));
+      String raw = redis.execute(RESERVE_SCRIPT, keys, args.toArray());
       return parseReservation(now, raw);
     } catch (RuntimeException exception) {
       throw new RedisOperationException("Gmail distributed quota reservation failed", exception);

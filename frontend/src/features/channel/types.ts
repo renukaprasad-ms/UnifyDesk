@@ -64,18 +64,30 @@ export type GmailAuthorization = {
   authorizationUrl: string
 }
 
-export type GmailSyncQueued = {
+export type EmailFolder = 'INBOX' | 'SENT'
+export type EmailSyncMode = 'DATE_RANGE' | 'LATEST_MESSAGES'
+
+export type EmailSyncRequest = {
+  mode: EmailSyncMode
+  folder: EmailFolder
+  fromDate?: string
+  toDate?: string
+  messageCount?: number
+}
+
+export type EmailSyncQueued = {
   connectionId: string
   jobId: string
   status: 'QUEUED' | 'RUNNING'
-  fromDate: string
-  toDate: string
+  mode: EmailSyncMode
+  folder: EmailFolder
+  fromDate?: string | null
+  toDate?: string | null
+  messageCount?: number | null
 }
 
-export type GmailSyncRequest = {
-  fromDate: string
-  toDate: string
-}
+export type GmailSyncQueued = EmailSyncQueued
+export type GmailSyncRequest = EmailSyncRequest
 
 export type GmailSendRequest = {
   to: string[]

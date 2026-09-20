@@ -1,5 +1,6 @@
 package com.messaging.channel.gmail;
 
+import com.messaging.channel.email.EmailFolder;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.gmail.GmailApiClient.GmailBody;
@@ -141,6 +142,7 @@ public class GmailInboxPersistenceService {
       InboxMessageDirection direction = direction(gmailMessage.labelIds());
       message.setInternetMessageId(header(gmailMessage.payload(), "Message-ID"));
       message.setProviderHistoryId(gmailMessage.historyId());
+      message.setProviderFolderKey(folder(gmailMessage.labelIds()).providerKey());
       message.setFromAddress(firstAddress(header(gmailMessage.payload(), "From")));
       message.setReplyToAddress(firstAddress(header(gmailMessage.payload(), "Reply-To")));
       message.setToAddresses(addressesCsv(header(gmailMessage.payload(), "To")));
@@ -447,8 +449,12 @@ public class GmailInboxPersistenceService {
     return Instant.now();
   }
 
+  private EmailFolder folder(List<String> labels) {
+    return containsLabel(labels, "SENT") ? EmailFolder.SENT : EmailFolder.INBOX;
+  }
+
   private InboxMessageDirection direction(List<String> labels) {
-    return containsLabel(labels, "SENT")
+    return folder(labels) == EmailFolder.SENT
         ? InboxMessageDirection.OUTBOUND
         : InboxMessageDirection.INBOUND;
   }

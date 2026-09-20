@@ -5,9 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.asyncjob.enums.AsyncJobType;
 import com.messaging.asyncjob.service.AsyncJobService;
+import com.messaging.channel.email.EmailSyncRequest;
 import com.messaging.channel.gmail.dto.GmailSyncQueuedResponse;
 import com.messaging.channel.gmail.entity.GmailSyncRun;
-import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -26,7 +27,7 @@ public class GmailSyncQueueService {
   private final ObjectMapper objectMapper;
 
   public GmailSyncQueuedResponse enqueue(
-      Long companyId, Long userId, Long connectionId, LocalDate fromDate, LocalDate toDate) {
+      Long companyId, Long userId, Long connectionId, EmailSyncRequest request) {
     var active =
         asyncJobService.findActive(companyId, AsyncJobType.GMAIL_SYNC, connectionId.toString());
     if (active.isPresent()) {
@@ -40,9 +41,8 @@ public class GmailSyncQueueService {
               companyId,
               userId,
               connectionId,
-              fromDate,
-              toDate,
-              metadata(connectionId, fromDate, toDate));
+              request,
+              metadata(connectionId, request));
     } catch (DataIntegrityViolationException exception) {
       job =
           asyncJobService
@@ -59,7 +59,14 @@ public class GmailSyncQueueService {
     }
 
     return new GmailSyncQueuedResponse(
-        connectionId.toString(), job.jobId(), job.status().name(), fromDate, toDate);
+        connectionId.toString(),
+        job.jobId(),
+        job.status().name(),
+        request.mode(),
+        request.folder(),
+        request.fromDate(),
+        request.toDate(),
+        request.messageCount());
   }
 
   public AsyncJobResponse active(Long companyId, Long connectionId) {
@@ -74,17 +81,23 @@ public class GmailSyncQueueService {
         run.getConnectionId().toString(),
         job.jobId(),
         job.status().name(),
+        run.getSyncMode(),
+        run.getFolder(),
         run.getFromDate(),
-        run.getToDate());
+        run.getToDate(),
+        run.getMessageCount());
   }
 
-  private String metadata(Long connectionId, LocalDate fromDate, LocalDate toDate) {
+  private String metadata(Long connectionId, EmailSyncRequest request) {
     try {
-      return objectMapper.writeValueAsString(
-          Map.of(
-              "connectionId", connectionId.toString(),
-              "fromDate", fromDate.toString(),
-              "toDate", toDate.toString()));
+      Map<String, Object> metadata = new LinkedHashMap<>();
+      metadata.put("connectionId", connectionId.toString());
+      metadata.put("mode", request.mode().name());
+      metadata.put("folder", request.folder().name());
+      if (request.fromDate() != null) metadata.put("fromDate", request.fromDate().toString());
+      if (request.toDate() != null) metadata.put("toDate", request.toDate().toString());
+      if (request.messageCount() != null) metadata.put("messageCount", request.messageCount());
+      return objectMapper.writeValueAsString(metadata);
     } catch (JsonProcessingException exception) {
       throw new IllegalStateException("Unable to serialize Gmail sync metadata", exception);
     }
