@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import {
   FiCheck,
   FiChevronDown,
+  FiGrid,
   FiInbox,
   FiLink,
   FiMail,
@@ -11,7 +12,7 @@ import {
   FiSend,
   FiSmartphone,
 } from 'react-icons/fi'
-import { SiGmail, SiMicrosoft } from 'react-icons/si'
+import { SiGmail } from 'react-icons/si'
 import { useLocation, useNavigate } from 'react-router'
 import EmailProviderPicker from '../email/EmailProviderPicker'
 import ConversationList from '../inbox/ConversationList'
@@ -73,7 +74,7 @@ const identityFallback = (connection: ChannelConnection) =>
 
 const emailProviderIcon = (providerType: string) => {
   if (providerType === 'GMAIL') return <SiGmail aria-hidden="true" />
-  if (providerType === 'MICROSOFT') return <SiMicrosoft aria-hidden="true" />
+  if (providerType === 'MICROSOFT') return <FiGrid aria-hidden="true" />
   return <FiMail aria-hidden="true" />
 }
 
