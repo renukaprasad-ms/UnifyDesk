@@ -3,13 +3,13 @@ import { useSearchParams } from 'react-router'
 import {
   FiArrowLeft,
   FiCornerUpLeft,
-  FiInbox,
   FiMail,
   FiRefreshCw,
   FiSend,
   FiShare2,
   FiUsers,
 } from 'react-icons/fi'
+import ConversationList, { conversationParticipant } from '../../components/inbox/ConversationList'
 import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
 import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'
 import type { AsyncJob } from '../../features/asyncJob/types'
@@ -25,26 +25,6 @@ import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
-
-const formatDate = (value?: string | null) => {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-
-  const today = new Date()
-  if (date.toDateString() === today.toDateString()) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
-
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
-}
-
-const displayParticipant = (conversation: InboxConversation, ownAddress?: string) => {
-  const participant = conversation.participants.find(
-    (item) => item.address.toLowerCase() !== ownAddress?.toLowerCase(),
-  )
-  return participant?.displayName || participant?.address || ownAddress || 'Email'
-}
 
 const messageTitle = (message: InboxMessage) =>
   message.subject || message.snippet || (message.direction === 'OUTBOUND' ? 'Sent email' : 'Email')
@@ -100,11 +80,12 @@ export default function EmailInbox() {
   const { can } = useIam()
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedConnectionId = searchParams.get('connectionId')
+  const selectedConversationId = searchParams.get('conversationId')
   const composeOpen = searchParams.get('compose') === '1'
   const [connections, setConnections] = useState<ChannelConnection[]>([])
   const [conversations, setConversations] = useState<InboxConversation[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [mobileConversationOpen, setMobileConversationOpen] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(selectedConversationId)
+  const [mobileConversationOpen, setMobileConversationOpen] = useState(Boolean(selectedConversationId))
   const [messages, setMessages] = useState<InboxMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -147,12 +128,14 @@ export default function EmailInbox() {
   )
 
   const ownAddress = useMemo(() => {
-    if (!selectedConversation) return undefined
-    return (
-      connections.find((connection) => connection.id === selectedConversation.connectionId)
-        ?.externalAccountId ?? undefined
-    )
-  }, [connections, selectedConversation])
+    if (selectedConversation) {
+      return (
+        connections.find((connection) => connection.id === selectedConversation.connectionId)
+          ?.externalAccountId ?? undefined
+      )
+    }
+    return selectedConnection?.externalAccountId ?? undefined
+  }, [connections, selectedConnection, selectedConversation])
 
   const loadConversations = useCallback(
     async (page = 0, append = false) => {
@@ -187,6 +170,7 @@ export default function EmailInbox() {
           if (first) {
             const params = new URLSearchParams(searchParams)
             params.set('connectionId', first.id)
+            params.delete('conversationId')
             setSearchParams(params, { replace: true })
           }
           return
@@ -204,13 +188,11 @@ export default function EmailInbox() {
         setTotalPages(inbox.totalPages)
         setTotalElements(inbox.totalElements)
 
-        setSelectedId((current) => {
-          if (append && current) return current
-          if (current && inbox.items.some((conversation) => conversation.id === current)) {
-            return current
-          }
-          return inbox.items[0]?.id ?? null
-        })
+        if (!append && !selectedConversationId && inbox.items[0]) {
+          const params = new URLSearchParams(searchParams)
+          params.set('conversationId', inbox.items[0].id)
+          setSearchParams(params, { replace: true })
+        }
       } catch (requestError) {
         setError(apiErrorMessage(requestError, 'Unable to load email inbox'))
       } finally {
@@ -218,7 +200,7 @@ export default function EmailInbox() {
         setLoadingMore(false)
       }
     },
-    [companyId, searchParams, selectedConnectionId, setSearchParams],
+    [companyId, searchParams, selectedConnectionId, selectedConversationId, setSearchParams],
   )
 
   const scheduleInboxRefresh = useCallback(() => {
@@ -239,10 +221,16 @@ export default function EmailInbox() {
   )
 
   useEffect(() => {
-    setMobileConversationOpen(false)
-    setSelectedId(null)
+    setMobileConversationOpen(Boolean(selectedConversationId))
+    setSelectedId(selectedConversationId)
+  }, [selectedConversationId])
+
+  useEffect(() => {
+    if (!selectedConversationId) {
+      setMobileConversationOpen(false)
+    }
     void loadConversations(0, false)
-  }, [companyId, selectedConnectionId, loadConversations])
+  }, [companyId, selectedConnectionId, loadConversations, selectedConversationId])
 
   useEffect(() => {
     if (
@@ -302,7 +290,7 @@ export default function EmailInbox() {
   }, [loadConversations, searchParams, setSearchParams])
 
   useEffect(() => {
-    if (!companyId || !selectedId) {
+    if (!companyId || !selectedConversationId) {
       setMessages([])
       return
     }
@@ -310,7 +298,7 @@ export default function EmailInbox() {
     let active = true
     setMessagesLoading(true)
     inboxApi
-      .messages(companyId, selectedId)
+      .messages(companyId, selectedConversationId)
       .then((items) => {
         if (active) setMessages(items)
       })
@@ -324,7 +312,7 @@ export default function EmailInbox() {
     return () => {
       active = false
     }
-  }, [companyId, selectedId])
+  }, [companyId, selectedConversationId])
 
   const trackedSyncJobs = useMemo(() => Object.values(syncJobs), [syncJobs])
   const activeSyncJobs = useMemo(
@@ -534,7 +522,6 @@ export default function EmailInbox() {
   }
 
   const openReply = (message: InboxMessage, replyAll: boolean) => {
-    if (!selectedConversation) return
     const recipients = replyRecipients(message, replyAll)
     if (recipients.to.length === 0) {
       setError('Unable to determine a recipient for this reply.')
@@ -545,9 +532,9 @@ export default function EmailInbox() {
     setComposeTo(recipientInput(recipients.to))
     setComposeCc(recipientInput(recipients.cc))
     setComposeBcc('')
-    setComposeSubject(replySubject(message.subject || selectedConversation.subject))
+    setComposeSubject(replySubject(message.subject || selectedConversation?.subject))
     setComposeBody('')
-    setComposeThreadId(selectedConversation.externalConversationId)
+    setComposeThreadId(selectedConversation?.externalConversationId || '')
     setComposeInReplyTo(message.internetMessageId || '')
     setComposeReferences(
       [message.references?.trim(), message.internetMessageId?.trim()].filter(Boolean).join(' '),
@@ -638,8 +625,8 @@ export default function EmailInbox() {
         `Email sent from ${sent.from} to ${[...sent.to, ...sent.cc, ...sent.bcc].join(', ')}.`,
       )
       await loadConversations(0, false)
-      if (selectedId) {
-        const latestMessages = await inboxApi.messages(companyId, selectedId)
+      if (selectedConversationId) {
+        const latestMessages = await inboxApi.messages(companyId, selectedConversationId)
         setMessages(latestMessages)
       }
     } catch (requestError) {
@@ -988,7 +975,7 @@ export default function EmailInbox() {
                   const connection = connections.find(
                     (item) => item.id === conversation.connectionId,
                   )
-                  const counterpart = displayParticipant(
+                  const counterpart = conversationParticipant(
                     conversation,
                     connection?.externalAccountId ?? undefined,
                   )
@@ -1079,7 +1066,7 @@ export default function EmailInbox() {
                       {selectedConversation.subject || '(no subject)'}
                     </p>
                     <p className="mt-1 truncate text-xs text-slate-500">
-                      {displayParticipant(selectedConversation, ownAddress)}
+                      {conversationParticipant(selectedConversation, ownAddress)}
                       {ownAddress ? ` · ${ownAddress}` : ''}
                     </p>
                   </div>
