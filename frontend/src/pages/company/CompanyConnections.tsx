@@ -10,6 +10,7 @@ import {
 } from 'react-icons/fi'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
+import { microsoftApi } from '../../features/channel/microsoftApi'
 import { metaWhatsAppApi } from '../../features/channel/metaWhatsAppApi'
 import { launchMetaWhatsAppSignup, loadMetaSdk } from '../../features/channel/metaWhatsAppSdk'
 import type {
@@ -40,6 +41,7 @@ export default function CompanyConnections() {
   const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState(false)
   const [connectingGmail, setConnectingGmail] = useState(false)
+  const [connectingMicrosoft, setConnectingMicrosoft] = useState(false)
   const [workingConnectionId, setWorkingConnectionId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -54,6 +56,10 @@ export default function CompanyConnections() {
   )
   const gmailConnections = useMemo(
     () => emailConnections.filter((connection) => connection.providerType === 'GMAIL'),
+    [emailConnections],
+  )
+  const microsoftConnections = useMemo(
+    () => emailConnections.filter((connection) => connection.providerType === 'MICROSOFT'),
     [emailConnections],
   )
   const smsConnections = useMemo(
@@ -115,18 +121,34 @@ export default function CompanyConnections() {
   useEffect(() => {
     const url = new URL(window.location.href)
     const gmailResult = url.searchParams.get('gmail')
-    if (!gmailResult) return
+    const microsoftResult = url.searchParams.get('microsoft')
 
-    if (gmailResult === 'connected') {
-      setNotice('Gmail connected successfully')
-    } else if (gmailResult === 'cancelled') {
-      setNotice('Gmail connection was cancelled')
-    } else {
-      setError('Unable to connect Gmail. Please try again.')
+    if (gmailResult) {
+      if (gmailResult === 'connected') {
+        setNotice('Gmail connected successfully')
+      } else if (gmailResult === 'cancelled') {
+        setNotice('Gmail connection was cancelled')
+      } else {
+        setError('Unable to connect Gmail. Please try again.')
+      }
+      url.searchParams.delete('gmail')
     }
 
-    url.searchParams.delete('gmail')
-    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+    if (microsoftResult) {
+      if (microsoftResult === 'connected') {
+        setNotice('Microsoft 365 connected successfully')
+      } else if (microsoftResult === 'cancelled') {
+        setNotice('Microsoft 365 connection was cancelled')
+      } else {
+        setError('Unable to connect Microsoft 365. Please try again.')
+      }
+      url.searchParams.delete('microsoft')
+    }
+
+    if (gmailResult || microsoftResult) {
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+      void loadConnections()
+    }
   }, [])
 
   const connectWhatsApp = () => {
@@ -169,6 +191,21 @@ export default function CompanyConnections() {
     }
   }
 
+  const connectMicrosoft = async () => {
+    if (!selectedCompany || connectingMicrosoft) return
+    setConnectingMicrosoft(true)
+    setError('')
+    setNotice('')
+
+    try {
+      const authorization = await microsoftApi.authorize(selectedCompany.companyId)
+      window.location.assign(authorization.authorizationUrl)
+    } catch (connectError) {
+      setError(apiErrorMessage(connectError, 'Unable to start Microsoft 365 connection'))
+      setConnectingMicrosoft(false)
+    }
+  }
+
   const disconnect = async (connection: ChannelConnection) => {
     if (!selectedCompany) return
     if (!window.confirm(`Disconnect ${connection.name} from this workspace?`)) return
@@ -180,9 +217,12 @@ export default function CompanyConnections() {
       if (connection.providerType === 'GMAIL') {
         await gmailApi.disconnect(selectedCompany.companyId, connection.id)
         setNotice('Gmail disconnected')
+      } else if (connection.providerType === 'MICROSOFT') {
+        await microsoftApi.disconnect(selectedCompany.companyId, connection.id)
+        setNotice('Microsoft 365 disconnected')
       } else {
         await channelApi.disconnect(selectedCompany.companyId, connection.id)
-        setNotice('WhatsApp connection disconnected')
+        setNotice('Channel connection disconnected')
       }
       await loadConnections()
       if (connection.providerType === 'META_WHATSAPP') await prepareMeta()
@@ -287,22 +327,29 @@ export default function CompanyConnections() {
             </div>
             <h2 className="mt-4 text-base font-bold text-slate-950">Email</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              Connect Gmail securely with Google OAuth. Microsoft and SMTP will follow.
+              Connect Google Gmail or Microsoft 365 securely with OAuth.
             </p>
             {can(PERMISSIONS.EMAIL_CONNECT) && (
-              <button
-                type="button"
-                className="primary-button mt-4 inline-flex w-full items-center justify-center gap-2"
-                onClick={() => void connectGmail()}
-                disabled={connectingGmail}
-              >
-                <FiLink aria-hidden="true" />
-                {connectingGmail
-                  ? 'Opening Google…'
-                  : gmailConnections.some((item) => item.status === 'ACTIVE')
-                    ? 'Connect another Gmail'
-                    : 'Connect Gmail'}
-              </button>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                <button
+                  type="button"
+                  className="primary-button inline-flex w-full items-center justify-center gap-2"
+                  onClick={() => void connectGmail()}
+                  disabled={connectingGmail || connectingMicrosoft}
+                >
+                  <FiLink aria-hidden="true" />
+                  {connectingGmail ? 'Opening Google…' : 'Gmail'}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button inline-flex w-full items-center justify-center gap-2"
+                  onClick={() => void connectMicrosoft()}
+                  disabled={connectingMicrosoft || connectingGmail}
+                >
+                  <FiLink aria-hidden="true" />
+                  {connectingMicrosoft ? 'Opening Microsoft…' : 'Microsoft 365'}
+                </button>
+              </div>
             )}
           </div>
 
@@ -327,28 +374,28 @@ export default function CompanyConnections() {
 
         <div className="panel mt-6 overflow-hidden">
           <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="text-sm font-bold text-slate-950">Gmail accounts</h2>
+            <h2 className="text-sm font-bold text-slate-950">Email accounts</h2>
             <p className="mt-1 text-xs text-slate-500">
-              Gmail OAuth credentials are encrypted on the backend. The connected address becomes an
-              email sender identity for this workspace.
+              OAuth credentials are encrypted on the backend. Gmail and Microsoft 365 accounts share
+              the same inbox and sender identity model.
             </p>
           </div>
 
           {loading ? (
             <p className="px-5 py-10 text-center text-sm text-slate-500">Loading connections…</p>
-          ) : gmailConnections.length === 0 ? (
+          ) : emailConnections.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <FiMail className="mx-auto text-slate-300" size={28} />
               <p className="mt-3 text-sm font-semibold text-slate-800">
-                No Gmail account connected
+                No email account connected
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Use Connect Gmail to authorize a mailbox through Google.
+                Connect Gmail or Microsoft 365 to add a mailbox to this workspace.
               </p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {gmailConnections.map((connection) => (
+              {emailConnections.map((connection) => (
                 <div
                   key={connection.id}
                   className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
@@ -364,7 +411,7 @@ export default function CompanyConnections() {
                         {connection.status}
                       </span>
                       <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-700">
-                        GMAIL
+                        {connection.providerType === 'MICROSOFT' ? 'MICROSOFT 365' : 'GMAIL'}
                       </span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
