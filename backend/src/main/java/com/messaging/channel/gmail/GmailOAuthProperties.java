@@ -65,6 +65,8 @@ public class GmailOAuthProperties {
   private int realtimeBatchSize = 25;
   private Duration realtimeSafetySyncInterval = Duration.ofMinutes(5);
   private Duration realtimeSafetySyncInitialDelay = Duration.ofMinutes(2);
+  private int realtimeRecoveryDays = 30;
+  private int realtimeRecoveryMaxMessages = 1000;
 
   public boolean realtimeConfigured() {
     return configured()
