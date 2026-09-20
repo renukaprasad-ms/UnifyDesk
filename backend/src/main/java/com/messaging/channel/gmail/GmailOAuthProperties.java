@@ -54,8 +54,9 @@ public class GmailOAuthProperties {
 
   private String pubsubTopicName;
   private String pubsubPushVerificationToken;
-  private Duration watchRenewInterval = Duration.ofHours(24);
+  private Duration watchRenewInterval = Duration.ofHours(1);
   private Duration watchRenewInitialDelay = Duration.ofMinutes(1);
+  private Duration watchRenewAfter = Duration.ofHours(24);
   private int realtimeWorkerConcurrency = 4;
   private int realtimeWorkerPollIntervalMs = 500;
   private Duration realtimeStaleAfter = Duration.ofMinutes(5);
