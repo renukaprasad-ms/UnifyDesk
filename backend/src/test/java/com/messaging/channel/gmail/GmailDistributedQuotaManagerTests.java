@@ -21,7 +21,7 @@ class GmailDistributedQuotaManagerTests {
     assertThat(manager.penaltyDelay(2, Duration.ofSeconds(90)))
         .isEqualTo(Duration.ofSeconds(90));
     assertThat(manager.penaltyDelay(8, Duration.ofMinutes(10)))
-        .isEqualTo(Duration.ofMinutes(5));
+        .isEqualTo(Duration.ofMinutes(10));
   }
 
   @Test
