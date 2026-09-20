@@ -208,6 +208,7 @@ app:
       incremental-poll-interval: ${IMAP_SMTP_INCREMENTAL_POLL_INTERVAL:1m}
       incremental-initial-delay: ${IMAP_SMTP_INCREMENTAL_INITIAL_DELAY:1m}
       incremental-max-messages-per-folder: ${IMAP_SMTP_INCREMENTAL_MAX_MESSAGES_PER_FOLDER:250}
+      incremental-max-attempts: ${IMAP_SMTP_INCREMENTAL_MAX_ATTEMPTS:12}
       sync-max-messages: ${IMAP_SMTP_SYNC_MAX_MESSAGES:10000}
       sync-max-range-days: ${IMAP_SMTP_SYNC_MAX_RANGE_DAYS:366}
       worker-concurrency: ${IMAP_SMTP_WORKER_CONCURRENCY:4}
