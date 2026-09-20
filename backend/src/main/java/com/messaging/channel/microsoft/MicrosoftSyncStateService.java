@@ -127,6 +127,11 @@ public class MicrosoftSyncStateService {
   }
 
   @Transactional
+  public int scheduleSafetySync(Duration maxAge) {
+    return repository.scheduleSafetySync(Instant.now().minus(maxAge));
+  }
+
+  @Transactional
   public int recoverStale() {
     return repository.recoverStale(Instant.now().minus(Duration.ofMinutes(10)));
   }
