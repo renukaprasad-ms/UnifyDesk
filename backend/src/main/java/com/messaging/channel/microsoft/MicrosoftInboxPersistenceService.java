@@ -37,6 +37,12 @@ public class MicrosoftInboxPersistenceService {
   @Transactional
   public SyncResult persistPage(
       ChannelConnection connection, String folderKey, List<GraphMessage> graphMessages) {
+    EmailFolder normalizedFolder =
+        "sentitems".equalsIgnoreCase(folderKey) || "SENT".equalsIgnoreCase(folderKey)
+            ? EmailFolder.SENT
+            : EmailFolder.INBOX;
+    String normalizedFolderKey = normalizedFolder.providerKey();
+
     List<GraphMessage> messages =
         graphMessages == null
             ? List.of()
