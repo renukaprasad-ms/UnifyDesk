@@ -105,7 +105,7 @@ public class GmailDistributedQuotaManager {
             ? Math.max(1L, properties.getSyncMessageGetQuotaUnits())
             : operation.units();
     long cost = Math.multiplyExact(unitCost, Math.max(1, count));
-    Limits limits = limits(cost);
+    Limits limits = limits(cost, trafficClass);
 
     List<String> keys = new ArrayList<>();
     keys.add(RedisKey.gmailQuotaCooldown(gmailAccount));
@@ -205,7 +205,7 @@ public class GmailDistributedQuotaManager {
         now, Duration.ofMillis(waitMs), parts.length == 3 ? parts[2] : "quota");
   }
 
-  private Limits limits(long cost) {
+  private Limits limits(long cost, GmailQuotaTrafficClass trafficClass) {
     int utilization = Math.clamp(properties.getSyncQuotaUtilizationPercent(), 1, 100);
     long userPerMinute = Math.max(1L, properties.getSyncUserQuotaUnitsPerMinute());
     long projectPerMinute = Math.max(1L, properties.getQuotaProjectUnitsPerMinute());
@@ -229,10 +229,20 @@ public class GmailDistributedQuotaManager {
     double backgroundUserRefill = backgroundUser / 60_000.0d;
     double backgroundProjectRefill = backgroundProject / 60_000.0d;
 
+    long interactiveHeadroom =
+        trafficClass == GmailQuotaTrafficClass.BACKGROUND
+            ? GmailQuotaOperation.SEND_MESSAGE.units()
+            : 0L;
+    long totalRequestCapacity = Math.addExact(cost, interactiveHeadroom);
+
     long userCapacity =
-        Math.min(usableUser, Math.max(cost, properties.getQuotaUserBurstUnits()));
+        Math.min(
+            usableUser,
+            Math.max(totalRequestCapacity, properties.getQuotaUserBurstUnits()));
     long projectCapacity =
-        Math.min(usableProject, Math.max(cost, properties.getQuotaProjectBurstUnits()));
+        Math.min(
+            usableProject,
+            Math.max(totalRequestCapacity, properties.getQuotaProjectBurstUnits()));
     long backgroundUserCapacity =
         Math.min(
             backgroundUser,
