@@ -141,11 +141,11 @@ public class GmailRealtimeWorker {
                 pageToken,
                 properties.getRealtimeHistoryPageSize());
 
-        PageChanges changes = pageChanges(response.history());
-        changed +=
-            refreshMessages(connection, accessToken, changes.refreshMessageIds());
-        deleted +=
-            persistenceService.markDeleted(connection, changes.deletedMessageIds());
+        Set<String> affectedMessageIds = affectedMessageIds(response.history());
+        RefreshResult refreshResult =
+            refreshMessages(connection, accessToken, affectedMessageIds);
+        changed += refreshResult.changed();
+        deleted += refreshResult.deleted();
 
         if (hasText(response.historyId())
             && GmailRealtimeStateService.compareHistoryId(
@@ -274,13 +274,19 @@ public class GmailRealtimeWorker {
     }
   }
 
-  private int refreshMessages(
+  private RefreshResult refreshMessages(
       ChannelConnection connection, String accessToken, Set<String> messageIds) {
-    if (messageIds == null || messageIds.isEmpty()) return 0;
+    if (messageIds == null || messageIds.isEmpty()) {
+      return new RefreshResult(0, 0);
+    }
 
     List<String> ids = new ArrayList<>(messageIds);
     int changed = 0;
-    int batchSize = Math.max(1, Math.min(properties.getRealtimeBatchSize(), GmailApiClient.MAX_BATCH_SIZE));
+    int deletedCount = 0;
+    int batchSize =
+        Math.max(
+            1,
+            Math.min(properties.getRealtimeBatchSize(), GmailApiClient.MAX_BATCH_SIZE));
 
     for (int offset = 0; offset < ids.size(); offset += batchSize) {
       int end = Math.min(ids.size(), offset + batchSize);
@@ -316,28 +322,24 @@ public class GmailRealtimeWorker {
         changed += successful.size();
       }
       if (!deleted.isEmpty()) {
-        persistenceService.markDeleted(connection, deleted);
+        deletedCount += persistenceService.markDeleted(connection, deleted);
       }
     }
 
-    return changed;
+    return new RefreshResult(changed, deletedCount);
   }
 
-  private PageChanges pageChanges(List<HistoryRecord> history) {
-    Set<String> refresh = new LinkedHashSet<>();
-    Set<String> deleted = new LinkedHashSet<>();
-
-    if (history == null) return new PageChanges(refresh, deleted);
+  private Set<String> affectedMessageIds(List<HistoryRecord> history) {
+    Set<String> affected = new LinkedHashSet<>();
+    if (history == null) return affected;
 
     for (HistoryRecord record : history) {
-      addMessageChanges(refresh, record.messagesAdded());
-      addMessageChanges(deleted, record.messagesDeleted());
-      addLabelChanges(refresh, record.labelsAdded());
-      addLabelChanges(refresh, record.labelsRemoved());
+      addMessageChanges(affected, record.messagesAdded());
+      addMessageChanges(affected, record.messagesDeleted());
+      addLabelChanges(affected, record.labelsAdded());
+      addLabelChanges(affected, record.labelsRemoved());
     }
-
-    refresh.removeAll(deleted);
-    return new PageChanges(refresh, deleted);
+    return affected;
   }
 
   private void addMessageChanges(Set<String> output, List<HistoryMessageChange> changes) {
@@ -378,6 +380,5 @@ public class GmailRealtimeWorker {
     executor.shutdown();
   }
 
-  private record PageChanges(
-      Set<String> refreshMessageIds, Set<String> deletedMessageIds) {}
+  private record RefreshResult(int changed, int deleted) {}
 }
