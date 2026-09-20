@@ -100,7 +100,11 @@ public class GmailDistributedQuotaManager {
     }
 
     requireAccount(gmailAccount);
-    long cost = operation.cost(count);
+    long unitCost =
+        operation == GmailQuotaOperation.GET_MESSAGE
+            ? Math.max(1L, properties.getSyncMessageGetQuotaUnits())
+            : operation.units();
+    long cost = Math.multiplyExact(unitCost, Math.max(1, count));
     Limits limits = limits(cost, trafficClass);
 
     List<String> keys = new ArrayList<>();
