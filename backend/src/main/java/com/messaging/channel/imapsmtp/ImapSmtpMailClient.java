@@ -67,7 +67,9 @@ public class ImapSmtpMailClient {
             credentials.smtpSecurity(),
             credentials.sentFolder());
 
-    try (Store store = openStore(safe)) {
+    Store store = null;
+    try {
+      store = openStore(safe);
       Folder inbox = store.getFolder("INBOX");
       if (inbox == null || !inbox.exists()) {
         throw new BadRequestException("IMAP server does not expose an INBOX folder");
@@ -79,13 +81,17 @@ public class ImapSmtpMailClient {
       throw exception;
     } catch (Exception exception) {
       throw new BadRequestException("Unable to connect to the IMAP server with these credentials");
+    } finally {
+      closeQuietly(store);
     }
   }
 
   public FolderCursor currentCursor(
       ImapSmtpStoredCredentials credentials, EmailFolder emailFolder) {
     String folderName = folderName(credentials, emailFolder);
-    try (Store store = openStore(credentials)) {
+    Store store = null;
+    try {
+      store = openStore(credentials);
       Folder folder = store.getFolder(folderName);
       ensureFolder(folder, folderName);
       folder.open(Folder.READ_ONLY);
@@ -108,6 +114,8 @@ public class ImapSmtpMailClient {
       throw exception;
     } catch (Exception exception) {
       throw new ServiceUnavailableException("Unable to read IMAP folder state", exception);
+    } finally {
+      closeQuietly(store);
     }
   }
 
@@ -130,7 +138,9 @@ public class ImapSmtpMailClient {
       int batchSize,
       HistoryBatchConsumer consumer) {
     String folderName = folderName(credentials, request.folder());
-    try (Store store = openStore(credentials)) {
+    Store store = null;
+    try {
+      store = openStore(credentials);
       Folder folder = store.getFolder(folderName);
       ensureFolder(folder, folderName);
       folder.open(Folder.READ_ONLY);
@@ -160,6 +170,8 @@ public class ImapSmtpMailClient {
       throw exception;
     } catch (Exception exception) {
       throw new ServiceUnavailableException("Unable to read messages from the IMAP server", exception);
+    } finally {
+      closeQuietly(store);
     }
   }
 
@@ -170,7 +182,9 @@ public class ImapSmtpMailClient {
       long previousUid,
       int maxMessages) {
     String folderName = folderName(credentials, emailFolder);
-    try (Store store = openStore(credentials)) {
+    Store store = null;
+    try {
+      store = openStore(credentials);
       Folder folder = store.getFolder(folderName);
       ensureFolder(folder, folderName);
       folder.open(Folder.READ_ONLY);
@@ -215,6 +229,8 @@ public class ImapSmtpMailClient {
       throw exception;
     } catch (Exception exception) {
       throw new ServiceUnavailableException("Unable to incrementally sync the IMAP mailbox", exception);
+    } finally {
+      closeQuietly(store);
     }
   }
 
@@ -254,13 +270,17 @@ public class ImapSmtpMailClient {
       message.setSentDate(sentAt);
       message.saveChanges();
 
-      try (Transport transport = session.getTransport(smtpProtocol(credentials.smtpSecurity()))) {
+      Transport transport = null;
+      try {
+        transport = session.getTransport(smtpProtocol(credentials.smtpSecurity()));
         transport.connect(
             hostValidator.validate(credentials.smtpHost()),
             credentials.smtpPort(),
             credentials.username(),
             credentials.password());
         transport.sendMessage(message, message.getAllRecipients());
+      } finally {
+        closeQuietly(transport);
       }
 
       return new SentMessage(
@@ -292,12 +312,16 @@ public class ImapSmtpMailClient {
   private void testSmtp(ImapSmtpStoredCredentials credentials) {
     try {
       Session session = Session.getInstance(smtpProperties(credentials));
-      try (Transport transport = session.getTransport(smtpProtocol(credentials.smtpSecurity()))) {
+      Transport transport = null;
+      try {
+        transport = session.getTransport(smtpProtocol(credentials.smtpSecurity()));
         transport.connect(
             hostValidator.validate(credentials.smtpHost()),
             credentials.smtpPort(),
             credentials.username(),
             credentials.password());
+      } finally {
+        closeQuietly(transport);
       }
     } catch (Exception exception) {
       throw new BadRequestException("Unable to authenticate with the SMTP server");
@@ -578,6 +602,15 @@ public class ImapSmtpMailClient {
 
   private boolean hasText(String value) {
     return value != null && !value.isBlank();
+  }
+
+  private void closeQuietly(jakarta.mail.Service service) {
+    if (service == null) return;
+    try {
+      if (service.isConnected()) service.close();
+    } catch (Exception ignored) {
+      // Best-effort cleanup only.
+    }
   }
 
   @FunctionalInterface
