@@ -3,11 +3,15 @@ package com.messaging.channel.microsoft;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.messaging.channel.email.EmailFolder;
+import com.messaging.channel.email.EmailSyncMode;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.TooManyRequestsException;
 import java.net.URI;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -152,8 +156,7 @@ public class MicrosoftApiClient {
   }
 
   URI initialDeltaUri(String folderKey) {
-    Instant initialFrom =
-        Instant.now().minus(java.time.Duration.ofDays(Math.max(1, properties.getInitialSyncDays())));
+    Instant initialFrom = Instant.now().minus(properties.getLiveInitialLookback());
     return UriComponentsBuilder.fromUriString(
             GRAPH_BASE + "/v1.0/me/mailFolders/{folder}/messages/delta")
         .queryParam("$select", MESSAGE_SELECT)
@@ -163,6 +166,64 @@ public class MicrosoftApiClient {
             "attachments($select=id,name,contentType,size,isInline)")
         .queryParam("$top", Math.max(1, Math.min(properties.getDeltaPageSize(), 200)))
         .buildAndExpand(folderKey)
+        .encode()
+        .toUri();
+  }
+
+  public MessagePage listMessages(
+      String accessToken,
+      EmailFolder folder,
+      EmailSyncMode mode,
+      LocalDate fromDate,
+      LocalDate toDate,
+      int maxResults,
+      String continuationUrl) {
+    URI uri =
+        hasText(continuationUrl)
+            ? trustedGraphContinuationUri(continuationUrl)
+            : historyListUri(folder, mode, fromDate, toDate, maxResults);
+
+    return execute(
+        "mail_history_list",
+        () ->
+            graph
+                .get()
+                .uri(uri)
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .header("Prefer", "IdType=\"ImmutableId\"")
+                .retrieve()
+                .body(MessagePage.class));
+  }
+
+  URI historyListUri(
+      EmailFolder folder,
+      EmailSyncMode mode,
+      LocalDate fromDate,
+      LocalDate toDate,
+      int maxResults) {
+    int pageSize = Math.max(1, Math.min(maxResults, 200));
+    String timeField = folder == EmailFolder.SENT ? "sentDateTime" : "receivedDateTime";
+
+    UriComponentsBuilder builder =
+        UriComponentsBuilder.fromUriString(
+                GRAPH_BASE + "/v1.0/me/mailFolders/{folder}/messages")
+            .queryParam("$select", MESSAGE_SELECT)
+            .queryParam(
+                "$expand",
+                "attachments($select=id,name,contentType,size,isInline)")
+            .queryParam("$orderby", timeField + " desc")
+            .queryParam("$top", pageSize);
+
+    if (mode == EmailSyncMode.DATE_RANGE) {
+      Instant from = fromDate.atStartOfDay().toInstant(ZoneOffset.UTC);
+      Instant until = toDate.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+      builder.queryParam(
+          "$filter",
+          timeField + " ge " + from + " and " + timeField + " lt " + until);
+    }
+
+    return builder
+        .buildAndExpand(folder.microsoftFolderKey())
         .encode()
         .toUri();
   }
@@ -391,6 +452,11 @@ public class MicrosoftApiClient {
       return mail != null && !mail.isBlank() ? mail : userPrincipalName;
     }
   }
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record MessagePage(
+      List<GraphMessage> value,
+      @JsonProperty("@odata.nextLink") String nextLink) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record DeltaResponse(
