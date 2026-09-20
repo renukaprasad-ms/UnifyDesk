@@ -128,7 +128,8 @@ public class MicrosoftApiClient {
                 .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .header(
                     "Prefer",
-                    "odata.maxpagesize=" + Math.max(1, Math.min(properties.getDeltaPageSize(), 200)))
+                    "IdType=\"ImmutableId\", odata.maxpagesize="
+                        + Math.max(1, Math.min(properties.getDeltaPageSize(), 200)))
                 .retrieve()
                 .body(DeltaResponse.class));
   }
@@ -170,6 +171,7 @@ public class MicrosoftApiClient {
                 .post()
                 .uri("/v1.0/me/messages/{id}/" + action, messageId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .header("Prefer", "IdType=\"ImmutableId\"")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of("comment", comment == null ? "" : comment))
                 .retrieve()
@@ -193,6 +195,7 @@ public class MicrosoftApiClient {
                 .post()
                 .uri("/v1.0/subscriptions")
                 .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .header("Prefer", "IdType=\"ImmutableId\"")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
