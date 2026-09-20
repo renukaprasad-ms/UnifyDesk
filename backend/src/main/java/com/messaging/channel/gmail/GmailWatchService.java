@@ -1,7 +1,10 @@
 package com.messaging.channel.gmail;
 
 import com.messaging.channel.entity.ChannelConnection;
+import com.messaging.channel.enums.ChannelConnectionStatus;
+import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.gmail.GmailApiClient.WatchResponse;
+import com.messaging.channel.repository.ChannelConnectionRepository;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +20,7 @@ public class GmailWatchService {
   private final GmailApiClient apiClient;
   private final GmailDistributedQuotaManager quotaManager;
   private final GmailRealtimeStateService stateService;
+  private final ChannelConnectionRepository connectionRepository;
 
   public boolean ensureWatch(ChannelConnection connection, boolean force) {
     if (!properties.realtimeConfigured()) {
@@ -45,7 +49,20 @@ public class GmailWatchService {
 
     String accessToken = tokenService.accessToken(connection);
     WatchResponse response = apiClient.watch(accessToken, properties.getPubsubTopicName());
-    stateService.recordWatch(connection, response.historyId(), response.expiration());
+
+    var activeMailboxConnections =
+        connectionRepository.findByProviderTypeAndExternalAccountIdIgnoreCaseAndStatus(
+            ProviderType.GMAIL,
+            connection.getExternalAccountId(),
+            ChannelConnectionStatus.ACTIVE);
+    if (activeMailboxConnections.isEmpty()) {
+      stateService.recordWatch(connection, response.historyId(), response.expiration());
+    } else {
+      activeMailboxConnections.forEach(
+          active ->
+              stateService.recordWatch(
+                  active, response.historyId(), response.expiration()));
+    }
 
     log.info(
         "gmail_watch_active connectionId={} account={} expiration={}",
@@ -57,6 +74,19 @@ public class GmailWatchService {
 
   public void stopBestEffort(ChannelConnection connection) {
     if (!properties.realtimeConfigured()) return;
+
+    long otherActiveConnections =
+        connectionRepository
+            .findByProviderTypeAndExternalAccountIdIgnoreCaseAndStatus(
+                ProviderType.GMAIL,
+                connection.getExternalAccountId(),
+                ChannelConnectionStatus.ACTIVE)
+            .stream()
+            .filter(active -> !active.getId().equals(connection.getId()))
+            .count();
+    if (otherActiveConnections > 0) {
+      return;
+    }
 
     try {
       GmailQuotaReservation reservation =
