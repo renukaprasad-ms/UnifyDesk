@@ -11,6 +11,7 @@ import {
   FiSend,
   FiSmartphone,
 } from 'react-icons/fi'
+import { SiGmail, SiMicrosoftoutlook } from 'react-icons/si'
 import { useLocation, useNavigate } from 'react-router'
 import EmailProviderPicker from '../email/EmailProviderPicker'
 import ConversationList from '../inbox/ConversationList'
@@ -69,6 +70,12 @@ const channelFromPath = (pathname: string): ChannelType => {
 
 const identityFallback = (connection: ChannelConnection) =>
   connection.externalAccountId || connection.name
+
+const emailProviderIcon = (providerType: string) => {
+  if (providerType === 'GMAIL') return <SiGmail aria-hidden="true" />
+  if (providerType === 'MICROSOFT') return <SiMicrosoftoutlook aria-hidden="true" />
+  return <FiMail aria-hidden="true" />
+}
 
 export default function ChannelContextSidebar({ mode, onNavigate }: ChannelContextSidebarProps) {
   const companyId = useAppSelector(selectSelectedCompanyId)
@@ -391,7 +398,11 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
             onClick={() => setMenuOpen((current) => !current)}
           >
             <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-indigo-50 text-indigo-500">
-              {channelType === 'WHATSAPP' ? <FiRadio aria-hidden="true" /> : meta.icon}
+              {channelType === 'EMAIL' && selectedItem
+                ? emailProviderIcon(selectedItem.connection.providerType)
+                : channelType === 'WHATSAPP'
+                  ? <FiRadio aria-hidden="true" />
+                  : meta.icon}
             </span>
             <span className="workspace-switcher-copy min-w-0 flex-1 text-left">
               <span className="block truncate text-[12px] font-semibold text-slate-950">
@@ -420,7 +431,11 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                   onClick={() => selectIdentity(item)}
                 >
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-indigo-50 text-indigo-500">
-                    {channelType === 'WHATSAPP' ? <FiRadio aria-hidden="true" /> : meta.icon}
+                    {channelType === 'EMAIL'
+                      ? emailProviderIcon(item.connection.providerType)
+                      : channelType === 'WHATSAPP'
+                        ? <FiRadio aria-hidden="true" />
+                        : meta.icon}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate">{item.label}</span>
