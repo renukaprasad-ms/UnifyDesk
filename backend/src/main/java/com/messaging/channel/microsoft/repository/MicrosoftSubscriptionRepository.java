@@ -18,6 +18,9 @@ public interface MicrosoftSubscriptionRepository
   Optional<MicrosoftSubscription> findByExternalSubscriptionId(String externalSubscriptionId);
 
   @EntityGraph(attributePaths = "connection")
+  List<MicrosoftSubscription> findByExternalSubscriptionIdIn(List<String> externalSubscriptionIds);
+
+  @EntityGraph(attributePaths = "connection")
   List<MicrosoftSubscription> findByStatusAndExpirationAtBefore(
       MicrosoftSubscriptionStatus status, Instant expirationAt);
 }
