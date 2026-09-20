@@ -9,6 +9,7 @@ import com.messaging.inbox.dto.InboxPageResponse;
 import com.messaging.inbox.dto.InboxParticipantResponse;
 import com.messaging.inbox.entity.InboxConversation;
 import com.messaging.inbox.entity.InboxMessage;
+import com.messaging.inbox.enums.InboxMessageStatus;
 import com.messaging.inbox.repository.InboxConversationRepository;
 import com.messaging.inbox.repository.InboxMessageAttachmentRepository;
 import com.messaging.inbox.repository.InboxMessageRepository;
@@ -66,7 +67,8 @@ public class InboxQueryService {
             .orElseThrow(() -> new NotFoundException("Inbox conversation not found"));
 
     return messageRepository
-        .findByConversationIdOrderBySentAtAscCreatedAtAsc(conversation.getId())
+        .findByConversationIdAndStatusNotOrderBySentAtAscCreatedAtAsc(
+            conversation.getId(), InboxMessageStatus.DELETED)
         .stream()
         .map(this::message)
         .toList();
