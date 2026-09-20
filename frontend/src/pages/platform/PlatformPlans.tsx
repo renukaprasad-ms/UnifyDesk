@@ -279,7 +279,7 @@ export default function PlatformPlans() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[780px] text-left text-sm">
+              <table className="mobile-card-table w-full min-w-[780px] text-left text-sm">
                 <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-5 py-3">Plan</th>
@@ -296,25 +296,25 @@ export default function PlatformPlans() {
                       key={plan.planId}
                       className="border-t border-slate-100 hover:bg-slate-50/60"
                     >
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-4" data-label="Plan">
                         <p className="font-bold text-slate-950">{plan.name}</p>
                         <p className="mt-0.5 text-xs text-slate-500">
                           {plan.code} · v{plan.version} · {plan.billingCycle}
                         </p>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4" data-label="Status">
                         <span
                           className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${statusClass[plan.status]}`}
                         >
                           {plan.status}
                         </span>
                       </td>
-                      <td className="px-4 py-4 font-semibold text-slate-700">
+                      <td className="px-4 py-4 font-semibold text-slate-700" data-label="Base price">
                         {money(plan.basePrice, plan.currency)}
                       </td>
-                      <td className="px-4 py-4 text-slate-600">{plan.prices.length}</td>
-                      <td className="px-4 py-4 text-slate-600">{plan.entitlements.length}</td>
-                      <td className="px-5 py-4 text-right">
+                      <td className="px-4 py-4 text-slate-600" data-label="Prices">{plan.prices.length}</td>
+                      <td className="px-4 py-4 text-slate-600" data-label="Limits">{plan.entitlements.length}</td>
+                      <td className="mobile-action-cell px-5 py-4 text-right" data-label="Manage">
                         <button
                           type="button"
                           className="secondary-button gap-2"
