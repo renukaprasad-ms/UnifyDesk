@@ -52,6 +52,15 @@ public class InboxQueryService {
   }
 
   @Transactional(readOnly = true)
+  public InboxConversationResponse getConversation(Long companyId, Long conversationId) {
+    InboxConversation conversation =
+        conversationRepository
+            .findByIdAndCompanyId(conversationId, companyId)
+            .orElseThrow(() -> new NotFoundException("Inbox conversation not found"));
+    return conversation(conversation);
+  }
+
+  @Transactional(readOnly = true)
   public List<InboxMessageResponse> listMessages(Long companyId, Long conversationId) {
     InboxConversation conversation =
         conversationRepository
