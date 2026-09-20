@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import {
   FiCheck,
   FiChevronDown,
+  FiInbox,
   FiLink,
   FiMail,
   FiMessageSquare,
   FiRadio,
+  FiSend,
   FiSmartphone,
 } from 'react-icons/fi'
 import { useLocation, useNavigate } from 'react-router'
@@ -91,6 +93,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const selectedConnectionId = search.get('connectionId')
   const selectedSenderId = search.get('senderId')
   const selectedConversationId = search.get('conversationId')
+  const selectedFolder = search.get('folder') === 'SENT' ? 'SENT' : 'INBOX'
 
   useEffect(() => {
     if (!menuOpen) return
@@ -208,6 +211,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     const first = identities[0]
     const params = new URLSearchParams(location.search)
     params.set('connectionId', first.connection.id)
+    if (channelType === 'EMAIL' && !params.get('folder')) params.set('folder', 'INBOX')
     if (first.sender) params.set('senderId', first.sender.id)
     else params.delete('senderId')
     params.delete('conversationId')
@@ -240,7 +244,13 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       else setConversationLoading(true)
 
       try {
-        const inbox = await inboxApi.conversations(companyId, page, 30, selectedConnectionId)
+        const inbox = await inboxApi.conversations(
+          companyId,
+          page,
+          30,
+          selectedConnectionId,
+          selectedFolder,
+        )
         setConversations((current) => {
           if (!append) return inbox.items
           const byId = new Map(current.map((conversation) => [conversation.id, conversation]))
@@ -257,7 +267,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         setConversationLoadingMore(false)
       }
     },
-    [channelType, companyId, mode, selectedConnectionId],
+    [channelType, companyId, mode, selectedConnectionId, selectedFolder],
   )
 
   useEffect(() => {
@@ -303,6 +313,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const selectIdentity = (item: IdentityItem) => {
     const params = new URLSearchParams(location.search)
     params.set('connectionId', item.connection.id)
+    if (channelType === 'EMAIL' && !params.get('folder')) params.set('folder', 'INBOX')
     if (item.sender) params.set('senderId', item.sender.id)
     else params.delete('senderId')
     params.delete('conversationId')
@@ -314,6 +325,17 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       search: `?${params.toString()}`,
     })
     onNavigate()
+  }
+
+  const selectFolder = (folder: 'INBOX' | 'SENT') => {
+    const params = new URLSearchParams(location.search)
+    params.set('folder', folder)
+    params.delete('conversationId')
+    params.delete('compose')
+    navigate({
+      pathname: location.pathname,
+      search: `?${params.toString()}`,
+    })
   }
 
   const selectConversation = (conversation: InboxConversation) => {
@@ -413,6 +435,35 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
 
         {error && <p className="mt-3 px-1 text-xs leading-5 text-rose-600">{error}</p>}
       </div>
+
+      {mode === 'inbox' && channelType === 'EMAIL' && (
+        <nav className="mt-4 space-y-1" aria-label="Email folders">
+          <button
+            type="button"
+            className={`admin-nav-link w-full text-left ${
+              selectedFolder === 'INBOX' ? 'active' : ''
+            }`}
+            onClick={() => selectFolder('INBOX')}
+          >
+            <span className="admin-nav-icon">
+              <FiInbox aria-hidden="true" />
+            </span>
+            <span>Inbox</span>
+          </button>
+          <button
+            type="button"
+            className={`admin-nav-link w-full text-left ${
+              selectedFolder === 'SENT' ? 'active' : ''
+            }`}
+            onClick={() => selectFolder('SENT')}
+          >
+            <span className="admin-nav-icon">
+              <FiSend aria-hidden="true" />
+            </span>
+            <span>Sent</span>
+          </button>
+        </nav>
+      )}
 
       <div className="mt-5 flex min-h-0 flex-1 flex-col border-t border-slate-100 pt-4">
         <div className="mb-2 flex items-center justify-between gap-2 px-1">
