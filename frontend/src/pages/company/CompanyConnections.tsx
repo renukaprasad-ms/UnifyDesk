@@ -8,6 +8,7 @@ import {
   FiSmartphone,
   FiSlash,
 } from 'react-icons/fi'
+import EmailProviderPicker from '../../components/email/EmailProviderPicker'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
@@ -40,8 +41,6 @@ export default function CompanyConnections() {
   const [metaReady, setMetaReady] = useState(false)
   const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState(false)
-  const [connectingGmail, setConnectingGmail] = useState(false)
-  const [connectingMicrosoft, setConnectingMicrosoft] = useState(false)
   const [workingConnectionId, setWorkingConnectionId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -168,36 +167,6 @@ export default function CompanyConnections() {
       .finally(() => setConnecting(false))
   }
 
-  const connectGmail = async () => {
-    if (!selectedCompany || connectingGmail) return
-    setConnectingGmail(true)
-    setError('')
-    setNotice('')
-
-    try {
-      const authorization = await gmailApi.authorize(selectedCompany.companyId)
-      window.location.assign(authorization.authorizationUrl)
-    } catch (connectError) {
-      setError(apiErrorMessage(connectError, 'Unable to start Gmail connection'))
-      setConnectingGmail(false)
-    }
-  }
-
-  const connectMicrosoft = async () => {
-    if (!selectedCompany || connectingMicrosoft) return
-    setConnectingMicrosoft(true)
-    setError('')
-    setNotice('')
-
-    try {
-      const authorization = await microsoftApi.authorize(selectedCompany.companyId)
-      window.location.assign(authorization.authorizationUrl)
-    } catch (connectError) {
-      setError(apiErrorMessage(connectError, 'Unable to start Microsoft 365 connection'))
-      setConnectingMicrosoft(false)
-    }
-  }
-
   const disconnect = async (connection: ChannelConnection) => {
     if (!selectedCompany) return
     if (!window.confirm(`Disconnect ${connection.name} from this workspace?`)) return
@@ -319,28 +288,20 @@ export default function CompanyConnections() {
             </div>
             <h2 className="mt-4 text-base font-bold text-slate-950">Email</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              Connect Google Gmail or Microsoft 365 securely with OAuth.
+              Connect Gmail, Microsoft 365 / Outlook, or a custom SMTP provider.
             </p>
             {can(PERMISSIONS.EMAIL_CONNECT) && (
-              <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                <button
-                  type="button"
+              <div className="mt-4">
+                <EmailProviderPicker
+                  companyId={selectedCompany.companyId}
+                  label={
+                    emailConnections.some((item) => item.status === 'ACTIVE')
+                      ? 'Connect another email'
+                      : 'Connect email'
+                  }
                   className="primary-button inline-flex w-full items-center justify-center gap-2"
-                  onClick={() => void connectGmail()}
-                  disabled={connectingGmail || connectingMicrosoft}
-                >
-                  <FiLink aria-hidden="true" />
-                  {connectingGmail ? 'Opening Google…' : 'Gmail'}
-                </button>
-                <button
-                  type="button"
-                  className="secondary-button inline-flex w-full items-center justify-center gap-2"
-                  onClick={() => void connectMicrosoft()}
-                  disabled={connectingMicrosoft || connectingGmail}
-                >
-                  <FiLink aria-hidden="true" />
-                  {connectingMicrosoft ? 'Opening Microsoft…' : 'Microsoft 365'}
-                </button>
+                  onError={setError}
+                />
               </div>
             )}
           </div>
@@ -382,7 +343,7 @@ export default function CompanyConnections() {
                 No email account connected
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Connect Gmail or Microsoft 365 to add a mailbox to this workspace.
+                Use Connect email to choose Gmail, Microsoft 365 / Outlook, or SMTP.
               </p>
             </div>
           ) : (
