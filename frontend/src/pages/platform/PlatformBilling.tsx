@@ -555,7 +555,7 @@ export default function PlatformBilling() {
                 </p>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[800px] text-left text-sm">
+                  <table className="mobile-card-table w-full min-w-[800px] text-left text-sm">
                     <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
                       <tr>
                         <th className="px-4 py-3">Route</th>
@@ -568,7 +568,7 @@ export default function PlatformBilling() {
                     <tbody>
                       {overrides.map((override) => (
                         <tr key={override.overrideId} className="border-t border-slate-100">
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-4" data-label="Route">
                             <p className="font-bold text-slate-900">
                               {override.channel} · {override.provider}
                             </p>
@@ -578,18 +578,18 @@ export default function PlatformBilling() {
                               {override.direction}
                             </p>
                           </td>
-                          <td className="px-4 py-4 text-xs text-slate-600">
+                          <td className="px-4 py-4 text-xs text-slate-600" data-label="Category">
                             {override.billingCategory}
                             <br />
                             per {override.unit.toLowerCase()}
                           </td>
-                          <td className="px-4 py-4 font-bold text-slate-950">
+                          <td className="px-4 py-4 font-bold text-slate-950" data-label="Price">
                             {override.currency} {override.price}
                           </td>
-                          <td className="max-w-[260px] px-4 py-4 text-xs text-slate-500">
+                          <td className="max-w-[260px] px-4 py-4 text-xs text-slate-500" data-label="Reason">
                             {override.reason || '—'}
                           </td>
-                          <td className="px-4 py-4 text-xs font-semibold text-slate-600">
+                          <td className="px-4 py-4 text-xs font-semibold text-slate-600" data-label="Status">
                             {override.status}
                           </td>
                         </tr>
