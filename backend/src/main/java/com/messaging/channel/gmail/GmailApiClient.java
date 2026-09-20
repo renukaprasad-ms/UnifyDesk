@@ -159,11 +159,12 @@ public class GmailApiClient {
     if (messageIds == null || messageIds.isEmpty()) {
       return List.of();
     }
-    int configuredBatchSize =
-        Math.min(MAX_BATCH_SIZE, Math.max(1, properties.getSyncBatchSize()));
-    if (messageIds.size() > configuredBatchSize) {
+    // Existing durable sync jobs may contain batches created under an older configured
+    // size. Accept them up to Gmail's hard HTTP batch limit; new jobs are created using
+    // the current configured size in GmailSyncService.
+    if (messageIds.size() > MAX_BATCH_SIZE) {
       throw new BadRequestException(
-          "Gmail batch exceeds configured batch size of " + configuredBatchSize);
+          "Gmail batch exceeds provider maximum of " + MAX_BATCH_SIZE);
     }
 
     String boundary = "messaging_" + UUID.randomUUID().toString().replace("-", "");
