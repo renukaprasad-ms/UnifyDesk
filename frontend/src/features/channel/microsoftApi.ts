@@ -1,7 +1,10 @@
 import apiClient from '../../lib/api/apiClient'
+import type { AsyncJob } from '../asyncJob/types'
 import type { ApiResponse } from '../../lib/api/types'
 import type {
   ChannelConnection,
+  EmailSyncQueued,
+  EmailSyncRequest,
   MicrosoftAuthorization,
   MicrosoftSendRequest,
   MicrosoftSendResponse,
@@ -21,10 +24,19 @@ export const microsoftApi = {
     return unwrap(response.data)
   },
 
-  async sync(companyId: string, connectionId: string) {
-    await apiClient.post(
-      `/api/v1/companies/${companyId}/channels/email/microsoft/${connectionId}/sync`,
+  async activeSync(companyId: string, connectionId: string) {
+    const response = await apiClient.get<ApiResponse<AsyncJob>>(
+      `/api/v1/companies/${companyId}/channels/email/microsoft/${connectionId}/sync/active`,
     )
+    return response.data.data ?? null
+  },
+
+  async sync(companyId: string, connectionId: string, request: EmailSyncRequest) {
+    const response = await apiClient.post<ApiResponse<EmailSyncQueued>>(
+      `/api/v1/companies/${companyId}/channels/email/microsoft/${connectionId}/sync`,
+      request,
+    )
+    return unwrap(response.data)
   },
 
   async send(companyId: string, connectionId: string, request: MicrosoftSendRequest) {
