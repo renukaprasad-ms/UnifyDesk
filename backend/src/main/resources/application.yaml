@@ -158,10 +158,20 @@ app:
       initial-sync-max-messages: ${GMAIL_INITIAL_SYNC_MAX_MESSAGES:200}
       sync-max-range-days: ${GMAIL_SYNC_MAX_RANGE_DAYS:366}
       sync-max-messages: ${GMAIL_SYNC_MAX_MESSAGES:100000}
-      sync-batch-size: ${GMAIL_SYNC_BATCH_SIZE:50}
+      sync-batch-size: ${GMAIL_SYNC_BATCH_SIZE:25}
       sync-user-quota-units-per-minute: ${GMAIL_SYNC_USER_QUOTA_UNITS_PER_MINUTE:6000}
       sync-message-get-quota-units: ${GMAIL_SYNC_MESSAGE_GET_QUOTA_UNITS:20}
-      sync-quota-utilization-percent: ${GMAIL_SYNC_QUOTA_UTILIZATION_PERCENT:90}
+      sync-quota-utilization-percent: ${GMAIL_SYNC_QUOTA_UTILIZATION_PERCENT:80}
+      quota-control-enabled: ${GMAIL_QUOTA_CONTROL_ENABLED:true}
+      quota-project-units-per-minute: ${GMAIL_QUOTA_PROJECT_UNITS_PER_MINUTE:1200000}
+      quota-interactive-reserve-percent: ${GMAIL_QUOTA_INTERACTIVE_RESERVE_PERCENT:20}
+      quota-user-burst-units: ${GMAIL_QUOTA_USER_BURST_UNITS:600}
+      quota-project-burst-units: ${GMAIL_QUOTA_PROJECT_BURST_UNITS:50000}
+      quota-background-user-burst-units: ${GMAIL_QUOTA_BACKGROUND_USER_BURST_UNITS:500}
+      quota-background-project-burst-units: ${GMAIL_QUOTA_BACKGROUND_PROJECT_BURST_UNITS:40000}
+      quota-bucket-ttl: ${GMAIL_QUOTA_BUCKET_TTL:2m}
+      quota-cooldown-initial: ${GMAIL_QUOTA_COOLDOWN_INITIAL:30s}
+      quota-cooldown-max: ${GMAIL_QUOTA_COOLDOWN_MAX:5m}
       sync-batch-retry-max-attempts: ${GMAIL_SYNC_BATCH_RETRY_MAX_ATTEMPTS:12}
       sync-batch-retry-initial-backoff: ${GMAIL_SYNC_BATCH_RETRY_INITIAL_BACKOFF:2s}
       sync-batch-retry-max-backoff: ${GMAIL_SYNC_BATCH_RETRY_MAX_BACKOFF:64s}
