@@ -2,9 +2,8 @@ package com.messaging.lifecycle.service;
 
 import com.messaging.company.enums.CompanyStatus;
 import com.messaging.company.repository.CompanyRepository;
-import com.messaging.kafka.event.EntityDeletionRequestedEvent;
+import com.messaging.lifecycle.config.DeletionLifecycleProperties;
 import com.messaging.lifecycle.entity.DeletionPurgeJob;
-import com.messaging.lifecycle.enums.LifecycleEntityType;
 import com.messaging.user.enums.UserStatus;
 import com.messaging.user.repository.UserRepository;
 import java.time.Instant;
@@ -21,52 +20,293 @@ public class EntityPurgeService {
   private final CompanyRepository companyRepository;
   private final UserRepository userRepository;
   private final DeletionCleanupService cleanupService;
+  private final DeletionLifecycleProperties properties;
 
-  public void purge(DeletionPurgeJob job) {
-    switch (job.getEntityType()) {
-      case COMPANY -> purgeCompany(job);
-      case USER -> purgeUser(job);
-      case CHANNEL_CONNECTION, COMPANY_ROLE -> {
-        // These entity types use immediate logical cleanup and are not 30-day roots.
-      }
-    }
+  /**
+   * Processes bounded purge work. Returns true only when the root entity reached its final PURGED
+   * tombstone state. Returning false yields the job back to the scheduler for a later pass.
+   */
+  public boolean purge(DeletionPurgeJob job) {
+    return switch (job.getEntityType()) {
+      case COMPANY -> purgeCompany(job.getEntityId());
+      case USER -> purgeUser(job.getEntityId());
+      case CHANNEL_CONNECTION, COMPANY_ROLE -> true;
+    };
   }
 
-  private void purgeCompany(DeletionPurgeJob job) {
-    Long companyId = job.getEntityId();
+  private boolean purgeCompany(Long companyId) {
     var company = companyRepository.findById(companyId).orElse(null);
-    if (company == null || company.getStatus() == CompanyStatus.PURGED) return;
+    if (company == null || company.getStatus() == CompanyStatus.PURGED) return true;
     if (company.getStatus() != CompanyStatus.DELETION_PENDING
         && company.getStatus() != CompanyStatus.PURGING) {
-      return;
+      return true;
     }
 
     markCompanyPurging(companyId);
-    cleanupService.cleanup(
-        new EntityDeletionRequestedEvent(
-            LifecycleEntityType.COMPANY,
-            companyId,
-            companyId,
-            job.getRequestedByUserId(),
-            Instant.now()));
-    purgeCompanyOperationalData(companyId);
+
+    int mediaBatchSize = Math.max(1, properties.getMediaBatchSize());
+    if (cleanupService.cleanupCompanyMediaBatch(companyId, mediaBatchSize) >= mediaBatchSize) {
+      return false;
+    }
+
+    if (!drain(
+        "delete from gmail_sync_batches where ctid in "
+            + "(select ctid from gmail_sync_batches where company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from gmail_sync_runs where ctid in "
+            + "(select ctid from gmail_sync_runs where company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from inbox_message_attachments where ctid in ("
+            + "select a.ctid from inbox_message_attachments a "
+            + "join inbox_messages m on m.id = a.message_id "
+            + "join inbox_conversations c on c.id = m.conversation_id "
+            + "where c.company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from inbox_participants where ctid in ("
+            + "select p.ctid from inbox_participants p "
+            + "join inbox_conversations c on c.id = p.conversation_id "
+            + "where c.company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from inbox_messages where ctid in ("
+            + "select m.ctid from inbox_messages m "
+            + "join inbox_conversations c on c.id = m.conversation_id "
+            + "where c.company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from inbox_conversations where ctid in "
+            + "(select ctid from inbox_conversations where company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from channel_sync_states where ctid in ("
+            + "select s.ctid from channel_sync_states s "
+            + "join channel_connections c on c.id = s.connection_id "
+            + "where c.company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from provider_credentials where ctid in ("
+            + "select p.ctid from provider_credentials p "
+            + "join channel_connections c on c.id = p.connection_id "
+            + "where c.company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from sender_identities where ctid in ("
+            + "select s.ctid from sender_identities s "
+            + "join channel_connections c on c.id = s.connection_id "
+            + "where c.company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from async_jobs where ctid in "
+            + "(select ctid from async_jobs where company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from channel_connections where ctid in "
+            + "(select ctid from channel_connections where company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from company_invitation_roles where ctid in ("
+            + "select r.ctid from company_invitation_roles r "
+            + "join company_invitations i on i.id = r.invitation_id "
+            + "where i.company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from company_invitations where ctid in "
+            + "(select ctid from company_invitations where company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from company_member_role_assignments where ctid in "
+            + "(select ctid from company_member_role_assignments where company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from company_custom_role_permissions where ctid in ("
+            + "select p.ctid from company_custom_role_permissions p "
+            + "join company_custom_roles r on r.id = p.role_id "
+            + "where r.company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from company_custom_roles where ctid in "
+            + "(select ctid from company_custom_roles where company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from company_member_access_profile_grants where ctid in "
+            + "(select ctid from company_member_access_profile_grants where company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from company_member_permission_overrides where ctid in "
+            + "(select ctid from company_member_permission_overrides where company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from company_access_profile_permissions where ctid in ("
+            + "select p.ctid from company_access_profile_permissions p "
+            + "join company_access_profiles a on a.id = p.profile_id "
+            + "where a.company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from company_access_profiles where ctid in "
+            + "(select ctid from company_access_profiles where company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from company_role_permissions where ctid in "
+            + "(select ctid from company_role_permissions where company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from company_members where ctid in "
+            + "(select ctid from company_members where company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from admin_company_assignments where ctid in "
+            + "(select ctid from admin_company_assignments where company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from company_rate_overrides where ctid in "
+            + "(select ctid from company_rate_overrides where company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from company_storage_usage where ctid in "
+            + "(select ctid from company_storage_usage where company_id = ? limit ?)",
+        companyId)) return false;
+
+    if (!drain(
+        "delete from media where ctid in "
+            + "(select ctid from media where company_id = ? limit ?)",
+        companyId)) return false;
+
     markCompanyPurged(companyId);
+    return true;
   }
 
-  private void purgeUser(DeletionPurgeJob job) {
-    Long userId = job.getEntityId();
+  private boolean purgeUser(Long userId) {
     var user = userRepository.findById(userId).orElse(null);
-    if (user == null || user.getStatus() == UserStatus.PURGED) return;
+    if (user == null || user.getStatus() == UserStatus.PURGED) return true;
     if (user.getStatus() != UserStatus.DELETION_PENDING && user.getStatus() != UserStatus.PURGING) {
-      return;
+      return true;
     }
 
     markUserPurging(userId);
-    cleanupService.cleanup(
-        new EntityDeletionRequestedEvent(
-            LifecycleEntityType.USER, userId, null, job.getRequestedByUserId(), Instant.now()));
-    purgeUserOperationalData(userId);
+
+    int mediaBatchSize = Math.max(1, properties.getMediaBatchSize());
+    if (cleanupService.cleanupPersonalMediaBatch(userId, mediaBatchSize) >= mediaBatchSize) {
+      return false;
+    }
+
+    if (!drainByUser(
+        "delete from gmail_sync_batches where ctid in ("
+            + "select b.ctid from gmail_sync_batches b join async_jobs j on j.id=b.job_id "
+            + "where j.user_id = ? limit ?)",
+        userId)) return false;
+
+    if (!drainByUser(
+        "delete from gmail_sync_runs where ctid in ("
+            + "select r.ctid from gmail_sync_runs r join async_jobs j on j.id=r.job_id "
+            + "where j.user_id = ? limit ?)",
+        userId)) return false;
+
+    if (!drainByUser(
+        "delete from async_jobs where ctid in "
+            + "(select ctid from async_jobs where user_id = ? limit ?)",
+        userId)) return false;
+
+    if (!drainByUser(
+        "delete from user_sessions where ctid in "
+            + "(select ctid from user_sessions where user_id = ? limit ?)",
+        userId)) return false;
+
+    if (!drainByUser(
+        "delete from company_member_role_assignments where ctid in "
+            + "(select ctid from company_member_role_assignments where user_id = ? limit ?)",
+        userId)) return false;
+
+    if (!drainByUser(
+        "delete from company_member_access_profile_grants where ctid in "
+            + "(select ctid from company_member_access_profile_grants where user_id = ? limit ?)",
+        userId)) return false;
+
+    if (!drainByUser(
+        "delete from company_member_permission_overrides where ctid in "
+            + "(select ctid from company_member_permission_overrides where user_id = ? limit ?)",
+        userId)) return false;
+
+    if (!drainByUser(
+        "delete from company_members where ctid in "
+            + "(select ctid from company_members where user_id = ? limit ?)",
+        userId)) return false;
+
+    if (!drainByUser(
+        "delete from admin_company_assignments where ctid in "
+            + "(select ctid from admin_company_assignments where admin_user_id = ? limit ?)",
+        userId)) return false;
+
+    if (!drainByUser(
+        "delete from platform_admin_permissions where ctid in ("
+            + "select p.ctid from platform_admin_permissions p "
+            + "join platform_admins a on a.id=p.platform_admin_id "
+            + "where a.user_id = ? limit ?)",
+        userId)) return false;
+
+    if (!drainByUser(
+        "delete from platform_admins where ctid in "
+            + "(select ctid from platform_admins where user_id = ? limit ?)",
+        userId)) return false;
+
+    jdbcTemplate.update(
+        "update company_invitations set accepted_by_user_id = null where accepted_by_user_id = ?",
+        userId);
+
+    if (!drainByUser(
+        "delete from media where ctid in "
+            + "(select ctid from media where owner_user_id = ? and company_id is null limit ?)",
+        userId)) return false;
+
     markUserPurged(userId);
+    return true;
+  }
+
+  private boolean drain(String sql, Long companyId) {
+    return drainRows(sql, companyId);
+  }
+
+  private boolean drainByUser(String sql, Long userId) {
+    return drainRows(sql, userId);
+  }
+
+  private boolean drainRows(String sql, Long rootId) {
+    int rowBatchSize = Math.max(1, properties.getRowBatchSize());
+    int maxBatches = Math.max(1, properties.getMaxRowBatchesPerRun());
+
+    for (int batch = 0; batch < maxBatches; batch++) {
+      int deleted = jdbcTemplate.update(sql, rootId, rowBatchSize);
+      if (deleted < rowBatchSize) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Transactional
@@ -75,74 +315,12 @@ public class EntityPurgeService {
         .findById(companyId)
         .ifPresent(
             company -> {
-              company.setStatus(CompanyStatus.PURGING);
-              company.setPurgeStartedAt(Instant.now());
-              companyRepository.saveAndFlush(company);
+              if (company.getStatus() == CompanyStatus.DELETION_PENDING) {
+                company.setStatus(CompanyStatus.PURGING);
+                company.setPurgeStartedAt(Instant.now());
+                companyRepository.saveAndFlush(company);
+              }
             });
-  }
-
-  @Transactional
-  protected void purgeCompanyOperationalData(Long companyId) {
-    jdbcTemplate.update(
-        "delete from company_invitation_roles where invitation_id in "
-            + "(select id from company_invitations where company_id = ?)",
-        companyId);
-    jdbcTemplate.update("delete from company_invitations where company_id = ?", companyId);
-
-    jdbcTemplate.update("delete from gmail_sync_batches where company_id = ?", companyId);
-    jdbcTemplate.update("delete from gmail_sync_runs where company_id = ?", companyId);
-
-    jdbcTemplate.update(
-        "delete from inbox_message_attachments where message_id in "
-            + "(select m.id from inbox_messages m join inbox_conversations c on c.id=m.conversation_id "
-            + "where c.company_id = ?)",
-        companyId);
-    jdbcTemplate.update(
-        "delete from inbox_participants where conversation_id in "
-            + "(select id from inbox_conversations where company_id = ?)",
-        companyId);
-    jdbcTemplate.update(
-        "delete from inbox_messages where conversation_id in "
-            + "(select id from inbox_conversations where company_id = ?)",
-        companyId);
-    jdbcTemplate.update("delete from inbox_conversations where company_id = ?", companyId);
-
-    jdbcTemplate.update(
-        "delete from channel_sync_states where connection_id in "
-            + "(select id from channel_connections where company_id = ?)",
-        companyId);
-    jdbcTemplate.update(
-        "delete from provider_credentials where connection_id in "
-            + "(select id from channel_connections where company_id = ?)",
-        companyId);
-    jdbcTemplate.update(
-        "delete from sender_identities where connection_id in "
-            + "(select id from channel_connections where company_id = ?)",
-        companyId);
-    jdbcTemplate.update("delete from async_jobs where company_id = ?", companyId);
-    jdbcTemplate.update("delete from channel_connections where company_id = ?", companyId);
-
-    jdbcTemplate.update("delete from company_member_role_assignments where company_id = ?", companyId);
-    jdbcTemplate.update(
-        "delete from company_custom_role_permissions where role_id in "
-            + "(select id from company_custom_roles where company_id = ?)",
-        companyId);
-    jdbcTemplate.update("delete from company_custom_roles where company_id = ?", companyId);
-
-    jdbcTemplate.update("delete from company_member_access_profile_grants where company_id = ?", companyId);
-    jdbcTemplate.update("delete from company_member_permission_overrides where company_id = ?", companyId);
-    jdbcTemplate.update(
-        "delete from company_access_profile_permissions where profile_id in "
-            + "(select id from company_access_profiles where company_id = ?)",
-        companyId);
-    jdbcTemplate.update("delete from company_access_profiles where company_id = ?", companyId);
-    jdbcTemplate.update("delete from company_role_permissions where company_id = ?", companyId);
-    jdbcTemplate.update("delete from company_members where company_id = ?", companyId);
-
-    jdbcTemplate.update("delete from admin_company_assignments where company_id = ?", companyId);
-    jdbcTemplate.update("delete from company_rate_overrides where company_id = ?", companyId);
-    jdbcTemplate.update("delete from company_storage_usage where company_id = ?", companyId);
-    jdbcTemplate.update("delete from media where company_id = ?", companyId);
   }
 
   @Transactional
@@ -171,34 +349,12 @@ public class EntityPurgeService {
         .findById(userId)
         .ifPresent(
             user -> {
-              user.setStatus(UserStatus.PURGING);
-              user.setPurgeStartedAt(Instant.now());
-              userRepository.saveAndFlush(user);
+              if (user.getStatus() == UserStatus.DELETION_PENDING) {
+                user.setStatus(UserStatus.PURGING);
+                user.setPurgeStartedAt(Instant.now());
+                userRepository.saveAndFlush(user);
+              }
             });
-  }
-
-  @Transactional
-  protected void purgeUserOperationalData(Long userId) {
-    jdbcTemplate.update(
-        "delete from gmail_sync_batches where job_id in (select id from async_jobs where user_id = ?)",
-        userId);
-    jdbcTemplate.update(
-        "delete from gmail_sync_runs where job_id in (select id from async_jobs where user_id = ?)",
-        userId);
-    jdbcTemplate.update("delete from async_jobs where user_id = ?", userId);
-    jdbcTemplate.update("delete from user_sessions where user_id = ?", userId);
-    jdbcTemplate.update("delete from company_member_role_assignments where user_id = ?", userId);
-    jdbcTemplate.update("delete from company_member_access_profile_grants where user_id = ?", userId);
-    jdbcTemplate.update("delete from company_member_permission_overrides where user_id = ?", userId);
-    jdbcTemplate.update("delete from company_members where user_id = ?", userId);
-    jdbcTemplate.update("delete from admin_company_assignments where admin_user_id = ?", userId);
-    jdbcTemplate.update(
-        "delete from platform_admin_permissions where platform_admin_id in "
-            + "(select id from platform_admins where user_id = ?)",
-        userId);
-    jdbcTemplate.update("delete from platform_admins where user_id = ?", userId);
-    jdbcTemplate.update("update company_invitations set accepted_by_user_id = null where accepted_by_user_id = ?", userId);
-    jdbcTemplate.update("delete from media where owner_user_id = ? and company_id is null", userId);
   }
 
   @Transactional
