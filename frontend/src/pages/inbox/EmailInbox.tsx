@@ -15,6 +15,7 @@ import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'
 import type { AsyncJob } from '../../features/asyncJob/types'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
+import { microsoftApi } from '../../features/channel/microsoftApi'
 import type { ChannelConnection } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -125,6 +126,7 @@ export default function EmailInbox() {
   const [composeThreadId, setComposeThreadId] = useState('')
   const [composeInReplyTo, setComposeInReplyTo] = useState('')
   const [composeReferences, setComposeReferences] = useState('')
+  const [composeProviderMessageId, setComposeProviderMessageId] = useState('')
   const initialSyncRange = useMemo(() => defaultSyncRange(), [])
   const [syncFrom, setSyncFrom] = useState(initialSyncRange.from)
   const [syncTo, setSyncTo] = useState(initialSyncRange.to)
@@ -243,7 +245,11 @@ export default function EmailInbox() {
   }, [companyId, selectedConnectionId, loadConversations])
 
   useEffect(() => {
-    if (!companyId || !selectedConnectionId) {
+    if (
+      !companyId ||
+      !selectedConnectionId ||
+      selectedConnection?.providerType !== 'GMAIL'
+    ) {
       setSyncJobs({})
       return
     }
@@ -265,24 +271,35 @@ export default function EmailInbox() {
     return () => {
       active = false
     }
-  }, [companyId, selectedConnectionId, scheduleInboxRefresh])
+  }, [companyId, selectedConnectionId, selectedConnection?.providerType, scheduleInboxRefresh])
 
   useEffect(() => {
     const gmailResult = searchParams.get('gmail')
-    if (!gmailResult) return
+    const microsoftResult = searchParams.get('microsoft')
+    if (!gmailResult && !microsoftResult) return
 
     if (gmailResult === 'connected') {
       setNotice('Gmail connected successfully')
     } else if (gmailResult === 'cancelled') {
       setNotice('Gmail connection was cancelled')
-    } else {
+    } else if (gmailResult) {
       setError('Unable to connect Gmail. Please try again.')
+    }
+
+    if (microsoftResult === 'connected') {
+      setNotice('Microsoft 365 connected successfully')
+    } else if (microsoftResult === 'cancelled') {
+      setNotice('Microsoft 365 connection was cancelled')
+    } else if (microsoftResult) {
+      setError('Unable to connect Microsoft 365. Please try again.')
     }
 
     const params = new URLSearchParams(searchParams)
     params.delete('gmail')
+    params.delete('microsoft')
     setSearchParams(params, { replace: true })
-  }, [searchParams, setSearchParams])
+    void loadConversations(0, false)
+  }, [loadConversations, searchParams, setSearchParams])
 
   useEffect(() => {
     if (!companyId || !selectedId) {
@@ -323,6 +340,14 @@ export default function EmailInbox() {
   }, [trackedSyncJobs])
 
   useEffect(() => realtimeClient.subscribeConnection(setRealtimeConnected), [])
+
+  useEffect(
+    () =>
+      realtimeClient.subscribe('inbox.email.changed', () => {
+        scheduleInboxRefresh()
+      }),
+    [scheduleInboxRefresh],
+  )
 
   useEffect(() => {
     return realtimeClient.subscribe<AsyncJob>('async.job.progress', (event) => {
@@ -401,6 +426,46 @@ export default function EmailInbox() {
     }
   }
 
+  const syncMicrosoft = async () => {
+    if (!companyId || syncing || !selectedConnection) return
+    if (
+      selectedConnection.providerType !== 'MICROSOFT' ||
+      selectedConnection.status !== 'ACTIVE'
+    ) {
+      setNotice('The selected email account is not an active Microsoft 365 connection.')
+      return
+    }
+
+    setSyncing(true)
+    setError(null)
+    setNotice(null)
+    try {
+      await microsoftApi.sync(companyId, selectedConnection.id)
+      setNotice(
+        `Microsoft 365 sync requested for ${selectedConnection.externalAccountId || selectedConnection.name}.`,
+      )
+      scheduleInboxRefresh()
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, 'Unable to request Microsoft 365 sync'))
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  const syncSelected = () => {
+    if (!selectedConnection) {
+      setNotice('Select an email account before syncing.')
+      return
+    }
+    if (selectedConnection.providerType === 'GMAIL') {
+      setShowSyncDialog(true)
+      return
+    }
+    if (selectedConnection.providerType === 'MICROSOFT') {
+      void syncMicrosoft()
+    }
+  }
+
   const resetCompose = () => {
     setComposeMode('compose')
     setComposeTo('')
@@ -411,6 +476,7 @@ export default function EmailInbox() {
     setComposeThreadId('')
     setComposeInReplyTo('')
     setComposeReferences('')
+    setComposeProviderMessageId('')
   }
 
   const showCompose = () => {
@@ -486,6 +552,7 @@ export default function EmailInbox() {
     setComposeReferences(
       [message.references?.trim(), message.internetMessageId?.trim()].filter(Boolean).join(' '),
     )
+    setComposeProviderMessageId(message.externalMessageId)
     showCompose()
   }
 
@@ -502,6 +569,7 @@ export default function EmailInbox() {
     setComposeThreadId('')
     setComposeInReplyTo('')
     setComposeReferences('')
+    setComposeProviderMessageId('')
     setComposeBody(
       [
         '',
@@ -523,8 +591,8 @@ export default function EmailInbox() {
   const sendEmail = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!companyId || !selectedConnection || sending) return
-    if (selectedConnection.providerType !== 'GMAIL') {
-      setError('Sending is currently available for Gmail connections.')
+    if (!['GMAIL', 'MICROSOFT'].includes(selectedConnection.providerType)) {
+      setError('Sending is not available for the selected email provider.')
       return
     }
 
@@ -540,16 +608,30 @@ export default function EmailInbox() {
     setError(null)
     setNotice(null)
     try {
-      const sent = await gmailApi.send(companyId, selectedConnection.id, {
-        to,
-        cc,
-        bcc,
-        subject: composeSubject.trim(),
-        bodyText: composeBody,
-        threadId: composeThreadId || null,
-        inReplyTo: composeInReplyTo || null,
-        references: composeReferences || null,
-      })
+      const sent =
+        selectedConnection.providerType === 'GMAIL'
+          ? await gmailApi.send(companyId, selectedConnection.id, {
+              to,
+              cc,
+              bcc,
+              subject: composeSubject.trim(),
+              bodyText: composeBody,
+              threadId: composeThreadId || null,
+              inReplyTo: composeInReplyTo || null,
+              references: composeReferences || null,
+            })
+          : await microsoftApi.send(companyId, selectedConnection.id, {
+              to,
+              cc,
+              bcc,
+              subject: composeSubject.trim(),
+              bodyText: composeBody,
+              replyToMessageId:
+                composeMode === 'reply' || composeMode === 'replyAll'
+                  ? composeProviderMessageId || null
+                  : null,
+              replyAll: composeMode === 'replyAll',
+            })
       resetCompose()
       closeCompose()
       setNotice(
@@ -567,8 +649,10 @@ export default function EmailInbox() {
     }
   }
 
-  const canSendSelectedGmail =
-    can(PERMISSIONS.EMAIL_SEND) && selectedConnection?.providerType === 'GMAIL'
+  const canSendSelectedEmail =
+    can(PERMISSIONS.EMAIL_SEND) &&
+    (selectedConnection?.providerType === 'GMAIL' ||
+      selectedConnection?.providerType === 'MICROSOFT')
 
   if (!companyId) {
     return (
@@ -590,7 +674,7 @@ export default function EmailInbox() {
             <p className="mt-1 text-sm text-slate-500">
               {selectedConnection
                 ? `Showing conversations for ${selectedConnection.externalAccountId || selectedConnection.name}.`
-                : 'Gmail conversations synchronized into your ReachFly workspace.'}
+                : 'Gmail and Microsoft 365 conversations synchronized into your ReachFly workspace.'}
             </p>
           </div>
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
@@ -606,18 +690,24 @@ export default function EmailInbox() {
             <button
               type="button"
               className="secondary-button flex-1 gap-2 sm:flex-none"
-              onClick={() => setShowSyncDialog(true)}
+              onClick={syncSelected}
               disabled={
                 !selectedConnection ||
-                selectedConnection.providerType !== 'GMAIL' ||
                 syncing ||
-                activeSyncJobs.length > 0
+                (selectedConnection.providerType === 'GMAIL' && activeSyncJobs.length > 0) ||
+                !['GMAIL', 'MICROSOFT'].includes(selectedConnection.providerType)
               }
             >
               <FiMail aria-hidden="true" />
-              {syncing ? 'Queuing...' : activeSyncJobs.length > 0 ? 'Syncing...' : 'Sync Gmail'}
+              {syncing
+                ? 'Syncing...'
+                : activeSyncJobs.length > 0
+                  ? 'Syncing Gmail...'
+                  : selectedConnection?.providerType === 'MICROSOFT'
+                    ? 'Sync Microsoft'
+                    : 'Sync Gmail'}
             </button>
-            {canSendSelectedGmail && (
+            {canSendSelectedEmail && (
               <button
                 type="button"
                 className="primary-button flex-1 gap-2 sm:flex-none"
@@ -693,7 +783,7 @@ export default function EmailInbox() {
               onSubmit={(event) => void sendEmail(event)}
               role="dialog"
               aria-modal="true"
-              aria-labelledby="gmail-compose-title"
+              aria-labelledby="email-compose-title"
             >
               <p className="eyebrow">
                 {composeMode === 'reply'
@@ -704,7 +794,7 @@ export default function EmailInbox() {
                       ? 'FORWARD'
                       : 'NEW EMAIL'}
               </p>
-              <h2 id="gmail-compose-title" className="mt-2 text-lg font-bold text-slate-950">
+              <h2 id="email-compose-title" className="mt-2 text-lg font-bold text-slate-950">
                 {composeMode === 'compose' ? 'Compose email' : composeSubject || 'Email'}
               </h2>
               <p className="mt-2 text-xs text-slate-500">
@@ -890,7 +980,7 @@ export default function EmailInbox() {
                   <FiMail className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
                   <p className="mt-4 text-sm font-semibold text-slate-800">No emails synced yet</p>
                   <p className="mt-2 text-xs leading-5 text-slate-500">
-                    Click Sync Gmail to import recent conversations from your connected account.
+                    Use Sync to import or refresh conversations from your connected email account.
                   </p>
                 </div>
               ) : (
@@ -1060,7 +1150,7 @@ export default function EmailInbox() {
                             ))}
                           </div>
                         )}
-                        {canSendSelectedGmail && (
+                        {canSendSelectedEmail && (
                           <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
                             <button
                               type="button"
