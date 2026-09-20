@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FiMail, FiX } from 'react-icons/fi'
+import { FiMail, FiPlus, FiX } from 'react-icons/fi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -12,6 +12,8 @@ type EmailProviderPickerProps = {
   disabled?: boolean
   onError?: (message: string) => void
   onOpen?: () => void
+  onClose?: () => void
+  buttonIcon?: 'mail' | 'plus'
 }
 
 export default function EmailProviderPicker({
@@ -22,6 +24,8 @@ export default function EmailProviderPicker({
   disabled = false,
   onError,
   onOpen,
+  onClose,
+  buttonIcon = 'mail',
 }: EmailProviderPickerProps) {
   const [open, setOpen] = useState(false)
   const [connecting, setConnecting] = useState<'GMAIL' | 'MICROSOFT' | null>(null)
@@ -74,7 +78,7 @@ export default function EmailProviderPicker({
           setOpen(true)
         }}
       >
-        <FiMail aria-hidden="true" />
+        {buttonIcon === 'plus' ? <FiPlus aria-hidden="true" /> : <FiMail aria-hidden="true" />}
         {label}
       </button>
 
@@ -83,7 +87,10 @@ export default function EmailProviderPicker({
           className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/40 p-4"
           role="presentation"
           onMouseDown={(event) => {
-            if (event.currentTarget === event.target && !connecting) setOpen(false)
+            if (event.currentTarget === event.target && !connecting) {
+              setOpen(false)
+              onClose?.()
+            }
           }}
         >
           <div
@@ -110,7 +117,10 @@ export default function EmailProviderPicker({
                 className="inline-flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"
                 aria-label="Close provider picker"
                 disabled={Boolean(connecting)}
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setOpen(false)
+                  onClose?.()
+                }}
               >
                 <FiX aria-hidden="true" />
               </button>
