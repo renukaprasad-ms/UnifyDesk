@@ -51,14 +51,14 @@ create index if not exists idx_deletion_purge_jobs_due
   on deletion_purge_jobs (status, purge_after, next_attempt_at);
 
 -- Backfill durable purge work for entities that were already soft-deleted before
--- this migration. IDs are generated from a high reserved range only for migration
--- backfill; application-created jobs continue to use the Snowflake generator.
+-- this migration. Negative IDs are reserved for migration-only rows so they cannot
+-- collide with the application's positive Snowflake IDs.
 insert into deletion_purge_jobs (
   id, entity_type, entity_id, company_id, requested_by_user_id, status,
   purge_after, attempt_count, created_at, updated_at
 )
 select
-  900000000000000000 + row_number() over (order by id),
+  -row_number() over (order by id),
   'COMPANY',
   id,
   id,
@@ -78,7 +78,7 @@ insert into deletion_purge_jobs (
   purge_after, attempt_count, created_at, updated_at
 )
 select
-  920000000000000000 + row_number() over (order by id),
+  -1000000000 - row_number() over (order by id),
   'USER',
   id,
   null,
