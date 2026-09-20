@@ -3,6 +3,7 @@ package com.messaging.channel.microsoft;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ProviderType;
+import com.messaging.channel.microsoft.MicrosoftApiClient.GraphResourceNotFoundException;
 import com.messaging.channel.microsoft.MicrosoftApiClient.SubscriptionResponse;
 import com.messaging.channel.microsoft.entity.MicrosoftSubscription;
 import com.messaging.channel.microsoft.enums.MicrosoftSubscriptionStatus;
@@ -35,7 +36,6 @@ public class MicrosoftSubscriptionService {
   private final ChannelConnectionRepository connectionRepository;
   private final MicrosoftSyncStateService syncStateService;
 
-  @Transactional
   public void ensure(Long connectionId) {
     if (!properties.webhookConfigured()) {
       return;
@@ -71,11 +71,10 @@ public class MicrosoftSubscriptionService {
         existing.setLastError(null);
         repository.save(existing);
         return;
-      } catch (RuntimeException exception) {
-        log.warn(
-            "Microsoft subscription renewal failed; recreating connectionId={} reason={}",
-            connectionId,
-            exception.getClass().getSimpleName());
+      } catch (GraphResourceNotFoundException exception) {
+        log.info(
+            "Microsoft subscription no longer exists; recreating connectionId={}",
+            connectionId);
       }
     }
 
