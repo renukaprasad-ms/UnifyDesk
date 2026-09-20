@@ -83,7 +83,9 @@ public class MicrosoftInboxPersistenceService {
             messageRepository
                 .findByConnectionIdAndExternalMessageId(connection.getId(), graphMessage.id())
                 .orElse(null);
-        if (existing != null) {
+        if (existing != null
+            && (existing.getProviderFolderKey() == null
+                || folderKey.equalsIgnoreCase(existing.getProviderFolderKey()))) {
           Long conversationId = existing.getConversation().getId();
           if (existing.getStorageBytes() > 0) {
             storageAccountingService.releaseUsage(
@@ -144,6 +146,7 @@ public class MicrosoftInboxPersistenceService {
       message.setConversation(conversation);
       message.setInternetMessageId(trimToNull(graphMessage.internetMessageId()));
       message.setProviderHistoryId(null);
+      message.setProviderFolderKey(folderKey);
       message.setFromAddress(address(graphMessage.from()));
       message.setReplyToAddress(firstAddress(graphMessage.replyTo()));
       message.setToAddresses(addressesCsv(graphMessage.toRecipients()));
