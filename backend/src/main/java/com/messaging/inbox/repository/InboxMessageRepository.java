@@ -15,6 +15,9 @@ public interface InboxMessageRepository extends JpaRepository<InboxMessage, Long
   Optional<InboxMessage> findByConnectionIdAndExternalMessageId(
       Long connectionId, String externalMessageId);
 
+  Optional<InboxMessage> findByConnectionIdAndInternetMessageId(
+      Long connectionId, String internetMessageId);
+
   List<InboxMessage> findByConnectionIdAndExternalMessageIdIn(
       Long connectionId, Collection<String> externalMessageIds);
 

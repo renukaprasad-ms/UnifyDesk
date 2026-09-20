@@ -64,6 +64,18 @@ public class ChannelSyncState {
   @Column(name = "realtime_last_error", length = 1000)
   private String realtimeLastError;
 
+  @Column(name = "incremental_claimed_at")
+  private Instant incrementalClaimedAt;
+
+  @Column(name = "incremental_next_attempt_at")
+  private Instant incrementalNextAttemptAt;
+
+  @Column(name = "incremental_attempt_count", nullable = false)
+  private int incrementalAttemptCount;
+
+  @Column(name = "incremental_last_error", length = 1000)
+  private String incrementalLastError;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 

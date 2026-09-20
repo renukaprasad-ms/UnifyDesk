@@ -1,5 +1,5 @@
 export type ChannelType = 'EMAIL' | 'WHATSAPP' | 'SMS'
-export type ProviderType = 'GMAIL' | 'MICROSOFT' | 'SMTP' | 'META_WHATSAPP' | 'MSG91'
+export type ProviderType = 'GMAIL' | 'MICROSOFT' | 'IMAP_SMTP' | 'SMTP' | 'META_WHATSAPP' | 'MSG91'
 export type ChannelConnectionStatus = 'PENDING' | 'ACTIVE' | 'ERROR' | 'DISCONNECTED'
 export type SenderIdentityStatus = 'PENDING' | 'ACTIVE' | 'ERROR' | 'DISABLED'
 export type SenderIdentityType = 'EMAIL_ADDRESS' | 'PHONE_NUMBER' | 'SMS_HEADER'
@@ -135,4 +135,56 @@ export type MicrosoftSendResponse = {
   bcc: string[]
   subject: string
   acceptedAt: string
+}
+
+
+export type MailSecurityMode = 'SSL_TLS' | 'STARTTLS'
+
+export type ImapSmtpConnectRequest = {
+  email: string
+  displayName?: string
+  username: string
+  password: string
+  imapHost: string
+  imapPort: number
+  imapSecurity: MailSecurityMode
+  smtpHost: string
+  smtpPort: number
+  smtpSecurity: MailSecurityMode
+  sentFolder?: string
+}
+
+export type ImapSmtpConnection = {
+  connectionId: string
+  email: string
+  name: string
+  status: ChannelConnectionStatus
+  imapHost: string
+  imapPort: number
+  imapSecurity: MailSecurityMode
+  smtpHost: string
+  smtpPort: number
+  smtpSecurity: MailSecurityMode
+  sentFolder: string
+}
+
+export type ImapSmtpSendRequest = {
+  to: string[]
+  cc?: string[]
+  bcc?: string[]
+  subject?: string
+  bodyText: string
+  inReplyTo?: string | null
+  references?: string | null
+}
+
+export type ImapSmtpSendResponse = {
+  connectionId: string
+  messageId: string
+  from: string
+  to: string[]
+  cc: string[]
+  bcc: string[]
+  subject: string
+  sentAt: string
 }

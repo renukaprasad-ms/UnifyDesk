@@ -25,6 +25,13 @@ import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 
+const providerLabel = (providerType: ChannelConnection['providerType']) => {
+  if (providerType === 'MICROSOFT') return 'MICROSOFT 365'
+  if (providerType === 'IMAP_SMTP') return 'IMAP + SMTP'
+  if (providerType === 'SMTP') return 'SMTP'
+  return providerType
+}
+
 const statusClass: Record<ChannelConnection['status'], string> = {
   ACTIVE: 'bg-emerald-50 text-emerald-700',
   PENDING: 'bg-amber-50 text-amber-700',
@@ -288,7 +295,7 @@ export default function CompanyConnections() {
             </div>
             <h2 className="mt-4 text-base font-bold text-slate-950">Email</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              Connect Gmail, Microsoft 365 / Outlook, or a custom SMTP provider.
+              Connect Gmail, Microsoft 365 / Outlook, or any mailbox with IMAP + SMTP.
             </p>
             {can(PERMISSIONS.EMAIL_CONNECT) && (
               <div className="mt-4">
@@ -301,6 +308,10 @@ export default function CompanyConnections() {
                   }
                   className="primary-button inline-flex w-full items-center justify-center gap-2"
                   onError={setError}
+                  onConnected={(connection) => {
+                    setNotice(`Connected ${connection.email}`)
+                    void loadConnections()
+                  }}
                 />
               </div>
             )}
@@ -329,8 +340,8 @@ export default function CompanyConnections() {
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="text-sm font-bold text-slate-950">Email accounts</h2>
             <p className="mt-1 text-xs text-slate-500">
-              OAuth credentials are encrypted on the backend. Gmail and Microsoft 365 accounts share
-              the same inbox and sender identity model.
+              OAuth tokens and custom mailbox credentials are encrypted on the backend. Every
+              provider uses the same inbox and sender identity model.
             </p>
           </div>
 
@@ -343,7 +354,7 @@ export default function CompanyConnections() {
                 No email account connected
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Use Connect email to choose Gmail, Microsoft 365 / Outlook, or SMTP.
+                Use Connect email to choose Gmail, Microsoft 365 / Outlook, or IMAP + SMTP.
               </p>
             </div>
           ) : (
@@ -364,7 +375,7 @@ export default function CompanyConnections() {
                         {connection.status}
                       </span>
                       <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-700">
-                        {connection.providerType === 'MICROSOFT' ? 'MICROSOFT 365' : 'GMAIL'}
+                        {providerLabel(connection.providerType)}
                       </span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">

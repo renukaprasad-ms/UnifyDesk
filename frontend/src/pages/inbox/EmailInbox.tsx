@@ -15,6 +15,7 @@ import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'
 import type { AsyncJob } from '../../features/asyncJob/types'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
+import { imapSmtpApi } from '../../features/channel/imapSmtpApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
 import type {
   ChannelConnection,
@@ -240,7 +241,7 @@ export default function EmailInbox() {
       !companyId ||
       !selectedConnectionId ||
       !selectedConnection ||
-      !['GMAIL', 'MICROSOFT'].includes(selectedConnection.providerType)
+      !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
     ) {
       setSyncJobs({})
       return
@@ -250,7 +251,9 @@ export default function EmailInbox() {
     const request =
       selectedConnection.providerType === 'GMAIL'
         ? gmailApi.activeSync(companyId, selectedConnectionId)
-        : microsoftApi.activeSync(companyId, selectedConnectionId)
+        : selectedConnection.providerType === 'MICROSOFT'
+          ? microsoftApi.activeSync(companyId, selectedConnectionId)
+          : imapSmtpApi.activeSync(companyId, selectedConnectionId)
 
     request
       .then((job) => {
@@ -414,7 +417,7 @@ export default function EmailInbox() {
     }
     if (
       selectedConnection.status !== 'ACTIVE' ||
-      !['GMAIL', 'MICROSOFT'].includes(selectedConnection.providerType)
+      !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
     ) {
       setNotice('The selected email account does not support sync.')
       return
@@ -432,7 +435,7 @@ export default function EmailInbox() {
 
     if (
       selectedConnection.status !== 'ACTIVE' ||
-      !['GMAIL', 'MICROSOFT'].includes(selectedConnection.providerType)
+      !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
     ) {
       setError('The selected email account is not active.')
       return
@@ -474,7 +477,9 @@ export default function EmailInbox() {
       const queued =
         selectedConnection.providerType === 'GMAIL'
           ? await gmailApi.sync(companyId, selectedConnection.id, request)
-          : await microsoftApi.sync(companyId, selectedConnection.id, request)
+          : selectedConnection.providerType === 'MICROSOFT'
+            ? await microsoftApi.sync(companyId, selectedConnection.id, request)
+            : await imapSmtpApi.sync(companyId, selectedConnection.id, request)
       const job = await asyncJobApi.get(queued.jobId)
       setSyncJobs({ [job.jobId]: job })
       setShowSyncDialog(false)
@@ -620,7 +625,7 @@ export default function EmailInbox() {
   const sendEmail = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!companyId || !selectedConnection || sending) return
-    if (!['GMAIL', 'MICROSOFT'].includes(selectedConnection.providerType)) {
+    if (!['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)) {
       setError('Sending is not available for the selected email provider.')
       return
     }
@@ -649,18 +654,28 @@ export default function EmailInbox() {
               inReplyTo: composeInReplyTo || null,
               references: composeReferences || null,
             })
-          : await microsoftApi.send(companyId, selectedConnection.id, {
-              to,
-              cc,
-              bcc,
-              subject: composeSubject.trim(),
-              bodyText: composeBody,
-              replyToMessageId:
-                composeMode === 'reply' || composeMode === 'replyAll'
-                  ? composeProviderMessageId || null
-                  : null,
-              replyAll: composeMode === 'replyAll',
-            })
+          : selectedConnection.providerType === 'MICROSOFT'
+            ? await microsoftApi.send(companyId, selectedConnection.id, {
+                to,
+                cc,
+                bcc,
+                subject: composeSubject.trim(),
+                bodyText: composeBody,
+                replyToMessageId:
+                  composeMode === 'reply' || composeMode === 'replyAll'
+                    ? composeProviderMessageId || null
+                    : null,
+                replyAll: composeMode === 'replyAll',
+              })
+            : await imapSmtpApi.send(companyId, selectedConnection.id, {
+                to,
+                cc,
+                bcc,
+                subject: composeSubject.trim(),
+                bodyText: composeBody,
+                inReplyTo: composeInReplyTo || null,
+                references: composeReferences || null,
+              })
       resetCompose()
       closeCompose()
       setNotice(
@@ -681,7 +696,8 @@ export default function EmailInbox() {
   const canSendSelectedEmail =
     can(PERMISSIONS.EMAIL_SEND) &&
     (selectedConnection?.providerType === 'GMAIL' ||
-      selectedConnection?.providerType === 'MICROSOFT')
+      selectedConnection?.providerType === 'MICROSOFT' ||
+      selectedConnection?.providerType === 'IMAP_SMTP')
 
   if (!companyId) {
     return (
@@ -720,7 +736,7 @@ export default function EmailInbox() {
                 !selectedConnection ||
                 syncing ||
                 activeSyncJobs.length > 0 ||
-                !['GMAIL', 'MICROSOFT'].includes(selectedConnection.providerType)
+                !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
               }
             >
               <FiMail aria-hidden="true" />
@@ -926,7 +942,11 @@ export default function EmailInbox() {
               <p className="mt-2 text-sm leading-6 text-slate-500">
                 {selectedConnection?.externalAccountId || selectedConnection?.name || 'Email'}
                 {' · '}
-                {selectedConnection?.providerType === 'MICROSOFT' ? 'Microsoft' : 'Gmail'}
+                {selectedConnection?.providerType === 'MICROSOFT'
+                  ? 'Microsoft'
+                  : selectedConnection?.providerType === 'IMAP_SMTP'
+                    ? 'IMAP + SMTP'
+                    : 'Gmail'}
               </p>
 
               <div className="mt-5">
