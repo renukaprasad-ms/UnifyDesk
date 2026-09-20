@@ -69,6 +69,91 @@ class GmailApiClientTests {
   }
 
   @Test
+  void batchParserAcceptsUnknownGmailFields() {
+    GmailOAuthProperties properties = new GmailOAuthProperties();
+    GmailApiClient client = new GmailApiClient(properties);
+
+    String boundary = "batch_response";
+    String response =
+        "--" + boundary + "\r\n"
+            + "Content-Type: application/http\r\n"
+            + "Content-ID: <response-gmail-0>\r\n\r\n"
+            + "HTTP/1.1 200 OK\r\n"
+            + "Content-Type: application/json; charset=UTF-8\r\n\r\n"
+            + "{\"id\":\"message-1\",\"threadId\":\"thread-1\","
+            + "\"sizeEstimate\":1234,"
+            + "\"payload\":{\"mimeType\":\"text/plain\",\"partId\":\"0\","
+            + "\"headers\":[],\"body\":{\"size\":0},\"parts\":[]}}\r\n"
+            + "--" + boundary + "--\r\n";
+
+    var results =
+        client.parseBatchResponse(
+            response.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+            boundary,
+            List.of("message-1"));
+
+    assertThat(results).hasSize(1);
+    assertThat(results.getFirst().successful()).isTrue();
+    assertThat(results.getFirst().message().id()).isEqualTo("message-1");
+    assertThat(results.getFirst().message().threadId()).isEqualTo("thread-1");
+  }
+
+  @Test
+  void batchParserKeepsSuccessfulPartsAndRetriesMissingParts() {
+    GmailOAuthProperties properties = new GmailOAuthProperties();
+    GmailApiClient client = new GmailApiClient(properties);
+
+    String boundary = "batch_response";
+    String response =
+        "--" + boundary + "\r\n"
+            + "Content-Type: application/http\r\n"
+            + "Content-ID: <response-gmail-0>\r\n\r\n"
+            + "HTTP/1.1 200 OK\r\n"
+            + "Content-Type: application/json\r\n\r\n"
+            + "{\"id\":\"message-1\",\"threadId\":\"thread-1\"}\r\n"
+            + "--" + boundary + "--\r\n";
+
+    var results =
+        client.parseBatchResponse(
+            response.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+            boundary,
+            List.of("message-1", "message-2"));
+
+    assertThat(results).hasSize(2);
+    assertThat(results.get(0).successful()).isTrue();
+    assertThat(results.get(1).successful()).isFalse();
+    assertThat(results.get(1).retryable()).isTrue();
+    assertThat(results.get(1).reason()).isEqualTo("missingBatchPart");
+  }
+
+  @Test
+  void batchParserMarksRateLimitedPartRetryable() {
+    GmailOAuthProperties properties = new GmailOAuthProperties();
+    GmailApiClient client = new GmailApiClient(properties);
+
+    String boundary = "batch_response";
+    String response =
+        "--" + boundary + "\r\n"
+            + "Content-Type: application/http\r\n"
+            + "Content-ID: <response-gmail-0>\r\n\r\n"
+            + "HTTP/1.1 403 Forbidden\r\n"
+            + "Content-Type: application/json\r\n\r\n"
+            + "{\"error\":{\"errors\":[{\"reason\":\"rateLimitExceeded\"}]}}\r\n"
+            + "--" + boundary + "--\r\n";
+
+    var results =
+        client.parseBatchResponse(
+            response.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+            boundary,
+            List.of("message-1"));
+
+    assertThat(results).hasSize(1);
+    assertThat(results.getFirst().successful()).isFalse();
+    assertThat(results.getFirst().retryable()).isTrue();
+    assertThat(results.getFirst().reason()).isEqualTo("rateLimitExceeded");
+  }
+
+  @Test
   void batchMessagesRejectsMoreThanFiftyMessagesBeforeCallingGoogle() {
     GmailOAuthProperties properties = new GmailOAuthProperties();
     properties.setSyncBatchSize(100);

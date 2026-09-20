@@ -6,7 +6,10 @@ import com.messaging.channel.gmail.GmailApiClient.GmailMessage;
 import com.messaging.channel.gmail.GmailSyncStateService.ClaimedBatch;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.NotFoundException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +24,7 @@ public class GmailSyncBatchCommitService {
   private final ChannelConnectionRepository connectionRepository;
   private final AsyncJobService asyncJobService;
   private final GmailOAuthProperties properties;
+  private final GmailQuotaPolicy quotaPolicy;
 
   @Transactional
   public boolean commitResults(
@@ -42,20 +46,25 @@ public class GmailSyncBatchCommitService {
 
     int terminalDelta = successfulMessages.size() + Math.max(0, permanentFailures);
     int maxAttempts = Math.max(1, properties.getSyncBatchRetryMaxAttempts());
-    boolean retry = !retryIds.isEmpty() && batch.attempt() < maxAttempts;
+    boolean retry =
+        !retryIds.isEmpty()
+            && (isRateLimit(error) || batch.attempt() < maxAttempts);
 
     if (retry) {
+      Instant nextAttemptAt = Instant.now().plus(retryDelay(batch.attempt()));
       boolean applied =
           stateService.retryBatch(
-              batch.batchId(), retryIds, terminalDelta, permanentFailures, error);
-      if (applied && terminalDelta > 0) {
+              batch.batchId(),
+              retryIds,
+              terminalDelta,
+              permanentFailures,
+              error,
+              nextAttemptAt);
+      if (applied) {
         asyncJobService.incrementProgress(
             batch.jobId(),
             terminalDelta,
-            "Saved "
-                + successfulMessages.size()
-                + " Gmail messages; retrying "
-                + retryIds.size());
+            retryMessage(error, successfulMessages.size(), retryIds.size(), nextAttemptAt));
       }
       return true;
     }
@@ -69,13 +78,16 @@ public class GmailSyncBatchCommitService {
             permanentFailures + exhaustedFailures,
             error);
 
-    if (applied && finalDelta > 0) {
-      asyncJobService.incrementProgress(
-          batch.jobId(),
-          finalDelta,
-          exhaustedFailures + permanentFailures > 0
-              ? "Processed Gmail batch with failures"
-              : "Saved " + successfulMessages.size() + " Gmail messages");
+    if (applied) {
+      stateService.deferNextPendingBatch(batch.connectionId(), quotaPolicy.nextEligibility());
+      if (finalDelta > 0) {
+        asyncJobService.incrementProgress(
+            batch.jobId(),
+            finalDelta,
+            exhaustedFailures + permanentFailures > 0
+                ? "Processed Gmail batch with failures"
+                : "Saved " + successfulMessages.size() + " Gmail messages");
+      }
     }
     return false;
   }
@@ -83,8 +95,21 @@ public class GmailSyncBatchCommitService {
   @Transactional
   public boolean failAttempt(ClaimedBatch batch, String error, boolean retryable) {
     int maxAttempts = Math.max(1, properties.getSyncBatchRetryMaxAttempts());
-    if (retryable && batch.attempt() < maxAttempts) {
-      return stateService.retryBatch(batch.batchId(), batch.messageIds(), 0, 0, error);
+    if (retryable && (isRateLimit(error) || batch.attempt() < maxAttempts)) {
+      Instant nextAttemptAt = Instant.now().plus(retryDelay(batch.attempt()));
+      boolean applied =
+          stateService.retryBatch(
+              batch.batchId(),
+              batch.messageIds(),
+              0,
+              0,
+              error,
+              nextAttemptAt);
+      if (applied) {
+        asyncJobService.incrementProgress(
+            batch.jobId(), 0, retryMessage(error, 0, batch.messageIds().size(), nextAttemptAt));
+      }
+      return applied;
     }
 
     int failed = stateService.failRemainingBatch(batch.batchId(), error);
@@ -93,5 +118,48 @@ public class GmailSyncBatchCommitService {
           batch.jobId(), failed, "Gmail batch failed after " + batch.attempt() + " attempts");
     }
     return false;
+  }
+
+  private String retryMessage(
+      String reason, int saved, int retrying, Instant nextAttemptAt) {
+    String prefix =
+        isRateLimit(reason)
+            ? "Gmail rate limited; retrying automatically"
+            : "Temporary Gmail error; retrying automatically";
+    return prefix
+        + " (saved="
+        + saved
+        + ", retrying="
+        + retrying
+        + ", nextAttemptAt="
+        + nextAttemptAt
+        + ")";
+  }
+
+  private boolean isRateLimit(String reason) {
+    if (reason == null || reason.isBlank()) {
+      return false;
+    }
+    String normalized = reason.toLowerCase(java.util.Locale.ROOT);
+    return normalized.contains("ratelimitexceeded")
+        || normalized.contains("userratelimitexceeded")
+        || normalized.contains("rate limit")
+        || normalized.contains("rate limited");
+  }
+
+  private Duration retryDelay(int attempt) {
+    long initialMs =
+        Math.max(1000L, properties.getSyncBatchRetryInitialBackoff().toMillis());
+    long maxMs =
+        Math.max(initialMs, properties.getSyncBatchRetryMaxBackoff().toMillis());
+    int exponent = Math.min(Math.max(0, attempt - 1), 20);
+    long exponential;
+    try {
+      exponential = Math.multiplyExact(initialMs, 1L << exponent);
+    } catch (ArithmeticException exception) {
+      exponential = maxMs;
+    }
+    long jitterMs = ThreadLocalRandom.current().nextLong(0, 1001);
+    return Duration.ofMillis(Math.min(maxMs, exponential + jitterMs));
   }
 }

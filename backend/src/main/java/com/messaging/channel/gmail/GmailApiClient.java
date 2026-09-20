@@ -1,11 +1,11 @@
 package com.messaging.channel.gmail;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.exception.BadRequestException;
-import com.messaging.common.exception.ServiceUnavailableException;
 import com.messaging.common.exception.TooManyRequestsException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -217,7 +217,7 @@ public class GmailApiClient {
     return matcher.group(1);
   }
 
-  private List<BatchMessageResult> parseBatchResponse(
+  List<BatchMessageResult> parseBatchResponse(
       byte[] responseBody, String boundary, List<String> messageIds) {
     String payload = new String(responseBody, StandardCharsets.UTF_8);
     String[] parts = payload.split(Pattern.quote("--" + boundary));
@@ -248,11 +248,19 @@ public class GmailApiClient {
       results.add(parseBatchHttpPart(messageIds.get(index), httpPayload));
     }
 
-    if (results.size() != messageIds.size()) {
-      throw new ServiceUnavailableException(
-          "Gmail returned an incomplete batch response. The batch will be retried.");
+    Map<String, BatchMessageResult> byMessageId = new LinkedHashMap<>();
+    for (BatchMessageResult result : results) {
+      byMessageId.put(result.messageId(), result);
     }
-    return results;
+
+    List<BatchMessageResult> completed = new ArrayList<>(messageIds.size());
+    for (String messageId : messageIds) {
+      completed.add(
+          byMessageId.getOrDefault(
+              messageId,
+              new BatchMessageResult(messageId, null, 503, "missingBatchPart", true)));
+    }
+    return completed;
   }
 
   private int batchResponseIndex(String headers, int fallback) {
@@ -510,6 +518,7 @@ public class GmailApiClient {
 
   public record SendMessageResponse(String id, String threadId, List<String> labelIds) {}
 
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public record GmailMessage(
       String id,
       String threadId,
@@ -519,6 +528,7 @@ public class GmailApiClient {
       String internalDate,
       GmailPayload payload) {}
 
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public record GmailPayload(
       String mimeType,
       String filename,
@@ -526,8 +536,10 @@ public class GmailApiClient {
       GmailBody body,
       List<GmailPayload> parts) {}
 
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public record GmailHeader(String name, String value) {}
 
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public record GmailBody(
       @JsonProperty("attachmentId") String attachmentId, Integer size, String data) {}
 }

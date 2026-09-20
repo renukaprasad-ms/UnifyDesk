@@ -55,7 +55,12 @@ public class GmailSyncStateService {
 
   @Transactional
   public GmailSyncBatch createBatchIfAbsent(
-      Long jobId, Long companyId, Long connectionId, int batchIndex, List<String> messageIds) {
+      Long jobId,
+      Long companyId,
+      Long connectionId,
+      int batchIndex,
+      List<String> messageIds,
+      Instant eligibleAt) {
     return batchRepository
         .findByJobIdAndBatchIndex(jobId, batchIndex)
         .orElseGet(
@@ -68,6 +73,7 @@ public class GmailSyncStateService {
               batch.setStatus(GmailSyncBatchStatus.PENDING);
               batch.setMessageIdsJson(writeIds(messageIds));
               batch.setMessageCount(messageIds.size());
+              batch.setNextAttemptAt(eligibleAt);
               return batchRepository.saveAndFlush(batch);
             });
   }
@@ -132,6 +138,7 @@ public class GmailSyncStateService {
       batch.setStatus(GmailSyncBatchStatus.RUNNING);
       batch.setAttemptCount(batch.getAttemptCount() + 1);
       batch.setLastError(null);
+      batch.setNextAttemptAt(null);
       claimed.add(toClaimedBatch(batch));
     }
     batchRepository.saveAll(batches);
@@ -153,6 +160,7 @@ public class GmailSyncStateService {
     batch.setStatus(GmailSyncBatchStatus.RUNNING);
     batch.setAttemptCount(batch.getAttemptCount() + 1);
     batch.setLastError(null);
+    batch.setNextAttemptAt(null);
     batchRepository.save(batch);
 
     return Optional.of(toClaimedBatch(batch));
@@ -164,7 +172,8 @@ public class GmailSyncStateService {
       List<String> retryIds,
       int processedDelta,
       int failedDelta,
-      String error) {
+      String error,
+      Instant nextAttemptAt) {
     GmailSyncBatch batch = requireBatchForUpdate(batchId);
     if (isTerminal(batch.getStatus())) {
       return false;
@@ -175,6 +184,7 @@ public class GmailSyncStateService {
     batch.setMessageIdsJson(writeIds(retryIds));
     batch.setStatus(GmailSyncBatchStatus.RETRY);
     batch.setLastError(truncate(error));
+    batch.setNextAttemptAt(nextAttemptAt);
     batchRepository.save(batch);
     return true;
   }
@@ -192,6 +202,7 @@ public class GmailSyncStateService {
     batch.setStatus(
         batch.getFailedCount() > 0 ? GmailSyncBatchStatus.FAILED : GmailSyncBatchStatus.COMPLETED);
     batch.setLastError(truncate(error));
+    batch.setNextAttemptAt(null);
     batch.setCompletedAt(Instant.now());
     batchRepository.save(batch);
     return true;
@@ -209,6 +220,7 @@ public class GmailSyncStateService {
     batch.setFailedCount(batch.getFailedCount() + remaining);
     batch.setStatus(GmailSyncBatchStatus.FAILED);
     batch.setLastError(truncate(error));
+    batch.setNextAttemptAt(null);
     batch.setCompletedAt(Instant.now());
     batchRepository.save(batch);
     return remaining;
@@ -229,6 +241,7 @@ public class GmailSyncStateService {
     }
     if (batch.getStatus() == GmailSyncBatchStatus.RUNNING) {
       batch.setStatus(GmailSyncBatchStatus.RETRY);
+      batch.setNextAttemptAt(Instant.now());
     }
     boolean recoverable =
         batch.getStatus() == GmailSyncBatchStatus.PENDING
@@ -266,6 +279,20 @@ public class GmailSyncStateService {
   @Transactional(readOnly = true)
   public long failedCount(Long jobId) {
     return batchRepository.sumFailedCountByJobId(jobId);
+  }
+
+  @Transactional
+  public void deferNextPendingBatch(Long connectionId, Instant eligibleAt) {
+    batchRepository.deferNextPendingBatch(connectionId, eligibleAt);
+  }
+
+  @Transactional(readOnly = true)
+  public String latestFailureReason(Long jobId) {
+    return batchRepository
+        .findFirstByJobIdAndLastErrorIsNotNullOrderByUpdatedAtDesc(jobId)
+        .map(GmailSyncBatch::getLastError)
+        .filter(error -> error != null && !error.isBlank())
+        .orElse(null);
   }
 
   private ClaimedBatch toClaimedBatch(GmailSyncBatch batch) {
