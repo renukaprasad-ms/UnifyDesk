@@ -65,6 +65,18 @@ public class DeletionPurgeService {
   }
 
   @Transactional
+  public void continueLater(Long jobId) {
+    DeletionPurgeJob job =
+        repository
+            .findByIdForUpdate(jobId)
+            .orElseThrow(() -> new IllegalStateException("Deletion purge job not found"));
+    job.setStatus(DeletionPurgeStatus.PENDING);
+    job.setClaimedAt(null);
+    job.setNextAttemptAt(Instant.now());
+    repository.save(job);
+  }
+
+  @Transactional
   public void complete(Long jobId) {
     DeletionPurgeJob job =
         repository
