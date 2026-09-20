@@ -142,7 +142,8 @@ public class GmailInboxPersistenceService {
       InboxMessageDirection direction = direction(gmailMessage.labelIds());
       message.setInternetMessageId(header(gmailMessage.payload(), "Message-ID"));
       message.setProviderHistoryId(gmailMessage.historyId());
-      message.setProviderFolderKey(folder(gmailMessage.labelIds()).providerKey());
+      EmailFolder providerFolder = folder(gmailMessage.labelIds());
+      message.setProviderFolderKey(providerFolder == null ? null : providerFolder.providerKey());
       message.setFromAddress(firstAddress(header(gmailMessage.payload(), "From")));
       message.setReplyToAddress(firstAddress(header(gmailMessage.payload(), "Reply-To")));
       message.setToAddresses(addressesCsv(header(gmailMessage.payload(), "To")));
@@ -220,6 +221,58 @@ public class GmailInboxPersistenceService {
         touchedConversationIds.size(),
         null,
         syncedAt);
+  }
+
+  @Transactional
+  public int markDeleted(ChannelConnection connection, java.util.Collection<String> externalMessageIds) {
+    if (externalMessageIds == null || externalMessageIds.isEmpty()) {
+      return 0;
+    }
+
+    List<InboxMessage> messages =
+        messageRepository.findByConnectionIdAndExternalMessageIdIn(
+            connection.getId(), externalMessageIds);
+    Set<Long> touchedConversationIds = new HashSet<>();
+
+    for (InboxMessage message : messages) {
+      if (message.getStatus() == InboxMessageStatus.DELETED) {
+        continue;
+      }
+      message.setStatus(InboxMessageStatus.DELETED);
+      message.setProviderFolderKey(null);
+      message.setRead(true);
+      messageRepository.save(message);
+      touchedConversationIds.add(message.getConversation().getId());
+    }
+
+    for (Long conversationId : touchedConversationIds) {
+      conversationRepository
+          .findById(conversationId)
+          .ifPresent(
+              conversation -> {
+                messageRepository
+                    .findFirstByConversationIdAndStatusNotOrderBySentAtDescCreatedAtDesc(
+                        conversationId, InboxMessageStatus.DELETED)
+                    .ifPresentOrElse(
+                        latest -> {
+                          conversation.setLastMessageAt(latest.getSentAt());
+                          conversation.setLastMessagePreview(latest.getSnippet());
+                          conversation.setSubject(latest.getSubject());
+                        },
+                        () -> {
+                          conversation.setLastMessageAt(null);
+                          conversation.setLastMessagePreview(null);
+                        });
+
+                long unread =
+                    messageRepository.countByConversationIdAndDirectionAndReadFalse(
+                        conversationId, InboxMessageDirection.INBOUND);
+                conversation.setUnreadCount((int) Math.min(unread, Integer.MAX_VALUE));
+                conversationRepository.save(conversation);
+              });
+    }
+
+    return messages.size();
   }
 
   @Transactional
@@ -450,11 +503,17 @@ public class GmailInboxPersistenceService {
   }
 
   private EmailFolder folder(List<String> labels) {
-    return containsLabel(labels, "SENT") ? EmailFolder.SENT : EmailFolder.INBOX;
+    if (containsLabel(labels, "SENT")) {
+      return EmailFolder.SENT;
+    }
+    if (containsLabel(labels, "INBOX")) {
+      return EmailFolder.INBOX;
+    }
+    return null;
   }
 
   private InboxMessageDirection direction(List<String> labels) {
-    return folder(labels) == EmailFolder.SENT
+    return containsLabel(labels, "SENT")
         ? InboxMessageDirection.OUTBOUND
         : InboxMessageDirection.INBOUND;
   }
