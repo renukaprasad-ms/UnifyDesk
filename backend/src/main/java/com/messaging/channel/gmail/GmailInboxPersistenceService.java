@@ -245,6 +245,7 @@ public class GmailInboxPersistenceService {
         messageRepository.findByConnectionIdAndExternalMessageIdIn(
             connection.getId(), externalMessageIds);
     Set<Long> touchedConversationIds = new HashSet<>();
+    int deletedCount = 0;
 
     for (InboxMessage message : messages) {
       if (message.getStatus() == InboxMessageStatus.DELETED) {
@@ -255,6 +256,7 @@ public class GmailInboxPersistenceService {
       message.setRead(true);
       messageRepository.save(message);
       touchedConversationIds.add(message.getConversation().getId());
+      deletedCount++;
     }
 
     for (Long conversationId : touchedConversationIds) {
@@ -284,7 +286,7 @@ public class GmailInboxPersistenceService {
               });
     }
 
-    return messages.size();
+    return deletedCount;
   }
 
   @Transactional
