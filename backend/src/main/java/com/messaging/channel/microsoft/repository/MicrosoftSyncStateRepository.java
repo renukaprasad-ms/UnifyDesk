@@ -1,6 +1,7 @@
 package com.messaging.channel.microsoft.repository;
 
 import com.messaging.channel.microsoft.entity.MicrosoftSyncState;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
