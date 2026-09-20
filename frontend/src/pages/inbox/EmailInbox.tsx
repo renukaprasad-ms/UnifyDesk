@@ -454,6 +454,15 @@ export default function EmailInbox() {
     }
   }
 
+  const selectConversation = (conversation: InboxConversation) => {
+    const params = new URLSearchParams(searchParams)
+    params.set('conversationId', conversation.id)
+    params.delete('compose')
+    setSearchParams(params)
+    setSelectedId(conversation.id)
+    setMobileConversationOpen(true)
+  }
+
   const resetCompose = () => {
     setComposeMode('compose')
     setComposeTo('')
@@ -652,19 +661,15 @@ export default function EmailInbox() {
   }
 
   return (
-    <section className="px-3 py-4 sm:px-5 sm:py-6 lg:px-6">
-      <div className="mx-auto max-w-[1500px]">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
-          <div>
-            <p className="eyebrow">INBOX</p>
-            <h1 className="mt-1 text-xl font-bold text-slate-950 sm:text-2xl">Email</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              {selectedConnection
-                ? `Showing conversations for ${selectedConnection.externalAccountId || selectedConnection.name}.`
-                : 'Gmail and Microsoft 365 conversations synchronized into your ReachFly workspace.'}
-            </p>
-          </div>
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+    <section className="channel-workspace-page">
+      <div className="channel-workspace-toolbar">
+        <div className="min-w-0 lg:hidden">
+          <p className="eyebrow">EMAIL</p>
+          <p className="mt-1 truncate text-xs font-semibold text-slate-700">
+            {selectedConnection?.externalAccountId || selectedConnection?.name || 'Inbox'}
+          </p>
+        </div>
+        <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
             <button
               type="button"
               className="secondary-button flex-1 gap-2 sm:flex-none"
@@ -705,8 +710,9 @@ export default function EmailInbox() {
               </button>
             )}
           </div>
-        </div>
+      </div>
 
+      <div className="channel-workspace-body">
         {error && (
           <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
@@ -941,237 +947,165 @@ export default function EmailInbox() {
           </div>
         )}
 
-        <div className="panel grid min-h-[calc(100dvh-220px)] overflow-hidden md:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]">
-          <aside
-            className={`${mobileConversationOpen ? 'hidden md:block' : 'block'} border-b border-slate-200 md:border-b-0 md:border-r`}
-          >
-            <div className="border-b border-slate-100 px-4 py-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900">Conversations</h2>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {conversations.length} of {totalElements} loaded
-                  </p>
-                </div>
-                <FiInbox className="text-slate-400" aria-hidden="true" />
+        <div
+          className={`${mobileConversationOpen ? 'hidden' : 'block'} panel mb-4 overflow-hidden lg:hidden`}
+        >
+          <div className="border-b border-slate-100 px-4 py-3">
+            <p className="text-xs font-bold text-slate-900">Chats</p>
+            <p className="mt-1 text-[11px] text-slate-500">
+              {conversations.length} of {totalElements} loaded
+            </p>
+          </div>
+          <ConversationList
+            conversations={conversations}
+            connections={connections}
+            selectedId={selectedConversationId}
+            loading={loading}
+            loadingMore={loadingMore}
+            totalElements={totalElements}
+            hasMore={currentPage + 1 < totalPages}
+            onSelect={selectConversation}
+            onLoadMore={() => void loadConversations(currentPage + 1, true)}
+          />
+        </div>
+
+        <main
+          className={`${mobileConversationOpen ? 'block' : 'hidden lg:block'} channel-message-surface`}
+        >
+          {!selectedConversationId ? (
+            <div className="flex min-h-[calc(100dvh-210px)] items-center justify-center px-6 text-center">
+              <div>
+                <FiMail className="mx-auto text-4xl text-slate-300" aria-hidden="true" />
+                <p className="mt-4 text-sm font-semibold text-slate-800">Select a conversation</p>
+                <p className="mt-2 text-xs text-slate-500">Email messages will appear here.</p>
               </div>
             </div>
-
-            <div className="max-h-[calc(100dvh-300px)] overflow-y-auto md:max-h-[calc(100dvh-210px)]">
-              {loading ? (
-                <div className="px-5 py-10 text-center text-sm text-slate-500">
-                  Loading conversations...
-                </div>
-              ) : conversations.length === 0 ? (
-                <div className="px-6 py-12 text-center">
-                  <FiMail className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
-                  <p className="mt-4 text-sm font-semibold text-slate-800">No emails synced yet</p>
-                  <p className="mt-2 text-xs leading-5 text-slate-500">
-                    Use Sync to import or refresh conversations from your connected email account.
+          ) : (
+            <>
+              <header className="flex items-start gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
+                <button
+                  type="button"
+                  className="secondary-button shrink-0 px-3 lg:hidden"
+                  onClick={() => setMobileConversationOpen(false)}
+                  aria-label="Back to conversations"
+                >
+                  <FiArrowLeft aria-hidden="true" />
+                </button>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-slate-950">
+                    {selectedConversation?.subject || messages[0]?.subject || '(no subject)'}
+                  </p>
+                  <p className="mt-1 truncate text-xs text-slate-500">
+                    {selectedConversation
+                      ? conversationParticipant(selectedConversation, ownAddress)
+                      : ownAddress || selectedConnection?.externalAccountId || 'Email'}
+                    {selectedConversation && ownAddress ? ` · ${ownAddress}` : ''}
                   </p>
                 </div>
-              ) : (
-                conversations.map((conversation) => {
-                  const connection = connections.find(
-                    (item) => item.id === conversation.connectionId,
-                  )
-                  const counterpart = conversationParticipant(
-                    conversation,
-                    connection?.externalAccountId ?? undefined,
-                  )
-                  const active = selectedId === conversation.id
+              </header>
 
-                  return (
-                    <button
-                      key={conversation.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedId(conversation.id)
-                        setMobileConversationOpen(true)
-                      }}
-                      className={`w-full border-b border-slate-100 px-4 py-4 text-left transition ${
-                        active ? 'bg-indigo-50' : 'bg-white hover:bg-slate-50'
+              <div className="channel-message-scroll space-y-4 p-3 sm:p-5">
+                {messagesLoading ? (
+                  <p className="py-10 text-center text-sm text-slate-500">Loading messages...</p>
+                ) : messages.length === 0 ? (
+                  <p className="py-10 text-center text-sm text-slate-500">
+                    No messages found in this conversation.
+                  </p>
+                ) : (
+                  messages.map((message) => (
+                    <article
+                      key={message.id}
+                      className={`w-full max-w-4xl rounded-xl border p-3 sm:p-4 ${
+                        message.direction === 'OUTBOUND'
+                          ? 'ml-auto border-indigo-100 bg-indigo-50'
+                          : 'border-slate-200 bg-white'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="truncate text-sm font-semibold text-slate-900">
-                          {counterpart}
-                        </p>
-                        <span className="shrink-0 text-[11px] text-slate-400">
-                          {formatDate(conversation.lastMessageAt)}
-                        </span>
-                      </div>
-                      <p className="mt-1 truncate text-xs font-medium text-slate-700">
-                        {conversation.subject || '(no subject)'}
-                      </p>
-                      <div className="mt-1 flex items-center gap-2">
-                        <p className="min-w-0 flex-1 truncate text-xs text-slate-500">
-                          {conversation.lastMessagePreview || 'No preview available'}
-                        </p>
-                        {conversation.unreadCount > 0 && (
-                          <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-indigo-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                            {conversation.unreadCount}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-800">
+                            {message.direction === 'OUTBOUND' ? 'You' : 'Received'}
                           </span>
-                        )}
-                      </div>
-                      {connection?.externalAccountId && (
-                        <p className="mt-2 truncate text-[10px] font-medium uppercase tracking-wide text-slate-400">
-                          {connection.externalAccountId}
-                        </p>
-                      )}
-                    </button>
-                  )
-                })
-              )}
-
-              {!loading && currentPage + 1 < totalPages && (
-                <div className="p-3">
-                  <button
-                    type="button"
-                    className="secondary-button w-full justify-center"
-                    onClick={() => void loadConversations(currentPage + 1, true)}
-                    disabled={loadingMore}
-                  >
-                    {loadingMore ? 'Loading...' : 'Load more'}
-                  </button>
-                </div>
-              )}
-            </div>
-          </aside>
-
-          <main
-            className={`${mobileConversationOpen ? 'block' : 'hidden md:block'} min-w-0 bg-slate-50/40`}
-          >
-            {!selectedConversation ? (
-              <div className="flex min-h-[560px] items-center justify-center px-6 text-center">
-                <div>
-                  <FiMail className="mx-auto text-4xl text-slate-300" aria-hidden="true" />
-                  <p className="mt-4 text-sm font-semibold text-slate-800">Select a conversation</p>
-                  <p className="mt-2 text-xs text-slate-500">Email messages will appear here.</p>
-                </div>
-              </div>
-            ) : (
-              <>
-                <header className="flex items-start gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
-                  <button
-                    type="button"
-                    className="secondary-button shrink-0 px-3 md:hidden"
-                    onClick={() => setMobileConversationOpen(false)}
-                    aria-label="Back to conversations"
-                  >
-                    <FiArrowLeft aria-hidden="true" />
-                  </button>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-slate-950">
-                      {selectedConversation.subject || '(no subject)'}
-                    </p>
-                    <p className="mt-1 truncate text-xs text-slate-500">
-                      {conversationParticipant(selectedConversation, ownAddress)}
-                      {ownAddress ? ` · ${ownAddress}` : ''}
-                    </p>
-                  </div>
-                </header>
-
-                <div className="max-h-[calc(100dvh-290px)] space-y-4 overflow-y-auto p-3 sm:p-5 md:max-h-[calc(100dvh-210px)]">
-                  {messagesLoading ? (
-                    <p className="py-10 text-center text-sm text-slate-500">Loading messages...</p>
-                  ) : messages.length === 0 ? (
-                    <p className="py-10 text-center text-sm text-slate-500">
-                      No messages found in this conversation.
-                    </p>
-                  ) : (
-                    messages.map((message) => (
-                      <article
-                        key={message.id}
-                        className={`w-full max-w-3xl rounded-xl border p-3 sm:p-4 ${
-                          message.direction === 'OUTBOUND'
-                            ? 'ml-auto border-indigo-100 bg-indigo-50'
-                            : 'border-slate-200 bg-white'
-                        }`}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-800">
-                              {message.direction === 'OUTBOUND' ? 'You' : 'Received'}
+                          {!message.read && (
+                            <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-600">
+                              UNREAD
                             </span>
-                            {!message.read && (
-                              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-600">
-                                UNREAD
-                              </span>
-                            )}
-                          </div>
-                          <time className="text-[11px] text-slate-400">
-                            {message.sentAt ? new Date(message.sentAt).toLocaleString() : ''}
-                          </time>
+                          )}
                         </div>
+                        <time className="text-[11px] text-slate-400">
+                          {message.sentAt ? new Date(message.sentAt).toLocaleString() : ''}
+                        </time>
+                      </div>
 
-                        <p className="mt-3 text-xs font-semibold text-slate-700">
-                          {messageTitle(message)}
-                        </p>
-                        {message.bodyHtml ||
-                        (isHtmlBody(message.bodyText) ? message.bodyText : null) ? (
-                          <div className="mt-3 overflow-hidden rounded-xl bg-white">
-                            <EmailHtmlFrame
-                              html={
-                                message.bodyHtml ||
-                                (isHtmlBody(message.bodyText) ? message.bodyText || '' : '')
-                              }
-                              title={message.subject || 'Email message'}
-                            />
-                          </div>
-                        ) : (
-                          <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
-                            {message.bodyText || message.snippet || 'No message body available.'}
-                          </pre>
-                        )}
+                      <p className="mt-3 text-xs font-semibold text-slate-700">
+                        {messageTitle(message)}
+                      </p>
 
-                        {message.attachments.length > 0 && (
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            {message.attachments.map((attachment) => (
-                              <span
-                                key={attachment.id}
-                                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600"
-                              >
-                                {attachment.filename || 'Attachment'}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        {canSendSelectedEmail && (
-                          <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-                            <button
-                              type="button"
-                              className="secondary-button gap-2 px-3 py-2 text-xs"
-                              onClick={() => openReply(message, false)}
+                      {message.bodyHtml ||
+                      (isHtmlBody(message.bodyText) ? message.bodyText : null) ? (
+                        <div className="mt-3 overflow-hidden rounded-xl bg-white">
+                          <EmailHtmlFrame
+                            html={
+                              message.bodyHtml ||
+                              (isHtmlBody(message.bodyText) ? message.bodyText || '' : '')
+                            }
+                            title={message.subject || 'Email message'}
+                          />
+                        </div>
+                      ) : (
+                        <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
+                          {message.bodyText || message.snippet || 'No message body available.'}
+                        </pre>
+                      )}
+
+                      {message.attachments.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {message.attachments.map((attachment) => (
+                            <span
+                              key={attachment.id}
+                              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600"
                             >
-                              <FiCornerUpLeft aria-hidden="true" />
-                              Reply
-                            </button>
-                            <button
-                              type="button"
-                              className="secondary-button gap-2 px-3 py-2 text-xs"
-                              onClick={() => openReply(message, true)}
-                            >
-                              <FiUsers aria-hidden="true" />
-                              Reply all
-                            </button>
-                            <button
-                              type="button"
-                              className="secondary-button gap-2 px-3 py-2 text-xs"
-                              onClick={() => openForward(message)}
-                            >
-                              <FiShare2 aria-hidden="true" />
-                              Forward
-                            </button>
-                          </div>
-                        )}
-                      </article>
-                    ))
-                  )}
-                </div>
-              </>
-            )}
-          </main>
+                              {attachment.filename || 'Attachment'}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {canSendSelectedEmail && (
+                        <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                          <button
+                            type="button"
+                            className="secondary-button gap-2 px-3 py-2 text-xs"
+                            onClick={() => openReply(message, false)}
+                          >
+                            <FiCornerUpLeft aria-hidden="true" />
+                            Reply
+                          </button>
+                          <button
+                            type="button"
+                            className="secondary-button gap-2 px-3 py-2 text-xs"
+                            onClick={() => openReply(message, true)}
+                          >
+                            <FiUsers aria-hidden="true" />
+                            Reply all
+                          </button>
+                          <button
+                            type="button"
+                            className="secondary-button gap-2 px-3 py-2 text-xs"
+                            onClick={() => openForward(message)}
+                          >
+                            <FiShare2 aria-hidden="true" />
+                            Forward
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </main>
         </div>
       </div>
     </section>
