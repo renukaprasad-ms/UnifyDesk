@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.channel.credential.ProviderCredentialService;
 import com.messaging.channel.email.EmailSyncRequest;
+import com.messaging.channel.email.EmailSyncRequestValidator;
 import com.messaging.channel.dto.ChannelConnectionResponse;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
@@ -113,6 +114,9 @@ public class GmailConnectionService {
 
   public GmailSyncQueuedResponse queueSync(
       Long companyId, Long userId, Long connectionId, EmailSyncRequest request) {
+    EmailSyncRequestValidator.validate(
+        request, properties.getSyncMaxRangeDays(), properties.getSyncMaxMessages());
+
     ChannelConnectionResponse connection = channelConnectionService.get(companyId, connectionId);
     if (connection.providerType() != ProviderType.GMAIL) {
       throw new BadRequestException("Channel connection is not a Gmail account");
