@@ -135,9 +135,12 @@ public class MicrosoftApiClient {
   }
 
   URI initialDeltaUri(String folderKey) {
+    Instant initialFrom =
+        Instant.now().minus(java.time.Duration.ofDays(Math.max(1, properties.getInitialSyncDays())));
     return UriComponentsBuilder.fromUriString(
             GRAPH_BASE + "/v1.0/me/mailFolders/{folder}/messages/delta")
         .queryParam("$select", MESSAGE_SELECT)
+        .queryParam("$filter", "receivedDateTime ge " + initialFrom)
         .queryParam(
             "$expand",
             "attachments($select=id,name,contentType,size,isInline)")
