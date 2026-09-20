@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { FiMail, FiPlus, FiX } from 'react-icons/fi'
+import { FiMail, FiPlus, FiServer, FiX } from 'react-icons/fi'
+import { SiGmail, SiMicrosoftoutlook } from 'react-icons/si'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -133,7 +134,9 @@ export default function EmailProviderPicker({
                 disabled={Boolean(connecting)}
                 onClick={() => void connectGmail()}
               >
-                <span className="email-provider-mark">G</span>
+                <span className="email-provider-mark">
+                  <SiGmail aria-hidden="true" />
+                </span>
                 <span className="min-w-0 flex-1 text-left">
                   <span className="block text-sm font-bold text-slate-900">Google Gmail</span>
                   <span className="mt-0.5 block text-xs text-slate-500">
@@ -148,7 +151,9 @@ export default function EmailProviderPicker({
                 disabled={Boolean(connecting)}
                 onClick={() => void connectMicrosoft()}
               >
-                <span className="email-provider-mark">M</span>
+                <span className="email-provider-mark">
+                  <SiMicrosoftoutlook aria-hidden="true" />
+                </span>
                 <span className="min-w-0 flex-1 text-left">
                   <span className="block text-sm font-bold text-slate-900">
                     Microsoft 365 / Outlook
@@ -170,7 +175,9 @@ export default function EmailProviderPicker({
                   setSmtpNotice(true)
                 }}
               >
-                <span className="email-provider-mark">S</span>
+                <span className="email-provider-mark">
+                  <FiServer aria-hidden="true" />
+                </span>
                 <span className="min-w-0 flex-1 text-left">
                   <span className="block text-sm font-bold text-slate-900">SMTP</span>
                   <span className="mt-0.5 block text-xs text-slate-500">
