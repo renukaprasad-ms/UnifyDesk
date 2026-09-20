@@ -18,8 +18,9 @@ import com.messaging.company.repository.CompanyCustomRoleRepository;
 import com.messaging.company.repository.CompanyMemberRepository;
 import com.messaging.company.repository.CompanyMemberRoleAssignmentRepository;
 import com.messaging.company.repository.CompanyRepository;
+import com.messaging.lifecycle.config.DeletionLifecycleProperties;
 import com.messaging.lifecycle.enums.LifecycleEntityType;
-import com.messaging.lifecycle.service.DeletionQueueService;
+import com.messaging.lifecycle.service.DeletionPurgeService;
 import com.messaging.media.entity.Media;
 import com.messaging.media.enums.MediaPurpose;
 import com.messaging.media.service.MediaService;
@@ -47,7 +48,8 @@ public class CompanyService {
   private final MediaService mediaService;
   private final DefaultPlanAssignmentService defaultPlanAssignmentService;
   private final ChannelConnectionService channelConnectionService;
-  private final DeletionQueueService deletionQueueService;
+  private final DeletionPurgeService deletionPurgeService;
+  private final DeletionLifecycleProperties deletionProperties;
 
   @Transactional
   public CompanyResponse create(CreateCompanyRequest request) {
@@ -114,44 +116,34 @@ public class CompanyService {
   @Transactional
   public void delete(Long companyId, Long actorUserId) {
     Company company = getCompany(companyId);
-    if (company.getStatus() == CompanyStatus.DELETED) {
+    if (company.getStatus() == CompanyStatus.DELETION_PENDING
+        || company.getStatus() == CompanyStatus.PURGING
+        || company.getStatus() == CompanyStatus.PURGED) {
       return;
     }
 
     Instant now = Instant.now();
+    Instant purgeAfter = now.plus(deletionProperties.getRetention());
 
+    // External integrations are shut down immediately so a deleted workspace
+    // cannot continue receiving or sending data during the retention window.
     List<ChannelConnectionResponse> connections = channelConnectionService.list(companyId, null);
     for (ChannelConnectionResponse connection : connections) {
       channelConnectionService.disconnect(companyId, Long.valueOf(connection.id()), actorUserId);
     }
 
-    var assignments = roleAssignmentRepository.findByCompanyIdAndRevokedAtIsNull(companyId);
-    assignments.forEach(assignment -> assignment.setRevokedAt(now));
-    roleAssignmentRepository.saveAll(assignments);
-
-    var roles = customRoleRepository.findByCompanyIdAndDeletedAtIsNull(companyId);
-    roles.forEach(
-        role -> {
-          role.setDeletedAt(now);
-          role.setDeletedByUserId(actorUserId);
-        });
-    customRoleRepository.saveAll(roles);
-
-    var members = memberRepository.findByCompanyId(companyId);
-    members.forEach(member -> member.setStatus(CompanyMemberStatus.LEFT));
-    memberRepository.saveAll(members);
-
-    company.setStatus(CompanyStatus.DELETED);
+    // Preserve memberships, roles, invitations, messages and other tenant data
+    // during retention. CompanyStatus is the access gate for the entire workspace.
+    company.setStatus(CompanyStatus.DELETION_PENDING);
     company.setDeletedAt(now);
-    company.setName("Deleted company");
-    company.setSlug("deleted-" + companyId);
-    company.setBusinessEmail(null);
-    company.setCountry(null);
-    company.setTimezone(null);
-    company.setLogoMediaId(null);
+    company.setPurgeAfter(purgeAfter);
+    company.setDeletionRequestedBy(actorUserId);
+    company.setPurgeStartedAt(null);
+    company.setPurgedAt(null);
     companyRepository.saveAndFlush(company);
 
-    deletionQueueService.enqueue(LifecycleEntityType.COMPANY, companyId, companyId, actorUserId);
+    deletionPurgeService.schedule(
+        LifecycleEntityType.COMPANY, companyId, companyId, actorUserId, purgeAfter);
   }
 
   @Transactional(readOnly = true)
@@ -163,6 +155,8 @@ public class CompanyService {
   @Transactional(readOnly = true)
   public List<CompanyResponse> companiesForUser(Long userId) {
     return memberRepository.findByUserIdAndStatus(userId, CompanyMemberStatus.ACTIVE).stream()
+        .filter(member -> member.getCompany().getStatus() == CompanyStatus.ACTIVE
+            || member.getCompany().getStatus() == CompanyStatus.SUSPENDED)
         .map(member -> toResponse(member.getCompany(), member.getRole()))
         .toList();
   }
