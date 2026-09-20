@@ -682,14 +682,14 @@ export default function EmailInbox() {
 
         {composeOpen && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+            className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
             role="presentation"
             onMouseDown={(event) => {
               if (event.currentTarget === event.target && !sending) closeCompose()
             }}
           >
             <form
-              className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
+              className="mobile-sheet w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
               onSubmit={(event) => void sendEmail(event)}
               role="dialog"
               aria-modal="true"
@@ -797,14 +797,14 @@ export default function EmailInbox() {
 
         {showSyncDialog && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+            className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
             role="presentation"
             onMouseDown={(event) => {
               if (event.currentTarget === event.target && !syncing) setShowSyncDialog(false)
             }}
           >
             <div
-              className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
+              className="mobile-sheet w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
               role="dialog"
               aria-modal="true"
               aria-labelledby="gmail-sync-title"
