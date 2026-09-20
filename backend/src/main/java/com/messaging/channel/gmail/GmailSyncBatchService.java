@@ -1,6 +1,7 @@
 package com.messaging.channel.gmail;
 
 import com.messaging.channel.entity.ChannelConnection;
+import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.gmail.GmailApiClient.BatchMessageResult;
 import com.messaging.channel.gmail.GmailApiClient.GmailMessage;
 import com.messaging.channel.gmail.GmailSyncStateService.ClaimedBatch;
@@ -10,6 +11,8 @@ import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.common.exception.ServiceUnavailableException;
 import com.messaging.common.exception.TooManyRequestsException;
+import com.messaging.company.enums.CompanyStatus;
+import com.messaging.company.repository.CompanyRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -28,6 +31,7 @@ public class GmailSyncBatchService {
   private final GmailApiClient gmailApiClient;
   private final GmailTokenService tokenService;
   private final ChannelConnectionRepository connectionRepository;
+  private final CompanyRepository companyRepository;
 
   public void process(Long batchId, Long jobId, Long connectionId) {
     var claimed = stateService.claimBatch(batchId);
@@ -56,6 +60,17 @@ public class GmailSyncBatchService {
           connectionRepository
               .findByIdAndCompanyId(batch.connectionId(), batch.companyId())
               .orElseThrow(() -> new NotFoundException("Gmail connection not found"));
+
+      boolean companyActive =
+          companyRepository
+              .findById(batch.companyId())
+              .map(company -> company.getStatus() == CompanyStatus.ACTIVE)
+              .orElse(false);
+      if (!companyActive || connection.getStatus() != ChannelConnectionStatus.ACTIVE) {
+        commitService.failAttempt(batch, "Gmail sync stopped because the workspace or connection is inactive", false);
+        finalizerService.tryFinalize(batch.jobId());
+        return;
+      }
 
       String accessToken = tokenService.accessToken(connection);
 
