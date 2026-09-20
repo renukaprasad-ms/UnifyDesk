@@ -23,14 +23,15 @@ public class GmailDistributedQuotaManager {
             return '0:' .. tostring(cooldown) .. ':cooldown'
           end
 
-          local now = tonumber(ARGV[1])
-          local cost = tonumber(ARGV[2])
-          local ttl = tonumber(ARGV[3])
+          local redis_time = redis.call('TIME')
+          local now = (tonumber(redis_time[1]) * 1000) + math.floor(tonumber(redis_time[2]) / 1000)
+          local cost = tonumber(ARGV[1])
+          local ttl = tonumber(ARGV[2])
           local max_wait = 0
           local states = {}
 
           for i = 2, #KEYS do
-            local arg_base = 4 + ((i - 2) * 2)
+            local arg_base = 3 + ((i - 2) * 2)
             local capacity = tonumber(ARGV[arg_base])
             local refill_per_ms = tonumber(ARGV[arg_base + 1])
             local tokens = tonumber(redis.call('HGET', KEYS[i], 'tokens'))
@@ -113,7 +114,6 @@ public class GmailDistributedQuotaManager {
     keys.add(RedisKey.gmailQuotaProjectTotal(projectKey()));
 
     List<String> args = new ArrayList<>();
-    args.add(String.valueOf(now.toEpochMilli()));
     args.add(String.valueOf(cost));
     args.add(String.valueOf(Math.max(1L, properties.getQuotaBucketTtl().toMillis())));
     args.add(String.valueOf(limits.userCapacity()));
