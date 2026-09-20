@@ -14,20 +14,23 @@ public class MicrosoftWebhookController {
 
   private final MicrosoftSubscriptionService subscriptionService;
 
-  @PostMapping(produces = MediaType.TEXT_PLAIN_VALUE)
-  public ResponseEntity<String> webhook(
-      @RequestParam(required = false) String validationToken,
-      @RequestBody(required = false) NotificationEnvelope envelope) {
-    if (validationToken != null) {
-      return ResponseEntity.ok()
-          .contentType(MediaType.TEXT_PLAIN)
-          .body(validationToken);
-    }
+  @PostMapping(
+      params = "validationToken",
+      consumes = MediaType.TEXT_PLAIN_VALUE,
+      produces = MediaType.TEXT_PLAIN_VALUE)
+  public ResponseEntity<String> validate(@RequestParam String validationToken) {
+    return ResponseEntity.ok()
+        .contentType(MediaType.TEXT_PLAIN)
+        .body(validationToken);
+  }
 
-    if (envelope != null) {
+  @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<Void> notifications(
+      @RequestBody(required = false) NotificationEnvelope envelope) {
+    if (envelope != null && envelope.value() != null && !envelope.value().isEmpty()) {
       subscriptionService.processNotifications(envelope.value());
     }
-    return ResponseEntity.accepted().body("");
+    return ResponseEntity.accepted().build();
   }
 
   public record NotificationEnvelope(List<ChangeNotification> value) {}
