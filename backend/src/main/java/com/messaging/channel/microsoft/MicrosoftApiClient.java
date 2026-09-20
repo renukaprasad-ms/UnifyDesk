@@ -117,7 +117,7 @@ public class MicrosoftApiClient {
 
   public DeltaResponse delta(String accessToken, String folderKey, String continuationUrl) {
     URI uri =
-        hasText(continuationUrl) ? URI.create(continuationUrl) : initialDeltaUri(folderKey);
+        hasText(continuationUrl) ? trustedGraphContinuationUri(continuationUrl) : initialDeltaUri(folderKey);
 
     return execute(
         "mail_delta",
@@ -132,6 +132,23 @@ public class MicrosoftApiClient {
                         + Math.max(1, Math.min(properties.getDeltaPageSize(), 200)))
                 .retrieve()
                 .body(DeltaResponse.class));
+  }
+
+  URI trustedGraphContinuationUri(String continuationUrl) {
+    URI uri;
+    try {
+      uri = URI.create(continuationUrl);
+    } catch (IllegalArgumentException exception) {
+      throw new BadRequestException("Microsoft Graph returned an invalid delta continuation URL");
+    }
+
+    boolean trusted =
+        "https".equalsIgnoreCase(uri.getScheme())
+            && "graph.microsoft.com".equalsIgnoreCase(uri.getHost());
+    if (!trusted) {
+      throw new BadRequestException("Microsoft Graph returned an untrusted delta continuation URL");
+    }
+    return uri;
   }
 
   URI initialDeltaUri(String folderKey) {
