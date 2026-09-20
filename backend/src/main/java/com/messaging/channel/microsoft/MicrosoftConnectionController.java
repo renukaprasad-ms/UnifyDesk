@@ -1,9 +1,12 @@
 package com.messaging.channel.microsoft;
 
+import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.channel.dto.ChannelConnectionResponse;
+import com.messaging.channel.email.EmailSyncRequest;
 import com.messaging.channel.microsoft.dto.MicrosoftAuthorizationResponse;
 import com.messaging.channel.microsoft.dto.MicrosoftSendRequest;
 import com.messaging.channel.microsoft.dto.MicrosoftSendResponse;
+import com.messaging.channel.microsoft.dto.MicrosoftSyncQueuedResponse;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
@@ -35,14 +38,31 @@ public class MicrosoftConnectionController {
             "Microsoft authorization created"));
   }
 
-  @PostMapping("/{connectionId}/sync")
-  public ResponseEntity<ApiResponse<Void>> sync(
+  @GetMapping("/{connectionId}/sync/active")
+  public ResponseEntity<ApiResponse<AsyncJobResponse>> activeSync(
       @PathVariable Long companyId, @PathVariable Long connectionId) {
     Long userId = currentUserService.currentUserId();
     authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_READ);
-    connectionService.requestSync(companyId, connectionId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            connectionService.activeSync(companyId, connectionId),
+            "Active Microsoft sync fetched"));
+  }
+
+  @PostMapping("/{connectionId}/sync")
+  public ResponseEntity<ApiResponse<MicrosoftSyncQueuedResponse>> sync(
+      @PathVariable Long companyId,
+      @PathVariable Long connectionId,
+      @Valid @RequestBody EmailSyncRequest request) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_READ);
     return ResponseEntity.status(HttpStatus.ACCEPTED)
-        .body(ApiResponse.success(HttpStatus.ACCEPTED.value(), "Microsoft sync requested"));
+        .body(
+            ApiResponse.success(
+                HttpStatus.ACCEPTED.value(),
+                connectionService.requestSync(companyId, userId, connectionId, request),
+                "Microsoft sync queued"));
   }
 
   @PostMapping("/{connectionId}/send")
