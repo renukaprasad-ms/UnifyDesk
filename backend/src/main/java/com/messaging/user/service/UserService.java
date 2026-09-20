@@ -6,6 +6,7 @@ import com.messaging.common.exception.ForbiddenException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.company.enums.CompanyMemberStatus;
 import com.messaging.company.enums.CompanyRole;
+import com.messaging.company.enums.CompanyStatus;
 import com.messaging.company.repository.CompanyMemberRepository;
 import com.messaging.company.repository.CompanyMemberRoleAssignmentRepository;
 import com.messaging.lifecycle.config.DeletionLifecycleProperties;
@@ -206,7 +207,12 @@ public class UserService {
     var activeMemberships =
         companyMemberRepository.findByUserIdAndStatus(userId, CompanyMemberStatus.ACTIVE);
     boolean ownsCompany =
-        activeMemberships.stream().anyMatch(member -> member.getRole() == CompanyRole.OWNER);
+        activeMemberships.stream()
+            .anyMatch(
+                member ->
+                    member.getRole() == CompanyRole.OWNER
+                        && (member.getCompany().getStatus() == CompanyStatus.ACTIVE
+                            || member.getCompany().getStatus() == CompanyStatus.SUSPENDED));
     if (ownsCompany) {
       throw new BadRequestException(
           "Transfer ownership or delete owned companies before deleting your account");
