@@ -65,6 +65,9 @@ public class GmailSyncBatch {
   @Column(name = "last_error", length = 1000)
   private String lastError;
 
+  @Column(name = "next_attempt_at")
+  private Instant nextAttemptAt;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
