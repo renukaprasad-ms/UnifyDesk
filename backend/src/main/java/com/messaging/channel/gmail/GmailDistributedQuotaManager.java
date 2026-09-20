@@ -105,7 +105,7 @@ public class GmailDistributedQuotaManager {
             ? Math.max(1L, properties.getSyncMessageGetQuotaUnits())
             : operation.units();
     long cost = Math.multiplyExact(unitCost, Math.max(1, count));
-    Limits limits = limits(cost, trafficClass);
+    Limits limits = limits(cost);
 
     List<String> keys = new ArrayList<>();
     keys.add(RedisKey.gmailQuotaCooldown(gmailAccount));
@@ -205,7 +205,7 @@ public class GmailDistributedQuotaManager {
         now, Duration.ofMillis(waitMs), parts.length == 3 ? parts[2] : "quota");
   }
 
-  private Limits limits(long cost, GmailQuotaTrafficClass trafficClass) {
+  private Limits limits(long cost) {
     int utilization = Math.clamp(properties.getSyncQuotaUtilizationPercent(), 1, 100);
     long userPerMinute = Math.max(1L, properties.getSyncUserQuotaUnitsPerMinute());
     long projectPerMinute = Math.max(1L, properties.getQuotaProjectUnitsPerMinute());
