@@ -28,6 +28,7 @@ public class MicrosoftOAuthProperties {
   private int backfillMaxRangeDays = 365;
   private int backfillWorkerConcurrency = 4;
   private int backfillPollIntervalMs = 500;
+  private int backfillMaxAttempts = 12;
   private Duration subscriptionLifetime = Duration.ofDays(6).plusHours(23);
   private Duration subscriptionRenewBefore = Duration.ofHours(24);
   private int deltaPageSize = 50;
