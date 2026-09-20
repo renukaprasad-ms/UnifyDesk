@@ -17,6 +17,7 @@ public class GmailSyncBatchCommitService {
 
   private final GmailSyncStateService stateService;
   private final GmailInboxPersistenceService persistenceService;
+  private final GmailSyncPersistenceLock persistenceLock;
   private final ChannelConnectionRepository connectionRepository;
   private final AsyncJobService asyncJobService;
   private final GmailOAuthProperties properties;
@@ -28,6 +29,8 @@ public class GmailSyncBatchCommitService {
       List<String> retryIds,
       int permanentFailures,
       String error) {
+    persistenceLock.lockConnection(batch.connectionId());
+
     ChannelConnection connection =
         connectionRepository
             .findByIdAndCompanyId(batch.connectionId(), batch.companyId())

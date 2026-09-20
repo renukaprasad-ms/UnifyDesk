@@ -26,13 +26,15 @@ public class GmailSyncCoordinatorPublisher {
             causationId,
             MessagePriority.MEDIUM);
 
-    eventPublisher.publish(
+    KafkaEvent<GmailSyncRequestedEvent> event =
         KafkaEvent.of(
             metadata,
             new GmailSyncRequestedEvent(
                 run.getConnectionId(),
                 run.getJobId(),
                 run.getFromDate(),
-                run.getToDate())));
+                run.getToDate()));
+
+    eventPublisher.publish("gmail-connection:" + run.getConnectionId(), event);
   }
 }

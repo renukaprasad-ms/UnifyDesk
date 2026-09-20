@@ -25,14 +25,17 @@ import com.messaging.inbox.repository.InboxParticipantRepository;
 import com.messaging.storage.enums.StorageUsageType;
 import com.messaging.storage.service.MessageStorageMeter;
 import com.messaging.storage.service.StorageQuotaService;
+import com.messaging.storage.service.StorageQuotaService.StorageConsumption;
 import jakarta.mail.Address;
 import jakarta.mail.internet.InternetAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -58,21 +61,48 @@ public class GmailInboxPersistenceService {
     Instant syncedAt = Instant.now();
     int createdMessages = 0;
     Set<Long> touchedConversationIds = new HashSet<>();
+    List<StorageConsumption> storageConsumptions = new ArrayList<>();
+    Map<Long, Map<String, InboxParticipant>> participantCache = new HashMap<>();
 
-    for (GmailMessage gmailMessage : messages) {
-      if (gmailMessage == null
-          || !hasText(gmailMessage.id())
-          || !hasText(gmailMessage.threadId())) {
-        continue;
+    List<GmailMessage> validMessages =
+        messages == null
+            ? List.of()
+            : messages.stream()
+                .filter(
+                    message ->
+                        message != null && hasText(message.id()) && hasText(message.threadId()))
+                .toList();
+
+    Set<String> threadIds = new HashSet<>();
+    Set<String> externalMessageIds = new HashSet<>();
+    for (GmailMessage message : validMessages) {
+      threadIds.add(message.threadId());
+      externalMessageIds.add(message.id());
+    }
+
+    Map<String, InboxConversation> conversationsByExternalId = new HashMap<>();
+    if (!threadIds.isEmpty()) {
+      for (InboxConversation conversation :
+          conversationRepository.findByConnectionIdAndExternalConversationIdIn(
+              connection.getId(), threadIds)) {
+        conversationsByExternalId.put(conversation.getExternalConversationId(), conversation);
       }
+    }
 
-      InboxConversation conversation =
-          conversationRepository
-              .findByConnectionIdAndExternalConversationId(
-                  connection.getId(), gmailMessage.threadId())
-              .orElseGet(InboxConversation::new);
+    Map<String, InboxMessage> messagesByExternalId = new HashMap<>();
+    if (!externalMessageIds.isEmpty()) {
+      for (InboxMessage message :
+          messageRepository.findByConnectionIdAndExternalMessageIdIn(
+              connection.getId(), externalMessageIds)) {
+        messagesByExternalId.put(message.getExternalMessageId(), message);
+      }
+    }
 
-      if (conversation.getId() == null) {
+    for (GmailMessage gmailMessage : validMessages) {
+      InboxConversation conversation = conversationsByExternalId.get(gmailMessage.threadId());
+      boolean conversationCreated = conversation == null;
+      if (conversationCreated) {
+        conversation = new InboxConversation();
         conversation.setCompanyId(connection.getCompanyId());
         conversation.setConnection(connection);
         conversation.setProviderType(ProviderType.GMAIL);
@@ -93,12 +123,13 @@ public class GmailInboxPersistenceService {
         conversation.setLastMessagePreview(preview);
       }
 
-      conversation = conversationRepository.saveAndFlush(conversation);
+      conversation = conversationRepository.save(conversation);
+      conversationsByExternalId.put(gmailMessage.threadId(), conversation);
 
-      InboxMessage message =
-          messageRepository
-              .findByConnectionIdAndExternalMessageId(connection.getId(), gmailMessage.id())
-              .orElseGet(InboxMessage::new);
+      InboxMessage message = messagesByExternalId.get(gmailMessage.id());
+      if (message == null) {
+        message = new InboxMessage();
+      }
       boolean created = message.getId() == null;
 
       if (created) {
@@ -142,25 +173,30 @@ public class GmailInboxPersistenceService {
                 message.getBodyHtml()));
       }
 
-      message = messageRepository.saveAndFlush(message);
+      message = messageRepository.save(message);
+      messagesByExternalId.put(gmailMessage.id(), message);
 
       if (needsStorageAccounting) {
-        storageQuotaService.consume(
-            connection.getCompanyId(),
-            StorageUsageType.MESSAGE,
-            "INBOX_MESSAGE",
-            message.getId().toString(),
-            message.getStorageBytes());
+        storageConsumptions.add(
+            new StorageConsumption(
+                "INBOX_MESSAGE", message.getId().toString(), message.getStorageBytes()));
       }
 
       if (created) {
         createdMessages++;
       }
 
-      upsertParticipants(conversation, gmailMessage.payload());
-      upsertAttachments(message, gmailMessage.payload());
+      upsertParticipants(
+          conversation, gmailMessage.payload(), conversationCreated, participantCache);
+      upsertAttachments(message, gmailMessage.payload(), created);
       touchedConversationIds.add(conversation.getId());
     }
+
+    storageQuotaService.consumeBatch(
+        connection.getCompanyId(), StorageUsageType.MESSAGE, storageConsumptions);
+
+    // One flush per Gmail batch instead of flushing every conversation and message individually.
+    messageRepository.flush();
 
     for (Long conversationId : touchedConversationIds) {
       conversationRepository
@@ -177,7 +213,7 @@ public class GmailInboxPersistenceService {
 
     return new GmailSyncResult(
         connection.getId().toString(),
-        messages.size(),
+        validMessages.size(),
         createdMessages,
         touchedConversationIds.size(),
         null,
@@ -204,7 +240,26 @@ public class GmailInboxPersistenceService {
   }
 
 
-  private void upsertParticipants(InboxConversation conversation, GmailPayload payload) {
+  private void upsertParticipants(
+      InboxConversation conversation,
+      GmailPayload payload,
+      boolean conversationCreated,
+      Map<Long, Map<String, InboxParticipant>> participantCache) {
+    Map<String, InboxParticipant> participants =
+        participantCache.computeIfAbsent(
+            conversation.getId(),
+            ignored -> {
+              Map<String, InboxParticipant> existing = new HashMap<>();
+              if (!conversationCreated) {
+                for (InboxParticipant participant :
+                    participantRepository.findByConversationIdOrderByAddressAsc(
+                        conversation.getId())) {
+                  existing.put(participantKey(participant.getAddress()), participant);
+                }
+              }
+              return existing;
+            });
+
     for (String headerName : List.of("From", "To", "Cc", "Bcc")) {
       String value = header(payload, headerName);
       if (!hasText(value)) {
@@ -220,16 +275,15 @@ public class GmailInboxPersistenceService {
           }
 
           String normalizedAddress = internetAddress.getAddress().trim().toLowerCase(Locale.ROOT);
-          InboxParticipant participant =
-              participantRepository
-                  .findByConversationIdAndParticipantTypeAndAddressIgnoreCase(
-                      conversation.getId(), InboxParticipantType.EMAIL_ADDRESS, normalizedAddress)
-                  .orElseGet(InboxParticipant::new);
+          String key = participantKey(normalizedAddress);
+          InboxParticipant participant = participants.get(key);
 
-          if (participant.getId() == null) {
+          if (participant == null) {
+            participant = new InboxParticipant();
             participant.setConversation(conversation);
             participant.setParticipantType(InboxParticipantType.EMAIL_ADDRESS);
             participant.setAddress(normalizedAddress);
+            participants.put(key, participant);
           }
           if (hasText(internetAddress.getPersonal())) {
             participant.setDisplayName(internetAddress.getPersonal());
@@ -243,16 +297,23 @@ public class GmailInboxPersistenceService {
     }
   }
 
-  private void upsertAttachments(InboxMessage message, GmailPayload payload) {
+  private String participantKey(String address) {
+    return InboxParticipantType.EMAIL_ADDRESS.name() + ":" + address.toLowerCase(Locale.ROOT);
+  }
+
+  private void upsertAttachments(
+      InboxMessage message, GmailPayload payload, boolean messageCreated) {
     List<AttachmentMetadata> attachments = new ArrayList<>();
     collectAttachments(payload, attachments);
 
     for (AttachmentMetadata metadata : attachments) {
       InboxMessageAttachment attachment =
-          attachmentRepository
-              .findByMessageIdAndExternalAttachmentId(
-                  message.getId(), metadata.externalAttachmentId())
-              .orElseGet(InboxMessageAttachment::new);
+          messageCreated
+              ? new InboxMessageAttachment()
+              : attachmentRepository
+                  .findByMessageIdAndExternalAttachmentId(
+                      message.getId(), metadata.externalAttachmentId())
+                  .orElseGet(InboxMessageAttachment::new);
 
       if (attachment.getId() == null) {
         attachment.setMessage(message);

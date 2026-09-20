@@ -2,6 +2,7 @@ package com.messaging.inbox.repository;
 
 import com.messaging.inbox.entity.InboxMessage;
 import com.messaging.inbox.enums.InboxMessageDirection;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -13,6 +14,9 @@ public interface InboxMessageRepository extends JpaRepository<InboxMessage, Long
 
   Optional<InboxMessage> findByConnectionIdAndExternalMessageId(
       Long connectionId, String externalMessageId);
+
+  List<InboxMessage> findByConnectionIdAndExternalMessageIdIn(
+      Long connectionId, Collection<String> externalMessageIds);
 
   @Query(
       "select m.externalMessageId from InboxMessage m "

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.exception.BadRequestException;
+import com.messaging.common.exception.ServiceUnavailableException;
 import com.messaging.common.exception.TooManyRequestsException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -30,6 +31,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Slf4j
 @Component
 public class GmailApiClient {
+
+  static final int MAX_BATCH_SIZE = 50;
+  private static final String BATCH_ENDPOINT = "/batch/gmail/v1";
 
   private static final Pattern GOOGLE_REASON_PATTERN =
       Pattern.compile("\\\"reason\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
@@ -152,8 +156,11 @@ public class GmailApiClient {
     if (messageIds == null || messageIds.isEmpty()) {
       return List.of();
     }
-    if (messageIds.size() > Math.max(1, properties.getSyncBatchSize())) {
-      throw new BadRequestException("Gmail batch exceeds configured batch size");
+    int configuredBatchSize =
+        Math.min(MAX_BATCH_SIZE, Math.max(1, properties.getSyncBatchSize()));
+    if (messageIds.size() > configuredBatchSize) {
+      throw new BadRequestException(
+          "Gmail batch exceeds configured batch size of " + configuredBatchSize);
     }
 
     String boundary = "messaging_" + UUID.randomUUID().toString().replace("-", "");
@@ -165,7 +172,7 @@ public class GmailApiClient {
             () ->
                 gmailApi
                     .post()
-                    .uri("/batch/gmail/v1")
+                    .uri(BATCH_ENDPOINT)
                     .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                     .header(HttpHeaders.CONTENT_TYPE, "multipart/mixed; boundary=" + boundary)
                     .body(requestBody)
@@ -182,7 +189,7 @@ public class GmailApiClient {
     return parseBatchResponse(body, responseBoundary, messageIds);
   }
 
-  private String batchRequestBody(String boundary, List<String> messageIds) {
+  String batchRequestBody(String boundary, List<String> messageIds) {
     StringBuilder body = new StringBuilder(messageIds.size() * 180);
     for (int index = 0; index < messageIds.size(); index++) {
       String messageId = messageIds.get(index);
@@ -242,7 +249,7 @@ public class GmailApiClient {
     }
 
     if (results.size() != messageIds.size()) {
-      throw new TooManyRequestsException(
+      throw new ServiceUnavailableException(
           "Gmail returned an incomplete batch response. The batch will be retried.");
     }
     return results;

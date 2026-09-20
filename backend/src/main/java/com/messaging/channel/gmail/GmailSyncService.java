@@ -7,9 +7,7 @@ import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.gmail.GmailApiClient.GmailProfile;
 import com.messaging.channel.gmail.GmailApiClient.MessageListResponse;
 import com.messaging.channel.gmail.GmailApiClient.MessageReference;
-import com.messaging.channel.gmail.entity.GmailSyncBatch;
 import com.messaging.channel.gmail.entity.GmailSyncRun;
-import com.messaging.channel.gmail.enums.GmailSyncBatchStatus;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
@@ -28,8 +26,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class GmailSyncService {
 
-  private static final int GMAIL_LIST_PAGE_SIZE = 100;
-  private static final int MAX_HTTP_BATCH_SIZE = 50;
+  private static final int GMAIL_LIST_PAGE_SIZE = 500;
+  private static final int MAX_HTTP_BATCH_SIZE = GmailApiClient.MAX_BATCH_SIZE;
 
   private final GmailOAuthProperties properties;
   private final GmailApiClient gmailApiClient;
@@ -38,7 +36,6 @@ public class GmailSyncService {
   private final ChannelConnectionRepository connectionRepository;
   private final AsyncJobService asyncJobService;
   private final GmailSyncStateService stateService;
-  private final GmailSyncBatchPublisher batchPublisher;
   private final GmailSyncFinalizerService finalizerService;
 
   public void sync(
@@ -116,14 +113,12 @@ public class GmailSyncService {
         }
         carry.add(reference.id());
         if (carry.size() == batchSize) {
-          GmailSyncBatch batch =
-              stateService.createBatchIfAbsent(
-                  jobId,
-                  companyId,
-                  connectionId,
-                  nextBatchIndex,
-                  List.copyOf(carry));
-          publishIfNeeded(run, batch);
+          stateService.createBatchIfAbsent(
+              jobId,
+              companyId,
+              connectionId,
+              nextBatchIndex,
+              List.copyOf(carry));
           nextBatchIndex++;
           batchCount++;
           carry.clear();
@@ -144,10 +139,8 @@ public class GmailSyncService {
     }
 
     if (!carry.isEmpty()) {
-      GmailSyncBatch batch =
-          stateService.createBatchIfAbsent(
-              jobId, companyId, connectionId, nextBatchIndex, List.copyOf(carry));
-      publishIfNeeded(run, batch);
+      stateService.createBatchIfAbsent(
+          jobId, companyId, connectionId, nextBatchIndex, List.copyOf(carry));
       nextBatchIndex++;
       batchCount++;
       carry.clear();
@@ -172,12 +165,6 @@ public class GmailSyncService {
     finalizerService.tryFinalize(jobId);
   }
 
-  private void publishIfNeeded(GmailSyncRun run, GmailSyncBatch batch) {
-    if (batch.getStatus() == GmailSyncBatchStatus.PENDING
-        || batch.getStatus() == GmailSyncBatchStatus.RETRY) {
-      batchPublisher.publish(run, batch, null);
-    }
-  }
 
   private Set<String> existingMessageIds(
       Long connectionId, List<MessageReference> references) {
