@@ -160,6 +160,22 @@ public class MicrosoftApiClient {
                 .toBodilessEntity());
   }
 
+
+  public void reply(String accessToken, String messageId, String comment, boolean replyAll) {
+    String action = replyAll ? "replyAll" : "reply";
+    executeVoid(
+        replyAll ? "reply_all" : "reply",
+        () ->
+            graph
+                .post()
+                .uri("/v1.0/me/messages/{id}/" + action, messageId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("comment", comment == null ? "" : comment))
+                .retrieve()
+                .toBodilessEntity());
+  }
+
   public SubscriptionResponse createSubscription(
       String accessToken, String notificationUrl, String clientState, Instant expiresAt) {
     SubscriptionRequest request =
