@@ -3,17 +3,7 @@ package com.messaging.user.entity;
 import com.messaging.common.id.IdGenerator;
 import com.messaging.media.entity.Media;
 import com.messaging.user.enums.UserStatus;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.*;
 import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -28,7 +18,8 @@ import lombok.Setter;
     uniqueConstraints = {
       @UniqueConstraint(name = "uk_users_email", columnNames = "email"),
       @UniqueConstraint(name = "uk_users_username", columnNames = "username")
-    })
+    },
+    indexes = {@Index(name = "idx_users_purge_due", columnList = "status,purge_after")})
 public class User {
 
   @Id private Long id;
@@ -61,6 +52,18 @@ public class User {
 
   @Column(name = "deleted_at")
   private Instant deletedAt;
+
+  @Column(name = "purge_after")
+  private Instant purgeAfter;
+
+  @Column(name = "deletion_requested_by")
+  private Long deletionRequestedBy;
+
+  @Column(name = "purge_started_at")
+  private Instant purgeStartedAt;
+
+  @Column(name = "purged_at")
+  private Instant purgedAt;
 
   @PrePersist
   private void assignId() {
