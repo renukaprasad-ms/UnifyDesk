@@ -117,6 +117,7 @@ public class GmailSyncBatchService {
       int permanentFailures = 0;
       String lastError = null;
       boolean providerThrottled = false;
+      String providerThrottleReason = null;
       Duration providerRetryAfter = Duration.ZERO;
 
       for (BatchMessageResult result : results) {
@@ -127,6 +128,7 @@ public class GmailSyncBatchService {
           lastError = result.reason();
           if (isRateLimit(result)) {
             providerThrottled = true;
+            providerThrottleReason = result.reason();
             providerRetryAfter = max(providerRetryAfter, result.retryAfter());
           }
         } else {
@@ -137,6 +139,10 @@ public class GmailSyncBatchService {
 
       Instant retryNotBefore = null;
       if (providerThrottled) {
+        lastError =
+            providerThrottleReason == null || providerThrottleReason.isBlank()
+                ? "userRateLimitExceeded"
+                : providerThrottleReason;
         retryNotBefore =
             quotaManager.penalize(
                 gmailAccount, attemptedBatch.attempt(), providerRetryAfter);
