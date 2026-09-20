@@ -5,14 +5,13 @@ import {
   FiLink,
   FiMail,
   FiMessageSquare,
-  FiPlus,
   FiRadio,
   FiSmartphone,
 } from 'react-icons/fi'
 import { useLocation, useNavigate } from 'react-router'
+import EmailProviderPicker from '../email/EmailProviderPicker'
 import ConversationList from '../inbox/ConversationList'
 import { channelApi } from '../../features/channel/channelApi'
-import { gmailApi } from '../../features/channel/gmailApi'
 import type { ChannelConnection, ChannelType, SenderIdentity } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -80,7 +79,6 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const [senders, setSenders] = useState<Record<string, SenderIdentity[]>>({})
   const [loading, setLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [addingEmail, setAddingEmail] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [conversations, setConversations] = useState<InboxConversation[]>([])
   const [conversationLoading, setConversationLoading] = useState(false)
@@ -329,19 +327,6 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     onNavigate()
   }
 
-  const addEmail = async () => {
-    if (!companyId || addingEmail) return
-    setAddingEmail(true)
-    setError(null)
-    try {
-      const authorization = await gmailApi.authorize(companyId, location.pathname)
-      window.location.assign(authorization.authorizationUrl)
-    } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to start Gmail connection'))
-      setAddingEmail(false)
-    }
-  }
-
   const connectAllowed =
     channelType === 'EMAIL'
       ? can(PERMISSIONS.EMAIL_CONNECT)
@@ -352,7 +337,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const emptyListLabel = mode === 'inbox' ? 'Chats' : 'Broadcasts'
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="admin-sidebar-header">
         <div className="min-w-0">
           <p className="eyebrow">{mode === 'inbox' ? 'INBOX' : 'BROADCAST'}</p>
@@ -422,20 +407,6 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                 </button>
               ))}
 
-              {channelType === 'EMAIL' && connectAllowed && (
-                <button
-                  type="button"
-                  className="workspace-menu-item border-t border-slate-100 text-indigo-500"
-                  role="menuitem"
-                  disabled={addingEmail}
-                  onClick={() => void addEmail()}
-                >
-                  <span className="flex items-center gap-2">
-                    <FiPlus aria-hidden="true" />
-                    {addingEmail ? 'Opening Google…' : 'Add email'}
-                  </span>
-                </button>
-              )}
             </div>
           )}
         </div>
@@ -443,7 +414,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         {error && <p className="mt-3 px-1 text-xs leading-5 text-rose-600">{error}</p>}
       </div>
 
-      <div className="mt-5 min-h-0 flex-1 border-t border-slate-100 pt-4">
+      <div className="mt-5 flex min-h-0 flex-1 flex-col border-t border-slate-100 pt-4">
         <div className="mb-2 flex items-center justify-between gap-2 px-1">
           <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
             {emptyListLabel}
@@ -456,7 +427,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         </div>
 
         {mode === 'inbox' && channelType === 'EMAIL' ? (
-          <div className="-mx-3 overflow-hidden border-t border-slate-100">
+          <div className="-mx-3 min-h-0 flex-1 overflow-y-auto border-t border-slate-100">
             <ConversationList
               compact
               conversations={conversations}
@@ -485,18 +456,14 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       </div>
 
       <div className="mt-4 border-t border-slate-100 pt-4">
-        {channelType === 'EMAIL' && connectAllowed ? (
-          <button
-            type="button"
-            className="admin-nav-link w-full text-left"
-            disabled={addingEmail}
-            onClick={() => void addEmail()}
-          >
-            <span className="admin-nav-icon">
-              <FiPlus aria-hidden="true" />
-            </span>
-            <span>{addingEmail ? 'Opening Google…' : 'Add email'}</span>
-          </button>
+        {channelType === 'EMAIL' && connectAllowed && companyId ? (
+          <EmailProviderPicker
+            companyId={companyId}
+            returnTo={location.pathname}
+            label="Connect email"
+            className="admin-nav-link w-full justify-start text-left"
+            onError={setError}
+          />
         ) : channelType !== 'EMAIL' && connectAllowed ? (
           <button
             type="button"
