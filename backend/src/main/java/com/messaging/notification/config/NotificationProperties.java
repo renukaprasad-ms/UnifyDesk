@@ -16,5 +16,11 @@ public class NotificationProperties {
   @Setter
   public static class Email {
     private String from;
+    private String brandName = "Messaging";
+    private String logoUrl;
+    private String websiteUrl = "https://messaging.renukaprasad.in";
+    private String supportEmail;
+    private String supportUrl;
+    private String primaryColor = "#4f46e5";
   }
 }

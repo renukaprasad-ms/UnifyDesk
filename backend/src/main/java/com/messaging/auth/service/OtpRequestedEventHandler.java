@@ -32,8 +32,14 @@ public class OtpRequestedEventHandler implements KafkaEventHandler {
     }
 
     notificationService.send(
-        SendNotificationRequest.email(
-            payload.identifier(), payload.subject(), payload.body(), payload.html()));
+        payload.multipartAlternative()
+            ? SendNotificationRequest.emailMultipart(
+                payload.identifier(),
+                payload.subject(),
+                payload.textBody(),
+                payload.htmlBody())
+            : SendNotificationRequest.email(
+                payload.identifier(), payload.subject(), payload.body(), payload.html()));
   }
 
   private OtpRequestedEvent payload(Object payload) {
