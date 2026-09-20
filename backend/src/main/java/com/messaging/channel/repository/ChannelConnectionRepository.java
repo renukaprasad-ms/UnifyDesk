@@ -31,6 +31,11 @@ public interface ChannelConnectionRepository extends JpaRepository<ChannelConnec
       String externalAccountId,
       ChannelConnectionStatus status);
 
+  List<ChannelConnection> findByProviderTypeAndExternalAccountIdIgnoreCaseAndStatus(
+      ProviderType providerType,
+      String externalAccountId,
+      ChannelConnectionStatus status);
+
   List<ChannelConnection> findByProviderTypeAndStatus(
       ProviderType providerType, ChannelConnectionStatus status);
 
