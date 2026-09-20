@@ -297,7 +297,7 @@ public class GmailApiClient {
         headersEnd < 0 ? "" : normalized.substring(firstLineEnd, headersEnd);
     String json =
         headersEnd < 0 ? "" : normalized.substring(headersEnd + separatorLength).trim();
-    Duration retryAfter = retryAfter(responseHeaders);
+    Duration retryAfter = retryAfterFromRawHeaders(responseHeaders);
 
     if (status >= 200 && status < 300) {
       try {
@@ -478,7 +478,7 @@ public class GmailApiClient {
     }
   }
 
-  private Duration retryAfter(String rawHeaders) {
+  private Duration retryAfterFromRawHeaders(String rawHeaders) {
     if (rawHeaders == null || rawHeaders.isBlank()) {
       return Duration.ZERO;
     }
