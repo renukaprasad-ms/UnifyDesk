@@ -64,6 +64,18 @@ public class RealtimeConnectionRegistry {
         .toList();
   }
 
+  public void closeForUser(Long userId) {
+    for (RealtimeConnection connection : forUser(userId)) {
+      try {
+        connection.session().close(org.springframework.web.socket.CloseStatus.NORMAL);
+      } catch (java.io.IOException ignored) {
+        // The socket is already unusable; registry cleanup still removes it.
+      } finally {
+        unregister(connection.socketId());
+      }
+    }
+  }
+
   public RealtimeConnection bySocketId(String socketId) {
     return bySocketId.get(socketId);
   }
