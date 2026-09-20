@@ -45,6 +45,9 @@ public class InboxMessage {
   @Column(name = "provider_history_id", length = 255)
   private String providerHistoryId;
 
+  @Column(name = "provider_folder_key", length = 64)
+  private String providerFolderKey;
+
   @Column(name = "from_address", length = 320)
   private String fromAddress;
 

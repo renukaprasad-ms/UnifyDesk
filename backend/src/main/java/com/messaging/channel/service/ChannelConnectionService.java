@@ -96,6 +96,7 @@ public class ChannelConnectionService {
       return toResponse(connection);
     }
 
+    providerRegistry.disconnect(connection);
     connection.setStatus(ChannelConnectionStatus.DISCONNECTED);
     credentialService.deleteAll(connection.getId());
 

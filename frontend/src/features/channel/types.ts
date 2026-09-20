@@ -99,3 +99,28 @@ export type GmailSendResponse = {
   subject?: string | null
   sentAt: string
 }
+
+
+export type MicrosoftAuthorization = {
+  authorizationUrl: string
+}
+
+export type MicrosoftSendRequest = {
+  to: string[]
+  cc?: string[]
+  bcc?: string[]
+  subject: string
+  bodyText: string
+  replyToMessageId?: string | null
+  replyAll?: boolean
+}
+
+export type MicrosoftSendResponse = {
+  connectionId: string
+  from: string
+  to: string[]
+  cc: string[]
+  bcc: string[]
+  subject: string
+  acceptedAt: string
+}
