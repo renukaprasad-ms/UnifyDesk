@@ -2,17 +2,26 @@ package com.messaging.channel.email;
 
 public enum EmailFolder {
   INBOX,
-  SENT;
+  SENT,
+  ALL;
 
   public String providerKey() {
     return name();
   }
 
   public String microsoftFolderKey() {
-    return this == SENT ? "sentitems" : "inbox";
+    return switch (this) {
+      case INBOX -> "inbox";
+      case SENT -> "sentitems";
+      case ALL -> throw new IllegalStateException("ALL is not a Microsoft Graph folder");
+    };
   }
 
   public String gmailSearchToken() {
-    return this == SENT ? "in:sent" : "in:inbox";
+    return switch (this) {
+      case INBOX -> "in:inbox";
+      case SENT -> "in:sent";
+      case ALL -> "in:anywhere";
+    };
   }
 }
