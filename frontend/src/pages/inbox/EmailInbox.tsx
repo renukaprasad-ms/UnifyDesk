@@ -942,7 +942,11 @@ export default function EmailInbox() {
               <p className="mt-2 text-sm leading-6 text-slate-500">
                 {selectedConnection?.externalAccountId || selectedConnection?.name || 'Email'}
                 {' · '}
-                {selectedConnection?.providerType === 'MICROSOFT' ? 'Microsoft' : 'Gmail'}
+                {selectedConnection?.providerType === 'MICROSOFT'
+                  ? 'Microsoft'
+                  : selectedConnection?.providerType === 'IMAP_SMTP'
+                    ? 'IMAP + SMTP'
+                    : 'Gmail'}
               </p>
 
               <div className="mt-5">
