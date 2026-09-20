@@ -37,6 +37,8 @@ class MicrosoftApiClientTests {
     assertThat(value)
         .startsWith("https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages/delta?")
         .contains("%24select=")
+        .contains("%24filter=")
+        .contains("receivedDateTime")
         .contains("conversationId")
         .contains("internetMessageId")
         .contains("%24expand=")
