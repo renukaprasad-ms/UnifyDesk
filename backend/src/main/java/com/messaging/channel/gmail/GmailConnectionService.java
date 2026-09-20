@@ -36,6 +36,7 @@ public class GmailConnectionService {
   private final GmailApiClient gmailApiClient;
   private final GmailPersistenceService persistenceService;
   private final GmailSyncQueueService syncQueueService;
+  private final GmailWatchService watchService;
   private final ChannelConnectionRepository connectionRepository;
   private final ChannelEntitlementService entitlementService;
   private final CompanyAuthorizationService authorizationService;
@@ -101,6 +102,20 @@ public class GmailConnectionService {
     GmailConnectionResponse response =
         persistenceService.persist(oauthState.companyId(), oauthState.userId(), profile, token);
 
+    connectionRepository
+        .findByIdAndCompanyId(Long.valueOf(response.connectionId()), oauthState.companyId())
+        .ifPresent(
+            connection -> {
+              try {
+                watchService.ensureWatch(connection, true);
+              } catch (RuntimeException exception) {
+                log.warn(
+                    "Gmail connected but realtime watch setup failed connectionId={} reason={}",
+                    connection.getId(),
+                    exception.getClass().getSimpleName());
+              }
+            });
+
     return new GmailCompletion(response, oauthState.returnTo());
   }
 
@@ -141,6 +156,10 @@ public class GmailConnectionService {
     if (connection.providerType() != ProviderType.GMAIL) {
       throw new BadRequestException("Channel connection is not a Gmail account");
     }
+
+    connectionRepository
+        .findByIdAndCompanyId(connectionId, companyId)
+        .ifPresent(watchService::stopBestEffort);
 
     try {
       String raw = credentialService.read(connectionId, CredentialType.OAUTH_TOKEN_SET);
