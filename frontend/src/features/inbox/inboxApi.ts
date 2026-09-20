@@ -16,6 +16,13 @@ export const inboxApi = {
     return unwrap(response.data)
   },
 
+  async conversation(companyId: string, conversationId: string) {
+    const response = await apiClient.get<ApiResponse<InboxConversation>>(
+      `/api/v1/companies/${companyId}/inbox/conversations/${conversationId}`,
+    )
+    return unwrap(response.data)
+  },
+
   async messages(companyId: string, conversationId: string) {
     const response = await apiClient.get<ApiResponse<InboxMessage[]>>(
       `/api/v1/companies/${companyId}/inbox/conversations/${conversationId}/messages`,
