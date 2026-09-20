@@ -16,10 +16,7 @@ import org.springframework.stereotype.Component;
 public class StorageReconciliationScheduler {
 
   private static final Set<CompanyStatus> RECONCILABLE_STATUSES =
-      Set.of(
-          CompanyStatus.ACTIVE,
-          CompanyStatus.SUSPENDED,
-          CompanyStatus.DELETION_PENDING);
+      Set.of(CompanyStatus.ACTIVE, CompanyStatus.SUSPENDED);
 
   private final CompanyRepository companyRepository;
   private final StorageReconciliationService reconciliationService;
