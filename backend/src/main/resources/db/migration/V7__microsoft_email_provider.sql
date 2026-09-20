@@ -27,6 +27,10 @@ create index if not exists idx_microsoft_sync_states_claim
 create index if not exists idx_microsoft_sync_states_connection
   on microsoft_sync_states (connection_id);
 
+create index if not exists idx_microsoft_sync_states_safety
+  on microsoft_sync_states (status, last_synced_at)
+  where status = 'SYNCED';
+
 create table if not exists microsoft_subscriptions (
   id bigint primary key,
   connection_id bigint not null,
