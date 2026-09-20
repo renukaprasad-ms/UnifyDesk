@@ -84,8 +84,10 @@ export default function EmailInbox() {
   const composeOpen = searchParams.get('compose') === '1'
   const [connections, setConnections] = useState<ChannelConnection[]>([])
   const [conversations, setConversations] = useState<InboxConversation[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(selectedConversationId)
-  const [mobileConversationOpen, setMobileConversationOpen] = useState(Boolean(selectedConversationId))
+  const [selectedConversation, setSelectedConversation] = useState<InboxConversation | null>(null)
+  const [mobileConversationOpen, setMobileConversationOpen] = useState(
+    Boolean(selectedConversationId),
+  )
   const [messages, setMessages] = useState<InboxMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -120,11 +122,6 @@ export default function EmailInbox() {
   const selectedConnection = useMemo(
     () => connections.find((connection) => connection.id === selectedConnectionId) ?? null,
     [connections, selectedConnectionId],
-  )
-
-  const selectedConversation = useMemo(
-    () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
-    [conversations, selectedId],
   )
 
   const ownAddress = useMemo(() => {
@@ -162,13 +159,12 @@ export default function EmailInbox() {
         if (!selectedConnectionId || !selectedIsActive) {
           const first = activeConnections[0]
           setConversations([])
-          setSelectedId(null)
           setCurrentPage(0)
           setTotalPages(0)
           setTotalElements(0)
 
           if (first) {
-            const params = new URLSearchParams(searchParams)
+            const params = new URLSearchParams(window.location.search)
             params.set('connectionId', first.id)
             params.delete('conversationId')
             setSearchParams(params, { replace: true })
@@ -188,11 +184,6 @@ export default function EmailInbox() {
         setTotalPages(inbox.totalPages)
         setTotalElements(inbox.totalElements)
 
-        if (!append && !selectedConversationId && inbox.items[0]) {
-          const params = new URLSearchParams(searchParams)
-          params.set('conversationId', inbox.items[0].id)
-          setSearchParams(params, { replace: true })
-        }
       } catch (requestError) {
         setError(apiErrorMessage(requestError, 'Unable to load email inbox'))
       } finally {
@@ -200,7 +191,7 @@ export default function EmailInbox() {
         setLoadingMore(false)
       }
     },
-    [companyId, searchParams, selectedConnectionId, selectedConversationId, setSearchParams],
+    [companyId, selectedConnectionId, setSearchParams],
   )
 
   const scheduleInboxRefresh = useCallback(() => {
@@ -222,15 +213,11 @@ export default function EmailInbox() {
 
   useEffect(() => {
     setMobileConversationOpen(Boolean(selectedConversationId))
-    setSelectedId(selectedConversationId)
   }, [selectedConversationId])
 
   useEffect(() => {
-    if (!selectedConversationId) {
-      setMobileConversationOpen(false)
-    }
     void loadConversations(0, false)
-  }, [companyId, selectedConnectionId, loadConversations, selectedConversationId])
+  }, [companyId, selectedConnectionId, loadConversations])
 
   useEffect(() => {
     if (
@@ -289,18 +276,43 @@ export default function EmailInbox() {
     void loadConversations(0, false)
   }, [loadConversations, searchParams, setSearchParams])
 
+  const refreshSelectedConversation = useCallback(async () => {
+    if (!companyId || !selectedConversationId) {
+      setSelectedConversation(null)
+      setMessages([])
+      return
+    }
+
+    try {
+      const [conversation, items] = await Promise.all([
+        inboxApi.conversation(companyId, selectedConversationId),
+        inboxApi.messages(companyId, selectedConversationId),
+      ])
+      setSelectedConversation(conversation)
+      setMessages(items)
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, 'Unable to load conversation'))
+    }
+  }, [companyId, selectedConversationId])
+
   useEffect(() => {
     if (!companyId || !selectedConversationId) {
+      setSelectedConversation(null)
       setMessages([])
+      setMessagesLoading(false)
       return
     }
 
     let active = true
     setMessagesLoading(true)
-    inboxApi
-      .messages(companyId, selectedConversationId)
-      .then((items) => {
-        if (active) setMessages(items)
+    Promise.all([
+      inboxApi.conversation(companyId, selectedConversationId),
+      inboxApi.messages(companyId, selectedConversationId),
+    ])
+      .then(([conversation, items]) => {
+        if (!active) return
+        setSelectedConversation(conversation)
+        setMessages(items)
       })
       .catch((requestError) => {
         if (active) setError(apiErrorMessage(requestError, 'Unable to load conversation'))
@@ -333,8 +345,11 @@ export default function EmailInbox() {
     () =>
       realtimeClient.subscribe('inbox.email.changed', () => {
         scheduleInboxRefresh()
+        if (selectedConversationId) {
+          void refreshSelectedConversation()
+        }
       }),
-    [scheduleInboxRefresh],
+    [refreshSelectedConversation, scheduleInboxRefresh, selectedConversationId],
   )
 
   useEffect(() => {
@@ -459,7 +474,6 @@ export default function EmailInbox() {
     params.set('conversationId', conversation.id)
     params.delete('compose')
     setSearchParams(params)
-    setSelectedId(conversation.id)
     setMobileConversationOpen(true)
   }
 
@@ -1106,7 +1120,6 @@ export default function EmailInbox() {
             </>
           )}
         </main>
-        </div>
       </div>
     </section>
   )
