@@ -56,6 +56,26 @@ public final class RedisKey {
     return join("rate-limit", "send-message", normalize(companyId));
   }
 
+  public static String gmailQuotaCooldown(String gmailAccount) {
+    return join("gmail", "quota", "cooldown", normalize(gmailAccount));
+  }
+
+  public static String gmailQuotaUserTotal(String gmailAccount) {
+    return join("gmail", "quota", "user", normalize(gmailAccount), "total");
+  }
+
+  public static String gmailQuotaUserBackground(String gmailAccount) {
+    return join("gmail", "quota", "user", normalize(gmailAccount), "background");
+  }
+
+  public static String gmailQuotaProjectTotal(String projectKey) {
+    return join("gmail", "quota", "project", normalize(projectKey), "total");
+  }
+
+  public static String gmailQuotaProjectBackground(String projectKey) {
+    return join("gmail", "quota", "project", normalize(projectKey), "background");
+  }
+
   public static String broadcastProgress(String broadcastId) {
     return join("broadcast", normalize(broadcastId), "progress");
   }
