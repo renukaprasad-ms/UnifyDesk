@@ -113,6 +113,22 @@ public class ImapSmtpMailClient {
 
   public List<MailboxMessage> history(
       ImapSmtpStoredCredentials credentials, EmailSyncRequest request, int maxMessages) {
+    List<MailboxMessage> collected = new ArrayList<>();
+    syncHistory(
+        credentials,
+        request,
+        maxMessages,
+        Math.min(50, Math.max(1, maxMessages)),
+        (batch, total) -> collected.addAll(batch));
+    return collected;
+  }
+
+  public int syncHistory(
+      ImapSmtpStoredCredentials credentials,
+      EmailSyncRequest request,
+      int maxMessages,
+      int batchSize,
+      HistoryBatchConsumer consumer) {
     String folderName = folderName(credentials, request.folder());
     try (Store store = openStore(credentials)) {
       Folder folder = store.getFolder(folderName);
@@ -127,11 +143,20 @@ public class ImapSmtpMailClient {
         int limit = Math.min(Math.max(1, maxMessages), messages.length);
         int start = Math.max(0, messages.length - limit);
         Message[] selected = java.util.Arrays.copyOfRange(messages, start, messages.length);
-        return snapshots(folder, selected, request.folder());
+        int resolvedBatchSize = Math.max(1, Math.min(batchSize, 100));
+
+        for (int offset = 0; offset < selected.length; offset += resolvedBatchSize) {
+          int end = Math.min(selected.length, offset + resolvedBatchSize);
+          Message[] batch = java.util.Arrays.copyOfRange(selected, offset, end);
+          consumer.accept(snapshots(folder, batch, request.folder()), selected.length);
+        }
+        return selected.length;
       } finally {
         folder.close(false);
       }
     } catch (BadRequestException exception) {
+      throw exception;
+    } catch (ServiceUnavailableException exception) {
       throw exception;
     } catch (Exception exception) {
       throw new ServiceUnavailableException("Unable to read messages from the IMAP server", exception);
@@ -553,6 +578,11 @@ public class ImapSmtpMailClient {
 
   private boolean hasText(String value) {
     return value != null && !value.isBlank();
+  }
+
+  @FunctionalInterface
+  public interface HistoryBatchConsumer {
+    void accept(List<MailboxMessage> batch, int totalMessages);
   }
 
   public record TestedMailbox(String sentFolder) {}
