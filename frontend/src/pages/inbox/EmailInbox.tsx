@@ -16,7 +16,12 @@ import type { AsyncJob } from '../../features/asyncJob/types'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
-import type { ChannelConnection } from '../../features/channel/types'
+import type {
+  ChannelConnection,
+  EmailFolder,
+  EmailSyncMode,
+  EmailSyncRequest,
+} from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { inboxApi } from '../../features/inbox/inboxApi'
@@ -114,6 +119,9 @@ export default function EmailInbox() {
   const initialSyncRange = useMemo(() => defaultSyncRange(), [])
   const [syncFrom, setSyncFrom] = useState(initialSyncRange.from)
   const [syncTo, setSyncTo] = useState(initialSyncRange.to)
+  const [syncMode, setSyncMode] = useState<EmailSyncMode>('DATE_RANGE')
+  const [syncFolder, setSyncFolder] = useState<EmailFolder>('INBOX')
+  const [syncMessageCount, setSyncMessageCount] = useState(100)
   const [syncJobs, setSyncJobs] = useState<Record<string, AsyncJob>>({})
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -231,15 +239,20 @@ export default function EmailInbox() {
     if (
       !companyId ||
       !selectedConnectionId ||
-      selectedConnection?.providerType !== 'GMAIL'
+      !selectedConnection ||
+      !['GMAIL', 'MICROSOFT'].includes(selectedConnection.providerType)
     ) {
       setSyncJobs({})
       return
     }
 
     let active = true
-    gmailApi
-      .activeSync(companyId, selectedConnectionId)
+    const request =
+      selectedConnection.providerType === 'GMAIL'
+        ? gmailApi.activeSync(companyId, selectedConnectionId)
+        : microsoftApi.activeSync(companyId, selectedConnectionId)
+
+    request
       .then((job) => {
         if (!active) return
         setSyncJobs(job ? { [job.jobId]: job } : {})
@@ -254,7 +267,7 @@ export default function EmailInbox() {
     return () => {
       active = false
     }
-  }, [companyId, selectedConnectionId, selectedConnection?.providerType, scheduleInboxRefresh])
+  }, [companyId, selectedConnectionId, selectedConnection, scheduleInboxRefresh])
 
   useEffect(() => {
     const gmailResult = searchParams.get('gmail')
@@ -372,7 +385,7 @@ export default function EmailInbox() {
         scheduleInboxRefresh()
       }
       if (job.status === 'FAILED') {
-        setError(job.errorMessage || 'Gmail sync failed')
+        setError(job.errorMessage || 'Email sync failed')
       }
     })
   }, [scheduleInboxRefresh])
@@ -394,86 +407,84 @@ export default function EmailInbox() {
     return () => window.clearInterval(timer)
   }, [activeSyncJobs, realtimeConnected])
 
-  const syncGmail = async () => {
-    if (!companyId || syncing) return
+  const openSyncDialog = () => {
     if (!selectedConnection) {
       setNotice('Select an email account before syncing.')
-      setShowSyncDialog(false)
       return
     }
-    if (selectedConnection.providerType !== 'GMAIL' || selectedConnection.status !== 'ACTIVE') {
-      setNotice('The selected email account is not an active Gmail connection.')
-      setShowSyncDialog(false)
+    if (
+      selectedConnection.status !== 'ACTIVE' ||
+      !['GMAIL', 'MICROSOFT'].includes(selectedConnection.providerType)
+    ) {
+      setNotice('The selected email account does not support sync.')
       return
     }
-    if (!syncFrom || !syncTo) {
-      setError('Choose both Gmail sync dates.')
+
+    setSyncFolder(selectedFolder)
+    setSyncMode('DATE_RANGE')
+    setSyncMessageCount(100)
+    setError(null)
+    setShowSyncDialog(true)
+  }
+
+  const syncSelected = async () => {
+    if (!companyId || syncing || !selectedConnection) return
+
+    if (
+      selectedConnection.status !== 'ACTIVE' ||
+      !['GMAIL', 'MICROSOFT'].includes(selectedConnection.providerType)
+    ) {
+      setError('The selected email account is not active.')
       return
     }
-    if (syncFrom > syncTo) {
-      setError('From date must be before or equal to the to date.')
+
+    if (syncMode === 'DATE_RANGE') {
+      if (!syncFrom || !syncTo) {
+        setError('Choose both sync dates.')
+        return
+      }
+      if (syncFrom > syncTo) {
+        setError('From date must be before or equal to the to date.')
+        return
+      }
+    } else if (!Number.isInteger(syncMessageCount) || syncMessageCount < 1 || syncMessageCount > 10000) {
+      setError('Choose a message count between 1 and 10,000.')
       return
     }
+
+    const request: EmailSyncRequest =
+      syncMode === 'DATE_RANGE'
+        ? {
+            mode: 'DATE_RANGE',
+            folder: syncFolder,
+            fromDate: syncFrom,
+            toDate: syncTo,
+          }
+        : {
+            mode: 'LATEST_MESSAGES',
+            folder: syncFolder,
+            messageCount: syncMessageCount,
+          }
 
     setSyncing(true)
     setError(null)
     setNotice(null)
 
     try {
-      const queued = await gmailApi.sync(companyId, selectedConnection.id, {
-        fromDate: syncFrom,
-        toDate: syncTo,
-      })
+      const queued =
+        selectedConnection.providerType === 'GMAIL'
+          ? await gmailApi.sync(companyId, selectedConnection.id, request)
+          : await microsoftApi.sync(companyId, selectedConnection.id, request)
       const job = await asyncJobApi.get(queued.jobId)
       setSyncJobs({ [job.jobId]: job })
       setShowSyncDialog(false)
       setNotice(
-        `Gmail sync started for ${selectedConnection.externalAccountId || selectedConnection.name}.`,
+        `Email sync started for ${selectedConnection.externalAccountId || selectedConnection.name}.`,
       )
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to queue Gmail sync'))
+      setError(apiErrorMessage(requestError, 'Unable to queue email sync'))
     } finally {
       setSyncing(false)
-    }
-  }
-
-  const syncMicrosoft = async () => {
-    if (!companyId || syncing || !selectedConnection) return
-    if (
-      selectedConnection.providerType !== 'MICROSOFT' ||
-      selectedConnection.status !== 'ACTIVE'
-    ) {
-      setNotice('The selected email account is not an active Microsoft 365 connection.')
-      return
-    }
-
-    setSyncing(true)
-    setError(null)
-    setNotice(null)
-    try {
-      await microsoftApi.sync(companyId, selectedConnection.id)
-      setNotice(
-        `Microsoft 365 sync requested for ${selectedConnection.externalAccountId || selectedConnection.name}.`,
-      )
-      scheduleInboxRefresh()
-    } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to request Microsoft 365 sync'))
-    } finally {
-      setSyncing(false)
-    }
-  }
-
-  const syncSelected = () => {
-    if (!selectedConnection) {
-      setNotice('Select an email account before syncing.')
-      return
-    }
-    if (selectedConnection.providerType === 'GMAIL') {
-      setShowSyncDialog(true)
-      return
-    }
-    if (selectedConnection.providerType === 'MICROSOFT') {
-      void syncMicrosoft()
     }
   }
 
@@ -704,22 +715,16 @@ export default function EmailInbox() {
             <button
               type="button"
               className="secondary-button flex-1 gap-2 sm:flex-none"
-              onClick={syncSelected}
+              onClick={openSyncDialog}
               disabled={
                 !selectedConnection ||
                 syncing ||
-                (selectedConnection.providerType === 'GMAIL' && activeSyncJobs.length > 0) ||
+                activeSyncJobs.length > 0 ||
                 !['GMAIL', 'MICROSOFT'].includes(selectedConnection.providerType)
               }
             >
               <FiMail aria-hidden="true" />
-              {syncing
-                ? 'Syncing...'
-                : activeSyncJobs.length > 0
-                  ? 'Syncing Gmail...'
-                  : selectedConnection?.providerType === 'MICROSOFT'
-                    ? 'Sync Microsoft'
-                    : 'Sync Gmail'}
+              {syncing || activeSyncJobs.length > 0 ? 'Syncing…' : 'Sync'}
             </button>
             {canSendSelectedEmail && (
               <button
@@ -752,10 +757,10 @@ export default function EmailInbox() {
               <div className="min-w-0">
                 <p className="text-sm font-bold text-slate-900">
                   {activeSyncJobs.length > 0
-                    ? 'Syncing Gmail'
+                    ? 'Syncing email'
                     : trackedSyncJobs.every((job) => job.status === 'COMPLETED')
-                      ? 'Gmail sync complete'
-                      : 'Gmail sync finished'}
+                      ? 'Email sync complete'
+                      : 'Email sync finished'}
                 </p>
                 <p className="mt-1 truncate text-xs text-slate-500">
                   {activeSyncJobs[0]?.statusMessage ||
@@ -909,42 +914,112 @@ export default function EmailInbox() {
             }}
           >
             <div
-              className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
+              className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
               role="dialog"
               aria-modal="true"
-              aria-labelledby="gmail-sync-title"
+              aria-labelledby="email-sync-title"
             >
-              <p className="eyebrow">GMAIL SYNC</p>
-              <h2 id="gmail-sync-title" className="mt-2 text-lg font-bold text-slate-950">
-                Choose email date range
+              <p className="eyebrow">EMAIL SYNC</p>
+              <h2 id="email-sync-title" className="mt-2 text-lg font-bold text-slate-950">
+                Import mailbox history
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                ReachFly will import Gmail messages within this range and show live progress.
+                {selectedConnection?.externalAccountId || selectedConnection?.name || 'Email'}
+                {' · '}
+                {selectedConnection?.providerType === 'MICROSOFT' ? 'Microsoft' : 'Gmail'}
               </p>
 
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <label className="text-xs font-semibold text-slate-600">
-                  From
-                  <input
-                    type="date"
-                    className="form-input mt-1.5"
-                    value={syncFrom}
-                    max={syncTo}
-                    onChange={(event) => setSyncFrom(event.target.value)}
-                  />
-                </label>
-                <label className="text-xs font-semibold text-slate-600">
-                  To
-                  <input
-                    type="date"
-                    className="form-input mt-1.5"
-                    value={syncTo}
-                    min={syncFrom}
-                    max={localDateInput(new Date())}
-                    onChange={(event) => setSyncTo(event.target.value)}
-                  />
-                </label>
+              <div className="mt-5">
+                <p className="text-xs font-semibold text-slate-600">Folder</p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(['INBOX', 'SENT'] as EmailFolder[]).map((folder) => (
+                    <button
+                      key={folder}
+                      type="button"
+                      className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                        syncFolder === folder
+                          ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                      onClick={() => setSyncFolder(folder)}
+                    >
+                      {folder === 'INBOX' ? 'Inbox' : 'Sent'}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              <div className="mt-5">
+                <p className="text-xs font-semibold text-slate-600">Import by</p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                      syncMode === 'DATE_RANGE'
+                        ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                    onClick={() => setSyncMode('DATE_RANGE')}
+                  >
+                    Date range
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                      syncMode === 'LATEST_MESSAGES'
+                        ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                    onClick={() => setSyncMode('LATEST_MESSAGES')}
+                  >
+                    Latest messages
+                  </button>
+                </div>
+              </div>
+
+              {syncMode === 'DATE_RANGE' ? (
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  <label className="text-xs font-semibold text-slate-600">
+                    From
+                    <input
+                      type="date"
+                      className="form-input mt-1.5"
+                      value={syncFrom}
+                      max={syncTo}
+                      onChange={(event) => setSyncFrom(event.target.value)}
+                    />
+                  </label>
+                  <label className="text-xs font-semibold text-slate-600">
+                    To
+                    <input
+                      type="date"
+                      className="form-input mt-1.5"
+                      value={syncTo}
+                      min={syncFrom}
+                      max={localDateInput(new Date())}
+                      onChange={(event) => setSyncTo(event.target.value)}
+                    />
+                  </label>
+                </div>
+              ) : (
+                <label className="mt-5 block text-xs font-semibold text-slate-600">
+                  Number of messages
+                  <input
+                    type="number"
+                    className="form-input mt-1.5"
+                    min={1}
+                    max={10000}
+                    step={1}
+                    value={syncMessageCount}
+                    onChange={(event) =>
+                      setSyncMessageCount(Math.max(1, Number(event.target.value) || 1))
+                    }
+                  />
+                  <span className="mt-1.5 block text-[11px] font-normal text-slate-400">
+                    Imports the newest messages first. Maximum 10,000 per request.
+                  </span>
+                </label>
+              )}
 
               <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <button
@@ -959,10 +1034,10 @@ export default function EmailInbox() {
                   type="button"
                   className="primary-button justify-center gap-2"
                   disabled={syncing}
-                  onClick={() => void syncGmail()}
+                  onClick={() => void syncSelected()}
                 >
                   <FiMail aria-hidden="true" />
-                  {syncing ? 'Starting...' : 'Start sync'}
+                  {syncing ? 'Starting…' : 'Start sync'}
                 </button>
               </div>
             </div>
