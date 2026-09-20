@@ -48,6 +48,9 @@ public class InboxMessage {
   @Column(name = "provider_folder_key", length = 64)
   private String providerFolderKey;
 
+  @Column(name = "provider_sync_marker")
+  private Long providerSyncMarker;
+
   @Column(name = "from_address", length = 320)
   private String fromAddress;
 
