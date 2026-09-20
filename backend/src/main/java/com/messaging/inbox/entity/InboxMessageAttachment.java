@@ -25,13 +25,13 @@ public class InboxMessageAttachment {
   @JoinColumn(name = "message_id", nullable = false)
   private InboxMessage message;
 
-  @Column(name = "external_attachment_id", nullable = false, length = 255)
+  @Column(name = "external_attachment_id", nullable = false, columnDefinition = "text")
   private String externalAttachmentId;
 
-  @Column(length = 512)
+  @Column(columnDefinition = "text")
   private String filename;
 
-  @Column(name = "mime_type", length = 255)
+  @Column(name = "mime_type", columnDefinition = "text")
   private String mimeType;
 
   @Column(name = "size_bytes")
