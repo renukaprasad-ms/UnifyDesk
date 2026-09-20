@@ -2,14 +2,12 @@ package com.messaging.channel.imapsmtp;
 
 import com.messaging.channel.email.EmailFolder;
 import com.messaging.channel.entity.ChannelConnection;
-import com.messaging.channel.enums.ChannelConnectionStatus;
-import com.messaging.channel.enums.ProviderType;
+import com.messaging.channel.imapsmtp.ImapSmtpSyncStateService.ClaimedIncremental;
 import com.messaging.channel.repository.ChannelConnectionRepository;
-import com.messaging.company.enums.CompanyStatus;
-import com.messaging.company.repository.CompanyRepository;
 import com.messaging.realtime.service.RealtimeService;
 import jakarta.annotation.PreDestroy;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,7 +22,6 @@ public class ImapSmtpIncrementalScheduler {
 
   private final ImapSmtpProperties properties;
   private final ChannelConnectionRepository connectionRepository;
-  private final CompanyRepository companyRepository;
   private final ImapSmtpConnectionService connectionService;
   private final ImapSmtpMailClient mailClient;
   private final ImapSmtpInboxPersistenceService persistenceService;
@@ -36,7 +33,6 @@ public class ImapSmtpIncrementalScheduler {
   public ImapSmtpIncrementalScheduler(
       ImapSmtpProperties properties,
       ChannelConnectionRepository connectionRepository,
-      CompanyRepository companyRepository,
       ImapSmtpConnectionService connectionService,
       ImapSmtpMailClient mailClient,
       ImapSmtpInboxPersistenceService persistenceService,
@@ -44,7 +40,6 @@ public class ImapSmtpIncrementalScheduler {
       RealtimeService realtimeService) {
     this.properties = properties;
     this.connectionRepository = connectionRepository;
-    this.companyRepository = companyRepository;
     this.connectionService = connectionService;
     this.mailClient = mailClient;
     this.persistenceService = persistenceService;
@@ -58,18 +53,16 @@ public class ImapSmtpIncrementalScheduler {
   public void poll() {
     if (!properties.isEnabled()) return;
 
-    var connections =
-        connectionRepository.findByProviderTypeAndStatus(
-            ProviderType.IMAP_SMTP, ChannelConnectionStatus.ACTIVE);
     int available = Math.max(1, properties.getWorkerConcurrency()) - inFlight.get();
+    if (available <= 0) return;
 
-    for (ChannelConnection connection : connections) {
-      if (available-- <= 0) break;
+    List<ClaimedIncremental> claimed = stateService.claim(available);
+    for (ClaimedIncremental claim : claimed) {
       inFlight.incrementAndGet();
       executor.submit(
           () -> {
             try {
-              syncConnection(connection);
+              syncConnection(claim);
             } finally {
               inFlight.decrementAndGet();
             }
@@ -77,14 +70,12 @@ public class ImapSmtpIncrementalScheduler {
     }
   }
 
-  private void syncConnection(ChannelConnection connection) {
+  private void syncConnection(ClaimedIncremental claim) {
     try {
-      boolean activeCompany =
-          companyRepository
-              .findById(connection.getCompanyId())
-              .map(company -> company.getStatus() == CompanyStatus.ACTIVE)
-              .orElse(false);
-      if (!activeCompany) return;
+      ChannelConnection connection =
+          connectionRepository
+              .findByIdAndCompanyId(claim.connectionId(), claim.companyId())
+              .orElseThrow(() -> new IllegalStateException("IMAP connection not found"));
 
       ImapSmtpStoredCredentials credentials = connectionService.credentials(connection);
       ImapSmtpCursorState cursors = stateService.read(connection.getId());
@@ -109,6 +100,7 @@ public class ImapSmtpIncrementalScheduler {
 
       connection.setLastSyncAt(Instant.now());
       connectionRepository.save(connection);
+      stateService.complete(connection.getId());
 
       if (changed > 0) {
         realtimeService.sendToCompany(
@@ -121,10 +113,23 @@ public class ImapSmtpIncrementalScheduler {
       }
     } catch (RuntimeException exception) {
       log.warn(
-          "imap_incremental_sync_failed connectionId={} account={} reason={}",
-          connection.getId(),
-          connection.getExternalAccountId(),
+          "imap_incremental_sync_failed connectionId={} attempt={} reason={}",
+          claim.connectionId(),
+          claim.attempt(),
           exception.getClass().getSimpleName());
+      try {
+        stateService.retry(
+            claim.connectionId(),
+            claim.attempt(),
+            exception.getMessage() == null
+                ? "IMAP incremental sync failed"
+                : exception.getMessage());
+      } catch (RuntimeException retryFailure) {
+        log.error(
+            "imap_incremental_retry_state_failed connectionId={}",
+            claim.connectionId(),
+            retryFailure);
+      }
     }
   }
 
