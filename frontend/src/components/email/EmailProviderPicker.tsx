@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { FiMail, FiPlus, FiServer, FiX } from 'react-icons/fi'
-import { SiGmail, SiMicrosoftoutlook } from 'react-icons/si'
+import { SiGmail, SiMicrosoft } from 'react-icons/si'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -152,7 +152,7 @@ export default function EmailProviderPicker({
                 onClick={() => void connectMicrosoft()}
               >
                 <span className="email-provider-mark">
-                  <SiMicrosoftoutlook aria-hidden="true" />
+                  <SiMicrosoft aria-hidden="true" />
                 </span>
                 <span className="min-w-0 flex-1 text-left">
                   <span className="block text-sm font-bold text-slate-900">
