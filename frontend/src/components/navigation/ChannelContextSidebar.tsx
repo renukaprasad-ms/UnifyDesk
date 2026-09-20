@@ -442,7 +442,8 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                     returnTo={location.pathname}
                     label="Connect email"
                     className="workspace-menu-item justify-start"
-                    onOpen={() => setMenuOpen(false)}
+                    buttonIcon="plus"
+                    onClose={() => setMenuOpen(false)}
                     onError={setError}
                   />
                   <button
