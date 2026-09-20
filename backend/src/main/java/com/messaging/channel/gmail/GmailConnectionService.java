@@ -3,6 +3,7 @@ package com.messaging.channel.gmail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.channel.credential.ProviderCredentialService;
+import com.messaging.channel.email.EmailSyncRequest;
 import com.messaging.channel.dto.ChannelConnectionResponse;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
@@ -14,7 +15,6 @@ import com.messaging.channel.gmail.GmailOAuthStateService.OAuthState;
 import com.messaging.channel.gmail.dto.GmailAuthorizationResponse;
 import com.messaging.channel.gmail.dto.GmailConnectionResponse;
 import com.messaging.channel.gmail.dto.GmailSyncQueuedResponse;
-import com.messaging.channel.gmail.dto.GmailSyncRequest;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.channel.service.ChannelConnectionService;
 import com.messaging.channel.service.ChannelEntitlementService;
@@ -112,7 +112,7 @@ public class GmailConnectionService {
   }
 
   public GmailSyncQueuedResponse queueSync(
-      Long companyId, Long userId, Long connectionId, GmailSyncRequest request) {
+      Long companyId, Long userId, Long connectionId, EmailSyncRequest request) {
     ChannelConnectionResponse connection = channelConnectionService.get(companyId, connectionId);
     if (connection.providerType() != ProviderType.GMAIL) {
       throw new BadRequestException("Channel connection is not a Gmail account");
@@ -121,8 +121,7 @@ public class GmailConnectionService {
       throw new BadRequestException("Gmail connection is not active");
     }
 
-    return syncQueueService.enqueue(
-        companyId, userId, connectionId, request.fromDate(), request.toDate());
+    return syncQueueService.enqueue(companyId, userId, connectionId, request);
   }
 
   public AsyncJobResponse activeSync(Long companyId, Long connectionId) {
