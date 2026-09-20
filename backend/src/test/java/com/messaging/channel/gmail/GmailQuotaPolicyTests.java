@@ -8,16 +8,19 @@ import org.junit.jupiter.api.Test;
 class GmailQuotaPolicyTests {
 
   @Test
-  void calculatesSafeIntervalFromPerUserQuota() {
+  void calculatesBackgroundIntervalWithInteractiveReserve() {
     GmailOAuthProperties properties = new GmailOAuthProperties();
-    properties.setSyncBatchSize(50);
+    properties.setSyncBatchSize(25);
     properties.setSyncUserQuotaUnitsPerMinute(6000);
     properties.setSyncMessageGetQuotaUnits(20);
-    properties.setSyncQuotaUtilizationPercent(90);
+    properties.setSyncQuotaUtilizationPercent(80);
+    properties.setQuotaInteractiveReservePercent(20);
 
     GmailQuotaPolicy policy = new GmailQuotaPolicy(properties);
 
-    assertThat(policy.batchInterval().toMillis()).isEqualTo(11112L);
+    // 25 * 20 = 500 units. Background budget is
+    // 6000 * 80% safety * 80% background = 3840 units/minute.
+    assertThat(policy.batchInterval().toMillis()).isEqualTo(7813L);
   }
 
   @Test
@@ -27,6 +30,7 @@ class GmailQuotaPolicyTests {
     properties.setSyncUserQuotaUnitsPerMinute(6000);
     properties.setSyncMessageGetQuotaUnits(20);
     properties.setSyncQuotaUtilizationPercent(100);
+    properties.setQuotaInteractiveReservePercent(0);
 
     GmailQuotaPolicy policy = new GmailQuotaPolicy(properties);
     Instant createdAt = Instant.parse("2026-09-19T16:00:00Z");
