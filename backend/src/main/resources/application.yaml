@@ -191,6 +191,8 @@ app:
       delta-page-size: ${MICROSOFT_DELTA_PAGE_SIZE:50}
       worker-concurrency: ${MICROSOFT_WORKER_CONCURRENCY:8}
       worker-poll-interval-ms: ${MICROSOFT_WORKER_POLL_INTERVAL_MS:500}
+      safety-sync-interval: ${MICROSOFT_SAFETY_SYNC_INTERVAL:5m}
+      safety-sync-initial-delay: ${MICROSOFT_SAFETY_SYNC_INITIAL_DELAY:2m}
       api-retry-max-attempts: ${MICROSOFT_API_RETRY_MAX_ATTEMPTS:4}
       api-retry-initial-backoff: ${MICROSOFT_API_RETRY_INITIAL_BACKOFF:1s}
       api-retry-max-backoff: ${MICROSOFT_API_RETRY_MAX_BACKOFF:30s}
