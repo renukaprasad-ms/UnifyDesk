@@ -52,6 +52,13 @@ export default function ConversationList({
   hasMore = false,
 }: ConversationListProps) {
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
+  const loadRequestedRef = useRef(false)
+
+  useEffect(() => {
+    if (!loadingMore) {
+      loadRequestedRef.current = false
+    }
+  }, [loadingMore, conversations.length])
 
   useEffect(() => {
     if (!hasMore || !onLoadMore || loadingMore) return
@@ -60,7 +67,11 @@ export default function ConversationList({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
+        if (
+          entries.some((entry) => entry.isIntersecting) &&
+          !loadRequestedRef.current
+        ) {
+          loadRequestedRef.current = true
           onLoadMore()
         }
       },
