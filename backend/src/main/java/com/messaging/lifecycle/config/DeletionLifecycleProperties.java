@@ -14,4 +14,7 @@ public class DeletionLifecycleProperties {
   private Duration retryDelay = Duration.ofHours(1);
   private Duration staleAfter = Duration.ofHours(1);
   private int batchSize = 20;
+  private int rowBatchSize = 5000;
+  private int maxRowBatchesPerRun = 4;
+  private int mediaBatchSize = 250;
 }
