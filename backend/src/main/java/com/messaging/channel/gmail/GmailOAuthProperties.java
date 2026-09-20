@@ -52,6 +52,28 @@ public class GmailOAuthProperties {
   private Duration apiRetryInitialBackoff = Duration.ofSeconds(1);
   private Duration apiRetryMaxBackoff = Duration.ofSeconds(8);
 
+  private String pubsubTopicName;
+  private String pubsubPushVerificationToken;
+  private Duration watchRenewInterval = Duration.ofHours(1);
+  private Duration watchRenewInitialDelay = Duration.ofMinutes(1);
+  private Duration watchRenewAfter = Duration.ofHours(24);
+  private int realtimeWorkerConcurrency = 4;
+  private int realtimeWorkerPollIntervalMs = 500;
+  private Duration realtimeStaleAfter = Duration.ofMinutes(5);
+  private int realtimeMaxAttempts = 12;
+  private int realtimeHistoryPageSize = 200;
+  private int realtimeBatchSize = 25;
+  private Duration realtimeSafetySyncInterval = Duration.ofMinutes(5);
+  private Duration realtimeSafetySyncInitialDelay = Duration.ofMinutes(2);
+  private int realtimeRecoveryDays = 30;
+  private int realtimeRecoveryMaxMessages = 1000;
+
+  public boolean realtimeConfigured() {
+    return configured()
+        && hasText(pubsubTopicName)
+        && hasText(pubsubPushVerificationToken);
+  }
+
   public boolean configured() {
     return enabled
         && hasText(clientId)

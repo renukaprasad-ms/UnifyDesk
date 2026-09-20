@@ -359,6 +359,66 @@ public class GmailApiClient {
                 .body(GmailMessage.class));
   }
 
+  public WatchResponse watch(String accessToken, String topicName) {
+    if (topicName == null || topicName.isBlank()) {
+      throw new BadRequestException("Gmail Pub/Sub topic is not configured");
+    }
+    return execute(
+        "gmail_watch",
+        () ->
+            gmailApi
+                .post()
+                .uri("/gmail/v1/users/me/watch")
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new WatchRequest(topicName))
+                .retrieve()
+                .body(WatchResponse.class));
+  }
+
+  public void stopWatch(String accessToken) {
+    execute(
+        "gmail_stop_watch",
+        () ->
+            gmailApi
+                .post()
+                .uri("/gmail/v1/users/me/stop")
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .toBodilessEntity());
+  }
+
+  public HistoryListResponse history(
+      String accessToken, String startHistoryId, String pageToken, int maxResults) {
+    if (startHistoryId == null || startHistoryId.isBlank()) {
+      throw new BadRequestException("Gmail startHistoryId is required");
+    }
+
+    UriComponentsBuilder builder =
+        UriComponentsBuilder.fromPath("/gmail/v1/users/me/history")
+            .queryParam("startHistoryId", startHistoryId)
+            .queryParam("maxResults", Math.max(1, Math.min(maxResults, 500)))
+            .queryParam("historyTypes", "messageAdded")
+            .queryParam("historyTypes", "messageDeleted")
+            .queryParam("historyTypes", "labelAdded")
+            .queryParam("historyTypes", "labelRemoved");
+
+    if (pageToken != null && !pageToken.isBlank()) {
+      builder.queryParam("pageToken", pageToken);
+    }
+
+    URI uri = builder.build().encode().toUri();
+    return execute(
+        "gmail_history_list",
+        () ->
+            gmailApi
+                .get()
+                .uri(uri)
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(HistoryListResponse.class));
+  }
+
   public void revokeBestEffort(String token) {
     if (token == null || token.isBlank()) return;
 
@@ -457,6 +517,10 @@ public class GmailApiClient {
               gmailQuotaAware
                   ? "Gmail is temporarily unavailable. The request will be retried automatically."
                   : "Google OAuth is temporarily unavailable. Please try again.");
+        }
+
+        if ("gmail_history_list".equals(operation) && status == 404) {
+          throw new GmailHistoryExpiredException();
         }
 
         if (status == 403) {
@@ -599,6 +663,34 @@ public class GmailApiClient {
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public record SendMessageRequest(String raw, String threadId) {}
+
+  public record WatchRequest(String topicName) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record WatchResponse(String historyId, Long expiration) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record HistoryListResponse(
+      List<HistoryRecord> history,
+      String nextPageToken,
+      String historyId) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record HistoryRecord(
+      String id,
+      List<HistoryMessageChange> messagesAdded,
+      List<HistoryMessageChange> messagesDeleted,
+      List<HistoryLabelChange> labelsAdded,
+      List<HistoryLabelChange> labelsRemoved) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record HistoryMessageChange(HistoryMessage message) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record HistoryLabelChange(HistoryMessage message, List<String> labelIds) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record HistoryMessage(String id, String threadId, List<String> labelIds) {}
 
   public record SendMessageResponse(String id, String threadId, List<String> labelIds) {}
 

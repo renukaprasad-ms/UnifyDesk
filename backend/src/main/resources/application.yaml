@@ -183,6 +183,23 @@ app:
       api-retry-max-attempts: ${GMAIL_API_RETRY_MAX_ATTEMPTS:4}
       api-retry-initial-backoff: ${GMAIL_API_RETRY_INITIAL_BACKOFF:1s}
       api-retry-max-backoff: ${GMAIL_API_RETRY_MAX_BACKOFF:8s}
+
+      # Gmail server push: users.watch -> Google Cloud Pub/Sub -> webhook -> history.list.
+      pubsub-topic-name: ${GMAIL_PUBSUB_TOPIC_NAME:}
+      pubsub-push-verification-token: ${GMAIL_PUBSUB_PUSH_VERIFICATION_TOKEN:}
+      watch-renew-interval: ${GMAIL_WATCH_RENEW_INTERVAL:1h}
+      watch-renew-initial-delay: ${GMAIL_WATCH_RENEW_INITIAL_DELAY:1m}
+      watch-renew-after: ${GMAIL_WATCH_RENEW_AFTER:24h}
+      realtime-worker-concurrency: ${GMAIL_REALTIME_WORKER_CONCURRENCY:4}
+      realtime-worker-poll-interval-ms: ${GMAIL_REALTIME_WORKER_POLL_INTERVAL_MS:500}
+      realtime-stale-after: ${GMAIL_REALTIME_STALE_AFTER:5m}
+      realtime-max-attempts: ${GMAIL_REALTIME_MAX_ATTEMPTS:12}
+      realtime-history-page-size: ${GMAIL_REALTIME_HISTORY_PAGE_SIZE:200}
+      realtime-batch-size: ${GMAIL_REALTIME_BATCH_SIZE:25}
+      realtime-safety-sync-interval: ${GMAIL_REALTIME_SAFETY_SYNC_INTERVAL:5m}
+      realtime-safety-sync-initial-delay: ${GMAIL_REALTIME_SAFETY_SYNC_INITIAL_DELAY:2m}
+      realtime-recovery-days: ${GMAIL_REALTIME_RECOVERY_DAYS:30}
+      realtime-recovery-max-messages: ${GMAIL_REALTIME_RECOVERY_MAX_MESSAGES:1000}
     microsoft:
       enabled: ${MICROSOFT_OAUTH_ENABLED:false}
       tenant: ${MICROSOFT_OAUTH_TENANT:common}

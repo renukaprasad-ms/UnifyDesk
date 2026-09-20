@@ -77,9 +77,10 @@ public class GmailSyncService {
     String accessToken = tokenService.accessToken(connection);
     int configuredMaxMessages = Math.max(1, properties.getSyncMaxMessages());
     int maxMessages =
-        mode == EmailSyncMode.LATEST_MESSAGES
+        (mode == EmailSyncMode.LATEST_MESSAGES || mode == EmailSyncMode.REALTIME_RECOVERY)
             ? Math.min(configuredMaxMessages, messageCount)
             : configuredMaxMessages;
+    boolean recovery = mode == EmailSyncMode.REALTIME_RECOVERY;
     int batchSize = Math.min(MAX_HTTP_BATCH_SIZE, Math.max(1, properties.getSyncBatchSize()));
     String query = query(mode, folder, fromDate, toDate);
 
@@ -126,7 +127,8 @@ public class GmailSyncService {
           estimatedTotal,
           "Discovered " + discovered + " Gmail messages; preparing batches");
 
-      Set<String> existingIds = existingMessageIds(connectionId, references);
+      Set<String> existingIds =
+          recovery ? Set.of() : existingMessageIds(connectionId, references);
       if (!existingIds.isEmpty()) {
         existing += existingIds.size();
         asyncJobService.incrementProgress(
@@ -134,7 +136,7 @@ public class GmailSyncService {
       }
 
       for (MessageReference reference : references) {
-        if (existingIds.contains(reference.id())) {
+        if (!recovery && existingIds.contains(reference.id())) {
           continue;
         }
         carry.add(reference.id());
@@ -188,13 +190,15 @@ public class GmailSyncService {
       throw new ServiceUnavailableException(
           "Gmail sync is waiting for provider capacity", exception);
     }
+    boolean providerScanComplete = !hasText(pageToken);
     stateService.completeDiscovery(
         jobId,
         nextBatchIndex,
         discovered,
         existing,
         batchCount,
-        profile.historyId());
+        profile.historyId(),
+        providerScanComplete);
 
     asyncJobService.setTotal(
         jobId,
@@ -242,6 +246,24 @@ public class GmailSyncService {
       throw new BadRequestException("Email sync mode and folder are required");
     }
 
+    if (mode == EmailSyncMode.REALTIME_RECOVERY) {
+      if (folder != EmailFolder.ALL) {
+        throw new BadRequestException("Gmail realtime recovery requires the ALL folder");
+      }
+      if (messageCount == null || messageCount < 1) {
+        throw new BadRequestException("Gmail realtime recovery messageCount is required");
+      }
+      if (messageCount > Math.max(1, properties.getSyncMaxMessages())) {
+        throw new BadRequestException(
+            "Gmail realtime recovery cannot exceed " + properties.getSyncMaxMessages() + " messages");
+      }
+      return;
+    }
+
+    if (folder == EmailFolder.ALL) {
+      throw new BadRequestException("ALL folder is reserved for Gmail realtime recovery");
+    }
+
     if (mode == EmailSyncMode.LATEST_MESSAGES) {
       if (messageCount == null || messageCount < 1) {
         throw new BadRequestException("messageCount is required for latest-message sync");
@@ -269,7 +291,7 @@ public class GmailSyncService {
   private String query(
       EmailSyncMode mode, EmailFolder folder, LocalDate fromDate, LocalDate toDate) {
     String folderQuery = folder.gmailSearchToken();
-    if (mode == EmailSyncMode.LATEST_MESSAGES) {
+    if (mode == EmailSyncMode.LATEST_MESSAGES || mode == EmailSyncMode.REALTIME_RECOVERY) {
       return folderQuery;
     }
 

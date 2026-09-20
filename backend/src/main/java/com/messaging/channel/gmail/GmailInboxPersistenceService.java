@@ -59,6 +59,12 @@ public class GmailInboxPersistenceService {
 
   @Transactional
   public GmailSyncResult persistBatch(ChannelConnection connection, List<GmailMessage> messages) {
+    return persistBatch(connection, messages, null);
+  }
+
+  @Transactional
+  public GmailSyncResult persistBatch(
+      ChannelConnection connection, List<GmailMessage> messages, Long providerSyncMarker) {
     Instant syncedAt = Instant.now();
     int createdMessages = 0;
     Set<Long> touchedConversationIds = new HashSet<>();
@@ -100,7 +106,19 @@ public class GmailInboxPersistenceService {
     }
 
     for (GmailMessage gmailMessage : validMessages) {
-      InboxConversation conversation = conversationsByExternalId.get(gmailMessage.threadId());
+      InboxMessage existingMessage = messagesByExternalId.get(gmailMessage.id());
+      EmailFolder providerFolder = folder(gmailMessage.labelIds());
+
+      // A recovery scan uses in:anywhere so it can reconcile archived/trash/deleted state.
+      // Do not create new local rows for mail outside the product's Inbox/Sent views.
+      if (providerSyncMarker != null && providerFolder == null && existingMessage == null) {
+        continue;
+      }
+
+      InboxConversation conversation =
+          existingMessage == null
+              ? conversationsByExternalId.get(gmailMessage.threadId())
+              : existingMessage.getConversation();
       boolean conversationCreated = conversation == null;
       if (conversationCreated) {
         conversation = new InboxConversation();
@@ -127,10 +145,7 @@ public class GmailInboxPersistenceService {
       conversation = conversationRepository.save(conversation);
       conversationsByExternalId.put(gmailMessage.threadId(), conversation);
 
-      InboxMessage message = messagesByExternalId.get(gmailMessage.id());
-      if (message == null) {
-        message = new InboxMessage();
-      }
+      InboxMessage message = existingMessage == null ? new InboxMessage() : existingMessage;
       boolean created = message.getId() == null;
 
       if (created) {
@@ -142,7 +157,10 @@ public class GmailInboxPersistenceService {
       InboxMessageDirection direction = direction(gmailMessage.labelIds());
       message.setInternetMessageId(header(gmailMessage.payload(), "Message-ID"));
       message.setProviderHistoryId(gmailMessage.historyId());
-      message.setProviderFolderKey(folder(gmailMessage.labelIds()).providerKey());
+      message.setProviderFolderKey(providerFolder == null ? null : providerFolder.providerKey());
+      if (providerSyncMarker != null) {
+        message.setProviderSyncMarker(providerSyncMarker);
+      }
       message.setFromAddress(firstAddress(header(gmailMessage.payload(), "From")));
       message.setReplyToAddress(firstAddress(header(gmailMessage.payload(), "Reply-To")));
       message.setToAddresses(addressesCsv(header(gmailMessage.payload(), "To")));
@@ -222,6 +240,72 @@ public class GmailInboxPersistenceService {
         syncedAt);
   }
 
+  @Transactional(readOnly = true)
+  public Set<String> activeFolderMessageIdsSince(
+      ChannelConnection connection, Instant since) {
+    return messageRepository
+        .findByConnectionIdAndProviderFolderKeyIsNotNullAndSentAtGreaterThanEqualAndStatusNot(
+            connection.getId(), since, InboxMessageStatus.DELETED)
+        .stream()
+        .map(InboxMessage::getExternalMessageId)
+        .filter(this::hasText)
+        .collect(java.util.stream.Collectors.toSet());
+  }
+
+  @Transactional
+  public int markDeleted(ChannelConnection connection, java.util.Collection<String> externalMessageIds) {
+    if (externalMessageIds == null || externalMessageIds.isEmpty()) {
+      return 0;
+    }
+
+    List<InboxMessage> messages =
+        messageRepository.findByConnectionIdAndExternalMessageIdIn(
+            connection.getId(), externalMessageIds);
+    Set<Long> touchedConversationIds = new HashSet<>();
+    int deletedCount = 0;
+
+    for (InboxMessage message : messages) {
+      if (message.getStatus() == InboxMessageStatus.DELETED) {
+        continue;
+      }
+      message.setStatus(InboxMessageStatus.DELETED);
+      message.setProviderFolderKey(null);
+      message.setRead(true);
+      messageRepository.save(message);
+      touchedConversationIds.add(message.getConversation().getId());
+      deletedCount++;
+    }
+
+    for (Long conversationId : touchedConversationIds) {
+      conversationRepository
+          .findById(conversationId)
+          .ifPresent(
+              conversation -> {
+                messageRepository
+                    .findFirstByConversationIdAndStatusNotOrderBySentAtDescCreatedAtDesc(
+                        conversationId, InboxMessageStatus.DELETED)
+                    .ifPresentOrElse(
+                        latest -> {
+                          conversation.setLastMessageAt(latest.getSentAt());
+                          conversation.setLastMessagePreview(latest.getSnippet());
+                          conversation.setSubject(latest.getSubject());
+                        },
+                        () -> {
+                          conversation.setLastMessageAt(null);
+                          conversation.setLastMessagePreview(null);
+                        });
+
+                long unread =
+                    messageRepository.countByConversationIdAndDirectionAndReadFalse(
+                        conversationId, InboxMessageDirection.INBOUND);
+                conversation.setUnreadCount((int) Math.min(unread, Integer.MAX_VALUE));
+                conversationRepository.save(conversation);
+              });
+    }
+
+    return deletedCount;
+  }
+
   @Transactional
   public void completeFullSync(ChannelConnection connection, String historyId) {
     Instant syncedAt = Instant.now();
@@ -233,7 +317,15 @@ public class GmailInboxPersistenceService {
       syncState.setConnection(connection);
       syncState.setProviderType(ProviderType.GMAIL);
     }
-    syncState.setCursorValue(historyId);
+    if (historyId != null
+        && !historyId.isBlank()
+        && (syncState.getCursorValue() == null
+            || syncState.getCursorValue().isBlank()
+            || GmailRealtimeStateService.compareHistoryId(
+                    historyId, syncState.getCursorValue())
+                > 0)) {
+      syncState.setCursorValue(historyId);
+    }
     syncState.setLastFullSyncAt(syncedAt);
     syncStateRepository.save(syncState);
 
@@ -450,11 +542,17 @@ public class GmailInboxPersistenceService {
   }
 
   private EmailFolder folder(List<String> labels) {
-    return containsLabel(labels, "SENT") ? EmailFolder.SENT : EmailFolder.INBOX;
+    if (containsLabel(labels, "SENT")) {
+      return EmailFolder.SENT;
+    }
+    if (containsLabel(labels, "INBOX")) {
+      return EmailFolder.INBOX;
+    }
+    return null;
   }
 
   private InboxMessageDirection direction(List<String> labels) {
-    return folder(labels) == EmailFolder.SENT
+    return containsLabel(labels, "SENT")
         ? InboxMessageDirection.OUTBOUND
         : InboxMessageDirection.INBOUND;
   }

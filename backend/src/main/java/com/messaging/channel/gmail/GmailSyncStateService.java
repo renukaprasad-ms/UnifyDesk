@@ -106,7 +106,8 @@ public class GmailSyncStateService {
       long discoveredCount,
       long existingCount,
       int batchCount,
-      String historyId) {
+      String historyId,
+      boolean providerScanComplete) {
     GmailSyncRun run = requireRunForUpdate(jobId);
     run.setDiscoveryComplete(true);
     run.setNextPageToken(null);
@@ -116,6 +117,7 @@ public class GmailSyncStateService {
     run.setExistingCount(existingCount);
     run.setBatchCount(batchCount);
     run.setHistoryId(historyId);
+    run.setProviderScanComplete(providerScanComplete);
     runRepository.save(run);
   }
 

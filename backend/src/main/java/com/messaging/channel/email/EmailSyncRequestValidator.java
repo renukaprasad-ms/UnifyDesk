@@ -12,6 +12,9 @@ public final class EmailSyncRequestValidator {
     if (request == null || request.mode() == null || request.folder() == null) {
       throw new BadRequestException("Email sync mode and folder are required");
     }
+    if (request.mode() == EmailSyncMode.REALTIME_RECOVERY || request.folder() == EmailFolder.ALL) {
+      throw new BadRequestException("Internal email recovery mode is not available through this API");
+    }
 
     if (request.mode() == EmailSyncMode.LATEST_MESSAGES) {
       if (request.messageCount() == null || request.messageCount() < 1) {
