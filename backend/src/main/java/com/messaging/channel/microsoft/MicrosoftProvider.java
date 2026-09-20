@@ -9,7 +9,10 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
+@lombok.RequiredArgsConstructor
 public class MicrosoftProvider implements ChannelProvider {
+
+  private final MicrosoftSubscriptionService subscriptionService;
 
   @Override
   public ProviderType providerType() {
@@ -20,6 +23,11 @@ public class MicrosoftProvider implements ChannelProvider {
   public ProviderSendResult send(ProviderSendRequest request) {
     throw new com.messaging.common.exception.BadRequestException(
         "Use the Microsoft email send endpoint");
+  }
+
+  @Override
+  public void disconnect(ChannelConnection connection) {
+    subscriptionService.disconnect(connection);
   }
 
   @Override
