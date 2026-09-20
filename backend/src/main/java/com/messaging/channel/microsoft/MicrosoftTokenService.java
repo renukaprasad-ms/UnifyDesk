@@ -21,6 +21,17 @@ public class MicrosoftTokenService {
   private final MicrosoftOAuthProperties properties;
   private final ObjectMapper objectMapper;
 
+  public String storedAccessToken(ChannelConnection connection) {
+    try {
+      CredentialValue credential =
+          credentialService.readWithMetadata(connection.getId(), CredentialType.OAUTH_TOKEN_SET);
+      MicrosoftStoredToken stored = read(credential.plaintextPayload());
+      return hasText(stored.accessToken()) ? stored.accessToken() : null;
+    } catch (RuntimeException exception) {
+      return null;
+    }
+  }
+
   public String accessToken(ChannelConnection connection) {
     CredentialValue credential =
         credentialService.readWithMetadata(connection.getId(), CredentialType.OAUTH_TOKEN_SET);
