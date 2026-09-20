@@ -7,6 +7,7 @@ import com.messaging.asyncjob.enums.AsyncJobType;
 import com.messaging.asyncjob.repository.AsyncJobRepository;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.realtime.service.RealtimeService;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -167,6 +168,37 @@ public class AsyncJobService {
     return saveAndPublish(job);
   }
 
+  @Transactional
+  public List<ClaimedAsyncJob> claim(
+      AsyncJobType jobType, int limit, Duration staleAfter) {
+    if (limit <= 0) return List.of();
+
+    Instant staleCutoff =
+        Instant.now().minus(staleAfter == null ? Duration.ofMinutes(10) : staleAfter);
+    List<AsyncJob> jobs =
+        repository.findClaimableForUpdate(jobType.name(), staleCutoff, limit);
+    Instant now = Instant.now();
+
+    for (AsyncJob job : jobs) {
+      job.setStatus(AsyncJobStatus.RUNNING);
+      if (job.getStartedAt() == null) job.setStartedAt(now);
+      job.setStatusMessage("Processing");
+      job.setErrorMessage(null);
+    }
+    repository.saveAll(jobs);
+
+    return jobs.stream()
+        .map(
+            job ->
+                new ClaimedAsyncJob(
+                    job.getId(),
+                    job.getCompanyId(),
+                    job.getUserId(),
+                    job.getResourceId(),
+                    job.getMetadataJson()))
+        .toList();
+  }
+
   @Transactional(readOnly = true)
   public AsyncJobResponse getForUser(Long jobId, Long userId) {
     return repository
@@ -210,6 +242,9 @@ public class AsyncJobService {
         job.getCompletedAt(),
         job.getUpdatedAt());
   }
+
+  public record ClaimedAsyncJob(
+      Long jobId, Long companyId, Long userId, String resourceId, String metadataJson) {}
 
   private String truncate(String value, int maxLength) {
     if (value == null || value.length() <= maxLength) return value;
