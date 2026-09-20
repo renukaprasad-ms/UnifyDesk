@@ -17,6 +17,7 @@ public class ImapSmtpProperties {
   private Duration incrementalPollInterval = Duration.ofMinutes(1);
   private Duration incrementalInitialDelay = Duration.ofMinutes(1);
   private int incrementalMaxMessagesPerFolder = 250;
+  private int incrementalMaxAttempts = 12;
   private int syncMaxMessages = 10000;
   private int syncMaxRangeDays = 366;
   private int workerConcurrency = 4;
