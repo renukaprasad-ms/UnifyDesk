@@ -81,6 +81,9 @@ public class GmailSyncRun {
   @Column(name = "history_id", length = 128)
   private String historyId;
 
+  @Column(name = "provider_scan_complete", nullable = false)
+  private boolean providerScanComplete;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
