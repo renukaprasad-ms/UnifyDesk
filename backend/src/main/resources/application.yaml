@@ -194,7 +194,12 @@ app:
       scope: ${MICROSOFT_OAUTH_SCOPE:openid profile email offline_access User.Read Mail.ReadWrite Mail.Send}
       oauth-state-ttl: ${MICROSOFT_OAUTH_STATE_TTL:10m}
       token-refresh-skew: ${MICROSOFT_OAUTH_TOKEN_REFRESH_SKEW:2m}
-      initial-sync-days: ${MICROSOFT_INITIAL_SYNC_DAYS:30}
+      live-initial-lookback: ${MICROSOFT_LIVE_INITIAL_LOOKBACK:5m}
+      backfill-max-messages: ${MICROSOFT_BACKFILL_MAX_MESSAGES:10000}
+      backfill-max-range-days: ${MICROSOFT_BACKFILL_MAX_RANGE_DAYS:365}
+      backfill-worker-concurrency: ${MICROSOFT_BACKFILL_WORKER_CONCURRENCY:4}
+      backfill-poll-interval-ms: ${MICROSOFT_BACKFILL_POLL_INTERVAL_MS:500}
+      backfill-max-attempts: ${MICROSOFT_BACKFILL_MAX_ATTEMPTS:12}
       subscription-lifetime: ${MICROSOFT_SUBSCRIPTION_LIFETIME:PT167H}
       subscription-renew-before: ${MICROSOFT_SUBSCRIPTION_RENEW_BEFORE:24h}
       subscription-renew-interval: ${MICROSOFT_SUBSCRIPTION_RENEW_INTERVAL:12h}
