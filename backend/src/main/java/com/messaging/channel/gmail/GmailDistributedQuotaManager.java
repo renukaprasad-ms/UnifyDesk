@@ -175,7 +175,8 @@ public class GmailDistributedQuotaManager {
         providerRetryAfter == null || providerRetryAfter.isNegative()
             ? 0L
             : providerRetryAfter.toMillis();
-    return Duration.ofMillis(Math.min(maximum, Math.max(exponential, providerMs)));
+    long boundedExponential = Math.min(maximum, exponential);
+    return Duration.ofMillis(Math.max(boundedExponential, providerMs));
   }
 
   private GmailQuotaReservation parseReservation(Instant now, String raw) {
