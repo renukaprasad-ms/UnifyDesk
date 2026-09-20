@@ -3,7 +3,7 @@ package com.messaging.channel.gmail;
 import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.asyncjob.enums.AsyncJobType;
 import com.messaging.asyncjob.service.AsyncJobService;
-import java.time.LocalDate;
+import com.messaging.channel.email.EmailSyncRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -21,8 +21,7 @@ public class GmailSyncJobFactory {
       Long companyId,
       Long userId,
       Long connectionId,
-      LocalDate fromDate,
-      LocalDate toDate,
+      EmailSyncRequest request,
       String metadataJson) {
     AsyncJobResponse job =
         asyncJobService.create(
@@ -34,7 +33,7 @@ public class GmailSyncJobFactory {
             "Gmail sync queued");
 
     stateService.createRun(
-        Long.valueOf(job.jobId()), companyId, userId, connectionId, fromDate, toDate);
+        Long.valueOf(job.jobId()), companyId, userId, connectionId, request);
     return job;
   }
 }
