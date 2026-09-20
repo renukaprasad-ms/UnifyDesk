@@ -81,6 +81,7 @@ export default function EmailInbox() {
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedConnectionId = searchParams.get('connectionId')
   const selectedConversationId = searchParams.get('conversationId')
+  const selectedFolder = searchParams.get('folder') === 'SENT' ? 'SENT' : 'INBOX'
   const composeOpen = searchParams.get('compose') === '1'
   const [connections, setConnections] = useState<ChannelConnection[]>([])
   const [conversations, setConversations] = useState<InboxConversation[]>([])
@@ -166,13 +167,20 @@ export default function EmailInbox() {
           if (first) {
             const params = new URLSearchParams(window.location.search)
             params.set('connectionId', first.id)
+            if (!params.get('folder')) params.set('folder', 'INBOX')
             params.delete('conversationId')
             setSearchParams(params, { replace: true })
           }
           return
         }
 
-        const inbox = await inboxApi.conversations(companyId, page, 30, selectedConnectionId)
+        const inbox = await inboxApi.conversations(
+          companyId,
+          page,
+          30,
+          selectedConnectionId,
+          selectedFolder,
+        )
 
         setConversations((current) => {
           if (!append) return inbox.items
@@ -191,7 +199,7 @@ export default function EmailInbox() {
         setLoadingMore(false)
       }
     },
-    [companyId, selectedConnectionId, setSearchParams],
+    [companyId, selectedConnectionId, selectedFolder, setSearchParams],
   )
 
   const scheduleInboxRefresh = useCallback(() => {
