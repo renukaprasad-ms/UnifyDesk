@@ -87,7 +87,7 @@ export default function PlatformUsers() {
           )}
 
           <div className="overflow-x-auto">
-            <table className="min-w-full text-left">
+            <table className="mobile-card-table min-w-full text-left">
               <thead className="bg-slate-50/80">
                 <tr className="border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                   <th className="px-5 py-3.5">User</th>
@@ -119,7 +119,7 @@ export default function PlatformUsers() {
                 ) : (
                   users.map((user) => (
                     <tr key={user.id} className="transition-colors hover:bg-slate-50/60">
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-4" data-label="User">
                         <div className="flex items-center gap-3">
                           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-600">
                             {initials(user.name)}
@@ -132,10 +132,10 @@ export default function PlatformUsers() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-sm font-medium text-slate-700">
+                      <td className="px-5 py-4 text-sm font-medium text-slate-700" data-label="Username">
                         @{user.username}
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-4" data-label="Verification">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${
                             user.verified
@@ -146,7 +146,7 @@ export default function PlatformUsers() {
                           {user.verified ? 'Verified' : 'Pending'}
                         </span>
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-4" data-label="2FA">
                         <span
                           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${
                             user.twoFactorEnabled
