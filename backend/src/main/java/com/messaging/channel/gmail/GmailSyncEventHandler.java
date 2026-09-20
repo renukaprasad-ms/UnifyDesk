@@ -32,8 +32,8 @@ public class GmailSyncEventHandler implements KafkaEventHandler {
     if (event.companyId() == null
         || payload.connectionId() == null
         || payload.jobId() == null
-        || payload.fromDate() == null
-        || payload.toDate() == null) {
+        || payload.mode() == null
+        || payload.folder() == null) {
       throw new IllegalArgumentException("Gmail sync event is incomplete");
     }
 
@@ -42,8 +42,11 @@ public class GmailSyncEventHandler implements KafkaEventHandler {
           event.companyId(),
           payload.connectionId(),
           payload.jobId(),
+          payload.mode(),
+          payload.folder(),
           payload.fromDate(),
-          payload.toDate());
+          payload.toDate(),
+          payload.messageCount());
     } catch (BadRequestException exception) {
       asyncJobService.fail(payload.jobId(), userSafeMessage(exception));
       throw exception;
