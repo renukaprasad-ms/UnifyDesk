@@ -414,13 +414,20 @@ public class GmailApiClient {
 
         if (gmailQuotaAware && isRateLimit(status, failure.reason())) {
           Duration retryAfter = retryAfter(exception.getResponseHeaders());
+          String throttleReason =
+              status == 429
+                      && (failure.reason() == null
+                          || failure.reason().isBlank()
+                          || "unknown".equalsIgnoreCase(failure.reason()))
+                  ? "rateLimitExceeded"
+                  : failure.reason();
           log.warn(
               "Google Gmail quota response operation={} status={} reason={} retryAfterMs={}",
               operation,
               status,
-              failure.reason(),
+              throttleReason,
               retryAfter.toMillis());
-          throw new GmailRateLimitException(failure.reason(), retryAfter);
+          throw new GmailRateLimitException(throttleReason, retryAfter);
         }
 
         boolean transientFailure = status == 429 || status >= 500;
