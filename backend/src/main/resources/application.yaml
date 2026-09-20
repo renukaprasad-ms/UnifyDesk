@@ -83,6 +83,17 @@ spring:
         heartbeat.interval.ms: ${KAFKA_HEARTBEAT_INTERVAL_MS:15000}
 
 app:
+  lifecycle:
+    deletion:
+      retention: ${DELETION_RETENTION:30d}
+      retry-delay: ${DELETION_RETRY_DELAY:1h}
+      stale-after: ${DELETION_STALE_AFTER:1h}
+      batch-size: ${DELETION_JOB_BATCH_SIZE:20}
+      row-batch-size: ${DELETION_ROW_BATCH_SIZE:5000}
+      max-row-batches-per-run: ${DELETION_MAX_ROW_BATCHES_PER_RUN:4}
+      media-batch-size: ${DELETION_MEDIA_BATCH_SIZE:250}
+      scheduler-interval: ${DELETION_SCHEDULER_INTERVAL:1m}
+      scheduler-initial-delay: ${DELETION_SCHEDULER_INITIAL_DELAY:1m}
   realtime:
     redis-channel: ${REALTIME_REDIS_CHANNEL:messaging:realtime}
     heartbeat-interval-ms: ${REALTIME_HEARTBEAT_INTERVAL_MS:30000}

@@ -226,6 +226,11 @@ public class AuthService {
 
   private TokenPair issueSession(
       User user, HttpServletRequest servletRequest, HttpHeaders headers) {
+    if (user.getStatus() != UserStatus.ACTIVE) {
+      userSessionService.revokeAllForUser(user.getId());
+      throw new UnauthorizedException("Account is not active");
+    }
+
     TokenPair tokenPair =
         authTokenService.createTokens(
             user.getId().toString(),

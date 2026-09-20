@@ -3,5 +3,7 @@ package com.messaging.company.enums;
 public enum CompanyStatus {
   ACTIVE,
   SUSPENDED,
-  DELETED
+  DELETION_PENDING,
+  PURGING,
+  PURGED
 }

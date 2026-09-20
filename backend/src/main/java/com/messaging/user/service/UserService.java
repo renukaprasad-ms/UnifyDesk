@@ -6,15 +6,18 @@ import com.messaging.common.exception.ForbiddenException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.company.enums.CompanyMemberStatus;
 import com.messaging.company.enums.CompanyRole;
+import com.messaging.company.enums.CompanyStatus;
 import com.messaging.company.repository.CompanyMemberRepository;
 import com.messaging.company.repository.CompanyMemberRoleAssignmentRepository;
+import com.messaging.lifecycle.config.DeletionLifecycleProperties;
 import com.messaging.lifecycle.enums.LifecycleEntityType;
-import com.messaging.lifecycle.service.DeletionQueueService;
+import com.messaging.lifecycle.service.DeletionPurgeService;
 import com.messaging.media.dto.ProfilePictureResponse;
 import com.messaging.media.entity.Media;
 import com.messaging.media.enums.MediaPurpose;
 import com.messaging.media.exception.MediaException;
 import com.messaging.media.service.MediaService;
+import com.messaging.realtime.service.RealtimeConnectionRegistry;
 import com.messaging.security.service.CurrentUserService;
 import com.messaging.session.service.UserSessionService;
 import com.messaging.user.dto.CreateUserRequest;
@@ -48,7 +51,9 @@ public class UserService {
   private final UserSessionService userSessionService;
   private final CompanyMemberRepository companyMemberRepository;
   private final CompanyMemberRoleAssignmentRepository roleAssignmentRepository;
-  private final DeletionQueueService deletionQueueService;
+  private final DeletionPurgeService deletionPurgeService;
+  private final DeletionLifecycleProperties deletionProperties;
+  private final RealtimeConnectionRegistry realtimeConnectionRegistry;
 
   @Transactional
   public User createUser(CreateUserRequest request) {
@@ -193,40 +198,44 @@ public class UserService {
     requireCurrentUser(userId, "You can only delete your own account");
 
     User user = getUser(userId);
-    if (user.getStatus() == UserStatus.DELETED) {
+    if (user.getStatus() == UserStatus.DELETION_PENDING
+        || user.getStatus() == UserStatus.PURGING
+        || user.getStatus() == UserStatus.PURGED) {
       return;
     }
 
     var activeMemberships =
         companyMemberRepository.findByUserIdAndStatus(userId, CompanyMemberStatus.ACTIVE);
     boolean ownsCompany =
-        activeMemberships.stream().anyMatch(member -> member.getRole() == CompanyRole.OWNER);
+        activeMemberships.stream()
+            .anyMatch(
+                member ->
+                    member.getRole() == CompanyRole.OWNER
+                        && (member.getCompany().getStatus() == CompanyStatus.ACTIVE
+                            || member.getCompany().getStatus() == CompanyStatus.SUSPENDED));
     if (ownsCompany) {
       throw new BadRequestException(
           "Transfer ownership or delete owned companies before deleting your account");
     }
 
     Instant now = Instant.now();
-    activeMemberships.forEach(member -> member.setStatus(CompanyMemberStatus.LEFT));
-    companyMemberRepository.saveAll(activeMemberships);
+    Instant purgeAfter = now.plus(deletionProperties.getRetention());
 
-    var assignments = roleAssignmentRepository.findByUserIdAndRevokedAtIsNull(userId);
-    assignments.forEach(assignment -> assignment.setRevokedAt(now));
-    roleAssignmentRepository.saveAll(assignments);
-
+    // Access is terminated immediately, but memberships/profile/media stay intact
+    // until the retention period expires so restoration remains possible.
     userSessionService.revokeAllForUser(userId);
+    realtimeConnectionRegistry.closeForUser(userId);
 
-    user.setStatus(UserStatus.DELETED);
+    user.setStatus(UserStatus.DELETION_PENDING);
     user.setDeletedAt(now);
-    user.setEmail("deleted-" + userId + "@deleted.invalid");
-    user.setUsername("deleted_" + userId);
-    user.setName("Deleted user");
-    user.setVerified(false);
-    user.setTwoFactorEnabled(false);
-    user.setProfilePicture(null);
+    user.setPurgeAfter(purgeAfter);
+    user.setDeletionRequestedBy(userId);
+    user.setPurgeStartedAt(null);
+    user.setPurgedAt(null);
     userRepository.saveAndFlush(user);
 
-    deletionQueueService.enqueue(LifecycleEntityType.USER, userId, null, userId);
+    deletionPurgeService.schedule(
+        LifecycleEntityType.USER, userId, null, userId, purgeAfter);
   }
 
   @Transactional

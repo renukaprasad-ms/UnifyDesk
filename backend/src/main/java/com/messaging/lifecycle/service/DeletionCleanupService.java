@@ -10,7 +10,9 @@ import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -23,37 +25,37 @@ public class DeletionCleanupService {
 
   public void cleanup(EntityDeletionRequestedEvent event) {
     switch (event.entityType()) {
-      case USER -> cleanupPersonalMedia(event.entityId());
-      case COMPANY -> cleanupCompanyMedia(event.entityId());
+      case USER -> cleanupPersonalMediaBatch(event.entityId(), 500);
+      case COMPANY -> cleanupCompanyMediaBatch(event.entityId(), 500);
       case CHANNEL_CONNECTION, COMPANY_ROLE -> {
-        // Relational state is already disabled/revoked in the transaction that queued this event.
+        // Relational state is already disabled/revoked by the owning lifecycle.
       }
     }
-
-    log.info(
-        "Deletion cleanup processed entityType={} entityId={} companyId={}",
-        event.entityType(),
-        event.entityId(),
-        event.companyId());
   }
 
-  private void cleanupPersonalMedia(Long userId) {
-    cleanupMedia(
+  public int cleanupCompanyMediaBatch(Long companyId, int batchSize) {
+    List<Media> media =
+        mediaRepository.findByCompanyIdAndStatusNot(
+            companyId, MediaStatus.DELETED, PageRequest.of(0, Math.max(1, batchSize)));
+    return cleanupMedia(media);
+  }
+
+  public int cleanupPersonalMediaBatch(Long userId, int batchSize) {
+    List<Media> media =
         mediaRepository.findByOwnerUserIdAndCompanyIdIsNullAndStatusNot(
-            userId, MediaStatus.DELETED));
+            userId, MediaStatus.DELETED, PageRequest.of(0, Math.max(1, batchSize)));
+    return cleanupMedia(media);
   }
 
-  private void cleanupCompanyMedia(Long companyId) {
-    cleanupMedia(mediaRepository.findByCompanyIdAndStatusNot(companyId, MediaStatus.DELETED));
-  }
-
-  private void cleanupMedia(List<Media> media) {
-    Instant now = Instant.now();
+  @Transactional
+  protected int cleanupMedia(List<Media> media) {
+    int cleaned = 0;
     for (Media item : media) {
-      storageAccounting.release(item);
-      item.setStatus(MediaStatus.DELETED);
-      item.setDeletedAt(now);
-      mediaRepository.save(item);
+      if (item.getStatus() != MediaStatus.DELETE_PENDING) {
+        storageAccounting.release(item);
+        item.setStatus(MediaStatus.DELETE_PENDING);
+        mediaRepository.saveAndFlush(item);
+      }
 
       try {
         storageProviderResolver
@@ -61,11 +63,18 @@ public class DeletionCleanupService {
             .delete(item.getBucket(), item.getObjectKey());
       } catch (RuntimeException exception) {
         log.warn(
-            "Physical media cleanup failed mediaId={} provider={} reason={}",
+            "Physical media cleanup deferred mediaId={} provider={} reason={}",
             item.getId(),
             item.getStorageProvider(),
             exception.getClass().getSimpleName());
+        throw exception;
       }
+
+      item.setStatus(MediaStatus.DELETED);
+      item.setDeletedAt(Instant.now());
+      mediaRepository.saveAndFlush(item);
+      cleaned++;
     }
+    return cleaned;
   }
 }
