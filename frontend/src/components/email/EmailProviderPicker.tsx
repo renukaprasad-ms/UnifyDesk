@@ -11,6 +11,7 @@ type EmailProviderPickerProps = {
   className?: string
   disabled?: boolean
   onError?: (message: string) => void
+  onOpen?: () => void
 }
 
 export default function EmailProviderPicker({
@@ -20,6 +21,7 @@ export default function EmailProviderPicker({
   className = 'primary-button w-full',
   disabled = false,
   onError,
+  onOpen,
 }: EmailProviderPickerProps) {
   const [open, setOpen] = useState(false)
   const [connecting, setConnecting] = useState<'GMAIL' | 'MICROSOFT' | null>(null)
@@ -68,6 +70,7 @@ export default function EmailProviderPicker({
         onClick={() => {
           setError('')
           setSmtpNotice(false)
+          onOpen?.()
           setOpen(true)
         }}
       >
