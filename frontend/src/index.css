@@ -305,8 +305,12 @@
     border-radius: 10px;
     background: #f0f1ff;
     color: #6366f1;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 800;
+  }
+  .email-provider-mark svg {
+    width: 18px;
+    height: 18px;
   }
 
   .panel {
