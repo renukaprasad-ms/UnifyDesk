@@ -427,6 +427,11 @@ public class BillingCatalogService {
   }
 
   @Transactional
+  public void cancelForCompanyDeletion(Long companyId) {
+    closeCurrentSubscriptions(companyId, Instant.now());
+  }
+
+  @Transactional
   public CompanySubscriptionResponse cancelSubscription(Long companyId, boolean atPeriodEnd) {
     CompanySubscription subscription = effectiveSubscription(companyId);
     if (atPeriodEnd && subscription.getCurrentPeriodEnd() != null) {
