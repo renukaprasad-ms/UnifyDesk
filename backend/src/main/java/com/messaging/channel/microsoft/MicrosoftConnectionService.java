@@ -1,6 +1,5 @@
 package com.messaging.channel.microsoft;
 
-import com.messaging.channel.credential.ProviderCredentialService;
 import com.messaging.channel.dto.ChannelConnectionResponse;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ChannelConnectionStatus;
@@ -34,7 +33,6 @@ public class MicrosoftConnectionService {
   private final ChannelEntitlementService entitlementService;
   private final CompanyAuthorizationService authorizationService;
   private final ChannelConnectionService channelConnectionService;
-  private final ProviderCredentialService credentialService;
 
   public MicrosoftAuthorizationResponse authorization(
       Long companyId, Long userId, String returnTo) {
