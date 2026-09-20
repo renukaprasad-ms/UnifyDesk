@@ -23,6 +23,7 @@ public class MicrosoftOAuthProperties {
       "openid profile email offline_access User.Read Mail.ReadWrite Mail.Send";
   private Duration oauthStateTtl = Duration.ofMinutes(10);
   private Duration tokenRefreshSkew = Duration.ofMinutes(2);
+  private int initialSyncDays = 30;
   private Duration subscriptionLifetime = Duration.ofDays(6).plusHours(23);
   private Duration subscriptionRenewBefore = Duration.ofHours(24);
   private int deltaPageSize = 50;
