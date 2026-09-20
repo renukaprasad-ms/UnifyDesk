@@ -87,7 +87,7 @@ public class MicrosoftSyncWorker {
       if (!activeCompany
           || connection.getProviderType() != ProviderType.MICROSOFT
           || connection.getStatus() != ChannelConnectionStatus.ACTIVE) {
-        stateService.retry(sync.stateId(), "Workspace or Microsoft connection is inactive");
+        stateService.stop(sync.stateId(), "Workspace or Microsoft connection is inactive");
         return;
       }
 
