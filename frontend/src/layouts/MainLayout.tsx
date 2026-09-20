@@ -98,13 +98,24 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
             </div>
           </>
         ) : (
-          <AppSidebar
-            platformAccess={platformAccess}
-            compact={compactNavigation}
-            loggingOut={loggingOut}
-            onNavigate={closeNavigation}
-            onLogout={() => void logout()}
-          />
+          <>
+            {channelContextMode && (
+              <div className="lg:hidden">
+                <ChannelContextSidebar
+                  mode={inboxMode ? 'inbox' : 'broadcast'}
+                  onNavigate={closeNavigation}
+                />
+                <div className="my-5 border-t border-slate-100" />
+              </div>
+            )}
+            <AppSidebar
+              platformAccess={platformAccess}
+              compact={compactNavigation}
+              loggingOut={loggingOut}
+              onNavigate={closeNavigation}
+              onLogout={() => void logout()}
+            />
+          </>
         )}
       </aside>
 
