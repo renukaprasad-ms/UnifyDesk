@@ -4,6 +4,7 @@ import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.gmail.GmailApiClient.BatchMessageResult;
 import com.messaging.channel.gmail.GmailApiClient.GmailMessage;
 import com.messaging.channel.gmail.GmailApiClient.MessageListResponse;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -24,16 +25,18 @@ public class GmailRealtimeRecoveryService {
 
   public int recover(ChannelConnection connection, String accessToken) {
     int maxMessages = Math.max(1, properties.getRealtimeRecoveryMaxMessages());
-    long afterEpoch =
+    Instant recoveryFrom =
         LocalDate.now(ZoneOffset.UTC)
-                .minusDays(Math.max(1, properties.getRealtimeRecoveryDays()))
-                .atStartOfDay()
-                .toEpochSecond(ZoneOffset.UTC)
-            - 1;
+            .minusDays(Math.max(1, properties.getRealtimeRecoveryDays()))
+            .atStartOfDay()
+            .toInstant(ZoneOffset.UTC);
+    long afterEpoch = recoveryFrom.getEpochSecond() - 1;
     String query = "{in:inbox in:sent} after:" + afterEpoch;
 
     String pageToken = null;
     int processed = 0;
+    Set<String> seenMessageIds = new LinkedHashSet<>();
+    boolean reachedEnd = false;
 
     do {
       reserve(
@@ -53,6 +56,7 @@ public class GmailRealtimeRecoveryService {
                   .filter(id -> id != null && !id.isBlank())
                   .limit(remaining)
                   .toList();
+      seenMessageIds.addAll(ids);
 
       for (int offset = 0; offset < ids.size(); offset += Math.max(1, properties.getRealtimeBatchSize())) {
         int end = Math.min(ids.size(), offset + Math.max(1, properties.getRealtimeBatchSize()));
@@ -87,7 +91,17 @@ public class GmailRealtimeRecoveryService {
       }
 
       pageToken = page.nextPageToken();
-    } while (pageToken != null && !pageToken.isBlank() && processed < maxMessages);
+      reachedEnd = pageToken == null || pageToken.isBlank();
+    } while (!reachedEnd && processed < maxMessages);
+
+    if (reachedEnd) {
+      Set<String> localActive =
+          persistenceService.activeFolderMessageIdsSince(connection, recoveryFrom);
+      localActive.removeAll(seenMessageIds);
+      if (!localActive.isEmpty()) {
+        persistenceService.markDeleted(connection, localActive);
+      }
+    }
 
     return processed;
   }
