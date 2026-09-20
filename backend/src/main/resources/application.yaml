@@ -200,6 +200,19 @@ app:
       realtime-safety-sync-initial-delay: ${GMAIL_REALTIME_SAFETY_SYNC_INITIAL_DELAY:2m}
       realtime-recovery-days: ${GMAIL_REALTIME_RECOVERY_DAYS:30}
       realtime-recovery-max-messages: ${GMAIL_REALTIME_RECOVERY_MAX_MESSAGES:1000}
+    imap-smtp:
+      enabled: ${IMAP_SMTP_ENABLED:true}
+      connect-timeout: ${IMAP_SMTP_CONNECT_TIMEOUT:10s}
+      read-timeout: ${IMAP_SMTP_READ_TIMEOUT:20s}
+      write-timeout: ${IMAP_SMTP_WRITE_TIMEOUT:20s}
+      incremental-poll-interval: ${IMAP_SMTP_INCREMENTAL_POLL_INTERVAL:1m}
+      incremental-initial-delay: ${IMAP_SMTP_INCREMENTAL_INITIAL_DELAY:1m}
+      incremental-max-messages-per-folder: ${IMAP_SMTP_INCREMENTAL_MAX_MESSAGES_PER_FOLDER:250}
+      sync-max-messages: ${IMAP_SMTP_SYNC_MAX_MESSAGES:10000}
+      sync-max-range-days: ${IMAP_SMTP_SYNC_MAX_RANGE_DAYS:366}
+      worker-concurrency: ${IMAP_SMTP_WORKER_CONCURRENCY:4}
+      worker-poll-interval-ms: ${IMAP_SMTP_WORKER_POLL_INTERVAL_MS:500}
+      stale-job-after: ${IMAP_SMTP_STALE_JOB_AFTER:10m}
     microsoft:
       enabled: ${MICROSOFT_OAUTH_ENABLED:false}
       tenant: ${MICROSOFT_OAUTH_TENANT:common}
