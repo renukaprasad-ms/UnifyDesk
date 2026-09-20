@@ -594,3 +594,216 @@
     }
   }
 }
+
+
+@layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-width: 320px;
+    min-height: 100%;
+  }
+
+  html {
+    background: #f8fafd;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  img,
+  video {
+    max-width: 100%;
+  }
+
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer components {
+  .app-content > main {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .mobile-card-table {
+    width: 100%;
+  }
+
+  .mobile-modal-shell {
+    overscroll-behavior: contain;
+  }
+
+  .mobile-sheet {
+    max-height: min(92dvh, 860px);
+  }
+
+  @media (max-width: 1023px) {
+    .app-content {
+      width: 100%;
+      margin-left: 0;
+    }
+
+    .app-sidebar {
+      width: min(320px, calc(100vw - 24px));
+      padding-top: max(16px, env(safe-area-inset-top));
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+      box-shadow: 18px 0 50px rgb(15 23 42 / 16%);
+    }
+
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 25;
+    }
+
+    .sidebar-link,
+    .admin-nav-link {
+      min-height: 44px;
+    }
+
+    .sidebar-link-nested {
+      min-height: 40px;
+      padding-left: 38px;
+    }
+
+    .workspace-switcher {
+      min-height: 44px;
+    }
+
+    .channel-workspace-page {
+      min-height: calc(100dvh - 64px);
+    }
+
+    .channel-workspace-toolbar {
+      min-height: 52px;
+      padding: 8px 12px;
+    }
+
+    .channel-workspace-body {
+      padding: 8px;
+    }
+
+    .channel-message-surface {
+      min-height: calc(100dvh - 132px);
+      border-radius: 10px;
+    }
+
+    .channel-message-scroll {
+      max-height: calc(100dvh - 190px);
+    }
+  }
+
+  @media (max-width: 639px) {
+    .app-header {
+      padding-right: max(12px, env(safe-area-inset-right));
+      padding-left: max(12px, env(safe-area-inset-left));
+    }
+
+    .primary-button,
+    .secondary-button {
+      min-height: 44px;
+    }
+
+    input.form-input,
+    textarea.form-input,
+    select.form-input {
+      font-size: 16px;
+    }
+
+    .mobile-modal-shell {
+      align-items: flex-end;
+      padding: 0;
+    }
+
+    .mobile-sheet {
+      width: 100%;
+      max-width: none;
+      max-height: 92dvh;
+      overflow-y: auto;
+      border-radius: 18px 18px 0 0;
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+    }
+
+    .mobile-card-table {
+      display: block;
+      min-width: 0 !important;
+      background: transparent;
+    }
+
+    .mobile-card-table thead {
+      display: none;
+    }
+
+    .mobile-card-table tbody {
+      display: grid;
+      gap: 12px;
+      padding: 12px;
+      background: #f8fafd;
+    }
+
+    .mobile-card-table tbody tr {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid #e0e5f0 !important;
+      border-radius: 12px;
+      background: #ffffff;
+    }
+
+    .mobile-card-table tbody td {
+      display: flex;
+      min-width: 0;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 !important;
+      border: 0 !important;
+      text-align: right !important;
+    }
+
+    .mobile-card-table tbody td::before {
+      content: attr(data-label);
+      flex: 0 0 auto;
+      color: #94a3b8;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .mobile-card-table tbody td:first-child {
+      display: block;
+      padding-bottom: 4px !important;
+      text-align: left !important;
+    }
+
+    .mobile-card-table tbody td:first-child::before,
+    .mobile-card-table tbody td[colspan]::before,
+    .mobile-card-table tbody td.mobile-action-cell::before {
+      display: none;
+    }
+
+    .mobile-card-table tbody td[colspan] {
+      display: block;
+      padding: 24px 4px !important;
+      text-align: center !important;
+    }
+
+    .mobile-card-table tbody td.mobile-action-cell {
+      display: block;
+      padding-top: 4px !important;
+      text-align: left !important;
+    }
+
+    .mobile-card-table tbody td.mobile-action-cell > button,
+    .mobile-card-table tbody td.mobile-action-cell > a {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
