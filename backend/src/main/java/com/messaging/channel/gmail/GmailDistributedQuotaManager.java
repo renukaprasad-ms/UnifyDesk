@@ -180,11 +180,13 @@ public class GmailDistributedQuotaManager {
 
   private GmailQuotaReservation parseReservation(Instant now, String raw) {
     if (raw == null || raw.isBlank()) {
-      throw new RedisOperationException("Gmail quota reservation returned an empty result");
+      throw new RedisOperationException(
+          "Gmail quota reservation returned an empty result", null);
     }
     String[] parts = raw.split(":", 3);
     if (parts.length < 2) {
-      throw new RedisOperationException("Gmail quota reservation returned a malformed result");
+      throw new RedisOperationException(
+          "Gmail quota reservation returned a malformed result", null);
     }
 
     boolean allowed = "1".equals(parts[0]);
