@@ -136,7 +136,7 @@ public class CompanyService {
 
     // Stop future billing immediately. Historical subscriptions and usage remain
     // retained for financial/audit purposes after the operational tenant is purged.
-    billingCatalogService.cancelSubscription(companyId, false);
+    billingCatalogService.cancelForCompanyDeletion(companyId);
 
     // Preserve memberships, roles, invitations, messages and other tenant data
     // during retention. CompanyStatus is the access gate for the entire workspace.
