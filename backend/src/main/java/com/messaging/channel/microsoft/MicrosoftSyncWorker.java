@@ -7,6 +7,7 @@ import com.messaging.channel.microsoft.MicrosoftApiClient.DeltaCursorExpiredExce
 import com.messaging.channel.microsoft.MicrosoftApiClient.DeltaResponse;
 import com.messaging.channel.microsoft.MicrosoftSyncStateService.ClaimedSync;
 import com.messaging.channel.repository.ChannelConnectionRepository;
+import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.company.enums.CompanyStatus;
 import com.messaging.company.repository.CompanyRepository;
@@ -101,6 +102,13 @@ public class MicrosoftSyncWorker {
       connectionRepository.save(connection);
     } catch (DeltaCursorExpiredException exception) {
       stateService.resetCursor(sync.stateId());
+    } catch (BadRequestException | PlanEntitlementException exception) {
+      log.warn(
+          "Microsoft sync stopped connectionId={} folder={} reason={}",
+          sync.connectionId(),
+          sync.folderKey(),
+          safeMessage(exception));
+      stateService.stop(sync.stateId(), safeMessage(exception));
     } catch (RuntimeException exception) {
       log.warn(
           "Microsoft sync failed connectionId={} folder={} attempt={} reason={}",
