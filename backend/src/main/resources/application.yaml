@@ -185,7 +185,7 @@ app:
       oauth-state-ttl: ${MICROSOFT_OAUTH_STATE_TTL:10m}
       token-refresh-skew: ${MICROSOFT_OAUTH_TOKEN_REFRESH_SKEW:2m}
       initial-sync-days: ${MICROSOFT_INITIAL_SYNC_DAYS:30}
-      subscription-lifetime: ${MICROSOFT_SUBSCRIPTION_LIFETIME:6d23h}
+      subscription-lifetime: ${MICROSOFT_SUBSCRIPTION_LIFETIME:PT167H}
       subscription-renew-before: ${MICROSOFT_SUBSCRIPTION_RENEW_BEFORE:24h}
       subscription-renew-interval: ${MICROSOFT_SUBSCRIPTION_RENEW_INTERVAL:12h}
       delta-page-size: ${MICROSOFT_DELTA_PAGE_SIZE:50}
