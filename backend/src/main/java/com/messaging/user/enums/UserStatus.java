@@ -2,5 +2,7 @@ package com.messaging.user.enums;
 
 public enum UserStatus {
   ACTIVE,
-  DELETED
+  DELETION_PENDING,
+  PURGING,
+  PURGED
 }
