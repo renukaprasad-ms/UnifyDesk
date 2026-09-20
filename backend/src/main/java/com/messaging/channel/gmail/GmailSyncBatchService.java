@@ -128,7 +128,13 @@ public class GmailSyncBatchService {
           lastError = result.reason();
           if (isRateLimit(result)) {
             providerThrottled = true;
-            providerThrottleReason = result.reason();
+            providerThrottleReason =
+                result.status() == 429
+                        && (result.reason() == null
+                            || result.reason().isBlank()
+                            || "unknown".equalsIgnoreCase(result.reason()))
+                    ? "rateLimitExceeded"
+                    : result.reason();
             providerRetryAfter = max(providerRetryAfter, result.retryAfter());
           }
         } else {
