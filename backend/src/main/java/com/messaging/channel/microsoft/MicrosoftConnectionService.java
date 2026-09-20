@@ -114,7 +114,6 @@ public class MicrosoftConnectionService {
       throw new BadRequestException("Channel connection is not a Microsoft mailbox");
     }
 
-    subscriptionService.disconnect(connection);
     return channelConnectionService.disconnect(companyId, connectionId);
   }
 
