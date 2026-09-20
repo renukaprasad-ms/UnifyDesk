@@ -19,7 +19,7 @@ public class GmailSyncCoordinatorPublisher {
     EventMetadata metadata =
         EventMetadata.create(
             GmailSyncQueueService.EVENT_TYPE,
-            "3",
+            "4",
             run.getCompanyId(),
             run.getUserId(),
             run.getJobId().toString(),
@@ -32,8 +32,11 @@ public class GmailSyncCoordinatorPublisher {
             new GmailSyncRequestedEvent(
                 run.getConnectionId(),
                 run.getJobId(),
+                run.getSyncMode(),
+                run.getFolder(),
                 run.getFromDate(),
-                run.getToDate()));
+                run.getToDate(),
+                run.getMessageCount()));
 
     eventPublisher.publish("gmail-connection:" + run.getConnectionId(), event);
   }
