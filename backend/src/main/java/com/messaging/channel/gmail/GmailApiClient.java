@@ -6,9 +6,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.exception.BadRequestException;
-import com.messaging.common.exception.TooManyRequestsException;
+import com.messaging.common.exception.ServiceUnavailableException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -258,7 +261,8 @@ public class GmailApiClient {
       completed.add(
           byMessageId.getOrDefault(
               messageId,
-              new BatchMessageResult(messageId, null, 503, "missingBatchPart", true)));
+              new BatchMessageResult(
+                  messageId, null, 503, "missingBatchPart", true, Duration.ZERO)));
     }
     return completed;
   }
@@ -277,7 +281,8 @@ public class GmailApiClient {
       firstLineEnd = normalized.indexOf('\n');
     }
     if (firstLineEnd < 0) {
-      return new BatchMessageResult(messageId, null, 500, "malformedResponse", true);
+      return new BatchMessageResult(
+          messageId, null, 500, "malformedResponse", true, Duration.ZERO);
     }
 
     String statusLine = normalized.substring(0, firstLineEnd).trim();
@@ -288,20 +293,26 @@ public class GmailApiClient {
       headersEnd = normalized.indexOf("\n\n", firstLineEnd);
       separatorLength = 2;
     }
+    String responseHeaders =
+        headersEnd < 0 ? "" : normalized.substring(firstLineEnd, headersEnd);
     String json =
         headersEnd < 0 ? "" : normalized.substring(headersEnd + separatorLength).trim();
+    Duration retryAfter = retryAfter(responseHeaders);
 
     if (status >= 200 && status < 300) {
       try {
         GmailMessage message = objectMapper.readValue(json, GmailMessage.class);
-        return new BatchMessageResult(messageId, message, status, null, false);
+        return new BatchMessageResult(
+            messageId, message, status, null, false, Duration.ZERO);
       } catch (JsonProcessingException exception) {
-        return new BatchMessageResult(messageId, null, 500, "invalidJson", true);
+        return new BatchMessageResult(
+            messageId, null, 500, "invalidJson", true, Duration.ZERO);
       }
     }
 
     String reason = extract(json, GOOGLE_REASON_PATTERN, "unknown");
-    return new BatchMessageResult(messageId, null, status, reason, retryable(status, reason));
+    return new BatchMessageResult(
+        messageId, null, status, reason, retryable(status, reason), retryAfter);
   }
 
   private int httpStatus(String statusLine) {
@@ -389,15 +400,26 @@ public class GmailApiClient {
         }
         return result;
       } catch (RestClientResponseException exception) {
+        int status = exception.getStatusCode().value();
         GoogleFailure failure = googleFailure(exception);
-        boolean retryable = retryable(exception.getStatusCode().value(), failure.reason());
 
-        if (retryable && attempt < maxAttempts) {
+        if (isRateLimit(status, failure.reason())) {
+          Duration retryAfter = retryAfter(exception.getResponseHeaders());
+          log.warn(
+              "Google Gmail quota response operation={} status={} reason={} retryAfterMs={}",
+              operation,
+              status,
+              failure.reason(),
+              retryAfter.toMillis());
+          throw new GmailRateLimitException(failure.reason(), retryAfter);
+        }
+
+        if (status >= 500 && attempt < maxAttempts) {
           long delayMs = retryDelayMillis(attempt);
           log.warn(
               "Google API request retrying operation={} status={} reason={} attempt={}/{} delayMs={}",
               operation,
-              exception.getStatusCode().value(),
+              status,
               failure.reason(),
               attempt,
               maxAttempts,
@@ -409,30 +431,32 @@ public class GmailApiClient {
         log.warn(
             "Google API request failed operation={} status={} reason={} attempts={}",
             operation,
-            exception.getStatusCode().value(),
+            status,
             failure.reason(),
             attempt);
 
-        if (retryable) {
-          throw new TooManyRequestsException(
-              "Gmail is temporarily rate limited. Please wait a moment and try again.");
+        if (status >= 500) {
+          throw new ServiceUnavailableException(
+              "Gmail is temporarily unavailable. The request will be retried automatically.");
         }
 
-        if (exception.getStatusCode().value() == 403) {
+        if (status == 403) {
           throw new BadRequestException(googleForbiddenMessage(failure.reason()));
         }
 
-        throw new BadRequestException(
-            "Google API request failed with HTTP " + exception.getStatusCode().value());
+        throw new BadRequestException("Google API request failed with HTTP " + status);
       }
     }
 
-    throw new BadRequestException("Google API request failed");
+    throw new ServiceUnavailableException("Gmail is temporarily unavailable");
   }
 
   private boolean retryable(int status, String reason) {
+    return isRateLimit(status, reason) || status >= 500;
+  }
+
+  private boolean isRateLimit(int status, String reason) {
     return status == 429
-        || status >= 500
         || "rateLimitExceeded".equals(reason)
         || "userRateLimitExceeded".equals(reason);
   }
@@ -451,6 +475,42 @@ public class GmailApiClient {
     } catch (InterruptedException exception) {
       Thread.currentThread().interrupt();
       throw new BadRequestException("Gmail sync was interrupted");
+    }
+  }
+
+  private Duration retryAfter(String rawHeaders) {
+    if (rawHeaders == null || rawHeaders.isBlank()) {
+      return Duration.ZERO;
+    }
+    Matcher matcher =
+        Pattern.compile("(?im)^Retry-After:\\s*([^\\r\\n]+)").matcher(rawHeaders);
+    return matcher.find() ? retryAfter(matcher.group(1)) : Duration.ZERO;
+  }
+
+  private Duration retryAfter(HttpHeaders headers) {
+    if (headers == null) {
+      return Duration.ZERO;
+    }
+    return retryAfter(headers.getFirst(HttpHeaders.RETRY_AFTER));
+  }
+
+  private Duration retryAfter(String value) {
+    if (value == null || value.isBlank()) {
+      return Duration.ZERO;
+    }
+    String trimmed = value.trim();
+    try {
+      long seconds = Long.parseLong(trimmed);
+      return Duration.ofSeconds(Math.max(0L, seconds));
+    } catch (NumberFormatException ignored) {
+      try {
+        ZonedDateTime retryAt =
+            ZonedDateTime.parse(trimmed, DateTimeFormatter.RFC_1123_DATE_TIME);
+        Duration delay = Duration.between(ZonedDateTime.now(retryAt.getZone()), retryAt);
+        return delay.isNegative() ? Duration.ZERO : delay;
+      } catch (RuntimeException ignoredDate) {
+        return Duration.ZERO;
+      }
     }
   }
 
@@ -506,7 +566,12 @@ public class GmailApiClient {
   public record MessageReference(String id, String threadId) {}
 
   public record BatchMessageResult(
-      String messageId, GmailMessage message, int status, String reason, boolean retryable) {
+      String messageId,
+      GmailMessage message,
+      int status,
+      String reason,
+      boolean retryable,
+      Duration retryAfter) {
 
     public boolean successful() {
       return message != null && status >= 200 && status < 300;
