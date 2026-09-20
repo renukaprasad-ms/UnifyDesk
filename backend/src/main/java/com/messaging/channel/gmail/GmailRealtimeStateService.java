@@ -82,7 +82,6 @@ public class GmailRealtimeStateService {
     for (ChannelSyncState state : states) {
       state.setRealtimeClaimedAt(now);
       state.setRealtimeNextAttemptAt(null);
-      state.setRealtimeAttemptCount(state.getRealtimeAttemptCount() + 1);
       state.setRealtimeLastError(null);
     }
     repository.saveAll(states);
@@ -98,6 +97,17 @@ public class GmailRealtimeStateService {
                     state.getPendingHistoryId(),
                     state.getRealtimeAttemptCount()))
         .toList();
+  }
+
+  @Transactional
+  public int startAttempt(Long connectionId) {
+    ChannelSyncState state =
+        repository
+            .findForUpdate(connectionId, ProviderType.GMAIL)
+            .orElseThrow(() -> new IllegalStateException("Gmail realtime state not found"));
+    state.setRealtimeAttemptCount(state.getRealtimeAttemptCount() + 1);
+    repository.save(state);
+    return state.getRealtimeAttemptCount();
   }
 
   @Transactional
