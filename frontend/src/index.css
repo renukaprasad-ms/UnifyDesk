@@ -190,6 +190,74 @@
     align-items: center;
     justify-content: center;
   }
+  .channel-context-sidebar {
+    overflow: hidden;
+  }
+  .channel-workspace-page {
+    min-height: calc(100dvh - 72px);
+    background: #f8fafd;
+  }
+  .channel-workspace-toolbar {
+    display: flex;
+    min-height: 58px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 16px;
+    border-bottom: 1px solid #e0e5f0;
+    background: #ffffff;
+  }
+  .channel-workspace-body {
+    padding: 12px;
+  }
+  .channel-message-surface {
+    min-width: 0;
+    min-height: calc(100dvh - 154px);
+    overflow: hidden;
+    border: 1px solid #e0e5f0;
+    border-radius: 12px;
+    background: #ffffff;
+  }
+  .channel-message-scroll {
+    max-height: calc(100dvh - 214px);
+    overflow-y: auto;
+    background: #f8fafd;
+    overscroll-behavior: contain;
+  }
+  .email-provider-option {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 12px;
+    min-height: 68px;
+    padding: 12px 14px;
+    border: 1px solid #e0e5f0;
+    border-radius: 12px;
+    background: #ffffff;
+    transition:
+      border-color 0.16s ease,
+      background 0.16s ease,
+      transform 0.16s ease;
+  }
+  .email-provider-option:hover:not(:disabled) {
+    border-color: #c7c9ff;
+    background: #f8f8ff;
+    transform: translateY(-1px);
+  }
+  .email-provider-mark {
+    display: inline-flex;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: #f0f1ff;
+    color: #6366f1;
+    font-size: 14px;
+    font-weight: 800;
+  }
+
   .panel {
     border: 1px solid #e0e5f0;
     border-radius: 14px;
@@ -433,6 +501,15 @@
     .app-content.with-admin-sidebar,
     .app-content.with-channel-context-sidebar {
       margin-left: 320px;
+    }
+    .channel-workspace-body {
+      padding: 10px;
+    }
+    .channel-message-surface {
+      min-height: calc(100dvh - 150px);
+    }
+    .channel-message-scroll {
+      max-height: calc(100dvh - 210px);
     }
   }
 
