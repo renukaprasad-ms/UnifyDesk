@@ -12,7 +12,7 @@ import com.messaging.broadcast.enums.BroadcastRecipientStatus;
 import com.messaging.broadcast.repository.BroadcastDeliveryAttemptRepository;
 import com.messaging.broadcast.repository.BroadcastRecipientRepository;
 import com.messaging.broadcast.transport.BroadcastEmailResult;
-import com.messaging.channel.enums.ProviderType;
+import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -41,7 +41,7 @@ class BroadcastDeliveryStateServiceTests {
     attempt.setRecipientId(10L);
     attempt.setRunId(20L);
     attempt.setAttemptNo(1);
-    attempt.setProviderType(ProviderType.MICROSOFT);
+    attempt.setProviderType(BroadcastSenderProvider.AMAZON_SES);
     attempt.setStatus(BroadcastAttemptStatus.PROCESSING);
     when(attemptRepository.findById(30L)).thenReturn(Optional.of(attempt));
 
