@@ -33,6 +33,8 @@ class CompanyRoleManagementServiceTests {
   @Mock private CompanyService companyService;
   @Mock private CompanyAuthorizationService authorizationService;
   @Mock private CompanyIamPermissionService iamPermissionService;
+  @Mock private SystemPermissionCatalogService permissionCatalogService;
+  @Mock private CompanySystemRoleService companySystemRoleService;
   @Mock private CompanyMemberRepository memberRepository;
   @Mock private PermissionDefinitionRepository permissionDefinitionRepository;
   @Mock private CompanyCustomRoleRepository roleRepository;
@@ -50,6 +52,8 @@ class CompanyRoleManagementServiceTests {
             companyService,
             authorizationService,
             iamPermissionService,
+            permissionCatalogService,
+            companySystemRoleService,
             memberRepository,
             permissionDefinitionRepository,
             roleRepository,
