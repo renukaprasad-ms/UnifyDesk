@@ -197,6 +197,22 @@ public class ImapSmtpInboxPersistenceService {
     return new PersistResult(created, updated, touchedConversations, touchedMessages);
   }
 
+  private boolean handleBroadcastSentMessage(
+      ChannelConnection connection, MailboxMessage snapshot) {
+    for (EmailSentMessageHandler handler : sentMessageHandlers) {
+      if (handler.handle(
+          connection,
+          ProviderType.IMAP_SMTP,
+          snapshot.broadcastCorrelationId(),
+          snapshot.externalMessageId(),
+          snapshot.internetMessageId(),
+          snapshot.sentAt())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private void upsertParticipants(InboxConversation conversation, MailboxMessage snapshot) {
     Set<String> addresses = new LinkedHashSet<>();
     addAddress(addresses, snapshot.from());
