@@ -46,6 +46,9 @@ public class BroadcastRun {
   @Column(name = "snapshot_cursor_member_id")
   private Long snapshotCursorMemberId;
 
+  @Column(name = "snapshot_max_member_id")
+  private Long snapshotMaxMemberId;
+
   @Column(name = "snapshot_complete", nullable = false)
   private boolean snapshotComplete;
 

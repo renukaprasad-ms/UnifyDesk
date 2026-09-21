@@ -38,6 +38,12 @@ public class BroadcastGroupMember {
   @Column(nullable = false, length = 24)
   private BroadcastGroupMemberStatus status;
 
+  @Column(name = "active_since", nullable = false)
+  private Instant activeSince;
+
+  @Column(name = "disabled_at")
+  private Instant disabledAt;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
@@ -49,6 +55,7 @@ public class BroadcastGroupMember {
     if (id == null) id = IdGenerator.nextId();
     if (status == null) status = BroadcastGroupMemberStatus.ACTIVE;
     Instant now = Instant.now();
+    if (activeSince == null) activeSince = now;
     if (createdAt == null) createdAt = now;
     updatedAt = now;
   }

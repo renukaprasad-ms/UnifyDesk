@@ -21,4 +21,21 @@ public interface BroadcastOutboxRepository extends JpaRepository<BroadcastOutbox
       nativeQuery = true)
   List<BroadcastOutbox> findClaimableForUpdate(
       @Param("now") Instant now, @Param("limit") int limit);
+
+  @Modifying
+  @Query(
+      value =
+          """
+          update broadcast_outbox
+          set status = 'RETRY',
+              claimed_at = null,
+              available_at = :now,
+              updated_at = :now,
+              last_error = 'Recovered stale outbox claim'
+          where status = 'PROCESSING'
+            and claimed_at < :staleBefore
+          """,
+      nativeQuery = true)
+  int recoverStale(
+      @Param("staleBefore") Instant staleBefore, @Param("now") Instant now);
 }
