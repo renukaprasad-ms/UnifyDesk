@@ -5,7 +5,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -25,8 +27,12 @@ public class SystemPermissionCatalogService {
   private final JdbcTemplate jdbcTemplate;
 
   public int ensureCatalog() {
+    Set<String> existing =
+        new HashSet<>(
+            jdbcTemplate.queryForList("select permission_key from permissions", String.class));
     int inserted = 0;
     for (String key : permissionKeys()) {
+      if (existing.contains(key)) continue;
       inserted +=
           jdbcTemplate.update(
               INSERT_SQL,
