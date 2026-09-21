@@ -3,6 +3,7 @@ package com.messaging.channel.controller;
 import com.messaging.channel.dto.ChannelConnectionResponse;
 import com.messaging.channel.dto.CreateChannelConnectionRequest;
 import com.messaging.channel.dto.CreateSenderIdentityRequest;
+import com.messaging.channel.dto.DisconnectChannelRequest;
 import com.messaging.channel.dto.SenderIdentityResponse;
 import com.messaging.channel.dto.UpdateChannelConnectionRequest;
 import com.messaging.channel.enums.ChannelType;
@@ -105,7 +106,9 @@ public class ChannelConnectionController {
 
   @PostMapping("/{connectionId}/disconnect")
   public ResponseEntity<ApiResponse<ChannelConnectionResponse>> disconnect(
-      @PathVariable Long companyId, @PathVariable Long connectionId) {
+      @PathVariable Long companyId,
+      @PathVariable Long connectionId,
+      @RequestBody(required = false) DisconnectChannelRequest request) {
     Long userId = currentUserService.currentUserId();
     ChannelConnectionResponse existing = channelConnectionService.get(companyId, connectionId);
     companyAuthorizationService.requirePermission(
@@ -113,7 +116,11 @@ public class ChannelConnectionController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            channelConnectionService.disconnect(companyId, connectionId, userId),
+            channelConnectionService.disconnect(
+                companyId,
+                connectionId,
+                userId,
+                request == null ? null : request.resolvedDataPolicy()),
             "Channel disconnected"));
   }
 

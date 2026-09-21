@@ -1,6 +1,7 @@
 package com.messaging.inbox.service;
 
 import com.messaging.channel.email.EmailFolder;
+import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.inbox.dto.InboxAttachmentResponse;
 import com.messaging.inbox.dto.InboxConversationResponse;
@@ -37,7 +38,11 @@ public class InboxQueryService {
     EmailFolder resolvedFolder = folder == null ? EmailFolder.INBOX : folder;
     Page<InboxConversation> result =
         conversationRepository.findByFolder(
-            companyId, connectionId, resolvedFolder.providerKey(), pageable);
+            companyId,
+            connectionId,
+            ChannelConnectionStatus.ACTIVE,
+            resolvedFolder.providerKey(),
+            pageable);
 
     List<InboxConversationResponse> items =
         result.getContent().stream().map(this::conversation).toList();
@@ -52,19 +57,13 @@ public class InboxQueryService {
 
   @Transactional(readOnly = true)
   public InboxConversationResponse getConversation(Long companyId, Long conversationId) {
-    InboxConversation conversation =
-        conversationRepository
-            .findByIdAndCompanyId(conversationId, companyId)
-            .orElseThrow(() -> new NotFoundException("Inbox conversation not found"));
+    InboxConversation conversation = requireVisibleConversation(companyId, conversationId);
     return conversation(conversation);
   }
 
   @Transactional(readOnly = true)
   public List<InboxMessageResponse> listMessages(Long companyId, Long conversationId) {
-    InboxConversation conversation =
-        conversationRepository
-            .findByIdAndCompanyId(conversationId, companyId)
-            .orElseThrow(() -> new NotFoundException("Inbox conversation not found"));
+    InboxConversation conversation = requireVisibleConversation(companyId, conversationId);
 
     return messageRepository
         .findByConversationIdAndStatusNotOrderBySentAtAscCreatedAtAsc(
@@ -72,6 +71,15 @@ public class InboxQueryService {
         .stream()
         .map(this::message)
         .toList();
+  }
+
+  private InboxConversation requireVisibleConversation(Long companyId, Long conversationId) {
+    return conversationRepository
+        .findByIdAndCompanyId(conversationId, companyId)
+        .filter(
+            conversation ->
+                conversation.getConnection().getStatus() == ChannelConnectionStatus.ACTIVE)
+        .orElseThrow(() -> new NotFoundException("Inbox conversation not found"));
   }
 
   private InboxConversationResponse conversation(InboxConversation conversation) {
