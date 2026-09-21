@@ -53,7 +53,8 @@ const messageStatusFromRun = (
 const summaryFromMessage = (message: BroadcastMessage): BroadcastMessageSummary => ({
   id: message.id,
   groupId: message.groupId,
-  connectionId: message.connectionId,
+  senderId: message.senderId,
+  legacyConnectionId: message.legacyConnectionId,
   runId: message.runId,
   subject: message.subject,
   bodyPreview: message.bodyText.slice(0, 240),
