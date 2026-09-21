@@ -39,25 +39,32 @@ public class ImapSmtpConnectionPersistenceService {
       Long userId,
       ImapSmtpStoredCredentials credentials,
       ImapSmtpCursorState cursorState) {
-    entitlementService.assertCanCreateConnection(companyId, ChannelType.EMAIL);
-
     String email = credentials.email().trim().toLowerCase(Locale.ROOT);
-    if (connectionRepository.existsByCompanyIdAndProviderTypeAndExternalAccountId(
-        companyId, ProviderType.IMAP_SMTP, email)) {
+    ChannelConnection connection =
+        connectionRepository
+            .findByCompanyIdAndProviderTypeAndExternalAccountId(
+                companyId, ProviderType.IMAP_SMTP, email)
+            .orElse(null);
+
+    if (connection != null && connection.getStatus() != ChannelConnectionStatus.DISCONNECTED) {
       throw new BadRequestException("This email account is already connected to the company");
     }
 
-    ChannelConnection connection = new ChannelConnection();
-    connection.setCompanyId(companyId);
-    connection.setChannelType(ChannelType.EMAIL);
-    connection.setProviderType(ProviderType.IMAP_SMTP);
+    if (connection == null) {
+      entitlementService.assertCanCreateConnection(companyId, ChannelType.EMAIL);
+      connection = new ChannelConnection();
+      connection.setCompanyId(companyId);
+      connection.setChannelType(ChannelType.EMAIL);
+      connection.setProviderType(ProviderType.IMAP_SMTP);
+      connection.setCreatedByUserId(userId);
+    }
+
     connection.setName(
         credentials.displayName() == null || credentials.displayName().isBlank()
             ? email
             : credentials.displayName().trim());
     connection.setExternalAccountId(email);
     connection.setStatus(ChannelConnectionStatus.ACTIVE);
-    connection.setCreatedByUserId(userId);
     connection.setLastSyncAt(Instant.now());
     connection = connectionRepository.save(connection);
 
@@ -67,19 +74,32 @@ public class ImapSmtpConnectionPersistenceService {
         credentialCodec.encode(credentials),
         null);
 
-    SenderIdentity sender = new SenderIdentity();
-    sender.setConnection(connection);
-    sender.setIdentityType(SenderIdentityType.EMAIL_ADDRESS);
+    SenderIdentity sender =
+        senderIdentityRepository
+            .findByConnectionIdAndIdentityTypeAndValue(
+                connection.getId(), SenderIdentityType.EMAIL_ADDRESS, email)
+            .orElseGet(SenderIdentity::new);
+    if (sender.getId() == null) {
+      sender.setConnection(connection);
+      sender.setIdentityType(SenderIdentityType.EMAIL_ADDRESS);
+      sender.setExternalId(email);
+    }
     sender.setValue(email);
+    sender.setExternalId(email);
     sender.setStatus(SenderIdentityStatus.ACTIVE);
     sender.setDefaultIdentity(true);
     senderIdentityRepository.save(sender);
 
-    ChannelSyncState syncState = new ChannelSyncState();
-    syncState.setConnection(connection);
-    syncState.setProviderType(ProviderType.IMAP_SMTP);
-    syncState.setCursorValue(cursorCodec.encode(cursorState));
-    syncState.setLastIncrementalSyncAt(Instant.now());
+    ChannelSyncState syncState =
+        syncStateRepository
+            .findByConnectionIdAndProviderType(connection.getId(), ProviderType.IMAP_SMTP)
+            .orElseGet(ChannelSyncState::new);
+    if (syncState.getId() == null) {
+      syncState.setConnection(connection);
+      syncState.setProviderType(ProviderType.IMAP_SMTP);
+      syncState.setCursorValue(cursorCodec.encode(cursorState));
+    }
+    syncState.setIncrementalNextAttemptAt(Instant.now());
     syncStateRepository.save(syncState);
 
     return connection;

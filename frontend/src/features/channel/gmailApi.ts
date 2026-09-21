@@ -3,6 +3,7 @@ import type { AsyncJob } from '../asyncJob/types'
 import type { ApiResponse } from '../../lib/api/types'
 import type {
   ChannelConnection,
+  DisconnectDataPolicy,
   GmailAuthorization,
   GmailSendRequest,
   GmailSendResponse,
@@ -47,9 +48,14 @@ export const gmailApi = {
     return unwrap(response.data)
   },
 
-  async disconnect(companyId: string, connectionId: string) {
+  async disconnect(
+    companyId: string,
+    connectionId: string,
+    dataPolicy: DisconnectDataPolicy = 'KEEP_7_DAYS',
+  ) {
     const response = await apiClient.post<ApiResponse<ChannelConnection>>(
       `/api/v1/companies/${companyId}/channels/email/gmail/${connectionId}/disconnect`,
+      { dataPolicy },
     )
     return unwrap(response.data)
   },

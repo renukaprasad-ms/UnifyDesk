@@ -12,6 +12,7 @@ import com.messaging.channel.meta.dto.MetaWhatsAppConnectionResponse;
 import com.messaging.channel.meta.dto.MetaWhatsAppSignupConfigResponse;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.channel.repository.SenderIdentityRepository;
+import com.messaging.channel.service.ChannelConnectionService;
 import com.messaging.channel.service.ChannelEntitlementService;
 import com.messaging.common.exception.BadRequestException;
 import java.security.SecureRandom;
@@ -31,6 +32,7 @@ public class MetaWhatsAppConnectionService {
   private final ChannelConnectionRepository connectionRepository;
   private final SenderIdentityRepository senderIdentityRepository;
   private final ChannelEntitlementService entitlementService;
+  private final ChannelConnectionService channelConnectionService;
   private final MetaWhatsAppPersistenceService persistenceService;
 
   public MetaWhatsAppSignupConfigResponse signupConfig(Long companyId, Long userId) {
@@ -83,7 +85,11 @@ public class MetaWhatsAppConnectionService {
     graphClient.registerPhoneNumber(phone.id(), token.accessToken(), pin);
     graphClient.subscribeApp(request.wabaId(), token.accessToken());
 
-    return persistenceService.persist(companyId, userId, request.wabaId(), waba, phone, token, pin);
+    MetaWhatsAppConnectionResponse response =
+        persistenceService.persist(companyId, userId, request.wabaId(), waba, phone, token, pin);
+    channelConnectionService.cancelPendingPurge(
+        companyId, Long.valueOf(response.connectionId()));
+    return response;
   }
 
   private PhoneNumber requirePhoneNumber(

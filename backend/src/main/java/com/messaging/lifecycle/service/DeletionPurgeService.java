@@ -42,6 +42,24 @@ public class DeletionPurgeService {
   }
 
   @Transactional
+  public void cancel(LifecycleEntityType entityType, Long entityId) {
+    repository
+        .findByEntityTypeAndEntityId(entityType, entityId)
+        .ifPresent(
+            job -> {
+              if (job.getStatus() == DeletionPurgeStatus.COMPLETED
+                  || job.getStatus() == DeletionPurgeStatus.CANCELLED) {
+                return;
+              }
+              job.setStatus(DeletionPurgeStatus.CANCELLED);
+              job.setNextAttemptAt(null);
+              job.setClaimedAt(null);
+              job.setLastError(null);
+              repository.save(job);
+            });
+  }
+
+  @Transactional
   public List<Long> claimDue() {
     int limit = Math.max(1, properties.getBatchSize());
     List<DeletionPurgeJob> jobs = repository.findDueForUpdate(limit);
@@ -82,6 +100,9 @@ public class DeletionPurgeService {
         repository
             .findByIdForUpdate(jobId)
             .orElseThrow(() -> new IllegalStateException("Deletion purge job not found"));
+    if (job.getStatus() == DeletionPurgeStatus.CANCELLED) {
+      return;
+    }
     job.setStatus(DeletionPurgeStatus.COMPLETED);
     job.setCompletedAt(Instant.now());
     job.setClaimedAt(null);
@@ -96,6 +117,9 @@ public class DeletionPurgeService {
         repository
             .findByIdForUpdate(jobId)
             .orElseThrow(() -> new IllegalStateException("Deletion purge job not found"));
+    if (job.getStatus() == DeletionPurgeStatus.CANCELLED) {
+      return;
+    }
     job.setStatus(DeletionPurgeStatus.FAILED);
     job.setClaimedAt(null);
     job.setNextAttemptAt(Instant.now().plus(properties.getRetryDelay()));
