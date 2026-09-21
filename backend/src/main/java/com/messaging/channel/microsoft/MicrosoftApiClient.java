@@ -8,6 +8,7 @@ import com.messaging.channel.email.EmailSyncMode;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.TooManyRequestsException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -25,6 +26,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 @Slf4j
 @Component
@@ -226,6 +228,61 @@ public class MicrosoftApiClient {
         .buildAndExpand(folder.microsoftFolderKey())
         .encode()
         .toUri();
+  }
+
+  public void updateReadState(
+      String accessToken, List<String> messageIds, boolean read) {
+    if (messageIds == null || messageIds.isEmpty()) return;
+
+    for (int offset = 0; offset < messageIds.size(); offset += 20) {
+      int end = Math.min(messageIds.size(), offset + 20);
+      List<GraphBatchSubRequest> requests =
+          java.util.stream.IntStream.range(offset, end)
+              .mapToObj(
+                  index -> {
+                    String messageId = messageIds.get(index);
+                    String encodedId =
+                        UriUtils.encodePathSegment(messageId, StandardCharsets.UTF_8);
+                    return new GraphBatchSubRequest(
+                        Integer.toString(index - offset + 1),
+                        "PATCH",
+                        "/me/messages/" + encodedId,
+                        Map.of("Content-Type", "application/json"),
+                        Map.of("isRead", read));
+                  })
+              .toList();
+
+      GraphBatchResponse response =
+          execute(
+              "mail_batch_read_state",
+              () ->
+                  graph
+                      .post()
+                      .uri("/v1.0/$batch")
+                      .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .body(new GraphBatchRequest(requests))
+                      .retrieve()
+                      .body(GraphBatchResponse.class));
+
+      if (response.responses() == null) {
+        throw new BadRequestException("Microsoft Graph returned an invalid batch response");
+      }
+      for (GraphBatchSubResponse item : response.responses()) {
+        int status = item == null || item.status() == null ? 500 : item.status();
+        if ((status >= 200 && status < 300) || status == 404) continue;
+        if (status == 429 || status >= 500) {
+          throw new TooManyRequestsException(
+              "Microsoft Graph is temporarily unavailable or rate limited");
+        }
+        if (status == 401 || status == 403) {
+          throw new BadRequestException(
+              "Microsoft mailbox authorization is invalid or missing required permissions");
+        }
+        throw new BadRequestException(
+            "Microsoft Graph read-state update failed with HTTP " + status);
+      }
+    }
   }
 
   public void sendMail(String accessToken, SendMailRequest request) {
@@ -515,6 +572,21 @@ public class MicrosoftApiClient {
       List<GraphRecipient> toRecipients,
       List<GraphRecipient> ccRecipients,
       List<GraphRecipient> bccRecipients) {}
+
+  public record GraphBatchRequest(List<GraphBatchSubRequest> requests) {}
+
+  public record GraphBatchSubRequest(
+      String id,
+      String method,
+      String url,
+      Map<String, String> headers,
+      Map<String, Object> body) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record GraphBatchResponse(List<GraphBatchSubResponse> responses) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record GraphBatchSubResponse(String id, Integer status) {}
 
   public record SubscriptionRequest(
       String changeType,
