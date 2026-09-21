@@ -15,6 +15,8 @@ public record ChannelConnectionResponse(
     ChannelConnectionStatus status,
     String createdByUserId,
     Instant lastSyncAt,
+    Instant disconnectedAt,
+    Instant purgeAfter,
     Instant createdAt,
     Instant updatedAt,
     boolean providerConfigured) {}

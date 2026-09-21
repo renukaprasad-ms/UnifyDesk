@@ -3,10 +3,13 @@ package com.messaging.channel.gmail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.channel.credential.ProviderCredentialService;
+import com.messaging.channel.email.EmailSyncRequest;
+import com.messaging.channel.email.EmailSyncRequestValidator;
 import com.messaging.channel.dto.ChannelConnectionResponse;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.CredentialType;
+import com.messaging.channel.enums.DisconnectDataPolicy;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.gmail.GmailApiClient.GmailProfile;
 import com.messaging.channel.gmail.GmailApiClient.TokenResponse;
@@ -14,7 +17,6 @@ import com.messaging.channel.gmail.GmailOAuthStateService.OAuthState;
 import com.messaging.channel.gmail.dto.GmailAuthorizationResponse;
 import com.messaging.channel.gmail.dto.GmailConnectionResponse;
 import com.messaging.channel.gmail.dto.GmailSyncQueuedResponse;
-import com.messaging.channel.gmail.dto.GmailSyncRequest;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.channel.service.ChannelConnectionService;
 import com.messaging.channel.service.ChannelEntitlementService;
@@ -35,6 +37,7 @@ public class GmailConnectionService {
   private final GmailApiClient gmailApiClient;
   private final GmailPersistenceService persistenceService;
   private final GmailSyncQueueService syncQueueService;
+  private final GmailWatchService watchService;
   private final ChannelConnectionRepository connectionRepository;
   private final ChannelEntitlementService entitlementService;
   private final CompanyAuthorizationService authorizationService;
@@ -99,6 +102,22 @@ public class GmailConnectionService {
 
     GmailConnectionResponse response =
         persistenceService.persist(oauthState.companyId(), oauthState.userId(), profile, token);
+    channelConnectionService.cancelPendingPurge(
+        oauthState.companyId(), Long.valueOf(response.connectionId()));
+
+    connectionRepository
+        .findByIdAndCompanyId(Long.valueOf(response.connectionId()), oauthState.companyId())
+        .ifPresent(
+            connection -> {
+              try {
+                watchService.ensureWatch(connection, true);
+              } catch (RuntimeException exception) {
+                log.warn(
+                    "Gmail connected but realtime watch setup failed connectionId={} reason={}",
+                    connection.getId(),
+                    exception.getClass().getSimpleName());
+              }
+            });
 
     return new GmailCompletion(response, oauthState.returnTo());
   }
@@ -112,7 +131,10 @@ public class GmailConnectionService {
   }
 
   public GmailSyncQueuedResponse queueSync(
-      Long companyId, Long userId, Long connectionId, GmailSyncRequest request) {
+      Long companyId, Long userId, Long connectionId, EmailSyncRequest request) {
+    EmailSyncRequestValidator.validate(
+        request, properties.getSyncMaxRangeDays(), properties.getSyncMaxMessages());
+
     ChannelConnectionResponse connection = channelConnectionService.get(companyId, connectionId);
     if (connection.providerType() != ProviderType.GMAIL) {
       throw new BadRequestException("Channel connection is not a Gmail account");
@@ -121,8 +143,7 @@ public class GmailConnectionService {
       throw new BadRequestException("Gmail connection is not active");
     }
 
-    return syncQueueService.enqueue(
-        companyId, userId, connectionId, request.fromDate(), request.toDate());
+    return syncQueueService.enqueue(companyId, userId, connectionId, request);
   }
 
   public AsyncJobResponse activeSync(Long companyId, Long connectionId) {
@@ -133,11 +154,19 @@ public class GmailConnectionService {
     return syncQueueService.active(companyId, connectionId);
   }
 
-  public ChannelConnectionResponse disconnect(Long companyId, Long connectionId) {
+  public ChannelConnectionResponse disconnect(
+      Long companyId,
+      Long connectionId,
+      Long requestedByUserId,
+      DisconnectDataPolicy dataPolicy) {
     ChannelConnectionResponse connection = channelConnectionService.get(companyId, connectionId);
     if (connection.providerType() != ProviderType.GMAIL) {
       throw new BadRequestException("Channel connection is not a Gmail account");
     }
+
+    connectionRepository
+        .findByIdAndCompanyId(connectionId, companyId)
+        .ifPresent(watchService::stopBestEffort);
 
     try {
       String raw = credentialService.read(connectionId, CredentialType.OAUTH_TOKEN_SET);
@@ -155,7 +184,8 @@ public class GmailConnectionService {
       // Local disconnect must still succeed if the Google grant is already missing or invalid.
     }
 
-    return channelConnectionService.disconnect(companyId, connectionId);
+    return channelConnectionService.disconnect(
+        companyId, connectionId, requestedByUserId, dataPolicy);
   }
 
   public boolean configured() {

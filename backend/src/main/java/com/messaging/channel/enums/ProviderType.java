@@ -3,6 +3,7 @@ package com.messaging.channel.enums;
 public enum ProviderType {
   GMAIL(ChannelType.EMAIL),
   MICROSOFT(ChannelType.EMAIL),
+  IMAP_SMTP(ChannelType.EMAIL),
   SMTP(ChannelType.EMAIL),
   META_WHATSAPP(ChannelType.WHATSAPP),
   MSG91(ChannelType.SMS);

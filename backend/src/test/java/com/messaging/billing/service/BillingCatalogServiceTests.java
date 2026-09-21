@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.messaging.billing.bootstrap.SystemEntitlementCatalogInitializer;
 import com.messaging.billing.dto.AssignSubscriptionRequest;
 import com.messaging.billing.dto.CompanySubscriptionResponse;
 import com.messaging.billing.dto.UpsertEntitlementRequest;
@@ -54,6 +55,7 @@ class BillingCatalogServiceTests {
   @Mock private CompanyRateOverrideRepository companyRateOverrideRepository;
   @Mock private CompanySubscriptionRepository subscriptionRepository;
   @Mock private CompanyRepository companyRepository;
+  @Mock private SystemEntitlementCatalogInitializer entitlementCatalogInitializer;
 
   @InjectMocks private BillingCatalogService billingCatalogService;
 

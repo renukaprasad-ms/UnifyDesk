@@ -2,11 +2,12 @@ package com.messaging.channel.gmail;
 
 import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.channel.dto.ChannelConnectionResponse;
+import com.messaging.channel.dto.DisconnectChannelRequest;
+import com.messaging.channel.email.EmailSyncRequest;
 import com.messaging.channel.gmail.dto.GmailAuthorizationResponse;
 import com.messaging.channel.gmail.dto.GmailSendRequest;
 import com.messaging.channel.gmail.dto.GmailSendResponse;
 import com.messaging.channel.gmail.dto.GmailSyncQueuedResponse;
-import com.messaging.channel.gmail.dto.GmailSyncRequest;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
@@ -62,7 +63,7 @@ public class GmailConnectionController {
   public ResponseEntity<ApiResponse<GmailSyncQueuedResponse>> sync(
       @PathVariable Long companyId,
       @PathVariable Long connectionId,
-      @Valid @RequestBody GmailSyncRequest request) {
+      @Valid @RequestBody EmailSyncRequest request) {
     Long userId = currentUserService.currentUserId();
     authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_READ);
 
@@ -91,14 +92,20 @@ public class GmailConnectionController {
 
   @PostMapping("/{connectionId}/disconnect")
   public ResponseEntity<ApiResponse<ChannelConnectionResponse>> disconnect(
-      @PathVariable Long companyId, @PathVariable Long connectionId) {
+      @PathVariable Long companyId,
+      @PathVariable Long connectionId,
+      @RequestBody(required = false) DisconnectChannelRequest request) {
     Long userId = currentUserService.currentUserId();
     authorizationService.requirePermission(
         userId, companyId, CompanyPermissionKeys.EMAIL_DISCONNECT);
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            gmailConnectionService.disconnect(companyId, connectionId),
+            gmailConnectionService.disconnect(
+                companyId,
+                connectionId,
+                userId,
+                request == null ? null : request.resolvedDataPolicy()),
             "Gmail disconnected"));
   }
 }

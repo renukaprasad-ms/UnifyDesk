@@ -61,3 +61,9 @@ export type InboxPage<T> = {
   totalElements: number
   totalPages: number
 }
+
+export type InboxReadStateResponse = {
+  read: boolean
+  updatedMessages: number
+  updatedConversations: number
+}

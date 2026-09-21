@@ -255,8 +255,12 @@ public class CompanyInvitationService {
       Long roleId = parseId(rawRoleId);
       CompanyCustomRole role =
           roleRepository
-              .findByIdAndCompanyId(roleId, companyId)
+              .findByIdAndCompanyIdAndDeletedAtIsNull(roleId, companyId)
               .orElseThrow(() -> new NotFoundException("Company role not found"));
+      if (role.isSystemRole()) {
+        throw new BadRequestException(
+            "System roles are managed by company membership and cannot be assigned manually");
+      }
       roles.add(role);
     }
     validateExistingRoles(actorId, companyId, roles);
@@ -265,6 +269,10 @@ public class CompanyInvitationService {
 
   private void validateExistingRoles(Long actorId, Long companyId, Set<CompanyCustomRole> roles) {
     if (roles.isEmpty()) return;
+    if (roles.stream().anyMatch(CompanyCustomRole::isSystemRole)) {
+      throw new BadRequestException(
+          "System roles are managed by company membership and cannot be assigned manually");
+    }
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_READ);
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_ASSIGN);
 
@@ -299,6 +307,9 @@ public class CompanyInvitationService {
 
   private void assignInvitationRoles(CompanyInvitation invitation, Long userId) {
     for (CompanyCustomRole role : invitation.getRoles()) {
+      if (role.getDeletedAt() != null) {
+        continue;
+      }
       CompanyMemberRoleAssignment assignment =
           assignmentRepository
               .findByCompanyIdAndUserIdAndRoleId(

@@ -4,5 +4,6 @@ public enum MediaStatus {
   PENDING,
   ACTIVE,
   FAILED,
+  DELETE_PENDING,
   DELETED
 }

@@ -42,7 +42,9 @@ public class SecurityConfig {
                         "/api/auth/2fa/verify",
                         "/api/auth/refresh",
                         "/api/v1/media/uploads",
-                        "/api/v1/webhooks/meta/whatsapp"))
+                        "/api/v1/webhooks/meta/whatsapp",
+                        "/api/v1/webhooks/microsoft",
+                        "/api/v1/webhooks/google/gmail"))
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
@@ -58,7 +60,10 @@ public class SecurityConfig {
                         "/api/auth/password-reset/verify",
                         "/api/auth/password-reset/complete",
                         "/api/v1/webhooks/meta/whatsapp",
-                        "/api/v1/oauth/gmail/callback")
+                        "/api/v1/webhooks/microsoft",
+                        "/api/v1/webhooks/google/gmail",
+                        "/api/v1/oauth/gmail/callback",
+                        "/api/v1/oauth/microsoft/callback")
                     .permitAll()
                     .anyRequest()
                     .authenticated())

@@ -14,6 +14,7 @@ public interface CompanyMemberRoleAssignmentRepository
   @Query(
       "select a from CompanyMemberRoleAssignment a join fetch a.role r "
           + "where a.companyId = :companyId and a.userId = :userId "
+          + "and r.deletedAt is null "
           + "and a.revokedAt is null and (a.expiresAt is null or a.expiresAt > :now)")
   List<CompanyMemberRoleAssignment> findActive(
       @Param("companyId") Long companyId, @Param("userId") Long userId, @Param("now") Instant now);

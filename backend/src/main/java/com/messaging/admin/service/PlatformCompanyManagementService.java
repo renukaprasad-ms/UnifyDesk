@@ -2,6 +2,7 @@ package com.messaging.admin.service;
 
 import com.messaging.admin.dto.*;
 import com.messaging.admin.enums.PlatformPermission;
+import com.messaging.common.exception.ConflictException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.company.entity.Company;
 import com.messaging.company.repository.CompanyRepository;
@@ -38,6 +39,15 @@ public class PlatformCompanyManagementService {
         companyRepository
             .findById(id)
             .orElseThrow(() -> new NotFoundException("Company not found"));
+    if (company.getStatus() == com.messaging.company.enums.CompanyStatus.DELETION_PENDING
+        || company.getStatus() == com.messaging.company.enums.CompanyStatus.PURGING
+        || company.getStatus() == com.messaging.company.enums.CompanyStatus.PURGED) {
+      throw new ConflictException("Deletion lifecycle status cannot be changed from the admin status API");
+    }
+    if (request.status() != com.messaging.company.enums.CompanyStatus.ACTIVE
+        && request.status() != com.messaging.company.enums.CompanyStatus.SUSPENDED) {
+      throw new ConflictException("Use the deletion lifecycle to delete a company");
+    }
     company.setStatus(request.status());
     return response(company);
   }

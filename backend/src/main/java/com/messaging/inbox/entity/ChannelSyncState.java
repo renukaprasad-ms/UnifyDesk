@@ -40,6 +40,42 @@ public class ChannelSyncState {
   @Column(name = "last_incremental_sync_at")
   private Instant lastIncrementalSyncAt;
 
+  @Column(name = "watch_expiration_at")
+  private Instant watchExpirationAt;
+
+  @Column(name = "watch_renewed_at")
+  private Instant watchRenewedAt;
+
+  @Column(name = "last_notification_at")
+  private Instant lastNotificationAt;
+
+  @Column(name = "pending_history_id", length = 255)
+  private String pendingHistoryId;
+
+  @Column(name = "realtime_claimed_at")
+  private Instant realtimeClaimedAt;
+
+  @Column(name = "realtime_next_attempt_at")
+  private Instant realtimeNextAttemptAt;
+
+  @Column(name = "realtime_attempt_count", nullable = false)
+  private int realtimeAttemptCount;
+
+  @Column(name = "realtime_last_error", length = 1000)
+  private String realtimeLastError;
+
+  @Column(name = "incremental_claimed_at")
+  private Instant incrementalClaimedAt;
+
+  @Column(name = "incremental_next_attempt_at")
+  private Instant incrementalNextAttemptAt;
+
+  @Column(name = "incremental_attempt_count", nullable = false)
+  private int incrementalAttemptCount;
+
+  @Column(name = "incremental_last_error", length = 1000)
+  private String incrementalLastError;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 

@@ -41,6 +41,7 @@ class GmailConnectionServiceTests {
   @Mock private GmailApiClient gmailApiClient;
   @Mock private GmailPersistenceService persistenceService;
   @Mock private GmailSyncQueueService syncQueueService;
+  @Mock private GmailWatchService watchService;
   @Mock private ChannelConnectionRepository connectionRepository;
   @Mock private ChannelEntitlementService entitlementService;
   @Mock private CompanyAuthorizationService authorizationService;
@@ -65,6 +66,7 @@ class GmailConnectionServiceTests {
             gmailApiClient,
             persistenceService,
             syncQueueService,
+            watchService,
             connectionRepository,
             entitlementService,
             authorizationService,

@@ -26,10 +26,20 @@ public class GmailOAuthProperties {
   private int initialSyncMaxMessages = 200;
   private int syncMaxRangeDays = 366;
   private int syncMaxMessages = 100000;
-  private int syncBatchSize = 50;
+  private int syncBatchSize = 25;
   private int syncUserQuotaUnitsPerMinute = 6000;
   private int syncMessageGetQuotaUnits = 20;
-  private int syncQuotaUtilizationPercent = 90;
+  private int syncQuotaUtilizationPercent = 80;
+  private boolean quotaControlEnabled = true;
+  private int quotaProjectUnitsPerMinute = 1_200_000;
+  private int quotaInteractiveReservePercent = 20;
+  private int quotaUserBurstUnits = 600;
+  private int quotaProjectBurstUnits = 50_000;
+  private int quotaBackgroundUserBurstUnits = 500;
+  private int quotaBackgroundProjectBurstUnits = 40_000;
+  private Duration quotaBucketTtl = Duration.ofMinutes(2);
+  private Duration quotaCooldownInitial = Duration.ofSeconds(30);
+  private Duration quotaCooldownMax = Duration.ofMinutes(5);
   private int syncBatchRetryMaxAttempts = 12;
   private Duration syncBatchRetryInitialBackoff = Duration.ofSeconds(2);
   private Duration syncBatchRetryMaxBackoff = Duration.ofSeconds(64);
@@ -41,6 +51,28 @@ public class GmailOAuthProperties {
   private int apiRetryMaxAttempts = 4;
   private Duration apiRetryInitialBackoff = Duration.ofSeconds(1);
   private Duration apiRetryMaxBackoff = Duration.ofSeconds(8);
+
+  private String pubsubTopicName;
+  private String pubsubPushVerificationToken;
+  private Duration watchRenewInterval = Duration.ofHours(1);
+  private Duration watchRenewInitialDelay = Duration.ofMinutes(1);
+  private Duration watchRenewAfter = Duration.ofHours(24);
+  private int realtimeWorkerConcurrency = 4;
+  private int realtimeWorkerPollIntervalMs = 500;
+  private Duration realtimeStaleAfter = Duration.ofMinutes(5);
+  private int realtimeMaxAttempts = 12;
+  private int realtimeHistoryPageSize = 200;
+  private int realtimeBatchSize = 25;
+  private Duration realtimeSafetySyncInterval = Duration.ofMinutes(5);
+  private Duration realtimeSafetySyncInitialDelay = Duration.ofMinutes(2);
+  private int realtimeRecoveryDays = 30;
+  private int realtimeRecoveryMaxMessages = 1000;
+
+  public boolean realtimeConfigured() {
+    return configured()
+        && hasText(pubsubTopicName)
+        && hasText(pubsubPushVerificationToken);
+  }
 
   public boolean configured() {
     return enabled

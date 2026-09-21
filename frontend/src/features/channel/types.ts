@@ -1,6 +1,7 @@
 export type ChannelType = 'EMAIL' | 'WHATSAPP' | 'SMS'
-export type ProviderType = 'GMAIL' | 'MICROSOFT' | 'SMTP' | 'META_WHATSAPP' | 'MSG91'
+export type ProviderType = 'GMAIL' | 'MICROSOFT' | 'IMAP_SMTP' | 'SMTP' | 'META_WHATSAPP' | 'MSG91'
 export type ChannelConnectionStatus = 'PENDING' | 'ACTIVE' | 'ERROR' | 'DISCONNECTED'
+export type DisconnectDataPolicy = 'KEEP_7_DAYS' | 'DELETE_NOW'
 export type SenderIdentityStatus = 'PENDING' | 'ACTIVE' | 'ERROR' | 'DISABLED'
 export type SenderIdentityType = 'EMAIL_ADDRESS' | 'PHONE_NUMBER' | 'SMS_HEADER'
 
@@ -14,6 +15,8 @@ export type ChannelConnection = {
   status: ChannelConnectionStatus
   createdByUserId: string
   lastSyncAt?: string | null
+  disconnectedAt?: string | null
+  purgeAfter?: string | null
   createdAt: string
   updatedAt: string
   providerConfigured: boolean
@@ -64,18 +67,30 @@ export type GmailAuthorization = {
   authorizationUrl: string
 }
 
-export type GmailSyncQueued = {
+export type EmailFolder = 'INBOX' | 'SENT'
+export type EmailSyncMode = 'DATE_RANGE' | 'LATEST_MESSAGES'
+
+export type EmailSyncRequest = {
+  mode: EmailSyncMode
+  folder: EmailFolder
+  fromDate?: string
+  toDate?: string
+  messageCount?: number
+}
+
+export type EmailSyncQueued = {
   connectionId: string
   jobId: string
   status: 'QUEUED' | 'RUNNING'
-  fromDate: string
-  toDate: string
+  mode: EmailSyncMode
+  folder: EmailFolder
+  fromDate?: string | null
+  toDate?: string | null
+  messageCount?: number | null
 }
 
-export type GmailSyncRequest = {
-  fromDate: string
-  toDate: string
-}
+export type GmailSyncQueued = EmailSyncQueued
+export type GmailSyncRequest = EmailSyncRequest
 
 export type GmailSendRequest = {
   to: string[]
@@ -97,5 +112,82 @@ export type GmailSendResponse = {
   cc: string[]
   bcc: string[]
   subject?: string | null
+  sentAt: string
+}
+
+
+export type MicrosoftAuthorization = {
+  authorizationUrl: string
+}
+
+export type MicrosoftSendRequest = {
+  to: string[]
+  cc?: string[]
+  bcc?: string[]
+  subject: string
+  bodyText: string
+  replyToMessageId?: string | null
+  replyAll?: boolean
+}
+
+export type MicrosoftSendResponse = {
+  connectionId: string
+  from: string
+  to: string[]
+  cc: string[]
+  bcc: string[]
+  subject: string
+  acceptedAt: string
+}
+
+
+export type MailSecurityMode = 'SSL_TLS' | 'STARTTLS'
+
+export type ImapSmtpConnectRequest = {
+  email: string
+  displayName?: string
+  username: string
+  password: string
+  imapHost: string
+  imapPort: number
+  imapSecurity: MailSecurityMode
+  smtpHost: string
+  smtpPort: number
+  smtpSecurity: MailSecurityMode
+  sentFolder?: string
+}
+
+export type ImapSmtpConnection = {
+  connectionId: string
+  email: string
+  name: string
+  status: ChannelConnectionStatus
+  imapHost: string
+  imapPort: number
+  imapSecurity: MailSecurityMode
+  smtpHost: string
+  smtpPort: number
+  smtpSecurity: MailSecurityMode
+  sentFolder: string
+}
+
+export type ImapSmtpSendRequest = {
+  to: string[]
+  cc?: string[]
+  bcc?: string[]
+  subject?: string
+  bodyText: string
+  inReplyTo?: string | null
+  references?: string | null
+}
+
+export type ImapSmtpSendResponse = {
+  connectionId: string
+  messageId: string
+  from: string
+  to: string[]
+  cc: string[]
+  bcc: string[]
+  subject: string
   sentAt: string
 }

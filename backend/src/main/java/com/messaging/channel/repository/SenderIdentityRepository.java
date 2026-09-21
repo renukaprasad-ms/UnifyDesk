@@ -15,6 +15,9 @@ public interface SenderIdentityRepository extends JpaRepository<SenderIdentity, 
   Optional<SenderIdentity> findByConnectionIdAndIdentityTypeAndExternalId(
       Long connectionId, SenderIdentityType identityType, String externalId);
 
+  Optional<SenderIdentity> findByConnectionIdAndIdentityTypeAndValue(
+      Long connectionId, SenderIdentityType identityType, String value);
+
   Optional<SenderIdentity> findFirstByConnectionIdAndDefaultIdentityTrue(Long connectionId);
 
   long countByConnectionCompanyId(Long companyId);

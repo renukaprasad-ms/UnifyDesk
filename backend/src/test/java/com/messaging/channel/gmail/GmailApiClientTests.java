@@ -154,6 +154,33 @@ class GmailApiClientTests {
   }
 
   @Test
+  void batchParserCapturesRetryAfterForRateLimitedPart() {
+    GmailOAuthProperties properties = new GmailOAuthProperties();
+    GmailApiClient client = new GmailApiClient(properties);
+
+    String boundary = "batch_response";
+    String response =
+        "--" + boundary + "\r\n"
+            + "Content-Type: application/http\r\n"
+            + "Content-ID: <response-gmail-0>\r\n\r\n"
+            + "HTTP/1.1 429 Too Many Requests\r\n"
+            + "Retry-After: 45\r\n"
+            + "Content-Type: application/json\r\n\r\n"
+            + "{\"error\":{\"errors\":[{\"reason\":\"userRateLimitExceeded\"}]}}\r\n"
+            + "--" + boundary + "--\r\n";
+
+    var results =
+        client.parseBatchResponse(
+            response.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+            boundary,
+            List.of("message-1"));
+
+    assertThat(results).hasSize(1);
+    assertThat(results.getFirst().retryable()).isTrue();
+    assertThat(results.getFirst().retryAfter()).isEqualTo(java.time.Duration.ofSeconds(45));
+  }
+
+  @Test
   void batchMessagesRejectsMoreThanFiftyMessagesBeforeCallingGoogle() {
     GmailOAuthProperties properties = new GmailOAuthProperties();
     properties.setSyncBatchSize(100);

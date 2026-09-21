@@ -25,4 +25,18 @@ public interface ChannelConnectionRepository extends JpaRepository<ChannelConnec
 
   boolean existsByCompanyIdAndProviderTypeAndExternalAccountId(
       Long companyId, ProviderType providerType, String externalAccountId);
+
+  List<ChannelConnection> findByProviderTypeAndExternalAccountIdAndStatus(
+      ProviderType providerType,
+      String externalAccountId,
+      ChannelConnectionStatus status);
+
+  List<ChannelConnection> findByProviderTypeAndExternalAccountIdIgnoreCaseAndStatus(
+      ProviderType providerType,
+      String externalAccountId,
+      ChannelConnectionStatus status);
+
+  List<ChannelConnection> findByProviderTypeAndStatus(
+      ProviderType providerType, ChannelConnectionStatus status);
+
 }

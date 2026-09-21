@@ -10,6 +10,7 @@ import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.entity.SenderIdentity;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
+import com.messaging.channel.enums.DisconnectDataPolicy;
 import com.messaging.channel.enums.SenderIdentityStatus;
 import com.messaging.channel.enums.SenderIdentityType;
 import com.messaging.channel.provider.ChannelProviderRegistry;
@@ -18,7 +19,8 @@ import com.messaging.channel.repository.SenderIdentityRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.lifecycle.enums.LifecycleEntityType;
-import com.messaging.lifecycle.service.DeletionQueueService;
+import com.messaging.lifecycle.service.DeletionPurgeService;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -29,12 +31,14 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ChannelConnectionService {
 
+  private static final Duration DISCONNECTED_DATA_RETENTION = Duration.ofDays(7);
+
   private final ChannelConnectionRepository connectionRepository;
   private final SenderIdentityRepository senderIdentityRepository;
   private final ChannelEntitlementService entitlementService;
   private final ProviderCredentialService credentialService;
   private final ChannelProviderRegistry providerRegistry;
-  private final DeletionQueueService deletionQueueService;
+  private final DeletionPurgeService deletionPurgeService;
 
   @Transactional
   public ChannelConnectionResponse create(
@@ -85,18 +89,60 @@ public class ChannelConnectionService {
 
   @Transactional
   public ChannelConnectionResponse disconnect(Long companyId, Long connectionId) {
-    return disconnect(companyId, connectionId, null);
+    return disconnect(
+        companyId, connectionId, null, DisconnectDataPolicy.KEEP_7_DAYS);
   }
 
   @Transactional
   public ChannelConnectionResponse disconnect(
       Long companyId, Long connectionId, Long requestedByUserId) {
+    return disconnect(
+        companyId, connectionId, requestedByUserId, DisconnectDataPolicy.KEEP_7_DAYS);
+  }
+
+  @Transactional
+  public ChannelConnectionResponse disconnect(
+      Long companyId,
+      Long connectionId,
+      Long requestedByUserId,
+      DisconnectDataPolicy dataPolicy) {
     ChannelConnection connection = requireConnection(companyId, connectionId);
+    DisconnectDataPolicy resolvedPolicy =
+        dataPolicy == null ? DisconnectDataPolicy.KEEP_7_DAYS : dataPolicy;
+    Instant now = Instant.now();
+
     if (connection.getStatus() == ChannelConnectionStatus.DISCONNECTED) {
+      if (connection.getPurgeAfter() == null || resolvedPolicy == DisconnectDataPolicy.DELETE_NOW) {
+        Instant purgeAfter =
+            resolvedPolicy == DisconnectDataPolicy.DELETE_NOW
+                ? now
+                : now.plus(DISCONNECTED_DATA_RETENTION);
+        connection.setPurgeAfter(purgeAfter);
+        if (connection.getDisconnectedAt() == null) {
+          connection.setDisconnectedAt(now);
+        }
+        if (requestedByUserId != null) {
+          connection.setDeletionRequestedByUserId(requestedByUserId);
+        }
+        connectionRepository.save(connection);
+        deletionPurgeService.schedule(
+            LifecycleEntityType.CHANNEL_CONNECTION,
+            connectionId,
+            companyId,
+            requestedByUserId,
+            purgeAfter);
+      }
       return toResponse(connection);
     }
 
+    providerRegistry.disconnect(connection);
     connection.setStatus(ChannelConnectionStatus.DISCONNECTED);
+    connection.setDisconnectedAt(now);
+    connection.setPurgeAfter(
+        resolvedPolicy == DisconnectDataPolicy.DELETE_NOW
+            ? now
+            : now.plus(DISCONNECTED_DATA_RETENTION));
+    connection.setDeletionRequestedByUserId(requestedByUserId);
     credentialService.deleteAll(connection.getId());
 
     List<SenderIdentity> senders =
@@ -108,10 +154,24 @@ public class ChannelConnectionService {
         });
     senderIdentityRepository.saveAll(senders);
 
-    ChannelConnectionResponse response = toResponse(connectionRepository.save(connection));
-    deletionQueueService.enqueue(
-        LifecycleEntityType.CHANNEL_CONNECTION, connectionId, companyId, requestedByUserId);
-    return response;
+    connection = connectionRepository.save(connection);
+    deletionPurgeService.schedule(
+        LifecycleEntityType.CHANNEL_CONNECTION,
+        connectionId,
+        companyId,
+        requestedByUserId,
+        connection.getPurgeAfter());
+    return toResponse(connection);
+  }
+
+  @Transactional
+  public void cancelPendingPurge(Long companyId, Long connectionId) {
+    ChannelConnection connection = requireConnection(companyId, connectionId);
+    connection.setDisconnectedAt(null);
+    connection.setPurgeAfter(null);
+    connection.setDeletionRequestedByUserId(null);
+    connectionRepository.save(connection);
+    deletionPurgeService.cancel(LifecycleEntityType.CHANNEL_CONNECTION, connectionId);
   }
 
   @Transactional
@@ -230,6 +290,8 @@ public class ChannelConnectionService {
         connection.getStatus(),
         connection.getCreatedByUserId().toString(),
         connection.getLastSyncAt(),
+        connection.getDisconnectedAt(),
+        connection.getPurgeAfter(),
         connection.getCreatedAt(),
         connection.getUpdatedAt(),
         providerRegistry.isConfigured(connection.getProviderType()));

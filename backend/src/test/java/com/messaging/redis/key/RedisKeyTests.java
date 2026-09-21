@@ -15,6 +15,10 @@ class RedisKeyTests {
         .isEqualTo("messaging:company:company-1:settings");
     assertThat(RedisKey.idempotency("Webhook", "Request-1"))
         .isEqualTo("messaging:idempotency:webhook:request-1");
+    assertThat(RedisKey.gmailQuotaUserTotal("User@Example.COM"))
+        .isEqualTo("messaging:gmail:quota:user:user@example.com:total");
+    assertThat(RedisKey.gmailQuotaCooldown("User@Example.COM"))
+        .isEqualTo("messaging:gmail:quota:cooldown:user@example.com");
   }
 
   @Test

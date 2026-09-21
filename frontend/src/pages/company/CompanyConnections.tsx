@@ -8,12 +8,18 @@ import {
   FiSmartphone,
   FiSlash,
 } from 'react-icons/fi'
+import ConnectionRetentionNotice from '../../components/channel/ConnectionRetentionNotice'
+import DeleteChannelDataModal from '../../components/channel/DeleteChannelDataModal'
+import DisconnectChannelModal from '../../components/channel/DisconnectChannelModal'
+import EmailProviderPicker from '../../components/email/EmailProviderPicker'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
+import { microsoftApi } from '../../features/channel/microsoftApi'
 import { metaWhatsAppApi } from '../../features/channel/metaWhatsAppApi'
 import { launchMetaWhatsAppSignup, loadMetaSdk } from '../../features/channel/metaWhatsAppSdk'
 import type {
   ChannelConnection,
+  DisconnectDataPolicy,
   MetaWhatsAppSignupConfig,
   SenderIdentity,
 } from '../../features/channel/types'
@@ -22,6 +28,13 @@ import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
+
+const providerLabel = (providerType: ChannelConnection['providerType']) => {
+  if (providerType === 'MICROSOFT') return 'MICROSOFT 365'
+  if (providerType === 'IMAP_SMTP') return 'IMAP + SMTP'
+  if (providerType === 'SMTP') return 'SMTP'
+  return providerType
+}
 
 const statusClass: Record<ChannelConnection['status'], string> = {
   ACTIVE: 'bg-emerald-50 text-emerald-700',
@@ -39,8 +52,9 @@ export default function CompanyConnections() {
   const [metaReady, setMetaReady] = useState(false)
   const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState(false)
-  const [connectingGmail, setConnectingGmail] = useState(false)
   const [workingConnectionId, setWorkingConnectionId] = useState<string | null>(null)
+  const [disconnectTarget, setDisconnectTarget] = useState<ChannelConnection | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<ChannelConnection | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -51,10 +65,6 @@ export default function CompanyConnections() {
   const emailConnections = useMemo(
     () => connections.filter((connection) => connection.channelType === 'EMAIL'),
     [connections],
-  )
-  const gmailConnections = useMemo(
-    () => emailConnections.filter((connection) => connection.providerType === 'GMAIL'),
-    [emailConnections],
   )
   const smsConnections = useMemo(
     () => connections.filter((connection) => connection.channelType === 'SMS'),
@@ -115,18 +125,34 @@ export default function CompanyConnections() {
   useEffect(() => {
     const url = new URL(window.location.href)
     const gmailResult = url.searchParams.get('gmail')
-    if (!gmailResult) return
+    const microsoftResult = url.searchParams.get('microsoft')
 
-    if (gmailResult === 'connected') {
-      setNotice('Gmail connected successfully')
-    } else if (gmailResult === 'cancelled') {
-      setNotice('Gmail connection was cancelled')
-    } else {
-      setError('Unable to connect Gmail. Please try again.')
+    if (gmailResult) {
+      if (gmailResult === 'connected') {
+        setNotice('Gmail connected successfully')
+      } else if (gmailResult === 'cancelled') {
+        setNotice('Gmail connection was cancelled')
+      } else {
+        setError('Unable to connect Gmail. Please try again.')
+      }
+      url.searchParams.delete('gmail')
     }
 
-    url.searchParams.delete('gmail')
-    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+    if (microsoftResult) {
+      if (microsoftResult === 'connected') {
+        setNotice('Microsoft 365 connected successfully')
+      } else if (microsoftResult === 'cancelled') {
+        setNotice('Microsoft 365 connection was cancelled')
+      } else {
+        setError('Unable to connect Microsoft 365. Please try again.')
+      }
+      url.searchParams.delete('microsoft')
+    }
+
+    if (gmailResult || microsoftResult) {
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+      void loadConnections()
+    }
   }, [])
 
   const connectWhatsApp = () => {
@@ -154,40 +180,75 @@ export default function CompanyConnections() {
       .finally(() => setConnecting(false))
   }
 
-  const connectGmail = async () => {
-    if (!selectedCompany || connectingGmail) return
-    setConnectingGmail(true)
-    setError('')
-    setNotice('')
-
-    try {
-      const authorization = await gmailApi.authorize(selectedCompany.companyId)
-      window.location.assign(authorization.authorizationUrl)
-    } catch (connectError) {
-      setError(apiErrorMessage(connectError, 'Unable to start Gmail connection'))
-      setConnectingGmail(false)
-    }
-  }
-
-  const disconnect = async (connection: ChannelConnection) => {
+  const disconnect = async (
+    connection: ChannelConnection,
+    dataPolicy: DisconnectDataPolicy,
+  ) => {
     if (!selectedCompany) return
-    if (!window.confirm(`Disconnect ${connection.name} from this workspace?`)) return
 
     setWorkingConnectionId(connection.id)
     setError('')
     setNotice('')
     try {
       if (connection.providerType === 'GMAIL') {
-        await gmailApi.disconnect(selectedCompany.companyId, connection.id)
-        setNotice('Gmail disconnected')
+        await gmailApi.disconnect(selectedCompany.companyId, connection.id, dataPolicy)
+      } else if (connection.providerType === 'MICROSOFT') {
+        await microsoftApi.disconnect(selectedCompany.companyId, connection.id, dataPolicy)
       } else {
-        await channelApi.disconnect(selectedCompany.companyId, connection.id)
-        setNotice('WhatsApp connection disconnected')
+        await channelApi.disconnect(selectedCompany.companyId, connection.id, dataPolicy)
       }
+
+      setNotice(
+        dataPolicy === 'DELETE_NOW'
+          ? 'Channel disconnected. Permanent deletion of imported data is queued.'
+          : 'Channel disconnected. Imported data will be kept for 7 days unless you reconnect or delete it sooner.',
+      )
+      setDisconnectTarget(null)
       await loadConnections()
       if (connection.providerType === 'META_WHATSAPP') await prepareMeta()
     } catch (disconnectError) {
       setError(apiErrorMessage(disconnectError, 'Unable to disconnect channel'))
+    } finally {
+      setWorkingConnectionId(null)
+    }
+  }
+
+  const deleteDisconnectedDataNow = async (connection: ChannelConnection) => {
+    if (!selectedCompany || connection.status !== 'DISCONNECTED') return
+    setWorkingConnectionId(connection.id)
+    setError('')
+    setNotice('')
+    try {
+      await channelApi.disconnect(selectedCompany.companyId, connection.id, 'DELETE_NOW')
+      setNotice('Permanent deletion of the disconnected channel data is queued.')
+      setDeleteTarget(null)
+      await loadConnections()
+    } catch (deleteError) {
+      setError(apiErrorMessage(deleteError, 'Unable to queue channel data deletion'))
+    } finally {
+      setWorkingConnectionId(null)
+    }
+  }
+
+  const reconnectEmail = async (connection: ChannelConnection) => {
+    if (!selectedCompany || workingConnectionId) return
+    setWorkingConnectionId(connection.id)
+    setError('')
+    setNotice('')
+    try {
+      if (connection.providerType === 'GMAIL') {
+        const authorization = await gmailApi.authorize(selectedCompany.companyId)
+        window.location.assign(authorization.authorizationUrl)
+        return
+      }
+      if (connection.providerType === 'MICROSOFT') {
+        const authorization = await microsoftApi.authorize(selectedCompany.companyId)
+        window.location.assign(authorization.authorizationUrl)
+        return
+      }
+      setNotice('Use Connect email above and choose Other email to reconnect this mailbox.')
+    } catch (reconnectError) {
+      setError(apiErrorMessage(reconnectError, 'Unable to reconnect email account'))
     } finally {
       setWorkingConnectionId(null)
     }
@@ -287,22 +348,25 @@ export default function CompanyConnections() {
             </div>
             <h2 className="mt-4 text-base font-bold text-slate-950">Email</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              Connect Gmail securely with Google OAuth. Microsoft and SMTP will follow.
+              Connect Gmail, Microsoft 365 / Outlook, or any mailbox with IMAP + SMTP.
             </p>
             {can(PERMISSIONS.EMAIL_CONNECT) && (
-              <button
-                type="button"
-                className="primary-button mt-4 inline-flex w-full items-center justify-center gap-2"
-                onClick={() => void connectGmail()}
-                disabled={connectingGmail}
-              >
-                <FiLink aria-hidden="true" />
-                {connectingGmail
-                  ? 'Opening Google…'
-                  : gmailConnections.some((item) => item.status === 'ACTIVE')
-                    ? 'Connect another Gmail'
-                    : 'Connect Gmail'}
-              </button>
+              <div className="mt-4">
+                <EmailProviderPicker
+                  companyId={selectedCompany.companyId}
+                  label={
+                    emailConnections.some((item) => item.status === 'ACTIVE')
+                      ? 'Connect another email'
+                      : 'Connect email'
+                  }
+                  className="primary-button inline-flex w-full items-center justify-center gap-2"
+                  onError={setError}
+                  onConnected={(connection) => {
+                    setNotice(`Connected ${connection.email}`)
+                    void loadConnections()
+                  }}
+                />
+              </div>
             )}
           </div>
 
@@ -327,28 +391,28 @@ export default function CompanyConnections() {
 
         <div className="panel mt-6 overflow-hidden">
           <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="text-sm font-bold text-slate-950">Gmail accounts</h2>
+            <h2 className="text-sm font-bold text-slate-950">Email accounts</h2>
             <p className="mt-1 text-xs text-slate-500">
-              Gmail OAuth credentials are encrypted on the backend. The connected address becomes an
-              email sender identity for this workspace.
+              OAuth tokens and custom mailbox credentials are encrypted on the backend. Every
+              provider uses the same inbox and sender identity model.
             </p>
           </div>
 
           {loading ? (
             <p className="px-5 py-10 text-center text-sm text-slate-500">Loading connections…</p>
-          ) : gmailConnections.length === 0 ? (
+          ) : emailConnections.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <FiMail className="mx-auto text-slate-300" size={28} />
               <p className="mt-3 text-sm font-semibold text-slate-800">
-                No Gmail account connected
+                No email account connected
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Use Connect Gmail to authorize a mailbox through Google.
+                Use Connect email to choose Gmail, Microsoft 365 / Outlook, or IMAP + SMTP.
               </p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {gmailConnections.map((connection) => (
+              {emailConnections.map((connection) => (
                 <div
                   key={connection.id}
                   className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
@@ -364,7 +428,7 @@ export default function CompanyConnections() {
                         {connection.status}
                       </span>
                       <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-700">
-                        GMAIL
+                        {providerLabel(connection.providerType)}
                       </span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
@@ -381,17 +445,32 @@ export default function CompanyConnections() {
                     </div>
                   </div>
 
-                  {connection.status !== 'DISCONNECTED' && can(PERMISSIONS.EMAIL_DISCONNECT) && (
-                    <button
-                      type="button"
-                      className="secondary-button inline-flex w-full shrink-0 items-center gap-2 text-rose-600 sm:w-auto"
-                      disabled={workingConnectionId === connection.id}
-                      onClick={() => void disconnect(connection)}
-                    >
-                      <FiSlash aria-hidden="true" />
-                      Disconnect
-                    </button>
-                  )}
+                  <div className="w-full shrink-0 lg:w-auto lg:max-w-md">
+                    {connection.status !== 'DISCONNECTED' &&
+                      can(PERMISSIONS.EMAIL_DISCONNECT) && (
+                        <button
+                          type="button"
+                          className="secondary-button inline-flex w-full items-center gap-2 text-rose-600 sm:w-auto"
+                          disabled={workingConnectionId === connection.id}
+                          onClick={() => setDisconnectTarget(connection)}
+                        >
+                          <FiSlash aria-hidden="true" />
+                          Disconnect
+                        </button>
+                      )}
+
+                    <ConnectionRetentionNotice
+                      connection={connection}
+                      working={workingConnectionId === connection.id}
+                      onReconnect={
+                        connection.providerType === 'GMAIL' ||
+                        connection.providerType === 'MICROSOFT'
+                          ? () => void reconnectEmail(connection)
+                          : undefined
+                      }
+                      onDeleteNow={() => setDeleteTarget(connection)}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
@@ -454,23 +533,61 @@ export default function CompanyConnections() {
                     </div>
                   </div>
 
-                  {connection.status !== 'DISCONNECTED' && can(PERMISSIONS.WHATSAPP_DISCONNECT) && (
-                    <button
-                      type="button"
-                      className="secondary-button inline-flex shrink-0 items-center gap-2 text-rose-600"
-                      disabled={workingConnectionId === connection.id}
-                      onClick={() => void disconnect(connection)}
-                    >
-                      <FiSlash aria-hidden="true" />
-                      Disconnect
-                    </button>
-                  )}
+                  <div className="w-full shrink-0 lg:w-auto lg:max-w-md">
+                    {connection.status !== 'DISCONNECTED' &&
+                      can(PERMISSIONS.WHATSAPP_DISCONNECT) && (
+                        <button
+                          type="button"
+                          className="secondary-button inline-flex shrink-0 items-center gap-2 text-rose-600"
+                          disabled={workingConnectionId === connection.id}
+                          onClick={() => setDisconnectTarget(connection)}
+                        >
+                          <FiSlash aria-hidden="true" />
+                          Disconnect
+                        </button>
+                      )}
+
+                    <ConnectionRetentionNotice
+                      connection={connection}
+                      working={workingConnectionId === connection.id}
+                      onReconnect={
+                        connection.providerType === 'META_WHATSAPP'
+                          ? () => connectWhatsApp()
+                          : undefined
+                      }
+                      onDeleteNow={() => setDeleteTarget(connection)}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
       </div>
+
+      <DisconnectChannelModal
+        connection={disconnectTarget}
+        working={
+          disconnectTarget !== null && workingConnectionId === disconnectTarget.id
+        }
+        onClose={() => {
+          if (!workingConnectionId) setDisconnectTarget(null)
+        }}
+        onConfirm={(policy) => {
+          if (disconnectTarget) void disconnect(disconnectTarget, policy)
+        }}
+      />
+
+      <DeleteChannelDataModal
+        connection={deleteTarget}
+        working={deleteTarget !== null && workingConnectionId === deleteTarget.id}
+        onClose={() => {
+          if (!workingConnectionId) setDeleteTarget(null)
+        }}
+        onConfirm={() => {
+          if (deleteTarget) void deleteDisconnectedDataNow(deleteTarget)
+        }}
+      />
     </section>
   )
 }

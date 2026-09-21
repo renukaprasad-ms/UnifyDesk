@@ -15,6 +15,10 @@ public interface ChannelProvider {
 
   ProviderSendResult send(ProviderSendRequest request);
 
+  default void disconnect(ChannelConnection connection) {
+    // Providers with external subscriptions or grants can override this hook.
+  }
+
   List<ProviderWebhookMessage> parseWebhook(ProviderWebhookRequest request);
 
   ProviderAccountHealth health(ChannelConnection connection);

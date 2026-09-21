@@ -250,16 +250,17 @@ public class MediaService {
     if (media.getStatus() == MediaStatus.DELETED) {
       return mediaMapper.toResponse(media);
     }
-    storageAccounting.release(media);
-    Media deleted = markDeleted(media.getId());
-    try {
-      storageProviderResolver
-          .resolve(deleted.getStorageProvider())
-          .delete(deleted.getBucket(), deleted.getObjectKey());
-    } catch (MediaException exception) {
-      // Physical delete failures do not block logical delete.
+    if (media.getStatus() != MediaStatus.DELETE_PENDING) {
+      storageAccounting.release(media);
+      media.setStatus(MediaStatus.DELETE_PENDING);
+      mediaRepository.saveAndFlush(media);
     }
-    return mediaMapper.toResponse(deleted);
+
+    storageProviderResolver
+        .resolve(media.getStorageProvider())
+        .delete(media.getBucket(), media.getObjectKey());
+
+    return mediaMapper.toResponse(markDeleted(media.getId()));
   }
 
   @Transactional(readOnly = true)

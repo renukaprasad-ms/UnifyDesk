@@ -781,7 +781,7 @@ export default function PlatformPlanDetails() {
                 </p>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[760px] text-left text-sm">
+                  <table className="mobile-card-table w-full min-w-[760px] text-left text-sm">
                     <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
                       <tr>
                         <th className="px-4 py-3">Route</th>
@@ -794,7 +794,7 @@ export default function PlatformPlanDetails() {
                     <tbody>
                       {rateCards.map((rate) => (
                         <tr key={rate.rateCardId} className="border-t border-slate-100">
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-4" data-label="Route">
                             <p className="font-bold text-slate-900">
                               {rate.channel} · {rate.provider}
                             </p>
@@ -803,18 +803,18 @@ export default function PlatformPlanDetails() {
                               {rate.carrier ? ` · ${rate.carrier}` : ''} · {rate.direction}
                             </p>
                           </td>
-                          <td className="px-4 py-4 text-xs text-slate-600">
+                          <td className="px-4 py-4 text-xs text-slate-600" data-label="Category">
                             {rate.billingCategory}
                             <br />
                             per {rate.unit.toLowerCase()}
                           </td>
-                          <td className="px-4 py-4 font-bold text-slate-900">
+                          <td className="px-4 py-4 font-bold text-slate-900" data-label="Price">
                             {money(rate.price, rate.currency)}
                           </td>
-                          <td className="px-4 py-4 text-xs font-semibold text-slate-600">
+                          <td className="px-4 py-4 text-xs font-semibold text-slate-600" data-label="Status">
                             {rate.status}
                           </td>
-                          <td className="px-4 py-4 text-right">
+                          <td className="mobile-action-cell px-4 py-4 text-right" data-label="Action">
                             {rate.status === 'ACTIVE' && (
                               <button
                                 type="button"

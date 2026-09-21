@@ -1,5 +1,6 @@
 package com.messaging.channel.provider;
 
+import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.common.exception.BadRequestException;
 import java.util.EnumMap;
@@ -34,5 +35,12 @@ public class ChannelProviderRegistry {
 
   public boolean isConfigured(ProviderType providerType) {
     return providers.containsKey(providerType);
+  }
+
+  public void disconnect(ChannelConnection connection) {
+    ChannelProvider provider = providers.get(connection.getProviderType());
+    if (provider != null) {
+      provider.disconnect(connection);
+    }
   }
 }

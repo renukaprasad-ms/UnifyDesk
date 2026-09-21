@@ -2,12 +2,15 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { FiImage, FiUploadCloud, FiX } from 'react-icons/fi'
 import { workspaceApi } from '../../features/workspace/workspaceApi'
+import { useAppDispatch } from '../../store/hooks'
+import { selectCompany, setCompanies } from '../../store/workspace/workspaceSlice'
 import { mediaApi } from '../../features/media/mediaApi'
 import type { InitiateMediaUploadResponse } from '../../features/media/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 
 export default function CreateWorkspace() {
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
   const [name, setName] = useState('')
   const [businessEmail, setBusinessEmail] = useState('')
   const [country, setCountry] = useState('India')
@@ -112,7 +115,10 @@ export default function CreateWorkspace() {
         timezone,
         logoMediaId: logoUpload?.mediaId,
       })
-      navigate(`/select-plan/${company.companyId}`, { replace: true })
+      const companies = await workspaceApi.list()
+      dispatch(setCompanies(companies))
+      dispatch(selectCompany(company.companyId))
+      navigate('/workspace', { replace: true })
     } catch (submitError) {
       setError(apiErrorMessage(submitError, 'Unable to create workspace'))
     } finally {

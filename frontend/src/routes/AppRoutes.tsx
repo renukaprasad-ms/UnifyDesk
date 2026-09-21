@@ -17,6 +17,7 @@ import CompanyRoles from '../pages/company/CompanyRoles'
 import CompanyUsers from '../pages/company/CompanyUsers'
 import Home from '../pages/home/Home'
 import InviteAccept from '../pages/invitations/InviteAccept'
+import BroadcastWorkspace from '../pages/broadcast/BroadcastWorkspace'
 import EmailInbox from '../pages/inbox/EmailInbox'
 import PlaceholderPage from '../pages/placeholder/PlaceholderPage'
 import PlatformAdmins from '../pages/platform/PlatformAdmins'
@@ -26,6 +27,7 @@ import PlatformDashboard from '../pages/platform/PlatformDashboard'
 import PlatformPlanDetails from '../pages/platform/PlatformPlanDetails'
 import PlatformPlans from '../pages/platform/PlatformPlans'
 import PlatformUsers from '../pages/platform/PlatformUsers'
+import PlatformWebhookCallbacks from '../pages/platform/PlatformWebhookCallbacks'
 import CreateWorkspace from '../pages/workspace/CreateWorkspace'
 import SelectPlan from '../pages/workspace/SelectPlan'
 import SelectWorkspace from '../pages/workspace/SelectWorkspace'
@@ -74,9 +76,9 @@ const AppRoutes = () => (
             </Route>
 
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.BROADCAST_READ]} />}>
-              <Route path="broadcast/sms" element={<PlaceholderPage />} />
-              <Route path="broadcast/social-media" element={<PlaceholderPage />} />
-              <Route path="broadcast/email" element={<PlaceholderPage />} />
+              <Route path="broadcast/sms" element={<BroadcastWorkspace />} />
+              <Route path="broadcast/social-media" element={<BroadcastWorkspace />} />
+              <Route path="broadcast/email" element={<BroadcastWorkspace />} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.TEMPLATE_READ]} />}>
               <Route path="templates" element={<PlaceholderPage />} />
@@ -129,6 +131,10 @@ const AppRoutes = () => (
           <Route path="/platform/plans/:planId" element={<PlatformPlanDetails />} />
           <Route path="/platform/billing" element={<PlatformBilling />} />
           <Route path="/platform/admins" element={<PlatformAdmins />} />
+          <Route
+            path="/platform/channel-analytics/webhook-callbacks"
+            element={<PlatformWebhookCallbacks />}
+          />
           <Route path="/platform/audit" element={<PlaceholderPage />} />
         </Route>
       </Route>

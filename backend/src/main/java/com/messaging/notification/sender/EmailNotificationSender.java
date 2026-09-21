@@ -34,11 +34,16 @@ public class EmailNotificationSender implements NotificationSender {
 
     try {
       MimeMessage message = mailSender.createMimeMessage();
-      MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
+      MimeMessageHelper helper =
+          new MimeMessageHelper(message, request.multipartAlternative(), "UTF-8");
       helper.setFrom(from);
       helper.setTo(request.recipient());
       helper.setSubject(request.subject());
-      helper.setText(request.body(), request.html());
+      if (request.multipartAlternative()) {
+        helper.setText(request.textBody(), request.htmlBody());
+      } else {
+        helper.setText(request.body(), request.html());
+      }
       mailSender.send(message);
     } catch (MessagingException | MailException exception) {
       throw new ServiceUnavailableException("Unable to send email", exception);

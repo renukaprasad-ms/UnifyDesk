@@ -1,6 +1,8 @@
 package com.messaging.channel.gmail;
 
 import com.messaging.asyncjob.service.AsyncJobService;
+import com.messaging.channel.email.EmailFolder;
+import com.messaging.channel.email.EmailSyncMode;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ProviderType;
@@ -11,6 +13,7 @@ import com.messaging.channel.gmail.entity.GmailSyncRun;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.common.exception.ServiceUnavailableException;
 import com.messaging.inbox.repository.InboxMessageRepository;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -37,11 +40,19 @@ public class GmailSyncService {
   private final AsyncJobService asyncJobService;
   private final GmailSyncStateService stateService;
   private final GmailQuotaPolicy quotaPolicy;
+  private final GmailDistributedQuotaManager quotaManager;
   private final GmailSyncFinalizerService finalizerService;
 
   public void sync(
-      Long companyId, Long connectionId, Long jobId, LocalDate fromDate, LocalDate toDate) {
-    validateRange(fromDate, toDate);
+      Long companyId,
+      Long connectionId,
+      Long jobId,
+      EmailSyncMode mode,
+      EmailFolder folder,
+      LocalDate fromDate,
+      LocalDate toDate,
+      Integer messageCount) {
+    validateRequest(mode, folder, fromDate, toDate, messageCount);
 
     ChannelConnection connection =
         connectionRepository
@@ -64,9 +75,14 @@ public class GmailSyncService {
     asyncJobService.startOrResume(jobId, run.getDiscoveredCount(), "Discovering Gmail messages");
 
     String accessToken = tokenService.accessToken(connection);
-    int maxMessages = Math.max(1, properties.getSyncMaxMessages());
+    int configuredMaxMessages = Math.max(1, properties.getSyncMaxMessages());
+    int maxMessages =
+        (mode == EmailSyncMode.LATEST_MESSAGES || mode == EmailSyncMode.REALTIME_RECOVERY)
+            ? Math.min(configuredMaxMessages, messageCount)
+            : configuredMaxMessages;
+    boolean recovery = mode == EmailSyncMode.REALTIME_RECOVERY;
     int batchSize = Math.min(MAX_HTTP_BATCH_SIZE, Math.max(1, properties.getSyncBatchSize()));
-    String query = query(fromDate, toDate);
+    String query = query(mode, folder, fromDate, toDate);
 
     long discovered = run.getDiscoveredCount();
     long existing = run.getExistingCount();
@@ -78,9 +94,19 @@ public class GmailSyncService {
     boolean fetchNextPage = discovered == 0 || pageToken != null;
     while (fetchNextPage && discovered < maxMessages) {
       int remaining = (int) Math.min(Integer.MAX_VALUE, maxMessages - discovered);
-      MessageListResponse page =
-          gmailApiClient.listMessages(
-              accessToken, Math.min(remaining, GMAIL_LIST_PAGE_SIZE), query, pageToken);
+      reserveBackgroundQuota(
+          connection, GmailQuotaOperation.LIST_MESSAGES, 1);
+      MessageListResponse page;
+      try {
+        page =
+            gmailApiClient.listMessages(
+                accessToken, Math.min(remaining, GMAIL_LIST_PAGE_SIZE), query, pageToken);
+      } catch (GmailRateLimitException exception) {
+        quotaManager.penalize(
+            connection.getExternalAccountId(), 1, exception.retryAfter());
+        throw new ServiceUnavailableException(
+            "Gmail sync is waiting for provider capacity", exception);
+      }
 
       List<MessageReference> references =
           page.messages() == null
@@ -101,7 +127,8 @@ public class GmailSyncService {
           estimatedTotal,
           "Discovered " + discovered + " Gmail messages; preparing batches");
 
-      Set<String> existingIds = existingMessageIds(connectionId, references);
+      Set<String> existingIds =
+          recovery ? Set.of() : existingMessageIds(connectionId, references);
       if (!existingIds.isEmpty()) {
         existing += existingIds.size();
         asyncJobService.incrementProgress(
@@ -109,7 +136,7 @@ public class GmailSyncService {
       }
 
       for (MessageReference reference : references) {
-        if (existingIds.contains(reference.id())) {
+        if (!recovery && existingIds.contains(reference.id())) {
           continue;
         }
         carry.add(reference.id());
@@ -153,14 +180,25 @@ public class GmailSyncService {
       carry.clear();
     }
 
-    GmailProfile profile = gmailApiClient.profile(accessToken);
+    reserveBackgroundQuota(connection, GmailQuotaOperation.GET_PROFILE, 1);
+    GmailProfile profile;
+    try {
+      profile = gmailApiClient.profile(accessToken);
+    } catch (GmailRateLimitException exception) {
+      quotaManager.penalize(
+          connection.getExternalAccountId(), 1, exception.retryAfter());
+      throw new ServiceUnavailableException(
+          "Gmail sync is waiting for provider capacity", exception);
+    }
+    boolean providerScanComplete = !hasText(pageToken);
     stateService.completeDiscovery(
         jobId,
         nextBatchIndex,
         discovered,
         existing,
         batchCount,
-        profile.historyId());
+        profile.historyId(),
+        providerScanComplete);
 
     asyncJobService.setTotal(
         jobId,
@@ -173,6 +211,21 @@ public class GmailSyncService {
   }
 
 
+  private void reserveBackgroundQuota(
+      ChannelConnection connection, GmailQuotaOperation operation, int count) {
+    String account = connection.getExternalAccountId();
+    if (account == null || account.isBlank()) {
+      throw new BadRequestException("Gmail account identity is missing");
+    }
+    GmailQuotaReservation reservation =
+        quotaManager.reserve(
+            account, operation, count, GmailQuotaTrafficClass.BACKGROUND);
+    if (!reservation.allowed()) {
+      throw new ServiceUnavailableException(
+          "Gmail sync is waiting for provider capacity");
+    }
+  }
+
   private Set<String> existingMessageIds(
       Long connectionId, List<MessageReference> references) {
     List<String> ids =
@@ -183,24 +236,68 @@ public class GmailSyncService {
     return new HashSet<>(messageRepository.findExistingExternalMessageIds(connectionId, ids));
   }
 
-  private void validateRange(LocalDate fromDate, LocalDate toDate) {
+  private void validateRequest(
+      EmailSyncMode mode,
+      EmailFolder folder,
+      LocalDate fromDate,
+      LocalDate toDate,
+      Integer messageCount) {
+    if (mode == null || folder == null) {
+      throw new BadRequestException("Email sync mode and folder are required");
+    }
+
+    if (mode == EmailSyncMode.REALTIME_RECOVERY) {
+      if (folder != EmailFolder.ALL) {
+        throw new BadRequestException("Gmail realtime recovery requires the ALL folder");
+      }
+      if (messageCount == null || messageCount < 1) {
+        throw new BadRequestException("Gmail realtime recovery messageCount is required");
+      }
+      if (messageCount > Math.max(1, properties.getSyncMaxMessages())) {
+        throw new BadRequestException(
+            "Gmail realtime recovery cannot exceed " + properties.getSyncMaxMessages() + " messages");
+      }
+      return;
+    }
+
+    if (folder == EmailFolder.ALL) {
+      throw new BadRequestException("ALL folder is reserved for Gmail realtime recovery");
+    }
+
+    if (mode == EmailSyncMode.LATEST_MESSAGES) {
+      if (messageCount == null || messageCount < 1) {
+        throw new BadRequestException("messageCount is required for latest-message sync");
+      }
+      if (messageCount > Math.max(1, properties.getSyncMaxMessages())) {
+        throw new BadRequestException(
+            "messageCount cannot exceed " + properties.getSyncMaxMessages());
+      }
+      return;
+    }
+
     if (fromDate == null || toDate == null) {
-      throw new BadRequestException("Gmail sync fromDate and toDate are required");
+      throw new BadRequestException("fromDate and toDate are required for date-range sync");
     }
     if (fromDate.isAfter(toDate)) {
-      throw new BadRequestException("Gmail sync fromDate must be on or before toDate");
+      throw new BadRequestException("fromDate must be on or before toDate");
     }
     long days = ChronoUnit.DAYS.between(fromDate, toDate);
     if (days > Math.max(1, properties.getSyncMaxRangeDays())) {
       throw new BadRequestException(
-          "Gmail sync range cannot exceed " + properties.getSyncMaxRangeDays() + " days");
+          "Email sync range cannot exceed " + properties.getSyncMaxRangeDays() + " days");
     }
   }
 
-  private String query(LocalDate fromDate, LocalDate toDate) {
+  private String query(
+      EmailSyncMode mode, EmailFolder folder, LocalDate fromDate, LocalDate toDate) {
+    String folderQuery = folder.gmailSearchToken();
+    if (mode == EmailSyncMode.LATEST_MESSAGES || mode == EmailSyncMode.REALTIME_RECOVERY) {
+      return folderQuery;
+    }
+
     long startExclusive = fromDate.atStartOfDay().toEpochSecond(ZoneOffset.UTC) - 1;
     long endExclusive = toDate.plusDays(1).atStartOfDay().toEpochSecond(ZoneOffset.UTC);
-    return "after:" + startExclusive + " before:" + endExclusive;
+    return folderQuery + " after:" + startExclusive + " before:" + endExclusive;
   }
 
   private boolean hasText(String value) {

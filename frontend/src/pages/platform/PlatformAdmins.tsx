@@ -45,7 +45,7 @@ export default function PlatformAdmins() {
       </form>
       {error && <p className="mb-3 text-sm text-rose-600">{error}</p>}
       <div className="overflow-x-auto rounded-xl border bg-white">
-        <table className="w-full min-w-[640px] text-left text-sm">
+        <table className="mobile-card-table w-full min-w-[640px] text-left text-sm">
           <thead>
             <tr className="border-b">
               <th className="p-3">Admin</th>
@@ -57,13 +57,13 @@ export default function PlatformAdmins() {
           <tbody>
             {data?.content.map((a) => (
               <tr key={a.id} className="border-b last:border-0">
-                <td className="p-3">
+                <td className="p-3" data-label="Admin">
                   <div className="font-medium">{a.name}</div>
                   <div className="text-slate-500">{a.email}</div>
                 </td>
-                <td>{a.role}</td>
-                <td>{a.status}</td>
-                <td>{a.role === 'SUPER_ADMIN' ? 'All' : a.permissions.length}</td>
+                <td data-label="Role">{a.role}</td>
+                <td data-label="Status">{a.status}</td>
+                <td data-label="Permissions">{a.role === 'SUPER_ADMIN' ? 'All' : a.permissions.length}</td>
               </tr>
             ))}
           </tbody>

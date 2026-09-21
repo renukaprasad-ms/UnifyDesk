@@ -2,20 +2,28 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { useSearchParams } from 'react-router'
 import {
   FiArrowLeft,
+  FiCheckCircle,
   FiCornerUpLeft,
-  FiInbox,
   FiMail,
   FiRefreshCw,
   FiSend,
   FiShare2,
   FiUsers,
 } from 'react-icons/fi'
+import ConversationList, { conversationParticipant } from '../../components/inbox/ConversationList'
 import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
 import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'
 import type { AsyncJob } from '../../features/asyncJob/types'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
-import type { ChannelConnection } from '../../features/channel/types'
+import { imapSmtpApi } from '../../features/channel/imapSmtpApi'
+import { microsoftApi } from '../../features/channel/microsoftApi'
+import type {
+  ChannelConnection,
+  EmailFolder,
+  EmailSyncMode,
+  EmailSyncRequest,
+} from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { inboxApi } from '../../features/inbox/inboxApi'
@@ -24,26 +32,6 @@ import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
-
-const formatDate = (value?: string | null) => {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-
-  const today = new Date()
-  if (date.toDateString() === today.toDateString()) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
-
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
-}
-
-const displayParticipant = (conversation: InboxConversation, ownAddress?: string) => {
-  const participant = conversation.participants.find(
-    (item) => item.address.toLowerCase() !== ownAddress?.toLowerCase(),
-  )
-  return participant?.displayName || participant?.address || ownAddress || 'Email'
-}
 
 const messageTitle = (message: InboxMessage) =>
   message.subject || message.snippet || (message.direction === 'OUTBOUND' ? 'Sent email' : 'Email')
@@ -99,11 +87,15 @@ export default function EmailInbox() {
   const { can } = useIam()
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedConnectionId = searchParams.get('connectionId')
+  const selectedConversationId = searchParams.get('conversationId')
+  const selectedFolder = searchParams.get('folder') === 'SENT' ? 'SENT' : 'INBOX'
   const composeOpen = searchParams.get('compose') === '1'
   const [connections, setConnections] = useState<ChannelConnection[]>([])
   const [conversations, setConversations] = useState<InboxConversation[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [mobileConversationOpen, setMobileConversationOpen] = useState(false)
+  const [selectedConversation, setSelectedConversation] = useState<InboxConversation | null>(null)
+  const [mobileConversationOpen, setMobileConversationOpen] = useState(
+    Boolean(selectedConversationId),
+  )
   const [messages, setMessages] = useState<InboxMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -113,6 +105,10 @@ export default function EmailInbox() {
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [sending, setSending] = useState(false)
+  const [readUpdatingConversationId, setReadUpdatingConversationId] = useState<string | null>(null)
+  const [readUpdatingMessageId, setReadUpdatingMessageId] = useState<string | null>(null)
+  const [markAllStarting, setMarkAllStarting] = useState(false)
+  const [markAllJob, setMarkAllJob] = useState<AsyncJob | null>(null)
   const [showSyncDialog, setShowSyncDialog] = useState(false)
   const [composeMode, setComposeMode] = useState<'compose' | 'reply' | 'replyAll' | 'forward'>(
     'compose',
@@ -125,32 +121,36 @@ export default function EmailInbox() {
   const [composeThreadId, setComposeThreadId] = useState('')
   const [composeInReplyTo, setComposeInReplyTo] = useState('')
   const [composeReferences, setComposeReferences] = useState('')
+  const [composeProviderMessageId, setComposeProviderMessageId] = useState('')
   const initialSyncRange = useMemo(() => defaultSyncRange(), [])
   const [syncFrom, setSyncFrom] = useState(initialSyncRange.from)
   const [syncTo, setSyncTo] = useState(initialSyncRange.to)
+  const [syncMode, setSyncMode] = useState<EmailSyncMode>('DATE_RANGE')
+  const [syncFolder, setSyncFolder] = useState<EmailFolder>('INBOX')
+  const [syncMessageCount, setSyncMessageCount] = useState(100)
   const [syncJobs, setSyncJobs] = useState<Record<string, AsyncJob>>({})
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [realtimeConnected, setRealtimeConnected] = useState(realtimeClient.isConnected())
   const inboxRefreshTimerRef = useRef<number | null>(null)
+  const selectedConversationRefreshTimerRef = useRef<number | null>(null)
 
   const selectedConnection = useMemo(
     () => connections.find((connection) => connection.id === selectedConnectionId) ?? null,
     [connections, selectedConnectionId],
   )
 
-  const selectedConversation = useMemo(
-    () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
-    [conversations, selectedId],
-  )
+  const selectedProviderType = selectedConnection?.providerType ?? null
 
   const ownAddress = useMemo(() => {
-    if (!selectedConversation) return undefined
-    return (
-      connections.find((connection) => connection.id === selectedConversation.connectionId)
-        ?.externalAccountId ?? undefined
-    )
-  }, [connections, selectedConversation])
+    if (selectedConversation) {
+      return (
+        connections.find((connection) => connection.id === selectedConversation.connectionId)
+          ?.externalAccountId ?? undefined
+      )
+    }
+    return selectedConnection?.externalAccountId ?? undefined
+  }, [connections, selectedConnection, selectedConversation])
 
   const loadConversations = useCallback(
     async (page = 0, append = false) => {
@@ -177,20 +177,27 @@ export default function EmailInbox() {
         if (!selectedConnectionId || !selectedIsActive) {
           const first = activeConnections[0]
           setConversations([])
-          setSelectedId(null)
           setCurrentPage(0)
           setTotalPages(0)
           setTotalElements(0)
 
           if (first) {
-            const params = new URLSearchParams(searchParams)
+            const params = new URLSearchParams(window.location.search)
             params.set('connectionId', first.id)
+            if (!params.get('folder')) params.set('folder', 'INBOX')
+            params.delete('conversationId')
             setSearchParams(params, { replace: true })
           }
           return
         }
 
-        const inbox = await inboxApi.conversations(companyId, page, 30, selectedConnectionId)
+        const inbox = await inboxApi.conversations(
+          companyId,
+          page,
+          30,
+          selectedConnectionId,
+          selectedFolder,
+        )
 
         setConversations((current) => {
           if (!append) return inbox.items
@@ -202,13 +209,6 @@ export default function EmailInbox() {
         setTotalPages(inbox.totalPages)
         setTotalElements(inbox.totalElements)
 
-        setSelectedId((current) => {
-          if (append && current) return current
-          if (current && inbox.items.some((conversation) => conversation.id === current)) {
-            return current
-          }
-          return inbox.items[0]?.id ?? null
-        })
       } catch (requestError) {
         setError(apiErrorMessage(requestError, 'Unable to load email inbox'))
       } finally {
@@ -216,16 +216,39 @@ export default function EmailInbox() {
         setLoadingMore(false)
       }
     },
-    [companyId, searchParams, selectedConnectionId, setSearchParams],
+    [companyId, selectedConnectionId, selectedFolder, setSearchParams],
   )
 
-  const scheduleInboxRefresh = useCallback(() => {
-    if (inboxRefreshTimerRef.current !== null) return
-    inboxRefreshTimerRef.current = window.setTimeout(() => {
-      inboxRefreshTimerRef.current = null
-      void loadConversations(0, false)
-    }, 1000)
-  }, [loadConversations])
+  const refreshConversationList = useCallback(async () => {
+    if (!companyId || !selectedConnectionId) return
+
+    try {
+      const inbox = await inboxApi.conversations(
+        companyId,
+        0,
+        30,
+        selectedConnectionId,
+        selectedFolder,
+      )
+      setConversations(inbox.items)
+      setCurrentPage(inbox.page)
+      setTotalPages(inbox.totalPages)
+      setTotalElements(inbox.totalElements)
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, 'Unable to refresh email inbox'))
+    }
+  }, [companyId, selectedConnectionId, selectedFolder])
+
+  const scheduleInboxRefresh = useCallback(
+    (delayMs = 750) => {
+      if (inboxRefreshTimerRef.current !== null) return
+      inboxRefreshTimerRef.current = window.setTimeout(() => {
+        inboxRefreshTimerRef.current = null
+        void refreshConversationList()
+      }, delayMs)
+    },
+    [refreshConversationList],
+  )
 
   useEffect(
     () => () => {
@@ -237,20 +260,40 @@ export default function EmailInbox() {
   )
 
   useEffect(() => {
-    setMobileConversationOpen(false)
-    setSelectedId(null)
+    if (inboxRefreshTimerRef.current !== null) {
+      window.clearTimeout(inboxRefreshTimerRef.current)
+      inboxRefreshTimerRef.current = null
+    }
+  }, [selectedConnectionId, selectedFolder])
+
+  useEffect(() => {
+    setMobileConversationOpen(Boolean(selectedConversationId))
+  }, [selectedConversationId])
+
+  useEffect(() => {
     void loadConversations(0, false)
   }, [companyId, selectedConnectionId, loadConversations])
 
   useEffect(() => {
-    if (!companyId || !selectedConnectionId) {
+    if (
+      !companyId ||
+      !selectedConnectionId ||
+      !selectedProviderType ||
+      !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedProviderType)
+    ) {
       setSyncJobs({})
       return
     }
 
     let active = true
-    gmailApi
-      .activeSync(companyId, selectedConnectionId)
+    const request =
+      selectedProviderType === 'GMAIL'
+        ? gmailApi.activeSync(companyId, selectedConnectionId)
+        : selectedProviderType === 'MICROSOFT'
+          ? microsoftApi.activeSync(companyId, selectedConnectionId)
+          : imapSmtpApi.activeSync(companyId, selectedConnectionId)
+
+    request
       .then((job) => {
         if (!active) return
         setSyncJobs(job ? { [job.jobId]: job } : {})
@@ -265,37 +308,100 @@ export default function EmailInbox() {
     return () => {
       active = false
     }
-  }, [companyId, selectedConnectionId, scheduleInboxRefresh])
+  }, [companyId, selectedConnectionId, selectedProviderType, scheduleInboxRefresh])
 
   useEffect(() => {
     const gmailResult = searchParams.get('gmail')
-    if (!gmailResult) return
+    const microsoftResult = searchParams.get('microsoft')
+    if (!gmailResult && !microsoftResult) return
 
     if (gmailResult === 'connected') {
       setNotice('Gmail connected successfully')
     } else if (gmailResult === 'cancelled') {
       setNotice('Gmail connection was cancelled')
-    } else {
+    } else if (gmailResult) {
       setError('Unable to connect Gmail. Please try again.')
+    }
+
+    if (microsoftResult === 'connected') {
+      setNotice('Microsoft 365 connected successfully')
+    } else if (microsoftResult === 'cancelled') {
+      setNotice('Microsoft 365 connection was cancelled')
+    } else if (microsoftResult) {
+      setError('Unable to connect Microsoft 365. Please try again.')
     }
 
     const params = new URLSearchParams(searchParams)
     params.delete('gmail')
+    params.delete('microsoft')
     setSearchParams(params, { replace: true })
-  }, [searchParams, setSearchParams])
+    void loadConversations(0, false)
+  }, [loadConversations, searchParams, setSearchParams])
+
+  const refreshSelectedConversation = useCallback(async () => {
+    if (!companyId || !selectedConversationId) {
+      setSelectedConversation(null)
+      setMessages([])
+      return
+    }
+
+    try {
+      const [conversation, items] = await Promise.all([
+        inboxApi.conversation(companyId, selectedConversationId),
+        inboxApi.messages(companyId, selectedConversationId),
+      ])
+      setSelectedConversation(conversation)
+      setMessages(items)
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, 'Unable to load conversation'))
+    }
+  }, [companyId, selectedConversationId])
+
+  const scheduleSelectedConversationRefresh = useCallback(
+    (delayMs = 750) => {
+      if (!selectedConversationId || selectedConversationRefreshTimerRef.current !== null) return
+      selectedConversationRefreshTimerRef.current = window.setTimeout(() => {
+        selectedConversationRefreshTimerRef.current = null
+        void refreshSelectedConversation()
+      }, delayMs)
+    },
+    [refreshSelectedConversation, selectedConversationId],
+  )
+
+  useEffect(
+    () => () => {
+      if (selectedConversationRefreshTimerRef.current !== null) {
+        window.clearTimeout(selectedConversationRefreshTimerRef.current)
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
-    if (!companyId || !selectedId) {
+    if (selectedConversationRefreshTimerRef.current !== null) {
+      window.clearTimeout(selectedConversationRefreshTimerRef.current)
+      selectedConversationRefreshTimerRef.current = null
+    }
+  }, [selectedConversationId])
+
+  useEffect(() => {
+    if (!companyId || !selectedConversationId) {
+      setSelectedConversation(null)
       setMessages([])
+      setMessagesLoading(false)
       return
     }
 
     let active = true
     setMessagesLoading(true)
-    inboxApi
-      .messages(companyId, selectedId)
-      .then((items) => {
-        if (active) setMessages(items)
+    Promise.all([
+      inboxApi.conversation(companyId, selectedConversationId),
+      inboxApi.messages(companyId, selectedConversationId),
+    ])
+      .then(([conversation, items]) => {
+        if (!active) return
+        setSelectedConversation(conversation)
+        setMessages(items)
       })
       .catch((requestError) => {
         if (active) setError(apiErrorMessage(requestError, 'Unable to load conversation'))
@@ -307,13 +413,15 @@ export default function EmailInbox() {
     return () => {
       active = false
     }
-  }, [companyId, selectedId])
+  }, [companyId, selectedConversationId])
 
   const trackedSyncJobs = useMemo(() => Object.values(syncJobs), [syncJobs])
   const activeSyncJobs = useMemo(
     () => trackedSyncJobs.filter((job) => job.status === 'QUEUED' || job.status === 'RUNNING'),
     [trackedSyncJobs],
   )
+  const activeMarkAllJob =
+    markAllJob?.status === 'QUEUED' || markAllJob?.status === 'RUNNING' ? markAllJob : null
   const overallSyncProgress = useMemo(() => {
     if (trackedSyncJobs.length === 0) return 0
     return Math.round(
@@ -325,21 +433,71 @@ export default function EmailInbox() {
   useEffect(() => realtimeClient.subscribeConnection(setRealtimeConnected), [])
 
   useEffect(() => {
+    setMarkAllJob(null)
+    setMarkAllStarting(false)
+  }, [selectedConnectionId, selectedFolder])
+
+  useEffect(
+    () =>
+      realtimeClient.subscribe<{ connectionId?: string }>('inbox.email.changed', (event) => {
+        const changedConnectionId = event.payload?.connectionId
+        if (
+          changedConnectionId &&
+          selectedConnectionId &&
+          changedConnectionId !== selectedConnectionId
+        ) {
+          return
+        }
+
+        scheduleInboxRefresh(750)
+        scheduleSelectedConversationRefresh(750)
+      }),
+    [
+      scheduleInboxRefresh,
+      scheduleSelectedConversationRefresh,
+      selectedConnectionId,
+    ],
+  )
+
+  useEffect(() => {
     return realtimeClient.subscribe<AsyncJob>('async.job.progress', (event) => {
       const job = event.payload
-      setSyncJobs((current) => {
-        if (!current[job.jobId]) return current
-        return { ...current, [job.jobId]: job }
-      })
 
-      if (job.completedUnits > 0) {
-        scheduleInboxRefresh()
+      if (
+        job.jobType === 'GMAIL_SYNC' ||
+        job.jobType === 'MICROSOFT_SYNC' ||
+        job.jobType === 'IMAP_SMTP_SYNC'
+      ) {
+        setSyncJobs((current) => {
+          if (!current[job.jobId]) return current
+          return { ...current, [job.jobId]: job }
+        })
+        if (job.completedUnits > 0) {
+          scheduleInboxRefresh(5000)
+          scheduleSelectedConversationRefresh(5000)
+        }
+        if (job.status === 'FAILED') {
+          setError(job.errorMessage || 'Email sync failed')
+        }
       }
-      if (job.status === 'FAILED') {
-        setError(job.errorMessage || 'Gmail sync failed')
+
+      if (job.jobType === 'INBOX_READ_SYNC') {
+        setMarkAllJob((current) => (current?.jobId === job.jobId ? job : current))
+        if (job.completedUnits > 0 || job.status === 'COMPLETED') {
+          scheduleInboxRefresh(1000)
+          scheduleSelectedConversationRefresh(1000)
+        }
+        if (job.status === 'COMPLETED') {
+          setNotice('All unread messages in this inbox are now marked as read.')
+        } else if (job.status === 'FAILED') {
+          setError(job.errorMessage || 'Unable to mark all messages as read')
+        }
       }
     })
-  }, [scheduleInboxRefresh])
+  }, [
+    scheduleInboxRefresh,
+    scheduleSelectedConversationRefresh,
+  ])
 
   useEffect(() => {
     if (activeSyncJobs.length === 0 || realtimeConnected) return
@@ -358,46 +516,231 @@ export default function EmailInbox() {
     return () => window.clearInterval(timer)
   }, [activeSyncJobs, realtimeConnected])
 
-  const syncGmail = async () => {
-    if (!companyId || syncing) return
+  useEffect(() => {
+    if (!activeMarkAllJob || realtimeConnected) return
+
+    const timer = window.setInterval(() => {
+      void asyncJobApi
+        .get(activeMarkAllJob.jobId)
+        .then((latest) => {
+          setMarkAllJob(latest)
+          if (latest.completedUnits > 0 || latest.status === 'COMPLETED') {
+            scheduleInboxRefresh(1000)
+          }
+          if (latest.status === 'COMPLETED') {
+            setNotice('All unread messages in this inbox are now marked as read.')
+          } else if (latest.status === 'FAILED') {
+            setError(latest.errorMessage || 'Unable to mark all messages as read')
+          }
+        })
+        .catch(() => undefined)
+    }, 3000)
+
+    return () => window.clearInterval(timer)
+  }, [activeMarkAllJob, realtimeConnected, scheduleInboxRefresh])
+
+  const openSyncDialog = () => {
     if (!selectedConnection) {
       setNotice('Select an email account before syncing.')
-      setShowSyncDialog(false)
       return
     }
-    if (selectedConnection.providerType !== 'GMAIL' || selectedConnection.status !== 'ACTIVE') {
-      setNotice('The selected email account is not an active Gmail connection.')
-      setShowSyncDialog(false)
+    if (
+      selectedConnection.status !== 'ACTIVE' ||
+      !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
+    ) {
+      setNotice('The selected email account does not support sync.')
       return
     }
-    if (!syncFrom || !syncTo) {
-      setError('Choose both Gmail sync dates.')
+
+    setSyncFolder(selectedFolder)
+    setSyncMode('DATE_RANGE')
+    setSyncMessageCount(100)
+    setError(null)
+    setShowSyncDialog(true)
+  }
+
+  const syncSelected = async () => {
+    if (!companyId || syncing || !selectedConnection) return
+
+    if (
+      selectedConnection.status !== 'ACTIVE' ||
+      !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
+    ) {
+      setError('The selected email account is not active.')
       return
     }
-    if (syncFrom > syncTo) {
-      setError('From date must be before or equal to the to date.')
+
+    if (syncMode === 'DATE_RANGE') {
+      if (!syncFrom || !syncTo) {
+        setError('Choose both sync dates.')
+        return
+      }
+      if (syncFrom > syncTo) {
+        setError('From date must be before or equal to the to date.')
+        return
+      }
+    } else if (!Number.isInteger(syncMessageCount) || syncMessageCount < 1 || syncMessageCount > 10000) {
+      setError('Choose a message count between 1 and 10,000.')
       return
     }
+
+    const request: EmailSyncRequest =
+      syncMode === 'DATE_RANGE'
+        ? {
+            mode: 'DATE_RANGE',
+            folder: syncFolder,
+            fromDate: syncFrom,
+            toDate: syncTo,
+          }
+        : {
+            mode: 'LATEST_MESSAGES',
+            folder: syncFolder,
+            messageCount: syncMessageCount,
+          }
 
     setSyncing(true)
     setError(null)
     setNotice(null)
 
     try {
-      const queued = await gmailApi.sync(companyId, selectedConnection.id, {
-        fromDate: syncFrom,
-        toDate: syncTo,
-      })
+      const queued =
+        selectedConnection.providerType === 'GMAIL'
+          ? await gmailApi.sync(companyId, selectedConnection.id, request)
+          : selectedConnection.providerType === 'MICROSOFT'
+            ? await microsoftApi.sync(companyId, selectedConnection.id, request)
+            : await imapSmtpApi.sync(companyId, selectedConnection.id, request)
       const job = await asyncJobApi.get(queued.jobId)
       setSyncJobs({ [job.jobId]: job })
       setShowSyncDialog(false)
       setNotice(
-        `Gmail sync started for ${selectedConnection.externalAccountId || selectedConnection.name}.`,
+        `Email sync started for ${selectedConnection.externalAccountId || selectedConnection.name}.`,
       )
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to queue Gmail sync'))
+      setError(apiErrorMessage(requestError, 'Unable to queue email sync'))
     } finally {
       setSyncing(false)
+    }
+  }
+
+  const changeConversationReadState = async (
+    conversation: InboxConversation,
+    read: boolean,
+    silent = false,
+  ) => {
+    if (!companyId || !can(PERMISSIONS.EMAIL_MODIFY)) return
+    if (readUpdatingConversationId === conversation.id) return
+
+    setReadUpdatingConversationId(conversation.id)
+    setError(null)
+
+    if (read) {
+      setConversations((current) =>
+        current.map((item) =>
+          item.id === conversation.id ? { ...item, unreadCount: 0 } : item,
+        ),
+      )
+      if (selectedConversation?.id === conversation.id) {
+        setSelectedConversation({ ...selectedConversation, unreadCount: 0 })
+      }
+      if (selectedConversationId === conversation.id) {
+        setMessages((current) =>
+          current.map((message) =>
+            message.direction === 'INBOUND' ? { ...message, read: true } : message,
+          ),
+        )
+      }
+    }
+
+    try {
+      const result = await inboxApi.setConversationReadState(companyId, conversation.id, read)
+      if (!silent) {
+        setNotice(
+          result.updatedMessages === 0
+            ? read
+              ? 'Conversation is already read.'
+              : 'Conversation is already unread.'
+            : read
+              ? 'Conversation marked as read.'
+              : 'Conversation marked as unread.',
+        )
+      }
+      scheduleInboxRefresh()
+      if (selectedConversationId === conversation.id) {
+        await refreshSelectedConversation()
+      }
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, 'Unable to update conversation read state'))
+      void loadConversations(0, false)
+      if (selectedConversationId === conversation.id) {
+        void refreshSelectedConversation()
+      }
+    } finally {
+      setReadUpdatingConversationId(null)
+    }
+  }
+
+  const changeMessageReadState = async (message: InboxMessage, read: boolean) => {
+    if (!companyId || !can(PERMISSIONS.EMAIL_MODIFY)) return
+    if (readUpdatingMessageId === message.id) return
+
+    setReadUpdatingMessageId(message.id)
+    setError(null)
+    try {
+      await inboxApi.setMessageReadState(companyId, message.id, read)
+      setMessages((current) =>
+        current.map((item) => (item.id === message.id ? { ...item, read } : item)),
+      )
+      setNotice(read ? 'Message marked as read.' : 'Message marked as unread.')
+      scheduleInboxRefresh()
+      if (selectedConversationId) {
+        await refreshSelectedConversation()
+      }
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, 'Unable to update message read state'))
+    } finally {
+      setReadUpdatingMessageId(null)
+    }
+  }
+
+  const markAllAsRead = async () => {
+    if (
+      !companyId ||
+      !selectedConnection ||
+      selectedFolder !== 'INBOX' ||
+      !can(PERMISSIONS.EMAIL_MODIFY) ||
+      markAllStarting ||
+      activeMarkAllJob
+    ) {
+      return
+    }
+
+    setMarkAllStarting(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const job = await inboxApi.markAllRead(companyId, selectedConnection.id, 'INBOX')
+      setMarkAllJob(job)
+      setNotice(
+        job.status === 'COMPLETED'
+          ? 'This inbox has no unread messages.'
+          : 'Mark all as read started. You can keep using the inbox while it finishes.',
+      )
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, 'Unable to start mark all as read'))
+    } finally {
+      setMarkAllStarting(false)
+    }
+  }
+
+  const selectConversation = (conversation: InboxConversation) => {
+    const params = new URLSearchParams(searchParams)
+    params.set('conversationId', conversation.id)
+    params.delete('compose')
+    setSearchParams(params)
+    setMobileConversationOpen(true)
+
+    if (conversation.unreadCount > 0 && can(PERMISSIONS.EMAIL_MODIFY)) {
+      void changeConversationReadState(conversation, true, true)
     }
   }
 
@@ -411,6 +754,7 @@ export default function EmailInbox() {
     setComposeThreadId('')
     setComposeInReplyTo('')
     setComposeReferences('')
+    setComposeProviderMessageId('')
   }
 
   const showCompose = () => {
@@ -468,7 +812,6 @@ export default function EmailInbox() {
   }
 
   const openReply = (message: InboxMessage, replyAll: boolean) => {
-    if (!selectedConversation) return
     const recipients = replyRecipients(message, replyAll)
     if (recipients.to.length === 0) {
       setError('Unable to determine a recipient for this reply.')
@@ -479,13 +822,14 @@ export default function EmailInbox() {
     setComposeTo(recipientInput(recipients.to))
     setComposeCc(recipientInput(recipients.cc))
     setComposeBcc('')
-    setComposeSubject(replySubject(message.subject || selectedConversation.subject))
+    setComposeSubject(replySubject(message.subject || selectedConversation?.subject))
     setComposeBody('')
-    setComposeThreadId(selectedConversation.externalConversationId)
+    setComposeThreadId(selectedConversation?.externalConversationId || '')
     setComposeInReplyTo(message.internetMessageId || '')
     setComposeReferences(
       [message.references?.trim(), message.internetMessageId?.trim()].filter(Boolean).join(' '),
     )
+    setComposeProviderMessageId(message.externalMessageId)
     showCompose()
   }
 
@@ -502,6 +846,7 @@ export default function EmailInbox() {
     setComposeThreadId('')
     setComposeInReplyTo('')
     setComposeReferences('')
+    setComposeProviderMessageId('')
     setComposeBody(
       [
         '',
@@ -523,8 +868,8 @@ export default function EmailInbox() {
   const sendEmail = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!companyId || !selectedConnection || sending) return
-    if (selectedConnection.providerType !== 'GMAIL') {
-      setError('Sending is currently available for Gmail connections.')
+    if (!['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)) {
+      setError('Sending is not available for the selected email provider.')
       return
     }
 
@@ -540,24 +885,48 @@ export default function EmailInbox() {
     setError(null)
     setNotice(null)
     try {
-      const sent = await gmailApi.send(companyId, selectedConnection.id, {
-        to,
-        cc,
-        bcc,
-        subject: composeSubject.trim(),
-        bodyText: composeBody,
-        threadId: composeThreadId || null,
-        inReplyTo: composeInReplyTo || null,
-        references: composeReferences || null,
-      })
+      const sent =
+        selectedConnection.providerType === 'GMAIL'
+          ? await gmailApi.send(companyId, selectedConnection.id, {
+              to,
+              cc,
+              bcc,
+              subject: composeSubject.trim(),
+              bodyText: composeBody,
+              threadId: composeThreadId || null,
+              inReplyTo: composeInReplyTo || null,
+              references: composeReferences || null,
+            })
+          : selectedConnection.providerType === 'MICROSOFT'
+            ? await microsoftApi.send(companyId, selectedConnection.id, {
+                to,
+                cc,
+                bcc,
+                subject: composeSubject.trim(),
+                bodyText: composeBody,
+                replyToMessageId:
+                  composeMode === 'reply' || composeMode === 'replyAll'
+                    ? composeProviderMessageId || null
+                    : null,
+                replyAll: composeMode === 'replyAll',
+              })
+            : await imapSmtpApi.send(companyId, selectedConnection.id, {
+                to,
+                cc,
+                bcc,
+                subject: composeSubject.trim(),
+                bodyText: composeBody,
+                inReplyTo: composeInReplyTo || null,
+                references: composeReferences || null,
+              })
       resetCompose()
       closeCompose()
       setNotice(
         `Email sent from ${sent.from} to ${[...sent.to, ...sent.cc, ...sent.bcc].join(', ')}.`,
       )
       await loadConversations(0, false)
-      if (selectedId) {
-        const latestMessages = await inboxApi.messages(companyId, selectedId)
+      if (selectedConversationId) {
+        const latestMessages = await inboxApi.messages(companyId, selectedConversationId)
         setMessages(latestMessages)
       }
     } catch (requestError) {
@@ -567,8 +936,11 @@ export default function EmailInbox() {
     }
   }
 
-  const canSendSelectedGmail =
-    can(PERMISSIONS.EMAIL_SEND) && selectedConnection?.providerType === 'GMAIL'
+  const canSendSelectedEmail =
+    can(PERMISSIONS.EMAIL_SEND) &&
+    (selectedConnection?.providerType === 'GMAIL' ||
+      selectedConnection?.providerType === 'MICROSOFT' ||
+      selectedConnection?.providerType === 'IMAP_SMTP')
 
   if (!companyId) {
     return (
@@ -581,19 +953,15 @@ export default function EmailInbox() {
   }
 
   return (
-    <section className="px-3 py-4 sm:px-5 sm:py-6 lg:px-6">
-      <div className="mx-auto max-w-[1500px]">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
-          <div>
-            <p className="eyebrow">INBOX</p>
-            <h1 className="mt-1 text-xl font-bold text-slate-950 sm:text-2xl">Email</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              {selectedConnection
-                ? `Showing conversations for ${selectedConnection.externalAccountId || selectedConnection.name}.`
-                : 'Gmail conversations synchronized into your ReachFly workspace.'}
-            </p>
-          </div>
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+    <section className="channel-workspace-page">
+      <div className="channel-workspace-toolbar">
+        <div className="min-w-0 lg:hidden">
+          <p className="eyebrow">EMAIL</p>
+          <p className="mt-1 truncate text-xs font-semibold text-slate-700">
+            {selectedConnection?.externalAccountId || selectedConnection?.name || 'Inbox'}
+          </p>
+        </div>
+        <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
             <button
               type="button"
               className="secondary-button flex-1 gap-2 sm:flex-none"
@@ -603,21 +971,32 @@ export default function EmailInbox() {
               <FiRefreshCw aria-hidden="true" />
               Refresh
             </button>
+            {selectedFolder === 'INBOX' && can(PERMISSIONS.EMAIL_MODIFY) && (
+              <button
+                type="button"
+                className="secondary-button flex-1 gap-2 sm:flex-none"
+                onClick={() => void markAllAsRead()}
+                disabled={!selectedConnection || markAllStarting || Boolean(activeMarkAllJob)}
+              >
+                <FiCheckCircle aria-hidden="true" />
+                {markAllStarting || activeMarkAllJob ? 'Marking…' : 'Mark all read'}
+              </button>
+            )}
             <button
               type="button"
               className="secondary-button flex-1 gap-2 sm:flex-none"
-              onClick={() => setShowSyncDialog(true)}
+              onClick={openSyncDialog}
               disabled={
                 !selectedConnection ||
-                selectedConnection.providerType !== 'GMAIL' ||
                 syncing ||
-                activeSyncJobs.length > 0
+                activeSyncJobs.length > 0 ||
+                !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
               }
             >
               <FiMail aria-hidden="true" />
-              {syncing ? 'Queuing...' : activeSyncJobs.length > 0 ? 'Syncing...' : 'Sync Gmail'}
+              {syncing || activeSyncJobs.length > 0 ? 'Syncing…' : 'Sync'}
             </button>
-            {canSendSelectedGmail && (
+            {canSendSelectedEmail && (
               <button
                 type="button"
                 className="primary-button flex-1 gap-2 sm:flex-none"
@@ -628,8 +1007,9 @@ export default function EmailInbox() {
               </button>
             )}
           </div>
-        </div>
+      </div>
 
+      <div className="channel-workspace-body">
         {error && (
           <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
@@ -641,16 +1021,50 @@ export default function EmailInbox() {
           </div>
         )}
 
+        {markAllJob && (
+          <div className="panel mb-4 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-900">
+                  {activeMarkAllJob
+                    ? 'Marking inbox as read'
+                    : markAllJob.status === 'COMPLETED'
+                      ? 'Inbox marked as read'
+                      : 'Mark all as read finished'}
+                </p>
+                <p className="mt-1 truncate text-xs text-slate-500">
+                  {markAllJob.statusMessage || 'Preparing read-state update'}
+                </p>
+                {markAllJob.totalUnits > 0 && (
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    {markAllJob.completedUnits.toLocaleString()} of{' '}
+                    {markAllJob.totalUnits.toLocaleString()} messages
+                  </p>
+                )}
+              </div>
+              <span className="text-sm font-bold text-indigo-600">
+                {markAllJob.progressPercent}%
+              </span>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-indigo-500 transition-[width] duration-300"
+                style={{ width: `${markAllJob.progressPercent}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         {trackedSyncJobs.length > 0 && (
           <div className="panel mb-4 p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-bold text-slate-900">
                   {activeSyncJobs.length > 0
-                    ? 'Syncing Gmail'
+                    ? 'Syncing email'
                     : trackedSyncJobs.every((job) => job.status === 'COMPLETED')
-                      ? 'Gmail sync complete'
-                      : 'Gmail sync finished'}
+                      ? 'Email sync complete'
+                      : 'Email sync finished'}
                 </p>
                 <p className="mt-1 truncate text-xs text-slate-500">
                   {activeSyncJobs[0]?.statusMessage ||
@@ -682,18 +1096,18 @@ export default function EmailInbox() {
 
         {composeOpen && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+            className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
             role="presentation"
             onMouseDown={(event) => {
               if (event.currentTarget === event.target && !sending) closeCompose()
             }}
           >
             <form
-              className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
+              className="mobile-sheet w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
               onSubmit={(event) => void sendEmail(event)}
               role="dialog"
               aria-modal="true"
-              aria-labelledby="gmail-compose-title"
+              aria-labelledby="email-compose-title"
             >
               <p className="eyebrow">
                 {composeMode === 'reply'
@@ -704,7 +1118,7 @@ export default function EmailInbox() {
                       ? 'FORWARD'
                       : 'NEW EMAIL'}
               </p>
-              <h2 id="gmail-compose-title" className="mt-2 text-lg font-bold text-slate-950">
+              <h2 id="email-compose-title" className="mt-2 text-lg font-bold text-slate-950">
                 {composeMode === 'compose' ? 'Compose email' : composeSubject || 'Email'}
               </h2>
               <p className="mt-2 text-xs text-slate-500">
@@ -797,49 +1211,123 @@ export default function EmailInbox() {
 
         {showSyncDialog && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+            className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
             role="presentation"
             onMouseDown={(event) => {
               if (event.currentTarget === event.target && !syncing) setShowSyncDialog(false)
             }}
           >
             <div
-              className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
+              className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
               role="dialog"
               aria-modal="true"
-              aria-labelledby="gmail-sync-title"
+              aria-labelledby="email-sync-title"
             >
-              <p className="eyebrow">GMAIL SYNC</p>
-              <h2 id="gmail-sync-title" className="mt-2 text-lg font-bold text-slate-950">
-                Choose email date range
+              <p className="eyebrow">EMAIL SYNC</p>
+              <h2 id="email-sync-title" className="mt-2 text-lg font-bold text-slate-950">
+                Import mailbox history
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                ReachFly will import Gmail messages within this range and show live progress.
+                {selectedConnection?.externalAccountId || selectedConnection?.name || 'Email'}
+                {' · '}
+                {selectedConnection?.providerType === 'MICROSOFT'
+                  ? 'Microsoft'
+                  : selectedConnection?.providerType === 'IMAP_SMTP'
+                    ? 'IMAP + SMTP'
+                    : 'Gmail'}
               </p>
 
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <label className="text-xs font-semibold text-slate-600">
-                  From
-                  <input
-                    type="date"
-                    className="form-input mt-1.5"
-                    value={syncFrom}
-                    max={syncTo}
-                    onChange={(event) => setSyncFrom(event.target.value)}
-                  />
-                </label>
-                <label className="text-xs font-semibold text-slate-600">
-                  To
-                  <input
-                    type="date"
-                    className="form-input mt-1.5"
-                    value={syncTo}
-                    min={syncFrom}
-                    max={localDateInput(new Date())}
-                    onChange={(event) => setSyncTo(event.target.value)}
-                  />
-                </label>
+              <div className="mt-5">
+                <p className="text-xs font-semibold text-slate-600">Folder</p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(['INBOX', 'SENT'] as EmailFolder[]).map((folder) => (
+                    <button
+                      key={folder}
+                      type="button"
+                      className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                        syncFolder === folder
+                          ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                      onClick={() => setSyncFolder(folder)}
+                    >
+                      {folder === 'INBOX' ? 'Inbox' : 'Sent'}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              <div className="mt-5">
+                <p className="text-xs font-semibold text-slate-600">Import by</p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                      syncMode === 'DATE_RANGE'
+                        ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                    onClick={() => setSyncMode('DATE_RANGE')}
+                  >
+                    Date range
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                      syncMode === 'LATEST_MESSAGES'
+                        ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                    onClick={() => setSyncMode('LATEST_MESSAGES')}
+                  >
+                    Latest messages
+                  </button>
+                </div>
+              </div>
+
+              {syncMode === 'DATE_RANGE' ? (
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  <label className="text-xs font-semibold text-slate-600">
+                    From
+                    <input
+                      type="date"
+                      className="form-input mt-1.5"
+                      value={syncFrom}
+                      max={syncTo}
+                      onChange={(event) => setSyncFrom(event.target.value)}
+                    />
+                  </label>
+                  <label className="text-xs font-semibold text-slate-600">
+                    To
+                    <input
+                      type="date"
+                      className="form-input mt-1.5"
+                      value={syncTo}
+                      min={syncFrom}
+                      max={localDateInput(new Date())}
+                      onChange={(event) => setSyncTo(event.target.value)}
+                    />
+                  </label>
+                </div>
+              ) : (
+                <label className="mt-5 block text-xs font-semibold text-slate-600">
+                  Number of messages
+                  <input
+                    type="number"
+                    className="form-input mt-1.5"
+                    min={1}
+                    max={10000}
+                    step={1}
+                    value={syncMessageCount}
+                    onChange={(event) =>
+                      setSyncMessageCount(Math.max(1, Number(event.target.value) || 1))
+                    }
+                  />
+                  <span className="mt-1.5 block text-[11px] font-normal text-slate-400">
+                    Imports the newest messages first. Maximum 10,000 per request.
+                  </span>
+                </label>
+              )}
 
               <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <button
@@ -854,248 +1342,221 @@ export default function EmailInbox() {
                   type="button"
                   className="primary-button justify-center gap-2"
                   disabled={syncing}
-                  onClick={() => void syncGmail()}
+                  onClick={() => void syncSelected()}
                 >
                   <FiMail aria-hidden="true" />
-                  {syncing ? 'Starting...' : 'Start sync'}
+                  {syncing ? 'Starting…' : 'Start sync'}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        <div className="panel grid min-h-[calc(100dvh-220px)] overflow-hidden md:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]">
-          <aside
-            className={`${mobileConversationOpen ? 'hidden md:block' : 'block'} border-b border-slate-200 md:border-b-0 md:border-r`}
-          >
-            <div className="border-b border-slate-100 px-4 py-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900">Conversations</h2>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {conversations.length} of {totalElements} loaded
-                  </p>
-                </div>
-                <FiInbox className="text-slate-400" aria-hidden="true" />
+        <div
+          className={`${mobileConversationOpen ? 'hidden' : 'block'} panel mb-4 overflow-hidden lg:hidden`}
+        >
+          <div className="border-b border-slate-100 px-4 py-3">
+            <p className="text-xs font-bold text-slate-900">Chats</p>
+            <p className="mt-1 text-[11px] text-slate-500">
+              {conversations.length} of {totalElements} loaded
+            </p>
+          </div>
+          <ConversationList
+            conversations={conversations}
+            connections={connections}
+            selectedId={selectedConversationId}
+            loading={loading}
+            loadingMore={loadingMore}
+            totalElements={totalElements}
+            hasMore={currentPage + 1 < totalPages}
+            onSelect={selectConversation}
+            onLoadMore={() => void loadConversations(currentPage + 1, true)}
+          />
+        </div>
+
+        <main
+          className={`${mobileConversationOpen ? 'block' : 'hidden lg:block'} channel-message-surface`}
+        >
+          {!selectedConversationId ? (
+            <div className="flex min-h-[calc(100dvh-210px)] items-center justify-center px-6 text-center">
+              <div>
+                <FiMail className="mx-auto text-4xl text-slate-300" aria-hidden="true" />
+                <p className="mt-4 text-sm font-semibold text-slate-800">Select a conversation</p>
+                <p className="mt-2 text-xs text-slate-500">Email messages will appear here.</p>
               </div>
             </div>
-
-            <div className="max-h-[calc(100dvh-300px)] overflow-y-auto md:max-h-[calc(100dvh-210px)]">
-              {loading ? (
-                <div className="px-5 py-10 text-center text-sm text-slate-500">
-                  Loading conversations...
-                </div>
-              ) : conversations.length === 0 ? (
-                <div className="px-6 py-12 text-center">
-                  <FiMail className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
-                  <p className="mt-4 text-sm font-semibold text-slate-800">No emails synced yet</p>
-                  <p className="mt-2 text-xs leading-5 text-slate-500">
-                    Click Sync Gmail to import recent conversations from your connected account.
+          ) : (
+            <>
+              <header className="flex items-start gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
+                <button
+                  type="button"
+                  className="secondary-button shrink-0 px-3 lg:hidden"
+                  onClick={() => setMobileConversationOpen(false)}
+                  aria-label="Back to conversations"
+                >
+                  <FiArrowLeft aria-hidden="true" />
+                </button>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-slate-950">
+                    {selectedConversation?.subject || messages[0]?.subject || '(no subject)'}
+                  </p>
+                  <p className="mt-1 truncate text-xs text-slate-500">
+                    {selectedConversation
+                      ? conversationParticipant(selectedConversation, ownAddress)
+                      : ownAddress || selectedConnection?.externalAccountId || 'Email'}
+                    {selectedConversation && ownAddress ? ` · ${ownAddress}` : ''}
                   </p>
                 </div>
-              ) : (
-                conversations.map((conversation) => {
-                  const connection = connections.find(
-                    (item) => item.id === conversation.connectionId,
-                  )
-                  const counterpart = displayParticipant(
-                    conversation,
-                    connection?.externalAccountId ?? undefined,
-                  )
-                  const active = selectedId === conversation.id
-
-                  return (
+                {selectedConversation &&
+                  selectedFolder === 'INBOX' &&
+                  can(PERMISSIONS.EMAIL_MODIFY) && (
                     <button
-                      key={conversation.id}
                       type="button"
-                      onClick={() => {
-                        setSelectedId(conversation.id)
-                        setMobileConversationOpen(true)
-                      }}
-                      className={`w-full border-b border-slate-100 px-4 py-4 text-left transition ${
-                        active ? 'bg-indigo-50' : 'bg-white hover:bg-slate-50'
+                      className="secondary-button shrink-0 gap-2 px-3"
+                      disabled={readUpdatingConversationId === selectedConversation.id}
+                      onClick={() =>
+                        void changeConversationReadState(
+                          selectedConversation,
+                          selectedConversation.unreadCount > 0,
+                        )
+                      }
+                    >
+                      <FiCheckCircle aria-hidden="true" />
+                      {readUpdatingConversationId === selectedConversation.id
+                        ? 'Updating…'
+                        : selectedConversation.unreadCount > 0
+                          ? 'Mark read'
+                          : 'Mark unread'}
+                    </button>
+                  )}
+              </header>
+
+              <div className="channel-message-scroll space-y-4 p-3 sm:p-5">
+                {messagesLoading ? (
+                  <p className="py-10 text-center text-sm text-slate-500">Loading messages...</p>
+                ) : messages.length === 0 ? (
+                  <p className="py-10 text-center text-sm text-slate-500">
+                    No messages found in this conversation.
+                  </p>
+                ) : (
+                  messages.map((message) => (
+                    <article
+                      key={message.id}
+                      className={`w-full max-w-4xl rounded-xl border p-3 sm:p-4 ${
+                        message.direction === 'OUTBOUND'
+                          ? 'ml-auto border-indigo-100 bg-indigo-50'
+                          : 'border-slate-200 bg-white'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="truncate text-sm font-semibold text-slate-900">
-                          {counterpart}
-                        </p>
-                        <span className="shrink-0 text-[11px] text-slate-400">
-                          {formatDate(conversation.lastMessageAt)}
-                        </span>
-                      </div>
-                      <p className="mt-1 truncate text-xs font-medium text-slate-700">
-                        {conversation.subject || '(no subject)'}
-                      </p>
-                      <div className="mt-1 flex items-center gap-2">
-                        <p className="min-w-0 flex-1 truncate text-xs text-slate-500">
-                          {conversation.lastMessagePreview || 'No preview available'}
-                        </p>
-                        {conversation.unreadCount > 0 && (
-                          <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-indigo-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                            {conversation.unreadCount}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-800">
+                            {message.direction === 'OUTBOUND' ? 'You' : 'Received'}
                           </span>
-                        )}
-                      </div>
-                      {connection?.externalAccountId && (
-                        <p className="mt-2 truncate text-[10px] font-medium uppercase tracking-wide text-slate-400">
-                          {connection.externalAccountId}
-                        </p>
-                      )}
-                    </button>
-                  )
-                })
-              )}
-
-              {!loading && currentPage + 1 < totalPages && (
-                <div className="p-3">
-                  <button
-                    type="button"
-                    className="secondary-button w-full justify-center"
-                    onClick={() => void loadConversations(currentPage + 1, true)}
-                    disabled={loadingMore}
-                  >
-                    {loadingMore ? 'Loading...' : 'Load more'}
-                  </button>
-                </div>
-              )}
-            </div>
-          </aside>
-
-          <main
-            className={`${mobileConversationOpen ? 'block' : 'hidden md:block'} min-w-0 bg-slate-50/40`}
-          >
-            {!selectedConversation ? (
-              <div className="flex min-h-[560px] items-center justify-center px-6 text-center">
-                <div>
-                  <FiMail className="mx-auto text-4xl text-slate-300" aria-hidden="true" />
-                  <p className="mt-4 text-sm font-semibold text-slate-800">Select a conversation</p>
-                  <p className="mt-2 text-xs text-slate-500">Email messages will appear here.</p>
-                </div>
-              </div>
-            ) : (
-              <>
-                <header className="flex items-start gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
-                  <button
-                    type="button"
-                    className="secondary-button shrink-0 px-3 md:hidden"
-                    onClick={() => setMobileConversationOpen(false)}
-                    aria-label="Back to conversations"
-                  >
-                    <FiArrowLeft aria-hidden="true" />
-                  </button>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-slate-950">
-                      {selectedConversation.subject || '(no subject)'}
-                    </p>
-                    <p className="mt-1 truncate text-xs text-slate-500">
-                      {displayParticipant(selectedConversation, ownAddress)}
-                      {ownAddress ? ` · ${ownAddress}` : ''}
-                    </p>
-                  </div>
-                </header>
-
-                <div className="max-h-[calc(100dvh-290px)] space-y-4 overflow-y-auto p-3 sm:p-5 md:max-h-[calc(100dvh-210px)]">
-                  {messagesLoading ? (
-                    <p className="py-10 text-center text-sm text-slate-500">Loading messages...</p>
-                  ) : messages.length === 0 ? (
-                    <p className="py-10 text-center text-sm text-slate-500">
-                      No messages found in this conversation.
-                    </p>
-                  ) : (
-                    messages.map((message) => (
-                      <article
-                        key={message.id}
-                        className={`w-full max-w-3xl rounded-xl border p-3 sm:p-4 ${
-                          message.direction === 'OUTBOUND'
-                            ? 'ml-auto border-indigo-100 bg-indigo-50'
-                            : 'border-slate-200 bg-white'
-                        }`}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-800">
-                              {message.direction === 'OUTBOUND' ? 'You' : 'Received'}
+                          {!message.read && (
+                            <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-600">
+                              UNREAD
                             </span>
-                            {!message.read && (
-                              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-600">
-                                UNREAD
-                              </span>
-                            )}
-                          </div>
-                          <time className="text-[11px] text-slate-400">
-                            {message.sentAt ? new Date(message.sentAt).toLocaleString() : ''}
-                          </time>
+                          )}
                         </div>
+                        <time className="text-[11px] text-slate-400">
+                          {message.sentAt ? new Date(message.sentAt).toLocaleString() : ''}
+                        </time>
+                      </div>
 
-                        <p className="mt-3 text-xs font-semibold text-slate-700">
-                          {messageTitle(message)}
-                        </p>
-                        {message.bodyHtml ||
-                        (isHtmlBody(message.bodyText) ? message.bodyText : null) ? (
-                          <div className="mt-3 overflow-hidden rounded-xl bg-white">
-                            <EmailHtmlFrame
-                              html={
-                                message.bodyHtml ||
-                                (isHtmlBody(message.bodyText) ? message.bodyText || '' : '')
-                              }
-                              title={message.subject || 'Email message'}
-                            />
-                          </div>
-                        ) : (
-                          <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
-                            {message.bodyText || message.snippet || 'No message body available.'}
-                          </pre>
-                        )}
+                      <p className="mt-3 text-xs font-semibold text-slate-700">
+                        {messageTitle(message)}
+                      </p>
 
-                        {message.attachments.length > 0 && (
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            {message.attachments.map((attachment) => (
-                              <span
-                                key={attachment.id}
-                                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600"
+                      {message.bodyHtml ||
+                      (isHtmlBody(message.bodyText) ? message.bodyText : null) ? (
+                        <div className="mt-3 overflow-hidden rounded-xl bg-white">
+                          <EmailHtmlFrame
+                            html={
+                              message.bodyHtml ||
+                              (isHtmlBody(message.bodyText) ? message.bodyText || '' : '')
+                            }
+                            title={message.subject || 'Email message'}
+                          />
+                        </div>
+                      ) : (
+                        <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
+                          {message.bodyText || message.snippet || 'No message body available.'}
+                        </pre>
+                      )}
+
+                      {message.attachments.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {message.attachments.map((attachment) => (
+                            <span
+                              key={attachment.id}
+                              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600"
+                            >
+                              {attachment.filename || 'Attachment'}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {(canSendSelectedEmail ||
+                        (message.direction === 'INBOUND' &&
+                          can(PERMISSIONS.EMAIL_MODIFY))) && (
+                        <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                          {message.direction === 'INBOUND' &&
+                            can(PERMISSIONS.EMAIL_MODIFY) && (
+                              <button
+                                type="button"
+                                className="secondary-button gap-2 px-3 py-2 text-xs"
+                                disabled={readUpdatingMessageId === message.id}
+                                onClick={() =>
+                                  void changeMessageReadState(message, !message.read)
+                                }
                               >
-                                {attachment.filename || 'Attachment'}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        {canSendSelectedGmail && (
-                          <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-                            <button
-                              type="button"
-                              className="secondary-button gap-2 px-3 py-2 text-xs"
-                              onClick={() => openReply(message, false)}
-                            >
-                              <FiCornerUpLeft aria-hidden="true" />
-                              Reply
-                            </button>
-                            <button
-                              type="button"
-                              className="secondary-button gap-2 px-3 py-2 text-xs"
-                              onClick={() => openReply(message, true)}
-                            >
-                              <FiUsers aria-hidden="true" />
-                              Reply all
-                            </button>
-                            <button
-                              type="button"
-                              className="secondary-button gap-2 px-3 py-2 text-xs"
-                              onClick={() => openForward(message)}
-                            >
-                              <FiShare2 aria-hidden="true" />
-                              Forward
-                            </button>
-                          </div>
-                        )}
-                      </article>
-                    ))
-                  )}
-                </div>
-              </>
-            )}
-          </main>
-        </div>
+                                <FiCheckCircle aria-hidden="true" />
+                                {readUpdatingMessageId === message.id
+                                  ? 'Updating…'
+                                  : message.read
+                                    ? 'Mark unread'
+                                    : 'Mark read'}
+                              </button>
+                            )}
+                          {canSendSelectedEmail && (
+                            <>
+                              <button
+                                type="button"
+                                className="secondary-button gap-2 px-3 py-2 text-xs"
+                                onClick={() => openReply(message, false)}
+                              >
+                                <FiCornerUpLeft aria-hidden="true" />
+                                Reply
+                              </button>
+                              <button
+                                type="button"
+                                className="secondary-button gap-2 px-3 py-2 text-xs"
+                                onClick={() => openReply(message, true)}
+                              >
+                                <FiUsers aria-hidden="true" />
+                                Reply all
+                              </button>
+                              <button
+                                type="button"
+                                className="secondary-button gap-2 px-3 py-2 text-xs"
+                                onClick={() => openForward(message)}
+                              >
+                                <FiShare2 aria-hidden="true" />
+                                Forward
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </article>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </main>
       </div>
     </section>
   )
