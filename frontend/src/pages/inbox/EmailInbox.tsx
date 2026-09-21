@@ -905,7 +905,7 @@ export default function EmailInbox() {
     <section className="channel-workspace-page">
       <div className="channel-workspace-toolbar">
         <div className="min-w-0 lg:hidden">
-          <p className="eyebrow">EMAIL</p>
+          <p className="eyebrow">{selectedFolder === 'INBOX' ? 'INBOX' : 'SENT'}</p>
           <p className="mt-1 truncate text-xs font-semibold text-slate-700">
             {selectedConnection?.externalAccountId || selectedConnection?.name || 'Inbox'}
           </p>
@@ -1315,6 +1315,7 @@ export default function EmailInbox() {
             </p>
           </div>
           <ConversationList
+            compact
             conversations={conversations}
             connections={connections}
             selectedId={selectedConversationId}
