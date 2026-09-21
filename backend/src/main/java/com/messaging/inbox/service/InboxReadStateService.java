@@ -46,8 +46,10 @@ public class InboxReadStateService {
         requireMutable(connectionFor(companyId, message.getConnection().getId()));
 
     if (message.getStatus() == InboxMessageStatus.DELETED
-        || message.getProviderFolderKey() == null) {
-      throw new BadRequestException("This message is no longer available in the provider mailbox");
+        || message.getDirection() != InboxMessageDirection.INBOUND
+        || !EmailFolder.INBOX.providerKey().equals(message.getProviderFolderKey())) {
+      throw new BadRequestException(
+          "Read state can only be changed for inbound inbox messages");
     }
     if (message.isRead() == read) {
       return new InboxReadStateResponse(read, 0, 0);
