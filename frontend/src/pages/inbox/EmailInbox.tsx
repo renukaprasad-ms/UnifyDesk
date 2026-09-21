@@ -840,10 +840,8 @@ export default function EmailInbox() {
       setNotice(
         `Email sent from ${sent.from} to ${[...sent.to, ...sent.cc, ...sent.bcc].join(', ')}.`,
       )
-      await loadConversations(0, false)
-      if (selectedConversationId) {
-        const latestMessages = await inboxApi.messages(companyId, selectedConversationId)
-        setMessages(latestMessages)
+      if (!realtimeConnected) {
+        void refreshInbox(true)
       }
     } catch (requestError) {
       setError(apiErrorMessage(requestError, 'Unable to send email'))
