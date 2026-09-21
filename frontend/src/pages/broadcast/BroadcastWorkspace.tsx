@@ -1342,11 +1342,24 @@ function BroadcastDetail({
             </div>
 
             <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-              <div className="border-b border-slate-100 px-4 py-3">
-                <p className="text-sm font-bold text-slate-900">Recipients</p>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Provider acceptance is shown as Sent. Bounces can update later from delivery reports.
-                </p>
+              <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Recipients</p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Provider acceptance is shown as Sent. Bounces can update later from delivery reports.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="secondary-button shrink-0 gap-2"
+                  disabled={recipientsLoading}
+                  onClick={() => onRecipientsPage(recipients.number)}
+                >
+                  <FiRefreshCw aria-hidden="true" />
+                  <span className="hidden sm:inline">
+                    {recipientsLoading ? 'Refreshing…' : 'Refresh'}
+                  </span>
+                </button>
               </div>
               <div className="overflow-x-auto">
                 <table className="mobile-card-table w-full min-w-[760px] text-left text-xs">

@@ -19,6 +19,7 @@ type BroadcastState = {
   groupsPage: number
   groupsTotalPages: number
   groupsStatus: RequestStatus
+  loadingMoreGroups: boolean
   historyCompanyId: string | null
   historyGroupId: string | null
   messages: BroadcastMessageSummary[]
@@ -35,6 +36,7 @@ const initialState: BroadcastState = {
   groupsPage: 0,
   groupsTotalPages: 0,
   groupsStatus: 'idle',
+  loadingMoreGroups: false,
   historyCompanyId: null,
   historyGroupId: null,
   messages: [],
@@ -96,7 +98,7 @@ export const fetchBroadcastGroups = createAsyncThunk<
       ) {
         return true
       }
-      if (append) return state.groupsStatus !== 'loading'
+      if (append) return !state.loadingMoreGroups
       return state.groupsStatus === 'idle' || state.groupsStatus === 'error'
     },
   },
@@ -190,7 +192,8 @@ const broadcastSlice = createSlice({
         }
         state.groupsCompanyId = companyId
         state.groupsChannelType = channelType
-        if (!append) state.groupsStatus = 'loading'
+        if (append) state.loadingMoreGroups = true
+        else state.groupsStatus = 'loading'
       })
       .addCase(fetchBroadcastGroups.fulfilled, (state, action) => {
         if (
@@ -209,9 +212,12 @@ const broadcastSlice = createSlice({
         state.groupsPage = action.payload.page.number
         state.groupsTotalPages = action.payload.page.totalPages
         state.groupsStatus = 'ready'
+        state.loadingMoreGroups = false
       })
       .addCase(fetchBroadcastGroups.rejected, (state, action) => {
-        if (!action.meta.condition) state.groupsStatus = 'error'
+        if (action.meta.condition) return
+        if (action.meta.arg.append) state.loadingMoreGroups = false
+        else state.groupsStatus = 'error'
       })
       .addCase(fetchBroadcastHistory.pending, (state, action) => {
         const { companyId, groupId, append = false } = action.meta.arg

@@ -362,6 +362,35 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     onNavigate()
   }
 
+  useEffect(() => {
+    if (
+      !desktop ||
+      !broadcastMode ||
+      selectedGroupId ||
+      broadcastGroups.length === 0
+    ) {
+      return
+    }
+
+    const params = new URLSearchParams(location.search)
+    params.set('groupId', broadcastGroups[0].id)
+    params.delete('broadcastId')
+    params.delete('compose')
+    params.delete('newGroup')
+    navigate(
+      { pathname: location.pathname, search: `?${params.toString()}` },
+      { replace: true },
+    )
+  }, [
+    broadcastGroups,
+    broadcastMode,
+    desktop,
+    location.pathname,
+    location.search,
+    navigate,
+    selectedGroupId,
+  ])
+
   const selectBroadcastGroup = (groupId: string) => {
     const params = new URLSearchParams(location.search)
     params.set('groupId', groupId)
@@ -384,7 +413,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const loadMoreBroadcastGroups = () => {
     if (
       !companyId ||
-      broadcast.groupsStatus === 'loading' ||
+      broadcast.loadingMoreGroups ||
       broadcast.groupsPage + 1 >= broadcast.groupsTotalPages
     ) {
       return
@@ -696,9 +725,9 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                     type="button"
                     className="secondary-button mt-2 w-full"
                     onClick={loadMoreBroadcastGroups}
-                    disabled={broadcast.groupsStatus === 'loading'}
+                    disabled={broadcast.loadingMoreGroups}
                   >
-                    Load more
+                    {broadcast.loadingMoreGroups ? 'Loading…' : 'Load more'}
                   </button>
                 )}
               </div>
