@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   FiAlertCircle,
   FiArrowLeft,
@@ -122,6 +122,7 @@ export default function BroadcastWorkspace() {
   const selectedGroupId = searchParams.get('groupId')
   const selectedBroadcastId = searchParams.get('broadcastId')
   const newGroupOpen = searchParams.get('newGroup') === '1'
+  const editGroupOpen = searchParams.get('editGroup') === '1'
   const composeOpen = searchParams.get('compose') === '1'
   const editBroadcastId = searchParams.get('editBroadcastId')
 
@@ -154,6 +155,9 @@ export default function BroadcastWorkspace() {
   const [actionBusy, setActionBusy] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [recipientsLoading, setRecipientsLoading] = useState(false)
+  const [realtimeConnected, setRealtimeConnected] = useState(realtimeClient.isConnected())
+  const recipientRefreshTimer = useRef<number | null>(null)
+  const lastRecipientRefreshAt = useRef(0)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -277,9 +281,31 @@ export default function BroadcastWorkspace() {
     }
   }, [companyId, dispatch, selectedBroadcastId])
 
+  useEffect(
+    () => realtimeClient.subscribeConnection(setRealtimeConnected),
+    [],
+  )
+
   useEffect(() => {
     if (!companyId) return
-    return realtimeClient.subscribe<BroadcastProgressEvent>(
+
+    const scheduleRecipientRefresh = (broadcastId: string) => {
+      if (broadcastId !== selectedBroadcastId) return
+      const now = Date.now()
+      const delay = Math.max(250, 1500 - (now - lastRecipientRefreshAt.current))
+      if (recipientRefreshTimer.current !== null) return
+
+      recipientRefreshTimer.current = window.setTimeout(() => {
+        recipientRefreshTimer.current = null
+        lastRecipientRefreshAt.current = Date.now()
+        void broadcastApi
+          .recipients(companyId, broadcastId, recipients.number)
+          .then(setRecipients)
+          .catch(() => undefined)
+      }, delay)
+    }
+
+    const unsubscribe = realtimeClient.subscribe<BroadcastProgressEvent>(
       'broadcast.progress.changed',
       (event) => {
         dispatch(applyBroadcastProgress(event.payload))
@@ -294,9 +320,78 @@ export default function BroadcastWorkspace() {
             progressPercent: event.payload.progressPercent,
           }
         })
+        scheduleRecipientRefresh(event.payload.broadcastId)
       },
     )
-  }, [companyId, dispatch])
+
+    return () => {
+      unsubscribe()
+      if (recipientRefreshTimer.current !== null) {
+        window.clearTimeout(recipientRefreshTimer.current)
+        recipientRefreshTimer.current = null
+      }
+    }
+  }, [companyId, dispatch, recipients.number, selectedBroadcastId])
+
+  useEffect(() => {
+    if (realtimeConnected || !companyId) return
+
+    const activeDetail =
+      selectedMessage &&
+      ['QUEUED', 'RUNNING', 'PAUSED'].includes(selectedMessage.status)
+    const activeHistory = history.some((message) =>
+      ['QUEUED', 'RUNNING', 'PAUSED'].includes(message.status),
+    )
+    if (!activeDetail && !activeHistory) return
+
+    let stopped = false
+    const poll = async () => {
+      if (stopped) return
+      try {
+        if (selectedBroadcastId) {
+          const message = await broadcastApi.message(companyId, selectedBroadcastId)
+          if (stopped) return
+          setSelectedMessage(message)
+          dispatch(applyBroadcastMutation(message))
+          if (message.runId) {
+            const page = await broadcastApi.recipients(
+              companyId,
+              selectedBroadcastId,
+              recipients.number,
+            )
+            if (!stopped) setRecipients(page)
+          }
+        }
+        if (selectedGroupId) {
+          await dispatch(
+            fetchBroadcastHistory({
+              companyId,
+              groupId: selectedGroupId,
+              force: true,
+            }),
+          )
+        }
+      } catch {
+        // WebSocket recovery polling is best-effort; normal request errors remain user-driven.
+      }
+    }
+
+    void poll()
+    const timer = window.setInterval(() => void poll(), 5000)
+    return () => {
+      stopped = true
+      window.clearInterval(timer)
+    }
+  }, [
+    companyId,
+    dispatch,
+    history,
+    realtimeConnected,
+    recipients.number,
+    selectedBroadcastId,
+    selectedGroupId,
+    selectedMessage,
+  ])
 
   useEffect(() => {
     if (!composeOpen) return
@@ -341,7 +436,26 @@ export default function BroadcastWorkspace() {
   const openNewGroup = () => {
     setGroupName('')
     setGroupDescription('')
-    updateSearch({ newGroup: '1', broadcastId: null, compose: null, editBroadcastId: null })
+    updateSearch({
+      newGroup: '1',
+      editGroup: null,
+      broadcastId: null,
+      compose: null,
+      editBroadcastId: null,
+    })
+  }
+
+  const openEditGroup = () => {
+    if (!selectedGroup) return
+    setGroupName(selectedGroup.name)
+    setGroupDescription(selectedGroup.description ?? '')
+    updateSearch({
+      editGroup: '1',
+      newGroup: null,
+      broadcastId: null,
+      compose: null,
+      editBroadcastId: null,
+    })
   }
 
   const createGroup = async (event: FormEvent) => {
@@ -360,6 +474,26 @@ export default function BroadcastWorkspace() {
       setNotice('Broadcast group created. Add recipients when you are ready.')
     } catch (requestError) {
       setError(apiErrorMessage(requestError, 'Unable to create broadcast group'))
+    } finally {
+      setGroupBusy(false)
+    }
+  }
+
+  const updateGroup = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!companyId || !selectedGroupId || !groupName.trim()) return
+    setGroupBusy(true)
+    setError(null)
+    try {
+      const group = await broadcastApi.updateGroup(companyId, selectedGroupId, {
+        name: groupName.trim(),
+        description: groupDescription.trim() || null,
+      })
+      dispatch(upsertBroadcastGroup(group))
+      updateSearch({ editGroup: null })
+      setNotice('Broadcast group updated.')
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, 'Unable to update broadcast group'))
     } finally {
       setGroupBusy(false)
     }
@@ -739,10 +873,24 @@ export default function BroadcastWorkspace() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {can(PERMISSIONS.BROADCAST_MODIFY) && (
-                      <button type="button" className="secondary-button gap-2" onClick={() => void openMembers()}>
-                        <FiUsers aria-hidden="true" />
-                        Manage members
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="secondary-button gap-2"
+                          onClick={openEditGroup}
+                        >
+                          <FiEdit2 aria-hidden="true" />
+                          Edit group
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button gap-2"
+                          onClick={() => void openMembers()}
+                        >
+                          <FiUsers aria-hidden="true" />
+                          Manage members
+                        </button>
+                      </>
                     )}
                     {can(PERMISSIONS.BROADCAST_CREATE) && (
                       <button type="button" className="primary-button gap-2" onClick={() => openComposer()}>
@@ -850,6 +998,68 @@ export default function BroadcastWorkspace() {
               </button>
               <button type="submit" className="primary-button" disabled={groupBusy || !groupName.trim()}>
                 {groupBusy ? 'Creating…' : 'Create group'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {editGroupOpen && selectedGroup && (
+        <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4">
+          <form
+            className="mobile-sheet w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
+            onSubmit={updateGroup}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-base font-bold text-slate-950">Edit broadcast group</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Renaming the group does not change any previous broadcast recipient snapshots.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="admin-back-button"
+                onClick={() => updateSearch({ editGroup: null })}
+                aria-label="Close"
+              >
+                <FiX aria-hidden="true" />
+              </button>
+            </div>
+            <label className="mt-5 block text-xs font-semibold text-slate-700">
+              Group name
+              <input
+                className="form-input mt-2"
+                value={groupName}
+                onChange={(event) => setGroupName(event.target.value)}
+                maxLength={160}
+                required
+                autoFocus
+              />
+            </label>
+            <label className="mt-4 block text-xs font-semibold text-slate-700">
+              Description
+              <textarea
+                className="form-input mt-2 min-h-24"
+                value={groupDescription}
+                onChange={(event) => setGroupDescription(event.target.value)}
+                maxLength={500}
+              />
+            </label>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => updateSearch({ editGroup: null })}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={groupBusy || !groupName.trim()}
+              >
+                {groupBusy ? 'Saving…' : 'Save changes'}
               </button>
             </div>
           </form>
