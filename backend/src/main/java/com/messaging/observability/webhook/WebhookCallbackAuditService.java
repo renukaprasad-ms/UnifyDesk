@@ -1,9 +1,13 @@
 package com.messaging.observability.webhook;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.messaging.channel.enums.ProviderType;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -27,7 +31,23 @@ public class WebhookCallbackAuditService {
           "cookie",
           "set-cookie",
           "x-xsrf-token",
-          "x-csrf-token");
+          "x-csrf-token",
+          "x-hub-signature-256");
+  private static final Set<String> SENSITIVE_JSON_KEYS =
+      Set.of(
+          "authorization",
+          "token",
+          "accesstoken",
+          "refreshtoken",
+          "clientstate",
+          "secret",
+          "appsecret",
+          "clientsecret",
+          "signature",
+          "password",
+          "credential",
+          "verificationtoken",
+          "verifytoken");
 
   private final WebhookCallbackRepository repository;
   private final ObjectMapper objectMapper;
@@ -52,7 +72,7 @@ public class WebhookCallbackAuditService {
     callback.setRemoteAddress(remoteAddress);
     callback.setContentType(contentType);
     callback.setRequestHeaders(serializeHeaders(headers));
-    callback.setPayload(limit(payload));
+    callback.setPayload(sanitizePayload(payload));
     callback.setStatus(WebhookCallbackStatus.RECEIVED);
     return repository.save(callback).getId();
   }
@@ -142,7 +162,8 @@ public class WebhookCallbackAuditService {
     callback.setHttpStatus(httpStatus);
     callback.setErrorMessage(limit(errorMessage));
     callback.setCompletedAt(completedAt);
-    callback.setDurationMs(Math.max(0, Duration.between(callback.getReceivedAt(), completedAt).toMillis()));
+    callback.setDurationMs(
+        Math.max(0, Duration.between(callback.getReceivedAt(), completedAt).toMillis()));
     repository.save(callback);
   }
 
@@ -161,20 +182,59 @@ public class WebhookCallbackAuditService {
     return serialize(sanitized);
   }
 
+  private String sanitizePayload(String payload) {
+    if (payload == null || payload.isBlank()) return payload;
+    try {
+      JsonNode node = objectMapper.readTree(payload);
+      redactNode(node);
+      return limit(objectMapper.writeValueAsString(node));
+    } catch (Exception ignored) {
+      return limit(redactQuery(payload));
+    }
+  }
+
   private String serialize(Object value) {
     if (value == null) return null;
     try {
-      return limit(objectMapper.writeValueAsString(value));
+      JsonNode node = objectMapper.valueToTree(value);
+      redactNode(node);
+      return limit(objectMapper.writeValueAsString(node));
     } catch (Exception exception) {
       return limit(String.valueOf(value));
     }
+  }
+
+  private void redactNode(JsonNode node) {
+    if (node == null) return;
+    if (node instanceof ObjectNode objectNode) {
+      List<String> fieldNames = new ArrayList<>();
+      objectNode.fieldNames().forEachRemaining(fieldNames::add);
+      for (String fieldName : fieldNames) {
+        JsonNode child = objectNode.get(fieldName);
+        if (isSensitiveJsonKey(fieldName)) {
+          objectNode.put(fieldName, "[REDACTED]");
+        } else {
+          redactNode(child);
+        }
+      }
+      return;
+    }
+    if (node instanceof ArrayNode arrayNode) {
+      arrayNode.forEach(this::redactNode);
+    }
+  }
+
+  private boolean isSensitiveJsonKey(String name) {
+    if (name == null) return false;
+    String normalized = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+    return SENSITIVE_JSON_KEYS.contains(normalized);
   }
 
   private String redactQuery(String queryString) {
     if (queryString == null || queryString.isBlank()) return null;
     return limit(
         queryString.replaceAll(
-            "(?i)(token|access_token|authorization|signature|secret)=([^&]*)",
+            "(?i)(token|access_token|refresh_token|authorization|signature|secret|clientState)=([^&]*)",
             "$1=[REDACTED]"));
   }
 

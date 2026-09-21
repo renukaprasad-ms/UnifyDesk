@@ -95,13 +95,20 @@ public class MicrosoftSubscriptionService {
     repository.saveAndFlush(subscription);
   }
 
-  public void processNotifications(List<ChangeNotification> notifications) {
-    if (notifications == null || notifications.isEmpty()) return;
+  public NotificationProcessResult processNotifications(List<ChangeNotification> notifications) {
+    if (notifications == null || notifications.isEmpty()) {
+      return new NotificationProcessResult(0, 0, 0);
+    }
 
+    int accepted = 0;
+    int ignored = 0;
     for (ChangeNotification notification : notifications) {
       if (notification == null
           || notification.subscriptionId() == null
-          || notification.clientState() == null) continue;
+          || notification.clientState() == null) {
+        ignored++;
+        continue;
+      }
 
       MicrosoftSubscription subscription =
           repository
@@ -113,11 +120,14 @@ public class MicrosoftSubscriptionService {
         log.warn(
             "Ignoring invalid Microsoft notification subscriptionId={}",
             notification.subscriptionId());
+        ignored++;
         continue;
       }
 
       syncStateService.triggerConnection(subscription.getConnection().getId());
+      accepted++;
     }
+    return new NotificationProcessResult(notifications.size(), accepted, ignored);
   }
 
   @Transactional
@@ -186,4 +196,6 @@ public class MicrosoftSubscriptionService {
 
   public record ChangeNotification(
       String subscriptionId, String clientState, String changeType, String resource) {}
+
+  public record NotificationProcessResult(int received, int accepted, int ignored) {}
 }
