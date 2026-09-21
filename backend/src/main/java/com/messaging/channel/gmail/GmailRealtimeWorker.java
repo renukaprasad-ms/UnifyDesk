@@ -177,7 +177,7 @@ public class GmailRealtimeWorker {
         realtimeService.sendToCompany(
             sync.companyId(),
             INBOX_CHANGED_EVENT,
-            InboxEmailChangedEvent.delta(
+            InboxEmailChangedEvent.boundedDelta(
                 sync.connectionId(),
                 ProviderType.GMAIL,
                 changedConversationIds,
