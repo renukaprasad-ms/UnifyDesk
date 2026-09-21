@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { useSearchParams } from 'react-router'
 import {
   FiArrowLeft,
+  FiCheckCircle,
   FiCornerUpLeft,
   FiMail,
   FiRefreshCw,
@@ -104,6 +105,10 @@ export default function EmailInbox() {
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [sending, setSending] = useState(false)
+  const [readUpdatingConversationId, setReadUpdatingConversationId] = useState<string | null>(null)
+  const [readUpdatingMessageId, setReadUpdatingMessageId] = useState<string | null>(null)
+  const [markAllStarting, setMarkAllStarting] = useState(false)
+  const [markAllJob, setMarkAllJob] = useState<AsyncJob | null>(null)
   const [showSyncDialog, setShowSyncDialog] = useState(false)
   const [composeMode, setComposeMode] = useState<'compose' | 'reply' | 'replyAll' | 'forward'>(
     'compose',
@@ -355,6 +360,8 @@ export default function EmailInbox() {
     () => trackedSyncJobs.filter((job) => job.status === 'QUEUED' || job.status === 'RUNNING'),
     [trackedSyncJobs],
   )
+  const activeMarkAllJob =
+    markAllJob?.status === 'QUEUED' || markAllJob?.status === 'RUNNING' ? markAllJob : null
   const overallSyncProgress = useMemo(() => {
     if (trackedSyncJobs.length === 0) return 0
     return Math.round(
@@ -379,19 +386,40 @@ export default function EmailInbox() {
   useEffect(() => {
     return realtimeClient.subscribe<AsyncJob>('async.job.progress', (event) => {
       const job = event.payload
-      setSyncJobs((current) => {
-        if (!current[job.jobId]) return current
-        return { ...current, [job.jobId]: job }
-      })
 
-      if (job.completedUnits > 0) {
-        scheduleInboxRefresh()
+      if (
+        job.jobType === 'GMAIL_SYNC' ||
+        job.jobType === 'MICROSOFT_SYNC' ||
+        job.jobType === 'IMAP_SMTP_SYNC'
+      ) {
+        setSyncJobs((current) => {
+          if (!current[job.jobId]) return current
+          return { ...current, [job.jobId]: job }
+        })
+        if (job.completedUnits > 0) scheduleInboxRefresh()
+        if (job.status === 'FAILED') {
+          setError(job.errorMessage || 'Email sync failed')
+        }
       }
-      if (job.status === 'FAILED') {
-        setError(job.errorMessage || 'Email sync failed')
+
+      if (job.jobType === 'INBOX_READ_SYNC') {
+        setMarkAllJob((current) => (current?.jobId === job.jobId ? job : current))
+        if (job.completedUnits > 0 || job.status === 'COMPLETED') {
+          scheduleInboxRefresh()
+          if (selectedConversationId) void refreshSelectedConversation()
+        }
+        if (job.status === 'COMPLETED') {
+          setNotice('All unread messages in this inbox are now marked as read.')
+        } else if (job.status === 'FAILED') {
+          setError(job.errorMessage || 'Unable to mark all messages as read')
+        }
       }
     })
-  }, [scheduleInboxRefresh])
+  }, [
+    refreshSelectedConversation,
+    scheduleInboxRefresh,
+    selectedConversationId,
+  ])
 
   useEffect(() => {
     if (activeSyncJobs.length === 0 || realtimeConnected) return
@@ -409,6 +437,29 @@ export default function EmailInbox() {
 
     return () => window.clearInterval(timer)
   }, [activeSyncJobs, realtimeConnected])
+
+  useEffect(() => {
+    if (!activeMarkAllJob || realtimeConnected) return
+
+    const timer = window.setInterval(() => {
+      void asyncJobApi
+        .get(activeMarkAllJob.jobId)
+        .then((latest) => {
+          setMarkAllJob(latest)
+          if (latest.completedUnits > 0 || latest.status === 'COMPLETED') {
+            scheduleInboxRefresh()
+          }
+          if (latest.status === 'COMPLETED') {
+            setNotice('All unread messages in this inbox are now marked as read.')
+          } else if (latest.status === 'FAILED') {
+            setError(latest.errorMessage || 'Unable to mark all messages as read')
+          }
+        })
+        .catch(() => undefined)
+    }, 3000)
+
+    return () => window.clearInterval(timer)
+  }, [activeMarkAllJob, realtimeConnected, scheduleInboxRefresh])
 
   const openSyncDialog = () => {
     if (!selectedConnection) {
@@ -493,12 +544,124 @@ export default function EmailInbox() {
     }
   }
 
+  const changeConversationReadState = async (
+    conversation: InboxConversation,
+    read: boolean,
+    silent = false,
+  ) => {
+    if (!companyId || !can(PERMISSIONS.EMAIL_MODIFY)) return
+    if (readUpdatingConversationId === conversation.id) return
+
+    setReadUpdatingConversationId(conversation.id)
+    setError(null)
+
+    if (read) {
+      setConversations((current) =>
+        current.map((item) =>
+          item.id === conversation.id ? { ...item, unreadCount: 0 } : item,
+        ),
+      )
+      if (selectedConversation?.id === conversation.id) {
+        setSelectedConversation({ ...selectedConversation, unreadCount: 0 })
+      }
+      setMessages((current) =>
+        current.map((message) =>
+          message.direction === 'INBOUND' ? { ...message, read: true } : message,
+        ),
+      )
+    }
+
+    try {
+      const result = await inboxApi.setConversationReadState(companyId, conversation.id, read)
+      if (!silent) {
+        setNotice(
+          result.updatedMessages === 0
+            ? read
+              ? 'Conversation is already read.'
+              : 'Conversation is already unread.'
+            : read
+              ? 'Conversation marked as read.'
+              : 'Conversation marked as unread.',
+        )
+      }
+      scheduleInboxRefresh()
+      if (selectedConversationId === conversation.id) {
+        await refreshSelectedConversation()
+      }
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, 'Unable to update conversation read state'))
+      void loadConversations(0, false)
+      if (selectedConversationId === conversation.id) {
+        void refreshSelectedConversation()
+      }
+    } finally {
+      setReadUpdatingConversationId(null)
+    }
+  }
+
+  const changeMessageReadState = async (message: InboxMessage, read: boolean) => {
+    if (!companyId || !can(PERMISSIONS.EMAIL_MODIFY)) return
+    if (readUpdatingMessageId === message.id) return
+
+    setReadUpdatingMessageId(message.id)
+    setError(null)
+    try {
+      await inboxApi.setMessageReadState(companyId, message.id, read)
+      setMessages((current) =>
+        current.map((item) => (item.id === message.id ? { ...item, read } : item)),
+      )
+      setNotice(read ? 'Message marked as read.' : 'Message marked as unread.')
+      scheduleInboxRefresh()
+      if (selectedConversationId) {
+        await refreshSelectedConversation()
+      }
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, 'Unable to update message read state'))
+    } finally {
+      setReadUpdatingMessageId(null)
+    }
+  }
+
+  const markAllAsRead = async () => {
+    if (
+      !companyId ||
+      !selectedConnection ||
+      selectedFolder !== 'INBOX' ||
+      !can(PERMISSIONS.EMAIL_MODIFY) ||
+      markAllStarting ||
+      activeMarkAllJob
+    ) {
+      return
+    }
+
+    setMarkAllStarting(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const job = await inboxApi.markAllRead(companyId, selectedConnection.id, 'INBOX')
+      setMarkAllJob(job)
+      setNotice(
+        job.status === 'COMPLETED'
+          ? 'This inbox has no unread messages.'
+          : 'Mark all as read started. You can keep using the inbox while it finishes.',
+      )
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, 'Unable to start mark all as read'))
+    } finally {
+      setMarkAllStarting(false)
+    }
+  }
+
   const selectConversation = (conversation: InboxConversation) => {
     const params = new URLSearchParams(searchParams)
     params.set('conversationId', conversation.id)
     params.delete('compose')
     setSearchParams(params)
     setMobileConversationOpen(true)
+
+    if (conversation.unreadCount > 0 && can(PERMISSIONS.EMAIL_MODIFY)) {
+      void changeConversationReadState(conversation, true, true)
+    }
   }
 
   const resetCompose = () => {
@@ -728,6 +891,17 @@ export default function EmailInbox() {
               <FiRefreshCw aria-hidden="true" />
               Refresh
             </button>
+            {selectedFolder === 'INBOX' && can(PERMISSIONS.EMAIL_MODIFY) && (
+              <button
+                type="button"
+                className="secondary-button flex-1 gap-2 sm:flex-none"
+                onClick={() => void markAllAsRead()}
+                disabled={!selectedConnection || markAllStarting || Boolean(activeMarkAllJob)}
+              >
+                <FiCheckCircle aria-hidden="true" />
+                {markAllStarting || activeMarkAllJob ? 'Marking…' : 'Mark all read'}
+              </button>
+            )}
             <button
               type="button"
               className="secondary-button flex-1 gap-2 sm:flex-none"
@@ -764,6 +938,40 @@ export default function EmailInbox() {
         {notice && (
           <div className="mb-4 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
             {notice}
+          </div>
+        )}
+
+        {markAllJob && (
+          <div className="panel mb-4 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-900">
+                  {activeMarkAllJob
+                    ? 'Marking inbox as read'
+                    : markAllJob.status === 'COMPLETED'
+                      ? 'Inbox marked as read'
+                      : 'Mark all as read finished'}
+                </p>
+                <p className="mt-1 truncate text-xs text-slate-500">
+                  {markAllJob.statusMessage || 'Preparing read-state update'}
+                </p>
+                {markAllJob.totalUnits > 0 && (
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    {markAllJob.completedUnits.toLocaleString()} of{' '}
+                    {markAllJob.totalUnits.toLocaleString()} messages
+                  </p>
+                )}
+              </div>
+              <span className="text-sm font-bold text-indigo-600">
+                {markAllJob.progressPercent}%
+              </span>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-indigo-500 transition-[width] duration-300"
+                style={{ width: `${markAllJob.progressPercent}%` }}
+              />
+            </div>
           </div>
         )}
 
@@ -1108,7 +1316,7 @@ export default function EmailInbox() {
                 >
                   <FiArrowLeft aria-hidden="true" />
                 </button>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-slate-950">
                     {selectedConversation?.subject || messages[0]?.subject || '(no subject)'}
                   </p>
@@ -1119,6 +1327,28 @@ export default function EmailInbox() {
                     {selectedConversation && ownAddress ? ` · ${ownAddress}` : ''}
                   </p>
                 </div>
+                {selectedConversation &&
+                  selectedFolder === 'INBOX' &&
+                  can(PERMISSIONS.EMAIL_MODIFY) && (
+                    <button
+                      type="button"
+                      className="secondary-button shrink-0 gap-2 px-3"
+                      disabled={readUpdatingConversationId === selectedConversation.id}
+                      onClick={() =>
+                        void changeConversationReadState(
+                          selectedConversation,
+                          selectedConversation.unreadCount > 0,
+                        )
+                      }
+                    >
+                      <FiCheckCircle aria-hidden="true" />
+                      {readUpdatingConversationId === selectedConversation.id
+                        ? 'Updating…'
+                        : selectedConversation.unreadCount > 0
+                          ? 'Mark read'
+                          : 'Mark unread'}
+                    </button>
+                  )}
               </header>
 
               <div className="channel-message-scroll space-y-4 p-3 sm:p-5">
@@ -1188,32 +1418,56 @@ export default function EmailInbox() {
                         </div>
                       )}
 
-                      {canSendSelectedEmail && (
+                      {(canSendSelectedEmail ||
+                        (message.direction === 'INBOUND' &&
+                          can(PERMISSIONS.EMAIL_MODIFY))) && (
                         <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-                          <button
-                            type="button"
-                            className="secondary-button gap-2 px-3 py-2 text-xs"
-                            onClick={() => openReply(message, false)}
-                          >
-                            <FiCornerUpLeft aria-hidden="true" />
-                            Reply
-                          </button>
-                          <button
-                            type="button"
-                            className="secondary-button gap-2 px-3 py-2 text-xs"
-                            onClick={() => openReply(message, true)}
-                          >
-                            <FiUsers aria-hidden="true" />
-                            Reply all
-                          </button>
-                          <button
-                            type="button"
-                            className="secondary-button gap-2 px-3 py-2 text-xs"
-                            onClick={() => openForward(message)}
-                          >
-                            <FiShare2 aria-hidden="true" />
-                            Forward
-                          </button>
+                          {message.direction === 'INBOUND' &&
+                            can(PERMISSIONS.EMAIL_MODIFY) && (
+                              <button
+                                type="button"
+                                className="secondary-button gap-2 px-3 py-2 text-xs"
+                                disabled={readUpdatingMessageId === message.id}
+                                onClick={() =>
+                                  void changeMessageReadState(message, !message.read)
+                                }
+                              >
+                                <FiCheckCircle aria-hidden="true" />
+                                {readUpdatingMessageId === message.id
+                                  ? 'Updating…'
+                                  : message.read
+                                    ? 'Mark unread'
+                                    : 'Mark read'}
+                              </button>
+                            )}
+                          {canSendSelectedEmail && (
+                            <>
+                              <button
+                                type="button"
+                                className="secondary-button gap-2 px-3 py-2 text-xs"
+                                onClick={() => openReply(message, false)}
+                              >
+                                <FiCornerUpLeft aria-hidden="true" />
+                                Reply
+                              </button>
+                              <button
+                                type="button"
+                                className="secondary-button gap-2 px-3 py-2 text-xs"
+                                onClick={() => openReply(message, true)}
+                              >
+                                <FiUsers aria-hidden="true" />
+                                Reply all
+                              </button>
+                              <button
+                                type="button"
+                                className="secondary-button gap-2 px-3 py-2 text-xs"
+                                onClick={() => openForward(message)}
+                              >
+                                <FiShare2 aria-hidden="true" />
+                                Forward
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </article>
