@@ -68,6 +68,7 @@ public class GmailInboxPersistenceService {
     Instant syncedAt = Instant.now();
     int createdMessages = 0;
     Set<Long> touchedConversationIds = new HashSet<>();
+    Set<Long> touchedMessageIds = new HashSet<>();
     List<StorageConsumption> storageConsumptions = new ArrayList<>();
     Map<Long, Map<String, InboxParticipant>> participantCache = new HashMap<>();
 
@@ -195,6 +196,7 @@ public class GmailInboxPersistenceService {
 
       message = messageRepository.save(message);
       messagesByExternalId.put(gmailMessage.id(), message);
+      touchedMessageIds.add(message.getId());
 
       if (needsStorageAccounting) {
         storageConsumptions.add(
@@ -237,7 +239,9 @@ public class GmailInboxPersistenceService {
         createdMessages,
         touchedConversationIds.size(),
         null,
-        syncedAt);
+        syncedAt,
+        touchedConversationIds.stream().map(String::valueOf).toList(),
+        touchedMessageIds.stream().map(String::valueOf).toList());
   }
 
   @Transactional(readOnly = true)
@@ -253,15 +257,17 @@ public class GmailInboxPersistenceService {
   }
 
   @Transactional
-  public int markDeleted(ChannelConnection connection, java.util.Collection<String> externalMessageIds) {
+  public DeleteResult markDeleted(
+      ChannelConnection connection, java.util.Collection<String> externalMessageIds) {
     if (externalMessageIds == null || externalMessageIds.isEmpty()) {
-      return 0;
+      return new DeleteResult(0, Set.of(), Set.of());
     }
 
     List<InboxMessage> messages =
         messageRepository.findByConnectionIdAndExternalMessageIdIn(
             connection.getId(), externalMessageIds);
     Set<Long> touchedConversationIds = new HashSet<>();
+    Set<Long> deletedMessageIds = new HashSet<>();
     int deletedCount = 0;
 
     for (InboxMessage message : messages) {
@@ -273,6 +279,7 @@ public class GmailInboxPersistenceService {
       message.setRead(true);
       messageRepository.save(message);
       touchedConversationIds.add(message.getConversation().getId());
+      deletedMessageIds.add(message.getId());
       deletedCount++;
     }
 
@@ -303,8 +310,11 @@ public class GmailInboxPersistenceService {
               });
     }
 
-    return deletedCount;
+    return new DeleteResult(deletedCount, touchedConversationIds, deletedMessageIds);
   }
+
+  public record DeleteResult(
+      int deletedCount, Set<Long> conversationIds, Set<Long> messageIds) {}
 
   @Transactional
   public void completeFullSync(ChannelConnection connection, String historyId) {
