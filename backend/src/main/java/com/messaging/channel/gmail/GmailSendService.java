@@ -6,6 +6,8 @@ import com.messaging.channel.gmail.dto.GmailSendRequest;
 import com.messaging.channel.gmail.dto.GmailSendResponse;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ServiceUnavailableException;
+import com.messaging.inbox.dto.InboxEmailChangedEvent;
+import com.messaging.realtime.service.RealtimeService;
 import jakarta.mail.Message;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
@@ -34,6 +36,7 @@ public class GmailSendService {
   private final GmailApiClient gmailApiClient;
   private final GmailInboxPersistenceService persistenceService;
   private final GmailDistributedQuotaManager quotaManager;
+  private final RealtimeService realtimeService;
 
   public GmailSendResponse send(ChannelConnection connection, GmailSendRequest request) {
     Long connectionId = connection.getId();
@@ -84,7 +87,16 @@ public class GmailSendService {
       if (refreshReservation.allowed()) {
         var storedMessage = gmailApiClient.message(accessToken, sent.id());
         if (storedMessage != null) {
-          persistenceService.persistBatch(connection, List.of(storedMessage));
+          var persisted = persistenceService.persistBatch(connection, List.of(storedMessage));
+          realtimeService.sendToCompany(
+              connection.getCompanyId(),
+              GmailRealtimeWorker.INBOX_CHANGED_EVENT,
+              InboxEmailChangedEvent.boundedDelta(
+                  connection.getId(),
+                  ProviderType.GMAIL,
+                  persisted.conversationIds().stream().map(Long::valueOf).toList(),
+                  persisted.messageIds().stream().map(Long::valueOf).toList(),
+                  List.of()));
         }
       }
     } catch (GmailRateLimitException exception) {

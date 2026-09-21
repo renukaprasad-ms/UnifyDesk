@@ -1,16 +1,26 @@
 import { useEffect, useState } from 'react'
-import { FiMenu } from 'react-icons/fi'
+import { FiInbox, FiMenu } from 'react-icons/fi'
 import { mediaApi } from '../features/media/mediaApi'
 import { selectAuthUser } from '../store/auth/authSlice'
 import { useAppSelector } from '../store/hooks'
 
+type HeaderProps = {
+  menuOpen: boolean
+  onToggleMenu: () => void
+  contextAvailable?: boolean
+  contextOpen?: boolean
+  contextLabel?: string
+  onToggleContext?: () => void
+}
+
 export default function Header({
   menuOpen,
   onToggleMenu,
-}: {
-  menuOpen: boolean
-  onToggleMenu: () => void
-}) {
+  contextAvailable = false,
+  contextOpen = false,
+  contextLabel = 'Channel',
+  onToggleContext,
+}: HeaderProps) {
   const user = useAppSelector(selectAuthUser)
   const [profilePictureUrl, setProfilePictureUrl] = useState('')
   const displayName = user?.name || user?.username || 'User'
@@ -46,17 +56,32 @@ export default function Header({
 
   return (
     <header className="app-header">
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2">
         <button
+          type="button"
           onClick={onToggleMenu}
           aria-expanded={menuOpen}
           aria-controls="main-navigation"
-          aria-label="Toggle navigation"
-          className="secondary-button lg:hidden"
+          aria-label="Open app navigation"
+          className="mobile-header-button lg:hidden"
         >
           <FiMenu aria-hidden="true" />
         </button>
+
+        {contextAvailable && onToggleContext && (
+          <button
+            type="button"
+            onClick={onToggleContext}
+            aria-expanded={contextOpen}
+            aria-controls="channel-navigation"
+            className="mobile-context-button lg:hidden"
+          >
+            <FiInbox aria-hidden="true" />
+            <span>{contextLabel}</span>
+          </button>
+        )}
       </div>
+
       <div className="ml-auto flex min-w-0 items-center gap-3">
         <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
           {profilePictureUrl ? (

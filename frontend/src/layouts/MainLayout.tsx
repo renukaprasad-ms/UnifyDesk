@@ -16,12 +16,20 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
   const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [contextOpen, setContextOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [platformAccess, setPlatformAccess] = useState<PlatformAccess | null>(null)
   const [railHovered, setRailHovered] = useState(false)
   const inboxMode = location.pathname.startsWith('/inbox/')
   const broadcastMode = location.pathname.startsWith('/broadcast/')
   const channelContextMode = inboxMode || broadcastMode
+  const selectedEmailFolder =
+    new URLSearchParams(location.search).get('folder') === 'SENT' ? 'Sent' : 'Inbox'
+  const channelContextLabel = inboxMode
+    ? selectedEmailFolder
+    : broadcastMode
+      ? 'Broadcast'
+      : undefined
   const compactNavigation = platform || channelContextMode
 
   useEffect(() => {
@@ -56,13 +64,40 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
   }
 
   const closeNavigation = () => setMenuOpen(false)
+  const closeContext = () => setContextOpen(false)
+
+  useEffect(() => {
+    setMenuOpen(false)
+    setContextOpen(false)
+  }, [location.pathname])
+
+  useEffect(() => {
+    if (!menuOpen && !contextOpen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setMenuOpen(false)
+      setContextOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [contextOpen, menuOpen])
 
   return (
     <div className={`app-shell ${platform ? 'is-platform-shell' : ''}`}>
-      {menuOpen && (
+      {(menuOpen || contextOpen) && (
         <button
           aria-label="Close navigation"
-          onClick={() => setMenuOpen(false)}
+          onClick={() => {
+            setMenuOpen(false)
+            setContextOpen(false)
+          }}
           className="fixed inset-0 z-30 bg-slate-900/30 lg:hidden"
         />
       )}
@@ -99,15 +134,6 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
           </>
         ) : (
           <>
-            {channelContextMode && (
-              <div className="lg:hidden">
-                <ChannelContextSidebar
-                  mode={inboxMode ? 'inbox' : 'broadcast'}
-                  onNavigate={closeNavigation}
-                />
-                <div className="my-5 border-t border-slate-100" />
-              </div>
-            )}
             <AppSidebar
               platformAccess={platformAccess}
               compact={compactNavigation}
@@ -126,10 +152,13 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
       )}
 
       {!platform && channelContextMode && (
-        <aside className="channel-context-sidebar">
+        <aside
+          id="channel-navigation"
+          className={`channel-context-sidebar ${contextOpen ? 'is-open' : ''}`}
+        >
           <ChannelContextSidebar
             mode={inboxMode ? 'inbox' : 'broadcast'}
-            onNavigate={closeNavigation}
+            onNavigate={closeContext}
           />
         </aside>
       )}
@@ -139,7 +168,20 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
           platform ? 'with-admin-sidebar' : channelContextMode ? 'with-channel-context-sidebar' : ''
         }`}
       >
-        <Header menuOpen={menuOpen} onToggleMenu={() => setMenuOpen((open) => !open)} />
+        <Header
+          menuOpen={menuOpen}
+          onToggleMenu={() => {
+            setContextOpen(false)
+            setMenuOpen((open) => !open)
+          }}
+          contextAvailable={!platform && channelContextMode}
+          contextOpen={contextOpen}
+          contextLabel={channelContextLabel}
+          onToggleContext={() => {
+            setMenuOpen(false)
+            setContextOpen((open) => !open)
+          }}
+        />
         <main id="main-content">
           <Outlet />
         </main>

@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit'
 import authReducer from './auth/authSlice'
 import iamReducer from './iam/iamSlice'
+import inboxReducer from './inbox/inboxSlice'
 import workspaceReducer from './workspace/workspaceSlice'
 
 const SELECTED_COMPANY_KEY = 'messaging.selectedCompanyId'
@@ -10,6 +11,7 @@ export const store = configureStore({
     auth: authReducer,
     workspace: workspaceReducer,
     iam: iamReducer,
+    inbox: inboxReducer,
   },
 })
 

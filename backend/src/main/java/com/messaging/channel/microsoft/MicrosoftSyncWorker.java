@@ -11,6 +11,8 @@ import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.company.enums.CompanyStatus;
 import com.messaging.company.repository.CompanyRepository;
+import com.messaging.inbox.dto.InboxEmailChangedEvent;
+import com.messaging.realtime.service.RealtimeService;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -31,6 +33,7 @@ public class MicrosoftSyncWorker {
   private final MicrosoftInboxPersistenceService persistenceService;
   private final ChannelConnectionRepository connectionRepository;
   private final CompanyRepository companyRepository;
+  private final RealtimeService realtimeService;
   private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
   private final AtomicInteger inFlight = new AtomicInteger();
 
@@ -41,7 +44,8 @@ public class MicrosoftSyncWorker {
       MicrosoftApiClient apiClient,
       MicrosoftInboxPersistenceService persistenceService,
       ChannelConnectionRepository connectionRepository,
-      CompanyRepository companyRepository) {
+      CompanyRepository companyRepository,
+      RealtimeService realtimeService) {
     this.properties = properties;
     this.stateService = stateService;
     this.tokenService = tokenService;
@@ -49,6 +53,7 @@ public class MicrosoftSyncWorker {
     this.persistenceService = persistenceService;
     this.connectionRepository = connectionRepository;
     this.companyRepository = companyRepository;
+    this.realtimeService = realtimeService;
   }
 
   @Scheduled(fixedDelayString = "${app.channel.microsoft.worker-poll-interval-ms:500}")
@@ -95,8 +100,20 @@ public class MicrosoftSyncWorker {
       String token = tokenService.accessToken(connection);
       DeltaResponse page =
           apiClient.delta(token, sync.folderKey(), sync.continuationUrl());
-      persistenceService.persistPage(connection, sync.folderKey(), page.value());
+      var persisted = persistenceService.persistPage(connection, sync.folderKey(), page.value());
       stateService.completePage(sync.stateId(), page.nextLink(), page.deltaLink());
+
+      if (persisted.created() > 0 || persisted.updated() > 0 || persisted.deleted() > 0) {
+        realtimeService.sendToCompany(
+            connection.getCompanyId(),
+            "inbox.email.changed",
+            InboxEmailChangedEvent.boundedDelta(
+                connection.getId(),
+                ProviderType.MICROSOFT,
+                persisted.conversationIds(),
+                persisted.messageIds(),
+                persisted.deletedMessageIds()));
+      }
 
       connection.setLastSyncAt(java.time.Instant.now());
       connectionRepository.save(connection);

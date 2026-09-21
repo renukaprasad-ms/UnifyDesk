@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   FiCheck,
   FiChevronDown,
@@ -21,11 +21,13 @@ import { channelApi } from '../../features/channel/channelApi'
 import type { ChannelConnection, ChannelType, SenderIdentity } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
-import { inboxApi } from '../../features/inbox/inboxApi'
-import type { InboxConversation } from '../../features/inbox/types'
-import { realtimeClient } from '../../features/realtime/realtimeClient'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { apiErrorMessage } from '../../lib/api/apiClient'
-import { useAppSelector } from '../../store/hooks'
+import {
+  fetchEmailConnections,
+  fetchInboxConversations,
+} from '../../store/inbox/inboxSlice'
+import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
 
 type ChannelContextSidebarProps = {
@@ -81,30 +83,52 @@ const emailProviderIcon = (providerType: string) => {
 }
 
 export default function ChannelContextSidebar({ mode, onNavigate }: ChannelContextSidebarProps) {
+  const dispatch = useAppDispatch()
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const inbox = useAppSelector((state) => state.inbox)
   const { can } = useIam()
   const location = useLocation()
   const navigate = useNavigate()
+  const desktop = useMediaQuery('(min-width: 1024px)')
   const menuRef = useRef<HTMLDivElement | null>(null)
   const channelType = channelFromPath(location.pathname)
   const meta = channelMeta[channelType]
-  const [connections, setConnections] = useState<ChannelConnection[]>([])
+  const [localConnections, setLocalConnections] = useState<ChannelConnection[]>([])
   const [senders, setSenders] = useState<Record<string, SenderIdentity[]>>({})
-  const [loading, setLoading] = useState(true)
+  const [localLoading, setLocalLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [conversations, setConversations] = useState<InboxConversation[]>([])
-  const [conversationLoading, setConversationLoading] = useState(false)
-  const [conversationLoadingMore, setConversationLoadingMore] = useState(false)
-  const [conversationPage, setConversationPage] = useState(0)
-  const [conversationTotalPages, setConversationTotalPages] = useState(0)
-  const [conversationTotalElements, setConversationTotalElements] = useState(0)
 
   const search = useMemo(() => new URLSearchParams(location.search), [location.search])
   const selectedConnectionId = search.get('connectionId')
   const selectedSenderId = search.get('senderId')
   const selectedConversationId = search.get('conversationId')
   const selectedFolder = search.get('folder') === 'SENT' ? 'SENT' : 'INBOX'
+
+  const emailMode = mode === 'inbox' && channelType === 'EMAIL'
+  const emailConnections =
+    inbox.connectionsCompanyId === companyId ? inbox.connections : []
+  const connections = (
+    channelType === 'EMAIL' ? emailConnections : localConnections
+  ).filter((connection) => connection.status === 'ACTIVE')
+  const loading =
+    channelType === 'EMAIL'
+      ? inbox.connectionsCompanyId === companyId && inbox.connectionsStatus === 'loading'
+      : localLoading
+  const sameConversationScope =
+    emailMode &&
+    inbox.scopeCompanyId === companyId &&
+    inbox.scopeConnectionId === selectedConnectionId &&
+    inbox.scopeFolder === selectedFolder
+  const conversations = sameConversationScope ? inbox.conversations : []
+  const conversationLoading =
+    sameConversationScope && inbox.conversationsStatus === 'loading'
+  const conversationLoadingMore = sameConversationScope && inbox.loadingMore
+  const conversationPage = sameConversationScope ? inbox.conversationPage : 0
+  const conversationTotalPages = sameConversationScope ? inbox.conversationTotalPages : 0
+  const conversationTotalElements = sameConversationScope
+    ? inbox.conversationTotalElements
+    : 0
 
   useEffect(() => {
     if (!menuOpen) return
@@ -116,15 +140,28 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   }, [menuOpen])
 
   useEffect(() => {
-    if (!companyId) {
-      setConnections([])
+    if (channelType !== 'EMAIL') return
+    if (!companyId) return
+    void dispatch(fetchEmailConnections({ companyId }))
+  }, [channelType, companyId, dispatch])
+
+  useEffect(() => {
+    if (channelType === 'EMAIL') {
+      setLocalConnections([])
       setSenders({})
-      setLoading(false)
+      setLocalLoading(false)
+      return
+    }
+
+    if (!companyId) {
+      setLocalConnections([])
+      setSenders({})
+      setLocalLoading(false)
       return
     }
 
     let active = true
-    setLoading(true)
+    setLocalLoading(true)
     setError(null)
 
     channelApi
@@ -133,12 +170,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         if (!active) return
 
         const connected = items.filter((item) => item.status === 'ACTIVE')
-        setConnections(connected)
-
-        if (channelType === 'EMAIL') {
-          setSenders({})
-          return
-        }
+        setLocalConnections(connected)
 
         const senderEntries = await Promise.all(
           connected.map(async (connection) => {
@@ -158,13 +190,31 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         }
       })
       .finally(() => {
-        if (active) setLoading(false)
+        if (active) setLocalLoading(false)
       })
 
     return () => {
       active = false
     }
   }, [channelType, companyId, meta.label])
+
+  useEffect(() => {
+    if (
+      !companyId ||
+      !emailMode ||
+      !selectedConnectionId
+    ) {
+      return
+    }
+
+    void dispatch(
+      fetchInboxConversations({
+        companyId,
+        connectionId: selectedConnectionId,
+        folder: selectedFolder,
+      }),
+    )
+  }, [companyId, dispatch, emailMode, selectedConnectionId, selectedFolder])
 
   const identities = useMemo<IdentityItem[]>(() => {
     const result: IdentityItem[] = []
@@ -234,61 +284,20 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       },
       { replace: true },
     )
-  }, [identities, loading, location.pathname, location.search, navigate, selectedItem])
-
-  const loadConversations = useCallback(
-    async (page = 0, append = false) => {
-      if (
-        !companyId ||
-        mode !== 'inbox' ||
-        channelType !== 'EMAIL' ||
-        !selectedConnectionId
-      ) {
-        setConversations([])
-        setConversationPage(0)
-        setConversationTotalPages(0)
-        setConversationTotalElements(0)
-        return
-      }
-
-      if (append) setConversationLoadingMore(true)
-      else setConversationLoading(true)
-
-      try {
-        const inbox = await inboxApi.conversations(
-          companyId,
-          page,
-          30,
-          selectedConnectionId,
-          selectedFolder,
-        )
-        setConversations((current) => {
-          if (!append) return inbox.items
-          const byId = new Map(current.map((conversation) => [conversation.id, conversation]))
-          inbox.items.forEach((conversation) => byId.set(conversation.id, conversation))
-          return Array.from(byId.values())
-        })
-        setConversationPage(inbox.page)
-        setConversationTotalPages(inbox.totalPages)
-        setConversationTotalElements(inbox.totalElements)
-      } catch (requestError) {
-        setError(apiErrorMessage(requestError, 'Unable to load conversations'))
-      } finally {
-        setConversationLoading(false)
-        setConversationLoadingMore(false)
-      }
-    },
-    [channelType, companyId, mode, selectedConnectionId, selectedFolder],
-  )
-
-  useEffect(() => {
-    void loadConversations(0, false)
-  }, [loadConversations])
+  }, [
+    channelType,
+    identities,
+    loading,
+    location.pathname,
+    location.search,
+    navigate,
+    selectedItem,
+  ])
 
   useEffect(() => {
     if (
-      mode !== 'inbox' ||
-      channelType !== 'EMAIL' ||
+      !desktop ||
+      !emailMode ||
       selectedConversationId ||
       conversations.length === 0
     ) {
@@ -305,21 +314,14 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       { replace: true },
     )
   }, [
-    channelType,
     conversations,
+    desktop,
+    emailMode,
     location.pathname,
     location.search,
-    mode,
     navigate,
     selectedConversationId,
   ])
-
-  useEffect(() => {
-    if (mode !== 'inbox' || channelType !== 'EMAIL') return
-    return realtimeClient.subscribe('inbox.email.changed', () => {
-      void loadConversations(0, false)
-    })
-  }, [channelType, loadConversations, mode])
 
   const selectIdentity = (item: IdentityItem) => {
     const params = new URLSearchParams(location.search)
@@ -347,17 +349,38 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       pathname: location.pathname,
       search: `?${params.toString()}`,
     })
+    onNavigate()
   }
 
-  const selectConversation = (conversation: InboxConversation) => {
+  const selectConversation = (conversationId: string) => {
     const params = new URLSearchParams(location.search)
-    params.set('conversationId', conversation.id)
+    params.set('conversationId', conversationId)
     params.delete('compose')
     navigate({
       pathname: location.pathname,
       search: `?${params.toString()}`,
     })
     onNavigate()
+  }
+
+  const loadMoreConversations = () => {
+    if (
+      !companyId ||
+      !selectedConnectionId ||
+      conversationLoadingMore ||
+      conversationPage + 1 >= conversationTotalPages
+    ) {
+      return
+    }
+    void dispatch(
+      fetchInboxConversations({
+        companyId,
+        connectionId: selectedConnectionId,
+        folder: selectedFolder,
+        page: conversationPage + 1,
+        append: true,
+      }),
+    )
   }
 
   const connectAllowed =
@@ -368,11 +391,15 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         : can(PERMISSIONS.SMS_CONNECT)
 
   const emptyListLabel =
-    mode === 'inbox' && channelType === 'EMAIL'
-      ? 'Conversations'
-      : mode === 'inbox'
-        ? 'Chats'
-        : 'Broadcasts'
+    emailMode ? 'Conversations' : mode === 'inbox' ? 'Chats' : 'Broadcasts'
+
+  const effectiveError =
+    error ||
+    (channelType === 'EMAIL' && inbox.connectionsStatus === 'error'
+      ? 'Unable to load connected email accounts.'
+      : emailMode && sameConversationScope && inbox.conversationsStatus === 'error'
+        ? 'Unable to load conversations.'
+        : null)
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -463,7 +490,10 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                     buttonIcon="plus"
                     onClose={() => setMenuOpen(false)}
                     onError={setError}
-                    onConnected={() => window.location.reload()}
+                    onConnected={() => {
+                      setMenuOpen(false)
+                      void dispatch(fetchEmailConnections({ companyId, force: true }))
+                    }}
                   />
                   <button
                     type="button"
@@ -493,18 +523,18 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           )}
         </div>
 
-        {error && <p className="mt-3 px-1 text-xs leading-5 text-rose-600">{error}</p>}
+        {effectiveError && (
+          <p className="mt-3 px-1 text-xs leading-5 text-rose-600">{effectiveError}</p>
+        )}
       </div>
 
-      {mode === 'inbox' && channelType === 'EMAIL' && (
+      {emailMode && (
         <div className="email-folder-switcher" role="tablist" aria-label="Email folders">
           <button
             type="button"
             role="tab"
             aria-selected={selectedFolder === 'INBOX'}
-            className={`email-folder-tab ${
-              selectedFolder === 'INBOX' ? 'is-active' : ''
-            }`}
+            className={`email-folder-tab ${selectedFolder === 'INBOX' ? 'is-active' : ''}`}
             onClick={() => selectFolder('INBOX')}
           >
             <FiInbox aria-hidden="true" />
@@ -514,9 +544,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
             type="button"
             role="tab"
             aria-selected={selectedFolder === 'SENT'}
-            className={`email-folder-tab ${
-              selectedFolder === 'SENT' ? 'is-active' : ''
-            }`}
+            className={`email-folder-tab ${selectedFolder === 'SENT' ? 'is-active' : ''}`}
             onClick={() => selectFolder('SENT')}
           >
             <FiSend aria-hidden="true" />
@@ -525,19 +553,19 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         </div>
       )}
 
-      <div className="mt-4 flex min-h-0 flex-1 flex-col border-t border-slate-100 pt-4">
+      <div className="context-conversation-section mt-4 flex min-h-0 flex-1 flex-col border-t border-slate-100 pt-4">
         <div className="mb-2 flex items-center justify-between gap-2 px-1">
           <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
             {emptyListLabel}
           </p>
-          {mode === 'inbox' && channelType === 'EMAIL' && conversationTotalElements > 0 && (
+          {emailMode && conversationTotalElements > 0 && (
             <span className="text-[10px] font-medium text-slate-400">
               {conversationTotalElements}
             </span>
           )}
         </div>
 
-        {mode === 'inbox' && channelType === 'EMAIL' ? (
+        {emailMode ? (
           <div className="-mx-3 min-h-0 flex-1 overflow-y-auto border-t border-slate-100">
             <ConversationList
               compact
@@ -548,8 +576,8 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
               loadingMore={conversationLoadingMore}
               totalElements={conversationTotalElements}
               hasMore={conversationPage + 1 < conversationTotalPages}
-              onSelect={selectConversation}
-              onLoadMore={() => void loadConversations(conversationPage + 1, true)}
+              onSelect={(conversation) => selectConversation(conversation.id)}
+              onLoadMore={loadMoreConversations}
             />
           </div>
         ) : (
