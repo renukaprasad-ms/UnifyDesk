@@ -33,6 +33,7 @@ public interface InboxMessageRepository extends JpaRepository<InboxMessage, Long
         and m.connection.id = :connectionId
         and m.connection.status = :connectionStatus
         and m.id in :messageIds
+        and (:conversationId is null or m.conversation.id = :conversationId)
         and m.status <> :excludedStatus
       order by m.sentAt asc, m.createdAt asc
       """)
@@ -41,6 +42,7 @@ public interface InboxMessageRepository extends JpaRepository<InboxMessage, Long
       @Param("connectionId") Long connectionId,
       @Param("connectionStatus") com.messaging.channel.enums.ChannelConnectionStatus connectionStatus,
       @Param("messageIds") Set<Long> messageIds,
+      @Param("conversationId") Long conversationId,
       @Param("excludedStatus") com.messaging.inbox.enums.InboxMessageStatus excludedStatus);
 
   List<InboxMessage> findByConnectionIdAndExternalMessageIdIn(
