@@ -42,12 +42,13 @@ public class ImapSmtpInboxPersistenceService {
   @Transactional
   public PersistResult persist(ChannelConnection connection, List<MailboxMessage> snapshots) {
     if (snapshots == null || snapshots.isEmpty()) {
-      return new PersistResult(0, 0, Set.of());
+      return new PersistResult(0, 0, Set.of(), Set.of());
     }
 
     int created = 0;
     int updated = 0;
     Set<Long> touchedConversations = new LinkedHashSet<>();
+    Set<Long> touchedMessages = new LinkedHashSet<>();
     List<StorageConsumption> storage = new ArrayList<>();
 
     for (MailboxMessage snapshot : snapshots) {
@@ -149,6 +150,7 @@ public class ImapSmtpInboxPersistenceService {
       }
 
       message = messageRepository.save(message);
+      touchedMessages.add(message.getId());
       if (accountStorage) {
         storage.add(
             new StorageConsumption(
@@ -178,7 +180,7 @@ public class ImapSmtpInboxPersistenceService {
               });
     }
 
-    return new PersistResult(created, updated, touchedConversations);
+    return new PersistResult(created, updated, touchedConversations, touchedMessages);
   }
 
   private void upsertParticipants(InboxConversation conversation, MailboxMessage snapshot) {
@@ -247,5 +249,6 @@ public class ImapSmtpInboxPersistenceService {
     return value != null && !value.isBlank();
   }
 
-  public record PersistResult(int created, int updated, Set<Long> conversationIds) {}
+  public record PersistResult(
+      int created, int updated, Set<Long> conversationIds, Set<Long> messageIds) {}
 }
