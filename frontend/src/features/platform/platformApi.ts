@@ -9,6 +9,8 @@ import type {
   PlatformUser,
   PlatformPlan,
   PlatformPlanInput,
+  PlatformWebhookCallback,
+  WebhookCallbackStatus,
 } from './types'
 
 export const platformApi = {
@@ -75,5 +77,31 @@ export const platformApi = {
   },
   async deletePlan(id: string) {
     await apiClient.delete(`/api/v1/platform/plans/${id}`)
+  },
+  async webhookCallbacks({
+    search = '',
+    provider = '',
+    status = '',
+    page = 0,
+  }: {
+    search?: string
+    provider?: string
+    status?: WebhookCallbackStatus | ''
+    page?: number
+  }) {
+    const r = await apiClient.get<ApiResponse<Page<PlatformWebhookCallback>>>(
+      '/api/v1/platform/channel-analytics/webhook-callbacks',
+      {
+        params: {
+          search,
+          page,
+          size: 20,
+          ...(provider ? { provider } : {}),
+          ...(status ? { status } : {}),
+        },
+      },
+    )
+    if (!r.data.data) throw new Error(r.data.error_message ?? 'Unable to load webhook callbacks')
+    return r.data.data
   },
 }
