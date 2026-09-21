@@ -39,7 +39,7 @@ export type BroadcastMemberInput = {
 }
 
 export type BroadcastMemberImportResult = {
-  processed: number
+  processed?: number
   insertedOrReactivated: number
   duplicates: number
   invalid: number
