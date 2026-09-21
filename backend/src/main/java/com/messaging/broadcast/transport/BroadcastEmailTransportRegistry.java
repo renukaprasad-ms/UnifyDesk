@@ -1,6 +1,6 @@
 package com.messaging.broadcast.transport;
 
-import com.messaging.channel.enums.ProviderType;
+import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.common.exception.BadRequestException;
 import java.util.*;
 import org.springframework.stereotype.Component;
@@ -8,25 +8,26 @@ import org.springframework.stereotype.Component;
 @Component
 public class BroadcastEmailTransportRegistry {
 
-  private final Map<ProviderType, BroadcastEmailTransport> transports;
+  private final Map<BroadcastSenderProvider, BroadcastEmailTransport> transports;
 
   public BroadcastEmailTransportRegistry(List<BroadcastEmailTransport> transports) {
-    EnumMap<ProviderType, BroadcastEmailTransport> mapped = new EnumMap<>(ProviderType.class);
+    EnumMap<BroadcastSenderProvider, BroadcastEmailTransport> mapped =
+        new EnumMap<>(BroadcastSenderProvider.class);
     for (BroadcastEmailTransport transport : transports) {
-      BroadcastEmailTransport previous = mapped.put(transport.providerType(), transport);
+      BroadcastEmailTransport previous = mapped.put(transport.provider(), transport);
       if (previous != null) {
         throw new IllegalStateException(
-            "Duplicate broadcast email transport for " + transport.providerType());
+            "Duplicate broadcast email transport for " + transport.provider());
       }
     }
     this.transports = Collections.unmodifiableMap(mapped);
   }
 
-  public BroadcastEmailTransport require(ProviderType providerType) {
-    BroadcastEmailTransport transport = transports.get(providerType);
+  public BroadcastEmailTransport require(BroadcastSenderProvider provider) {
+    BroadcastEmailTransport transport = transports.get(provider);
     if (transport == null) {
       throw new BadRequestException(
-          "Broadcast email delivery is not supported for provider " + providerType);
+          "Broadcast delivery is not supported for provider " + provider);
     }
     return transport;
   }

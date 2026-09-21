@@ -8,7 +8,8 @@ import java.time.Instant;
 public record BroadcastMessageResponse(
     String id,
     String groupId,
-    String connectionId,
+    String senderId,
+    String legacyConnectionId,
     String runId,
     String subject,
     String bodyText,
@@ -23,7 +24,8 @@ public record BroadcastMessageResponse(
     return new BroadcastMessageResponse(
         message.getId().toString(),
         message.getGroupId().toString(),
-        message.getConnectionId().toString(),
+        stringId(message.getSenderId()),
+        stringId(message.getConnectionId()),
         run == null ? null : run.getId().toString(),
         message.getSubject(),
         message.getBodyText(),
@@ -32,5 +34,9 @@ public record BroadcastMessageResponse(
         message.getCreatedAt(),
         message.getUpdatedAt(),
         stats);
+  }
+
+  private static String stringId(Long value) {
+    return value == null ? null : value.toString();
   }
 }

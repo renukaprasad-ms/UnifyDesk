@@ -1,7 +1,7 @@
 package com.messaging.broadcast.entity;
 
 import com.messaging.broadcast.enums.BroadcastAttemptStatus;
-import com.messaging.channel.enums.ProviderType;
+import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.common.id.IdGenerator;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -15,6 +15,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "broadcast_delivery_attempts")
 public class BroadcastDeliveryAttempt {
+
   @Id private Long id;
 
   @Column(name = "recipient_id", nullable = false)
@@ -32,7 +33,7 @@ public class BroadcastDeliveryAttempt {
 
   @Enumerated(EnumType.STRING)
   @Column(name = "provider_type", nullable = false, length = 40)
-  private ProviderType providerType;
+  private BroadcastSenderProvider providerType;
 
   @Column(name = "provider_message_id", length = 512)
   private String providerMessageId;

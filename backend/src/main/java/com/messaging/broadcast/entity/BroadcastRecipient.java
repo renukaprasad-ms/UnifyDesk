@@ -14,6 +14,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "broadcast_recipients")
 public class BroadcastRecipient {
+
   @Id private Long id;
 
   @Column(name = "run_id", nullable = false)
@@ -25,8 +26,12 @@ public class BroadcastRecipient {
   @Column(name = "company_id", nullable = false)
   private Long companyId;
 
-  @Column(name = "connection_id", nullable = false)
+  /** Legacy mailbox sender reference retained only for historical recipients. */
+  @Column(name = "connection_id")
   private Long connectionId;
+
+  @Column(name = "sender_id")
+  private Long senderId;
 
   @Column(name = "source_member_id", nullable = false)
   private Long sourceMemberId;

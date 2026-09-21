@@ -1,10 +1,15 @@
 package com.messaging.broadcast.transport;
 
-import com.messaging.channel.entity.ChannelConnection;
-import com.messaging.channel.enums.ProviderType;
+import com.messaging.broadcast.entity.BroadcastSender;
+import com.messaging.broadcast.entity.BroadcastSenderConnection;
+import com.messaging.broadcast.enums.BroadcastSenderProvider;
 
 public interface BroadcastEmailTransport {
-  ProviderType providerType();
 
-  BroadcastEmailResult send(ChannelConnection connection, BroadcastEmailCommand command);
+  BroadcastSenderProvider provider();
+
+  BroadcastEmailResult send(
+      BroadcastSenderConnection connection,
+      BroadcastSender sender,
+      BroadcastEmailCommand command);
 }

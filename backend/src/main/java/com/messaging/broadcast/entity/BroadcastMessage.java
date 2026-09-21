@@ -15,6 +15,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "broadcast_messages")
 public class BroadcastMessage {
+
   @Id private Long id;
 
   @Column(name = "company_id", nullable = false)
@@ -23,8 +24,12 @@ public class BroadcastMessage {
   @Column(name = "group_id", nullable = false)
   private Long groupId;
 
-  @Column(name = "connection_id", nullable = false)
+  /** Legacy mailbox sender reference retained only for historical broadcasts. */
+  @Column(name = "connection_id")
   private Long connectionId;
+
+  @Column(name = "sender_id")
+  private Long senderId;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "channel_type", nullable = false, length = 24)
