@@ -235,16 +235,17 @@ public class MicrosoftApiClient {
     if (messageIds == null || messageIds.isEmpty()) return;
 
     for (int offset = 0; offset < messageIds.size(); offset += 20) {
-      int end = Math.min(messageIds.size(), offset + 20);
+      int batchOffset = offset;
+      int end = Math.min(messageIds.size(), batchOffset + 20);
       List<GraphBatchSubRequest> requests =
-          java.util.stream.IntStream.range(offset, end)
+          java.util.stream.IntStream.range(batchOffset, end)
               .mapToObj(
                   index -> {
                     String messageId = messageIds.get(index);
                     String encodedId =
                         UriUtils.encodePathSegment(messageId, StandardCharsets.UTF_8);
                     return new GraphBatchSubRequest(
-                        Integer.toString(index - offset + 1),
+                        Integer.toString(index - batchOffset + 1),
                         "PATCH",
                         "/me/messages/" + encodedId,
                         Map.of(
