@@ -25,6 +25,24 @@ public interface InboxMessageRepository extends JpaRepository<InboxMessage, Long
   Optional<InboxMessage> findByIdAndCompanyId(
       @Param("messageId") Long messageId, @Param("companyId") Long companyId);
 
+  @Query(
+      """
+      select m
+      from InboxMessage m
+      where m.conversation.companyId = :companyId
+        and m.connection.id = :connectionId
+        and m.connection.status = :connectionStatus
+        and m.id in :messageIds
+        and m.status <> :excludedStatus
+      order by m.sentAt asc, m.createdAt asc
+      """)
+  List<InboxMessage> findVisibleByIds(
+      @Param("companyId") Long companyId,
+      @Param("connectionId") Long connectionId,
+      @Param("connectionStatus") com.messaging.channel.enums.ChannelConnectionStatus connectionStatus,
+      @Param("messageIds") Set<Long> messageIds,
+      @Param("excludedStatus") com.messaging.inbox.enums.InboxMessageStatus excludedStatus);
+
   List<InboxMessage> findByConnectionIdAndExternalMessageIdIn(
       Long connectionId, Collection<String> externalMessageIds);
 
