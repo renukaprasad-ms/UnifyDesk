@@ -418,7 +418,11 @@ export default function BroadcastWorkspace() {
       setComposeSubject('')
       setComposeBody('')
       setComposeScheduleAt('')
-      setComposeConnectionId(activeConnections[0]?.id ?? '')
+      setComposeConnectionId((current) =>
+        activeConnections.some((connection) => connection.id === current)
+          ? current
+          : activeConnections[0]?.id ?? '',
+      )
     }
 
     if (!editBroadcastId || !companyId) {
@@ -885,42 +889,90 @@ export default function BroadcastWorkspace() {
           ) : (
             <div className="channel-message-scroll min-h-[calc(100dvh-214px)] p-4 sm:p-5">
               <div className="mx-auto max-w-4xl">
-                <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-base font-bold text-slate-950">{selectedGroup?.name}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      {selectedGroup?.memberCount.toLocaleString() ?? 0} recipients
-                      {selectedGroup?.description ? ` · ${selectedGroup.description}` : ''}
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-base font-bold text-slate-950">{selectedGroup?.name}</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        {selectedGroup?.memberCount.toLocaleString() ?? 0} recipients
+                        {selectedGroup?.description ? ` · ${selectedGroup.description}` : ''}
+                      </p>
+                    </div>
+
+                    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-end">
+                      <label className="min-w-0 sm:w-72">
+                        <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                          <FiMail aria-hidden="true" />
+                          Send from
+                        </span>
+                        <select
+                          className="form-input w-full"
+                          value={composeConnectionId}
+                          onChange={(event) => setComposeConnectionId(event.target.value)}
+                          disabled={activeConnections.length === 0}
+                          aria-label="Select email account for broadcasts"
+                        >
+                          {activeConnections.length === 0 ? (
+                            <option value="">No active email accounts</option>
+                          ) : (
+                            <>
+                              <option value="">Choose email account</option>
+                              {activeConnections.map((connection) => (
+                                <option key={connection.id} value={connection.id}>
+                                  {senderLabel(connection)} · {providerLabel(connection.providerType)}
+                                </option>
+                              ))}
+                            </>
+                          )}
+                        </select>
+                      </label>
+
+                      <div className="flex flex-wrap gap-2">
+                        {can(PERMISSIONS.BROADCAST_MODIFY) && (
+                          <>
+                            <button
+                              type="button"
+                              className="secondary-button gap-2"
+                              onClick={openEditGroup}
+                            >
+                              <FiEdit2 aria-hidden="true" />
+                              Edit group
+                            </button>
+                            <button
+                              type="button"
+                              className="secondary-button gap-2"
+                              onClick={() => void openMembers()}
+                            >
+                              <FiUsers aria-hidden="true" />
+                              Manage members
+                            </button>
+                          </>
+                        )}
+                        {can(PERMISSIONS.BROADCAST_CREATE) && (
+                          <button
+                            type="button"
+                            className="primary-button gap-2"
+                            onClick={() => openComposer()}
+                            disabled={activeConnections.length === 0}
+                            title={
+                              activeConnections.length === 0
+                                ? 'Connect an email account before creating a broadcast'
+                                : undefined
+                            }
+                          >
+                            <FiSend aria-hidden="true" />
+                            New broadcast
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {activeConnections.length > 0 && !composeConnectionId && (
+                    <p className="mt-3 text-xs font-medium text-amber-700">
+                      Choose a sender email account before creating the broadcast.
                     </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {can(PERMISSIONS.BROADCAST_MODIFY) && (
-                      <>
-                        <button
-                          type="button"
-                          className="secondary-button gap-2"
-                          onClick={openEditGroup}
-                        >
-                          <FiEdit2 aria-hidden="true" />
-                          Edit group
-                        </button>
-                        <button
-                          type="button"
-                          className="secondary-button gap-2"
-                          onClick={() => void openMembers()}
-                        >
-                          <FiUsers aria-hidden="true" />
-                          Manage members
-                        </button>
-                      </>
-                    )}
-                    {can(PERMISSIONS.BROADCAST_CREATE) && (
-                      <button type="button" className="primary-button gap-2" onClick={() => openComposer()}>
-                        <FiSend aria-hidden="true" />
-                        New broadcast
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </div>
 
                 <div className="mt-5">
