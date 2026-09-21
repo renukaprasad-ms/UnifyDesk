@@ -247,7 +247,9 @@ public class MicrosoftApiClient {
                         Integer.toString(index - offset + 1),
                         "PATCH",
                         "/me/messages/" + encodedId,
-                        Map.of("Content-Type", "application/json"),
+                        Map.of(
+                            "Content-Type", "application/json",
+                            "Prefer", "IdType=\"ImmutableId\""),
                         Map.of("isRead", read));
                   })
               .toList();
