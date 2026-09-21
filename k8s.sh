@@ -13,6 +13,7 @@ Usage:
   ./k8s.sh stop
   ./k8s.sh restart [service|all]
   ./k8s.sh delete
+  ./k8s.sh clear-db
   ./k8s.sh logs <service> [tail]
   ./k8s.sh describe <service>
   ./k8s.sh top [interval_seconds] [stream|once]
@@ -24,6 +25,7 @@ Examples:
   ./k8s.sh restart
   ./k8s.sh restart backend
   ./k8s.sh restart postgres
+  ./k8s.sh clear-db
   ./k8s.sh logs backend
   ./k8s.sh logs kafka 200
   ./k8s.sh describe backend
@@ -180,6 +182,35 @@ delete_all() {
   kubectl get pods
 }
 
+clear_db() {
+  local confirmation
+
+  read -r -p "This will delete all application data from the Postgres database. Type DELETE to continue: " confirmation
+  if [[ "${confirmation}" != "DELETE" ]]; then
+    echo "Aborted."
+    exit 1
+  fi
+
+  kubectl exec -i deployment/postgres -- sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -p "$POSTGRES_CONTAINER_PORT" -v ON_ERROR_STOP=1' <<'SQL'
+DO $$
+DECLARE
+  truncate_statement text;
+BEGIN
+  SELECT 'TRUNCATE TABLE ' || string_agg(format('%I.%I', schemaname, tablename), ', ') || ' RESTART IDENTITY CASCADE'
+    INTO truncate_statement
+  FROM pg_tables
+  WHERE schemaname = 'public'
+    AND tablename <> 'flyway_schema_history';
+
+  IF truncate_statement IS NOT NULL THEN
+    EXECUTE truncate_statement;
+  END IF;
+END $$;
+SQL
+
+  echo "Database application data deleted."
+}
+
 selector_for_service() {
   local service="${1:-}"
 
@@ -264,6 +295,7 @@ case "${command}" in
   stop) stop ;;
   restart) shift; restart "$@" ;;
   delete) delete_all ;;
+  clear-db) clear_db ;;
   logs) shift; logs "$@" ;;
   describe) shift; describe "$@" ;;
   top) shift; top_view "$@" ;;
