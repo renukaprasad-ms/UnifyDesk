@@ -4,6 +4,7 @@ import com.messaging.common.exception.NotFoundException;
 import com.messaging.common.id.IdGenerator;
 import com.messaging.company.enums.CompanyRole;
 import com.messaging.company.iam.CompanyPermissionKeys;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -107,11 +108,24 @@ public class CompanySystemRoleService {
   }
 
   private void syncPermissions(Long roleId, Set<String> permissions) {
-    jdbcTemplate.update(
-        "delete from company_custom_role_permissions where role_id = ?",
-        roleId);
+    Set<String> existing =
+        new HashSet<>(
+            jdbcTemplate.queryForList(
+                "select permission_key from company_custom_role_permissions where role_id = ?",
+                String.class,
+                roleId));
+
+    for (String stale : existing) {
+      if (!permissions.contains(stale)) {
+        jdbcTemplate.update(
+            "delete from company_custom_role_permissions where role_id = ? and permission_key = ?",
+            roleId,
+            stale);
+      }
+    }
 
     for (String permission : permissions) {
+      if (existing.contains(permission)) continue;
       jdbcTemplate.update(
           """
           insert into company_custom_role_permissions
