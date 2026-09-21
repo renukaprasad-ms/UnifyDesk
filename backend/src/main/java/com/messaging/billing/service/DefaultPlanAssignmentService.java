@@ -1,5 +1,6 @@
 package com.messaging.billing.service;
 
+import com.messaging.billing.bootstrap.SystemBillingBootstrapService;
 import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.entity.Plan;
 import com.messaging.billing.entity.PlanPrice;
@@ -26,12 +27,15 @@ public class DefaultPlanAssignmentService {
   private final PlanRepository planRepository;
   private final PlanPriceRepository planPriceRepository;
   private final CompanySubscriptionRepository subscriptionRepository;
+  private final SystemBillingBootstrapService billingBootstrapService;
 
   @Transactional
   public void assignToNewCompany(Company company) {
     if (hasEffectiveSubscription(company.getId())) {
       return;
     }
+
+    billingBootstrapService.ensureFreePlan();
 
     Plan plan =
         planRepository
