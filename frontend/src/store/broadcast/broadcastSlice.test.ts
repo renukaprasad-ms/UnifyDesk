@@ -22,7 +22,7 @@ const stats = (accepted = 0): BroadcastStats => ({
 const message = (id: string, groupId: string): BroadcastMessageSummary => ({
   id,
   groupId,
-  connectionId: 'connection-1',
+  senderId: 'sender-1',
   runId: null,
   subject: 'Subject',
   bodyPreview: 'Preview',
