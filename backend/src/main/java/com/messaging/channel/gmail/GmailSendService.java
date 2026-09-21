@@ -1,6 +1,7 @@
 package com.messaging.channel.gmail;
 
 import com.messaging.channel.entity.ChannelConnection;
+import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.gmail.GmailApiClient.SendMessageResponse;
 import com.messaging.channel.gmail.dto.GmailSendRequest;
 import com.messaging.channel.gmail.dto.GmailSendResponse;
