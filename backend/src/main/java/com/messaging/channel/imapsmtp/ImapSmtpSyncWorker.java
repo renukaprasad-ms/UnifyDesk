@@ -8,14 +8,9 @@ import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.company.enums.CompanyStatus;
 import com.messaging.company.repository.CompanyRepository;
-import com.messaging.channel.enums.ProviderType;
-import com.messaging.inbox.dto.InboxEmailChangedEvent;
-import com.messaging.realtime.service.RealtimeService;
 import jakarta.annotation.PreDestroy;
 import java.time.Instant;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -35,7 +30,6 @@ public class ImapSmtpSyncWorker {
   private final ImapSmtpInboxPersistenceService persistenceService;
   private final ChannelConnectionRepository connectionRepository;
   private final CompanyRepository companyRepository;
-  private final RealtimeService realtimeService;
   private final ObjectMapper objectMapper;
   private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
   private final AtomicInteger inFlight = new AtomicInteger();
@@ -48,7 +42,6 @@ public class ImapSmtpSyncWorker {
       ImapSmtpInboxPersistenceService persistenceService,
       ChannelConnectionRepository connectionRepository,
       CompanyRepository companyRepository,
-      RealtimeService realtimeService,
       ObjectMapper objectMapper) {
     this.properties = properties;
     this.asyncJobService = asyncJobService;
@@ -57,7 +50,6 @@ public class ImapSmtpSyncWorker {
     this.persistenceService = persistenceService;
     this.connectionRepository = connectionRepository;
     this.companyRepository = companyRepository;
-    this.realtimeService = realtimeService;
     this.objectMapper = objectMapper;
   }
 
@@ -107,8 +99,6 @@ public class ImapSmtpSyncWorker {
       ImapSmtpStoredCredentials credentials = connectionService.credentials(connection);
       AtomicBoolean totalSet = new AtomicBoolean(false);
       AtomicInteger changed = new AtomicInteger();
-      Set<Long> changedConversationIds = new LinkedHashSet<>();
-      Set<Long> changedMessageIds = new LinkedHashSet<>();
 
       int processed =
           mailClient.syncHistory(
@@ -123,8 +113,6 @@ public class ImapSmtpSyncWorker {
                 }
                 var persisted = persistenceService.persist(connection, batch);
                 changed.addAndGet(persisted.created() + persisted.updated());
-                changedConversationIds.addAll(persisted.conversationIds());
-                changedMessageIds.addAll(persisted.messageIds());
                 asyncJobService.incrementProgress(
                     job.jobId(),
                     batch.size(),
@@ -140,17 +128,6 @@ public class ImapSmtpSyncWorker {
 
       connection.setLastSyncAt(Instant.now());
       connectionRepository.save(connection);
-      if (processed > 0 || changed.get() > 0) {
-        realtimeService.sendToCompany(
-            connection.getCompanyId(),
-            "inbox.email.changed",
-            InboxEmailChangedEvent.boundedDelta(
-                connection.getId(),
-                ProviderType.IMAP_SMTP,
-                changedConversationIds,
-                changedMessageIds,
-                Set.of()));
-      }
     } catch (Exception exception) {
       log.warn(
           "imap_sync_failed jobId={} connectionId={} reason={}",
