@@ -37,7 +37,11 @@ public class BroadcastSentMessageHandler implements EmailSentMessageHandler {
 
     BroadcastRecipient recipient =
         recipientRepository.findByProviderCorrelationId(correlationId.trim()).orElse(null);
-    if (recipient == null\n        || recipient.getConnectionId() == null\n        || !recipient.getConnectionId().equals(connection.getId())) return false;
+    if (recipient == null
+        || recipient.getConnectionId() == null
+        || !recipient.getConnectionId().equals(connection.getId())) {
+      return false;
+    }
 
     recipient.setProviderMessageId(trim(providerMessageId));
     if (internetMessageId != null && !internetMessageId.isBlank()) {
