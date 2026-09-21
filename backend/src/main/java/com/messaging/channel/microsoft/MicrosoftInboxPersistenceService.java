@@ -4,11 +4,9 @@ import com.messaging.channel.email.EmailFolder;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.microsoft.MicrosoftApiClient.*;
-import com.messaging.inbox.dto.InboxEmailChangedEvent;
 import com.messaging.inbox.entity.*;
 import com.messaging.inbox.enums.*;
 import com.messaging.inbox.repository.*;
-import com.messaging.realtime.service.RealtimeService;
 import com.messaging.storage.enums.StorageUsageType;
 import com.messaging.storage.service.MessageStorageMeter;
 import com.messaging.storage.service.StorageAccountingService;
@@ -33,7 +31,6 @@ public class MicrosoftInboxPersistenceService {
   private final MessageStorageMeter messageStorageMeter;
   private final StorageQuotaService storageQuotaService;
   private final StorageAccountingService storageAccountingService;
-  private final RealtimeService realtimeService;
 
   @Transactional
   public SyncResult persistPage(
@@ -225,19 +222,14 @@ public class MicrosoftInboxPersistenceService {
               });
     }
 
-    if (created > 0 || updated > 0 || deleted > 0) {
-      realtimeService.sendToCompany(
-          connection.getCompanyId(),
-          "inbox.email.changed",
-          InboxEmailChangedEvent.boundedDelta(
-              connection.getId(),
-              ProviderType.MICROSOFT,
-              touchedConversationIds,
-              changedMessageIds,
-              deletedMessageIds));
-    }
-
-    return new SyncResult(created, updated, deleted, touchedConversationIds.size());
+    return new SyncResult(
+        created,
+        updated,
+        deleted,
+        touchedConversationIds.size(),
+        Set.copyOf(touchedConversationIds),
+        Set.copyOf(changedMessageIds),
+        Set.copyOf(deletedMessageIds));
   }
 
   private void upsertParticipants(InboxConversation conversation, GraphMessage message) {
@@ -373,5 +365,12 @@ public class MicrosoftInboxPersistenceService {
     return value != null && !value.isBlank();
   }
 
-  public record SyncResult(int created, int updated, int deleted, int conversationsTouched) {}
+  public record SyncResult(
+      int created,
+      int updated,
+      int deleted,
+      int conversationsTouched,
+      Set<Long> conversationIds,
+      Set<Long> messageIds,
+      Set<Long> deletedMessageIds) {}
 }
