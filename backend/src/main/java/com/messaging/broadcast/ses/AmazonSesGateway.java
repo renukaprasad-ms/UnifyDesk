@@ -18,7 +18,7 @@ public class AmazonSesGateway {
       BroadcastSenderConnection connection, String fromAddress) {
     SesV2Client client = clientManager.client(connection);
     try {
-      GetAccountResponse account = client.getAccount();
+      GetAccountResponse account = client.getAccount(GetAccountRequest.builder().build());
       String identity = verifiedIdentity(client, fromAddress);
       SendQuota quota = account.sendQuota();
       return new AmazonSesAccountSnapshot(
