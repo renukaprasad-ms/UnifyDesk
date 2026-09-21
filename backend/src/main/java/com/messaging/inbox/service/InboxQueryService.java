@@ -107,7 +107,8 @@ public class InboxQueryService {
                 connectionId,
                 ChannelConnectionStatus.ACTIVE,
                 requestedConversationIds,
-                folder.providerKey());
+                folder.providerKey(),
+                InboxMessageStatus.DELETED);
 
     List<InboxMessage> foundMessages =
         requestedMessageIds.isEmpty()
