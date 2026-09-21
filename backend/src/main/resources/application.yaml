@@ -113,9 +113,7 @@ app:
     outbox-stale-after: ${BROADCAST_OUTBOX_STALE_AFTER:2m}
     outbox-max-attempts: ${BROADCAST_OUTBOX_MAX_ATTEMPTS:20}
     message-id-domain: ${BROADCAST_MESSAGE_ID_DOMAIN:messaging.renukaprasad.in}
-    gmail-per-second: ${BROADCAST_GMAIL_PER_SECOND:5}
-    microsoft-per-second: ${BROADCAST_MICROSOFT_PER_SECOND:5}
-    imap-smtp-per-second: ${BROADCAST_IMAP_SMTP_PER_SECOND:5}
+    ses-max-per-second-cap: ${BROADCAST_SES_MAX_PER_SECOND_CAP:1000}
   delivery:
     email:
       claim-size: ${EMAIL_DELIVERY_REPORT_CLAIM_SIZE:100}
