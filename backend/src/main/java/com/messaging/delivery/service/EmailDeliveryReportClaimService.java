@@ -22,8 +22,8 @@ public class EmailDeliveryReportClaimService {
     List<EmailDeliveryReport> reports =
         repository.findClaimableForUpdate(
             now,
-            now.minus(properties.getDeliveryReportStaleAfter()),
-            Math.max(1, properties.getDeliveryReportClaimSize()));
+            now.minus(properties.getStaleAfter()),
+            Math.max(1, properties.getClaimSize()));
     for (EmailDeliveryReport report : reports) {
       report.setClaimedAt(now);
       report.setAttemptCount(report.getAttemptCount() + 1);

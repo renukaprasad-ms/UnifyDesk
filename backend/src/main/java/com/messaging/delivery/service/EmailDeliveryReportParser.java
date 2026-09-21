@@ -26,7 +26,12 @@ public class EmailDeliveryReportParser {
   private static final Pattern STATUS =
       Pattern.compile("(?im)^Status\s*:\s*([245]\.\d{1,3}\.\d{1,3})");
   private static final Pattern DIAGNOSTIC =
-      Pattern.compile("(?im)^Diagnostic-Code\s*:\s*([^\r\n]{1,1000})");
+      Pattern.compile("(?im)^Diagnostic-Code\\s*:\\s*([^\\r\\n]{1,1000})");
+  private static final Pattern FALLBACK_RECIPIENT =
+      Pattern.compile(
+          "(?i)(?:message\\s+to|delivery\\s+to|recipient(?:\\s+address)?)\\s*[:<]?\\s*<?([A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,})>?");
+  private static final Pattern FALLBACK_STATUS =
+      Pattern.compile("(?i)\\b([45]\\.\\d{1,3}\\.\\d{1,3})\\b");
 
   public Optional<DetectedDeliveryReport> parse(InboxMessage message) {
     if (message == null || message.getDirection() != InboxMessageDirection.INBOUND) {

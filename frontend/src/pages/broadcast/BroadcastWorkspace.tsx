@@ -16,7 +16,6 @@ import {
 import { useLocation, useSearchParams } from 'react-router'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import type {
-  BroadcastGroup,
   BroadcastMember,
   BroadcastMemberImportResult,
   BroadcastMessage,

@@ -97,7 +97,7 @@ public class EmailDeliveryReportReconciliationService {
     }
 
     if (hasText(report.getNormalizedFailedRecipient())) {
-      Instant since = Instant.now().minus(properties.getDeliveryReportMatchLookback());
+      Instant since = Instant.now().minus(properties.getMatchLookback());
       List<BroadcastRecipient> candidates =
           recipientRepository
               .findTop2ByConnectionIdAndNormalizedDestinationAndStatusInAndCreatedAtAfterOrderByUpdatedAtDesc(
@@ -120,7 +120,7 @@ public class EmailDeliveryReportReconciliationService {
   private void deferOrCompleteUnmatched(EmailDeliveryReport report) {
     report.setClaimedAt(null);
     report.setLastError("No matching broadcast recipient yet");
-    if (report.getAttemptCount() >= Math.max(1, properties.getDeliveryReportMaxAttempts())) {
+    if (report.getAttemptCount() >= Math.max(1, properties.getMaxAttempts())) {
       report.setProcessedAt(Instant.now());
       report.setNextAttemptAt(null);
     } else {
@@ -131,9 +131,9 @@ public class EmailDeliveryReportReconciliationService {
 
   private Duration retryDelay(int attempt) {
     long initial =
-        Math.max(1000L, properties.getDeliveryReportRetryInitialBackoff().toMillis());
+        Math.max(1000L, properties.getRetryInitialBackoff().toMillis());
     long max =
-        Math.max(initial, properties.getDeliveryReportRetryMaxBackoff().toMillis());
+        Math.max(initial, properties.getRetryMaxBackoff().toMillis());
     int exponent = Math.min(Math.max(0, attempt - 1), 16);
     long value;
     try {
