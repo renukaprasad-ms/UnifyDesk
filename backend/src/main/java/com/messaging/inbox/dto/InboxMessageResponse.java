@@ -7,8 +7,10 @@ import java.util.List;
 
 public record InboxMessageResponse(
     String id,
+    String conversationId,
     String externalMessageId,
     String internetMessageId,
+    String providerFolderKey,
     InboxMessageDirection direction,
     InboxMessageStatus status,
     String subject,
