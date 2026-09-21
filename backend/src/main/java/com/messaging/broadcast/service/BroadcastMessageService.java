@@ -121,8 +121,8 @@ public class BroadcastMessageService {
       throw new BadRequestException("Amazon SES senders are only available for email broadcasts");
     }
     BroadcastSender sender = senderService.requireActive(companyId, senderId);
-    if (!sender.getProvider().isBulkProvider()) {
-      throw new BadRequestException("A high-volume broadcast sender is required");
+    if (sender.getProvider() != com.messaging.broadcast.enums.BroadcastSenderProvider.AMAZON_SES) {
+      throw new BadRequestException("Amazon SES is currently required for email Broadcast");
     }
   }
 
