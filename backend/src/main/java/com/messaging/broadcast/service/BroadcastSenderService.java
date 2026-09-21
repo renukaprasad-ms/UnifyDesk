@@ -29,7 +29,6 @@ public class BroadcastSenderService {
   private final CredentialCipher credentialCipher;
   private final ObjectMapper objectMapper;
 
-  @Transactional
   public BroadcastSenderResponse connectAmazonSes(
       Long companyId, Long userId, ConnectAmazonSesRequest request) {
     String fromAddress = normalizeEmail(request.fromAddress(), "From address");
@@ -107,7 +106,6 @@ public class BroadcastSenderService {
         .toList();
   }
 
-  @Transactional
   public BroadcastSenderResponse refresh(Long companyId, Long senderId) {
     BroadcastSender sender = requireActive(companyId, senderId);
     BroadcastSenderConnection connection = requireConnection(companyId, sender.getConnectionId());
