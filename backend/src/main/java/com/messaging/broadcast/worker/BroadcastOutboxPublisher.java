@@ -1,7 +1,6 @@
 package com.messaging.broadcast.worker;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.messaging.broadcast.config.BroadcastProperties;
 import com.messaging.broadcast.event.BroadcastRunPrepareRequestedEvent;
 import com.messaging.broadcast.service.*;
 import com.messaging.kafka.event.EventMetadata;
