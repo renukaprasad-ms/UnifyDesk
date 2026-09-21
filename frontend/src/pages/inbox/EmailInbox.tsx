@@ -133,11 +133,14 @@ export default function EmailInbox() {
   const [notice, setNotice] = useState<string | null>(null)
   const [realtimeConnected, setRealtimeConnected] = useState(realtimeClient.isConnected())
   const inboxRefreshTimerRef = useRef<number | null>(null)
+  const selectedConversationRefreshTimerRef = useRef<number | null>(null)
 
   const selectedConnection = useMemo(
     () => connections.find((connection) => connection.id === selectedConnectionId) ?? null,
     [connections, selectedConnectionId],
   )
+
+  const selectedProviderType = selectedConnection?.providerType ?? null
 
   const ownAddress = useMemo(() => {
     if (selectedConversation) {
@@ -216,13 +219,36 @@ export default function EmailInbox() {
     [companyId, selectedConnectionId, selectedFolder, setSearchParams],
   )
 
-  const scheduleInboxRefresh = useCallback(() => {
-    if (inboxRefreshTimerRef.current !== null) return
-    inboxRefreshTimerRef.current = window.setTimeout(() => {
-      inboxRefreshTimerRef.current = null
-      void loadConversations(0, false)
-    }, 1000)
-  }, [loadConversations])
+  const refreshConversationList = useCallback(async () => {
+    if (!companyId || !selectedConnectionId) return
+
+    try {
+      const inbox = await inboxApi.conversations(
+        companyId,
+        0,
+        30,
+        selectedConnectionId,
+        selectedFolder,
+      )
+      setConversations(inbox.items)
+      setCurrentPage(inbox.page)
+      setTotalPages(inbox.totalPages)
+      setTotalElements(inbox.totalElements)
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, 'Unable to refresh email inbox'))
+    }
+  }, [companyId, selectedConnectionId, selectedFolder])
+
+  const scheduleInboxRefresh = useCallback(
+    (delayMs = 750) => {
+      if (inboxRefreshTimerRef.current !== null) return
+      inboxRefreshTimerRef.current = window.setTimeout(() => {
+        inboxRefreshTimerRef.current = null
+        void refreshConversationList()
+      }, delayMs)
+    },
+    [refreshConversationList],
+  )
 
   useEffect(
     () => () => {
@@ -245,8 +271,8 @@ export default function EmailInbox() {
     if (
       !companyId ||
       !selectedConnectionId ||
-      !selectedConnection ||
-      !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
+      !selectedProviderType ||
+      !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedProviderType)
     ) {
       setSyncJobs({})
       return
@@ -254,9 +280,9 @@ export default function EmailInbox() {
 
     let active = true
     const request =
-      selectedConnection.providerType === 'GMAIL'
+      selectedProviderType === 'GMAIL'
         ? gmailApi.activeSync(companyId, selectedConnectionId)
-        : selectedConnection.providerType === 'MICROSOFT'
+        : selectedProviderType === 'MICROSOFT'
           ? microsoftApi.activeSync(companyId, selectedConnectionId)
           : imapSmtpApi.activeSync(companyId, selectedConnectionId)
 
@@ -275,7 +301,7 @@ export default function EmailInbox() {
     return () => {
       active = false
     }
-  }, [companyId, selectedConnectionId, selectedConnection, scheduleInboxRefresh])
+  }, [companyId, selectedConnectionId, selectedProviderType, scheduleInboxRefresh])
 
   useEffect(() => {
     const gmailResult = searchParams.get('gmail')
@@ -323,6 +349,26 @@ export default function EmailInbox() {
       setError(apiErrorMessage(requestError, 'Unable to load conversation'))
     }
   }, [companyId, selectedConversationId])
+
+  const scheduleSelectedConversationRefresh = useCallback(
+    (delayMs = 750) => {
+      if (!selectedConversationId || selectedConversationRefreshTimerRef.current !== null) return
+      selectedConversationRefreshTimerRef.current = window.setTimeout(() => {
+        selectedConversationRefreshTimerRef.current = null
+        void refreshSelectedConversation()
+      }, delayMs)
+    },
+    [refreshSelectedConversation, selectedConversationId],
+  )
+
+  useEffect(
+    () => () => {
+      if (selectedConversationRefreshTimerRef.current !== null) {
+        window.clearTimeout(selectedConversationRefreshTimerRef.current)
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
     if (!companyId || !selectedConversationId) {
@@ -379,13 +425,24 @@ export default function EmailInbox() {
 
   useEffect(
     () =>
-      realtimeClient.subscribe('inbox.email.changed', () => {
-        scheduleInboxRefresh()
-        if (selectedConversationId) {
-          void refreshSelectedConversation()
+      realtimeClient.subscribe<{ connectionId?: string }>('inbox.email.changed', (event) => {
+        const changedConnectionId = event.payload?.connectionId
+        if (
+          changedConnectionId &&
+          selectedConnectionId &&
+          changedConnectionId !== selectedConnectionId
+        ) {
+          return
         }
+
+        scheduleInboxRefresh(750)
+        scheduleSelectedConversationRefresh(750)
       }),
-    [refreshSelectedConversation, scheduleInboxRefresh, selectedConversationId],
+    [
+      scheduleInboxRefresh,
+      scheduleSelectedConversationRefresh,
+      selectedConnectionId,
+    ],
   )
 
   useEffect(() => {
@@ -401,7 +458,10 @@ export default function EmailInbox() {
           if (!current[job.jobId]) return current
           return { ...current, [job.jobId]: job }
         })
-        if (job.completedUnits > 0) scheduleInboxRefresh()
+        if (job.completedUnits > 0) {
+          scheduleInboxRefresh(5000)
+          scheduleSelectedConversationRefresh(5000)
+        }
         if (job.status === 'FAILED') {
           setError(job.errorMessage || 'Email sync failed')
         }
@@ -410,8 +470,8 @@ export default function EmailInbox() {
       if (job.jobType === 'INBOX_READ_SYNC') {
         setMarkAllJob((current) => (current?.jobId === job.jobId ? job : current))
         if (job.completedUnits > 0 || job.status === 'COMPLETED') {
-          scheduleInboxRefresh()
-          if (selectedConversationId) void refreshSelectedConversation()
+          scheduleInboxRefresh(1000)
+          scheduleSelectedConversationRefresh(1000)
         }
         if (job.status === 'COMPLETED') {
           setNotice('All unread messages in this inbox are now marked as read.')
@@ -421,9 +481,8 @@ export default function EmailInbox() {
       }
     })
   }, [
-    refreshSelectedConversation,
     scheduleInboxRefresh,
-    selectedConversationId,
+    scheduleSelectedConversationRefresh,
   ])
 
   useEffect(() => {
@@ -452,7 +511,7 @@ export default function EmailInbox() {
         .then((latest) => {
           setMarkAllJob(latest)
           if (latest.completedUnits > 0 || latest.status === 'COMPLETED') {
-            scheduleInboxRefresh()
+            scheduleInboxRefresh(1000)
           }
           if (latest.status === 'COMPLETED') {
             setNotice('All unread messages in this inbox are now marked as read.')
