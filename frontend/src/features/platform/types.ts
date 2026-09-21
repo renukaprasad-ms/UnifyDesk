@@ -69,3 +69,27 @@ export type PlatformPlan = {
   entitlements: Record<string, string>
 }
 export type PlatformPlanInput = Omit<PlatformPlan, 'id' | 'status'>
+
+export type WebhookCallbackStatus = 'RECEIVED' | 'PROCESSED' | 'IGNORED' | 'FAILED' | 'REJECTED'
+
+export type PlatformWebhookCallback = {
+  id: string
+  providerType: string
+  callbackType: string
+  endpoint: string
+  httpMethod: string
+  queryString?: string | null
+  remoteAddress?: string | null
+  contentType?: string | null
+  eventId?: string | null
+  requestHeaders?: string | null
+  payload?: string | null
+  decodedPayload?: string | null
+  processingResult?: string | null
+  status: WebhookCallbackStatus
+  httpStatus?: number | null
+  errorMessage?: string | null
+  receivedAt: string
+  completedAt?: string | null
+  durationMs?: number | null
+}

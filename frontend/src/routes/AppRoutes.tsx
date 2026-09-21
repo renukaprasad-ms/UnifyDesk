@@ -27,6 +27,7 @@ import PlatformDashboard from '../pages/platform/PlatformDashboard'
 import PlatformPlanDetails from '../pages/platform/PlatformPlanDetails'
 import PlatformPlans from '../pages/platform/PlatformPlans'
 import PlatformUsers from '../pages/platform/PlatformUsers'
+import PlatformWebhookCallbacks from '../pages/platform/PlatformWebhookCallbacks'
 import CreateWorkspace from '../pages/workspace/CreateWorkspace'
 import SelectPlan from '../pages/workspace/SelectPlan'
 import SelectWorkspace from '../pages/workspace/SelectWorkspace'
@@ -130,6 +131,10 @@ const AppRoutes = () => (
           <Route path="/platform/plans/:planId" element={<PlatformPlanDetails />} />
           <Route path="/platform/billing" element={<PlatformBilling />} />
           <Route path="/platform/admins" element={<PlatformAdmins />} />
+          <Route
+            path="/platform/channel-analytics/webhook-callbacks"
+            element={<PlatformWebhookCallbacks />}
+          />
           <Route path="/platform/audit" element={<PlaceholderPage />} />
         </Route>
       </Route>

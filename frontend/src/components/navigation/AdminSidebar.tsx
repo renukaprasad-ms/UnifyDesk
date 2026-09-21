@@ -1,14 +1,18 @@
+import { useEffect, useState } from 'react'
 import {
   FiActivity,
   FiArrowLeft,
+  FiBarChart2,
   FiBriefcase,
+  FiChevronDown,
   FiCreditCard,
   FiFileText,
   FiHome,
+  FiRadio,
   FiShield,
   FiUsers,
 } from 'react-icons/fi'
-import { NavLink } from 'react-router'
+import { NavLink, useLocation } from 'react-router'
 import type { PlatformAccess, PlatformPermission } from '../../features/platform/types'
 
 type AdminLink = {
@@ -46,12 +50,22 @@ export default function AdminSidebar({
   access: PlatformAccess
   onNavigate: () => void
 }) {
+  const location = useLocation()
   const isSuperAdmin = access.role === 'SUPER_ADMIN'
+  const channelAnalyticsActive = location.pathname.startsWith('/platform/channel-analytics')
+  const [channelAnalyticsOpen, setChannelAnalyticsOpen] = useState(channelAnalyticsActive)
+
+  useEffect(() => {
+    if (channelAnalyticsActive) setChannelAnalyticsOpen(true)
+  }, [channelAnalyticsActive])
+
   const allowed = (link: AdminLink) => {
     if (isSuperAdmin) return true
     if (link.superAdminOnly) return false
     return !link.permission || access.permissions.includes(link.permission)
   }
+
+  const canViewChannelAnalytics = isSuperAdmin || access.permissions.includes('AUDIT_VIEW')
 
   return (
     <>
@@ -74,11 +88,70 @@ export default function AdminSidebar({
       </div>
 
       <nav aria-label="Administration" className="mt-6 space-y-1">
-        {links.filter(allowed).map((link) => (
+        {links.filter(allowed).slice(0, -1).map((link) => (
           <NavLink
             key={link.to}
             to={link.to}
             end={link.to === '/platform'}
+            onClick={onNavigate}
+            className={({ isActive }) => `admin-nav-link ${isActive ? 'is-active' : ''}`}
+          >
+            <span aria-hidden="true" className="admin-nav-icon">
+              {link.icon}
+            </span>
+            <span>{link.label}</span>
+          </NavLink>
+        ))}
+
+        {canViewChannelAnalytics && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setChannelAnalyticsOpen((open) => !open)}
+              className={`admin-nav-link w-full text-left ${channelAnalyticsActive ? 'is-active' : ''}`}
+              aria-expanded={channelAnalyticsOpen}
+            >
+              <span aria-hidden="true" className="admin-nav-icon">
+                <FiBarChart2 />
+              </span>
+              <span className="flex-1">Channel analytics</span>
+              <FiChevronDown
+                aria-hidden="true"
+                className={`transition-transform ${channelAnalyticsOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {channelAnalyticsOpen && (
+              <div className="ml-8 mt-1 space-y-1 border-l border-slate-200 pl-3">
+                <div className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-slate-400">
+                  <span>Usage</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wide">
+                    Soon
+                  </span>
+                </div>
+                <NavLink
+                  to="/platform/channel-analytics/webhook-callbacks"
+                  onClick={onNavigate}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                      isActive
+                        ? 'bg-indigo-50 text-indigo-700'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'
+                    }`
+                  }
+                >
+                  <FiRadio aria-hidden="true" />
+                  <span>Webhook callbacks</span>
+                </NavLink>
+              </div>
+            )}
+          </div>
+        )}
+
+        {links.filter(allowed).slice(-1).map((link) => (
+          <NavLink
+            key={link.to}
+            to={link.to}
             onClick={onNavigate}
             className={({ isActive }) => `admin-nav-link ${isActive ? 'is-active' : ''}`}
           >
