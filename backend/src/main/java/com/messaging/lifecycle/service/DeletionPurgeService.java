@@ -100,6 +100,9 @@ public class DeletionPurgeService {
         repository
             .findByIdForUpdate(jobId)
             .orElseThrow(() -> new IllegalStateException("Deletion purge job not found"));
+    if (job.getStatus() == DeletionPurgeStatus.CANCELLED) {
+      return;
+    }
     job.setStatus(DeletionPurgeStatus.COMPLETED);
     job.setCompletedAt(Instant.now());
     job.setClaimedAt(null);
@@ -114,6 +117,9 @@ public class DeletionPurgeService {
         repository
             .findByIdForUpdate(jobId)
             .orElseThrow(() -> new IllegalStateException("Deletion purge job not found"));
+    if (job.getStatus() == DeletionPurgeStatus.CANCELLED) {
+      return;
+    }
     job.setStatus(DeletionPurgeStatus.FAILED);
     job.setClaimedAt(null);
     job.setNextAttemptAt(Instant.now().plus(properties.getRetryDelay()));

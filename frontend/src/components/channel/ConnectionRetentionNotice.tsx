@@ -18,9 +18,11 @@ export default function ConnectionRetentionNotice({
   onReconnect?: () => void
   onDeleteNow: () => void
 }) {
-  if (connection.status !== 'DISCONNECTED' || !connection.purgeAfter) return null
+  if (connection.status !== 'DISCONNECTED') return null
 
-  const deletionQueued = new Date(connection.purgeAfter).getTime() <= Date.now()
+  const hasDeadline = Boolean(connection.purgeAfter)
+  const deletionQueued =
+    hasDeadline && new Date(connection.purgeAfter as string).getTime() <= Date.now()
 
   return (
     <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3">
@@ -30,12 +32,16 @@ export default function ConnectionRetentionNotice({
           <p className="text-xs font-bold text-amber-900">
             {deletionQueued
               ? 'Permanent deletion is queued'
-              : `Imported data is kept until ${formatPurgeDate(connection.purgeAfter)}`}
+              : hasDeadline
+                ? `Imported data is kept until ${formatPurgeDate(connection.purgeAfter as string)}`
+                : 'Imported data is still retained'}
           </p>
           <p className="mt-1 text-[11px] leading-5 text-amber-800/80">
             {deletionQueued
               ? 'The channel is disconnected and its stored imported data will be removed by the cleanup worker.'
-              : 'The channel is hidden from the inbox. Reconnect the same account before this deadline to cancel deletion and keep its imported history.'}
+              : hasDeadline
+                ? 'The channel is hidden from the inbox. Reconnect the same account before this deadline to cancel deletion and keep its imported history.'
+                : 'This connection was disconnected before automatic retention was enabled. Its imported data remains hidden from the inbox until you reconnect or delete it.'}
           </p>
 
           <div className="mt-3 flex flex-wrap gap-2">

@@ -76,7 +76,7 @@ public class ImapSmtpConnectionPersistenceService {
 
     SenderIdentity sender =
         senderIdentityRepository
-            .findByConnectionIdAndIdentityTypeAndExternalId(
+            .findByConnectionIdAndIdentityTypeAndValue(
                 connection.getId(), SenderIdentityType.EMAIL_ADDRESS, email)
             .orElseGet(SenderIdentity::new);
     if (sender.getId() == null) {
@@ -85,6 +85,7 @@ public class ImapSmtpConnectionPersistenceService {
       sender.setExternalId(email);
     }
     sender.setValue(email);
+    sender.setExternalId(email);
     sender.setStatus(SenderIdentityStatus.ACTIVE);
     sender.setDefaultIdentity(true);
     senderIdentityRepository.save(sender);

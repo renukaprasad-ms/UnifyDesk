@@ -1,4 +1,5 @@
-import { FiClock, FiTrash2, FiX } from 'react-icons/fi'
+import { useEffect, useState } from 'react'
+import { FiCheck, FiClock, FiTrash2, FiX } from 'react-icons/fi'
 import type {
   ChannelConnection,
   DisconnectDataPolicy,
@@ -15,7 +16,15 @@ export default function DisconnectChannelModal({
   onClose: () => void
   onConfirm: (policy: DisconnectDataPolicy) => void
 }) {
+  const [policy, setPolicy] = useState<DisconnectDataPolicy>('KEEP_7_DAYS')
+
+  useEffect(() => {
+    if (connection) setPolicy('KEEP_7_DAYS')
+  }, [connection?.id])
+
   if (!connection) return null
+
+  const destructive = policy === 'DELETE_NOW'
 
   return (
     <div
@@ -38,8 +47,8 @@ export default function DisconnectChannelModal({
               Disconnect {connection.name}?
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Provider access, credentials and live synchronization stop immediately in both
-              options. Choose what Messaging should do with the imported data already stored.
+              Provider access, credentials and live synchronization stop immediately. Choose what
+              Messaging should do with the imported data already stored.
             </p>
           </div>
           <button
@@ -57,14 +66,19 @@ export default function DisconnectChannelModal({
           <button
             type="button"
             disabled={working}
-            onClick={() => onConfirm('KEEP_7_DAYS')}
-            className="rounded-2xl border-2 border-indigo-200 bg-indigo-50/60 p-4 text-left transition hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-60"
+            aria-pressed={policy === 'KEEP_7_DAYS'}
+            onClick={() => setPolicy('KEEP_7_DAYS')}
+            className={`rounded-2xl border-2 p-4 text-left transition disabled:opacity-60 ${
+              policy === 'KEEP_7_DAYS'
+                ? 'border-indigo-300 bg-indigo-50/70'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            }`}
           >
             <div className="flex items-start gap-3">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-indigo-600 shadow-sm">
                 <FiClock aria-hidden="true" />
               </span>
-              <span className="min-w-0">
+              <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-bold text-slate-950">
                     Keep imported data for 7 days
@@ -74,31 +88,46 @@ export default function DisconnectChannelModal({
                   </span>
                 </span>
                 <span className="mt-1.5 block text-xs leading-5 text-slate-600">
-                  The channel disappears from the active inbox immediately, but its imported
-                  messages remain recoverable for 7 days. Reconnect the same account before the
-                  deadline to keep that history.
+                  The channel disappears from the active inbox immediately, but imported messages
+                  remain recoverable for 7 days. Reconnect the same account before the deadline to
+                  keep that history.
                 </span>
               </span>
+              {policy === 'KEEP_7_DAYS' && (
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white">
+                  <FiCheck aria-hidden="true" size={13} />
+                </span>
+              )}
             </div>
           </button>
 
           <button
             type="button"
             disabled={working}
-            onClick={() => onConfirm('DELETE_NOW')}
-            className="rounded-2xl border border-rose-200 bg-white p-4 text-left transition hover:border-rose-300 hover:bg-rose-50/50 disabled:opacity-60"
+            aria-pressed={policy === 'DELETE_NOW'}
+            onClick={() => setPolicy('DELETE_NOW')}
+            className={`rounded-2xl border-2 p-4 text-left transition disabled:opacity-60 ${
+              policy === 'DELETE_NOW'
+                ? 'border-rose-300 bg-rose-50/70'
+                : 'border-slate-200 bg-white hover:border-rose-200 hover:bg-rose-50/30'
+            }`}
           >
             <div className="flex items-start gap-3">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
                 <FiTrash2 aria-hidden="true" />
               </span>
-              <span className="min-w-0">
+              <span className="min-w-0 flex-1">
                 <span className="text-sm font-bold text-rose-700">Delete imported data now</span>
                 <span className="mt-1.5 block text-xs leading-5 text-slate-600">
-                  Permanently queue deletion of imported messages, attachment metadata and sync
-                  state. This cannot be undone and reconnecting later will require a fresh sync.
+                  Queue permanent deletion of imported messages, attachment metadata and sync
+                  state. Reconnecting later will require a fresh sync.
                 </span>
               </span>
+              {policy === 'DELETE_NOW' && (
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-rose-600 text-white">
+                  <FiCheck aria-hidden="true" size={13} />
+                </span>
+              )}
             </div>
           </button>
         </div>
@@ -108,9 +137,21 @@ export default function DisconnectChannelModal({
           choose.
         </p>
 
-        <div className="mt-6 flex justify-end">
-          <button type="button" className="secondary-button" disabled={working} onClick={onClose}>
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" className="secondary-button justify-center" disabled={working} onClick={onClose}>
             Cancel
+          </button>
+          <button
+            type="button"
+            className={destructive ? 'danger-button justify-center' : 'primary-button justify-center'}
+            disabled={working}
+            onClick={() => onConfirm(policy)}
+          >
+            {working
+              ? 'Disconnecting…'
+              : destructive
+                ? 'Disconnect & delete data'
+                : 'Disconnect'}
           </button>
         </div>
       </div>
