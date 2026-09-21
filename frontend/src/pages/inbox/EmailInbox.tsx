@@ -14,7 +14,6 @@ import ConversationList, { conversationParticipant } from '../../components/inbo
 import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
 import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'
 import type { AsyncJob } from '../../features/asyncJob/types'
-import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { imapSmtpApi } from '../../features/channel/imapSmtpApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
@@ -27,10 +26,23 @@ import type {
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { inboxApi } from '../../features/inbox/inboxApi'
-import type { InboxConversation, InboxMessage } from '../../features/inbox/types'
+import type {
+  InboxConversation,
+  InboxEmailChangedEvent,
+  InboxMessage,
+} from '../../features/inbox/types'
 import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { apiErrorMessage } from '../../lib/api/apiClient'
-import { useAppSelector } from '../../store/hooks'
+import {
+  applyConversationReadState,
+  applyMessageReadState,
+  applyRealtimeSnapshot,
+  clearConversationDetail,
+  fetchEmailConnections,
+  fetchInboxConversationDetail,
+  fetchInboxConversations,
+} from '../../store/inbox/inboxSlice'
+import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
 
 const messageTitle = (message: InboxMessage) =>
@@ -83,26 +95,18 @@ const defaultSyncRange = () => {
 }
 
 export default function EmailInbox() {
+  const dispatch = useAppDispatch()
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const inbox = useAppSelector((state) => state.inbox)
   const { can } = useIam()
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedConnectionId = searchParams.get('connectionId')
   const selectedConversationId = searchParams.get('conversationId')
   const selectedFolder = searchParams.get('folder') === 'SENT' ? 'SENT' : 'INBOX'
   const composeOpen = searchParams.get('compose') === '1'
-  const [connections, setConnections] = useState<ChannelConnection[]>([])
-  const [conversations, setConversations] = useState<InboxConversation[]>([])
-  const [selectedConversation, setSelectedConversation] = useState<InboxConversation | null>(null)
   const [mobileConversationOpen, setMobileConversationOpen] = useState(
     Boolean(selectedConversationId),
   )
-  const [messages, setMessages] = useState<InboxMessage[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [currentPage, setCurrentPage] = useState(0)
-  const [totalPages, setTotalPages] = useState(0)
-  const [totalElements, setTotalElements] = useState(0)
-  const [messagesLoading, setMessagesLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [sending, setSending] = useState(false)
   const [readUpdatingConversationId, setReadUpdatingConversationId] = useState<string | null>(null)
@@ -132,8 +136,35 @@ export default function EmailInbox() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [realtimeConnected, setRealtimeConnected] = useState(realtimeClient.isConnected())
-  const inboxRefreshTimerRef = useRef<number | null>(null)
-  const selectedConversationRefreshTimerRef = useRef<number | null>(null)
+  const realtimeBatchRef = useRef<{
+    conversationIds: Set<string>
+    messageIds: Set<string>
+    timer: number | null
+    fullRefresh: boolean
+  }>({
+    conversationIds: new Set(),
+    messageIds: new Set(),
+    timer: null,
+    fullRefresh: false,
+  })
+
+  const connections = inbox.connectionsCompanyId === companyId ? inbox.connections : []
+  const sameConversationScope =
+    inbox.scopeCompanyId === companyId &&
+    inbox.scopeConnectionId === selectedConnectionId &&
+    inbox.scopeFolder === selectedFolder
+  const conversations = sameConversationScope ? inbox.conversations : []
+  const loading = sameConversationScope && inbox.conversationsStatus === 'loading'
+  const loadingMore = sameConversationScope && inbox.loadingMore
+  const currentPage = sameConversationScope ? inbox.conversationPage : 0
+  const totalPages = sameConversationScope ? inbox.conversationTotalPages : 0
+  const totalElements = sameConversationScope ? inbox.conversationTotalElements : 0
+  const detailSelected =
+    inbox.detailCompanyId === companyId &&
+    inbox.detailConversationId === selectedConversationId
+  const selectedConversation = detailSelected ? inbox.selectedConversation : null
+  const messages = detailSelected ? inbox.messages : []
+  const messagesLoading = detailSelected && inbox.detailStatus === 'loading'
 
   const selectedConnection = useMemo(
     () => connections.find((connection) => connection.id === selectedConnectionId) ?? null,
@@ -153,118 +184,74 @@ export default function EmailInbox() {
   }, [connections, selectedConnection, selectedConversation])
 
   const loadConversations = useCallback(
-    async (page = 0, append = false) => {
-      if (!companyId) return
-      setError(null)
-
-      if (append) {
-        setLoadingMore(true)
-      } else {
-        setLoading(true)
-      }
-
+    async (page = 0, append = false, force = false) => {
+      if (!companyId || !selectedConnectionId) return
       try {
-        const emailConnections = await channelApi.list(companyId, 'EMAIL')
-        setConnections(emailConnections)
-
-        const activeConnections = emailConnections.filter(
-          (connection) => connection.status === 'ACTIVE',
-        )
-        const selectedIsActive = activeConnections.some(
-          (connection) => connection.id === selectedConnectionId,
-        )
-
-        if (!selectedConnectionId || !selectedIsActive) {
-          const first = activeConnections[0]
-          setConversations([])
-          setCurrentPage(0)
-          setTotalPages(0)
-          setTotalElements(0)
-
-          if (first) {
-            const params = new URLSearchParams(window.location.search)
-            params.set('connectionId', first.id)
-            if (!params.get('folder')) params.set('folder', 'INBOX')
-            params.delete('conversationId')
-            setSearchParams(params, { replace: true })
-          }
-          return
-        }
-
-        const inbox = await inboxApi.conversations(
-          companyId,
-          page,
-          30,
-          selectedConnectionId,
-          selectedFolder,
-        )
-
-        setConversations((current) => {
-          if (!append) return inbox.items
-          const byId = new Map(current.map((conversation) => [conversation.id, conversation]))
-          inbox.items.forEach((conversation) => byId.set(conversation.id, conversation))
-          return Array.from(byId.values())
-        })
-        setCurrentPage(inbox.page)
-        setTotalPages(inbox.totalPages)
-        setTotalElements(inbox.totalElements)
-
+        await dispatch(
+          fetchInboxConversations({
+            companyId,
+            connectionId: selectedConnectionId,
+            folder: selectedFolder,
+            page,
+            append,
+            force,
+          }),
+        ).unwrap()
       } catch (requestError) {
         setError(apiErrorMessage(requestError, 'Unable to load email inbox'))
-      } finally {
-        setLoading(false)
-        setLoadingMore(false)
       }
     },
-    [companyId, selectedConnectionId, selectedFolder, setSearchParams],
+    [companyId, dispatch, selectedConnectionId, selectedFolder],
   )
 
-  const refreshConversationList = useCallback(async () => {
-    if (!companyId || !selectedConnectionId) return
-
-    try {
-      const inbox = await inboxApi.conversations(
-        companyId,
-        0,
-        30,
-        selectedConnectionId,
-        selectedFolder,
-      )
-      setConversations(inbox.items)
-      setCurrentPage(inbox.page)
-      setTotalPages(inbox.totalPages)
-      setTotalElements(inbox.totalElements)
-    } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to refresh email inbox'))
-    }
-  }, [companyId, selectedConnectionId, selectedFolder])
-
-  const scheduleInboxRefresh = useCallback(
-    (delayMs = 750) => {
-      if (inboxRefreshTimerRef.current !== null) return
-      inboxRefreshTimerRef.current = window.setTimeout(() => {
-        inboxRefreshTimerRef.current = null
-        void refreshConversationList()
-      }, delayMs)
-    },
-    [refreshConversationList],
-  )
-
-  useEffect(
-    () => () => {
-      if (inboxRefreshTimerRef.current !== null) {
-        window.clearTimeout(inboxRefreshTimerRef.current)
+  const refreshInbox = useCallback(
+    async (includeDetail = true) => {
+      if (!companyId) return
+      await dispatch(fetchEmailConnections({ companyId, force: true }))
+      if (selectedConnectionId) {
+        await dispatch(
+          fetchInboxConversations({
+            companyId,
+            connectionId: selectedConnectionId,
+            folder: selectedFolder,
+            force: true,
+          }),
+        )
+      }
+      if (includeDetail && selectedConversationId) {
+        await dispatch(
+          fetchInboxConversationDetail({
+            companyId,
+            conversationId: selectedConversationId,
+            force: true,
+          }),
+        )
       }
     },
-    [],
+    [
+      companyId,
+      dispatch,
+      selectedConnectionId,
+      selectedConversationId,
+      selectedFolder,
+    ],
   )
 
   useEffect(() => {
-    if (inboxRefreshTimerRef.current !== null) {
-      window.clearTimeout(inboxRefreshTimerRef.current)
-      inboxRefreshTimerRef.current = null
-    }
-  }, [selectedConnectionId, selectedFolder])
+    if (!companyId) return
+    void dispatch(fetchEmailConnections({ companyId }))
+  }, [companyId, dispatch])
+
+  useEffect(() => {
+    if (!companyId || !selectedConnectionId) return
+    void dispatch(
+      fetchInboxConversations({
+        companyId,
+        connectionId: selectedConnectionId,
+        folder: selectedFolder,
+      }),
+    )
+  }, [companyId, dispatch, selectedConnectionId, selectedFolder])
 
   useEffect(() => {
     setMobileConversationOpen(Boolean(selectedConversationId))
