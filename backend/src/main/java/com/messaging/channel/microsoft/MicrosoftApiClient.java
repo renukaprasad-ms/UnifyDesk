@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.messaging.channel.email.EmailFolder;
 import com.messaging.channel.email.EmailSyncMode;
 import com.messaging.common.exception.BadRequestException;
+import com.messaging.common.exception.ServiceUnavailableException;
 import com.messaging.common.exception.TooManyRequestsException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
