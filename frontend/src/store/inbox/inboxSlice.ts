@@ -181,17 +181,19 @@ const inboxSlice = createSlice({
       if (state.scopeConnectionId === connectionId) {
         const byId = new Map(state.conversations.map((item) => [item.id, item]))
         let total = state.conversationTotalElements
+        const allLoaded = total <= state.conversations.length
 
         for (const missingId of snapshot.missingConversationIds) {
           if (byId.delete(missingId)) total = Math.max(0, total - 1)
         }
         for (const conversation of snapshot.conversations) {
-          if (!byId.has(conversation.id)) total += 1
+          const wasLoaded = byId.has(conversation.id)
           byId.set(conversation.id, conversation)
+          if (!wasLoaded && allLoaded) total += 1
         }
 
         state.conversations = sortConversations(Array.from(byId.values()))
-        state.conversationTotalElements = total
+        state.conversationTotalElements = Math.max(total, state.conversations.length)
       }
 
       if (state.detailConversationId) {
