@@ -260,6 +260,13 @@ export default function EmailInbox() {
   )
 
   useEffect(() => {
+    if (inboxRefreshTimerRef.current !== null) {
+      window.clearTimeout(inboxRefreshTimerRef.current)
+      inboxRefreshTimerRef.current = null
+    }
+  }, [selectedConnectionId, selectedFolder])
+
+  useEffect(() => {
     setMobileConversationOpen(Boolean(selectedConversationId))
   }, [selectedConversationId])
 
@@ -369,6 +376,13 @@ export default function EmailInbox() {
     },
     [],
   )
+
+  useEffect(() => {
+    if (selectedConversationRefreshTimerRef.current !== null) {
+      window.clearTimeout(selectedConversationRefreshTimerRef.current)
+      selectedConversationRefreshTimerRef.current = null
+    }
+  }, [selectedConversationId])
 
   useEffect(() => {
     if (!companyId || !selectedConversationId) {
