@@ -8,11 +8,14 @@ import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.company.enums.CompanyStatus;
 import com.messaging.company.repository.CompanyRepository;
+import com.messaging.channel.enums.ProviderType;
+import com.messaging.inbox.dto.InboxEmailChangedEvent;
 import com.messaging.realtime.service.RealtimeService;
 import jakarta.annotation.PreDestroy;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -104,6 +107,8 @@ public class ImapSmtpSyncWorker {
       ImapSmtpStoredCredentials credentials = connectionService.credentials(connection);
       AtomicBoolean totalSet = new AtomicBoolean(false);
       AtomicInteger changed = new AtomicInteger();
+      Set<Long> changedConversationIds = new LinkedHashSet<>();
+      Set<Long> changedMessageIds = new LinkedHashSet<>();
 
       int processed =
           mailClient.syncHistory(
@@ -118,6 +123,8 @@ public class ImapSmtpSyncWorker {
                 }
                 var persisted = persistenceService.persist(connection, batch);
                 changed.addAndGet(persisted.created() + persisted.updated());
+                changedConversationIds.addAll(persisted.conversationIds());
+                changedMessageIds.addAll(persisted.messageIds());
                 asyncJobService.incrementProgress(
                     job.jobId(),
                     batch.size(),
@@ -137,10 +144,12 @@ public class ImapSmtpSyncWorker {
         realtimeService.sendToCompany(
             connection.getCompanyId(),
             "inbox.email.changed",
-            Map.of(
-                "connectionId", connection.getId().toString(),
-                "provider", "IMAP_SMTP",
-                "processed", processed));
+            InboxEmailChangedEvent.boundedDelta(
+                connection.getId(),
+                ProviderType.IMAP_SMTP,
+                changedConversationIds,
+                changedMessageIds,
+                Set.of()));
       }
     } catch (Exception exception) {
       log.warn(
