@@ -574,7 +574,18 @@ public class MicrosoftApiClient {
       GraphBody body,
       List<GraphRecipient> toRecipients,
       List<GraphRecipient> ccRecipients,
-      List<GraphRecipient> bccRecipients) {}
+      List<GraphRecipient> bccRecipients,
+      List<GraphHeader> internetMessageHeaders) {
+
+    public GraphSendMessage(
+        String subject,
+        GraphBody body,
+        List<GraphRecipient> toRecipients,
+        List<GraphRecipient> ccRecipients,
+        List<GraphRecipient> bccRecipients) {
+      this(subject, body, toRecipients, ccRecipients, bccRecipients, null);
+    }
+  }
 
   public record GraphBatchRequest(List<GraphBatchSubRequest> requests) {}
 

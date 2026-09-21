@@ -289,6 +289,14 @@ public class ImapSmtpMailClient {
   }
 
   public SentMessage send(ImapSmtpStoredCredentials credentials, ImapSmtpSendRequest request) {
+    return send(credentials, request, null, null);
+  }
+
+  public SentMessage send(
+      ImapSmtpStoredCredentials credentials,
+      ImapSmtpSendRequest request,
+      String requestedMessageId,
+      String broadcastCorrelationId) {
     List<String> to = normalizeRecipients(request.to());
     List<String> cc = normalizeRecipients(request.cc());
     List<String> bcc = normalizeRecipients(request.bcc());
@@ -323,6 +331,12 @@ public class ImapSmtpMailClient {
       Date sentAt = new Date();
       message.setSentDate(sentAt);
       message.saveChanges();
+      if (hasText(requestedMessageId)) {
+        message.setHeader("Message-ID", requestedMessageId.trim());
+      }
+      if (hasText(broadcastCorrelationId)) {
+        message.setHeader("X-Messaging-Broadcast-Recipient", broadcastCorrelationId.trim());
+      }
 
       Transport transport = null;
       try {

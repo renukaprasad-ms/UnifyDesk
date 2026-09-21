@@ -1,6 +1,7 @@
 package com.messaging.broadcast.service;
 
 import com.messaging.broadcast.config.BroadcastProperties;
+import com.messaging.broadcast.dto.BroadcastStatsResponse;
 import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.enums.*;
 import com.messaging.broadcast.repository.*;
