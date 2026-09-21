@@ -372,6 +372,11 @@ export default function EmailInbox() {
 
   useEffect(() => realtimeClient.subscribeConnection(setRealtimeConnected), [])
 
+  useEffect(() => {
+    setMarkAllJob(null)
+    setMarkAllStarting(false)
+  }, [selectedConnectionId, selectedFolder])
+
   useEffect(
     () =>
       realtimeClient.subscribe('inbox.email.changed', () => {
