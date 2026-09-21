@@ -65,24 +65,28 @@ public class InboxProviderReadStateService {
     if (ids.isEmpty()) return;
 
     String account = connection.getExternalAccountId();
-    GmailQuotaReservation reservation =
-        gmailQuotaManager.reserve(
-            account,
-            GmailQuotaOperation.MODIFY_MESSAGE,
-            ids.size(),
-            background ? GmailQuotaTrafficClass.BACKGROUND : GmailQuotaTrafficClass.INTERACTIVE);
-    if (!reservation.allowed()) {
-      throw new ServiceUnavailableException(
-          "Gmail is temporarily busy. Read-state changes will be retried shortly.");
-    }
-
     String token = gmailTokenService.accessToken(connection);
-    try {
-      gmailApiClient.updateReadState(token, ids, read);
-    } catch (GmailRateLimitException exception) {
-      gmailQuotaManager.penalize(account, 1, exception.retryAfter());
-      throw new ServiceUnavailableException(
-          "Gmail is temporarily busy. Read-state changes will be retried shortly.");
+    GmailQuotaTrafficClass trafficClass =
+        background ? GmailQuotaTrafficClass.BACKGROUND : GmailQuotaTrafficClass.INTERACTIVE;
+
+    for (int offset = 0; offset < ids.size(); offset += 250) {
+      int end = Math.min(ids.size(), offset + 250);
+      List<String> batch = ids.subList(offset, end);
+      GmailQuotaReservation reservation =
+          gmailQuotaManager.reserve(
+              account, GmailQuotaOperation.MODIFY_MESSAGE, batch.size(), trafficClass);
+      if (!reservation.allowed()) {
+        throw new ServiceUnavailableException(
+            "Gmail is temporarily busy. Read-state changes will be retried shortly.");
+      }
+
+      try {
+        gmailApiClient.updateReadState(token, batch, read);
+      } catch (GmailRateLimitException exception) {
+        gmailQuotaManager.penalize(account, 1, exception.retryAfter());
+        throw new ServiceUnavailableException(
+            "Gmail is temporarily busy. Read-state changes will be retried shortly.");
+      }
     }
   }
 
