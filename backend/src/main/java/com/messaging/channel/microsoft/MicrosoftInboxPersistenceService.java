@@ -8,6 +8,7 @@ import com.messaging.channel.microsoft.MicrosoftApiClient.*;
 import com.messaging.inbox.entity.*;
 import com.messaging.inbox.enums.*;
 import com.messaging.inbox.repository.*;
+import com.messaging.inbox.service.InboxMessagePostProcessor;
 import com.messaging.storage.enums.StorageUsageType;
 import com.messaging.storage.service.MessageStorageMeter;
 import com.messaging.storage.service.StorageAccountingService;
