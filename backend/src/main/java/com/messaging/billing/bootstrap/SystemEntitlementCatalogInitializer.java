@@ -6,11 +6,13 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@Order(10)
 public class SystemEntitlementCatalogInitializer implements ApplicationRunner {
 
   private static final List<Definition> DEFINITIONS =
@@ -62,6 +64,10 @@ public class SystemEntitlementCatalogInitializer implements ApplicationRunner {
 
   @Override
   public void run(ApplicationArguments args) {
+    ensureCatalog();
+  }
+
+  public void ensureCatalog() {
     int restored = 0;
     for (Definition definition : DEFINITIONS) {
       restored +=
