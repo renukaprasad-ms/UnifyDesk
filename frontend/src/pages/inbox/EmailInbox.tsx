@@ -386,8 +386,9 @@ export default function EmailInbox() {
         const snapshot = await inboxApi.realtimeSnapshot(companyId, {
           connectionId: selectedConnectionId,
           folder: selectedFolder,
+          detailConversationId: selectedConversationId,
           conversationIds,
-          messageIds,
+          messageIds: selectedConversationId ? messageIds : [],
         })
         dispatch(applyRealtimeSnapshot({ connectionId: selectedConnectionId, snapshot }))
       } catch (requestError) {
@@ -427,6 +428,7 @@ export default function EmailInbox() {
     dispatch,
     refreshInbox,
     selectedConnectionId,
+    selectedConversationId,
     selectedFolder,
   ])
 
