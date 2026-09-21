@@ -1,5 +1,6 @@
 package com.messaging.broadcast.service;
 
+import com.messaging.broadcast.config.BroadcastProperties;
 import com.messaging.broadcast.entity.BroadcastMessage;
 import com.messaging.broadcast.enums.BroadcastMessageStatus;
 import com.messaging.broadcast.repository.BroadcastMessageRepository;
@@ -14,11 +15,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class BroadcastScheduleService {
 
   private final BroadcastMessageRepository messageRepository;
+  private final BroadcastProperties properties;
 
   @Transactional
   public List<DueBroadcast> claimDue(int limit) {
+    Instant now = Instant.now();
+    messageRepository.recoverStaleScheduledClaims(
+        now.minus(properties.getScheduleClaimStaleAfter()), now);
     List<BroadcastMessage> due =
-        messageRepository.findDueForUpdate(Instant.now(), Math.max(1, limit));
+        messageRepository.findDueForUpdate(now, Math.max(1, limit));
     for (BroadcastMessage message : due) {
       message.setStatus(BroadcastMessageStatus.QUEUED);
     }

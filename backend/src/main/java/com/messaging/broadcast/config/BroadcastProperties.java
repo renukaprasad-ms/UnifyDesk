@@ -20,6 +20,7 @@ public class BroadcastProperties {
   private Duration retryInitialBackoff = Duration.ofSeconds(2);
   private Duration retryMaxBackoff = Duration.ofMinutes(5);
   private Duration staleClaimAfter = Duration.ofMinutes(5);
+  private Duration scheduleClaimStaleAfter = Duration.ofMinutes(2);
   private int outboxBatchSize = 50;
   private int outboxPollIntervalMs = 250;
   private Duration outboxStaleAfter = Duration.ofMinutes(2);

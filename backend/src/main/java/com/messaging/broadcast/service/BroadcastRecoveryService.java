@@ -17,6 +17,7 @@ public class BroadcastRecoveryService {
   private final BroadcastRecipientRepository recipientRepository;
   private final BroadcastDeliveryAttemptRepository attemptRepository;
   private final BroadcastBatchRepository batchRepository;
+  private final BroadcastRunRepository runRepository;
   private final BroadcastStatsService statsService;
   private final BroadcastProperties properties;
 
@@ -28,6 +29,7 @@ public class BroadcastRecoveryService {
     List<BroadcastRecipient> recipients =
         recipientRepository.findStaleForUpdate(staleBefore, 500);
     for (BroadcastRecipient recipient : recipients) {
+      BroadcastRun run = runRepository.findById(recipient.getRunId()).orElse(null);
       BroadcastDeliveryAttempt latest =
           attemptRepository
               .findFirstByRecipientIdOrderByAttemptNoDesc(recipient.getId())
@@ -46,6 +48,15 @@ public class BroadcastRecoveryService {
             recipient.getRunId(),
             BroadcastRecipientStatus.PROCESSING,
             BroadcastRecipientStatus.UNKNOWN);
+      } else if (run != null && run.getStatus() == BroadcastRunStatus.CANCELLED) {
+        recipient.setStatus(BroadcastRecipientStatus.SKIPPED);
+        recipient.setFailureCode("CANCELLED");
+        recipient.setFailureReason("Broadcast cancelled before provider delivery began");
+        recipient.setNextAttemptAt(null);
+        statsService.transition(
+            recipient.getRunId(),
+            BroadcastRecipientStatus.PROCESSING,
+            BroadcastRecipientStatus.SKIPPED);
       } else {
         recipient.setStatus(BroadcastRecipientStatus.RETRY);
         recipient.setNextAttemptAt(now);
@@ -60,10 +71,17 @@ public class BroadcastRecoveryService {
 
     List<BroadcastBatch> batches = batchRepository.findStaleForUpdate(staleBefore, 100);
     for (BroadcastBatch batch : batches) {
-      batch.setStatus(BroadcastBatchStatus.RETRY);
+      BroadcastRun run = runRepository.findById(batch.getRunId()).orElse(null);
+      if (run != null && run.getStatus() == BroadcastRunStatus.CANCELLED) {
+        batch.setStatus(BroadcastBatchStatus.CANCELLED);
+        batch.setNextAttemptAt(null);
+        batch.setLastError("Broadcast was cancelled");
+      } else {
+        batch.setStatus(BroadcastBatchStatus.RETRY);
+        batch.setNextAttemptAt(now);
+        batch.setLastError("Recovered stale worker claim");
+      }
       batch.setClaimedAt(null);
-      batch.setNextAttemptAt(now);
-      batch.setLastError("Recovered stale worker claim");
     }
     batchRepository.saveAll(batches);
   }

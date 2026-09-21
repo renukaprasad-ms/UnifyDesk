@@ -25,6 +25,7 @@ public class BroadcastBatchProcessor {
   private final BroadcastDeliveryStateService deliveryStateService;
   private final BroadcastDeliveryService deliveryService;
   private final BroadcastBatchFinalizerService finalizerService;
+  private final BroadcastRunFailureService failureService;
   private final BroadcastProgressPublisher progressPublisher;
   private final BroadcastProperties properties;
 
@@ -46,10 +47,15 @@ public class BroadcastBatchProcessor {
     ChannelConnection connection =
         connectionRepository
             .findByIdAndCompanyId(run.getConnectionId(), run.getCompanyId())
-            .orElseThrow(() -> new NotFoundException("Broadcast email connection not found"));
-    if (connection.getChannelType() != ChannelType.EMAIL
+            .orElse(null);
+    if (connection == null
+        || connection.getChannelType() != ChannelType.EMAIL
         || connection.getStatus() != ChannelConnectionStatus.ACTIVE) {
-      throw new IllegalStateException("Broadcast email connection is not active");
+      failureService.fail(
+          run.getId(),
+          "SENDER_UNAVAILABLE",
+          "Broadcast sender connection is missing or no longer active");
+      return;
     }
 
     int claimSize = Math.max(1, properties.getRecipientClaimSize());
