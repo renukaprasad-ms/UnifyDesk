@@ -1,6 +1,6 @@
 package com.messaging.delivery.entity;
 
-import com.messaging.broadcast.enums.BroadcastBounceType;
+import com.messaging.delivery.enums.EmailBounceType;
 import com.messaging.common.id.IdGenerator;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -45,7 +45,7 @@ public class EmailDeliveryReport {
 
   @Enumerated(EnumType.STRING)
   @Column(name = "bounce_type", nullable = false, length = 24)
-  private BroadcastBounceType bounceType;
+  private EmailBounceType bounceType;
 
   @Column(name = "detected_at", nullable = false)
   private Instant detectedAt;

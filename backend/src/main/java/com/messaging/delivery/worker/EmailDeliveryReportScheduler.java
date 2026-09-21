@@ -14,7 +14,7 @@ public class EmailDeliveryReportScheduler {
   private final EmailDeliveryReportClaimService claimService;
   private final EmailDeliveryReportReconciliationService reconciliationService;
 
-  @Scheduled(fixedDelayString = "${app.broadcast.delivery-report-poll-interval-ms:5000}")
+  @Scheduled(fixedDelayString = "${app.delivery.email.poll-interval-ms:5000}")
   public void process() {
     for (Long reportId : claimService.claim()) {
       try {

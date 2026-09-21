@@ -1,6 +1,6 @@
 package com.messaging.delivery.model;
 
-import com.messaging.broadcast.enums.BroadcastBounceType;
+import com.messaging.delivery.enums.EmailBounceType;
 
 public record DetectedDeliveryReport(
     String failedRecipient,
@@ -9,4 +9,4 @@ public record DetectedDeliveryReport(
     String providerCorrelationId,
     String statusCode,
     String diagnosticMessage,
-    BroadcastBounceType bounceType) {}
+    EmailBounceType bounceType) {}

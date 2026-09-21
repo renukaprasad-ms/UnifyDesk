@@ -1,12 +1,12 @@
 package com.messaging.delivery.service;
 
-import com.messaging.broadcast.config.BroadcastProperties;
-import com.messaging.broadcast.dto.BroadcastStatsResponse;
 import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.enums.*;
 import com.messaging.broadcast.repository.*;
 import com.messaging.broadcast.service.*;
+import com.messaging.delivery.config.EmailDeliveryProperties;
 import com.messaging.delivery.entity.EmailDeliveryReport;
+import com.messaging.delivery.enums.EmailBounceType;
 import com.messaging.delivery.repository.EmailDeliveryReportRepository;
 import java.time.Duration;
 import java.time.Instant;
@@ -28,7 +28,7 @@ public class EmailDeliveryReportReconciliationService {
   private final BroadcastStatsService statsService;
   private final BroadcastSuppressionService suppressionService;
   private final BroadcastProgressPublisher progressPublisher;
-  private final BroadcastProperties properties;
+  private final EmailDeliveryProperties properties;
 
   @Transactional
   public void reconcile(Long reportId) {
@@ -63,7 +63,7 @@ public class EmailDeliveryReportReconciliationService {
       statsService.transition(
           locked.getRunId(), previous, BroadcastRecipientStatus.BOUNCED);
 
-      if (report.getBounceType() == BroadcastBounceType.HARD) {
+      if (report.getBounceType() == EmailBounceType.HARD) {
         suppressionService.suppressHardBounce(
             locked.getCompanyId(), locked.getNormalizedDestination(), locked.getId());
       }

@@ -29,6 +29,16 @@ public class BroadcastLaunchService {
 
   @Transactional
   public BroadcastRun launch(Long companyId, Long broadcastId) {
+    return launchInternal(companyId, broadcastId, false);
+  }
+
+  @Transactional
+  public BroadcastRun launchClaimed(Long companyId, Long broadcastId) {
+    return launchInternal(companyId, broadcastId, true);
+  }
+
+  private BroadcastRun launchInternal(
+      Long companyId, Long broadcastId, boolean allowClaimed) {
     BroadcastMessage message =
         messageRepository
             .findByIdAndCompanyId(broadcastId, companyId)
@@ -37,7 +47,9 @@ public class BroadcastLaunchService {
     BroadcastRun existing = runRepository.findByBroadcastMessageId(broadcastId).orElse(null);
     if (existing != null) return existing;
 
-    stateMachine.requireSendable(message.getStatus());
+    if (!(allowClaimed && message.getStatus() == BroadcastMessageStatus.QUEUED)) {
+      stateMachine.requireSendable(message.getStatus());
+    }
     BroadcastGroup group =
         groupRepository
             .findByIdAndCompanyId(message.getGroupId(), companyId)
@@ -84,8 +96,4 @@ public class BroadcastLaunchService {
     return run;
   }
 
-  @Transactional
-  public BroadcastRun launchScheduled(BroadcastMessage message) {
-    return launch(message.getCompanyId(), message.getId());
-  }
 }

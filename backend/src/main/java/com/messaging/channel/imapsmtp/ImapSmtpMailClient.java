@@ -548,6 +548,10 @@ public class ImapSmtpMailClient {
   }
 
   private Body extractBody(Part part) throws Exception {
+    if (part.isMimeType("message/delivery-status")) {
+      Object content = part.getContent();
+      return new Body(limit(content == null ? null : content.toString()), null);
+    }
     if (part.isMimeType("text/plain")) {
       Object content = part.getContent();
       return new Body(limit(content == null ? null : content.toString()), null);

@@ -1,6 +1,6 @@
 package com.messaging.delivery.service;
 
-import com.messaging.broadcast.config.BroadcastProperties;
+import com.messaging.delivery.config.EmailDeliveryProperties;
 import com.messaging.delivery.entity.EmailDeliveryReport;
 import com.messaging.delivery.repository.EmailDeliveryReportRepository;
 import java.time.Instant;
@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class EmailDeliveryReportClaimService {
 
   private final EmailDeliveryReportRepository repository;
-  private final BroadcastProperties properties;
+  private final EmailDeliveryProperties properties;
 
   @Transactional
   public List<Long> claim() {

@@ -1,6 +1,6 @@
 package com.messaging.delivery.service;
 
-import com.messaging.broadcast.enums.BroadcastBounceType;
+import com.messaging.delivery.enums.EmailBounceType;
 import com.messaging.delivery.model.DetectedDeliveryReport;
 import com.messaging.inbox.entity.InboxMessage;
 import com.messaging.inbox.enums.InboxMessageDirection;
@@ -38,10 +38,10 @@ public class EmailDeliveryReportParser {
     String body = combine(message.getBodyText(), message.getSnippet());
     String searchable = subject + "\n" + body;
 
-    String failedRecipient = match(RECIPIENT, searchable);
+    String failedRecipient = firstNonBlank(match(RECIPIENT, searchable), match(FALLBACK_RECIPIENT, searchable));
     String originalMessageId = trim(match(ORIGINAL_MESSAGE_ID, searchable));
     String correlationId = trim(match(CORRELATION, searchable));
-    String status = trim(match(STATUS, searchable));
+    String status = firstNonBlank(trim(match(STATUS, searchable)), trim(match(FALLBACK_STATUS, searchable)));
     String diagnostic = trim(match(DIAGNOSTIC, searchable));
 
     boolean machineDsn =
@@ -70,14 +70,14 @@ public class EmailDeliveryReportParser {
     }
 
     String normalized = normalizeEmail(failedRecipient);
-    BroadcastBounceType type =
+    EmailBounceType type =
         status == null
-            ? BroadcastBounceType.UNKNOWN
+            ? EmailBounceType.UNKNOWN
             : status.startsWith("5.")
-                ? BroadcastBounceType.HARD
+                ? EmailBounceType.HARD
                 : status.startsWith("4.")
-                    ? BroadcastBounceType.SOFT
-                    : BroadcastBounceType.UNKNOWN;
+                    ? EmailBounceType.SOFT
+                    : EmailBounceType.UNKNOWN;
 
     return Optional.of(
         new DetectedDeliveryReport(
@@ -127,6 +127,10 @@ public class EmailDeliveryReportParser {
 
   private String value(String value) {
     return value == null ? "" : value;
+  }
+
+  private String firstNonBlank(String first, String second) {
+    return first != null && !first.isBlank() ? first : second;
   }
 
   private String trim(String value) {

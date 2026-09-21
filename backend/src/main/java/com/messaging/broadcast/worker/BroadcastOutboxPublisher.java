@@ -29,9 +29,11 @@ public class BroadcastOutboxPublisher {
       try {
         Object payload = payload(event);
         EventMetadata metadata =
-            EventMetadata.create(
+            new EventMetadata(
+                "broadcast-outbox:" + event.id(),
                 event.eventType(),
                 "1",
+                java.time.Instant.now(),
                 event.companyId(),
                 null,
                 event.aggregateId().toString(),

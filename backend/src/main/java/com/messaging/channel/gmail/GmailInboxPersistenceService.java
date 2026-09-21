@@ -493,12 +493,14 @@ public class GmailInboxPersistenceService {
 
   private String bodyText(GmailPayload payload, String fallback) {
     String plain = findBody(payload, "text/plain");
-    if (hasText(plain) && !looksLikeHtml(plain)) {
-      return plain.trim();
-    }
-
-    String html = bodyHtml(payload);
-    return hasText(html) ? htmlToText(html) : fallback;
+    String text =
+        hasText(plain) && !looksLikeHtml(plain)
+            ? plain.trim()
+            : hasText(bodyHtml(payload)) ? htmlToText(bodyHtml(payload)) : fallback;
+    String deliveryStatus = findBody(payload, "message/delivery-status");
+    if (!hasText(deliveryStatus)) return text;
+    if (!hasText(text)) return deliveryStatus.trim();
+    return text + "\n\n" + deliveryStatus.trim();
   }
 
   private String bodyHtml(GmailPayload payload) {

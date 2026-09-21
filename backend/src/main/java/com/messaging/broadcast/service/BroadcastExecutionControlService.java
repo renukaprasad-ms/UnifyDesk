@@ -33,7 +33,7 @@ public class BroadcastExecutionControlService {
     BroadcastMessage message = messageRepository.findById(broadcastId).orElseThrow();
     message.setStatus(BroadcastMessageStatus.PAUSED);
     messageRepository.save(message);
-    progressPublisher.publish(run.getId(), true);
+    afterCommit(() -> progressPublisher.publish(run.getId(), true));
     return messageService.get(companyId, broadcastId);
   }
 
@@ -46,7 +46,7 @@ public class BroadcastExecutionControlService {
     BroadcastMessage message = messageRepository.findById(broadcastId).orElseThrow();
     message.setStatus(BroadcastMessageStatus.RUNNING);
     messageRepository.save(message);
-    progressPublisher.publish(run.getId(), true);
+    afterCommit(() -> progressPublisher.publish(run.getId(), true));
     return messageService.get(companyId, broadcastId);
   }
 
@@ -108,8 +108,24 @@ public class BroadcastExecutionControlService {
         Timestamp.from(Instant.now()),
         run.getId());
 
-    progressPublisher.publish(run.getId(), true);
+    afterCommit(() -> progressPublisher.publish(run.getId(), true));
     return messageService.get(companyId, broadcastId);
+  }
+
+  private void afterCommit(Runnable action) {
+    if (!org.springframework.transaction.support.TransactionSynchronizationManager
+        .isSynchronizationActive()) {
+      action.run();
+      return;
+    }
+    org.springframework.transaction.support.TransactionSynchronizationManager
+        .registerSynchronization(
+            new org.springframework.transaction.support.TransactionSynchronization() {
+              @Override
+              public void afterCommit() {
+                action.run();
+              }
+            });
   }
 
   private BroadcastRun requireRun(Long companyId, Long broadcastId) {
