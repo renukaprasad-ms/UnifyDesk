@@ -16,7 +16,7 @@ import com.messaging.channel.gmail.GmailOAuthStateService.OAuthState;
 import com.messaging.channel.gmail.dto.GmailAuthorizationResponse;
 import com.messaging.channel.gmail.dto.GmailConnectionResponse;
 import com.messaging.channel.repository.ChannelConnectionRepository;
-import com.messaging.channel.service.ChannelConnectionService;
+import com.messaging.channel.service.ChannelConnectionLifecycleService;
 import com.messaging.channel.service.ChannelEntitlementService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.company.iam.CompanyPermissionKeys;
@@ -42,7 +42,7 @@ class GmailConnectionServiceTests {
   @Mock private ChannelConnectionRepository connectionRepository;
   @Mock private ChannelEntitlementService entitlementService;
   @Mock private CompanyAuthorizationService authorizationService;
-  @Mock private ChannelConnectionService channelConnectionService;
+  @Mock private ChannelConnectionLifecycleService lifecycleService;
 
   private GmailConnectionService service;
 
@@ -65,7 +65,7 @@ class GmailConnectionServiceTests {
             connectionRepository,
             entitlementService,
             authorizationService,
-            channelConnectionService);
+            lifecycleService);
   }
 
   @Test
