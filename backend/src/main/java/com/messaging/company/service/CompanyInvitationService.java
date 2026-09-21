@@ -257,6 +257,10 @@ public class CompanyInvitationService {
           roleRepository
               .findByIdAndCompanyIdAndDeletedAtIsNull(roleId, companyId)
               .orElseThrow(() -> new NotFoundException("Company role not found"));
+      if (role.isSystemRole()) {
+        throw new BadRequestException(
+            "System roles are managed by company membership and cannot be assigned manually");
+      }
       roles.add(role);
     }
     validateExistingRoles(actorId, companyId, roles);
@@ -265,6 +269,10 @@ public class CompanyInvitationService {
 
   private void validateExistingRoles(Long actorId, Long companyId, Set<CompanyCustomRole> roles) {
     if (roles.isEmpty()) return;
+    if (roles.stream().anyMatch(CompanyCustomRole::isSystemRole)) {
+      throw new BadRequestException(
+          "System roles are managed by company membership and cannot be assigned manually");
+    }
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_READ);
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_ASSIGN);
 
