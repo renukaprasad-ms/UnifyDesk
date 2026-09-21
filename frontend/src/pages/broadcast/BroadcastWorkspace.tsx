@@ -90,6 +90,16 @@ const recipientStatusLabel = (status: BroadcastRecipientStatus) => {
     .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
+const providerLabel = (providerType: string) => {
+  if (providerType === 'GMAIL') return 'Gmail'
+  if (providerType === 'MICROSOFT') return 'Microsoft'
+  if (providerType === 'IMAP_SMTP' || providerType === 'SMTP') return 'IMAP / SMTP'
+  return providerType.replaceAll('_', ' ')
+}
+
+const senderLabel = (connection?: ChannelConnection | null) =>
+  connection?.externalAccountId || connection?.name || 'Unknown sender'
+
 const formatDate = (value?: string | null) => {
   if (!value) return '—'
   const date = new Date(value)
@@ -173,6 +183,11 @@ export default function BroadcastWorkspace() {
       connections.filter(
         (connection) => connection.channelType === 'EMAIL' && connection.status === 'ACTIVE',
       ),
+    [connections],
+  )
+
+  const connectionsById = useMemo(
+    () => new Map(connections.map((connection) => [connection.id, connection])),
     [connections],
   )
 
@@ -850,6 +865,11 @@ export default function BroadcastWorkspace() {
           ) : selectedBroadcastId ? (
             <BroadcastDetail
               message={selectedMessage}
+              sender={
+                selectedMessage
+                  ? connectionsById.get(selectedMessage.connectionId) ?? null
+                  : null
+              }
               loading={detailLoading}
               recipients={recipients}
               recipientsLoading={recipientsLoading}
@@ -930,6 +950,7 @@ export default function BroadcastWorkspace() {
                         <BroadcastHistoryCard
                           key={message.id}
                           message={message}
+                          sender={connectionsById.get(message.connectionId) ?? null}
                           canModify={can(PERMISSIONS.BROADCAST_MODIFY)}
                           onOpen={() => updateSearch({ broadcastId: message.id })}
                           onEdit={() => openComposer(message.id)}
@@ -1239,22 +1260,65 @@ export default function BroadcastWorkspace() {
               </div>
             ) : (
               <>
-                <label className="mt-5 block text-xs font-semibold text-slate-700">
-                  Sender
-                  <select
-                    className="form-input mt-2"
-                    value={composeConnectionId}
-                    onChange={(event) => setComposeConnectionId(event.target.value)}
-                  >
-                    <option value="">Choose sender</option>
-                    {activeConnections.map((connection) => (
-                      <option key={connection.id} value={connection.id}>
-                        {connection.externalAccountId || connection.name} ·{' '}
-                        {connection.providerType.replaceAll('_', ' ')}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="mt-5">
+                  <div className="flex items-end justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-700">Send from</p>
+                      <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                        Choose which connected mailbox will send this broadcast.
+                      </p>
+                    </div>
+                    <span className="text-[11px] text-slate-400">
+                      {activeConnections.length} connected
+                    </span>
+                  </div>
+                  <div className="mt-2 grid max-h-48 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+                    {activeConnections.map((connection) => {
+                      const selected = composeConnectionId === connection.id
+                      return (
+                        <button
+                          key={connection.id}
+                          type="button"
+                          className={`flex min-w-0 items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${
+                            selected
+                              ? 'border-indigo-300 bg-indigo-50 ring-1 ring-indigo-100'
+                              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                          }`}
+                          onClick={() => setComposeConnectionId(connection.id)}
+                          aria-pressed={selected}
+                        >
+                          <span
+                            className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
+                              selected
+                                ? 'bg-indigo-100 text-indigo-600'
+                                : 'bg-slate-100 text-slate-500'
+                            }`}
+                          >
+                            <FiMail aria-hidden="true" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-xs font-bold text-slate-900">
+                              {senderLabel(connection)}
+                            </span>
+                            <span className="mt-0.5 block truncate text-[11px] text-slate-500">
+                              {providerLabel(connection.providerType)}
+                              {connection.name &&
+                              connection.name !== connection.externalAccountId
+                                ? ` · ${connection.name}`
+                                : ''}
+                            </span>
+                          </span>
+                          {selected && (
+                            <FiCheckCircle
+                              className="shrink-0 text-indigo-600"
+                              aria-label="Selected sender"
+                            />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
 
                 <label className="mt-4 block text-xs font-semibold text-slate-700">
                   Subject
@@ -1340,11 +1404,13 @@ export default function BroadcastWorkspace() {
 
 function BroadcastHistoryCard({
   message,
+  sender,
   canModify,
   onOpen,
   onEdit,
 }: {
   message: BroadcastMessageSummary
+  sender: ChannelConnection | null
   canModify: boolean
   onOpen: () => void
   onEdit: () => void
@@ -1377,6 +1443,9 @@ function BroadcastHistoryCard({
             {message.bodyPreview || 'No message preview'}
           </p>
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
+            <span>
+              From {senderLabel(sender)} · {sender ? providerLabel(sender.providerType) : 'Unknown provider'}
+            </span>
             <span>{formatDate(message.scheduledAt || message.createdAt)}</span>
             {message.stats.total > 0 && (
               <>
@@ -1412,6 +1481,7 @@ function BroadcastHistoryCard({
 
 function BroadcastDetail({
   message,
+  sender,
   loading,
   recipients,
   recipientsLoading,
@@ -1424,6 +1494,7 @@ function BroadcastDetail({
   onRecipientsPage,
 }: {
   message: BroadcastMessage | null
+  sender: ChannelConnection | null
   loading: boolean
   recipients: Page<BroadcastRecipient>
   recipientsLoading: boolean
