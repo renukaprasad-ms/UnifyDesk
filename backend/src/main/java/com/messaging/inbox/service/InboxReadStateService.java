@@ -92,7 +92,7 @@ public class InboxReadStateService {
     var applied =
         persistenceService.apply(
             candidates.stream().map(InboxMessage::getId).toList(), read);
-    publishChange(connection, applied.changedMessages(), read);
+    publishChange(connection, applied);
     return new InboxReadStateResponse(
         read, applied.changedMessages(), applied.conversationIds().size());
   }
