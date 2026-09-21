@@ -52,16 +52,17 @@ public interface BroadcastRecipientRepository extends JpaRepository<BroadcastRec
 
   long countByRunIdAndStatusIn(Long runId, Collection<BroadcastRecipientStatus> statuses);
 
-  Optional<BroadcastRecipient> findFirstByInternetMessageId(String internetMessageId);
+  Optional<BroadcastRecipient> findFirstByConnectionIdAndInternetMessageId(
+      Long connectionId, String internetMessageId);
 
   Optional<BroadcastRecipient> findByProviderCorrelationId(String providerCorrelationId);
 
   List<BroadcastRecipient>
-      findTop2ByConnectionIdAndNormalizedDestinationAndStatusInAndAcceptedAtAfterOrderByAcceptedAtDesc(
+      findTop2ByConnectionIdAndNormalizedDestinationAndStatusInAndCreatedAtAfterOrderByUpdatedAtDesc(
           Long connectionId,
           String normalizedDestination,
           Collection<BroadcastRecipientStatus> statuses,
-          Instant acceptedAfter);
+          Instant createdAfter);
 
   @Query(
       """

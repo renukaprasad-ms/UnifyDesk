@@ -34,6 +34,9 @@ public class EmailDeliveryReport {
   @Column(name = "original_message_id", length = 998)
   private String originalMessageId;
 
+  @Column(name = "provider_correlation_id", length = 128)
+  private String providerCorrelationId;
+
   @Column(name = "status_code", length = 32)
   private String statusCode;
 
@@ -49,6 +52,18 @@ public class EmailDeliveryReport {
 
   @Column(name = "processed_at")
   private Instant processedAt;
+
+  @Column(name = "attempt_count", nullable = false)
+  private int attemptCount;
+
+  @Column(name = "next_attempt_at")
+  private Instant nextAttemptAt;
+
+  @Column(name = "claimed_at")
+  private Instant claimedAt;
+
+  @Column(name = "last_error", length = 1000)
+  private String lastError;
 
   @PrePersist
   void beforeInsert() {

@@ -28,4 +28,11 @@ public class BroadcastProperties {
   private int gmailPerSecond = 5;
   private int microsoftPerSecond = 5;
   private int imapSmtpPerSecond = 5;
+  private int deliveryReportClaimSize = 100;
+  private int deliveryReportPollIntervalMs = 5000;
+  private int deliveryReportMaxAttempts = 12;
+  private Duration deliveryReportRetryInitialBackoff = Duration.ofSeconds(30);
+  private Duration deliveryReportRetryMaxBackoff = Duration.ofMinutes(10);
+  private Duration deliveryReportStaleAfter = Duration.ofMinutes(5);
+  private Duration deliveryReportMatchLookback = Duration.ofDays(14);
 }
