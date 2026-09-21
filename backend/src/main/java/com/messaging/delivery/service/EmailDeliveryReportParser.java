@@ -16,15 +16,15 @@ public class EmailDeliveryReportParser {
 
   private static final Pattern RECIPIENT =
       Pattern.compile(
-          "(?im)^(?:Final-Recipient|Original-Recipient)\s*:\s*(?:rfc822\s*;\s*)?([^\s;<>]+@[^\s;<>]+)");
+          "(?im)^(?:Final-Recipient|Original-Recipient)\\s*:\\s*(?:rfc822\\s*;\\s*)?([^\\s;<>]+@[^\\s;<>]+)");
   private static final Pattern ORIGINAL_MESSAGE_ID =
       Pattern.compile(
-          "(?im)^(?:Original-Message-ID|X-Original-Message-ID)\s*:\s*(<[^>\r\n]+>|[^\r\n]+)");
+          "(?im)^(?:Original-Message-ID|X-Original-Message-ID)\\s*:\\s*(<[^>\\r\\n]+>|[^\\r\\n]+)");
   private static final Pattern CORRELATION =
       Pattern.compile(
-          "(?im)^X-Messaging-Broadcast-Recipient\s*:\s*([A-Za-z0-9._-]{8,128})");
+          "(?im)^X-Messaging-Broadcast-Recipient\\s*:\\s*([A-Za-z0-9._-]{8,128})");
   private static final Pattern STATUS =
-      Pattern.compile("(?im)^Status\s*:\s*([245]\.\d{1,3}\.\d{1,3})");
+      Pattern.compile("(?im)^Status\\s*:\\s*([245]\\.\\d{1,3}\\.\\d{1,3})");
   private static final Pattern DIAGNOSTIC =
       Pattern.compile("(?im)^Diagnostic-Code\\s*:\\s*([^\\r\\n]{1,1000})");
   private static final Pattern FALLBACK_RECIPIENT =
