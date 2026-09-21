@@ -2,6 +2,7 @@ package com.messaging.channel.microsoft;
 
 import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.channel.dto.ChannelConnectionResponse;
+import com.messaging.channel.dto.DisconnectChannelRequest;
 import com.messaging.channel.email.EmailSyncRequest;
 import com.messaging.channel.microsoft.dto.MicrosoftAuthorizationResponse;
 import com.messaging.channel.microsoft.dto.MicrosoftSendRequest;
@@ -82,14 +83,20 @@ public class MicrosoftConnectionController {
 
   @PostMapping("/{connectionId}/disconnect")
   public ResponseEntity<ApiResponse<ChannelConnectionResponse>> disconnect(
-      @PathVariable Long companyId, @PathVariable Long connectionId) {
+      @PathVariable Long companyId,
+      @PathVariable Long connectionId,
+      @RequestBody(required = false) DisconnectChannelRequest request) {
     Long userId = currentUserService.currentUserId();
     authorizationService.requirePermission(
         userId, companyId, CompanyPermissionKeys.EMAIL_DISCONNECT);
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            connectionService.disconnect(companyId, connectionId),
+            connectionService.disconnect(
+                companyId,
+                connectionId,
+                userId,
+                request == null ? null : request.resolvedDataPolicy()),
             "Microsoft mailbox disconnected"));
   }
 }

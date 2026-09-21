@@ -9,6 +9,7 @@ import com.messaging.channel.dto.ChannelConnectionResponse;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.CredentialType;
+import com.messaging.channel.enums.DisconnectDataPolicy;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.gmail.GmailApiClient.GmailProfile;
 import com.messaging.channel.gmail.GmailApiClient.TokenResponse;
@@ -101,6 +102,8 @@ public class GmailConnectionService {
 
     GmailConnectionResponse response =
         persistenceService.persist(oauthState.companyId(), oauthState.userId(), profile, token);
+    channelConnectionService.cancelPendingPurge(
+        oauthState.companyId(), Long.valueOf(response.connectionId()));
 
     connectionRepository
         .findByIdAndCompanyId(Long.valueOf(response.connectionId()), oauthState.companyId())
@@ -151,7 +154,11 @@ public class GmailConnectionService {
     return syncQueueService.active(companyId, connectionId);
   }
 
-  public ChannelConnectionResponse disconnect(Long companyId, Long connectionId) {
+  public ChannelConnectionResponse disconnect(
+      Long companyId,
+      Long connectionId,
+      Long requestedByUserId,
+      DisconnectDataPolicy dataPolicy) {
     ChannelConnectionResponse connection = channelConnectionService.get(companyId, connectionId);
     if (connection.providerType() != ProviderType.GMAIL) {
       throw new BadRequestException("Channel connection is not a Gmail account");
@@ -177,7 +184,8 @@ public class GmailConnectionService {
       // Local disconnect must still succeed if the Google grant is already missing or invalid.
     }
 
-    return channelConnectionService.disconnect(companyId, connectionId);
+    return channelConnectionService.disconnect(
+        companyId, connectionId, requestedByUserId, dataPolicy);
   }
 
   public boolean configured() {
