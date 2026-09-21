@@ -1,6 +1,12 @@
 import apiClient from '../../lib/api/apiClient'
+import type { AsyncJob } from '../asyncJob/types'
 import type { ApiResponse } from '../../lib/api/types'
-import type { InboxConversation, InboxMessage, InboxPage } from './types'
+import type {
+  InboxConversation,
+  InboxMessage,
+  InboxPage,
+  InboxReadStateResponse,
+} from './types'
 
 const unwrap = <T>(response: ApiResponse<T>) => {
   if (!response.data) throw new Error(response.error_message ?? 'Empty API response')
@@ -32,6 +38,39 @@ export const inboxApi = {
   async messages(companyId: string, conversationId: string) {
     const response = await apiClient.get<ApiResponse<InboxMessage[]>>(
       `/api/v1/companies/${companyId}/inbox/conversations/${conversationId}/messages`,
+    )
+    return unwrap(response.data)
+  },
+
+  async setMessageReadState(companyId: string, messageId: string, read: boolean) {
+    const response = await apiClient.put<ApiResponse<InboxReadStateResponse>>(
+      `/api/v1/companies/${companyId}/inbox/messages/${messageId}/read-state`,
+      { read },
+    )
+    return unwrap(response.data)
+  },
+
+  async setConversationReadState(
+    companyId: string,
+    conversationId: string,
+    read: boolean,
+  ) {
+    const response = await apiClient.put<ApiResponse<InboxReadStateResponse>>(
+      `/api/v1/companies/${companyId}/inbox/conversations/${conversationId}/read-state`,
+      { read },
+    )
+    return unwrap(response.data)
+  },
+
+  async markAllRead(
+    companyId: string,
+    connectionId: string,
+    folder: 'INBOX' | 'SENT' = 'INBOX',
+  ) {
+    const response = await apiClient.post<ApiResponse<AsyncJob>>(
+      `/api/v1/companies/${companyId}/inbox/conversations/mark-all-read`,
+      null,
+      { params: { connectionId, folder } },
     )
     return unwrap(response.data)
   },
