@@ -11,10 +11,13 @@ import com.messaging.inbox.dto.InboxMessageResponse;
 import com.messaging.inbox.dto.InboxPageResponse;
 import com.messaging.inbox.dto.InboxReadStateRequest;
 import com.messaging.inbox.dto.InboxReadStateResponse;
+import com.messaging.inbox.dto.InboxRealtimeSnapshotRequest;
+import com.messaging.inbox.dto.InboxRealtimeSnapshotResponse;
 import com.messaging.inbox.service.InboxQueryService;
 import com.messaging.inbox.service.InboxReadStateQueueService;
 import com.messaging.inbox.service.InboxReadStateService;
 import com.messaging.security.service.CurrentUserService;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -123,6 +126,20 @@ public class InboxController {
         .body(
             ApiResponse.success(
                 HttpStatus.ACCEPTED.value(), job, "Mark all as read queued"));
+  }
+
+  @PostMapping("/realtime-snapshot")
+  public ResponseEntity<ApiResponse<InboxRealtimeSnapshotResponse>> realtimeSnapshot(
+      @PathVariable Long companyId,
+      @Valid @RequestBody InboxRealtimeSnapshotRequest request) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_READ);
+
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            inboxQueryService.realtimeSnapshot(companyId, request),
+            "Inbox realtime snapshot fetched"));
   }
 
   @GetMapping("/conversations/{conversationId}/messages")
