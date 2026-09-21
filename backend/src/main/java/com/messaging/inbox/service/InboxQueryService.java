@@ -5,6 +5,7 @@ import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.inbox.dto.InboxAttachmentResponse;
+import com.messaging.inbox.dto.InboxConversationDetailResponse;
 import com.messaging.inbox.dto.InboxConversationResponse;
 import com.messaging.inbox.dto.InboxMessageResponse;
 import com.messaging.inbox.dto.InboxPageResponse;
@@ -66,6 +67,18 @@ public class InboxQueryService {
   public InboxConversationResponse getConversation(Long companyId, Long conversationId) {
     InboxConversation conversation = requireVisibleConversation(companyId, conversationId);
     return conversations(List.of(conversation)).getFirst();
+  }
+
+  @Transactional(readOnly = true)
+  public InboxConversationDetailResponse getConversationDetail(
+      Long companyId, Long conversationId) {
+    InboxConversation conversation = requireVisibleConversation(companyId, conversationId);
+    List<InboxMessage> conversationMessages =
+        messageRepository.findByConversationIdAndStatusNotOrderBySentAtAscCreatedAtAsc(
+            conversation.getId(), InboxMessageStatus.DELETED);
+    return new InboxConversationDetailResponse(
+        conversations(List.of(conversation)).getFirst(),
+        messages(conversationMessages));
   }
 
   @Transactional(readOnly = true)
