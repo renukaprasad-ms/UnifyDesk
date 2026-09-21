@@ -11,10 +11,26 @@ public record InboxEmailChangedEvent(
     List<String> deletedMessageIds,
     boolean fullRefreshRequired) {
 
+  private static final int MAX_DELTA_IDS = 100;
+
   public InboxEmailChangedEvent {
     conversationIds = immutable(conversationIds);
     messageIds = immutable(messageIds);
     deletedMessageIds = immutable(deletedMessageIds);
+  }
+
+  public static InboxEmailChangedEvent boundedDelta(
+      Long connectionId,
+      ProviderType provider,
+      java.util.Collection<Long> conversationIds,
+      java.util.Collection<Long> messageIds,
+      java.util.Collection<Long> deletedMessageIds) {
+    int totalIds =
+        size(conversationIds) + size(messageIds) + size(deletedMessageIds);
+    if (totalIds > MAX_DELTA_IDS) {
+      return fullRefresh(connectionId, provider);
+    }
+    return delta(connectionId, provider, conversationIds, messageIds, deletedMessageIds);
   }
 
   public static InboxEmailChangedEvent delta(
@@ -35,6 +51,10 @@ public record InboxEmailChangedEvent(
   public static InboxEmailChangedEvent fullRefresh(Long connectionId, ProviderType provider) {
     return new InboxEmailChangedEvent(
         connectionId.toString(), provider, List.of(), List.of(), List.of(), true);
+  }
+
+  private static int size(java.util.Collection<Long> values) {
+    return values == null ? 0 : values.size();
   }
 
   private static List<String> strings(java.util.Collection<Long> values) {
