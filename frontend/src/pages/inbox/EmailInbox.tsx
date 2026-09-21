@@ -18,7 +18,6 @@ import { gmailApi } from '../../features/channel/gmailApi'
 import { imapSmtpApi } from '../../features/channel/imapSmtpApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
 import type {
-  ChannelConnection,
   EmailFolder,
   EmailSyncMode,
   EmailSyncRequest,
@@ -148,7 +147,10 @@ export default function EmailInbox() {
     fullRefresh: false,
   })
 
-  const connections = inbox.connectionsCompanyId === companyId ? inbox.connections : []
+  const connections =
+    inbox.connectionsCompanyId === companyId
+      ? inbox.connections.filter((connection) => connection.status === 'ACTIVE')
+      : []
   const sameConversationScope =
     inbox.scopeCompanyId === companyId &&
     inbox.scopeConnectionId === selectedConnectionId &&
@@ -389,19 +391,33 @@ export default function EmailInbox() {
       }
     }
 
-    return realtimeClient.subscribe<InboxEmailChangedEvent>('inbox.email.changed', (event) => {
-      const change = event.payload
-      if (!change || change.connectionId !== selectedConnectionId) return
+    const unsubscribe = realtimeClient.subscribe<InboxEmailChangedEvent>(
+      'inbox.email.changed',
+      (event) => {
+        const change = event.payload
+        if (!change || change.connectionId !== selectedConnectionId) return
 
-      if (change.fullRefreshRequired) batch.fullRefresh = true
-      change.conversationIds?.forEach((id) => batch.conversationIds.add(id))
-      change.messageIds?.forEach((id) => batch.messageIds.add(id))
-      change.deletedMessageIds?.forEach((id) => batch.messageIds.add(id))
+        if (change.fullRefreshRequired) batch.fullRefresh = true
+        change.conversationIds?.forEach((id) => batch.conversationIds.add(id))
+        change.messageIds?.forEach((id) => batch.messageIds.add(id))
+        change.deletedMessageIds?.forEach((id) => batch.messageIds.add(id))
 
-      if (batch.timer === null) {
-        batch.timer = window.setTimeout(() => void flush(), 100)
+        if (batch.timer === null) {
+          batch.timer = window.setTimeout(() => void flush(), 100)
+        }
+      },
+    )
+
+    return () => {
+      unsubscribe()
+      if (batch.timer !== null) {
+        window.clearTimeout(batch.timer)
+        batch.timer = null
       }
-    })
+      batch.conversationIds.clear()
+      batch.messageIds.clear()
+      batch.fullRefresh = false
+    }
   }, [
     companyId,
     dispatch,
@@ -879,7 +895,7 @@ export default function EmailInbox() {
             <button
               type="button"
               className="secondary-button flex-1 gap-2 sm:flex-none"
-              onClick={() => void loadConversations(0, false)}
+              onClick={() => void refreshInbox(true)}
               disabled={loading || !selectedConnection}
             >
               <FiRefreshCw aria-hidden="true" />
