@@ -40,8 +40,9 @@ public class BroadcastRateLimiter {
   private final BroadcastProperties properties;
 
   public boolean tryAcquire(BroadcastSenderConnection connection) {
-    int rate = effectiveRate(connection);
+    double rate = effectiveRate(connection);
     if (rate <= 0) return false;
+    double capacity = Math.max(1.0, rate);
     String key =
         "messaging:broadcast:rate:"
             + connection.getProvider().name()
@@ -52,15 +53,14 @@ public class BroadcastRateLimiter {
             SCRIPT,
             List.of(key),
             Long.toString(System.currentTimeMillis()),
-            Integer.toString(rate),
-            Integer.toString(rate));
+            Double.toString(rate),
+            Double.toString(capacity));
     return Long.valueOf(1L).equals(allowed);
   }
 
-  int effectiveRate(BroadcastSenderConnection connection) {
+  double effectiveRate(BroadcastSenderConnection connection) {
     double providerRate =
-        connection.getMaxSendRate() == null ? 1.0 : Math.max(1.0, connection.getMaxSendRate());
-    int providerFloor = Math.max(1, (int) Math.floor(providerRate));
-    return Math.min(providerFloor, Math.max(1, properties.getSesMaxPerSecondCap()));
+        connection.getMaxSendRate() == null ? 1.0 : Math.max(0.0, connection.getMaxSendRate());
+    return Math.min(providerRate, Math.max(0.0, properties.getSesMaxPerSecondCap()));
   }
 }
