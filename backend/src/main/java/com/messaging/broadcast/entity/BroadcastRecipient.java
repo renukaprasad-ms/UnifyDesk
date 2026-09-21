@@ -40,9 +40,6 @@ public class BroadcastRecipient {
   @Column(name = "display_name", length = 255)
   private String displayName;
 
-  @Column(name = "metadata_json", columnDefinition = "text")
-  private String metadataJson;
-
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
   private BroadcastRecipientStatus status;

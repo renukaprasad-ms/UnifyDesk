@@ -5,9 +5,9 @@ import com.messaging.broadcast.entity.BroadcastRun;
 import com.messaging.broadcast.enums.BroadcastRunStatus;
 import com.messaging.broadcast.repository.BroadcastRunRepository;
 import com.messaging.realtime.service.RealtimeService;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -15,17 +15,19 @@ import org.springframework.stereotype.Service;
 public class BroadcastProgressPublisher {
 
   public static final String EVENT_TYPE = "broadcast.progress.changed";
-  private static final long MIN_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(1);
 
   private final BroadcastRunRepository runRepository;
   private final BroadcastStatsService statsService;
   private final RealtimeService realtimeService;
-  private final ConcurrentHashMap<Long, Long> lastPublished = new ConcurrentHashMap<>();
+  private final StringRedisTemplate redisTemplate;
 
   public void publish(Long runId, boolean force) {
-    long now = System.nanoTime();
-    Long previous = lastPublished.get(runId);
-    if (!force && previous != null && now - previous < MIN_INTERVAL_NANOS) return;
+    String throttleKey = "messaging:broadcast:progress:" + runId;
+    if (!force
+        && !Boolean.TRUE.equals(
+            redisTemplate.opsForValue().setIfAbsent(throttleKey, "1", Duration.ofSeconds(1)))) {
+      return;
+    }
 
     BroadcastRun run = runRepository.findById(runId).orElse(null);
     if (run == null) return;
@@ -48,8 +50,7 @@ public class BroadcastProgressPublisher {
             stats,
             progress));
 
-    if (force && isTerminal(run.getStatus())) lastPublished.remove(runId);
-    else lastPublished.put(runId, now);
+    if (force && isTerminal(run.getStatus())) redisTemplate.delete(throttleKey);
   }
 
   private boolean isTerminal(BroadcastRunStatus status) {

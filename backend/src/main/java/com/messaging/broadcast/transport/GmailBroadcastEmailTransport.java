@@ -64,7 +64,7 @@ public class GmailBroadcastEmailTransport implements BroadcastEmailTransport {
 
     try {
       GmailApiClient.SendMessageResponse response =
-          apiClient.sendMessage(accessToken, raw(account, command), null);
+          apiClient.sendMessageOnce(accessToken, raw(account, command), null);
       return new BroadcastEmailResult(
           response.id(), command.requestedInternetMessageId(), Instant.now());
     } catch (GmailRateLimitException exception) {

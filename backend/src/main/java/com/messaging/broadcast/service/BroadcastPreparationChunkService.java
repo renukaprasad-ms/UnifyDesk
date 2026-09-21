@@ -92,7 +92,6 @@ public class BroadcastPreparationChunkService {
       recipient.setDestination(member.getDestination());
       recipient.setNormalizedDestination(member.getNormalizedDestination());
       recipient.setDisplayName(member.getDisplayName());
-      recipient.setMetadataJson(member.getMetadataJson());
       String correlationId = UUID.randomUUID().toString();
       recipient.setProviderCorrelationId(correlationId);
       recipient.setInternetMessageId(
@@ -145,6 +144,22 @@ public class BroadcastPreparationChunkService {
     }
     runRepository.save(run);
     messageRepository.save(message);
-    progressPublisher.publish(run.getId(), true);
+    afterCommit(() -> progressPublisher.publish(run.getId(), true));
+  }
+
+  private void afterCommit(Runnable action) {
+    if (!org.springframework.transaction.support.TransactionSynchronizationManager
+        .isSynchronizationActive()) {
+      action.run();
+      return;
+    }
+    org.springframework.transaction.support.TransactionSynchronizationManager
+        .registerSynchronization(
+            new org.springframework.transaction.support.TransactionSynchronization() {
+              @Override
+              public void afterCommit() {
+                action.run();
+              }
+            });
   }
 }

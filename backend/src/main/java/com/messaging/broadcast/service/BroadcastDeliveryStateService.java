@@ -63,8 +63,10 @@ public class BroadcastDeliveryStateService {
   public void accepted(AttemptContext context, BroadcastEmailResult result) {
     BroadcastRecipient recipient = requireProcessing(context.recipientId());
     recipient.setStatus(BroadcastRecipientStatus.ACCEPTED_BY_PROVIDER);
-    recipient.setProviderMessageId(trim(result.providerMessageId()));
-    recipient.setInternetMessageId(trim(result.internetMessageId()));
+    String providerMessageId = trim(result.providerMessageId());
+    String internetMessageId = trim(result.internetMessageId());
+    if (providerMessageId != null) recipient.setProviderMessageId(providerMessageId);
+    if (internetMessageId != null) recipient.setInternetMessageId(internetMessageId);
     recipient.setAcceptedAt(result.acceptedAt() == null ? Instant.now() : result.acceptedAt());
     recipient.setClaimedAt(null);
     recipient.setFailureCode(null);

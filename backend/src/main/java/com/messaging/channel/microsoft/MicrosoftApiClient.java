@@ -302,6 +302,32 @@ public class MicrosoftApiClient {
                 .toBodilessEntity());
   }
 
+  /**
+   * Single-attempt send for non-idempotent bulk delivery. No automatic 5xx/429 retry occurs here.
+   */
+  public void sendMailOnce(String accessToken, SendMailRequest request) {
+    try {
+      graph
+          .post()
+          .uri("/v1.0/me/sendMail")
+          .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(request)
+          .retrieve()
+          .toBodilessEntity();
+    } catch (RestClientResponseException exception) {
+      int status = exception.getStatusCode().value();
+      if (status == 429) {
+        throw new TooManyRequestsException("Microsoft Graph rate limited the send");
+      }
+      if (status >= 500) {
+        throw new ServiceUnavailableException(
+            "Microsoft send outcome could not be confirmed", exception);
+      }
+      throw new BadRequestException("Microsoft Graph send failed with HTTP " + status);
+    }
+  }
+
 
   public void reply(String accessToken, String messageId, String comment, boolean replyAll) {
     String action = replyAll ? "replyAll" : "reply";

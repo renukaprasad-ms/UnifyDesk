@@ -53,11 +53,14 @@ public class MicrosoftBroadcastEmailTransport implements BroadcastEmailTransport
                     "x-messaging-broadcast-recipient", command.correlationId())));
 
     try {
-      apiClient.sendMail(accessToken, new MicrosoftApiClient.SendMailRequest(message, true));
+      apiClient.sendMailOnce(accessToken, new MicrosoftApiClient.SendMailRequest(message, true));
       return new BroadcastEmailResult(null, null, Instant.now());
     } catch (TooManyRequestsException exception) {
       throw BroadcastTransportException.retryable(
           "MICROSOFT_RATE_LIMIT", exception.getMessage(), exception);
+    } catch (ServiceUnavailableException exception) {
+      throw BroadcastTransportException.unknown(
+          "MICROSOFT_SEND_UNKNOWN", exception.getMessage(), exception);
     } catch (BadRequestException exception) {
       throw BroadcastTransportException.permanent(
           "MICROSOFT_REJECTED", exception.getMessage(), exception);

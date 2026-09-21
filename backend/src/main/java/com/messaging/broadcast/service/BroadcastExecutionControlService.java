@@ -52,6 +52,18 @@ public class BroadcastExecutionControlService {
 
   @Transactional
   public BroadcastMessageResponse cancel(Long companyId, Long broadcastId) {
+    BroadcastMessage existingMessage =
+        messageRepository
+            .findByIdAndCompanyId(broadcastId, companyId)
+            .orElseThrow(() -> new NotFoundException("Broadcast not found"));
+    BroadcastRun existingRun = runRepository.findByBroadcastMessageId(broadcastId).orElse(null);
+    if (existingRun == null && existingMessage.getStatus() == BroadcastMessageStatus.SCHEDULED) {
+      existingMessage.setStatus(BroadcastMessageStatus.CANCELLED);
+      existingMessage.setScheduledAt(null);
+      messageRepository.save(existingMessage);
+      return messageService.get(companyId, broadcastId);
+    }
+
     BroadcastRun run = requireRun(companyId, broadcastId);
     stateMachine.requireCancellable(run.getStatus());
     run.setStatus(BroadcastRunStatus.CANCELLED);
