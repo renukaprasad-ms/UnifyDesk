@@ -1,3 +1,3 @@
 package com.messaging.broadcast.event;
 
-public record BroadcastRunPrepareRequestedEvent(Long runId) {}
+public record BroadcastRunPrepareRequestedEvent(Long runId, Long expectedAfterMemberId) {}

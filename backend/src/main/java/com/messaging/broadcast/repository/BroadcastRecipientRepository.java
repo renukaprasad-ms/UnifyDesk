@@ -2,6 +2,7 @@ package com.messaging.broadcast.repository;
 
 import com.messaging.broadcast.entity.BroadcastRecipient;
 import com.messaging.broadcast.enums.BroadcastRecipientStatus;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -28,11 +29,32 @@ public interface BroadcastRecipientRepository extends JpaRepository<BroadcastRec
       @Param("now") Instant now,
       @Param("limit") int limit);
 
+  @Query(
+      value =
+          """
+          select *
+          from broadcast_recipients
+          where status = 'PROCESSING'
+            and claimed_at < :staleBefore
+          order by claimed_at asc
+          for update skip locked
+          limit :limit
+          """,
+      nativeQuery = true)
+  List<BroadcastRecipient> findStaleForUpdate(
+      @Param("staleBefore") Instant staleBefore, @Param("limit") int limit);
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("select recipient from BroadcastRecipient recipient where recipient.id = :id")
+  Optional<BroadcastRecipient> findByIdForUpdate(@Param("id") Long id);
+
   long countByBatchIdAndStatusIn(Long batchId, Collection<BroadcastRecipientStatus> statuses);
 
   long countByRunIdAndStatusIn(Long runId, Collection<BroadcastRecipientStatus> statuses);
 
   Optional<BroadcastRecipient> findFirstByInternetMessageId(String internetMessageId);
+
+  Optional<BroadcastRecipient> findByProviderCorrelationId(String providerCorrelationId);
 
   List<BroadcastRecipient>
       findTop2ByConnectionIdAndNormalizedDestinationAndStatusInAndAcceptedAtAfterOrderByAcceptedAtDesc(

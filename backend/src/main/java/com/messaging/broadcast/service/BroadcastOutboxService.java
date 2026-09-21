@@ -18,6 +18,10 @@ public class BroadcastOutboxService {
   private final ObjectMapper objectMapper;
 
   public void enqueueRunPrepare(Long companyId, Long runId) {
+    enqueueRunPrepare(companyId, runId, 0L);
+  }
+
+  public void enqueueRunPrepare(Long companyId, Long runId, Long expectedAfterMemberId) {
     BroadcastOutbox event = new BroadcastOutbox();
     event.setCompanyId(companyId);
     event.setAggregateType("BROADCAST_RUN");
@@ -25,7 +29,9 @@ public class BroadcastOutboxService {
     event.setEventType(RUN_PREPARE_EVENT);
     try {
       event.setPayloadJson(
-          objectMapper.writeValueAsString(new BroadcastRunPrepareRequestedEvent(runId)));
+          objectMapper.writeValueAsString(
+              new BroadcastRunPrepareRequestedEvent(
+                  runId, expectedAfterMemberId == null ? 0L : expectedAfterMemberId)));
     } catch (JsonProcessingException exception) {
       throw new IllegalStateException("Unable to serialize broadcast outbox event", exception);
     }

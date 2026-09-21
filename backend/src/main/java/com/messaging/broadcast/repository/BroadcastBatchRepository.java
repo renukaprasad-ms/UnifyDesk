@@ -26,6 +26,21 @@ public interface BroadcastBatchRepository extends JpaRepository<BroadcastBatch, 
   List<BroadcastBatch> findClaimableForUpdate(
       @Param("now") Instant now, @Param("limit") int limit);
 
+  @Query(
+      value =
+          """
+          select *
+          from broadcast_batches
+          where status = 'PROCESSING'
+            and claimed_at < :staleBefore
+          order by claimed_at asc
+          for update skip locked
+          limit :limit
+          """,
+      nativeQuery = true)
+  List<BroadcastBatch> findStaleForUpdate(
+      @Param("staleBefore") Instant staleBefore, @Param("limit") int limit);
+
   long countByRunIdAndStatusIn(Long runId, Collection<BroadcastBatchStatus> statuses);
 
   List<BroadcastBatch> findByRunIdAndStatusIn(
