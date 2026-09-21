@@ -3,6 +3,7 @@ import type { AsyncJob } from '../asyncJob/types'
 import type { ApiResponse } from '../../lib/api/types'
 import type {
   ChannelConnection,
+  DisconnectDataPolicy,
   EmailSyncQueued,
   EmailSyncRequest,
   MicrosoftAuthorization,
@@ -47,9 +48,14 @@ export const microsoftApi = {
     return unwrap(response.data)
   },
 
-  async disconnect(companyId: string, connectionId: string) {
+  async disconnect(
+    companyId: string,
+    connectionId: string,
+    dataPolicy: DisconnectDataPolicy = 'KEEP_7_DAYS',
+  ) {
     const response = await apiClient.post<ApiResponse<ChannelConnection>>(
       `/api/v1/companies/${companyId}/channels/email/microsoft/${connectionId}/disconnect`,
+      { dataPolicy },
     )
     return unwrap(response.data)
   },
