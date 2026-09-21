@@ -35,7 +35,7 @@ public interface InboxConversationRepository extends JpaRepository<InboxConversa
           from InboxMessage m
           where m.conversation.id = c.id
             and m.providerFolderKey = :folderKey
-            and m.status <> com.messaging.inbox.enums.InboxMessageStatus.DELETED
+            and m.status <> :excludedStatus
         )
       """)
   List<InboxConversation> findVisibleByIdsAndFolder(
@@ -43,7 +43,8 @@ public interface InboxConversationRepository extends JpaRepository<InboxConversa
       @Param("connectionId") Long connectionId,
       @Param("connectionStatus") ChannelConnectionStatus connectionStatus,
       @Param("conversationIds") Set<Long> conversationIds,
-      @Param("folderKey") String folderKey);
+      @Param("folderKey") String folderKey,
+      @Param("excludedStatus") com.messaging.inbox.enums.InboxMessageStatus excludedStatus);
 
   Page<InboxConversation> findByCompanyIdOrderByLastMessageAtDescCreatedAtDesc(
       Long companyId, Pageable pageable);
