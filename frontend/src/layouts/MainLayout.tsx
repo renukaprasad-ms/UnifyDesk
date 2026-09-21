@@ -23,6 +23,13 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
   const inboxMode = location.pathname.startsWith('/inbox/')
   const broadcastMode = location.pathname.startsWith('/broadcast/')
   const channelContextMode = inboxMode || broadcastMode
+  const selectedEmailFolder =
+    new URLSearchParams(location.search).get('folder') === 'SENT' ? 'Sent' : 'Inbox'
+  const channelContextLabel = inboxMode
+    ? selectedEmailFolder
+    : broadcastMode
+      ? 'Broadcast'
+      : undefined
   const compactNavigation = platform || channelContextMode
 
   useEffect(() => {
@@ -63,6 +70,24 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
     setMenuOpen(false)
     setContextOpen(false)
   }, [location.pathname])
+
+  useEffect(() => {
+    if (!menuOpen && !contextOpen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setMenuOpen(false)
+      setContextOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [contextOpen, menuOpen])
 
   return (
     <div className={`app-shell ${platform ? 'is-platform-shell' : ''}`}>
@@ -151,7 +176,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
           }}
           contextAvailable={!platform && channelContextMode}
           contextOpen={contextOpen}
-          contextLabel={inboxMode ? 'Inbox' : broadcastMode ? 'Broadcast' : undefined}
+          contextLabel={channelContextLabel}
           onToggleContext={() => {
             setMenuOpen(false)
             setContextOpen((open) => !open)
