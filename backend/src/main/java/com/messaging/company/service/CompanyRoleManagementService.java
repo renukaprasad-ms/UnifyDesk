@@ -58,9 +58,9 @@ public class CompanyRoleManagementService {
 
   @Transactional
   public List<PermissionDefinitionResponse> permissionCatalog(Long companyId) {
+    permissionCatalogService.ensureCatalog();
     Long actorId = currentUserService.currentUserId();
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_READ);
-    permissionCatalogService.ensureCatalog();
     return permissionDefinitionRepository.findAllByOrderByResourceAscActionAsc().stream()
         .map(this::toPermissionResponse)
         .toList();
@@ -100,6 +100,7 @@ public class CompanyRoleManagementService {
 
   @Transactional
   public List<CompanyRoleResponse> roles(Long companyId) {
+    permissionCatalogService.ensureCatalog();
     Long actorId = currentUserService.currentUserId();
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_READ);
     companySystemRoleService.ensureDefaults(companyId);
