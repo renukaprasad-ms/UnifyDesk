@@ -8,7 +8,7 @@ import com.messaging.channel.gmail.GmailOAuthStateService.OAuthState;
 import com.messaging.channel.gmail.dto.GmailAuthorizationResponse;
 import com.messaging.channel.gmail.dto.GmailConnectionResponse;
 import com.messaging.channel.repository.ChannelConnectionRepository;
-import com.messaging.channel.service.ChannelConnectionService;
+import com.messaging.channel.service.ChannelConnectionLifecycleService;
 import com.messaging.channel.service.ChannelEntitlementService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.company.iam.CompanyPermissionKeys;
@@ -30,7 +30,7 @@ public class GmailConnectionService {
   private final ChannelConnectionRepository connectionRepository;
   private final ChannelEntitlementService entitlementService;
   private final CompanyAuthorizationService authorizationService;
-  private final ChannelConnectionService channelConnectionService;
+  private final ChannelConnectionLifecycleService lifecycleService;
 
   public GmailAuthorizationResponse authorization(Long companyId, Long userId) {
     requireConfigured();
@@ -89,7 +89,7 @@ public class GmailConnectionService {
 
     GmailConnectionResponse response =
         persistenceService.persist(oauthState.companyId(), oauthState.userId(), profile, token);
-    channelConnectionService.cancelPendingPurge(
+    lifecycleService.cancelPendingPurge(
         oauthState.companyId(), Long.valueOf(response.connectionId()));
 
     connectionRepository
