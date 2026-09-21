@@ -15,6 +15,7 @@ import {
   FiX,
 } from 'react-icons/fi'
 import { useLocation, useSearchParams } from 'react-router'
+import AmazonSesConnectModal from '../../components/broadcast/AmazonSesConnectModal'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import type {
   BroadcastMember,
@@ -25,11 +26,11 @@ import type {
   BroadcastProgressEvent,
   BroadcastRecipient,
   BroadcastRecipientStatus,
+  BroadcastSender,
   BroadcastStats,
   Page,
 } from '../../features/broadcast/types'
-import { channelApi } from '../../features/channel/channelApi'
-import type { ChannelConnection, ChannelType } from '../../features/channel/types'
+import type { ChannelType } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { realtimeClient } from '../../features/realtime/realtimeClient'
@@ -91,15 +92,16 @@ const recipientStatusLabel = (status: BroadcastRecipientStatus) => {
     .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
-const providerLabel = (providerType: string) => {
-  if (providerType === 'GMAIL') return 'Gmail'
-  if (providerType === 'MICROSOFT') return 'Microsoft'
-  if (providerType === 'IMAP_SMTP' || providerType === 'SMTP') return 'IMAP / SMTP'
-  return providerType.replaceAll('_', ' ')
+const providerLabel = (provider?: string | null) => {
+  if (!provider) return 'Legacy mailbox'
+  if (provider === 'AMAZON_SES') return 'Amazon SES'
+  if (provider === 'AZURE_EMAIL') return 'Azure Email'
+  if (provider === 'SENDGRID') return 'SendGrid'
+  return provider.replaceAll('_', ' ')
 }
 
-const senderLabel = (connection?: ChannelConnection | null) =>
-  connection?.externalAccountId || connection?.name || 'Unknown sender'
+const senderLabel = (sender?: BroadcastSender | null) =>
+  sender?.displayName ? `${sender.displayName} <${sender.fromAddress}>` : sender?.fromAddress || 'Legacy mailbox sender'
 
 const formatDate = (value?: string | null) => {
   if (!value) return '—'
@@ -147,7 +149,7 @@ export default function BroadcastWorkspace() {
       ? broadcast.messages
       : []
 
-  const [connections, setConnections] = useState<ChannelConnection[]>([])
+  const [senders, setSenders] = useState<BroadcastSender[]>([])
   const [selectedMessage, setSelectedMessage] = useState<BroadcastMessage | null>(null)
   const [recipients, setRecipients] = useState<Page<BroadcastRecipient>>(emptyPage())
   const [members, setMembers] = useState<Page<BroadcastMember>>(emptyPage())
@@ -158,7 +160,8 @@ export default function BroadcastWorkspace() {
   const [groupName, setGroupName] = useState('')
   const [groupDescription, setGroupDescription] = useState('')
   const [groupBusy, setGroupBusy] = useState(false)
-  const [composeConnectionId, setComposeConnectionId] = useState('')
+  const [composeSenderId, setComposeSenderId] = useState('')
+  const [sesConnectOpen, setSesConnectOpen] = useState(false)
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
   const [composeScheduleAt, setComposeScheduleAt] = useState('')
@@ -179,17 +182,20 @@ export default function BroadcastWorkspace() {
     selectedMessage !== null &&
     ['QUEUED', 'RUNNING', 'PAUSED'].includes(selectedMessage.status)
 
-  const activeConnections = useMemo(
+  const activeSenders = useMemo(
     () =>
-      connections.filter(
-        (connection) => connection.channelType === 'EMAIL' && connection.status === 'ACTIVE',
+      senders.filter(
+        (sender) =>
+          sender.status === 'ACTIVE' &&
+          sender.sendingEnabled &&
+          sender.provider === 'AMAZON_SES',
       ),
-    [connections],
+    [senders],
   )
 
-  const connectionsById = useMemo(
-    () => new Map(connections.map((connection) => [connection.id, connection])),
-    [connections],
+  const sendersById = useMemo(
+    () => new Map(senders.map((sender) => [sender.id, sender])),
+    [senders],
   )
 
   const updateSearch = useCallback(
@@ -227,24 +233,21 @@ export default function BroadcastWorkspace() {
     void dispatch(fetchBroadcastGroups({ companyId, channelType }))
   }, [channelType, companyId, dispatch])
 
-  useEffect(() => {
+  const refreshSenders = useCallback(async () => {
     if (!companyId || channelType !== 'EMAIL') {
-      setConnections([])
+      setSenders([])
       return
     }
-    let active = true
-    channelApi
-      .list(companyId, 'EMAIL')
-      .then((items) => {
-        if (active) setConnections(items)
-      })
-      .catch((requestError) => {
-        if (active) setError(apiErrorMessage(requestError, 'Unable to load email senders'))
-      })
-    return () => {
-      active = false
+    try {
+      setSenders(await broadcastApi.senders(companyId))
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, 'Unable to load Amazon SES senders'))
     }
   }, [channelType, companyId])
+
+  useEffect(() => {
+    void refreshSenders()
+  }, [refreshSenders])
 
   useEffect(() => {
     if (!companyId || !selectedGroupId || selectedGroup) return
@@ -418,10 +421,10 @@ export default function BroadcastWorkspace() {
       setComposeSubject('')
       setComposeBody('')
       setComposeScheduleAt('')
-      setComposeConnectionId((current) =>
-        activeConnections.some((connection) => connection.id === current)
+      setComposeSenderId((current) =>
+        activeSenders.some((connection) => connection.id === current)
           ? current
-          : activeConnections[0]?.id ?? '',
+          : activeSenders[0]?.id ?? '',
       )
     }
 
@@ -435,7 +438,7 @@ export default function BroadcastWorkspace() {
       .message(companyId, editBroadcastId)
       .then((message) => {
         if (!active) return
-        setComposeConnectionId(message.connectionId)
+        setComposeSenderId(message.senderId ?? '')
         setComposeSubject(message.subject ?? '')
         setComposeBody(message.bodyText)
         setComposeScheduleAt(
@@ -452,7 +455,18 @@ export default function BroadcastWorkspace() {
     return () => {
       active = false
     }
-  }, [activeConnections, companyId, composeOpen, editBroadcastId])
+  }, [activeSenders, companyId, composeOpen, editBroadcastId])
+
+  const handleSesConnected = (sender: BroadcastSender) => {
+    setSenders((current) => [sender, ...current.filter((item) => item.id !== sender.id)])
+    setComposeSenderId(sender.id)
+    setSesConnectOpen(false)
+    setNotice(
+      sender.productionAccessEnabled
+        ? 'Amazon SES connected and ready for broadcasts.'
+        : 'Amazon SES connected in sandbox mode. Request production access in AWS before sending to unverified recipients.',
+    )
+  }
 
   const openNewGroup = () => {
     setGroupName('')
@@ -639,11 +653,11 @@ export default function BroadcastWorkspace() {
   }
 
   const saveDraft = async () => {
-    if (!companyId || !selectedGroupId || !composeConnectionId || !composeBody.trim()) {
+    if (!companyId || !selectedGroupId || !composeSenderId || !composeBody.trim()) {
       throw new Error('Choose a sender and enter a message')
     }
     const input = {
-      connectionId: composeConnectionId,
+      senderId: composeSenderId,
       subject: composeSubject.trim() || null,
       bodyText: composeBody,
     }
@@ -796,6 +810,7 @@ export default function BroadcastWorkspace() {
             onClick={() => {
               void refreshGroups(true)
               void refreshHistory(true)
+              void refreshSenders()
             }}
           >
             <FiRefreshCw aria-hidden="true" />
@@ -810,10 +825,17 @@ export default function BroadcastWorkspace() {
           )}
 
           {selectedGroup && can(PERMISSIONS.BROADCAST_CREATE) ? (
-            <button type="button" className="primary-button gap-2" onClick={() => openComposer()}>
-              <FiSend aria-hidden="true" />
-              <span className="inbox-action-label">New broadcast</span>
-            </button>
+            activeSenders.length > 0 ? (
+              <button type="button" className="primary-button gap-2" onClick={() => openComposer()}>
+                <FiSend aria-hidden="true" />
+                <span className="inbox-action-label">New broadcast</span>
+              </button>
+            ) : (
+              <button type="button" className="primary-button gap-2" onClick={() => setSesConnectOpen(true)}>
+                <FiMail aria-hidden="true" />
+                <span className="inbox-action-label">Connect SES</span>
+              </button>
+            )
           ) : (
             <button type="button" className="primary-button gap-2" onClick={openNewGroup}>
               <FiUsers aria-hidden="true" />
@@ -871,8 +893,8 @@ export default function BroadcastWorkspace() {
             <BroadcastDetail
               message={selectedMessage}
               sender={
-                selectedMessage
-                  ? connectionsById.get(selectedMessage.connectionId) ?? null
+                selectedMessage?.senderId
+                  ? sendersById.get(selectedMessage.senderId) ?? null
                   : null
               }
               loading={detailLoading}
@@ -907,17 +929,17 @@ export default function BroadcastWorkspace() {
                         </span>
                         <select
                           className="form-input w-full"
-                          value={composeConnectionId}
-                          onChange={(event) => setComposeConnectionId(event.target.value)}
-                          disabled={activeConnections.length === 0}
+                          value={composeSenderId}
+                          onChange={(event) => setComposeSenderId(event.target.value)}
+                          disabled={activeSenders.length === 0}
                           aria-label="Select email account for broadcasts"
                         >
-                          {activeConnections.length === 0 ? (
+                          {activeSenders.length === 0 ? (
                             <option value="">No active email accounts</option>
                           ) : (
                             <>
                               <option value="">Choose email account</option>
-                              {activeConnections.map((connection) => (
+                              {activeSenders.map((connection) => (
                                 <option key={connection.id} value={connection.id}>
                                   {senderLabel(connection)} · {providerLabel(connection.providerType)}
                                 </option>
@@ -953,9 +975,9 @@ export default function BroadcastWorkspace() {
                             type="button"
                             className="primary-button gap-2"
                             onClick={() => openComposer()}
-                            disabled={activeConnections.length === 0}
+                            disabled={activeSenders.length === 0}
                             title={
-                              activeConnections.length === 0
+                              activeSenders.length === 0
                                 ? 'Connect an email account before creating a broadcast'
                                 : undefined
                             }
@@ -968,7 +990,7 @@ export default function BroadcastWorkspace() {
                     </div>
                   </div>
 
-                  {activeConnections.length > 0 && !composeConnectionId && (
+                  {activeSenders.length > 0 && !composeSenderId && (
                     <p className="mt-3 text-xs font-medium text-amber-700">
                       Choose a sender email account before creating the broadcast.
                     </p>
@@ -1003,7 +1025,7 @@ export default function BroadcastWorkspace() {
                         <BroadcastHistoryCard
                           key={message.id}
                           message={message}
-                          sender={connectionsById.get(message.connectionId) ?? null}
+                          sender={message.senderId ? sendersById.get(message.senderId) ?? null : null}
                           canModify={can(PERMISSIONS.BROADCAST_MODIFY)}
                           onOpen={() => updateSearch({ broadcastId: message.id })}
                           onEdit={() => openComposer(message.id)}
@@ -1307,7 +1329,7 @@ export default function BroadcastWorkspace() {
               </button>
             </div>
 
-            {activeConnections.length === 0 ? (
+            {activeSenders.length === 0 ? (
               <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
                 Connect an active email account before sending a broadcast.
               </div>
@@ -1322,12 +1344,12 @@ export default function BroadcastWorkspace() {
                       </p>
                     </div>
                     <span className="text-[11px] text-slate-400">
-                      {activeConnections.length} connected
+                      {activeSenders.length} connected
                     </span>
                   </div>
                   <div className="mt-2 grid max-h-48 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
-                    {activeConnections.map((connection) => {
-                      const selected = composeConnectionId === connection.id
+                    {activeSenders.map((connection) => {
+                      const selected = composeSenderId === connection.id
                       return (
                         <button
                           key={connection.id}
@@ -1337,7 +1359,7 @@ export default function BroadcastWorkspace() {
                               ? 'border-indigo-300 bg-indigo-50 ring-1 ring-indigo-100'
                               : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                           }`}
-                          onClick={() => setComposeConnectionId(connection.id)}
+                          onClick={() => setComposeSenderId(connection.id)}
                           aria-pressed={selected}
                         >
                           <span
@@ -1411,7 +1433,7 @@ export default function BroadcastWorkspace() {
                   <button
                     type="button"
                     className="secondary-button"
-                    disabled={composeBusy || !composeConnectionId || !composeBody.trim()}
+                    disabled={composeBusy || !composeSenderId || !composeBody.trim()}
                     onClick={() => void submitCompose('draft')}
                   >
                     Save draft
@@ -1421,7 +1443,7 @@ export default function BroadcastWorkspace() {
                     className="secondary-button gap-2"
                     disabled={
                       composeBusy ||
-                      !composeConnectionId ||
+                      !composeSenderId ||
                       !composeBody.trim() ||
                       !composeScheduleAt ||
                       !can(PERMISSIONS.BROADCAST_SEND)
@@ -1436,7 +1458,7 @@ export default function BroadcastWorkspace() {
                     className="primary-button gap-2"
                     disabled={
                       composeBusy ||
-                      !composeConnectionId ||
+                      !composeSenderId ||
                       !composeBody.trim() ||
                       !can(PERMISSIONS.BROADCAST_SEND)
                     }
@@ -1463,7 +1485,7 @@ function BroadcastHistoryCard({
   onEdit,
 }: {
   message: BroadcastMessageSummary
-  sender: ChannelConnection | null
+  sender: BroadcastSender | null
   canModify: boolean
   onOpen: () => void
   onEdit: () => void
@@ -1497,7 +1519,7 @@ function BroadcastHistoryCard({
           </p>
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
             <span>
-              From {senderLabel(sender)} · {sender ? providerLabel(sender.providerType) : 'Unknown provider'}
+              From {senderLabel(sender)} · {sender ? providerLabel(sender.provider) : 'Unknown provider'}
             </span>
             <span>{formatDate(message.scheduledAt || message.createdAt)}</span>
             {message.stats.total > 0 && (
@@ -1547,7 +1569,7 @@ function BroadcastDetail({
   onRecipientsPage,
 }: {
   message: BroadcastMessage | null
-  sender: ChannelConnection | null
+  sender: BroadcastSender | null
   loading: boolean
   recipients: Page<BroadcastRecipient>
   recipientsLoading: boolean
@@ -1643,7 +1665,7 @@ function BroadcastDetail({
               </h1>
               <p className="mt-1 text-xs text-slate-500">
                 From {senderLabel(sender)} ·{' '}
-                {sender ? providerLabel(sender.providerType) : 'Unknown provider'}
+                {sender ? providerLabel(sender.provider) : 'Unknown provider'}
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 Created {formatDate(message.createdAt)}
