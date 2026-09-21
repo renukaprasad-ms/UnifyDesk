@@ -9,6 +9,7 @@ import {
   FiSlash,
 } from 'react-icons/fi'
 import ConnectionRetentionNotice from '../../components/channel/ConnectionRetentionNotice'
+import DeleteChannelDataModal from '../../components/channel/DeleteChannelDataModal'
 import DisconnectChannelModal from '../../components/channel/DisconnectChannelModal'
 import EmailProviderPicker from '../../components/email/EmailProviderPicker'
 import { channelApi } from '../../features/channel/channelApi'
@@ -53,6 +54,7 @@ export default function CompanyConnections() {
   const [connecting, setConnecting] = useState(false)
   const [workingConnectionId, setWorkingConnectionId] = useState<string | null>(null)
   const [disconnectTarget, setDisconnectTarget] = useState<ChannelConnection | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<ChannelConnection | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -219,6 +221,7 @@ export default function CompanyConnections() {
     try {
       await channelApi.disconnect(selectedCompany.companyId, connection.id, 'DELETE_NOW')
       setNotice('Permanent deletion of the disconnected channel data is queued.')
+      setDeleteTarget(null)
       await loadConnections()
     } catch (deleteError) {
       setError(apiErrorMessage(deleteError, 'Unable to queue channel data deletion'))
@@ -465,7 +468,7 @@ export default function CompanyConnections() {
                           ? () => void reconnectEmail(connection)
                           : undefined
                       }
-                      onDeleteNow={() => void deleteDisconnectedDataNow(connection)}
+                      onDeleteNow={() => setDeleteTarget(connection)}
                     />
                   </div>
                 </div>
@@ -552,7 +555,7 @@ export default function CompanyConnections() {
                           ? () => connectWhatsApp()
                           : undefined
                       }
-                      onDeleteNow={() => void deleteDisconnectedDataNow(connection)}
+                      onDeleteNow={() => setDeleteTarget(connection)}
                     />
                   </div>
                 </div>
@@ -572,6 +575,17 @@ export default function CompanyConnections() {
         }}
         onConfirm={(policy) => {
           if (disconnectTarget) void disconnect(disconnectTarget, policy)
+        }}
+      />
+
+      <DeleteChannelDataModal
+        connection={deleteTarget}
+        working={deleteTarget !== null && workingConnectionId === deleteTarget.id}
+        onClose={() => {
+          if (!workingConnectionId) setDeleteTarget(null)
+        }}
+        onConfirm={() => {
+          if (deleteTarget) void deleteDisconnectedDataNow(deleteTarget)
         }}
       />
     </section>

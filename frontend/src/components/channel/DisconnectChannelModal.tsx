@@ -143,7 +143,11 @@ export default function DisconnectChannelModal({
           </button>
           <button
             type="button"
-            className={destructive ? 'danger-button justify-center' : 'primary-button justify-center'}
+            className={
+              destructive
+                ? 'inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50'
+                : 'primary-button justify-center'
+            }
             disabled={working}
             onClick={() => onConfirm(policy)}
           >
