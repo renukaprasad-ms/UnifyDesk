@@ -103,8 +103,12 @@ public class MicrosoftPersistenceService {
         state.setFolderKey(folder);
       }
       if (state.getDeltaUrl() == null) {
-        state.setStatus(MicrosoftSyncStatus.PENDING);
-        state.setNextAttemptAt(Instant.now());
+        // Connecting a mailbox must not import history automatically. Treat the
+        // connection time as the live-sync baseline; webhook/safety delta sync
+        // will pick up only new/recent changes after the connection is active.
+        state.setStatus(MicrosoftSyncStatus.SYNCED);
+        state.setNextAttemptAt(null);
+        state.setLastSyncedAt(Instant.now());
       }
       syncStateRepository.save(state);
     }
