@@ -1,6 +1,5 @@
 package com.messaging.broadcast.service;
 
-import com.messaging.broadcast.config.BroadcastProperties;
 import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.transport.*;
 import com.messaging.channel.entity.ChannelConnection;
@@ -16,7 +15,6 @@ public class BroadcastDeliveryService {
   private final BroadcastRateLimiter rateLimiter;
   private final BroadcastRetryPolicy retryPolicy;
   private final BroadcastDeliveryStateService stateService;
-  private final BroadcastProperties properties;
 
   public void deliver(
       BroadcastRun run, ChannelConnection connection, BroadcastRecipient recipient) {
@@ -27,12 +25,7 @@ public class BroadcastDeliveryService {
 
     BroadcastDeliveryStateService.AttemptContext attempt =
         stateService.begin(recipient.getId(), run.getProviderType());
-    String internetMessageId =
-        "<broadcast."
-            + recipient.getProviderCorrelationId()
-            + "@"
-            + properties.getMessageIdDomain()
-            + ">";
+    String internetMessageId = recipient.getInternetMessageId();
     BroadcastEmailCommand command =
         new BroadcastEmailCommand(
             recipient.getDestination(),

@@ -1,6 +1,7 @@
 package com.messaging.channel.imapsmtp;
 
 import com.messaging.channel.email.EmailFolder;
+import com.messaging.channel.email.EmailSentMessageHandler;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.imapsmtp.ImapSmtpMailClient.MailboxMessage;
@@ -14,6 +15,7 @@ import com.messaging.inbox.enums.InboxParticipantType;
 import com.messaging.inbox.repository.InboxConversationRepository;
 import com.messaging.inbox.repository.InboxMessageRepository;
 import com.messaging.inbox.repository.InboxParticipantRepository;
+import com.messaging.inbox.service.InboxMessagePostProcessor;
 import com.messaging.storage.enums.StorageUsageType;
 import com.messaging.storage.service.MessageStorageMeter;
 import com.messaging.storage.service.StorageQuotaService;
@@ -38,6 +40,8 @@ public class ImapSmtpInboxPersistenceService {
   private final InboxParticipantRepository participantRepository;
   private final MessageStorageMeter messageStorageMeter;
   private final StorageQuotaService storageQuotaService;
+  private final List<EmailSentMessageHandler> sentMessageHandlers;
+  private final List<InboxMessagePostProcessor> messagePostProcessors;
 
   @Transactional
   public PersistResult persist(ChannelConnection connection, List<MailboxMessage> snapshots) {
@@ -53,6 +57,11 @@ public class ImapSmtpInboxPersistenceService {
 
     for (MailboxMessage snapshot : snapshots) {
       if (snapshot == null || !hasText(snapshot.externalMessageId())) continue;
+      if (snapshot.folder() == EmailFolder.SENT
+          && hasText(snapshot.broadcastCorrelationId())
+          && handleBroadcastSentMessage(connection, snapshot)) {
+        continue;
+      }
 
       InboxMessage message =
           messageRepository
@@ -150,6 +159,11 @@ public class ImapSmtpInboxPersistenceService {
       }
 
       message = messageRepository.save(message);
+      if (message.getDirection() == InboxMessageDirection.INBOUND) {
+        for (InboxMessagePostProcessor processor : messagePostProcessors) {
+          processor.afterPersist(message);
+        }
+      }
       touchedMessages.add(message.getId());
       if (accountStorage) {
         storage.add(

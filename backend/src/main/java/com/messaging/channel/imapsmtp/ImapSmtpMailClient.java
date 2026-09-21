@@ -514,6 +514,7 @@ public class ImapSmtpMailClient {
     String internetMessageId = firstHeader(message, "Message-ID");
     String inReplyTo = firstHeader(message, "In-Reply-To");
     String references = firstHeader(message, "References");
+    String broadcastCorrelationId = firstHeader(message, "X-Messaging-Broadcast-Recipient");
     String threadKey = threadKey(internetMessageId, inReplyTo, references, uidValidity, uid);
     Body body = extractBody(message);
 
@@ -540,6 +541,7 @@ public class ImapSmtpMailClient {
         trimToNull(message.getSubject()),
         body.text(),
         body.html(),
+        trimToNull(broadcastCorrelationId),
         sentAt,
         !message.isSet(Flags.Flag.SEEN),
         emailFolder);
@@ -723,9 +725,52 @@ public class ImapSmtpMailClient {
       String subject,
       String bodyText,
       String bodyHtml,
+      String broadcastCorrelationId,
       Instant sentAt,
       boolean unread,
-      EmailFolder folder) {}
+      EmailFolder folder) {
+
+    public MailboxMessage(
+        long uid,
+        long uidValidity,
+        String externalMessageId,
+        String internetMessageId,
+        String threadKey,
+        String from,
+        String replyTo,
+        List<String> to,
+        List<String> cc,
+        List<String> bcc,
+        String inReplyTo,
+        String references,
+        String subject,
+        String bodyText,
+        String bodyHtml,
+        Instant sentAt,
+        boolean unread,
+        EmailFolder folder) {
+      this(
+          uid,
+          uidValidity,
+          externalMessageId,
+          internetMessageId,
+          threadKey,
+          from,
+          replyTo,
+          to,
+          cc,
+          bcc,
+          inReplyTo,
+          references,
+          subject,
+          bodyText,
+          bodyHtml,
+          null,
+          sentAt,
+          unread,
+          folder);
+    }
+  }
 
   public record SentMessage(
       String messageId,

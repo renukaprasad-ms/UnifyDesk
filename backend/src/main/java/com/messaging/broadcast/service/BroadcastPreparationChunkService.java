@@ -93,7 +93,10 @@ public class BroadcastPreparationChunkService {
       recipient.setNormalizedDestination(member.getNormalizedDestination());
       recipient.setDisplayName(member.getDisplayName());
       recipient.setMetadataJson(member.getMetadataJson());
-      recipient.setProviderCorrelationId(UUID.randomUUID().toString());
+      String correlationId = UUID.randomUUID().toString();
+      recipient.setProviderCorrelationId(correlationId);
+      recipient.setInternetMessageId(
+          "<broadcast." + correlationId + "@" + properties.getMessageIdDomain() + ">");
       if (suppressed.contains(member.getNormalizedDestination())) {
         recipient.setStatus(BroadcastRecipientStatus.SKIPPED);
         recipient.setFailureCode("SUPPRESSED");

@@ -1,6 +1,7 @@
 package com.messaging.channel.gmail;
 
 import com.messaging.channel.email.EmailFolder;
+import com.messaging.channel.email.EmailSentMessageHandler;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.gmail.GmailApiClient.GmailBody;
@@ -23,6 +24,7 @@ import com.messaging.inbox.repository.InboxConversationRepository;
 import com.messaging.inbox.repository.InboxMessageAttachmentRepository;
 import com.messaging.inbox.repository.InboxMessageRepository;
 import com.messaging.inbox.repository.InboxParticipantRepository;
+import com.messaging.inbox.service.InboxMessagePostProcessor;
 import com.messaging.storage.enums.StorageUsageType;
 import com.messaging.storage.service.MessageStorageMeter;
 import com.messaging.storage.service.StorageQuotaService;
@@ -56,6 +58,8 @@ public class GmailInboxPersistenceService {
   private final ChannelConnectionRepository connectionRepository;
   private final MessageStorageMeter messageStorageMeter;
   private final StorageQuotaService storageQuotaService;
+  private final List<EmailSentMessageHandler> sentMessageHandlers;
+  private final List<InboxMessagePostProcessor> messagePostProcessors;
 
   @Transactional
   public GmailSyncResult persistBatch(ChannelConnection connection, List<GmailMessage> messages) {
@@ -109,6 +113,18 @@ public class GmailInboxPersistenceService {
     for (GmailMessage gmailMessage : validMessages) {
       InboxMessage existingMessage = messagesByExternalId.get(gmailMessage.id());
       EmailFolder providerFolder = folder(gmailMessage.labelIds());
+      String broadcastCorrelationId =
+          header(gmailMessage.payload(), "X-Messaging-Broadcast-Recipient");
+      if (providerFolder == EmailFolder.SENT
+          && hasText(broadcastCorrelationId)
+          && handleBroadcastSentMessage(
+              connection,
+              broadcastCorrelationId,
+              gmailMessage.id(),
+              header(gmailMessage.payload(), "Message-ID"),
+              sentAt(gmailMessage))) {
+        continue;
+      }
 
       // A recovery scan uses in:anywhere so it can reconcile archived/trash/deleted state.
       // Do not create new local rows for mail outside the product's Inbox/Sent views.
@@ -195,6 +211,11 @@ public class GmailInboxPersistenceService {
       }
 
       message = messageRepository.save(message);
+      if (message.getDirection() == InboxMessageDirection.INBOUND) {
+        for (InboxMessagePostProcessor processor : messagePostProcessors) {
+          processor.afterPersist(message);
+        }
+      }
       messagesByExternalId.put(gmailMessage.id(), message);
       touchedMessageIds.add(message.getId());
 
@@ -343,6 +364,26 @@ public class GmailInboxPersistenceService {
     connectionRepository.save(connection);
   }
 
+
+  private boolean handleBroadcastSentMessage(
+      ChannelConnection connection,
+      String correlationId,
+      String providerMessageId,
+      String internetMessageId,
+      Instant sentAt) {
+    for (EmailSentMessageHandler handler : sentMessageHandlers) {
+      if (handler.handle(
+          connection,
+          ProviderType.GMAIL,
+          correlationId,
+          providerMessageId,
+          internetMessageId,
+          sentAt)) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   private void upsertParticipants(
       InboxConversation conversation,

@@ -1,6 +1,7 @@
 package com.messaging.channel.microsoft;
 
 import com.messaging.channel.email.EmailFolder;
+import com.messaging.channel.email.EmailSentMessageHandler;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.microsoft.MicrosoftApiClient.*;
@@ -31,6 +32,8 @@ public class MicrosoftInboxPersistenceService {
   private final MessageStorageMeter messageStorageMeter;
   private final StorageQuotaService storageQuotaService;
   private final StorageAccountingService storageAccountingService;
+  private final List<EmailSentMessageHandler> sentMessageHandlers;
+  private final List<InboxMessagePostProcessor> messagePostProcessors;
 
   @Transactional
   public SyncResult persistPage(
@@ -107,6 +110,19 @@ public class MicrosoftInboxPersistenceService {
           touchedConversationIds.add(conversationId);
           deleted++;
         }
+        continue;
+      }
+
+      String broadcastCorrelationId =
+          header(graphMessage.internetMessageHeaders(), "x-messaging-broadcast-recipient");
+      if (normalizedFolder == EmailFolder.SENT
+          && hasText(broadcastCorrelationId)
+          && handleBroadcastSentMessage(
+              connection,
+              broadcastCorrelationId,
+              graphMessage.id(),
+              graphMessage.internetMessageId(),
+              sentAt(graphMessage))) {
         continue;
       }
 
@@ -188,6 +204,11 @@ public class MicrosoftInboxPersistenceService {
       }
 
       message = messageRepository.save(message);
+      if (message.getDirection() == InboxMessageDirection.INBOUND) {
+        for (InboxMessagePostProcessor processor : messagePostProcessors) {
+          processor.afterPersist(message);
+        }
+      }
       existingMessages.put(graphMessage.id(), message);
       changedMessageIds.add(message.getId());
 
