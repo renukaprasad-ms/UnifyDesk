@@ -48,6 +48,7 @@ public class CompanyService {
   private final CurrentUserService currentUserService;
   private final MediaService mediaService;
   private final DefaultPlanAssignmentService defaultPlanAssignmentService;
+  private final CompanySystemRoleService companySystemRoleService;
   private final BillingCatalogService billingCatalogService;
   private final ChannelConnectionService channelConnectionService;
   private final DeletionPurgeService deletionPurgeService;
@@ -76,6 +77,7 @@ public class CompanyService {
     owner.setStatus(CompanyMemberStatus.ACTIVE);
     memberRepository.saveAndFlush(owner);
 
+    companySystemRoleService.ensureDefaults(company.getId(), userId);
     defaultPlanAssignmentService.assignToNewCompany(company);
     if (company.getLogoMediaId() != null) {
       mediaService.assignCompanyMedia(company.getLogoMediaId(), company.getId(), userId);
