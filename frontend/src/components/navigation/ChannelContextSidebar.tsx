@@ -349,6 +349,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       pathname: location.pathname,
       search: `?${params.toString()}`,
     })
+    onNavigate()
   }
 
   const selectConversation = (conversationId: string) => {
