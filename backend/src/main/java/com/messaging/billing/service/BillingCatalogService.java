@@ -1,5 +1,6 @@
 package com.messaging.billing.service;
 
+import com.messaging.billing.bootstrap.SystemEntitlementCatalogInitializer;
 import com.messaging.billing.dto.AssignSubscriptionRequest;
 import com.messaging.billing.dto.CompanyPlanDetailsResponse;
 import com.messaging.billing.dto.CompanyRateOverrideResponse;
@@ -64,6 +65,7 @@ public class BillingCatalogService {
   private final CompanyRateOverrideRepository companyRateOverrideRepository;
   private final CompanySubscriptionRepository subscriptionRepository;
   private final CompanyRepository companyRepository;
+  private final SystemEntitlementCatalogInitializer entitlementCatalogInitializer;
 
   @Transactional
   public PlanResponse createPlan(CreatePlanRequest request) {
@@ -137,8 +139,9 @@ public class BillingCatalogService {
     return toPlanResponse(planRepository.saveAndFlush(plan));
   }
 
-  @Transactional(readOnly = true)
+  @Transactional
   public List<EntitlementDefinitionResponse> entitlementDefinitions() {
+    entitlementCatalogInitializer.ensureCatalog();
     return entitlementDefinitionRepository.findByActiveTrueOrderByCategoryAscNameAsc().stream()
         .map(this::toEntitlementDefinitionResponse)
         .toList();
