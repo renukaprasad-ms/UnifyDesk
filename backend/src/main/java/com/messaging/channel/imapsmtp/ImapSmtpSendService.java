@@ -21,8 +21,8 @@ public class ImapSmtpSendService {
   private final ImapSmtpInboxPersistenceService persistenceService;
 
   public ImapSmtpSendResponse send(
-      Long companyId, Long connectionId, ImapSmtpSendRequest request) {
-    ChannelConnection connection = connectionService.requireActive(companyId, connectionId);
+      ChannelConnection connection, ImapSmtpSendRequest request) {
+    Long connectionId = connection.getId();
     ImapSmtpStoredCredentials credentials = connectionService.credentials(connection);
 
     SentMessage sent = mailClient.send(credentials, request);

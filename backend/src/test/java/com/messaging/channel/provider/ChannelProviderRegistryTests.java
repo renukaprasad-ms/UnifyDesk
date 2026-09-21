@@ -3,6 +3,8 @@ package com.messaging.channel.provider;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.messaging.channel.email.EmailReadStateMessage;
+import com.messaging.channel.email.EmailReadStateProvider;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.common.exception.BadRequestException;
@@ -20,6 +22,30 @@ class ChannelProviderRegistryTests {
     assertThat(registry.get(ProviderType.META_WHATSAPP)).isSameAs(provider);
     assertThat(registry.isConfigured(ProviderType.META_WHATSAPP)).isTrue();
     assertThat(registry.isConfigured(ProviderType.GMAIL)).isFalse();
+  }
+
+  @Test
+  void resolvesSupportedCapability() {
+    EmailReadStateProvider provider = readStateProvider(ProviderType.GMAIL);
+    ChannelProviderRegistry registry = new ChannelProviderRegistry(List.of(provider));
+
+    assertThat(registry.requireCapability(ProviderType.GMAIL, EmailReadStateProvider.class))
+        .isSameAs(provider);
+    assertThat(registry.supportsCapability(ProviderType.GMAIL, EmailReadStateProvider.class))
+        .isTrue();
+  }
+
+  @Test
+  void rejectsUnsupportedCapability() {
+    ChannelProvider provider = provider(ProviderType.META_WHATSAPP);
+    ChannelProviderRegistry registry = new ChannelProviderRegistry(List.of(provider));
+
+    assertThatThrownBy(
+            () ->
+                registry.requireCapability(
+                    ProviderType.META_WHATSAPP, EmailReadStateProvider.class))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("does not support capability");
   }
 
   @Test
@@ -49,14 +75,25 @@ class ChannelProviderRegistryTests {
       }
 
       @Override
-      public ProviderSendResult send(ProviderSendRequest request) {
-        return new ProviderSendResult(true, "message-id", "accepted", Instant.now(), null);
+      public ProviderAccountHealth health(ChannelConnection connection) {
+        return new ProviderAccountHealth(true, "healthy", null, Instant.now());
+      }
+    };
+  }
+
+  private EmailReadStateProvider readStateProvider(ProviderType type) {
+    return new EmailReadStateProvider() {
+      @Override
+      public ProviderType providerType() {
+        return type;
       }
 
       @Override
-      public List<ProviderWebhookMessage> parseWebhook(ProviderWebhookRequest request) {
-        return List.of();
-      }
+      public void updateReadState(
+          ChannelConnection connection,
+          List<EmailReadStateMessage> messages,
+          boolean read,
+          boolean background) {}
 
       @Override
       public ProviderAccountHealth health(ChannelConnection connection) {
