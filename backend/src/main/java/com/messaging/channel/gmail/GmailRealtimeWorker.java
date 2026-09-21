@@ -21,7 +21,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -282,7 +281,7 @@ public class GmailRealtimeWorker {
   private RefreshResult refreshMessages(
       ChannelConnection connection, String accessToken, Set<String> messageIds) {
     if (messageIds == null || messageIds.isEmpty()) {
-      return new RefreshResult(0, 0);
+      return new RefreshResult(0, 0, Set.of(), Set.of(), Set.of());
     }
 
     List<String> ids = new ArrayList<>(messageIds);
