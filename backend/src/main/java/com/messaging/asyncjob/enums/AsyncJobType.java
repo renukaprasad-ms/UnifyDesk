@@ -4,5 +4,6 @@ public enum AsyncJobType {
   GMAIL_SYNC,
   MICROSOFT_SYNC,
   IMAP_SMTP_SYNC,
+  INBOX_READ_SYNC,
   ENTITY_CLEANUP
 }
