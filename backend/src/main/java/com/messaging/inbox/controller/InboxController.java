@@ -6,6 +6,7 @@ import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
+import com.messaging.inbox.dto.InboxConversationDetailResponse;
 import com.messaging.inbox.dto.InboxConversationResponse;
 import com.messaging.inbox.dto.InboxMessageResponse;
 import com.messaging.inbox.dto.InboxPageResponse;
@@ -140,6 +141,19 @@ public class InboxController {
             HttpStatus.OK.value(),
             inboxQueryService.realtimeSnapshot(companyId, request),
             "Inbox realtime snapshot fetched"));
+  }
+
+  @GetMapping("/conversations/{conversationId}/detail")
+  public ResponseEntity<ApiResponse<InboxConversationDetailResponse>> conversationDetail(
+      @PathVariable Long companyId, @PathVariable Long conversationId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_READ);
+
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            inboxQueryService.getConversationDetail(companyId, conversationId),
+            "Inbox conversation detail fetched"));
   }
 
   @GetMapping("/conversations/{conversationId}/messages")
