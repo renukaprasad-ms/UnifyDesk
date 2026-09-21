@@ -46,6 +46,8 @@ public class CompanyRoleManagementService {
   private final CompanyService companyService;
   private final CompanyAuthorizationService authorizationService;
   private final CompanyIamPermissionService iamPermissionService;
+  private final SystemPermissionCatalogService permissionCatalogService;
+  private final CompanySystemRoleService companySystemRoleService;
   private final CompanyMemberRepository memberRepository;
   private final PermissionDefinitionRepository permissionDefinitionRepository;
   private final CompanyCustomRoleRepository roleRepository;
@@ -54,10 +56,11 @@ public class CompanyRoleManagementService {
   private final CurrentUserService currentUserService;
   private final DeletionQueueService deletionQueueService;
 
-  @Transactional(readOnly = true)
+  @Transactional
   public List<PermissionDefinitionResponse> permissionCatalog(Long companyId) {
     Long actorId = currentUserService.currentUserId();
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_READ);
+    permissionCatalogService.ensureCatalog();
     return permissionDefinitionRepository.findAllByOrderByResourceAscActionAsc().stream()
         .map(this::toPermissionResponse)
         .toList();
@@ -95,10 +98,11 @@ public class CompanyRoleManagementService {
     return toRoleResponse(role, permissions);
   }
 
-  @Transactional(readOnly = true)
+  @Transactional
   public List<CompanyRoleResponse> roles(Long companyId) {
     Long actorId = currentUserService.currentUserId();
     authorizationService.requirePermission(actorId, companyId, CompanyPermissionKeys.ROLE_READ);
+    companySystemRoleService.ensureDefaults(companyId);
     return roleRepository.findByCompanyIdAndDeletedAtIsNullOrderByNameAsc(companyId).stream()
         .map(role -> toRoleResponse(role, permissionKeys(role.getId())))
         .toList();
@@ -167,6 +171,10 @@ public class CompanyRoleManagementService {
     }
 
     CompanyCustomRole role = requireRole(companyId, roleId);
+    if (role.isSystemRole()) {
+      throw new ForbiddenException(
+          "System roles are managed by company membership and cannot be assigned manually");
+    }
     Set<String> permissions = permissionKeys(roleId);
     requireCanDelegate(actorId, companyId, permissions);
 
