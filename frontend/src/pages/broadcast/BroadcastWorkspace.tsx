@@ -161,6 +161,13 @@ export default function BroadcastWorkspace() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
+  const hasActiveHistory = history.some((message) =>
+    ['QUEUED', 'RUNNING', 'PAUSED'].includes(message.status),
+  )
+  const selectedMessageActive =
+    selectedMessage !== null &&
+    ['QUEUED', 'RUNNING', 'PAUSED'].includes(selectedMessage.status)
+
   const activeConnections = useMemo(
     () =>
       connections.filter(
@@ -336,13 +343,7 @@ export default function BroadcastWorkspace() {
   useEffect(() => {
     if (realtimeConnected || !companyId) return
 
-    const activeDetail =
-      selectedMessage &&
-      ['QUEUED', 'RUNNING', 'PAUSED'].includes(selectedMessage.status)
-    const activeHistory = history.some((message) =>
-      ['QUEUED', 'RUNNING', 'PAUSED'].includes(message.status),
-    )
-    if (!activeDetail && !activeHistory) return
+    if (!selectedMessageActive && !hasActiveHistory) return
 
     let stopped = false
     const poll = async () => {
@@ -385,12 +386,12 @@ export default function BroadcastWorkspace() {
   }, [
     companyId,
     dispatch,
-    history,
+    hasActiveHistory,
     realtimeConnected,
     recipients.number,
     selectedBroadcastId,
     selectedGroupId,
-    selectedMessage,
+    selectedMessageActive,
   ])
 
   useEffect(() => {
