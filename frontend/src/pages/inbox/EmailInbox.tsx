@@ -564,11 +564,13 @@ export default function EmailInbox() {
       if (selectedConversation?.id === conversation.id) {
         setSelectedConversation({ ...selectedConversation, unreadCount: 0 })
       }
-      setMessages((current) =>
-        current.map((message) =>
-          message.direction === 'INBOUND' ? { ...message, read: true } : message,
-        ),
-      )
+      if (selectedConversationId === conversation.id) {
+        setMessages((current) =>
+          current.map((message) =>
+            message.direction === 'INBOUND' ? { ...message, read: true } : message,
+          ),
+        )
+      }
     }
 
     try {
