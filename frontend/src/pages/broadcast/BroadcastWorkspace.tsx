@@ -5,6 +5,7 @@ import {
   FiCheckCircle,
   FiClock,
   FiEdit2,
+  FiMail,
   FiPause,
   FiPlay,
   FiRefreshCw,
@@ -1588,6 +1589,10 @@ function BroadcastDetail({
               <h1 className="mt-3 text-xl font-bold text-slate-950">
                 {message.subject || '(No subject)'}
               </h1>
+              <p className="mt-1 text-xs text-slate-500">
+                From {senderLabel(sender)} ·{' '}
+                {sender ? providerLabel(sender.providerType) : 'Unknown provider'}
+              </p>
               <p className="mt-1 text-xs text-slate-500">
                 Created {formatDate(message.createdAt)}
                 {message.scheduledAt ? ` · scheduled ${formatDate(message.scheduledAt)}` : ''}
