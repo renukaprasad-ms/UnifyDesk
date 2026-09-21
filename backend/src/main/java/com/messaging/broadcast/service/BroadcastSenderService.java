@@ -106,7 +106,13 @@ public class BroadcastSenderService {
   }
 
   public BroadcastSenderResponse refresh(Long companyId, Long senderId) {
-    BroadcastSender sender = requireActive(companyId, senderId);
+    BroadcastSender sender =
+        senderRepository
+            .findByIdAndCompanyId(senderId, companyId)
+            .orElseThrow(() -> new NotFoundException("Broadcast sender not found"));
+    if (sender.getStatus() == BroadcastSenderStatus.DISABLED) {
+      throw new BadRequestException("Broadcast sender is disconnected");
+    }
     BroadcastSenderConnection connection = requireConnection(companyId, sender.getConnectionId());
     AmazonSesAccountSnapshot snapshot = sesGateway.inspect(connection, sender.getFromAddress());
     applySnapshot(connection, snapshot);
@@ -126,6 +132,7 @@ public class BroadcastSenderService {
 
     BroadcastSenderConnection connection = requireConnection(companyId, sender.getConnectionId());
     connection.setStatus(BroadcastSenderConnectionStatus.DISABLED);
+    connection.setEncryptedCredentials(null);
     connectionRepository.save(connection);
     sesClientManager.invalidate(connection.getId());
   }
