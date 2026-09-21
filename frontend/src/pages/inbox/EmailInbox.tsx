@@ -136,6 +136,7 @@ export default function EmailInbox() {
   const [notice, setNotice] = useState<string | null>(null)
   const [realtimeConnected, setRealtimeConnected] = useState(realtimeClient.isConnected())
   const completedSyncRefreshesRef = useRef(new Set<string>())
+  const trackedSyncJobIdsRef = useRef(new Set<string>())
   const realtimeBatchRef = useRef<{
     conversationIds: Set<string>
     messageIds: Set<string>
@@ -341,6 +342,9 @@ export default function EmailInbox() {
     () => trackedSyncJobs.filter((job) => job.status === 'QUEUED' || job.status === 'RUNNING'),
     [trackedSyncJobs],
   )
+  useEffect(() => {
+    trackedSyncJobIdsRef.current = new Set(trackedSyncJobs.map((job) => job.jobId))
+  }, [trackedSyncJobs])
   const activeMarkAllJob =
     markAllJob?.status === 'QUEUED' || markAllJob?.status === 'RUNNING' ? markAllJob : null
   const overallSyncProgress = useMemo(() => {
@@ -441,6 +445,7 @@ export default function EmailInbox() {
         })
         if (
           job.status === 'COMPLETED' &&
+          trackedSyncJobIdsRef.current.has(job.jobId) &&
           !completedSyncRefreshesRef.current.has(job.jobId)
         ) {
           completedSyncRefreshesRef.current.add(job.jobId)
@@ -1337,7 +1342,13 @@ export default function EmailInbox() {
                 <button
                   type="button"
                   className="secondary-button shrink-0 px-3 lg:hidden"
-                  onClick={() => setMobileConversationOpen(false)}
+                  onClick={() => {
+                    const params = new URLSearchParams(searchParams)
+                    params.delete('conversationId')
+                    params.delete('compose')
+                    setSearchParams(params)
+                    setMobileConversationOpen(false)
+                  }}
                   aria-label="Back to conversations"
                 >
                   <FiArrowLeft aria-hidden="true" />
