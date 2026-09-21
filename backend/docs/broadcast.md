@@ -2,12 +2,74 @@
 
 Broadcast is a persistent-group messaging workflow. A `BroadcastGroup` is reusable like a chat group; every send creates an immutable execution snapshot so later group edits never rewrite history.
 
+## Provider boundary
+
+Mailbox providers and Broadcast providers are intentionally separate:
+
+```text
+Inbox / normal email
+├── Gmail
+├── Microsoft
+└── IMAP / SMTP
+
+High-volume Broadcast
+└── Amazon SES             phase 1
+    ├── Customer-managed   implemented
+    └── Messaging-managed  later
+
+Future Broadcast transports
+├── Azure Communication Services Email
+└── SendGrid
+```
+
+Gmail, Microsoft and IMAP/SMTP are not valid senders for new Broadcasts. Historical mailbox-based Broadcast rows remain readable through nullable legacy references.
+
+## Amazon SES phase 1
+
+Phase 1 is bring-your-own Amazon SES. The company connects its own AWS account, AWS bills that account directly, and Messaging provides orchestration, scheduling, groups, batching, progress and recipient-level status.
+
+The sender model is deliberately separate from `ChannelConnection`:
+
+```text
+BroadcastSenderConnection
+  provider = AMAZON_SES
+  managementMode = CUSTOMER_MANAGED
+  authMode = IAM_ROLE | ACCESS_KEYS
+  region
+  provider quota snapshot
+        │
+        └── BroadcastSender
+              fromAddress
+              displayName
+              replyToAddress
+              verifiedIdentity
+```
+
+Access-key credentials are encrypted using the existing AES-GCM credential cipher and are never returned by an API. IAM Role mode uses STS AssumeRole and temporary credentials; it requires the Messaging runtime itself to have AWS credentials allowed to assume the customer role.
+
+Connect flow:
+
+```text
+Connect Amazon SES
+ -> normalize From/Reply-To
+ -> validate auth configuration
+ -> create temporary SES client
+ -> SES GetAccount
+ -> read production access + sending enabled + quotas
+ -> SES GetEmailIdentity
+ -> verify exact From address or parent domain
+ -> atomically persist connection + sender
+```
+
+No AWS network call is executed while the sender creation database transaction is open.
+
 ## Request path
 
 ```text
 UI
  -> BroadcastController
  -> BroadcastMessageService
+ -> validate active Amazon SES BroadcastSender
  -> BroadcastLaunchService
  -> BroadcastRun + BroadcastStats + outbox row (same DB transaction)
  -> BroadcastOutboxPublisher
@@ -16,8 +78,9 @@ UI
  -> bounded recipient snapshot pages
  -> BroadcastBatch rows
  -> BroadcastBatchWorkerScheduler
- -> provider transport strategy
- -> Gmail / Microsoft / SMTP
+ -> BroadcastEmailTransportRegistry
+ -> AmazonSesBroadcastEmailTransport
+ -> Amazon SES SendEmail
 ```
 
 The HTTP send endpoint only queues work. It never sends recipients inline.
@@ -32,6 +95,7 @@ The HTTP send endpoint only queues work. It never sends recipients inline.
 - Provider network calls run outside the claim transaction.
 - Stats are incrementally maintained; dashboard reads do not scan all recipient rows.
 - WebSocket progress is throttled and carries aggregate counters, not one event per recipient.
+- One SES API request is made per recipient so recipient status, retries and provider message ids remain independent.
 
 Approximate memory complexity:
 
@@ -42,6 +106,22 @@ delivery              O(workerConcurrency * recipientClaimSize)
 stats read             O(1)
 ```
 
+## Rate limiting
+
+Amazon SES exposes the account's current maximum send rate. Messaging snapshots that rate on connect/refresh and enforces it with a Redis distributed token bucket shared by all backend pods.
+
+```text
+effective rate =
+min(
+  SES account maxSendRate,
+  BROADCAST_SES_MAX_PER_SECOND_CAP
+)
+```
+
+The application cap is a safety ceiling. It does not increase the AWS account's approved SES throughput.
+
+The Redis key is connection scoped, so several Kubernetes replicas cannot independently exceed the same SES account budget.
+
 ## Status semantics
 
 Provider acceptance is intentionally distinct from final delivery:
@@ -50,53 +130,47 @@ Provider acceptance is intentionally distinct from final delivery:
 PENDING
  -> PROCESSING
  -> ACCEPTED_BY_PROVIDER
- -> BOUNCED        (if a later DSN/NDR is received)
 
 PROCESSING
- -> RETRY          (definite transient failure)
- -> FAILED         (definite permanent failure)
- -> UNKNOWN        (provider outcome is ambiguous)
+ -> RETRY          definite transient failure
+ -> FAILED         definite permanent failure
+ -> UNKNOWN        provider outcome is ambiguous
 ```
 
-Ambiguous sends are not blindly retried because a timeout can happen after the provider accepted the message, which would risk duplicate email.
+A client/network failure after an SES request begins can be ambiguous. Messaging does not blindly retry ambiguous sends because SES may already have accepted the email and a retry could create a duplicate.
 
-The UI may label `ACCEPTED_BY_PROVIDER` as **Sent**, but the backend preserves the stronger semantic distinction.
+The UI may label `ACCEPTED_BY_PROVIDER` as **Sent**, but the backend keeps the stronger semantic distinction.
 
-## Provider isolation
+## SES delivery events
 
-Interactive email send and broadcast send share low-level provider APIs but not inbox persistence behavior.
+Phase 1 connect/send stores the SES provider message id returned by `SendEmail`.
 
-Broadcast mail carries:
+Full SES event integration is the next provider step. It should use an SES configuration set plus SNS/EventBridge delivery events to reconcile:
 
 ```text
-X-Messaging-Broadcast-Recipient: <correlation-id>
+DELIVERY
+BOUNCE
+COMPLAINT
+REJECT
+OPEN
+CLICK
 ```
 
-When Gmail, Microsoft, or IMAP later exposes the provider Sent copy, the normalized mailbox persistence layer offers it to `EmailSentMessageHandler`. `BroadcastSentMessageHandler` reconciles provider ids/status and consumes the message so 10k broadcast sends do not become 10k normal Inbox/Sent conversations.
+into `BroadcastRecipient` and suppression state.
 
-## Delivery reports and bounces
-
-Inbound normalized email runs through `InboxMessagePostProcessor`. The delivery module detects DSN/NDR content and stores a durable `EmailDeliveryReport`.
-
-Correlation order is deliberately conservative:
-
-1. broadcast correlation id
-2. original Internet Message-ID
-3. connection + destination fallback only when there is exactly one recent candidate
-
-A hard bounce moves the recipient to `BOUNCED` and activates a company-level email suppression. Future snapshots skip suppressed recipients. Soft/unknown bounces do not permanently suppress by default.
+The existing DSN/NDR mailbox parser is retained for historical mailbox sends. It is not the primary delivery-status mechanism for SES.
 
 ## Crash recovery
 
 A recipient is first claimed as `PROCESSING`.
 
-- If a worker dies before a delivery attempt is created, recovery returns the recipient to `RETRY`.
-- If a worker dies after provider delivery began, recovery marks the recipient `UNKNOWN` instead of risking a duplicate send.
-- Stale batch and outbox claims are also recovered.
+- If a worker dies before a provider attempt begins, recovery returns the recipient to `RETRY`.
+- If a worker dies after provider delivery begins, recovery marks the recipient `UNKNOWN` instead of risking a duplicate send.
+- Stale batch and outbox claims are recovered separately.
 
 ## Scheduling and control
 
-Broadcast message state and run state are explicit. Supported controls are:
+Broadcast message and run state are explicit:
 
 ```text
 DRAFT -> SCHEDULED -> QUEUED -> RUNNING
@@ -105,24 +179,43 @@ SCHEDULED/QUEUED/RUNNING/PAUSED -> CANCELLED
 RUNNING -> COMPLETED / PARTIALLY_FAILED / FAILED
 ```
 
-Pause/cancel stop new delivery claims. A provider call already in flight cannot be recalled.
+Pause/cancel stop new delivery claims. A provider request already in flight cannot be recalled.
+
+A legacy scheduled mailbox broadcast that becomes due after this migration fails launch validation instead of being retried indefinitely.
 
 ## Runtime tuning
 
-Production knobs are exposed under `app.broadcast` and `app.delivery.email` and map to environment variables:
+Important runtime knobs:
 
 - `BROADCAST_MEMBER_WRITE_BATCH_SIZE`
 - `BROADCAST_SNAPSHOT_BATCH_SIZE`
 - `BROADCAST_RECIPIENT_CLAIM_SIZE`
 - `BROADCAST_WORKER_CONCURRENCY`
 - `BROADCAST_MAX_DELIVERY_ATTEMPTS`
-- `BROADCAST_GMAIL_PER_SECOND`
-- `BROADCAST_MICROSOFT_PER_SECOND`
-- `BROADCAST_IMAP_SMTP_PER_SECOND`
-- `EMAIL_DELIVERY_REPORT_*`
+- `BROADCAST_SES_MAX_PER_SECOND_CAP`
 
-Provider limits must be tuned conservatively per account/provider policy. The Redis rate limiter is connection-scoped so multiple Kubernetes replicas share the same send budget.
+The actual SES account quota/rate remains authoritative.
 
-## Phase boundary
+## Billing modes
 
-Phase 1 executes email only (Gmail, Microsoft, IMAP/SMTP). The group/run/batch/recipient orchestration is channel-aware so WhatsApp and SMS can add transport strategies later without rewriting the broadcast execution model.
+The data model supports both:
+
+```text
+CUSTOMER_MANAGED
+  customer owns AWS account
+  AWS bills customer directly
+  implemented now
+
+MESSAGING_MANAGED
+  Messaging owns provider infrastructure
+  Messaging meters provider usage and bills customer
+  future phase
+```
+
+Managed SES must add abuse controls, tenant isolation, domain onboarding, reputation monitoring, usage metering, credits/invoicing and provider event processing before it is enabled.
+
+## Future transports
+
+Azure Communication Services Email and SendGrid should implement the same Broadcast sender/transport contract rather than becoming mailbox `ChannelConnection` providers.
+
+The Broadcast group/run/batch/recipient orchestration should not change when those providers are added.
