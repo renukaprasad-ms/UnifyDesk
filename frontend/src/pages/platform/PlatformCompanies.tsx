@@ -113,7 +113,7 @@ export default function PlatformCompanies() {
           )}
 
           <div className="overflow-x-auto">
-            <table className="min-w-full text-left">
+            <table className="mobile-card-table min-w-full text-left">
               <thead className="bg-slate-50/80">
                 <tr className="border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                   <th className="px-5 py-3.5">Company</th>
@@ -148,7 +148,7 @@ export default function PlatformCompanies() {
                 ) : (
                   companies.map((company) => (
                     <tr key={company.id} className="transition-colors hover:bg-slate-50/60">
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-4" data-label="Company">
                         <div className="flex items-center gap-3">
                           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-xs font-bold text-indigo-600">
                             {companyInitials(company.name)}
@@ -161,18 +161,18 @@ export default function PlatformCompanies() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-sm text-slate-600">
+                      <td className="px-5 py-4 text-sm text-slate-600" data-label="Email">
                         {company.businessEmail || '—'}
                       </td>
-                      <td className="px-5 py-4 text-sm text-slate-600">{company.country || '—'}</td>
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-4 text-sm text-slate-600" data-label="Country">{company.country || '—'}</td>
+                      <td className="px-5 py-4" data-label="Status">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusClasses[company.status]}`}
                         >
                           {company.status.charAt(0) + company.status.slice(1).toLowerCase()}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-right">
+                      <td className="mobile-action-cell px-5 py-4 text-right" data-label="Action">
                         {company.status !== 'DELETED' && (
                           <button
                             type="button"

@@ -93,14 +93,14 @@ export default function EmailProviderPicker({
 
       {open && (
         <div
-          className="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-slate-950/40 p-4"
+          className="mobile-modal-shell fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-slate-950/40 p-4"
           role="presentation"
           onMouseDown={(event) => {
             if (event.currentTarget === event.target && !connecting) close()
           }}
         >
           <div
-            className="my-auto w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
+            className="mobile-sheet my-auto w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
             role="dialog"
             aria-modal="true"
             aria-labelledby="email-provider-picker-title"

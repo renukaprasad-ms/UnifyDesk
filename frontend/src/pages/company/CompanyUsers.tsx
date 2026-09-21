@@ -242,7 +242,7 @@ export default function CompanyUsers() {
             </p>
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+            <table className="mobile-card-table min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-4 py-3">User</th>
@@ -294,7 +294,7 @@ export default function CompanyUsers() {
                 ) : (
                   sortedUsers.map((user) => (
                     <tr key={user.memberId} className="hover:bg-slate-50/60">
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" data-label="User">
                         <div className="flex items-center gap-3">
                           <span className="flex size-9 items-center justify-center rounded-lg bg-indigo-50 text-xs font-bold text-indigo-500">
                             {user.name.slice(0, 2).toUpperCase()}
@@ -307,7 +307,7 @@ export default function CompanyUsers() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" data-label="Access">
                         <div className="flex max-w-sm flex-wrap gap-1.5">
                           <span
                             className={`rounded-full px-2.5 py-1 text-xs font-semibold ${roleClass[user.role]}`}
@@ -324,7 +324,7 @@ export default function CompanyUsers() {
                           ))}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" data-label="Security">
                         <div className="flex flex-wrap gap-2">
                           <span
                             className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -348,7 +348,7 @@ export default function CompanyUsers() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-slate-500">
+                      <td className="px-4 py-3 text-slate-500" data-label="Joined">
                         {new Date(user.joinedAt).toLocaleDateString()}
                       </td>
                       {canAll([
@@ -356,7 +356,7 @@ export default function CompanyUsers() {
                         PERMISSIONS.ROLE_READ,
                         PERMISSIONS.ROLE_ASSIGN,
                       ]) && (
-                        <td className="px-4 py-3">
+                        <td className="mobile-action-cell px-4 py-3" data-label="Action">
                           {user.role === 'OWNER' ? (
                             <span className="text-xs font-medium text-slate-400">Full access</span>
                           ) : (
@@ -463,8 +463,8 @@ export default function CompanyUsers() {
       </div>
 
       {managingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+        <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="mobile-sheet w-full max-w-lg rounded-2xl bg-white shadow-2xl">
             <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
               <div>
                 <p className="eyebrow">Member access</p>
@@ -547,8 +547,8 @@ export default function CompanyUsers() {
       )}
 
       {showInvite && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+        <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="mobile-sheet w-full max-w-lg rounded-2xl bg-white shadow-2xl">
             <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
               <div>
                 <h2 className="text-lg font-bold text-slate-950">Invite user</h2>
