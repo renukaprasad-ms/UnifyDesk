@@ -83,11 +83,7 @@ public class SystemSuperAdminBootstrapService {
         update users
         set is_verified = true,
             status = 'ACTIVE',
-            deleted_at = null,
-            purge_after = null,
-            deletion_requested_by = null,
-            purge_started_at = null,
-            purged_at = null
+            deleted_at = null
         where id = ?
         """,
         userId);
