@@ -254,6 +254,26 @@ public class MicrosoftInboxPersistenceService {
         Set.copyOf(deletedMessageIds));
   }
 
+  private boolean handleBroadcastSentMessage(
+      ChannelConnection connection,
+      String correlationId,
+      String providerMessageId,
+      String internetMessageId,
+      Instant sentAt) {
+    for (EmailSentMessageHandler handler : sentMessageHandlers) {
+      if (handler.handle(
+          connection,
+          ProviderType.MICROSOFT,
+          correlationId,
+          providerMessageId,
+          internetMessageId,
+          sentAt)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private void upsertParticipants(InboxConversation conversation, GraphMessage message) {
     LinkedHashMap<String, GraphEmailAddress> addresses = new LinkedHashMap<>();
     collect(addresses, message.from() == null ? List.of() : List.of(message.from()));
