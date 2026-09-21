@@ -67,19 +67,27 @@ export const fetchBroadcastGroups = createAsyncThunk<
   {
     companyId: string
     channelType: ChannelType
+    append: boolean
     page: Awaited<ReturnType<typeof broadcastApi.groups>>
   },
-  { companyId: string; channelType: ChannelType; force?: boolean },
+  {
+    companyId: string
+    channelType: ChannelType
+    page?: number
+    append?: boolean
+    force?: boolean
+  },
   { state: { broadcast: BroadcastState } }
 >(
   'broadcast/fetchGroups',
-  async ({ companyId, channelType }) => ({
+  async ({ companyId, channelType, page = 0, append = false }) => ({
     companyId,
     channelType,
-    page: await broadcastApi.groups(companyId, channelType),
+    append,
+    page: await broadcastApi.groups(companyId, channelType, page),
   }),
   {
-    condition: ({ companyId, channelType, force }, { getState }) => {
+    condition: ({ companyId, channelType, append = false, force }, { getState }) => {
       if (force) return true
       const state = getState().broadcast
       if (
@@ -88,6 +96,7 @@ export const fetchBroadcastGroups = createAsyncThunk<
       ) {
         return true
       }
+      if (append) return state.groupsStatus !== 'loading'
       return state.groupsStatus === 'idle' || state.groupsStatus === 'error'
     },
   },
@@ -172,7 +181,7 @@ const broadcastSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchBroadcastGroups.pending, (state, action) => {
-        const { companyId, channelType } = action.meta.arg
+        const { companyId, channelType, append = false } = action.meta.arg
         if (
           state.groupsCompanyId !== companyId ||
           state.groupsChannelType !== channelType
@@ -181,7 +190,7 @@ const broadcastSlice = createSlice({
         }
         state.groupsCompanyId = companyId
         state.groupsChannelType = channelType
-        state.groupsStatus = 'loading'
+        if (!append) state.groupsStatus = 'loading'
       })
       .addCase(fetchBroadcastGroups.fulfilled, (state, action) => {
         if (
@@ -190,7 +199,13 @@ const broadcastSlice = createSlice({
         ) {
           return
         }
-        state.groups = action.payload.page.content
+        if (action.payload.append) {
+          const byId = new Map(state.groups.map((group) => [group.id, group]))
+          action.payload.page.content.forEach((group) => byId.set(group.id, group))
+          state.groups = Array.from(byId.values())
+        } else {
+          state.groups = action.payload.page.content
+        }
         state.groupsPage = action.payload.page.number
         state.groupsTotalPages = action.payload.page.totalPages
         state.groupsStatus = 'ready'
