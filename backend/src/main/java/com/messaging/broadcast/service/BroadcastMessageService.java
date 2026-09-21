@@ -4,10 +4,7 @@ import com.messaging.broadcast.dto.*;
 import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.enums.BroadcastMessageStatus;
 import com.messaging.broadcast.repository.*;
-import com.messaging.channel.entity.ChannelConnection;
-import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
-import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import java.time.Instant;
@@ -25,7 +22,7 @@ public class BroadcastMessageService {
   private final BroadcastRunRepository runRepository;
   private final BroadcastStatsRepository statsRepository;
   private final BroadcastRecipientRepository recipientRepository;
-  private final ChannelConnectionRepository connectionRepository;
+  private final BroadcastSenderService senderService;
   private final BroadcastStateMachine stateMachine;
   private final BroadcastLaunchService launchService;
 
@@ -36,12 +33,12 @@ public class BroadcastMessageService {
       Long groupId,
       CreateBroadcastMessageRequest request) {
     BroadcastGroup group = groupService.require(companyId, groupId);
-    validateConnection(companyId, group, request.connectionId());
+    validateSender(companyId, group, request.senderId());
 
     BroadcastMessage message = new BroadcastMessage();
     message.setCompanyId(companyId);
     message.setGroupId(groupId);
-    message.setConnectionId(request.connectionId());
+    message.setSenderId(request.senderId());
     message.setChannelType(group.getChannelType());
     message.setSubject(trimToNull(request.subject()));
     message.setBodyText(request.bodyText());
@@ -56,8 +53,9 @@ public class BroadcastMessageService {
     BroadcastMessage message = require(companyId, broadcastId);
     stateMachine.requireEditable(message.getStatus());
     BroadcastGroup group = groupService.require(companyId, message.getGroupId());
-    validateConnection(companyId, group, request.connectionId());
-    message.setConnectionId(request.connectionId());
+    validateSender(companyId, group, request.senderId());
+    message.setSenderId(request.senderId());
+    message.setConnectionId(null);
     message.setSubject(trimToNull(request.subject()));
     message.setBodyText(request.bodyText());
     return response(messageRepository.save(message));
@@ -68,6 +66,7 @@ public class BroadcastMessageService {
       Long companyId, Long broadcastId, ScheduleBroadcastRequest request) {
     BroadcastMessage message = require(companyId, broadcastId);
     stateMachine.requireEditable(message.getStatus());
+    requireModernSender(companyId, message);
     if (!request.scheduledAt().isAfter(Instant.now())) {
       throw new BadRequestException("Broadcast schedule time must be in the future");
     }
@@ -78,6 +77,8 @@ public class BroadcastMessageService {
 
   @Transactional
   public BroadcastMessageResponse sendNow(Long companyId, Long broadcastId) {
+    BroadcastMessage message = require(companyId, broadcastId);
+    requireModernSender(companyId, message);
     launchService.launch(companyId, broadcastId);
     return response(require(companyId, broadcastId));
   }
@@ -115,17 +116,22 @@ public class BroadcastMessageService {
         .orElseThrow(() -> new NotFoundException("Broadcast not found"));
   }
 
-  private void validateConnection(
-      Long companyId, BroadcastGroup group, Long connectionId) {
-    ChannelConnection connection =
-        connectionRepository
-            .findByIdAndCompanyId(connectionId, companyId)
-            .orElseThrow(() -> new NotFoundException("Channel connection not found"));
-    if (group.getChannelType() != ChannelType.EMAIL
-        || connection.getChannelType() != ChannelType.EMAIL
-        || connection.getStatus() != ChannelConnectionStatus.ACTIVE) {
-      throw new BadRequestException("An active email connection is required");
+  private void validateSender(Long companyId, BroadcastGroup group, Long senderId) {
+    if (group.getChannelType() != ChannelType.EMAIL) {
+      throw new BadRequestException("Amazon SES senders are only available for email broadcasts");
     }
+    BroadcastSender sender = senderService.requireActive(companyId, senderId);
+    if (!sender.getProvider().isBulkProvider()) {
+      throw new BadRequestException("A high-volume broadcast sender is required");
+    }
+  }
+
+  private void requireModernSender(Long companyId, BroadcastMessage message) {
+    if (message.getSenderId() == null) {
+      throw new BadRequestException(
+          "This legacy draft uses a mailbox sender. Choose an Amazon SES sender before sending.");
+    }
+    senderService.requireActive(companyId, message.getSenderId());
   }
 
   private BroadcastMessageResponse response(BroadcastMessage message) {

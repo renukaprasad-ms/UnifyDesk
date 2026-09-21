@@ -3,10 +3,7 @@ package com.messaging.broadcast.service;
 import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.enums.*;
 import com.messaging.broadcast.repository.*;
-import com.messaging.channel.entity.ChannelConnection;
-import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
-import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +19,7 @@ public class BroadcastLaunchService {
   private final BroadcastStatsRepository statsRepository;
   private final BroadcastGroupRepository groupRepository;
   private final BroadcastGroupMemberRepository memberRepository;
-  private final ChannelConnectionRepository connectionRepository;
+  private final BroadcastSenderService senderService;
   private final BroadcastStateMachine stateMachine;
   private final BroadcastOutboxService outboxService;
 
@@ -49,21 +46,26 @@ public class BroadcastLaunchService {
     if (!(allowClaimed && message.getStatus() == BroadcastMessageStatus.QUEUED)) {
       stateMachine.requireSendable(message.getStatus());
     }
+
     BroadcastGroup group =
         groupRepository
             .findByIdAndCompanyId(message.getGroupId(), companyId)
             .orElseThrow(() -> new NotFoundException("Broadcast group not found"));
-    if (group.getChannelType() != ChannelType.EMAIL || message.getChannelType() != ChannelType.EMAIL) {
+    if (group.getChannelType() != ChannelType.EMAIL
+        || message.getChannelType() != ChannelType.EMAIL) {
       throw new BadRequestException("Broadcast execution is currently available for email");
     }
+    if (message.getSenderId() == null) {
+      throw new BadRequestException(
+          "Choose an Amazon SES sender before launching this broadcast");
+    }
 
-    ChannelConnection connection =
-        connectionRepository
-            .findByIdAndCompanyId(message.getConnectionId(), companyId)
-            .orElseThrow(() -> new NotFoundException("Email connection not found"));
-    if (connection.getChannelType() != ChannelType.EMAIL
-        || connection.getStatus() != ChannelConnectionStatus.ACTIVE) {
-      throw new BadRequestException("Email connection is not active");
+    BroadcastSender sender = senderService.requireActive(companyId, message.getSenderId());
+    BroadcastSenderConnection senderConnection =
+        senderService.requireConnection(companyId, sender.getConnectionId());
+    if (sender.getProvider() != BroadcastSenderProvider.AMAZON_SES
+        || senderConnection.getProvider() != BroadcastSenderProvider.AMAZON_SES) {
+      throw new BadRequestException("New email broadcasts currently require Amazon SES");
     }
 
     Long maxMemberId = memberRepository.findMaxActiveMemberId(group.getId());
@@ -75,8 +77,8 @@ public class BroadcastLaunchService {
     run.setBroadcastMessageId(message.getId());
     run.setCompanyId(companyId);
     run.setGroupId(group.getId());
-    run.setConnectionId(connection.getId());
-    run.setProviderType(connection.getProviderType());
+    run.setSenderId(sender.getId());
+    run.setProviderType(sender.getProvider());
     run.setStatus(BroadcastRunStatus.PREPARING);
     run.setSubjectSnapshot(message.getSubject());
     run.setBodyTextSnapshot(message.getBodyText());
@@ -94,5 +96,4 @@ public class BroadcastLaunchService {
     outboxService.enqueueRunPrepare(companyId, run.getId());
     return run;
   }
-
 }

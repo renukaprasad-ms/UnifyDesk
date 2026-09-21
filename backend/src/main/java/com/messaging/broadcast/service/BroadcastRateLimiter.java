@@ -1,7 +1,7 @@
 package com.messaging.broadcast.service;
 
 import com.messaging.broadcast.config.BroadcastProperties;
-import com.messaging.channel.enums.ProviderType;
+import com.messaging.broadcast.entity.BroadcastSenderConnection;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -39,10 +39,14 @@ public class BroadcastRateLimiter {
   private final StringRedisTemplate redisTemplate;
   private final BroadcastProperties properties;
 
-  public boolean tryAcquire(ProviderType provider, Long connectionId) {
-    int rate = rate(provider);
+  public boolean tryAcquire(BroadcastSenderConnection connection) {
+    int rate = effectiveRate(connection);
     if (rate <= 0) return false;
-    String key = "messaging:broadcast:rate:" + provider.name() + ":" + connectionId;
+    String key =
+        "messaging:broadcast:rate:"
+            + connection.getProvider().name()
+            + ":"
+            + connection.getId();
     Long allowed =
         redisTemplate.execute(
             SCRIPT,
@@ -53,12 +57,10 @@ public class BroadcastRateLimiter {
     return Long.valueOf(1L).equals(allowed);
   }
 
-  private int rate(ProviderType provider) {
-    return switch (provider) {
-      case GMAIL -> properties.getGmailPerSecond();
-      case MICROSOFT -> properties.getMicrosoftPerSecond();
-      case IMAP_SMTP -> properties.getImapSmtpPerSecond();
-      default -> 0;
-    };
+  int effectiveRate(BroadcastSenderConnection connection) {
+    double providerRate =
+        connection.getMaxSendRate() == null ? 1.0 : Math.max(1.0, connection.getMaxSendRate());
+    int providerFloor = Math.max(1, (int) Math.floor(providerRate));
+    return Math.min(providerFloor, Math.max(1, properties.getSesMaxPerSecondCap()));
   }
 }

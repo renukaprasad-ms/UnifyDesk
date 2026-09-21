@@ -26,7 +26,5 @@ public class BroadcastProperties {
   private Duration outboxStaleAfter = Duration.ofMinutes(2);
   private int outboxMaxAttempts = 20;
   private String messageIdDomain = "messaging.renukaprasad.in";
-  private int gmailPerSecond = 5;
-  private int microsoftPerSecond = 5;
-  private int imapSmtpPerSecond = 5;
+  private int sesMaxPerSecondCap = 1000;
 }

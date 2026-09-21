@@ -4,7 +4,6 @@ import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.enums.*;
 import com.messaging.broadcast.repository.*;
 import com.messaging.broadcast.transport.BroadcastEmailResult;
-import com.messaging.channel.enums.ProviderType;
 import com.messaging.common.exception.NotFoundException;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +19,7 @@ public class BroadcastDeliveryStateService {
   private final BroadcastStatsService statsService;
 
   @Transactional
-  public AttemptContext begin(Long recipientId, ProviderType provider) {
+  public AttemptContext begin(Long recipientId, BroadcastSenderProvider provider) {
     BroadcastRecipient recipient =
         recipientRepository
             .findByIdForUpdate(recipientId)

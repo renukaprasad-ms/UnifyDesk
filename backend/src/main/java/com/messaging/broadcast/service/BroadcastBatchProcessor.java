@@ -4,10 +4,6 @@ import com.messaging.broadcast.config.BroadcastProperties;
 import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.enums.*;
 import com.messaging.broadcast.repository.*;
-import com.messaging.channel.entity.ChannelConnection;
-import com.messaging.channel.enums.ChannelConnectionStatus;
-import com.messaging.channel.enums.ChannelType;
-import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.NotFoundException;
 import java.time.Instant;
 import java.util.List;
@@ -20,7 +16,8 @@ public class BroadcastBatchProcessor {
 
   private final BroadcastBatchRepository batchRepository;
   private final BroadcastRunRepository runRepository;
-  private final ChannelConnectionRepository connectionRepository;
+  private final BroadcastSenderRepository senderRepository;
+  private final BroadcastSenderConnectionRepository senderConnectionRepository;
   private final BroadcastRecipientClaimService recipientClaimService;
   private final BroadcastDeliveryStateService deliveryStateService;
   private final BroadcastDeliveryService deliveryService;
@@ -43,14 +40,29 @@ public class BroadcastBatchProcessor {
       releaseBatch(batch);
       return;
     }
+    if (run.getSenderId() == null) {
+      failureService.fail(
+          run.getId(), "SENDER_UNAVAILABLE", "Legacy mailbox broadcasts can no longer execute");
+      return;
+    }
 
-    ChannelConnection connection =
-        connectionRepository
-            .findByIdAndCompanyId(run.getConnectionId(), run.getCompanyId())
+    BroadcastSender sender =
+        senderRepository
+            .findByIdAndCompanyId(run.getSenderId(), run.getCompanyId())
+            .orElse(null);
+    if (sender == null || sender.getStatus() != BroadcastSenderStatus.ACTIVE) {
+      failureService.fail(
+          run.getId(), "SENDER_UNAVAILABLE", "Broadcast sender is missing or no longer active");
+      return;
+    }
+
+    BroadcastSenderConnection connection =
+        senderConnectionRepository
+            .findByIdAndCompanyId(sender.getConnectionId(), run.getCompanyId())
             .orElse(null);
     if (connection == null
-        || connection.getChannelType() != ChannelType.EMAIL
-        || connection.getStatus() != ChannelConnectionStatus.ACTIVE) {
+        || connection.getStatus() != BroadcastSenderConnectionStatus.ACTIVE
+        || !connection.isSendingEnabled()) {
       failureService.fail(
           run.getId(),
           "SENDER_UNAVAILABLE",
@@ -61,9 +73,7 @@ public class BroadcastBatchProcessor {
     int claimSize = Math.max(1, properties.getRecipientClaimSize());
     while (true) {
       BroadcastRun current = runRepository.findById(run.getId()).orElse(run);
-      if (current.getStatus() != BroadcastRunStatus.RUNNING) {
-        break;
-      }
+      if (current.getStatus() != BroadcastRunStatus.RUNNING) break;
 
       List<BroadcastRecipient> recipients =
           recipientClaimService.claim(batchId, claimSize);
@@ -76,7 +86,7 @@ public class BroadcastBatchProcessor {
               recipient.getId(), Instant.now().plusSeconds(1));
           continue;
         }
-        deliveryService.deliver(run, connection, recipient);
+        deliveryService.deliver(run, connection, sender, recipient);
       }
     }
 

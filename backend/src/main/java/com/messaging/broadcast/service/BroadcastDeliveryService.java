@@ -2,7 +2,6 @@ package com.messaging.broadcast.service;
 
 import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.transport.*;
-import com.messaging.channel.entity.ChannelConnection;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,26 +16,28 @@ public class BroadcastDeliveryService {
   private final BroadcastDeliveryStateService stateService;
 
   public void deliver(
-      BroadcastRun run, ChannelConnection connection, BroadcastRecipient recipient) {
-    if (!rateLimiter.tryAcquire(run.getProviderType(), connection.getId())) {
+      BroadcastRun run,
+      BroadcastSenderConnection connection,
+      BroadcastSender sender,
+      BroadcastRecipient recipient) {
+    if (!rateLimiter.tryAcquire(connection)) {
       stateService.releaseForRateLimit(recipient.getId(), Instant.now().plusSeconds(1));
       return;
     }
 
     BroadcastDeliveryStateService.AttemptContext attempt =
         stateService.begin(recipient.getId(), run.getProviderType());
-    String internetMessageId = recipient.getInternetMessageId();
     BroadcastEmailCommand command =
         new BroadcastEmailCommand(
             recipient.getDestination(),
             run.getSubjectSnapshot(),
             run.getBodyTextSnapshot(),
-            internetMessageId,
+            recipient.getInternetMessageId(),
             recipient.getProviderCorrelationId());
 
     try {
       BroadcastEmailResult result =
-          transportRegistry.require(run.getProviderType()).send(connection, command);
+          transportRegistry.require(run.getProviderType()).send(connection, sender, command);
       stateService.accepted(attempt, result);
     } catch (BroadcastTransportException exception) {
       switch (exception.outcome()) {
@@ -48,8 +49,7 @@ public class BroadcastDeliveryService {
                 exception.getMessage(),
                 retryPolicy.nextAttempt(attempt.attemptNo()));
           } else {
-            stateService.failed(
-                attempt, "RETRY_EXHAUSTED", exception.getMessage());
+            stateService.failed(attempt, "RETRY_EXHAUSTED", exception.getMessage());
           }
         }
         case PERMANENT ->

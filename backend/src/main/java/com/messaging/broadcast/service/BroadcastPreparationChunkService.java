@@ -5,8 +5,8 @@ import com.messaging.broadcast.dto.BroadcastStatsResponse;
 import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.enums.*;
 import com.messaging.broadcast.repository.*;
-import com.messaging.common.id.IdGenerator;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.common.id.IdGenerator;
 import java.time.Instant;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -37,11 +37,10 @@ public class BroadcastPreparationChunkService {
             .orElseThrow(() -> new NotFoundException("Broadcast run not found"));
     if (run.getStatus() != BroadcastRunStatus.PREPARING) return;
 
-    long currentCursor = run.getSnapshotCursorMemberId() == null ? 0L : run.getSnapshotCursorMemberId();
+    long currentCursor =
+        run.getSnapshotCursorMemberId() == null ? 0L : run.getSnapshotCursorMemberId();
     long expected = expectedAfterMemberId == null ? 0L : expectedAfterMemberId;
-    if (currentCursor != expected) {
-      return;
-    }
+    if (currentCursor != expected) return;
 
     int size = Math.max(1, properties.getSnapshotBatchSize());
     List<BroadcastGroupMember> members =
@@ -82,12 +81,11 @@ public class BroadcastPreparationChunkService {
     long skipped = 0;
     for (BroadcastGroupMember member : members) {
       BroadcastRecipient recipient = new BroadcastRecipient();
-      long recipientId = IdGenerator.nextId();
-      recipient.setId(recipientId);
+      recipient.setId(IdGenerator.nextId());
       recipient.setRunId(run.getId());
       recipient.setBatchId(batch.getId());
       recipient.setCompanyId(run.getCompanyId());
-      recipient.setConnectionId(run.getConnectionId());
+      recipient.setSenderId(run.getSenderId());
       recipient.setSourceMemberId(member.getId());
       recipient.setDestination(member.getDestination());
       recipient.setNormalizedDestination(member.getNormalizedDestination());
