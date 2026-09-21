@@ -45,6 +45,43 @@ export type BroadcastMemberImportResult = {
   invalid: number
 }
 
+export type BroadcastSenderProvider = 'AMAZON_SES' | 'AZURE_EMAIL' | 'SENDGRID'
+export type BroadcastSenderManagementMode = 'CUSTOMER_MANAGED' | 'MESSAGING_MANAGED'
+export type BroadcastSenderStatus = 'ACTIVE' | 'DISABLED'
+export type BroadcastSenderAuthMode = 'IAM_ROLE' | 'ACCESS_KEYS'
+
+export type BroadcastSender = {
+  id: string
+  connectionId: string
+  provider: BroadcastSenderProvider
+  managementMode: BroadcastSenderManagementMode
+  status: BroadcastSenderStatus
+  fromAddress: string
+  displayName?: string | null
+  replyToAddress?: string | null
+  connectionName: string
+  region: string
+  productionAccessEnabled: boolean
+  sendingEnabled: boolean
+  max24HourSend?: number | null
+  maxSendRate?: number | null
+  sentLast24Hours?: number | null
+  lastValidatedAt?: string | null
+}
+
+export type ConnectAmazonSesInput = {
+  name: string
+  region: string
+  authMode: BroadcastSenderAuthMode
+  roleArn?: string | null
+  externalId?: string | null
+  accessKeyId?: string | null
+  secretAccessKey?: string | null
+  fromAddress: string
+  displayName?: string | null
+  replyToAddress?: string | null
+}
+
 export type BroadcastMessageStatus =
   | 'DRAFT'
   | 'SCHEDULED'
@@ -80,7 +117,8 @@ export type BroadcastStats = {
 export type BroadcastMessageSummary = {
   id: string
   groupId: string
-  connectionId: string
+  senderId?: string | null
+  legacyConnectionId?: string | null
   runId?: string | null
   subject?: string | null
   bodyPreview?: string | null
@@ -137,7 +175,7 @@ export type CreateBroadcastGroupInput = {
 }
 
 export type CreateBroadcastMessageInput = {
-  connectionId: string
+  senderId: string
   subject?: string | null
   bodyText: string
 }
