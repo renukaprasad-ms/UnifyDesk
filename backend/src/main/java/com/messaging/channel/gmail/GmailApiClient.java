@@ -340,6 +340,33 @@ public class GmailApiClient {
                 .body(SendMessageResponse.class));
   }
 
+  public void updateReadState(
+      String accessToken, List<String> messageIds, boolean read) {
+    if (messageIds == null || messageIds.isEmpty()) return;
+    if (messageIds.size() > 1000) {
+      throw new BadRequestException("Gmail read-state batch cannot exceed 1000 messages");
+    }
+
+    BatchModifyRequest request =
+        read
+            ? new BatchModifyRequest(messageIds, List.of(), List.of("UNREAD"))
+            : new BatchModifyRequest(messageIds, List.of("UNREAD"), List.of());
+
+    execute(
+        "gmail_messages_batch_modify",
+        () -> {
+          gmailApi
+              .post()
+              .uri("/gmail/v1/users/me/messages/batchModify")
+              .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+              .contentType(MediaType.APPLICATION_JSON)
+              .body(request)
+              .retrieve()
+              .toBodilessEntity();
+          return Boolean.TRUE;
+        });
+  }
+
   public GmailMessage message(String accessToken, String messageId) {
     URI uri =
         UriComponentsBuilder.fromPath("/gmail/v1/users/me/messages/{messageId}")
@@ -663,6 +690,9 @@ public class GmailApiClient {
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public record SendMessageRequest(String raw, String threadId) {}
+
+  public record BatchModifyRequest(
+      List<String> ids, List<String> addLabelIds, List<String> removeLabelIds) {}
 
   public record WatchRequest(String topicName) {}
 

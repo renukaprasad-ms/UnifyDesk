@@ -1,14 +1,19 @@
 package com.messaging.channel.meta;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.messaging.observability.webhook.WebhookCallbackAuditService;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.mock.web.MockHttpServletRequest;
 
 class MetaWhatsAppWebhookControllerTests {
 
@@ -20,12 +25,20 @@ class MetaWhatsAppWebhookControllerTests {
     MetaWhatsAppProperties properties = new MetaWhatsAppProperties();
     properties.setAppSecret(APP_SECRET);
     properties.setWebhookVerifyToken("verify-me");
-    controller = new MetaWhatsAppWebhookController(properties);
+    controller =
+        new MetaWhatsAppWebhookController(
+            properties, mock(WebhookCallbackAuditService.class), new ObjectMapper());
   }
 
   @Test
   void returnsChallengeWhenVerifyTokenMatches() {
-    var response = controller.verify("subscribe", "verify-me", "challenge-value");
+    var response =
+        controller.verify(
+            "subscribe",
+            "verify-me",
+            "challenge-value",
+            new HttpHeaders(),
+            request("GET"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isEqualTo("challenge-value");
@@ -33,7 +46,13 @@ class MetaWhatsAppWebhookControllerTests {
 
   @Test
   void rejectsWebhookVerificationWhenTokenDoesNotMatch() {
-    var response = controller.verify("subscribe", "wrong-token", "challenge-value");
+    var response =
+        controller.verify(
+            "subscribe",
+            "wrong-token",
+            "challenge-value",
+            new HttpHeaders(),
+            request("GET"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
   }
@@ -43,7 +62,9 @@ class MetaWhatsAppWebhookControllerTests {
     String body = "{\"object\":\"whatsapp_business_account\"}";
     String signature = "sha256=" + signature(body);
 
-    var response = controller.receive(body, signature);
+    HttpHeaders headers = new HttpHeaders();
+    headers.add("X-Hub-Signature-256", signature);
+    var response = controller.receive(body, signature, headers, request("POST"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isEqualTo("EVENT_RECEIVED");
@@ -54,9 +75,17 @@ class MetaWhatsAppWebhookControllerTests {
     var response =
         controller.receive(
             "{\"object\":\"whatsapp_business_account\"}",
-            "sha256=0000000000000000000000000000000000000000000000000000000000000000");
+            "sha256=0000000000000000000000000000000000000000000000000000000000000000",
+            new HttpHeaders(),
+            request("POST"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+  }
+
+  private MockHttpServletRequest request(String method) {
+    MockHttpServletRequest request = new MockHttpServletRequest(method, "/api/v1/webhooks/meta/whatsapp");
+    request.setRemoteAddr("127.0.0.1");
+    return request;
   }
 
   private String signature(String body) throws Exception {
