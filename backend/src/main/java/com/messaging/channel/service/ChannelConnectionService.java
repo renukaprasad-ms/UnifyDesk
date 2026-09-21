@@ -39,6 +39,7 @@ public class ChannelConnectionService {
   private final ProviderCredentialService credentialService;
   private final ChannelProviderRegistry providerRegistry;
   private final DeletionPurgeService deletionPurgeService;
+  private final ChannelConnectionLifecycleService lifecycleService;
 
   @Transactional
   public ChannelConnectionResponse create(
@@ -164,14 +165,8 @@ public class ChannelConnectionService {
     return toResponse(connection);
   }
 
-  @Transactional
   public void cancelPendingPurge(Long companyId, Long connectionId) {
-    ChannelConnection connection = requireConnection(companyId, connectionId);
-    connection.setDisconnectedAt(null);
-    connection.setPurgeAfter(null);
-    connection.setDeletionRequestedByUserId(null);
-    connectionRepository.save(connection);
-    deletionPurgeService.cancel(LifecycleEntityType.CHANNEL_CONNECTION, connectionId);
+    lifecycleService.cancelPendingPurge(companyId, connectionId);
   }
 
   @Transactional
