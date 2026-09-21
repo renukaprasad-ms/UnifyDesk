@@ -6,8 +6,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.messaging.channel.credential.ProviderCredentialService;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.ProviderType;
@@ -40,12 +38,10 @@ class GmailConnectionServiceTests {
   @Mock private GmailOAuthStateService stateService;
   @Mock private GmailApiClient gmailApiClient;
   @Mock private GmailPersistenceService persistenceService;
-  @Mock private GmailSyncQueueService syncQueueService;
   @Mock private GmailWatchService watchService;
   @Mock private ChannelConnectionRepository connectionRepository;
   @Mock private ChannelEntitlementService entitlementService;
   @Mock private CompanyAuthorizationService authorizationService;
-  @Mock private ProviderCredentialService credentialService;
   @Mock private ChannelConnectionService channelConnectionService;
 
   private GmailConnectionService service;
@@ -65,14 +61,11 @@ class GmailConnectionServiceTests {
             stateService,
             gmailApiClient,
             persistenceService,
-            syncQueueService,
             watchService,
             connectionRepository,
             entitlementService,
             authorizationService,
-            credentialService,
-            channelConnectionService,
-            new ObjectMapper());
+            channelConnectionService);
   }
 
   @Test

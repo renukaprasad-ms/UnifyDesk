@@ -1,19 +1,12 @@
 package com.messaging.channel.microsoft;
 
-import com.messaging.asyncjob.dto.AsyncJobResponse;
-import com.messaging.channel.dto.ChannelConnectionResponse;
-import com.messaging.channel.email.EmailSyncRequest;
-import com.messaging.channel.entity.ChannelConnection;
-import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
-import com.messaging.channel.enums.DisconnectDataPolicy;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.microsoft.MicrosoftApiClient.MicrosoftProfile;
 import com.messaging.channel.microsoft.MicrosoftApiClient.TokenResponse;
 import com.messaging.channel.microsoft.MicrosoftOAuthStateService.OAuthState;
 import com.messaging.channel.microsoft.dto.MicrosoftAuthorizationResponse;
 import com.messaging.channel.microsoft.dto.MicrosoftConnectionResponse;
-import com.messaging.channel.microsoft.dto.MicrosoftSyncQueuedResponse;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.channel.service.ChannelConnectionService;
 import com.messaging.channel.service.ChannelEntitlementService;
@@ -32,8 +25,6 @@ public class MicrosoftConnectionService {
   private final MicrosoftApiClient apiClient;
   private final MicrosoftPersistenceService persistenceService;
   private final MicrosoftSubscriptionService subscriptionService;
-  private final MicrosoftSyncStateService syncStateService;
-  private final MicrosoftBackfillQueueService backfillQueueService;
   private final ChannelConnectionRepository connectionRepository;
   private final ChannelEntitlementService entitlementService;
   private final CompanyAuthorizationService authorizationService;
@@ -97,43 +88,6 @@ public class MicrosoftConnectionService {
 
   public String consumeCancelledStateWithReturn(String state) {
     return stateService.consume(state).returnTo();
-  }
-
-  public MicrosoftSyncQueuedResponse requestSync(
-      Long companyId, Long userId, Long connectionId, EmailSyncRequest request) {
-    ChannelConnectionResponse connection = channelConnectionService.get(companyId, connectionId);
-    if (connection.providerType() != ProviderType.MICROSOFT) {
-      throw new BadRequestException("Channel connection is not a Microsoft mailbox");
-    }
-    if (connection.status() != ChannelConnectionStatus.ACTIVE) {
-      throw new BadRequestException("Microsoft mailbox is not active");
-    }
-    return backfillQueueService.enqueue(companyId, userId, connectionId, request);
-  }
-
-  public AsyncJobResponse activeSync(Long companyId, Long connectionId) {
-    ChannelConnectionResponse connection = channelConnectionService.get(companyId, connectionId);
-    if (connection.providerType() != ProviderType.MICROSOFT) {
-      throw new BadRequestException("Channel connection is not a Microsoft mailbox");
-    }
-    return backfillQueueService.active(companyId, connectionId);
-  }
-
-  public ChannelConnectionResponse disconnect(
-      Long companyId,
-      Long connectionId,
-      Long requestedByUserId,
-      DisconnectDataPolicy dataPolicy) {
-    ChannelConnection connection =
-        connectionRepository
-            .findByIdAndCompanyId(connectionId, companyId)
-            .orElseThrow(() -> new BadRequestException("Microsoft connection not found"));
-    if (connection.getProviderType() != ProviderType.MICROSOFT) {
-      throw new BadRequestException("Channel connection is not a Microsoft mailbox");
-    }
-
-    return channelConnectionService.disconnect(
-        companyId, connectionId, requestedByUserId, dataPolicy);
   }
 
   public boolean configured() {

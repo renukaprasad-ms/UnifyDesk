@@ -1,5 +1,6 @@
 package com.messaging.channel.microsoft.dto;
 
+import com.messaging.channel.email.EmailSendCommand;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -12,4 +13,19 @@ public record MicrosoftSendRequest(
     @Size(max = 998) String subject,
     @NotBlank @Size(max = 100000) String bodyText,
     @Size(max = 255) String replyToMessageId,
-    Boolean replyAll) {}
+    Boolean replyAll) {
+
+  public EmailSendCommand toCommand() {
+    return new EmailSendCommand(
+        to,
+        cc,
+        bcc,
+        subject,
+        bodyText,
+        null,
+        replyToMessageId,
+        Boolean.TRUE.equals(replyAll),
+        null,
+        null);
+  }
+}

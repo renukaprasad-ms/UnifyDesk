@@ -6,6 +6,7 @@ import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.asyncjob.enums.AsyncJobType;
 import com.messaging.asyncjob.service.AsyncJobService;
 import com.messaging.channel.email.EmailSyncRequest;
+import com.messaging.channel.email.EmailSyncRequestValidator;
 import com.messaging.channel.gmail.dto.GmailSyncQueuedResponse;
 import com.messaging.channel.gmail.entity.GmailSyncRun;
 import java.util.LinkedHashMap;
@@ -21,6 +22,7 @@ public class GmailSyncQueueService {
   public static final String EVENT_TYPE = "gmail.sync.requested";
 
   private final AsyncJobService asyncJobService;
+  private final GmailOAuthProperties properties;
   private final GmailSyncCoordinatorPublisher coordinatorPublisher;
   private final GmailSyncJobFactory jobFactory;
   private final GmailSyncStateService stateService;
@@ -28,6 +30,8 @@ public class GmailSyncQueueService {
 
   public GmailSyncQueuedResponse enqueue(
       Long companyId, Long userId, Long connectionId, EmailSyncRequest request) {
+    EmailSyncRequestValidator.validate(
+        request, properties.getSyncMaxRangeDays(), properties.getSyncMaxMessages());
     var active =
         asyncJobService.findActive(companyId, AsyncJobType.GMAIL_SYNC, connectionId.toString());
     if (active.isPresent()) {

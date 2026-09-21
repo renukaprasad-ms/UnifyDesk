@@ -33,14 +33,33 @@ public class ChannelProviderRegistry {
     return provider;
   }
 
+  public <T extends ChannelProvider> T requireCapability(
+      ProviderType providerType, Class<T> capabilityType) {
+    ChannelProvider provider = get(providerType);
+    if (!capabilityType.isInstance(provider)) {
+      throw new BadRequestException(
+          "Provider "
+              + providerType
+              + " does not support capability "
+              + capabilityType.getSimpleName());
+    }
+    return capabilityType.cast(provider);
+  }
+
   public boolean isConfigured(ProviderType providerType) {
     return providers.containsKey(providerType);
   }
 
+  public boolean supportsCapability(
+      ProviderType providerType, Class<? extends ChannelProvider> capabilityType) {
+    ChannelProvider provider = providers.get(providerType);
+    return provider != null && capabilityType.isInstance(provider);
+  }
+
   public void disconnect(ChannelConnection connection) {
     ChannelProvider provider = providers.get(connection.getProviderType());
-    if (provider != null) {
-      provider.disconnect(connection);
+    if (provider instanceof DisconnectableChannelProvider disconnectable) {
+      disconnectable.disconnect(connection);
     }
   }
 }

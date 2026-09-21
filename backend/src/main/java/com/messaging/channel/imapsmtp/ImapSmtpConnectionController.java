@@ -1,6 +1,7 @@
 package com.messaging.channel.imapsmtp;
 
 import com.messaging.asyncjob.dto.AsyncJobResponse;
+import com.messaging.channel.email.EmailChannelOperationsService;
 import com.messaging.channel.email.EmailSyncRequest;
 import com.messaging.channel.imapsmtp.dto.ImapSmtpConnectRequest;
 import com.messaging.channel.imapsmtp.dto.ImapSmtpConnectionResponse;
@@ -23,8 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class ImapSmtpConnectionController {
 
   private final ImapSmtpConnectionService connectionService;
-  private final ImapSmtpSendService sendService;
-  private final ImapSmtpSyncQueueService syncQueueService;
+  private final EmailChannelOperationsService emailOperationsService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -62,7 +62,7 @@ public class ImapSmtpConnectionController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            syncQueueService.active(companyId, connectionId),
+            emailOperationsService.activeSync(companyId, connectionId),
             "Active IMAP sync fetched"));
   }
 
@@ -77,7 +77,8 @@ public class ImapSmtpConnectionController {
         .body(
             ApiResponse.success(
                 HttpStatus.ACCEPTED.value(),
-                syncQueueService.enqueue(companyId, userId, connectionId, request),
+                ImapSmtpSyncQueuedResponse.from(
+                    emailOperationsService.queueSync(companyId, userId, connectionId, request)),
                 "IMAP sync queued"));
   }
 
@@ -92,7 +93,8 @@ public class ImapSmtpConnectionController {
         .body(
             ApiResponse.success(
                 HttpStatus.ACCEPTED.value(),
-                sendService.send(companyId, connectionId, request),
+                ImapSmtpSendResponse.from(
+                emailOperationsService.send(companyId, connectionId, request.toCommand())),
                 "Email sent"));
   }
 }

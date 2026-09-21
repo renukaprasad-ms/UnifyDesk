@@ -2,6 +2,7 @@ package com.messaging.channel.imapsmtp.dto;
 
 import com.messaging.channel.email.EmailFolder;
 import com.messaging.channel.email.EmailSyncMode;
+import com.messaging.channel.email.EmailSyncQueuedResult;
 import java.time.LocalDate;
 
 public record ImapSmtpSyncQueuedResponse(
@@ -12,4 +13,17 @@ public record ImapSmtpSyncQueuedResponse(
     EmailFolder folder,
     LocalDate fromDate,
     LocalDate toDate,
-    Integer messageCount) {}
+    Integer messageCount) {
+
+  public static ImapSmtpSyncQueuedResponse from(EmailSyncQueuedResult result) {
+    return new ImapSmtpSyncQueuedResponse(
+        result.connectionId(),
+        result.jobId(),
+        result.status(),
+        result.mode(),
+        result.folder(),
+        result.fromDate(),
+        result.toDate(),
+        result.messageCount());
+  }
+}
