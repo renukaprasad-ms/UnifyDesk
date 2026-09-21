@@ -891,7 +891,7 @@ export default function EmailInbox() {
             {selectedConnection?.externalAccountId || selectedConnection?.name || 'Inbox'}
           </p>
         </div>
-        <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+        <div className="inbox-toolbar-actions ml-auto flex w-full items-center justify-end gap-2 sm:w-auto">
             <button
               type="button"
               className="secondary-button flex-1 gap-2 sm:flex-none"
@@ -899,7 +899,7 @@ export default function EmailInbox() {
               disabled={loading || !selectedConnection}
             >
               <FiRefreshCw aria-hidden="true" />
-              Refresh
+              <span className="inbox-action-label">Refresh</span>
             </button>
             {selectedFolder === 'INBOX' && can(PERMISSIONS.EMAIL_MODIFY) && (
               <button
@@ -909,7 +909,9 @@ export default function EmailInbox() {
                 disabled={!selectedConnection || markAllStarting || Boolean(activeMarkAllJob)}
               >
                 <FiCheckCircle aria-hidden="true" />
-                {markAllStarting || activeMarkAllJob ? 'Marking…' : 'Mark all read'}
+                <span className="inbox-action-label">
+                  {markAllStarting || activeMarkAllJob ? 'Marking…' : 'Mark all read'}
+                </span>
               </button>
             )}
             <button
@@ -924,7 +926,9 @@ export default function EmailInbox() {
               }
             >
               <FiMail aria-hidden="true" />
-              {syncing || activeSyncJobs.length > 0 ? 'Syncing…' : 'Sync'}
+              <span className="inbox-action-label">
+                {syncing || activeSyncJobs.length > 0 ? 'Syncing…' : 'Sync'}
+              </span>
             </button>
             {canSendSelectedEmail && (
               <button
@@ -933,7 +937,7 @@ export default function EmailInbox() {
                 onClick={openCompose}
               >
                 <FiSend aria-hidden="true" />
-                Compose
+                <span className="inbox-action-label">Compose</span>
               </button>
             )}
           </div>
@@ -1283,7 +1287,7 @@ export default function EmailInbox() {
         )}
 
         <div
-          className={`${mobileConversationOpen ? 'hidden' : 'block'} panel mb-4 overflow-hidden lg:hidden`}
+          className={`${mobileConversationOpen ? 'hidden' : 'block'} mobile-inbox-list panel mb-4 overflow-hidden lg:hidden`}
         >
           <div className="border-b border-slate-100 px-4 py-3">
             <p className="text-xs font-bold text-slate-900">Chats</p>
@@ -1317,7 +1321,7 @@ export default function EmailInbox() {
             </div>
           ) : (
             <>
-              <header className="flex items-start gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
+              <header className="inbox-thread-header flex items-start gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
                 <button
                   type="button"
                   className="secondary-button shrink-0 px-3 lg:hidden"
