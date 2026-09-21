@@ -80,7 +80,7 @@ export default function CompanyUsers() {
       ])
       setUsers(loadedUsers)
       setInvitations(loadedInvitations)
-      setRoles(loadedRoles)
+      setRoles(loadedRoles.filter((role) => !role.systemRole))
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load company users'))
     } finally {
