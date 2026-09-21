@@ -625,6 +625,16 @@
     }
   }
 
+  @media (max-width: 479px) {
+    .channel-workspace-toolbar > .min-w-0 {
+      display: none;
+    }
+
+    .inbox-toolbar-actions {
+      justify-content: flex-start;
+    }
+  }
+
   @media (max-width: 639px) {
     .app-header {
       min-height: 64px;
