@@ -4,6 +4,7 @@ import com.messaging.channel.email.EmailFolder;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.microsoft.MicrosoftApiClient.*;
+import com.messaging.inbox.dto.InboxEmailChangedEvent;
 import com.messaging.inbox.entity.*;
 import com.messaging.inbox.enums.*;
 import com.messaging.inbox.repository.*;
@@ -79,7 +80,9 @@ public class MicrosoftInboxPersistenceService {
     int created = 0;
     int updated = 0;
     int deleted = 0;
-    Set<Long> touchedConversationIds = new HashSet<>();
+    Set<Long> touchedConversationIds = new LinkedHashSet<>();
+    Set<Long> changedMessageIds = new LinkedHashSet<>();
+    Set<Long> deletedMessageIds = new LinkedHashSet<>();
     List<StorageConsumption> consumptions = new ArrayList<>();
 
     for (GraphMessage graphMessage : messages) {
@@ -102,6 +105,7 @@ public class MicrosoftInboxPersistenceService {
                 existing.getId().toString(),
                 existing.getStorageBytes());
           }
+          deletedMessageIds.add(existing.getId());
           messageRepository.delete(existing);
           touchedConversationIds.add(conversationId);
           deleted++;
@@ -188,6 +192,7 @@ public class MicrosoftInboxPersistenceService {
 
       message = messageRepository.save(message);
       existingMessages.put(graphMessage.id(), message);
+      changedMessageIds.add(message.getId());
 
       if (accountStorage && message.getStorageBytes() > 0) {
         consumptions.add(
@@ -224,12 +229,12 @@ public class MicrosoftInboxPersistenceService {
       realtimeService.sendToCompany(
           connection.getCompanyId(),
           "inbox.email.changed",
-          Map.of(
-              "connectionId", connection.getId().toString(),
-              "provider", ProviderType.MICROSOFT.name(),
-              "created", created,
-              "updated", updated,
-              "deleted", deleted));
+          InboxEmailChangedEvent.delta(
+              connection.getId(),
+              ProviderType.MICROSOFT,
+              touchedConversationIds,
+              changedMessageIds,
+              deletedMessageIds));
     }
 
     return new SyncResult(created, updated, deleted, touchedConversationIds.size());
