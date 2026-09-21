@@ -98,6 +98,10 @@ public class InboxQueryService {
     LinkedHashSet<Long> requestedConversationIds =
         parseIds(request.conversationIds(), "conversationIds");
     LinkedHashSet<Long> requestedMessageIds = parseIds(request.messageIds(), "messageIds");
+    Long detailConversationId =
+        request.detailConversationId() == null || request.detailConversationId().isBlank()
+            ? null
+            : parseId(request.detailConversationId(), "detailConversationId");
 
     List<InboxConversation> foundConversations =
         requestedConversationIds.isEmpty()
@@ -118,6 +122,7 @@ public class InboxQueryService {
                 connectionId,
                 ChannelConnectionStatus.ACTIVE,
                 requestedMessageIds,
+                detailConversationId,
                 InboxMessageStatus.DELETED);
 
     Set<Long> foundConversationIds =
@@ -133,7 +138,9 @@ public class InboxQueryService {
         conversations(foundConversations),
         messages(foundMessages),
         missing(requestedConversationIds, foundConversationIds),
-        missing(requestedMessageIds, foundMessageIds));
+        detailConversationId == null
+            ? List.of()
+            : missing(requestedMessageIds, foundMessageIds));
   }
 
   private InboxConversation requireVisibleConversation(Long companyId, Long conversationId) {
