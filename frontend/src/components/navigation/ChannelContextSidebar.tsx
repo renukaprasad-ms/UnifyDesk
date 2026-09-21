@@ -12,6 +12,7 @@ import {
   FiSend,
   FiServer,
   FiSmartphone,
+  FiUsers,
 } from 'react-icons/fi'
 import { SiGmail } from 'react-icons/si'
 import { useLocation, useNavigate } from 'react-router'
