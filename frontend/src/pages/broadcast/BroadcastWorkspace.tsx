@@ -901,7 +901,9 @@ export default function BroadcastWorkspace() {
               recipients={recipients}
               recipientsLoading={recipientsLoading}
               actionBusy={actionBusy}
-              canSend={can(PERMISSIONS.BROADCAST_SEND)}
+              canSend={
+                can(PERMISSIONS.BROADCAST_SEND) && Boolean(selectedMessage?.senderId)
+              }
               canModify={can(PERMISSIONS.BROADCAST_MODIFY)}
               onBack={() => updateSearch({ broadcastId: null })}
               onEdit={(id) => openComposer(id)}
@@ -1554,7 +1556,7 @@ function BroadcastHistoryCard({
           </p>
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
             <span>
-              From {senderLabel(sender)} · {sender ? providerLabel(sender.provider) : 'Unknown provider'}
+              From {senderLabel(sender)} · {providerLabel(sender?.provider)}
             </span>
             <span>{formatDate(message.scheduledAt || message.createdAt)}</span>
             {message.stats.total > 0 && (
@@ -1700,7 +1702,7 @@ function BroadcastDetail({
               </h1>
               <p className="mt-1 text-xs text-slate-500">
                 From {senderLabel(sender)} ·{' '}
-                {sender ? providerLabel(sender.provider) : 'Unknown provider'}
+                {providerLabel(sender?.provider)}
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 Created {formatDate(message.createdAt)}
