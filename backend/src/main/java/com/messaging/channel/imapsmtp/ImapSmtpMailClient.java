@@ -234,6 +234,60 @@ public class ImapSmtpMailClient {
     }
   }
 
+  public void updateReadState(
+      ImapSmtpStoredCredentials credentials,
+      EmailFolder emailFolder,
+      List<String> externalMessageIds,
+      boolean read) {
+    if (externalMessageIds == null || externalMessageIds.isEmpty()) return;
+
+    String folderName = folderName(credentials, emailFolder);
+    Store store = null;
+    try {
+      store = openStore(credentials);
+      Folder folder = store.getFolder(folderName);
+      ensureFolder(folder, folderName);
+      folder.open(Folder.READ_WRITE);
+      try {
+        if (!(folder instanceof UIDFolder uidFolder)) {
+          throw new BadRequestException("IMAP server does not support UID-based synchronization");
+        }
+
+        long currentUidValidity = uidFolder.getUIDValidity();
+        List<Long> uids = new ArrayList<>();
+        for (String externalMessageId : externalMessageIds) {
+          ImapMessageRef reference = parseMessageRef(externalMessageId);
+          if (!emailFolder.providerKey().equalsIgnoreCase(reference.folderKey())) continue;
+          if (reference.uidValidity() != currentUidValidity) {
+            throw new BadRequestException(
+                "IMAP folder identity changed. Sync the mailbox before changing read state");
+          }
+          uids.add(reference.uid());
+        }
+
+        if (uids.isEmpty()) return;
+        Message[] messages =
+            uidFolder.getMessagesByUID(uids.stream().mapToLong(Long::longValue).toArray());
+        List<Message> existing =
+            messages == null
+                ? List.of()
+                : java.util.Arrays.stream(messages).filter(java.util.Objects::nonNull).toList();
+        if (!existing.isEmpty()) {
+          folder.setFlags(
+              existing.toArray(Message[]::new), new Flags(Flags.Flag.SEEN), read);
+        }
+      } finally {
+        folder.close(false);
+      }
+    } catch (BadRequestException exception) {
+      throw exception;
+    } catch (Exception exception) {
+      throw new ServiceUnavailableException("Unable to update IMAP message read state", exception);
+    } finally {
+      closeQuietly(store);
+    }
+  }
+
   public SentMessage send(ImapSmtpStoredCredentials credentials, ImapSmtpSendRequest request) {
     List<String> to = normalizeRecipients(request.to());
     List<String> cc = normalizeRecipients(request.cc());
@@ -509,6 +563,21 @@ public class ImapSmtpMailClient {
     return new Body(null, null);
   }
 
+  private ImapMessageRef parseMessageRef(String externalMessageId) {
+    if (!hasText(externalMessageId)) {
+      throw new BadRequestException("IMAP message identifier is missing");
+    }
+    String[] parts = externalMessageId.split(":", 3);
+    if (parts.length != 3) {
+      throw new BadRequestException("IMAP message identifier is invalid");
+    }
+    try {
+      return new ImapMessageRef(parts[0], Long.parseLong(parts[1]), Long.parseLong(parts[2]));
+    } catch (NumberFormatException exception) {
+      throw new BadRequestException("IMAP message identifier is invalid");
+    }
+  }
+
   private String threadKey(
       String messageId, String inReplyTo, String references, long uidValidity, long uid) {
     if (hasText(references)) {
@@ -651,6 +720,8 @@ public class ImapSmtpMailClient {
       List<String> bcc,
       String subject,
       Instant sentAt) {}
+
+  private record ImapMessageRef(String folderKey, long uidValidity, long uid) {}
 
   private record Body(String text, String html) {}
 }
