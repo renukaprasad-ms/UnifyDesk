@@ -21,6 +21,7 @@ import com.messaging.channel.meta.dto.CompleteMetaWhatsAppSignupRequest;
 import com.messaging.channel.meta.dto.MetaWhatsAppConnectionResponse;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.channel.repository.SenderIdentityRepository;
+import com.messaging.channel.service.ChannelConnectionService;
 import com.messaging.channel.service.ChannelEntitlementService;
 import com.messaging.common.exception.BadRequestException;
 import java.util.List;
@@ -43,6 +44,7 @@ class MetaWhatsAppConnectionServiceTests {
   @Mock private ChannelConnectionRepository connectionRepository;
   @Mock private SenderIdentityRepository senderIdentityRepository;
   @Mock private ChannelEntitlementService entitlementService;
+  @Mock private ChannelConnectionService channelConnectionService;
   @Mock private MetaWhatsAppPersistenceService persistenceService;
 
   private MetaWhatsAppConnectionService service;
@@ -65,6 +67,7 @@ class MetaWhatsAppConnectionServiceTests {
             connectionRepository,
             senderIdentityRepository,
             entitlementService,
+            channelConnectionService,
             persistenceService);
   }
 
@@ -77,7 +80,7 @@ class MetaWhatsAppConnectionServiceTests {
     PhoneNumber phone = new PhoneNumber("phone-1", "+91 90000 00000", "Acme", "GREEN");
     MetaWhatsAppConnectionResponse expected =
         new MetaWhatsAppConnectionResponse(
-            "connection-1",
+            "600",
             "waba-1",
             "Acme WhatsApp",
             ChannelConnectionStatus.ACTIVE,
@@ -110,6 +113,7 @@ class MetaWhatsAppConnectionServiceTests {
     verify(graphClient).registerPhoneNumber(eq("phone-1"), eq("access-token"), pinCaptor.capture());
     assertThat(pinCaptor.getValue()).matches("\\d{6}");
     verify(graphClient).subscribeApp("waba-1", "access-token");
+    verify(channelConnectionService).cancelPendingPurge(COMPANY_ID, 600L);
   }
 
   @Test
@@ -163,7 +167,7 @@ class MetaWhatsAppConnectionServiceTests {
     PhoneNumber phone = new PhoneNumber("phone-1", "+91 90000 00000", "Acme", "GREEN");
     MetaWhatsAppConnectionResponse expected =
         new MetaWhatsAppConnectionResponse(
-            "connection-1",
+            "600",
             "waba-1",
             "Acme WhatsApp",
             ChannelConnectionStatus.ACTIVE,
