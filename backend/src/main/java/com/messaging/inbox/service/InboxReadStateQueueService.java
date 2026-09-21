@@ -5,6 +5,7 @@ import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.asyncjob.enums.AsyncJobType;
 import com.messaging.asyncjob.service.AsyncJobService;
 import com.messaging.channel.email.EmailFolder;
+import com.messaging.common.exception.BadRequestException;
 import com.messaging.kafka.event.EventMetadata;
 import com.messaging.kafka.event.InboxMarkAllReadRequestedEvent;
 import com.messaging.kafka.event.KafkaEvent;
@@ -27,6 +28,9 @@ public class InboxReadStateQueueService {
   public AsyncJobResponse queueMarkAllRead(
       Long companyId, Long userId, Long connectionId, EmailFolder folder) {
     EmailFolder resolvedFolder = folder == null ? EmailFolder.INBOX : folder;
+    if (resolvedFolder != EmailFolder.INBOX) {
+      throw new BadRequestException("Mark all as read is only available for the inbox");
+    }
     String resourceId = connectionId + ":" + resolvedFolder.name();
 
     var active =
