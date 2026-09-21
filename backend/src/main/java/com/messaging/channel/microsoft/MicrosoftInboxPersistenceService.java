@@ -229,7 +229,7 @@ public class MicrosoftInboxPersistenceService {
       realtimeService.sendToCompany(
           connection.getCompanyId(),
           "inbox.email.changed",
-          InboxEmailChangedEvent.delta(
+          InboxEmailChangedEvent.boundedDelta(
               connection.getId(),
               ProviderType.MICROSOFT,
               touchedConversationIds,
