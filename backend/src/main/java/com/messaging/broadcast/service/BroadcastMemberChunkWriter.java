@@ -29,16 +29,8 @@ public class BroadcastMemberChunkWriter {
               display_name, metadata_json, status, active_since, disabled_at,
               created_at, updated_at
             ) values (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, null, ?, ?)
-            on conflict (group_id, normalized_destination)
-            do update set
-              destination = excluded.destination,
-              display_name = excluded.display_name,
-              metadata_json = excluded.metadata_json,
-              status = 'ACTIVE',
-              active_since = excluded.active_since,
-              disabled_at = null,
-              updated_at = excluded.updated_at
-            where broadcast_group_members.status = 'DISABLED'
+            on conflict (group_id, normalized_destination) where status = 'ACTIVE'
+            do nothing
             """,
             new BatchPreparedStatementSetter() {
               @Override
