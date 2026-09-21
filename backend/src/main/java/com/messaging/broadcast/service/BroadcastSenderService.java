@@ -24,6 +24,7 @@ public class BroadcastSenderService {
 
   private final BroadcastSenderRepository senderRepository;
   private final BroadcastSenderConnectionRepository connectionRepository;
+  private final BroadcastSenderPersistenceService persistenceService;
   private final AmazonSesGateway sesGateway;
   private final AmazonSesClientManager sesClientManager;
   private final CredentialCipher credentialCipher;
@@ -71,7 +72,6 @@ public class BroadcastSenderService {
         throw new BadRequestException("Amazon SES sending is disabled for this account/region");
       }
       applySnapshot(connection, snapshot);
-      connection = connectionRepository.save(connection);
 
       BroadcastSender sender = new BroadcastSender();
       sender.setCompanyId(companyId);
@@ -82,8 +82,7 @@ public class BroadcastSenderService {
       sender.setReplyToAddress(replyTo);
       sender.setVerifiedIdentity(snapshot.verifiedIdentity());
       sender.setStatus(BroadcastSenderStatus.ACTIVE);
-      sender = senderRepository.save(sender);
-      return BroadcastSenderResponse.from(sender, connection);
+      return persistenceService.create(connection, sender);
     } catch (RuntimeException exception) {
       sesClientManager.invalidate(connection.getId());
       throw exception;
