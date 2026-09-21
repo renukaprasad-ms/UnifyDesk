@@ -8,7 +8,7 @@ import com.messaging.channel.microsoft.MicrosoftOAuthStateService.OAuthState;
 import com.messaging.channel.microsoft.dto.MicrosoftAuthorizationResponse;
 import com.messaging.channel.microsoft.dto.MicrosoftConnectionResponse;
 import com.messaging.channel.repository.ChannelConnectionRepository;
-import com.messaging.channel.service.ChannelConnectionService;
+import com.messaging.channel.service.ChannelConnectionLifecycleService;
 import com.messaging.channel.service.ChannelEntitlementService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.company.iam.CompanyPermissionKeys;
@@ -28,7 +28,7 @@ public class MicrosoftConnectionService {
   private final ChannelConnectionRepository connectionRepository;
   private final ChannelEntitlementService entitlementService;
   private final CompanyAuthorizationService authorizationService;
-  private final ChannelConnectionService channelConnectionService;
+  private final ChannelConnectionLifecycleService lifecycleService;
 
   public MicrosoftAuthorizationResponse authorization(
       Long companyId, Long userId, String returnTo) {
@@ -76,7 +76,7 @@ public class MicrosoftConnectionService {
         persistenceService.persist(oauthState.companyId(), oauthState.userId(), profile, token);
 
     Long connectionId = Long.valueOf(response.connectionId());
-    channelConnectionService.cancelPendingPurge(oauthState.companyId(), connectionId);
+    lifecycleService.cancelPendingPurge(oauthState.companyId(), connectionId);
     try {
       subscriptionService.ensure(connectionId);
     } catch (RuntimeException ignored) {
