@@ -45,6 +45,9 @@ public class CompanyAuthorizationService {
 
   public void requirePermission(Long userId, Long companyId, String permissionKey) {
     requireWorkspaceAvailable(companyId);
+    if (hasPlatformWorkspaceAccess(userId, companyId)) {
+      return;
+    }
     if (!iamPermissionService.hasPermission(userId, companyId, permissionKey)) {
       throw new ForbiddenException("Company permission denied: " + permissionKey);
     }
@@ -53,6 +56,9 @@ public class CompanyAuthorizationService {
   public boolean hasPermission(Long userId, Long companyId, String permissionKey) {
     if (!workspaceAvailable(companyId)) {
       return false;
+    }
+    if (hasPlatformWorkspaceAccess(userId, companyId)) {
+      return true;
     }
     return iamPermissionService.hasPermission(userId, companyId, permissionKey);
   }
