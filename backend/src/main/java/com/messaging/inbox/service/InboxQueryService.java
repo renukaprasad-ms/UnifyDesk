@@ -2,12 +2,15 @@ package com.messaging.inbox.service;
 
 import com.messaging.channel.email.EmailFolder;
 import com.messaging.channel.enums.ChannelConnectionStatus;
+import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.inbox.dto.InboxAttachmentResponse;
 import com.messaging.inbox.dto.InboxConversationResponse;
 import com.messaging.inbox.dto.InboxMessageResponse;
 import com.messaging.inbox.dto.InboxPageResponse;
 import com.messaging.inbox.dto.InboxParticipantResponse;
+import com.messaging.inbox.dto.InboxRealtimeSnapshotRequest;
+import com.messaging.inbox.dto.InboxRealtimeSnapshotResponse;
 import com.messaging.inbox.entity.InboxConversation;
 import com.messaging.inbox.entity.InboxMessage;
 import com.messaging.inbox.enums.InboxMessageStatus;
@@ -15,7 +18,12 @@ import com.messaging.inbox.repository.InboxConversationRepository;
 import com.messaging.inbox.repository.InboxMessageAttachmentRepository;
 import com.messaging.inbox.repository.InboxMessageRepository;
 import com.messaging.inbox.repository.InboxParticipantRepository;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -44,8 +52,7 @@ public class InboxQueryService {
             resolvedFolder.providerKey(),
             pageable);
 
-    List<InboxConversationResponse> items =
-        result.getContent().stream().map(this::conversation).toList();
+    List<InboxConversationResponse> items = conversations(result.getContent());
 
     return new InboxPageResponse<>(
         items,
@@ -58,19 +65,61 @@ public class InboxQueryService {
   @Transactional(readOnly = true)
   public InboxConversationResponse getConversation(Long companyId, Long conversationId) {
     InboxConversation conversation = requireVisibleConversation(companyId, conversationId);
-    return conversation(conversation);
+    return conversations(List.of(conversation)).getFirst();
   }
 
   @Transactional(readOnly = true)
   public List<InboxMessageResponse> listMessages(Long companyId, Long conversationId) {
     InboxConversation conversation = requireVisibleConversation(companyId, conversationId);
+    List<InboxMessage> messages =
+        messageRepository.findByConversationIdAndStatusNotOrderBySentAtAscCreatedAtAsc(
+            conversation.getId(), InboxMessageStatus.DELETED);
+    return messages(messages);
+  }
 
-    return messageRepository
-        .findByConversationIdAndStatusNotOrderBySentAtAscCreatedAtAsc(
-            conversation.getId(), InboxMessageStatus.DELETED)
-        .stream()
-        .map(this::message)
-        .toList();
+  @Transactional(readOnly = true)
+  public InboxRealtimeSnapshotResponse realtimeSnapshot(
+      Long companyId, InboxRealtimeSnapshotRequest request) {
+    Long connectionId = parseId(request.connectionId(), "connectionId");
+    EmailFolder folder = request.folder() == null ? EmailFolder.INBOX : request.folder();
+    LinkedHashSet<Long> requestedConversationIds =
+        parseIds(request.conversationIds(), "conversationIds");
+    LinkedHashSet<Long> requestedMessageIds = parseIds(request.messageIds(), "messageIds");
+
+    List<InboxConversation> foundConversations =
+        requestedConversationIds.isEmpty()
+            ? List.of()
+            : conversationRepository.findVisibleByIdsAndFolder(
+                companyId,
+                connectionId,
+                ChannelConnectionStatus.ACTIVE,
+                requestedConversationIds,
+                folder.providerKey());
+
+    List<InboxMessage> foundMessages =
+        requestedMessageIds.isEmpty()
+            ? List.of()
+            : messageRepository.findVisibleByIds(
+                companyId,
+                connectionId,
+                ChannelConnectionStatus.ACTIVE,
+                requestedMessageIds,
+                InboxMessageStatus.DELETED);
+
+    Set<Long> foundConversationIds =
+        foundConversations.stream()
+            .map(InboxConversation::getId)
+            .collect(java.util.stream.Collectors.toSet());
+    Set<Long> foundMessageIds =
+        foundMessages.stream()
+            .map(InboxMessage::getId)
+            .collect(java.util.stream.Collectors.toSet());
+
+    return new InboxRealtimeSnapshotResponse(
+        conversations(foundConversations),
+        messages(foundMessages),
+        missing(requestedConversationIds, foundConversationIds),
+        missing(requestedMessageIds, foundMessageIds));
   }
 
   private InboxConversation requireVisibleConversation(Long companyId, Long conversationId) {
@@ -82,64 +131,112 @@ public class InboxQueryService {
         .orElseThrow(() -> new NotFoundException("Inbox conversation not found"));
   }
 
-  private InboxConversationResponse conversation(InboxConversation conversation) {
-    List<InboxParticipantResponse> participants =
-        participantRepository.findByConversationIdOrderByAddressAsc(conversation.getId()).stream()
-            .map(
-                participant ->
-                    new InboxParticipantResponse(
-                        participant.getAddress(),
-                        participant.getDisplayName(),
-                        participant.getParticipantType()))
-            .toList();
+  private List<InboxConversationResponse> conversations(List<InboxConversation> conversations) {
+    if (conversations.isEmpty()) return List.of();
 
-    return new InboxConversationResponse(
-        conversation.getId().toString(),
-        conversation.getConnection().getId().toString(),
-        conversation.getExternalConversationId(),
-        conversation.getProviderType(),
-        conversation.getSubject(),
-        conversation.getLastMessagePreview(),
-        conversation.getLastMessageAt(),
-        conversation.getUnreadCount(),
-        conversation.getStatus(),
-        participants);
+    List<Long> conversationIds = conversations.stream().map(InboxConversation::getId).toList();
+    Map<Long, List<InboxParticipantResponse>> participants = new HashMap<>();
+
+    participantRepository
+        .findByConversationIdInOrderByAddressAsc(conversationIds)
+        .forEach(
+            participant ->
+                participants
+                    .computeIfAbsent(participant.getConversation().getId(), ignored -> new ArrayList<>())
+                    .add(
+                        new InboxParticipantResponse(
+                            participant.getAddress(),
+                            participant.getDisplayName(),
+                            participant.getParticipantType())));
+
+    return conversations.stream()
+        .map(
+            conversation ->
+                new InboxConversationResponse(
+                    conversation.getId().toString(),
+                    conversation.getConnection().getId().toString(),
+                    conversation.getExternalConversationId(),
+                    conversation.getProviderType(),
+                    conversation.getSubject(),
+                    conversation.getLastMessagePreview(),
+                    conversation.getLastMessageAt(),
+                    conversation.getUnreadCount(),
+                    conversation.getStatus(),
+                    List.copyOf(participants.getOrDefault(conversation.getId(), List.of()))))
+        .toList();
   }
 
-  private InboxMessageResponse message(InboxMessage message) {
-    List<InboxAttachmentResponse> attachments =
-        attachmentRepository.findByMessageIdOrderByFilenameAsc(message.getId()).stream()
-            .map(
-                attachment ->
-                    new InboxAttachmentResponse(
-                        attachment.getId().toString(),
-                        attachment.getExternalAttachmentId(),
-                        attachment.getFilename(),
-                        attachment.getMimeType(),
-                        attachment.getSizeBytes()))
-            .toList();
+  private List<InboxMessageResponse> messages(List<InboxMessage> messages) {
+    if (messages.isEmpty()) return List.of();
 
-    return new InboxMessageResponse(
-        message.getId().toString(),
-        message.getExternalMessageId(),
-        message.getInternetMessageId(),
-        message.getDirection(),
-        message.getStatus(),
-        message.getSubject(),
-        message.getSnippet(),
-        message.getBodyText(),
-        message.getBodyHtml(),
-        message.getFromAddress(),
-        message.getReplyToAddress(),
-        addresses(message.getToAddresses()),
-        addresses(message.getCcAddresses()),
-        addresses(message.getBccAddresses()),
-        message.getInReplyTo(),
-        message.getReferencesHeader(),
-        message.getSentAt(),
-        message.isRead(),
-        attachments);
+    List<Long> messageIds = messages.stream().map(InboxMessage::getId).toList();
+    Map<Long, List<InboxAttachmentResponse>> attachments = new HashMap<>();
+
+    attachmentRepository
+        .findByMessageIdInOrderByFilenameAsc(messageIds)
+        .forEach(
+            attachment ->
+                attachments
+                    .computeIfAbsent(attachment.getMessage().getId(), ignored -> new ArrayList<>())
+                    .add(
+                        new InboxAttachmentResponse(
+                            attachment.getId().toString(),
+                            attachment.getExternalAttachmentId(),
+                            attachment.getFilename(),
+                            attachment.getMimeType(),
+                            attachment.getSizeBytes())));
+
+    return messages.stream()
+        .map(
+            message ->
+                new InboxMessageResponse(
+                    message.getId().toString(),
+                    message.getConversation().getId().toString(),
+                    message.getExternalMessageId(),
+                    message.getInternetMessageId(),
+                    message.getProviderFolderKey(),
+                    message.getDirection(),
+                    message.getStatus(),
+                    message.getSubject(),
+                    message.getSnippet(),
+                    message.getBodyText(),
+                    message.getBodyHtml(),
+                    message.getFromAddress(),
+                    message.getReplyToAddress(),
+                    addresses(message.getToAddresses()),
+                    addresses(message.getCcAddresses()),
+                    addresses(message.getBccAddresses()),
+                    message.getInReplyTo(),
+                    message.getReferencesHeader(),
+                    message.getSentAt(),
+                    message.isRead(),
+                    List.copyOf(attachments.getOrDefault(message.getId(), List.of()))))
+        .toList();
   }
+
+  private LinkedHashSet<Long> parseIds(List<String> values, String field) {
+    LinkedHashSet<Long> ids = new LinkedHashSet<>();
+    if (values == null) return ids;
+    for (String value : values) {
+      ids.add(parseId(value, field));
+    }
+    return ids;
+  }
+
+  private Long parseId(String value, String field) {
+    try {
+      if (value == null || value.isBlank()) throw new NumberFormatException();
+      return Long.valueOf(value);
+    } catch (NumberFormatException exception) {
+      throw new BadRequestException("Invalid " + field);
+    }
+  }
+
+  private List<String> missing(Set<Long> requested, Set<Long> found) {
+    if (requested.isEmpty()) return List.of();
+    return requested.stream().filter(id -> !found.contains(id)).map(String::valueOf).toList();
+  }
+
   private List<String> addresses(String value) {
     if (value == null || value.isBlank()) {
       return List.of();
