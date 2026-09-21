@@ -1,5 +1,6 @@
 package com.messaging.inbox.repository;
 
+import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.inbox.entity.InboxConversation;
 import java.util.Collection;
 import java.util.List;
@@ -32,6 +33,7 @@ public interface InboxConversationRepository extends JpaRepository<InboxConversa
           select c
           from InboxConversation c
           where c.companyId = :companyId
+            and c.connection.status = :connectionStatus
             and (:connectionId is null or c.connection.id = :connectionId)
             and exists (
               select m.id
@@ -46,6 +48,7 @@ public interface InboxConversationRepository extends JpaRepository<InboxConversa
           select count(c)
           from InboxConversation c
           where c.companyId = :companyId
+            and c.connection.status = :connectionStatus
             and (:connectionId is null or c.connection.id = :connectionId)
             and exists (
               select m.id
@@ -57,6 +60,7 @@ public interface InboxConversationRepository extends JpaRepository<InboxConversa
   Page<InboxConversation> findByFolder(
       @Param("companyId") Long companyId,
       @Param("connectionId") Long connectionId,
+      @Param("connectionStatus") ChannelConnectionStatus connectionStatus,
       @Param("folderKey") String folderKey,
       Pageable pageable);
 }

@@ -1,6 +1,7 @@
 export type ChannelType = 'EMAIL' | 'WHATSAPP' | 'SMS'
 export type ProviderType = 'GMAIL' | 'MICROSOFT' | 'IMAP_SMTP' | 'SMTP' | 'META_WHATSAPP' | 'MSG91'
 export type ChannelConnectionStatus = 'PENDING' | 'ACTIVE' | 'ERROR' | 'DISCONNECTED'
+export type DisconnectDataPolicy = 'KEEP_7_DAYS' | 'DELETE_NOW'
 export type SenderIdentityStatus = 'PENDING' | 'ACTIVE' | 'ERROR' | 'DISABLED'
 export type SenderIdentityType = 'EMAIL_ADDRESS' | 'PHONE_NUMBER' | 'SMS_HEADER'
 
@@ -14,6 +15,8 @@ export type ChannelConnection = {
   status: ChannelConnectionStatus
   createdByUserId: string
   lastSyncAt?: string | null
+  disconnectedAt?: string | null
+  purgeAfter?: string | null
   createdAt: string
   updatedAt: string
   providerConfigured: boolean

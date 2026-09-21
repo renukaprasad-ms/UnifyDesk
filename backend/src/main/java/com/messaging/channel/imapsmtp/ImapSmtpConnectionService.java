@@ -11,6 +11,7 @@ import com.messaging.channel.imapsmtp.ImapSmtpMailClient.TestedMailbox;
 import com.messaging.channel.imapsmtp.dto.ImapSmtpConnectRequest;
 import com.messaging.channel.imapsmtp.dto.ImapSmtpConnectionResponse;
 import com.messaging.channel.repository.ChannelConnectionRepository;
+import com.messaging.channel.service.ChannelConnectionService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import java.util.Locale;
@@ -27,6 +28,7 @@ public class ImapSmtpConnectionService {
   private final ProviderCredentialService credentialService;
   private final ImapSmtpCredentialCodec credentialCodec;
   private final ChannelConnectionRepository connectionRepository;
+  private final ChannelConnectionService channelConnectionService;
 
   public ImapSmtpConnectionResponse connect(
       Long companyId, Long userId, ImapSmtpConnectRequest request) {
@@ -74,6 +76,7 @@ public class ImapSmtpConnectionService {
 
     ChannelConnection connection =
         persistenceService.persist(companyId, userId, resolved, cursor);
+    channelConnectionService.cancelPendingPurge(companyId, connection.getId());
     return response(connection, resolved);
   }
 

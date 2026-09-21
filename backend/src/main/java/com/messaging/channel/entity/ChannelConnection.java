@@ -70,6 +70,15 @@ public class ChannelConnection {
   @Column(name = "last_sync_at")
   private Instant lastSyncAt;
 
+  @Column(name = "disconnected_at")
+  private Instant disconnectedAt;
+
+  @Column(name = "purge_after")
+  private Instant purgeAfter;
+
+  @Column(name = "deletion_requested_by")
+  private Long deletionRequestedByUserId;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 

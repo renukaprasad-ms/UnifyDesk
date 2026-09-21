@@ -4,5 +4,6 @@ public enum DeletionPurgeStatus {
   PENDING,
   RUNNING,
   FAILED,
-  COMPLETED
+  COMPLETED,
+  CANCELLED
 }

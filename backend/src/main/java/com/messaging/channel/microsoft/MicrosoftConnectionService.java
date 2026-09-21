@@ -6,6 +6,7 @@ import com.messaging.channel.email.EmailSyncRequest;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
+import com.messaging.channel.enums.DisconnectDataPolicy;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.microsoft.MicrosoftApiClient.MicrosoftProfile;
 import com.messaging.channel.microsoft.MicrosoftApiClient.TokenResponse;
@@ -84,6 +85,7 @@ public class MicrosoftConnectionService {
         persistenceService.persist(oauthState.companyId(), oauthState.userId(), profile, token);
 
     Long connectionId = Long.valueOf(response.connectionId());
+    channelConnectionService.cancelPendingPurge(oauthState.companyId(), connectionId);
     syncStateService.triggerConnection(connectionId);
     try {
       subscriptionService.ensure(connectionId);
@@ -118,7 +120,11 @@ public class MicrosoftConnectionService {
     return backfillQueueService.active(companyId, connectionId);
   }
 
-  public ChannelConnectionResponse disconnect(Long companyId, Long connectionId) {
+  public ChannelConnectionResponse disconnect(
+      Long companyId,
+      Long connectionId,
+      Long requestedByUserId,
+      DisconnectDataPolicy dataPolicy) {
     ChannelConnection connection =
         connectionRepository
             .findByIdAndCompanyId(connectionId, companyId)
@@ -127,7 +133,8 @@ public class MicrosoftConnectionService {
       throw new BadRequestException("Channel connection is not a Microsoft mailbox");
     }
 
-    return channelConnectionService.disconnect(companyId, connectionId);
+    return channelConnectionService.disconnect(
+        companyId, connectionId, requestedByUserId, dataPolicy);
   }
 
   public boolean configured() {

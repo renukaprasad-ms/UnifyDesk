@@ -1,6 +1,11 @@
 import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
-import type { ChannelConnection, ChannelType, SenderIdentity } from './types'
+import type {
+  ChannelConnection,
+  ChannelType,
+  DisconnectDataPolicy,
+  SenderIdentity,
+} from './types'
 
 const unwrap = <T>(response: ApiResponse<T>) => {
   if (!response.data) throw new Error(response.error_message ?? 'Empty API response')
@@ -23,9 +28,14 @@ export const channelApi = {
     return unwrap(response.data)
   },
 
-  async disconnect(companyId: string, connectionId: string) {
+  async disconnect(
+    companyId: string,
+    connectionId: string,
+    dataPolicy: DisconnectDataPolicy = 'KEEP_7_DAYS',
+  ) {
     const response = await apiClient.post<ApiResponse<ChannelConnection>>(
       `/api/v1/companies/${companyId}/channels/${connectionId}/disconnect`,
+      { dataPolicy },
     )
     return unwrap(response.data)
   },

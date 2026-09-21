@@ -2,6 +2,7 @@ package com.messaging.channel.gmail;
 
 import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.channel.dto.ChannelConnectionResponse;
+import com.messaging.channel.dto.DisconnectChannelRequest;
 import com.messaging.channel.email.EmailSyncRequest;
 import com.messaging.channel.gmail.dto.GmailAuthorizationResponse;
 import com.messaging.channel.gmail.dto.GmailSendRequest;
@@ -91,14 +92,20 @@ public class GmailConnectionController {
 
   @PostMapping("/{connectionId}/disconnect")
   public ResponseEntity<ApiResponse<ChannelConnectionResponse>> disconnect(
-      @PathVariable Long companyId, @PathVariable Long connectionId) {
+      @PathVariable Long companyId,
+      @PathVariable Long connectionId,
+      @RequestBody(required = false) DisconnectChannelRequest request) {
     Long userId = currentUserService.currentUserId();
     authorizationService.requirePermission(
         userId, companyId, CompanyPermissionKeys.EMAIL_DISCONNECT);
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            gmailConnectionService.disconnect(companyId, connectionId),
+            gmailConnectionService.disconnect(
+                companyId,
+                connectionId,
+                userId,
+                request == null ? null : request.resolvedDataPolicy()),
             "Gmail disconnected"));
   }
 }

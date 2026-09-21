@@ -30,8 +30,53 @@ public class EntityPurgeService {
     return switch (job.getEntityType()) {
       case COMPANY -> purgeCompany(job.getEntityId());
       case USER -> purgeUser(job.getEntityId());
-      case CHANNEL_CONNECTION, COMPANY_ROLE -> true;
+      case CHANNEL_CONNECTION -> purgeChannelConnection(job.getEntityId());
+      case COMPANY_ROLE -> true;
     };
+  }
+
+  private boolean purgeChannelConnection(Long connectionId) {
+    Integer eligible =
+        jdbcTemplate.queryForObject(
+            """
+            select count(*)
+            from channel_connections
+            where id = ?
+              and status = 'DISCONNECTED'
+              and purge_after is not null
+              and purge_after <= now()
+            """,
+            Integer.class,
+            connectionId);
+    if (eligible == null || eligible == 0) {
+      return true;
+    }
+
+    if (!drainRows(
+        "delete from gmail_sync_batches where ctid in "
+            + "(select ctid from gmail_sync_batches where connection_id = ? limit ?)",
+        connectionId)) return false;
+
+    if (!drainRows(
+        "delete from gmail_sync_runs where ctid in "
+            + "(select ctid from gmail_sync_runs where connection_id = ? limit ?)",
+        connectionId)) return false;
+
+    if (!drainRows(
+        "delete from microsoft_backfill_runs where ctid in "
+            + "(select ctid from microsoft_backfill_runs where connection_id = ? limit ?)",
+        connectionId)) return false;
+
+    jdbcTemplate.update(
+        """
+        delete from channel_connections
+        where id = ?
+          and status = 'DISCONNECTED'
+          and purge_after is not null
+          and purge_after <= now()
+        """,
+        connectionId);
+    return true;
   }
 
   private boolean purgeCompany(Long companyId) {
