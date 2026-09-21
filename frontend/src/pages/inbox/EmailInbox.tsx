@@ -135,6 +135,7 @@ export default function EmailInbox() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [realtimeConnected, setRealtimeConnected] = useState(realtimeClient.isConnected())
+  const completedSyncRefreshesRef = useRef(new Set<string>())
   const realtimeBatchRef = useRef<{
     conversationIds: Set<string>
     messageIds: Set<string>
@@ -208,18 +209,15 @@ export default function EmailInbox() {
 
   const refreshInbox = useCallback(
     async (includeDetail = true) => {
-      if (!companyId) return
-      await dispatch(fetchEmailConnections({ companyId, force: true }))
-      if (selectedConnectionId) {
-        await dispatch(
-          fetchInboxConversations({
-            companyId,
-            connectionId: selectedConnectionId,
-            folder: selectedFolder,
-            force: true,
-          }),
-        )
-      }
+      if (!companyId || !selectedConnectionId) return
+      await dispatch(
+        fetchInboxConversations({
+          companyId,
+          connectionId: selectedConnectionId,
+          folder: selectedFolder,
+          force: true,
+        }),
+      )
       if (includeDetail && selectedConversationId) {
         await dispatch(
           fetchInboxConversationDetail({
@@ -317,8 +315,10 @@ export default function EmailInbox() {
     params.delete('gmail')
     params.delete('microsoft')
     setSearchParams(params, { replace: true })
-    void refreshInbox(false)
-  }, [refreshInbox, searchParams, setSearchParams])
+    if (companyId) {
+      void dispatch(fetchEmailConnections({ companyId, force: true }))
+    }
+  }, [companyId, dispatch, searchParams, setSearchParams])
 
   useEffect(() => {
     if (!companyId || !selectedConversationId) {
@@ -439,7 +439,13 @@ export default function EmailInbox() {
           if (!current[job.jobId]) return current
           return { ...current, [job.jobId]: job }
         })
-        if (job.status === 'FAILED') {
+        if (
+          job.status === 'COMPLETED' &&
+          !completedSyncRefreshesRef.current.has(job.jobId)
+        ) {
+          completedSyncRefreshesRef.current.add(job.jobId)
+          void refreshInbox(true)
+        } else if (job.status === 'FAILED') {
           setError(job.errorMessage || 'Email sync failed')
         }
       }
@@ -453,7 +459,7 @@ export default function EmailInbox() {
         }
       }
     })
-  }, [])
+  }, [refreshInbox])
 
   useEffect(() => {
     if (activeSyncJobs.length === 0 || realtimeConnected) return
@@ -465,7 +471,13 @@ export default function EmailInbox() {
             .get(job.jobId)
             .then((latest) => {
               setSyncJobs((current) => ({ ...current, [latest.jobId]: latest }))
-              if (latest.status === 'COMPLETED') void refreshInbox(true)
+              if (
+                latest.status === 'COMPLETED' &&
+                !completedSyncRefreshesRef.current.has(latest.jobId)
+              ) {
+                completedSyncRefreshesRef.current.add(latest.jobId)
+                void refreshInbox(true)
+              }
             })
             .catch(() => undefined),
         ),
