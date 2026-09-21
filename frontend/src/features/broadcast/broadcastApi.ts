@@ -9,6 +9,8 @@ import type {
   BroadcastMessage,
   BroadcastMessageSummary,
   BroadcastRecipient,
+  BroadcastSender,
+  ConnectAmazonSesInput,
   CreateBroadcastGroupInput,
   CreateBroadcastMessageInput,
   Page,
@@ -20,6 +22,34 @@ const unwrap = <T>(response: ApiResponse<T>) => {
 }
 
 export const broadcastApi = {
+  async senders(companyId: string) {
+    const response = await apiClient.get<ApiResponse<BroadcastSender[]>>(
+      `/api/v1/companies/${companyId}/broadcast/senders`,
+    )
+    return unwrap(response.data)
+  },
+
+  async connectAmazonSes(companyId: string, input: ConnectAmazonSesInput) {
+    const response = await apiClient.post<ApiResponse<BroadcastSender>>(
+      `/api/v1/companies/${companyId}/broadcast/senders/amazon-ses`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async refreshSender(companyId: string, senderId: string) {
+    const response = await apiClient.post<ApiResponse<BroadcastSender>>(
+      `/api/v1/companies/${companyId}/broadcast/senders/${senderId}/refresh`,
+    )
+    return unwrap(response.data)
+  },
+
+  async disconnectSender(companyId: string, senderId: string) {
+    await apiClient.delete(
+      `/api/v1/companies/${companyId}/broadcast/senders/${senderId}`,
+    )
+  },
+
   async groups(companyId: string, channelType: ChannelType, page = 0, size = 50) {
     const response = await apiClient.get<ApiResponse<Page<BroadcastGroup>>>(
       `/api/v1/companies/${companyId}/broadcast/groups`,
