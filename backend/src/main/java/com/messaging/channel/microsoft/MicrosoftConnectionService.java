@@ -86,7 +86,6 @@ public class MicrosoftConnectionService {
 
     Long connectionId = Long.valueOf(response.connectionId());
     channelConnectionService.cancelPendingPurge(oauthState.companyId(), connectionId);
-    syncStateService.triggerConnection(connectionId);
     try {
       subscriptionService.ensure(connectionId);
     } catch (RuntimeException ignored) {
