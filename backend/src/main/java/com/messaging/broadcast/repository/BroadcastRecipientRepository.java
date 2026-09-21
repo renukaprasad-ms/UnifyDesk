@@ -7,6 +7,8 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
@@ -56,6 +58,8 @@ public interface BroadcastRecipientRepository extends JpaRepository<BroadcastRec
       Long connectionId, String internetMessageId);
 
   Optional<BroadcastRecipient> findByProviderCorrelationId(String providerCorrelationId);
+
+  Page<BroadcastRecipient> findByRunIdOrderByCreatedAtAsc(Long runId, Pageable pageable);
 
   List<BroadcastRecipient>
       findTop2ByConnectionIdAndNormalizedDestinationAndStatusInAndCreatedAtAfterOrderByUpdatedAtDesc(

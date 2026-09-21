@@ -24,6 +24,7 @@ public class BroadcastMessageService {
   private final BroadcastMessageRepository messageRepository;
   private final BroadcastRunRepository runRepository;
   private final BroadcastStatsRepository statsRepository;
+  private final BroadcastRecipientRepository recipientRepository;
   private final ChannelConnectionRepository connectionRepository;
   private final BroadcastStateMachine stateMachine;
   private final BroadcastLaunchService launchService;
@@ -82,17 +83,30 @@ public class BroadcastMessageService {
   }
 
   @Transactional(readOnly = true)
-  public Page<BroadcastMessageResponse> list(
+  public Page<BroadcastMessageSummaryResponse> list(
       Long companyId, Long groupId, Pageable pageable) {
     groupService.require(companyId, groupId);
     return messageRepository
         .findByGroupIdOrderByCreatedAtDesc(groupId, pageable)
-        .map(this::response);
+        .map(this::summary);
   }
 
   @Transactional(readOnly = true)
   public BroadcastMessageResponse get(Long companyId, Long broadcastId) {
     return response(require(companyId, broadcastId));
+  }
+
+  @Transactional(readOnly = true)
+  public Page<BroadcastRecipientResponse> recipients(
+      Long companyId, Long broadcastId, Pageable pageable) {
+    BroadcastMessage message = require(companyId, broadcastId);
+    BroadcastRun run =
+        runRepository
+            .findByBroadcastMessageId(message.getId())
+            .orElseThrow(() -> new NotFoundException("Broadcast has not started"));
+    return recipientRepository
+        .findByRunIdOrderByCreatedAtAsc(run.getId(), pageable)
+        .map(BroadcastRecipientResponse::from);
   }
 
   public BroadcastMessage require(Long companyId, Long broadcastId) {
@@ -119,6 +133,14 @@ public class BroadcastMessageService {
     BroadcastStats stats =
         run == null ? null : statsRepository.findByRunId(run.getId()).orElse(null);
     return BroadcastMessageResponse.from(message, run, BroadcastStatsResponse.from(stats));
+  }
+
+  private BroadcastMessageSummaryResponse summary(BroadcastMessage message) {
+    BroadcastRun run = runRepository.findByBroadcastMessageId(message.getId()).orElse(null);
+    BroadcastStats stats =
+        run == null ? null : statsRepository.findByRunId(run.getId()).orElse(null);
+    return BroadcastMessageSummaryResponse.from(
+        message, run, BroadcastStatsResponse.from(stats));
   }
 
   private String trimToNull(String value) {

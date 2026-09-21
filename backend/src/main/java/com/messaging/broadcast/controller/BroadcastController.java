@@ -113,7 +113,7 @@ public class BroadcastController {
   }
 
   @GetMapping("/groups/{groupId}/messages")
-  public ResponseEntity<ApiResponse<Page<BroadcastMessageResponse>>> messages(
+  public ResponseEntity<ApiResponse<Page<BroadcastMessageSummaryResponse>>> messages(
       @PathVariable Long companyId,
       @PathVariable Long groupId,
       @PageableDefault(size = 30) Pageable pageable) {
@@ -155,6 +155,20 @@ public class BroadcastController {
     return ResponseEntity.ok(
         ApiResponse.success(
             200, messageService.get(companyId, broadcastId), "Broadcast fetched"));
+  }
+
+
+  @GetMapping("/messages/{broadcastId}/recipients")
+  public ResponseEntity<ApiResponse<Page<BroadcastRecipientResponse>>> recipients(
+      @PathVariable Long companyId,
+      @PathVariable Long broadcastId,
+      @PageableDefault(size = 50) Pageable pageable) {
+    require(companyId, CompanyPermissionKeys.BROADCAST_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            messageService.recipients(companyId, broadcastId, pageable),
+            "Broadcast recipients fetched"));
   }
 
   @PostMapping("/messages/{broadcastId}/send")

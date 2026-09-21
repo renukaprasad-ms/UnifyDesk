@@ -1,0 +1,42 @@
+package com.messaging.broadcast.dto;
+
+import com.messaging.broadcast.entity.BroadcastMessage;
+import com.messaging.broadcast.entity.BroadcastRun;
+import com.messaging.broadcast.enums.BroadcastMessageStatus;
+import java.time.Instant;
+
+public record BroadcastMessageSummaryResponse(
+    String id,
+    String groupId,
+    String connectionId,
+    String runId,
+    String subject,
+    String bodyPreview,
+    BroadcastMessageStatus status,
+    Instant scheduledAt,
+    Instant createdAt,
+    Instant updatedAt,
+    BroadcastStatsResponse stats) {
+
+  public static BroadcastMessageSummaryResponse from(
+      BroadcastMessage message, BroadcastRun run, BroadcastStatsResponse stats) {
+    return new BroadcastMessageSummaryResponse(
+        message.getId().toString(),
+        message.getGroupId().toString(),
+        message.getConnectionId().toString(),
+        run == null ? null : run.getId().toString(),
+        message.getSubject(),
+        preview(message.getBodyText()),
+        message.getStatus(),
+        message.getScheduledAt(),
+        message.getCreatedAt(),
+        message.getUpdatedAt(),
+        stats);
+  }
+
+  private static String preview(String value) {
+    if (value == null || value.isBlank()) return null;
+    String normalized = value.replaceAll("\\s+", " ").trim();
+    return normalized.length() <= 240 ? normalized : normalized.substring(0, 240);
+  }
+}
