@@ -922,26 +922,27 @@ export default function BroadcastWorkspace() {
                     </div>
 
                     <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-end">
-                      <label className="min-w-0 sm:w-72">
+                      <label className="min-w-0 sm:w-80">
                         <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">
                           <FiMail aria-hidden="true" />
-                          Send from
+                          Send from Amazon SES
                         </span>
                         <select
                           className="form-input w-full"
                           value={composeSenderId}
                           onChange={(event) => setComposeSenderId(event.target.value)}
                           disabled={activeSenders.length === 0}
-                          aria-label="Select email account for broadcasts"
+                          aria-label="Select Amazon SES sender"
                         >
                           {activeSenders.length === 0 ? (
-                            <option value="">No active email accounts</option>
+                            <option value="">No Amazon SES sender connected</option>
                           ) : (
                             <>
-                              <option value="">Choose email account</option>
-                              {activeSenders.map((connection) => (
-                                <option key={connection.id} value={connection.id}>
-                                  {senderLabel(connection)} · {providerLabel(connection.providerType)}
+                              <option value="">Choose SES sender</option>
+                              {activeSenders.map((sender) => (
+                                <option key={sender.id} value={sender.id}>
+                                  {sender.fromAddress} · {sender.region}
+                                  {sender.productionAccessEnabled ? '' : ' · Sandbox'}
                                 </option>
                               ))}
                             </>
@@ -970,6 +971,16 @@ export default function BroadcastWorkspace() {
                             </button>
                           </>
                         )}
+                        {can(PERMISSIONS.BROADCAST_MODIFY) && (
+                          <button
+                            type="button"
+                            className="secondary-button gap-2"
+                            onClick={() => setSesConnectOpen(true)}
+                          >
+                            <FiMail aria-hidden="true" />
+                            Connect Amazon SES
+                          </button>
+                        )}
                         {can(PERMISSIONS.BROADCAST_CREATE) && (
                           <button
                             type="button"
@@ -978,7 +989,7 @@ export default function BroadcastWorkspace() {
                             disabled={activeSenders.length === 0}
                             title={
                               activeSenders.length === 0
-                                ? 'Connect an email account before creating a broadcast'
+                                ? 'Connect Amazon SES before creating a broadcast'
                                 : undefined
                             }
                           >
@@ -992,7 +1003,7 @@ export default function BroadcastWorkspace() {
 
                   {activeSenders.length > 0 && !composeSenderId && (
                     <p className="mt-3 text-xs font-medium text-amber-700">
-                      Choose a sender email account before creating the broadcast.
+                      Choose an Amazon SES sender before creating the broadcast.
                     </p>
                   )}
                 </div>
@@ -1330,17 +1341,31 @@ export default function BroadcastWorkspace() {
             </div>
 
             {activeSenders.length === 0 ? (
-              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
-                Connect an active email account before sending a broadcast.
+              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-xs leading-5 text-amber-800">
+                <p className="font-bold">Amazon SES is required for email Broadcast.</p>
+                <p className="mt-1">
+                  Gmail, Microsoft and SMTP remain available for Inbox and normal email, but are no
+                  longer used for high-volume Broadcast.
+                </p>
+                {can(PERMISSIONS.BROADCAST_MODIFY) && (
+                  <button
+                    type="button"
+                    className="secondary-button mt-3 gap-2"
+                    onClick={() => setSesConnectOpen(true)}
+                  >
+                    <FiMail aria-hidden="true" />
+                    Connect Amazon SES
+                  </button>
+                )}
               </div>
             ) : (
               <>
                 <div className="mt-5">
                   <div className="flex items-end justify-between gap-3">
                     <div>
-                      <p className="text-xs font-semibold text-slate-700">Send from</p>
+                      <p className="text-xs font-semibold text-slate-700">Send from Amazon SES</p>
                       <p className="mt-1 text-[11px] leading-4 text-slate-500">
-                        Choose which connected mailbox will send this broadcast.
+                        Choose a verified SES sender. AWS bills the connected AWS account directly.
                       </p>
                     </div>
                     <span className="text-[11px] text-slate-400">
@@ -1348,24 +1373,24 @@ export default function BroadcastWorkspace() {
                     </span>
                   </div>
                   <div className="mt-2 grid max-h-48 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
-                    {activeSenders.map((connection) => {
-                      const selected = composeSenderId === connection.id
+                    {activeSenders.map((sender) => {
+                      const selected = composeSenderId === sender.id
                       return (
                         <button
-                          key={connection.id}
+                          key={sender.id}
                           type="button"
                           className={`flex min-w-0 items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${
                             selected
                               ? 'border-indigo-300 bg-indigo-50 ring-1 ring-indigo-100'
                               : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                           }`}
-                          onClick={() => setComposeSenderId(connection.id)}
+                          onClick={() => setComposeSenderId(sender.id)}
                           aria-pressed={selected}
                         >
                           <span
                             className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
                               selected
-                                ? 'bg-indigo-100 text-indigo-600'
+                                ? 'bg-orange-100 text-orange-600'
                                 : 'bg-slate-100 text-slate-500'
                             }`}
                           >
@@ -1373,15 +1398,17 @@ export default function BroadcastWorkspace() {
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-xs font-bold text-slate-900">
-                              {senderLabel(connection)}
+                              {senderLabel(sender)}
                             </span>
                             <span className="mt-0.5 block truncate text-[11px] text-slate-500">
-                              {providerLabel(connection.providerType)}
-                              {connection.name &&
-                              connection.name !== connection.externalAccountId
-                                ? ` · ${connection.name}`
-                                : ''}
+                              Amazon SES · {sender.region}
+                              {sender.maxSendRate ? ` · up to ${sender.maxSendRate}/sec` : ''}
                             </span>
+                            {!sender.productionAccessEnabled && (
+                              <span className="mt-1 block text-[10px] font-semibold text-amber-700">
+                                SES sandbox — production access required for normal recipient lists
+                              </span>
+                            )}
                           </span>
                           {selected && (
                             <FiCheckCircle
@@ -1473,6 +1500,14 @@ export default function BroadcastWorkspace() {
           </div>
         </div>
       )}
+      {sesConnectOpen && companyId && (
+        <AmazonSesConnectModal
+          companyId={companyId}
+          onClose={() => setSesConnectOpen(false)}
+          onConnected={handleSesConnected}
+        />
+      )}
+
     </section>
   )
 }
