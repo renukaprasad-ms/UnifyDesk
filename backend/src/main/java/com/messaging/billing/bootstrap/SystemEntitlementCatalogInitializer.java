@@ -2,7 +2,9 @@ package com.messaging.billing.bootstrap;
 
 import com.messaging.billing.enums.EntitlementCategory;
 import com.messaging.billing.enums.EntitlementValueType;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -46,14 +48,7 @@ public class SystemEntitlementCatalogInitializer implements ApplicationRunner {
         (id, entitlement_key, name, description, value_type, category, default_value,
          active, created_at, updated_at)
       values (?, ?, ?, ?, ?, ?, ?, true, now(), now())
-      on conflict (entitlement_key) do update set
-        name = excluded.name,
-        description = excluded.description,
-        value_type = excluded.value_type,
-        category = excluded.category,
-        default_value = excluded.default_value,
-        active = true,
-        updated_at = now()
+      on conflict (entitlement_key) do nothing
       """;
 
   private final JdbcTemplate jdbcTemplate;
@@ -68,8 +63,13 @@ public class SystemEntitlementCatalogInitializer implements ApplicationRunner {
   }
 
   public void ensureCatalog() {
+    Set<String> existing =
+        new HashSet<>(
+            jdbcTemplate.queryForList(
+                "select entitlement_key from entitlement_definitions", String.class));
     int restored = 0;
     for (Definition definition : DEFINITIONS) {
+      if (existing.contains(definition.key())) continue;
       restored +=
           jdbcTemplate.update(
               UPSERT_SQL,
