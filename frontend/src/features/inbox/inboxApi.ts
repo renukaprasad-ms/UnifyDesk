@@ -49,6 +49,7 @@ export const inboxApi = {
     request: {
       connectionId: string
       folder: 'INBOX' | 'SENT'
+      detailConversationId?: string | null
       conversationIds: string[]
       messageIds: string[]
     },
