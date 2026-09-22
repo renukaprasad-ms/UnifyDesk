@@ -81,9 +81,6 @@ export default function MessageTemplateEditorModal({
   const [emailDesign, setEmailDesign] = useState(() =>
     parseEmailDesign(template?.designJson, template?.bodyText),
   )
-  const [previewMode, setPreviewMode] = useState<'TEXT' | 'HTML'>(
-    template?.bodyHtml ? 'HTML' : 'TEXT',
-  )
   const [previewValues, setPreviewValues] = useState<Record<string, string>>({})
   const [activateAfterSave, setActivateAfterSave] = useState(
     channelType !== 'WHATSAPP' && template?.status !== 'DRAFT' ? true : channelType !== 'WHATSAPP',
@@ -131,30 +128,9 @@ export default function MessageTemplateEditorModal({
       return previewValue && previewValue.trim() ? previewValue : token
     })
 
-  const renderedSubject = renderVariables(subject)
   const renderedHeader = renderVariables(headerText)
   const renderedBodyText = renderVariables(bodyText)
   const renderedFooter = renderVariables(footerText)
-  const renderedBodyHtml = renderVariables(bodyHtml)
-
-  const emailPreviewDocument = useMemo(
-    () => `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<style>
-  html,body{margin:0;padding:0;background:#fff;color:#334155;font-family:Arial,sans-serif}
-  body{padding:16px;font-size:13px;line-height:1.55;overflow-wrap:anywhere}
-  img{max-width:100%;height:auto}
-  a{color:#2563eb}
-  table{max-width:100%}
-</style>
-</head>
-<body>${renderedBodyHtml || '<p>Your HTML email preview appears here.</p>'}</body>
-</html>`,
-    [renderedBodyHtml],
-  )
 
   const handleEmailGeneratedChange = useCallback(
     (generatedBodyText: string, generatedBodyHtml: string) => {
@@ -472,56 +448,7 @@ export default function MessageTemplateEditorModal({
             <div className="sticky top-0 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
               <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-400">Preview</p>
 
-              {channelType === 'EMAIL' ? (
-                <div className="mt-3">
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <p className="text-[10px] font-semibold uppercase text-slate-400">Subject</p>
-                    <p className="mt-1 text-sm font-bold text-slate-900">
-                      {renderedSubject || '(no subject)'}
-                    </p>
-
-                    <div className="mt-4 flex rounded-lg bg-slate-100 p-1">
-                      <button
-                        type="button"
-                        className={`flex-1 rounded-md px-2 py-1.5 text-[10px] font-bold transition ${
-                          previewMode === 'HTML'
-                            ? 'bg-white text-indigo-700 shadow-sm'
-                            : 'text-slate-500'
-                        }`}
-                        onClick={() => setPreviewMode('HTML')}
-                        disabled={!bodyHtml.trim()}
-                      >
-                        HTML
-                      </button>
-                      <button
-                        type="button"
-                        className={`flex-1 rounded-md px-2 py-1.5 text-[10px] font-bold transition ${
-                          previewMode === 'TEXT'
-                            ? 'bg-white text-indigo-700 shadow-sm'
-                            : 'text-slate-500'
-                        }`}
-                        onClick={() => setPreviewMode('TEXT')}
-                      >
-                        Text
-                      </button>
-                    </div>
-
-                    {previewMode === 'HTML' && bodyHtml.trim() ? (
-                      <iframe
-                        title="Email HTML preview"
-                        className="mt-3 h-72 w-full rounded-lg border border-slate-100 bg-white"
-                        sandbox=""
-                        referrerPolicy="no-referrer"
-                        srcDoc={emailPreviewDocument}
-                      />
-                    ) : (
-                      <div className="mt-4 whitespace-pre-wrap text-xs leading-5 text-slate-600">
-                        {renderedBodyText || 'Your email content appears here.'}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : channelType === 'WHATSAPP' ? (
+              {channelType === 'WHATSAPP' ? (
                 <div className="mt-3 rounded-2xl bg-[#efeae2] p-4">
                   <div className="ml-auto max-w-[260px] rounded-xl bg-white p-3 shadow-sm">
                     {headerText && <p className="text-xs font-bold text-slate-900">{renderedHeader}</p>}
