@@ -1,6 +1,6 @@
 import { FiCheckCircle, FiCloud, FiMail, FiSend, FiX } from 'react-icons/fi'
 
-export type BroadcastEmailProviderChoice = 'AMAZON_SES' | 'SENDGRID' | 'AZURE_EMAIL'
+export type BroadcastEmailProviderChoice = 'AMAZON_SES' | 'SENDGRID' | 'AZURE_EMAIL' | 'MSG91_EMAIL'
 
 type Props = {
   onClose: () => void
@@ -26,6 +26,13 @@ const providers = [
     id: 'AZURE_EMAIL' as const,
     name: 'Azure Email',
     description: 'Azure Communication Services Email.',
+    available: true,
+    icon: <FiMail aria-hidden="true" />,
+  },
+  {
+    id: 'MSG91_EMAIL' as const,
+    name: 'MSG91 Email',
+    description: 'Template-based email through a verified MSG91 sending domain.',
     available: true,
     icon: <FiMail aria-hidden="true" />,
   },
