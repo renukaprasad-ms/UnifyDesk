@@ -20,6 +20,8 @@ import BroadcastEmailProviderPickerModal, {
 import SendGridConnectModal from '../../components/broadcast/SendGridConnectModal'
 import Msg91ConnectModal from '../../components/broadcast/Msg91ConnectModal'
 import Msg91EmailConnectModal from '../../components/broadcast/Msg91EmailConnectModal'
+import { broadcastApi } from '../../features/broadcast/broadcastApi'
+import type { BroadcastSetupSession } from '../../features/broadcast/types'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
@@ -71,6 +73,7 @@ export default function CompanyConnections() {
   const [azureEmailConnectOpen, setAzureEmailConnectOpen] = useState(false)
   const [msg91ConnectOpen, setMsg91ConnectOpen] = useState(false)
   const [msg91EmailConnectOpen, setMsg91EmailConnectOpen] = useState(false)
+  const [activeEmailSetup, setActiveEmailSetup] = useState<BroadcastSetupSession | null>(null)
   const [workingConnectionId, setWorkingConnectionId] = useState<string | null>(null)
   const [disconnectTarget, setDisconnectTarget] = useState<ChannelConnection | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ChannelConnection | null>(null)
@@ -125,6 +128,20 @@ export default function CompanyConnections() {
     }
   }
 
+  const loadBroadcastSetup = async () => {
+    if (!selectedCompany || !can(PERMISSIONS.BROADCAST_READ)) {
+      setActiveEmailSetup(null)
+      return
+    }
+    try {
+      setActiveEmailSetup(
+        await broadcastApi.activeSetupSession(selectedCompany.companyId, 'EMAIL'),
+      )
+    } catch {
+      setActiveEmailSetup(null)
+    }
+  }
+
   const prepareMeta = async () => {
     if (!selectedCompany || !can(PERMISSIONS.WHATSAPP_CONNECT)) return
     try {
@@ -140,6 +157,7 @@ export default function CompanyConnections() {
 
   useEffect(() => {
     void loadConnections()
+    void loadBroadcastSetup()
     void prepareMeta()
   }, [selectedCompany?.companyId])
 
@@ -422,7 +440,17 @@ export default function CompanyConnections() {
                   onClick={() => setBroadcastEmailPickerOpen(true)}
                 >
                   <FiLink aria-hidden="true" />
-                  Connect broadcast email
+                  {activeEmailSetup
+                    ? `Continue ${
+                        activeEmailSetup.provider === 'AMAZON_SES'
+                          ? 'Amazon SES'
+                          : activeEmailSetup.provider === 'SENDGRID'
+                            ? 'SendGrid'
+                            : activeEmailSetup.provider === 'AZURE_EMAIL'
+                              ? 'Azure Email'
+                              : 'MSG91 Email'
+                      } setup`
+                    : 'Connect broadcast email'}
                 </button>
               )}
             </div>
@@ -717,7 +745,10 @@ export default function CompanyConnections() {
       {broadcastEmailPickerOpen && selectedCompany && (
         <BroadcastEmailProviderPickerModal
           companyId={selectedCompany.companyId}
-          onClose={() => setBroadcastEmailPickerOpen(false)}
+          onClose={() => {
+            setBroadcastEmailPickerOpen(false)
+            void loadBroadcastSetup()
+          }}
           onSelect={(provider: BroadcastEmailProviderChoice) => {
             setBroadcastEmailPickerOpen(false)
             if (provider === 'AMAZON_SES') {
@@ -740,6 +771,7 @@ export default function CompanyConnections() {
           onConnected={(sender) => {
             setMsg91EmailConnectOpen(false)
             setNotice(`Connected MSG91 Email sender ${sender.fromAddress}`)
+            setActiveEmailSetup(null)
             void loadConnections()
           }}
         />
@@ -752,6 +784,7 @@ export default function CompanyConnections() {
           onConnected={(sender) => {
             setAzureEmailConnectOpen(false)
             setNotice(`Connected Azure Email sender ${sender.fromAddress}`)
+            setActiveEmailSetup(null)
             void loadConnections()
           }}
         />
@@ -764,6 +797,7 @@ export default function CompanyConnections() {
           onConnected={(sender) => {
             setSesConnectOpen(false)
             setNotice(`Connected Amazon SES sender ${sender.fromAddress}`)
+            setActiveEmailSetup(null)
             void loadConnections()
           }}
         />
@@ -776,6 +810,7 @@ export default function CompanyConnections() {
           onConnected={(sender) => {
             setSendGridConnectOpen(false)
             setNotice(`Connected SendGrid sender ${sender.fromAddress}`)
+            setActiveEmailSetup(null)
             void loadConnections()
           }}
         />
