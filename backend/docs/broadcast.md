@@ -255,3 +255,49 @@ network failures remain `UNKNOWN` to avoid accidental duplicate sends.
 Signed Event Webhook ingestion is intentionally a separate step because customer-managed SendGrid
 accounts have per-webhook verification keys. Those keys must be stored per provider connection and
 verified before delivery events are allowed to mutate recipient state.
+
+
+## Azure Communication Services Email
+
+Azure Email uses the same email Broadcast transport contract as Amazon SES and SendGrid.
+
+Customer-managed connection fields:
+
+- Azure Communication Services endpoint
+- access key
+- MailFrom address
+- optional display name and Reply-To address
+
+The access key is encrypted with the channel credential cipher. The endpoint is stored as non-secret
+provider configuration. Delivery uses the Azure Communication Services Email Java SDK and stores the
+email send operation id as the provider message id.
+
+The default local safety ceiling is controlled by
+`BROADCAST_AZURE_EMAIL_MAX_PER_SECOND_CAP`. Azure throttling and transient 5xx failures are
+retryable; ambiguous failures remain `UNKNOWN`.
+
+Azure delivery-status reconciliation through Event Grid is a separate callback stage.
+
+## MSG91 SMS
+
+MSG91 extends the Broadcast execution model to `ChannelType.SMS` without routing SMS through the
+email transport abstraction.
+
+Customer-managed connection fields:
+
+- MSG91 auth key
+- Flow ID
+- approved Sender ID / Header
+- Flow variable that receives the Broadcast message body (defaults to `VAR1`)
+- optional route
+
+The auth key is encrypted. Flow configuration is stored as non-secret provider configuration.
+Recipients are normalized to international digits and CSV imports accept `phone`, `mobile`,
+`mobiles`, or `destination` columns.
+
+Delivery uses `POST https://control.msg91.com/api/v5/flow`. The selected Broadcast body is placed
+in the configured Flow variable for each recipient. This is intentionally template/Flow based rather
+than an arbitrary raw-SMS transport so the provider-side approved template remains authoritative.
+
+The default local safety ceiling is controlled by `BROADCAST_MSG91_MAX_PER_SECOND_CAP`.
+MSG91 delivery reports/webhook reconciliation remain a separate callback stage.
