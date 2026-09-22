@@ -205,6 +205,23 @@ export default function TemplateLibrary() {
           )}
         </header>
 
+        <div className="mt-6 grid gap-3 md:grid-cols-4">
+          {[
+            ['1', 'Create', 'Choose Email, WhatsApp or SMS and the template purpose.'],
+            ['2', 'Personalize', 'Add reusable content and variables such as {{first_name}}.'],
+            ['3', 'Approve when needed', 'WhatsApp and provider-backed templates keep approval state separate.'],
+            ['4', 'Use', 'Select active Email/SMS templates directly from the Broadcast composer.'],
+          ].map(([step, title, description]) => (
+            <div key={step} className="rounded-2xl border border-slate-200 bg-white p-4">
+              <span className="inline-flex size-7 items-center justify-center rounded-full bg-indigo-50 text-[11px] font-bold text-indigo-700">
+                {step}
+              </span>
+              <p className="mt-3 text-xs font-bold text-slate-900">{title}</p>
+              <p className="mt-1 text-[11px] leading-5 text-slate-500">{description}</p>
+            </div>
+          ))}
+        </div>
+
         <div className="panel mt-6 overflow-hidden">
         <div className="flex flex-col gap-4 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap gap-2">
