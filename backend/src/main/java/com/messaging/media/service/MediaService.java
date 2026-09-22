@@ -112,7 +112,7 @@ public class MediaService {
     media.setOwnerUserId(userId);
     media.setCompanyId(request.companyId());
     media.setStorageProvider(storageProperties.getDefaultProvider());
-    media.setBucket(storageProperties.getSupabase().getBucket());
+    media.setBucket(configuredBucket());
     media.setObjectKey(
         objectKeyFactory.createTemporaryObjectKey(userId, mediaId, validated.extension()));
     media.setOriginalFileName(validated.fileName());
@@ -352,6 +352,27 @@ public class MediaService {
   private String finalObjectKey(Media media, long ownerUserId) {
     return objectKeyFactory.createUserObjectKey(
         ownerUserId, media.getPurpose(), media.getId(), extension(media.getObjectKey()));
+  }
+
+  @Transactional(readOnly = true)
+  public java.util.List<MediaResponse> listCompanyMedia(Long companyId) {
+    long userId = currentUserService.currentUserId();
+    companyAuthorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.MEDIA_READ);
+    return mediaRepository
+        .findByCompanyIdAndStatusOrderByCreatedAtDesc(
+            companyId,
+            MediaStatus.ACTIVE,
+            org.springframework.data.domain.PageRequest.of(0, 100))
+        .stream()
+        .map(mediaMapper::toResponse)
+        .toList();
+  }
+
+  private String configuredBucket() {
+    return switch (storageProperties.getDefaultProvider()) {
+      case SUPABASE -> storageProperties.getSupabase().getBucket();
+      case S3 -> storageProperties.getS3().getBucket();
+    };
   }
 
   private String secureToken() {
