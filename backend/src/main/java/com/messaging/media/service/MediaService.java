@@ -132,7 +132,7 @@ public class MediaService {
     media.setId(mediaId);
     media.setOwnerUserId(PRE_REGISTER_OWNER_ID);
     media.setStorageProvider(storageProperties.getDefaultProvider());
-    media.setBucket(storageProperties.getSupabase().getBucket());
+    media.setBucket(configuredBucket());
     media.setObjectKey(objectKeyFactory.createPreRegisterObjectKey(mediaId, validated.extension()));
     media.setOriginalFileName(validated.fileName());
     media.setContentType(validated.contentType());
@@ -369,10 +369,15 @@ public class MediaService {
   }
 
   private String configuredBucket() {
-    return switch (storageProperties.getDefaultProvider()) {
-      case SUPABASE -> storageProperties.getSupabase().getBucket();
-      case S3 -> storageProperties.getS3().getBucket();
-    };
+    String bucket =
+        switch (storageProperties.getDefaultProvider()) {
+          case SUPABASE -> storageProperties.getSupabase().getBucket();
+          case S3 -> storageProperties.getS3().getBucket();
+        };
+    if (!org.springframework.util.StringUtils.hasText(bucket)) {
+      throw new MediaException(HttpStatus.SERVICE_UNAVAILABLE, "MEDIA_STORAGE_NOT_CONFIGURED");
+    }
+    return bucket.trim();
   }
 
   private String secureToken() {
