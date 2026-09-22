@@ -381,7 +381,7 @@ export default function CompanyConnections() {
             <h2 className="mt-4 text-base font-bold text-slate-950">Email</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">
               Inbox accounts use Gmail, Microsoft 365 or IMAP + SMTP. Broadcast senders use
-              high-volume providers such as Amazon SES and SendGrid.
+              high-volume providers such as Amazon SES, SendGrid and Azure Email.
             </p>
             <div className="mt-4 grid gap-2">
               {can(PERMISSIONS.EMAIL_CONNECT) && (
