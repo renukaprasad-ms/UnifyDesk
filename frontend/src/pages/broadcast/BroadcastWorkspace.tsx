@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
-  FiAlertCircle,
   FiArrowLeft,
-  FiCheckCircle,
   FiClock,
   FiEdit2,
   FiPause,
@@ -33,6 +31,7 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import {
   applyBroadcastMutation,
   applyBroadcastProgress,
@@ -132,6 +131,7 @@ export default function BroadcastWorkspace() {
   const companyId = useAppSelector(selectSelectedCompanyId)
   const broadcast = useAppSelector((state) => state.broadcast)
   const { can } = useIam()
+  const snackbar = useSnackbar()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const channelType = channelFromPath(location.pathname)
@@ -176,8 +176,6 @@ export default function BroadcastWorkspace() {
   const [realtimeConnected, setRealtimeConnected] = useState(realtimeClient.isConnected())
   const recipientRefreshTimer = useRef<number | null>(null)
   const lastRecipientRefreshAt = useRef(0)
-  const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
 
   const hasActiveHistory = history.some((message) =>
     ['QUEUED', 'RUNNING', 'PAUSED'].includes(message.status),
@@ -257,7 +255,7 @@ export default function BroadcastWorkspace() {
     try {
       setSenders(await broadcastApi.senders(companyId))
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to load Broadcast senders'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to load Broadcast senders'))
     }
   }, [channelType, companyId])
 
@@ -274,7 +272,7 @@ export default function BroadcastWorkspace() {
         if (active) dispatch(upsertBroadcastGroup(group))
       })
       .catch((requestError) => {
-        if (active) setError(apiErrorMessage(requestError, 'Unable to load broadcast group'))
+        if (active) snackbar.error(apiErrorMessage(requestError, 'Unable to load broadcast group'))
       })
     return () => {
       active = false
@@ -313,7 +311,7 @@ export default function BroadcastWorkspace() {
         }
       })
       .catch((requestError) => {
-        if (active) setError(apiErrorMessage(requestError, 'Unable to load broadcast details'))
+        if (active) snackbar.error(apiErrorMessage(requestError, 'Unable to load broadcast details'))
       })
       .finally(() => {
         if (active) setDetailLoading(false)
@@ -458,7 +456,7 @@ export default function BroadcastWorkspace() {
         )
       })
       .catch((requestError) => {
-        if (active) setError(apiErrorMessage(requestError, 'Unable to load broadcast draft'))
+        if (active) snackbar.error(apiErrorMessage(requestError, 'Unable to load broadcast draft'))
       })
       .finally(() => {
         if (active) setComposeBusy(false)
@@ -498,7 +496,6 @@ export default function BroadcastWorkspace() {
     event.preventDefault()
     if (!companyId || !groupName.trim() || channelType === 'WHATSAPP') return
     setGroupBusy(true)
-    setError(null)
     try {
       const group = await broadcastApi.createGroup(companyId, {
         name: groupName.trim(),
@@ -507,9 +504,9 @@ export default function BroadcastWorkspace() {
       })
       dispatch(upsertBroadcastGroup(group))
       updateSearch({ newGroup: null, groupId: group.id, broadcastId: null })
-      setNotice('Broadcast group created. Add recipients when you are ready.')
+      snackbar.success('Broadcast group created. Add recipients when you are ready.')
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to create broadcast group'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to create broadcast group'))
     } finally {
       setGroupBusy(false)
     }
@@ -519,7 +516,6 @@ export default function BroadcastWorkspace() {
     event.preventDefault()
     if (!companyId || !selectedGroupId || !groupName.trim()) return
     setGroupBusy(true)
-    setError(null)
     try {
       const group = await broadcastApi.updateGroup(companyId, selectedGroupId, {
         name: groupName.trim(),
@@ -527,9 +523,9 @@ export default function BroadcastWorkspace() {
       })
       dispatch(upsertBroadcastGroup(group))
       updateSearch({ editGroup: null })
-      setNotice('Broadcast group updated.')
+      snackbar.success('Broadcast group updated.')
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to update broadcast group'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to update broadcast group'))
     } finally {
       setGroupBusy(false)
     }
@@ -542,7 +538,7 @@ export default function BroadcastWorkspace() {
     try {
       setMembers(await broadcastApi.members(companyId, selectedGroupId))
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to load group members'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to load group members'))
     }
   }
 
@@ -552,7 +548,7 @@ export default function BroadcastWorkspace() {
     try {
       setMembers(await broadcastApi.members(companyId, selectedGroupId, page))
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to load group members'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to load group members'))
     } finally {
       setMemberBusy(false)
     }
@@ -561,7 +557,7 @@ export default function BroadcastWorkspace() {
   const afterMemberChange = async (result?: BroadcastMemberImportResult) => {
     await Promise.all([loadMembersPage(0), refreshGroups(true)])
     if (result) {
-      setNotice(
+      snackbar.success(
         `Processed ${result.processed.toLocaleString()} · added ${result.insertedOrReactivated.toLocaleString()} · duplicates ${result.duplicates.toLocaleString()} · invalid ${result.invalid.toLocaleString()}`,
       )
     }
@@ -580,7 +576,6 @@ export default function BroadcastWorkspace() {
     if (values.length === 0) return
 
     setMemberBusy(true)
-    setError(null)
     try {
       let processed = 0
       let insertedOrReactivated = 0
@@ -606,7 +601,7 @@ export default function BroadcastWorkspace() {
         invalid,
       })
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to add recipients'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to add recipients'))
     } finally {
       setMemberBusy(false)
     }
@@ -615,13 +610,12 @@ export default function BroadcastWorkspace() {
   const importCsv = async () => {
     if (!companyId || !selectedGroupId || !memberCsv) return
     setMemberBusy(true)
-    setError(null)
     try {
       const result = await broadcastApi.importMembers(companyId, selectedGroupId, memberCsv)
       setMemberCsv(null)
       await afterMemberChange(result)
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to import CSV'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to import CSV'))
     } finally {
       setMemberBusy(false)
     }
@@ -634,7 +628,7 @@ export default function BroadcastWorkspace() {
       await broadcastApi.removeMember(companyId, selectedGroupId, memberId)
       await afterMemberChange()
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to remove recipient'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to remove recipient'))
     } finally {
       setMemberBusy(false)
     }
@@ -672,13 +666,12 @@ export default function BroadcastWorkspace() {
   const submitCompose = async (mode: 'draft' | 'send' | 'schedule') => {
     if (!companyId) return
     setComposeBusy(true)
-    setError(null)
     try {
       const draft = await saveDraft()
       let result = draft
       if (mode === 'send') {
         result = await broadcastApi.send(companyId, draft.id)
-        setNotice('Broadcast queued. Delivery progress will update live.')
+        snackbar.success('Broadcast queued. Delivery progress will update live.')
       } else if (mode === 'schedule') {
         if (!composeScheduleAt) throw new Error('Choose a schedule time')
         const scheduleDate = new Date(composeScheduleAt)
@@ -690,15 +683,15 @@ export default function BroadcastWorkspace() {
           draft.id,
           scheduleDate.toISOString(),
         )
-        setNotice('Broadcast scheduled.')
+        snackbar.success('Broadcast scheduled.')
       } else {
-        setNotice('Broadcast draft saved.')
+        snackbar.success('Broadcast draft saved.')
       }
       dispatch(applyBroadcastMutation(result))
       closeComposer()
       await refreshHistory(true)
     } catch (requestError) {
-      setError(
+      snackbar.error(
         requestError instanceof Error
           ? requestError.message
           : apiErrorMessage(requestError, 'Unable to save broadcast'),
@@ -714,7 +707,6 @@ export default function BroadcastWorkspace() {
   ) => {
     if (!companyId) return
     setActionBusy(true)
-    setError(null)
     try {
       const result =
         action === 'pause'
@@ -728,7 +720,7 @@ export default function BroadcastWorkspace() {
       setSelectedMessage((current) => (current?.id === result.id ? result : current))
       await refreshHistory(true)
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, `Unable to ${action} broadcast`))
+      snackbar.error(apiErrorMessage(requestError, `Unable to ${action} broadcast`))
     } finally {
       setActionBusy(false)
     }
@@ -742,7 +734,7 @@ export default function BroadcastWorkspace() {
         await broadcastApi.recipients(companyId, selectedBroadcastId, page),
       )
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to load recipients'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to load recipients'))
     } finally {
       setRecipientsLoading(false)
     }
@@ -844,29 +836,6 @@ export default function BroadcastWorkspace() {
           )}
         </div>
       </div>
-
-      {(error || notice) && (
-        <div className="px-3 pt-3">
-          {error && (
-            <div className="flex items-start gap-2 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2.5 text-xs text-rose-700">
-              <FiAlertCircle className="mt-0.5 shrink-0" aria-hidden="true" />
-              <span className="min-w-0 flex-1">{error}</span>
-              <button type="button" onClick={() => setError(null)} aria-label="Dismiss error">
-                <FiX aria-hidden="true" />
-              </button>
-            </div>
-          )}
-          {notice && (
-            <div className="mt-2 flex items-start gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-700">
-              <FiCheckCircle className="mt-0.5 shrink-0" aria-hidden="true" />
-              <span className="min-w-0 flex-1">{notice}</span>
-              <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss notice">
-                <FiX aria-hidden="true" />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="channel-workspace-body">
         <main className="channel-message-surface">
