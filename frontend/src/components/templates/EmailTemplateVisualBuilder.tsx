@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { IconType } from 'react-icons'
 import {
   FiArrowDown,
   FiArrowUp,
@@ -31,6 +32,15 @@ type Props = {
   onChange: (design: EmailTemplateDesign) => void
   onGeneratedChange: (bodyText: string, bodyHtml: string) => void
 }
+
+const blockOptions: Array<{ type: EmailBlockType; label: string; Icon: IconType }> = [
+  { type: 'HEADING', label: 'Heading', Icon: FiType },
+  { type: 'TEXT', label: 'Text', Icon: FiType },
+  { type: 'IMAGE', label: 'Image', Icon: FiImage },
+  { type: 'BUTTON', label: 'Button', Icon: FiLink },
+  { type: 'DIVIDER', label: 'Divider', Icon: FiMinus },
+  { type: 'SPACER', label: 'Spacer', Icon: FiMove },
+]
 
 const variableOptions = [
   ['first_name', 'First name'],
@@ -399,22 +409,15 @@ export default function EmailTemplateVisualBuilder({
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
-              {[
-                ['HEADING', FiType],
-                ['TEXT', FiType],
-                ['IMAGE', FiImage],
-                ['BUTTON', FiLink],
-                ['DIVIDER', FiMinus],
-                ['SPACER', FiMove],
-              ].map(([type, Icon]) => (
+              {blockOptions.map(({ type, label, Icon }) => (
                 <button
-                  key={type as string}
+                  key={type}
                   type="button"
                   className="secondary-button inline-flex items-center gap-1.5 !px-2.5 !py-2 text-[10px]"
-                  onClick={() => addBlock(type as EmailBlockType)}
+                  onClick={() => addBlock(type)}
                 >
                   <Icon aria-hidden="true" />
-                  + {blockName(type as EmailBlockType)}
+                  + {label}
                 </button>
               ))}
             </div>
