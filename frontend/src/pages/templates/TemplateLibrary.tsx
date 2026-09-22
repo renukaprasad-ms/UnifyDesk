@@ -119,7 +119,7 @@ export default function TemplateLibrary() {
         ? await templateApi.update(companyId, editing.id, input)
         : await templateApi.create(companyId, {
             ...input,
-            channelType,
+            channelType: createChannelType,
           })
 
       if (
