@@ -26,4 +26,11 @@ public interface MessageTemplateRepository extends JpaRepository<MessageTemplate
       ChannelType channelType,
       String name,
       MessageTemplateStatus status);
+
+  boolean existsByCompanyIdAndChannelTypeAndNameIgnoreCaseAndStatusNotAndIdNot(
+      Long companyId,
+      ChannelType channelType,
+      String name,
+      MessageTemplateStatus status,
+      Long id);
 }
