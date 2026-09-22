@@ -337,7 +337,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       identities.find(
         (item) =>
           item.connectionId === selectedConnectionId &&
-          (!item.senderId || !selectedSenderId || item.senderId === selectedSenderId),
+          (item.senderId ? item.senderId === selectedSenderId : !selectedSenderId),
       ) ?? null,
     [identities, selectedConnectionId, selectedSenderId],
   )
