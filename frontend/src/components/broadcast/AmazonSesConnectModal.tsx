@@ -14,8 +14,8 @@ type Props = {
   onConnected: (sender: BroadcastSender) => void
 }
 
-export default function AmazonSesConnectModal({
-  const snackbar = useSnackbar() companyId, onClose, onConnected }: Props) {
+export default function AmazonSesConnectModal({ companyId, onClose, onConnected }: Props) {
+  const snackbar = useSnackbar()
   const [name, setName] = useState('Amazon SES')
   const [region, setRegion] = useState('ap-south-1')
   const [authMode, setAuthMode] = useState<BroadcastSenderAuthMode>('ACCESS_KEYS')
