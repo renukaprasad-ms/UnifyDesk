@@ -106,7 +106,7 @@ public class MessageTemplateController {
       @PathVariable Long companyId, @PathVariable Long templateId) {
     require(companyId, CompanyPermissionKeys.TEMPLATE_DELETE);
     templateService.archive(companyId, templateId);
-    return ResponseEntity.ok(ApiResponse.success(200, null, "Template archived"));
+    return ResponseEntity.ok(ApiResponse.<Void>success(200, null, "Template archived"));
   }
 
   private Long require(Long companyId, String permission) {
