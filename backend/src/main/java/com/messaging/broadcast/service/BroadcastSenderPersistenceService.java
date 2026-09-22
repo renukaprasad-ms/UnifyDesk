@@ -16,8 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Persists the generic channel connection and SES-specific sender model in one transaction after
- * external provider validation has succeeded.
+ * Persists the generic channel connection and provider-specific sender model in one transaction
+ * after external provider validation has succeeded.
  */
 @Service
 @RequiredArgsConstructor
@@ -39,7 +39,7 @@ public class BroadcastSenderPersistenceService {
     channelConnection.setId(connectionId);
     channelConnection.setCompanyId(connection.getCompanyId());
     channelConnection.setChannelType(ChannelType.EMAIL);
-    channelConnection.setProviderType(ProviderType.AMAZON_SES);
+    channelConnection.setProviderType(channelProvider(connection.getProvider()));
     channelConnection.setName(connection.getName());
     channelConnection.setExternalAccountId(sender.getFromAddress());
     channelConnection.setStatus(ChannelConnectionStatus.ACTIVE);
@@ -65,5 +65,15 @@ public class BroadcastSenderPersistenceService {
     senderIdentityRepository.save(identity);
 
     return BroadcastSenderResponse.from(savedSender, savedConnection);
+  }
+
+  private ProviderType channelProvider(BroadcastSenderProvider provider) {
+    return switch (provider) {
+      case AMAZON_SES -> ProviderType.AMAZON_SES;
+      case AZURE_EMAIL -> ProviderType.AZURE_EMAIL;
+      case SENDGRID -> ProviderType.SENDGRID;
+      case GMAIL, MICROSOFT, IMAP_SMTP, SMTP ->
+          throw new IllegalArgumentException("Mailbox provider cannot be used for new Broadcast senders: " + provider);
+    };
   }
 }
