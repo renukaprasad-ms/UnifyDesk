@@ -51,9 +51,6 @@ public class BroadcastRun {
   @Column(name = "body_html_snapshot", columnDefinition = "text")
   private String bodyHtmlSnapshot;
 
-  @Column(name = "body_html_snapshot", columnDefinition = "text")
-  private String bodyHtmlSnapshot;
-
   @Column(name = "snapshot_cursor_member_id")
   private Long snapshotCursorMemberId;
 
