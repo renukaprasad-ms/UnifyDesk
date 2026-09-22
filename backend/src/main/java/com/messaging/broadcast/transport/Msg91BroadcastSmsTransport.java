@@ -15,7 +15,7 @@ public class Msg91BroadcastSmsTransport implements BroadcastSmsTransport {
 
   @Override
   public BroadcastSenderProvider provider() {
-    return BroadcastSenderProvider.MSG91;
+    return BroadcastSenderProvider.MSG91_SMS;
   }
 
   @Override
