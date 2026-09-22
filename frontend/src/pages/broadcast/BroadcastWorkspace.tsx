@@ -1002,6 +1002,7 @@ export default function BroadcastWorkspace() {
                 </div>
               </div>
             </div>
+          </div>
           )}
         </main>
       </div>
