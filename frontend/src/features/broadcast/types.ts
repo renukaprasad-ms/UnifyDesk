@@ -45,7 +45,7 @@ export type BroadcastMemberImportResult = {
   invalid: number
 }
 
-export type BroadcastSenderProvider = 'AMAZON_SES' | 'AZURE_EMAIL' | 'SENDGRID' | 'MSG91'
+export type BroadcastSenderProvider = 'AMAZON_SES' | 'AZURE_EMAIL' | 'SENDGRID' | 'MSG91_EMAIL' | 'MSG91_SMS'
 export type BroadcastSenderManagementMode = 'CUSTOMER_MANAGED' | 'MESSAGING_MANAGED'
 export type BroadcastSenderStatus = 'ACTIVE' | 'DISABLED'
 export type BroadcastSenderAuthMode = 'IAM_ROLE' | 'ACCESS_KEYS' | 'API_KEY'
@@ -76,6 +76,18 @@ export type ConnectMsg91Input = {
   senderId: string
   messageVariable?: string | null
   route?: string | null
+}
+
+export type ConnectMsg91EmailInput = {
+  name: string
+  authKey: string
+  domain: string
+  templateId: string
+  fromAddress: string
+  displayName?: string | null
+  replyToAddress?: string | null
+  messageVariable?: string | null
+  subjectVariable?: string | null
 }
 
 export type BroadcastSender = {
