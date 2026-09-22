@@ -259,6 +259,7 @@ export default function EmailInbox() {
 
   useEffect(() => {
     setMobileConversationOpen(Boolean(selectedConversationId))
+    if (!selectedConversationId) autoReadConversationRef.current = null
   }, [selectedConversationId])
 
   useEffect(() => {
@@ -638,6 +639,31 @@ export default function EmailInbox() {
       setReadUpdatingConversationId(null)
     }
   }
+
+  useEffect(() => {
+    if (
+      !selectedConversation ||
+      selectedFolder !== 'INBOX' ||
+      selectedConversation.unreadCount <= 0 ||
+      !can(PERMISSIONS.EMAIL_MODIFY) ||
+      readUpdatingConversationId === selectedConversation.id ||
+      autoReadConversationRef.current === selectedConversation.id
+    ) {
+      return
+    }
+
+    autoReadConversationRef.current = selectedConversation.id
+    void changeConversationReadState(selectedConversation, true, true).finally(() => {
+      if (autoReadConversationRef.current === selectedConversation.id) {
+        autoReadConversationRef.current = null
+      }
+    })
+  }, [
+    can,
+    readUpdatingConversationId,
+    selectedConversation,
+    selectedFolder,
+  ])
 
   const changeMessageReadState = async (message: InboxMessage, read: boolean) => {
     if (!companyId || !can(PERMISSIONS.EMAIL_MODIFY)) return
