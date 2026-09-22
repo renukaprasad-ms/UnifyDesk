@@ -11,8 +11,8 @@ type Props = {
   onConnected: (sender: BroadcastSender) => void
 }
 
-export default function Msg91EmailConnectModal({
-  const snackbar = useSnackbar() companyId, onClose, onConnected }: Props) {
+export default function Msg91EmailConnectModal({ companyId, onClose, onConnected }: Props) {
+  const snackbar = useSnackbar()
   const [name, setName] = useState('MSG91 Email')
   const [authKey, setAuthKey] = useState('')
   const [domain, setDomain] = useState('')
