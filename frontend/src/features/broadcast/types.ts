@@ -193,6 +193,8 @@ export type BroadcastMessageSummary = {
   id: string
   groupId: string
   senderId?: string | null
+  sourceTemplateId?: string | null
+  sourceTemplateVersion?: number | null
   legacyConnectionId?: string | null
   runId?: string | null
   subject?: string | null
@@ -250,6 +252,7 @@ export type CreateBroadcastGroupInput = {
 }
 
 export type CreateBroadcastMessageInput = {
+  templateId?: string | null
   senderId: string
   subject?: string | null
   bodyText: string
