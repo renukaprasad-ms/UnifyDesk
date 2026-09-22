@@ -2,7 +2,6 @@ package com.messaging.media.config;
 
 import com.messaging.media.enums.StorageProviderType;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import lombok.Getter;
@@ -22,12 +21,24 @@ public class MediaStorageProperties {
   @NotNull private Duration httpConnectTimeout = Duration.ofSeconds(3);
   @NotNull private Duration httpReadTimeout = Duration.ofSeconds(5);
   @Valid @NotNull private Supabase supabase = new Supabase();
+  @Valid @NotNull private S3 s3 = new S3();
 
   @Getter
   @Setter
   public static class Supabase {
-    @NotBlank private String baseUrl;
-    @NotBlank private String serviceRoleKey;
-    @NotBlank private String bucket;
+    private String baseUrl;
+    private String serviceRoleKey;
+    private String bucket;
+  }
+
+  @Getter
+  @Setter
+  public static class S3 {
+    private String region;
+    private String bucket;
+    private String endpoint;
+    private String accessKeyId;
+    private String secretAccessKey;
+    private boolean pathStyleAccessEnabled;
   }
 }
