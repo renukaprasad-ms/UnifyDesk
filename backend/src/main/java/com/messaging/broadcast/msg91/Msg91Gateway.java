@@ -173,9 +173,9 @@ public class Msg91Gateway {
   }
 
   private void requireProvider(BroadcastSenderConnection connection) {
-    if (connection.getProvider() != BroadcastSenderProvider.MSG91) {
+    if (connection.getProvider() != BroadcastSenderProvider.MSG91_SMS) {
       throw new IllegalArgumentException(
-          "MSG91 gateway cannot handle provider " + connection.getProvider());
+          "MSG91 SMS gateway cannot handle provider " + connection.getProvider());
     }
   }
 }
