@@ -301,7 +301,9 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           secondary:
             sender.provider === 'MSG91_SMS'
               ? `MSG91 SMS · ${sender.connectionName}`
-              : `${broadcastProviderLabel(sender.provider)} · ${sender.region}${
+              : sender.provider === 'MSG91_EMAIL'
+                ? `MSG91 Email · ${sender.connectionName}`
+                : `${broadcastProviderLabel(sender.provider)} · ${sender.region}${
                   sender.maxSendRate ? ` · ${sender.maxSendRate}/sec` : ''
                 }${
                   sender.provider === 'AMAZON_SES' && !sender.productionAccessEnabled
