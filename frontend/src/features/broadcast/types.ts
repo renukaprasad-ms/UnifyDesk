@@ -49,7 +49,34 @@ export type BroadcastSenderProvider = 'AMAZON_SES' | 'AZURE_EMAIL' | 'SENDGRID' 
 export type BroadcastSenderManagementMode = 'CUSTOMER_MANAGED' | 'MESSAGING_MANAGED'
 export type BroadcastSenderStatus = 'ACTIVE' | 'DISABLED'
 export type BroadcastSenderAuthMode = 'IAM_ROLE' | 'ACCESS_KEYS' | 'API_KEY'
+export type BroadcastSetupStatus =
+  | 'IN_PROGRESS'
+  | 'WAITING_EXTERNAL_ACTION'
+  | 'READY_TO_CONNECT'
+  | 'COMPLETED'
+  | 'CANCELLED'
 export type SendGridRegion = 'GLOBAL' | 'EU'
+
+export type BroadcastSetupSession = {
+  id: string
+  companyId: string
+  channelType: ChannelType
+  provider: BroadcastSenderProvider
+  currentStep: number
+  status: BroadcastSetupStatus
+  setupDataJson?: string | null
+  createdAt: string
+  updatedAt: string
+  completedAt?: string | null
+}
+
+export type UpsertBroadcastSetupSessionInput = {
+  channelType: ChannelType
+  provider: BroadcastSenderProvider
+  currentStep: number
+  status: BroadcastSetupStatus
+  setupDataJson?: string | null
+}
 
 export type ConnectSendGridInput = {
   name: string
