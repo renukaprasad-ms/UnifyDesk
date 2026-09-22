@@ -321,12 +321,16 @@ export default function MessageTemplateEditorModal({
                 <textarea
                   className="form-input mt-2 min-h-36 resize-y font-mono text-[11px]"
                   value={bodyHtml}
-                  onChange={(event) => setBodyHtml(event.target.value)}
+                  onChange={(event) => {
+                    const value = event.target.value
+                    setBodyHtml(value)
+                    if (value.trim()) setPreviewMode('HTML')
+                  }}
                   placeholder="<p>Hi {{first_name}},</p>"
                   maxLength={1000000}
                 />
                 <span className="mt-1 block text-[10px] font-medium text-slate-400">
-                  HTML is rendered in the preview below. Text remains the fallback version for recipients or providers that do not use HTML.
+                  HTML is rendered safely in the preview and stored with the template. Broadcast delivery still uses the text version until rich-HTML transport support is enabled.
                 </span>
               </label>
             )}
@@ -564,7 +568,7 @@ export default function MessageTemplateEditorModal({
                 )}
                 {variables.length > 0 && (
                   <p className="mt-2 text-[9px] leading-4 text-slate-400">
-                    These values are only for preview. Actual Broadcast values come from each recipient.
+                    These values are only for preview. During Broadcast, CSV/custom-field columns become variables automatically. Built-ins include {{name}}, {{first_name}}, {{last_name}}, {{email}} or {{phone}}, {{destination}}, {{current_date}} and {{current_year}}.
                   </p>
                 )}
               </div>
