@@ -6,6 +6,7 @@ import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.enums.*;
 import com.messaging.broadcast.repository.*;
 import com.messaging.broadcast.ses.*;
+import com.messaging.broadcast.sendgrid.*;
 import com.messaging.channel.credential.CredentialCipher;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
@@ -29,6 +30,7 @@ public class BroadcastSenderService {
   private final com.messaging.channel.service.ChannelConnectionService channelConnectionService;
   private final AmazonSesGateway sesGateway;
   private final AmazonSesClientManager sesClientManager;
+  private final SendGridGateway sendGridGateway;
   private final CredentialCipher credentialCipher;
   private final ObjectMapper objectMapper;
 
@@ -93,6 +95,53 @@ public class BroadcastSenderService {
     }
   }
 
+  public BroadcastSenderResponse connectSendGrid(
+      Long companyId, Long userId, ConnectSendGridRequest request) {
+    String fromAddress = normalizeEmail(request.fromAddress(), "From address");
+    String replyTo =
+        request.replyToAddress() == null || request.replyToAddress().isBlank()
+            ? null
+            : normalizeEmail(request.replyToAddress(), "Reply-To address");
+
+    senderRepository
+        .findByCompanyIdAndProviderAndFromAddressIgnoreCase(
+            companyId, BroadcastSenderProvider.SENDGRID, fromAddress)
+        .ifPresent(
+            existing -> {
+              throw new BadRequestException(
+                  "This SendGrid sender is already connected to the company");
+            });
+
+    channelEntitlementService.assertCanCreateConnection(
+        companyId, com.messaging.channel.enums.ChannelType.EMAIL);
+
+    BroadcastSenderConnection connection = new BroadcastSenderConnection();
+    connection.setId(IdGenerator.nextId());
+    connection.setCompanyId(companyId);
+    connection.setProvider(BroadcastSenderProvider.SENDGRID);
+    connection.setManagementMode(BroadcastSenderManagementMode.CUSTOMER_MANAGED);
+    connection.setAuthMode(BroadcastSenderAuthMode.API_KEY);
+    connection.setName(request.name().trim());
+    connection.setRegion(request.region().name());
+    connection.setCreatedByUserId(userId);
+    connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
+    connection.setEncryptedCredentials(encryptSendGridApiKey(request.apiKey()));
+
+    SendGridAccountSnapshot snapshot = sendGridGateway.inspect(connection, fromAddress);
+    applySendGridSnapshot(connection, snapshot);
+
+    BroadcastSender sender = new BroadcastSender();
+    sender.setCompanyId(companyId);
+    sender.setConnectionId(connection.getId());
+    sender.setProvider(BroadcastSenderProvider.SENDGRID);
+    sender.setFromAddress(fromAddress);
+    sender.setDisplayName(trimToNull(request.displayName()));
+    sender.setReplyToAddress(replyTo);
+    sender.setVerifiedIdentity(snapshot.verifiedIdentity());
+    sender.setStatus(BroadcastSenderStatus.ACTIVE);
+    return persistenceService.create(connection, sender);
+  }
+
   @Transactional(readOnly = true)
   public List<BroadcastSenderResponse> list(Long companyId) {
     return senderRepository
@@ -118,10 +167,26 @@ public class BroadcastSenderService {
       throw new BadRequestException("Broadcast sender is disconnected");
     }
     BroadcastSenderConnection connection = requireConnection(companyId, sender.getConnectionId());
-    AmazonSesAccountSnapshot snapshot = sesGateway.inspect(connection, sender.getFromAddress());
-    applySnapshot(connection, snapshot);
+    switch (sender.getProvider()) {
+      case AMAZON_SES -> {
+        AmazonSesAccountSnapshot snapshot = sesGateway.inspect(connection, sender.getFromAddress());
+        applySnapshot(connection, snapshot);
+        sender.setVerifiedIdentity(snapshot.verifiedIdentity());
+      }
+      case SENDGRID -> {
+        SendGridAccountSnapshot snapshot =
+            sendGridGateway.inspect(connection, sender.getFromAddress());
+        applySendGridSnapshot(connection, snapshot);
+        sender.setVerifiedIdentity(snapshot.verifiedIdentity());
+      }
+      case AZURE_EMAIL ->
+          throw new BadRequestException("Azure Email connection flow is not implemented yet");
+      case GMAIL, MICROSOFT, IMAP_SMTP, SMTP ->
+          throw new BadRequestException("Mailbox providers cannot be refreshed as Broadcast senders");
+    }
     connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
     connectionRepository.save(connection);
+    senderRepository.save(sender);
     return BroadcastSenderResponse.from(sender, connection);
   }
 
@@ -187,6 +252,29 @@ public class BroadcastSenderService {
     } catch (Exception exception) {
       throw new IllegalStateException("Unable to encrypt Amazon SES credentials", exception);
     }
+  }
+
+  private String encryptSendGridApiKey(String apiKey) {
+    if (isBlank(apiKey)) {
+      throw new BadRequestException("SendGrid API key is required");
+    }
+    try {
+      String payload =
+          objectMapper.writeValueAsString(new SendGridStoredCredentials(apiKey.trim()));
+      return credentialCipher.encrypt(payload);
+    } catch (Exception exception) {
+      throw new IllegalStateException("Unable to encrypt SendGrid credentials", exception);
+    }
+  }
+
+  private void applySendGridSnapshot(
+      BroadcastSenderConnection connection, SendGridAccountSnapshot snapshot) {
+    connection.setProductionAccessEnabled(true);
+    connection.setSendingEnabled(snapshot.sendingEnabled());
+    connection.setMax24HourSend(null);
+    connection.setMaxSendRate(snapshot.maxSendRate());
+    connection.setSentLast24Hours(null);
+    connection.setLastValidatedAt(Instant.now());
   }
 
   private void applySnapshot(
