@@ -330,3 +330,31 @@ than an arbitrary raw-SMS transport so the provider-side approved template remai
 
 The default local safety ceiling is controlled by `BROADCAST_MSG91_MAX_PER_SECOND_CAP`.
 MSG91 delivery reports/webhook reconciliation remain a separate callback stage.
+
+
+## Guided provider setup
+
+Company Connections exposes a guided setup flow before the provider credential forms.
+
+For Broadcast Email, users can either choose `Help me choose` or select an existing provider.
+The guide covers Amazon SES, SendGrid, Azure Communication Services Email and MSG91 Email.
+For SMS, MSG91 has a dedicated Flow/Header/template guide.
+
+Progress is persisted in `broadcast_setup_sessions` with only non-secret onboarding state:
+
+- company and channel
+- selected provider
+- current step
+- setup status
+- small non-secret setup metadata
+
+API keys, access keys, passwords and provider credentials must never be stored in the setup session.
+They continue to use the encrypted provider credential storage used by the actual connection flow.
+
+A successful provider connection marks the matching active setup session complete. Setup metadata
+completion is best-effort and cannot turn an already-successful provider connection into a failed
+connection response.
+
+After an email provider connects, the UI offers an explicit optional test send. Test messages are
+never sent automatically. The provider must accept the test request before the UI shows the test as
+successful; provider acceptance does not by itself guarantee final inbox delivery.
