@@ -10,6 +10,7 @@ import type {
   BroadcastMessageSummary,
   BroadcastRecipient,
   BroadcastSender,
+  BroadcastSetupSession,
   ConnectAmazonSesInput,
   ConnectAzureEmailInput,
   ConnectMsg91EmailInput,
@@ -18,6 +19,7 @@ import type {
   CreateBroadcastGroupInput,
   CreateBroadcastMessageInput,
   Page,
+  UpsertBroadcastSetupSessionInput,
 } from './types'
 
 const unwrap = <T>(response: ApiResponse<T>) => {
@@ -26,6 +28,22 @@ const unwrap = <T>(response: ApiResponse<T>) => {
 }
 
 export const broadcastApi = {
+  async activeSetupSession(companyId: string, channelType: ChannelType) {
+    const response = await apiClient.get<ApiResponse<BroadcastSetupSession | null>>(
+      `/api/v1/companies/${companyId}/broadcast/setup-sessions/active`,
+      { params: { channelType } },
+    )
+    return response.data.data ?? null
+  },
+
+  async saveSetupSession(companyId: string, input: UpsertBroadcastSetupSessionInput) {
+    const response = await apiClient.put<ApiResponse<BroadcastSetupSession>>(
+      `/api/v1/companies/${companyId}/broadcast/setup-sessions/active`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
   async senders(companyId: string) {
     const response = await apiClient.get<ApiResponse<BroadcastSender[]>>(
       `/api/v1/companies/${companyId}/broadcast/senders`,
