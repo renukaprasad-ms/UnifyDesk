@@ -1331,6 +1331,7 @@ export default function BroadcastWorkspace() {
                   <p className="mt-1 text-[11px] text-slate-500">
                     {providerLabel(sendersById.get(composeSenderId)?.provider)}
                     {sendersById.get(composeSenderId)?.provider !== 'MSG91_SMS' &&
+                    sendersById.get(composeSenderId)?.provider !== 'MSG91_EMAIL' &&
                     sendersById.get(composeSenderId)?.region
                       ? ` · ${sendersById.get(composeSenderId)?.region}`
                       : ''}
