@@ -58,7 +58,7 @@ class BroadcastRateLimiterTests {
     properties.setMsg91MaxPerSecondCap(20.0);
 
     BroadcastSenderConnection connection = new BroadcastSenderConnection();
-    connection.setProvider(BroadcastSenderProvider.MSG91);
+    connection.setProvider(BroadcastSenderProvider.MSG91_SMS);
     connection.setMaxSendRate(50.0);
 
     BroadcastRateLimiter limiter = new BroadcastRateLimiter(null, properties);
