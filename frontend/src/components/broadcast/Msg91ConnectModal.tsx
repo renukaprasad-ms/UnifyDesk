@@ -11,8 +11,8 @@ type Props = {
   onConnected: (sender: BroadcastSender) => void
 }
 
-export default function Msg91ConnectModal({
-  const snackbar = useSnackbar() companyId, onClose, onConnected }: Props) {
+export default function Msg91ConnectModal({ companyId, onClose, onConnected }: Props) {
+  const snackbar = useSnackbar()
   const [name, setName] = useState('MSG91 SMS')
   const [authKey, setAuthKey] = useState('')
   const [flowId, setFlowId] = useState('')
