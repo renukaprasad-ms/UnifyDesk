@@ -84,8 +84,7 @@ const identityFallback = (connection: ChannelConnection) =>
 const broadcastProviderLabel = (provider: BroadcastSender['provider']) => {
   if (provider === 'AMAZON_SES') return 'Amazon SES'
   if (provider === 'SENDGRID') return 'SendGrid'
-  if (provider === 'AZURE_EMAIL') return 'Azure Email'
-  return provider.replaceAll('_', ' ')
+  return 'Azure Email'
 }
 
 const emailProviderIcon = (providerType: string) => {
