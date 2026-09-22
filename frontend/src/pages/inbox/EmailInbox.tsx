@@ -32,6 +32,7 @@ import type {
 } from '../../features/inbox/types'
 import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import {
   applyConversationReadState,
   applyMessageReadState,
@@ -98,6 +99,7 @@ export default function EmailInbox() {
   const companyId = useAppSelector(selectSelectedCompanyId)
   const inbox = useAppSelector((state) => state.inbox)
   const { can } = useIam()
+  const snackbar = useSnackbar()
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedConnectionId = searchParams.get('connectionId')
   const selectedConversationId = searchParams.get('conversationId')
@@ -132,8 +134,6 @@ export default function EmailInbox() {
   const [syncFolder, setSyncFolder] = useState<EmailFolder>('INBOX')
   const [syncMessageCount, setSyncMessageCount] = useState(100)
   const [syncJobs, setSyncJobs] = useState<Record<string, AsyncJob>>({})
-  const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
   const [realtimeConnected, setRealtimeConnected] = useState(realtimeClient.isConnected())
   const completedSyncRefreshesRef = useRef(new Set<string>())
   const trackedSyncJobIdsRef = useRef(new Set<string>())
@@ -604,41 +604,49 @@ export default function EmailInbox() {
     }
   }
 
-  const changeConversationReadState = async (
-    conversation: InboxConversation,
-    read: boolean,
-    silent = false,
-  ) => {
-    if (!companyId || !can(PERMISSIONS.EMAIL_MODIFY)) return
-    if (readUpdatingConversationId === conversation.id) return
+  const changeConversationReadState = useCallback(
+    async (conversation: InboxConversation, read: boolean, silent = false) => {
+      if (!companyId || !can(PERMISSIONS.EMAIL_MODIFY)) return
+      if (readUpdatingConversationId === conversation.id) return
 
-    setReadUpdatingConversationId(conversation.id)
-    setError(null)
+      setReadUpdatingConversationId(conversation.id)
 
-    if (read) {
-      dispatch(applyConversationReadState({ conversationId: conversation.id, read: true }))
-    }
-
-    try {
-      const result = await inboxApi.setConversationReadState(companyId, conversation.id, read)
-      if (!silent) {
-        setNotice(
-          result.updatedMessages === 0
-            ? read
-              ? 'Conversation is already read.'
-              : 'Conversation is already unread.'
-            : read
-              ? 'Conversation marked as read.'
-              : 'Conversation marked as unread.',
-        )
+      if (read) {
+        dispatch(applyConversationReadState({ conversationId: conversation.id, read: true }))
       }
-    } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to update conversation read state'))
-      void refreshInbox(selectedConversationId === conversation.id)
-    } finally {
-      setReadUpdatingConversationId(null)
-    }
-  }
+
+      try {
+        const result = await inboxApi.setConversationReadState(companyId, conversation.id, read)
+        if (!silent) {
+          snackbar.success(
+            result.updatedMessages === 0
+              ? read
+                ? 'Conversation is already read.'
+                : 'Conversation is already unread.'
+              : read
+                ? 'Conversation marked as read.'
+                : 'Conversation marked as unread.',
+          )
+        }
+      } catch (requestError) {
+        snackbar.error(
+          apiErrorMessage(requestError, 'Unable to update conversation read state'),
+        )
+        void refreshInbox(selectedConversationId === conversation.id)
+      } finally {
+        setReadUpdatingConversationId(null)
+      }
+    },
+    [
+      can,
+      companyId,
+      dispatch,
+      readUpdatingConversationId,
+      refreshInbox,
+      selectedConversationId,
+      snackbar,
+    ],
+  )
 
   useEffect(() => {
     if (
@@ -660,6 +668,7 @@ export default function EmailInbox() {
     })
   }, [
     can,
+    changeConversationReadState,
     readUpdatingConversationId,
     selectedConversation,
     selectedFolder,
