@@ -117,6 +117,13 @@ export type ConnectMsg91EmailInput = {
   subjectVariable?: string | null
 }
 
+export type BroadcastTestEmailResult = {
+  provider: BroadcastSenderProvider
+  recipient: string
+  providerMessageId?: string | null
+  acceptedAt?: string | null
+}
+
 export type BroadcastSender = {
   id: string
   connectionId: string
