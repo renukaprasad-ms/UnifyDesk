@@ -10,6 +10,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface MessageTemplateRepository extends JpaRepository<MessageTemplate, Long> {
 
+  List<MessageTemplate> findByCompanyIdOrderByUpdatedAtDesc(Long companyId);
+
+  List<MessageTemplate> findByCompanyIdAndChannelTypeOrderByUpdatedAtDesc(
+      Long companyId, ChannelType channelType);
+
   List<MessageTemplate> findByCompanyIdAndStatusNotOrderByUpdatedAtDesc(
       Long companyId, MessageTemplateStatus status);
 
