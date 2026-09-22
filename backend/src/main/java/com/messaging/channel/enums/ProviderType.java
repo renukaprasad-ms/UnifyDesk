@@ -12,7 +12,8 @@ public enum ProviderType {
   AZURE_EMAIL(ChannelType.EMAIL, ChannelConnectionCapability.BROADCAST),
   SENDGRID(ChannelType.EMAIL, ChannelConnectionCapability.BROADCAST),
   META_WHATSAPP(ChannelType.WHATSAPP, ChannelConnectionCapability.INBOX),
-  MSG91(ChannelType.SMS, ChannelConnectionCapability.BROADCAST);
+  MSG91_EMAIL(ChannelType.EMAIL, ChannelConnectionCapability.BROADCAST),
+  MSG91_SMS(ChannelType.SMS, ChannelConnectionCapability.BROADCAST);
 
   private final ChannelType channelType;
   private final Set<ChannelConnectionCapability> capabilities;
