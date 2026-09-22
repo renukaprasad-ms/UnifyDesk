@@ -477,7 +477,7 @@ export default function BroadcastWorkspace() {
       .then((message) => {
         if (!active) return
         setComposeSenderId(message.senderId ?? '')
-        setComposeTemplateId('')
+        setComposeTemplateId(message.sourceTemplateId ?? '')
         setComposeSubject(message.subject ?? '')
         setComposeBody(message.bodyText)
         setComposeScheduleAt(
@@ -681,6 +681,7 @@ export default function BroadcastWorkspace() {
       throw new Error('Choose a sender and enter a message')
     }
     const input = {
+      templateId: composeTemplateId || null,
       senderId: composeSenderId,
       subject: channelType === 'EMAIL' ? composeSubject.trim() || null : null,
       bodyText: composeBody,
