@@ -41,6 +41,7 @@ export type MessageTemplate = {
   footerText?: string | null
   buttons: MessageTemplateButton[]
   variables: string[]
+  designJson?: string | null
   createdAt: string
   updatedAt: string
   archivedAt?: string | null
@@ -57,4 +58,5 @@ export type SaveMessageTemplateInput = {
   bodyHtml?: string | null
   footerText?: string | null
   buttons?: MessageTemplateButton[]
+  designJson?: string | null
 }
