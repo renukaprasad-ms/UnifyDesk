@@ -66,7 +66,7 @@ public class BroadcastPreparationChunkService {
             : new HashSet<>(
                 suppressionRepository.findActiveDestinations(
                     run.getCompanyId(),
-                    com.messaging.channel.enums.ChannelType.EMAIL,
+                    run.getProviderType().channelType(),
                     destinations));
 
     BroadcastBatch batch = new BroadcastBatch();
@@ -92,12 +92,16 @@ public class BroadcastPreparationChunkService {
       recipient.setDisplayName(member.getDisplayName());
       String correlationId = UUID.randomUUID().toString();
       recipient.setProviderCorrelationId(correlationId);
-      recipient.setInternetMessageId(
-          "<broadcast." + correlationId + "@" + properties.getMessageIdDomain() + ">");
+      if (run.getProviderType().channelType()
+          == com.messaging.channel.enums.ChannelType.EMAIL) {
+        recipient.setInternetMessageId(
+            "<broadcast." + correlationId + "@" + properties.getMessageIdDomain() + ">");
+      }
       if (suppressed.contains(member.getNormalizedDestination())) {
         recipient.setStatus(BroadcastRecipientStatus.SKIPPED);
         recipient.setFailureCode("SUPPRESSED");
-        recipient.setFailureReason("Recipient is suppressed for email broadcasts");
+        recipient.setFailureReason(
+            "Recipient is suppressed for " + run.getProviderType().channelType() + " broadcasts");
         skipped++;
       } else {
         recipient.setStatus(BroadcastRecipientStatus.PENDING);
