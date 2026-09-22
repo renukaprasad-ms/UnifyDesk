@@ -39,7 +39,7 @@ public class BroadcastSenderPersistenceService {
     ChannelConnection channelConnection = new ChannelConnection();
     channelConnection.setId(connectionId);
     channelConnection.setCompanyId(connection.getCompanyId());
-    channelConnection.setChannelType(ChannelType.EMAIL);
+    channelConnection.setChannelType(connection.getProvider().channelType());
     channelConnection.setProviderType(channelProvider(connection.getProvider()));
     channelConnection.setName(connection.getName());
     channelConnection.setExternalAccountId(sender.getFromAddress());
@@ -58,7 +58,10 @@ public class BroadcastSenderPersistenceService {
     SenderIdentity identity = new SenderIdentity();
     identity.setId(senderId);
     identity.setConnection(channelConnection);
-    identity.setIdentityType(SenderIdentityType.EMAIL_ADDRESS);
+    identity.setIdentityType(
+        connection.getProvider().channelType() == ChannelType.SMS
+            ? SenderIdentityType.SMS_HEADER
+            : SenderIdentityType.EMAIL_ADDRESS);
     identity.setValue(savedSender.getFromAddress());
     identity.setExternalId(senderId.toString());
     identity.setStatus(SenderIdentityStatus.ACTIVE);
@@ -73,6 +76,7 @@ public class BroadcastSenderPersistenceService {
       case AMAZON_SES -> ProviderType.AMAZON_SES;
       case AZURE_EMAIL -> ProviderType.AZURE_EMAIL;
       case SENDGRID -> ProviderType.SENDGRID;
+      case MSG91 -> ProviderType.MSG91;
       case GMAIL, MICROSOFT, IMAP_SMTP, SMTP ->
           throw new IllegalArgumentException(
               "Mailbox provider cannot be used for new Broadcast senders: " + provider);
