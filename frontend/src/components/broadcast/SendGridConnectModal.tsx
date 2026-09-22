@@ -11,8 +11,8 @@ type Props = {
   onConnected: (sender: BroadcastSender) => void
 }
 
-export default function SendGridConnectModal({
-  const snackbar = useSnackbar() companyId, onClose, onConnected }: Props) {
+export default function SendGridConnectModal({ companyId, onClose, onConnected }: Props) {
+  const snackbar = useSnackbar()
   const [name, setName] = useState('SendGrid')
   const [region, setRegion] = useState<SendGridRegion>('GLOBAL')
   const [apiKey, setApiKey] = useState('')
