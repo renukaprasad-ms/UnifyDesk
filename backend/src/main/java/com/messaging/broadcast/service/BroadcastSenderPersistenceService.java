@@ -3,6 +3,7 @@ package com.messaging.broadcast.service;
 import com.messaging.broadcast.dto.BroadcastSenderResponse;
 import com.messaging.broadcast.entity.BroadcastSender;
 import com.messaging.broadcast.entity.BroadcastSenderConnection;
+import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.broadcast.repository.BroadcastSenderConnectionRepository;
 import com.messaging.broadcast.repository.BroadcastSenderRepository;
 import com.messaging.channel.entity.ChannelConnection;
@@ -73,7 +74,8 @@ public class BroadcastSenderPersistenceService {
       case AZURE_EMAIL -> ProviderType.AZURE_EMAIL;
       case SENDGRID -> ProviderType.SENDGRID;
       case GMAIL, MICROSOFT, IMAP_SMTP, SMTP ->
-          throw new IllegalArgumentException("Mailbox provider cannot be used for new Broadcast senders: " + provider);
+          throw new IllegalArgumentException(
+              "Mailbox provider cannot be used for new Broadcast senders: " + provider);
     };
   }
 }
