@@ -205,7 +205,7 @@ export default function EmailInbox() {
           }),
         ).unwrap()
       } catch (requestError) {
-        setError(apiErrorMessage(requestError, 'Unable to load email inbox'))
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load email inbox'))
       }
     },
     [companyId, dispatch, selectedConnectionId, selectedFolder],
@@ -301,19 +301,19 @@ export default function EmailInbox() {
     if (!gmailResult && !microsoftResult) return
 
     if (gmailResult === 'connected') {
-      setNotice('Gmail connected successfully')
+      snackbar.success('Gmail connected successfully')
     } else if (gmailResult === 'cancelled') {
-      setNotice('Gmail connection was cancelled')
+      snackbar.info('Gmail connection was cancelled')
     } else if (gmailResult) {
-      setError('Unable to connect Gmail. Please try again.')
+      snackbar.error('Unable to connect Gmail. Please try again.')
     }
 
     if (microsoftResult === 'connected') {
-      setNotice('Microsoft 365 connected successfully')
+      snackbar.success('Microsoft 365 connected successfully')
     } else if (microsoftResult === 'cancelled') {
-      setNotice('Microsoft 365 connection was cancelled')
+      snackbar.info('Microsoft 365 connection was cancelled')
     } else if (microsoftResult) {
-      setError('Unable to connect Microsoft 365. Please try again.')
+      snackbar.error('Unable to connect Microsoft 365. Please try again.')
     }
 
     const params = new URLSearchParams(searchParams)
@@ -337,7 +337,7 @@ export default function EmailInbox() {
         conversationId: selectedConversationId,
       }),
     ).unwrap().catch((requestError) => {
-      setError(apiErrorMessage(requestError, 'Unable to load conversation'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to load conversation'))
     })
   }, [companyId, dispatch, selectedConversationId])
 
@@ -396,7 +396,7 @@ export default function EmailInbox() {
         })
         dispatch(applyRealtimeSnapshot({ connectionId: selectedConnectionId, snapshot }))
       } catch (requestError) {
-        setError(apiErrorMessage(requestError, 'Unable to apply realtime inbox update'))
+        snackbar.error(apiErrorMessage(requestError, 'Unable to apply realtime inbox update'))
       }
     }
 
@@ -457,16 +457,16 @@ export default function EmailInbox() {
           completedSyncRefreshesRef.current.add(job.jobId)
           void refreshInbox(true)
         } else if (job.status === 'FAILED') {
-          setError(job.errorMessage || 'Email sync failed')
+          snackbar.error(job.errorMessage || 'Email sync failed')
         }
       }
 
       if (job.jobType === 'INBOX_READ_SYNC') {
         setMarkAllJob((current) => (current?.jobId === job.jobId ? job : current))
         if (job.status === 'COMPLETED') {
-          setNotice('All unread messages in this inbox are now marked as read.')
+          snackbar.success('All unread messages in this inbox are now marked as read.')
         } else if (job.status === 'FAILED') {
-          setError(job.errorMessage || 'Unable to mark all messages as read')
+          snackbar.error(job.errorMessage || 'Unable to mark all messages as read')
         }
       }
     })
@@ -510,9 +510,9 @@ export default function EmailInbox() {
             void refreshInbox(true)
           }
           if (latest.status === 'COMPLETED') {
-            setNotice('All unread messages in this inbox are now marked as read.')
+            snackbar.success('All unread messages in this inbox are now marked as read.')
           } else if (latest.status === 'FAILED') {
-            setError(latest.errorMessage || 'Unable to mark all messages as read')
+            snackbar.error(latest.errorMessage || 'Unable to mark all messages as read')
           }
         })
         .catch(() => undefined)
@@ -523,21 +523,20 @@ export default function EmailInbox() {
 
   const openSyncDialog = () => {
     if (!selectedConnection) {
-      setNotice('Select an email account before syncing.')
+      snackbar.info('Select an email account before syncing.')
       return
     }
     if (
       selectedConnection.status !== 'ACTIVE' ||
       !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
     ) {
-      setNotice('The selected email account does not support sync.')
+      snackbar.info('The selected email account does not support sync.')
       return
     }
 
     setSyncFolder(selectedFolder)
     setSyncMode('DATE_RANGE')
     setSyncMessageCount(100)
-    setError(null)
     setShowSyncDialog(true)
   }
 
@@ -548,21 +547,21 @@ export default function EmailInbox() {
       selectedConnection.status !== 'ACTIVE' ||
       !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
     ) {
-      setError('The selected email account is not active.')
+      snackbar.warning('The selected email account is not active.')
       return
     }
 
     if (syncMode === 'DATE_RANGE') {
       if (!syncFrom || !syncTo) {
-        setError('Choose both sync dates.')
+        snackbar.warning('Choose both sync dates.')
         return
       }
       if (syncFrom > syncTo) {
-        setError('From date must be before or equal to the to date.')
+        snackbar.warning('From date must be before or equal to the to date.')
         return
       }
     } else if (!Number.isInteger(syncMessageCount) || syncMessageCount < 1 || syncMessageCount > 10000) {
-      setError('Choose a message count between 1 and 10,000.')
+      snackbar.warning('Choose a message count between 1 and 10,000.')
       return
     }
 
@@ -581,8 +580,6 @@ export default function EmailInbox() {
           }
 
     setSyncing(true)
-    setError(null)
-    setNotice(null)
 
     try {
       const queued =
@@ -594,11 +591,11 @@ export default function EmailInbox() {
       const job = await asyncJobApi.get(queued.jobId)
       setSyncJobs({ [job.jobId]: job })
       setShowSyncDialog(false)
-      setNotice(
+      snackbar.info(
         `Email sync started for ${selectedConnection.externalAccountId || selectedConnection.name}.`,
       )
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to queue email sync'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to queue email sync'))
     } finally {
       setSyncing(false)
     }
@@ -679,13 +676,12 @@ export default function EmailInbox() {
     if (readUpdatingMessageId === message.id) return
 
     setReadUpdatingMessageId(message.id)
-    setError(null)
     try {
       await inboxApi.setMessageReadState(companyId, message.id, read)
       dispatch(applyMessageReadState({ messageId: message.id, read }))
-      setNotice(read ? 'Message marked as read.' : 'Message marked as unread.')
+      snackbar.success(read ? 'Message marked as read.' : 'Message marked as unread.')
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to update message read state'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to update message read state'))
     } finally {
       setReadUpdatingMessageId(null)
     }
@@ -704,18 +700,16 @@ export default function EmailInbox() {
     }
 
     setMarkAllStarting(true)
-    setError(null)
-    setNotice(null)
     try {
       const job = await inboxApi.markAllRead(companyId, selectedConnection.id, 'INBOX')
       setMarkAllJob(job)
-      setNotice(
+      snackbar.info(
         job.status === 'COMPLETED'
           ? 'This inbox has no unread messages.'
           : 'Mark all as read started. You can keep using the inbox while it finishes.',
       )
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to start mark all as read'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to start mark all as read'))
     } finally {
       setMarkAllStarting(false)
     }
@@ -748,7 +742,7 @@ export default function EmailInbox() {
 
   const showCompose = () => {
     if (!selectedConnection) {
-      setNotice('Select an email account before composing.')
+      snackbar.info('Select an email account before composing.')
       return
     }
     const params = new URLSearchParams(searchParams)
@@ -803,7 +797,7 @@ export default function EmailInbox() {
   const openReply = (message: InboxMessage, replyAll: boolean) => {
     const recipients = replyRecipients(message, replyAll)
     if (recipients.to.length === 0) {
-      setError('Unable to determine a recipient for this reply.')
+      snackbar.warning('Unable to determine a recipient for this reply.')
       return
     }
 
@@ -858,7 +852,7 @@ export default function EmailInbox() {
     event.preventDefault()
     if (!companyId || !selectedConnection || sending) return
     if (!['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)) {
-      setError('Sending is not available for the selected email provider.')
+      snackbar.warning('Sending is not available for the selected email provider.')
       return
     }
 
@@ -866,13 +860,11 @@ export default function EmailInbox() {
     const cc = parseRecipients(composeCc)
     const bcc = parseRecipients(composeBcc)
     if (to.length === 0 && cc.length === 0 && bcc.length === 0) {
-      setError('Add at least one To, CC, or BCC recipient.')
+      snackbar.warning('Add at least one To, CC, or BCC recipient.')
       return
     }
 
     setSending(true)
-    setError(null)
-    setNotice(null)
     try {
       const sent =
         selectedConnection.providerType === 'GMAIL'
@@ -910,14 +902,14 @@ export default function EmailInbox() {
               })
       resetCompose()
       closeCompose()
-      setNotice(
+      snackbar.success(
         `Email sent from ${sent.from} to ${[...sent.to, ...sent.cc, ...sent.bcc].join(', ')}.`,
       )
       if (!realtimeConnected) {
         void refreshInbox(true)
       }
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to send email'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to send email'))
     } finally {
       setSending(false)
     }
@@ -1001,17 +993,6 @@ export default function EmailInbox() {
       </div>
 
       <div className="channel-workspace-body">
-        {error && (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-        {notice && (
-          <div className="mb-4 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
-            {notice}
-          </div>
-        )}
-
         {markAllJob && (
           <div className="panel mb-4 p-4">
             <div className="flex items-center justify-between gap-3">
