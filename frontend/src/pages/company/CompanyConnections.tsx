@@ -67,6 +67,7 @@ export default function CompanyConnections() {
   const snackbar = useSnackbar()
   const [connections, setConnections] = useState<ChannelConnection[]>([])
   const [senders, setSenders] = useState<Record<string, SenderIdentity[]>>({})
+  const [broadcastSenders, setBroadcastSenders] = useState<BroadcastSender[]>([])
   const [signupConfig, setSignupConfig] = useState<MetaWhatsAppSignupConfig | null>(null)
   const [metaReady, setMetaReady] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -125,6 +126,16 @@ export default function CompanyConnections() {
         }),
       )
       setSenders(Object.fromEntries(senderEntries))
+
+      if (can(PERMISSIONS.BROADCAST_READ)) {
+        try {
+          setBroadcastSenders(await broadcastApi.senders(selectedCompany.companyId))
+        } catch {
+          setBroadcastSenders([])
+        }
+      } else {
+        setBroadcastSenders([])
+      }
     } catch (loadError) {
       snackbar.error(apiErrorMessage(loadError, 'Unable to load channel connections'))
     } finally {
@@ -304,6 +315,9 @@ export default function CompanyConnections() {
     }
   }
 
+  const broadcastSenderFor = (connectionId: string) =>
+    broadcastSenders.find((sender) => sender.channelConnectionId === connectionId) ?? null
+
   const reconnectEmail = async (connection: ChannelConnection) => {
     if (!selectedCompany || workingConnectionId) return
     setWorkingConnectionId(connection.id)
@@ -409,7 +423,8 @@ export default function CompanyConnections() {
             <h2 className="mt-4 text-base font-bold text-slate-950">Email</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">
               Inbox accounts use Gmail, Microsoft 365 or IMAP + SMTP. Broadcast senders use
-              high-volume providers such as Amazon SES, SendGrid, Azure Email and MSG91 Email.
+              Amazon SES, SendGrid, Azure Email or MSG91 Email. MSG91 Email templates are synced
+              separately from the Templates module.
             </p>
             <div className="mt-4 grid gap-2">
               {can(PERMISSIONS.EMAIL_CONNECT) && (
@@ -541,7 +556,21 @@ export default function CompanyConnections() {
                     </div>
                   </div>
 
-                  <div className="w-full shrink-0 lg:w-auto lg:max-w-md">
+                  <div className="flex w-full shrink-0 flex-wrap gap-2 lg:w-auto lg:max-w-md">
+                    {connection.status === 'ACTIVE' &&
+                      connection.capabilities.includes('BROADCAST') &&
+                      can(PERMISSIONS.BROADCAST_MODIFY) &&
+                      broadcastSenderFor(connection.id) && (
+                        <button
+                          type="button"
+                          className="secondary-button inline-flex w-full items-center gap-2 sm:w-auto"
+                          onClick={() => setTestEmailSender(broadcastSenderFor(connection.id))}
+                        >
+                          <FiMail aria-hidden="true" />
+                          Test email
+                        </button>
+                      )}
+
                     {connection.status !== 'DISCONNECTED' &&
                       (connection.capabilities.includes('BROADCAST')
                         ? can(PERMISSIONS.BROADCAST_MODIFY)
@@ -761,9 +790,10 @@ export default function CompanyConnections() {
           onClose={() => setMsg91EmailConnectOpen(false)}
           onConnected={(sender) => {
             setMsg91EmailConnectOpen(false)
-            snackbar.success(`Connected MSG91 Email sender ${sender.fromAddress}`)
+            snackbar.success(
+              `Connected MSG91 Email sender ${sender.fromAddress}. Publish and sync a transactional template before sending a test.`,
+            )
             setActiveEmailSetup(null)
-            setTestEmailSender(sender)
             void loadConnections()
           }}
         />

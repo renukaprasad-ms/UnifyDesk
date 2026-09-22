@@ -2,6 +2,7 @@ package com.messaging.emailtemplate.entity;
 
 import com.messaging.common.id.IdGenerator;
 import com.messaging.emailtemplate.enums.EmailTemplateEditorMode;
+import com.messaging.emailtemplate.enums.EmailTemplatePurpose;
 import jakarta.persistence.*;
 import java.time.Instant;
 import lombok.Getter;
@@ -32,6 +33,10 @@ public class EmailTemplateVersion {
   @Enumerated(EnumType.STRING)
   @Column(name = "editor_mode", nullable = false, length = 16)
   private EmailTemplateEditorMode editorMode;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 24)
+  private EmailTemplatePurpose purpose;
 
   @Column(name = "subject_template", length = 998)
   private String subjectTemplate;
@@ -69,6 +74,7 @@ public class EmailTemplateVersion {
   @PrePersist
   void beforeInsert() {
     if (id == null) id = IdGenerator.nextId();
+    if (purpose == null) purpose = EmailTemplatePurpose.MARKETING;
     if (createdAt == null) createdAt = Instant.now();
   }
 }

@@ -2,6 +2,7 @@ package com.messaging.emailtemplate.entity;
 
 import com.messaging.emailtemplate.enums.EmailTemplateCategory;
 import com.messaging.emailtemplate.enums.EmailTemplateEditorMode;
+import com.messaging.emailtemplate.enums.EmailTemplatePurpose;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -32,6 +33,10 @@ public class EmailTemplateCatalogItem {
   @Enumerated(EnumType.STRING)
   @Column(name = "editor_mode", nullable = false, length = 16)
   private EmailTemplateEditorMode editorMode;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 24)
+  private EmailTemplatePurpose purpose;
 
   @Column(name = "subject_template", length = 998)
   private String subjectTemplate;

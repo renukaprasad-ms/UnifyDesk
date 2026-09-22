@@ -95,7 +95,13 @@ export const broadcastApi = {
   async sendTestEmail(
     companyId: string,
     senderId: string,
-    input: { recipient: string; subject?: string; bodyText?: string },
+    input: {
+      recipient: string
+      subject?: string
+      bodyText?: string
+      templateId?: string
+      variables?: Record<string, string>
+    },
   ) {
     const response = await apiClient.post<ApiResponse<BroadcastTestEmailResult>>(
       `/api/v1/companies/${companyId}/broadcast/senders/${senderId}/test-email`,

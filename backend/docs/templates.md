@@ -93,9 +93,54 @@ Email Broadcast stores:
 - plain-text snapshot
 - HTML snapshot
 
-SES, SendGrid and Azure Email send both text and HTML when HTML is present. Provider integrations
-whose contract is provider-template based can continue using their provider-specific text/template
-mapping until they gain an explicit HTML contract.
+SES, SendGrid and Azure Email send both text and HTML when HTML is present.
+
+### MSG91 Email
+
+MSG91 Email uses provider-side templates, so the MSG91 connection stores only account/domain
+configuration and encrypted credentials. A provider template ID never belongs to the connection.
+
+Templates have an immutable delivery purpose per version:
+
+- `MARKETING` for promotional offers, newsletters and campaigns.
+- `TRANSACTIONAL` for expected account/service messages.
+
+Only a published `TRANSACTIONAL` version can be synced to MSG91.
+
+Each sync creates or resolves a row in `email_template_provider_bindings` keyed by:
+
+- template version
+- MSG91 sender connection
+- provider
+
+The binding stores the provider template ID/slug, content hash, provider status and timestamps.
+The deterministic provider slug contains the template ID, semantic version and content hash prefix,
+which makes retries idempotent.
+
+The supported flow is:
+
+```
+MSG91 account connection
+    -> publish transactional Email template
+    -> sync exact published version to MSG91
+    -> refresh provider status when needed
+    -> select the same MSG91 connection in Broadcast
+    -> choose only a sendable binding for that exact version
+    -> snapshot provider template ID into broadcast_runs
+    -> resolve recipient variables
+    -> send template_id + variables to MSG91
+```
+
+MSG91 Broadcast does not support scratch Email content. This prevents a campaign from passing local
+validation while lacking the required provider template.
+
+Disconnecting an MSG91 account disables its sender and therefore prevents new delivery. Binding
+history remains attached to the connection until the disconnected connection data is purged. Runs
+keep their provider template ID snapshot independently.
+
+Recipient values are validated before provider submission. Missing variables fail the individual
+recipient with `MISSING_TEMPLATE_VARIABLE`; unsafe URL schemes or markup-bearing MSG91 variables
+fail with `UNSAFE_TEMPLATE_VARIABLE`.
 
 ## Complexity
 

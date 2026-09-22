@@ -31,7 +31,7 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { emailTemplateApi } from '../../features/emailTemplate/emailTemplateApi'
-import type { EmailTemplateSummary } from '../../features/emailTemplate/types'
+import type { EmailTemplateProviderBinding, EmailTemplateSummary } from '../../features/emailTemplate/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import {
@@ -169,6 +169,7 @@ export default function BroadcastWorkspace() {
   const [groupBusy, setGroupBusy] = useState(false)
   const [composeSenderId, setComposeSenderId] = useState('')
   const [composeTemplates, setComposeTemplates] = useState<EmailTemplateSummary[]>([])
+  const [composeProviderBindings, setComposeProviderBindings] = useState<EmailTemplateProviderBinding[]>([])
   const [composeTemplateId, setComposeTemplateId] = useState('')
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
@@ -215,6 +216,35 @@ export default function BroadcastWorkspace() {
         : null,
     [activeSenders, selectedSenderId],
   )
+
+  const composeSender = composeSenderId ? sendersById.get(composeSenderId) ?? null : null
+  const composeUsesMsg91Email = composeSender?.provider === 'MSG91_EMAIL'
+
+  const availableComposeTemplates = useMemo(() => {
+    if (!composeUsesMsg91Email) return composeTemplates
+    const sendable = new Set(
+      composeProviderBindings
+        .filter((binding) => binding.sendable)
+        .map((binding) => `${binding.templateId}:${binding.templateVersion}`),
+    )
+    return composeTemplates.filter(
+      (template) =>
+        template.purpose === 'TRANSACTIONAL' &&
+        template.publishedVersion !== null &&
+        template.publishedVersion !== undefined &&
+        sendable.has(`${template.id}:${template.publishedVersion}`),
+    )
+  }, [composeProviderBindings, composeTemplates, composeUsesMsg91Email])
+
+  const selectedComposeTemplateReady =
+    !composeUsesMsg91Email ||
+    availableComposeTemplates.some((template) => template.id === composeTemplateId)
+
+  const composeContentReady =
+    Boolean(composeSenderId) &&
+    (composeUsesMsg91Email
+      ? Boolean(composeTemplateId) && selectedComposeTemplateReady
+      : Boolean(composeTemplateId || composeBody.trim()))
 
   const updateSearch = useCallback(
     (updates: Record<string, string | null>) => {
@@ -455,6 +485,29 @@ export default function BroadcastWorkspace() {
   }, [channelType, companyId, composeOpen, snackbar])
 
   useEffect(() => {
+    if (!companyId || !composeOpen || !composeUsesMsg91Email || !composeSender?.connectionId) {
+      setComposeProviderBindings([])
+      return
+    }
+
+    let active = true
+    emailTemplateApi
+      .providerBindings(companyId, { connectionId: composeSender.connectionId })
+      .then((items) => {
+        if (active) setComposeProviderBindings(items)
+      })
+      .catch((requestError) => {
+        if (active) {
+          snackbar.error(apiErrorMessage(requestError, 'Unable to load MSG91 template bindings'))
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [companyId, composeOpen, composeSender?.connectionId, composeUsesMsg91Email, snackbar])
+
+  useEffect(() => {
     if (!composeOpen) return
     let active = true
 
@@ -679,6 +732,13 @@ export default function BroadcastWorkspace() {
   const saveDraft = async () => {
     if (!companyId || !selectedGroupId || !composeSenderId) {
       throw new Error('Choose a sender')
+    }
+    if (
+      composeUsesMsg91Email &&
+      (!composeTemplateId ||
+        !availableComposeTemplates.some((template) => template.id === composeTemplateId))
+    ) {
+      throw new Error('Choose a transactional template synced to this MSG91 connection')
     }
     if (!composeTemplateId && !composeBody.trim()) {
       throw new Error('Choose an email template or enter a message')
@@ -1358,47 +1418,66 @@ export default function BroadcastWorkspace() {
                       setComposeBody('')
                     }}
                   >
-                    <option value="">Start from scratch</option>
-                    {composeTemplates.map((template) => (
+                    <option value="">
+                      {composeUsesMsg91Email ? 'Choose synced MSG91 template' : 'Start from scratch'}
+                    </option>
+                    {availableComposeTemplates.map((template) => (
                       <option key={template.id} value={template.id}>
                         {template.name} · {template.category.toLowerCase().replaceAll('_', ' ')}
                       </option>
                     ))}
                   </select>
-                  {composeTemplates.length === 0 && (
+                  {availableComposeTemplates.length === 0 && (
                     <span className="mt-1 block text-[10px] font-medium text-slate-400">
-                      No published email templates yet. Publish one from Templates.
+                      {composeUsesMsg91Email
+                        ? 'No sendable MSG91 templates. Publish a transactional template and sync it from Templates.'
+                        : 'No published email templates yet. Publish one from Templates.'}
                     </span>
                   )}
                 </label>
 
-                {channelType === 'EMAIL' && (
-                  <label className="mt-4 block text-xs font-semibold text-slate-700">
-                    Subject
-                    <input
-                      className="form-input mt-2"
-                      value={composeSubject}
-                      maxLength={998}
-                      onChange={(event) => setComposeSubject(event.target.value)}
-                    />
-                  </label>
+                {composeTemplateId ? (
+                  <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
+                    <p className="text-xs font-bold text-slate-900">
+                      Published template content is locked for this broadcast
+                    </p>
+                    <p className="mt-1 text-[11px] leading-5 text-slate-600">
+                      {composeUsesMsg91Email
+                        ? 'MSG91 will use the provider template synced for this exact published version.'
+                        : 'Messaging will send the immutable published HTML and text version.'}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {channelType === 'EMAIL' && (
+                      <label className="mt-4 block text-xs font-semibold text-slate-700">
+                        Subject
+                        <input
+                          className="form-input mt-2"
+                          value={composeSubject}
+                          maxLength={998}
+                          onChange={(event) => setComposeSubject(event.target.value)}
+                        />
+                      </label>
+                    )}
+
+                    <label className="mt-4 block text-xs font-semibold text-slate-700">
+                      Message
+                      {channelType === 'SMS' && (
+                        <span className="ml-2 text-[10px] font-medium text-slate-400">
+                          Sent into the configured MSG91 Flow variable
+                        </span>
+                      )}
+                      <textarea
+                        className="form-input mt-2 min-h-52"
+                        value={composeBody}
+                        maxLength={500000}
+                        onChange={(event) => setComposeBody(event.target.value)}
+                        required={!composeTemplateId}
+                      />
+                    </label>
+                  </>
                 )}
-
-                <label className="mt-4 block text-xs font-semibold text-slate-700">
-                  Message
-                  {channelType === 'SMS' && (
-                    <span className="ml-2 text-[10px] font-medium text-slate-400">
-                      Sent into the configured MSG91 Flow variable
-                    </span>
-                  )}
-                  <textarea
-                    className="form-input mt-2 min-h-52"
-                    value={composeBody}
-                    maxLength={500000}
-                    onChange={(event) => setComposeBody(event.target.value)}
-                    required
-                  />
-                </label>
 
                 <label className="mt-4 block text-xs font-semibold text-slate-700">
                   Schedule time
@@ -1417,7 +1496,7 @@ export default function BroadcastWorkspace() {
                   <button
                     type="button"
                     className="secondary-button"
-                    disabled={composeBusy || !composeSenderId || !composeBody.trim()}
+                    disabled={composeBusy || !composeContentReady}
                     onClick={() => void submitCompose('draft')}
                   >
                     Save draft
@@ -1427,8 +1506,7 @@ export default function BroadcastWorkspace() {
                     className="secondary-button gap-2"
                     disabled={
                       composeBusy ||
-                      !composeSenderId ||
-                      !composeBody.trim() ||
+                      !composeContentReady ||
                       !composeScheduleAt ||
                       !can(PERMISSIONS.BROADCAST_SEND)
                     }
@@ -1442,8 +1520,7 @@ export default function BroadcastWorkspace() {
                     className="primary-button gap-2"
                     disabled={
                       composeBusy ||
-                      !composeSenderId ||
-                      !composeBody.trim() ||
+                      !composeContentReady ||
                       !can(PERMISSIONS.BROADCAST_SEND)
                     }
                     onClick={() => void submitCompose('send')}

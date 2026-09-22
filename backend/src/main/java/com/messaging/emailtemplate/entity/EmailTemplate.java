@@ -3,6 +3,7 @@ package com.messaging.emailtemplate.entity;
 import com.messaging.common.id.IdGenerator;
 import com.messaging.emailtemplate.enums.EmailTemplateCategory;
 import com.messaging.emailtemplate.enums.EmailTemplateStatus;
+import com.messaging.emailtemplate.enums.EmailTemplatePurpose;
 import jakarta.persistence.*;
 import java.time.Instant;
 import lombok.Getter;
@@ -37,6 +38,10 @@ public class EmailTemplate {
   @Column(nullable = false, length = 24)
   private EmailTemplateStatus status;
 
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 24)
+  private EmailTemplatePurpose purpose;
+
   @Column(name = "current_version_id")
   private Long currentVersionId;
 
@@ -63,6 +68,7 @@ public class EmailTemplate {
   void beforeInsert() {
     if (id == null) id = IdGenerator.nextId();
     if (status == null) status = EmailTemplateStatus.DRAFT;
+    if (purpose == null) purpose = EmailTemplatePurpose.MARKETING;
     Instant now = Instant.now();
     if (createdAt == null) createdAt = now;
     updatedAt = now;

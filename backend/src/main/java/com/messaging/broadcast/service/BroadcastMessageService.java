@@ -3,10 +3,12 @@ package com.messaging.broadcast.service;
 import com.messaging.broadcast.dto.*;
 import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.enums.BroadcastMessageStatus;
+import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.broadcast.repository.*;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.emailtemplate.enums.EmailTemplatePurpose;
 import com.messaging.emailtemplate.service.EmailTemplateService;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +37,7 @@ public class BroadcastMessageService {
       Long groupId,
       CreateBroadcastMessageRequest request) {
     BroadcastGroup group = groupService.require(companyId, groupId);
-    validateSender(companyId, group, request.senderId());
+    BroadcastSender sender = validateSender(companyId, group, request.senderId());
 
     BroadcastMessage message = new BroadcastMessage();
     message.setCompanyId(companyId);
@@ -49,6 +51,7 @@ public class BroadcastMessageService {
         request.subject(),
         request.bodyText(),
         request.bodyHtml(),
+        sender.getProvider(),
         message);
     message.setCreatedByUserId(userId);
     message.setStatus(BroadcastMessageStatus.DRAFT);
@@ -61,7 +64,7 @@ public class BroadcastMessageService {
     BroadcastMessage message = require(companyId, broadcastId);
     stateMachine.requireEditable(message.getStatus());
     BroadcastGroup group = groupService.require(companyId, message.getGroupId());
-    validateSender(companyId, group, request.senderId());
+    BroadcastSender sender = validateSender(companyId, group, request.senderId());
     message.setSenderId(request.senderId());
     message.setConnectionId(null);
     applyContent(
@@ -71,6 +74,7 @@ public class BroadcastMessageService {
         request.subject(),
         request.bodyText(),
         request.bodyHtml(),
+        sender.getProvider(),
         message);
     return response(messageRepository.save(message));
   }
@@ -137,6 +141,7 @@ public class BroadcastMessageService {
       String subject,
       String bodyText,
       String bodyHtml,
+      BroadcastSenderProvider provider,
       BroadcastMessage message) {
     if (templateId != null) {
       if (channelType != ChannelType.EMAIL) {
@@ -144,12 +149,22 @@ public class BroadcastMessageService {
       }
       EmailTemplateService.PublishedEmail template =
           emailTemplateService.requirePublishedForBroadcast(companyId, templateId);
+      if (provider == BroadcastSenderProvider.MSG91_EMAIL
+          && template.purpose() != EmailTemplatePurpose.TRANSACTIONAL) {
+        throw new BadRequestException(
+            "MSG91 Email only supports transactional Email templates");
+      }
       message.setSourceTemplateId(template.templateId());
       message.setSourceTemplateVersion(template.version());
       message.setSubject(template.subject());
       message.setBodyText(template.bodyText());
       message.setBodyHtml(template.bodyHtml());
       return;
+    }
+
+    if (provider == BroadcastSenderProvider.MSG91_EMAIL) {
+      throw new BadRequestException(
+          "MSG91 Email requires a published Email template; scratch content is not supported");
     }
 
     String normalizedBody = bodyText == null ? "" : bodyText.trim();
@@ -163,12 +178,13 @@ public class BroadcastMessageService {
     message.setBodyHtml(channelType == ChannelType.EMAIL ? trimToNull(bodyHtml) : null);
   }
 
-  private void validateSender(Long companyId, BroadcastGroup group, Long senderId) {
+  private BroadcastSender validateSender(Long companyId, BroadcastGroup group, Long senderId) {
     BroadcastSender sender = senderService.requireActive(companyId, senderId);
     if (!sender.getProvider().supports(group.getChannelType())) {
       throw new BadRequestException(
           "Selected Broadcast sender does not support " + group.getChannelType());
     }
+    return sender;
   }
 
   private void requireModernSender(Long companyId, BroadcastMessage message) {
