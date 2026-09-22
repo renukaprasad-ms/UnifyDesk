@@ -90,6 +90,7 @@ public class BroadcastPreparationChunkService {
       recipient.setDestination(member.getDestination());
       recipient.setNormalizedDestination(member.getNormalizedDestination());
       recipient.setDisplayName(member.getDisplayName());
+      recipient.setPersonalizationJson(member.getMetadataJson());
       String correlationId = UUID.randomUUID().toString();
       recipient.setProviderCorrelationId(correlationId);
       if (run.getProviderType().channelType()
