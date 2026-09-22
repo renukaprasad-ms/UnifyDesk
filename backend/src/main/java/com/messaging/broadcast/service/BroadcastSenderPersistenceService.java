@@ -42,7 +42,10 @@ public class BroadcastSenderPersistenceService {
     channelConnection.setChannelType(connection.getProvider().channelType());
     channelConnection.setProviderType(channelProvider(connection.getProvider()));
     channelConnection.setName(connection.getName());
-    channelConnection.setExternalAccountId(sender.getFromAddress());
+    channelConnection.setExternalAccountId(
+        connection.getProvider() == BroadcastSenderProvider.MSG91
+            ? connection.getExternalId()
+            : sender.getFromAddress());
     channelConnection.setStatus(ChannelConnectionStatus.ACTIVE);
     channelConnection.setCreatedByUserId(connection.getCreatedByUserId());
     channelConnection.setLastSyncAt(connection.getLastValidatedAt());
