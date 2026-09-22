@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { FiCheckCircle, FiInfo, FiMail, FiX } from 'react-icons/fi'
+import { FiCheckCircle, FiMail, FiX } from 'react-icons/fi'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import type { BroadcastSender, SendGridRegion } from '../../features/broadcast/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { useSnackbar } from '../feedback/SnackbarProvider'
 
 type Props = {
   companyId: string
@@ -10,7 +11,8 @@ type Props = {
   onConnected: (sender: BroadcastSender) => void
 }
 
-export default function SendGridConnectModal({ companyId, onClose, onConnected }: Props) {
+export default function SendGridConnectModal({
+  const snackbar = useSnackbar() companyId, onClose, onConnected }: Props) {
   const [name, setName] = useState('SendGrid')
   const [region, setRegion] = useState<SendGridRegion>('GLOBAL')
   const [apiKey, setApiKey] = useState('')
@@ -18,12 +20,10 @@ export default function SendGridConnectModal({ companyId, onClose, onConnected }
   const [displayName, setDisplayName] = useState('')
   const [replyToAddress, setReplyToAddress] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setBusy(true)
-    setError(null)
     try {
       const sender = await broadcastApi.connectSendGrid(companyId, {
         name: name.trim(),
@@ -35,7 +35,7 @@ export default function SendGridConnectModal({ companyId, onClose, onConnected }
       })
       onConnected(sender)
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to connect SendGrid'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to connect SendGrid'))
     } finally {
       setBusy(false)
     }
@@ -63,13 +63,6 @@ export default function SendGridConnectModal({ companyId, onClose, onConnected }
             <FiX aria-hidden="true" />
           </button>
         </div>
-
-        {error && (
-          <div className="mt-4 flex gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-            <FiInfo className="mt-0.5 shrink-0" aria-hidden="true" />
-            <span>{error}</span>
-          </div>
-        )}
 
         <div className="mt-5 rounded-xl border border-sky-100 bg-sky-50/60 p-4">
           <p className="text-xs font-bold text-slate-900">Required SendGrid API key permissions</p>
