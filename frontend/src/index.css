@@ -534,6 +534,7 @@
 
   @media (min-width: 1024px) {
     .app-sidebar {
+      width: 248px;
       transform: translateX(0);
     }
     .app-content {
