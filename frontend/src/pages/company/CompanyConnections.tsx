@@ -19,6 +19,7 @@ import BroadcastEmailProviderPickerModal, {
 } from '../../components/broadcast/BroadcastEmailProviderPickerModal'
 import SendGridConnectModal from '../../components/broadcast/SendGridConnectModal'
 import Msg91ConnectModal from '../../components/broadcast/Msg91ConnectModal'
+import Msg91EmailConnectModal from '../../components/broadcast/Msg91EmailConnectModal'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
@@ -67,6 +68,7 @@ export default function CompanyConnections() {
   const [sendGridConnectOpen, setSendGridConnectOpen] = useState(false)
   const [azureEmailConnectOpen, setAzureEmailConnectOpen] = useState(false)
   const [msg91ConnectOpen, setMsg91ConnectOpen] = useState(false)
+  const [msg91EmailConnectOpen, setMsg91EmailConnectOpen] = useState(false)
   const [workingConnectionId, setWorkingConnectionId] = useState<string | null>(null)
   const [disconnectTarget, setDisconnectTarget] = useState<ChannelConnection | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ChannelConnection | null>(null)
@@ -158,8 +160,15 @@ export default function CompanyConnections() {
       setAzureEmailConnectOpen(true)
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
-    } else if (connectProvider === 'msg91' && can(PERMISSIONS.BROADCAST_MODIFY)) {
+    } else if (
+      (connectProvider === 'msg91' || connectProvider === 'msg91-sms') &&
+      can(PERMISSIONS.BROADCAST_MODIFY)
+    ) {
       setMsg91ConnectOpen(true)
+      url.searchParams.delete('connect')
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+    } else if (connectProvider === 'msg91-email' && can(PERMISSIONS.BROADCAST_MODIFY)) {
+      setMsg91EmailConnectOpen(true)
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     }
@@ -389,7 +398,7 @@ export default function CompanyConnections() {
             <h2 className="mt-4 text-base font-bold text-slate-950">Email</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">
               Inbox accounts use Gmail, Microsoft 365 or IMAP + SMTP. Broadcast senders use
-              high-volume providers such as Amazon SES, SendGrid and Azure Email.
+              high-volume providers such as Amazon SES, SendGrid, Azure Email and MSG91 Email.
             </p>
             <div className="mt-4 grid gap-2">
               {can(PERMISSIONS.EMAIL_CONNECT) && (
@@ -712,9 +721,23 @@ export default function CompanyConnections() {
               setSesConnectOpen(true)
             } else if (provider === 'SENDGRID') {
               setSendGridConnectOpen(true)
-            } else {
+            } else if (provider === 'AZURE_EMAIL') {
               setAzureEmailConnectOpen(true)
+            } else {
+              setMsg91EmailConnectOpen(true)
             }
+          }}
+        />
+      )}
+
+      {msg91EmailConnectOpen && selectedCompany && (
+        <Msg91EmailConnectModal
+          companyId={selectedCompany.companyId}
+          onClose={() => setMsg91EmailConnectOpen(false)}
+          onConnected={(sender) => {
+            setMsg91EmailConnectOpen(false)
+            setNotice(`Connected MSG91 Email sender ${sender.fromAddress}`)
+            void loadConnections()
           }}
         />
       )}
