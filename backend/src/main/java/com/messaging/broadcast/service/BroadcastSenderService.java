@@ -18,11 +18,13 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BroadcastSenderService {
 
   private final BroadcastSenderRepository senderRepository;
@@ -406,7 +408,15 @@ public class BroadcastSenderService {
   private BroadcastSenderResponse persistAndCompleteSetup(
       BroadcastSenderConnection connection, BroadcastSender sender) {
     BroadcastSenderResponse response = persistenceService.create(connection, sender);
-    setupSessionService.completeActive(connection.getCompanyId(), connection.getProvider());
+    try {
+      setupSessionService.completeActive(connection.getCompanyId(), connection.getProvider());
+    } catch (RuntimeException exception) {
+      log.warn(
+          "broadcast_setup_completion_failed companyId={} provider={}",
+          connection.getCompanyId(),
+          connection.getProvider(),
+          exception);
+    }
     return response;
   }
 
