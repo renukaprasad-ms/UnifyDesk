@@ -5,6 +5,7 @@ import {
   FiCheckCircle,
   FiEdit2,
   FiFileText,
+  FiHelpCircle,
   FiMail,
   FiMessageSquare,
   FiPlus,
@@ -14,6 +15,7 @@ import {
 import MessageTemplateEditorModal from '../../components/templates/MessageTemplateEditorModal'
 import TemplateCreateWizardModal from '../../components/templates/TemplateCreateWizardModal'
 import TemplateCreationCompleteModal from '../../components/templates/TemplateCreationCompleteModal'
+import TemplateFlowGuideModal from '../../components/templates/TemplateFlowGuideModal'
 import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import type { ChannelType } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -64,6 +66,7 @@ export default function TemplateLibrary() {
   const [createChannelType, setCreateChannelType] = useState<ChannelType>('EMAIL')
   const [createCategory, setCreateCategory] = useState<MessageTemplateCategory | null>(null)
   const [createdTemplate, setCreatedTemplate] = useState<MessageTemplate | null>(null)
+  const [flowGuideOpen, setFlowGuideOpen] = useState(false)
 
   const load = async () => {
     if (!companyId) return
@@ -197,12 +200,22 @@ export default function TemplateLibrary() {
               Reusable content for Email, WhatsApp and SMS. Provider approval remains separate from your local template library.
             </p>
           </div>
-          {can(PERMISSIONS.TEMPLATE_CREATE) && (
-            <button type="button" className="primary-button inline-flex items-center gap-2" onClick={openCreate}>
-              <FiPlus aria-hidden="true" />
-              New template
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="secondary-button inline-flex items-center gap-2"
+              onClick={() => setFlowGuideOpen(true)}
+            >
+              <FiHelpCircle aria-hidden="true" />
+              How it works
             </button>
-          )}
+            {can(PERMISSIONS.TEMPLATE_CREATE) && (
+              <button type="button" className="primary-button inline-flex items-center gap-2" onClick={openCreate}>
+                <FiPlus aria-hidden="true" />
+                New template
+              </button>
+            )}
+          </div>
         </header>
 
         <div className="mt-6 grid gap-3 md:grid-cols-4">
@@ -443,6 +456,10 @@ export default function TemplateLibrary() {
           }}
           onSave={(input, activateAfterSave) => void save(input, activateAfterSave)}
         />
+      )}
+
+      {flowGuideOpen && (
+        <TemplateFlowGuideModal onClose={() => setFlowGuideOpen(false)} />
       )}
 
       {createdTemplate && (
