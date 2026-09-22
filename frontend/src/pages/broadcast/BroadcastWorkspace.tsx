@@ -30,6 +30,8 @@ import type { ChannelType } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { realtimeClient } from '../../features/realtime/realtimeClient'
+import { templateApi } from '../../features/template/templateApi'
+import type { MessageTemplate } from '../../features/template/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import {
@@ -166,6 +168,8 @@ export default function BroadcastWorkspace() {
   const [groupDescription, setGroupDescription] = useState('')
   const [groupBusy, setGroupBusy] = useState(false)
   const [composeSenderId, setComposeSenderId] = useState('')
+  const [composeTemplates, setComposeTemplates] = useState<MessageTemplate[]>([])
+  const [composeTemplateId, setComposeTemplateId] = useState('')
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
   const [composeScheduleAt, setComposeScheduleAt] = useState('')
@@ -428,6 +432,29 @@ export default function BroadcastWorkspace() {
   ])
 
   useEffect(() => {
+    if (!companyId || !composeOpen || channelType === 'WHATSAPP') {
+      setComposeTemplates([])
+      return
+    }
+
+    let active = true
+    templateApi
+      .active(companyId, channelType)
+      .then((items) => {
+        if (active) setComposeTemplates(items)
+      })
+      .catch((requestError) => {
+        if (active) {
+          snackbar.error(apiErrorMessage(requestError, 'Unable to load active templates'))
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [channelType, companyId, composeOpen, snackbar])
+
+  useEffect(() => {
     if (!composeOpen) return
     let active = true
 
@@ -435,6 +462,7 @@ export default function BroadcastWorkspace() {
       setComposeSubject('')
       setComposeBody('')
       setComposeScheduleAt('')
+      setComposeTemplateId('')
       setComposeSenderId(selectedActiveSender?.id ?? '')
     }
 
@@ -449,6 +477,7 @@ export default function BroadcastWorkspace() {
       .then((message) => {
         if (!active) return
         setComposeSenderId(message.senderId ?? '')
+        setComposeTemplateId('')
         setComposeSubject(message.subject ?? '')
         setComposeBody(message.bodyText)
         setComposeScheduleAt(
@@ -1309,6 +1338,35 @@ export default function BroadcastWorkspace() {
                       : ''}
                   </p>
                 </div>
+
+                <label className="mt-4 block text-xs font-semibold text-slate-700">
+                  Use template
+                  <select
+                    className="form-input mt-2"
+                    value={composeTemplateId}
+                    onChange={(event) => {
+                      const templateId = event.target.value
+                      setComposeTemplateId(templateId)
+                      if (!templateId) return
+                      const template = composeTemplates.find((item) => item.id === templateId)
+                      if (!template) return
+                      if (channelType === 'EMAIL') setComposeSubject(template.subject ?? '')
+                      setComposeBody(template.bodyText)
+                    }}
+                  >
+                    <option value="">Start from scratch</option>
+                    {composeTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} · {template.category.toLowerCase().replaceAll('_', ' ')}
+                      </option>
+                    ))}
+                  </select>
+                  {composeTemplates.length === 0 && (
+                    <span className="mt-1 block text-[10px] font-medium text-slate-400">
+                      No active {channelLabel.toLowerCase()} templates yet. Create one from Templates.
+                    </span>
+                  )}
+                </label>
 
                 {channelType === 'EMAIL' && (
                   <label className="mt-4 block text-xs font-semibold text-slate-700">
