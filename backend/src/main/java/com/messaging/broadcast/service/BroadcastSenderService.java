@@ -25,6 +25,7 @@ public class BroadcastSenderService {
   private final BroadcastSenderRepository senderRepository;
   private final BroadcastSenderConnectionRepository connectionRepository;
   private final BroadcastSenderPersistenceService persistenceService;
+  private final com.messaging.channel.service.ChannelEntitlementService channelEntitlementService;
   private final AmazonSesGateway sesGateway;
   private final AmazonSesClientManager sesClientManager;
   private final CredentialCipher credentialCipher;
@@ -47,6 +48,8 @@ public class BroadcastSenderService {
                   "This Amazon SES sender is already connected to the company");
             });
 
+    channelEntitlementService.assertCanCreateConnection(
+        companyId, com.messaging.channel.enums.ChannelType.EMAIL);
     validateAuth(request);
 
     BroadcastSenderConnection connection = new BroadcastSenderConnection();
