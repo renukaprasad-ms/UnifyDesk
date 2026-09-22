@@ -560,7 +560,7 @@ export default function CompanyConnections() {
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="text-sm font-bold text-slate-950">SMS connections</h2>
             <p className="mt-1 text-xs text-slate-500">
-              MSG91 Broadcast connections use an approved Flow and SMS Header.
+              MSG91 SMS Broadcast connections use an approved Flow and SMS Header.
             </p>
           </div>
 
