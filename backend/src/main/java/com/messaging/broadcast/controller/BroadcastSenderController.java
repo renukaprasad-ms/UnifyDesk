@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 public class BroadcastSenderController {
 
   private final BroadcastSenderService senderService;
+  private final com.messaging.broadcast.service.BroadcastSenderTestService senderTestService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -87,6 +88,19 @@ public class BroadcastSenderController {
                 201,
                 senderService.connectMsg91Email(companyId, userId, request),
                 "MSG91 Email sender connected"));
+  }
+
+  @PostMapping("/{senderId}/test-email")
+  public ResponseEntity<ApiResponse<BroadcastTestEmailResponse>> sendTestEmail(
+      @PathVariable Long companyId,
+      @PathVariable Long senderId,
+      @Valid @RequestBody SendBroadcastTestEmailRequest request) {
+    require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            senderTestService.sendTestEmail(companyId, senderId, request),
+            "Test email accepted by provider"));
   }
 
   @PostMapping("/{senderId}/refresh")
