@@ -1,6 +1,7 @@
 package com.messaging.broadcast.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.messaging.broadcast.azure.*;
 import com.messaging.broadcast.dto.*;
 import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.enums.*;
@@ -31,6 +32,7 @@ public class BroadcastSenderService {
   private final AmazonSesGateway sesGateway;
   private final AmazonSesClientManager sesClientManager;
   private final SendGridGateway sendGridGateway;
+  private final AzureEmailGateway azureEmailGateway;
   private final CredentialCipher credentialCipher;
   private final ObjectMapper objectMapper;
 
@@ -142,6 +144,54 @@ public class BroadcastSenderService {
     return persistenceService.create(connection, sender);
   }
 
+  public BroadcastSenderResponse connectAzureEmail(
+      Long companyId, Long userId, ConnectAzureEmailRequest request) {
+    String fromAddress = normalizeEmail(request.fromAddress(), "From address");
+    String replyTo =
+        request.replyToAddress() == null || request.replyToAddress().isBlank()
+            ? null
+            : normalizeEmail(request.replyToAddress(), "Reply-To address");
+
+    senderRepository
+        .findByCompanyIdAndProviderAndFromAddressIgnoreCase(
+            companyId, BroadcastSenderProvider.AZURE_EMAIL, fromAddress)
+        .ifPresent(
+            existing -> {
+              throw new BadRequestException(
+                  "This Azure Email sender is already connected to the company");
+            });
+
+    channelEntitlementService.assertCanCreateConnection(
+        companyId, com.messaging.channel.enums.ChannelType.EMAIL);
+
+    BroadcastSenderConnection connection = new BroadcastSenderConnection();
+    connection.setId(IdGenerator.nextId());
+    connection.setCompanyId(companyId);
+    connection.setProvider(BroadcastSenderProvider.AZURE_EMAIL);
+    connection.setManagementMode(BroadcastSenderManagementMode.CUSTOMER_MANAGED);
+    connection.setAuthMode(BroadcastSenderAuthMode.API_KEY);
+    connection.setName(request.name().trim());
+    connection.setRegion("AZURE");
+    connection.setCreatedByUserId(userId);
+    connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
+    connection.setProviderConfigJson(azureProviderConfig(request.endpoint()));
+    connection.setEncryptedCredentials(encryptAzureAccessKey(request.accessKey()));
+
+    AzureEmailAccountSnapshot snapshot = azureEmailGateway.inspect(connection, fromAddress);
+    applyAzureSnapshot(connection, snapshot);
+
+    BroadcastSender sender = new BroadcastSender();
+    sender.setCompanyId(companyId);
+    sender.setConnectionId(connection.getId());
+    sender.setProvider(BroadcastSenderProvider.AZURE_EMAIL);
+    sender.setFromAddress(fromAddress);
+    sender.setDisplayName(trimToNull(request.displayName()));
+    sender.setReplyToAddress(replyTo);
+    sender.setVerifiedIdentity(snapshot.verifiedIdentity());
+    sender.setStatus(BroadcastSenderStatus.ACTIVE);
+    return persistenceService.create(connection, sender);
+  }
+
   @Transactional(readOnly = true)
   public List<BroadcastSenderResponse> list(Long companyId) {
     return senderRepository
@@ -179,8 +229,14 @@ public class BroadcastSenderService {
         applySendGridSnapshot(connection, snapshot);
         sender.setVerifiedIdentity(snapshot.verifiedIdentity());
       }
-      case AZURE_EMAIL ->
-          throw new BadRequestException("Azure Email connection flow is not implemented yet");
+      case AZURE_EMAIL -> {
+        AzureEmailAccountSnapshot snapshot =
+            azureEmailGateway.inspect(connection, sender.getFromAddress());
+        applyAzureSnapshot(connection, snapshot);
+        sender.setVerifiedIdentity(snapshot.verifiedIdentity());
+      }
+      case MSG91 ->
+          throw new BadRequestException("MSG91 refresh is not implemented yet");
       case GMAIL, MICROSOFT, IMAP_SMTP, SMTP ->
           throw new BadRequestException("Mailbox providers cannot be refreshed as Broadcast senders");
     }
@@ -269,6 +325,40 @@ public class BroadcastSenderService {
     } catch (Exception exception) {
       throw new IllegalStateException("Unable to encrypt SendGrid credentials", exception);
     }
+  }
+
+  private String encryptAzureAccessKey(String accessKey) {
+    if (isBlank(accessKey)) {
+      throw new BadRequestException("Azure Email access key is required");
+    }
+    try {
+      String payload =
+          objectMapper.writeValueAsString(new AzureEmailStoredCredentials(accessKey.trim()));
+      return credentialCipher.encrypt(payload);
+    } catch (Exception exception) {
+      throw new IllegalStateException("Unable to encrypt Azure Email credentials", exception);
+    }
+  }
+
+  private String azureProviderConfig(String endpoint) {
+    if (isBlank(endpoint)) {
+      throw new BadRequestException("Azure Email endpoint is required");
+    }
+    try {
+      return objectMapper.writeValueAsString(new AzureEmailProviderConfig(endpoint.trim()));
+    } catch (Exception exception) {
+      throw new IllegalStateException("Unable to serialize Azure Email configuration", exception);
+    }
+  }
+
+  private void applyAzureSnapshot(
+      BroadcastSenderConnection connection, AzureEmailAccountSnapshot snapshot) {
+    connection.setProductionAccessEnabled(true);
+    connection.setSendingEnabled(snapshot.sendingEnabled());
+    connection.setMax24HourSend(null);
+    connection.setMaxSendRate(snapshot.maxSendRate());
+    connection.setSentLast24Hours(null);
+    connection.setLastValidatedAt(Instant.now());
   }
 
   private void applySendGridSnapshot(
