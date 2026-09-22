@@ -95,11 +95,16 @@ const providerLabel = (provider?: string | null) => {
   if (provider === 'AMAZON_SES') return 'Amazon SES'
   if (provider === 'AZURE_EMAIL') return 'Azure Email'
   if (provider === 'SENDGRID') return 'SendGrid'
+  if (provider === 'MSG91') return 'MSG91'
   return provider.replaceAll('_', ' ')
 }
 
-const senderLabel = (sender?: BroadcastSender | null) =>
-  sender?.displayName ? `${sender.displayName} <${sender.fromAddress}>` : sender?.fromAddress || 'Legacy mailbox sender'
+const senderLabel = (sender?: BroadcastSender | null) => {
+  if (sender?.provider === 'MSG91') return sender.fromAddress
+  return sender?.displayName
+    ? `${sender.displayName} <${sender.fromAddress}>`
+    : sender?.fromAddress || 'Legacy mailbox sender'
+}
 
 const formatDate = (value?: string | null) => {
   if (!value) return '—'
@@ -186,9 +191,13 @@ export default function BroadcastWorkspace() {
         (sender) =>
           sender.status === 'ACTIVE' &&
           sender.sendingEnabled &&
-          sender.provider === 'AMAZON_SES',
+          (channelType === 'SMS'
+            ? sender.provider === 'MSG91'
+            : channelType === 'EMAIL'
+              ? sender.provider !== 'MSG91'
+              : false),
       ),
-    [senders],
+    [channelType, senders],
   )
 
   const sendersById = useMemo(
@@ -240,14 +249,14 @@ export default function BroadcastWorkspace() {
   }, [channelType, companyId, dispatch])
 
   const refreshSenders = useCallback(async () => {
-    if (!companyId || channelType !== 'EMAIL') {
+    if (!companyId || channelType === 'WHATSAPP') {
       setSenders([])
       return
     }
     try {
       setSenders(await broadcastApi.senders(companyId))
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to load Amazon SES senders'))
+      setError(apiErrorMessage(requestError, 'Unable to load Broadcast senders'))
     }
   }, [channelType, companyId])
 
@@ -486,7 +495,7 @@ export default function BroadcastWorkspace() {
 
   const createGroup = async (event: FormEvent) => {
     event.preventDefault()
-    if (!companyId || !groupName.trim() || channelType !== 'EMAIL') return
+    if (!companyId || !groupName.trim() || channelType === 'WHATSAPP') return
     setGroupBusy(true)
     setError(null)
     try {
@@ -649,7 +658,7 @@ export default function BroadcastWorkspace() {
     }
     const input = {
       senderId: composeSenderId,
-      subject: composeSubject.trim() || null,
+      subject: channelType === 'EMAIL' ? composeSubject.trim() || null : null,
       bodyText: composeBody,
     }
     const message = editBroadcastId
@@ -757,7 +766,7 @@ export default function BroadcastWorkspace() {
     )
   }
 
-  if (channelType !== 'EMAIL') {
+  if (channelType === 'WHATSAPP') {
     return (
       <section className="channel-workspace-page">
         <div className="channel-workspace-toolbar">
@@ -790,7 +799,7 @@ export default function BroadcastWorkspace() {
         <div className="min-w-0">
           <p className="eyebrow">BROADCAST</p>
           <p className="mt-1 truncate text-xs font-semibold text-slate-700">
-            {selectedGroup?.name ?? 'Email groups'}
+            {selectedGroup?.name ?? `${channelLabel} groups`}
           </p>
         </div>
 
@@ -1138,7 +1147,9 @@ export default function BroadcastWorkspace() {
             <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-5 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
               <div className="space-y-4">
                 <div className="rounded-xl border border-slate-200 p-4">
-                  <p className="text-xs font-bold text-slate-800">Paste email addresses</p>
+                  <p className="text-xs font-bold text-slate-800">
+                    {channelType === 'SMS' ? 'Paste phone numbers' : 'Paste email addresses'}
+                  </p>
                   <p className="mt-1 text-[11px] leading-5 text-slate-500">
                     Separate with new lines, commas or semicolons. Requests are automatically
                     chunked to 1,000 recipients.
@@ -1147,7 +1158,11 @@ export default function BroadcastWorkspace() {
                     className="form-input mt-3 min-h-36"
                     value={memberEmails}
                     onChange={(event) => setMemberEmails(event.target.value)}
-                    placeholder={'alice@example.com\nbob@example.com'}
+                    placeholder={
+                      channelType === 'SMS'
+                        ? '+919876543210\n+14155552671'
+                        : 'alice@example.com\nbob@example.com'
+                    }
                   />
                   <button
                     type="button"
@@ -1162,9 +1177,18 @@ export default function BroadcastWorkspace() {
                 <div className="rounded-xl border border-slate-200 p-4">
                   <p className="text-xs font-bold text-slate-800">Import CSV</p>
                   <p className="mt-1 text-[11px] leading-5 text-slate-500">
-                    Best for large lists. Include an <strong>email</strong> or{' '}
-                    <strong>destination</strong> header. The server streams the file in bounded
-                    batches.
+                    Best for large lists.{' '}
+                    {channelType === 'SMS' ? (
+                      <>
+                        Include a <strong>phone</strong>, <strong>mobile</strong> or{' '}
+                        <strong>destination</strong> header.
+                      </>
+                    ) : (
+                      <>
+                        Include an <strong>email</strong> or <strong>destination</strong> header.
+                      </>
+                    )}{' '}
+                    The server streams the file in bounded batches.
                   </p>
                   <label className="mt-3 flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 text-center">
                     <FiUpload className="text-xl text-slate-400" aria-hidden="true" />
@@ -1290,7 +1314,7 @@ export default function BroadcastWorkspace() {
               <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-xs leading-5 text-amber-800">
                 <p className="font-bold">Choose a Broadcast account first.</p>
                 <p className="mt-1">
-                  Select an Amazon SES account from the secondary sidebar, then open the broadcast
+                  Select a Broadcast sender from the secondary sidebar, then open the broadcast
                   composer again.
                 </p>
               </div>
@@ -1304,8 +1328,9 @@ export default function BroadcastWorkspace() {
                     {senderLabel(sendersById.get(composeSenderId) ?? null)}
                   </p>
                   <p className="mt-1 text-[11px] text-slate-500">
-                    Amazon SES
-                    {sendersById.get(composeSenderId)?.region
+                    {providerLabel(sendersById.get(composeSenderId)?.provider)}
+                    {sendersById.get(composeSenderId)?.provider !== 'MSG91' &&
+                    sendersById.get(composeSenderId)?.region
                       ? ` · ${sendersById.get(composeSenderId)?.region}`
                       : ''}
                     {sendersById.get(composeSenderId)?.maxSendRate
@@ -1314,18 +1339,25 @@ export default function BroadcastWorkspace() {
                   </p>
                 </div>
 
-                <label className="mt-4 block text-xs font-semibold text-slate-700">
-                  Subject
-                  <input
-                    className="form-input mt-2"
-                    value={composeSubject}
-                    maxLength={998}
-                    onChange={(event) => setComposeSubject(event.target.value)}
-                  />
-                </label>
+                {channelType === 'EMAIL' && (
+                  <label className="mt-4 block text-xs font-semibold text-slate-700">
+                    Subject
+                    <input
+                      className="form-input mt-2"
+                      value={composeSubject}
+                      maxLength={998}
+                      onChange={(event) => setComposeSubject(event.target.value)}
+                    />
+                  </label>
+                )}
 
                 <label className="mt-4 block text-xs font-semibold text-slate-700">
                   Message
+                  {channelType === 'SMS' && (
+                    <span className="ml-2 text-[10px] font-medium text-slate-400">
+                      Sent into the configured MSG91 Flow variable
+                    </span>
+                  )}
                   <textarea
                     className="form-input mt-2 min-h-52"
                     value={composeBody}
