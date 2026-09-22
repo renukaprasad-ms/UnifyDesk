@@ -652,34 +652,122 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                       }}
                     />
                   )}
-                  <button
-                    type="button"
-                    className="workspace-menu-item justify-start"
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false)
-                      navigate(
-                        broadcastMode
-                          ? '/company/connections?connect=amazon-ses'
-                          : '/company/connections',
-                      )
-                      onNavigate()
-                    }}
-                  >
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
-                      <FiPlus aria-hidden="true" />
-                    </span>
-                    <span className="text-left">
-                      <span className="block text-[12px] font-semibold text-slate-800">
-                        {broadcastMode ? 'Connect / manage Broadcast email' : 'Manage email connections'}
+                  {broadcastMode ? (
+                    can(PERMISSIONS.BROADCAST_MODIFY) && (
+                      <>
+                        <div className="px-3 pb-1 pt-2 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                          Connect broadcast email
+                        </div>
+                        <button
+                          type="button"
+                          className="workspace-menu-item justify-start"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuOpen(false)
+                            navigate('/company/connections?connect=amazon-ses')
+                            onNavigate()
+                          }}
+                        >
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
+                            <FiServer aria-hidden="true" />
+                          </span>
+                          <span className="text-left">
+                            <span className="block text-[12px] font-semibold text-slate-800">
+                              Amazon SES
+                            </span>
+                            <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                              AWS high-volume email
+                            </span>
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className="workspace-menu-item justify-start"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuOpen(false)
+                            navigate('/company/connections?connect=sendgrid')
+                            onNavigate()
+                          }}
+                        >
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
+                            <FiSend aria-hidden="true" />
+                          </span>
+                          <span className="text-left">
+                            <span className="block text-[12px] font-semibold text-slate-800">
+                              SendGrid
+                            </span>
+                            <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                              Twilio SendGrid broadcast email
+                            </span>
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className="workspace-menu-item justify-start opacity-60"
+                          role="menuitem"
+                          disabled
+                        >
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
+                            <FiGrid aria-hidden="true" />
+                          </span>
+                          <span className="text-left">
+                            <span className="block text-[12px] font-semibold text-slate-800">
+                              Azure Email
+                            </span>
+                            <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                              Backend connection flow next
+                            </span>
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className="workspace-menu-item justify-start border-t border-slate-100"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuOpen(false)
+                            navigate('/company/connections?connect=broadcast-email')
+                            onNavigate()
+                          }}
+                        >
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
+                            <FiPlus aria-hidden="true" />
+                          </span>
+                          <span className="text-left">
+                            <span className="block text-[12px] font-semibold text-slate-800">
+                              Manage broadcast email
+                            </span>
+                            <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                              View and manage provider connections
+                            </span>
+                          </span>
+                        </button>
+                      </>
+                    )
+                  ) : (
+                    <button
+                      type="button"
+                      className="workspace-menu-item justify-start"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false)
+                        navigate('/company/connections')
+                        onNavigate()
+                      }}
+                    >
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
+                        <FiPlus aria-hidden="true" />
                       </span>
-                      <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
-                        {broadcastMode
-                          ? 'Amazon SES, SendGrid and provider settings'
-                          : 'Inbox connections and provider settings'}
+                      <span className="text-left">
+                        <span className="block text-[12px] font-semibold text-slate-800">
+                          Manage email connections
+                        </span>
+                        <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                          Inbox connections and provider settings
+                        </span>
                       </span>
-                    </span>
-                  </button>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
