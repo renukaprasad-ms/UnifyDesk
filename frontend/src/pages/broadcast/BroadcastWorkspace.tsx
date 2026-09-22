@@ -196,6 +196,14 @@ export default function BroadcastWorkspace() {
     [senders],
   )
 
+  const selectedActiveSender = useMemo(
+    () =>
+      selectedSenderId
+        ? activeSenders.find((sender) => sender.id === selectedSenderId) ?? null
+        : null,
+    [activeSenders, selectedSenderId],
+  )
+
   const updateSearch = useCallback(
     (updates: Record<string, string | null>) => {
       const next = new URLSearchParams(searchParams)
@@ -419,11 +427,7 @@ export default function BroadcastWorkspace() {
       setComposeSubject('')
       setComposeBody('')
       setComposeScheduleAt('')
-      setComposeSenderId(
-        selectedSenderId && activeSenders.some((sender) => sender.id === selectedSenderId)
-          ? selectedSenderId
-          : '',
-      )
+      setComposeSenderId(selectedActiveSender?.id ?? '')
     }
 
     if (!editBroadcastId || !companyId) {
@@ -453,7 +457,7 @@ export default function BroadcastWorkspace() {
     return () => {
       active = false
     }
-  }, [activeSenders, companyId, composeOpen, editBroadcastId, selectedSenderId])
+  }, [companyId, composeOpen, editBroadcastId, selectedActiveSender])
 
   const openNewGroup = () => {
     setGroupName('')
@@ -816,8 +820,8 @@ export default function BroadcastWorkspace() {
               type="button"
               className="primary-button gap-2"
               onClick={() => openComposer()}
-              disabled={!selectedSenderId}
-              title={!selectedSenderId ? 'Choose a Broadcast account from the sidebar' : undefined}
+              disabled={!selectedActiveSender}
+              title={!selectedActiveSender ? 'Choose a Broadcast account from the sidebar' : undefined}
             >
               <FiSend aria-hidden="true" />
               <span className="inbox-action-label">New broadcast</span>
@@ -935,9 +939,9 @@ export default function BroadcastWorkspace() {
                           type="button"
                           className="primary-button gap-2"
                           onClick={() => openComposer()}
-                          disabled={!selectedSenderId}
+                          disabled={!selectedActiveSender}
                           title={
-                            !selectedSenderId
+                            !selectedActiveSender
                               ? 'Choose a Broadcast account from the sidebar'
                               : undefined
                           }
