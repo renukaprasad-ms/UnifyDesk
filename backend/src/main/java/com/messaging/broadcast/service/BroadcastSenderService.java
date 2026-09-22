@@ -28,6 +28,7 @@ public class BroadcastSenderService {
   private final BroadcastSenderRepository senderRepository;
   private final BroadcastSenderConnectionRepository connectionRepository;
   private final BroadcastSenderPersistenceService persistenceService;
+  private final BroadcastSetupSessionService setupSessionService;
   private final com.messaging.channel.service.ChannelEntitlementService channelEntitlementService;
   private final com.messaging.channel.service.ChannelConnectionService channelConnectionService;
   private final AmazonSesGateway sesGateway;
@@ -93,7 +94,7 @@ public class BroadcastSenderService {
       sender.setReplyToAddress(replyTo);
       sender.setVerifiedIdentity(snapshot.verifiedIdentity());
       sender.setStatus(BroadcastSenderStatus.ACTIVE);
-      return persistenceService.create(connection, sender);
+      return persistAndCompleteSetup(connection, sender);
     } catch (RuntimeException exception) {
       sesClientManager.invalidate(connection.getId());
       throw exception;
@@ -144,7 +145,7 @@ public class BroadcastSenderService {
     sender.setReplyToAddress(replyTo);
     sender.setVerifiedIdentity(snapshot.verifiedIdentity());
     sender.setStatus(BroadcastSenderStatus.ACTIVE);
-    return persistenceService.create(connection, sender);
+    return persistAndCompleteSetup(connection, sender);
   }
 
   public BroadcastSenderResponse connectAzureEmail(
@@ -192,7 +193,7 @@ public class BroadcastSenderService {
     sender.setReplyToAddress(replyTo);
     sender.setVerifiedIdentity(snapshot.verifiedIdentity());
     sender.setStatus(BroadcastSenderStatus.ACTIVE);
-    return persistenceService.create(connection, sender);
+    return persistAndCompleteSetup(connection, sender);
   }
 
   public BroadcastSenderResponse connectMsg91Sms(
@@ -241,7 +242,7 @@ public class BroadcastSenderService {
     sender.setReplyToAddress(null);
     sender.setVerifiedIdentity(snapshot.verifiedIdentity());
     sender.setStatus(BroadcastSenderStatus.ACTIVE);
-    return persistenceService.create(connection, sender);
+    return persistAndCompleteSetup(connection, sender);
   }
 
   public BroadcastSenderResponse connectMsg91Email(
@@ -295,7 +296,7 @@ public class BroadcastSenderService {
     sender.setReplyToAddress(replyTo);
     sender.setVerifiedIdentity(snapshot.verifiedIdentity());
     sender.setStatus(BroadcastSenderStatus.ACTIVE);
-    return persistenceService.create(connection, sender);
+    return persistAndCompleteSetup(connection, sender);
   }
 
   @Transactional(readOnly = true)
@@ -400,6 +401,13 @@ public class BroadcastSenderService {
     return connectionRepository
         .findByIdAndCompanyId(connectionId, companyId)
         .orElseThrow(() -> new NotFoundException("Broadcast sender connection not found"));
+  }
+
+  private BroadcastSenderResponse persistAndCompleteSetup(
+      BroadcastSenderConnection connection, BroadcastSender sender) {
+    BroadcastSenderResponse response = persistenceService.create(connection, sender);
+    setupSessionService.completeActive(connection.getCompanyId(), connection.getProvider());
+    return response;
   }
 
   private void validateAuth(ConnectAmazonSesRequest request) {
