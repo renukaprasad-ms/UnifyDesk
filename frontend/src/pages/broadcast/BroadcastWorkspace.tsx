@@ -5,7 +5,6 @@ import {
   FiCheckCircle,
   FiClock,
   FiEdit2,
-  FiMail,
   FiPause,
   FiPlay,
   FiRefreshCw,
