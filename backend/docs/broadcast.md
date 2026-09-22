@@ -17,9 +17,12 @@ High-volume Broadcast
     ├── Customer-managed   implemented
     └── Messaging-managed  later
 
+Broadcast email transports
+├── Amazon SES
+└── SendGrid                 implemented in multi-provider phase
+
 Future Broadcast transports
-├── Azure Communication Services Email
-└── SendGrid
+└── Azure Communication Services Email
 ```
 
 Gmail, Microsoft and IMAP/SMTP are not valid senders for new Broadcasts. Historical mailbox-based Broadcast rows remain readable through nullable legacy references.
@@ -219,3 +222,36 @@ Managed SES must add abuse controls, tenant isolation, domain onboarding, reputa
 Azure Communication Services Email and SendGrid should implement the same Broadcast sender/transport contract rather than becoming mailbox `ChannelConnection` providers.
 
 The Broadcast group/run/batch/recipient orchestration should not change when those providers are added.
+
+## SendGrid
+
+SendGrid uses the same `BroadcastSenderConnection -> BroadcastSender -> BroadcastEmailTransport`
+boundary as Amazon SES.
+
+Connect flow:
+
+```text
+Connect SendGrid
+ -> validate API key
+ -> read verified sender identities
+ -> fall back to authenticated domains
+ -> verify exact From address or parent domain
+ -> atomically persist ChannelConnection + BroadcastSenderConnection + sender identity
+```
+
+The API key is encrypted with the existing channel credential cipher. The SendGrid connection stores
+only the selected regional API endpoint (`GLOBAL` or `EU`) and the provider safety-rate snapshot in
+plain connection metadata.
+
+Delivery uses one `POST /v3/mail/send` request per recipient and stores the `X-Message-Id` returned
+with the 202 response. The recipient correlation id is also sent as a SendGrid custom argument so a
+future signed Event Webhook integration can reconcile delivered, bounced, dropped, complaint/open and
+click events without changing the batch execution pipeline.
+
+The default local SendGrid safety ceiling is controlled by
+`BROADCAST_SENDGRID_MAX_PER_SECOND_CAP`. Provider HTTP 429 and 5xx responses are retryable; ambiguous
+network failures remain `UNKNOWN` to avoid accidental duplicate sends.
+
+Signed Event Webhook ingestion is intentionally a separate step because customer-managed SendGrid
+accounts have per-webhook verification keys. Those keys must be stored per provider connection and
+verified before delivery events are allowed to mutate recipient state.
