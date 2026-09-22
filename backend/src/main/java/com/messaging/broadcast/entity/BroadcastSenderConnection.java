@@ -20,6 +20,9 @@ public class BroadcastSenderConnection {
   @Column(name = "company_id", nullable = false)
   private Long companyId;
 
+  @Column(name = "channel_connection_id", nullable = false, unique = true)
+  private Long channelConnectionId;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 40)
   private BroadcastSenderProvider provider;
@@ -85,6 +88,7 @@ public class BroadcastSenderConnection {
   @PrePersist
   void beforeInsert() {
     if (id == null) id = IdGenerator.nextId();
+    if (channelConnectionId == null) channelConnectionId = id;
     if (managementMode == null) managementMode = BroadcastSenderManagementMode.CUSTOMER_MANAGED;
     if (status == null) status = BroadcastSenderConnectionStatus.ACTIVE;
     Instant now = Instant.now();

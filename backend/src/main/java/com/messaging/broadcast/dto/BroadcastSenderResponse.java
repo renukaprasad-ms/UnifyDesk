@@ -8,6 +8,7 @@ import java.time.Instant;
 public record BroadcastSenderResponse(
     String id,
     String connectionId,
+    String channelConnectionId,
     BroadcastSenderProvider provider,
     BroadcastSenderManagementMode managementMode,
     BroadcastSenderStatus status,
@@ -28,6 +29,7 @@ public record BroadcastSenderResponse(
     return new BroadcastSenderResponse(
         sender.getId().toString(),
         connection.getId().toString(),
+        connection.getChannelConnectionId().toString(),
         sender.getProvider(),
         connection.getManagementMode(),
         sender.getStatus(),

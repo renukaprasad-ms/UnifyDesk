@@ -8,4 +8,7 @@ public interface BroadcastSenderConnectionRepository
     extends JpaRepository<BroadcastSenderConnection, Long> {
 
   Optional<BroadcastSenderConnection> findByIdAndCompanyId(Long id, Long companyId);
+
+  Optional<BroadcastSenderConnection> findByChannelConnectionIdAndCompanyId(
+      Long channelConnectionId, Long companyId);
 }
