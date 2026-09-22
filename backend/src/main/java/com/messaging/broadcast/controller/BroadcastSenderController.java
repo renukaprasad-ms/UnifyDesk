@@ -41,6 +41,18 @@ public class BroadcastSenderController {
                 "Amazon SES sender connected"));
   }
 
+  @PostMapping("/sendgrid")
+  public ResponseEntity<ApiResponse<BroadcastSenderResponse>> connectSendGrid(
+      @PathVariable Long companyId, @Valid @RequestBody ConnectSendGridRequest request) {
+    Long userId = require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                senderService.connectSendGrid(companyId, userId, request),
+                "SendGrid sender connected"));
+  }
+
   @PostMapping("/{senderId}/refresh")
   public ResponseEntity<ApiResponse<BroadcastSenderResponse>> refresh(
       @PathVariable Long companyId, @PathVariable Long senderId) {
