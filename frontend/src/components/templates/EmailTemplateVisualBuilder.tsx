@@ -7,7 +7,6 @@ import {
   FiMinus,
   FiMonitor,
   FiMove,
-  FiPlus,
   FiSmartphone,
   FiTrash2,
   FiType,
