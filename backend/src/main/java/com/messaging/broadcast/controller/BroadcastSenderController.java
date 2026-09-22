@@ -65,16 +65,28 @@ public class BroadcastSenderController {
                 "Azure Email sender connected"));
   }
 
-  @PostMapping("/msg91")
-  public ResponseEntity<ApiResponse<BroadcastSenderResponse>> connectMsg91(
+  @PostMapping({"/msg91", "/msg91-sms"})
+  public ResponseEntity<ApiResponse<BroadcastSenderResponse>> connectMsg91Sms(
       @PathVariable Long companyId, @Valid @RequestBody ConnectMsg91Request request) {
     Long userId = require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(
             ApiResponse.success(
                 201,
-                senderService.connectMsg91(companyId, userId, request),
+                senderService.connectMsg91Sms(companyId, userId, request),
                 "MSG91 SMS sender connected"));
+  }
+
+  @PostMapping("/msg91-email")
+  public ResponseEntity<ApiResponse<BroadcastSenderResponse>> connectMsg91Email(
+      @PathVariable Long companyId, @Valid @RequestBody ConnectMsg91EmailRequest request) {
+    Long userId = require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                senderService.connectMsg91Email(companyId, userId, request),
+                "MSG91 Email sender connected"));
   }
 
   @PostMapping("/{senderId}/refresh")
