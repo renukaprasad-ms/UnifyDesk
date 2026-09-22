@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from 'react'
-import { FiCheckCircle, FiCloud, FiInfo, FiShield, FiX } from 'react-icons/fi'
+import { FiCheckCircle, FiCloud, FiShield, FiX } from 'react-icons/fi'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import type {
   BroadcastSender,
   BroadcastSenderAuthMode,
 } from '../../features/broadcast/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { useSnackbar } from '../feedback/SnackbarProvider'
 
 type Props = {
   companyId: string
@@ -13,7 +14,8 @@ type Props = {
   onConnected: (sender: BroadcastSender) => void
 }
 
-export default function AmazonSesConnectModal({ companyId, onClose, onConnected }: Props) {
+export default function AmazonSesConnectModal({
+  const snackbar = useSnackbar() companyId, onClose, onConnected }: Props) {
   const [name, setName] = useState('Amazon SES')
   const [region, setRegion] = useState('ap-south-1')
   const [authMode, setAuthMode] = useState<BroadcastSenderAuthMode>('ACCESS_KEYS')
@@ -25,12 +27,10 @@ export default function AmazonSesConnectModal({ companyId, onClose, onConnected 
   const [displayName, setDisplayName] = useState('')
   const [replyToAddress, setReplyToAddress] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setBusy(true)
-    setError(null)
     try {
       const sender = await broadcastApi.connectAmazonSes(companyId, {
         name: name.trim(),
@@ -46,7 +46,7 @@ export default function AmazonSesConnectModal({ companyId, onClose, onConnected 
       })
       onConnected(sender)
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to connect Amazon SES'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to connect Amazon SES'))
     } finally {
       setBusy(false)
     }
@@ -75,13 +75,6 @@ export default function AmazonSesConnectModal({ companyId, onClose, onConnected 
             <FiX aria-hidden="true" />
           </button>
         </div>
-
-        {error && (
-          <div className="mt-4 flex gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-            <FiInfo className="mt-0.5 shrink-0" aria-hidden="true" />
-            <span>{error}</span>
-          </div>
-        )}
 
         <div className="mt-5 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
           <p className="text-xs font-bold text-slate-900">Phase 1: customer-managed SES</p>
