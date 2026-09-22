@@ -1,5 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit'
 import authReducer from './auth/authSlice'
+import broadcastReducer from './broadcast/broadcastSlice'
 import iamReducer from './iam/iamSlice'
 import inboxReducer from './inbox/inboxSlice'
 import workspaceReducer from './workspace/workspaceSlice'
@@ -9,6 +10,7 @@ const SELECTED_COMPANY_KEY = 'messaging.selectedCompanyId'
 export const store = configureStore({
   reducer: {
     auth: authReducer,
+    broadcast: broadcastReducer,
     workspace: workspaceReducer,
     iam: iamReducer,
     inbox: inboxReducer,

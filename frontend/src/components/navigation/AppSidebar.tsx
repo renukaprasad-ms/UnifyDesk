@@ -91,6 +91,8 @@ const companyLinks: WorkspaceLink[] = [
       PERMISSIONS.EMAIL_CONNECT,
       PERMISSIONS.SMS_READ,
       PERMISSIONS.SMS_CONNECT,
+      PERMISSIONS.BROADCAST_READ,
+      PERMISSIONS.BROADCAST_MODIFY,
     ],
   },
   {
@@ -194,8 +196,8 @@ export default function AppSidebar({
           <FiHome className="sidebar-icon" aria-hidden="true" />
           <span className="sidebar-copy">Dashboard</span>
         </NavLink>
-        {renderSection('inbox', 'Inbox', <FiInbox aria-hidden="true" />, inboxLinks)}
         {renderSection('broadcast', 'Broadcast', <FiRadio aria-hidden="true" />, broadcastLinks)}
+        {renderSection('inbox', 'Inbox', <FiInbox aria-hidden="true" />, inboxLinks)}
         {hasWorkspacePermission(PERMISSIONS.TEMPLATE_READ) && (
           <NavLink
             to="/templates"

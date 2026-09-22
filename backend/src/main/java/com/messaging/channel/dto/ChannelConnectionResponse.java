@@ -1,9 +1,11 @@
 package com.messaging.channel.dto;
 
+import com.messaging.channel.enums.ChannelConnectionCapability;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.ProviderType;
 import java.time.Instant;
+import java.util.Set;
 
 public record ChannelConnectionResponse(
     String id,
@@ -19,4 +21,5 @@ public record ChannelConnectionResponse(
     Instant purgeAfter,
     Instant createdAt,
     Instant updatedAt,
-    boolean providerConfigured) {}
+    boolean providerConfigured,
+    Set<ChannelConnectionCapability> capabilities) {}

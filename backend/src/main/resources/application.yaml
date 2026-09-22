@@ -98,6 +98,31 @@ app:
     redis-channel: ${REALTIME_REDIS_CHANNEL:messaging:realtime}
     heartbeat-interval-ms: ${REALTIME_HEARTBEAT_INTERVAL_MS:30000}
     allowed-origins: ${REALTIME_ALLOWED_ORIGINS:https://messaging.renukaprasad.in}
+  broadcast:
+    member-write-batch-size: ${BROADCAST_MEMBER_WRITE_BATCH_SIZE:500}
+    snapshot-batch-size: ${BROADCAST_SNAPSHOT_BATCH_SIZE:100}
+    recipient-claim-size: ${BROADCAST_RECIPIENT_CLAIM_SIZE:10}
+    worker-concurrency: ${BROADCAST_WORKER_CONCURRENCY:8}
+    worker-poll-interval-ms: ${BROADCAST_WORKER_POLL_INTERVAL_MS:250}
+    max-delivery-attempts: ${BROADCAST_MAX_DELIVERY_ATTEMPTS:5}
+    retry-initial-backoff: ${BROADCAST_RETRY_INITIAL_BACKOFF:2s}
+    retry-max-backoff: ${BROADCAST_RETRY_MAX_BACKOFF:5m}
+    stale-claim-after: ${BROADCAST_STALE_CLAIM_AFTER:5m}
+    outbox-batch-size: ${BROADCAST_OUTBOX_BATCH_SIZE:50}
+    outbox-poll-interval-ms: ${BROADCAST_OUTBOX_POLL_INTERVAL_MS:250}
+    outbox-stale-after: ${BROADCAST_OUTBOX_STALE_AFTER:2m}
+    outbox-max-attempts: ${BROADCAST_OUTBOX_MAX_ATTEMPTS:20}
+    message-id-domain: ${BROADCAST_MESSAGE_ID_DOMAIN:messaging.renukaprasad.in}
+    ses-max-per-second-cap: ${BROADCAST_SES_MAX_PER_SECOND_CAP:1000}
+  delivery:
+    email:
+      claim-size: ${EMAIL_DELIVERY_REPORT_CLAIM_SIZE:100}
+      poll-interval-ms: ${EMAIL_DELIVERY_REPORT_POLL_INTERVAL_MS:5000}
+      max-attempts: ${EMAIL_DELIVERY_REPORT_MAX_ATTEMPTS:12}
+      retry-initial-backoff: ${EMAIL_DELIVERY_REPORT_RETRY_INITIAL_BACKOFF:30s}
+      retry-max-backoff: ${EMAIL_DELIVERY_REPORT_RETRY_MAX_BACKOFF:10m}
+      stale-after: ${EMAIL_DELIVERY_REPORT_STALE_AFTER:5m}
+      match-lookback: ${EMAIL_DELIVERY_REPORT_MATCH_LOOKBACK:14d}
   datasource:
     write:
       url: ${APP_DATASOURCE_WRITE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5001/messaging}}

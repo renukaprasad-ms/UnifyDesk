@@ -1,17 +1,26 @@
 package com.messaging.channel.enums;
 
+import java.util.EnumSet;
+import java.util.Set;
+
 public enum ProviderType {
-  GMAIL(ChannelType.EMAIL),
-  MICROSOFT(ChannelType.EMAIL),
-  IMAP_SMTP(ChannelType.EMAIL),
-  SMTP(ChannelType.EMAIL),
-  META_WHATSAPP(ChannelType.WHATSAPP),
-  MSG91(ChannelType.SMS);
+  GMAIL(ChannelType.EMAIL, ChannelConnectionCapability.INBOX),
+  MICROSOFT(ChannelType.EMAIL, ChannelConnectionCapability.INBOX),
+  IMAP_SMTP(ChannelType.EMAIL, ChannelConnectionCapability.INBOX),
+  SMTP(ChannelType.EMAIL, ChannelConnectionCapability.INBOX),
+  AMAZON_SES(ChannelType.EMAIL, ChannelConnectionCapability.BROADCAST),
+  META_WHATSAPP(ChannelType.WHATSAPP, ChannelConnectionCapability.INBOX),
+  MSG91(ChannelType.SMS, ChannelConnectionCapability.BROADCAST);
 
   private final ChannelType channelType;
+  private final Set<ChannelConnectionCapability> capabilities;
 
-  ProviderType(ChannelType channelType) {
+  ProviderType(ChannelType channelType, ChannelConnectionCapability... capabilities) {
     this.channelType = channelType;
+    this.capabilities =
+        capabilities.length == 0
+            ? Set.of()
+            : Set.copyOf(EnumSet.copyOf(java.util.List.of(capabilities)));
   }
 
   public ChannelType channelType() {
@@ -20,5 +29,13 @@ public enum ProviderType {
 
   public boolean supports(ChannelType channelType) {
     return this.channelType == channelType;
+  }
+
+  public Set<ChannelConnectionCapability> capabilities() {
+    return capabilities;
+  }
+
+  public boolean supportsCapability(ChannelConnectionCapability capability) {
+    return capabilities.contains(capability);
   }
 }

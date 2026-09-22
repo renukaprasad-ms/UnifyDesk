@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.messaging.channel.email.EmailFolder;
 import com.messaging.channel.email.EmailSyncMode;
 import com.messaging.common.exception.BadRequestException;
+import com.messaging.common.exception.ServiceUnavailableException;
 import com.messaging.common.exception.TooManyRequestsException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -302,6 +303,32 @@ public class MicrosoftApiClient {
                 .toBodilessEntity());
   }
 
+  /**
+   * Single-attempt send for non-idempotent bulk delivery. No automatic 5xx/429 retry occurs here.
+   */
+  public void sendMailOnce(String accessToken, SendMailRequest request) {
+    try {
+      graph
+          .post()
+          .uri("/v1.0/me/sendMail")
+          .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(request)
+          .retrieve()
+          .toBodilessEntity();
+    } catch (RestClientResponseException exception) {
+      int status = exception.getStatusCode().value();
+      if (status == 429) {
+        throw new TooManyRequestsException("Microsoft Graph rate limited the send");
+      }
+      if (status >= 500) {
+        throw new ServiceUnavailableException(
+            "Microsoft send outcome could not be confirmed", exception);
+      }
+      throw new BadRequestException("Microsoft Graph send failed with HTTP " + status);
+    }
+  }
+
 
   public void reply(String accessToken, String messageId, String comment, boolean replyAll) {
     String action = replyAll ? "replyAll" : "reply";
@@ -574,7 +601,18 @@ public class MicrosoftApiClient {
       GraphBody body,
       List<GraphRecipient> toRecipients,
       List<GraphRecipient> ccRecipients,
-      List<GraphRecipient> bccRecipients) {}
+      List<GraphRecipient> bccRecipients,
+      List<GraphHeader> internetMessageHeaders) {
+
+    public GraphSendMessage(
+        String subject,
+        GraphBody body,
+        List<GraphRecipient> toRecipients,
+        List<GraphRecipient> ccRecipients,
+        List<GraphRecipient> bccRecipients) {
+      this(subject, body, toRecipients, ccRecipients, bccRecipients, null);
+    }
+  }
 
   public record GraphBatchRequest(List<GraphBatchSubRequest> requests) {}
 

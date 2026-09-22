@@ -151,7 +151,10 @@ export default function EmailInbox() {
 
   const connections =
     inbox.connectionsCompanyId === companyId
-      ? inbox.connections.filter((connection) => connection.status === 'ACTIVE')
+      ? inbox.connections.filter(
+          (connection) =>
+            connection.status === 'ACTIVE' && connection.capabilities.includes('INBOX'),
+        )
       : []
   const sameConversationScope =
     inbox.scopeCompanyId === companyId &&

@@ -12,12 +12,16 @@ import {
   FiSend,
   FiServer,
   FiSmartphone,
+  FiUsers,
 } from 'react-icons/fi'
 import { SiGmail } from 'react-icons/si'
 import { useLocation, useNavigate } from 'react-router'
 import EmailProviderPicker from '../email/EmailProviderPicker'
 import ConversationList from '../inbox/ConversationList'
 import { channelApi } from '../../features/channel/channelApi'
+import { broadcastApi } from '../../features/broadcast/broadcastApi'
+import { fetchBroadcastGroups } from '../../store/broadcast/broadcastSlice'
+import type { BroadcastSender } from '../../features/broadcast/types'
 import type { ChannelConnection, ChannelType, SenderIdentity } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -36,7 +40,9 @@ type ChannelContextSidebarProps = {
 }
 
 type IdentityItem = {
-  connection: ChannelConnection
+  connectionId: string
+  providerType: string
+  senderId?: string
   sender?: SenderIdentity
   label: string
   secondary: string
@@ -86,6 +92,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const dispatch = useAppDispatch()
   const companyId = useAppSelector(selectSelectedCompanyId)
   const inbox = useAppSelector((state) => state.inbox)
+  const broadcast = useAppSelector((state) => state.broadcast)
   const { can } = useIam()
   const location = useLocation()
   const navigate = useNavigate()
@@ -95,6 +102,8 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const meta = channelMeta[channelType]
   const [localConnections, setLocalConnections] = useState<ChannelConnection[]>([])
   const [senders, setSenders] = useState<Record<string, SenderIdentity[]>>({})
+  const [broadcastSenders, setBroadcastSenders] = useState<BroadcastSender[]>([])
+  const [broadcastSenderLoading, setBroadcastSenderLoading] = useState(false)
   const [localLoading, setLocalLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -103,18 +112,28 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const selectedConnectionId = search.get('connectionId')
   const selectedSenderId = search.get('senderId')
   const selectedConversationId = search.get('conversationId')
+  const selectedGroupId = search.get('groupId')
   const selectedFolder = search.get('folder') === 'SENT' ? 'SENT' : 'INBOX'
 
   const emailMode = mode === 'inbox' && channelType === 'EMAIL'
+  const broadcastMode = mode === 'broadcast'
+  const broadcastGroups =
+    broadcast.groupsCompanyId === companyId && broadcast.groupsChannelType === channelType
+      ? broadcast.groups
+      : []
   const emailConnections =
     inbox.connectionsCompanyId === companyId ? inbox.connections : []
   const connections = (
-    channelType === 'EMAIL' ? emailConnections : localConnections
+    channelType === 'EMAIL'
+      ? emailConnections.filter((connection) => connection.capabilities.includes('INBOX'))
+      : localConnections
   ).filter((connection) => connection.status === 'ACTIVE')
   const loading =
-    channelType === 'EMAIL'
-      ? inbox.connectionsCompanyId === companyId && inbox.connectionsStatus === 'loading'
-      : localLoading
+    broadcastMode && channelType === 'EMAIL'
+      ? broadcastSenderLoading
+      : channelType === 'EMAIL'
+        ? inbox.connectionsCompanyId === companyId && inbox.connectionsStatus === 'loading'
+        : localLoading
   const sameConversationScope =
     emailMode &&
     inbox.scopeCompanyId === companyId &&
@@ -140,12 +159,19 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   }, [menuOpen])
 
   useEffect(() => {
+    if (broadcastMode) return
     if (channelType !== 'EMAIL') return
     if (!companyId) return
     void dispatch(fetchEmailConnections({ companyId }))
-  }, [channelType, companyId, dispatch])
+  }, [broadcastMode, channelType, companyId, dispatch])
 
   useEffect(() => {
+    if (broadcastMode) {
+      setLocalConnections([])
+      setSenders({})
+      setLocalLoading(false)
+      return
+    }
     if (channelType === 'EMAIL') {
       setLocalConnections([])
       setSenders({})
@@ -196,7 +222,39 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     return () => {
       active = false
     }
-  }, [channelType, companyId, meta.label])
+  }, [broadcastMode, channelType, companyId, meta.label])
+
+  useEffect(() => {
+    if (!companyId || !broadcastMode || channelType !== 'EMAIL') {
+      setBroadcastSenders([])
+      setBroadcastSenderLoading(false)
+      return
+    }
+
+    let active = true
+    setBroadcastSenderLoading(true)
+    setError(null)
+    broadcastApi
+      .senders(companyId)
+      .then((items) => {
+        if (active) setBroadcastSenders(items)
+      })
+      .catch((requestError) => {
+        if (active) setError(apiErrorMessage(requestError, 'Unable to load Broadcast senders'))
+      })
+      .finally(() => {
+        if (active) setBroadcastSenderLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [broadcastMode, channelType, companyId])
+
+  useEffect(() => {
+    if (!companyId || !broadcastMode) return
+    void dispatch(fetchBroadcastGroups({ companyId, channelType }))
+  }, [broadcastMode, channelType, companyId, dispatch])
 
   useEffect(() => {
     if (
@@ -217,12 +275,27 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   }, [companyId, dispatch, emailMode, selectedConnectionId, selectedFolder])
 
   const identities = useMemo<IdentityItem[]>(() => {
+    if (broadcastMode && channelType === 'EMAIL') {
+      return broadcastSenders
+        .filter((sender) => sender.status === 'ACTIVE' && sender.sendingEnabled)
+        .map((sender) => ({
+          connectionId: sender.channelConnectionId,
+          providerType: sender.provider,
+          senderId: sender.id,
+          label: sender.fromAddress,
+          secondary: `Amazon SES · ${sender.region}${
+            sender.maxSendRate ? ` · ${sender.maxSendRate}/sec` : ''
+          }${sender.productionAccessEnabled ? '' : ' · Sandbox'}`,
+        }))
+    }
+
     const result: IdentityItem[] = []
 
     for (const connection of connections) {
       if (channelType === 'EMAIL') {
         result.push({
-          connection,
+          connectionId: connection.id,
+          providerType: connection.providerType,
           label: identityFallback(connection),
           secondary: connection.providerType.replaceAll('_', ' '),
         })
@@ -235,7 +308,8 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
 
       if (activeSenders.length === 0) {
         result.push({
-          connection,
+          connectionId: connection.id,
+          providerType: connection.providerType,
           label: identityFallback(connection),
           secondary: connection.providerType.replaceAll('_', ' '),
         })
@@ -244,7 +318,9 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
 
       activeSenders.forEach((sender) =>
         result.push({
-          connection,
+          connectionId: connection.id,
+          providerType: connection.providerType,
+          senderId: sender.id,
           sender,
           label: sender.value,
           secondary:
@@ -254,14 +330,14 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     }
 
     return result
-  }, [channelType, connections, senders])
+  }, [broadcastMode, broadcastSenders, channelType, connections, senders])
 
   const selectedItem = useMemo(
     () =>
       identities.find(
         (item) =>
-          item.connection.id === selectedConnectionId &&
-          (!item.sender || !selectedSenderId || item.sender.id === selectedSenderId),
+          item.connectionId === selectedConnectionId &&
+          (item.senderId ? item.senderId === selectedSenderId : !selectedSenderId),
       ) ?? null,
     [identities, selectedConnectionId, selectedSenderId],
   )
@@ -271,9 +347,9 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
 
     const first = identities[0]
     const params = new URLSearchParams(location.search)
-    params.set('connectionId', first.connection.id)
-    if (channelType === 'EMAIL' && !params.get('folder')) params.set('folder', 'INBOX')
-    if (first.sender) params.set('senderId', first.sender.id)
+    params.set('connectionId', first.connectionId)
+    if (emailMode && !params.get('folder')) params.set('folder', 'INBOX')
+    if (first.senderId) params.set('senderId', first.senderId)
     else params.delete('senderId')
     params.delete('conversationId')
 
@@ -285,7 +361,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       { replace: true },
     )
   }, [
-    channelType,
+    emailMode,
     identities,
     loading,
     location.pathname,
@@ -325,9 +401,9 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
 
   const selectIdentity = (item: IdentityItem) => {
     const params = new URLSearchParams(location.search)
-    params.set('connectionId', item.connection.id)
-    if (channelType === 'EMAIL' && !params.get('folder')) params.set('folder', 'INBOX')
-    if (item.sender) params.set('senderId', item.sender.id)
+    params.set('connectionId', item.connectionId)
+    if (emailMode && !params.get('folder')) params.set('folder', 'INBOX')
+    if (item.senderId) params.set('senderId', item.senderId)
     else params.delete('senderId')
     params.delete('conversationId')
     params.delete('compose')
@@ -338,6 +414,72 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       search: `?${params.toString()}`,
     })
     onNavigate()
+  }
+
+  useEffect(() => {
+    if (
+      !desktop ||
+      !broadcastMode ||
+      selectedGroupId ||
+      broadcastGroups.length === 0
+    ) {
+      return
+    }
+
+    const params = new URLSearchParams(location.search)
+    params.set('groupId', broadcastGroups[0].id)
+    params.delete('broadcastId')
+    params.delete('compose')
+    params.delete('newGroup')
+    navigate(
+      { pathname: location.pathname, search: `?${params.toString()}` },
+      { replace: true },
+    )
+  }, [
+    broadcastGroups,
+    broadcastMode,
+    desktop,
+    location.pathname,
+    location.search,
+    navigate,
+    selectedGroupId,
+  ])
+
+  const selectBroadcastGroup = (groupId: string) => {
+    const params = new URLSearchParams(location.search)
+    params.set('groupId', groupId)
+    params.delete('broadcastId')
+    params.delete('compose')
+    params.delete('newGroup')
+    navigate({ pathname: location.pathname, search: `?${params.toString()}` })
+    onNavigate()
+  }
+
+  const createBroadcastGroup = () => {
+    if (channelType !== 'EMAIL') return
+    const params = new URLSearchParams(location.search)
+    params.set('newGroup', '1')
+    params.delete('broadcastId')
+    navigate({ pathname: location.pathname, search: `?${params.toString()}` })
+    onNavigate()
+  }
+
+  const loadMoreBroadcastGroups = () => {
+    if (
+      !companyId ||
+      broadcast.loadingMoreGroups ||
+      broadcast.groupsPage + 1 >= broadcast.groupsTotalPages
+    ) {
+      return
+    }
+    void dispatch(
+      fetchBroadcastGroups({
+        companyId,
+        channelType,
+        page: broadcast.groupsPage + 1,
+        append: true,
+      }),
+    )
   }
 
   const selectFolder = (folder: 'INBOX' | 'SENT') => {
@@ -395,11 +537,12 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
 
   const effectiveError =
     error ||
-    (channelType === 'EMAIL' && inbox.connectionsStatus === 'error'
+    (!broadcastMode && channelType === 'EMAIL' && inbox.connectionsStatus === 'error'
       ? 'Unable to load connected email accounts.'
       : emailMode && sameConversationScope && inbox.conversationsStatus === 'error'
         ? 'Unable to load conversations.'
         : null)
+
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -413,9 +556,10 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         </span>
       </div>
 
+      {(!broadcastMode || channelType === 'EMAIL') && (
       <div className="mt-4">
         <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
-          {channelType === 'EMAIL' ? 'Email account' : 'Sender'}
+          {broadcastMode ? 'Broadcast account' : channelType === 'EMAIL' ? 'Email account' : 'Sender'}
         </p>
 
         <div ref={menuRef} className="relative">
@@ -429,7 +573,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           >
             <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-indigo-50 text-indigo-500">
               {channelType === 'EMAIL' && selectedItem
-                ? emailProviderIcon(selectedItem.connection.providerType)
+                ? emailProviderIcon(selectedItem.providerType)
                 : channelType === 'WHATSAPP'
                   ? <FiRadio aria-hidden="true" />
                   : meta.icon}
@@ -454,7 +598,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
             <div className="workspace-menu left-0 right-auto" role="menu">
               {identities.map((item) => (
                 <button
-                  key={`${item.connection.id}:${item.sender?.id ?? 'connection'}`}
+                  key={`${item.connectionId}:${item.senderId ?? 'connection'}`}
                   type="button"
                   className="workspace-menu-item"
                   role="menuitem"
@@ -462,7 +606,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                 >
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-indigo-50 text-indigo-500">
                     {channelType === 'EMAIL'
-                      ? emailProviderIcon(item.connection.providerType)
+                      ? emailProviderIcon(item.providerType)
                       : channelType === 'WHATSAPP'
                         ? <FiRadio aria-hidden="true" />
                         : meta.icon}
@@ -473,35 +617,41 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                       {item.secondary}
                     </span>
                   </span>
-                  {selectedItem?.connection.id === item.connection.id &&
-                    selectedItem?.sender?.id === item.sender?.id && (
+                  {selectedItem?.connectionId === item.connectionId &&
+                    selectedItem?.senderId === item.senderId && (
                       <FiCheck aria-hidden="true" className="shrink-0 text-indigo-500" />
                     )}
                 </button>
               ))}
 
-              {channelType === 'EMAIL' && connectAllowed && companyId && (
+              {channelType === 'EMAIL' && companyId && (
                 <div className="border-t border-slate-100 pt-1">
-                  <EmailProviderPicker
-                    companyId={companyId}
-                    returnTo={location.pathname}
-                    label="Connect email"
-                    className="workspace-menu-item justify-start"
-                    buttonIcon="plus"
-                    onClose={() => setMenuOpen(false)}
-                    onError={setError}
-                    onConnected={() => {
-                      setMenuOpen(false)
-                      void dispatch(fetchEmailConnections({ companyId, force: true }))
-                    }}
-                  />
+                  {!broadcastMode && connectAllowed && (
+                    <EmailProviderPicker
+                      companyId={companyId}
+                      returnTo={location.pathname}
+                      label="Connect inbox email"
+                      className="workspace-menu-item justify-start"
+                      buttonIcon="plus"
+                      onClose={() => setMenuOpen(false)}
+                      onError={setError}
+                      onConnected={() => {
+                        setMenuOpen(false)
+                        void dispatch(fetchEmailConnections({ companyId, force: true }))
+                      }}
+                    />
+                  )}
                   <button
                     type="button"
                     className="workspace-menu-item justify-start"
                     role="menuitem"
                     onClick={() => {
                       setMenuOpen(false)
-                      navigate('/company/connections')
+                      navigate(
+                        broadcastMode
+                          ? '/company/connections?connect=amazon-ses'
+                          : '/company/connections',
+                      )
                       onNavigate()
                     }}
                   >
@@ -510,10 +660,12 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                     </span>
                     <span className="text-left">
                       <span className="block text-[12px] font-semibold text-slate-800">
-                        Manage email accounts
+                        {broadcastMode ? 'Connect / manage Amazon SES' : 'Manage email connections'}
                       </span>
                       <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
-                        Connections and provider settings
+                        {broadcastMode
+                          ? 'High-volume Broadcast sender'
+                          : 'Inbox connections and provider settings'}
                       </span>
                     </span>
                   </button>
@@ -527,6 +679,21 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           <p className="mt-3 px-1 text-xs leading-5 text-rose-600">{effectiveError}</p>
         )}
       </div>
+      )}
+
+      {broadcastMode && (
+        <div className="mt-4 flex items-center gap-2">
+          <button
+            type="button"
+            className="primary-button min-w-0 flex-1 gap-2"
+            disabled={channelType !== 'EMAIL' || !can(PERMISSIONS.BROADCAST_CREATE)}
+            onClick={createBroadcastGroup}
+          >
+            <FiPlus aria-hidden="true" />
+            <span>New group</span>
+          </button>
+        </div>
+      )}
 
       {emailMode && (
         <div className="email-folder-switcher" role="tablist" aria-label="Email folders">
@@ -580,21 +747,68 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
               onLoadMore={loadMoreConversations}
             />
           </div>
+        ) : broadcastMode ? (
+          <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+            {broadcast.groupsStatus === 'loading' && broadcastGroups.length === 0 ? (
+              <p className="px-2 py-6 text-center text-xs text-slate-500">Loading groups…</p>
+            ) : broadcastGroups.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center">
+                <FiUsers className="mx-auto text-2xl text-slate-300" aria-hidden="true" />
+                <p className="mt-3 text-xs font-semibold text-slate-700">No groups yet</p>
+                <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                  Create a reusable recipient group, then send broadcasts to it whenever needed.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-1.5">
+                {broadcastGroups.map((group) => (
+                  <button
+                    key={group.id}
+                    type="button"
+                    className={`broadcast-group-nav-item ${
+                      selectedGroupId === group.id ? 'is-active' : ''
+                    }`}
+                    onClick={() => selectBroadcastGroup(group.id)}
+                  >
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-[9px] bg-indigo-50 text-indigo-500">
+                      <FiUsers aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0 flex-1 text-left">
+                      <span className="block truncate text-xs font-semibold text-slate-800">
+                        {group.name}
+                      </span>
+                      <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                        {group.memberCount.toLocaleString()} recipients
+                      </span>
+                    </span>
+                  </button>
+                ))}
+                {broadcast.groupsPage + 1 < broadcast.groupsTotalPages && (
+                  <button
+                    type="button"
+                    className="secondary-button mt-2 w-full"
+                    onClick={loadMoreBroadcastGroups}
+                    disabled={broadcast.loadingMoreGroups}
+                  >
+                    {broadcast.loadingMoreGroups ? 'Loading…' : 'Load more'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         ) : (
           <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center">
             <p className="text-xs font-semibold text-slate-700">
               No {emptyListLabel.toLowerCase()} yet
             </p>
             <p className="mt-1 text-[11px] leading-5 text-slate-500">
-              {mode === 'broadcast'
-                ? 'Created broadcasts will appear in this list.'
-                : 'Conversations will appear here when this channel is available.'}
+              Conversations will appear here when this channel is available.
             </p>
           </div>
         )}
       </div>
 
-      {channelType !== 'EMAIL' && connectAllowed && (
+      {!broadcastMode && channelType !== 'EMAIL' && connectAllowed && (
         <div className="mt-4 border-t border-slate-100 pt-4">
           <button
             type="button"

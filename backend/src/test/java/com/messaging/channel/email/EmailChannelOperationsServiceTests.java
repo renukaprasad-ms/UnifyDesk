@@ -132,7 +132,8 @@ class EmailChannelOperationsServiceTests {
             Instant.now().plusSeconds(60),
             Instant.now(),
             Instant.now(),
-            true);
+            true,
+            ProviderType.GMAIL.capabilities());
     when(
             channelConnectionService.disconnect(
                 COMPANY_ID,

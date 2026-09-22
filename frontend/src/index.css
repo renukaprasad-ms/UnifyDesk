@@ -942,3 +942,68 @@
     }
   }
 }
+
+
+@layer components {
+  .broadcast-group-nav-item {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    background: transparent;
+    transition:
+      background 0.16s ease,
+      border-color 0.16s ease;
+  }
+
+  .broadcast-group-nav-item:hover {
+    border-color: #e2e8f0;
+    background: #ffffff;
+  }
+
+  .broadcast-group-nav-item.is-active {
+    border-color: #e0e1ff;
+    background: #f5f5ff;
+  }
+
+  .broadcast-history-card {
+    display: flex;
+    min-width: 0;
+    cursor: pointer;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid #e0e5f0;
+    border-radius: 14px;
+    background: #ffffff;
+    transition:
+      border-color 0.16s ease,
+      box-shadow 0.16s ease,
+      transform 0.16s ease;
+  }
+
+  .broadcast-history-card:hover,
+  .broadcast-history-card:focus-visible {
+    border-color: #c7c9ff;
+    box-shadow: 0 8px 24px rgb(15 23 42 / 6%);
+    outline: none;
+    transform: translateY(-1px);
+  }
+
+  @media (max-width: 639px) {
+    .broadcast-history-card {
+      padding: 14px 12px;
+    }
+
+    .broadcast-history-card > .secondary-button {
+      width: 42px;
+      min-width: 42px;
+      padding: 0;
+    }
+  }
+}

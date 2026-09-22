@@ -1,12 +1,14 @@
 package com.messaging.channel.microsoft;
 
 import com.messaging.channel.email.EmailFolder;
+import com.messaging.channel.email.EmailSentMessageHandler;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.microsoft.MicrosoftApiClient.*;
 import com.messaging.inbox.entity.*;
 import com.messaging.inbox.enums.*;
 import com.messaging.inbox.repository.*;
+import com.messaging.inbox.service.InboxMessagePostProcessor;
 import com.messaging.storage.enums.StorageUsageType;
 import com.messaging.storage.service.MessageStorageMeter;
 import com.messaging.storage.service.StorageAccountingService;
@@ -31,6 +33,8 @@ public class MicrosoftInboxPersistenceService {
   private final MessageStorageMeter messageStorageMeter;
   private final StorageQuotaService storageQuotaService;
   private final StorageAccountingService storageAccountingService;
+  private final List<EmailSentMessageHandler> sentMessageHandlers;
+  private final List<InboxMessagePostProcessor> messagePostProcessors;
 
   @Transactional
   public SyncResult persistPage(
@@ -107,6 +111,19 @@ public class MicrosoftInboxPersistenceService {
           touchedConversationIds.add(conversationId);
           deleted++;
         }
+        continue;
+      }
+
+      String broadcastCorrelationId =
+          header(graphMessage.internetMessageHeaders(), "x-messaging-broadcast-recipient");
+      if (normalizedFolder == EmailFolder.SENT
+          && hasText(broadcastCorrelationId)
+          && handleBroadcastSentMessage(
+              connection,
+              broadcastCorrelationId,
+              graphMessage.id(),
+              graphMessage.internetMessageId(),
+              sentAt(graphMessage))) {
         continue;
       }
 
@@ -188,6 +205,11 @@ public class MicrosoftInboxPersistenceService {
       }
 
       message = messageRepository.save(message);
+      if (message.getDirection() == InboxMessageDirection.INBOUND) {
+        for (InboxMessagePostProcessor processor : messagePostProcessors) {
+          processor.afterPersist(message);
+        }
+      }
       existingMessages.put(graphMessage.id(), message);
       changedMessageIds.add(message.getId());
 
@@ -230,6 +252,26 @@ public class MicrosoftInboxPersistenceService {
         Set.copyOf(touchedConversationIds),
         Set.copyOf(changedMessageIds),
         Set.copyOf(deletedMessageIds));
+  }
+
+  private boolean handleBroadcastSentMessage(
+      ChannelConnection connection,
+      String correlationId,
+      String providerMessageId,
+      String internetMessageId,
+      Instant sentAt) {
+    for (EmailSentMessageHandler handler : sentMessageHandlers) {
+      if (handler.handle(
+          connection,
+          ProviderType.MICROSOFT,
+          correlationId,
+          providerMessageId,
+          internetMessageId,
+          sentAt)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void upsertParticipants(InboxConversation conversation, GraphMessage message) {
