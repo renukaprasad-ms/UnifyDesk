@@ -11,8 +11,8 @@ type Props = {
   onConnected: (sender: BroadcastSender) => void
 }
 
-export default function AzureEmailConnectModal({
-  const snackbar = useSnackbar() companyId, onClose, onConnected }: Props) {
+export default function AzureEmailConnectModal({ companyId, onClose, onConnected }: Props) {
+  const snackbar = useSnackbar()
   const [name, setName] = useState('Azure Email')
   const [endpoint, setEndpoint] = useState('')
   const [accessKey, setAccessKey] = useState('')
