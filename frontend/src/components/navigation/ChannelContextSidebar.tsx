@@ -770,7 +770,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                           MSG91 SMS
                         </span>
                         <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
-                          Flow-based SMS Broadcast
+                          Guided Flow, Header and template setup
                         </span>
                       </span>
                     </button>
