@@ -55,7 +55,7 @@ export default function BroadcastEmailProviderPickerModal({ onClose, onSelect }:
               disabled={!provider.available}
               className="flex w-full items-start gap-3 rounded-xl border border-slate-200 p-4 text-left transition hover:border-indigo-200 hover:bg-indigo-50/40 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-65"
               onClick={() => {
-                if (!provider.available) return
+                if (!provider.available || provider.id === 'AZURE_EMAIL') return
                 onSelect(provider.id)
               }}
             >
