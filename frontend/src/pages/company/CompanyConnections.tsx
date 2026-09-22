@@ -13,10 +13,12 @@ import DeleteChannelDataModal from '../../components/channel/DeleteChannelDataMo
 import DisconnectChannelModal from '../../components/channel/DisconnectChannelModal'
 import EmailProviderPicker from '../../components/email/EmailProviderPicker'
 import AmazonSesConnectModal from '../../components/broadcast/AmazonSesConnectModal'
+import AzureEmailConnectModal from '../../components/broadcast/AzureEmailConnectModal'
 import BroadcastEmailProviderPickerModal, {
   type BroadcastEmailProviderChoice,
 } from '../../components/broadcast/BroadcastEmailProviderPickerModal'
 import SendGridConnectModal from '../../components/broadcast/SendGridConnectModal'
+import Msg91ConnectModal from '../../components/broadcast/Msg91ConnectModal'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
@@ -63,6 +65,8 @@ export default function CompanyConnections() {
   const [broadcastEmailPickerOpen, setBroadcastEmailPickerOpen] = useState(false)
   const [sesConnectOpen, setSesConnectOpen] = useState(false)
   const [sendGridConnectOpen, setSendGridConnectOpen] = useState(false)
+  const [azureEmailConnectOpen, setAzureEmailConnectOpen] = useState(false)
+  const [msg91ConnectOpen, setMsg91ConnectOpen] = useState(false)
   const [workingConnectionId, setWorkingConnectionId] = useState<string | null>(null)
   const [disconnectTarget, setDisconnectTarget] = useState<ChannelConnection | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ChannelConnection | null>(null)
@@ -94,7 +98,8 @@ export default function CompanyConnections() {
         (connection) =>
           (connection.channelType === 'WHATSAPP' && can(PERMISSIONS.WHATSAPP_READ)) ||
           (connection.channelType === 'EMAIL' &&
-            (can(PERMISSIONS.EMAIL_READ) || can(PERMISSIONS.BROADCAST_READ))),
+            (can(PERMISSIONS.EMAIL_READ) || can(PERMISSIONS.BROADCAST_READ))) ||
+          (connection.channelType === 'SMS' && can(PERMISSIONS.BROADCAST_READ)),
       )
       const senderEntries = await Promise.all(
         readableConnections.map(async (connection) => {
@@ -150,8 +155,11 @@ export default function CompanyConnections() {
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     } else if (connectProvider === 'azure-email' && can(PERMISSIONS.BROADCAST_MODIFY)) {
-      setBroadcastEmailPickerOpen(true)
-      setNotice('Azure Email backend connection flow is the next provider implementation.')
+      setAzureEmailConnectOpen(true)
+      url.searchParams.delete('connect')
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+    } else if (connectProvider === 'msg91' && can(PERMISSIONS.BROADCAST_MODIFY)) {
+      setMsg91ConnectOpen(true)
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     }
@@ -420,11 +428,18 @@ export default function CompanyConnections() {
             </div>
             <h2 className="mt-4 text-base font-bold text-slate-950">SMS</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              MSG91 sender setup will be added after WhatsApp and Email.
+              Connect MSG91 Flow-based SMS using an approved Sender ID/Header and template.
             </p>
-            <button type="button" className="secondary-button mt-4 w-full" disabled>
-              SMS setup later
-            </button>
+            {can(PERMISSIONS.BROADCAST_MODIFY) && (
+              <button
+                type="button"
+                className="secondary-button mt-4 inline-flex w-full items-center justify-center gap-2"
+                onClick={() => setMsg91ConnectOpen(true)}
+              >
+                <FiLink aria-hidden="true" />
+                Connect MSG91
+              </button>
+            )}
           </div>
         </div>
 
@@ -532,6 +547,76 @@ export default function CompanyConnections() {
 
         <div className="panel mt-6 overflow-hidden">
           <div className="border-b border-slate-100 px-5 py-4">
+            <h2 className="text-sm font-bold text-slate-950">SMS connections</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              MSG91 Broadcast connections use an approved Flow and SMS Header.
+            </p>
+          </div>
+
+          {loading ? (
+            <p className="px-5 py-10 text-center text-sm text-slate-500">Loading connections…</p>
+          ) : smsConnections.length === 0 ? (
+            <div className="px-5 py-12 text-center">
+              <FiSmartphone className="mx-auto text-slate-300" size={28} />
+              <p className="mt-3 text-sm font-semibold text-slate-800">No SMS provider connected</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Connect MSG91 above to enable SMS Broadcast.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {smsConnections.map((connection) => (
+                <div
+                  key={connection.id}
+                  className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-bold text-slate-950">{connection.name}</p>
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${statusClass[connection.status]}`}>
+                        {connection.status}
+                      </span>
+                      <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-700">
+                        {providerLabel(connection.providerType)}
+                      </span>
+                      <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-700">
+                        Broadcast
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Flow {connection.externalAccountId ?? 'Configured'}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {(senders[connection.id] ?? []).map((sender) => (
+                        <span
+                          key={sender.id}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700"
+                        >
+                          <FiCheckCircle className="text-emerald-500" aria-hidden="true" />
+                          {sender.value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  {connection.status !== 'DISCONNECTED' && can(PERMISSIONS.BROADCAST_MODIFY) && (
+                    <button
+                      type="button"
+                      className="secondary-button inline-flex shrink-0 items-center gap-2 text-rose-600"
+                      disabled={workingConnectionId === connection.id}
+                      onClick={() => setDisconnectTarget(connection)}
+                    >
+                      <FiSlash aria-hidden="true" />
+                      Disconnect
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="panel mt-6 overflow-hidden">
+          <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="text-sm font-bold text-slate-950">WhatsApp Business accounts</h2>
             <p className="mt-1 text-xs text-slate-500">
               Each connected WABA is stored as a channel connection and its phone number as a sender
@@ -625,9 +710,23 @@ export default function CompanyConnections() {
             setBroadcastEmailPickerOpen(false)
             if (provider === 'AMAZON_SES') {
               setSesConnectOpen(true)
-            } else {
+            } else if (provider === 'SENDGRID') {
               setSendGridConnectOpen(true)
+            } else {
+              setAzureEmailConnectOpen(true)
             }
+          }}
+        />
+      )}
+
+      {azureEmailConnectOpen && selectedCompany && (
+        <AzureEmailConnectModal
+          companyId={selectedCompany.companyId}
+          onClose={() => setAzureEmailConnectOpen(false)}
+          onConnected={(sender) => {
+            setAzureEmailConnectOpen(false)
+            setNotice(`Connected Azure Email sender ${sender.fromAddress}`)
+            void loadConnections()
           }}
         />
       )}
@@ -651,6 +750,18 @@ export default function CompanyConnections() {
           onConnected={(sender) => {
             setSendGridConnectOpen(false)
             setNotice(`Connected SendGrid sender ${sender.fromAddress}`)
+            void loadConnections()
+          }}
+        />
+      )}
+
+      {msg91ConnectOpen && selectedCompany && (
+        <Msg91ConnectModal
+          companyId={selectedCompany.companyId}
+          onClose={() => setMsg91ConnectOpen(false)}
+          onConnected={(sender) => {
+            setMsg91ConnectOpen(false)
+            setNotice(`Connected MSG91 sender ${sender.fromAddress}`)
             void loadConnections()
           }}
         />
