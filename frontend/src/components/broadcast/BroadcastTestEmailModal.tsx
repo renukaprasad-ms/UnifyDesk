@@ -3,6 +3,7 @@ import { FiCheckCircle, FiMail, FiSend, FiX } from 'react-icons/fi'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import type { BroadcastSender } from '../../features/broadcast/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { useSnackbar } from '../feedback/SnackbarProvider'
 
 type Props = {
   companyId: string
@@ -17,19 +18,18 @@ export default function BroadcastTestEmailModal({
   onClose,
   onDone,
 }: Props) {
+  const snackbar = useSnackbar()
   const [recipient, setRecipient] = useState('')
   const [subject, setSubject] = useState('Messaging test email')
   const [bodyText, setBodyText] = useState(
     'This is a test email from Messaging. Your Broadcast provider connection is working.',
   )
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [acceptedRecipient, setAcceptedRecipient] = useState<string | null>(null)
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setBusy(true)
-    setError(null)
     try {
       const result = await broadcastApi.sendTestEmail(companyId, sender.id, {
         recipient: recipient.trim(),
@@ -38,7 +38,7 @@ export default function BroadcastTestEmailModal({
       })
       setAcceptedRecipient(result.recipient)
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to send test email'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to send test email'))
     } finally {
       setBusy(false)
     }
@@ -92,11 +92,6 @@ export default function BroadcastTestEmailModal({
           </div>
         ) : (
           <form className="mt-5" onSubmit={submit}>
-            {error && (
-              <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                {error}
-              </div>
-            )}
 
             <label className="block text-xs font-semibold text-slate-700">
               Send test to
