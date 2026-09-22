@@ -13,6 +13,7 @@ import DeleteChannelDataModal from '../../components/channel/DeleteChannelDataMo
 import DisconnectChannelModal from '../../components/channel/DisconnectChannelModal'
 import EmailProviderPicker from '../../components/email/EmailProviderPicker'
 import AmazonSesConnectModal from '../../components/broadcast/AmazonSesConnectModal'
+import SendGridConnectModal from '../../components/broadcast/SendGridConnectModal'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
@@ -35,6 +36,8 @@ const providerLabel = (providerType: ChannelConnection['providerType']) => {
   if (providerType === 'IMAP_SMTP') return 'IMAP + SMTP'
   if (providerType === 'SMTP') return 'SMTP'
   if (providerType === 'AMAZON_SES') return 'AMAZON SES'
+  if (providerType === 'SENDGRID') return 'SENDGRID'
+  if (providerType === 'AZURE_EMAIL') return 'AZURE EMAIL'
   return providerType
 }
 
@@ -55,6 +58,7 @@ export default function CompanyConnections() {
   const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState(false)
   const [sesConnectOpen, setSesConnectOpen] = useState(false)
+  const [sendGridConnectOpen, setSendGridConnectOpen] = useState(false)
   const [workingConnectionId, setWorkingConnectionId] = useState<string | null>(null)
   const [disconnectTarget, setDisconnectTarget] = useState<ChannelConnection | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ChannelConnection | null>(null)
@@ -131,6 +135,10 @@ export default function CompanyConnections() {
     const connectProvider = url.searchParams.get('connect')
     if (connectProvider === 'amazon-ses' && can(PERMISSIONS.BROADCAST_MODIFY)) {
       setSesConnectOpen(true)
+      url.searchParams.delete('connect')
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+    } else if (connectProvider === 'sendgrid' && can(PERMISSIONS.BROADCAST_MODIFY)) {
+      setSendGridConnectOpen(true)
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     }
@@ -360,7 +368,7 @@ export default function CompanyConnections() {
             <h2 className="mt-4 text-base font-bold text-slate-950">Email</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">
               Inbox accounts use Gmail, Microsoft 365 or IMAP + SMTP. Broadcast senders use
-              high-volume providers such as Amazon SES.
+              high-volume providers such as Amazon SES and SendGrid.
             </p>
             <div className="mt-4 grid gap-2">
               {can(PERMISSIONS.EMAIL_CONNECT) && (
@@ -376,14 +384,24 @@ export default function CompanyConnections() {
                 />
               )}
               {can(PERMISSIONS.BROADCAST_MODIFY) && (
-                <button
-                  type="button"
-                  className="secondary-button inline-flex w-full items-center justify-center gap-2"
-                  onClick={() => setSesConnectOpen(true)}
-                >
-                  <FiLink aria-hidden="true" />
-                  Connect Amazon SES
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="secondary-button inline-flex w-full items-center justify-center gap-2"
+                    onClick={() => setSesConnectOpen(true)}
+                  >
+                    <FiLink aria-hidden="true" />
+                    Connect Amazon SES
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button inline-flex w-full items-center justify-center gap-2"
+                    onClick={() => setSendGridConnectOpen(true)}
+                  >
+                    <FiLink aria-hidden="true" />
+                    Connect SendGrid
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -425,7 +443,7 @@ export default function CompanyConnections() {
                 No email connection yet
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Connect an Inbox mailbox or an Amazon SES Broadcast sender above.
+                Connect an Inbox mailbox or a Broadcast email provider above.
               </p>
             </div>
           ) : (
@@ -604,6 +622,18 @@ export default function CompanyConnections() {
           onConnected={(sender) => {
             setSesConnectOpen(false)
             setNotice(`Connected Amazon SES sender ${sender.fromAddress}`)
+            void loadConnections()
+          }}
+        />
+      )}
+
+      {sendGridConnectOpen && selectedCompany && (
+        <SendGridConnectModal
+          companyId={selectedCompany.companyId}
+          onClose={() => setSendGridConnectOpen(false)}
+          onConnected={(sender) => {
+            setSendGridConnectOpen(false)
+            setNotice(`Connected SendGrid sender ${sender.fromAddress}`)
             void loadConnections()
           }}
         />
