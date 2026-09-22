@@ -19,6 +19,7 @@ import BroadcastEmailProviderPickerModal, {
 } from '../../components/broadcast/BroadcastEmailProviderPickerModal'
 import SendGridConnectModal from '../../components/broadcast/SendGridConnectModal'
 import Msg91ConnectModal from '../../components/broadcast/Msg91ConnectModal'
+import Msg91SmsSetupGuideModal from '../../components/broadcast/Msg91SmsSetupGuideModal'
 import Msg91EmailConnectModal from '../../components/broadcast/Msg91EmailConnectModal'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import type { BroadcastSetupSession } from '../../features/broadcast/types'
@@ -72,8 +73,10 @@ export default function CompanyConnections() {
   const [sendGridConnectOpen, setSendGridConnectOpen] = useState(false)
   const [azureEmailConnectOpen, setAzureEmailConnectOpen] = useState(false)
   const [msg91ConnectOpen, setMsg91ConnectOpen] = useState(false)
+  const [msg91SmsSetupOpen, setMsg91SmsSetupOpen] = useState(false)
   const [msg91EmailConnectOpen, setMsg91EmailConnectOpen] = useState(false)
   const [activeEmailSetup, setActiveEmailSetup] = useState<BroadcastSetupSession | null>(null)
+  const [activeSmsSetup, setActiveSmsSetup] = useState<BroadcastSetupSession | null>(null)
   const [workingConnectionId, setWorkingConnectionId] = useState<string | null>(null)
   const [disconnectTarget, setDisconnectTarget] = useState<ChannelConnection | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ChannelConnection | null>(null)
@@ -131,14 +134,19 @@ export default function CompanyConnections() {
   const loadBroadcastSetup = async () => {
     if (!selectedCompany || !can(PERMISSIONS.BROADCAST_READ)) {
       setActiveEmailSetup(null)
+      setActiveSmsSetup(null)
       return
     }
     try {
-      setActiveEmailSetup(
-        await broadcastApi.activeSetupSession(selectedCompany.companyId, 'EMAIL'),
-      )
+      const [emailSetup, smsSetup] = await Promise.all([
+        broadcastApi.activeSetupSession(selectedCompany.companyId, 'EMAIL'),
+        broadcastApi.activeSetupSession(selectedCompany.companyId, 'SMS'),
+      ])
+      setActiveEmailSetup(emailSetup)
+      setActiveSmsSetup(smsSetup)
     } catch {
       setActiveEmailSetup(null)
+      setActiveSmsSetup(null)
     }
   }
 
@@ -181,10 +189,12 @@ export default function CompanyConnections() {
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     } else if (
-      (connectProvider === 'msg91' || connectProvider === 'msg91-sms') &&
+      (connectProvider === 'msg91' ||
+        connectProvider === 'msg91-sms' ||
+        connectProvider === 'broadcast-sms') &&
       can(PERMISSIONS.BROADCAST_MODIFY)
     ) {
-      setMsg91ConnectOpen(true)
+      setMsg91SmsSetupOpen(true)
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     } else if (connectProvider === 'msg91-email' && can(PERMISSIONS.BROADCAST_MODIFY)) {
@@ -473,10 +483,10 @@ export default function CompanyConnections() {
               <button
                 type="button"
                 className="secondary-button mt-4 inline-flex w-full items-center justify-center gap-2"
-                onClick={() => setMsg91ConnectOpen(true)}
+                onClick={() => setMsg91SmsSetupOpen(true)}
               >
                 <FiLink aria-hidden="true" />
-                Connect MSG91
+                {activeSmsSetup ? 'Continue MSG91 SMS setup' : 'Connect MSG91 SMS'}
               </button>
             )}
           </div>
@@ -816,6 +826,20 @@ export default function CompanyConnections() {
         />
       )}
 
+      {msg91SmsSetupOpen && selectedCompany && (
+        <Msg91SmsSetupGuideModal
+          companyId={selectedCompany.companyId}
+          onClose={() => {
+            setMsg91SmsSetupOpen(false)
+            void loadBroadcastSetup()
+          }}
+          onContinue={() => {
+            setMsg91SmsSetupOpen(false)
+            setMsg91ConnectOpen(true)
+          }}
+        />
+      )}
+
       {msg91ConnectOpen && selectedCompany && (
         <Msg91ConnectModal
           companyId={selectedCompany.companyId}
@@ -823,6 +847,7 @@ export default function CompanyConnections() {
           onConnected={(sender) => {
             setMsg91ConnectOpen(false)
             setNotice(`Connected MSG91 SMS sender ${sender.fromAddress}`)
+            setActiveSmsSetup(null)
             void loadConnections()
           }}
         />
