@@ -16,7 +16,6 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
@@ -103,10 +102,9 @@ public class S3StorageProvider implements StorageProvider {
       client()
           .copyObject(
               CopyObjectRequest.builder()
-                  .sourceBucket(bucket)
-                  .sourceKey(sourceObjectKey)
-                  .destinationBucket(bucket)
-                  .destinationKey(destinationObjectKey)
+                  .bucket(bucket)
+                  .key(destinationObjectKey)
+                  .copySource(encodeCopySource(bucket, sourceObjectKey))
                   .build());
       delete(bucket, sourceObjectKey);
     } catch (S3Exception exception) {
@@ -212,6 +210,12 @@ public class S3StorageProvider implements StorageProvider {
         || !StringUtils.hasText(properties.getS3().getRegion())) {
       throw new MediaException(HttpStatus.SERVICE_UNAVAILABLE, "MEDIA_STORAGE_NOT_CONFIGURED");
     }
+  }
+
+  private String encodeCopySource(String bucket, String objectKey) {
+    return URLEncoder.encode(bucket + "/" + objectKey, StandardCharsets.UTF_8)
+        .replace("+", "%20")
+        .replace("%2F", "/");
   }
 
   private MediaException storageException(S3Exception exception) {
