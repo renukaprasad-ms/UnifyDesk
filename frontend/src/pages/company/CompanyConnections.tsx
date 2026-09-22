@@ -38,6 +38,7 @@ import type {
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 
@@ -63,6 +64,7 @@ const statusClass: Record<ChannelConnection['status'], string> = {
 export default function CompanyConnections() {
   const selectedCompany = useAppSelector(selectSelectedCompany)
   const { can } = useIam()
+  const snackbar = useSnackbar()
   const [connections, setConnections] = useState<ChannelConnection[]>([])
   const [senders, setSenders] = useState<Record<string, SenderIdentity[]>>({})
   const [signupConfig, setSignupConfig] = useState<MetaWhatsAppSignupConfig | null>(null)
@@ -82,8 +84,6 @@ export default function CompanyConnections() {
   const [workingConnectionId, setWorkingConnectionId] = useState<string | null>(null)
   const [disconnectTarget, setDisconnectTarget] = useState<ChannelConnection | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ChannelConnection | null>(null)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
 
   const whatsAppConnections = useMemo(
     () => connections.filter((connection) => connection.channelType === 'WHATSAPP'),
@@ -101,7 +101,6 @@ export default function CompanyConnections() {
   const loadConnections = async () => {
     if (!selectedCompany) return
     setLoading(true)
-    setError('')
     try {
       const visible = await channelApi.list(selectedCompany.companyId)
       setConnections(visible)
@@ -127,7 +126,7 @@ export default function CompanyConnections() {
       )
       setSenders(Object.fromEntries(senderEntries))
     } catch (loadError) {
-      setError(apiErrorMessage(loadError, 'Unable to load channel connections'))
+      snackbar.error(apiErrorMessage(loadError, 'Unable to load channel connections'))
     } finally {
       setLoading(false)
     }
@@ -210,22 +209,22 @@ export default function CompanyConnections() {
 
     if (gmailResult) {
       if (gmailResult === 'connected') {
-        setNotice('Gmail connected successfully')
+        snackbar.success('Gmail connected successfully')
       } else if (gmailResult === 'cancelled') {
-        setNotice('Gmail connection was cancelled')
+        snackbar.info('Gmail connection was cancelled')
       } else {
-        setError('Unable to connect Gmail. Please try again.')
+        snackbar.error('Unable to connect Gmail. Please try again.')
       }
       url.searchParams.delete('gmail')
     }
 
     if (microsoftResult) {
       if (microsoftResult === 'connected') {
-        setNotice('Microsoft 365 connected successfully')
+        snackbar.success('Microsoft 365 connected successfully')
       } else if (microsoftResult === 'cancelled') {
-        setNotice('Microsoft 365 connection was cancelled')
+        snackbar.info('Microsoft 365 connection was cancelled')
       } else {
-        setError('Unable to connect Microsoft 365. Please try again.')
+        snackbar.error('Unable to connect Microsoft 365. Please try again.')
       }
       url.searchParams.delete('microsoft')
     }
@@ -240,22 +239,20 @@ export default function CompanyConnections() {
     if (!selectedCompany || !signupConfig || !metaReady || connecting) return
 
     setConnecting(true)
-    setError('')
-    setNotice('')
 
     launchMetaWhatsAppSignup(signupConfig)
       .then((result) =>
         metaWhatsAppApi.complete(selectedCompany.companyId, signupConfig.state, result),
       )
       .then(async (connection) => {
-        setNotice(
+        snackbar.success(
           `Connected ${connection.phoneNumber.displayPhoneNumber} to ${connection.wabaName}`,
         )
         await loadConnections()
         await prepareMeta()
       })
       .catch((connectError) => {
-        setError(apiErrorMessage(connectError, 'Unable to connect WhatsApp'))
+        snackbar.error(apiErrorMessage(connectError, 'Unable to connect WhatsApp'))
         void prepareMeta()
       })
       .finally(() => setConnecting(false))
@@ -268,8 +265,6 @@ export default function CompanyConnections() {
     if (!selectedCompany) return
 
     setWorkingConnectionId(connection.id)
-    setError('')
-    setNotice('')
     try {
       if (connection.providerType === 'GMAIL') {
         await gmailApi.disconnect(selectedCompany.companyId, connection.id, dataPolicy)
@@ -279,7 +274,7 @@ export default function CompanyConnections() {
         await channelApi.disconnect(selectedCompany.companyId, connection.id, dataPolicy)
       }
 
-      setNotice(
+      snackbar.success(
         dataPolicy === 'DELETE_NOW'
           ? 'Channel disconnected. Permanent deletion of imported data is queued.'
           : 'Channel disconnected. Imported data will be kept for 7 days unless you reconnect or delete it sooner.',
@@ -288,7 +283,7 @@ export default function CompanyConnections() {
       await loadConnections()
       if (connection.providerType === 'META_WHATSAPP') await prepareMeta()
     } catch (disconnectError) {
-      setError(apiErrorMessage(disconnectError, 'Unable to disconnect channel'))
+      snackbar.error(apiErrorMessage(disconnectError, 'Unable to disconnect channel'))
     } finally {
       setWorkingConnectionId(null)
     }
@@ -297,15 +292,13 @@ export default function CompanyConnections() {
   const deleteDisconnectedDataNow = async (connection: ChannelConnection) => {
     if (!selectedCompany || connection.status !== 'DISCONNECTED') return
     setWorkingConnectionId(connection.id)
-    setError('')
-    setNotice('')
     try {
       await channelApi.disconnect(selectedCompany.companyId, connection.id, 'DELETE_NOW')
-      setNotice('Permanent deletion of the disconnected channel data is queued.')
+      snackbar.success('Permanent deletion of the disconnected channel data is queued.')
       setDeleteTarget(null)
       await loadConnections()
     } catch (deleteError) {
-      setError(apiErrorMessage(deleteError, 'Unable to queue channel data deletion'))
+      snackbar.error(apiErrorMessage(deleteError, 'Unable to queue channel data deletion'))
     } finally {
       setWorkingConnectionId(null)
     }
@@ -314,8 +307,6 @@ export default function CompanyConnections() {
   const reconnectEmail = async (connection: ChannelConnection) => {
     if (!selectedCompany || workingConnectionId) return
     setWorkingConnectionId(connection.id)
-    setError('')
-    setNotice('')
     try {
       if (connection.providerType === 'GMAIL') {
         const authorization = await gmailApi.authorize(selectedCompany.companyId)
@@ -327,9 +318,9 @@ export default function CompanyConnections() {
         window.location.assign(authorization.authorizationUrl)
         return
       }
-      setNotice('Use Connect email above and choose Other email to reconnect this mailbox.')
+      snackbar.info('Use Connect email above and choose Other email to reconnect this mailbox.')
     } catch (reconnectError) {
-      setError(apiErrorMessage(reconnectError, 'Unable to reconnect email account'))
+      snackbar.error(apiErrorMessage(reconnectError, 'Unable to reconnect email account'))
     } finally {
       setWorkingConnectionId(null)
     }
@@ -369,18 +360,6 @@ export default function CompanyConnections() {
             Refresh
           </button>
         </header>
-
-        {(error || notice) && (
-          <div
-            className={`mt-6 rounded-xl border px-4 py-3 text-sm font-medium ${
-              error
-                ? 'border-rose-200 bg-rose-50 text-rose-700'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-            }`}
-          >
-            {error || notice}
-          </div>
-        )}
 
         <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="panel p-5">
@@ -438,9 +417,9 @@ export default function CompanyConnections() {
                   companyId={selectedCompany.companyId}
                   label="Connect inbox email"
                   className="primary-button inline-flex w-full items-center justify-center gap-2"
-                  onError={setError}
+                  onError={(message) => snackbar.error(message)}
                   onConnected={(connection) => {
-                    setNotice(`Connected ${connection.email}`)
+                    snackbar.success(`Connected ${connection.email}`)
                     void loadConnections()
                   }}
                 />
@@ -782,7 +761,7 @@ export default function CompanyConnections() {
           onClose={() => setMsg91EmailConnectOpen(false)}
           onConnected={(sender) => {
             setMsg91EmailConnectOpen(false)
-            setNotice(`Connected MSG91 Email sender ${sender.fromAddress}`)
+            snackbar.success(`Connected MSG91 Email sender ${sender.fromAddress}`)
             setActiveEmailSetup(null)
             setTestEmailSender(sender)
             void loadConnections()
@@ -796,7 +775,7 @@ export default function CompanyConnections() {
           onClose={() => setAzureEmailConnectOpen(false)}
           onConnected={(sender) => {
             setAzureEmailConnectOpen(false)
-            setNotice(`Connected Azure Email sender ${sender.fromAddress}`)
+            snackbar.success(`Connected Azure Email sender ${sender.fromAddress}`)
             setActiveEmailSetup(null)
             setTestEmailSender(sender)
             void loadConnections()
@@ -810,7 +789,7 @@ export default function CompanyConnections() {
           onClose={() => setSesConnectOpen(false)}
           onConnected={(sender) => {
             setSesConnectOpen(false)
-            setNotice(`Connected Amazon SES sender ${sender.fromAddress}`)
+            snackbar.success(`Connected Amazon SES sender ${sender.fromAddress}`)
             setActiveEmailSetup(null)
             setTestEmailSender(sender)
             void loadConnections()
@@ -824,7 +803,7 @@ export default function CompanyConnections() {
           onClose={() => setSendGridConnectOpen(false)}
           onConnected={(sender) => {
             setSendGridConnectOpen(false)
-            setNotice(`Connected SendGrid sender ${sender.fromAddress}`)
+            snackbar.success(`Connected SendGrid sender ${sender.fromAddress}`)
             setActiveEmailSetup(null)
             setTestEmailSender(sender)
             void loadConnections()
@@ -852,7 +831,7 @@ export default function CompanyConnections() {
           onClose={() => setMsg91ConnectOpen(false)}
           onConnected={(sender) => {
             setMsg91ConnectOpen(false)
-            setNotice(`Connected MSG91 SMS sender ${sender.fromAddress}`)
+            snackbar.success(`Connected MSG91 SMS sender ${sender.fromAddress}`)
             setActiveSmsSetup(null)
             void loadConnections()
           }}
@@ -866,7 +845,7 @@ export default function CompanyConnections() {
           onClose={() => setTestEmailSender(null)}
           onDone={(recipient) => {
             setTestEmailSender(null)
-            setNotice(`Test email accepted for ${recipient}`)
+            snackbar.success(`Test email accepted for ${recipient}`)
           }}
         />
       )}
