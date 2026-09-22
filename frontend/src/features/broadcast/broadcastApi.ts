@@ -12,6 +12,7 @@ import type {
   BroadcastSender,
   ConnectAmazonSesInput,
   ConnectAzureEmailInput,
+  ConnectMsg91EmailInput,
   ConnectMsg91Input,
   ConnectSendGridInput,
   CreateBroadcastGroupInput,
@@ -58,7 +59,15 @@ export const broadcastApi = {
 
   async connectMsg91(companyId: string, input: ConnectMsg91Input) {
     const response = await apiClient.post<ApiResponse<BroadcastSender>>(
-      `/api/v1/companies/${companyId}/broadcast/senders/msg91`,
+      `/api/v1/companies/${companyId}/broadcast/senders/msg91-sms`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async connectMsg91Email(companyId: string, input: ConnectMsg91EmailInput) {
+    const response = await apiClient.post<ApiResponse<BroadcastSender>>(
+      `/api/v1/companies/${companyId}/broadcast/senders/msg91-email`,
       input,
     )
     return unwrap(response.data)
