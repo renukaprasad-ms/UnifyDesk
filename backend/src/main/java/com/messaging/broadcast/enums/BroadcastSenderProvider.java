@@ -12,22 +12,34 @@ public enum BroadcastSenderProvider {
   AMAZON_SES,
   AZURE_EMAIL,
   SENDGRID,
-  MSG91,
+  MSG91_EMAIL,
+  MSG91_SMS,
   GMAIL,
   MICROSOFT,
   IMAP_SMTP,
   SMTP;
 
   public ChannelType channelType() {
-    return this == MSG91 ? ChannelType.SMS : ChannelType.EMAIL;
+    return switch (this) {
+      case MSG91_SMS -> ChannelType.SMS;
+      case AMAZON_SES, AZURE_EMAIL, SENDGRID, MSG91_EMAIL, GMAIL, MICROSOFT, IMAP_SMTP, SMTP ->
+          ChannelType.EMAIL;
+    };
   }
 
   public boolean isBroadcastProvider() {
-    return this == AMAZON_SES || this == AZURE_EMAIL || this == SENDGRID || this == MSG91;
+    return this == AMAZON_SES
+        || this == AZURE_EMAIL
+        || this == SENDGRID
+        || this == MSG91_EMAIL
+        || this == MSG91_SMS;
   }
 
   public boolean isBulkProvider() {
-    return this == AMAZON_SES || this == AZURE_EMAIL || this == SENDGRID;
+    return this == AMAZON_SES
+        || this == AZURE_EMAIL
+        || this == SENDGRID
+        || this == MSG91_EMAIL;
   }
 
   public boolean supports(ChannelType channelType) {
