@@ -84,7 +84,8 @@ const identityFallback = (connection: ChannelConnection) =>
 const broadcastProviderLabel = (provider: BroadcastSender['provider']) => {
   if (provider === 'AMAZON_SES') return 'Amazon SES'
   if (provider === 'SENDGRID') return 'SendGrid'
-  return 'Azure Email'
+  if (provider === 'AZURE_EMAIL') return 'Azure Email'
+  return 'MSG91'
 }
 
 const emailProviderIcon = (providerType: string) => {
@@ -135,7 +136,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       : localConnections
   ).filter((connection) => connection.status === 'ACTIVE')
   const loading =
-    broadcastMode && channelType === 'EMAIL'
+    broadcastMode && channelType !== 'WHATSAPP'
       ? broadcastSenderLoading
       : channelType === 'EMAIL'
         ? inbox.connectionsCompanyId === companyId && inbox.connectionsStatus === 'loading'
@@ -231,7 +232,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   }, [broadcastMode, channelType, companyId, meta.label])
 
   useEffect(() => {
-    if (!companyId || !broadcastMode || channelType !== 'EMAIL') {
+    if (!companyId || !broadcastMode || channelType === 'WHATSAPP') {
       setBroadcastSenders([])
       setBroadcastSenderLoading(false)
       return
@@ -281,21 +282,31 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   }, [companyId, dispatch, emailMode, selectedConnectionId, selectedFolder])
 
   const identities = useMemo<IdentityItem[]>(() => {
-    if (broadcastMode && channelType === 'EMAIL') {
+    if (broadcastMode && channelType !== 'WHATSAPP') {
       return broadcastSenders
-        .filter((sender) => sender.status === 'ACTIVE' && sender.sendingEnabled)
+        .filter(
+          (sender) =>
+            sender.status === 'ACTIVE' &&
+            sender.sendingEnabled &&
+            (channelType === 'SMS'
+              ? sender.provider === 'MSG91'
+              : sender.provider !== 'MSG91'),
+        )
         .map((sender) => ({
           connectionId: sender.channelConnectionId,
           providerType: sender.provider,
           senderId: sender.id,
           label: sender.fromAddress,
-          secondary: `${broadcastProviderLabel(sender.provider)} · ${sender.region}${
-            sender.maxSendRate ? ` · ${sender.maxSendRate}/sec` : ''
-          }${
-            sender.provider === 'AMAZON_SES' && !sender.productionAccessEnabled
-              ? ' · Sandbox'
-              : ''
-          }`,
+          secondary:
+            sender.provider === 'MSG91'
+              ? `MSG91 · ${sender.connectionName}`
+              : `${broadcastProviderLabel(sender.provider)} · ${sender.region}${
+                  sender.maxSendRate ? ` · ${sender.maxSendRate}/sec` : ''
+                }${
+                  sender.provider === 'AMAZON_SES' && !sender.productionAccessEnabled
+                    ? ' · Sandbox'
+                    : ''
+                }`,
         }))
     }
 
@@ -466,7 +477,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   }
 
   const createBroadcastGroup = () => {
-    if (channelType !== 'EMAIL') return
+    if (channelType === 'WHATSAPP') return
     const params = new URLSearchParams(location.search)
     params.set('newGroup', '1')
     params.delete('broadcastId')
@@ -566,7 +577,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         </span>
       </div>
 
-      {(!broadcastMode || channelType === 'EMAIL') && (
+      {(!broadcastMode || channelType !== 'WHATSAPP') && (
       <div className="mt-4">
         <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
           {broadcastMode ? 'Broadcast account' : channelType === 'EMAIL' ? 'Email account' : 'Sender'}
@@ -576,7 +587,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           <button
             type="button"
             className="workspace-switcher"
-            disabled={loading || identities.length === 0}
+            disabled={loading || (!broadcastMode && identities.length === 0)}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((current) => !current)}
@@ -703,9 +714,13 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                         </button>
                         <button
                           type="button"
-                          className="workspace-menu-item justify-start opacity-60"
+                          className="workspace-menu-item justify-start"
                           role="menuitem"
-                          disabled
+                          onClick={() => {
+                            setMenuOpen(false)
+                            navigate('/company/connections?connect=azure-email')
+                            onNavigate()
+                          }}
                         >
                           <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
                             <FiGrid aria-hidden="true" />
@@ -715,7 +730,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                               Azure Email
                             </span>
                             <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
-                              Backend connection flow next
+                              Azure Communication Services Email
                             </span>
                           </span>
                         </button>
@@ -769,6 +784,39 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                   )}
                 </div>
               )}
+
+              {channelType === 'SMS' &&
+                broadcastMode &&
+                companyId &&
+                can(PERMISSIONS.BROADCAST_MODIFY) && (
+                  <div className="border-t border-slate-100 pt-1">
+                    <div className="px-3 pb-1 pt-2 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                      Connect SMS provider
+                    </div>
+                    <button
+                      type="button"
+                      className="workspace-menu-item justify-start"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false)
+                        navigate('/company/connections?connect=msg91')
+                        onNavigate()
+                      }}
+                    >
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
+                        <FiSmartphone aria-hidden="true" />
+                      </span>
+                      <span className="text-left">
+                        <span className="block text-[12px] font-semibold text-slate-800">
+                          MSG91
+                        </span>
+                        <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                          Flow-based SMS Broadcast
+                        </span>
+                      </span>
+                    </button>
+                  </div>
+                )}
             </div>
           )}
         </div>
@@ -784,7 +832,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           <button
             type="button"
             className="primary-button min-w-0 flex-1 gap-2"
-            disabled={channelType !== 'EMAIL' || !can(PERMISSIONS.BROADCAST_CREATE)}
+            disabled={channelType === 'WHATSAPP' || !can(PERMISSIONS.BROADCAST_CREATE)}
             onClick={createBroadcastGroup}
           >
             <FiPlus aria-hidden="true" />
