@@ -161,24 +161,27 @@ export default function TemplateLibrary() {
   }
 
   return (
-    <section className="page-container">
-      <div className="page-header">
-        <div>
-          <p className="eyebrow">CONTENT</p>
-          <h1 className="page-title">Templates</h1>
-          <p className="page-subtitle">
-            Reusable content for Email, WhatsApp and SMS. Provider approval remains separate from your local template library.
-          </p>
-        </div>
-        {can(PERMISSIONS.TEMPLATE_CREATE) && (
-          <button type="button" className="primary-button inline-flex items-center gap-2" onClick={openCreate}>
-            <FiPlus aria-hidden="true" />
-            New template
-          </button>
-        )}
-      </div>
+    <section className="px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl">
+        <header className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="eyebrow">Content</p>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+              Templates
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+              Reusable content for Email, WhatsApp and SMS. Provider approval remains separate from your local template library.
+            </p>
+          </div>
+          {can(PERMISSIONS.TEMPLATE_CREATE) && (
+            <button type="button" className="primary-button inline-flex items-center gap-2" onClick={openCreate}>
+              <FiPlus aria-hidden="true" />
+              New template
+            </button>
+          )}
+        </header>
 
-      <div className="panel mt-6 overflow-hidden">
+        <div className="panel mt-6 overflow-hidden">
         <div className="flex flex-col gap-4 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap gap-2">
             {tabs.map((tab) => {
@@ -355,6 +358,7 @@ export default function TemplateLibrary() {
             ))}
           </div>
         )}
+        </div>
       </div>
 
       {editorOpen && (
