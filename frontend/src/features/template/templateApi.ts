@@ -48,6 +48,7 @@ export const templateApi = {
         bodyHtml: input.bodyHtml,
         footerText: input.footerText,
         buttons: input.buttons,
+        designJson: input.designJson,
       },
     )
     return unwrap(response.data)
