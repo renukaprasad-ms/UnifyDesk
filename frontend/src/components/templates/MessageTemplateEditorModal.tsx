@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   FiCheck,
   FiMail,
@@ -9,6 +9,8 @@ import {
   FiX,
 } from 'react-icons/fi'
 import type { ChannelType } from '../../features/channel/types'
+import { parseEmailDesign } from '../../features/template/emailDesign'
+import EmailTemplateVisualBuilder from './EmailTemplateVisualBuilder'
 import type {
   MessageTemplate,
   MessageTemplateButton,
@@ -17,6 +19,7 @@ import type {
 } from '../../features/template/types'
 
 type Props = {
+  companyId: string
   channelType: ChannelType
   template?: MessageTemplate | null
   initialCategory?: MessageTemplateCategory
@@ -52,6 +55,7 @@ const channelIcon = (channelType: ChannelType) =>
   )
 
 export default function MessageTemplateEditorModal({
+  companyId,
   channelType,
   template,
   initialCategory,
@@ -74,6 +78,9 @@ export default function MessageTemplateEditorModal({
   const [bodyHtml, setBodyHtml] = useState(template?.bodyHtml ?? '')
   const [footerText, setFooterText] = useState(template?.footerText ?? '')
   const [buttons, setButtons] = useState<MessageTemplateButton[]>(template?.buttons ?? [])
+  const [emailDesign, setEmailDesign] = useState(() =>
+    parseEmailDesign(template?.designJson, template?.bodyText),
+  )
   const [previewMode, setPreviewMode] = useState<'TEXT' | 'HTML'>(
     template?.bodyHtml ? 'HTML' : 'TEXT',
   )
@@ -149,6 +156,14 @@ export default function MessageTemplateEditorModal({
     [renderedBodyHtml],
   )
 
+  const handleEmailGeneratedChange = useCallback(
+    (generatedBodyText: string, generatedBodyHtml: string) => {
+      setBodyText(generatedBodyText)
+      setBodyHtml(generatedBodyHtml)
+    },
+    [],
+  )
+
   const submit = (event: FormEvent) => {
     event.preventDefault()
     onSave(
@@ -163,6 +178,7 @@ export default function MessageTemplateEditorModal({
         bodyHtml: channelType === 'EMAIL' ? bodyHtml.trim() || null : null,
         footerText: channelType === 'WHATSAPP' ? footerText.trim() || null : null,
         buttons: channelType === 'WHATSAPP' ? buttons : [],
+        designJson: channelType === 'EMAIL' ? JSON.stringify(emailDesign) : null,
       },
       activateAfterSave,
     )
@@ -231,7 +247,13 @@ export default function MessageTemplateEditorModal({
           </div>
         )}
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div
+          className={
+            channelType === 'EMAIL'
+              ? 'mt-6'
+              : 'mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]'
+          }
+        >
           <div>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-xs font-semibold text-slate-700">
@@ -301,36 +323,26 @@ export default function MessageTemplateEditorModal({
               </label>
             )}
 
-            <label className="mt-4 block text-xs font-semibold text-slate-700">
-              {channelType === 'SMS' ? 'SMS message' : 'Message body'}
-              <textarea
-                className="form-input mt-2 min-h-44 resize-y"
-                value={bodyText}
-                onChange={(event) => setBodyText(event.target.value)}
-                maxLength={channelType === 'EMAIL' ? 500000 : 4096}
-                required
+            {channelType === 'EMAIL' ? (
+              <EmailTemplateVisualBuilder
+                companyId={companyId}
+                subject={subject}
+                design={emailDesign}
+                onChange={setEmailDesign}
+                onGeneratedChange={handleEmailGeneratedChange}
               />
-              <span className="mt-1 block text-[10px] font-medium text-slate-400">
-                Variables use double braces, for example {'{{first_name}}'}.
-              </span>
-            </label>
-
-            {channelType === 'EMAIL' && (
+            ) : (
               <label className="mt-4 block text-xs font-semibold text-slate-700">
-                HTML version
+                {channelType === 'SMS' ? 'SMS message' : 'Message body'}
                 <textarea
-                  className="form-input mt-2 min-h-36 resize-y font-mono text-[11px]"
-                  value={bodyHtml}
-                  onChange={(event) => {
-                    const value = event.target.value
-                    setBodyHtml(value)
-                    if (value.trim()) setPreviewMode('HTML')
-                  }}
-                  placeholder="<p>Hi {{first_name}},</p>"
-                  maxLength={1000000}
+                  className="form-input mt-2 min-h-44 resize-y"
+                  value={bodyText}
+                  onChange={(event) => setBodyText(event.target.value)}
+                  maxLength={4096}
+                  required
                 />
                 <span className="mt-1 block text-[10px] font-medium text-slate-400">
-                  HTML is rendered safely in the preview and stored with the template. Broadcast delivery still uses the text version until rich-HTML transport support is enabled.
+                  Variables use double braces, for example {'{{first_name}}'}.
                 </span>
               </label>
             )}
@@ -455,6 +467,7 @@ export default function MessageTemplateEditorModal({
             )}
           </div>
 
+          {channelType !== 'EMAIL' && (
           <aside>
             <div className="sticky top-0 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
               <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-400">Preview</p>
@@ -574,6 +587,7 @@ export default function MessageTemplateEditorModal({
               </div>
             </div>
           </aside>
+          )}
         </div>
 
         <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-5">
