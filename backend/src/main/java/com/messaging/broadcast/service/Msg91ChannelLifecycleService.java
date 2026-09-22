@@ -25,7 +25,11 @@ public class Msg91ChannelLifecycleService {
         connectionRepository
             .findByChannelConnectionIdAndCompanyId(channelConnectionId, companyId)
             .orElse(null);
-    if (connection == null || connection.getProvider() != BroadcastSenderProvider.MSG91) return;
+    if (connection == null
+        || (connection.getProvider() != BroadcastSenderProvider.MSG91_SMS
+            && connection.getProvider() != BroadcastSenderProvider.MSG91_EMAIL)) {
+      return;
+    }
 
     connection.setStatus(BroadcastSenderConnectionStatus.DISABLED);
     connection.setSendingEnabled(false);
