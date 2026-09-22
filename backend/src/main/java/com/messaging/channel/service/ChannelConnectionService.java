@@ -45,10 +45,12 @@ public class ChannelConnectionService {
   public ChannelConnectionResponse create(
       Long companyId, Long userId, CreateChannelConnectionRequest request) {
     validateProvider(request.channelType(), request.providerType());
-    if (request.providerType()
-        == com.messaging.channel.enums.ProviderType.AMAZON_SES) {
+    if (request.providerType().supportsCapability(
+        com.messaging.channel.enums.ChannelConnectionCapability.BROADCAST)
+        && !request.providerType().supportsCapability(
+            com.messaging.channel.enums.ChannelConnectionCapability.INBOX)) {
       throw new BadRequestException(
-          "Amazon SES must be connected through the validated Broadcast sender flow");
+          request.providerType() + " must be connected through its validated Broadcast provider flow");
     }
     entitlementService.assertCanCreateConnection(companyId, request.channelType());
 

@@ -11,6 +11,10 @@ import type {
   BroadcastRecipient,
   BroadcastSender,
   ConnectAmazonSesInput,
+  ConnectAzureEmailInput,
+  ConnectMsg91EmailInput,
+  ConnectMsg91Input,
+  ConnectSendGridInput,
   CreateBroadcastGroupInput,
   CreateBroadcastMessageInput,
   Page,
@@ -32,6 +36,38 @@ export const broadcastApi = {
   async connectAmazonSes(companyId: string, input: ConnectAmazonSesInput) {
     const response = await apiClient.post<ApiResponse<BroadcastSender>>(
       `/api/v1/companies/${companyId}/broadcast/senders/amazon-ses`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async connectSendGrid(companyId: string, input: ConnectSendGridInput) {
+    const response = await apiClient.post<ApiResponse<BroadcastSender>>(
+      `/api/v1/companies/${companyId}/broadcast/senders/sendgrid`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async connectAzureEmail(companyId: string, input: ConnectAzureEmailInput) {
+    const response = await apiClient.post<ApiResponse<BroadcastSender>>(
+      `/api/v1/companies/${companyId}/broadcast/senders/azure-email`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async connectMsg91(companyId: string, input: ConnectMsg91Input) {
+    const response = await apiClient.post<ApiResponse<BroadcastSender>>(
+      `/api/v1/companies/${companyId}/broadcast/senders/msg91-sms`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async connectMsg91Email(companyId: string, input: ConnectMsg91EmailInput) {
+    const response = await apiClient.post<ApiResponse<BroadcastSender>>(
+      `/api/v1/companies/${companyId}/broadcast/senders/msg91-email`,
       input,
     )
     return unwrap(response.data)

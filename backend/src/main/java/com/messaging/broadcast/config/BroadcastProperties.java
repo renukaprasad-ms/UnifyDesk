@@ -27,4 +27,9 @@ public class BroadcastProperties {
   private int outboxMaxAttempts = 20;
   private String messageIdDomain = "messaging.renukaprasad.in";
   private double sesMaxPerSecondCap = 1000.0;
+  private double sendGridMaxPerSecondCap = 20.0;
+  private double azureEmailMaxPerSecondCap = 0.5;
+  private double msg91MaxPerSecondCap = 20.0;
+  private double msg91EmailMaxPerSecondCap = 20.0;
+  private double providerMaxPerSecondCap = 1000.0;
 }

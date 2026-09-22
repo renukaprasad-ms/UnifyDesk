@@ -76,12 +76,24 @@ public class BroadcastMemberService {
                 .build()
                 .parse(reader)) {
       Map<String, Integer> headers = parser.getHeaderMap();
-      String emailHeader =
+      String destinationHeader =
           headers.keySet().stream()
-              .filter(name -> "email".equalsIgnoreCase(name) || "destination".equalsIgnoreCase(name))
+              .filter(
+                  name ->
+                      "destination".equalsIgnoreCase(name)
+                          || (group.getChannelType() == ChannelType.EMAIL
+                              && "email".equalsIgnoreCase(name))
+                          || (group.getChannelType() == ChannelType.SMS
+                              && ("phone".equalsIgnoreCase(name)
+                                  || "mobile".equalsIgnoreCase(name)
+                                  || "mobiles".equalsIgnoreCase(name))))
               .findFirst()
               .orElseThrow(
-                  () -> new BadRequestException("CSV must contain an email or destination header"));
+                  () ->
+                      new BadRequestException(
+                          group.getChannelType() == ChannelType.SMS
+                              ? "CSV must contain a phone, mobile or destination header"
+                              : "CSV must contain an email or destination header"));
       String nameHeader =
           headers.keySet().stream()
               .filter(name -> "name".equalsIgnoreCase(name) || "displayName".equalsIgnoreCase(name))
@@ -90,11 +102,11 @@ public class BroadcastMemberService {
 
       for (CSVRecord record : parser) {
         result.processed++;
-        String destination = record.get(emailHeader);
+        String destination = record.get(destinationHeader);
         String displayName = nameHeader == null ? null : record.get(nameHeader);
         Map<String, String> metadata = new LinkedHashMap<>();
         for (String header : headers.keySet()) {
-          if (header.equals(emailHeader) || header.equals(nameHeader)) continue;
+          if (header.equals(destinationHeader) || header.equals(nameHeader)) continue;
           String value = record.isMapped(header) ? record.get(header) : null;
           if (value != null && !value.isBlank()) metadata.put(header, value);
         }
@@ -146,10 +158,14 @@ public class BroadcastMemberService {
 
   private BroadcastMemberChunkWriter.MemberRow row(
       BroadcastGroup group, BroadcastMemberInput input) {
-    if (group.getChannelType() != ChannelType.EMAIL) {
-      throw new BadRequestException("Broadcast member import is currently available for email groups");
-    }
-    String normalized = normalizeEmail(input.destination());
+    String normalized =
+        switch (group.getChannelType()) {
+          case EMAIL -> normalizeEmail(input.destination());
+          case SMS -> normalizePhone(input.destination());
+          case WHATSAPP ->
+              throw new BadRequestException(
+                  "WhatsApp Broadcast member import is not implemented yet");
+        };
     if (normalized == null) return null;
     String displayName =
         input.displayName() == null || input.displayName().isBlank()
@@ -170,6 +186,13 @@ public class BroadcastMemberService {
     } catch (Exception exception) {
       return null;
     }
+  }
+
+  private String normalizePhone(String value) {
+    if (value == null || value.isBlank()) return null;
+    String digits = value.replaceAll("[^0-9]", "");
+    if (digits.length() < 8 || digits.length() > 15) return null;
+    return digits;
   }
 
   private String metadata(Map<String, String> metadata) {

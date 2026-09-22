@@ -1,5 +1,5 @@
 export type ChannelType = 'EMAIL' | 'WHATSAPP' | 'SMS'
-export type ProviderType = 'GMAIL' | 'MICROSOFT' | 'IMAP_SMTP' | 'SMTP' | 'AMAZON_SES' | 'META_WHATSAPP' | 'MSG91'
+export type ProviderType = 'GMAIL' | 'MICROSOFT' | 'IMAP_SMTP' | 'SMTP' | 'AMAZON_SES' | 'AZURE_EMAIL' | 'SENDGRID' | 'META_WHATSAPP' | 'MSG91_EMAIL' | 'MSG91_SMS'
 export type ChannelConnectionStatus = 'PENDING' | 'ACTIVE' | 'ERROR' | 'DISCONNECTED'
 export type ChannelConnectionCapability = 'INBOX' | 'BROADCAST'
 export type DisconnectDataPolicy = 'KEEP_7_DAYS' | 'DELETE_NOW'

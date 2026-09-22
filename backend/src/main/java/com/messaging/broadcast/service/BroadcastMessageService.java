@@ -117,19 +117,17 @@ public class BroadcastMessageService {
   }
 
   private void validateSender(Long companyId, BroadcastGroup group, Long senderId) {
-    if (group.getChannelType() != ChannelType.EMAIL) {
-      throw new BadRequestException("Amazon SES senders are only available for email broadcasts");
-    }
     BroadcastSender sender = senderService.requireActive(companyId, senderId);
-    if (sender.getProvider() != com.messaging.broadcast.enums.BroadcastSenderProvider.AMAZON_SES) {
-      throw new BadRequestException("Amazon SES is currently required for email Broadcast");
+    if (!sender.getProvider().supports(group.getChannelType())) {
+      throw new BadRequestException(
+          "Selected Broadcast sender does not support " + group.getChannelType());
     }
   }
 
   private void requireModernSender(Long companyId, BroadcastMessage message) {
     if (message.getSenderId() == null) {
       throw new BadRequestException(
-          "This legacy draft uses a mailbox sender. Choose an Amazon SES sender before sending.");
+          "This legacy draft uses a mailbox sender. Choose a Broadcast sender before sending.");
     }
     senderService.requireActive(companyId, message.getSenderId());
   }

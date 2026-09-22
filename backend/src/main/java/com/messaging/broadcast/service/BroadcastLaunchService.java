@@ -51,21 +51,23 @@ public class BroadcastLaunchService {
         groupRepository
             .findByIdAndCompanyId(message.getGroupId(), companyId)
             .orElseThrow(() -> new NotFoundException("Broadcast group not found"));
-    if (group.getChannelType() != ChannelType.EMAIL
-        || message.getChannelType() != ChannelType.EMAIL) {
-      throw new BadRequestException("Broadcast execution is currently available for email");
+    if (group.getChannelType() != message.getChannelType()) {
+      throw new BadRequestException("Broadcast group and message channel do not match");
+    }
+    if (group.getChannelType() == ChannelType.WHATSAPP) {
+      throw new BadRequestException("WhatsApp Broadcast execution is not implemented yet");
     }
     if (message.getSenderId() == null) {
       throw new BadRequestException(
-          "Choose an Amazon SES sender before launching this broadcast");
+          "Choose a Broadcast sender before launching this broadcast");
     }
 
     BroadcastSender sender = senderService.requireActive(companyId, message.getSenderId());
     BroadcastSenderConnection senderConnection =
         senderService.requireConnection(companyId, sender.getConnectionId());
-    if (sender.getProvider() != BroadcastSenderProvider.AMAZON_SES
-        || senderConnection.getProvider() != BroadcastSenderProvider.AMAZON_SES) {
-      throw new BadRequestException("New email broadcasts currently require Amazon SES");
+    if (!sender.getProvider().supports(group.getChannelType())
+        || senderConnection.getProvider() != sender.getProvider()) {
+      throw new BadRequestException("Broadcast sender provider is not supported or mismatched");
     }
 
     Long maxMemberId = memberRepository.findMaxActiveMemberId(group.getId());

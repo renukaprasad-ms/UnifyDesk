@@ -59,8 +59,20 @@ public class BroadcastRateLimiter {
   }
 
   double effectiveRate(BroadcastSenderConnection connection) {
+    double cap =
+        switch (connection.getProvider()) {
+          case AMAZON_SES -> properties.getSesMaxPerSecondCap();
+          case SENDGRID -> properties.getSendGridMaxPerSecondCap();
+          case AZURE_EMAIL -> properties.getAzureEmailMaxPerSecondCap();
+          case MSG91_EMAIL -> properties.getMsg91EmailMaxPerSecondCap();
+          case MSG91_SMS -> properties.getMsg91MaxPerSecondCap();
+          default -> properties.getProviderMaxPerSecondCap();
+        };
+    cap = Math.max(0.0, cap);
     double providerRate =
-        connection.getMaxSendRate() == null ? 1.0 : Math.max(0.0, connection.getMaxSendRate());
-    return Math.min(providerRate, Math.max(0.0, properties.getSesMaxPerSecondCap()));
+        connection.getMaxSendRate() == null
+            ? cap
+            : Math.max(0.0, connection.getMaxSendRate());
+    return Math.min(providerRate, cap);
   }
 }

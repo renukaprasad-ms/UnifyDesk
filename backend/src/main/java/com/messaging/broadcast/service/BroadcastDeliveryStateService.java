@@ -60,13 +60,30 @@ public class BroadcastDeliveryStateService {
 
   @Transactional
   public void accepted(AttemptContext context, BroadcastEmailResult result) {
+    accepted(
+        context,
+        result.providerMessageId(),
+        result.internetMessageId(),
+        result.acceptedAt());
+  }
+
+  @Transactional
+  public void accepted(
+      AttemptContext context,
+      String providerMessageId,
+      String internetMessageId,
+      Instant acceptedAt) {
     BroadcastRecipient recipient = requireProcessing(context.recipientId());
     recipient.setStatus(BroadcastRecipientStatus.ACCEPTED_BY_PROVIDER);
-    String providerMessageId = trim(result.providerMessageId());
-    String internetMessageId = trim(result.internetMessageId());
-    if (providerMessageId != null) recipient.setProviderMessageId(providerMessageId);
-    if (internetMessageId != null) recipient.setInternetMessageId(internetMessageId);
-    recipient.setAcceptedAt(result.acceptedAt() == null ? Instant.now() : result.acceptedAt());
+    String normalizedProviderMessageId = trim(providerMessageId);
+    String normalizedInternetMessageId = trim(internetMessageId);
+    if (normalizedProviderMessageId != null) {
+      recipient.setProviderMessageId(normalizedProviderMessageId);
+    }
+    if (normalizedInternetMessageId != null) {
+      recipient.setInternetMessageId(normalizedInternetMessageId);
+    }
+    recipient.setAcceptedAt(acceptedAt == null ? Instant.now() : acceptedAt);
     recipient.setClaimedAt(null);
     recipient.setFailureCode(null);
     recipient.setFailureReason(null);
@@ -74,7 +91,7 @@ public class BroadcastDeliveryStateService {
     completeAttempt(
         context.attemptId(),
         BroadcastAttemptStatus.ACCEPTED,
-        result.providerMessageId(),
+        providerMessageId,
         null,
         null);
     statsService.transition(

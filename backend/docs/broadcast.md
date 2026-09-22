@@ -17,9 +17,12 @@ High-volume Broadcast
     ├── Customer-managed   implemented
     └── Messaging-managed  later
 
+Broadcast email transports
+├── Amazon SES
+└── SendGrid                 implemented in multi-provider phase
+
 Future Broadcast transports
-├── Azure Communication Services Email
-└── SendGrid
+└── Azure Communication Services Email
 ```
 
 Gmail, Microsoft and IMAP/SMTP are not valid senders for new Broadcasts. Historical mailbox-based Broadcast rows remain readable through nullable legacy references.
@@ -219,3 +222,111 @@ Managed SES must add abuse controls, tenant isolation, domain onboarding, reputa
 Azure Communication Services Email and SendGrid should implement the same Broadcast sender/transport contract rather than becoming mailbox `ChannelConnection` providers.
 
 The Broadcast group/run/batch/recipient orchestration should not change when those providers are added.
+
+## SendGrid
+
+SendGrid uses the same `BroadcastSenderConnection -> BroadcastSender -> BroadcastEmailTransport`
+boundary as Amazon SES.
+
+Connect flow:
+
+```text
+Connect SendGrid
+ -> validate API key
+ -> read verified sender identities
+ -> fall back to authenticated domains
+ -> verify exact From address or parent domain
+ -> atomically persist ChannelConnection + BroadcastSenderConnection + sender identity
+```
+
+The API key is encrypted with the existing channel credential cipher. The SendGrid connection stores
+only the selected regional API endpoint (`GLOBAL` or `EU`) and the provider safety-rate snapshot in
+plain connection metadata.
+
+Delivery uses one `POST /v3/mail/send` request per recipient and stores the `X-Message-Id` returned
+with the 202 response. The recipient correlation id is also sent as a SendGrid custom argument so a
+future signed Event Webhook integration can reconcile delivered, bounced, dropped, complaint/open and
+click events without changing the batch execution pipeline.
+
+The default local SendGrid safety ceiling is controlled by
+`BROADCAST_SENDGRID_MAX_PER_SECOND_CAP`. Provider HTTP 429 and 5xx responses are retryable; ambiguous
+network failures remain `UNKNOWN` to avoid accidental duplicate sends.
+
+Signed Event Webhook ingestion is intentionally a separate step because customer-managed SendGrid
+accounts have per-webhook verification keys. Those keys must be stored per provider connection and
+verified before delivery events are allowed to mutate recipient state.
+
+
+## Azure Communication Services Email
+
+Azure Email uses the same email Broadcast transport contract as Amazon SES and SendGrid.
+
+Customer-managed connection fields:
+
+- Azure Communication Services endpoint
+- access key
+- MailFrom address
+- optional display name and Reply-To address
+
+The access key is encrypted with the channel credential cipher. The endpoint is stored as non-secret
+provider configuration. Delivery uses the Azure Communication Services Email Java SDK and stores the
+email send operation id as the provider message id.
+
+The default local safety ceiling is controlled by
+`BROADCAST_AZURE_EMAIL_MAX_PER_SECOND_CAP`. Azure throttling and transient 5xx failures are
+retryable; ambiguous failures remain `UNKNOWN`.
+
+Azure delivery-status reconciliation through Event Grid is a separate callback stage.
+
+## MSG91 Email
+
+MSG91 Email is modeled separately from MSG91 SMS so the generic channel model remains unambiguous:
+
+- `MSG91_EMAIL` -> `ChannelType.EMAIL`
+- `MSG91_SMS` -> `ChannelType.SMS`
+
+Customer-managed MSG91 Email connections store:
+
+- encrypted MSG91 auth key
+- verified sending domain
+- template ID
+- From email and optional display name / Reply-To
+- message-body template variable (defaults to `message`)
+- optional subject template variable
+
+Delivery uses `POST https://control.msg91.com/api/v5/email/send`. The recipient correlation id is
+sent as `CRQID` so provider-side logs or a later callback reconciler can map delivery activity back
+to the immutable Broadcast recipient. The Broadcast body is supplied as a template variable rather
+than replacing the provider template itself.
+
+The default local safety ceiling is controlled by
+`BROADCAST_MSG91_EMAIL_MAX_PER_SECOND_CAP`.
+
+MSG91 requires the sending domain and template to be configured in the MSG91 account. Connection
+creation validates the local domain/from/template configuration and encrypts the auth key; provider
+acceptance is confirmed when the first send is made. Delivery-report reconciliation remains a
+separate callback stage.
+
+## MSG91 SMS
+
+MSG91 extends the Broadcast execution model to `ChannelType.SMS` without routing SMS through the
+email transport abstraction.
+
+Customer-managed connection fields:
+
+- MSG91 auth key
+- Flow ID
+- approved Sender ID / Header
+- Flow variable that receives the Broadcast message body (defaults to `VAR1`)
+- optional route
+
+The auth key is encrypted. Flow configuration is stored as non-secret provider configuration.
+Recipients are normalized to international digits and CSV imports accept `phone`, `mobile`,
+`mobiles`, or `destination` columns.
+
+Delivery uses `POST https://control.msg91.com/api/v5/flow`. The selected Broadcast body is placed
+in the configured Flow variable for each recipient. This is intentionally template/Flow based rather
+than an arbitrary raw-SMS transport so the provider-side approved template remains authoritative.
+
+The default local safety ceiling is controlled by `BROADCAST_MSG91_MAX_PER_SECOND_CAP`.
+MSG91 delivery reports/webhook reconciliation remain a separate callback stage.

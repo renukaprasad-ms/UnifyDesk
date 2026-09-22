@@ -50,6 +50,9 @@ public class BroadcastSenderConnection {
   @Column(name = "encrypted_credentials", columnDefinition = "text")
   private String encryptedCredentials;
 
+  @Column(name = "provider_config_json", columnDefinition = "text")
+  private String providerConfigJson;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 24)
   private BroadcastSenderConnectionStatus status;
