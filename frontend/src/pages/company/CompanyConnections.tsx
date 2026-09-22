@@ -439,7 +439,7 @@ export default function CompanyConnections() {
             </div>
             <h2 className="mt-4 text-base font-bold text-slate-950">SMS</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              Connect MSG91 Flow-based SMS using an approved Sender ID/Header and template.
+              Connect MSG91 SMS using an approved Flow, Sender ID/Header and template.
             </p>
             {can(PERMISSIONS.BROADCAST_MODIFY) && (
               <button
@@ -571,7 +571,7 @@ export default function CompanyConnections() {
               <FiSmartphone className="mx-auto text-slate-300" size={28} />
               <p className="mt-3 text-sm font-semibold text-slate-800">No SMS provider connected</p>
               <p className="mt-1 text-xs text-slate-500">
-                Connect MSG91 above to enable SMS Broadcast.
+                Connect MSG91 SMS above to enable SMS Broadcast.
               </p>
             </div>
           ) : (
@@ -786,7 +786,7 @@ export default function CompanyConnections() {
           onClose={() => setMsg91ConnectOpen(false)}
           onConnected={(sender) => {
             setMsg91ConnectOpen(false)
-            setNotice(`Connected MSG91 sender ${sender.fromAddress}`)
+            setNotice(`Connected MSG91 SMS sender ${sender.fromAddress}`)
             void loadConnections()
           }}
         />
