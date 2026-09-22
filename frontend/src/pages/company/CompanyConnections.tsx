@@ -12,6 +12,7 @@ import ConnectionRetentionNotice from '../../components/channel/ConnectionRetent
 import DeleteChannelDataModal from '../../components/channel/DeleteChannelDataModal'
 import DisconnectChannelModal from '../../components/channel/DisconnectChannelModal'
 import EmailProviderPicker from '../../components/email/EmailProviderPicker'
+import AmazonSesConnectModal from '../../components/broadcast/AmazonSesConnectModal'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
@@ -33,6 +34,7 @@ const providerLabel = (providerType: ChannelConnection['providerType']) => {
   if (providerType === 'MICROSOFT') return 'MICROSOFT 365'
   if (providerType === 'IMAP_SMTP') return 'IMAP + SMTP'
   if (providerType === 'SMTP') return 'SMTP'
+  if (providerType === 'AMAZON_SES') return 'AMAZON SES'
   return providerType
 }
 
@@ -52,6 +54,7 @@ export default function CompanyConnections() {
   const [metaReady, setMetaReady] = useState(false)
   const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState(false)
+  const [sesConnectOpen, setSesConnectOpen] = useState(false)
   const [workingConnectionId, setWorkingConnectionId] = useState<string | null>(null)
   const [disconnectTarget, setDisconnectTarget] = useState<ChannelConnection | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ChannelConnection | null>(null)
@@ -124,6 +127,13 @@ export default function CompanyConnections() {
 
   useEffect(() => {
     const url = new URL(window.location.href)
+    const connectProvider = url.searchParams.get('connect')
+    if (connectProvider === 'amazon-ses') {
+      setSesConnectOpen(true)
+      url.searchParams.delete('connect')
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+    }
+
     const gmailResult = url.searchParams.get('gmail')
     const microsoftResult = url.searchParams.get('microsoft')
 
@@ -348,17 +358,14 @@ export default function CompanyConnections() {
             </div>
             <h2 className="mt-4 text-base font-bold text-slate-950">Email</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              Connect Gmail, Microsoft 365 / Outlook, or any mailbox with IMAP + SMTP.
+              Inbox accounts use Gmail, Microsoft 365 or IMAP + SMTP. Broadcast senders use
+              high-volume providers such as Amazon SES.
             </p>
-            {can(PERMISSIONS.EMAIL_CONNECT) && (
-              <div className="mt-4">
+            <div className="mt-4 grid gap-2">
+              {can(PERMISSIONS.EMAIL_CONNECT) && (
                 <EmailProviderPicker
                   companyId={selectedCompany.companyId}
-                  label={
-                    emailConnections.some((item) => item.status === 'ACTIVE')
-                      ? 'Connect another email'
-                      : 'Connect email'
-                  }
+                  label="Connect inbox email"
                   className="primary-button inline-flex w-full items-center justify-center gap-2"
                   onError={setError}
                   onConnected={(connection) => {
@@ -366,8 +373,18 @@ export default function CompanyConnections() {
                     void loadConnections()
                   }}
                 />
-              </div>
-            )}
+              )}
+              {can(PERMISSIONS.BROADCAST_MODIFY) && (
+                <button
+                  type="button"
+                  className="secondary-button inline-flex w-full items-center justify-center gap-2"
+                  onClick={() => setSesConnectOpen(true)}
+                >
+                  <FiLink aria-hidden="true" />
+                  Connect Amazon SES
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="panel p-5">
@@ -391,10 +408,10 @@ export default function CompanyConnections() {
 
         <div className="panel mt-6 overflow-hidden">
           <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="text-sm font-bold text-slate-950">Email accounts</h2>
+            <h2 className="text-sm font-bold text-slate-950">Email connections</h2>
             <p className="mt-1 text-xs text-slate-500">
-              OAuth tokens and custom mailbox credentials are encrypted on the backend. Every
-              provider uses the same inbox and sender identity model.
+              Inbox and Broadcast providers share the company connection model. Capability badges
+              show where each connection can be used.
             </p>
           </div>
 
@@ -404,10 +421,10 @@ export default function CompanyConnections() {
             <div className="px-5 py-12 text-center">
               <FiMail className="mx-auto text-slate-300" size={28} />
               <p className="mt-3 text-sm font-semibold text-slate-800">
-                No email account connected
+                No email connection yet
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Use Connect email to choose Gmail, Microsoft 365 / Outlook, or IMAP + SMTP.
+                Connect an Inbox mailbox or an Amazon SES Broadcast sender above.
               </p>
             </div>
           ) : (
@@ -430,6 +447,18 @@ export default function CompanyConnections() {
                       <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-700">
                         {providerLabel(connection.providerType)}
                       </span>
+                      {connection.capabilities.map((capability) => (
+                        <span
+                          key={capability}
+                          className={
+                            capability === 'BROADCAST'
+                              ? 'rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-700'
+                              : 'rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700'
+                          }
+                        >
+                          {capability === 'BROADCAST' ? 'Broadcast' : 'Inbox'}
+                        </span>
+                      ))}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {(senders[connection.id] ?? []).map((sender) => (
@@ -564,6 +593,18 @@ export default function CompanyConnections() {
           )}
         </div>
       </div>
+
+      {sesConnectOpen && selectedCompany && (
+        <AmazonSesConnectModal
+          companyId={selectedCompany.companyId}
+          onClose={() => setSesConnectOpen(false)}
+          onConnected={(sender) => {
+            setSesConnectOpen(false)
+            setNotice(`Connected Amazon SES sender ${sender.fromAddress}`)
+            void loadConnections()
+          }}
+        />
+      )}
 
       <DisconnectChannelModal
         connection={disconnectTarget}
