@@ -137,6 +137,7 @@ export default function EmailInbox() {
   const [realtimeConnected, setRealtimeConnected] = useState(realtimeClient.isConnected())
   const completedSyncRefreshesRef = useRef(new Set<string>())
   const trackedSyncJobIdsRef = useRef(new Set<string>())
+  const autoReadConversationRef = useRef<string | null>(null)
   const realtimeBatchRef = useRef<{
     conversationIds: Set<string>
     messageIds: Set<string>
