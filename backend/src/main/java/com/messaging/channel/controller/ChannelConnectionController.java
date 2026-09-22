@@ -61,12 +61,20 @@ public class ChannelConnectionController {
     List<ChannelConnectionResponse> connections;
     if (channelType != null) {
       requireTypeRead(userId, companyId, channelType);
-      connections = channelConnectionService.list(companyId, channelType);
+      connections =
+          visibleConnections(
+              userId, companyId, channelConnectionService.list(companyId, channelType));
     } else {
       connections =
           Arrays.stream(ChannelType.values())
               .filter(type -> canReadType(userId, companyId, type))
-              .flatMap(type -> channelConnectionService.list(companyId, type).stream())
+              .flatMap(
+                  type ->
+                      visibleConnections(
+                              userId,
+                              companyId,
+                              channelConnectionService.list(companyId, type))
+                          .stream())
               .sorted(Comparator.comparing(ChannelConnectionResponse::createdAt).reversed())
               .toList();
     }
@@ -161,6 +169,28 @@ public class ChannelConnectionController {
             HttpStatus.OK.value(),
             channelConnectionService.makeDefaultSender(companyId, connectionId, senderIdentityId),
             "Default sender updated"));
+  }
+
+  private List<ChannelConnectionResponse> visibleConnections(
+      Long userId, Long companyId, List<ChannelConnectionResponse> connections) {
+    boolean canReadEmail =
+        companyAuthorizationService.hasPermission(
+            userId, companyId, CompanyPermissionKeys.EMAIL_READ);
+    boolean canReadBroadcast =
+        companyAuthorizationService.hasPermission(
+            userId, companyId, CompanyPermissionKeys.BROADCAST_READ);
+
+    return connections.stream()
+        .filter(
+            connection -> {
+              if (connection.channelType() != ChannelType.EMAIL) return true;
+              boolean inbox =
+                  connection.capabilities().contains(ChannelConnectionCapability.INBOX);
+              boolean broadcast =
+                  connection.capabilities().contains(ChannelConnectionCapability.BROADCAST);
+              return (inbox && canReadEmail) || (broadcast && canReadBroadcast);
+            })
+        .toList();
   }
 
   private boolean broadcastOnly(ChannelConnectionResponse connection) {
