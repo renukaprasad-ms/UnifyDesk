@@ -48,7 +48,17 @@ export type BroadcastMemberImportResult = {
 export type BroadcastSenderProvider = 'AMAZON_SES' | 'AZURE_EMAIL' | 'SENDGRID'
 export type BroadcastSenderManagementMode = 'CUSTOMER_MANAGED' | 'MESSAGING_MANAGED'
 export type BroadcastSenderStatus = 'ACTIVE' | 'DISABLED'
-export type BroadcastSenderAuthMode = 'IAM_ROLE' | 'ACCESS_KEYS'
+export type BroadcastSenderAuthMode = 'IAM_ROLE' | 'ACCESS_KEYS' | 'API_KEY'
+export type SendGridRegion = 'GLOBAL' | 'EU'
+
+export type ConnectSendGridInput = {
+  name: string
+  region: SendGridRegion
+  apiKey: string
+  fromAddress: string
+  displayName?: string | null
+  replyToAddress?: string | null
+}
 
 export type BroadcastSender = {
   id: string
