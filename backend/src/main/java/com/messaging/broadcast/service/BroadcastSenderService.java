@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.broadcast.azure.*;
 import com.messaging.broadcast.dto.*;
 import com.messaging.broadcast.entity.*;
+import com.messaging.broadcast.msg91.*;
 import com.messaging.broadcast.enums.*;
 import com.messaging.broadcast.repository.*;
 import com.messaging.broadcast.ses.*;
@@ -33,6 +34,7 @@ public class BroadcastSenderService {
   private final AmazonSesClientManager sesClientManager;
   private final SendGridGateway sendGridGateway;
   private final AzureEmailGateway azureEmailGateway;
+  private final Msg91Gateway msg91Gateway;
   private final CredentialCipher credentialCipher;
   private final ObjectMapper objectMapper;
 
@@ -192,6 +194,55 @@ public class BroadcastSenderService {
     return persistenceService.create(connection, sender);
   }
 
+  public BroadcastSenderResponse connectMsg91(
+      Long companyId, Long userId, ConnectMsg91Request request) {
+    String senderId = request.senderId().trim().toUpperCase(Locale.ROOT);
+    if (senderId.isBlank()) {
+      throw new BadRequestException("MSG91 Sender ID is required");
+    }
+
+    senderRepository
+        .findByCompanyIdAndProviderAndFromAddressIgnoreCase(
+            companyId, BroadcastSenderProvider.MSG91, senderId)
+        .ifPresent(
+            existing -> {
+              throw new BadRequestException(
+                  "This MSG91 Sender ID is already connected to the company");
+            });
+
+    channelEntitlementService.assertCanCreateConnection(
+        companyId, com.messaging.channel.enums.ChannelType.SMS);
+
+    BroadcastSenderConnection connection = new BroadcastSenderConnection();
+    connection.setId(IdGenerator.nextId());
+    connection.setCompanyId(companyId);
+    connection.setProvider(BroadcastSenderProvider.MSG91);
+    connection.setManagementMode(BroadcastSenderManagementMode.CUSTOMER_MANAGED);
+    connection.setAuthMode(BroadcastSenderAuthMode.API_KEY);
+    connection.setName(request.name().trim());
+    connection.setRegion("MSG91");
+    connection.setExternalId(request.flowId().trim());
+    connection.setCreatedByUserId(userId);
+    connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
+    connection.setProviderConfigJson(
+        msg91ProviderConfig(request.flowId(), request.messageVariable(), request.route()));
+    connection.setEncryptedCredentials(encryptMsg91AuthKey(request.authKey()));
+
+    Msg91AccountSnapshot snapshot = msg91Gateway.inspect(connection, senderId);
+    applyMsg91Snapshot(connection, snapshot);
+
+    BroadcastSender sender = new BroadcastSender();
+    sender.setCompanyId(companyId);
+    sender.setConnectionId(connection.getId());
+    sender.setProvider(BroadcastSenderProvider.MSG91);
+    sender.setFromAddress(senderId);
+    sender.setDisplayName(trimToNull(request.name()));
+    sender.setReplyToAddress(null);
+    sender.setVerifiedIdentity(snapshot.verifiedIdentity());
+    sender.setStatus(BroadcastSenderStatus.ACTIVE);
+    return persistenceService.create(connection, sender);
+  }
+
   @Transactional(readOnly = true)
   public List<BroadcastSenderResponse> list(Long companyId) {
     return senderRepository
@@ -235,8 +286,12 @@ public class BroadcastSenderService {
         applyAzureSnapshot(connection, snapshot);
         sender.setVerifiedIdentity(snapshot.verifiedIdentity());
       }
-      case MSG91 ->
-          throw new BadRequestException("MSG91 refresh is not implemented yet");
+      case MSG91 -> {
+        Msg91AccountSnapshot snapshot =
+            msg91Gateway.inspect(connection, sender.getFromAddress());
+        applyMsg91Snapshot(connection, snapshot);
+        sender.setVerifiedIdentity(snapshot.verifiedIdentity());
+      }
       case GMAIL, MICROSOFT, IMAP_SMTP, SMTP ->
           throw new BadRequestException("Mailbox providers cannot be refreshed as Broadcast senders");
     }
@@ -325,6 +380,42 @@ public class BroadcastSenderService {
     } catch (Exception exception) {
       throw new IllegalStateException("Unable to encrypt SendGrid credentials", exception);
     }
+  }
+
+  private String encryptMsg91AuthKey(String authKey) {
+    if (isBlank(authKey)) {
+      throw new BadRequestException("MSG91 auth key is required");
+    }
+    try {
+      String payload =
+          objectMapper.writeValueAsString(new Msg91StoredCredentials(authKey.trim()));
+      return credentialCipher.encrypt(payload);
+    } catch (Exception exception) {
+      throw new IllegalStateException("Unable to encrypt MSG91 credentials", exception);
+    }
+  }
+
+  private String msg91ProviderConfig(
+      String flowId, String messageVariable, String route) {
+    String variable =
+        isBlank(messageVariable) ? "VAR1" : messageVariable.trim();
+    try {
+      return objectMapper.writeValueAsString(
+          new Msg91ProviderConfig(
+              flowId.trim(), variable, isBlank(route) ? null : route.trim()));
+    } catch (Exception exception) {
+      throw new IllegalStateException("Unable to serialize MSG91 configuration", exception);
+    }
+  }
+
+  private void applyMsg91Snapshot(
+      BroadcastSenderConnection connection, Msg91AccountSnapshot snapshot) {
+    connection.setProductionAccessEnabled(true);
+    connection.setSendingEnabled(snapshot.sendingEnabled());
+    connection.setMax24HourSend(null);
+    connection.setMaxSendRate(snapshot.maxSendRate());
+    connection.setSentLast24Hours(null);
+    connection.setLastValidatedAt(Instant.now());
   }
 
   private String encryptAzureAccessKey(String accessKey) {
