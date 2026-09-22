@@ -305,9 +305,16 @@ app:
       http-connect-timeout: ${MEDIA_STORAGE_HTTP_CONNECT_TIMEOUT:3s}
       http-read-timeout: ${MEDIA_STORAGE_HTTP_READ_TIMEOUT:5s}
       supabase:
-        base-url: ${SUPABASE_URL}
-        service-role-key: ${SUPABASE_SERVICE_ROLE_KEY}
-        bucket: ${SUPABASE_MEDIA_BUCKET}
+        base-url: ${SUPABASE_URL:}
+        service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
+        bucket: ${SUPABASE_MEDIA_BUCKET:}
+      s3:
+        region: ${S3_MEDIA_REGION:${AWS_REGION:}}
+        bucket: ${S3_MEDIA_BUCKET:}
+        endpoint: ${S3_MEDIA_ENDPOINT:}
+        access-key-id: ${S3_MEDIA_ACCESS_KEY_ID:}
+        secret-access-key: ${S3_MEDIA_SECRET_ACCESS_KEY:}
+        path-style-access-enabled: ${S3_MEDIA_PATH_STYLE_ACCESS_ENABLED:false}
     validation:
       image-max-size: ${MEDIA_IMAGE_MAX_SIZE}
       document-max-size: ${MEDIA_DOCUMENT_MAX_SIZE}
