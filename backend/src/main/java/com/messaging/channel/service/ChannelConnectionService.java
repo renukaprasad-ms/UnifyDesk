@@ -45,6 +45,11 @@ public class ChannelConnectionService {
   public ChannelConnectionResponse create(
       Long companyId, Long userId, CreateChannelConnectionRequest request) {
     validateProvider(request.channelType(), request.providerType());
+    if (request.providerType()
+        == com.messaging.channel.enums.ProviderType.AMAZON_SES) {
+      throw new BadRequestException(
+          "Amazon SES must be connected through the validated Broadcast sender flow");
+    }
     entitlementService.assertCanCreateConnection(companyId, request.channelType());
 
     String externalAccountId = normalizeNullable(request.externalAccountId());
