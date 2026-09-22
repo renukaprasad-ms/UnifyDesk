@@ -17,7 +17,7 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Service
+@Service("companyEmailTemplateService")
 @RequiredArgsConstructor
 public class EmailTemplateService {
 
