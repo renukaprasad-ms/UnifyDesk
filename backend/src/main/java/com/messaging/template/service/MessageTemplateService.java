@@ -32,11 +32,10 @@ public class MessageTemplateService {
       Long companyId, ChannelType channelType, boolean includeArchived) {
     List<MessageTemplate> templates =
         includeArchived
-            ? repository.findAll().stream()
-                .filter(template -> Objects.equals(template.getCompanyId(), companyId))
-                .filter(template -> channelType == null || template.getChannelType() == channelType)
-                .sorted(Comparator.comparing(MessageTemplate::getUpdatedAt).reversed())
-                .toList()
+            ? channelType == null
+                ? repository.findByCompanyIdOrderByUpdatedAtDesc(companyId)
+                : repository.findByCompanyIdAndChannelTypeOrderByUpdatedAtDesc(
+                    companyId, channelType)
             : channelType == null
                 ? repository.findByCompanyIdAndStatusNotOrderByUpdatedAtDesc(
                     companyId, MessageTemplateStatus.ARCHIVED)
