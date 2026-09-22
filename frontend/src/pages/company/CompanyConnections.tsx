@@ -44,6 +44,8 @@ const providerLabel = (providerType: ChannelConnection['providerType']) => {
   if (providerType === 'AMAZON_SES') return 'AMAZON SES'
   if (providerType === 'SENDGRID') return 'SENDGRID'
   if (providerType === 'AZURE_EMAIL') return 'AZURE EMAIL'
+  if (providerType === 'MSG91_EMAIL') return 'MSG91 EMAIL'
+  if (providerType === 'MSG91_SMS') return 'MSG91 SMS'
   return providerType
 }
 
