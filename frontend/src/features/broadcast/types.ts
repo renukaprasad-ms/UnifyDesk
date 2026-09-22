@@ -53,6 +53,7 @@ export type BroadcastSenderAuthMode = 'IAM_ROLE' | 'ACCESS_KEYS'
 export type BroadcastSender = {
   id: string
   connectionId: string
+  channelConnectionId: string
   provider: BroadcastSenderProvider
   managementMode: BroadcastSenderManagementMode
   status: BroadcastSenderStatus
