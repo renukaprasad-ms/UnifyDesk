@@ -35,6 +35,7 @@ public class BroadcastSenderService {
   private final SendGridGateway sendGridGateway;
   private final AzureEmailGateway azureEmailGateway;
   private final Msg91Gateway msg91Gateway;
+  private final Msg91EmailGateway msg91EmailGateway;
   private final CredentialCipher credentialCipher;
   private final ObjectMapper objectMapper;
 
@@ -194,7 +195,7 @@ public class BroadcastSenderService {
     return persistenceService.create(connection, sender);
   }
 
-  public BroadcastSenderResponse connectMsg91(
+  public BroadcastSenderResponse connectMsg91Sms(
       Long companyId, Long userId, ConnectMsg91Request request) {
     String senderId = request.senderId().trim().toUpperCase(Locale.ROOT);
     if (senderId.isBlank()) {
@@ -203,7 +204,7 @@ public class BroadcastSenderService {
 
     senderRepository
         .findByCompanyIdAndProviderAndFromAddressIgnoreCase(
-            companyId, BroadcastSenderProvider.MSG91, senderId)
+            companyId, BroadcastSenderProvider.MSG91_SMS, senderId)
         .ifPresent(
             existing -> {
               throw new BadRequestException(
@@ -216,7 +217,7 @@ public class BroadcastSenderService {
     BroadcastSenderConnection connection = new BroadcastSenderConnection();
     connection.setId(IdGenerator.nextId());
     connection.setCompanyId(companyId);
-    connection.setProvider(BroadcastSenderProvider.MSG91);
+    connection.setProvider(BroadcastSenderProvider.MSG91_SMS);
     connection.setManagementMode(BroadcastSenderManagementMode.CUSTOMER_MANAGED);
     connection.setAuthMode(BroadcastSenderAuthMode.API_KEY);
     connection.setName(request.name().trim());
@@ -234,10 +235,64 @@ public class BroadcastSenderService {
     BroadcastSender sender = new BroadcastSender();
     sender.setCompanyId(companyId);
     sender.setConnectionId(connection.getId());
-    sender.setProvider(BroadcastSenderProvider.MSG91);
+    sender.setProvider(BroadcastSenderProvider.MSG91_SMS);
     sender.setFromAddress(senderId);
     sender.setDisplayName(trimToNull(request.name()));
     sender.setReplyToAddress(null);
+    sender.setVerifiedIdentity(snapshot.verifiedIdentity());
+    sender.setStatus(BroadcastSenderStatus.ACTIVE);
+    return persistenceService.create(connection, sender);
+  }
+
+  public BroadcastSenderResponse connectMsg91Email(
+      Long companyId, Long userId, ConnectMsg91EmailRequest request) {
+    String fromAddress = normalizeEmail(request.fromAddress(), "From address");
+    String replyTo =
+        request.replyToAddress() == null || request.replyToAddress().isBlank()
+            ? null
+            : normalizeEmail(request.replyToAddress(), "Reply-To address");
+
+    senderRepository
+        .findByCompanyIdAndProviderAndFromAddressIgnoreCase(
+            companyId, BroadcastSenderProvider.MSG91_EMAIL, fromAddress)
+        .ifPresent(
+            existing -> {
+              throw new BadRequestException(
+                  "This MSG91 Email sender is already connected to the company");
+            });
+
+    channelEntitlementService.assertCanCreateConnection(
+        companyId, com.messaging.channel.enums.ChannelType.EMAIL);
+
+    BroadcastSenderConnection connection = new BroadcastSenderConnection();
+    connection.setId(IdGenerator.nextId());
+    connection.setCompanyId(companyId);
+    connection.setProvider(BroadcastSenderProvider.MSG91_EMAIL);
+    connection.setManagementMode(BroadcastSenderManagementMode.CUSTOMER_MANAGED);
+    connection.setAuthMode(BroadcastSenderAuthMode.API_KEY);
+    connection.setName(request.name().trim());
+    connection.setRegion("MSG91_EMAIL");
+    connection.setExternalId(request.templateId().trim());
+    connection.setCreatedByUserId(userId);
+    connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
+    connection.setProviderConfigJson(
+        msg91EmailProviderConfig(
+            request.domain(),
+            request.templateId(),
+            request.messageVariable(),
+            request.subjectVariable()));
+    connection.setEncryptedCredentials(encryptMsg91AuthKey(request.authKey()));
+
+    Msg91EmailAccountSnapshot snapshot = msg91EmailGateway.inspect(connection, fromAddress);
+    applyMsg91EmailSnapshot(connection, snapshot);
+
+    BroadcastSender sender = new BroadcastSender();
+    sender.setCompanyId(companyId);
+    sender.setConnectionId(connection.getId());
+    sender.setProvider(BroadcastSenderProvider.MSG91_EMAIL);
+    sender.setFromAddress(fromAddress);
+    sender.setDisplayName(trimToNull(request.displayName()));
+    sender.setReplyToAddress(replyTo);
     sender.setVerifiedIdentity(snapshot.verifiedIdentity());
     sender.setStatus(BroadcastSenderStatus.ACTIVE);
     return persistenceService.create(connection, sender);
@@ -286,10 +341,16 @@ public class BroadcastSenderService {
         applyAzureSnapshot(connection, snapshot);
         sender.setVerifiedIdentity(snapshot.verifiedIdentity());
       }
-      case MSG91 -> {
+      case MSG91_SMS -> {
         Msg91AccountSnapshot snapshot =
             msg91Gateway.inspect(connection, sender.getFromAddress());
         applyMsg91Snapshot(connection, snapshot);
+        sender.setVerifiedIdentity(snapshot.verifiedIdentity());
+      }
+      case MSG91_EMAIL -> {
+        Msg91EmailAccountSnapshot snapshot =
+            msg91EmailGateway.inspect(connection, sender.getFromAddress());
+        applyMsg91EmailSnapshot(connection, snapshot);
         sender.setVerifiedIdentity(snapshot.verifiedIdentity());
       }
       case GMAIL, MICROSOFT, IMAP_SMTP, SMTP ->
@@ -406,6 +467,35 @@ public class BroadcastSenderService {
     } catch (Exception exception) {
       throw new IllegalStateException("Unable to serialize MSG91 configuration", exception);
     }
+  }
+
+  private String msg91EmailProviderConfig(
+      String domain,
+      String templateId,
+      String messageVariable,
+      String subjectVariable) {
+    String bodyVariable =
+        isBlank(messageVariable) ? "message" : messageVariable.trim();
+    try {
+      return objectMapper.writeValueAsString(
+          new Msg91EmailProviderConfig(
+              domain.trim().toLowerCase(Locale.ROOT),
+              templateId.trim(),
+              bodyVariable,
+              isBlank(subjectVariable) ? null : subjectVariable.trim()));
+    } catch (Exception exception) {
+      throw new IllegalStateException("Unable to serialize MSG91 Email configuration", exception);
+    }
+  }
+
+  private void applyMsg91EmailSnapshot(
+      BroadcastSenderConnection connection, Msg91EmailAccountSnapshot snapshot) {
+    connection.setProductionAccessEnabled(true);
+    connection.setSendingEnabled(snapshot.sendingEnabled());
+    connection.setMax24HourSend(null);
+    connection.setMaxSendRate(snapshot.maxSendRate());
+    connection.setSentLast24Hours(null);
+    connection.setLastValidatedAt(Instant.now());
   }
 
   private void applyMsg91Snapshot(
