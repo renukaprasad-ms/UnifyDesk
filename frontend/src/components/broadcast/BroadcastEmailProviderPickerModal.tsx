@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   FiArrowLeft,
   FiCheck,
@@ -43,7 +43,7 @@ type ProviderInfo = {
   id: BroadcastEmailProviderChoice
   name: string
   description: string
-  icon: React.ReactNode
+  icon: ReactNode
   consoleUrl: string
   goodFor: string[]
   needs: string[]
@@ -233,6 +233,7 @@ export default function BroadcastEmailProviderPickerModal({
   const [step, setStep] = useState(0)
   const [ecosystem, setEcosystem] = useState<Ecosystem>('NONE')
   const [goal, setGoal] = useState<Goal>('BOTH')
+  const [guidedChoice, setGuidedChoice] = useState(false)
   const [restoring, setRestoring] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -250,9 +251,11 @@ export default function BroadcastEmailProviderPickerModal({
         if (session.setupDataJson) {
           try {
             const data = JSON.parse(session.setupDataJson) as {
+              onboardingMode?: 'guided' | 'provider'
               ecosystem?: Ecosystem
               goal?: Goal
             }
+            if (data.onboardingMode) setGuidedChoice(data.onboardingMode === 'guided')
             if (data.ecosystem) setEcosystem(data.ecosystem)
             if (data.goal) setGoal(data.goal)
           } catch {
@@ -283,7 +286,7 @@ export default function BroadcastEmailProviderPickerModal({
 
   const setupDataJson = () =>
     JSON.stringify({
-      onboardingMode: stage === 'questions' ? 'guided' : 'provider',
+      onboardingMode: guidedChoice ? 'guided' : 'provider',
       ecosystem,
       goal,
     })
@@ -349,6 +352,7 @@ export default function BroadcastEmailProviderPickerModal({
     setStep(0)
     setEcosystem('NONE')
     setGoal('BOTH')
+    setGuidedChoice(false)
     setStage('landing')
   }
 
@@ -418,7 +422,10 @@ export default function BroadcastEmailProviderPickerModal({
             <button
               type="button"
               className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5 text-left transition hover:border-indigo-300 hover:bg-indigo-50"
-              onClick={() => setStage('questions')}
+              onClick={() => {
+                setGuidedChoice(true)
+                setStage('questions')
+              }}
             >
               <span className="flex size-11 items-center justify-center rounded-xl bg-white text-indigo-600 shadow-sm">
                 <FiHelpCircle aria-hidden="true" />
@@ -435,7 +442,10 @@ export default function BroadcastEmailProviderPickerModal({
             <button
               type="button"
               className="rounded-2xl border border-slate-200 p-5 text-left transition hover:border-indigo-200 hover:bg-slate-50"
-              onClick={() => setStage('providers')}
+              onClick={() => {
+                setGuidedChoice(false)
+                setStage('providers')
+              }}
             >
               <span className="flex size-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
                 <FiMail aria-hidden="true" />
@@ -512,7 +522,7 @@ export default function BroadcastEmailProviderPickerModal({
         {stage === 'providers' && (
           <div className="mt-6 grid gap-3">
             {providers.map((provider) => {
-              const suggested = provider.id === suggestedProvider
+              const suggested = guidedChoice && provider.id === suggestedProvider
               return (
                 <button
                   key={provider.id}
