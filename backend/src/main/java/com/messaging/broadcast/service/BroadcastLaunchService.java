@@ -84,6 +84,8 @@ public class BroadcastLaunchService {
     run.setStatus(BroadcastRunStatus.PREPARING);
     run.setSubjectSnapshot(message.getSubject());
     run.setBodyTextSnapshot(message.getBodyText());
+    run.setBodyHtmlSnapshot(message.getBodyHtml());
+    run.setBodyHtmlSnapshot(message.getBodyHtml());
     run.setSnapshotMaxMemberId(maxMemberId);
     run = runRepository.saveAndFlush(run);
 

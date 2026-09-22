@@ -30,8 +30,8 @@ import type { ChannelType } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { realtimeClient } from '../../features/realtime/realtimeClient'
-import { templateApi } from '../../features/template/templateApi'
-import type { MessageTemplate } from '../../features/template/types'
+import { emailTemplateApi } from '../../features/emailTemplate/emailTemplateApi'
+import type { EmailTemplateSummary } from '../../features/emailTemplate/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import {
@@ -168,7 +168,7 @@ export default function BroadcastWorkspace() {
   const [groupDescription, setGroupDescription] = useState('')
   const [groupBusy, setGroupBusy] = useState(false)
   const [composeSenderId, setComposeSenderId] = useState('')
-  const [composeTemplates, setComposeTemplates] = useState<MessageTemplate[]>([])
+  const [composeTemplates, setComposeTemplates] = useState<EmailTemplateSummary[]>([])
   const [composeTemplateId, setComposeTemplateId] = useState('')
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
@@ -432,20 +432,20 @@ export default function BroadcastWorkspace() {
   ])
 
   useEffect(() => {
-    if (!companyId || !composeOpen || channelType === 'WHATSAPP') {
+    if (!companyId || !composeOpen || channelType !== 'EMAIL') {
       setComposeTemplates([])
       return
     }
 
     let active = true
-    templateApi
-      .active(companyId, channelType)
+    emailTemplateApi
+      .published(companyId)
       .then((items) => {
         if (active) setComposeTemplates(items)
       })
       .catch((requestError) => {
         if (active) {
-          snackbar.error(apiErrorMessage(requestError, 'Unable to load active templates'))
+          snackbar.error(apiErrorMessage(requestError, 'Unable to load published email templates'))
         }
       })
 
@@ -677,8 +677,11 @@ export default function BroadcastWorkspace() {
   }
 
   const saveDraft = async () => {
-    if (!companyId || !selectedGroupId || !composeSenderId || !composeBody.trim()) {
-      throw new Error('Choose a sender and enter a message')
+    if (!companyId || !selectedGroupId || !composeSenderId) {
+      throw new Error('Choose a sender')
+    }
+    if (!composeTemplateId && !composeBody.trim()) {
+      throw new Error('Choose an email template or enter a message')
     }
     const input = {
       templateId: composeTemplateId || null,
@@ -1351,8 +1354,8 @@ export default function BroadcastWorkspace() {
                       if (!templateId) return
                       const template = composeTemplates.find((item) => item.id === templateId)
                       if (!template) return
-                      if (channelType === 'EMAIL') setComposeSubject(template.subject ?? '')
-                      setComposeBody(template.bodyText)
+                      setComposeSubject(template.subject ?? '')
+                      setComposeBody('')
                     }}
                   >
                     <option value="">Start from scratch</option>
@@ -1364,7 +1367,7 @@ export default function BroadcastWorkspace() {
                   </select>
                   {composeTemplates.length === 0 && (
                     <span className="mt-1 block text-[10px] font-medium text-slate-400">
-                      No active {channelLabel.toLowerCase()} templates yet. Create one from Templates.
+                      No published email templates yet. Publish one from Templates.
                     </span>
                   )}
                 </label>

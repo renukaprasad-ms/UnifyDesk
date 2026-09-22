@@ -1,101 +1,104 @@
-# Templates
+# Email Templates
 
-Messaging uses one company-scoped Template Library for Email, WhatsApp and SMS.
+Templates are Email-only in this phase. SMS and WhatsApp template products remain separate because
+their provider rules, rendering and approval lifecycles differ.
 
-## User flow
+## Product flow
 
-1. Choose the channel.
-2. Choose the template purpose/category.
-3. Build the content.
-4. Add personalization variables.
-5. Preview with sample recipient values.
-6. Save/activate, or submit to a provider when provider approval is required.
-7. Select the active template from Broadcast.
+Users can:
 
-The Templates page also exposes a **How it works** guide describing this flow in product language.
+1. copy one of the platform catalog templates,
+2. start a blank structured Email,
+3. paste custom HTML.
 
-## Email templates
+Catalog items are immutable. "Use template" creates a company-owned copy.
 
-Email uses a structured visual design rather than asking users to maintain raw HTML.
+## Versioning
 
-The current design model supports:
+Email template content is immutable by version.
 
-- brand/background colors
-- content width
-- header logo
-- header heading
-- ordered Heading/Text/Image/Button/Divider/Spacer blocks
-- footer company name/address/privacy link
-- unsubscribe footer setting
-- desktop/mobile preview
-- recipient-variable preview values
+- Save draft creates a new version.
+- Publish points the template at the current version.
+- Editing a published template creates unpublished changes without mutating the published version.
+- Broadcast copies the exact published subject, text and HTML into its run snapshot.
 
-The structured design is stored in `message_templates.design_json`. The template also stores generated
-`body_text` and `body_html` snapshots so delivery code does not need to rebuild the editor model.
+This guarantees that later edits cannot change recipients already queued for delivery.
 
-Images are represented in the design by media IDs. Signed preview URLs are never persisted in the
-template.
+## Builder
 
-## Media and S3
+Builder JSON is the source of truth for visual templates. Schema version 1 intentionally supports a
+small Email-safe block set:
 
-Template logos and images use the existing Media subsystem with `MediaPurpose.TEMPLATE_MEDIA`.
-Company logos are also visible in the media picker.
+- HEADER
+- HERO
+- HEADING
+- TEXT
+- IMAGE
+- BUTTON
+- DIVIDER
+- SPACER
+- FOOTER
 
-The upload flow is:
+The backend compiler generates table-based HTML and a plain-text fallback once when a version is
+saved. Per-recipient delivery only resolves variables.
 
-1. initiate media upload
-2. receive a signed storage upload URL
-3. upload directly from the browser to storage
-4. complete/validate the media object
-5. store the returned media ID in the template design
+## Custom HTML
 
-The storage abstraction supports Supabase and S3. S3 uses:
+HTML mode stays separate from the visual builder. Arbitrary HTML is not converted to blocks.
 
-- `MEDIA_STORAGE_DEFAULT_PROVIDER=S3`
-- `S3_MEDIA_REGION`
-- `S3_MEDIA_BUCKET`
-- optional S3 endpoint and explicit credentials
-- the AWS default credential chain when explicit credentials are omitted
-
-Company media is shared with authorized company users through the Media API.
+Server-side sanitization rejects scriptable/interactive content such as scripts, iframes, forms,
+event handlers, javascript URLs and CSS expressions. The frontend preview uses a sandboxed iframe.
 
 ## Variables
 
-Variables use double braces:
+Variables use double braces, for example:
 
 ```
 {{first_name}}
 {{last_name}}
 {{full_name}}
 {{email}}
-{{phone}}
 {{destination}}
 {{current_date}}
 {{current_year}}
-{{discount}}
+{{coupon_code}}
 {{offer_url}}
 ```
 
-Built-in values come from the recipient. CSV/custom fields are stored in group-member metadata and
-are snapshotted into Broadcast recipients when a run starts.
+Variables are extracted once per template version. Broadcast resolves them against recipient fields
+and imported metadata. A recipient with unresolved required variables fails with
+`MISSING_TEMPLATE_VARIABLE` rather than receiving a raw token.
 
-Delivery resolves variables per recipient. A recipient with a required unresolved variable is failed
-with `MISSING_TEMPLATE_VARIABLE` instead of receiving a raw `{{variable}}` token.
+## Media
 
-## WhatsApp
+Template logos and images reuse the private Media subsystem. Uploads use `TEMPLATE_MEDIA`.
 
-WhatsApp template content remains provider-aware. A local template is not considered sendable until
-Meta approval has been synchronized. Local lifecycle and provider lifecycle are intentionally
-separate.
+An image becomes Email-public only after it is explicitly registered as an Email template asset.
+That produces an opaque stable URL under:
 
-## SMS / MSG91
+```
+/api/v1/email-assets/{opaque-token}
+```
 
-SMS templates store reusable local message content. MSG91 Flow/DLT/provider-template mapping remains
-a provider mapping concern and should not be hard-coded into the generic template entity.
+The URL redirects to a fresh short-lived signed storage URL each time it is requested. This preserves
+private storage while avoiding broken images after an S3/Supabase signature expires.
 
-## Delivery note
+## Delivery
 
-The visual Email builder persists both generated text and generated HTML. The current Broadcast
-transport path still sends the text snapshot. Rich HTML delivery and stable delivery-time resolution
-of template media IDs must be wired through the email provider transports before branded Email
-templates should be considered fully production-ready.
+Email Broadcast stores:
+
+- source template ID
+- semantic source version
+- subject snapshot
+- plain-text snapshot
+- HTML snapshot
+
+SES, SendGrid and Azure Email send both text and HTML when HTML is present. Provider integrations
+whose contract is provider-template based can continue using their provider-specific text/template
+mapping until they gain an explicit HTML contract.
+
+## Complexity
+
+Compilation, sanitization and variable extraction occur when a template version is saved, not once
+per recipient. Delivery rendering is linear in the final message size and replacement values, which
+is the minimum work required to construct the outbound message.

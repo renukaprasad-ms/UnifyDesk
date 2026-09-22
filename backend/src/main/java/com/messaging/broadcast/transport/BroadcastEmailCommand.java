@@ -4,5 +4,6 @@ public record BroadcastEmailCommand(
     String recipient,
     String subject,
     String bodyText,
+    String bodyHtml,
     String requestedInternetMessageId,
     String correlationId) {}

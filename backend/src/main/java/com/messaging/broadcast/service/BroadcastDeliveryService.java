@@ -37,8 +37,17 @@ public class BroadcastDeliveryService {
           templateRenderer.render(
               run.getSubjectSnapshot(),
               run.getBodyTextSnapshot(),
+              run.getBodyHtmlSnapshot(),
               recipient,
               channelType);
+
+      if (rendered.unsafeHtml()) {
+        stateService.failed(
+            attempt,
+            "UNSAFE_TEMPLATE_VARIABLE",
+            "Rendered HTML contains an unsafe URL scheme");
+        return;
+      }
 
       if (!rendered.unresolvedVariables().isEmpty()) {
         stateService.failed(
@@ -73,6 +82,7 @@ public class BroadcastDeliveryService {
                         recipient.getDestination(),
                         rendered.subject(),
                         rendered.bodyText(),
+                        rendered.bodyHtml(),
                         recipient.getInternetMessageId(),
                         recipient.getProviderCorrelationId()));
         stateService.accepted(attempt, result);

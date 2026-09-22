@@ -47,6 +47,12 @@ public class BroadcastMessage {
   @Column(name = "body_text", nullable = false, columnDefinition = "text")
   private String bodyText;
 
+  @Column(name = "body_html", columnDefinition = "text")
+  private String bodyHtml;
+
+  @Column(name = "body_html", columnDefinition = "text")
+  private String bodyHtml;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
   private BroadcastMessageStatus status;

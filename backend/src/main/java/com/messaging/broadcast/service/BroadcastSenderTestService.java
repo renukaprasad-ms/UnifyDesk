@@ -51,7 +51,7 @@ public class BroadcastSenderTestService {
                   connection,
                   sender,
                   new BroadcastEmailCommand(
-                      recipient, subject, body, null, correlationId));
+                      recipient, subject, body, null, null, correlationId));
       return new BroadcastTestEmailResponse(
           sender.getProvider(),
           recipient,

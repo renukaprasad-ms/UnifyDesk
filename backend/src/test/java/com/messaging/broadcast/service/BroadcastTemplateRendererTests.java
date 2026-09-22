@@ -27,6 +27,7 @@ class BroadcastTemplateRendererTests {
         renderer.render(
             "Hi {{first_name}}",
             "Get {{discount}}% off in {{city}} until {{expiry_date}}. Email: {{email}}",
+            null,
             recipient,
             ChannelType.EMAIL);
 
@@ -50,6 +51,7 @@ class BroadcastTemplateRendererTests {
         renderer.render(
             null,
             "Hi {{first_name}}, visit {{offer_url}}",
+            null,
             recipient,
             ChannelType.EMAIL);
 
@@ -66,6 +68,7 @@ class BroadcastTemplateRendererTests {
         renderer.render(
             null,
             "Hi {{first_name}}, use code {{coupon_code}}",
+            null,
             recipient,
             ChannelType.EMAIL);
 

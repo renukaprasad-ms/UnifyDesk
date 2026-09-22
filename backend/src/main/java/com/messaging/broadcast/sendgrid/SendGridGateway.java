@@ -88,11 +88,11 @@ public class SendGridGateway {
     }
 
     payload.put("subject", command.subject() == null ? "" : command.subject());
-    payload
-        .putArray("content")
-        .addObject()
-        .put("type", "text/plain")
-        .put("value", command.bodyText());
+    var content = payload.putArray("content");
+    content.addObject().put("type", "text/plain").put("value", command.bodyText());
+    if (command.bodyHtml() != null && !command.bodyHtml().isBlank()) {
+      content.addObject().put("type", "text/html").put("value", command.bodyHtml());
+    }
 
     HttpRequest request =
         requestBuilder(region, apiKey, "/v3/mail/send")

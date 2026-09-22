@@ -61,6 +61,9 @@ public class AzureEmailGateway {
             .setToRecipients(command.recipient())
             .setSubject(command.subject() == null ? "" : command.subject())
             .setBodyPlainText(command.bodyText());
+    if (command.bodyHtml() != null && !command.bodyHtml().isBlank()) {
+      message.setBodyHtml(command.bodyHtml());
+    }
 
     try {
       SyncPoller<EmailSendResult, EmailSendResult> poller =
