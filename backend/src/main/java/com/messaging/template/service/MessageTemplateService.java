@@ -92,6 +92,8 @@ public class MessageTemplateService {
         request.bodyHtml(),
         request.footerText(),
         request.buttons());
+    template.setDesignJson(
+        request.channelType() == ChannelType.EMAIL ? trimToNull(request.designJson()) : null);
     return response(repository.save(template));
   }
 
@@ -126,6 +128,8 @@ public class MessageTemplateService {
         request.bodyHtml(),
         request.footerText(),
         request.buttons());
+    template.setDesignJson(
+        template.getChannelType() == ChannelType.EMAIL ? trimToNull(request.designJson()) : null);
     return response(repository.save(template));
   }
 
