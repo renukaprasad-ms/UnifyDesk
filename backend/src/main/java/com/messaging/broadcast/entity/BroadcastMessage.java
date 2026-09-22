@@ -31,6 +31,12 @@ public class BroadcastMessage {
   @Column(name = "sender_id")
   private Long senderId;
 
+  @Column(name = "source_template_id")
+  private Long sourceTemplateId;
+
+  @Column(name = "source_template_version")
+  private Long sourceTemplateVersion;
+
   @Enumerated(EnumType.STRING)
   @Column(name = "channel_type", nullable = false, length = 24)
   private ChannelType channelType;
