@@ -1,6 +1,6 @@
 import { FiCheckCircle, FiCloud, FiMail, FiSend, FiX } from 'react-icons/fi'
 
-export type BroadcastEmailProviderChoice = 'AMAZON_SES' | 'SENDGRID'
+export type BroadcastEmailProviderChoice = 'AMAZON_SES' | 'SENDGRID' | 'AZURE_EMAIL'
 
 type Props = {
   onClose: () => void
@@ -26,7 +26,7 @@ const providers = [
     id: 'AZURE_EMAIL' as const,
     name: 'Azure Email',
     description: 'Azure Communication Services Email.',
-    available: false,
+    available: true,
     icon: <FiMail aria-hidden="true" />,
   },
 ]
@@ -55,7 +55,7 @@ export default function BroadcastEmailProviderPickerModal({ onClose, onSelect }:
               disabled={!provider.available}
               className="flex w-full items-start gap-3 rounded-xl border border-slate-200 p-4 text-left transition hover:border-indigo-200 hover:bg-indigo-50/40 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-65"
               onClick={() => {
-                if (!provider.available || provider.id === 'AZURE_EMAIL') return
+                if (!provider.available) return
                 onSelect(provider.id)
               }}
             >
@@ -72,7 +72,7 @@ export default function BroadcastEmailProviderPickerModal({ onClose, onSelect }:
                     </span>
                   ) : (
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
-                      Backend next
+                      Available
                     </span>
                   )}
                 </span>
