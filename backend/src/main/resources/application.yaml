@@ -117,6 +117,7 @@ app:
     send-grid-max-per-second-cap: ${BROADCAST_SENDGRID_MAX_PER_SECOND_CAP:20}
     azure-email-max-per-second-cap: ${BROADCAST_AZURE_EMAIL_MAX_PER_SECOND_CAP:0.5}
     msg91-max-per-second-cap: ${BROADCAST_MSG91_MAX_PER_SECOND_CAP:20}
+    msg91-email-max-per-second-cap: ${BROADCAST_MSG91_EMAIL_MAX_PER_SECOND_CAP:20}
     provider-max-per-second-cap: ${BROADCAST_PROVIDER_MAX_PER_SECOND_CAP:1000}
   delivery:
     email:
