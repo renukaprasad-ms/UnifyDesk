@@ -289,7 +289,8 @@ public class ChannelConnectionService {
         connection.getPurgeAfter(),
         connection.getCreatedAt(),
         connection.getUpdatedAt(),
-        providerRegistry.isConfigured(connection.getProviderType()));
+        providerRegistry.isConfigured(connection.getProviderType()),
+        connection.getProviderType().capabilities());
   }
 
   private SenderIdentityResponse toResponse(SenderIdentity sender) {
