@@ -95,12 +95,13 @@ const providerLabel = (provider?: string | null) => {
   if (provider === 'AMAZON_SES') return 'Amazon SES'
   if (provider === 'AZURE_EMAIL') return 'Azure Email'
   if (provider === 'SENDGRID') return 'SendGrid'
-  if (provider === 'MSG91') return 'MSG91'
+  if (provider === 'MSG91_EMAIL') return 'MSG91 Email'
+  if (provider === 'MSG91_SMS') return 'MSG91 SMS'
   return provider.replaceAll('_', ' ')
 }
 
 const senderLabel = (sender?: BroadcastSender | null) => {
-  if (sender?.provider === 'MSG91') return sender.fromAddress
+  if (sender?.provider === 'MSG91_SMS') return sender.fromAddress
   return sender?.displayName
     ? `${sender.displayName} <${sender.fromAddress}>`
     : sender?.fromAddress || 'Legacy mailbox sender'
@@ -192,9 +193,9 @@ export default function BroadcastWorkspace() {
           sender.status === 'ACTIVE' &&
           sender.sendingEnabled &&
           (channelType === 'SMS'
-            ? sender.provider === 'MSG91'
+            ? sender.provider === 'MSG91_SMS'
             : channelType === 'EMAIL'
-              ? sender.provider !== 'MSG91'
+              ? sender.provider !== 'MSG91_SMS'
               : false),
       ),
     [channelType, senders],
@@ -1329,7 +1330,7 @@ export default function BroadcastWorkspace() {
                   </p>
                   <p className="mt-1 text-[11px] text-slate-500">
                     {providerLabel(sendersById.get(composeSenderId)?.provider)}
-                    {sendersById.get(composeSenderId)?.provider !== 'MSG91' &&
+                    {sendersById.get(composeSenderId)?.provider !== 'MSG91_SMS' &&
                     sendersById.get(composeSenderId)?.region
                       ? ` · ${sendersById.get(composeSenderId)?.region}`
                       : ''}
