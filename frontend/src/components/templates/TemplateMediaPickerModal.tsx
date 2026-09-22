@@ -132,7 +132,7 @@ export default function TemplateMediaPickerModal({
             <input
               ref={fileRef}
               type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
+              accept="image/png,image/jpeg,image/webp"
               className="hidden"
               onChange={(event) => {
                 const file = event.target.files?.[0]
