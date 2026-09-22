@@ -13,6 +13,8 @@ public interface BroadcastSenderRepository extends JpaRepository<BroadcastSender
 
   Optional<BroadcastSender> findByIdAndCompanyId(Long id, Long companyId);
 
+  List<BroadcastSender> findByConnectionId(Long connectionId);
+
   Optional<BroadcastSender> findByCompanyIdAndProviderAndFromAddressIgnoreCase(
       Long companyId,
       com.messaging.broadcast.enums.BroadcastSenderProvider provider,

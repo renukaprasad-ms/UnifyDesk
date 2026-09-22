@@ -26,6 +26,7 @@ public class BroadcastSenderService {
   private final BroadcastSenderConnectionRepository connectionRepository;
   private final BroadcastSenderPersistenceService persistenceService;
   private final com.messaging.channel.service.ChannelEntitlementService channelEntitlementService;
+  private final com.messaging.channel.service.ChannelConnectionService channelConnectionService;
   private final AmazonSesGateway sesGateway;
   private final AmazonSesClientManager sesClientManager;
   private final CredentialCipher credentialCipher;
@@ -124,20 +125,20 @@ public class BroadcastSenderService {
     return BroadcastSenderResponse.from(sender, connection);
   }
 
-  @Transactional
-  public void disable(Long companyId, Long senderId) {
+  public void disable(Long companyId, Long senderId, Long userId) {
     BroadcastSender sender =
         senderRepository
             .findByIdAndCompanyId(senderId, companyId)
             .orElseThrow(() -> new NotFoundException("Broadcast sender not found"));
-    sender.setStatus(BroadcastSenderStatus.DISABLED);
-    senderRepository.save(sender);
-
     BroadcastSenderConnection connection = requireConnection(companyId, sender.getConnectionId());
-    connection.setStatus(BroadcastSenderConnectionStatus.DISABLED);
-    connection.setEncryptedCredentials(null);
-    connectionRepository.save(connection);
-    sesClientManager.invalidate(connection.getId());
+    if (connection.getChannelConnectionId() == null) {
+      throw new BadRequestException("Legacy Broadcast sender cannot be disconnected as a channel");
+    }
+    channelConnectionService.disconnect(
+        companyId,
+        connection.getChannelConnectionId(),
+        userId,
+        com.messaging.channel.enums.DisconnectDataPolicy.DELETE_NOW);
   }
 
   @Transactional(readOnly = true)

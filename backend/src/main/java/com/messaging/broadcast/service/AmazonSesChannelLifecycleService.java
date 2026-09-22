@@ -33,12 +33,8 @@ public class AmazonSesChannelLifecycleService {
     connection.setEncryptedCredentials(null);
     connectionRepository.save(connection);
 
-    List<BroadcastSender> senders =
-        senderRepository.findByCompanyIdAndStatusOrderByUpdatedAtDesc(
-            companyId, BroadcastSenderStatus.ACTIVE);
-    senders.stream()
-        .filter(sender -> sender.getConnectionId().equals(connection.getId()))
-        .forEach(sender -> sender.setStatus(BroadcastSenderStatus.DISABLED));
+    List<BroadcastSender> senders = senderRepository.findByConnectionId(connection.getId());
+    senders.forEach(sender -> sender.setStatus(BroadcastSenderStatus.DISABLED));
     senderRepository.saveAll(senders);
     clientManager.invalidate(connection.getId());
   }

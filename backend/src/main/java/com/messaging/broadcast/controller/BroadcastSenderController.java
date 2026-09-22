@@ -53,8 +53,8 @@ public class BroadcastSenderController {
   @DeleteMapping("/{senderId}")
   public ResponseEntity<ApiResponse<Void>> disable(
       @PathVariable Long companyId, @PathVariable Long senderId) {
-    require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
-    senderService.disable(companyId, senderId);
+    Long userId = require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
+    senderService.disable(companyId, senderId, userId);
     return ResponseEntity.ok(ApiResponse.success(200, null, "Broadcast sender disconnected"));
   }
 
