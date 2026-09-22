@@ -508,7 +508,7 @@ export default function MessageTemplateEditorModal({
                 )}
                 {variables.length > 0 && (
                   <p className="mt-2 text-[9px] leading-4 text-slate-400">
-                    These values are only for preview. During Broadcast, CSV/custom-field columns become variables automatically. Built-ins include {{name}}, {{first_name}}, {{last_name}}, {{email}} or {{phone}}, {{destination}}, {{current_date}} and {{current_year}}.
+                    {'These values are only for preview. During Broadcast, CSV/custom-field columns become variables automatically. Built-ins include {{name}}, {{first_name}}, {{last_name}}, {{email}} or {{phone}}, {{destination}}, {{current_date}} and {{current_year}}.'}
                   </p>
                 )}
               </div>
