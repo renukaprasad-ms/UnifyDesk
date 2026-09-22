@@ -238,9 +238,13 @@ public class BroadcastSenderService {
       }
       return;
     }
-    if (isBlank(request.roleArn())) {
-      throw new BadRequestException("IAM role ARN is required");
+    if (request.authMode() == BroadcastSenderAuthMode.IAM_ROLE) {
+      if (isBlank(request.roleArn())) {
+        throw new BadRequestException("IAM role ARN is required");
+      }
+      return;
     }
+    throw new BadRequestException("Amazon SES supports IAM_ROLE or ACCESS_KEYS authentication");
   }
 
   private String encryptCredentials(String accessKeyId, String secretAccessKey) {
