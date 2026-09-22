@@ -117,12 +117,10 @@ public class BroadcastMessageService {
   }
 
   private void validateSender(Long companyId, BroadcastGroup group, Long senderId) {
-    if (group.getChannelType() != ChannelType.EMAIL) {
-      throw new BadRequestException("Email Broadcast senders can only be used with email groups");
-    }
     BroadcastSender sender = senderService.requireActive(companyId, senderId);
-    if (!sender.getProvider().isBulkProvider()) {
-      throw new BadRequestException("Choose a supported high-volume email provider for Broadcast");
+    if (!sender.getProvider().supports(group.getChannelType())) {
+      throw new BadRequestException(
+          "Selected Broadcast sender does not support " + group.getChannelType());
     }
   }
 
