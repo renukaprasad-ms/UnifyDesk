@@ -85,7 +85,8 @@ const broadcastProviderLabel = (provider: BroadcastSender['provider']) => {
   if (provider === 'AMAZON_SES') return 'Amazon SES'
   if (provider === 'SENDGRID') return 'SendGrid'
   if (provider === 'AZURE_EMAIL') return 'Azure Email'
-  return 'MSG91'
+  if (provider === 'MSG91_EMAIL') return 'MSG91 Email'
+  return 'MSG91 SMS'
 }
 
 const emailProviderIcon = (providerType: string) => {
@@ -289,8 +290,8 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
             sender.status === 'ACTIVE' &&
             sender.sendingEnabled &&
             (channelType === 'SMS'
-              ? sender.provider === 'MSG91'
-              : sender.provider !== 'MSG91'),
+              ? sender.provider === 'MSG91_SMS'
+              : sender.provider !== 'MSG91_SMS'),
         )
         .map((sender) => ({
           connectionId: sender.channelConnectionId,
@@ -298,8 +299,8 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           senderId: sender.id,
           label: sender.fromAddress,
           secondary:
-            sender.provider === 'MSG91'
-              ? `MSG91 · ${sender.connectionName}`
+            sender.provider === 'MSG91_SMS'
+              ? `MSG91 SMS · ${sender.connectionName}`
               : `${broadcastProviderLabel(sender.provider)} · ${sender.region}${
                   sender.maxSendRate ? ` · ${sender.maxSendRate}/sec` : ''
                 }${
@@ -736,6 +737,28 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                         </button>
                         <button
                           type="button"
+                          className="workspace-menu-item justify-start"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuOpen(false)
+                            navigate('/company/connections?connect=msg91-email')
+                            onNavigate()
+                          }}
+                        >
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
+                            <FiMail aria-hidden="true" />
+                          </span>
+                          <span className="text-left">
+                            <span className="block text-[12px] font-semibold text-slate-800">
+                              MSG91 Email
+                            </span>
+                            <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                              Template-based email via MSG91
+                            </span>
+                          </span>
+                        </button>
+                        <button
+                          type="button"
                           className="workspace-menu-item justify-start border-t border-slate-100"
                           role="menuitem"
                           onClick={() => {
@@ -799,7 +822,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                       role="menuitem"
                       onClick={() => {
                         setMenuOpen(false)
-                        navigate('/company/connections?connect=msg91')
+                        navigate('/company/connections?connect=msg91-sms')
                         onNavigate()
                       }}
                     >
@@ -808,7 +831,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                       </span>
                       <span className="text-left">
                         <span className="block text-[12px] font-semibold text-slate-800">
-                          MSG91
+                          MSG91 SMS
                         </span>
                         <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
                           Flow-based SMS Broadcast
