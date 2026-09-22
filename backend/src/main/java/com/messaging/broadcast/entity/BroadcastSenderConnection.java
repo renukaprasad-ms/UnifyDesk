@@ -20,7 +20,7 @@ public class BroadcastSenderConnection {
   @Column(name = "company_id", nullable = false)
   private Long companyId;
 
-  @Column(name = "channel_connection_id", nullable = false, unique = true)
+  @Column(name = "channel_connection_id", unique = true)
   private Long channelConnectionId;
 
   @Enumerated(EnumType.STRING)
