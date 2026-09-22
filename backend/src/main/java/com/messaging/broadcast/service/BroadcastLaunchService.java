@@ -51,9 +51,11 @@ public class BroadcastLaunchService {
         groupRepository
             .findByIdAndCompanyId(message.getGroupId(), companyId)
             .orElseThrow(() -> new NotFoundException("Broadcast group not found"));
-    if (group.getChannelType() != ChannelType.EMAIL
-        || message.getChannelType() != ChannelType.EMAIL) {
-      throw new BadRequestException("Broadcast execution is currently available for email");
+    if (group.getChannelType() != message.getChannelType()) {
+      throw new BadRequestException("Broadcast group and message channel do not match");
+    }
+    if (group.getChannelType() == ChannelType.WHATSAPP) {
+      throw new BadRequestException("WhatsApp Broadcast execution is not implemented yet");
     }
     if (message.getSenderId() == null) {
       throw new BadRequestException(
@@ -63,7 +65,7 @@ public class BroadcastLaunchService {
     BroadcastSender sender = senderService.requireActive(companyId, message.getSenderId());
     BroadcastSenderConnection senderConnection =
         senderService.requireConnection(companyId, sender.getConnectionId());
-    if (!sender.getProvider().isBulkProvider()
+    if (!sender.getProvider().supports(group.getChannelType())
         || senderConnection.getProvider() != sender.getProvider()) {
       throw new BadRequestException("Broadcast sender provider is not supported or mismatched");
     }
