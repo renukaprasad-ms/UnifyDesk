@@ -16,6 +16,7 @@ public class BroadcastDeliveryService {
   private final BroadcastRateLimiter rateLimiter;
   private final BroadcastRetryPolicy retryPolicy;
   private final BroadcastDeliveryStateService stateService;
+  private final BroadcastTemplateRenderer templateRenderer;
 
   public void deliver(
       BroadcastRun run,
@@ -31,7 +32,24 @@ public class BroadcastDeliveryService {
         stateService.begin(recipient.getId(), run.getProviderType());
 
     try {
-      if (run.getProviderType().channelType() == ChannelType.SMS) {
+      ChannelType channelType = run.getProviderType().channelType();
+      BroadcastTemplateRenderer.RenderedContent rendered =
+          templateRenderer.render(
+              run.getSubjectSnapshot(),
+              run.getBodyTextSnapshot(),
+              recipient,
+              channelType);
+
+      if (!rendered.unresolvedVariables().isEmpty()) {
+        stateService.failed(
+            attempt,
+            "MISSING_TEMPLATE_VARIABLE",
+            "Missing template variables: "
+                + String.join(", ", rendered.unresolvedVariables()));
+        return;
+      }
+
+      if (channelType == ChannelType.SMS) {
         BroadcastSmsResult result =
             smsTransportRegistry
                 .require(run.getProviderType())
@@ -40,7 +58,7 @@ public class BroadcastDeliveryService {
                     sender,
                     new BroadcastSmsCommand(
                         recipient.getDestination(),
-                        run.getBodyTextSnapshot(),
+                        rendered.bodyText(),
                         recipient.getProviderCorrelationId()));
         stateService.accepted(
             attempt, result.providerMessageId(), null, result.acceptedAt());
@@ -53,8 +71,8 @@ public class BroadcastDeliveryService {
                     sender,
                     new BroadcastEmailCommand(
                         recipient.getDestination(),
-                        run.getSubjectSnapshot(),
-                        run.getBodyTextSnapshot(),
+                        rendered.subject(),
+                        rendered.bodyText(),
                         recipient.getInternetMessageId(),
                         recipient.getProviderCorrelationId()));
         stateService.accepted(attempt, result);
