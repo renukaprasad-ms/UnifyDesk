@@ -81,6 +81,13 @@ const channelFromPath = (pathname: string): ChannelType => {
 const identityFallback = (connection: ChannelConnection) =>
   connection.externalAccountId || connection.name
 
+const broadcastProviderLabel = (provider: BroadcastSender['provider']) => {
+  if (provider === 'AMAZON_SES') return 'Amazon SES'
+  if (provider === 'SENDGRID') return 'SendGrid'
+  if (provider === 'AZURE_EMAIL') return 'Azure Email'
+  return provider.replaceAll('_', ' ')
+}
+
 const emailProviderIcon = (providerType: string) => {
   if (providerType === 'GMAIL') return <SiGmail aria-hidden="true" />
   if (providerType === 'MICROSOFT') return <FiGrid aria-hidden="true" />
@@ -283,9 +290,13 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           providerType: sender.provider,
           senderId: sender.id,
           label: sender.fromAddress,
-          secondary: `Amazon SES · ${sender.region}${
+          secondary: `${broadcastProviderLabel(sender.provider)} · ${sender.region}${
             sender.maxSendRate ? ` · ${sender.maxSendRate}/sec` : ''
-          }${sender.productionAccessEnabled ? '' : ' · Sandbox'}`,
+          }${
+            sender.provider === 'AMAZON_SES' && !sender.productionAccessEnabled
+              ? ' · Sandbox'
+              : ''
+          }`,
         }))
     }
 
@@ -660,11 +671,11 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                     </span>
                     <span className="text-left">
                       <span className="block text-[12px] font-semibold text-slate-800">
-                        {broadcastMode ? 'Connect / manage Amazon SES' : 'Manage email connections'}
+                        {broadcastMode ? 'Connect / manage Broadcast email' : 'Manage email connections'}
                       </span>
                       <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
                         {broadcastMode
-                          ? 'High-volume Broadcast sender'
+                          ? 'Amazon SES, SendGrid and provider settings'
                           : 'Inbox connections and provider settings'}
                       </span>
                     </span>
