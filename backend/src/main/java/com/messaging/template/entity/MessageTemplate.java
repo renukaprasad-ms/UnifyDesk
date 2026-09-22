@@ -72,6 +72,9 @@ public class MessageTemplate {
   @Column(name = "variables_json", columnDefinition = "text")
   private String variablesJson;
 
+  @Column(name = "design_json", columnDefinition = "text")
+  private String designJson;
+
   @Column(name = "created_by_user_id", nullable = false)
   private Long createdByUserId;
 
