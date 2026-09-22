@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   FiCheck,
   FiMail,
@@ -74,6 +74,10 @@ export default function MessageTemplateEditorModal({
   const [bodyHtml, setBodyHtml] = useState(template?.bodyHtml ?? '')
   const [footerText, setFooterText] = useState(template?.footerText ?? '')
   const [buttons, setButtons] = useState<MessageTemplateButton[]>(template?.buttons ?? [])
+  const [previewMode, setPreviewMode] = useState<'TEXT' | 'HTML'>(
+    template?.bodyHtml ? 'HTML' : 'TEXT',
+  )
+  const [previewValues, setPreviewValues] = useState<Record<string, string>>({})
   const [activateAfterSave, setActivateAfterSave] = useState(
     channelType !== 'WHATSAPP' && template?.status !== 'DRAFT' ? true : channelType !== 'WHATSAPP',
   )
@@ -88,6 +92,62 @@ export default function MessageTemplateEditorModal({
     })
     return Array.from(matches)
   }, [bodyHtml, bodyText, footerText, headerText, subject])
+
+  const defaultPreviewValue = (variable: string) => {
+    const key = variable.toLowerCase()
+    if (key === 'first_name' || key === 'firstname' || key === '1') return 'Renuka'
+    if (key === 'last_name' || key === 'lastname') return 'Prasad'
+    if (key === 'full_name' || key === 'name') return 'Renuka Prasad'
+    if (key === 'email') return 'renuka@example.com'
+    if (key === 'phone' || key === 'mobile') return '+91 98765 43210'
+    if (key === 'company_name' || key === 'company') return 'Example Company'
+    if (key === 'discount' || key === '2') return '20'
+    if (key.includes('date') || key === '3') return '30 September'
+    if (key.includes('url') || key.includes('link')) return 'https://example.com/offers'
+    if (key === 'city') return 'Bengaluru'
+    return 'Sample value'
+  }
+
+  useEffect(() => {
+    setPreviewValues((current) => {
+      const next: Record<string, string> = {}
+      variables.forEach((variable) => {
+        next[variable] = current[variable] ?? defaultPreviewValue(variable)
+      })
+      return next
+    })
+  }, [variables])
+
+  const renderVariables = (value: string) =>
+    value.replace(/\{\{\s*([A-Za-z0-9_.-]+)\s*}}/g, (token, variable: string) => {
+      const previewValue = previewValues[variable]
+      return previewValue && previewValue.trim() ? previewValue : token
+    })
+
+  const renderedSubject = renderVariables(subject)
+  const renderedHeader = renderVariables(headerText)
+  const renderedBodyText = renderVariables(bodyText)
+  const renderedFooter = renderVariables(footerText)
+  const renderedBodyHtml = renderVariables(bodyHtml)
+
+  const emailPreviewDocument = useMemo(
+    () => `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  html,body{margin:0;padding:0;background:#fff;color:#334155;font-family:Arial,sans-serif}
+  body{padding:16px;font-size:13px;line-height:1.55;overflow-wrap:anywhere}
+  img{max-width:100%;height:auto}
+  a{color:#2563eb}
+  table{max-width:100%}
+</style>
+</head>
+<body>${renderedBodyHtml || '<p>Your HTML email preview appears here.</p>'}</body>
+</html>`,
+    [renderedBodyHtml],
+  )
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -266,7 +326,7 @@ export default function MessageTemplateEditorModal({
                   maxLength={1000000}
                 />
                 <span className="mt-1 block text-[10px] font-medium text-slate-400">
-                  Optional for now. The Broadcast transport currently uses the text body; HTML is stored for the rich-email phase.
+                  HTML is rendered in the preview below. Text remains the fallback version for recipients or providers that do not use HTML.
                 </span>
               </label>
             )}
@@ -396,23 +456,62 @@ export default function MessageTemplateEditorModal({
               <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-400">Preview</p>
 
               {channelType === 'EMAIL' ? (
-                <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
-                  <p className="text-[10px] font-semibold uppercase text-slate-400">Subject</p>
-                  <p className="mt-1 text-sm font-bold text-slate-900">
-                    {subject || '(no subject)'}
-                  </p>
-                  <div className="mt-4 whitespace-pre-wrap text-xs leading-5 text-slate-600">
-                    {bodyText || 'Your email content appears here.'}
+                <div className="mt-3">
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <p className="text-[10px] font-semibold uppercase text-slate-400">Subject</p>
+                    <p className="mt-1 text-sm font-bold text-slate-900">
+                      {renderedSubject || '(no subject)'}
+                    </p>
+
+                    <div className="mt-4 flex rounded-lg bg-slate-100 p-1">
+                      <button
+                        type="button"
+                        className={`flex-1 rounded-md px-2 py-1.5 text-[10px] font-bold transition ${
+                          previewMode === 'HTML'
+                            ? 'bg-white text-indigo-700 shadow-sm'
+                            : 'text-slate-500'
+                        }`}
+                        onClick={() => setPreviewMode('HTML')}
+                        disabled={!bodyHtml.trim()}
+                      >
+                        HTML
+                      </button>
+                      <button
+                        type="button"
+                        className={`flex-1 rounded-md px-2 py-1.5 text-[10px] font-bold transition ${
+                          previewMode === 'TEXT'
+                            ? 'bg-white text-indigo-700 shadow-sm'
+                            : 'text-slate-500'
+                        }`}
+                        onClick={() => setPreviewMode('TEXT')}
+                      >
+                        Text
+                      </button>
+                    </div>
+
+                    {previewMode === 'HTML' && bodyHtml.trim() ? (
+                      <iframe
+                        title="Email HTML preview"
+                        className="mt-3 h-72 w-full rounded-lg border border-slate-100 bg-white"
+                        sandbox=""
+                        referrerPolicy="no-referrer"
+                        srcDoc={emailPreviewDocument}
+                      />
+                    ) : (
+                      <div className="mt-4 whitespace-pre-wrap text-xs leading-5 text-slate-600">
+                        {renderedBodyText || 'Your email content appears here.'}
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : channelType === 'WHATSAPP' ? (
                 <div className="mt-3 rounded-2xl bg-[#efeae2] p-4">
                   <div className="ml-auto max-w-[260px] rounded-xl bg-white p-3 shadow-sm">
-                    {headerText && <p className="text-xs font-bold text-slate-900">{headerText}</p>}
+                    {headerText && <p className="text-xs font-bold text-slate-900">{renderedHeader}</p>}
                     <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-slate-700">
-                      {bodyText || 'WhatsApp message'}
+                      {renderedBodyText || 'WhatsApp message'}
                     </p>
-                    {footerText && <p className="mt-2 text-[10px] text-slate-400">{footerText}</p>}
+                    {footerText && <p className="mt-2 text-[10px] text-slate-400">{renderedFooter}</p>}
                     {buttons.map((button, index) => (
                       <div
                         key={index}
@@ -426,7 +525,7 @@ export default function MessageTemplateEditorModal({
               ) : (
                 <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="rounded-xl bg-slate-100 p-3 text-xs leading-5 text-slate-700">
-                    {bodyText || 'SMS message'}
+                    {renderedBodyText || 'SMS message'}
                   </div>
                   <p className="mt-2 text-[10px] text-slate-400">{bodyText.length} characters</p>
                 </div>
@@ -436,20 +535,38 @@ export default function MessageTemplateEditorModal({
                 <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
                   Variables
                 </p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {variables.length === 0 ? (
-                    <span className="text-[10px] text-slate-400">No variables detected</span>
-                  ) : (
-                    variables.map((variable) => (
-                      <span
-                        key={variable}
-                        className="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700"
-                      >
-                        {'{{'}{variable}{'}}'}
-                      </span>
-                    ))
-                  )}
-                </div>
+                {variables.length === 0 ? (
+                  <p className="mt-2 text-[10px] text-slate-400">No variables detected</p>
+                ) : (
+                  <div className="mt-2 grid gap-2">
+                    {variables.map((variable) => (
+                      <label key={variable} className="block">
+                        <span className="mb-1 flex items-center justify-between gap-2">
+                          <span className="rounded-full bg-indigo-50 px-2 py-1 text-[9px] font-semibold text-indigo-700">
+                            {'{{'}{variable}{'}}'}
+                          </span>
+                          <span className="text-[9px] text-slate-400">Preview value</span>
+                        </span>
+                        <input
+                          className="form-input !py-1.5 text-[11px]"
+                          value={previewValues[variable] ?? ''}
+                          onChange={(event) =>
+                            setPreviewValues((current) => ({
+                              ...current,
+                              [variable]: event.target.value,
+                            }))
+                          }
+                          placeholder={defaultPreviewValue(variable)}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {variables.length > 0 && (
+                  <p className="mt-2 text-[9px] leading-4 text-slate-400">
+                    These values are only for preview. Actual Broadcast values come from each recipient.
+                  </p>
+                )}
               </div>
             </div>
           </aside>
