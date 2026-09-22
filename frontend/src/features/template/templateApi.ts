@@ -36,10 +36,19 @@ export const templateApi = {
   },
 
   async update(companyId: string, templateId: string, input: SaveMessageTemplateInput) {
-    const { channelType: _channelType, ...payload } = input
     const response = await apiClient.put<ApiResponse<MessageTemplate>>(
       `/api/v1/companies/${companyId}/templates/${templateId}`,
-      payload,
+      {
+        name: input.name,
+        category: input.category,
+        language: input.language,
+        subject: input.subject,
+        headerText: input.headerText,
+        bodyText: input.bodyText,
+        bodyHtml: input.bodyHtml,
+        footerText: input.footerText,
+        buttons: input.buttons,
+      },
     )
     return unwrap(response.data)
   },
