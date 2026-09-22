@@ -81,7 +81,9 @@ export const fetchEmailConnections = createAsyncThunk<
   'inbox/fetchEmailConnections',
   async ({ companyId }) => ({
     companyId,
-    connections: await channelApi.list(companyId, 'EMAIL'),
+    connections: (await channelApi.list(companyId, 'EMAIL')).filter((connection) =>
+      connection.capabilities.includes('INBOX'),
+    ),
   }),
   {
     condition: ({ companyId, force }, { getState }) => {
