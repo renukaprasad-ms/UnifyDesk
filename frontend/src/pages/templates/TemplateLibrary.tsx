@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router'
 import {
   FiArchive,
   FiCheckCircle,
@@ -11,6 +12,8 @@ import {
   FiSmartphone,
 } from 'react-icons/fi'
 import MessageTemplateEditorModal from '../../components/templates/MessageTemplateEditorModal'
+import TemplateCreateWizardModal from '../../components/templates/TemplateCreateWizardModal'
+import TemplateCreationCompleteModal from '../../components/templates/TemplateCreationCompleteModal'
 import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import type { ChannelType } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -18,6 +21,7 @@ import { useIam } from '../../features/iam/useIam'
 import { templateApi } from '../../features/template/templateApi'
 import type {
   MessageTemplate,
+  MessageTemplateCategory,
   SaveMessageTemplateInput,
 } from '../../features/template/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -45,6 +49,7 @@ const providerStatusClass = (status: MessageTemplate['providerStatus']) => {
 
 export default function TemplateLibrary() {
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const navigate = useNavigate()
   const { can } = useIam()
   const snackbar = useSnackbar()
   const [channelType, setChannelType] = useState<ChannelType>('EMAIL')
@@ -55,6 +60,10 @@ export default function TemplateLibrary() {
   const [workingId, setWorkingId] = useState<string | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState<MessageTemplate | null>(null)
+  const [createWizardOpen, setCreateWizardOpen] = useState(false)
+  const [createChannelType, setCreateChannelType] = useState<ChannelType>('EMAIL')
+  const [createCategory, setCreateCategory] = useState<MessageTemplateCategory | null>(null)
+  const [createdTemplate, setCreatedTemplate] = useState<MessageTemplate | null>(null)
 
   const load = async () => {
     if (!companyId) return
@@ -85,11 +94,22 @@ export default function TemplateLibrary() {
 
   const openCreate = () => {
     setEditing(null)
+    setCreateChannelType(channelType)
+    setCreateCategory(null)
+    setCreateWizardOpen(true)
+    setEditorOpen(false)
+  }
+
+  const continueCreateFlow = () => {
+    if (!createCategory) return
+    setCreateWizardOpen(false)
+    setEditing(null)
     setEditorOpen(true)
   }
 
   const save = async (input: SaveMessageTemplateInput, activateAfterSave: boolean) => {
     if (!companyId) return
+    const creating = !editing
     setWorkingId(editing?.id ?? 'new')
     try {
       let saved = editing
@@ -110,6 +130,10 @@ export default function TemplateLibrary() {
       snackbar.success(editing ? 'Template updated.' : 'Template created.')
       setEditorOpen(false)
       setEditing(null)
+      if (creating) {
+        setCreatedTemplate(saved)
+        setChannelType(saved.channelType)
+      }
       await load()
     } catch (requestError) {
       snackbar.error(apiErrorMessage(requestError, 'Unable to save template'))
@@ -361,16 +385,68 @@ export default function TemplateLibrary() {
         </div>
       </div>
 
+      {createWizardOpen && (
+        <TemplateCreateWizardModal
+          channelType={createChannelType}
+          category={createCategory}
+          onChannelChange={(nextChannel) => {
+            setCreateChannelType(nextChannel)
+            setCreateCategory(null)
+          }}
+          onCategoryChange={setCreateCategory}
+          onBack={() => setCreateCategory(null)}
+          onClose={() => {
+            setCreateWizardOpen(false)
+            setCreateCategory(null)
+          }}
+          onContinue={continueCreateFlow}
+        />
+      )}
+
       {editorOpen && (
         <MessageTemplateEditorModal
-          channelType={editing?.channelType ?? channelType}
+          channelType={editing?.channelType ?? createChannelType}
           template={editing}
+          initialCategory={editing ? undefined : createCategory ?? undefined}
+          creationFlow={!editing}
           busy={workingId !== null}
+          onBack={
+            editing
+              ? undefined
+              : () => {
+                  setEditorOpen(false)
+                  setCreateWizardOpen(true)
+                }
+          }
           onClose={() => {
             setEditorOpen(false)
             setEditing(null)
+            setCreateCategory(null)
           }}
           onSave={(input, activateAfterSave) => void save(input, activateAfterSave)}
+        />
+      )}
+
+      {createdTemplate && (
+        <TemplateCreationCompleteModal
+          template={createdTemplate}
+          onClose={() => {
+            setCreatedTemplate(null)
+            setCreateCategory(null)
+          }}
+          onCreateAnother={() => {
+            const nextChannel = createdTemplate.channelType
+            setCreatedTemplate(null)
+            setCreateChannelType(nextChannel)
+            setCreateCategory(null)
+            setCreateWizardOpen(true)
+          }}
+          onUseInBroadcast={() => {
+            const path =
+              createdTemplate.channelType === 'EMAIL' ? '/broadcast/email' : '/broadcast/sms'
+            setCreatedTemplate(null)
+            navigate(path)
+          }}
         />
       )}
     </section>
