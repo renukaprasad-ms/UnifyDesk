@@ -85,7 +85,8 @@ export default function CompanyConnections() {
       const readableConnections = visible.filter(
         (connection) =>
           (connection.channelType === 'WHATSAPP' && can(PERMISSIONS.WHATSAPP_READ)) ||
-          (connection.channelType === 'EMAIL' && can(PERMISSIONS.EMAIL_READ)),
+          (connection.channelType === 'EMAIL' &&
+            (can(PERMISSIONS.EMAIL_READ) || can(PERMISSIONS.BROADCAST_READ))),
       )
       const senderEntries = await Promise.all(
         readableConnections.map(async (connection) => {
@@ -476,7 +477,9 @@ export default function CompanyConnections() {
 
                   <div className="w-full shrink-0 lg:w-auto lg:max-w-md">
                     {connection.status !== 'DISCONNECTED' &&
-                      can(PERMISSIONS.EMAIL_DISCONNECT) && (
+                      (connection.capabilities.includes('BROADCAST')
+                        ? can(PERMISSIONS.BROADCAST_MODIFY)
+                        : can(PERMISSIONS.EMAIL_DISCONNECT)) && (
                         <button
                           type="button"
                           className="secondary-button inline-flex w-full items-center gap-2 text-rose-600 sm:w-auto"
