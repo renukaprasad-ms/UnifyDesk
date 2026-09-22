@@ -50,9 +50,8 @@ set channel_connection_id = id
 where channel_connection_id is null;
 
 alter table broadcast_sender_connections
-  alter column channel_connection_id set not null,
   add constraint fk_broadcast_sender_connection_channel
-    foreign key (channel_connection_id) references channel_connections (id) on delete cascade,
+    foreign key (channel_connection_id) references channel_connections (id) on delete set null,
   add constraint uk_broadcast_sender_connection_channel unique (channel_connection_id);
 
 insert into sender_identities (
