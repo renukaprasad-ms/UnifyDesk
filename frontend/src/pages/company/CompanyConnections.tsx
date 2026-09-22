@@ -18,11 +18,12 @@ import BroadcastEmailProviderPickerModal, {
   type BroadcastEmailProviderChoice,
 } from '../../components/broadcast/BroadcastEmailProviderPickerModal'
 import SendGridConnectModal from '../../components/broadcast/SendGridConnectModal'
+import BroadcastTestEmailModal from '../../components/broadcast/BroadcastTestEmailModal'
 import Msg91ConnectModal from '../../components/broadcast/Msg91ConnectModal'
 import Msg91SmsSetupGuideModal from '../../components/broadcast/Msg91SmsSetupGuideModal'
 import Msg91EmailConnectModal from '../../components/broadcast/Msg91EmailConnectModal'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
-import type { BroadcastSetupSession } from '../../features/broadcast/types'
+import type { BroadcastSender, BroadcastSetupSession } from '../../features/broadcast/types'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
@@ -77,6 +78,7 @@ export default function CompanyConnections() {
   const [msg91EmailConnectOpen, setMsg91EmailConnectOpen] = useState(false)
   const [activeEmailSetup, setActiveEmailSetup] = useState<BroadcastSetupSession | null>(null)
   const [activeSmsSetup, setActiveSmsSetup] = useState<BroadcastSetupSession | null>(null)
+  const [testEmailSender, setTestEmailSender] = useState<BroadcastSender | null>(null)
   const [workingConnectionId, setWorkingConnectionId] = useState<string | null>(null)
   const [disconnectTarget, setDisconnectTarget] = useState<ChannelConnection | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ChannelConnection | null>(null)
@@ -782,6 +784,7 @@ export default function CompanyConnections() {
             setMsg91EmailConnectOpen(false)
             setNotice(`Connected MSG91 Email sender ${sender.fromAddress}`)
             setActiveEmailSetup(null)
+            setTestEmailSender(sender)
             void loadConnections()
           }}
         />
@@ -795,6 +798,7 @@ export default function CompanyConnections() {
             setAzureEmailConnectOpen(false)
             setNotice(`Connected Azure Email sender ${sender.fromAddress}`)
             setActiveEmailSetup(null)
+            setTestEmailSender(sender)
             void loadConnections()
           }}
         />
@@ -808,6 +812,7 @@ export default function CompanyConnections() {
             setSesConnectOpen(false)
             setNotice(`Connected Amazon SES sender ${sender.fromAddress}`)
             setActiveEmailSetup(null)
+            setTestEmailSender(sender)
             void loadConnections()
           }}
         />
@@ -821,6 +826,7 @@ export default function CompanyConnections() {
             setSendGridConnectOpen(false)
             setNotice(`Connected SendGrid sender ${sender.fromAddress}`)
             setActiveEmailSetup(null)
+            setTestEmailSender(sender)
             void loadConnections()
           }}
         />
@@ -849,6 +855,18 @@ export default function CompanyConnections() {
             setNotice(`Connected MSG91 SMS sender ${sender.fromAddress}`)
             setActiveSmsSetup(null)
             void loadConnections()
+          }}
+        />
+      )}
+
+      {testEmailSender && selectedCompany && (
+        <BroadcastTestEmailModal
+          companyId={selectedCompany.companyId}
+          sender={testEmailSender}
+          onClose={() => setTestEmailSender(null)}
+          onDone={(recipient) => {
+            setTestEmailSender(null)
+            setNotice(`Test email accepted for ${recipient}`)
           }}
         />
       )}
