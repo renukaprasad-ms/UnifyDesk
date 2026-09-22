@@ -39,9 +39,9 @@ class BroadcastRateLimiterTests {
   }
 
   @Test
-  void genericProviderCapIsUsedWhenProviderDoesNotExposeQuota() {
+  void azureEmailUsesConfiguredSafetyCap() {
     BroadcastProperties properties = new BroadcastProperties();
-    properties.setProviderMaxPerSecondCap(75.0);
+    properties.setAzureEmailMaxPerSecondCap(0.5);
 
     BroadcastSenderConnection connection = new BroadcastSenderConnection();
     connection.setProvider(BroadcastSenderProvider.AZURE_EMAIL);
@@ -49,6 +49,20 @@ class BroadcastRateLimiterTests {
 
     BroadcastRateLimiter limiter = new BroadcastRateLimiter(null, properties);
 
-    assertEquals(75.0, limiter.effectiveRate(connection));
+    assertEquals(0.5, limiter.effectiveRate(connection));
+  }
+
+  @Test
+  void msg91UsesConfiguredSafetyCap() {
+    BroadcastProperties properties = new BroadcastProperties();
+    properties.setMsg91MaxPerSecondCap(20.0);
+
+    BroadcastSenderConnection connection = new BroadcastSenderConnection();
+    connection.setProvider(BroadcastSenderProvider.MSG91);
+    connection.setMaxSendRate(50.0);
+
+    BroadcastRateLimiter limiter = new BroadcastRateLimiter(null, properties);
+
+    assertEquals(20.0, limiter.effectiveRate(connection));
   }
 }
