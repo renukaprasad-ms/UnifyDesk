@@ -16,4 +16,5 @@ public record UpdateMessageTemplateRequest(
     @NotBlank @Size(max = 500000) String bodyText,
     @Size(max = 1000000) String bodyHtml,
     @Size(max = 120) String footerText,
-    List<@Valid MessageTemplateButton> buttons) {}
+    List<@Valid MessageTemplateButton> buttons,
+    @Size(max = 1000000) String designJson) {}
