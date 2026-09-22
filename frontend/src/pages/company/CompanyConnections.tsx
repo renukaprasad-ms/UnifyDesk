@@ -129,7 +129,7 @@ export default function CompanyConnections() {
   useEffect(() => {
     const url = new URL(window.location.href)
     const connectProvider = url.searchParams.get('connect')
-    if (connectProvider === 'amazon-ses') {
+    if (connectProvider === 'amazon-ses' && can(PERMISSIONS.BROADCAST_MODIFY)) {
       setSesConnectOpen(true)
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
