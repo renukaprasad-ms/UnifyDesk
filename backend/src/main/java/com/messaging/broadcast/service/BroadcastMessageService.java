@@ -7,6 +7,9 @@ import com.messaging.broadcast.repository.*;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.template.entity.MessageTemplate;
+import com.messaging.template.enums.MessageTemplateStatus;
+import com.messaging.template.service.MessageTemplateService;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
@@ -25,6 +28,7 @@ public class BroadcastMessageService {
   private final BroadcastSenderService senderService;
   private final BroadcastStateMachine stateMachine;
   private final BroadcastLaunchService launchService;
+  private final MessageTemplateService templateService;
 
   @Transactional
   public BroadcastMessageResponse create(
@@ -40,6 +44,7 @@ public class BroadcastMessageService {
     message.setGroupId(groupId);
     message.setSenderId(request.senderId());
     message.setChannelType(group.getChannelType());
+    applySourceTemplate(companyId, group.getChannelType(), request.templateId(), message);
     message.setSubject(trimToNull(request.subject()));
     message.setBodyText(request.bodyText());
     message.setCreatedByUserId(userId);
@@ -56,6 +61,7 @@ public class BroadcastMessageService {
     validateSender(companyId, group, request.senderId());
     message.setSenderId(request.senderId());
     message.setConnectionId(null);
+    applySourceTemplate(companyId, group.getChannelType(), request.templateId(), message);
     message.setSubject(trimToNull(request.subject()));
     message.setBodyText(request.bodyText());
     return response(messageRepository.save(message));
@@ -114,6 +120,29 @@ public class BroadcastMessageService {
     return messageRepository
         .findByIdAndCompanyId(broadcastId, companyId)
         .orElseThrow(() -> new NotFoundException("Broadcast not found"));
+  }
+
+  private void applySourceTemplate(
+      Long companyId,
+      ChannelType channelType,
+      Long templateId,
+      BroadcastMessage message) {
+    if (templateId == null) {
+      message.setSourceTemplateId(null);
+      message.setSourceTemplateVersion(null);
+      return;
+    }
+
+    MessageTemplate template = templateService.require(companyId, templateId);
+    if (template.getStatus() != MessageTemplateStatus.ACTIVE) {
+      throw new BadRequestException("Choose an active template for Broadcast");
+    }
+    if (template.getChannelType() != channelType) {
+      throw new BadRequestException("Selected template does not match the Broadcast channel");
+    }
+
+    message.setSourceTemplateId(template.getId());
+    message.setSourceTemplateVersion(template.getVersion());
   }
 
   private void validateSender(Long companyId, BroadcastGroup group, Long senderId) {
