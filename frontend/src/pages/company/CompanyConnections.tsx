@@ -716,6 +716,7 @@ export default function CompanyConnections() {
 
       {broadcastEmailPickerOpen && selectedCompany && (
         <BroadcastEmailProviderPickerModal
+          companyId={selectedCompany.companyId}
           onClose={() => setBroadcastEmailPickerOpen(false)}
           onSelect={(provider: BroadcastEmailProviderChoice) => {
             setBroadcastEmailPickerOpen(false)
