@@ -18,7 +18,7 @@ public class Msg91ChannelProvider implements DisconnectableChannelProvider {
 
   @Override
   public ProviderType providerType() {
-    return ProviderType.MSG91;
+    return ProviderType.MSG91_SMS;
   }
 
   @Override
