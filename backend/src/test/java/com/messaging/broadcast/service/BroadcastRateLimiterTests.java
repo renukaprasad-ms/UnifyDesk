@@ -53,7 +53,7 @@ class BroadcastRateLimiterTests {
   }
 
   @Test
-  void msg91UsesConfiguredSafetyCap() {
+  void msg91SmsUsesConfiguredSafetyCap() {
     BroadcastProperties properties = new BroadcastProperties();
     properties.setMsg91MaxPerSecondCap(20.0);
 
@@ -64,5 +64,19 @@ class BroadcastRateLimiterTests {
     BroadcastRateLimiter limiter = new BroadcastRateLimiter(null, properties);
 
     assertEquals(20.0, limiter.effectiveRate(connection));
+  }
+
+  @Test
+  void msg91EmailUsesConfiguredSafetyCap() {
+    BroadcastProperties properties = new BroadcastProperties();
+    properties.setMsg91EmailMaxPerSecondCap(12.0);
+
+    BroadcastSenderConnection connection = new BroadcastSenderConnection();
+    connection.setProvider(BroadcastSenderProvider.MSG91_EMAIL);
+    connection.setMaxSendRate(50.0);
+
+    BroadcastRateLimiter limiter = new BroadcastRateLimiter(null, properties);
+
+    assertEquals(12.0, limiter.effectiveRate(connection));
   }
 }
