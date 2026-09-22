@@ -11,7 +11,7 @@ type Props = {
 }
 
 export default function Msg91ConnectModal({ companyId, onClose, onConnected }: Props) {
-  const [name, setName] = useState('MSG91')
+  const [name, setName] = useState('MSG91 SMS')
   const [authKey, setAuthKey] = useState('')
   const [flowId, setFlowId] = useState('')
   const [senderId, setSenderId] = useState('')
@@ -35,7 +35,7 @@ export default function Msg91ConnectModal({ companyId, onClose, onConnected }: P
       })
       onConnected(sender)
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to connect MSG91'))
+      setError(apiErrorMessage(requestError, 'Unable to connect MSG91 SMS'))
     } finally {
       setBusy(false)
     }
@@ -53,7 +53,7 @@ export default function Msg91ConnectModal({ companyId, onClose, onConnected }: P
               <FiSmartphone aria-hidden="true" />
             </span>
             <div>
-              <p className="text-base font-bold text-slate-950">Connect MSG91</p>
+              <p className="text-base font-bold text-slate-950">Connect MSG91 SMS</p>
               <p className="mt-1 text-xs leading-5 text-slate-500">
                 Connect an approved MSG91 SMS Flow and Sender ID/Header for broadcasts.
               </p>
@@ -164,7 +164,7 @@ export default function Msg91ConnectModal({ companyId, onClose, onConnected }: P
             Cancel
           </button>
           <button type="submit" className="primary-button" disabled={busy}>
-            {busy ? 'Connecting…' : 'Connect MSG91'}
+            {busy ? 'Connecting…' : 'Connect MSG91 SMS'}
           </button>
         </div>
       </form>
