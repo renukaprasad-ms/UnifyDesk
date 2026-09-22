@@ -26,6 +26,7 @@ public record MessageTemplateResponse(
     String footerText,
     List<MessageTemplateButton> buttons,
     List<String> variables,
+    String designJson,
     Instant createdAt,
     Instant updatedAt,
     Instant archivedAt) {
@@ -52,6 +53,7 @@ public record MessageTemplateResponse(
         template.getFooterText(),
         buttons,
         variables,
+        template.getDesignJson(),
         template.getCreatedAt(),
         template.getUpdatedAt(),
         template.getArchivedAt());
