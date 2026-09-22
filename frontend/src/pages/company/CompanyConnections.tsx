@@ -13,6 +13,9 @@ import DeleteChannelDataModal from '../../components/channel/DeleteChannelDataMo
 import DisconnectChannelModal from '../../components/channel/DisconnectChannelModal'
 import EmailProviderPicker from '../../components/email/EmailProviderPicker'
 import AmazonSesConnectModal from '../../components/broadcast/AmazonSesConnectModal'
+import BroadcastEmailProviderPickerModal, {
+  type BroadcastEmailProviderChoice,
+} from '../../components/broadcast/BroadcastEmailProviderPickerModal'
 import SendGridConnectModal from '../../components/broadcast/SendGridConnectModal'
 import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
@@ -57,6 +60,7 @@ export default function CompanyConnections() {
   const [metaReady, setMetaReady] = useState(false)
   const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState(false)
+  const [broadcastEmailPickerOpen, setBroadcastEmailPickerOpen] = useState(false)
   const [sesConnectOpen, setSesConnectOpen] = useState(false)
   const [sendGridConnectOpen, setSendGridConnectOpen] = useState(false)
   const [workingConnectionId, setWorkingConnectionId] = useState<string | null>(null)
@@ -133,12 +137,21 @@ export default function CompanyConnections() {
   useEffect(() => {
     const url = new URL(window.location.href)
     const connectProvider = url.searchParams.get('connect')
-    if (connectProvider === 'amazon-ses' && can(PERMISSIONS.BROADCAST_MODIFY)) {
+    if (connectProvider === 'broadcast-email' && can(PERMISSIONS.BROADCAST_MODIFY)) {
+      setBroadcastEmailPickerOpen(true)
+      url.searchParams.delete('connect')
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+    } else if (connectProvider === 'amazon-ses' && can(PERMISSIONS.BROADCAST_MODIFY)) {
       setSesConnectOpen(true)
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     } else if (connectProvider === 'sendgrid' && can(PERMISSIONS.BROADCAST_MODIFY)) {
       setSendGridConnectOpen(true)
+      url.searchParams.delete('connect')
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+    } else if (connectProvider === 'azure-email' && can(PERMISSIONS.BROADCAST_MODIFY)) {
+      setBroadcastEmailPickerOpen(true)
+      setNotice('Azure Email backend connection flow is the next provider implementation.')
       url.searchParams.delete('connect')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     }
@@ -384,24 +397,14 @@ export default function CompanyConnections() {
                 />
               )}
               {can(PERMISSIONS.BROADCAST_MODIFY) && (
-                <>
-                  <button
-                    type="button"
-                    className="secondary-button inline-flex w-full items-center justify-center gap-2"
-                    onClick={() => setSesConnectOpen(true)}
-                  >
-                    <FiLink aria-hidden="true" />
-                    Connect Amazon SES
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-button inline-flex w-full items-center justify-center gap-2"
-                    onClick={() => setSendGridConnectOpen(true)}
-                  >
-                    <FiLink aria-hidden="true" />
-                    Connect SendGrid
-                  </button>
-                </>
+                <button
+                  type="button"
+                  className="secondary-button inline-flex w-full items-center justify-center gap-2"
+                  onClick={() => setBroadcastEmailPickerOpen(true)}
+                >
+                  <FiLink aria-hidden="true" />
+                  Connect broadcast email
+                </button>
               )}
             </div>
           </div>
@@ -614,6 +617,20 @@ export default function CompanyConnections() {
           )}
         </div>
       </div>
+
+      {broadcastEmailPickerOpen && selectedCompany && (
+        <BroadcastEmailProviderPickerModal
+          onClose={() => setBroadcastEmailPickerOpen(false)}
+          onSelect={(provider: BroadcastEmailProviderChoice) => {
+            setBroadcastEmailPickerOpen(false)
+            if (provider === 'AMAZON_SES') {
+              setSesConnectOpen(true)
+            } else {
+              setSendGridConnectOpen(true)
+            }
+          }}
+        />
+      )}
 
       {sesConnectOpen && selectedCompany && (
         <AmazonSesConnectModal
