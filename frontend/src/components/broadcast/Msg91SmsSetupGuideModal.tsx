@@ -9,6 +9,7 @@ import {
   FiX,
 } from 'react-icons/fi'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
+import { useSnackbar } from '../feedback/SnackbarProvider'
 
 type Props = {
   companyId: string
@@ -51,10 +52,10 @@ const steps = [
 ]
 
 export default function Msg91SmsSetupGuideModal({ companyId, onClose, onContinue }: Props) {
+  const snackbar = useSnackbar()
   const [step, setStep] = useState(0)
   const [restoring, setRestoring] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -65,7 +66,7 @@ export default function Msg91SmsSetupGuideModal({ companyId, onClose, onContinue
         setStep(Math.min(Math.max(0, session.currentStep), steps.length - 1))
       })
       .catch(() => {
-        if (!cancelled) setError('Unable to restore the previous SMS setup progress.')
+        if (!cancelled) snackbar.warning('Unable to restore the previous SMS setup progress.')
       })
       .finally(() => {
         if (!cancelled) setRestoring(false)
@@ -74,14 +75,13 @@ export default function Msg91SmsSetupGuideModal({ companyId, onClose, onContinue
     return () => {
       cancelled = true
     }
-  }, [companyId])
+  }, [companyId, snackbar])
 
   const save = async (
     currentStep: number,
     status: 'IN_PROGRESS' | 'WAITING_EXTERNAL_ACTION' | 'READY_TO_CONNECT' | 'CANCELLED',
   ) => {
     setSaving(true)
-    setError(null)
     try {
       await broadcastApi.saveSetupSession(companyId, {
         channelType: 'SMS',
@@ -91,7 +91,7 @@ export default function Msg91SmsSetupGuideModal({ companyId, onClose, onContinue
         setupDataJson: JSON.stringify({ onboardingMode: 'guided' }),
       })
     } catch {
-      setError('Unable to save setup progress. You can still continue, but resume may not work.')
+      snackbar.warning('Unable to save setup progress. You can still continue, but resume may not work.')
     } finally {
       setSaving(false)
     }
@@ -155,12 +155,6 @@ export default function Msg91SmsSetupGuideModal({ companyId, onClose, onContinue
             <FiX aria-hidden="true" />
           </button>
         </div>
-
-        {error && (
-          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            {error}
-          </div>
-        )}
 
         <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-slate-200">
           <div
