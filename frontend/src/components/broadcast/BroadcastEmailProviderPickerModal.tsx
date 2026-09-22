@@ -12,6 +12,7 @@ import {
   FiX,
 } from 'react-icons/fi'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
+import { useSnackbar } from '../feedback/SnackbarProvider'
 import type {
   BroadcastSenderProvider,
   BroadcastSetupStatus,
@@ -227,6 +228,7 @@ export default function BroadcastEmailProviderPickerModal({
   onClose,
   onSelect,
 }: Props) {
+  const snackbar = useSnackbar()
   const [stage, setStage] = useState<Stage>('landing')
   const [selectedProvider, setSelectedProvider] =
     useState<BroadcastEmailProviderChoice | null>(null)
@@ -236,7 +238,6 @@ export default function BroadcastEmailProviderPickerModal({
   const [guidedChoice, setGuidedChoice] = useState(false)
   const [restoring, setRestoring] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -265,7 +266,7 @@ export default function BroadcastEmailProviderPickerModal({
         setStage('guide')
       })
       .catch(() => {
-        if (!cancelled) setError('Unable to restore the previous setup progress.')
+        if (!cancelled) snackbar.warning('Unable to restore the previous setup progress.')
       })
       .finally(() => {
         if (!cancelled) setRestoring(false)
@@ -274,7 +275,7 @@ export default function BroadcastEmailProviderPickerModal({
     return () => {
       cancelled = true
     }
-  }, [companyId])
+  }, [companyId, snackbar])
 
   const suggestedProvider = useMemo<BroadcastEmailProviderChoice>(() => {
     if (ecosystem === 'AWS') return 'AMAZON_SES'
@@ -297,7 +298,6 @@ export default function BroadcastEmailProviderPickerModal({
     status: BroadcastSetupStatus,
   ) => {
     setSaving(true)
-    setError(null)
     try {
       await broadcastApi.saveSetupSession(companyId, {
         channelType: 'EMAIL',
@@ -307,7 +307,7 @@ export default function BroadcastEmailProviderPickerModal({
         setupDataJson: setupDataJson(),
       })
     } catch {
-      setError('Unable to save setup progress. You can still continue, but resume may not work.')
+      snackbar.warning('Unable to save setup progress. You can still continue, but resume may not work.')
     } finally {
       setSaving(false)
     }
@@ -410,12 +410,6 @@ export default function BroadcastEmailProviderPickerModal({
             <FiX aria-hidden="true" />
           </button>
         </div>
-
-        {error && (
-          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            {error}
-          </div>
-        )}
 
         {stage === 'landing' && (
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
