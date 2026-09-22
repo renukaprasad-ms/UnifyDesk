@@ -11,6 +11,7 @@ import type {
   BroadcastRecipient,
   BroadcastSender,
   ConnectAmazonSesInput,
+  ConnectSendGridInput,
   CreateBroadcastGroupInput,
   CreateBroadcastMessageInput,
   Page,
@@ -32,6 +33,14 @@ export const broadcastApi = {
   async connectAmazonSes(companyId: string, input: ConnectAmazonSesInput) {
     const response = await apiClient.post<ApiResponse<BroadcastSender>>(
       `/api/v1/companies/${companyId}/broadcast/senders/amazon-ses`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async connectSendGrid(companyId: string, input: ConnectSendGridInput) {
+    const response = await apiClient.post<ApiResponse<BroadcastSender>>(
+      `/api/v1/companies/${companyId}/broadcast/senders/sendgrid`,
       input,
     )
     return unwrap(response.data)
