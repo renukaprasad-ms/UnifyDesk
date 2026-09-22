@@ -19,7 +19,10 @@ import type {
 type Props = {
   channelType: ChannelType
   template?: MessageTemplate | null
+  initialCategory?: MessageTemplateCategory
+  creationFlow?: boolean
   busy?: boolean
+  onBack?: () => void
   onClose: () => void
   onSave: (input: SaveMessageTemplateInput, activateAfterSave: boolean) => void
 }
@@ -51,13 +54,16 @@ const channelIcon = (channelType: ChannelType) =>
 export default function MessageTemplateEditorModal({
   channelType,
   template,
+  initialCategory,
+  creationFlow = false,
   busy = false,
+  onBack,
   onClose,
   onSave,
 }: Props) {
   const [name, setName] = useState(template?.name ?? '')
   const [category, setCategory] = useState<MessageTemplateCategory>(
-    template?.category ?? categoriesFor(channelType)[0],
+    template?.category ?? initialCategory ?? categoriesFor(channelType)[0],
   )
   const [language, setLanguage] = useState(
     template?.language ?? (channelType === 'WHATSAPP' ? 'en_US' : 'en'),
@@ -127,14 +133,25 @@ export default function MessageTemplateEditorModal({
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
+            {creationFlow && onBack && (
+              <button
+                type="button"
+                className="admin-back-button"
+                onClick={onBack}
+                aria-label="Back"
+              >
+                ←
+              </button>
+            )}
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
               {channelIcon(channelType)}
             </span>
             <div>
               <p className="text-base font-bold text-slate-950">
-                {template ? 'Edit template' : 'Create template'}
+                {template ? 'Edit template' : creationFlow ? 'Build template' : 'Create template'}
               </p>
               <p className="mt-1 text-xs text-slate-500">
+                {creationFlow && !template ? 'Step 3 of 4 · Build content and preview' : ''}{creationFlow && !template ? ' · ' : ''}
                 {channelType === 'EMAIL'
                   ? 'Reusable email subject and message content.'
                   : channelType === 'WHATSAPP'
@@ -147,6 +164,12 @@ export default function MessageTemplateEditorModal({
             <FiX aria-hidden="true" />
           </button>
         </div>
+
+        {creationFlow && !template && (
+          <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full w-3/4 rounded-full bg-indigo-500" />
+          </div>
+        )}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
