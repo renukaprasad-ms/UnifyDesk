@@ -15,7 +15,6 @@ import {
   FiX,
 } from 'react-icons/fi'
 import { useLocation, useSearchParams } from 'react-router'
-import AmazonSesConnectModal from '../../components/broadcast/AmazonSesConnectModal'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import type {
   BroadcastMember,
@@ -134,6 +133,7 @@ export default function BroadcastWorkspace() {
   const channelLabel = labelForChannel(channelType)
   const selectedGroupId = searchParams.get('groupId')
   const selectedBroadcastId = searchParams.get('broadcastId')
+  const selectedSenderId = searchParams.get('senderId')
   const newGroupOpen = searchParams.get('newGroup') === '1'
   const editGroupOpen = searchParams.get('editGroup') === '1'
   const composeOpen = searchParams.get('compose') === '1'
@@ -161,7 +161,6 @@ export default function BroadcastWorkspace() {
   const [groupDescription, setGroupDescription] = useState('')
   const [groupBusy, setGroupBusy] = useState(false)
   const [composeSenderId, setComposeSenderId] = useState('')
-  const [sesConnectOpen, setSesConnectOpen] = useState(false)
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
   const [composeScheduleAt, setComposeScheduleAt] = useState('')
@@ -421,10 +420,10 @@ export default function BroadcastWorkspace() {
       setComposeSubject('')
       setComposeBody('')
       setComposeScheduleAt('')
-      setComposeSenderId((current) =>
-        activeSenders.some((connection) => connection.id === current)
-          ? current
-          : activeSenders[0]?.id ?? '',
+      setComposeSenderId(
+        selectedSenderId && activeSenders.some((sender) => sender.id === selectedSenderId)
+          ? selectedSenderId
+          : '',
       )
     }
 
@@ -455,18 +454,7 @@ export default function BroadcastWorkspace() {
     return () => {
       active = false
     }
-  }, [activeSenders, companyId, composeOpen, editBroadcastId])
-
-  const handleSesConnected = (sender: BroadcastSender) => {
-    setSenders((current) => [sender, ...current.filter((item) => item.id !== sender.id)])
-    setComposeSenderId(sender.id)
-    setSesConnectOpen(false)
-    setNotice(
-      sender.productionAccessEnabled
-        ? 'Amazon SES connected and ready for broadcasts.'
-        : 'Amazon SES connected in sandbox mode. Request production access in AWS before sending to unverified recipients.',
-    )
-  }
+  }, [activeSenders, companyId, composeOpen, editBroadcastId, selectedSenderId])
 
   const openNewGroup = () => {
     setGroupName('')
@@ -825,17 +813,16 @@ export default function BroadcastWorkspace() {
           )}
 
           {selectedGroup && can(PERMISSIONS.BROADCAST_CREATE) ? (
-            activeSenders.length > 0 ? (
-              <button type="button" className="primary-button gap-2" onClick={() => openComposer()}>
-                <FiSend aria-hidden="true" />
-                <span className="inbox-action-label">New broadcast</span>
-              </button>
-            ) : (
-              <button type="button" className="primary-button gap-2" onClick={() => setSesConnectOpen(true)}>
-                <FiMail aria-hidden="true" />
-                <span className="inbox-action-label">Connect SES</span>
-              </button>
-            )
+            <button
+              type="button"
+              className="primary-button gap-2"
+              onClick={() => openComposer()}
+              disabled={!selectedSenderId}
+              title={!selectedSenderId ? 'Choose a Broadcast account from the sidebar' : undefined}
+            >
+              <FiSend aria-hidden="true" />
+              <span className="inbox-action-label">New broadcast</span>
+            </button>
           ) : (
             <button type="button" className="primary-button gap-2" onClick={openNewGroup}>
               <FiUsers aria-hidden="true" />
@@ -923,92 +910,45 @@ export default function BroadcastWorkspace() {
                       </p>
                     </div>
 
-                    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-end">
-                      <label className="min-w-0 sm:w-80">
-                        <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                          <FiMail aria-hidden="true" />
-                          Send from Amazon SES
-                        </span>
-                        <select
-                          className="form-input w-full"
-                          value={composeSenderId}
-                          onChange={(event) => setComposeSenderId(event.target.value)}
-                          disabled={activeSenders.length === 0}
-                          aria-label="Select Amazon SES sender"
-                        >
-                          {activeSenders.length === 0 ? (
-                            <option value="">No Amazon SES sender connected</option>
-                          ) : (
-                            <>
-                              <option value="">Choose SES sender</option>
-                              {activeSenders.map((sender) => (
-                                <option key={sender.id} value={sender.id}>
-                                  {sender.fromAddress} · {sender.region}
-                                  {sender.productionAccessEnabled ? '' : ' · Sandbox'}
-                                </option>
-                              ))}
-                            </>
-                          )}
-                        </select>
-                      </label>
-
-                      <div className="flex flex-wrap gap-2">
-                        {can(PERMISSIONS.BROADCAST_MODIFY) && (
-                          <>
-                            <button
-                              type="button"
-                              className="secondary-button gap-2"
-                              onClick={openEditGroup}
-                            >
-                              <FiEdit2 aria-hidden="true" />
-                              Edit group
-                            </button>
-                            <button
-                              type="button"
-                              className="secondary-button gap-2"
-                              onClick={() => void openMembers()}
-                            >
-                              <FiUsers aria-hidden="true" />
-                              Manage members
-                            </button>
-                          </>
-                        )}
-                        {can(PERMISSIONS.BROADCAST_MODIFY) && (
+                    <div className="flex flex-wrap gap-2">
+                      {can(PERMISSIONS.BROADCAST_MODIFY) && (
+                        <>
                           <button
                             type="button"
                             className="secondary-button gap-2"
-                            onClick={() => setSesConnectOpen(true)}
+                            onClick={openEditGroup}
                           >
-                            <FiMail aria-hidden="true" />
-                            Connect Amazon SES
+                            <FiEdit2 aria-hidden="true" />
+                            Edit group
                           </button>
-                        )}
-                        {can(PERMISSIONS.BROADCAST_CREATE) && (
                           <button
                             type="button"
-                            className="primary-button gap-2"
-                            onClick={() => openComposer()}
-                            disabled={activeSenders.length === 0}
-                            title={
-                              activeSenders.length === 0
-                                ? 'Connect Amazon SES before creating a broadcast'
-                                : undefined
-                            }
+                            className="secondary-button gap-2"
+                            onClick={() => void openMembers()}
                           >
-                            <FiSend aria-hidden="true" />
-                            New broadcast
+                            <FiUsers aria-hidden="true" />
+                            Manage members
                           </button>
-                        )}
-                      </div>
+                        </>
+                      )}
+                      {can(PERMISSIONS.BROADCAST_CREATE) && (
+                        <button
+                          type="button"
+                          className="primary-button gap-2"
+                          onClick={() => openComposer()}
+                          disabled={!selectedSenderId}
+                          title={
+                            !selectedSenderId
+                              ? 'Choose a Broadcast account from the sidebar'
+                              : undefined
+                          }
+                        >
+                          <FiSend aria-hidden="true" />
+                          New broadcast
+                        </button>
+                      )}
                     </div>
-                  </div>
-
-                  {activeSenders.length > 0 && !composeSenderId && (
-                    <p className="mt-3 text-xs font-medium text-amber-700">
-                      Choose an Amazon SES sender before creating the broadcast.
-                    </p>
-                  )}
-                </div>
+               </div>
 
                 <div className="mt-5">
                   <div className="mb-3 flex items-center justify-between gap-3">
@@ -1342,86 +1282,32 @@ export default function BroadcastWorkspace() {
               </button>
             </div>
 
-            {activeSenders.length === 0 ? (
+            {!composeSenderId ? (
               <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-xs leading-5 text-amber-800">
-                <p className="font-bold">Amazon SES is required for email Broadcast.</p>
+                <p className="font-bold">Choose a Broadcast account first.</p>
                 <p className="mt-1">
-                  Gmail, Microsoft and SMTP remain available for Inbox and normal email, but are no
-                  longer used for high-volume Broadcast.
+                  Select an Amazon SES account from the secondary sidebar, then open the broadcast
+                  composer again.
                 </p>
-                {can(PERMISSIONS.BROADCAST_MODIFY) && (
-                  <button
-                    type="button"
-                    className="secondary-button mt-3 gap-2"
-                    onClick={() => setSesConnectOpen(true)}
-                  >
-                    <FiMail aria-hidden="true" />
-                    Connect Amazon SES
-                  </button>
-                )}
               </div>
             ) : (
               <>
-                <div className="mt-5">
-                  <div className="flex items-end justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold text-slate-700">Send from Amazon SES</p>
-                      <p className="mt-1 text-[11px] leading-4 text-slate-500">
-                        Choose a verified SES sender. AWS bills the connected AWS account directly.
-                      </p>
-                    </div>
-                    <span className="text-[11px] text-slate-400">
-                      {activeSenders.length} connected
-                    </span>
-                  </div>
-                  <div className="mt-2 grid max-h-48 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
-                    {activeSenders.map((sender) => {
-                      const selected = composeSenderId === sender.id
-                      return (
-                        <button
-                          key={sender.id}
-                          type="button"
-                          className={`flex min-w-0 items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${
-                            selected
-                              ? 'border-indigo-300 bg-indigo-50 ring-1 ring-indigo-100'
-                              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                          }`}
-                          onClick={() => setComposeSenderId(sender.id)}
-                          aria-pressed={selected}
-                        >
-                          <span
-                            className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
-                              selected
-                                ? 'bg-orange-100 text-orange-600'
-                                : 'bg-slate-100 text-slate-500'
-                            }`}
-                          >
-                            <FiMail aria-hidden="true" />
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-xs font-bold text-slate-900">
-                              {senderLabel(sender)}
-                            </span>
-                            <span className="mt-0.5 block truncate text-[11px] text-slate-500">
-                              Amazon SES · {sender.region}
-                              {sender.maxSendRate ? ` · up to ${sender.maxSendRate}/sec` : ''}
-                            </span>
-                            {!sender.productionAccessEnabled && (
-                              <span className="mt-1 block text-[10px] font-semibold text-amber-700">
-                                SES sandbox — production access required for normal recipient lists
-                              </span>
-                            )}
-                          </span>
-                          {selected && (
-                            <FiCheckCircle
-                              className="shrink-0 text-indigo-600"
-                              aria-label="Selected sender"
-                            />
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
+                <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                    Sending from
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-slate-900">
+                    {senderLabel(sendersById.get(composeSenderId) ?? null)}
+                  </p>
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Amazon SES
+                    {sendersById.get(composeSenderId)?.region
+                      ? ` · ${sendersById.get(composeSenderId)?.region}`
+                      : ''}
+                    {sendersById.get(composeSenderId)?.maxSendRate
+                      ? ` · up to ${sendersById.get(composeSenderId)?.maxSendRate}/sec`
+                      : ''}
+                  </p>
                 </div>
 
                 <label className="mt-4 block text-xs font-semibold text-slate-700">
@@ -1502,14 +1388,6 @@ export default function BroadcastWorkspace() {
           </div>
         </div>
       )}
-      {sesConnectOpen && companyId && (
-        <AmazonSesConnectModal
-          companyId={companyId}
-          onClose={() => setSesConnectOpen(false)}
-          onConnected={handleSesConnected}
-        />
-      )}
-
     </section>
   )
 }
