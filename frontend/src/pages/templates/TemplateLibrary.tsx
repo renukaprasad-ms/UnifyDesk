@@ -420,8 +420,9 @@ export default function TemplateLibrary() {
         />
       )}
 
-      {editorOpen && (
+      {editorOpen && companyId && (
         <MessageTemplateEditorModal
+          companyId={companyId}
           channelType={editing?.channelType ?? createChannelType}
           template={editing}
           initialCategory={editing ? undefined : createCategory ?? undefined}
