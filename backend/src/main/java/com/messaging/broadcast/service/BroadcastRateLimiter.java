@@ -64,7 +64,8 @@ public class BroadcastRateLimiter {
           case AMAZON_SES -> properties.getSesMaxPerSecondCap();
           case SENDGRID -> properties.getSendGridMaxPerSecondCap();
           case AZURE_EMAIL -> properties.getAzureEmailMaxPerSecondCap();
-          case MSG91 -> properties.getMsg91MaxPerSecondCap();
+          case MSG91_EMAIL -> properties.getMsg91EmailMaxPerSecondCap();
+          case MSG91_SMS -> properties.getMsg91MaxPerSecondCap();
           default -> properties.getProviderMaxPerSecondCap();
         };
     cap = Math.max(0.0, cap);
