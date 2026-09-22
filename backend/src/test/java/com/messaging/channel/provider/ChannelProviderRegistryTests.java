@@ -62,7 +62,7 @@ class ChannelProviderRegistryTests {
   void rejectsProviderThatIsNotConfigured() {
     ChannelProviderRegistry registry = new ChannelProviderRegistry(List.of());
 
-    assertThatThrownBy(() -> registry.get(ProviderType.MSG91))
+    assertThatThrownBy(() -> registry.get(ProviderType.MSG91_SMS))
         .isInstanceOf(BadRequestException.class)
         .hasMessageContaining("Provider is not configured");
   }
