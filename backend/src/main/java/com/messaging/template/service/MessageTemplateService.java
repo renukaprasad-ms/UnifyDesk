@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class MessageTemplateService {
 
   private static final Pattern VARIABLE_PATTERN =
-      Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.-]+)\\s*}}");
+      Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.-]+)\\s*\\}\\}");
 
   private final MessageTemplateRepository repository;
   private final ObjectMapper objectMapper;
