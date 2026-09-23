@@ -10,6 +10,7 @@ import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -47,8 +48,21 @@ public class AdAnalyticsBreakdownService {
                 from,
                 to);
 
+    Comparator<AdInsightBreakdown> comparator =
+        type == AdInsightBreakdownType.ACTION_TYPE
+                || type == AdInsightBreakdownType.ACTION_DEVICE
+            ? Comparator.comparing(
+                    AdInsightBreakdown::getActionValue,
+                    Comparator.nullsFirst(java.math.BigDecimal::compareTo))
+                .reversed()
+            : Comparator.comparing(
+                    AdInsightBreakdown::getSpend,
+                    Comparator.nullsFirst(java.math.BigDecimal::compareTo))
+                .reversed();
+
     List<AdAnalyticsBreakdownResponse.Row> responseRows =
         rows.stream()
+            .sorted(comparator)
             .map(
                 row ->
                     new AdAnalyticsBreakdownResponse.Row(
