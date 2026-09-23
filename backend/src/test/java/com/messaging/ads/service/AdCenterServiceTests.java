@@ -33,6 +33,7 @@ class AdCenterServiceTests {
   @Mock private AdAccountRepository accountRepository;
   @Mock private AdProviderConnectionRepository connectionRepository;
   @Mock private AdProviderCredentialService credentialService;
+  @Mock private AdAccountResourceLifecycleService resourceLifecycleService;
 
   private AdCenterService service;
 
@@ -40,7 +41,11 @@ class AdCenterServiceTests {
   void setUp() {
     service =
         new AdCenterService(
-            providerRegistry, accountRepository, connectionRepository, credentialService);
+            providerRegistry,
+            accountRepository,
+            connectionRepository,
+            credentialService,
+            resourceLifecycleService);
   }
 
   @Test
@@ -95,6 +100,25 @@ class AdCenterServiceTests {
   }
 
   @Test
+  void removingPrimaryPromotesAnotherManagedAccount() {
+    AdAccount currentPrimary = account(1L, true, true, true);
+    AdAccount replacement = account(2L, true, true, false);
+    when(accountRepository.findByIdAndCompanyId(1L, COMPANY_ID))
+        .thenReturn(Optional.of(currentPrimary));
+    when(accountRepository.findByCompanyIdAndProvider(COMPANY_ID, AdProvider.META_ADS))
+        .thenReturn(List.of(currentPrimary, replacement));
+    when(accountRepository.save(any(AdAccount.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    service.updateSelection(
+        COMPANY_ID, 1L, new UpdateAdAccountSelectionRequest(false, null));
+
+    assertThat(currentPrimary.isManaged()).isFalse();
+    assertThat(currentPrimary.isPrimaryAccount()).isFalse();
+    assertThat(replacement.isPrimaryAccount()).isTrue();
+  }
+
+  @Test
   void disconnectDeletesLocalGrantAndDisablesLinkedAccounts() {
     AdProviderConnection connection = new AdProviderConnection();
     connection.setId(99L);
@@ -109,12 +133,15 @@ class AdCenterServiceTests {
         .thenReturn(Optional.of(connection));
     when(accountRepository.findByCompanyIdAndConnectionId(COMPANY_ID, 99L))
         .thenReturn(List.of(account));
+    when(accountRepository.findByCompanyIdAndProvider(COMPANY_ID, AdProvider.META_ADS))
+        .thenReturn(List.of(account));
     when(connectionRepository.save(any(AdProviderConnection.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     var response = service.disconnect(COMPANY_ID, 99L);
 
     verify(credentialService).deleteAll(99L);
+    verify(resourceLifecycleService).markAllInaccessible(COMPANY_ID, account.getId());
     assertThat(account.isAccessible()).isFalse();
     assertThat(account.isManaged()).isFalse();
     assertThat(account.isPrimaryAccount()).isFalse();
