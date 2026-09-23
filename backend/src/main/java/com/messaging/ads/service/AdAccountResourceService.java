@@ -17,6 +17,15 @@ public class AdAccountResourceService {
   private final AdAccountResourceRepository resourceRepository;
 
   @Transactional(readOnly = true)
+  public List<AdAccountResourceResponse> listCompany(Long companyId) {
+    return resourceRepository
+        .findByCompanyIdOrderByAdAccountIdAscResourceTypeAscNameAsc(companyId)
+        .stream()
+        .map(AdAccountResourceResponse::from)
+        .toList();
+  }
+
+  @Transactional(readOnly = true)
   public List<AdAccountResourceResponse> list(Long companyId, Long adAccountId) {
     accountRepository
         .findByIdAndCompanyId(adAccountId, companyId)
