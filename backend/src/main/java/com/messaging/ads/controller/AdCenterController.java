@@ -2,10 +2,12 @@ package com.messaging.ads.controller;
 
 import com.messaging.ads.dto.AdAccountResourceResponse;
 import com.messaging.ads.dto.AdAccountResponse;
+import com.messaging.ads.dto.AdCampaignResponse;
 import com.messaging.ads.dto.AdProviderConnectionResponse;
 import com.messaging.ads.dto.AdProviderResponse;
 import com.messaging.ads.dto.UpdateAdAccountSelectionRequest;
 import com.messaging.ads.service.AdAccountResourceService;
+import com.messaging.ads.service.AdCampaignService;
 import com.messaging.ads.service.AdCenterService;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
@@ -14,6 +16,9 @@ import com.messaging.security.service.CurrentUserService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -21,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -30,6 +36,7 @@ public class AdCenterController {
 
   private final AdCenterService adCenterService;
   private final AdAccountResourceService resourceService;
+  private final AdCampaignService campaignService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -56,6 +63,19 @@ public class AdCenterController {
     requireRead(companyId);
     return ResponseEntity.ok(
         ApiResponse.success(200, adCenterService.accounts(companyId), "Ad accounts fetched"));
+  }
+
+  @GetMapping("/campaigns")
+  public ResponseEntity<ApiResponse<Page<AdCampaignResponse>>> campaigns(
+      @PathVariable Long companyId,
+      @RequestParam(required = false) Long accountId,
+      @PageableDefault(size = 50, sort = "providerUpdatedAt") Pageable pageable) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            campaignService.list(companyId, accountId, pageable),
+            "Advertising campaigns fetched"));
   }
 
   @GetMapping("/resources")
