@@ -18,6 +18,7 @@ import com.messaging.ads.meta.dto.MetaAdsAuthorizationResponse;
 import com.messaging.ads.meta.dto.MetaAudienceSyncResponse;
 import com.messaging.ads.meta.dto.MetaCampaignStatusRequest;
 import com.messaging.ads.meta.dto.MetaConversionSyncResponse;
+import com.messaging.ads.meta.dto.MetaInsightBreakdownsSyncResponse;
 import com.messaging.ads.meta.dto.MetaInsightsSyncResponse;
 import com.messaging.ads.meta.dto.MetaAdStatusRequest;
 import com.messaging.ads.meta.dto.MetaAdSyncResponse;
@@ -55,6 +56,7 @@ public class MetaAdsConnectionController {
   private final MetaAdsConnectionService connectionService;
   private final MetaAdsPixelMutationService pixelMutationService;
   private final MetaAdsInsightSyncService insightSyncService;
+  private final MetaAdsInsightBreakdownSyncService insightBreakdownSyncService;
   private final MetaAdsResourceSyncService resourceSyncService;
   private final MetaAdsAudienceSyncService audienceSyncService;
   private final MetaAdsAudienceMutationService audienceMutationService;
@@ -85,6 +87,22 @@ public class MetaAdsConnectionController {
             HttpStatus.OK.value(),
             insightSyncService.sync(companyId, accountId, from, to),
             "Meta analytics synchronized"));
+  }
+
+  @PostMapping("/accounts/{accountId}/insights/breakdowns/sync")
+  public ResponseEntity<ApiResponse<MetaInsightBreakdownsSyncResponse>> syncInsightBreakdowns(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @RequestParam LocalDate from,
+      @RequestParam LocalDate to) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            insightBreakdownSyncService.sync(companyId, accountId, from, to),
+            "Meta analytics breakdowns synchronized"));
   }
 
   @PostMapping("/accounts/{accountId}/pixels")
