@@ -1,6 +1,7 @@
 package com.messaging.ads.meta;
 
 import com.messaging.ads.dto.AdAudienceResponse;
+import com.messaging.ads.dto.AdAccountResourceResponse;
 import com.messaging.ads.dto.AdCampaignResponse;
 import com.messaging.ads.dto.AdConversionResponse;
 import com.messaging.ads.dto.AdCreativeResponse;
@@ -9,6 +10,7 @@ import com.messaging.ads.dto.AdSetResponse;
 import com.messaging.ads.meta.dto.CreateMetaAudienceRequest;
 import com.messaging.ads.meta.dto.CreateMetaCampaignRequest;
 import com.messaging.ads.meta.dto.CreateMetaConversionRequest;
+import com.messaging.ads.meta.dto.CreateMetaPixelRequest;
 import com.messaging.ads.meta.dto.CreateMetaCreativeRequest;
 import com.messaging.ads.meta.dto.CreateMetaAdRequest;
 import com.messaging.ads.meta.dto.CreateMetaAdSetRequest;
@@ -49,6 +51,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MetaAdsConnectionController {
 
   private final MetaAdsConnectionService connectionService;
+  private final MetaAdsPixelMutationService pixelMutationService;
   private final MetaAdsResourceSyncService resourceSyncService;
   private final MetaAdsAudienceSyncService audienceSyncService;
   private final MetaAdsAudienceMutationService audienceMutationService;
@@ -64,6 +67,22 @@ public class MetaAdsConnectionController {
   private final MetaAdsAdSetMutationService adSetMutationService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
+
+  @PostMapping("/accounts/{accountId}/pixels")
+  public ResponseEntity<ApiResponse<AdAccountResourceResponse>> createPixel(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody CreateMetaPixelRequest request) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_CREATE);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                HttpStatus.CREATED.value(),
+                pixelMutationService.create(companyId, accountId, request),
+                "Meta pixel created"));
+  }
 
   @PostMapping("/accounts/{accountId}/audiences/sync")
   public ResponseEntity<ApiResponse<MetaAudienceSyncResponse>> syncAudiences(
