@@ -334,12 +334,13 @@ public class MetaAdsApiClient {
       String accountId,
       String level,
       LocalDate from,
-      LocalDate to) {
+      LocalDate to,
+      String timeIncrement) {
     List<InsightSummary> result = new ArrayList<>();
     String after = null;
     for (int page = 0; page < MAX_PAGES; page++) {
       InsightPage response =
-          insightPage(accessToken, accountId, level, from, to, after);
+          insightPage(accessToken, accountId, level, from, to, timeIncrement, after);
       if (response.data() != null) result.addAll(response.data());
       after = nextCursor(response.paging());
       if (after == null) break;
@@ -353,6 +354,7 @@ public class MetaAdsApiClient {
       String level,
       LocalDate from,
       LocalDate to,
+      String timeIncrement,
       String after) {
     String timeRange =
         "{\"since\":\"" + from + "\",\"until\":\"" + to + "\"}";
@@ -368,7 +370,7 @@ public class MetaAdsApiClient {
                               .queryParam("fields", insightFields())
                               .queryParam("level", level)
                               .queryParam("time_range", timeRange)
-                              .queryParam("time_increment", "1")
+                              .queryParam("time_increment", timeIncrement)
                               .queryParam("limit", PAGE_LIMIT)
                               .queryParam("appsecret_proof", appSecretProof(accessToken));
                       if (after != null && !after.isBlank()) {
