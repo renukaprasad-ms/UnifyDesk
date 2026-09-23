@@ -18,8 +18,10 @@ import com.messaging.common.exception.BadRequestException;
 import java.security.SecureRandom;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MetaWhatsAppConnectionService {
@@ -37,7 +39,21 @@ public class MetaWhatsAppConnectionService {
 
   public MetaWhatsAppSignupConfigResponse signupConfig(Long companyId, Long userId) {
     requireConfigured();
+    log.info(
+        "meta_whatsapp_signup_config_start companyId={} userId={} appId={} configurationId={} graphApiVersion={}",
+        companyId,
+        userId,
+        properties.getAppId(),
+        properties.getConfigurationId(),
+        properties.getGraphApiVersion());
+
     String state = stateService.create(companyId, userId);
+
+    log.info(
+        "meta_whatsapp_signup_config_ready companyId={} userId={} stateCreated=true",
+        companyId,
+        userId);
+
     return new MetaWhatsAppSignupConfigResponse(
         properties.getAppId(),
         properties.getConfigurationId(),
@@ -49,7 +65,17 @@ public class MetaWhatsAppConnectionService {
   public MetaWhatsAppConnectionResponse complete(
       Long companyId, Long userId, CompleteMetaWhatsAppSignupRequest request) {
     requireConfigured();
+    log.info(
+        "meta_whatsapp_complete_start companyId={} userId={} wabaId={} phoneNumberId={} hasCode={} hasState={}",
+        companyId,
+        userId,
+        request.wabaId(),
+        request.phoneNumberId(),
+        request.code() != null && !request.code().isBlank(),
+        request.state() != null && !request.state().isBlank());
+
     stateService.consume(request.state(), companyId, userId);
+    log.info("meta_whatsapp_state_validated companyId={} userId={}", companyId, userId);
 
     ChannelConnection existing =
         connectionRepository
@@ -71,24 +97,48 @@ public class MetaWhatsAppConnectionService {
       }
     }
 
+    log.info("meta_whatsapp_exchange_code_start companyId={} wabaId={}", companyId, request.wabaId());
     TokenResponse token = graphClient.exchangeCode(request.code());
     if (token == null || token.accessToken() == null || token.accessToken().isBlank()) {
+      log.warn("meta_whatsapp_exchange_code_missing_token companyId={} wabaId={}", companyId, request.wabaId());
       throw new BadRequestException("Meta did not return an access token");
     }
+    log.info("meta_whatsapp_exchange_code_success companyId={} wabaId={}", companyId, request.wabaId());
 
     WabaDetails waba = graphClient.getWaba(request.wabaId(), token.accessToken());
     PhoneNumber phone =
         requirePhoneNumber(
             request, graphClient.getPhoneNumbers(request.wabaId(), token.accessToken()));
 
+    log.info(
+        "meta_whatsapp_assets_resolved companyId={} wabaId={} phoneNumberId={}",
+        companyId,
+        request.wabaId(),
+        phone.id());
+
     String pin = sixDigitPin();
     graphClient.registerPhoneNumber(phone.id(), token.accessToken(), pin);
+    log.info(
+        "meta_whatsapp_phone_registered companyId={} wabaId={} phoneNumberId={}",
+        companyId,
+        request.wabaId(),
+        phone.id());
+
     graphClient.subscribeApp(request.wabaId(), token.accessToken());
+    log.info("meta_whatsapp_app_subscribed companyId={} wabaId={}", companyId, request.wabaId());
 
     MetaWhatsAppConnectionResponse response =
         persistenceService.persist(companyId, userId, request.wabaId(), waba, phone, token, pin);
     channelConnectionService.cancelPendingPurge(
         companyId, Long.valueOf(response.connectionId()));
+
+    log.info(
+        "meta_whatsapp_complete_success companyId={} connectionId={} wabaId={} phoneNumberId={}",
+        companyId,
+        response.connectionId(),
+        request.wabaId(),
+        phone.id());
+
     return response;
   }
 
