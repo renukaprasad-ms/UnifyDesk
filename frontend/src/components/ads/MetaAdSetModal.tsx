@@ -28,7 +28,7 @@ const toMinor = (value: string, currency?: string | null) => {
   try {
     const digits = new Intl.NumberFormat(undefined, { style: 'currency', currency })
       .resolvedOptions()
-      .maximumFractionDigits
+      .maximumFractionDigits ?? 2
     return Math.round(numeric * 10 ** digits)
   } catch {
     return Math.round(numeric)
