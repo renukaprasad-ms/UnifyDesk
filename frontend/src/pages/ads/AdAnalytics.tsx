@@ -11,7 +11,10 @@ import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
   AdAnalytics as AdAnalyticsData,
+  AdAnalyticsBreakdown,
+  AdAnalyticsBreakdownRow,
   AdAnalyticsDailyPoint,
+  AdInsightBreakdownType,
   AdInsightLevel,
 } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -81,6 +84,36 @@ const entityLink = (level: AdInsightLevel, id?: string | null) => {
   if (level === 'AD_SET') return `/ad-center/ad-sets/${id}`
   return `/ad-center/ads/${id}`
 }
+
+const breakdownOptions: Array<{ value: AdInsightBreakdownType; label: string; group: string }> = [
+  { value: 'AGE', label: 'Age', group: 'Demographics' },
+  { value: 'GENDER', label: 'Gender', group: 'Demographics' },
+  { value: 'COUNTRY', label: 'Country', group: 'Geography' },
+  { value: 'REGION', label: 'Region', group: 'Geography' },
+  { value: 'PUBLISHER_PLATFORM', label: 'Publisher', group: 'Delivery' },
+  { value: 'PLATFORM_POSITION', label: 'Placement', group: 'Delivery' },
+  { value: 'IMPRESSION_DEVICE', label: 'Impression device', group: 'Device' },
+  { value: 'DEVICE_PLATFORM', label: 'Device platform', group: 'Device' },
+  { value: 'CONVERSION_DESTINATION', label: 'Conversion destination', group: 'Conversion' },
+  { value: 'ACTION_DEVICE', label: 'Action device', group: 'Conversion' },
+]
+
+const emptyBreakdown = (type: AdInsightBreakdownType): AdAnalyticsBreakdown => ({
+  breakdown: type,
+  rows: [],
+  lastSyncedAt: null,
+})
+
+const prettyDimension = (value: string) =>
+  value
+    .replaceAll('_', ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase())
+
+const metricRoas = (row: AdAnalyticsBreakdownRow) =>
+  row.spend > 0 ? row.conversionValue / row.spend : null
+
+const metricCpa = (row: AdAnalyticsBreakdownRow) =>
+  row.conversions > 0 ? row.spend / row.conversions : null
 
 function TrendChart({ points, currency }: { points: AdAnalyticsDailyPoint[]; currency?: string | null }) {
   if (points.length === 0) {
@@ -190,6 +223,9 @@ export default function AdAnalytics() {
   const [accounts, setAccounts] = useState<AdAccount[]>([])
   const [selectedAccountId, setSelectedAccountId] = useState('')
   const [level, setLevel] = useState<AdInsightLevel>('CAMPAIGN')
+  const [breakdownType, setBreakdownType] = useState<AdInsightBreakdownType>('AGE')
+  const [breakdown, setBreakdown] = useState<AdAnalyticsBreakdown>(emptyBreakdown('AGE'))
+  const [breakdownLoading, setBreakdownLoading] = useState(false)
   const [from, setFrom] = useState(initialRange.from)
   const [to, setTo] = useState(initialRange.to)
   const [analytics, setAnalytics] = useState<AdAnalyticsData>(emptyAnalytics)
@@ -230,6 +266,23 @@ export default function AdAnalytics() {
     setAnalytics(data)
   }
 
+  const loadBreakdown = async (
+    accountId: string,
+    rangeFrom = from,
+    rangeTo = to,
+    type = breakdownType,
+  ) => {
+    if (!selectedCompany) return
+    const data = await adCenterApi.analyticsBreakdown(
+      selectedCompany.companyId,
+      accountId,
+      rangeFrom,
+      rangeTo,
+      type,
+    )
+    setBreakdown(data)
+  }
+
   const load = async () => {
     if (!selectedCompany) return
     setLoading(true)
@@ -244,9 +297,13 @@ export default function AdAnalytics() {
       const preferred = eligible.find((account) => account.primaryAccount) ?? eligible[0]
       if (preferred) {
         setSelectedAccountId(preferred.id)
-        await loadAnalytics(preferred.id)
+        await Promise.all([
+          loadAnalytics(preferred.id),
+          loadBreakdown(preferred.id),
+        ])
       } else {
         setAnalytics(emptyAnalytics)
+        setBreakdown(emptyBreakdown(breakdownType))
       }
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load advertising analytics'))
@@ -269,7 +326,10 @@ export default function AdAnalytics() {
     setLoading(true)
     setError('')
     try {
-      await loadAnalytics(accountId, rangeFrom, rangeTo, entityLevel)
+      await Promise.all([
+        loadAnalytics(accountId, rangeFrom, rangeTo, entityLevel),
+        loadBreakdown(accountId, rangeFrom, rangeTo, breakdownType),
+      ])
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load advertising analytics'))
     } finally {
@@ -286,6 +346,24 @@ export default function AdAnalytics() {
   const chooseLevel = async (next: AdInsightLevel) => {
     setLevel(next)
     await refreshStored(selectedAccount?.id, from, to, next)
+  }
+
+  const chooseBreakdown = async (next: AdInsightBreakdownType) => {
+    setBreakdownType(next)
+    if (!selectedAccount) {
+      setBreakdown(emptyBreakdown(next))
+      return
+    }
+    setBreakdownLoading(true)
+    setError('')
+    try {
+      await loadBreakdown(selectedAccount.id, from, to, next)
+    } catch (loadError) {
+      setError(apiErrorMessage(loadError, 'Unable to load analytics breakdown'))
+      setBreakdown(emptyBreakdown(next))
+    } finally {
+      setBreakdownLoading(false)
+    }
   }
 
   const applyPreset = async (days: number) => {
@@ -313,9 +391,21 @@ export default function AdAnalytics() {
         from,
         to,
       )
-      await loadAnalytics(selectedAccount.id)
+      const breakdownResult = await adCenterApi.syncMetaInsightBreakdowns(
+        selectedCompany.companyId,
+        selectedAccount.id,
+        from,
+        to,
+      )
+      await Promise.all([
+        loadAnalytics(selectedAccount.id),
+        loadBreakdown(selectedAccount.id),
+      ])
+      const failed = breakdownResult.failedBreakdowns ?? []
       setNotice(
-        `Synced Meta analytics: ${result.campaignRows} campaign, ${result.adSetRows} ad set, and ${result.adRows} ad rollup row(s).`,
+        failed.length === 0
+          ? `Synced Meta analytics: ${result.campaignRows} campaign, ${result.adSetRows} ad set, ${result.adRows} ad, plus all reporting breakdowns.`
+          : `Core analytics synchronized. Breakdown sync completed with ${failed.length} unavailable dimension(s): ${failed.join(', ')}.`,
       )
     } catch (syncError) {
       setError(apiErrorMessage(syncError, 'Unable to synchronize Meta analytics'))
