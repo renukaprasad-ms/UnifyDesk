@@ -4,6 +4,8 @@ import type {
   AdAccount,
   AdAccountResource,
   AdAnalytics,
+  AdAnalyticsBreakdown,
+  AdInsightBreakdownType,
   AdInsightLevel,
   AdAudience,
   AdConversion,
@@ -24,6 +26,7 @@ import type {
   MetaAudienceSync,
   MetaCampaignSync,
   MetaConversionSync,
+  MetaInsightBreakdownsSync,
   MetaInsightsSync,
   MetaCreativeSync,
   MetaAdSync,
@@ -219,6 +222,34 @@ export const adCenterApi = {
   ) {
     const response = await apiClient.post<ApiResponse<MetaInsightsSync>>(
       `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/insights/sync`,
+      null,
+      { params: { from, to } },
+    )
+    return unwrap(response.data)
+  },
+
+  async analyticsBreakdown(
+    companyId: string,
+    accountId: string,
+    from: string,
+    to: string,
+    type: AdInsightBreakdownType,
+  ) {
+    const response = await apiClient.get<ApiResponse<AdAnalyticsBreakdown>>(
+      `/api/v1/companies/${companyId}/ads/accounts/${accountId}/analytics/breakdowns`,
+      { params: { from, to, type } },
+    )
+    return unwrap(response.data)
+  },
+
+  async syncMetaInsightBreakdowns(
+    companyId: string,
+    accountId: string,
+    from: string,
+    to: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<MetaInsightBreakdownsSync>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/insights/breakdowns/sync`,
       null,
       { params: { from, to } },
     )
