@@ -4,6 +4,7 @@ import type {
   AdAccount,
   AdAccountResource,
   AdCampaign,
+  AdConversion,
   CreateMetaAdSetInput,
 } from '../../features/ads/types'
 
@@ -11,6 +12,7 @@ type Props = {
   account: AdAccount
   campaign: AdCampaign
   resources: AdAccountResource[]
+  conversions: AdConversion[]
   open: boolean
   saving: boolean
   onClose: () => void
@@ -41,6 +43,7 @@ export default function MetaAdSetModal({
   account,
   campaign,
   resources,
+  conversions,
   open,
   saving,
   onClose,
@@ -75,6 +78,7 @@ export default function MetaAdSetModal({
   const [endAt, setEndAt] = useState('')
   const [pixelId, setPixelId] = useState('')
   const [customEventType, setCustomEventType] = useState('')
+  const [customConversionId, setCustomConversionId] = useState('')
   const [customAudiences, setCustomAudiences] = useState('')
   const [excludedAudiences, setExcludedAudiences] = useState('')
 
@@ -121,8 +125,9 @@ export default function MetaAdSetModal({
       publisherPlatforms,
       customAudienceIds: csv(customAudiences),
       excludedCustomAudienceIds: csv(excludedAudiences),
-      pixelId: pixelId || null,
-      customEventType: customEventType || null,
+      pixelId: customConversionId ? null : pixelId || null,
+      customEventType: customConversionId ? null : customEventType || null,
+      customConversionId: customConversionId || null,
     })
   }
 
@@ -296,30 +301,52 @@ export default function MetaAdSetModal({
           <section className="border-t border-slate-100 pt-6">
             <h3 className="text-sm font-bold text-slate-950">Conversion</h3>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <label className="block text-xs font-semibold text-slate-700">
-                Pixel
-                <select className="form-input mt-2" value={pixelId} onChange={(e) => setPixelId(e.target.value)}>
-                  <option value="">No pixel selected</option>
-                  {pixels.map((pixel) => (
-                    <option key={pixel.id} value={pixel.externalResourceId}>
-                      {pixel.name || pixel.externalResourceId}
-                    </option>
-                  ))}
+              <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
+                Custom conversion
+                <select
+                  className="form-input mt-2"
+                  value={customConversionId}
+                  onChange={(e) => setCustomConversionId(e.target.value)}
+                >
+                  <option value="">Use pixel + standard event</option>
+                  {conversions
+                    .filter((conversion) => conversion.accessible && !conversion.archived && !conversion.unavailable)
+                    .map((conversion) => (
+                      <option key={conversion.id} value={conversion.id}>
+                        {conversion.name} · {conversion.customEventType ?? 'Conversion'}
+                      </option>
+                    ))}
                 </select>
               </label>
 
-              <label className="block text-xs font-semibold text-slate-700">
-                Conversion event
-                <select className="form-input mt-2" value={customEventType} disabled={!pixelId} onChange={(e) => setCustomEventType(e.target.value)}>
-                  <option value="">Meta default</option>
-                  <option value="PURCHASE">Purchase</option>
-                  <option value="LEAD">Lead</option>
-                  <option value="COMPLETE_REGISTRATION">Complete registration</option>
-                  <option value="ADD_TO_CART">Add to cart</option>
-                  <option value="INITIATED_CHECKOUT">Initiated checkout</option>
-                  <option value="VIEW_CONTENT">View content</option>
-                </select>
-              </label>
+              {!customConversionId && (
+                <>
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Pixel
+                    <select className="form-input mt-2" value={pixelId} onChange={(e) => setPixelId(e.target.value)}>
+                      <option value="">No pixel selected</option>
+                      {pixels.map((pixel) => (
+                        <option key={pixel.id} value={pixel.externalResourceId}>
+                          {pixel.name || pixel.externalResourceId}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Conversion event
+                    <select className="form-input mt-2" value={customEventType} disabled={!pixelId} onChange={(e) => setCustomEventType(e.target.value)}>
+                      <option value="">Meta default</option>
+                      <option value="PURCHASE">Purchase</option>
+                      <option value="LEAD">Lead</option>
+                      <option value="COMPLETE_REGISTRATION">Complete registration</option>
+                      <option value="ADD_TO_CART">Add to cart</option>
+                      <option value="INITIATED_CHECKOUT">Initiated checkout</option>
+                      <option value="CONTENT_VIEW">View content</option>
+                    </select>
+                  </label>
+                </>
+              )}
             </div>
           </section>
 
