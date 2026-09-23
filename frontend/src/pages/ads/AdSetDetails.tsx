@@ -7,7 +7,9 @@ import type {
   Ad,
   AdAccount,
   AdAccountResource,
+  AdAudience,
   AdCampaign,
+  AdConversion,
   AdCreative,
   AdSet,
   CreateMetaAdInput,
@@ -34,6 +36,7 @@ type TargetingSnapshot = {
 type PromotedObjectSnapshot = {
   pixel_id?: string
   custom_event_type?: string
+  custom_conversion_id?: string
 }
 
 const parseJson = <T,>(value?: string | null): T | null => {
@@ -109,6 +112,8 @@ export default function AdSetDetails() {
   const [campaign, setCampaign] = useState<AdCampaign | null>(null)
   const [accounts, setAccounts] = useState<AdAccount[]>([])
   const [resources, setResources] = useState<AdAccountResource[]>([])
+  const [audiences, setAudiences] = useState<AdAudience[]>([])
+  const [conversions, setConversions] = useState<AdConversion[]>([])
   const [creatives, setCreatives] = useState<AdCreative[]>([])
   const [ads, setAds] = useState<Ad[]>([])
   const [loading, setLoading] = useState(true)
@@ -139,10 +144,11 @@ export default function AdSetDetails() {
   const [instagram, setInstagram] = useState(false)
   const [messenger, setMessenger] = useState(false)
   const [audienceNetwork, setAudienceNetwork] = useState(false)
-  const [customAudiences, setCustomAudiences] = useState('')
-  const [excludedAudiences, setExcludedAudiences] = useState('')
+  const [customAudiences, setCustomAudiences] = useState<string[]>([])
+  const [excludedAudiences, setExcludedAudiences] = useState<string[]>([])
   const [pixelId, setPixelId] = useState('')
   const [customEventType, setCustomEventType] = useState('')
+  const [customConversionId, setCustomConversionId] = useState('')
 
   const account = useMemo(
     () => accounts.find((item) => item.id === adSet?.adAccountId) ?? null,
@@ -153,7 +159,12 @@ export default function AdSetDetails() {
     (resource) => resource.resourceType === 'META_PIXEL' && resource.accessible,
   )
 
-  const syncForm = (value: AdSet, accountValue?: AdAccount | null) => {
+  const syncForm = (
+    value: AdSet,
+    accountValue?: AdAccount | null,
+    audienceValues: AdAudience[] = audiences,
+    conversionValues: AdConversion[] = conversions,
+  ) => {
     const targeting = parseJson<TargetingSnapshot>(value.targetingJson)
     const promotedObject = parseJson<PromotedObjectSnapshot>(value.promotedObjectJson)
     const platforms = targeting?.publisher_platforms ?? []
@@ -187,20 +198,32 @@ export default function AdSetDetails() {
     setInstagram(platforms.includes('instagram'))
     setMessenger(platforms.includes('messenger'))
     setAudienceNetwork(platforms.includes('audience_network'))
-    setCustomAudiences(
-      (targeting?.custom_audiences ?? [])
-        .map((item) => item.id)
-        .filter(Boolean)
-        .join(', '),
+    const includedExternalIds = new Set(
+      (targeting?.custom_audiences ?? []).map((item) => item.id).filter(Boolean),
     )
-    setExcludedAudiences(
+    const excludedExternalIds = new Set(
       (targeting?.excluded_custom_audiences ?? [])
         .map((item) => item.id)
-        .filter(Boolean)
-        .join(', '),
+        .filter(Boolean),
+    )
+    setCustomAudiences(
+      audienceValues
+        .filter((audience) => includedExternalIds.has(audience.externalAudienceId))
+        .map((audience) => audience.id),
+    )
+    setExcludedAudiences(
+      audienceValues
+        .filter((audience) => excludedExternalIds.has(audience.externalAudienceId))
+        .map((audience) => audience.id),
     )
     setPixelId(promotedObject?.pixel_id ?? '')
     setCustomEventType(promotedObject?.custom_event_type ?? '')
+    setCustomConversionId(
+      conversionValues.find(
+        (conversion) =>
+          conversion.externalConversionId === promotedObject?.custom_conversion_id,
+      )?.id ?? '',
+    )
   }
 
   const load = async () => {
@@ -212,9 +235,18 @@ export default function AdSetDetails() {
         adCenterApi.adSet(selectedCompany.companyId, adSetId),
         adCenterApi.accounts(selectedCompany.companyId),
       ])
-      const [campaignData, resourceData, adData, creativeData] = await Promise.all([
+      const [
+        campaignData,
+        resourceData,
+        audienceData,
+        conversionData,
+        adData,
+        creativeData,
+      ] = await Promise.all([
         adCenterApi.campaign(selectedCompany.companyId, adSetData.campaignId),
         adCenterApi.resources(selectedCompany.companyId, adSetData.adAccountId),
+        adCenterApi.audiences(selectedCompany.companyId, adSetData.adAccountId),
+        adCenterApi.conversions(selectedCompany.companyId, adSetData.adAccountId),
         adCenterApi.ads(selectedCompany.companyId, adSetData.id),
         adCenterApi.creatives(selectedCompany.companyId, adSetData.adAccountId),
       ])
@@ -222,11 +254,15 @@ export default function AdSetDetails() {
       setCampaign(campaignData)
       setAccounts(accountData)
       setResources(resourceData)
+      setAudiences(audienceData)
+      setConversions(conversionData)
       setAds(adData)
       setCreatives(creativeData)
       syncForm(
         adSetData,
         accountData.find((item) => item.id === adSetData.adAccountId),
+        audienceData,
+        conversionData,
       )
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load ad set'))
@@ -273,10 +309,11 @@ export default function AdSetDetails() {
       ageMax: Number(ageMax),
       genders: gender === 'ALL' ? [] : gender === 'MEN' ? [1] : [2],
       publisherPlatforms,
-      customAudienceIds: csv(customAudiences),
-      excludedCustomAudienceIds: csv(excludedAudiences),
-      pixelId: pixelId || undefined,
-      customEventType: customEventType || undefined,
+      customAudienceIds: customAudiences,
+      excludedCustomAudienceIds: excludedAudiences,
+      pixelId: customConversionId ? undefined : pixelId || undefined,
+      customEventType: customConversionId ? undefined : customEventType || undefined,
+      customConversionId: customConversionId || undefined,
     }
 
     const minorBudget = toMinor(budget, account?.currency)
@@ -292,7 +329,7 @@ export default function AdSetDetails() {
         input,
       )
       setAdSet(updated)
-      syncForm(updated, account)
+      syncForm(updated, account, audiences, conversions)
       setNotice('Ad-set settings updated in Meta.')
     } catch (saveError) {
       setError(apiErrorMessage(saveError, 'Unable to update Meta ad set'))
@@ -586,12 +623,46 @@ export default function AdSetDetails() {
                     </select>
                   </label>
                   <label className="block text-xs font-semibold text-slate-700">
-                    Custom audience IDs
-                    <input className="form-input mt-2" value={customAudiences} onChange={(e) => setCustomAudiences(e.target.value)} />
+                    Include audiences
+                    <select
+                      className="form-input mt-2 min-h-28"
+                      multiple
+                      value={customAudiences}
+                      onChange={(e) =>
+                        setCustomAudiences(
+                          Array.from(e.target.selectedOptions, (option) => option.value),
+                        )
+                      }
+                    >
+                      {audiences
+                        .filter((audience) => audience.accessible)
+                        .map((audience) => (
+                          <option key={audience.id} value={audience.id}>
+                            {audience.name} · {audience.subtype ?? 'Audience'}
+                          </option>
+                        ))}
+                    </select>
                   </label>
                   <label className="block text-xs font-semibold text-slate-700">
-                    Excluded audience IDs
-                    <input className="form-input mt-2" value={excludedAudiences} onChange={(e) => setExcludedAudiences(e.target.value)} />
+                    Exclude audiences
+                    <select
+                      className="form-input mt-2 min-h-28"
+                      multiple
+                      value={excludedAudiences}
+                      onChange={(e) =>
+                        setExcludedAudiences(
+                          Array.from(e.target.selectedOptions, (option) => option.value),
+                        )
+                      }
+                    >
+                      {audiences
+                        .filter((audience) => audience.accessible)
+                        .map((audience) => (
+                          <option key={audience.id} value={audience.id}>
+                            {audience.name} · {audience.subtype ?? 'Audience'}
+                          </option>
+                        ))}
+                    </select>
                   </label>
                 </div>
 
@@ -608,29 +679,55 @@ export default function AdSetDetails() {
               <div className="mt-6 border-t border-slate-100 pt-6">
                 <h2 className="text-base font-bold text-slate-950">Conversion</h2>
                 <div className="mt-4 grid gap-5 sm:grid-cols-2">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Pixel
-                    <select className="form-input mt-2" value={pixelId} onChange={(e) => setPixelId(e.target.value)}>
-                      <option value="">No pixel selected</option>
-                      {pixels.map((pixel) => (
-                        <option key={pixel.id} value={pixel.externalResourceId}>
-                          {pixel.name || pixel.externalResourceId}
-                        </option>
-                      ))}
+                  <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
+                    Custom conversion
+                    <select
+                      className="form-input mt-2"
+                      value={customConversionId}
+                      onChange={(e) => setCustomConversionId(e.target.value)}
+                    >
+                      <option value="">Use pixel + standard event</option>
+                      {conversions
+                        .filter(
+                          (conversion) =>
+                            conversion.accessible &&
+                            !conversion.archived &&
+                            !conversion.unavailable,
+                        )
+                        .map((conversion) => (
+                          <option key={conversion.id} value={conversion.id}>
+                            {conversion.name} · {conversion.customEventType ?? 'Conversion'}
+                          </option>
+                        ))}
                     </select>
                   </label>
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Conversion event
-                    <select className="form-input mt-2" value={customEventType} disabled={!pixelId} onChange={(e) => setCustomEventType(e.target.value)}>
-                      <option value="">Meta default</option>
-                      <option value="PURCHASE">Purchase</option>
-                      <option value="LEAD">Lead</option>
-                      <option value="COMPLETE_REGISTRATION">Complete registration</option>
-                      <option value="ADD_TO_CART">Add to cart</option>
-                      <option value="INITIATED_CHECKOUT">Initiated checkout</option>
-                      <option value="VIEW_CONTENT">View content</option>
-                    </select>
-                  </label>
+                  {!customConversionId && (
+                    <>
+                      <label className="block text-xs font-semibold text-slate-700">
+                        Pixel
+                        <select className="form-input mt-2" value={pixelId} onChange={(e) => setPixelId(e.target.value)}>
+                          <option value="">No pixel selected</option>
+                          {pixels.map((pixel) => (
+                            <option key={pixel.id} value={pixel.externalResourceId}>
+                              {pixel.name || pixel.externalResourceId}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block text-xs font-semibold text-slate-700">
+                        Conversion event
+                        <select className="form-input mt-2" value={customEventType} disabled={!pixelId} onChange={(e) => setCustomEventType(e.target.value)}>
+                          <option value="">Meta default</option>
+                          <option value="PURCHASE">Purchase</option>
+                          <option value="LEAD">Lead</option>
+                          <option value="COMPLETE_REGISTRATION">Complete registration</option>
+                          <option value="ADD_TO_CART">Add to cart</option>
+                          <option value="INITIATED_CHECKOUT">Initiated checkout</option>
+                          <option value="CONTENT_VIEW">View content</option>
+                        </select>
+                      </label>
+                    </>
+                  )}
                 </div>
               </div>
 
