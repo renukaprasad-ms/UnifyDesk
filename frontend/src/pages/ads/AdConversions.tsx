@@ -277,7 +277,7 @@ export default function AdConversions() {
           </div>
         ) : managedAccounts.length === 0 ? (
           <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
-            Connect and manage a Meta ad account before using conversions.
+            Connect and manage an advertising account before using conversions.
           </div>
         ) : (
           <>
@@ -286,7 +286,7 @@ export default function AdConversions() {
                 <div>
                   <h2 className="text-lg font-bold text-slate-950">Pixels</h2>
                   <p className="mt-1 text-xs text-slate-500">
-                    Event sources discovered from the selected Meta ad account.
+                    {selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google conversion actions are synchronized directly from the selected account.' : 'Event sources discovered from the selected Meta ad account.'}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -309,7 +309,7 @@ export default function AdConversions() {
 
               {pixels.length === 0 ? (
                 <div className="panel mt-3 p-8 text-center text-sm text-slate-500">
-                  No Meta pixels are accessible for this account. Sync Meta resources to refresh
+                  {selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google Ads does not use Meta Pixels. Conversion actions are managed below.' : 'No Meta pixels are accessible for this account. Sync Meta resources to refresh'}
                   the account assets.
                 </div>
               ) : (
