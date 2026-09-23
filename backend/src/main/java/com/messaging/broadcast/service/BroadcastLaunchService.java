@@ -88,6 +88,7 @@ public class BroadcastLaunchService {
     run.setSubjectSnapshot(message.getSubject());
     run.setBodyTextSnapshot(message.getBodyText());
     run.setBodyHtmlSnapshot(message.getBodyHtml());
+    run.setTemplateVariablesJsonSnapshot(message.getTemplateVariablesJson());
 
     if (sender.getProvider() == BroadcastSenderProvider.MSG91_EMAIL) {
       if (message.getSourceTemplateId() == null || message.getSourceTemplateVersion() == null) {
