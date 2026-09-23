@@ -21,7 +21,7 @@ import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 
-type Filter = 'ALL' | AdRecommendationSeverity
+type Filter = 'ALL' | 'HIDDEN' | AdRecommendationSeverity
 
 const isoDate = (date: Date) => {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
@@ -75,11 +75,28 @@ const emptyRecommendations = (accountId: string): AdRecommendationsData => ({
   warningCount: 0,
   opportunityCount: 0,
   infoCount: 0,
+  dismissedCount: 0,
+  snoozedCount: 0,
   generatedAt: new Date().toISOString(),
   items: [],
+  suppressedItems: [],
 })
 
-function RecommendationCard({ item }: { item: AdRecommendationItem }) {
+function RecommendationCard({
+  item,
+  canModify,
+  working,
+  onDismiss,
+  onSnooze,
+  onReopen,
+}: {
+  item: AdRecommendationItem
+  canModify: boolean
+  working: boolean
+  onDismiss: () => void
+  onSnooze: () => void
+  onReopen: () => void
+}) {
   const tone = severityTone[item.severity]
 
   return (
@@ -117,16 +134,58 @@ function RecommendationCard({ item }: { item: AdRecommendationItem }) {
             </div>
           )}
 
-          {item.actionPath && item.actionLabel && (
-            <div className="mt-4">
+          {item.lifecycleStatus === 'SNOOZED' && item.snoozedUntil && (
+            <p className="mt-4 text-xs font-medium text-amber-700">
+              Snoozed until {new Date(item.snoozedUntil).toLocaleString()}
+            </p>
+          )}
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {item.actionPath && item.actionLabel && (
               <Link
                 to={item.actionPath}
                 className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
               >
                 {item.actionLabel} →
               </Link>
-            </div>
-          )}
+            )}
+
+            {canModify && item.lifecycleStatus === 'ACTIVE' && (
+              <>
+                {item.dismissible && (
+                  <button
+                    type="button"
+                    className="secondary-button px-3 py-2 text-xs"
+                    disabled={working}
+                    onClick={onDismiss}
+                  >
+                    {working ? 'Saving…' : 'Dismiss'}
+                  </button>
+                )}
+                {item.snoozable && (
+                  <button
+                    type="button"
+                    className="secondary-button px-3 py-2 text-xs"
+                    disabled={working}
+                    onClick={onSnooze}
+                  >
+                    {working ? 'Saving…' : 'Snooze 24h'}
+                  </button>
+                )}
+              </>
+            )}
+
+            {canModify && item.lifecycleStatus !== 'ACTIVE' && (
+              <button
+                type="button"
+                className="secondary-button px-3 py-2 text-xs"
+                disabled={working}
+                onClick={onReopen}
+              >
+                {working ? 'Saving…' : 'Reopen'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </article>
@@ -144,6 +203,7 @@ export default function AdRecommendations() {
   const [filter, setFilter] = useState<Filter>('ALL')
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
+  const [workingKey, setWorkingKey] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -165,7 +225,9 @@ export default function AdRecommendations() {
     null
 
   const visibleItems = useMemo(() => {
-    const items = recommendations?.items ?? []
+    if (!recommendations) return []
+    if (filter === 'HIDDEN') return recommendations.suppressedItems ?? []
+    const items = recommendations.items ?? []
     return filter === 'ALL'
       ? items
       : items.filter((item) => item.severity === filter)
@@ -225,6 +287,45 @@ export default function AdRecommendations() {
       setError(apiErrorMessage(loadError, 'Unable to load recommendations'))
     } finally {
       setLoading(false)
+    }
+  }
+
+  const updateLifecycle = async (
+    item: AdRecommendationItem,
+    action: 'DISMISS' | 'SNOOZE' | 'REOPEN',
+  ) => {
+    if (!selectedCompany || !selectedAccount) return
+
+    setWorkingKey(item.key)
+    setError('')
+    setNotice('')
+    try {
+      const snoozedUntil =
+        action === 'SNOOZE'
+          ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+          : undefined
+      const updated = await adCenterApi.updateRecommendationState(
+        selectedCompany.companyId,
+        selectedAccount.id,
+        item.key,
+        action,
+        snoozedUntil,
+      )
+      setRecommendations(updated)
+      setNotice(
+        action === 'DISMISS'
+          ? 'Recommendation dismissed.'
+          : action === 'SNOOZE'
+            ? 'Recommendation snoozed for 24 hours.'
+            : 'Recommendation reopened.',
+      )
+      window.dispatchEvent(new Event('ad-center:recommendations-changed'))
+    } catch (updateError) {
+      setError(
+        apiErrorMessage(updateError, 'Unable to update recommendation state'),
+      )
+    } finally {
+      setWorkingKey(null)
     }
   }
 
@@ -297,12 +398,17 @@ export default function AdRecommendations() {
         )
         .filter((name): name is string => Boolean(name))
 
-      await loadRecommendations(selectedAccount.id)
+      const updated = await adCenterApi.reconcileRecommendations(
+        selectedCompany.companyId,
+        selectedAccount.id,
+      )
+      setRecommendations(updated)
+      window.dispatchEvent(new Event('ad-center:recommendations-changed'))
 
       setNotice(
         failed.length === 0
-          ? 'Meta account, delivery, billing, tracking, and seven-day performance signals synchronized.'
-          : `Recommendations refreshed. ${failed.length} signal source(s) could not be synchronized: ${failed.join(', ')}.`,
+          ? 'Meta account, delivery, billing, tracking, and seven-day performance signals synchronized and recommendation lifecycle reconciled.'
+          : `Recommendations refreshed and reconciled. ${failed.length} signal source(s) could not be synchronized: ${failed.join(', ')}.`,
       )
     } catch (syncError) {
       setError(
@@ -340,6 +446,13 @@ export default function AdRecommendations() {
       value: 'INFO',
       label: 'Info',
       count: recommendations?.infoCount ?? 0,
+    },
+    {
+      value: 'HIDDEN',
+      label: 'Hidden',
+      count:
+        (recommendations?.dismissedCount ?? 0) +
+        (recommendations?.snoozedCount ?? 0),
     },
   ]
 
@@ -515,13 +628,21 @@ export default function AdRecommendations() {
                   No matching issues
                 </h2>
                 <p className="mt-2 text-sm text-slate-500">
-                  No {filter === 'ALL' ? 'current diagnostic' : filter.toLowerCase()} items were found from the synchronized signals.
+                  No {filter === 'ALL' ? 'current diagnostic' : filter === 'HIDDEN' ? 'hidden recommendation' : filter.toLowerCase()} items were found from the synchronized signals.
                 </p>
               </div>
             ) : (
               <div className="mt-6 grid gap-4 xl:grid-cols-2">
                 {visibleItems.map((item) => (
-                  <RecommendationCard key={item.key} item={item} />
+                  <RecommendationCard
+                    key={item.key}
+                    item={item}
+                    canModify={can(PERMISSIONS.ADS_MODIFY)}
+                    working={workingKey === item.key}
+                    onDismiss={() => void updateLifecycle(item, 'DISMISS')}
+                    onSnooze={() => void updateLifecycle(item, 'SNOOZE')}
+                    onReopen={() => void updateLifecycle(item, 'REOPEN')}
+                  />
                 ))}
               </div>
             )}
