@@ -307,3 +307,79 @@ export type UpdateMetaAdInput = {
 export type MetaAdSync = {
   synchronizedCount: number
 }
+
+
+export type AdAudience = {
+  id: string
+  companyId: string
+  adAccountId: string
+  provider: AdProvider
+  externalAudienceId: string
+  name: string
+  subtype?: string | null
+  description?: string | null
+  retentionDays?: number | null
+  approximateCountLowerBound?: number | null
+  approximateCountUpperBound?: number | null
+  deliveryStatusJson?: string | null
+  operationStatusJson?: string | null
+  pixelId?: string | null
+  ruleJson?: string | null
+  lookalikeSpecJson?: string | null
+  providerCreatedAt?: string | null
+  providerUpdatedAt?: string | null
+  accessible: boolean
+  lastSyncAt?: string | null
+}
+
+export type CreateMetaAudienceInput = {
+  name: string
+  type: 'WEBSITE' | 'LOOKALIKE'
+  description?: string | null
+  pixelId?: string | null
+  ruleJson?: string | null
+  retentionDays?: number | null
+  originAudienceId?: string | null
+  country?: string | null
+  ratio?: number | null
+}
+
+export type MetaAudienceSync = {
+  synchronizedCount: number
+}
+
+export type AdConversion = {
+  id: string
+  companyId: string
+  adAccountId: string
+  provider: AdProvider
+  externalConversionId: string
+  name: string
+  description?: string | null
+  customEventType?: string | null
+  eventSourceType?: string | null
+  pixelId?: string | null
+  ruleJson?: string | null
+  dataSourcesJson?: string | null
+  defaultConversionValue?: number | null
+  archived: boolean
+  unavailable: boolean
+  firstFiredAt?: string | null
+  lastFiredAt?: string | null
+  providerCreatedAt?: string | null
+  accessible: boolean
+  lastSyncAt?: string | null
+}
+
+export type CreateMetaConversionInput = {
+  name: string
+  description?: string | null
+  customEventType: string
+  pixelId: string
+  ruleJson: string
+  defaultConversionValue?: number | null
+}
+
+export type MetaConversionSync = {
+  synchronizedCount: number
+}
