@@ -2,7 +2,6 @@ package com.messaging.ads.repository;
 
 import com.messaging.ads.entity.AdAccount;
 import com.messaging.ads.enums.AdProvider;
-import java.util.List;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
@@ -18,7 +17,9 @@ public interface AdAccountRepository extends JpaRepository<AdAccount, Long> {
   Optional<AdAccount> findByIdAndCompanyId(Long id, Long companyId);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
-  @Query("select account from AdAccount account where account.id = :id and account.companyId = :companyId")
+  @Query(
+      "select account from AdAccount account where account.id = :id and account.companyId ="
+          + " :companyId")
   Optional<AdAccount> findByIdAndCompanyIdForUpdate(
       @Param("id") Long id, @Param("companyId") Long companyId);
 
@@ -26,7 +27,8 @@ public interface AdAccountRepository extends JpaRepository<AdAccount, Long> {
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query(
-      "select account from AdAccount account where account.companyId = :companyId and account.provider = :provider order by account.id")
+      "select account from AdAccount account where account.companyId = :companyId and"
+          + " account.provider = :provider order by account.id")
   List<AdAccount> findByCompanyIdAndProviderForUpdate(
       @Param("companyId") Long companyId, @Param("provider") AdProvider provider);
 
