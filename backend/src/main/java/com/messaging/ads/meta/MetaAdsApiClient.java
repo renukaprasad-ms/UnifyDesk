@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.messaging.common.exception.BadRequestException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
@@ -328,6 +329,67 @@ public class MetaAdsApiClient {
         + "data_sources,default_conversion_value,is_archived,is_unavailable,"
         + "first_fired_time,last_fired_time,creation_time";
   }
+  public List<InsightSummary> insights(
+      String accessToken,
+      String accountId,
+      String level,
+      LocalDate from,
+      LocalDate to) {
+    List<InsightSummary> result = new ArrayList<>();
+    String after = null;
+    for (int page = 0; page < MAX_PAGES; page++) {
+      InsightPage response =
+          insightPage(accessToken, accountId, level, from, to, after);
+      if (response.data() != null) result.addAll(response.data());
+      after = nextCursor(response.paging());
+      if (after == null) break;
+    }
+    return List.copyOf(result);
+  }
+
+  private InsightPage insightPage(
+      String accessToken,
+      String accountId,
+      String level,
+      LocalDate from,
+      LocalDate to,
+      String after) {
+    String timeRange =
+        "{\"since\":\"" + from + "\",\"until\":\"" + to + "\"}";
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder -> {
+                      var builder =
+                          uriBuilder
+                              .path("/{version}/{account}/insights")
+                              .queryParam("fields", insightFields())
+                              .queryParam("level", level)
+                              .queryParam("time_range", timeRange)
+                              .queryParam("time_increment", "1")
+                              .queryParam("limit", PAGE_LIMIT)
+                              .queryParam("appsecret_proof", appSecretProof(accessToken));
+                      if (after != null && !after.isBlank()) {
+                        builder.queryParam("after", after);
+                      }
+                      return builder.build(
+                          properties.getGraphApiVersion(), accountPath(accountId));
+                    })
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(InsightPage.class));
+  }
+
+  private String insightFields() {
+    return "account_id,account_name,account_currency,campaign_id,campaign_name,"
+        + "adset_id,adset_name,ad_id,ad_name,date_start,date_stop,spend,impressions,"
+        + "reach,clicks,unique_clicks,inline_link_clicks,ctr,cpc,cpm,frequency,"
+        + "actions,action_values,conversions,conversion_values,purchase_roas,"
+        + "website_purchase_roas";
+  }
+
   public List<CampaignSummary> campaigns(String accessToken, String accountId) {
     List<CampaignSummary> result = new ArrayList<>();
     String after = null;
@@ -990,6 +1052,37 @@ public class MetaAdsApiClient {
       @JsonProperty("updated_time") String updatedTime) {}
 
   public record AdPage(List<AdSummary> data, Paging paging) {}
+  public record InsightSummary(
+      @JsonProperty("account_id") String accountId,
+      @JsonProperty("account_name") String accountName,
+      @JsonProperty("account_currency") String accountCurrency,
+      @JsonProperty("campaign_id") String campaignId,
+      @JsonProperty("campaign_name") String campaignName,
+      @JsonProperty("adset_id") String adSetId,
+      @JsonProperty("adset_name") String adSetName,
+      @JsonProperty("ad_id") String adId,
+      @JsonProperty("ad_name") String adName,
+      @JsonProperty("date_start") String dateStart,
+      @JsonProperty("date_stop") String dateStop,
+      String spend,
+      String impressions,
+      String reach,
+      String clicks,
+      @JsonProperty("unique_clicks") String uniqueClicks,
+      @JsonProperty("inline_link_clicks") String inlineLinkClicks,
+      String ctr,
+      String cpc,
+      String cpm,
+      String frequency,
+      JsonNode actions,
+      @JsonProperty("action_values") JsonNode actionValues,
+      JsonNode conversions,
+      @JsonProperty("conversion_values") JsonNode conversionValues,
+      @JsonProperty("purchase_roas") JsonNode purchaseRoas,
+      @JsonProperty("website_purchase_roas") JsonNode websitePurchaseRoas) {}
+
+  public record InsightPage(List<InsightSummary> data, Paging paging) {}
+
   public record CustomAudienceSummary(
       String id,
       String name,
