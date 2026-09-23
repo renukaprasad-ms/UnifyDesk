@@ -183,6 +183,14 @@ export default function AdSettings() {
       )
       setHealth(updated)
       setNotice('Meta account health synchronized.')
+      try {
+        await adCenterApi.reconcileRecommendations(
+          selectedCompany.companyId,
+          selectedAccount.id,
+        )
+      } catch {
+        // Health sync succeeded; recommendation lifecycle reconciliation is best effort.
+      }
       window.dispatchEvent(new Event('ad-center:recommendations-changed'))
     } catch (syncError) {
       setError(apiErrorMessage(syncError, 'Unable to synchronize Meta account health'))
@@ -202,6 +210,14 @@ export default function AdSettings() {
         selectedAccount.id,
       )
       setResources(result.resources)
+      try {
+        await adCenterApi.reconcileRecommendations(
+          selectedCompany.companyId,
+          selectedAccount.id,
+        )
+      } catch {
+        // Resource sync succeeded; recommendation lifecycle reconciliation is best effort.
+      }
       window.dispatchEvent(new Event('ad-center:recommendations-changed'))
       setNotice(
         `Synced ${result.pages} Facebook page(s), ${result.instagramAccounts} Instagram account(s), and ${result.pixels} pixel(s).`,
