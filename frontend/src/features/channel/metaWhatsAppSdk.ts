@@ -29,6 +29,7 @@ const POPUP_HINT_DELAY_MS = 6_000
 const LOG_PREFIX = '[MetaWhatsApp]'
 
 let sdkPromise: Promise<void> | null = null
+let sdkInitializedKey: string | null = null
 
 const metaLog = (stage: string, details?: Record<string, unknown>) => {
   if (details) {
@@ -55,35 +56,60 @@ const metaError = (stage: string, details?: Record<string, unknown>) => {
 }
 
 const initializeSdk = (appId: string, graphApiVersion: string) => {
+  const normalizedAppId = appId.trim()
+  const normalizedVersion = graphApiVersion.trim()
+  const initKey = `${normalizedAppId}:${normalizedVersion}`
+
   if (!window.FB) {
     metaWarn('SDK_INIT_SKIPPED', { reason: 'window.FB is not available' })
     return false
   }
 
+  if (sdkInitializedKey === initKey) {
+    metaLog('SDK_ALREADY_INITIALIZED', {
+      appId: normalizedAppId,
+      graphApiVersion: normalizedVersion,
+    })
+    return true
+  }
+
   metaLog('SDK_INIT_START', {
-    appId,
-    graphApiVersion,
+    appId: normalizedAppId,
+    graphApiVersion: normalizedVersion,
     secureContext: window.isSecureContext,
     hostname: window.location.hostname,
   })
 
-  window.FB.init({ appId, cookie: true, xfbml: false, version: graphApiVersion })
+  window.FB.init({
+    appId: normalizedAppId,
+    cookie: true,
+    xfbml: false,
+    version: normalizedVersion,
+  })
+  sdkInitializedKey = initKey
 
   metaLog('SDK_READY', {
-    appId,
-    graphApiVersion,
+    appId: normalizedAppId,
+    graphApiVersion: normalizedVersion,
   })
   return true
 }
 
 export const loadMetaSdk = (appId: string, graphApiVersion: string) => {
+  const normalizedAppId = appId.trim()
+  const normalizedVersion = graphApiVersion.trim()
+  const initKey = `${normalizedAppId}:${normalizedVersion}`
+
   metaLog('SDK_LOAD_REQUESTED', {
-    appId,
-    graphApiVersion,
+    appId: normalizedAppId,
+    graphApiVersion: normalizedVersion,
+    appIdTrimmed: normalizedAppId !== appId,
+    graphApiVersionTrimmed: normalizedVersion !== graphApiVersion,
     fbAlreadyAvailable: Boolean(window.FB),
+    initializedForRequestedApp: sdkInitializedKey === initKey,
   })
 
-  if (initializeSdk(appId, graphApiVersion)) {
+  if (sdkInitializedKey === initKey && window.FB) {
     metaLog('SDK_REUSED')
     return Promise.resolve()
   }
@@ -98,15 +124,24 @@ export const loadMetaSdk = (appId: string, graphApiVersion: string) => {
 
     const finish = () => {
       if (settled) return
-      if (!initializeSdk(appId, graphApiVersion)) {
-        metaWarn('SDK_SCRIPT_LOADED_WITHOUT_FB')
-        return
-      }
 
-      settled = true
-      window.clearTimeout(timeout)
-      metaLog('SDK_LOAD_COMPLETE')
-      resolve()
+      try {
+        if (!initializeSdk(normalizedAppId, normalizedVersion)) {
+          metaWarn('FB_ASYNC_INIT_WITHOUT_FB')
+          return
+        }
+
+        settled = true
+        window.clearTimeout(timeout)
+        metaLog('SDK_LOAD_COMPLETE')
+        resolve()
+      } catch (error) {
+        fail(
+          error instanceof Error
+            ? `Meta SDK initialization failed: ${error.message}`
+            : 'Meta SDK initialization failed',
+        )
+      }
     }
 
     const fail = (message: string) => {
@@ -119,10 +154,13 @@ export const loadMetaSdk = (appId: string, graphApiVersion: string) => {
     }
 
     const timeout = window.setTimeout(
-      () => fail('Meta SDK took too long to load'),
+      () => fail('Meta SDK took too long to initialize'),
       SDK_LOAD_TIMEOUT_MS,
     )
 
+    // Meta's SDK is only guaranteed to be ready for FB.init from fbAsyncInit.
+    // The script element's load event can fire before the SDK's internal bootstrap
+    // has reached that point, so never call FB.init from the load event.
     window.fbAsyncInit = () => {
       metaLog('FB_ASYNC_INIT_CALLBACK')
       finish()
@@ -133,13 +171,16 @@ export const loadMetaSdk = (appId: string, graphApiVersion: string) => {
       metaLog('SDK_SCRIPT_ALREADY_PRESENT', {
         src: existing.src,
         connected: existing.isConnected,
+        fbAvailable: Boolean(window.FB),
       })
 
       existing.addEventListener(
         'load',
         () => {
-          metaLog('SDK_EXISTING_SCRIPT_LOAD_EVENT')
-          finish()
+          metaLog('SDK_EXISTING_SCRIPT_LOAD_EVENT', {
+            fbAvailable: Boolean(window.FB),
+            note: 'Waiting for fbAsyncInit before calling FB.init.',
+          })
         },
         { once: true },
       )
@@ -149,15 +190,15 @@ export const loadMetaSdk = (appId: string, graphApiVersion: string) => {
         { once: true },
       )
 
-      // Recover from a stale script tag left behind by an earlier failed load.
+      // If the script came from an earlier fully completed bootstrap in this SPA,
+      // our module-local marker may have been lost. Give fbAsyncInit a chance first,
+      // then initialize as a recovery path only when FB is already present.
       window.setTimeout(() => {
-        if (!settled && !window.FB && existing.isConnected) {
-          metaWarn('SDK_STALE_SCRIPT_REMOVED')
-          existing.remove()
-          sdkPromise = null
-          fail('Meta SDK did not initialize. Refresh the page and try again.')
+        if (!settled && window.FB) {
+          metaWarn('SDK_EXISTING_SCRIPT_RECOVERY_INIT')
+          finish()
         }
-      }, 2_000)
+      }, 1_000)
       return
     }
 
@@ -170,8 +211,10 @@ export const loadMetaSdk = (appId: string, graphApiVersion: string) => {
     script.addEventListener(
       'load',
       () => {
-        metaLog('SDK_SCRIPT_LOAD_EVENT')
-        finish()
+        metaLog('SDK_SCRIPT_LOAD_EVENT', {
+          fbAvailable: Boolean(window.FB),
+          note: 'Waiting for fbAsyncInit before calling FB.init.',
+        })
       },
       { once: true },
     )
@@ -200,10 +243,16 @@ export const launchMetaWhatsAppSignup = (
     const startedAt = performance.now()
     const elapsedMs = () => Math.round(performance.now() - startedAt)
 
+    const normalizedAppId = config.appId.trim()
+    const normalizedConfigurationId = config.configurationId.trim()
+    const normalizedGraphApiVersion = config.graphApiVersion.trim()
+
     metaLog('SIGNUP_START', {
-      appId: config.appId,
-      configurationId: config.configurationId,
-      graphApiVersion: config.graphApiVersion,
+      appId: normalizedAppId,
+      configurationId: normalizedConfigurationId,
+      graphApiVersion: normalizedGraphApiVersion,
+      appIdTrimmed: normalizedAppId !== config.appId,
+      configurationIdTrimmed: normalizedConfigurationId !== config.configurationId,
       secureContext: window.isSecureContext,
       hostname: window.location.hostname,
       fbAvailable: Boolean(window.FB),
@@ -372,7 +421,7 @@ export const launchMetaWhatsAppSignup = (
       // FB.login can lose browser user activation and cause popup blocking.
       metaLog('FB_LOGIN_CALLING', {
         elapsedMs: elapsedMs(),
-        configurationId: config.configurationId,
+        configurationId: normalizedConfigurationId,
       })
 
       window.FB.login(
@@ -404,7 +453,7 @@ export const launchMetaWhatsAppSignup = (
           finishIfReady()
         },
         {
-          config_id: config.configurationId,
+          config_id: normalizedConfigurationId,
           auth_type: 'rerequest',
           response_type: 'code',
           override_default_response_type: true,
