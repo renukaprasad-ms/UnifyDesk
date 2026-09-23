@@ -31,6 +31,7 @@ export type AdAccount = {
   status: 'ACTIVE' | 'DISABLED' | 'CLOSED' | 'UNKNOWN'
   primaryAccount: boolean
   managed: boolean
+  accessible: boolean
   lastSyncAt?: string | null
   createdAt: string
   updatedAt: string
