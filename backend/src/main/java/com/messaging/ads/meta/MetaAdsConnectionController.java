@@ -1,5 +1,6 @@
 package com.messaging.ads.meta;
 
+import com.messaging.ads.dto.AdAccountBillingResponse;
 import com.messaging.ads.dto.AdAudienceResponse;
 import com.messaging.ads.dto.AdAccountResourceResponse;
 import com.messaging.ads.dto.AdCampaignResponse;
@@ -26,6 +27,7 @@ import com.messaging.ads.meta.dto.MetaCreativeSyncResponse;
 import com.messaging.ads.meta.dto.MetaAdSetStatusRequest;
 import com.messaging.ads.meta.dto.MetaAdSetSyncResponse;
 import com.messaging.ads.meta.dto.UpdateMetaCampaignRequest;
+import com.messaging.ads.meta.dto.UpdateMetaSpendCapRequest;
 import com.messaging.ads.meta.dto.UpdateMetaAdRequest;
 import com.messaging.ads.meta.dto.UpdateMetaAdSetRequest;
 import com.messaging.ads.meta.dto.MetaAdsCampaignSyncResponse;
@@ -54,6 +56,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MetaAdsConnectionController {
 
   private final MetaAdsConnectionService connectionService;
+  private final MetaAdsBillingService billingService;
   private final MetaAdsPixelMutationService pixelMutationService;
   private final MetaAdsInsightSyncService insightSyncService;
   private final MetaAdsInsightBreakdownSyncService insightBreakdownSyncService;
@@ -72,6 +75,36 @@ public class MetaAdsConnectionController {
   private final MetaAdsAdSetMutationService adSetMutationService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
+
+  @PostMapping("/accounts/{accountId}/billing/sync")
+  public ResponseEntity<ApiResponse<AdAccountBillingResponse>> syncBilling(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            billingService.sync(companyId, accountId),
+            "Meta billing synchronized"));
+  }
+
+  @PatchMapping("/accounts/{accountId}/billing/spend-cap")
+  public ResponseEntity<ApiResponse<AdAccountBillingResponse>> updateSpendCap(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody UpdateMetaSpendCapRequest request) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            billingService.updateSpendCap(
+                companyId, accountId, request.spendCapMinor()),
+            "Meta account spend cap updated"));
+  }
 
   @PostMapping("/accounts/{accountId}/insights/sync")
   public ResponseEntity<ApiResponse<MetaInsightsSyncResponse>> syncInsights(
