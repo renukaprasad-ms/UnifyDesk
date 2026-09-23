@@ -25,6 +25,15 @@ public class MetaAdsProvider implements AdsProvider {
 
   @Override
   public Set<AdCapability> capabilities() {
-    return Set.of(AdCapability.ACCOUNT_DISCOVERY);
+    return Set.of(
+        AdCapability.ACCOUNT_DISCOVERY,
+        AdCapability.CAMPAIGN_MANAGEMENT,
+        AdCapability.CREATIVE_MANAGEMENT,
+        AdCapability.AUDIENCE_MANAGEMENT,
+        AdCapability.CONVERSION_MANAGEMENT,
+        AdCapability.ANALYTICS,
+        AdCapability.BILLING_READ,
+        AdCapability.BILLING_WRITE,
+        AdCapability.RECOMMENDATIONS);
   }
 }
