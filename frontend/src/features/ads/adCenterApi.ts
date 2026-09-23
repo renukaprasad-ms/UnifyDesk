@@ -3,7 +3,9 @@ import type { ApiResponse } from '../../lib/api/types'
 import type {
   AdAccount,
   AdAccountBilling,
+  AdAccountHealth,
   AdAccountResource,
+  AdActivityLog,
   AdAnalytics,
   AdAnalyticsBreakdown,
   AdInsightBreakdownType,
@@ -197,6 +199,39 @@ export const adCenterApi = {
     const response = await apiClient.post<ApiResponse<AdSet>>(
       `/api/v1/companies/${companyId}/ads/meta/ad-sets/${adSetId}/status`,
       { status },
+    )
+    return unwrap(response.data)
+  },
+
+  async health(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<AdAccountHealth>>(
+      `/api/v1/companies/${companyId}/ads/accounts/${accountId}/health`,
+    )
+    return unwrap(response.data)
+  },
+
+  async syncMetaHealth(companyId: string, accountId: string) {
+    const response = await apiClient.post<ApiResponse<AdAccountHealth>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/health/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async activity(
+    companyId: string,
+    accountId?: string,
+    page = 0,
+    size = 50,
+  ) {
+    const response = await apiClient.get<ApiResponse<PageResponse<AdActivityLog>>>(
+      `/api/v1/companies/${companyId}/ads/activity`,
+      {
+        params: {
+          ...(accountId ? { accountId } : {}),
+          page,
+          size,
+        },
+      },
     )
     return unwrap(response.data)
   },
