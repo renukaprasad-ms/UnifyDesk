@@ -385,3 +385,66 @@ export type CreateMetaConversionInput = {
 export type MetaConversionSync = {
   synchronizedCount: number
 }
+
+
+export type AdInsightLevel = 'CAMPAIGN' | 'AD_SET' | 'AD'
+
+export type AdAnalyticsSummary = {
+  currency?: string | null
+  spend: number
+  impressions: number
+  reach: number
+  clicks: number
+  ctr?: number | null
+  cpc?: number | null
+  cpm?: number | null
+  conversions: number
+  conversionValue: number
+  cpa?: number | null
+  roas?: number | null
+  leads: number
+  purchases: number
+}
+
+export type AdAnalyticsDailyPoint = {
+  date: string
+  spend: number
+  impressions: number
+  reach: number
+  clicks: number
+  conversions: number
+  conversionValue: number
+  roas?: number | null
+}
+
+export type AdAnalyticsEntityRow = {
+  entityId?: string | null
+  entityRef: string
+  entityName?: string | null
+  spend: number
+  impressions: number
+  reach: number
+  clicks: number
+  ctr?: number | null
+  conversions: number
+  conversionValue: number
+  cpa?: number | null
+  roas?: number | null
+  leads: number
+  purchases: number
+}
+
+export type AdAnalytics = {
+  summary: AdAnalyticsSummary
+  daily: AdAnalyticsDailyPoint[]
+  entities: AdAnalyticsEntityRow[]
+  exactRangeAvailable: boolean
+  lastSyncedAt?: string | null
+}
+
+export type MetaInsightsSync = {
+  accountRows: number
+  campaignRows: number
+  adSetRows: number
+  adRows: number
+}
