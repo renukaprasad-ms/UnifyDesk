@@ -1,6 +1,7 @@
 import {
   FiActivity,
   FiBarChart2,
+  FiClock,
   FiCreditCard,
   FiGrid,
   FiImage,
@@ -18,6 +19,7 @@ const items = [
   { label: 'Conversions', to: '/ad-center/conversions', icon: <FiActivity /> },
   { label: 'Analytics', to: '/ad-center/analytics', icon: <FiBarChart2 /> },
   { label: 'Billing', to: '/ad-center/billing', icon: <FiCreditCard /> },
+  { label: 'Activity', to: '/ad-center/activity', icon: <FiClock /> },
   { label: 'Settings', to: '/ad-center/settings', icon: <FiSettings /> },
 ]
 
