@@ -7,6 +7,7 @@ import AdCenterOverview from '../pages/ads/AdCenterOverview'
 import AdCampaigns from '../pages/ads/AdCampaigns'
 import AdCampaignDetails from '../pages/ads/AdCampaignDetails'
 import AdSetDetails from '../pages/ads/AdSetDetails'
+import AdAnalytics from '../pages/ads/AdAnalytics'
 import AdAudiences from '../pages/ads/AdAudiences'
 import AdConversions from '../pages/ads/AdConversions'
 import AdCreatives from '../pages/ads/AdCreatives'
@@ -98,7 +99,7 @@ const AppRoutes = () => (
               <Route path="ad-center/creatives" element={<AdCreatives />} />
               <Route path="ad-center/audiences" element={<AdAudiences />} />
               <Route path="ad-center/conversions" element={<AdConversions />} />
-              <Route path="ad-center/analytics" element={<PlaceholderPage />} />
+              <Route path="ad-center/analytics" element={<AdAnalytics />} />
               <Route path="ad-center/billing" element={<PlaceholderPage />} />
               <Route path="ad-center/settings" element={<PlaceholderPage />} />
             </Route>
