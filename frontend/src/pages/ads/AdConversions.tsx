@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FiActivity, FiPlus, FiRefreshCw } from 'react-icons/fi'
 import MetaConversionModal from '../../components/ads/MetaConversionModal'
+import GoogleConversionModal from '../../components/ads/GoogleConversionModal'
 import MetaPixelModal from '../../components/ads/MetaPixelModal'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
@@ -8,6 +9,7 @@ import type {
   AdAccountResource,
   AdConversion,
   CreateMetaConversionInput,
+  CreateGoogleConversionInput,
 } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -38,9 +40,7 @@ export default function AdConversions() {
 
   const managedAccounts = useMemo(
     () =>
-      accounts.filter(
-        (account) => account.provider === 'META_ADS' && account.managed && account.accessible,
-      ),
+      accounts.filter((account) => account.managed && account.accessible),
     [accounts],
   )
 
@@ -71,9 +71,7 @@ export default function AdConversions() {
     try {
       const accountData = await adCenterApi.accounts(selectedCompany.companyId)
       setAccounts(accountData)
-      const eligible = accountData.filter(
-        (account) => account.provider === 'META_ADS' && account.managed && account.accessible,
-      )
+      const eligible = accountData.filter((account) => account.managed && account.accessible)
       const preferred = eligible.find((account) => account.primaryAccount) ?? eligible[0]
       if (preferred) {
         setSelectedAccountId(preferred.id)
@@ -112,20 +110,29 @@ export default function AdConversions() {
     setError('')
     setNotice('')
     try {
-      const resourceSync = await adCenterApi.syncMetaResources(
-        selectedCompany.companyId,
-        selectedAccount.id,
-      )
-      const conversionSync = await adCenterApi.syncMetaConversions(
-        selectedCompany.companyId,
-        selectedAccount.id,
-      )
-      await loadForAccount(selectedAccount.id)
-      setNotice(
-        `Synchronized ${resourceSync.pixels} pixel(s) and ${conversionSync.synchronizedCount} custom conversion(s).`,
-      )
+      if (selectedAccount.provider === 'GOOGLE_ADS') {
+        const conversionSync = await adCenterApi.syncGoogleConversions(
+          selectedCompany.companyId,
+          selectedAccount.id,
+        )
+        await loadForAccount(selectedAccount.id)
+        setNotice(`Synchronized ${conversionSync.synchronizedCount} Google conversion action(s).`)
+      } else {
+        const resourceSync = await adCenterApi.syncMetaResources(
+          selectedCompany.companyId,
+          selectedAccount.id,
+        )
+        const conversionSync = await adCenterApi.syncMetaConversions(
+          selectedCompany.companyId,
+          selectedAccount.id,
+        )
+        await loadForAccount(selectedAccount.id)
+        setNotice(
+          `Synchronized ${resourceSync.pixels} pixel(s) and ${conversionSync.synchronizedCount} custom conversion(s).`,
+        )
+      }
     } catch (syncError) {
-      setError(apiErrorMessage(syncError, 'Unable to synchronize Meta conversions'))
+      setError(apiErrorMessage(syncError, 'Unable to synchronize conversions'))
     } finally {
       setSyncing(false)
     }
@@ -155,25 +162,35 @@ export default function AdConversions() {
     }
   }
 
-  const create = async (input: CreateMetaConversionInput) => {
+  const createMeta = async (input: CreateMetaConversionInput) => {
     if (!selectedCompany || !selectedAccount) return
     setCreating(true)
     setError('')
     setNotice('')
     try {
-      const created = await adCenterApi.createMetaConversion(
-        selectedCompany.companyId,
-        selectedAccount.id,
-        input,
-      )
-      setConversions((current) => [
-        created,
-        ...current.filter((item) => item.id !== created.id),
-      ])
+      const created = await adCenterApi.createMetaConversion(selectedCompany.companyId, selectedAccount.id, input)
+      setConversions((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setModalOpen(false)
       setNotice(`${created.name} was created in Meta.`)
     } catch (createError) {
       setError(apiErrorMessage(createError, 'Unable to create Meta custom conversion'))
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const createGoogle = async (input: CreateGoogleConversionInput) => {
+    if (!selectedCompany || !selectedAccount) return
+    setCreating(true)
+    setError('')
+    setNotice('')
+    try {
+      const created = await adCenterApi.createGoogleConversion(selectedCompany.companyId, selectedAccount.id, input)
+      setConversions((current) => [created, ...current.filter((item) => item.id !== created.id)])
+      setModalOpen(false)
+      setNotice(`${created.name} was created in Google Ads.`)
+    } catch (createError) {
+      setError(apiErrorMessage(createError, 'Unable to create Google Ads conversion action'))
     } finally {
       setCreating(false)
     }
@@ -191,7 +208,7 @@ export default function AdConversions() {
               Conversions
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Inspect Meta pixels and create reusable pixel-backed custom conversions.
+              Inspect and manage conversion tracking for Meta Ads and Google Ads.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -203,7 +220,7 @@ export default function AdConversions() {
                 onClick={() => void sync()}
               >
                 <FiRefreshCw aria-hidden="true" />
-                {syncing ? 'Syncing…' : 'Sync Meta'}
+                {syncing ? 'Syncing…' : `Sync ${selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google' : 'Meta'}`}
               </button>
             )}
             {can(PERMISSIONS.ADS_CREATE) && (
@@ -234,7 +251,7 @@ export default function AdConversions() {
 
         <div className="mt-6 max-w-sm">
           <label className="text-xs font-semibold text-slate-700">
-            Meta ad account
+            Ad account
             <select
               className="form-input mt-2"
               value={selectedAccount?.id ?? ''}
@@ -242,7 +259,7 @@ export default function AdConversions() {
               onChange={(event) => void chooseAccount(event.target.value)}
             >
               {managedAccounts.length === 0 ? (
-                <option value="">No managed Meta account</option>
+                <option value="">No managed ad account</option>
               ) : (
                 managedAccounts.map((account) => (
                   <option key={account.id} value={account.id}>
@@ -430,13 +447,23 @@ export default function AdConversions() {
         onCreate={createPixel}
       />
 
-      <MetaConversionModal
-        resources={resources}
-        open={modalOpen}
-        saving={creating}
-        onClose={() => setModalOpen(false)}
-        onCreate={create}
-      />
+      {selectedAccount?.provider === 'META_ADS' && (
+        <MetaConversionModal
+          resources={resources}
+          open={modalOpen}
+          saving={creating}
+          onClose={() => setModalOpen(false)}
+          onCreate={createMeta}
+        />
+      )}
+      {selectedAccount?.provider === 'GOOGLE_ADS' && (
+        <GoogleConversionModal
+          open={modalOpen}
+          saving={creating}
+          onClose={() => setModalOpen(false)}
+          onCreate={createGoogle}
+        />
+      )}
     </section>
   )
 }
