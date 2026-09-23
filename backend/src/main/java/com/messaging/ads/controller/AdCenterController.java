@@ -2,7 +2,9 @@ package com.messaging.ads.controller;
 
 import com.messaging.ads.dto.AdAccountResourceResponse;
 import com.messaging.ads.dto.AdAccountResponse;
+import com.messaging.ads.dto.AdAudienceResponse;
 import com.messaging.ads.dto.AdCampaignResponse;
+import com.messaging.ads.dto.AdConversionResponse;
 import com.messaging.ads.dto.AdCreativeResponse;
 import com.messaging.ads.dto.AdResponse;
 import com.messaging.ads.dto.AdProviderConnectionResponse;
@@ -10,7 +12,9 @@ import com.messaging.ads.dto.AdProviderResponse;
 import com.messaging.ads.dto.AdSetResponse;
 import com.messaging.ads.dto.UpdateAdAccountSelectionRequest;
 import com.messaging.ads.service.AdAccountResourceService;
+import com.messaging.ads.service.AdAudienceService;
 import com.messaging.ads.service.AdCampaignService;
+import com.messaging.ads.service.AdConversionService;
 import com.messaging.ads.service.AdCreativeService;
 import com.messaging.ads.service.AdService;
 import com.messaging.ads.service.AdCenterService;
@@ -42,7 +46,9 @@ public class AdCenterController {
 
   private final AdCenterService adCenterService;
   private final AdAccountResourceService resourceService;
+  private final AdAudienceService audienceService;
   private final AdCampaignService campaignService;
+  private final AdConversionService conversionService;
   private final AdCreativeService creativeService;
   private final AdService adService;
   private final AdSetService adSetService;
@@ -74,6 +80,23 @@ public class AdCenterController {
         ApiResponse.success(200, adCenterService.accounts(companyId), "Ad accounts fetched"));
   }
 
+  @GetMapping("/accounts/{accountId}/audiences")
+  public ResponseEntity<ApiResponse<List<AdAudienceResponse>>> audiences(
+      @PathVariable Long companyId, @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200, audienceService.list(companyId, accountId), "Advertising audiences fetched"));
+  }
+
+  @GetMapping("/accounts/{accountId}/conversions")
+  public ResponseEntity<ApiResponse<List<AdConversionResponse>>> conversions(
+      @PathVariable Long companyId, @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200, conversionService.list(companyId, accountId), "Advertising conversions fetched"));
+  }
   @GetMapping("/accounts/{accountId}/creatives")
   public ResponseEntity<ApiResponse<List<AdCreativeResponse>>> creatives(
       @PathVariable Long companyId, @PathVariable Long accountId) {
