@@ -17,6 +17,7 @@ import com.messaging.ads.meta.MetaAdsApiClient.AdSetSummary;
 import com.messaging.ads.meta.dto.CreateMetaAdSetRequest;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdCampaignRepository;
+import com.messaging.ads.repository.AdConversionRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
 import com.messaging.ads.repository.AdSetRepository;
 import com.messaging.common.exception.BadRequestException;
@@ -40,6 +41,7 @@ class MetaAdsAdSetMutationServiceTests {
 
   @Mock private AdCampaignRepository campaignRepository;
   @Mock private AdSetRepository adSetRepository;
+  @Mock private AdConversionRepository conversionRepository;
   @Mock private AdAccountRepository accountRepository;
   @Mock private AdProviderConnectionRepository connectionRepository;
   @Mock private MetaAdsTokenService tokenService;
@@ -54,6 +56,7 @@ class MetaAdsAdSetMutationServiceTests {
         new MetaAdsAdSetMutationService(
             campaignRepository,
             adSetRepository,
+            conversionRepository,
             accountRepository,
             connectionRepository,
             tokenService,
@@ -144,6 +147,7 @@ class MetaAdsAdSetMutationServiceTests {
                 List.of(),
                 List.of(),
                 null,
+                null,
                 null));
 
     assertThat(response.status()).isEqualTo(AdEntityStatus.PAUSED);
@@ -195,6 +199,7 @@ class MetaAdsAdSetMutationServiceTests {
                         List.of(),
                         List.of(),
                         List.of(),
+                        null,
                         null,
                         null)))
         .isInstanceOf(BadRequestException.class)
