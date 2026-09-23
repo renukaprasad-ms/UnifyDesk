@@ -503,3 +503,30 @@ export type MetaInsightBreakdownsSync = {
   failedBreakdowns: string[]
   totalRows?: number
 }
+
+
+export type AdAccountBilling = {
+  synced: boolean
+  id?: string | null
+  companyId: string
+  adAccountId: string
+  provider: AdProvider
+  currency?: string | null
+  balanceMinor?: number | null
+  amountSpentMinor?: number | null
+  spendCapMinor?: number | null
+  remainingSpendCapMinor?: number | null
+  spendCapEnabled: boolean
+  minCampaignGroupSpendCapMinor?: number | null
+  minDailyBudgetMinor?: number | null
+  prepayAccount?: boolean | null
+  taxIdRequired?: boolean | null
+  fundingSourceId?: string | null
+  fundingSourceType?: number | null
+  fundingSourceDisplay?: string | null
+  taxIdStatus?: number | null
+  taxIdType?: string | null
+  disableReason?: number | null
+  businessCountryCode?: string | null
+  lastSyncAt?: string | null
+}
