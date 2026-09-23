@@ -203,6 +203,7 @@ export type CreateMetaAdSetInput = {
   excludedCustomAudienceIds?: string[]
   pixelId?: string | null
   customEventType?: string | null
+  customConversionId?: string | null
 }
 
 export type UpdateMetaAdSetInput = Partial<CreateMetaAdSetInput>
@@ -264,6 +265,7 @@ export type CreateMetaCreativeInput = {
   imageHash?: string | null
   imageUrl?: string | null
   videoId?: string | null
+  videoUrl?: string | null
   urlTags?: string | null
   carouselCards?: MetaCarouselCardInput[]
 }
