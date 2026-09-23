@@ -15,6 +15,8 @@ import com.messaging.ads.dto.AdResponse;
 import com.messaging.ads.dto.AdProviderConnectionResponse;
 import com.messaging.ads.dto.AdProviderResponse;
 import com.messaging.ads.dto.AdRecommendationsResponse;
+import com.messaging.ads.dto.AdRecommendationSummaryResponse;
+import com.messaging.ads.dto.UpdateAdRecommendationStateRequest;
 import com.messaging.ads.dto.AdSetResponse;
 import com.messaging.ads.dto.UpdateAdAccountSelectionRequest;
 import com.messaging.ads.service.AdAccountBillingService;
@@ -30,7 +32,7 @@ import com.messaging.ads.service.AdCreativeService;
 import com.messaging.ads.service.AdService;
 import com.messaging.ads.service.AdCenterService;
 import com.messaging.ads.service.AdSetService;
-import com.messaging.ads.service.AdRecommendationService;
+import com.messaging.ads.service.AdRecommendationLifecycleService;
 import com.messaging.ads.enums.AdInsightBreakdownType;
 import com.messaging.ads.enums.AdInsightLevel;
 import com.messaging.common.response.ApiResponse;
@@ -72,7 +74,7 @@ public class AdCenterController {
   private final AdCreativeService creativeService;
   private final AdService adService;
   private final AdSetService adSetService;
-  private final AdRecommendationService recommendationService;
+  private final AdRecommendationLifecycleService recommendationLifecycleService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -101,6 +103,17 @@ public class AdCenterController {
         ApiResponse.success(200, adCenterService.accounts(companyId), "Ad accounts fetched"));
   }
 
+  @GetMapping("/recommendations/summary")
+  public ResponseEntity<ApiResponse<AdRecommendationSummaryResponse>> recommendationSummary(
+      @PathVariable Long companyId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            recommendationLifecycleService.summary(companyId),
+            "Advertising recommendation summary fetched"));
+  }
+
   @GetMapping("/accounts/{accountId}/recommendations")
   public ResponseEntity<ApiResponse<AdRecommendationsResponse>> recommendations(
       @PathVariable Long companyId,
@@ -109,8 +122,39 @@ public class AdCenterController {
     return ResponseEntity.ok(
         ApiResponse.success(
             200,
-            recommendationService.recommendations(companyId, accountId),
+            recommendationLifecycleService.feed(companyId, accountId),
             "Advertising recommendations fetched"));
+  }
+
+  @PostMapping("/accounts/{accountId}/recommendations/reconcile")
+  public ResponseEntity<ApiResponse<AdRecommendationsResponse>> reconcileRecommendations(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            recommendationLifecycleService.reconcile(companyId, accountId, userId),
+            "Advertising recommendation lifecycle reconciled"));
+  }
+
+  @PatchMapping("/accounts/{accountId}/recommendations/{recommendationKey}")
+  public ResponseEntity<ApiResponse<AdRecommendationsResponse>> updateRecommendationState(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String recommendationKey,
+      @Valid @RequestBody UpdateAdRecommendationStateRequest request) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            recommendationLifecycleService.updateState(
+                companyId, accountId, recommendationKey, request, userId),
+            "Advertising recommendation state updated"));
   }
 
   @GetMapping("/accounts/{accountId}/health")
