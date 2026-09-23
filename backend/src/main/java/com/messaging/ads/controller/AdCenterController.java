@@ -1,5 +1,6 @@
 package com.messaging.ads.controller;
 
+import com.messaging.ads.dto.AdAccountBillingResponse;
 import com.messaging.ads.dto.AdAccountResourceResponse;
 import com.messaging.ads.dto.AdAccountResponse;
 import com.messaging.ads.dto.AdAudienceResponse;
@@ -13,6 +14,7 @@ import com.messaging.ads.dto.AdProviderConnectionResponse;
 import com.messaging.ads.dto.AdProviderResponse;
 import com.messaging.ads.dto.AdSetResponse;
 import com.messaging.ads.dto.UpdateAdAccountSelectionRequest;
+import com.messaging.ads.service.AdAccountBillingService;
 import com.messaging.ads.service.AdAccountResourceService;
 import com.messaging.ads.service.AdAudienceService;
 import com.messaging.ads.service.AdAnalyticsBreakdownService;
@@ -52,6 +54,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdCenterController {
 
   private final AdCenterService adCenterService;
+  private final AdAccountBillingService billingService;
   private final AdAccountResourceService resourceService;
   private final AdAnalyticsService analyticsService;
   private final AdAnalyticsBreakdownService analyticsBreakdownService;
@@ -87,6 +90,18 @@ public class AdCenterController {
     requireRead(companyId);
     return ResponseEntity.ok(
         ApiResponse.success(200, adCenterService.accounts(companyId), "Ad accounts fetched"));
+  }
+
+  @GetMapping("/accounts/{accountId}/billing")
+  public ResponseEntity<ApiResponse<AdAccountBillingResponse>> billing(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            billingService.get(companyId, accountId),
+            "Advertising account billing fetched"));
   }
 
   @GetMapping("/accounts/{accountId}/analytics")
