@@ -4,6 +4,7 @@ import com.messaging.broadcast.entity.BroadcastMessage;
 import com.messaging.broadcast.entity.BroadcastRun;
 import com.messaging.broadcast.enums.BroadcastMessageStatus;
 import java.time.Instant;
+import java.util.Map;
 
 public record BroadcastMessageResponse(
     String id,
@@ -16,6 +17,7 @@ public record BroadcastMessageResponse(
     String subject,
     String bodyText,
     String bodyHtml,
+    Map<String, String> templateVariables,
     BroadcastMessageStatus status,
     Instant scheduledAt,
     Instant createdAt,
@@ -23,7 +25,10 @@ public record BroadcastMessageResponse(
     BroadcastStatsResponse stats) {
 
   public static BroadcastMessageResponse from(
-      BroadcastMessage message, BroadcastRun run, BroadcastStatsResponse stats) {
+      BroadcastMessage message,
+      BroadcastRun run,
+      BroadcastStatsResponse stats,
+      Map<String, String> templateVariables) {
     return new BroadcastMessageResponse(
         message.getId().toString(),
         message.getGroupId().toString(),
@@ -35,6 +40,7 @@ public record BroadcastMessageResponse(
         message.getSubject(),
         message.getBodyText(),
         message.getBodyHtml(),
+        templateVariables,
         message.getStatus(),
         message.getScheduledAt(),
         message.getCreatedAt(),
