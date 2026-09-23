@@ -59,11 +59,18 @@ export default function TemplateLibrary() {
   }, [load])
 
   useEffect(() => {
-    if (searchParams.get('create') !== 'transactional' || !can(PERMISSIONS.TEMPLATE_CREATE)) {
+    const create = searchParams.get('create')
+    if (
+      (create !== 'transactional' && create !== 'marketing') ||
+      !can(PERMISSIONS.TEMPLATE_CREATE)
+    ) {
       return
     }
 
-    setEditor({ mode: 'BUILDER', purpose: 'TRANSACTIONAL' })
+    setEditor({
+      mode: 'BUILDER',
+      purpose: create === 'transactional' ? 'TRANSACTIONAL' : 'MARKETING',
+    })
     setTab('mine')
 
     const next = new URLSearchParams(searchParams)
