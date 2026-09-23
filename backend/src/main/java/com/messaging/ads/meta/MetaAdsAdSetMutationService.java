@@ -123,7 +123,11 @@ public class MetaAdsAdSetMutationService {
     }
 
     if (updates.isEmpty()) throw new BadRequestException("No ad-set changes were supplied");
-    validateBudgetLocation(campaign, request.dailyBudgetMinor(), request.lifetimeBudgetMinor());
+    validateUpdateBudget(
+        campaign,
+        adSet,
+        request.dailyBudgetMinor(),
+        request.lifetimeBudgetMinor());
 
     String accessToken = accessToken(companyId, account);
     apiClient.updateAdSet(accessToken, adSet.getExternalAdSetId(), updates);
@@ -276,6 +280,22 @@ public class MetaAdsAdSetMutationService {
     boolean campaignHasBudget =
         campaign.getDailyBudgetMinor() != null || campaign.getLifetimeBudgetMinor() != null;
     if (!campaignHasBudget && dailyBudgetMinor == null && lifetimeBudgetMinor == null) {
+      throw new BadRequestException(
+          "This campaign has no campaign-level budget, so the ad set requires a budget");
+    }
+  }
+
+  private void validateUpdateBudget(
+      AdCampaign campaign,
+      AdSet adSet,
+      Long dailyBudgetMinor,
+      Long lifetimeBudgetMinor) {
+    boolean campaignHasBudget =
+        campaign.getDailyBudgetMinor() != null || campaign.getLifetimeBudgetMinor() != null;
+    boolean adSetAlreadyHasBudget =
+        adSet.getDailyBudgetMinor() != null || adSet.getLifetimeBudgetMinor() != null;
+    boolean requestProvidesBudget = dailyBudgetMinor != null || lifetimeBudgetMinor != null;
+    if (!campaignHasBudget && !adSetAlreadyHasBudget && !requestProvidesBudget) {
       throw new BadRequestException(
           "This campaign has no campaign-level budget, so the ad set requires a budget");
     }
