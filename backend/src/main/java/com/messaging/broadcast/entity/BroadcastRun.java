@@ -51,6 +51,9 @@ public class BroadcastRun {
   @Column(name = "body_html_snapshot", columnDefinition = "text")
   private String bodyHtmlSnapshot;
 
+  @Column(name = "template_variables_json_snapshot", nullable = false, columnDefinition = "text")
+  private String templateVariablesJsonSnapshot = "{}";
+
   @Column(name = "provider_template_binding_id")
   private Long providerTemplateBindingId;
 
