@@ -84,7 +84,11 @@ export default function AdCampaigns() {
         eligible.find((account) => account.id === requestedAccountId) ??
         eligible.find((account) => account.primaryAccount) ??
         eligible[0]
-      await loadCampaigns(preferred?.id)
+      if (preferred) {
+        await loadCampaigns(preferred.id)
+      } else {
+        setCampaigns([])
+      }
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load campaigns'))
     } finally {
