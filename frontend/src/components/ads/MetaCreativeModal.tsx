@@ -55,6 +55,7 @@ export default function MetaCreativeModal({
   const [imageHash, setImageHash] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [videoId, setVideoId] = useState('')
+  const [videoUrl, setVideoUrl] = useState('')
   const [urlTags, setUrlTags] = useState('')
   const [cards, setCards] = useState<MetaCarouselCardInput[]>([emptyCard(), emptyCard()])
 
@@ -75,6 +76,7 @@ export default function MetaCreativeModal({
       imageHash: format === 'SINGLE_IMAGE' ? imageHash || null : null,
       imageUrl: format === 'SINGLE_IMAGE' ? imageUrl || null : null,
       videoId: format === 'VIDEO' ? videoId || null : null,
+      videoUrl: format === 'VIDEO' ? videoUrl || null : null,
       urlTags: urlTags || null,
       carouselCards: format === 'CAROUSEL' ? cards : [],
     })
@@ -203,10 +205,19 @@ export default function MetaCreativeModal({
           {format === 'VIDEO' && (
             <section className="border-t border-slate-100 pt-6">
               <h3 className="text-sm font-bold text-slate-950">Video</h3>
-              <label className="mt-4 block text-xs font-semibold text-slate-700">
-                Meta video ID
-                <input className="form-input mt-2" value={videoId} required onChange={(e) => setVideoId(e.target.value)} />
-              </label>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Existing Meta video ID
+                  <input className="form-input mt-2" value={videoId} onChange={(e) => setVideoId(e.target.value)} />
+                </label>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Hosted video URL
+                  <input className="form-input mt-2" type="url" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://cdn.example.com/video.mp4" />
+                </label>
+              </div>
+              <p className="mt-2 text-xs text-slate-400">
+                Provide either an existing Meta video ID or a public video URL. Hosted videos are uploaded to the selected ad account automatically.
+              </p>
             </section>
           )}
 
@@ -262,7 +273,7 @@ export default function MetaCreativeModal({
                 !pageId ||
                 !destinationUrl.trim() ||
                 (format === 'SINGLE_IMAGE' && !imageHash.trim() && !imageUrl.trim()) ||
-                (format === 'VIDEO' && !videoId.trim())
+                (format === 'VIDEO' && !videoId.trim() && !videoUrl.trim())
               }
             >
               {saving ? 'Creating…' : 'Create creative'}
