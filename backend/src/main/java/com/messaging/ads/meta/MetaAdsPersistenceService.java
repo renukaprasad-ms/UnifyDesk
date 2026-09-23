@@ -14,6 +14,7 @@ import com.messaging.ads.meta.MetaAdsApiClient.UserProfile;
 import com.messaging.ads.meta.dto.MetaAdsConnectionResponse;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
+import com.messaging.ads.service.AdAccountResourceLifecycleService;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
@@ -29,6 +30,7 @@ public class MetaAdsPersistenceService {
   private final AdProviderConnectionRepository connectionRepository;
   private final AdAccountRepository accountRepository;
   private final MetaAdsTokenService tokenService;
+  private final AdAccountResourceLifecycleService resourceLifecycleService;
   private final ObjectMapper objectMapper;
 
   @Transactional
@@ -107,6 +109,7 @@ public class MetaAdsPersistenceService {
               account.setAccessible(false);
               account.setManaged(false);
               account.setPrimaryAccount(false);
+              resourceLifecycleService.markAllInaccessible(companyId, account.getId());
             });
     accountRepository.saveAll(previouslyLinkedAccounts);
 
