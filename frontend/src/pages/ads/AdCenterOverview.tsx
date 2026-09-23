@@ -371,7 +371,9 @@ export default function AdCenterOverview() {
                       </div>
 
                       <Link
-                        to={entry.item.actionPath || '/ad-center/recommendations'}
+                        to={`/ad-center/recommendations?accountId=${encodeURIComponent(
+                          entry.adAccountId,
+                        )}`}
                         className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
                       >
                         Review →
