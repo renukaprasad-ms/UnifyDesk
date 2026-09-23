@@ -1,5 +1,7 @@
 package com.messaging.ads.meta.dto;
 
+import java.util.List;
+
 public record MetaInsightBreakdownsSyncResponse(
     int age,
     int gender,
@@ -10,7 +12,8 @@ public record MetaInsightBreakdownsSyncResponse(
     int impressionDevice,
     int devicePlatform,
     int conversionDestination,
-    int actionDevice) {
+    int actionDevice,
+    List<String> failedBreakdowns) {
 
   public int totalRows() {
     return age
