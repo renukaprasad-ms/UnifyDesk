@@ -8,7 +8,13 @@ type FacebookLoginResponse = {
 }
 
 type FacebookSdk = {
-  init: (options: { appId: string; cookie: boolean; xfbml: boolean; version: string }) => void
+  init: (options: {
+    appId: string
+    cookie: boolean
+    xfbml: boolean
+    version: string
+    fedCM?: boolean
+  }) => void
   login: (
     callback: (response: FacebookLoginResponse) => void,
     options: Record<string, unknown>,
@@ -85,12 +91,17 @@ const initializeSdk = (appId: string, graphApiVersion: string) => {
     cookie: true,
     xfbml: false,
     version: normalizedVersion,
+    // Login for Business / WhatsApp Embedded Signup uses config_id.
+    // Keep Facebook's newer one-tap FedCM path disabled because it can
+    // interfere with config_id-based business login flows.
+    fedCM: false,
   })
   sdkInitializedKey = initKey
 
   metaLog('SDK_READY', {
     appId: normalizedAppId,
     graphApiVersion: normalizedVersion,
+    fedCM: false,
   })
   return true
 }
