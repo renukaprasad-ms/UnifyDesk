@@ -166,6 +166,15 @@ export default function AdCampaignDetails() {
       setCampaign(updated)
       syncForm(updated, account)
       setEditing(false)
+      try {
+        await adCenterApi.reconcileRecommendations(
+          selectedCompany.companyId,
+          updated.adAccountId,
+        )
+      } catch {
+        // Meta accepted the campaign edit; lifecycle reconciliation is best effort.
+      }
+      window.dispatchEvent(new Event('ad-center:recommendations-changed'))
       setNotice('Campaign settings updated in Meta.')
     } catch (saveError) {
       setError(apiErrorMessage(saveError, 'Unable to update campaign'))
@@ -255,6 +264,15 @@ export default function AdCampaignDetails() {
         status,
       )
       setCampaign(updated)
+      try {
+        await adCenterApi.reconcileRecommendations(
+          selectedCompany.companyId,
+          updated.adAccountId,
+        )
+      } catch {
+        // Meta accepted the status change; lifecycle reconciliation is best effort.
+      }
+      window.dispatchEvent(new Event('ad-center:recommendations-changed'))
       setNotice(`Campaign is now ${status.toLowerCase()}.`)
     } catch (statusError) {
       setError(apiErrorMessage(statusError, 'Unable to update campaign status'))
