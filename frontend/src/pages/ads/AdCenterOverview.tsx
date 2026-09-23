@@ -221,6 +221,38 @@ export default function AdCenterOverview() {
     }
   }
 
+  const syncGoogleAccount = async (account: AdAccount) => {
+    if (
+      !selectedCompany ||
+      account.provider !== 'GOOGLE_ADS' ||
+      !account.managed ||
+      !account.accessible
+    ) {
+      return
+    }
+
+    setSyncingResourceAccountId(account.id)
+    setError('')
+    setNotice('')
+    try {
+      const result = await adCenterApi.syncGoogleAll(
+        selectedCompany.companyId,
+        account.id,
+      )
+      const failed = result.failedOperations ?? []
+      setNotice(
+        failed.length === 0
+          ? `Google Ads synchronized: ${result.campaigns} campaign(s), ${result.adGroups} ad group(s), ${result.keywords} keyword(s), ${result.ads} ad(s), ${result.conversions} conversion action(s).`
+          : `Google Ads core data synchronized with ${failed.length} unavailable operation(s): ${failed.join(', ')}.`,
+      )
+      window.dispatchEvent(new Event('ad-center:recommendations-changed'))
+    } catch (syncError) {
+      setError(apiErrorMessage(syncError, 'Unable to synchronize Google Ads account'))
+    } finally {
+      setSyncingResourceAccountId(null)
+    }
+  }
+
   const setManaged = async (account: AdAccount, managed: boolean) => {
     if (!selectedCompany) return
 
@@ -251,10 +283,19 @@ export default function AdCenterOverview() {
         setNotice(
           `${updated.name} is managed. Found ${result.pages} Facebook page(s), ${result.instagramAccounts} Instagram account(s), and ${result.pixels} pixel(s).`,
         )
-      } else if (managed) {
-        setNotice(
-          `${updated.name} is now managed by Ad Center. Google campaign synchronization is the next integration slice.`,
+      } else if (managed && updated.provider === 'GOOGLE_ADS') {
+        const result = await adCenterApi.syncGoogleAll(
+          selectedCompany.companyId,
+          updated.id,
         )
+        const failed = result.failedOperations ?? []
+        setNotice(
+          failed.length === 0
+            ? `${updated.name} is managed and Google Ads data is synchronized.`
+            : `${updated.name} is managed. Initial Google sync completed with ${failed.length} unavailable operation(s): ${failed.join(', ')}.`,
+        )
+      } else if (managed) {
+        setNotice(`${updated.name} is now managed by Ad Center.`)
       } else {
         setNotice(
           `${updated.name} was removed from active Ad Center management.`,
@@ -544,8 +585,7 @@ export default function AdCenterOverview() {
 
           {accounts.length === 0 ? (
             <div className="p-8 text-center text-sm text-slate-500">
-              No advertising accounts have been discovered yet. Connect Meta Ads to import the
-              accounts available to your Meta user.
+              No advertising accounts have been discovered yet. Connect an advertising provider to import the accounts available to your authorized user.
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
@@ -623,6 +663,22 @@ export default function AdCenterOverview() {
                             {syncingResourceAccountId === account.id
                               ? 'Syncing…'
                               : 'Sync resources'}
+                          </button>
+                        )}
+                      {account.provider === 'GOOGLE_ADS' &&
+                        account.managed &&
+                        account.accessible &&
+                        can(PERMISSIONS.ADS_MODIFY) && (
+                          <button
+                            type="button"
+                            className="secondary-button inline-flex items-center gap-2"
+                            disabled={syncingResourceAccountId !== null}
+                            onClick={() => void syncGoogleAccount(account)}
+                          >
+                            <FiRefreshCw aria-hidden="true" />
+                            {syncingResourceAccountId === account.id
+                              ? 'Syncing…'
+                              : 'Sync Google'}
                           </button>
                         )}
                       {can(PERMISSIONS.ADS_MODIFY) && (
