@@ -67,7 +67,7 @@ class AdCenterServiceTests {
     AdAccount account = account(1L, true, false, false);
     when(accountRepository.findByIdAndCompanyId(1L, COMPANY_ID))
         .thenReturn(Optional.of(account));
-    when(accountRepository.findByCompanyIdAndProvider(COMPANY_ID, AdProvider.META_ADS))
+    when(accountRepository.findByCompanyIdAndProviderForUpdate(COMPANY_ID, AdProvider.META_ADS))
         .thenReturn(List.of(account));
     when(accountRepository.save(any(AdAccount.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
@@ -86,7 +86,7 @@ class AdCenterServiceTests {
     AdAccount replacement = account(2L, true, false, false);
     when(accountRepository.findByIdAndCompanyId(2L, COMPANY_ID))
         .thenReturn(Optional.of(replacement));
-    when(accountRepository.findByCompanyIdAndProvider(COMPANY_ID, AdProvider.META_ADS))
+    when(accountRepository.findByCompanyIdAndProviderForUpdate(COMPANY_ID, AdProvider.META_ADS))
         .thenReturn(List.of(currentPrimary, replacement));
     when(accountRepository.save(any(AdAccount.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
@@ -105,7 +105,7 @@ class AdCenterServiceTests {
     AdAccount replacement = account(2L, true, true, false);
     when(accountRepository.findByIdAndCompanyId(1L, COMPANY_ID))
         .thenReturn(Optional.of(currentPrimary));
-    when(accountRepository.findByCompanyIdAndProvider(COMPANY_ID, AdProvider.META_ADS))
+    when(accountRepository.findByCompanyIdAndProviderForUpdate(COMPANY_ID, AdProvider.META_ADS))
         .thenReturn(List.of(currentPrimary, replacement));
     when(accountRepository.save(any(AdAccount.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
@@ -131,9 +131,7 @@ class AdCenterServiceTests {
 
     when(connectionRepository.findByIdAndCompanyId(99L, COMPANY_ID))
         .thenReturn(Optional.of(connection));
-    when(accountRepository.findByCompanyIdAndConnectionId(COMPANY_ID, 99L))
-        .thenReturn(List.of(account));
-    when(accountRepository.findByCompanyIdAndProvider(COMPANY_ID, AdProvider.META_ADS))
+    when(accountRepository.findByCompanyIdAndProviderForUpdate(COMPANY_ID, AdProvider.META_ADS))
         .thenReturn(List.of(account));
     when(connectionRepository.save(any(AdProviderConnection.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
