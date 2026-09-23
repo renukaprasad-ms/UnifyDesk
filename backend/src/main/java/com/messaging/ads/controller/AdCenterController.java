@@ -3,6 +3,7 @@ package com.messaging.ads.controller;
 import com.messaging.ads.dto.AdAccountResourceResponse;
 import com.messaging.ads.dto.AdAccountResponse;
 import com.messaging.ads.dto.AdAudienceResponse;
+import com.messaging.ads.dto.AdAnalyticsBreakdownResponse;
 import com.messaging.ads.dto.AdAnalyticsResponse;
 import com.messaging.ads.dto.AdCampaignResponse;
 import com.messaging.ads.dto.AdConversionResponse;
@@ -14,6 +15,7 @@ import com.messaging.ads.dto.AdSetResponse;
 import com.messaging.ads.dto.UpdateAdAccountSelectionRequest;
 import com.messaging.ads.service.AdAccountResourceService;
 import com.messaging.ads.service.AdAudienceService;
+import com.messaging.ads.service.AdAnalyticsBreakdownService;
 import com.messaging.ads.service.AdAnalyticsService;
 import com.messaging.ads.service.AdCampaignService;
 import com.messaging.ads.service.AdConversionService;
@@ -21,6 +23,7 @@ import com.messaging.ads.service.AdCreativeService;
 import com.messaging.ads.service.AdService;
 import com.messaging.ads.service.AdCenterService;
 import com.messaging.ads.service.AdSetService;
+import com.messaging.ads.enums.AdInsightBreakdownType;
 import com.messaging.ads.enums.AdInsightLevel;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
@@ -51,6 +54,7 @@ public class AdCenterController {
   private final AdCenterService adCenterService;
   private final AdAccountResourceService resourceService;
   private final AdAnalyticsService analyticsService;
+  private final AdAnalyticsBreakdownService analyticsBreakdownService;
   private final AdAudienceService audienceService;
   private final AdCampaignService campaignService;
   private final AdConversionService conversionService;
@@ -98,6 +102,21 @@ public class AdCenterController {
             200,
             analyticsService.analytics(companyId, accountId, from, to, level),
             "Advertising analytics fetched"));
+  }
+
+  @GetMapping("/accounts/{accountId}/analytics/breakdowns")
+  public ResponseEntity<ApiResponse<AdAnalyticsBreakdownResponse>> analyticsBreakdown(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @RequestParam LocalDate from,
+      @RequestParam LocalDate to,
+      @RequestParam AdInsightBreakdownType type) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            analyticsBreakdownService.breakdown(companyId, accountId, from, to, type),
+            "Advertising analytics breakdown fetched"));
   }
 
   @GetMapping("/accounts/{accountId}/audiences")
