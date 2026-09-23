@@ -6,7 +6,6 @@ import com.messaging.ads.entity.AdAccount;
 import com.messaging.ads.entity.AdProviderConnection;
 import com.messaging.ads.enums.AdAccountStatus;
 import com.messaging.ads.enums.AdConnectionStatus;
-import com.messaging.ads.enums.AdCredentialType;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.meta.MetaAdsApiClient.AdAccountSummary;
 import com.messaging.ads.meta.MetaAdsApiClient.BusinessSummary;
@@ -15,7 +14,6 @@ import com.messaging.ads.meta.MetaAdsApiClient.UserProfile;
 import com.messaging.ads.meta.dto.MetaAdsConnectionResponse;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
-import com.messaging.ads.service.AdProviderCredentialService;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
@@ -30,8 +28,7 @@ public class MetaAdsPersistenceService {
 
   private final AdProviderConnectionRepository connectionRepository;
   private final AdAccountRepository accountRepository;
-  private final AdProviderCredentialService credentialService;
-  private final MetaAdsProperties properties;
+  private final MetaAdsTokenService tokenService;
   private final ObjectMapper objectMapper;
 
   @Transactional
@@ -64,21 +61,7 @@ public class MetaAdsPersistenceService {
     connection.setProviderPayloadJson(json(new StoredMetaConnectionMetadata(businesses)));
     connection = connectionRepository.saveAndFlush(connection);
 
-    Instant expiresAt =
-        token.expiresIn() == null || token.expiresIn() <= 0
-            ? null
-            : Instant.now().plusSeconds(token.expiresIn());
-
-    credentialService.upsert(
-        connection,
-        AdCredentialType.OAUTH_TOKEN_SET,
-        json(
-            new StoredMetaToken(
-                token.accessToken(),
-                token.tokenType(),
-                properties.getGraphApiVersion(),
-                profile.id())),
-        expiresAt);
+    tokenService.store(connection, token, profile.id());
 
     List<AdAccount> previouslyLinkedAccounts =
         accountRepository.findByCompanyIdAndConnectionId(companyId, connection.getId());
@@ -163,10 +146,4 @@ public class MetaAdsPersistenceService {
   }
 
   private record StoredMetaConnectionMetadata(List<BusinessSummary> businesses) {}
-
-  private record StoredMetaToken(
-      String accessToken,
-      String tokenType,
-      String graphApiVersion,
-      String externalUserId) {}
 }
