@@ -95,6 +95,7 @@ const breakdownOptions: Array<{ value: AdInsightBreakdownType; label: string; gr
   { value: 'IMPRESSION_DEVICE', label: 'Impression device', group: 'Device' },
   { value: 'DEVICE_PLATFORM', label: 'Device platform', group: 'Device' },
   { value: 'CONVERSION_DESTINATION', label: 'Conversion destination', group: 'Conversion' },
+  { value: 'ACTION_TYPE', label: 'Action type', group: 'Conversion' },
   { value: 'ACTION_DEVICE', label: 'Action device', group: 'Conversion' },
 ]
 
@@ -229,9 +230,9 @@ function BreakdownPanel({
   currency?: string | null
   onSelect: (type: AdInsightBreakdownType) => void
 }) {
-  const isActionDevice = type === 'ACTION_DEVICE'
+  const isActionBreakdown = type === 'ACTION_DEVICE' || type === 'ACTION_TYPE'
   const maxPrimary = Math.max(
-    ...breakdown.rows.map((row) => (isActionDevice ? row.actionValue : row.spend)),
+    ...breakdown.rows.map((row) => (isActionBreakdown ? row.actionValue : row.spend)),
     1,
   )
 
@@ -290,13 +291,17 @@ function BreakdownPanel({
             Sync Meta analytics for this date range. Meta may not return every breakdown for every account or campaign mix.
           </p>
         </div>
-      ) : isActionDevice ? (
+      ) : isActionBreakdown ? (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-5 py-3">Device</th>
-                <th className="px-5 py-3">Action</th>
+                <th className="px-5 py-3">
+                  {type === 'ACTION_DEVICE' ? 'Device' : 'Action type'}
+                </th>
+                {type === 'ACTION_DEVICE' && (
+                  <th className="px-5 py-3">Action</th>
+                )}
                 <th className="px-5 py-3 text-right">Count</th>
                 <th className="px-5 py-3 text-right">Action value</th>
               </tr>
@@ -322,9 +327,11 @@ function BreakdownPanel({
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-4 text-slate-600">
-                    {prettyDimension(row.actionType ?? 'Unknown')}
-                  </td>
+                  {type === 'ACTION_DEVICE' && (
+                    <td className="px-5 py-4 text-slate-600">
+                      {prettyDimension(row.actionType ?? 'Unknown')}
+                    </td>
+                  )}
                   <td className="px-5 py-4 text-right font-semibold text-slate-700">
                     {formatNumber(row.actionValue)}
                   </td>
