@@ -42,6 +42,10 @@ export type MetaAdsAuthorization = {
   authorizationUrl: string
 }
 
+export type GoogleAdsAuthorization = {
+  authorizationUrl: string
+}
+
 
 export type AdProviderConnection = {
   id: string
