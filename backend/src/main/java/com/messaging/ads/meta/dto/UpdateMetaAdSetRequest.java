@@ -20,7 +20,7 @@ public record UpdateMetaAdSetRequest(
     Instant startAt,
     Instant endAt,
     String destinationType,
-    @Valid List<@Valid CreateMetaAdSetRequest.TargetingLocation> locations,
+    @Valid List<CreateMetaAdSetRequest.TargetingLocation> locations,
     @Min(13) @Max(65) Integer ageMin,
     @Min(13) @Max(65) Integer ageMax,
     List<Integer> genders,
