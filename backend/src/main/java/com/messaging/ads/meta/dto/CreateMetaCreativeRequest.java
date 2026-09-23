@@ -19,6 +19,7 @@ public record CreateMetaCreativeRequest(
     String imageHash,
     String imageUrl,
     String videoId,
+    String videoUrl,
     String urlTags,
     @Valid List<@Valid CarouselCard> carouselCards) {
 
@@ -27,7 +28,7 @@ public record CreateMetaCreativeRequest(
     if (format == null) return false;
     return switch (format.trim().toUpperCase()) {
       case "SINGLE_IMAGE" -> hasText(imageHash) || hasText(imageUrl);
-      case "VIDEO" -> hasText(videoId);
+      case "VIDEO" -> hasText(videoId) || hasText(videoUrl);
       case "CAROUSEL" -> carouselCards != null && carouselCards.size() >= 2;
       default -> false;
     };
