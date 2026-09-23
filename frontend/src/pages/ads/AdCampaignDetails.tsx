@@ -570,8 +570,7 @@ export default function AdCampaignDetails() {
 
               {adSets.length === 0 ? (
                 <div className="p-8 text-center text-sm text-slate-500">
-                  No delivery groups are stored for this campaign yet. Sync the provider or create the first
-                  paused ad set.
+                  No ${campaign.provider === 'GOOGLE_ADS' ? 'ad groups' : 'ad sets'} are stored for this campaign yet. Sync the provider or create the first paused ${campaign.provider === 'GOOGLE_ADS' ? 'ad group' : 'ad set'}.
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
