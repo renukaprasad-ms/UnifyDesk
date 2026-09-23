@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { FiArrowLeft, FiPause, FiPlay, FiPlus, FiRefreshCw, FiSave } from 'react-icons/fi'
 import { Link, useParams } from 'react-router'
 import MetaAdModal from '../../components/ads/MetaAdModal'
+import GoogleAdGroupDetails from '../../components/ads/GoogleAdGroupDetails'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   Ad,
@@ -423,6 +424,18 @@ export default function AdSetDetails() {
   }
 
   if (!selectedCompany) return null
+
+  if (!loading && adSet?.provider === 'GOOGLE_ADS') {
+    return (
+      <GoogleAdGroupDetails
+        companyId={selectedCompany.companyId}
+        initialAdGroup={adSet}
+        campaign={campaign}
+        account={account}
+        initialAds={ads}
+      />
+    )
+  }
 
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
