@@ -39,6 +39,7 @@ public record AdAnalyticsResponse(
       BigDecimal roas) {}
 
   public record EntityRow(
+      String entityId,
       String entityRef,
       String entityName,
       BigDecimal spend,
