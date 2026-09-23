@@ -3,6 +3,7 @@ import { FiX } from 'react-icons/fi'
 import type {
   AdAccount,
   AdAccountResource,
+  AdAudience,
   AdCampaign,
   AdConversion,
   CreateMetaAdSetInput,
@@ -12,6 +13,7 @@ type Props = {
   account: AdAccount
   campaign: AdCampaign
   resources: AdAccountResource[]
+  audiences: AdAudience[]
   conversions: AdConversion[]
   open: boolean
   saving: boolean
@@ -43,6 +45,7 @@ export default function MetaAdSetModal({
   account,
   campaign,
   resources,
+  audiences,
   conversions,
   open,
   saving,
@@ -79,8 +82,8 @@ export default function MetaAdSetModal({
   const [pixelId, setPixelId] = useState('')
   const [customEventType, setCustomEventType] = useState('')
   const [customConversionId, setCustomConversionId] = useState('')
-  const [customAudiences, setCustomAudiences] = useState('')
-  const [excludedAudiences, setExcludedAudiences] = useState('')
+  const [customAudiences, setCustomAudiences] = useState<string[]>([])
+  const [excludedAudiences, setExcludedAudiences] = useState<string[]>([])
 
   useEffect(() => {
     setBudgetType(campaignHasBudget ? 'NONE' : 'DAILY')
@@ -123,8 +126,8 @@ export default function MetaAdSetModal({
       genders:
         gender === 'ALL' ? [] : gender === 'MEN' ? [1] : [2],
       publisherPlatforms,
-      customAudienceIds: csv(customAudiences),
-      excludedCustomAudienceIds: csv(excludedAudiences),
+      customAudienceIds: customAudiences,
+      excludedCustomAudienceIds: excludedAudiences,
       pixelId: customConversionId ? null : pixelId || null,
       customEventType: customConversionId ? null : customEventType || null,
       customConversionId: customConversionId || null,
@@ -267,13 +270,47 @@ export default function MetaAdSetModal({
               </label>
 
               <label className="block text-xs font-semibold text-slate-700">
-                Custom audience IDs
-                <input className="form-input mt-2" value={customAudiences} placeholder="123, 456" onChange={(e) => setCustomAudiences(e.target.value)} />
+                Include audiences
+                <select
+                  className="form-input mt-2 min-h-28"
+                  multiple
+                  value={customAudiences}
+                  onChange={(e) =>
+                    setCustomAudiences(
+                      Array.from(e.target.selectedOptions, (option) => option.value),
+                    )
+                  }
+                >
+                  {audiences
+                    .filter((audience) => audience.accessible)
+                    .map((audience) => (
+                      <option key={audience.id} value={audience.id}>
+                        {audience.name} · {audience.subtype ?? 'Audience'}
+                      </option>
+                    ))}
+                </select>
               </label>
 
-              <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
-                Excluded custom audience IDs
-                <input className="form-input mt-2" value={excludedAudiences} placeholder="789" onChange={(e) => setExcludedAudiences(e.target.value)} />
+              <label className="block text-xs font-semibold text-slate-700">
+                Exclude audiences
+                <select
+                  className="form-input mt-2 min-h-28"
+                  multiple
+                  value={excludedAudiences}
+                  onChange={(e) =>
+                    setExcludedAudiences(
+                      Array.from(e.target.selectedOptions, (option) => option.value),
+                    )
+                  }
+                >
+                  {audiences
+                    .filter((audience) => audience.accessible)
+                    .map((audience) => (
+                      <option key={audience.id} value={audience.id}>
+                        {audience.name} · {audience.subtype ?? 'Audience'}
+                      </option>
+                    ))}
+                </select>
               </label>
             </div>
           </section>
