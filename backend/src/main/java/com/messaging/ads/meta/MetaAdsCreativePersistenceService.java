@@ -113,6 +113,7 @@ public class MetaAdsCreativePersistenceService {
     creative.setPageId(text(story, "page_id"));
     String instagram = text(story, "instagram_actor_id");
     if (instagram == null) instagram = text(story, "instagram_user_id");
+    if (instagram == null) instagram = snapshot.instagramActorId();
     creative.setInstagramActorId(instagram);
     JsonNode data = "VIDEO".equals(format) ? videoData : linkData;
     creative.setPrimaryText(text(data, "message"));
@@ -122,15 +123,18 @@ public class MetaAdsCreativePersistenceService {
         text(data == null ? null : data.path("call_to_action"), "type"),
         snapshot.callToActionType()));
     creative.setDestinationUrl(destination(data));
-    creative.setImageHash(text(data, "image_hash"));
-    creative.setImageUrl(firstNonBlank(text(data, "picture"), snapshot.thumbnailUrl()));
+    creative.setImageHash(firstNonBlank(text(data, "image_hash"), snapshot.imageHash()));
+    creative.setImageUrl(
+        firstNonBlank(
+            text(data, "picture"),
+            firstNonBlank(snapshot.imageUrl(), snapshot.thumbnailUrl())));
     creative.setVideoId(text(data, "video_id"));
     creative.setUrlTags(snapshot.urlTags());
     creative.setObjectStorySpecJson(jsonNode(story));
     creative.setCarouselJson(
         attachments != null && attachments.isArray() ? jsonNode(attachments) : null);
-    creative.setProviderCreatedAt(parseInstant(snapshot.createdTime()));
-    creative.setProviderUpdatedAt(parseInstant(snapshot.updatedTime()));
+    creative.setProviderCreatedAt(null);
+    creative.setProviderUpdatedAt(null);
     creative.setAccessible(true);
     creative.setProviderPayloadJson(json(snapshot));
     creative.setLastSyncAt(syncedAt);
