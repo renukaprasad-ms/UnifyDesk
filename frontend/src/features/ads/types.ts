@@ -778,3 +778,14 @@ export type AdRecommendationSummary = {
   snoozedCount: number
   topItems: AdRecommendationSummaryItem[]
 }
+
+export type GoogleFullSync = {
+  campaigns: number
+  adGroups: number
+  keywords: number
+  ads: number
+  audiences: number
+  conversions: number
+  analyticsRows: number
+  failedOperations: string[]
+}
