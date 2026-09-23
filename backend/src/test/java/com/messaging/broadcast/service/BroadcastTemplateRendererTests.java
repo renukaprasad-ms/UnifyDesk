@@ -28,6 +28,7 @@ class BroadcastTemplateRendererTests {
             "Hi {{first_name}}",
             "Get {{discount}}% off in {{city}} until {{expiry_date}}. Email: {{email}}",
             null,
+            "{}",
             recipient,
             ChannelType.EMAIL);
 
@@ -57,6 +58,7 @@ class BroadcastTemplateRendererTests {
             "Hello",
             "CTA: {{cta_text}}",
             "<p>{{cta_text}}</p>",
+            "{}",
             recipient,
             ChannelType.EMAIL);
 
@@ -79,10 +81,37 @@ class BroadcastTemplateRendererTests {
             null,
             "Hi {{first_name}}, visit {{offer_url}}",
             null,
+            "{}",
             recipient,
             ChannelType.EMAIL);
 
     assertEquals("Hi Renuka, visit https://example.com", result.bodyText());
+    assertTrue(result.unresolvedVariables().isEmpty());
+  }
+
+  @Test
+  void recipientMetadataOverridesBroadcastFallbackVariables() {
+    BroadcastRecipient recipient = new BroadcastRecipient();
+    recipient.setDestination("renuka@example.com");
+    recipient.setDisplayName("Renuka Prasad");
+    recipient.setPersonalizationJson(
+        """
+        {"getting_started_url":"https://recipient.example.com/start"}
+        """);
+
+    BroadcastTemplateRenderer.RenderedContent result =
+        renderer.render(
+            "Welcome {{first_name}}",
+            "Start at {{getting_started_url}}",
+            null,
+            """
+            {"first_name":"Fallback","getting_started_url":"https://default.example.com/start"}
+            """,
+            recipient,
+            ChannelType.EMAIL);
+
+    assertEquals("Welcome Renuka", result.subject());
+    assertEquals("Start at https://recipient.example.com/start", result.bodyText());
     assertTrue(result.unresolvedVariables().isEmpty());
   }
 
@@ -96,6 +125,7 @@ class BroadcastTemplateRendererTests {
             null,
             "Hi {{first_name}}, use code {{coupon_code}}",
             null,
+            "{}",
             recipient,
             ChannelType.EMAIL);
 
