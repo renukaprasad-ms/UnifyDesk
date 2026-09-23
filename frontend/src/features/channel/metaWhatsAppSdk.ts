@@ -25,7 +25,8 @@ declare global {
 const SDK_SCRIPT_ID = 'facebook-jssdk'
 const SDK_LOAD_TIMEOUT_MS = 15_000
 const SIGNUP_TIMEOUT_MS = 5 * 60_000
-const POPUP_HINT_DELAY_MS = 8_000
+const POPUP_HINT_DELAY_MS = 6_000
+const POPUP_FAIL_DELAY_MS = 15_000
 
 let sdkPromise: Promise<void> | null = null
 
@@ -138,6 +139,7 @@ export const launchMetaWhatsAppSignup = (
       window.removeEventListener('blur', handleWindowBlur)
       window.clearTimeout(timeout)
       window.clearTimeout(popupHintTimeout)
+      window.clearTimeout(popupFailTimeout)
     }
 
     const finishIfReady = () => {
@@ -203,6 +205,14 @@ export const launchMetaWhatsAppSignup = (
       }
     }, POPUP_HINT_DELAY_MS)
 
+    const popupFailTimeout = window.setTimeout(() => {
+      if (!settled && !popupObserved) {
+        fail(
+          'Meta login window did not open. Pop-ups are allowed, so check the Facebook Login for Business configuration ID and permissions, then try again.',
+        )
+      }
+    }, POPUP_FAIL_DELAY_MS)
+
     window.addEventListener('message', onMessage)
     window.addEventListener('blur', handleWindowBlur)
 
@@ -225,12 +235,13 @@ export const launchMetaWhatsAppSignup = (
         },
         {
           config_id: config.configurationId,
+          auth_type: 'rerequest',
           response_type: 'code',
           override_default_response_type: true,
+          // Embedded Signup v4 gets products, assets and permissions from the
+          // Facebook Login for Business configuration. Keep the launch payload minimal.
           extras: {
             setup: {},
-            featureType: '',
-            sessionInfoVersion: '3',
           },
         },
       )
