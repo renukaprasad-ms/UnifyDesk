@@ -8,6 +8,7 @@ import com.messaging.ads.entity.AdSet;
 import com.messaging.ads.enums.AdEntityStatus;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.google.dto.GoogleAdGroupSyncResponse;
+import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.ads.repository.AdSetRepository;
 import com.messaging.common.exception.BadRequestException;
@@ -26,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class GoogleAdsAdGroupPersistenceService {
 
   private final AdCampaignRepository campaignRepository;
+  private final AdAccountRepository accountRepository;
   private final AdSetRepository adSetRepository;
   private final ObjectMapper objectMapper;
 
@@ -51,7 +53,7 @@ public class GoogleAdsAdGroupPersistenceService {
       if (externalId == null) continue;
 
       AdSet adGroup = existing.remove(externalId);
-      changed.add(apply(campaign, adGroup, row, syncedAt));
+      changed.add(apply(campaign, currency(campaign), adGroup, row, syncedAt));
       count++;
     }
 
@@ -84,11 +86,11 @@ public class GoogleAdsAdGroupPersistenceService {
                 externalId)
             .orElse(null);
 
-    return adSetRepository.save(apply(campaign, existing, row, Instant.now()));
+    return adSetRepository.save(apply(campaign, currency(campaign), existing, row, Instant.now()));
   }
 
   private AdSet apply(
-      AdCampaign campaign, AdSet adGroup, JsonNode row, Instant syncedAt) {
+      AdCampaign campaign, String currency, AdSet adGroup, JsonNode row, Instant syncedAt) {
     JsonNode snapshot = row.path("adGroup");
     String externalId = text(snapshot, "id");
 
@@ -109,7 +111,7 @@ public class GoogleAdsAdGroupPersistenceService {
     adGroup.setEffectiveStatus(text(snapshot, "primaryStatus"));
     Long cpcMicros = longValue(snapshot, "cpcBidMicros");
     adGroup.setBidAmountMinor(
-        GoogleAdsMoney.microsToMinor(cpcMicros, null));
+        GoogleAdsMoney.microsToMinor(cpcMicros, currency));
     adGroup.setAccessible(true);
     adGroup.setProviderPayloadJson(json(row));
     adGroup.setLastSyncAt(syncedAt);
@@ -127,6 +129,14 @@ public class GoogleAdsAdGroupPersistenceService {
           "Google campaign is not available for ad-group synchronization");
     }
     return campaign;
+  }
+
+
+  private String currency(AdCampaign campaign) {
+    return accountRepository
+        .findById(campaign.getAdAccountId())
+        .map(com.messaging.ads.entity.AdAccount::getCurrency)
+        .orElse(null);
   }
 
   private AdEntityStatus mapStatus(String status) {
