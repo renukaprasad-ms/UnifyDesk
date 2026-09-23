@@ -124,6 +124,15 @@ export default function AdCampaigns() {
         selectedAccount.id,
       )
       await loadCampaigns(selectedAccount.id)
+      try {
+        await adCenterApi.reconcileRecommendations(
+          selectedCompany.companyId,
+          selectedAccount.id,
+        )
+      } catch {
+        // Campaign sync succeeded; recommendation lifecycle reconciliation is best effort.
+      }
+      window.dispatchEvent(new Event('ad-center:recommendations-changed'))
       setNotice(`Synchronized ${result.synchronizedCount} campaign(s) from Meta.`)
     } catch (syncError) {
       setError(apiErrorMessage(syncError, 'Unable to synchronize Meta campaigns'))
@@ -167,6 +176,17 @@ export default function AdCampaigns() {
       setCampaigns((current) =>
         current.map((item) => (item.id === updated.id ? updated : item)),
       )
+      if (selectedAccount) {
+        try {
+          await adCenterApi.reconcileRecommendations(
+            selectedCompany.companyId,
+            selectedAccount.id,
+          )
+        } catch {
+          // Campaign status update succeeded; lifecycle reconciliation is best effort.
+        }
+      }
+      window.dispatchEvent(new Event('ad-center:recommendations-changed'))
       setNotice(`${updated.name} is now ${status.toLowerCase()}.`)
     } catch (statusError) {
       setError(apiErrorMessage(statusError, 'Unable to update campaign status'))
