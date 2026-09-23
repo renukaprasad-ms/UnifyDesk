@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FiActivity, FiPlus, FiRefreshCw } from 'react-icons/fi'
 import MetaConversionModal from '../../components/ads/MetaConversionModal'
+import MetaPixelModal from '../../components/ads/MetaPixelModal'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -29,7 +30,9 @@ export default function AdConversions() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [creatingPixel, setCreatingPixel] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
+  const [pixelModalOpen, setPixelModalOpen] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -125,6 +128,30 @@ export default function AdConversions() {
       setError(apiErrorMessage(syncError, 'Unable to synchronize Meta conversions'))
     } finally {
       setSyncing(false)
+    }
+  }
+
+  const createPixel = async (name: string) => {
+    if (!selectedCompany || !selectedAccount) return
+    setCreatingPixel(true)
+    setError('')
+    setNotice('')
+    try {
+      const created = await adCenterApi.createMetaPixel(
+        selectedCompany.companyId,
+        selectedAccount.id,
+        name,
+      )
+      setResources((current) => [
+        ...current.filter((resource) => resource.id !== created.id),
+        created,
+      ])
+      setPixelModalOpen(false)
+      setNotice(`${created.name || 'Meta Pixel'} was created and synchronized.`)
+    } catch (createError) {
+      setError(apiErrorMessage(createError, 'Unable to create Meta pixel'))
+    } finally {
+      setCreatingPixel(false)
     }
   }
 
@@ -245,9 +272,22 @@ export default function AdConversions() {
                     Event sources discovered from the selected Meta ad account.
                   </p>
                 </div>
-                <span className="text-xs font-semibold text-slate-400">
-                  {pixels.length} connected
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-400">
+                    {pixels.length} connected
+                  </span>
+                  {can(PERMISSIONS.ADS_CREATE) && (
+                    <button
+                      type="button"
+                      className="secondary-button inline-flex items-center gap-2"
+                      disabled={!selectedAccount}
+                      onClick={() => setPixelModalOpen(true)}
+                    >
+                      <FiPlus aria-hidden="true" />
+                      Create pixel
+                    </button>
+                  )}
+                </div>
               </div>
 
               {pixels.length === 0 ? (
@@ -382,6 +422,13 @@ export default function AdConversions() {
           </>
         )}
       </div>
+
+      <MetaPixelModal
+        open={pixelModalOpen}
+        saving={creatingPixel}
+        onClose={() => setPixelModalOpen(false)}
+        onCreate={createPixel}
+      />
 
       <MetaConversionModal
         resources={resources}
