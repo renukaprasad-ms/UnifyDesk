@@ -1,5 +1,6 @@
 package com.messaging.ads.entity;
 
+import com.messaging.ads.enums.AdInsightGranularity;
 import com.messaging.ads.enums.AdInsightLevel;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.common.id.IdGenerator;
@@ -28,8 +29,16 @@ import lombok.Setter;
     name = "ad_insights_daily",
     uniqueConstraints = {
       @UniqueConstraint(
-          name = "uk_ad_insights_daily",
-          columnNames = {"ad_account_id", "provider", "insight_level", "entity_ref", "insight_date"})
+          name = "uk_ad_insights_period",
+          columnNames = {
+            "ad_account_id",
+            "provider",
+            "insight_level",
+            "granularity",
+            "entity_ref",
+            "insight_date",
+            "period_end"
+          })
     },
     indexes = {
       @Index(
@@ -74,6 +83,13 @@ public class AdInsightDaily {
 
   @Column(name = "insight_date", nullable = false)
   private LocalDate insightDate;
+
+  @Column(name = "period_end", nullable = false)
+  private LocalDate periodEnd;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 16)
+  private AdInsightGranularity granularity = AdInsightGranularity.DAILY;
 
   @Column(length = 12)
   private String currency;
