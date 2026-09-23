@@ -114,6 +114,59 @@ public class MetaAdsApiClient {
     return List.copyOf(result);
   }
 
+  public AdAccountBillingSummary accountBilling(
+      String accessToken, String accountId) {
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder ->
+                        uriBuilder
+                            .path("/{version}/{account}")
+                            .queryParam("fields", accountBillingFields())
+                            .queryParam("appsecret_proof", appSecretProof(accessToken))
+                            .build(
+                                properties.getGraphApiVersion(),
+                                accountPath(accountId)))
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(AdAccountBillingSummary.class));
+  }
+
+  public void updateAccountSpendCap(
+      String accessToken, String accountId, long spendCapMinor) {
+    SuccessResponse response =
+        execute(
+            () ->
+                graphClient
+                    .post()
+                    .uri(
+                        uriBuilder ->
+                            uriBuilder
+                                .path("/{version}/{account}")
+                                .queryParam("appsecret_proof", appSecretProof(accessToken))
+                                .build(
+                                    properties.getGraphApiVersion(),
+                                    accountPath(accountId)))
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("spend_cap", spendCapMinor))
+                    .retrieve()
+                    .body(SuccessResponse.class));
+    if (!response.success()) {
+      throw new BadRequestException("Meta did not accept the account spend cap update");
+    }
+  }
+
+  private String accountBillingFields() {
+    return "id,account_id,name,currency,account_status,amount_spent,balance,spend_cap,"
+        + "funding_source,funding_source_details,expired_funding_source_details,"
+        + "extended_credit_invoice_group,is_prepay_account,is_tax_id_required,"
+        + "min_campaign_group_spend_cap,min_daily_budget,tax_id_status,tax_id_type,"
+        + "disable_reason,business_country_code";
+  }
+
   public List<AdAccountSummary> adAccounts(String accessToken) {
     List<AdAccountSummary> result = new ArrayList<>();
     String after = null;
@@ -1084,6 +1137,33 @@ public class MetaAdsApiClient {
   public record BusinessSummary(String id, String name) {}
 
   public record BusinessRef(String id, String name) {}
+
+  public record FundingSourceDetails(
+      String id,
+      Integer type,
+      @JsonProperty("display_string") String displayString) {}
+
+  public record AdAccountBillingSummary(
+      String id,
+      @JsonProperty("account_id") String accountId,
+      String name,
+      String currency,
+      @JsonProperty("account_status") Integer accountStatus,
+      @JsonProperty("amount_spent") String amountSpent,
+      String balance,
+      @JsonProperty("spend_cap") String spendCap,
+      @JsonProperty("funding_source") String fundingSource,
+      @JsonProperty("funding_source_details") FundingSourceDetails fundingSourceDetails,
+      @JsonProperty("expired_funding_source_details") JsonNode expiredFundingSourceDetails,
+      @JsonProperty("extended_credit_invoice_group") JsonNode extendedCreditInvoiceGroup,
+      @JsonProperty("is_prepay_account") Boolean prepayAccount,
+      @JsonProperty("is_tax_id_required") Boolean taxIdRequired,
+      @JsonProperty("min_campaign_group_spend_cap") String minCampaignGroupSpendCap,
+      @JsonProperty("min_daily_budget") Long minDailyBudget,
+      @JsonProperty("tax_id_status") Integer taxIdStatus,
+      @JsonProperty("tax_id_type") String taxIdType,
+      @JsonProperty("disable_reason") Integer disableReason,
+      @JsonProperty("business_country_code") String businessCountryCode) {}
 
   public record AdAccountSummary(
       String id,
