@@ -14,6 +14,7 @@ import com.messaging.channel.repository.SenderIdentityRepository;
 import com.messaging.common.id.IdGenerator;
 import com.messaging.lifecycle.enums.LifecycleEntityType;
 import com.messaging.lifecycle.service.DeletionPurgeService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
