@@ -303,7 +303,7 @@ function BreakdownPanel({
                   <th className="px-5 py-3">Action</th>
                 )}
                 <th className="px-5 py-3 text-right">Count</th>
-                <th className="px-5 py-3 text-right">Action value</th>
+                <th className="px-5 py-3 text-right">Attributed value</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
