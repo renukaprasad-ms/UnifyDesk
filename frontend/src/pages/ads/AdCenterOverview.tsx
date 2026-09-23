@@ -157,6 +157,7 @@ export default function AdCenterOverview() {
         ),
       )
       setNotice(`${connection.displayName || 'Advertising provider'} disconnected.`)
+      window.dispatchEvent(new Event('ad-center:recommendations-changed'))
     } catch (disconnectError) {
       setError(apiErrorMessage(disconnectError, 'Unable to disconnect advertising provider'))
     } finally {
@@ -181,6 +182,7 @@ export default function AdCenterOverview() {
       setNotice(
         `Synced ${result.pages} Facebook page(s), ${result.instagramAccounts} Instagram account(s), and ${result.pixels} pixel(s) for ${account.name}.`,
       )
+      window.dispatchEvent(new Event('ad-center:recommendations-changed'))
     } catch (syncError) {
       setError(apiErrorMessage(syncError, 'Unable to sync Meta Ads account resources'))
     } finally {
@@ -218,10 +220,12 @@ export default function AdCenterOverview() {
         setNotice(
           `${updated.name} is managed. Found ${result.pages} Facebook page(s), ${result.instagramAccounts} Instagram account(s), and ${result.pixels} pixel(s).`,
         )
+        window.dispatchEvent(new Event('ad-center:recommendations-changed'))
       } else {
         setNotice(
           `${updated.name} was removed from active Ad Center management.`,
         )
+        window.dispatchEvent(new Event('ad-center:recommendations-changed'))
       }
     } catch (updateError) {
       setError(
