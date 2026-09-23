@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { FiArrowLeft, FiEdit2, FiPause, FiPlay, FiPlus, FiRefreshCw, FiSave, FiX } from 'react-icons/fi'
 import { Link, useParams } from 'react-router'
 import MetaAdSetModal from '../../components/ads/MetaAdSetModal'
+import GoogleAdGroupModal from '../../components/ads/GoogleAdGroupModal'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -11,7 +12,9 @@ import type {
   AdConversion,
   AdSet,
   CreateMetaAdSetInput,
+  CreateGoogleAdGroupInput,
   UpdateMetaCampaignInput,
+  UpdateGoogleCampaignInput,
 } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -145,24 +148,33 @@ export default function AdCampaignDetails() {
     setError('')
     setNotice('')
 
-    const input: UpdateMetaCampaignInput = {
-      name: name.trim(),
-    }
-    if (bidStrategy) input.bidStrategy = bidStrategy
-
     const minor = toMinor(budget, account?.currency)
-    if (minor) {
-      if (campaign.lifetimeBudgetMinor != null) input.lifetimeBudgetMinor = minor
-      else if (campaign.dailyBudgetMinor != null) input.dailyBudgetMinor = minor
-      else input.dailyBudgetMinor = minor
-    }
 
     try {
-      const updated = await adCenterApi.updateMetaCampaign(
-        selectedCompany.companyId,
-        campaign.id,
-        input,
-      )
+      const updated =
+        campaign.provider === 'GOOGLE_ADS'
+          ? await adCenterApi.updateGoogleCampaign(
+              selectedCompany.companyId,
+              campaign.id,
+              {
+                name: name.trim(),
+                ...(bidStrategy ? { bidStrategy } : {}),
+                ...(minor ? { dailyBudgetMinor: minor } : {}),
+              } satisfies UpdateGoogleCampaignInput,
+            )
+          : await adCenterApi.updateMetaCampaign(
+              selectedCompany.companyId,
+              campaign.id,
+              {
+                name: name.trim(),
+                ...(bidStrategy ? { bidStrategy } : {}),
+                ...(minor
+                  ? campaign.lifetimeBudgetMinor != null
+                    ? { lifetimeBudgetMinor: minor }
+                    : { dailyBudgetMinor: minor }
+                  : {}),
+              } satisfies UpdateMetaCampaignInput,
+            )
       setCampaign(updated)
       syncForm(updated, account)
       setEditing(false)
@@ -175,7 +187,7 @@ export default function AdCampaignDetails() {
         // Meta accepted the campaign edit; lifecycle reconciliation is best effort.
       }
       window.dispatchEvent(new Event('ad-center:recommendations-changed'))
-      setNotice('Campaign settings updated in Meta.')
+      setNotice(`Campaign settings updated in ${campaign.provider === 'GOOGLE_ADS' ? 'Google Ads' : 'Meta'}.`)
     } catch (saveError) {
       setError(apiErrorMessage(saveError, 'Unable to update campaign'))
     } finally {
@@ -189,24 +201,24 @@ export default function AdCampaignDetails() {
     setError('')
     setNotice('')
     try {
-      const result = await adCenterApi.syncMetaAdSets(
-        selectedCompany.companyId,
-        campaign.id,
-      )
+      const result =
+        campaign.provider === 'GOOGLE_ADS'
+          ? await adCenterApi.syncGoogleAdGroups(selectedCompany.companyId, campaign.id)
+          : await adCenterApi.syncMetaAdSets(selectedCompany.companyId, campaign.id)
       const refreshed = await adCenterApi.adSets(
         selectedCompany.companyId,
         campaign.id,
       )
       setAdSets(refreshed)
-      setNotice(`Synchronized ${result.synchronizedCount} ad set(s) from Meta.`)
+      setNotice(`Synchronized ${result.synchronizedCount} ${campaign.provider === 'GOOGLE_ADS' ? 'ad group' : 'ad set'}(s).`)
     } catch (syncError) {
-      setError(apiErrorMessage(syncError, 'Unable to synchronize Meta ad sets'))
+      setError(apiErrorMessage(syncError, 'Unable to synchronize delivery groups'))
     } finally {
       setSyncingAdSets(false)
     }
   }
 
-  const createAdSet = async (input: CreateMetaAdSetInput) => {
+  const createMetaAdSet = async (input: CreateMetaAdSetInput) => {
     if (!selectedCompany || !campaign) return
     setCreatingAdSet(true)
     setError('')
@@ -217,14 +229,32 @@ export default function AdCampaignDetails() {
         campaign.id,
         input,
       )
-      setAdSets((current) => [
-        created,
-        ...current.filter((item) => item.id !== created.id),
-      ])
+      setAdSets((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setAdSetModalOpen(false)
       setNotice(`${created.name} was created in paused state.`)
     } catch (createError) {
       setError(apiErrorMessage(createError, 'Unable to create Meta ad set'))
+    } finally {
+      setCreatingAdSet(false)
+    }
+  }
+
+  const createGoogleAdGroup = async (input: CreateGoogleAdGroupInput) => {
+    if (!selectedCompany || !campaign) return
+    setCreatingAdSet(true)
+    setError('')
+    setNotice('')
+    try {
+      const created = await adCenterApi.createGoogleAdGroup(
+        selectedCompany.companyId,
+        campaign.id,
+        input,
+      )
+      setAdSets((current) => [created, ...current.filter((item) => item.id !== created.id)])
+      setAdSetModalOpen(false)
+      setNotice(`${created.name} was created in paused state.`)
+    } catch (createError) {
+      setError(apiErrorMessage(createError, 'Unable to create Google Ads ad group'))
     } finally {
       setCreatingAdSet(false)
     }
@@ -236,11 +266,10 @@ export default function AdCampaignDetails() {
     setError('')
     setNotice('')
     try {
-      const updated = await adCenterApi.setMetaAdSetStatus(
-        selectedCompany.companyId,
-        adSet.id,
-        status,
-      )
+      const updated =
+        adSet.provider === 'GOOGLE_ADS'
+          ? await adCenterApi.setGoogleAdGroupStatus(selectedCompany.companyId, adSet.id, status)
+          : await adCenterApi.setMetaAdSetStatus(selectedCompany.companyId, adSet.id, status)
       setAdSets((current) =>
         current.map((item) => (item.id === updated.id ? updated : item)),
       )
@@ -258,11 +287,10 @@ export default function AdCampaignDetails() {
     setError('')
     setNotice('')
     try {
-      const updated = await adCenterApi.setMetaCampaignStatus(
-        selectedCompany.companyId,
-        campaign.id,
-        status,
-      )
+      const updated =
+        campaign.provider === 'GOOGLE_ADS'
+          ? await adCenterApi.setGoogleCampaignStatus(selectedCompany.companyId, campaign.id, status)
+          : await adCenterApi.setMetaCampaignStatus(selectedCompany.companyId, campaign.id, status)
       setCampaign(updated)
       try {
         await adCenterApi.reconcileRecommendations(
@@ -308,17 +336,17 @@ export default function AdCampaignDetails() {
           <>
             <header className="mt-5 flex flex-wrap items-end justify-between gap-4">
               <div>
-                <p className="eyebrow">Meta campaign</p>
+                <p className="eyebrow">{campaign.provider === 'GOOGLE_ADS' ? 'Google Ads campaign' : 'Meta campaign'}</p>
                 <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
                   {campaign.name}
                 </h1>
                 <p className="mt-2 text-sm text-slate-500">
-                  {account?.name ?? 'Meta Ads'} · {campaign.externalCampaignId}
+                  {account?.name ?? (campaign.provider === 'GOOGLE_ADS' ? 'Google Ads' : 'Meta Ads')} · {campaign.externalCampaignId}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {can(PERMISSIONS.ADS_MODIFY) &&
-                  (campaign.providerStatus === 'ACTIVE' ? (
+                  (campaign.status === 'ACTIVE' ? (
                     <button
                       type="button"
                       className="secondary-button inline-flex items-center gap-2"
@@ -332,7 +360,7 @@ export default function AdCampaignDetails() {
                     <button
                       type="button"
                       className="primary-button inline-flex items-center gap-2"
-                      disabled={statusWorking || campaign.providerStatus === 'ARCHIVED'}
+                      disabled={statusWorking || campaign.status === 'ARCHIVED'}
                       onClick={() => void setStatus('ACTIVE')}
                     >
                       <FiPlay aria-hidden="true" />
@@ -471,7 +499,7 @@ export default function AdCampaignDetails() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-400">Meta last updated</p>
+                  <p className="text-xs font-semibold text-slate-400">Provider last updated</p>
                   <p className="mt-1 text-sm text-slate-700">
                     {campaign.providerUpdatedAt
                       ? new Date(campaign.providerUpdatedAt).toLocaleString()
@@ -501,7 +529,7 @@ export default function AdCampaignDetails() {
                     disabled={saving || !name.trim()}
                   >
                     <FiSave aria-hidden="true" />
-                    {saving ? 'Saving…' : 'Save to Meta'}
+                    {saving ? 'Saving…' : `Save to ${campaign.provider === 'GOOGLE_ADS' ? 'Google' : 'Meta'}`}
                   </button>
                 </div>
               )}
@@ -510,7 +538,7 @@ export default function AdCampaignDetails() {
             <div className="panel mt-5 overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
                 <div>
-                  <h2 className="text-base font-bold text-slate-950">Ad sets</h2>
+                  <h2 className="text-base font-bold text-slate-950">{campaign.provider === 'GOOGLE_ADS' ? 'Ad groups' : 'Ad sets'}</h2>
                   <p className="mt-1 text-xs text-slate-500">
                     Targeting, placements, schedule, bidding, budget, and conversion settings.
                   </p>
@@ -524,7 +552,7 @@ export default function AdCampaignDetails() {
                       onClick={() => void syncAdSets()}
                     >
                       <FiRefreshCw aria-hidden="true" />
-                      {syncingAdSets ? 'Syncing…' : 'Sync ad sets'}
+                      {syncingAdSets ? 'Syncing…' : `Sync ${campaign.provider === 'GOOGLE_ADS' ? 'ad groups' : 'ad sets'}`}
                     </button>
                   )}
                   {can(PERMISSIONS.ADS_CREATE) && account && (
@@ -534,7 +562,7 @@ export default function AdCampaignDetails() {
                       onClick={() => setAdSetModalOpen(true)}
                     >
                       <FiPlus aria-hidden="true" />
-                      Create ad set
+                      Create {campaign.provider === 'GOOGLE_ADS' ? 'ad group' : 'ad set'}
                     </button>
                   )}
                 </div>
@@ -583,7 +611,7 @@ export default function AdCampaignDetails() {
                             </span>
                           )}
                         {can(PERMISSIONS.ADS_MODIFY) &&
-                          (adSet.providerStatus === 'ACTIVE' ? (
+                          (adSet.status === 'ACTIVE' ? (
                             <button
                               type="button"
                               className="secondary-button inline-flex items-center gap-2"
@@ -599,7 +627,7 @@ export default function AdCampaignDetails() {
                               className="secondary-button inline-flex items-center gap-2"
                               disabled={
                                 workingAdSetId !== null ||
-                                adSet.providerStatus === 'ARCHIVED'
+                                adSet.status === 'ARCHIVED'
                               }
                               onClick={() => void setAdSetStatus(adSet, 'ACTIVE')}
                             >
@@ -614,7 +642,7 @@ export default function AdCampaignDetails() {
               )}
             </div>
 
-            {account && (
+            {account && campaign.provider === 'META_ADS' && (
               <MetaAdSetModal
                 account={account}
                 campaign={campaign}
@@ -624,7 +652,17 @@ export default function AdCampaignDetails() {
                 open={adSetModalOpen}
                 saving={creatingAdSet}
                 onClose={() => setAdSetModalOpen(false)}
-                onCreate={createAdSet}
+                onCreate={createMetaAdSet}
+              />
+            )}
+            {account && campaign.provider === 'GOOGLE_ADS' && (
+              <GoogleAdGroupModal
+                account={account}
+                campaign={campaign}
+                open={adSetModalOpen}
+                saving={creatingAdSet}
+                onClose={() => setAdSetModalOpen(false)}
+                onCreate={createGoogleAdGroup}
               />
             )}
           </>
