@@ -7,9 +7,11 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
@@ -185,6 +187,93 @@ public class MetaAdsApiClient {
     return List.copyOf(result);
   }
 
+  public CampaignSummary campaign(String accessToken, String campaignId) {
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder ->
+                        uriBuilder
+                            .path("/{version}/{campaignId}")
+                            .queryParam(
+                                "fields",
+                                "id,name,objective,account_id,buying_type,daily_budget,lifetime_budget,"
+                                    + "spend_cap,bid_strategy,status,effective_status,start_time,stop_time,"
+                                    + "created_time,updated_time,special_ad_categories,"
+                                    + "special_ad_category_country")
+                            .queryParam("appsecret_proof", appSecretProof(accessToken))
+                            .build(properties.getGraphApiVersion(), campaignId))
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(CampaignSummary.class));
+  }
+
+  public String createCampaign(
+      String accessToken,
+      String accountId,
+      String name,
+      String objective,
+      String buyingType,
+      String bidStrategy,
+      Long dailyBudgetMinor,
+      Long lifetimeBudgetMinor,
+      List<String> specialAdCategories) {
+    Map<String, Object> payload = new java.util.LinkedHashMap<>();
+    payload.put("name", name);
+    payload.put("objective", objective);
+    payload.put("status", "PAUSED");
+    payload.put("buying_type", buyingType);
+    payload.put("special_ad_categories", specialAdCategories);
+    if (bidStrategy != null && !bidStrategy.isBlank()) payload.put("bid_strategy", bidStrategy);
+    if (dailyBudgetMinor != null) payload.put("daily_budget", dailyBudgetMinor);
+    if (lifetimeBudgetMinor != null) payload.put("lifetime_budget", lifetimeBudgetMinor);
+
+    IdResponse response =
+        execute(
+            () ->
+                graphClient
+                    .post()
+                    .uri(
+                        uriBuilder ->
+                            uriBuilder
+                                .path("/{version}/{account}/campaigns")
+                                .queryParam("appsecret_proof", appSecretProof(accessToken))
+                                .build(properties.getGraphApiVersion(), accountPath(accountId)))
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .body(IdResponse.class));
+    if (response.id() == null || response.id().isBlank()) {
+      throw new BadRequestException("Meta created the campaign without returning an ID");
+    }
+    return response.id();
+  }
+
+  public void updateCampaign(
+      String accessToken, String campaignId, Map<String, Object> updates) {
+    if (updates.isEmpty()) return;
+    SuccessResponse response =
+        execute(
+            () ->
+                graphClient
+                    .post()
+                    .uri(
+                        uriBuilder ->
+                            uriBuilder
+                                .path("/{version}/{campaignId}")
+                                .queryParam("appsecret_proof", appSecretProof(accessToken))
+                                .build(properties.getGraphApiVersion(), campaignId))
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(updates)
+                    .retrieve()
+                    .body(SuccessResponse.class));
+    if (!response.success()) {
+      throw new BadRequestException("Meta did not accept the campaign update");
+    }
+  }
   private CampaignPage campaignPage(String accessToken, String accountId, String after) {
     return execute(
         () ->
@@ -375,6 +464,10 @@ public class MetaAdsApiClient {
       @JsonProperty("access_token") String accessToken,
       @JsonProperty("token_type") String tokenType,
       @JsonProperty("expires_in") Long expiresIn) {}
+
+  public record IdResponse(String id) {}
+
+  public record SuccessResponse(boolean success) {}
 
   public record UserProfile(String id, String name) {}
 
