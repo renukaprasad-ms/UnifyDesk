@@ -283,7 +283,7 @@ public class AdCenterController {
     return ResponseEntity.ok(
         ApiResponse.success(
             200,
-            adCenterService.updateSelection(companyId, accountId, request),
+            adCenterService.updateSelection(companyId, accountId, request, userId),
             "Ad account selection updated"));
   }
 
@@ -296,7 +296,7 @@ public class AdCenterController {
     return ResponseEntity.ok(
         ApiResponse.success(
             200,
-            adCenterService.disconnect(companyId, connectionId),
+            adCenterService.disconnect(companyId, connectionId, userId),
             "Advertising provider disconnected"));
   }
 
