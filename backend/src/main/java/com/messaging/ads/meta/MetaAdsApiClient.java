@@ -1,6 +1,7 @@
 package com.messaging.ads.meta;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.messaging.common.exception.BadRequestException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
@@ -187,6 +188,115 @@ public class MetaAdsApiClient {
     return List.copyOf(result);
   }
 
+  public List<AdSetSummary> adSets(
+      String accessToken, String accountId, String campaignId) {
+    List<AdSetSummary> result = new ArrayList<>();
+    String after = null;
+    for (int page = 0; page < MAX_PAGES; page++) {
+      AdSetPage response = adSetPage(accessToken, accountId, after);
+      if (response.data() != null) {
+        response.data().stream()
+            .filter(item -> campaignId.equals(item.campaignId()))
+            .forEach(result::add);
+      }
+      after = nextCursor(response.paging());
+      if (after == null) break;
+    }
+    return List.copyOf(result);
+  }
+
+  public AdSetSummary adSet(String accessToken, String adSetId) {
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder ->
+                        uriBuilder
+                            .path("/{version}/{adSetId}")
+                            .queryParam("fields", adSetFields())
+                            .queryParam("appsecret_proof", appSecretProof(accessToken))
+                            .build(properties.getGraphApiVersion(), adSetId))
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(AdSetSummary.class));
+  }
+
+  public String createAdSet(
+      String accessToken, String accountId, Map<String, Object> payload) {
+    IdResponse response =
+        execute(
+            () ->
+                graphClient
+                    .post()
+                    .uri(
+                        uriBuilder ->
+                            uriBuilder
+                                .path("/{version}/{account}/adsets")
+                                .queryParam("appsecret_proof", appSecretProof(accessToken))
+                                .build(properties.getGraphApiVersion(), accountPath(accountId)))
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .body(IdResponse.class));
+    if (response.id() == null || response.id().isBlank()) {
+      throw new BadRequestException("Meta created the ad set without returning an ID");
+    }
+    return response.id();
+  }
+
+  public void updateAdSet(
+      String accessToken, String adSetId, Map<String, Object> updates) {
+    if (updates.isEmpty()) return;
+    SuccessResponse response =
+        execute(
+            () ->
+                graphClient
+                    .post()
+                    .uri(
+                        uriBuilder ->
+                            uriBuilder
+                                .path("/{version}/{adSetId}")
+                                .queryParam("appsecret_proof", appSecretProof(accessToken))
+                                .build(properties.getGraphApiVersion(), adSetId))
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(updates)
+                    .retrieve()
+                    .body(SuccessResponse.class));
+    if (!response.success()) {
+      throw new BadRequestException("Meta did not accept the ad set update");
+    }
+  }
+
+  private AdSetPage adSetPage(String accessToken, String accountId, String after) {
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder -> {
+                      var builder =
+                          uriBuilder
+                              .path("/{version}/{account}/adsets")
+                              .queryParam("fields", adSetFields())
+                              .queryParam("limit", PAGE_LIMIT)
+                              .queryParam("appsecret_proof", appSecretProof(accessToken));
+                      if (after != null && !after.isBlank()) builder.queryParam("after", after);
+                      return builder.build(
+                          properties.getGraphApiVersion(), accountPath(accountId));
+                    })
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(AdSetPage.class));
+  }
+
+  private String adSetFields() {
+    return "id,name,account_id,campaign_id,optimization_goal,billing_event,bid_strategy,"
+        + "destination_type,bid_amount,daily_budget,lifetime_budget,start_time,end_time,"
+        + "targeting,promoted_object,attribution_spec,status,effective_status,created_time,updated_time";
+  }
   public CampaignSummary campaign(String accessToken, String campaignId) {
     return execute(
         () ->
@@ -486,6 +596,29 @@ public class MetaAdsApiClient {
 
 
 
+  public record AdSetSummary(
+      String id,
+      String name,
+      @JsonProperty("account_id") String accountId,
+      @JsonProperty("campaign_id") String campaignId,
+      @JsonProperty("optimization_goal") String optimizationGoal,
+      @JsonProperty("billing_event") String billingEvent,
+      @JsonProperty("bid_strategy") String bidStrategy,
+      @JsonProperty("destination_type") String destinationType,
+      @JsonProperty("bid_amount") String bidAmount,
+      @JsonProperty("daily_budget") String dailyBudget,
+      @JsonProperty("lifetime_budget") String lifetimeBudget,
+      @JsonProperty("start_time") String startTime,
+      @JsonProperty("end_time") String endTime,
+      JsonNode targeting,
+      @JsonProperty("promoted_object") JsonNode promotedObject,
+      @JsonProperty("attribution_spec") JsonNode attributionSpec,
+      String status,
+      @JsonProperty("effective_status") String effectiveStatus,
+      @JsonProperty("created_time") String createdTime,
+      @JsonProperty("updated_time") String updatedTime) {}
+
+  public record AdSetPage(List<AdSetSummary> data, Paging paging) {}
   public record CampaignSummary(
       String id,
       String name,
