@@ -2,6 +2,7 @@ import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
 import type {
   AdAccount,
+  AdAccountBilling,
   AdAccountResource,
   AdAnalytics,
   AdAnalyticsBreakdown,
@@ -196,6 +197,32 @@ export const adCenterApi = {
     const response = await apiClient.post<ApiResponse<AdSet>>(
       `/api/v1/companies/${companyId}/ads/meta/ad-sets/${adSetId}/status`,
       { status },
+    )
+    return unwrap(response.data)
+  },
+
+  async billing(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<AdAccountBilling>>(
+      `/api/v1/companies/${companyId}/ads/accounts/${accountId}/billing`,
+    )
+    return unwrap(response.data)
+  },
+
+  async syncMetaBilling(companyId: string, accountId: string) {
+    const response = await apiClient.post<ApiResponse<AdAccountBilling>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/billing/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateMetaSpendCap(
+    companyId: string,
+    accountId: string,
+    spendCapMinor: number,
+  ) {
+    const response = await apiClient.patch<ApiResponse<AdAccountBilling>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/billing/spend-cap`,
+      { spendCapMinor },
     )
     return unwrap(response.data)
   },
