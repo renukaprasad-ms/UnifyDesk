@@ -11,6 +11,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.HtmlUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -18,24 +19,40 @@ public class BroadcastTemplateRenderer {
 
   private static final Pattern VARIABLE_PATTERN =
       Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.-]+)\\s*\\}\\}");
+  private static final Pattern UNSAFE_URI_ATTRIBUTE =
+      Pattern.compile(
+          "(?i)(?:href|src)\\s*=\\s*[\"']\\s*(?:javascript|data|vbscript)\\s*:");
 
   private final ObjectMapper objectMapper;
 
   public RenderedContent render(
       String subject,
       String bodyText,
+      String bodyHtml,
       BroadcastRecipient recipient,
       ChannelType channelType) {
     Map<String, String> values = values(recipient, channelType);
-    RenderedValue renderedSubject = renderValue(subject, values);
-    RenderedValue renderedBody = renderValue(bodyText, values);
+    RenderedValue renderedSubject = renderValue(subject, values, false);
+    RenderedValue renderedBody = renderValue(bodyText, values, false);
+    RenderedValue renderedHtml = renderValue(bodyHtml, values, true);
 
     LinkedHashSet<String> unresolved = new LinkedHashSet<>();
     unresolved.addAll(renderedSubject.unresolved());
     unresolved.addAll(renderedBody.unresolved());
+    unresolved.addAll(renderedHtml.unresolved());
+
+    boolean unsafeHtml =
+        renderedHtml.value() != null && UNSAFE_URI_ATTRIBUTE.matcher(renderedHtml.value()).find();
+    Map<String, String> templateVariables =
+        templateVariables(subject, bodyText, bodyHtml, values);
 
     return new RenderedContent(
-        renderedSubject.value(), renderedBody.value(), List.copyOf(unresolved));
+        renderedSubject.value(),
+        renderedBody.value(),
+        renderedHtml.value(),
+        List.copyOf(unresolved),
+        unsafeHtml,
+        templateVariables);
   }
 
   private Map<String, String> values(BroadcastRecipient recipient, ChannelType channelType) {
@@ -88,7 +105,7 @@ public class BroadcastTemplateRenderer {
     }
   }
 
-  private RenderedValue renderValue(String value, Map<String, String> values) {
+  private RenderedValue renderValue(String value, Map<String, String> values, boolean escapeHtml) {
     if (value == null) return new RenderedValue(null, List.of());
     Matcher matcher = VARIABLE_PATTERN.matcher(value);
     StringBuffer output = new StringBuffer();
@@ -101,11 +118,32 @@ public class BroadcastTemplateRenderer {
         unresolved.add(variable);
         matcher.appendReplacement(output, Matcher.quoteReplacement(matcher.group(0)));
       } else {
-        matcher.appendReplacement(output, Matcher.quoteReplacement(replacement));
+        String safeReplacement = escapeHtml ? HtmlUtils.htmlEscape(replacement) : replacement;
+        matcher.appendReplacement(output, Matcher.quoteReplacement(safeReplacement));
       }
     }
     matcher.appendTail(output);
     return new RenderedValue(output.toString(), List.copyOf(unresolved));
+  }
+
+  private Map<String, String> templateVariables(
+      String subject,
+      String bodyText,
+      String bodyHtml,
+      Map<String, String> values) {
+    LinkedHashMap<String, String> resolved = new LinkedHashMap<>();
+    for (String template : List.of(
+        subject == null ? "" : subject,
+        bodyText == null ? "" : bodyText,
+        bodyHtml == null ? "" : bodyHtml)) {
+      Matcher matcher = VARIABLE_PATTERN.matcher(template);
+      while (matcher.find()) {
+        String variable = matcher.group(1);
+        String value = resolve(variable, values);
+        if (value != null) resolved.putIfAbsent(variable, value);
+      }
+    }
+    return Map.copyOf(resolved);
   }
 
   private String resolve(String variable, Map<String, String> values) {
@@ -128,7 +166,12 @@ public class BroadcastTemplateRenderer {
   }
 
   public record RenderedContent(
-      String subject, String bodyText, List<String> unresolvedVariables) {}
+      String subject,
+      String bodyText,
+      String bodyHtml,
+      List<String> unresolvedVariables,
+      boolean unsafeHtml,
+      Map<String, String> templateVariables) {}
 
   private record RenderedValue(String value, List<String> unresolved) {}
 }

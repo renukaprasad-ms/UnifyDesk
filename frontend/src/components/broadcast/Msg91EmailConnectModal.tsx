@@ -11,17 +11,18 @@ type Props = {
   onConnected: (sender: BroadcastSender) => void
 }
 
-export default function Msg91EmailConnectModal({ companyId, onClose, onConnected }: Props) {
+export default function Msg91EmailConnectModal({
+  companyId,
+  onClose,
+  onConnected,
+}: Props) {
   const snackbar = useSnackbar()
   const [name, setName] = useState('MSG91 Email')
   const [authKey, setAuthKey] = useState('')
   const [domain, setDomain] = useState('')
-  const [templateId, setTemplateId] = useState('')
   const [fromAddress, setFromAddress] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [replyToAddress, setReplyToAddress] = useState('')
-  const [messageVariable, setMessageVariable] = useState('message')
-  const [subjectVariable, setSubjectVariable] = useState('')
   const [busy, setBusy] = useState(false)
 
   const submit = async (event: FormEvent) => {
@@ -32,12 +33,9 @@ export default function Msg91EmailConnectModal({ companyId, onClose, onConnected
         name: name.trim(),
         authKey: authKey.trim(),
         domain: domain.trim().toLowerCase(),
-        templateId: templateId.trim(),
         fromAddress: fromAddress.trim(),
         displayName: displayName.trim() || null,
         replyToAddress: replyToAddress.trim() || null,
-        messageVariable: messageVariable.trim() || 'message',
-        subjectVariable: subjectVariable.trim() || null,
       })
       onConnected(sender)
     } catch (requestError) {
@@ -61,7 +59,8 @@ export default function Msg91EmailConnectModal({ companyId, onClose, onConnected
             <div>
               <p className="text-base font-bold text-slate-950">Connect MSG91 Email</p>
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                Use an MSG91 verified domain and template for email broadcasts.
+                Connect the MSG91 account and verified sending domain. Email templates are synced
+                separately from the Templates module.
               </p>
             </div>
           </div>
@@ -71,11 +70,11 @@ export default function Msg91EmailConnectModal({ companyId, onClose, onConnected
         </div>
 
         <div className="mt-5 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
-          <p className="text-xs font-bold text-slate-900">Template-based Email API</p>
+          <p className="text-xs font-bold text-slate-900">Account-level connection</p>
           <p className="mt-1 text-xs leading-5 text-slate-600">
-            Create and verify the sending domain and email template in MSG91 first. Messaging sends
-            the broadcast body into the configured template variable and can optionally send the
-            broadcast subject into a second template variable.
+            Messaging verifies the Auth Key against the MSG91 Email templates API. Provider
+            template IDs are not stored on this connection because every published Email template
+            version receives its own MSG91 mapping.
           </p>
         </div>
 
@@ -92,7 +91,7 @@ export default function Msg91EmailConnectModal({ companyId, onClose, onConnected
           </label>
 
           <label className="block text-xs font-semibold text-slate-700">
-            Verified domain
+            Verified sending domain
             <input
               className="form-input mt-2"
               value={domain}
@@ -118,48 +117,13 @@ export default function Msg91EmailConnectModal({ companyId, onClose, onConnected
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="block text-xs font-semibold text-slate-700">
-            Template ID
-            <input
-              className="form-input mt-2"
-              value={templateId}
-              onChange={(event) => setTemplateId(event.target.value)}
-              placeholder="welcome-template"
-              maxLength={255}
-              required
-            />
-          </label>
-
-          <label className="block text-xs font-semibold text-slate-700">
-            Body variable
-            <input
-              className="form-input mt-2"
-              value={messageVariable}
-              onChange={(event) => setMessageVariable(event.target.value)}
-              placeholder="message"
-              pattern="[A-Za-z0-9_]+"
-              required
-            />
-          </label>
-
-          <label className="block text-xs font-semibold text-slate-700">
-            Subject variable
-            <input
-              className="form-input mt-2"
-              value={subjectVariable}
-              onChange={(event) => setSubjectVariable(event.target.value)}
-              placeholder="subject (optional)"
-              pattern="[A-Za-z0-9_]+"
-            />
-          </label>
-
-          <label className="block text-xs font-semibold text-slate-700">
             From email
             <input
               type="email"
               className="form-input mt-2"
               value={fromAddress}
               onChange={(event) => setFromAddress(event.target.value)}
-              placeholder="marketing@mailer.example.com"
+              placeholder="notifications@mailer.example.com"
               required
             />
           </label>
@@ -170,11 +134,11 @@ export default function Msg91EmailConnectModal({ companyId, onClose, onConnected
               className="form-input mt-2"
               value={displayName}
               onChange={(event) => setDisplayName(event.target.value)}
-              placeholder="Company Marketing"
+              placeholder="Company"
             />
           </label>
 
-          <label className="block text-xs font-semibold text-slate-700">
+          <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
             Reply-To email
             <input
               type="email"
@@ -188,7 +152,10 @@ export default function Msg91EmailConnectModal({ companyId, onClose, onConnected
 
         <div className="mt-4 flex gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-800">
           <FiCheckCircle className="mt-0.5 shrink-0" aria-hidden="true" />
-          <span>The MSG91 auth key is encrypted before storage and is never returned by the API.</span>
+          <span>
+            MSG91 Email is intended for transactional email. Marketing templates remain available
+            through direct-HTML providers such as SES, SendGrid and Azure Email.
+          </span>
         </div>
 
         <div className="mt-6 flex flex-wrap justify-end gap-2">
@@ -196,7 +163,7 @@ export default function Msg91EmailConnectModal({ companyId, onClose, onConnected
             Cancel
           </button>
           <button type="submit" className="primary-button" disabled={busy}>
-            {busy ? 'Connecting…' : 'Connect MSG91 Email'}
+            {busy ? 'Validating…' : 'Connect MSG91 Email'}
           </button>
         </div>
       </form>

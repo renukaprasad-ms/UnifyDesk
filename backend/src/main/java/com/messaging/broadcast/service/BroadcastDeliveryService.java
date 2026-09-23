@@ -37,8 +37,27 @@ public class BroadcastDeliveryService {
           templateRenderer.render(
               run.getSubjectSnapshot(),
               run.getBodyTextSnapshot(),
+              run.getBodyHtmlSnapshot(),
               recipient,
               channelType);
+
+      if (rendered.unsafeHtml()) {
+        stateService.failed(
+            attempt,
+            "UNSAFE_TEMPLATE_VARIABLE",
+            "Rendered HTML contains an unsafe URL scheme");
+        return;
+      }
+
+      if (run.getProviderType() == com.messaging.broadcast.enums.BroadcastSenderProvider.MSG91_EMAIL
+          && rendered.templateVariables().values().stream()
+              .anyMatch(value -> value != null && (value.contains("<") || value.contains(">")))) {
+        stateService.failed(
+            attempt,
+            "UNSAFE_TEMPLATE_VARIABLE",
+            "MSG91 template variable contains HTML markup");
+        return;
+      }
 
       if (!rendered.unresolvedVariables().isEmpty()) {
         stateService.failed(
@@ -73,6 +92,9 @@ public class BroadcastDeliveryService {
                         recipient.getDestination(),
                         rendered.subject(),
                         rendered.bodyText(),
+                        rendered.bodyHtml(),
+                        run.getProviderTemplateIdSnapshot(),
+                        rendered.templateVariables(),
                         recipient.getInternetMessageId(),
                         recipient.getProviderCorrelationId()));
         stateService.accepted(attempt, result);

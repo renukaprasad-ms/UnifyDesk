@@ -368,6 +368,37 @@ public class MediaService {
         .toList();
   }
 
+  @Transactional(readOnly = true)
+  public Media requireActiveCompanyMedia(long mediaId, long companyId) {
+    Media media =
+        mediaRepository
+            .findById(mediaId)
+            .orElseThrow(() -> new MediaException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND"));
+    if (media.getCompanyId() == null || !media.getCompanyId().equals(companyId)) {
+      throw new MediaException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND");
+    }
+    if (media.getStatus() != MediaStatus.ACTIVE) {
+      throw new MediaException(HttpStatus.CONFLICT, "MEDIA_NOT_ACTIVE");
+    }
+    return media;
+  }
+
+  @Transactional(readOnly = true)
+  public MediaAccessResponse createTrustedAccessUrl(long mediaId) {
+    Media media =
+        mediaRepository
+            .findById(mediaId)
+            .orElseThrow(() -> new MediaException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND"));
+    if (media.getStatus() != MediaStatus.ACTIVE) {
+      throw new MediaException(HttpStatus.CONFLICT, "MEDIA_NOT_ACTIVE");
+    }
+    StorageProvider provider = storageProviderResolver.resolve(media.getStorageProvider());
+    SignedDownloadResult signedDownload =
+        provider.createSignedDownloadUrl(
+            media.getBucket(), media.getObjectKey(), storageProperties.getDownloadUrlExpiry());
+    return new MediaAccessResponse(signedDownload.url(), signedDownload.expiresAt());
+  }
+
   private String configuredBucket() {
     String bucket =
         switch (storageProperties.getDefaultProvider()) {

@@ -39,10 +39,18 @@ public class AmazonSesBroadcastEmailTransport implements BroadcastEmailTransport
             .data(command.bodyText())
             .charset(StandardCharsets.UTF_8.name())
             .build();
+    Body.Builder body = Body.builder().text(text);
+    if (command.bodyHtml() != null && !command.bodyHtml().isBlank()) {
+      body.html(
+          Content.builder()
+              .data(command.bodyHtml())
+              .charset(StandardCharsets.UTF_8.name())
+              .build());
+    }
     Message message =
         Message.builder()
             .subject(subject)
-            .body(Body.builder().text(text).build())
+            .body(body.build())
             .build();
 
     SendEmailRequest.Builder request =

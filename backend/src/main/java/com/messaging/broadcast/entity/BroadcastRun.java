@@ -48,6 +48,15 @@ public class BroadcastRun {
   @Column(name = "body_text_snapshot", nullable = false, columnDefinition = "text")
   private String bodyTextSnapshot;
 
+  @Column(name = "body_html_snapshot", columnDefinition = "text")
+  private String bodyHtmlSnapshot;
+
+  @Column(name = "provider_template_binding_id")
+  private Long providerTemplateBindingId;
+
+  @Column(name = "provider_template_id_snapshot", length = 255)
+  private String providerTemplateIdSnapshot;
+
   @Column(name = "snapshot_cursor_member_id")
   private Long snapshotCursorMemberId;
 

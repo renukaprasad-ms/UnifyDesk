@@ -109,12 +109,9 @@ export type ConnectMsg91EmailInput = {
   name: string
   authKey: string
   domain: string
-  templateId: string
   fromAddress: string
   displayName?: string | null
   replyToAddress?: string | null
-  messageVariable?: string | null
-  subjectVariable?: string | null
 }
 
 export type BroadcastTestEmailResult = {

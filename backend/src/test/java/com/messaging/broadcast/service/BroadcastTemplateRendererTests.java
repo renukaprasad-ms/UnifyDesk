@@ -27,6 +27,7 @@ class BroadcastTemplateRendererTests {
         renderer.render(
             "Hi {{first_name}}",
             "Get {{discount}}% off in {{city}} until {{expiry_date}}. Email: {{email}}",
+            null,
             recipient,
             ChannelType.EMAIL);
 
@@ -34,6 +35,33 @@ class BroadcastTemplateRendererTests {
     assertEquals(
         "Get 20% off in Bengaluru until 30 September. Email: renuka@example.com",
         result.bodyText());
+    assertTrue(result.unresolvedVariables().isEmpty());
+    assertEquals("Renuka", result.templateVariables().get("first_name"));
+    assertEquals("20", result.templateVariables().get("discount"));
+    assertEquals("Bengaluru", result.templateVariables().get("city"));
+    assertEquals("30 September", result.templateVariables().get("expiry_date"));
+    assertEquals("renuka@example.com", result.templateVariables().get("email"));
+  }
+
+  @Test
+  void escapesHtmlValuesButKeepsProviderVariablesRaw() {
+    BroadcastRecipient recipient = new BroadcastRecipient();
+    recipient.setDestination("renuka@example.com");
+    recipient.setPersonalizationJson(
+        """
+        {"cta_text":"<strong>Unsafe</strong>"}
+        """);
+
+    BroadcastTemplateRenderer.RenderedContent result =
+        renderer.render(
+            "Hello",
+            "CTA: {{cta_text}}",
+            "<p>{{cta_text}}</p>",
+            recipient,
+            ChannelType.EMAIL);
+
+    assertEquals("<p>&lt;strong&gt;Unsafe&lt;/strong&gt;</p>", result.bodyHtml());
+    assertEquals("<strong>Unsafe</strong>", result.templateVariables().get("cta_text"));
     assertTrue(result.unresolvedVariables().isEmpty());
   }
 
@@ -50,6 +78,7 @@ class BroadcastTemplateRendererTests {
         renderer.render(
             null,
             "Hi {{first_name}}, visit {{offer_url}}",
+            null,
             recipient,
             ChannelType.EMAIL);
 
@@ -66,6 +95,7 @@ class BroadcastTemplateRendererTests {
         renderer.render(
             null,
             "Hi {{first_name}}, use code {{coupon_code}}",
+            null,
             recipient,
             ChannelType.EMAIL);
 
