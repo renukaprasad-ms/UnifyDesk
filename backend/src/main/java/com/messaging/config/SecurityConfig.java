@@ -64,6 +64,7 @@ public class SecurityConfig {
                         "/api/v1/webhooks/google/gmail",
                         "/api/v1/oauth/gmail/callback",
                         "/api/v1/oauth/microsoft/callback",
+                        "/api/v1/oauth/meta-ads/callback",
                         "/api/v1/email-assets/**")
                     .permitAll()
                     .anyRequest()

@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router'
 import Header from '../components/Header'
 import AdminSidebar from '../components/navigation/AdminSidebar'
 import ChannelContextSidebar from '../components/navigation/ChannelContextSidebar'
+import AdCenterSidebar from '../components/navigation/AdCenterSidebar'
 import AppSidebar from '../components/navigation/AppSidebar'
 import { authApi } from '../features/auth/authApi'
 import { platformApi } from '../features/platform/platformApi'
@@ -22,11 +23,13 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
   const [railHovered, setRailHovered] = useState(false)
   const inboxMode = location.pathname.startsWith('/inbox/')
   const broadcastMode = location.pathname.startsWith('/broadcast/')
+  const adCenterMode = location.pathname.startsWith('/ad-center')
   const selectedBroadcastGroupId = new URLSearchParams(location.search).get('groupId')
   const selectedBroadcastGroup = useAppSelector((state) =>
     state.broadcast.groups.find((group) => group.id === selectedBroadcastGroupId),
   )
   const channelContextMode = inboxMode || broadcastMode
+  const workspaceContextMode = channelContextMode || adCenterMode
   const selectedEmailFolder =
     new URLSearchParams(location.search).get('folder') === 'SENT' ? 'Sent' : 'Inbox'
   const channelContextLabel = inboxMode
@@ -34,7 +37,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
     : broadcastMode
       ? selectedBroadcastGroup?.name || 'Broadcast'
       : undefined
-  const compactNavigation = platform || channelContextMode
+  const compactNavigation = platform || workspaceContextMode
 
   useEffect(() => {
     realtimeClient.connect()
@@ -155,21 +158,25 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
         </aside>
       )}
 
-      {!platform && channelContextMode && (
+      {!platform && workspaceContextMode && (
         <aside
           id="channel-navigation"
           className={`channel-context-sidebar ${contextOpen ? 'is-open' : ''}`}
         >
-          <ChannelContextSidebar
-            mode={inboxMode ? 'inbox' : 'broadcast'}
-            onNavigate={closeContext}
-          />
+          {adCenterMode ? (
+            <AdCenterSidebar onNavigate={closeContext} />
+          ) : (
+            <ChannelContextSidebar
+              mode={inboxMode ? 'inbox' : 'broadcast'}
+              onNavigate={closeContext}
+            />
+          )}
         </aside>
       )}
 
       <div
         className={`app-content min-w-0 ${
-          platform ? 'with-admin-sidebar' : channelContextMode ? 'with-channel-context-sidebar' : ''
+          platform ? 'with-admin-sidebar' : workspaceContextMode ? 'with-channel-context-sidebar' : ''
         }`}
       >
         <Header
@@ -178,9 +185,9 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
             setContextOpen(false)
             setMenuOpen((open) => !open)
           }}
-          contextAvailable={!platform && channelContextMode}
+          contextAvailable={!platform && workspaceContextMode}
           contextOpen={contextOpen}
-          contextLabel={channelContextLabel}
+          contextLabel={adCenterMode ? 'Ad Center' : channelContextLabel}
           onToggleContext={() => {
             setMenuOpen(false)
             setContextOpen((open) => !open)

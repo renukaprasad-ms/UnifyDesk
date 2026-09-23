@@ -1,4 +1,4 @@
-package com.messaging.channel.credential;
+package com.messaging.common.credential;
 
 public interface CredentialCipher {
 

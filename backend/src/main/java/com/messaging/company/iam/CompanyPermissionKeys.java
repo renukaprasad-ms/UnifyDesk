@@ -71,6 +71,8 @@ public final class CompanyPermissionKeys {
   public static final String BILLING_SUBSCRIPTION_MODIFY = "billing.subscription.modify";
   public static final String BILLING_SUBSCRIPTION_CANCEL = "billing.subscription.cancel";
 
+  public static final String ADS_CONNECT = "ads.connect";
+  public static final String ADS_DISCONNECT = "ads.disconnect";
   public static final String ADS_READ = "ads.read";
   public static final String ADS_CREATE = "ads.create";
   public static final String ADS_MODIFY = "ads.modify";
@@ -121,6 +123,11 @@ public final class CompanyPermissionKeys {
           BILLING_READ,
           BILLING_INVOICE_READ,
           BILLING_SUBSCRIPTION_READ,
+          ADS_CONNECT,
+          ADS_DISCONNECT,
+          ADS_READ,
+          ADS_CREATE,
+          ADS_MODIFY,
           MEDIA_READ,
           MEDIA_UPLOAD,
           SETTINGS_READ);
@@ -135,6 +142,7 @@ public final class CompanyPermissionKeys {
           SMS_SEND,
           BROADCAST_READ,
           TEMPLATE_READ,
+          ADS_READ,
           MEDIA_READ,
           MEDIA_UPLOAD);
 

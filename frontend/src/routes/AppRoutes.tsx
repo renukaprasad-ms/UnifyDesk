@@ -3,6 +3,7 @@ import { PERMISSIONS } from '../features/iam/permissions'
 import AuthLayout from '../layouts/AuthLayout'
 import MainLayout from '../layouts/MainLayout'
 import AccountProfile from '../pages/account/AccountProfile'
+import AdCenterOverview from '../pages/ads/AdCenterOverview'
 import AccountSettings from '../pages/account/AccountSettings'
 import ChangePassword from '../pages/account/ChangePassword'
 import ForgotPassword from '../pages/auth/ForgotPassword'
@@ -80,6 +81,16 @@ const AppRoutes = () => (
               <Route path="broadcast/sms" element={<BroadcastWorkspace />} />
               <Route path="broadcast/social-media" element={<BroadcastWorkspace />} />
               <Route path="broadcast/email" element={<BroadcastWorkspace />} />
+            </Route>
+            <Route element={<PermissionRoute anyOf={[PERMISSIONS.ADS_READ]} />}>
+              <Route path="ad-center" element={<AdCenterOverview />} />
+              <Route path="ad-center/campaigns" element={<PlaceholderPage />} />
+              <Route path="ad-center/creatives" element={<PlaceholderPage />} />
+              <Route path="ad-center/audiences" element={<PlaceholderPage />} />
+              <Route path="ad-center/conversions" element={<PlaceholderPage />} />
+              <Route path="ad-center/analytics" element={<PlaceholderPage />} />
+              <Route path="ad-center/billing" element={<PlaceholderPage />} />
+              <Route path="ad-center/settings" element={<PlaceholderPage />} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.TEMPLATE_READ]} />}>
               <Route path="templates" element={<TemplateLibrary />} />

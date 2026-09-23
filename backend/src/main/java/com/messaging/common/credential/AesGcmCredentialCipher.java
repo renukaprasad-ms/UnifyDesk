@@ -1,4 +1,4 @@
-package com.messaging.channel.credential;
+package com.messaging.common.credential;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -39,8 +39,8 @@ public class AesGcmCredentialCipher implements CredentialCipher {
       return Base64.getEncoder()
           .encodeToString(
               ByteBuffer.allocate(iv.length + encrypted.length).put(iv).put(encrypted).array());
-    } catch (GeneralSecurityException e) {
-      throw new IllegalStateException("Unable to encrypt provider credential", e);
+    } catch (GeneralSecurityException exception) {
+      throw new IllegalStateException("Unable to encrypt provider credential", exception);
     }
   }
 
@@ -62,8 +62,8 @@ public class AesGcmCredentialCipher implements CredentialCipher {
       Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
       cipher.init(Cipher.DECRYPT_MODE, key(), new GCMParameterSpec(TAG_LENGTH_BITS, iv));
       return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
-    } catch (GeneralSecurityException | IllegalArgumentException e) {
-      throw new IllegalStateException("Unable to decrypt provider credential", e);
+    } catch (GeneralSecurityException | IllegalArgumentException exception) {
+      throw new IllegalStateException("Unable to decrypt provider credential", exception);
     }
   }
 
@@ -75,9 +75,9 @@ public class AesGcmCredentialCipher implements CredentialCipher {
     byte[] decoded;
     try {
       decoded = Base64.getDecoder().decode(configuredKey);
-    } catch (IllegalArgumentException e) {
+    } catch (IllegalArgumentException exception) {
       throw new IllegalStateException(
-          "app.channel.credentials.master-key must be Base64 encoded", e);
+          "app.channel.credentials.master-key must be Base64 encoded", exception);
     }
     if (decoded.length != 32) {
       throw new IllegalStateException(

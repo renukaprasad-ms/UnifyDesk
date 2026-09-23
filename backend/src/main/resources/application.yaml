@@ -272,6 +272,16 @@ app:
       api-retry-max-attempts: ${MICROSOFT_API_RETRY_MAX_ATTEMPTS:4}
       api-retry-initial-backoff: ${MICROSOFT_API_RETRY_INITIAL_BACKOFF:1s}
       api-retry-max-backoff: ${MICROSOFT_API_RETRY_MAX_BACKOFF:30s}
+  ads:
+    meta:
+      enabled: ${META_ADS_ENABLED:false}
+      app-id: ${META_ADS_APP_ID:}
+      app-secret: ${META_ADS_APP_SECRET:}
+      redirect-uri: ${META_ADS_REDIRECT_URI:https://messaging.renukaprasad.in/api/v1/oauth/meta-ads/callback}
+      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://messaging.renukaprasad.in}
+      graph-api-version: ${META_ADS_GRAPH_API_VERSION:v26.0}
+      scope: ${META_ADS_SCOPE:ads_management,business_management,pages_show_list,instagram_basic}
+      oauth-state-ttl: ${META_ADS_OAUTH_STATE_TTL:10m}
   redis:
     key-prefix: ${REDIS_KEY_PREFIX:messaging}
     ttl:
