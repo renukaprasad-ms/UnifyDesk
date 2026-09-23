@@ -122,6 +122,112 @@ public class MetaAdsApiClient {
     return List.copyOf(result);
   }
 
+
+  public List<PageSummary> promotePages(String accessToken, String accountId) {
+    PromotePagesResponse response =
+        execute(
+            () ->
+                graphClient
+                    .get()
+                    .uri(
+                        uriBuilder ->
+                            uriBuilder
+                                .path("/{version}/{account}")
+                                .queryParam("fields", "promote_pages")
+                                .queryParam("limit", PAGE_LIMIT)
+                                .queryParam("appsecret_proof", appSecretProof(accessToken))
+                                .build(
+                                    properties.getGraphApiVersion(),
+                                    accountPath(accountId)))
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .retrieve()
+                    .body(PromotePagesResponse.class));
+    if (response.promotePages() == null || response.promotePages().data() == null) {
+      return List.of();
+    }
+    return List.copyOf(response.promotePages().data());
+  }
+
+  public List<InstagramSummary> instagramAccounts(String accessToken, String accountId) {
+    List<InstagramSummary> result = new ArrayList<>();
+    String after = null;
+    for (int page = 0; page < MAX_PAGES; page++) {
+      InstagramPage response = instagramPage(accessToken, accountId, after);
+      if (response.data() != null) result.addAll(response.data());
+      after = nextCursor(response.paging());
+      if (after == null) break;
+    }
+    return List.copyOf(result);
+  }
+
+  public List<PixelSummary> pixels(String accessToken, String accountId) {
+    List<PixelSummary> result = new ArrayList<>();
+    String after = null;
+    for (int page = 0; page < MAX_PAGES; page++) {
+      PixelPage response = pixelPage(accessToken, accountId, after);
+      if (response.data() != null) result.addAll(response.data());
+      after = nextCursor(response.paging());
+      if (after == null) break;
+    }
+    return List.copyOf(result);
+  }
+
+  private InstagramPage instagramPage(String accessToken, String accountId, String after) {
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder -> {
+                      var builder =
+                          uriBuilder
+                              .path("/{version}/{account}/instagram_accounts")
+                              .queryParam("fields", "id,username,profile_pic")
+                              .queryParam("limit", PAGE_LIMIT)
+                              .queryParam("appsecret_proof", appSecretProof(accessToken));
+                      if (after != null && !after.isBlank()) {
+                        builder.queryParam("after", after);
+                      }
+                      return builder.build(
+                          properties.getGraphApiVersion(), accountPath(accountId));
+                    })
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(InstagramPage.class));
+  }
+
+  private PixelPage pixelPage(String accessToken, String accountId, String after) {
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder -> {
+                      var builder =
+                          uriBuilder
+                              .path("/{version}/{account}/adspixels")
+                              .queryParam("fields", "id,name,last_fired_time")
+                              .queryParam("limit", PAGE_LIMIT)
+                              .queryParam("appsecret_proof", appSecretProof(accessToken));
+                      if (after != null && !after.isBlank()) {
+                        builder.queryParam("after", after);
+                      }
+                      return builder.build(
+                          properties.getGraphApiVersion(), accountPath(accountId));
+                    })
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(PixelPage.class));
+  }
+
+  private String accountPath(String accountId) {
+    if (accountId == null || accountId.isBlank()) {
+      throw new BadRequestException("Meta ad account ID is missing");
+    }
+    String normalized = accountId.trim();
+    return normalized.startsWith("act_") ? normalized : "act_" + normalized;
+  }
+
   private BusinessPage businessPage(String accessToken, String after) {
     return execute(
         () ->
@@ -242,6 +348,28 @@ public class MetaAdsApiClient {
       @JsonProperty("timezone_name") String timezoneName,
       @JsonProperty("account_status") Integer accountStatus,
       BusinessRef business) {}
+
+
+  public record PageSummary(String id, String name) {}
+
+  public record InstagramSummary(
+      String id,
+      String username,
+      @JsonProperty("profile_pic") String profilePic) {}
+
+  public record PixelSummary(
+      String id,
+      String name,
+      @JsonProperty("last_fired_time") String lastFiredTime) {}
+
+  public record PageConnection(List<PageSummary> data, Paging paging) {}
+
+  public record PromotePagesResponse(
+      @JsonProperty("promote_pages") PageConnection promotePages) {}
+
+  public record InstagramPage(List<InstagramSummary> data, Paging paging) {}
+
+  public record PixelPage(List<PixelSummary> data, Paging paging) {}
 
   public record BusinessPage(List<BusinessSummary> data, Paging paging) {}
 
