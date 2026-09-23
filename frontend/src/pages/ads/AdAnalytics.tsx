@@ -327,10 +327,11 @@ export default function AdAnalytics() {
   if (!selectedCompany) return null
 
   const summary = analytics.summary
+  const currency = summary.currency ?? selectedAccount?.currency
   const kpis = [
     {
       label: 'Spend',
-      value: formatCurrency(summary.spend, summary.currency ?? selectedAccount?.currency),
+      value: formatCurrency(summary.spend, currency),
       hint: 'Total media spend',
     },
     {
@@ -346,17 +347,37 @@ export default function AdAnalytics() {
     {
       label: 'Clicks',
       value: formatCompact(summary.clicks),
-      hint: `CTR ${summary.ctr == null ? '—' : `${formatNumber(summary.ctr)}%`}`,
+      hint: 'All reported clicks',
+    },
+    {
+      label: 'CTR',
+      value: summary.ctr == null ? '—' : `${formatNumber(summary.ctr)}%`,
+      hint: 'Clicks ÷ impressions',
+    },
+    {
+      label: 'CPC',
+      value: summary.cpc == null ? '—' : formatCurrency(summary.cpc, currency),
+      hint: 'Average cost per click',
+    },
+    {
+      label: 'CPM',
+      value: summary.cpm == null ? '—' : formatCurrency(summary.cpm, currency),
+      hint: 'Cost per 1,000 impressions',
     },
     {
       label: 'Conversions',
       value: formatNumber(summary.conversions),
-      hint: `CPA ${formatCurrency(summary.cpa ?? 0, summary.currency ?? selectedAccount?.currency)}`,
+      hint: 'Normalized Meta conversions',
+    },
+    {
+      label: 'CPA',
+      value: summary.cpa == null ? '—' : formatCurrency(summary.cpa, currency),
+      hint: 'Spend ÷ conversions',
     },
     {
       label: 'ROAS',
       value: summary.roas == null ? '—' : `${formatNumber(summary.roas)}×`,
-      hint: `Value ${formatCurrency(summary.conversionValue, summary.currency ?? selectedAccount?.currency)}`,
+      hint: `Value ${formatCurrency(summary.conversionValue, currency)}`,
     },
     {
       label: 'Leads',
