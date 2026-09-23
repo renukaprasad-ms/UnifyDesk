@@ -3,12 +3,16 @@ package com.messaging.ads.controller;
 import com.messaging.ads.dto.AdAccountResourceResponse;
 import com.messaging.ads.dto.AdAccountResponse;
 import com.messaging.ads.dto.AdCampaignResponse;
+import com.messaging.ads.dto.AdCreativeResponse;
+import com.messaging.ads.dto.AdResponse;
 import com.messaging.ads.dto.AdProviderConnectionResponse;
 import com.messaging.ads.dto.AdProviderResponse;
 import com.messaging.ads.dto.AdSetResponse;
 import com.messaging.ads.dto.UpdateAdAccountSelectionRequest;
 import com.messaging.ads.service.AdAccountResourceService;
 import com.messaging.ads.service.AdCampaignService;
+import com.messaging.ads.service.AdCreativeService;
+import com.messaging.ads.service.AdService;
 import com.messaging.ads.service.AdCenterService;
 import com.messaging.ads.service.AdSetService;
 import com.messaging.common.response.ApiResponse;
@@ -39,6 +43,8 @@ public class AdCenterController {
   private final AdCenterService adCenterService;
   private final AdAccountResourceService resourceService;
   private final AdCampaignService campaignService;
+  private final AdCreativeService creativeService;
+  private final AdService adService;
   private final AdSetService adSetService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
@@ -68,6 +74,39 @@ public class AdCenterController {
         ApiResponse.success(200, adCenterService.accounts(companyId), "Ad accounts fetched"));
   }
 
+  @GetMapping("/accounts/{accountId}/creatives")
+  public ResponseEntity<ApiResponse<List<AdCreativeResponse>>> creatives(
+      @PathVariable Long companyId, @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200, creativeService.list(companyId, accountId), "Advertising creatives fetched"));
+  }
+
+  @GetMapping("/creatives/{creativeId}")
+  public ResponseEntity<ApiResponse<AdCreativeResponse>> creative(
+      @PathVariable Long companyId, @PathVariable Long creativeId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200, creativeService.get(companyId, creativeId), "Advertising creative fetched"));
+  }
+
+  @GetMapping("/ad-sets/{adSetId}/ads")
+  public ResponseEntity<ApiResponse<List<AdResponse>>> ads(
+      @PathVariable Long companyId, @PathVariable Long adSetId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(200, adService.list(companyId, adSetId), "Advertising ads fetched"));
+  }
+
+  @GetMapping("/ads/{adId}")
+  public ResponseEntity<ApiResponse<AdResponse>> ad(
+      @PathVariable Long companyId, @PathVariable Long adId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(200, adService.get(companyId, adId), "Advertising ad fetched"));
+  }
   @GetMapping("/campaigns/{campaignId}/ad-sets")
   public ResponseEntity<ApiResponse<List<AdSetResponse>>> adSets(
       @PathVariable Long companyId, @PathVariable Long campaignId) {
