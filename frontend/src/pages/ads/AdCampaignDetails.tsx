@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { FiArrowLeft, FiEdit2, FiPause, FiPlay, FiSave, FiX } from 'react-icons/fi'
+import { FiArrowLeft, FiEdit2, FiPause, FiPlay, FiPlus, FiRefreshCw, FiSave, FiX } from 'react-icons/fi'
 import { Link, useParams } from 'react-router'
+import MetaAdSetModal from '../../components/ads/MetaAdSetModal'
 import { adCenterApi } from '../../features/ads/adCenterApi'
-import type { AdAccount, AdCampaign, UpdateMetaCampaignInput } from '../../features/ads/types'
+import type {
+  AdAccount,
+  AdAccountResource,
+  AdCampaign,
+  AdSet,
+  CreateMetaAdSetInput,
+  UpdateMetaCampaignInput,
+} from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -57,9 +65,15 @@ export default function AdCampaignDetails() {
   const { can } = useIam()
   const [campaign, setCampaign] = useState<AdCampaign | null>(null)
   const [accounts, setAccounts] = useState<AdAccount[]>([])
+  const [adSets, setAdSets] = useState<AdSet[]>([])
+  const [resources, setResources] = useState<AdAccountResource[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [statusWorking, setStatusWorking] = useState(false)
+  const [syncingAdSets, setSyncingAdSets] = useState(false)
+  const [creatingAdSet, setCreatingAdSet] = useState(false)
+  const [workingAdSetId, setWorkingAdSetId] = useState<string | null>(null)
+  const [adSetModalOpen, setAdSetModalOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState('')
   const [bidStrategy, setBidStrategy] = useState('')
@@ -88,16 +102,21 @@ export default function AdCampaignDetails() {
     setLoading(true)
     setError('')
     try {
-      const [campaignData, accountData] = await Promise.all([
+      const [campaignData, accountData, adSetData] = await Promise.all([
         adCenterApi.campaign(selectedCompany.companyId, campaignId),
         adCenterApi.accounts(selectedCompany.companyId),
+        adCenterApi.adSets(selectedCompany.companyId, campaignId),
       ])
+      const accountValue =
+        accountData.find((item) => item.id === campaignData.adAccountId) ?? null
+      const resourceData = accountValue
+        ? await adCenterApi.resources(selectedCompany.companyId, accountValue.id)
+        : []
       setCampaign(campaignData)
       setAccounts(accountData)
-      syncForm(
-        campaignData,
-        accountData.find((item) => item.id === campaignData.adAccountId),
-      )
+      setAdSets(adSetData)
+      setResources(resourceData)
+      syncForm(campaignData, accountValue)
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load campaign'))
     } finally {
@@ -142,6 +161,75 @@ export default function AdCampaignDetails() {
       setError(apiErrorMessage(saveError, 'Unable to update campaign'))
     } finally {
       setSaving(false)
+    }
+  }
+
+  const syncAdSets = async () => {
+    if (!selectedCompany || !campaign) return
+    setSyncingAdSets(true)
+    setError('')
+    setNotice('')
+    try {
+      const result = await adCenterApi.syncMetaAdSets(
+        selectedCompany.companyId,
+        campaign.id,
+      )
+      const refreshed = await adCenterApi.adSets(
+        selectedCompany.companyId,
+        campaign.id,
+      )
+      setAdSets(refreshed)
+      setNotice(`Synchronized ${result.synchronizedCount} ad set(s) from Meta.`)
+    } catch (syncError) {
+      setError(apiErrorMessage(syncError, 'Unable to synchronize Meta ad sets'))
+    } finally {
+      setSyncingAdSets(false)
+    }
+  }
+
+  const createAdSet = async (input: CreateMetaAdSetInput) => {
+    if (!selectedCompany || !campaign) return
+    setCreatingAdSet(true)
+    setError('')
+    setNotice('')
+    try {
+      const created = await adCenterApi.createMetaAdSet(
+        selectedCompany.companyId,
+        campaign.id,
+        input,
+      )
+      setAdSets((current) => [
+        created,
+        ...current.filter((item) => item.id !== created.id),
+      ])
+      setAdSetModalOpen(false)
+      setNotice(`${created.name} was created in paused state.`)
+    } catch (createError) {
+      setError(apiErrorMessage(createError, 'Unable to create Meta ad set'))
+    } finally {
+      setCreatingAdSet(false)
+    }
+  }
+
+  const setAdSetStatus = async (adSet: AdSet, status: 'ACTIVE' | 'PAUSED') => {
+    if (!selectedCompany) return
+    setWorkingAdSetId(adSet.id)
+    setError('')
+    setNotice('')
+    try {
+      const updated = await adCenterApi.setMetaAdSetStatus(
+        selectedCompany.companyId,
+        adSet.id,
+        status,
+      )
+      setAdSets((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      )
+      setNotice(`${updated.name} is now ${status.toLowerCase()}.`)
+    } catch (statusError) {
+      setError(apiErrorMessage(statusError, 'Unable to update ad-set status'))
+    } finally {
+      setWorkingAdSetId(null)
     }
   }
 
@@ -391,13 +479,124 @@ export default function AdCampaignDetails() {
               )}
             </form>
 
-            <div className="panel mt-5 p-6">
-              <h2 className="text-base font-bold text-slate-950">Next layer</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                Ad sets will live under this campaign. That is where targeting, placements,
-                optimization, schedule, conversion event, and ad-set-level budget are configured.
-              </p>
+            <div className="panel mt-5 overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                <div>
+                  <h2 className="text-base font-bold text-slate-950">Ad sets</h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Targeting, placements, schedule, bidding, budget, and conversion settings.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {can(PERMISSIONS.ADS_MODIFY) && (
+                    <button
+                      type="button"
+                      className="secondary-button inline-flex items-center gap-2"
+                      disabled={syncingAdSets}
+                      onClick={() => void syncAdSets()}
+                    >
+                      <FiRefreshCw aria-hidden="true" />
+                      {syncingAdSets ? 'Syncing…' : 'Sync ad sets'}
+                    </button>
+                  )}
+                  {can(PERMISSIONS.ADS_CREATE) && account && (
+                    <button
+                      type="button"
+                      className="primary-button inline-flex items-center gap-2"
+                      onClick={() => setAdSetModalOpen(true)}
+                    >
+                      <FiPlus aria-hidden="true" />
+                      Create ad set
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {adSets.length === 0 ? (
+                <div className="p-8 text-center text-sm text-slate-500">
+                  No ad sets are stored for this campaign yet. Sync Meta or create the first
+                  paused ad set.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {adSets.map((adSet) => (
+                    <div
+                      key={adSet.id}
+                      className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
+                    >
+                      <div className="min-w-0">
+                        <Link
+                          to={`/ad-center/ad-sets/${adSet.id}`}
+                          className="font-semibold text-slate-950 hover:text-indigo-600"
+                        >
+                          {adSet.name}
+                        </Link>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {displayValue(adSet.optimizationGoal)} ·{' '}
+                          {displayValue(adSet.billingEvent)}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          {adSet.dailyBudgetMinor != null
+                            ? `${formatMinor(adSet.dailyBudgetMinor, account?.currency)} / day`
+                            : adSet.lifetimeBudgetMinor != null
+                              ? `${formatMinor(adSet.lifetimeBudgetMinor, account?.currency)} lifetime`
+                              : 'Uses campaign budget'}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                          {adSet.providerStatus ?? adSet.status}
+                        </span>
+                        {adSet.effectiveStatus &&
+                          adSet.effectiveStatus !== adSet.providerStatus && (
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+                              {adSet.effectiveStatus}
+                            </span>
+                          )}
+                        {can(PERMISSIONS.ADS_MODIFY) &&
+                          (adSet.providerStatus === 'ACTIVE' ? (
+                            <button
+                              type="button"
+                              className="secondary-button inline-flex items-center gap-2"
+                              disabled={workingAdSetId !== null}
+                              onClick={() => void setAdSetStatus(adSet, 'PAUSED')}
+                            >
+                              <FiPause aria-hidden="true" />
+                              Pause
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="secondary-button inline-flex items-center gap-2"
+                              disabled={
+                                workingAdSetId !== null ||
+                                adSet.providerStatus === 'ARCHIVED'
+                              }
+                              onClick={() => void setAdSetStatus(adSet, 'ACTIVE')}
+                            >
+                              <FiPlay aria-hidden="true" />
+                              Start
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
+            {account && (
+              <MetaAdSetModal
+                account={account}
+                campaign={campaign}
+                resources={resources}
+                open={adSetModalOpen}
+                saving={creatingAdSet}
+                onClose={() => setAdSetModalOpen(false)}
+                onCreate={createAdSet}
+              />
+            )}
           </>
         ) : null}
       </div>
