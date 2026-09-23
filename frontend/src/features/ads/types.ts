@@ -210,3 +210,99 @@ export type UpdateMetaAdSetInput = Partial<CreateMetaAdSetInput>
 export type MetaAdSetSync = {
   synchronizedCount: number
 }
+
+
+export type MetaCreativeFormat = 'SINGLE_IMAGE' | 'VIDEO' | 'CAROUSEL'
+
+export type AdCreative = {
+  id: string
+  companyId: string
+  adAccountId: string
+  provider: AdProvider
+  externalCreativeId: string
+  name: string
+  creativeFormat?: MetaCreativeFormat | string | null
+  pageId?: string | null
+  instagramActorId?: string | null
+  primaryText?: string | null
+  headline?: string | null
+  description?: string | null
+  callToActionType?: string | null
+  destinationUrl?: string | null
+  imageHash?: string | null
+  imageUrl?: string | null
+  videoId?: string | null
+  urlTags?: string | null
+  objectStorySpecJson?: string | null
+  carouselJson?: string | null
+  providerCreatedAt?: string | null
+  providerUpdatedAt?: string | null
+  accessible: boolean
+  lastSyncAt?: string | null
+}
+
+export type MetaCarouselCardInput = {
+  headline?: string | null
+  description?: string | null
+  destinationUrl?: string | null
+  imageHash?: string | null
+  imageUrl?: string | null
+  callToActionType?: string | null
+}
+
+export type CreateMetaCreativeInput = {
+  name: string
+  format: MetaCreativeFormat
+  pageId: string
+  instagramActorId?: string | null
+  primaryText?: string | null
+  headline?: string | null
+  description?: string | null
+  callToActionType?: string | null
+  destinationUrl?: string | null
+  imageHash?: string | null
+  imageUrl?: string | null
+  videoId?: string | null
+  urlTags?: string | null
+  carouselCards?: MetaCarouselCardInput[]
+}
+
+export type MetaCreativeSync = {
+  synchronizedCount: number
+}
+
+export type Ad = {
+  id: string
+  companyId: string
+  adAccountId: string
+  campaignId: string
+  adSetId: string
+  creativeId?: string | null
+  provider: AdProvider
+  externalAdId: string
+  externalCreativeId?: string | null
+  name: string
+  status: AdEntityStatus
+  providerStatus?: string | null
+  effectiveStatus?: string | null
+  trackingSpecsJson?: string | null
+  conversionSpecsJson?: string | null
+  providerCreatedAt?: string | null
+  providerUpdatedAt?: string | null
+  accessible: boolean
+  lastSyncAt?: string | null
+}
+
+export type CreateMetaAdInput = {
+  name: string
+  creativeId: string
+}
+
+export type UpdateMetaAdInput = {
+  name?: string
+  creativeId?: string
+}
+
+export type MetaAdSync = {
+  synchronizedCount: number
+}
