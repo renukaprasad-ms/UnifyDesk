@@ -176,6 +176,135 @@ public class MetaAdsApiClient {
   }
 
 
+  public List<CustomAudienceSummary> customAudiences(String accessToken, String accountId) {
+    List<CustomAudienceSummary> result = new ArrayList<>();
+    String after = null;
+    for (int page = 0; page < MAX_PAGES; page++) {
+      CustomAudiencePage response = customAudiencePage(accessToken, accountId, after);
+      if (response.data() != null) result.addAll(response.data());
+      after = nextCursor(response.paging());
+      if (after == null) break;
+    }
+    return List.copyOf(result);
+  }
+
+  public CustomAudienceSummary customAudience(String accessToken, String audienceId) {
+    return execute(
+        () -> graphClient.get()
+            .uri(uriBuilder -> uriBuilder
+                .path("/{version}/{audienceId}")
+                .queryParam("fields", customAudienceFields())
+                .queryParam("appsecret_proof", appSecretProof(accessToken))
+                .build(properties.getGraphApiVersion(), audienceId))
+            .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+            .retrieve().body(CustomAudienceSummary.class));
+  }
+
+  public String createCustomAudience(
+      String accessToken, String accountId, Map<String, Object> payload) {
+    IdResponse response = execute(
+        () -> graphClient.post()
+            .uri(uriBuilder -> uriBuilder
+                .path("/{version}/{account}/customaudiences")
+                .queryParam("appsecret_proof", appSecretProof(accessToken))
+                .build(properties.getGraphApiVersion(), accountPath(accountId)))
+            .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(payload)
+            .retrieve().body(IdResponse.class));
+    if (response.id() == null || response.id().isBlank()) {
+      throw new BadRequestException("Meta created the audience without returning an ID");
+    }
+    return response.id();
+  }
+
+  public List<CustomConversionSummary> customConversions(
+      String accessToken, String accountId) {
+    List<CustomConversionSummary> result = new ArrayList<>();
+    String after = null;
+    for (int page = 0; page < MAX_PAGES; page++) {
+      CustomConversionPage response = customConversionPage(accessToken, accountId, after);
+      if (response.data() != null) result.addAll(response.data());
+      after = nextCursor(response.paging());
+      if (after == null) break;
+    }
+    return List.copyOf(result);
+  }
+
+  public CustomConversionSummary customConversion(
+      String accessToken, String conversionId) {
+    return execute(
+        () -> graphClient.get()
+            .uri(uriBuilder -> uriBuilder
+                .path("/{version}/{conversionId}")
+                .queryParam("fields", customConversionFields())
+                .queryParam("appsecret_proof", appSecretProof(accessToken))
+                .build(properties.getGraphApiVersion(), conversionId))
+            .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+            .retrieve().body(CustomConversionSummary.class));
+  }
+
+  public String createCustomConversion(
+      String accessToken, String accountId, Map<String, Object> payload) {
+    IdResponse response = execute(
+        () -> graphClient.post()
+            .uri(uriBuilder -> uriBuilder
+                .path("/{version}/{account}/customconversions")
+                .queryParam("appsecret_proof", appSecretProof(accessToken))
+                .build(properties.getGraphApiVersion(), accountPath(accountId)))
+            .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(payload)
+            .retrieve().body(IdResponse.class));
+    if (response.id() == null || response.id().isBlank()) {
+      throw new BadRequestException("Meta created the custom conversion without returning an ID");
+    }
+    return response.id();
+  }
+
+  private CustomAudiencePage customAudiencePage(
+      String accessToken, String accountId, String after) {
+    return execute(
+        () -> graphClient.get()
+            .uri(uriBuilder -> {
+              var builder = uriBuilder.path("/{version}/{account}/customaudiences")
+                  .queryParam("fields", customAudienceFields())
+                  .queryParam("limit", PAGE_LIMIT)
+                  .queryParam("appsecret_proof", appSecretProof(accessToken));
+              if (after != null && !after.isBlank()) builder.queryParam("after", after);
+              return builder.build(properties.getGraphApiVersion(), accountPath(accountId));
+            })
+            .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+            .retrieve().body(CustomAudiencePage.class));
+  }
+
+  private CustomConversionPage customConversionPage(
+      String accessToken, String accountId, String after) {
+    return execute(
+        () -> graphClient.get()
+            .uri(uriBuilder -> {
+              var builder = uriBuilder.path("/{version}/{account}/customconversions")
+                  .queryParam("fields", customConversionFields())
+                  .queryParam("limit", PAGE_LIMIT)
+                  .queryParam("appsecret_proof", appSecretProof(accessToken));
+              if (after != null && !after.isBlank()) builder.queryParam("after", after);
+              return builder.build(properties.getGraphApiVersion(), accountPath(accountId));
+            })
+            .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+            .retrieve().body(CustomConversionPage.class));
+  }
+
+  private String customAudienceFields() {
+    return "id,name,account_id,subtype,description,retention_days,"
+        + "approximate_count_lower_bound,approximate_count_upper_bound,delivery_status,"
+        + "operation_status,pixel_id,rule,lookalike_spec,time_created,time_updated";
+  }
+
+  private String customConversionFields() {
+    return "id,account_id,name,description,custom_event_type,event_source_type,pixel,rule,"
+        + "data_sources,default_conversion_value,is_archived,is_unavailable,"
+        + "first_fired_time,last_fired_time,creation_time";
+  }
   public List<CampaignSummary> campaigns(String accessToken, String accountId) {
     List<CampaignSummary> result = new ArrayList<>();
     String after = null;
@@ -838,6 +967,45 @@ public class MetaAdsApiClient {
       @JsonProperty("updated_time") String updatedTime) {}
 
   public record AdPage(List<AdSummary> data, Paging paging) {}
+  public record CustomAudienceSummary(
+      String id,
+      String name,
+      @JsonProperty("account_id") String accountId,
+      String subtype,
+      String description,
+      @JsonProperty("retention_days") Integer retentionDays,
+      @JsonProperty("approximate_count_lower_bound") Long approximateCountLowerBound,
+      @JsonProperty("approximate_count_upper_bound") Long approximateCountUpperBound,
+      @JsonProperty("delivery_status") JsonNode deliveryStatus,
+      @JsonProperty("operation_status") JsonNode operationStatus,
+      @JsonProperty("pixel_id") String pixelId,
+      JsonNode rule,
+      @JsonProperty("lookalike_spec") JsonNode lookalikeSpec,
+      @JsonProperty("time_created") String timeCreated,
+      @JsonProperty("time_updated") String timeUpdated) {}
+
+  public record CustomAudiencePage(List<CustomAudienceSummary> data, Paging paging) {}
+
+  public record PixelRef(String id, String name) {}
+
+  public record CustomConversionSummary(
+      String id,
+      @JsonProperty("account_id") String accountId,
+      String name,
+      String description,
+      @JsonProperty("custom_event_type") String customEventType,
+      @JsonProperty("event_source_type") String eventSourceType,
+      PixelRef pixel,
+      JsonNode rule,
+      @JsonProperty("data_sources") JsonNode dataSources,
+      @JsonProperty("default_conversion_value") java.math.BigDecimal defaultConversionValue,
+      @JsonProperty("is_archived") Boolean archived,
+      @JsonProperty("is_unavailable") Boolean unavailable,
+      @JsonProperty("first_fired_time") String firstFiredTime,
+      @JsonProperty("last_fired_time") String lastFiredTime,
+      @JsonProperty("creation_time") String creationTime) {}
+
+  public record CustomConversionPage(List<CustomConversionSummary> data, Paging paging) {}
   public record AdSetSummary(
       String id,
       String name,
