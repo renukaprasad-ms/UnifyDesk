@@ -14,6 +14,7 @@ import com.messaging.ads.enums.AdAccountStatus;
 import com.messaging.ads.enums.AdEntityStatus;
 import com.messaging.ads.enums.AdInsightGranularity;
 import com.messaging.ads.enums.AdInsightLevel;
+import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.enums.AdRecommendationCategory;
 import com.messaging.ads.enums.AdRecommendationSeverity;
 import com.messaging.ads.enums.AdRecommendationSource;
@@ -92,7 +93,9 @@ public class AdRecommendationService {
 
     addAccountState(account, items);
     addHealthDiagnostics(account, health, items);
-    addResourceDiagnostics(account, resources, items);
+    if (account.getProvider() == AdProvider.META_ADS) {
+      addResourceDiagnostics(account, resources, items);
+    }
     addBillingDiagnostics(account, billing, items);
     addCampaignStatusDiagnostics(campaigns, items);
     addConversionDiagnostics(account, conversions, campaigns, recentCampaignInsights, items);
@@ -141,8 +144,8 @@ public class AdRecommendationService {
                 ? AdRecommendationSeverity.CRITICAL
                 : AdRecommendationSeverity.WARNING,
             AdRecommendationCategory.ACCOUNT,
-            AdRecommendationSource.META_PROVIDER,
-            "Meta ad account is " + account.getStatus().name().toLowerCase(),
+            providerSource(account),
+            providerName(account) + " account is " + account.getStatus().name().toLowerCase(),
             "The selected ad account is not currently reported as active. Campaign delivery and management can be restricted until the provider account state is resolved.",
             "AD_ACCOUNT",
             account.getId().toString(),
@@ -163,7 +166,7 @@ public class AdRecommendationService {
               AdRecommendationCategory.ACCOUNT,
               AdRecommendationSource.REACHLYO_DIAGNOSTIC,
               "Account health has not been synchronized",
-              "Sync Meta account health to load delivery checks, account capabilities, authorization state, and access-expiry information.",
+              "Sync provider account health to load delivery checks, capabilities, authorization state, and optimization diagnostics.",
               "AD_ACCOUNT",
               account.getId().toString(),
               "Sync account health",
@@ -173,6 +176,25 @@ public class AdRecommendationService {
     }
 
     addFailedDeliveryChecks(account, health, items);
+
+    if (account.getProvider() == AdProvider.GOOGLE_ADS) {
+      if (health.getDisableReason() != null && health.getDisableReason() > 0) {
+        items.add(
+            item(
+                "GOOGLE_ACCOUNT_RESTRICTED",
+                AdRecommendationSeverity.CRITICAL,
+                AdRecommendationCategory.ACCOUNT,
+                AdRecommendationSource.GOOGLE_PROVIDER,
+                "Google Ads reports an account restriction",
+                "Google Ads reports that this account is suspended or otherwise restricted. Review the account status before attempting campaign delivery changes.",
+                "AD_ACCOUNT",
+                account.getId().toString(),
+                "Review account settings",
+                "/ad-center/settings",
+                evidence("disableReason", health.getDisableReason())));
+      }
+      return;
+    }
 
     if (health.getDisableReason() != null && health.getDisableReason() > 0) {
       items.add(
@@ -288,14 +310,14 @@ public class AdRecommendationService {
 
         items.add(
             item(
-                "META_DELIVERY_" + stableName,
+                account.getProvider().name() + "_DELIVERY_" + stableName,
                 AdRecommendationSeverity.CRITICAL,
                 AdRecommendationCategory.DELIVERY,
-                AdRecommendationSource.META_PROVIDER,
-                first(summary, checkName, "Meta delivery check requires attention"),
+                providerSource(account),
+                first(summary, checkName, providerName(account) + " delivery check requires attention"),
                 first(
                     description,
-                    "Meta reported a failed delivery check for this ad account."),
+                    providerName(account) + " reported a failed delivery check for this ad account."),
                 "AD_ACCOUNT",
                 account.getId().toString(),
                 "Open account diagnostics",
@@ -408,7 +430,7 @@ public class AdRecommendationService {
               AdRecommendationCategory.BILLING,
               AdRecommendationSource.REACHLYO_DIAGNOSTIC,
               "Billing state has not been synchronized",
-              "Sync Meta billing to monitor the provider-reported balance, amount spent, and account spending limit.",
+              "Sync provider billing to monitor the latest billing setup, spending limits, and payment-account information exposed by the provider.",
               "AD_ACCOUNT",
               account.getId().toString(),
               "Sync billing",
@@ -430,7 +452,7 @@ public class AdRecommendationService {
               AdRecommendationCategory.BILLING,
               AdRecommendationSource.REACHLYO_DIAGNOSTIC,
               "Account spending limit is reached",
-              "Meta's reported amount spent has reached or exceeded the configured account spending limit. Delivery can be restricted until the limit is changed or reset.",
+              "The provider-reported amount spent has reached or exceeded the configured account spending limit. Delivery can be restricted until the limit is changed or reset.",
               "AD_ACCOUNT",
               account.getId().toString(),
               "Review spending limit",
@@ -456,7 +478,7 @@ public class AdRecommendationService {
               AdRecommendationCategory.BILLING,
               AdRecommendationSource.REACHLYO_DIAGNOSTIC,
               "Account spending limit is nearly reached",
-              "Ten percent or less of the configured Meta account spending limit remains based on the latest synchronized billing state.",
+              "Ten percent or less of the configured account spending limit remains based on the latest synchronized billing state.",
               "AD_ACCOUNT",
               account.getId().toString(),
               "Review spending limit",
@@ -487,9 +509,11 @@ public class AdRecommendationService {
               "CAMPAIGN_EFFECTIVE_STATUS_" + campaign.getId(),
               AdRecommendationSeverity.WARNING,
               AdRecommendationCategory.DELIVERY,
-              AdRecommendationSource.META_PROVIDER,
+              campaign.getProvider() == AdProvider.GOOGLE_ADS
+                  ? AdRecommendationSource.GOOGLE_PROVIDER
+                  : AdRecommendationSource.META_PROVIDER,
               campaign.getName() + " is not effectively active",
-              "The campaign is configured as ACTIVE, but Meta currently reports effective status "
+              "The campaign is configured as ACTIVE, but the provider currently reports effective status "
                   + effective
                   + ". Review the campaign and its parent/account conditions.",
               "CAMPAIGN",
@@ -629,10 +653,32 @@ public class AdRecommendationService {
   }
 
   private boolean conversionFocusedActiveCampaign(AdCampaign campaign) {
-    return campaign.isAccessible()
-        && campaign.getStatus() == AdEntityStatus.ACTIVE
-        && campaign.getObjective() != null
-        && CONVERSION_OBJECTIVES.contains(campaign.getObjective());
+    if (!campaign.isAccessible() || campaign.getStatus() != AdEntityStatus.ACTIVE) {
+      return false;
+    }
+
+    if (campaign.getProvider() == AdProvider.META_ADS) {
+      return campaign.getObjective() != null
+          && CONVERSION_OBJECTIVES.contains(campaign.getObjective());
+    }
+
+    String bidStrategy =
+        campaign.getBidStrategy() == null
+            ? ""
+            : campaign.getBidStrategy().trim().toUpperCase();
+    return bidStrategy.contains("CONVERSION")
+        || bidStrategy.contains("TARGET_CPA")
+        || bidStrategy.contains("TARGET_ROAS");
+  }
+
+  private AdRecommendationSource providerSource(AdAccount account) {
+    return account.getProvider() == AdProvider.GOOGLE_ADS
+        ? AdRecommendationSource.GOOGLE_PROVIDER
+        : AdRecommendationSource.META_PROVIDER;
+  }
+
+  private String providerName(AdAccount account) {
+    return account.getProvider() == AdProvider.GOOGLE_ADS ? "Google Ads" : "Meta Ads";
   }
 
   private int count(
