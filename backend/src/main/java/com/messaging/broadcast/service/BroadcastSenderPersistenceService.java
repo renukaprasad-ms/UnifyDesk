@@ -83,7 +83,9 @@ public class BroadcastSenderPersistenceService {
   public BroadcastSenderResponse reactivate(
       BroadcastSenderConnection connection, BroadcastSender sender) {
     Long channelConnectionId =
-        connection.getChannelConnectionId() == null ? connection.getId() : connection.getChannelConnectionId();
+        connection.getChannelConnectionId() == null
+            ? connection.getId()
+            : connection.getChannelConnectionId();
 
     ChannelConnection channelConnection =
         channelConnectionRepository
