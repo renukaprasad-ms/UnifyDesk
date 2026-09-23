@@ -10,7 +10,10 @@ import com.messaging.ads.meta.MetaAdsApiClient.InstagramSummary;
 import com.messaging.ads.meta.MetaAdsApiClient.PageSummary;
 import com.messaging.ads.meta.MetaAdsApiClient.PixelSummary;
 import com.messaging.ads.meta.dto.MetaAdsResourceSyncResponse;
+import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdAccountResourceRepository;
+import com.messaging.common.exception.BadRequestException;
+import com.messaging.common.exception.NotFoundException;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
@@ -23,15 +26,26 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class MetaAdsResourcePersistenceService {
 
+  private final AdAccountRepository accountRepository;
   private final AdAccountResourceRepository resourceRepository;
   private final ObjectMapper objectMapper;
 
   @Transactional
   public MetaAdsResourceSyncResponse persist(
-      AdAccount account,
+      Long companyId,
+      Long adAccountId,
       List<PageSummary> pages,
       List<InstagramSummary> instagramAccounts,
       List<PixelSummary> pixels) {
+    AdAccount account =
+        accountRepository
+            .findByIdAndCompanyIdForUpdate(adAccountId, companyId)
+            .orElseThrow(() -> new NotFoundException("Ad account not found"));
+    if (!account.isAccessible() || !account.isManaged()) {
+      throw new BadRequestException(
+          "Meta ad account is no longer available for resource synchronization");
+    }
+
     Set<ResourceKey> discovered = new HashSet<>();
 
     pages.forEach(
