@@ -7,6 +7,7 @@ import type {
   AdAccount,
   AdAccountResource,
   AdCampaign,
+  AdConversion,
   AdSet,
   CreateMetaAdSetInput,
   UpdateMetaCampaignInput,
@@ -67,6 +68,7 @@ export default function AdCampaignDetails() {
   const [accounts, setAccounts] = useState<AdAccount[]>([])
   const [adSets, setAdSets] = useState<AdSet[]>([])
   const [resources, setResources] = useState<AdAccountResource[]>([])
+  const [conversions, setConversions] = useState<AdConversion[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [statusWorking, setStatusWorking] = useState(false)
@@ -109,13 +111,17 @@ export default function AdCampaignDetails() {
       ])
       const accountValue =
         accountData.find((item) => item.id === campaignData.adAccountId) ?? null
-      const resourceData = accountValue
-        ? await adCenterApi.resources(selectedCompany.companyId, accountValue.id)
-        : []
+      const [resourceData, conversionData] = accountValue
+        ? await Promise.all([
+            adCenterApi.resources(selectedCompany.companyId, accountValue.id),
+            adCenterApi.conversions(selectedCompany.companyId, accountValue.id),
+          ])
+        : [[], []]
       setCampaign(campaignData)
       setAccounts(accountData)
       setAdSets(adSetData)
       setResources(resourceData)
+      setConversions(conversionData)
       syncForm(campaignData, accountValue)
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load campaign'))
@@ -591,6 +597,7 @@ export default function AdCampaignDetails() {
                 account={account}
                 campaign={campaign}
                 resources={resources}
+                conversions={conversions}
                 open={adSetModalOpen}
                 saving={creatingAdSet}
                 onClose={() => setAdSetModalOpen(false)}
