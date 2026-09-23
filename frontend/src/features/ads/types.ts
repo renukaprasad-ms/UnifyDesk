@@ -145,3 +145,68 @@ export type UpdateMetaCampaignInput = {
 export type MetaCampaignSync = {
   synchronizedCount: number
 }
+
+
+export type AdSet = {
+  id: string
+  companyId: string
+  adAccountId: string
+  campaignId: string
+  provider: AdProvider
+  externalAdSetId: string
+  name: string
+  optimizationGoal?: string | null
+  billingEvent?: string | null
+  bidStrategy?: string | null
+  destinationType?: string | null
+  status: AdEntityStatus
+  providerStatus?: string | null
+  effectiveStatus?: string | null
+  dailyBudgetMinor?: number | null
+  lifetimeBudgetMinor?: number | null
+  bidAmountMinor?: number | null
+  startAt?: string | null
+  endAt?: string | null
+  targetingJson?: string | null
+  promotedObjectJson?: string | null
+  attributionSpecJson?: string | null
+  providerCreatedAt?: string | null
+  providerUpdatedAt?: string | null
+  accessible: boolean
+  lastSyncAt?: string | null
+}
+
+export type MetaTargetingLocation = {
+  countryCode: string
+  locationTypes?: string[]
+}
+
+export type CreateMetaAdSetInput = {
+  name: string
+  optimizationGoal: string
+  billingEvent: string
+  bidStrategy?: string | null
+  bidAmountMinor?: number | null
+  dailyBudgetMinor?: number | null
+  lifetimeBudgetMinor?: number | null
+  startAt?: string | null
+  endAt?: string | null
+  destinationType?: string | null
+  locations: MetaTargetingLocation[]
+  ageMin?: number | null
+  ageMax?: number | null
+  genders?: number[]
+  publisherPlatforms?: string[]
+  facebookPositions?: string[]
+  instagramPositions?: string[]
+  customAudienceIds?: string[]
+  excludedCustomAudienceIds?: string[]
+  pixelId?: string | null
+  customEventType?: string | null
+}
+
+export type UpdateMetaAdSetInput = Partial<CreateMetaAdSetInput>
+
+export type MetaAdSetSync = {
+  synchronizedCount: number
+}
