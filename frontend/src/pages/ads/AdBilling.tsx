@@ -167,6 +167,14 @@ export default function AdBilling() {
       )
       setBilling(updated)
       setNotice('Meta billing state synchronized.')
+      try {
+        await adCenterApi.reconcileRecommendations(
+          selectedCompany.companyId,
+          selectedAccount.id,
+        )
+      } catch {
+        // Billing succeeded; lifecycle reconciliation is best effort here.
+      }
       window.dispatchEvent(new Event('ad-center:recommendations-changed'))
     } catch (syncError) {
       setError(apiErrorMessage(syncError, 'Unable to synchronize Meta billing'))
@@ -188,6 +196,14 @@ export default function AdBilling() {
       )
       setBilling(updated)
       setCapModalOpen(false)
+      try {
+        await adCenterApi.reconcileRecommendations(
+          selectedCompany.companyId,
+          selectedAccount.id,
+        )
+      } catch {
+        // Meta accepted the cap change; lifecycle reconciliation is best effort.
+      }
       window.dispatchEvent(new Event('ad-center:recommendations-changed'))
       setNotice(
         spendCapMinor === 0
