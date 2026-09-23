@@ -68,22 +68,31 @@ public class MetaAdsInsightSyncService {
       LocalDate to) {
     String providerLevel = providerLevel(level);
 
-    List<MetaAdsApiClient.InsightSummary> daily =
-        apiClient.insights(
-            token,
-            account.getExternalAccountId(),
-            providerLevel,
-            from,
-            to,
-            "1");
-    persistenceService.persist(
-        companyId,
-        account.getId(),
-        level,
-        AdInsightGranularity.DAILY,
-        from,
-        to,
-        daily);
+    LocalDate chunkStart = from;
+    int chunkDays = dailyChunkDays(level);
+    while (!chunkStart.isAfter(to)) {
+      LocalDate chunkEnd = chunkStart.plusDays(chunkDays - 1L);
+      if (chunkEnd.isAfter(to)) chunkEnd = to;
+
+      List<MetaAdsApiClient.InsightSummary> daily =
+          apiClient.insights(
+              token,
+              account.getExternalAccountId(),
+              providerLevel,
+              chunkStart,
+              chunkEnd,
+              "1");
+      persistenceService.persist(
+          companyId,
+          account.getId(),
+          level,
+          AdInsightGranularity.DAILY,
+          chunkStart,
+          chunkEnd,
+          daily);
+
+      chunkStart = chunkEnd.plusDays(1);
+    }
 
     List<MetaAdsApiClient.InsightSummary> range =
         apiClient.insights(
@@ -101,6 +110,15 @@ public class MetaAdsInsightSyncService {
         from,
         to,
         range);
+  }
+
+  private int dailyChunkDays(AdInsightLevel level) {
+    return switch (level) {
+      case ACCOUNT -> 90;
+      case CAMPAIGN -> 45;
+      case AD_SET -> 30;
+      case AD -> 14;
+    };
   }
 
   private String providerLevel(AdInsightLevel level) {
