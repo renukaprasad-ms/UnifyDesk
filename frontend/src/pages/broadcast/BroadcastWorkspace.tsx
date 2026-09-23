@@ -92,6 +92,16 @@ const recipientStatusLabel = (status: BroadcastRecipientStatus) => {
     .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
+const msg91TemplateStatusLabel = (binding?: EmailTemplateProviderBinding | null) => {
+  if (!binding) return 'not synced'
+  if (binding.sendable || binding.status === 'READY') return 'ready'
+  if (binding.status === 'PENDING_REVIEW') return 'pending approval'
+  if (binding.status === 'SYNCING') return 'syncing'
+  if (binding.status === 'REJECTED') return 'rejected'
+  if (binding.status === 'FAILED') return 'sync failed'
+  return 'status not confirmed'
+}
+
 const providerLabel = (provider?: string | null) => {
   if (!provider) return 'Legacy mailbox'
   if (provider === 'AMAZON_SES') return 'Amazon SES'
@@ -221,21 +231,42 @@ export default function BroadcastWorkspace() {
   const composeSender = composeSenderId ? sendersById.get(composeSenderId) ?? null : null
   const composeUsesMsg91Email = composeSender?.provider === 'MSG91_EMAIL'
 
+  const composeBindingByTemplateVersion = useMemo(
+    () =>
+      new Map(
+        composeProviderBindings.map((binding) => [
+          `${binding.templateId}:${binding.templateVersion}`,
+          binding,
+        ]),
+      ),
+    [composeProviderBindings],
+  )
+
+  const msg91ComposeTemplates = useMemo(
+    () =>
+      composeTemplates.filter(
+        (template) =>
+          template.purpose === 'TRANSACTIONAL' &&
+          template.publishedVersion !== null &&
+          template.publishedVersion !== undefined,
+      ),
+    [composeTemplates],
+  )
+
   const availableComposeTemplates = useMemo(() => {
     if (!composeUsesMsg91Email) return composeTemplates
-    const sendable = new Set(
-      composeProviderBindings
-        .filter((binding) => binding.sendable)
-        .map((binding) => `${binding.templateId}:${binding.templateVersion}`),
-    )
-    return composeTemplates.filter(
-      (template) =>
-        template.purpose === 'TRANSACTIONAL' &&
-        template.publishedVersion !== null &&
-        template.publishedVersion !== undefined &&
-        sendable.has(`${template.id}:${template.publishedVersion}`),
-    )
-  }, [composeProviderBindings, composeTemplates, composeUsesMsg91Email])
+    return msg91ComposeTemplates.filter((template) => {
+      const binding = composeBindingByTemplateVersion.get(
+        `${template.id}:${template.publishedVersion}`,
+      )
+      return binding?.sendable === true
+    })
+  }, [
+    composeBindingByTemplateVersion,
+    composeTemplates,
+    composeUsesMsg91Email,
+    msg91ComposeTemplates,
+  ])
 
   const selectedComposeTemplateReady =
     !composeUsesMsg91Email ||
@@ -492,16 +523,47 @@ export default function BroadcastWorkspace() {
     }
 
     let active = true
-    emailTemplateApi
-      .providerBindings(companyId, { connectionId: composeSender.connectionId })
-      .then((items) => {
-        if (active) setComposeProviderBindings(items)
-      })
-      .catch((requestError) => {
+    void (async () => {
+      try {
+        const items = await emailTemplateApi.providerBindings(companyId, {
+          connectionId: composeSender.connectionId,
+        })
+        if (!active) return
+
+        const refreshable = items.filter((binding) =>
+          ['SYNCING', 'SYNCED', 'PENDING_REVIEW'].includes(binding.status),
+        )
+        if (refreshable.length === 0) {
+          setComposeProviderBindings(items)
+          return
+        }
+
+        const refreshed = await Promise.allSettled(
+          refreshable.map((binding) =>
+            emailTemplateApi.refreshProviderBinding(companyId, binding.id),
+          ),
+        )
+        if (!active) return
+
+        const updates = new Map(
+          refreshed
+            .filter(
+              (
+                result,
+              ): result is PromiseFulfilledResult<EmailTemplateProviderBinding> =>
+                result.status === 'fulfilled',
+            )
+            .map((result) => [result.value.id, result.value]),
+        )
+        setComposeProviderBindings(
+          items.map((binding) => updates.get(binding.id) ?? binding),
+        )
+      } catch (requestError) {
         if (active) {
           snackbar.error(apiErrorMessage(requestError, 'Unable to load MSG91 template bindings'))
         }
-      })
+      }
+    })()
 
     return () => {
       active = false
@@ -1422,17 +1484,33 @@ export default function BroadcastWorkspace() {
                     <option value="">
                       {composeUsesMsg91Email ? 'Choose synced MSG91 template' : 'Start from scratch'}
                     </option>
-                    {availableComposeTemplates.map((template) => (
-                      <option key={template.id} value={template.id}>
-                        {template.name} · {template.category.toLowerCase().replaceAll('_', ' ')}
-                      </option>
-                    ))}
+                    {(composeUsesMsg91Email ? msg91ComposeTemplates : availableComposeTemplates).map(
+                      (template) => {
+                        const binding =
+                          composeUsesMsg91Email && template.publishedVersion !== null
+                            ? composeBindingByTemplateVersion.get(
+                                `${template.id}:${template.publishedVersion}`,
+                              )
+                            : null
+                        const ready = !composeUsesMsg91Email || binding?.sendable === true
+                        return (
+                          <option key={template.id} value={template.id} disabled={!ready}>
+                            {template.name} · {template.category.toLowerCase().replaceAll('_', ' ')}
+                            {composeUsesMsg91Email
+                              ? ` · ${msg91TemplateStatusLabel(binding)}`
+                              : ''}
+                          </option>
+                        )
+                      },
+                    )}
                   </select>
                   {availableComposeTemplates.length === 0 && (
                     <div className="mt-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3">
                       <p className="text-[10px] font-medium leading-4 text-slate-500">
                         {composeUsesMsg91Email
-                          ? 'No sendable MSG91 templates. Create a transactional template, publish it, then sync it to MSG91.'
+                          ? msg91ComposeTemplates.length > 0
+                            ? 'Your MSG91 templates are visible above but are not sendable yet. Messaging is refreshing their approval status automatically.'
+                            : 'No transactional templates yet. Create one, publish it, then sync it to MSG91.'
                           : 'No published email templates yet. Create and publish one to reuse it here.'}
                       </p>
                       <Link
