@@ -2,6 +2,7 @@ package com.messaging.ads.meta;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,6 +18,7 @@ import com.messaging.ads.meta.MetaAdsApiClient.TokenResponse;
 import com.messaging.ads.meta.MetaAdsApiClient.UserProfile;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
+import com.messaging.ads.service.AdAccountResourceLifecycleService;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +36,7 @@ class MetaAdsPersistenceServiceTests {
   @Mock private AdProviderConnectionRepository connectionRepository;
   @Mock private AdAccountRepository accountRepository;
   @Mock private MetaAdsTokenService tokenService;
+  @Mock private AdAccountResourceLifecycleService resourceLifecycleService;
 
   private MetaAdsPersistenceService service;
 
@@ -41,7 +44,11 @@ class MetaAdsPersistenceServiceTests {
   void setUp() {
     service =
         new MetaAdsPersistenceService(
-            connectionRepository, accountRepository, tokenService, new ObjectMapper());
+            connectionRepository,
+            accountRepository,
+            tokenService,
+            resourceLifecycleService,
+            new ObjectMapper());
   }
 
   @Test
@@ -91,6 +98,7 @@ class MetaAdsPersistenceServiceTests {
     assertThat(removed.isAccessible()).isFalse();
     assertThat(removed.isManaged()).isFalse();
     assertThat(removed.isPrimaryAccount()).isFalse();
+    verify(resourceLifecycleService).markAllInaccessible(COMPANY_ID, removed.getId());
   }
 
   private AdAccount account(
