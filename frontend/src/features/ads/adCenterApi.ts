@@ -194,6 +194,14 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+  async createMetaPixel(companyId: string, accountId: string, name: string) {
+    const response = await apiClient.post<ApiResponse<AdAccountResource>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/pixels`,
+      { name },
+    )
+    return unwrap(response.data)
+  },
+
   async audiences(companyId: string, accountId: string) {
     const response = await apiClient.get<ApiResponse<AdAudience[]>>(
       `/api/v1/companies/${companyId}/ads/accounts/${accountId}/audiences`,
