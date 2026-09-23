@@ -183,6 +183,7 @@ export default function AdSettings() {
       )
       setHealth(updated)
       setNotice('Meta account health synchronized.')
+      window.dispatchEvent(new Event('ad-center:recommendations-changed'))
     } catch (syncError) {
       setError(apiErrorMessage(syncError, 'Unable to synchronize Meta account health'))
     } finally {
@@ -201,6 +202,7 @@ export default function AdSettings() {
         selectedAccount.id,
       )
       setResources(result.resources)
+      window.dispatchEvent(new Event('ad-center:recommendations-changed'))
       setNotice(
         `Synced ${result.pages} Facebook page(s), ${result.instagramAccounts} Instagram account(s), and ${result.pixels} pixel(s).`,
       )
@@ -233,6 +235,7 @@ export default function AdSettings() {
         })),
       )
       setNotice(`${updated.name} is now the primary Meta ad account.`)
+      window.dispatchEvent(new Event('ad-center:recommendations-changed'))
     } catch (updateError) {
       setError(apiErrorMessage(updateError, 'Unable to update primary ad account'))
     } finally {
