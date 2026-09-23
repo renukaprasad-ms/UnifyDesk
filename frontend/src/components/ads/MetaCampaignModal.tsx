@@ -14,6 +14,20 @@ type Props = {
   onCreate: (input: CreateMetaCampaignInput) => Promise<void>
 }
 
+const toMinor = (value: string, currency?: string | null) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return null
+  if (!currency) return Math.round(numeric)
+  try {
+    const digits = new Intl.NumberFormat(undefined, { style: 'currency', currency })
+      .resolvedOptions()
+      .maximumFractionDigits
+    return Math.round(numeric * 10 ** digits)
+  } catch {
+    return Math.round(numeric)
+  }
+}
+
 const objectives: Array<{ value: MetaCampaignObjective; label: string }> = [
   { value: 'OUTCOME_AWARENESS', label: 'Awareness' },
   { value: 'OUTCOME_TRAFFIC', label: 'Traffic' },
@@ -42,8 +56,7 @@ export default function MetaCampaignModal({
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    const numericBudget = budget ? Number(budget) : 0
-    const minorBudget = numericBudget > 0 ? Math.round(numericBudget * 100) : null
+    const minorBudget = toMinor(budget, account.currency)
 
     await onCreate({
       name: name.trim(),
