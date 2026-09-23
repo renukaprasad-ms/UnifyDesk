@@ -151,6 +151,21 @@ export type MetaCampaignSync = {
 }
 
 
+export type CreateGoogleCampaignInput = {
+  name: string
+  dailyBudgetMinor: number
+  bidStrategy?: 'MANUAL_CPC' | 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS'
+  startDate?: string | null
+  endDate?: string | null
+}
+
+export type UpdateGoogleCampaignInput = Partial<CreateGoogleCampaignInput>
+
+export type GoogleCampaignSync = {
+  synchronizedCount: number
+}
+
+
 export type AdSet = {
   id: string
   companyId: string
@@ -213,6 +228,18 @@ export type CreateMetaAdSetInput = {
 export type UpdateMetaAdSetInput = Partial<CreateMetaAdSetInput>
 
 export type MetaAdSetSync = {
+  synchronizedCount: number
+}
+
+
+export type CreateGoogleAdGroupInput = {
+  name: string
+  cpcBidMinor?: number | null
+}
+
+export type UpdateGoogleAdGroupInput = Partial<CreateGoogleAdGroupInput>
+
+export type GoogleAdGroupSync = {
   synchronizedCount: number
 }
 
@@ -315,6 +342,58 @@ export type MetaAdSync = {
 }
 
 
+export type CreateGoogleResponsiveSearchAdInput = {
+  name: string
+  finalUrl: string
+  headlines: string[]
+  descriptions: string[]
+  path1?: string | null
+  path2?: string | null
+}
+
+export type UpdateGoogleResponsiveSearchAdInput = Partial<CreateGoogleResponsiveSearchAdInput>
+
+export type GoogleAdSync = {
+  synchronizedCount: number
+}
+
+export type AdKeyword = {
+  id: string
+  companyId: string
+  adAccountId: string
+  campaignId: string
+  adSetId: string
+  provider: AdProvider
+  externalKeywordId: string
+  keywordText: string
+  matchType?: string | null
+  status: AdEntityStatus
+  providerStatus?: string | null
+  bidAmountMicros?: number | null
+  qualityScore?: number | null
+  finalUrlsJson?: string | null
+  negative: boolean
+  accessible: boolean
+  lastSyncAt?: string | null
+}
+
+export type CreateGoogleKeywordInput = {
+  text: string
+  matchType: 'BROAD' | 'PHRASE' | 'EXACT'
+  cpcBidMinor?: number | null
+  negative?: boolean
+}
+
+export type UpdateGoogleKeywordInput = {
+  cpcBidMinor?: number | null
+  status?: 'ENABLED' | 'ACTIVE' | 'PAUSED'
+}
+
+export type GoogleKeywordSync = {
+  synchronizedCount: number
+}
+
+
 export type AdAudience = {
   id: string
   companyId: string
@@ -354,6 +433,18 @@ export type MetaAudienceSync = {
   synchronizedCount: number
 }
 
+
+export type CreateGoogleAudienceInput = {
+  name: string
+  description?: string | null
+  membershipLifeSpan?: number | null
+  uploadKeyType?: 'CONTACT_INFO' | 'CRM_ID' | 'MOBILE_ADVERTISING_ID'
+}
+
+export type GoogleAudienceSync = {
+  synchronizedCount: number
+}
+
 export type AdConversion = {
   id: string
   companyId: string
@@ -387,6 +478,19 @@ export type CreateMetaConversionInput = {
 }
 
 export type MetaConversionSync = {
+  synchronizedCount: number
+}
+
+
+export type CreateGoogleConversionInput = {
+  name: string
+  category: string
+  type?: string | null
+  defaultValue?: number | null
+  countingType?: 'ONE_PER_CLICK' | 'MANY_PER_CLICK'
+}
+
+export type GoogleConversionSync = {
   synchronizedCount: number
 }
 
@@ -450,6 +554,14 @@ export type MetaInsightsSync = {
   accountRows: number
   campaignRows: number
   adSetRows: number
+  adRows: number
+}
+
+
+export type GoogleInsightsSync = {
+  accountRows: number
+  campaignRows: number
+  adGroupRows: number
   adRows: number
 }
 
@@ -590,7 +702,7 @@ export type AdRecommendationCategory =
   | 'TRACKING'
   | 'SETUP'
   | 'PERFORMANCE'
-export type AdRecommendationSource = 'META_PROVIDER' | 'REACHLYO_DIAGNOSTIC'
+export type AdRecommendationSource = 'META_PROVIDER' | 'GOOGLE_PROVIDER' | 'REACHLYO_DIAGNOSTIC'
 export type AdRecommendationLifecycleStatus =
   | 'ACTIVE'
   | 'DISMISSED'
