@@ -1,9 +1,11 @@
 package com.messaging.ads.controller;
 
+import com.messaging.ads.dto.AdAccountResourceResponse;
 import com.messaging.ads.dto.AdAccountResponse;
 import com.messaging.ads.dto.AdProviderConnectionResponse;
 import com.messaging.ads.dto.AdProviderResponse;
 import com.messaging.ads.dto.UpdateAdAccountSelectionRequest;
+import com.messaging.ads.service.AdAccountResourceService;
 import com.messaging.ads.service.AdCenterService;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdCenterController {
 
   private final AdCenterService adCenterService;
+  private final AdAccountResourceService resourceService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -53,6 +56,17 @@ public class AdCenterController {
     requireRead(companyId);
     return ResponseEntity.ok(
         ApiResponse.success(200, adCenterService.accounts(companyId), "Ad accounts fetched"));
+  }
+
+  @GetMapping("/accounts/{accountId}/resources")
+  public ResponseEntity<ApiResponse<List<AdAccountResourceResponse>>> resources(
+      @PathVariable Long companyId, @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            resourceService.list(companyId, accountId),
+            "Ad account resources fetched"));
   }
 
   @PatchMapping("/accounts/{accountId}")
