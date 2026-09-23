@@ -61,6 +61,10 @@ public class AdCenterService {
             .orElseThrow(() -> new NotFoundException("Ad account not found"));
 
     boolean managed = Boolean.TRUE.equals(request.managed());
+    if (managed && !account.isAccessible()) {
+      throw new BadRequestException(
+          "Ad account is no longer accessible from the connected provider");
+    }
     if (Boolean.TRUE.equals(request.primaryAccount()) && !managed) {
       throw new BadRequestException("A primary ad account must be managed");
     }
@@ -101,6 +105,7 @@ public class AdCenterService {
     credentialService.deleteAll(connection.getId());
     accountRepository.findByCompanyIdAndConnectionId(companyId, connectionId).forEach(
         account -> {
+          account.setAccessible(false);
           account.setManaged(false);
           account.setPrimaryAccount(false);
         });
