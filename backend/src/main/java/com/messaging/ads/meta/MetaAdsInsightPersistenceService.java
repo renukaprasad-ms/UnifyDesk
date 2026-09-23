@@ -8,6 +8,7 @@ import com.messaging.ads.entity.AdAccount;
 import com.messaging.ads.entity.AdCampaign;
 import com.messaging.ads.entity.AdInsightDaily;
 import com.messaging.ads.entity.AdSet;
+import com.messaging.ads.enums.AdInsightGranularity;
 import com.messaging.ads.enums.AdInsightLevel;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.meta.MetaAdsApiClient.InsightSummary;
@@ -45,6 +46,7 @@ public class MetaAdsInsightPersistenceService {
       Long companyId,
       Long accountId,
       AdInsightLevel level,
+      AdInsightGranularity granularity,
       LocalDate from,
       LocalDate to,
       List<InsightSummary> snapshots) {
@@ -56,9 +58,27 @@ public class MetaAdsInsightPersistenceService {
       throw new BadRequestException("Meta ad account is not available for insights");
     }
 
-    insightRepository
-        .deleteByCompanyIdAndAdAccountIdAndProviderAndInsightLevelAndInsightDateBetween(
-            companyId, accountId, AdProvider.META_ADS, level, from, to);
+    if (granularity == AdInsightGranularity.DAILY) {
+      insightRepository
+          .deleteByCompanyIdAndAdAccountIdAndProviderAndInsightLevelAndGranularityAndInsightDateBetween(
+              companyId,
+              accountId,
+              AdProvider.META_ADS,
+              level,
+              granularity,
+              from,
+              to);
+    } else {
+      insightRepository
+          .deleteByCompanyIdAndAdAccountIdAndProviderAndInsightLevelAndGranularityAndInsightDateAndPeriodEnd(
+              companyId,
+              accountId,
+              AdProvider.META_ADS,
+              level,
+              granularity,
+              from,
+              to);
+    }
 
     Instant syncedAt = Instant.now();
     int count = 0;
@@ -71,7 +91,9 @@ public class MetaAdsInsightPersistenceService {
       insight.setAdAccountId(accountId);
       insight.setProvider(AdProvider.META_ADS);
       insight.setInsightLevel(level);
-      insight.setInsightDate(date);
+      insight.setGranularity(granularity);
+      insight.setInsightDate(granularity == AdInsightGranularity.RANGE ? from : date);
+      insight.setPeriodEnd(granularity == AdInsightGranularity.RANGE ? to : date);
       insight.setCurrency(blank(snapshot.accountCurrency()) != null
           ? snapshot.accountCurrency().trim()
           : account.getCurrency());
