@@ -103,6 +103,15 @@ class MetaAdsInsightPersistenceServiceTests {
                 "[{\"action_type\":\"offsite_conversion.fb_pixel_purchase\",\"value\":\"4000\"}]"),
             objectMapper.readTree(
                 "[{\"action_type\":\"omni_purchase\",\"value\":\"4.0\"}]"),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
             null);
 
     int count =
