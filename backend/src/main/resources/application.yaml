@@ -283,6 +283,17 @@ app:
       scope: ${META_ADS_SCOPE:ads_management,business_management,pages_show_list,pages_read_engagement,instagram_basic}
       oauth-state-ttl: ${META_ADS_OAUTH_STATE_TTL:10m}
       webhook-verify-token: ${META_ADS_WEBHOOK_VERIFY_TOKEN:}
+    google:
+      enabled: ${GOOGLE_ADS_ENABLED:false}
+      client-id: ${GOOGLE_ADS_CLIENT_ID:}
+      client-secret: ${GOOGLE_ADS_CLIENT_SECRET:}
+      redirect-uri: ${GOOGLE_ADS_REDIRECT_URI:https://messaging.renukaprasad.in/api/v1/oauth/google-ads/callback}
+      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://messaging.renukaprasad.in}
+      api-version: ${GOOGLE_ADS_API_VERSION:v25}
+      scope: ${GOOGLE_ADS_SCOPE:openid email profile https://www.googleapis.com/auth/adwords}
+      developer-token: ${GOOGLE_ADS_DEVELOPER_TOKEN:}
+      oauth-state-ttl: ${GOOGLE_ADS_OAUTH_STATE_TTL:10m}
+      token-refresh-skew: ${GOOGLE_ADS_TOKEN_REFRESH_SKEW:2m}
   redis:
     key-prefix: ${REDIS_KEY_PREFIX:messaging}
     ttl:
