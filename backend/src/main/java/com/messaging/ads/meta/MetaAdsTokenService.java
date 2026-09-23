@@ -6,6 +6,7 @@ import com.messaging.ads.entity.AdProviderConnection;
 import com.messaging.ads.enums.AdCredentialType;
 import com.messaging.ads.meta.MetaAdsApiClient.TokenResponse;
 import com.messaging.ads.service.AdProviderCredentialService;
+import com.messaging.common.exception.BadRequestException;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,9 @@ public class MetaAdsTokenService {
   public TokenValue read(Long connectionId) {
     AdProviderCredentialService.CredentialValue value =
         credentialService.read(connectionId, AdCredentialType.OAUTH_TOKEN_SET);
+    if (value.expiresAt() != null && !value.expiresAt().isAfter(Instant.now())) {
+      throw new BadRequestException("Meta Ads authorization expired. Reconnect Meta Ads");
+    }
     try {
       return new TokenValue(
           objectMapper.readValue(value.plaintextPayload(), MetaAdsStoredToken.class),
