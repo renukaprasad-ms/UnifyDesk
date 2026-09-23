@@ -5,13 +5,14 @@ import {
   FiEdit2,
   FiPause,
   FiPlay,
+  FiPlus,
   FiRefreshCw,
   FiSend,
   FiUpload,
   FiUsers,
   FiX,
 } from 'react-icons/fi'
-import { useLocation, useSearchParams } from 'react-router'
+import { Link, useLocation, useSearchParams } from 'react-router'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import type {
   BroadcastMember,
@@ -1428,11 +1429,29 @@ export default function BroadcastWorkspace() {
                     ))}
                   </select>
                   {availableComposeTemplates.length === 0 && (
-                    <span className="mt-1 block text-[10px] font-medium text-slate-400">
-                      {composeUsesMsg91Email
-                        ? 'No sendable MSG91 templates. Publish a transactional template and sync it from Templates.'
-                        : 'No published email templates yet. Publish one from Templates.'}
-                    </span>
+                    <div className="mt-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3">
+                      <p className="text-[10px] font-medium leading-4 text-slate-500">
+                        {composeUsesMsg91Email
+                          ? 'No sendable MSG91 templates. Create a transactional template, publish it, then sync it to MSG91.'
+                          : 'No published email templates yet. Create and publish one to reuse it here.'}
+                      </p>
+                      <Link
+                        to={composeUsesMsg91Email ? '/templates?create=transactional' : '/templates?create=marketing'}
+                        className="secondary-button mt-3 inline-flex items-center gap-2 px-3 py-2 text-xs"
+                      >
+                        <FiPlus aria-hidden="true" />
+                        Create new template
+                      </Link>
+                    </div>
+                  )}
+                  {availableComposeTemplates.length > 0 && (
+                    <Link
+                      to={composeUsesMsg91Email ? '/templates?create=transactional' : '/templates?create=marketing'}
+                      className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
+                    >
+                      <FiPlus aria-hidden="true" />
+                      Create another template
+                    </Link>
                   )}
                 </label>
 
