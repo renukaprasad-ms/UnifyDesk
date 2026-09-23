@@ -12,6 +12,8 @@ public interface AdCampaignRepository extends JpaRepository<AdCampaign, Long> {
 
   Page<AdCampaign> findByCompanyId(Long companyId, Pageable pageable);
 
+  Optional<AdCampaign> findByIdAndCompanyId(Long id, Long companyId);
+
   Page<AdCampaign> findByCompanyIdAndAdAccountId(
       Long companyId, Long adAccountId, Pageable pageable);
 
