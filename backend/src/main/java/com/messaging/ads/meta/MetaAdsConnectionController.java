@@ -18,6 +18,7 @@ import com.messaging.ads.meta.dto.MetaAdsAuthorizationResponse;
 import com.messaging.ads.meta.dto.MetaAudienceSyncResponse;
 import com.messaging.ads.meta.dto.MetaCampaignStatusRequest;
 import com.messaging.ads.meta.dto.MetaConversionSyncResponse;
+import com.messaging.ads.meta.dto.MetaInsightsSyncResponse;
 import com.messaging.ads.meta.dto.MetaAdStatusRequest;
 import com.messaging.ads.meta.dto.MetaAdSyncResponse;
 import com.messaging.ads.meta.dto.MetaCreativeSyncResponse;
@@ -33,6 +34,7 @@ import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
 import com.messaging.security.service.CurrentUserService;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -52,6 +54,7 @@ public class MetaAdsConnectionController {
 
   private final MetaAdsConnectionService connectionService;
   private final MetaAdsPixelMutationService pixelMutationService;
+  private final MetaAdsInsightSyncService insightSyncService;
   private final MetaAdsResourceSyncService resourceSyncService;
   private final MetaAdsAudienceSyncService audienceSyncService;
   private final MetaAdsAudienceMutationService audienceMutationService;
@@ -67,6 +70,22 @@ public class MetaAdsConnectionController {
   private final MetaAdsAdSetMutationService adSetMutationService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
+
+  @PostMapping("/accounts/{accountId}/insights/sync")
+  public ResponseEntity<ApiResponse<MetaInsightsSyncResponse>> syncInsights(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @RequestParam LocalDate from,
+      @RequestParam LocalDate to) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            insightSyncService.sync(companyId, accountId, from, to),
+            "Meta analytics synchronized"));
+  }
 
   @PostMapping("/accounts/{accountId}/pixels")
   public ResponseEntity<ApiResponse<AdAccountResourceResponse>> createPixel(
