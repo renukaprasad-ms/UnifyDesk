@@ -1,5 +1,7 @@
 package com.messaging.broadcast.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.broadcast.dto.*;
 import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.enums.BroadcastMessageStatus;
@@ -11,6 +13,7 @@ import com.messaging.common.exception.NotFoundException;
 import com.messaging.emailtemplate.enums.EmailTemplatePurpose;
 import com.messaging.emailtemplate.service.EmailTemplateService;
 import java.time.Instant;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,7 @@ public class BroadcastMessageService {
   private final BroadcastStateMachine stateMachine;
   private final BroadcastLaunchService launchService;
   private final EmailTemplateService emailTemplateService;
+  private final ObjectMapper objectMapper;
 
   @Transactional
   public BroadcastMessageResponse create(
@@ -51,6 +55,7 @@ public class BroadcastMessageService {
         request.subject(),
         request.bodyText(),
         request.bodyHtml(),
+        request.templateVariables(),
         sender.getProvider(),
         message);
     message.setCreatedByUserId(userId);
@@ -74,6 +79,7 @@ public class BroadcastMessageService {
         request.subject(),
         request.bodyText(),
         request.bodyHtml(),
+        request.templateVariables(),
         sender.getProvider(),
         message);
     return response(messageRepository.save(message));
@@ -141,6 +147,7 @@ public class BroadcastMessageService {
       String subject,
       String bodyText,
       String bodyHtml,
+      Map<String, String> templateVariables,
       BroadcastSenderProvider provider,
       BroadcastMessage message) {
     if (templateId != null) {
@@ -159,6 +166,8 @@ public class BroadcastMessageService {
       message.setSubject(template.subject());
       message.setBodyText(template.bodyText());
       message.setBodyHtml(template.bodyHtml());
+      message.setTemplateVariablesJson(
+          writeTemplateVariables(normalizeTemplateVariables(templateVariables, template.variables())));
       return;
     }
 
@@ -176,6 +185,43 @@ public class BroadcastMessageService {
     message.setSubject(channelType == ChannelType.EMAIL ? trimToNull(subject) : null);
     message.setBodyText(normalizedBody);
     message.setBodyHtml(channelType == ChannelType.EMAIL ? trimToNull(bodyHtml) : null);
+    message.setTemplateVariablesJson("{}");
+  }
+
+  private Map<String, String> normalizeTemplateVariables(
+      Map<String, String> input, List<String> allowedVariables) {
+    if (input == null || input.isEmpty() || allowedVariables == null || allowedVariables.isEmpty()) {
+      return Map.of();
+    }
+    LinkedHashMap<String, String> normalized = new LinkedHashMap<>();
+    for (String variable : allowedVariables) {
+      String value = trimToNull(input.get(variable));
+      if (value == null) continue;
+      if (value.length() > 10000) {
+        throw new BadRequestException("Template variable value is too long: " + variable);
+      }
+      normalized.put(variable, value);
+    }
+    return Map.copyOf(normalized);
+  }
+
+  private String writeTemplateVariables(Map<String, String> values) {
+    try {
+      return objectMapper.writeValueAsString(values == null ? Map.of() : values);
+    } catch (Exception exception) {
+      throw new BadRequestException("Unable to save broadcast template variables");
+    }
+  }
+
+  private Map<String, String> readTemplateVariables(String json) {
+    if (json == null || json.isBlank()) return Map.of();
+    try {
+      Map<String, String> values =
+          objectMapper.readValue(json, new TypeReference<Map<String, String>>() {});
+      return values == null ? Map.of() : Map.copyOf(values);
+    } catch (Exception exception) {
+      return Map.of();
+    }
   }
 
   private BroadcastSender validateSender(Long companyId, BroadcastGroup group, Long senderId) {
@@ -199,7 +245,11 @@ public class BroadcastMessageService {
     BroadcastRun run = runRepository.findByBroadcastMessageId(message.getId()).orElse(null);
     BroadcastStats stats =
         run == null ? null : statsRepository.findByRunId(run.getId()).orElse(null);
-    return BroadcastMessageResponse.from(message, run, BroadcastStatsResponse.from(stats));
+    return BroadcastMessageResponse.from(
+        message,
+        run,
+        BroadcastStatsResponse.from(stats),
+        readTemplateVariables(message.getTemplateVariablesJson()));
   }
 
   private BroadcastMessageSummaryResponse summary(BroadcastMessage message) {
