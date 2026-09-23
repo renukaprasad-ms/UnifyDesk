@@ -530,3 +530,49 @@ export type AdAccountBilling = {
   businessCountryCode?: string | null
   lastSyncAt?: string | null
 }
+
+
+export type MetaDeliveryCheck = {
+  check_name?: string | null
+  description?: string | null
+  summary?: string | null
+  extra_info?: unknown
+}
+
+export type AdAccountHealth = {
+  synced: boolean
+  id?: string | null
+  companyId: string
+  adAccountId: string
+  provider: AdProvider
+  accountStatus?: number | null
+  disableReason?: number | null
+  opportunityScore?: number | null
+  opportunityScoreWeight?: number | null
+  pageAuthorized?: boolean | null
+  offsitePixelsTosAccepted?: boolean | null
+  directDealsEnabled?: boolean | null
+  notificationsEnabled?: boolean | null
+  accessExpiresAt?: string | null
+  offsiteCloSignalStatus?: number | null
+  capabilities: string[]
+  allCapabilities: string[]
+  userTasks: string[]
+  failedDeliveryChecks?: MetaDeliveryCheck[] | null
+  lastSyncAt?: string | null
+}
+
+export type AdActivityLog = {
+  id: string
+  companyId: string
+  adAccountId?: string | null
+  provider: AdProvider
+  actorUserId?: string | null
+  action: string
+  entityType: string
+  entityId?: string | null
+  beforeJson?: string | null
+  afterJson?: string | null
+  metadataJson?: string | null
+  createdAt: string
+}
