@@ -97,9 +97,17 @@ public class MetaAdsAudiencePersistenceService {
   private String blank(String value){ return value == null || value.isBlank() ? null : value.trim(); }
   private Instant parseInstant(String value){
     if(value==null || value.isBlank()) return null;
-    try { return Instant.parse(value.trim()); }
-    catch(DateTimeParseException ignored){ try { return OffsetDateTime.parse(value.trim()).toInstant(); } catch(DateTimeParseException ignoredAgain){ return null; } }
+    String normalized=value.trim();
+    if(normalized.chars().allMatch(Character::isDigit)){
+      try{return Instant.ofEpochSecond(Long.parseLong(normalized));}
+      catch(NumberFormatException ignored){ return null; }
+    }
+    try { return Instant.parse(normalized); }
+    catch(DateTimeParseException ignored){ try { return OffsetDateTime.parse(normalized).toInstant(); } catch(DateTimeParseException ignoredAgain){ return null; } }
   }
-  private String jsonNode(JsonNode value){ return value == null || value.isNull() ? null : json(value); }
+  private String jsonNode(JsonNode value){
+    if(value==null || value.isNull()) return null;
+    return value.isTextual() ? value.asText() : json(value);
+  }
   private String json(Object value){ try { return objectMapper.writeValueAsString(value); } catch(JsonProcessingException e){ throw new IllegalStateException("Unable to serialize Meta audience snapshot", e); } }
 }
