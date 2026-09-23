@@ -172,6 +172,48 @@ public class MetaAdsApiClient {
     return List.copyOf(result);
   }
 
+
+  public List<CampaignSummary> campaigns(String accessToken, String accountId) {
+    List<CampaignSummary> result = new ArrayList<>();
+    String after = null;
+    for (int page = 0; page < MAX_PAGES; page++) {
+      CampaignPage response = campaignPage(accessToken, accountId, after);
+      if (response.data() != null) result.addAll(response.data());
+      after = nextCursor(response.paging());
+      if (after == null) break;
+    }
+    return List.copyOf(result);
+  }
+
+  private CampaignPage campaignPage(String accessToken, String accountId, String after) {
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder -> {
+                      var builder =
+                          uriBuilder
+                              .path("/{version}/{account}/campaigns")
+                              .queryParam(
+                                  "fields",
+                                  "id,name,objective,account_id,buying_type,daily_budget,lifetime_budget,"
+                                      + "spend_cap,bid_strategy,status,effective_status,start_time,stop_time,"
+                                      + "created_time,updated_time,special_ad_categories,"
+                                      + "special_ad_category_country")
+                              .queryParam("limit", PAGE_LIMIT)
+                              .queryParam("appsecret_proof", appSecretProof(accessToken));
+                      if (after != null && !after.isBlank()) {
+                        builder.queryParam("after", after);
+                      }
+                      return builder.build(
+                          properties.getGraphApiVersion(), accountPath(accountId));
+                    })
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(CampaignPage.class));
+  }
+
   private InstagramPage instagramPage(String accessToken, String accountId, String after) {
     return execute(
         () ->
@@ -349,6 +391,28 @@ public class MetaAdsApiClient {
       @JsonProperty("account_status") Integer accountStatus,
       BusinessRef business) {}
 
+
+
+  public record CampaignSummary(
+      String id,
+      String name,
+      String objective,
+      @JsonProperty("account_id") String accountId,
+      @JsonProperty("buying_type") String buyingType,
+      @JsonProperty("daily_budget") String dailyBudget,
+      @JsonProperty("lifetime_budget") String lifetimeBudget,
+      @JsonProperty("spend_cap") String spendCap,
+      @JsonProperty("bid_strategy") String bidStrategy,
+      String status,
+      @JsonProperty("effective_status") String effectiveStatus,
+      @JsonProperty("start_time") String startTime,
+      @JsonProperty("stop_time") String stopTime,
+      @JsonProperty("created_time") String createdTime,
+      @JsonProperty("updated_time") String updatedTime,
+      @JsonProperty("special_ad_categories") List<String> specialAdCategories,
+      @JsonProperty("special_ad_category_country") List<String> specialAdCategoryCountry) {}
+
+  public record CampaignPage(List<CampaignSummary> data, Paging paging) {}
 
   public record PageSummary(String id, String name) {}
 
