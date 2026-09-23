@@ -3,18 +3,25 @@ import type { ApiResponse } from '../../lib/api/types'
 import type {
   AdAccount,
   AdAccountResource,
+  AdCreative,
+  Ad,
   AdSet,
   AdProviderConnection,
   AdProviderInfo,
   AdCampaign,
   CreateMetaCampaignInput,
+  CreateMetaCreativeInput,
+  CreateMetaAdInput,
   CreateMetaAdSetInput,
   MetaAdsAuthorization,
   MetaAdsResourceSync,
   MetaCampaignSync,
+  MetaCreativeSync,
+  MetaAdSync,
   MetaAdSetSync,
   PageResponse,
   UpdateMetaCampaignInput,
+  UpdateMetaAdInput,
   UpdateMetaAdSetInput,
 } from './types'
 
@@ -176,6 +183,96 @@ export const adCenterApi = {
   ) {
     const response = await apiClient.post<ApiResponse<AdSet>>(
       `/api/v1/companies/${companyId}/ads/meta/ad-sets/${adSetId}/status`,
+      { status },
+    )
+    return unwrap(response.data)
+  },
+
+  async creatives(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<AdCreative[]>>(
+      `/api/v1/companies/${companyId}/ads/accounts/${accountId}/creatives`,
+    )
+    return unwrap(response.data)
+  },
+
+  async creative(companyId: string, creativeId: string) {
+    const response = await apiClient.get<ApiResponse<AdCreative>>(
+      `/api/v1/companies/${companyId}/ads/creatives/${creativeId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async syncMetaCreatives(companyId: string, accountId: string) {
+    const response = await apiClient.post<ApiResponse<MetaCreativeSync>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/creatives/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createMetaCreative(
+    companyId: string,
+    accountId: string,
+    input: CreateMetaCreativeInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<AdCreative>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/creatives`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async ads(companyId: string, adSetId: string) {
+    const response = await apiClient.get<ApiResponse<Ad[]>>(
+      `/api/v1/companies/${companyId}/ads/ad-sets/${adSetId}/ads`,
+    )
+    return unwrap(response.data)
+  },
+
+  async ad(companyId: string, adId: string) {
+    const response = await apiClient.get<ApiResponse<Ad>>(
+      `/api/v1/companies/${companyId}/ads/ads/${adId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async syncMetaAds(companyId: string, adSetId: string) {
+    const response = await apiClient.post<ApiResponse<MetaAdSync>>(
+      `/api/v1/companies/${companyId}/ads/meta/ad-sets/${adSetId}/ads/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createMetaAd(
+    companyId: string,
+    adSetId: string,
+    input: CreateMetaAdInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<Ad>>(
+      `/api/v1/companies/${companyId}/ads/meta/ad-sets/${adSetId}/ads`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateMetaAd(
+    companyId: string,
+    adId: string,
+    input: UpdateMetaAdInput,
+  ) {
+    const response = await apiClient.patch<ApiResponse<Ad>>(
+      `/api/v1/companies/${companyId}/ads/meta/ads/${adId}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async setMetaAdStatus(
+    companyId: string,
+    adId: string,
+    status: 'ACTIVE' | 'PAUSED',
+  ) {
+    const response = await apiClient.post<ApiResponse<Ad>>(
+      `/api/v1/companies/${companyId}/ads/meta/ads/${adId}/status`,
       { status },
     )
     return unwrap(response.data)
