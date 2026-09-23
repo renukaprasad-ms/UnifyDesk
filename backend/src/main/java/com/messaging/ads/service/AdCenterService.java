@@ -57,9 +57,17 @@ public class AdCenterService {
   @Transactional
   public AdAccountResponse updateSelection(
       Long companyId, Long accountId, UpdateAdAccountSelectionRequest request) {
-    var account =
+    AdAccount accountSnapshot =
         accountRepository
             .findByIdAndCompanyId(accountId, companyId)
+            .orElseThrow(() -> new NotFoundException("Ad account not found"));
+    List<AdAccount> providerAccounts =
+        accountRepository.findByCompanyIdAndProviderForUpdate(
+            companyId, accountSnapshot.getProvider());
+    AdAccount account =
+        providerAccounts.stream()
+            .filter(candidate -> candidate.getId().equals(accountId))
+            .findFirst()
             .orElseThrow(() -> new NotFoundException("Ad account not found"));
 
     boolean managed = Boolean.TRUE.equals(request.managed());
@@ -70,9 +78,6 @@ public class AdCenterService {
     if (Boolean.TRUE.equals(request.primaryAccount()) && !managed) {
       throw new BadRequestException("A primary ad account must be managed");
     }
-
-    List<AdAccount> providerAccounts =
-        accountRepository.findByCompanyIdAndProvider(companyId, account.getProvider());
 
     account.setManaged(managed);
     if (!managed) {
@@ -106,8 +111,12 @@ public class AdCenterService {
             .orElseThrow(() -> new NotFoundException("Advertising provider connection not found"));
 
     credentialService.deleteAll(connection.getId());
+    List<AdAccount> providerAccounts =
+        accountRepository.findByCompanyIdAndProviderForUpdate(companyId, connection.getProvider());
     List<AdAccount> disconnectedAccounts =
-        accountRepository.findByCompanyIdAndConnectionId(companyId, connectionId);
+        providerAccounts.stream()
+            .filter(account -> account.getConnectionId().equals(connectionId))
+            .toList();
     disconnectedAccounts.forEach(
         account -> {
           account.setAccessible(false);
@@ -116,8 +125,6 @@ public class AdCenterService {
           resourceLifecycleService.markAllInaccessible(companyId, account.getId());
         });
 
-    List<AdAccount> providerAccounts =
-        accountRepository.findByCompanyIdAndProvider(companyId, connection.getProvider());
     normalizePrimary(providerAccounts);
     accountRepository.saveAll(providerAccounts);
 
