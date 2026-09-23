@@ -81,12 +81,13 @@ class MetaAdsResourceSyncServiceTests {
     when(apiClient.promotePages("access-token", "123")).thenReturn(pages);
     when(apiClient.instagramAccounts("access-token", "123")).thenReturn(List.of());
     when(apiClient.pixels("access-token", "123")).thenReturn(List.of());
-    when(persistenceService.persist(account, pages, List.of(), List.of()))
+    when(persistenceService.persist(COMPANY_ID, ACCOUNT_ID, pages, List.of(), List.of()))
         .thenReturn(expected);
 
     MetaAdsResourceSyncResponse actual = service.sync(COMPANY_ID, ACCOUNT_ID);
 
     assertThat(actual).isSameAs(expected);
-    verify(persistenceService).persist(account, pages, List.of(), List.of());
+    verify(persistenceService)
+        .persist(COMPANY_ID, ACCOUNT_ID, pages, List.of(), List.of());
   }
 }
