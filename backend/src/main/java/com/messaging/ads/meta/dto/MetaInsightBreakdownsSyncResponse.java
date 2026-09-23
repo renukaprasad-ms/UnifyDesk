@@ -12,6 +12,7 @@ public record MetaInsightBreakdownsSyncResponse(
     int impressionDevice,
     int devicePlatform,
     int conversionDestination,
+    int actionType,
     int actionDevice,
     List<String> failedBreakdowns) {
 
@@ -25,6 +26,7 @@ public record MetaInsightBreakdownsSyncResponse(
         + impressionDevice
         + devicePlatform
         + conversionDestination
+        + actionType
         + actionDevice;
   }
 }
