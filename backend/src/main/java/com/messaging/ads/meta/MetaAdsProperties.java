@@ -23,6 +23,7 @@ public class MetaAdsProperties {
   private String graphApiVersion = "v26.0";
   private String scope = DEFAULT_SCOPE;
   private Duration oauthStateTtl = Duration.ofMinutes(10);
+  private String webhookVerifyToken;
 
   public boolean configured() {
     return enabled
@@ -32,6 +33,10 @@ public class MetaAdsProperties {
         && hasText(frontendBaseUrl)
         && hasText(graphApiVersion)
         && hasText(scope);
+  }
+
+  public boolean webhookConfigured() {
+    return hasText(appSecret) && hasText(webhookVerifyToken);
   }
 
   private boolean hasText(String value) {
