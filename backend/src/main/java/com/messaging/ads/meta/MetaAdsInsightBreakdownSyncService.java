@@ -107,6 +107,15 @@ public class MetaAdsInsightBreakdownSyncService {
             to,
             AdInsightBreakdownType.CONVERSION_DESTINATION,
             failed);
+    int actionType =
+        syncOne(
+            companyId,
+            account,
+            token,
+            from,
+            to,
+            AdInsightBreakdownType.ACTION_TYPE,
+            failed);
     int actionDevice =
         syncOne(
             companyId,
@@ -127,6 +136,7 @@ public class MetaAdsInsightBreakdownSyncService {
         impressionDevice,
         devicePlatform,
         conversionDestination,
+        actionType,
         actionDevice,
         List.copyOf(failed));
   }
@@ -140,9 +150,14 @@ public class MetaAdsInsightBreakdownSyncService {
       AdInsightBreakdownType type,
       List<String> failed) {
     try {
-      String breakdown = type == AdInsightBreakdownType.ACTION_DEVICE ? null : providerBreakdown(type);
+      boolean actionBreakdownType =
+          type == AdInsightBreakdownType.ACTION_DEVICE
+              || type == AdInsightBreakdownType.ACTION_TYPE;
+      String breakdown = actionBreakdownType ? null : providerBreakdown(type);
       String actionBreakdown =
-          type == AdInsightBreakdownType.ACTION_DEVICE ? "action_device" : null;
+          type == AdInsightBreakdownType.ACTION_DEVICE
+              ? "action_device"
+              : type == AdInsightBreakdownType.ACTION_TYPE ? "action_type" : null;
       var snapshots =
           apiClient.insightBreakdown(
               token,
@@ -176,7 +191,8 @@ public class MetaAdsInsightBreakdownSyncService {
       case IMPRESSION_DEVICE -> "impression_device";
       case DEVICE_PLATFORM -> "device_platform";
       case CONVERSION_DESTINATION -> "conversion_destination";
-      case ACTION_DEVICE -> throw new IllegalArgumentException("Action device is an action breakdown");
+      case ACTION_TYPE, ACTION_DEVICE ->
+          throw new IllegalArgumentException("Action dimensions use action_breakdowns");
     };
   }
 
