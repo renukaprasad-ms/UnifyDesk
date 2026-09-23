@@ -20,6 +20,7 @@ type Props = {
   companyId: string
   template?: EmailTemplate | null
   initialMode?: EmailTemplateEditorMode
+  initialPurpose?: EmailTemplatePurpose
   onClose: () => void
   onSaved: (template: EmailTemplate) => void
 }
@@ -107,6 +108,7 @@ export default function EmailTemplateEditorModal({
   companyId,
   template,
   initialMode = 'BUILDER',
+  initialPurpose = 'MARKETING',
   onClose,
   onSaved,
 }: Props) {
@@ -119,7 +121,7 @@ export default function EmailTemplateEditorModal({
     template?.category ?? 'PROMOTIONAL',
   )
   const [purpose, setPurpose] = useState<EmailTemplatePurpose>(
-    template?.purpose ?? 'MARKETING',
+    template?.purpose ?? initialPurpose,
   )
   const [subject, setSubject] = useState(template?.subject ?? '')
   const [preheader, setPreheader] = useState(template?.preheader ?? '')
