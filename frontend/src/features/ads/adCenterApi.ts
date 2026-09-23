@@ -3,6 +3,8 @@ import type { ApiResponse } from '../../lib/api/types'
 import type {
   AdAccount,
   AdAccountResource,
+  AdAnalytics,
+  AdInsightLevel,
   AdAudience,
   AdConversion,
   AdCreative,
@@ -22,6 +24,7 @@ import type {
   MetaAudienceSync,
   MetaCampaignSync,
   MetaConversionSync,
+  MetaInsightsSync,
   MetaCreativeSync,
   MetaAdSync,
   MetaAdSetSync,
@@ -190,6 +193,34 @@ export const adCenterApi = {
     const response = await apiClient.post<ApiResponse<AdSet>>(
       `/api/v1/companies/${companyId}/ads/meta/ad-sets/${adSetId}/status`,
       { status },
+    )
+    return unwrap(response.data)
+  },
+
+  async analytics(
+    companyId: string,
+    accountId: string,
+    from: string,
+    to: string,
+    level: AdInsightLevel,
+  ) {
+    const response = await apiClient.get<ApiResponse<AdAnalytics>>(
+      `/api/v1/companies/${companyId}/ads/accounts/${accountId}/analytics`,
+      { params: { from, to, level } },
+    )
+    return unwrap(response.data)
+  },
+
+  async syncMetaInsights(
+    companyId: string,
+    accountId: string,
+    from: string,
+    to: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<MetaInsightsSync>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/insights/sync`,
+      null,
+      { params: { from, to } },
     )
     return unwrap(response.data)
   },
