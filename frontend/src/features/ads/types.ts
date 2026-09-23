@@ -448,3 +448,56 @@ export type MetaInsightsSync = {
   adSetRows: number
   adRows: number
 }
+
+
+export type AdInsightBreakdownType =
+  | 'AGE'
+  | 'GENDER'
+  | 'COUNTRY'
+  | 'REGION'
+  | 'PUBLISHER_PLATFORM'
+  | 'PLATFORM_POSITION'
+  | 'IMPRESSION_DEVICE'
+  | 'DEVICE_PLATFORM'
+  | 'CONVERSION_DESTINATION'
+  | 'ACTION_DEVICE'
+
+export type AdAnalyticsBreakdownRow = {
+  dimension: string
+  secondaryDimension?: string | null
+  actionType?: string | null
+  currency?: string | null
+  spend: number
+  impressions: number
+  reach: number
+  clicks: number
+  ctr?: number | null
+  cpc?: number | null
+  cpm?: number | null
+  conversions: number
+  conversionValue: number
+  leads: number
+  purchases: number
+  actionValue: number
+}
+
+export type AdAnalyticsBreakdown = {
+  breakdown: AdInsightBreakdownType
+  rows: AdAnalyticsBreakdownRow[]
+  lastSyncedAt?: string | null
+}
+
+export type MetaInsightBreakdownsSync = {
+  age: number
+  gender: number
+  country: number
+  region: number
+  publisherPlatform: number
+  platformPosition: number
+  impressionDevice: number
+  devicePlatform: number
+  conversionDestination: number
+  actionDevice: number
+  failedBreakdowns: string[]
+  totalRows?: number
+}
