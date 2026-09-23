@@ -1,6 +1,7 @@
 package com.messaging.ads.meta;
 
 import com.messaging.ads.dto.AdAccountBillingResponse;
+import com.messaging.ads.dto.AdAccountHealthResponse;
 import com.messaging.ads.dto.AdAudienceResponse;
 import com.messaging.ads.dto.AdAccountResourceResponse;
 import com.messaging.ads.dto.AdCampaignResponse;
@@ -57,6 +58,7 @@ public class MetaAdsConnectionController {
 
   private final MetaAdsConnectionService connectionService;
   private final MetaAdsBillingService billingService;
+  private final MetaAdsHealthService healthService;
   private final MetaAdsPixelMutationService pixelMutationService;
   private final MetaAdsInsightSyncService insightSyncService;
   private final MetaAdsInsightBreakdownSyncService insightBreakdownSyncService;
@@ -75,6 +77,20 @@ public class MetaAdsConnectionController {
   private final MetaAdsAdSetMutationService adSetMutationService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
+
+  @PostMapping("/accounts/{accountId}/health/sync")
+  public ResponseEntity<ApiResponse<AdAccountHealthResponse>> syncHealth(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            healthService.sync(companyId, accountId),
+            "Meta account health synchronized"));
+  }
 
   @PostMapping("/accounts/{accountId}/billing/sync")
   public ResponseEntity<ApiResponse<AdAccountBillingResponse>> syncBilling(
