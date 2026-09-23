@@ -12,6 +12,7 @@ import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.meta.MetaAdsApiClient.AdAccountBillingSummary;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
+import com.messaging.ads.service.AdActivityLogService;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,7 @@ class MetaAdsBillingServiceTests {
   @Mock private MetaAdsTokenService tokenService;
   @Mock private MetaAdsApiClient apiClient;
   @Mock private MetaAdsBillingPersistenceService persistenceService;
+  @Mock private AdActivityLogService activityLogService;
 
   private MetaAdsBillingService service;
 
@@ -39,7 +41,8 @@ class MetaAdsBillingServiceTests {
             connectionRepository,
             tokenService,
             apiClient,
-            persistenceService);
+            persistenceService,
+            activityLogService);
   }
 
   @Test
@@ -85,9 +88,10 @@ class MetaAdsBillingServiceTests {
     AdAccountBillingResponse persisted = AdAccountBillingResponse.empty(account);
     when(persistenceService.persist(10L, 20L, accepted)).thenReturn(persisted);
 
-    service.updateSpendCap(10L, 20L, 25000L);
+    service.updateSpendCap(10L, 20L, 25000L, 40L);
 
     InOrder order = inOrder(apiClient, persistenceService);
+    order.verify(apiClient).accountBilling("token", "123456");
     order.verify(apiClient).updateAccountSpendCap("token", "123456", 25000L);
     order.verify(apiClient).accountBilling("token", "123456");
     order.verify(persistenceService).persist(10L, 20L, accepted);
