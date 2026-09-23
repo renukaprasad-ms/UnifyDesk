@@ -18,6 +18,8 @@ import type {
   AdProviderConnection,
   AdProviderInfo,
   AdRecommendations,
+  AdRecommendationSummary,
+  AdRecommendationLifecycleAction,
   AdCampaign,
   CreateMetaAudienceInput,
   CreateMetaCampaignInput,
@@ -204,9 +206,40 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+  async recommendationSummary(companyId: string) {
+    const response = await apiClient.get<ApiResponse<AdRecommendationSummary>>(
+      `/api/v1/companies/${companyId}/ads/recommendations/summary`,
+    )
+    return unwrap(response.data)
+  },
+
   async recommendations(companyId: string, accountId: string) {
     const response = await apiClient.get<ApiResponse<AdRecommendations>>(
       `/api/v1/companies/${companyId}/ads/accounts/${accountId}/recommendations`,
+    )
+    return unwrap(response.data)
+  },
+
+  async reconcileRecommendations(companyId: string, accountId: string) {
+    const response = await apiClient.post<ApiResponse<AdRecommendations>>(
+      `/api/v1/companies/${companyId}/ads/accounts/${accountId}/recommendations/reconcile`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateRecommendationState(
+    companyId: string,
+    accountId: string,
+    recommendationKey: string,
+    action: AdRecommendationLifecycleAction,
+    snoozedUntil?: string,
+  ) {
+    const response = await apiClient.patch<ApiResponse<AdRecommendations>>(
+      `/api/v1/companies/${companyId}/ads/accounts/${accountId}/recommendations/${encodeURIComponent(recommendationKey)}`,
+      {
+        action,
+        ...(snoozedUntil ? { snoozedUntil } : {}),
+      },
     )
     return unwrap(response.data)
   },
