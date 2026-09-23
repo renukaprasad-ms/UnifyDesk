@@ -120,11 +120,14 @@ public class AdRecommendationService {
         count(items, AdRecommendationSeverity.WARNING),
         count(items, AdRecommendationSeverity.OPPORTUNITY),
         count(items, AdRecommendationSeverity.INFO),
+        0,
+        0,
         Instant.now(),
         health == null ? null : health.getLastSyncAt(),
         billing == null ? null : billing.getLastSyncAt(),
         analyticsLastSyncAt,
-        List.copyOf(items));
+        List.copyOf(items),
+        List.of());
   }
 
   private void addAccountState(
@@ -670,7 +673,11 @@ public class AdRecommendationService {
         entityId,
         actionLabel,
         actionPath,
-        evidence);
+        evidence,
+        com.messaging.ads.enums.AdRecommendationLifecycleStatus.ACTIVE,
+        null,
+        severity != AdRecommendationSeverity.CRITICAL,
+        true);
   }
 
   private Map<String, Object> evidence(Object... keyValues) {
