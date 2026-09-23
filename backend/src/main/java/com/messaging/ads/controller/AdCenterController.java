@@ -5,10 +5,12 @@ import com.messaging.ads.dto.AdAccountResponse;
 import com.messaging.ads.dto.AdCampaignResponse;
 import com.messaging.ads.dto.AdProviderConnectionResponse;
 import com.messaging.ads.dto.AdProviderResponse;
+import com.messaging.ads.dto.AdSetResponse;
 import com.messaging.ads.dto.UpdateAdAccountSelectionRequest;
 import com.messaging.ads.service.AdAccountResourceService;
 import com.messaging.ads.service.AdCampaignService;
 import com.messaging.ads.service.AdCenterService;
+import com.messaging.ads.service.AdSetService;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
@@ -37,6 +39,7 @@ public class AdCenterController {
   private final AdCenterService adCenterService;
   private final AdAccountResourceService resourceService;
   private final AdCampaignService campaignService;
+  private final AdSetService adSetService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -65,6 +68,22 @@ public class AdCenterController {
         ApiResponse.success(200, adCenterService.accounts(companyId), "Ad accounts fetched"));
   }
 
+  @GetMapping("/campaigns/{campaignId}/ad-sets")
+  public ResponseEntity<ApiResponse<List<AdSetResponse>>> adSets(
+      @PathVariable Long companyId, @PathVariable Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200, adSetService.list(companyId, campaignId), "Advertising ad sets fetched"));
+  }
+
+  @GetMapping("/ad-sets/{adSetId}")
+  public ResponseEntity<ApiResponse<AdSetResponse>> adSet(
+      @PathVariable Long companyId, @PathVariable Long adSetId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(200, adSetService.get(companyId, adSetId), "Advertising ad set fetched"));
+  }
   @GetMapping("/campaigns/{campaignId}")
   public ResponseEntity<ApiResponse<AdCampaignResponse>> campaign(
       @PathVariable Long companyId, @PathVariable Long campaignId) {
