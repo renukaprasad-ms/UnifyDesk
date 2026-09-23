@@ -2,9 +2,11 @@ import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
 import type {
   AdAccount,
+  AdAccountResource,
   AdProviderConnection,
   AdProviderInfo,
   MetaAdsAuthorization,
+  MetaAdsResourceSync,
 } from './types'
 
 const unwrap = <T>(response: ApiResponse<T>) => {
@@ -30,6 +32,20 @@ export const adCenterApi = {
   async accounts(companyId: string) {
     const response = await apiClient.get<ApiResponse<AdAccount[]>>(
       `/api/v1/companies/${companyId}/ads/accounts`,
+    )
+    return unwrap(response.data)
+  },
+
+  async resources(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<AdAccountResource[]>>(
+      `/api/v1/companies/${companyId}/ads/accounts/${accountId}/resources`,
+    )
+    return unwrap(response.data)
+  },
+
+  async syncMetaResources(companyId: string, accountId: string) {
+    const response = await apiClient.post<ApiResponse<MetaAdsResourceSync>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/resources/sync`,
     )
     return unwrap(response.data)
   },
