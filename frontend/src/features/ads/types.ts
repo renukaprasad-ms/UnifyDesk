@@ -620,6 +620,21 @@ export type MetaInsightBreakdownsSync = {
   totalRows?: number
 }
 
+export type GoogleInsightBreakdownsSync = {
+  age: number
+  gender: number
+  country: number
+  region: number
+  publisherPlatform: number
+  platformPosition: number
+  impressionDevice: number
+  devicePlatform: number
+  conversionDestination: number
+  actionType: number
+  actionDevice: number
+  failedBreakdowns: string[]
+}
+
 
 export type AdAccountBilling = {
   synced: boolean
