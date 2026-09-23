@@ -132,7 +132,7 @@ public class MetaAdsApiClient {
                       var builder =
                           uriBuilder
                               .path("/{version}/me/businesses")
-                              .queryParam("fields", "id,name,verification_status")
+                              .queryParam("fields", "id,name")
                               .queryParam("limit", PAGE_LIMIT)
                               .queryParam("appsecret_proof", appSecretProof(accessToken));
                       if (after != null && !after.isBlank()) {
@@ -225,10 +225,7 @@ public class MetaAdsApiClient {
 
   public record UserProfile(String id, String name) {}
 
-  public record BusinessSummary(
-      String id,
-      String name,
-      @JsonProperty("verification_status") String verificationStatus) {}
+  public record BusinessSummary(String id, String name) {}
 
   public record BusinessRef(String id, String name) {}
 
