@@ -476,7 +476,8 @@ public class MetaAdsApiClient {
   }
 
   private String creativeFields() {
-    return "id,name,account_id,object_story_spec,thumbnail_url,body,title,call_to_action_type,url_tags,created_time,updated_time";
+    return "id,name,account_id,object_story_spec,thumbnail_url,body,title,call_to_action_type,"
+        + "url_tags,image_hash,image_url,instagram_actor_id,status";
   }
 
   private String adFields() {
@@ -793,8 +794,10 @@ public class MetaAdsApiClient {
       String title,
       @JsonProperty("call_to_action_type") String callToActionType,
       @JsonProperty("url_tags") String urlTags,
-      @JsonProperty("created_time") String createdTime,
-      @JsonProperty("updated_time") String updatedTime) {}
+      @JsonProperty("image_hash") String imageHash,
+      @JsonProperty("image_url") String imageUrl,
+      @JsonProperty("instagram_actor_id") String instagramActorId,
+      String status) {}
 
   public record CreativePage(List<CreativeSummary> data, Paging paging) {}
 
