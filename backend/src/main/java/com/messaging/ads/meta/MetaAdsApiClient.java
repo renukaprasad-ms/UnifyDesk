@@ -297,6 +297,191 @@ public class MetaAdsApiClient {
         + "destination_type,bid_amount,daily_budget,lifetime_budget,start_time,end_time,"
         + "targeting,promoted_object,attribution_spec,status,effective_status,created_time,updated_time";
   }
+  public List<CreativeSummary> creatives(String accessToken, String accountId) {
+    List<CreativeSummary> result = new ArrayList<>();
+    String after = null;
+    for (int page = 0; page < MAX_PAGES; page++) {
+      CreativePage response = creativePage(accessToken, accountId, after);
+      if (response.data() != null) result.addAll(response.data());
+      after = nextCursor(response.paging());
+      if (after == null) break;
+    }
+    return List.copyOf(result);
+  }
+
+  public CreativeSummary creative(String accessToken, String creativeId) {
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder ->
+                        uriBuilder
+                            .path("/{version}/{creativeId}")
+                            .queryParam("fields", creativeFields())
+                            .queryParam("appsecret_proof", appSecretProof(accessToken))
+                            .build(properties.getGraphApiVersion(), creativeId))
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(CreativeSummary.class));
+  }
+
+  public String createCreative(
+      String accessToken, String accountId, Map<String, Object> payload) {
+    IdResponse response =
+        execute(
+            () ->
+                graphClient
+                    .post()
+                    .uri(
+                        uriBuilder ->
+                            uriBuilder
+                                .path("/{version}/{account}/adcreatives")
+                                .queryParam("appsecret_proof", appSecretProof(accessToken))
+                                .build(properties.getGraphApiVersion(), accountPath(accountId)))
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .body(IdResponse.class));
+    if (response.id() == null || response.id().isBlank()) {
+      throw new BadRequestException("Meta created the creative without returning an ID");
+    }
+    return response.id();
+  }
+
+  public List<AdSummary> ads(String accessToken, String accountId, String adSetId) {
+    List<AdSummary> result = new ArrayList<>();
+    String after = null;
+    for (int page = 0; page < MAX_PAGES; page++) {
+      AdPage response = adPage(accessToken, accountId, after);
+      if (response.data() != null) {
+        response.data().stream()
+            .filter(item -> adSetId.equals(item.adSetId()))
+            .forEach(result::add);
+      }
+      after = nextCursor(response.paging());
+      if (after == null) break;
+    }
+    return List.copyOf(result);
+  }
+
+  public AdSummary ad(String accessToken, String adId) {
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder ->
+                        uriBuilder
+                            .path("/{version}/{adId}")
+                            .queryParam("fields", adFields())
+                            .queryParam("appsecret_proof", appSecretProof(accessToken))
+                            .build(properties.getGraphApiVersion(), adId))
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(AdSummary.class));
+  }
+
+  public String createAd(
+      String accessToken, String accountId, Map<String, Object> payload) {
+    IdResponse response =
+        execute(
+            () ->
+                graphClient
+                    .post()
+                    .uri(
+                        uriBuilder ->
+                            uriBuilder
+                                .path("/{version}/{account}/ads")
+                                .queryParam("appsecret_proof", appSecretProof(accessToken))
+                                .build(properties.getGraphApiVersion(), accountPath(accountId)))
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .body(IdResponse.class));
+    if (response.id() == null || response.id().isBlank()) {
+      throw new BadRequestException("Meta created the ad without returning an ID");
+    }
+    return response.id();
+  }
+
+  public void updateAd(
+      String accessToken, String adId, Map<String, Object> updates) {
+    if (updates.isEmpty()) return;
+    SuccessResponse response =
+        execute(
+            () ->
+                graphClient
+                    .post()
+                    .uri(
+                        uriBuilder ->
+                            uriBuilder
+                                .path("/{version}/{adId}")
+                                .queryParam("appsecret_proof", appSecretProof(accessToken))
+                                .build(properties.getGraphApiVersion(), adId))
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(updates)
+                    .retrieve()
+                    .body(SuccessResponse.class));
+    if (!response.success()) {
+      throw new BadRequestException("Meta did not accept the ad update");
+    }
+  }
+
+  private CreativePage creativePage(String accessToken, String accountId, String after) {
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder -> {
+                      var builder =
+                          uriBuilder
+                              .path("/{version}/{account}/adcreatives")
+                              .queryParam("fields", creativeFields())
+                              .queryParam("limit", PAGE_LIMIT)
+                              .queryParam("appsecret_proof", appSecretProof(accessToken));
+                      if (after != null && !after.isBlank()) builder.queryParam("after", after);
+                      return builder.build(
+                          properties.getGraphApiVersion(), accountPath(accountId));
+                    })
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(CreativePage.class));
+  }
+
+  private AdPage adPage(String accessToken, String accountId, String after) {
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder -> {
+                      var builder =
+                          uriBuilder
+                              .path("/{version}/{account}/ads")
+                              .queryParam("fields", adFields())
+                              .queryParam("limit", PAGE_LIMIT)
+                              .queryParam("appsecret_proof", appSecretProof(accessToken));
+                      if (after != null && !after.isBlank()) builder.queryParam("after", after);
+                      return builder.build(
+                          properties.getGraphApiVersion(), accountPath(accountId));
+                    })
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(AdPage.class));
+  }
+
+  private String creativeFields() {
+    return "id,name,account_id,object_story_spec,thumbnail_url,body,title,call_to_action_type,url_tags,created_time,updated_time";
+  }
+
+  private String adFields() {
+    return "id,name,account_id,adset_id,campaign_id,creative{id,name},status,effective_status,tracking_specs,conversion_specs,created_time,updated_time";
+  }
   public CampaignSummary campaign(String accessToken, String campaignId) {
     return execute(
         () ->
@@ -596,6 +781,38 @@ public class MetaAdsApiClient {
 
 
 
+  public record CreativeRef(String id, String name) {}
+
+  public record CreativeSummary(
+      String id,
+      String name,
+      @JsonProperty("account_id") String accountId,
+      @JsonProperty("object_story_spec") JsonNode objectStorySpec,
+      @JsonProperty("thumbnail_url") String thumbnailUrl,
+      String body,
+      String title,
+      @JsonProperty("call_to_action_type") String callToActionType,
+      @JsonProperty("url_tags") String urlTags,
+      @JsonProperty("created_time") String createdTime,
+      @JsonProperty("updated_time") String updatedTime) {}
+
+  public record CreativePage(List<CreativeSummary> data, Paging paging) {}
+
+  public record AdSummary(
+      String id,
+      String name,
+      @JsonProperty("account_id") String accountId,
+      @JsonProperty("adset_id") String adSetId,
+      @JsonProperty("campaign_id") String campaignId,
+      CreativeRef creative,
+      String status,
+      @JsonProperty("effective_status") String effectiveStatus,
+      @JsonProperty("tracking_specs") JsonNode trackingSpecs,
+      @JsonProperty("conversion_specs") JsonNode conversionSpecs,
+      @JsonProperty("created_time") String createdTime,
+      @JsonProperty("updated_time") String updatedTime) {}
+
+  public record AdPage(List<AdSummary> data, Paging paging) {}
   public record AdSetSummary(
       String id,
       String name,
