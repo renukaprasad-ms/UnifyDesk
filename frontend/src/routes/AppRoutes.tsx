@@ -3,6 +3,19 @@ import { PERMISSIONS } from '../features/iam/permissions'
 import AuthLayout from '../layouts/AuthLayout'
 import MainLayout from '../layouts/MainLayout'
 import AccountProfile from '../pages/account/AccountProfile'
+import AdCenterOverview from '../pages/ads/AdCenterOverview'
+import AdCampaigns from '../pages/ads/AdCampaigns'
+import AdCampaignDetails from '../pages/ads/AdCampaignDetails'
+import AdSetDetails from '../pages/ads/AdSetDetails'
+import AdAnalytics from '../pages/ads/AdAnalytics'
+import AdAudiences from '../pages/ads/AdAudiences'
+import AdBilling from '../pages/ads/AdBilling'
+import AdActivity from '../pages/ads/AdActivity'
+import AdSettings from '../pages/ads/AdSettings'
+import AdRecommendations from '../pages/ads/AdRecommendations'
+import AdConversions from '../pages/ads/AdConversions'
+import AdCreatives from '../pages/ads/AdCreatives'
+import AdDetails from '../pages/ads/AdDetails'
 import AccountSettings from '../pages/account/AccountSettings'
 import ChangePassword from '../pages/account/ChangePassword'
 import ForgotPassword from '../pages/auth/ForgotPassword'
@@ -80,6 +93,21 @@ const AppRoutes = () => (
               <Route path="broadcast/sms" element={<BroadcastWorkspace />} />
               <Route path="broadcast/social-media" element={<BroadcastWorkspace />} />
               <Route path="broadcast/email" element={<BroadcastWorkspace />} />
+            </Route>
+            <Route element={<PermissionRoute anyOf={[PERMISSIONS.ADS_READ]} />}>
+              <Route path="ad-center" element={<AdCenterOverview />} />
+              <Route path="ad-center/campaigns" element={<AdCampaigns />} />
+              <Route path="ad-center/campaigns/:campaignId" element={<AdCampaignDetails />} />
+              <Route path="ad-center/ad-sets/:adSetId" element={<AdSetDetails />} />
+              <Route path="ad-center/ads/:adId" element={<AdDetails />} />
+              <Route path="ad-center/creatives" element={<AdCreatives />} />
+              <Route path="ad-center/audiences" element={<AdAudiences />} />
+              <Route path="ad-center/conversions" element={<AdConversions />} />
+              <Route path="ad-center/analytics" element={<AdAnalytics />} />
+              <Route path="ad-center/recommendations" element={<AdRecommendations />} />
+              <Route path="ad-center/billing" element={<AdBilling />} />
+              <Route path="ad-center/activity" element={<AdActivity />} />
+              <Route path="ad-center/settings" element={<AdSettings />} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.TEMPLATE_READ]} />}>
               <Route path="templates" element={<TemplateLibrary />} />

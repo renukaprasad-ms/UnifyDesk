@@ -3,7 +3,7 @@ package com.messaging.broadcast.ses;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.broadcast.entity.BroadcastSenderConnection;
 import com.messaging.broadcast.enums.BroadcastSenderAuthMode;
-import com.messaging.channel.credential.CredentialCipher;
+import com.messaging.common.credential.CredentialCipher;
 import jakarta.annotation.PreDestroy;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;

@@ -9,7 +9,7 @@ import com.messaging.broadcast.enums.*;
 import com.messaging.broadcast.repository.*;
 import com.messaging.broadcast.ses.*;
 import com.messaging.broadcast.sendgrid.*;
-import com.messaging.channel.credential.CredentialCipher;
+import com.messaging.common.credential.CredentialCipher;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.common.id.IdGenerator;

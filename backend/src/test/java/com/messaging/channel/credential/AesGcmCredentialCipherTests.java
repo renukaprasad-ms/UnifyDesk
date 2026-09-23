@@ -3,6 +3,7 @@ package com.messaging.channel.credential;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.messaging.common.credential.AesGcmCredentialCipher;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import org.junit.jupiter.api.Test;

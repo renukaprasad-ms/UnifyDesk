@@ -164,12 +164,38 @@ export default function CompanyConnections() {
 
   const prepareMeta = async () => {
     if (!selectedCompany || !can(PERMISSIONS.WHATSAPP_CONNECT)) return
+
+    console.info('[MetaWhatsApp] CONFIG_LOAD_START', {
+      companyId: selectedCompany.companyId,
+    })
+
     try {
       const config = await metaWhatsAppApi.signupConfig(selectedCompany.companyId)
+
+      console.info('[MetaWhatsApp] CONFIG_LOADED', {
+        companyId: selectedCompany.companyId,
+        appId: config.appId,
+        configurationId: config.configurationId,
+        graphApiVersion: config.graphApiVersion,
+        hasState: Boolean(config.state),
+      })
+
       await loadMetaSdk(config.appId, config.graphApiVersion)
+
+      console.info('[MetaWhatsApp] CONFIG_AND_SDK_READY', {
+        companyId: selectedCompany.companyId,
+      })
+
       setSignupConfig(config)
       setMetaReady(true)
-    } catch {
+    } catch (prepareError) {
+      console.error('[MetaWhatsApp] CONFIG_OR_SDK_FAILED', {
+        companyId: selectedCompany.companyId,
+        message:
+          prepareError instanceof Error
+            ? prepareError.message
+            : apiErrorMessage(prepareError, 'Unable to prepare Meta WhatsApp'),
+      })
       setSignupConfig(null)
       setMetaReady(false)
     }
@@ -247,15 +273,56 @@ export default function CompanyConnections() {
   }, [])
 
   const connectWhatsApp = () => {
-    if (!selectedCompany || !signupConfig || !metaReady || connecting) return
+    if (!selectedCompany || !signupConfig || !metaReady || connecting) {
+      console.warn('[MetaWhatsApp] CONNECT_IGNORED', {
+        hasCompany: Boolean(selectedCompany),
+        hasSignupConfig: Boolean(signupConfig),
+        metaReady,
+        connecting,
+      })
+      return
+    }
+
+    console.info('[MetaWhatsApp] CONNECT_CLICKED', {
+      companyId: selectedCompany.companyId,
+      appId: signupConfig.appId,
+      configurationId: signupConfig.configurationId,
+      graphApiVersion: signupConfig.graphApiVersion,
+    })
 
     setConnecting(true)
 
-    launchMetaWhatsAppSignup(signupConfig)
-      .then((result) =>
-        metaWhatsAppApi.complete(selectedCompany.companyId, signupConfig.state, result),
-      )
+    launchMetaWhatsAppSignup(signupConfig, {
+      onPopupNotObserved: () => {
+        console.warn('[MetaWhatsApp] NO_META_RESPONSE_AFTER_HINT_DELAY', {
+          companyId: selectedCompany.companyId,
+        })
+        snackbar.info(
+          'Meta has not responded yet. Check the browser console for [MetaWhatsApp] logs and verify the WhatsApp Embedded Signup configuration.',
+        )
+      },
+    })
+      .then((result) => {
+        console.info('[MetaWhatsApp] EMBEDDED_SIGNUP_RESULT_RECEIVED', {
+          companyId: selectedCompany.companyId,
+          hasCode: Boolean(result.code),
+          wabaId: result.wabaId,
+          phoneNumberId: result.phoneNumberId,
+        })
+
+        console.info('[MetaWhatsApp] COMPLETE_API_CALLING', {
+          companyId: selectedCompany.companyId,
+        })
+
+        return metaWhatsAppApi.complete(selectedCompany.companyId, signupConfig.state, result)
+      })
       .then(async (connection) => {
+        console.info('[MetaWhatsApp] COMPLETE_API_SUCCEEDED', {
+          companyId: selectedCompany.companyId,
+          connectionId: connection.connectionId,
+          wabaName: connection.wabaName,
+        })
+
         snackbar.success(
           `Connected ${connection.phoneNumber.displayPhoneNumber} to ${connection.wabaName}`,
         )
@@ -263,10 +330,25 @@ export default function CompanyConnections() {
         await prepareMeta()
       })
       .catch((connectError) => {
-        snackbar.error(apiErrorMessage(connectError, 'Unable to connect WhatsApp'))
+        const message =
+          connectError instanceof Error
+            ? connectError.message
+            : apiErrorMessage(connectError, 'Unable to connect WhatsApp')
+
+        console.error('[MetaWhatsApp] CONNECT_FAILED', {
+          companyId: selectedCompany.companyId,
+          message,
+        })
+
+        snackbar.error(message)
         void prepareMeta()
       })
-      .finally(() => setConnecting(false))
+      .finally(() => {
+        console.info('[MetaWhatsApp] CONNECT_FINISHED', {
+          companyId: selectedCompany.companyId,
+        })
+        setConnecting(false)
+      })
   }
 
   const disconnect = async (

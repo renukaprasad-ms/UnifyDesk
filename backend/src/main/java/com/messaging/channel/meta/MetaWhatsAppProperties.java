@@ -21,6 +21,22 @@ public class MetaWhatsAppProperties {
   private Duration signupSessionTtl = Duration.ofMinutes(10);
   private boolean registerPhoneNumber = true;
 
+  public void setAppId(String appId) {
+    this.appId = trimToNull(appId);
+  }
+
+  public void setAppSecret(String appSecret) {
+    this.appSecret = trimToNull(appSecret);
+  }
+
+  public void setConfigurationId(String configurationId) {
+    this.configurationId = trimToNull(configurationId);
+  }
+
+  public void setGraphApiVersion(String graphApiVersion) {
+    this.graphApiVersion = trimToNull(graphApiVersion);
+  }
+
   public boolean configured() {
     return enabled
         && hasText(appId)
@@ -31,5 +47,13 @@ public class MetaWhatsAppProperties {
 
   private boolean hasText(String value) {
     return value != null && !value.isBlank();
+  }
+
+  private String trimToNull(String value) {
+    if (value == null) {
+      return null;
+    }
+    String trimmed = value.trim();
+    return trimmed.isEmpty() ? null : trimmed;
   }
 }

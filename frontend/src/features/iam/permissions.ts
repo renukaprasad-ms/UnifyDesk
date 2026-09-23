@@ -65,6 +65,8 @@ export const PERMISSIONS = {
   BILLING_SUBSCRIPTION_MODIFY: 'billing.subscription.modify',
   BILLING_SUBSCRIPTION_CANCEL: 'billing.subscription.cancel',
 
+  ADS_CONNECT: 'ads.connect',
+  ADS_DISCONNECT: 'ads.disconnect',
   ADS_READ: 'ads.read',
   ADS_CREATE: 'ads.create',
   ADS_MODIFY: 'ads.modify',

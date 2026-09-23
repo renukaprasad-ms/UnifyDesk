@@ -18,6 +18,7 @@ import {
   FiLink,
   FiUser,
   FiUsers,
+  FiTrendingUp,
 } from 'react-icons/fi'
 import { NavLink } from 'react-router'
 import type { PlatformAccess } from '../../features/platform/types'
@@ -198,6 +199,17 @@ export default function AppSidebar({
         </NavLink>
         {renderSection('broadcast', 'Broadcast', <FiRadio aria-hidden="true" />, broadcastLinks)}
         {renderSection('inbox', 'Inbox', <FiInbox aria-hidden="true" />, inboxLinks)}
+        {hasWorkspacePermission(PERMISSIONS.ADS_READ) && (
+          <NavLink
+            to="/ad-center"
+            className={linkClass}
+            onClick={onNavigate}
+            title={compact ? 'Ad Center' : undefined}
+          >
+            <FiTrendingUp className="sidebar-icon" aria-hidden="true" />
+            <span className="sidebar-copy">Ad Center</span>
+          </NavLink>
+        )}
         {hasWorkspacePermission(PERMISSIONS.TEMPLATE_READ) && (
           <NavLink
             to="/templates"

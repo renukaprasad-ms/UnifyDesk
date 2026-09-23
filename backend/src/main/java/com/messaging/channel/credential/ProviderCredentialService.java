@@ -4,6 +4,7 @@ import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.entity.ProviderCredential;
 import com.messaging.channel.enums.CredentialType;
 import com.messaging.channel.repository.ProviderCredentialRepository;
+import com.messaging.common.credential.CredentialCipher;
 import com.messaging.common.exception.NotFoundException;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
