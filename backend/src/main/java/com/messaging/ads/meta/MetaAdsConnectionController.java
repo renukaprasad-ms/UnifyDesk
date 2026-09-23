@@ -1,10 +1,15 @@
 package com.messaging.ads.meta;
 
 import com.messaging.ads.dto.AdCampaignResponse;
+import com.messaging.ads.dto.AdSetResponse;
 import com.messaging.ads.meta.dto.CreateMetaCampaignRequest;
+import com.messaging.ads.meta.dto.CreateMetaAdSetRequest;
 import com.messaging.ads.meta.dto.MetaAdsAuthorizationResponse;
 import com.messaging.ads.meta.dto.MetaCampaignStatusRequest;
+import com.messaging.ads.meta.dto.MetaAdSetStatusRequest;
+import com.messaging.ads.meta.dto.MetaAdSetSyncResponse;
 import com.messaging.ads.meta.dto.UpdateMetaCampaignRequest;
+import com.messaging.ads.meta.dto.UpdateMetaAdSetRequest;
 import com.messaging.ads.meta.dto.MetaAdsCampaignSyncResponse;
 import com.messaging.ads.meta.dto.MetaAdsResourceSyncResponse;
 import com.messaging.common.response.ApiResponse;
@@ -33,9 +38,69 @@ public class MetaAdsConnectionController {
   private final MetaAdsResourceSyncService resourceSyncService;
   private final MetaAdsCampaignSyncService campaignSyncService;
   private final MetaAdsCampaignMutationService campaignMutationService;
+  private final MetaAdsAdSetSyncService adSetSyncService;
+  private final MetaAdsAdSetMutationService adSetMutationService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
+  @PostMapping("/campaigns/{campaignId}/ad-sets/sync")
+  public ResponseEntity<ApiResponse<MetaAdSetSyncResponse>> syncAdSets(
+      @PathVariable Long companyId, @PathVariable Long campaignId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            adSetSyncService.sync(companyId, campaignId),
+            "Meta ad sets synchronized"));
+  }
+
+  @PostMapping("/campaigns/{campaignId}/ad-sets")
+  public ResponseEntity<ApiResponse<AdSetResponse>> createAdSet(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @Valid @RequestBody CreateMetaAdSetRequest request) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_CREATE);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                HttpStatus.CREATED.value(),
+                adSetMutationService.create(companyId, campaignId, request),
+                "Meta ad set created in paused state"));
+  }
+
+  @PatchMapping("/ad-sets/{adSetId}")
+  public ResponseEntity<ApiResponse<AdSetResponse>> updateAdSet(
+      @PathVariable Long companyId,
+      @PathVariable Long adSetId,
+      @Valid @RequestBody UpdateMetaAdSetRequest request) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            adSetMutationService.update(companyId, adSetId, request),
+            "Meta ad set updated"));
+  }
+
+  @PostMapping("/ad-sets/{adSetId}/status")
+  public ResponseEntity<ApiResponse<AdSetResponse>> updateAdSetStatus(
+      @PathVariable Long companyId,
+      @PathVariable Long adSetId,
+      @Valid @RequestBody MetaAdSetStatusRequest request) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            adSetMutationService.setStatus(companyId, adSetId, request.status()),
+            "Meta ad set status updated"));
+  }
   @PostMapping("/accounts/{accountId}/campaigns")
   public ResponseEntity<ApiResponse<AdCampaignResponse>> createCampaign(
       @PathVariable Long companyId,
