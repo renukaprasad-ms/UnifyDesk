@@ -34,6 +34,7 @@ class AdCenterServiceTests {
   @Mock private AdProviderConnectionRepository connectionRepository;
   @Mock private AdProviderCredentialService credentialService;
   @Mock private AdAccountResourceLifecycleService resourceLifecycleService;
+  @Mock private AdActivityLogService activityLogService;
 
   private AdCenterService service;
 
@@ -45,7 +46,8 @@ class AdCenterServiceTests {
             accountRepository,
             connectionRepository,
             credentialService,
-            resourceLifecycleService);
+            resourceLifecycleService,
+            activityLogService);
   }
 
   @Test
@@ -57,7 +59,7 @@ class AdCenterServiceTests {
     assertThatThrownBy(
             () ->
                 service.updateSelection(
-                    COMPANY_ID, 1L, new UpdateAdAccountSelectionRequest(true, null)))
+                    COMPANY_ID, 1L, new UpdateAdAccountSelectionRequest(true, null), 500L))
         .isInstanceOf(BadRequestException.class)
         .hasMessageContaining("no longer accessible");
   }
@@ -74,7 +76,7 @@ class AdCenterServiceTests {
 
     var response =
         service.updateSelection(
-            COMPANY_ID, 1L, new UpdateAdAccountSelectionRequest(true, null));
+            COMPANY_ID, 1L, new UpdateAdAccountSelectionRequest(true, null), 500L);
 
     assertThat(response.managed()).isTrue();
     assertThat(response.primaryAccount()).isTrue();
@@ -92,7 +94,7 @@ class AdCenterServiceTests {
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     service.updateSelection(
-        COMPANY_ID, 2L, new UpdateAdAccountSelectionRequest(true, true));
+        COMPANY_ID, 2L, new UpdateAdAccountSelectionRequest(true, true), 500L);
 
     assertThat(currentPrimary.isPrimaryAccount()).isFalse();
     assertThat(replacement.isPrimaryAccount()).isTrue();
@@ -111,7 +113,7 @@ class AdCenterServiceTests {
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     service.updateSelection(
-        COMPANY_ID, 1L, new UpdateAdAccountSelectionRequest(false, null));
+        COMPANY_ID, 1L, new UpdateAdAccountSelectionRequest(false, null), 500L);
 
     assertThat(currentPrimary.isManaged()).isFalse();
     assertThat(currentPrimary.isPrimaryAccount()).isFalse();
@@ -136,7 +138,7 @@ class AdCenterServiceTests {
     when(connectionRepository.save(any(AdProviderConnection.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    var response = service.disconnect(COMPANY_ID, 99L);
+    var response = service.disconnect(COMPANY_ID, 99L, 500L);
 
     verify(credentialService).deleteAll(99L);
     verify(resourceLifecycleService).markAllInaccessible(COMPANY_ID, account.getId());
