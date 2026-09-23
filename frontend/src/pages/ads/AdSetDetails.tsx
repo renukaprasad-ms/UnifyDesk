@@ -1,0 +1,575 @@
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { FiArrowLeft, FiPause, FiPlay, FiSave } from 'react-icons/fi'
+import { Link, useParams } from 'react-router'
+import { adCenterApi } from '../../features/ads/adCenterApi'
+import type {
+  AdAccount,
+  AdAccountResource,
+  AdCampaign,
+  AdSet,
+  UpdateMetaAdSetInput,
+} from '../../features/ads/types'
+import { PERMISSIONS } from '../../features/iam/permissions'
+import { useIam } from '../../features/iam/useIam'
+import { apiErrorMessage } from '../../lib/api/apiClient'
+import { useAppSelector } from '../../store/hooks'
+import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
+
+type TargetingSnapshot = {
+  geo_locations?: { countries?: string[]; location_types?: string[] }
+  age_min?: number
+  age_max?: number
+  genders?: number[]
+  publisher_platforms?: string[]
+  facebook_positions?: string[]
+  instagram_positions?: string[]
+  custom_audiences?: Array<{ id?: string }>
+  excluded_custom_audiences?: Array<{ id?: string }>
+}
+
+type PromotedObjectSnapshot = {
+  pixel_id?: string
+  custom_event_type?: string
+}
+
+const parseJson = <T,>(value?: string | null): T | null => {
+  if (!value) return null
+  try {
+    return JSON.parse(value) as T
+  } catch {
+    return null
+  }
+}
+
+const displayValue = (value?: string | null) =>
+  value ? value.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : '—'
+
+const formatMinor = (value: number | null | undefined, currency?: string | null) => {
+  if (value == null) return '—'
+  if (!currency) return String(value)
+  try {
+    const formatter = new Intl.NumberFormat(undefined, { style: 'currency', currency })
+    const digits = formatter.resolvedOptions().maximumFractionDigits
+    return formatter.format(value / 10 ** digits)
+  } catch {
+    return `${value} ${currency}`
+  }
+}
+
+const toMajor = (value: number | null | undefined, currency?: string | null) => {
+  if (value == null) return ''
+  if (!currency) return String(value)
+  try {
+    const digits = new Intl.NumberFormat(undefined, { style: 'currency', currency })
+      .resolvedOptions()
+      .maximumFractionDigits
+    return String(value / 10 ** digits)
+  } catch {
+    return String(value)
+  }
+}
+
+const toMinor = (value: string, currency?: string | null) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return undefined
+  if (!currency) return Math.round(numeric)
+  try {
+    const digits = new Intl.NumberFormat(undefined, { style: 'currency', currency })
+      .resolvedOptions()
+      .maximumFractionDigits
+    return Math.round(numeric * 10 ** digits)
+  } catch {
+    return Math.round(numeric)
+  }
+}
+
+const toLocalInput = (value?: string | null) => {
+  if (!value) return ''
+  const date = new Date(value)
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+  return local.toISOString().slice(0, 16)
+}
+
+const csv = (value: string) =>
+  value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+export default function AdSetDetails() {
+  const { adSetId = '' } = useParams()
+  const selectedCompany = useAppSelector(selectSelectedCompany)
+  const { can } = useIam()
+
+  const [adSet, setAdSet] = useState<AdSet | null>(null)
+  const [campaign, setCampaign] = useState<AdCampaign | null>(null)
+  const [accounts, setAccounts] = useState<AdAccount[]>([])
+  const [resources, setResources] = useState<AdAccountResource[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [statusWorking, setStatusWorking] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+
+  const [name, setName] = useState('')
+  const [optimizationGoal, setOptimizationGoal] = useState('')
+  const [billingEvent, setBillingEvent] = useState('')
+  const [bidStrategy, setBidStrategy] = useState('')
+  const [bidAmount, setBidAmount] = useState('')
+  const [budget, setBudget] = useState('')
+  const [destinationType, setDestinationType] = useState('')
+  const [startAt, setStartAt] = useState('')
+  const [endAt, setEndAt] = useState('')
+  const [countries, setCountries] = useState('')
+  const [ageMin, setAgeMin] = useState('18')
+  const [ageMax, setAgeMax] = useState('65')
+  const [gender, setGender] = useState<'ALL' | 'MEN' | 'WOMEN'>('ALL')
+  const [placementMode, setPlacementMode] = useState<'AUTO' | 'MANUAL'>('AUTO')
+  const [facebook, setFacebook] = useState(false)
+  const [instagram, setInstagram] = useState(false)
+  const [messenger, setMessenger] = useState(false)
+  const [audienceNetwork, setAudienceNetwork] = useState(false)
+  const [customAudiences, setCustomAudiences] = useState('')
+  const [excludedAudiences, setExcludedAudiences] = useState('')
+  const [pixelId, setPixelId] = useState('')
+  const [customEventType, setCustomEventType] = useState('')
+
+  const account = useMemo(
+    () => accounts.find((item) => item.id === adSet?.adAccountId) ?? null,
+    [accounts, adSet?.adAccountId],
+  )
+
+  const pixels = resources.filter(
+    (resource) => resource.resourceType === 'META_PIXEL' && resource.accessible,
+  )
+
+  const syncForm = (value: AdSet, accountValue?: AdAccount | null) => {
+    const targeting = parseJson<TargetingSnapshot>(value.targetingJson)
+    const promotedObject = parseJson<PromotedObjectSnapshot>(value.promotedObjectJson)
+    const platforms = targeting?.publisher_platforms ?? []
+
+    setName(value.name)
+    setOptimizationGoal(value.optimizationGoal ?? '')
+    setBillingEvent(value.billingEvent ?? '')
+    setBidStrategy(value.bidStrategy ?? '')
+    setBidAmount(toMajor(value.bidAmountMinor, accountValue?.currency ?? account?.currency))
+    setBudget(
+      toMajor(
+        value.dailyBudgetMinor ?? value.lifetimeBudgetMinor,
+        accountValue?.currency ?? account?.currency,
+      ),
+    )
+    setDestinationType(value.destinationType ?? '')
+    setStartAt(toLocalInput(value.startAt))
+    setEndAt(toLocalInput(value.endAt))
+    setCountries((targeting?.geo_locations?.countries ?? []).join(', '))
+    setAgeMin(String(targeting?.age_min ?? 18))
+    setAgeMax(String(targeting?.age_max ?? 65))
+    setGender(
+      targeting?.genders?.includes(1)
+        ? 'MEN'
+        : targeting?.genders?.includes(2)
+          ? 'WOMEN'
+          : 'ALL',
+    )
+    setPlacementMode(platforms.length ? 'MANUAL' : 'AUTO')
+    setFacebook(platforms.includes('facebook'))
+    setInstagram(platforms.includes('instagram'))
+    setMessenger(platforms.includes('messenger'))
+    setAudienceNetwork(platforms.includes('audience_network'))
+    setCustomAudiences(
+      (targeting?.custom_audiences ?? [])
+        .map((item) => item.id)
+        .filter(Boolean)
+        .join(', '),
+    )
+    setExcludedAudiences(
+      (targeting?.excluded_custom_audiences ?? [])
+        .map((item) => item.id)
+        .filter(Boolean)
+        .join(', '),
+    )
+    setPixelId(promotedObject?.pixel_id ?? '')
+    setCustomEventType(promotedObject?.custom_event_type ?? '')
+  }
+
+  const load = async () => {
+    if (!selectedCompany || !adSetId) return
+    setLoading(true)
+    setError('')
+    try {
+      const [adSetData, accountData] = await Promise.all([
+        adCenterApi.adSet(selectedCompany.companyId, adSetId),
+        adCenterApi.accounts(selectedCompany.companyId),
+      ])
+      const [campaignData, resourceData] = await Promise.all([
+        adCenterApi.campaign(selectedCompany.companyId, adSetData.campaignId),
+        adCenterApi.resources(selectedCompany.companyId, adSetData.adAccountId),
+      ])
+      setAdSet(adSetData)
+      setCampaign(campaignData)
+      setAccounts(accountData)
+      setResources(resourceData)
+      syncForm(
+        adSetData,
+        accountData.find((item) => item.id === adSetData.adAccountId),
+      )
+    } catch (loadError) {
+      setError(apiErrorMessage(loadError, 'Unable to load ad set'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void load()
+  }, [selectedCompany?.companyId, adSetId])
+
+  const save = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!selectedCompany || !adSet) return
+    setSaving(true)
+    setError('')
+    setNotice('')
+
+    const publisherPlatforms =
+      placementMode === 'AUTO'
+        ? []
+        : [
+            ...(facebook ? ['facebook'] : []),
+            ...(instagram ? ['instagram'] : []),
+            ...(messenger ? ['messenger'] : []),
+            ...(audienceNetwork ? ['audience_network'] : []),
+          ]
+
+    const input: UpdateMetaAdSetInput = {
+      name: name.trim(),
+      optimizationGoal,
+      billingEvent,
+      bidStrategy: bidStrategy || undefined,
+      bidAmountMinor: toMinor(bidAmount, account?.currency),
+      startAt: startAt ? new Date(startAt).toISOString() : undefined,
+      endAt: endAt ? new Date(endAt).toISOString() : undefined,
+      destinationType: destinationType || undefined,
+      locations: csv(countries).map((countryCode) => ({
+        countryCode,
+        locationTypes: ['home', 'recent'],
+      })),
+      ageMin: Number(ageMin),
+      ageMax: Number(ageMax),
+      genders: gender === 'ALL' ? [] : gender === 'MEN' ? [1] : [2],
+      publisherPlatforms,
+      customAudienceIds: csv(customAudiences),
+      excludedCustomAudienceIds: csv(excludedAudiences),
+      pixelId: pixelId || undefined,
+      customEventType: customEventType || undefined,
+    }
+
+    const minorBudget = toMinor(budget, account?.currency)
+    if (minorBudget != null) {
+      if (adSet.lifetimeBudgetMinor != null) input.lifetimeBudgetMinor = minorBudget
+      else if (adSet.dailyBudgetMinor != null) input.dailyBudgetMinor = minorBudget
+    }
+
+    try {
+      const updated = await adCenterApi.updateMetaAdSet(
+        selectedCompany.companyId,
+        adSet.id,
+        input,
+      )
+      setAdSet(updated)
+      syncForm(updated, account)
+      setNotice('Ad-set settings updated in Meta.')
+    } catch (saveError) {
+      setError(apiErrorMessage(saveError, 'Unable to update Meta ad set'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const setStatus = async (status: 'ACTIVE' | 'PAUSED') => {
+    if (!selectedCompany || !adSet) return
+    setStatusWorking(true)
+    setError('')
+    setNotice('')
+    try {
+      const updated = await adCenterApi.setMetaAdSetStatus(
+        selectedCompany.companyId,
+        adSet.id,
+        status,
+      )
+      setAdSet(updated)
+      setNotice(`Ad set is now ${status.toLowerCase()}.`)
+    } catch (statusError) {
+      setError(apiErrorMessage(statusError, 'Unable to update ad-set status'))
+    } finally {
+      setStatusWorking(false)
+    }
+  }
+
+  if (!selectedCompany) return null
+
+  return (
+    <section className="px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl">
+        <Link
+          to={campaign ? `/ad-center/campaigns/${campaign.id}` : '/ad-center/campaigns'}
+          className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900"
+        >
+          <FiArrowLeft aria-hidden="true" />
+          Back to campaign
+        </Link>
+
+        {loading ? (
+          <div className="panel mt-6 p-10 text-center text-sm text-slate-500">Loading ad set…</div>
+        ) : adSet ? (
+          <>
+            <header className="mt-5 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="eyebrow">Meta ad set</p>
+                <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+                  {adSet.name}
+                </h1>
+                <p className="mt-2 text-sm text-slate-500">
+                  {campaign?.name ?? 'Campaign'} · {adSet.externalAdSetId}
+                </p>
+              </div>
+              {can(PERMISSIONS.ADS_MODIFY) &&
+                (adSet.providerStatus === 'ACTIVE' ? (
+                  <button
+                    type="button"
+                    className="secondary-button inline-flex items-center gap-2"
+                    disabled={statusWorking}
+                    onClick={() => void setStatus('PAUSED')}
+                  >
+                    <FiPause aria-hidden="true" />
+                    {statusWorking ? 'Updating…' : 'Pause'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="primary-button inline-flex items-center gap-2"
+                    disabled={statusWorking || adSet.providerStatus === 'ARCHIVED'}
+                    onClick={() => void setStatus('ACTIVE')}
+                  >
+                    <FiPlay aria-hidden="true" />
+                    {statusWorking ? 'Updating…' : 'Start ad set'}
+                  </button>
+                ))}
+            </header>
+
+            {(error || notice) && (
+              <div
+                className={`mt-6 rounded-xl border px-4 py-3 text-sm font-medium ${
+                  error
+                    ? 'border-red-200 bg-red-50 text-red-700'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                }`}
+              >
+                {error || notice}
+              </div>
+            )}
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="panel p-5">
+                <p className="text-xs font-semibold text-slate-400">Configured</p>
+                <p className="mt-2 text-lg font-bold text-slate-950">{adSet.providerStatus ?? adSet.status}</p>
+              </div>
+              <div className="panel p-5">
+                <p className="text-xs font-semibold text-slate-400">Effective</p>
+                <p className="mt-2 text-lg font-bold text-slate-950">{adSet.effectiveStatus ?? '—'}</p>
+              </div>
+              <div className="panel p-5">
+                <p className="text-xs font-semibold text-slate-400">Optimization</p>
+                <p className="mt-2 text-lg font-bold text-slate-950">{displayValue(adSet.optimizationGoal)}</p>
+              </div>
+              <div className="panel p-5">
+                <p className="text-xs font-semibold text-slate-400">Budget</p>
+                <p className="mt-2 text-lg font-bold text-slate-950">
+                  {adSet.dailyBudgetMinor != null
+                    ? `${formatMinor(adSet.dailyBudgetMinor, account?.currency)} / day`
+                    : adSet.lifetimeBudgetMinor != null
+                      ? formatMinor(adSet.lifetimeBudgetMinor, account?.currency)
+                      : 'Campaign budget'}
+                </p>
+              </div>
+            </div>
+
+            <form className="panel mt-5 p-6" onSubmit={save}>
+              <div>
+                <h2 className="text-base font-bold text-slate-950">Delivery & bidding</h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Changes are sent to Meta and then re-read before updating local state.
+                </p>
+              </div>
+
+              <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Name
+                  <input className="form-input mt-2" value={name} onChange={(e) => setName(e.target.value)} />
+                </label>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Destination
+                  <select className="form-input mt-2" value={destinationType} onChange={(e) => setDestinationType(e.target.value)}>
+                    <option value="">Meta default</option>
+                    <option value="WEBSITE">Website</option>
+                    <option value="APP">App</option>
+                    <option value="MESSENGER">Messenger</option>
+                    <option value="WHATSAPP">WhatsApp</option>
+                    <option value="ON_AD">On ad</option>
+                  </select>
+                </label>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Optimization goal
+                  <select className="form-input mt-2" value={optimizationGoal} onChange={(e) => setOptimizationGoal(e.target.value)}>
+                    <option value="LINK_CLICKS">Link clicks</option>
+                    <option value="LANDING_PAGE_VIEWS">Landing page views</option>
+                    <option value="IMPRESSIONS">Impressions</option>
+                    <option value="REACH">Reach</option>
+                    <option value="LEAD_GENERATION">Leads</option>
+                    <option value="OFFSITE_CONVERSIONS">Conversions</option>
+                    <option value="VALUE">Conversion value</option>
+                    <option value="THRUPLAY">ThruPlay</option>
+                  </select>
+                </label>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Billing event
+                  <select className="form-input mt-2" value={billingEvent} onChange={(e) => setBillingEvent(e.target.value)}>
+                    <option value="IMPRESSIONS">Impressions</option>
+                    <option value="LINK_CLICKS">Link clicks</option>
+                    <option value="THRUPLAY">ThruPlay</option>
+                  </select>
+                </label>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Bid strategy
+                  <select className="form-input mt-2" value={bidStrategy} onChange={(e) => setBidStrategy(e.target.value)}>
+                    <option value="">Meta default</option>
+                    <option value="LOWEST_COST_WITHOUT_CAP">Lowest cost</option>
+                    <option value="LOWEST_COST_WITH_BID_CAP">Bid cap</option>
+                    <option value="COST_CAP">Cost cap</option>
+                  </select>
+                </label>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Bid amount {account?.currency ? `(${account.currency})` : ''}
+                  <input className="form-input mt-2" type="number" min="0.01" step="0.01" value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} />
+                </label>
+                <label className="block text-xs font-semibold text-slate-700">
+                  {adSet.lifetimeBudgetMinor != null ? 'Lifetime budget' : adSet.dailyBudgetMinor != null ? 'Daily budget' : 'Campaign budget'}
+                  <input
+                    className="form-input mt-2"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={budget}
+                    disabled={adSet.dailyBudgetMinor == null && adSet.lifetimeBudgetMinor == null}
+                    onChange={(e) => setBudget(e.target.value)}
+                  />
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Start
+                    <input className="form-input mt-2" type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-700">
+                    End
+                    <input className="form-input mt-2" type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
+                  </label>
+                </div>
+              </div>
+
+              <div className="mt-6 border-t border-slate-100 pt-6">
+                <h2 className="text-base font-bold text-slate-950">Audience</h2>
+                <div className="mt-4 grid gap-5 sm:grid-cols-2">
+                  <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
+                    Countries
+                    <input className="form-input mt-2" value={countries} onChange={(e) => setCountries(e.target.value)} />
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Minimum age
+                    <input className="form-input mt-2" type="number" min="13" max="65" value={ageMin} onChange={(e) => setAgeMin(e.target.value)} />
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Maximum age
+                    <input className="form-input mt-2" type="number" min="13" max="65" value={ageMax} onChange={(e) => setAgeMax(e.target.value)} />
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Gender
+                    <select className="form-input mt-2" value={gender} onChange={(e) => setGender(e.target.value as 'ALL' | 'MEN' | 'WOMEN')}>
+                      <option value="ALL">All</option>
+                      <option value="MEN">Men</option>
+                      <option value="WOMEN">Women</option>
+                    </select>
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Placement mode
+                    <select className="form-input mt-2" value={placementMode} onChange={(e) => setPlacementMode(e.target.value as 'AUTO' | 'MANUAL')}>
+                      <option value="AUTO">Advantage+ / automatic</option>
+                      <option value="MANUAL">Manual</option>
+                    </select>
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Custom audience IDs
+                    <input className="form-input mt-2" value={customAudiences} onChange={(e) => setCustomAudiences(e.target.value)} />
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Excluded audience IDs
+                    <input className="form-input mt-2" value={excludedAudiences} onChange={(e) => setExcludedAudiences(e.target.value)} />
+                  </label>
+                </div>
+
+                {placementMode === 'MANUAL' && (
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-3 text-sm"><input type="checkbox" checked={facebook} onChange={(e) => setFacebook(e.target.checked)} />Facebook</label>
+                    <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-3 text-sm"><input type="checkbox" checked={instagram} onChange={(e) => setInstagram(e.target.checked)} />Instagram</label>
+                    <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-3 text-sm"><input type="checkbox" checked={messenger} onChange={(e) => setMessenger(e.target.checked)} />Messenger</label>
+                    <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-3 text-sm"><input type="checkbox" checked={audienceNetwork} onChange={(e) => setAudienceNetwork(e.target.checked)} />Audience Network</label>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 border-t border-slate-100 pt-6">
+                <h2 className="text-base font-bold text-slate-950">Conversion</h2>
+                <div className="mt-4 grid gap-5 sm:grid-cols-2">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Pixel
+                    <select className="form-input mt-2" value={pixelId} onChange={(e) => setPixelId(e.target.value)}>
+                      <option value="">No pixel selected</option>
+                      {pixels.map((pixel) => (
+                        <option key={pixel.id} value={pixel.externalResourceId}>
+                          {pixel.name || pixel.externalResourceId}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Conversion event
+                    <select className="form-input mt-2" value={customEventType} disabled={!pixelId} onChange={(e) => setCustomEventType(e.target.value)}>
+                      <option value="">Meta default</option>
+                      <option value="PURCHASE">Purchase</option>
+                      <option value="LEAD">Lead</option>
+                      <option value="COMPLETE_REGISTRATION">Complete registration</option>
+                      <option value="ADD_TO_CART">Add to cart</option>
+                      <option value="INITIATED_CHECKOUT">Initiated checkout</option>
+                      <option value="VIEW_CONTENT">View content</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              {can(PERMISSIONS.ADS_MODIFY) && (
+                <div className="mt-6 flex justify-end border-t border-slate-100 pt-5">
+                  <button type="submit" className="primary-button inline-flex items-center gap-2" disabled={saving || !name.trim() || !countries.trim()}>
+                    <FiSave aria-hidden="true" />
+                    {saving ? 'Saving…' : 'Save to Meta'}
+                  </button>
+                </div>
+              )}
+            </form>
+          </>
+        ) : (
+          error && <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        )}
+      </div>
+    </section>
+  )
+}
