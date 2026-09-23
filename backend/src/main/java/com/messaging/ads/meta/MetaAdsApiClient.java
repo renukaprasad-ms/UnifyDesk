@@ -114,6 +114,35 @@ public class MetaAdsApiClient {
     return List.copyOf(result);
   }
 
+  public AdAccountHealthSummary accountHealth(
+      String accessToken, String accountId) {
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder ->
+                        uriBuilder
+                            .path("/{version}/{account}")
+                            .queryParam("fields", accountHealthFields())
+                            .queryParam("appsecret_proof", appSecretProof(accessToken))
+                            .build(
+                                properties.getGraphApiVersion(),
+                                accountPath(accountId)))
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(AdAccountHealthSummary.class));
+  }
+
+  private String accountHealthFields() {
+    return "id,account_id,name,account_status,disable_reason,opportunity_score,"
+        + "opportunity_score_weight,capabilities,all_capabilities,user_tasks,"
+        + "failed_delivery_checks,has_page_authorized_adaccount,"
+        + "offsite_pixels_tos_accepted,is_direct_deals_enabled,"
+        + "is_notifications_enabled,user_access_expire_time,"
+        + "offsite_clo_signal_status";
+  }
+
   public AdAccountBillingSummary accountBilling(
       String accessToken, String accountId) {
     return execute(
@@ -1137,6 +1166,25 @@ public class MetaAdsApiClient {
   public record BusinessSummary(String id, String name) {}
 
   public record BusinessRef(String id, String name) {}
+
+  public record AdAccountHealthSummary(
+      String id,
+      @JsonProperty("account_id") String accountId,
+      String name,
+      @JsonProperty("account_status") Integer accountStatus,
+      @JsonProperty("disable_reason") Integer disableReason,
+      @JsonProperty("opportunity_score") java.math.BigDecimal opportunityScore,
+      @JsonProperty("opportunity_score_weight") Integer opportunityScoreWeight,
+      List<String> capabilities,
+      @JsonProperty("all_capabilities") List<String> allCapabilities,
+      @JsonProperty("user_tasks") List<String> userTasks,
+      @JsonProperty("failed_delivery_checks") JsonNode failedDeliveryChecks,
+      @JsonProperty("has_page_authorized_adaccount") Boolean pageAuthorized,
+      @JsonProperty("offsite_pixels_tos_accepted") Boolean offsitePixelsTosAccepted,
+      @JsonProperty("is_direct_deals_enabled") Boolean directDealsEnabled,
+      @JsonProperty("is_notifications_enabled") Boolean notificationsEnabled,
+      @JsonProperty("user_access_expire_time") String userAccessExpireTime,
+      @JsonProperty("offsite_clo_signal_status") Integer offsiteCloSignalStatus) {}
 
   public record FundingSourceDetails(
       String id,
