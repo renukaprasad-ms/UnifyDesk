@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { FiArrowLeft, FiPause, FiPlay, FiSave } from 'react-icons/fi'
+import { FiArrowLeft, FiPause, FiPlay, FiPlus, FiRefreshCw, FiSave } from 'react-icons/fi'
 import { Link, useParams } from 'react-router'
+import MetaAdModal from '../../components/ads/MetaAdModal'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
+  Ad,
   AdAccount,
   AdAccountResource,
   AdCampaign,
+  AdCreative,
   AdSet,
+  CreateMetaAdInput,
   UpdateMetaAdSetInput,
 } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -105,9 +109,15 @@ export default function AdSetDetails() {
   const [campaign, setCampaign] = useState<AdCampaign | null>(null)
   const [accounts, setAccounts] = useState<AdAccount[]>([])
   const [resources, setResources] = useState<AdAccountResource[]>([])
+  const [creatives, setCreatives] = useState<AdCreative[]>([])
+  const [ads, setAds] = useState<Ad[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [statusWorking, setStatusWorking] = useState(false)
+  const [syncingAds, setSyncingAds] = useState(false)
+  const [creatingAd, setCreatingAd] = useState(false)
+  const [workingAdId, setWorkingAdId] = useState<string | null>(null)
+  const [adModalOpen, setAdModalOpen] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -202,14 +212,18 @@ export default function AdSetDetails() {
         adCenterApi.adSet(selectedCompany.companyId, adSetId),
         adCenterApi.accounts(selectedCompany.companyId),
       ])
-      const [campaignData, resourceData] = await Promise.all([
+      const [campaignData, resourceData, adData, creativeData] = await Promise.all([
         adCenterApi.campaign(selectedCompany.companyId, adSetData.campaignId),
         adCenterApi.resources(selectedCompany.companyId, adSetData.adAccountId),
+        adCenterApi.ads(selectedCompany.companyId, adSetData.id),
+        adCenterApi.creatives(selectedCompany.companyId, adSetData.adAccountId),
       ])
       setAdSet(adSetData)
       setCampaign(campaignData)
       setAccounts(accountData)
       setResources(resourceData)
+      setAds(adData)
+      setCreatives(creativeData)
       syncForm(
         adSetData,
         accountData.find((item) => item.id === adSetData.adAccountId),
@@ -284,6 +298,70 @@ export default function AdSetDetails() {
       setError(apiErrorMessage(saveError, 'Unable to update Meta ad set'))
     } finally {
       setSaving(false)
+    }
+  }
+
+  const syncAds = async () => {
+    if (!selectedCompany || !adSet) return
+    setSyncingAds(true)
+    setError('')
+    setNotice('')
+    try {
+      const result = await adCenterApi.syncMetaAds(selectedCompany.companyId, adSet.id)
+      const [adData, creativeData] = await Promise.all([
+        adCenterApi.ads(selectedCompany.companyId, adSet.id),
+        adCenterApi.creatives(selectedCompany.companyId, adSet.adAccountId),
+      ])
+      setAds(adData)
+      setCreatives(creativeData)
+      setNotice(`Synchronized ${result.synchronizedCount} ad(s) from Meta.`)
+    } catch (syncError) {
+      setError(apiErrorMessage(syncError, 'Unable to synchronize Meta ads'))
+    } finally {
+      setSyncingAds(false)
+    }
+  }
+
+  const createAd = async (input: CreateMetaAdInput) => {
+    if (!selectedCompany || !adSet) return
+    setCreatingAd(true)
+    setError('')
+    setNotice('')
+    try {
+      const created = await adCenterApi.createMetaAd(
+        selectedCompany.companyId,
+        adSet.id,
+        input,
+      )
+      setAds((current) => [created, ...current.filter((item) => item.id !== created.id)])
+      setAdModalOpen(false)
+      setNotice(`${created.name} was created in paused state.`)
+    } catch (createError) {
+      setError(apiErrorMessage(createError, 'Unable to create Meta ad'))
+    } finally {
+      setCreatingAd(false)
+    }
+  }
+
+  const setAdStatus = async (ad: Ad, status: 'ACTIVE' | 'PAUSED') => {
+    if (!selectedCompany) return
+    setWorkingAdId(ad.id)
+    setError('')
+    setNotice('')
+    try {
+      const updated = await adCenterApi.setMetaAdStatus(
+        selectedCompany.companyId,
+        ad.id,
+        status,
+      )
+      setAds((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      )
+      setNotice(`${updated.name} is now ${status.toLowerCase()}.`)
+    } catch (statusError) {
+      setError(apiErrorMessage(statusError, 'Unable to update ad status'))
+    } finally {
+      setWorkingAdId(null)
     }
   }
 
@@ -565,6 +643,115 @@ export default function AdSetDetails() {
                 </div>
               )}
             </form>
+
+            <div className="panel mt-5 overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                <div>
+                  <h2 className="text-base font-bold text-slate-950">Ads</h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Ads combine this ad set with a reusable creative.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {can(PERMISSIONS.ADS_MODIFY) && (
+                    <button
+                      type="button"
+                      className="secondary-button inline-flex items-center gap-2"
+                      disabled={syncingAds}
+                      onClick={() => void syncAds()}
+                    >
+                      <FiRefreshCw aria-hidden="true" />
+                      {syncingAds ? 'Syncing…' : 'Sync ads'}
+                    </button>
+                  )}
+                  {can(PERMISSIONS.ADS_CREATE) && (
+                    <button
+                      type="button"
+                      className="primary-button inline-flex items-center gap-2"
+                      onClick={() => setAdModalOpen(true)}
+                    >
+                      <FiPlus aria-hidden="true" />
+                      Create ad
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {ads.length === 0 ? (
+                <div className="p-8 text-center text-sm text-slate-500">
+                  No ads are stored for this ad set yet. Sync Meta or create the first paused ad.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {ads.map((ad) => {
+                    const creative = creatives.find((item) => item.id === ad.creativeId)
+                    return (
+                      <div
+                        key={ad.id}
+                        className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
+                      >
+                        <div className="min-w-0">
+                          <Link
+                            to={`/ad-center/ads/${ad.id}`}
+                            className="font-semibold text-slate-950 hover:text-indigo-600"
+                          >
+                            {ad.name}
+                          </Link>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {creative?.name ?? ad.externalCreativeId ?? 'Creative'} · Meta ad {ad.externalAdId}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                            {ad.providerStatus ?? ad.status}
+                          </span>
+                          {ad.effectiveStatus && ad.effectiveStatus !== ad.providerStatus && (
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+                              {ad.effectiveStatus}
+                            </span>
+                          )}
+                          {can(PERMISSIONS.ADS_MODIFY) &&
+                            (ad.providerStatus === 'ACTIVE' ? (
+                              <button
+                                type="button"
+                                className="secondary-button inline-flex items-center gap-2"
+                                disabled={workingAdId !== null}
+                                onClick={() => void setAdStatus(ad, 'PAUSED')}
+                              >
+                                <FiPause aria-hidden="true" />
+                                Pause
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="secondary-button inline-flex items-center gap-2"
+                                disabled={
+                                  workingAdId !== null ||
+                                  ad.providerStatus === 'ARCHIVED' ||
+                                  ad.status === 'DISABLED'
+                                }
+                                onClick={() => void setAdStatus(ad, 'ACTIVE')}
+                              >
+                                <FiPlay aria-hidden="true" />
+                                Start
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            <MetaAdModal
+              creatives={creatives}
+              open={adModalOpen}
+              saving={creatingAd}
+              onClose={() => setAdModalOpen(false)}
+              onCreate={createAd}
+            />
           </>
         ) : (
           error && <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
