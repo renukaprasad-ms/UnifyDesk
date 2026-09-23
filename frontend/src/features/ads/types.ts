@@ -576,3 +576,43 @@ export type AdActivityLog = {
   metadataJson?: string | null
   createdAt: string
 }
+
+
+export type AdRecommendationSeverity = 'CRITICAL' | 'WARNING' | 'OPPORTUNITY' | 'INFO'
+export type AdRecommendationCategory =
+  | 'ACCOUNT'
+  | 'DELIVERY'
+  | 'BILLING'
+  | 'TRACKING'
+  | 'SETUP'
+  | 'PERFORMANCE'
+export type AdRecommendationSource = 'META_PROVIDER' | 'REACHLYO_DIAGNOSTIC'
+
+export type AdRecommendationItem = {
+  key: string
+  severity: AdRecommendationSeverity
+  category: AdRecommendationCategory
+  source: AdRecommendationSource
+  title: string
+  description: string
+  entityType?: string | null
+  entityId?: string | null
+  actionLabel?: string | null
+  actionPath?: string | null
+  evidence: Record<string, unknown>
+}
+
+export type AdRecommendations = {
+  adAccountId: string
+  metaOpportunityScore?: number | null
+  metaOpportunityScoreWeight?: number | null
+  criticalCount: number
+  warningCount: number
+  opportunityCount: number
+  infoCount: number
+  generatedAt: string
+  healthLastSyncAt?: string | null
+  billingLastSyncAt?: string | null
+  analyticsLastSyncAt?: string | null
+  items: AdRecommendationItem[]
+}
