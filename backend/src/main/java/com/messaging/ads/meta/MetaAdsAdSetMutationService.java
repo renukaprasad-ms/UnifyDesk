@@ -279,6 +279,10 @@ public class MetaAdsAdSetMutationService {
       AdCampaign campaign, Long dailyBudgetMinor, Long lifetimeBudgetMinor) {
     boolean campaignHasBudget =
         campaign.getDailyBudgetMinor() != null || campaign.getLifetimeBudgetMinor() != null;
+    if (campaignHasBudget && (dailyBudgetMinor != null || lifetimeBudgetMinor != null)) {
+      throw new BadRequestException(
+          "This campaign uses a campaign-level budget, so omit the ad-set budget");
+    }
     if (!campaignHasBudget && dailyBudgetMinor == null && lifetimeBudgetMinor == null) {
       throw new BadRequestException(
           "This campaign has no campaign-level budget, so the ad set requires a budget");
@@ -295,6 +299,10 @@ public class MetaAdsAdSetMutationService {
     boolean adSetAlreadyHasBudget =
         adSet.getDailyBudgetMinor() != null || adSet.getLifetimeBudgetMinor() != null;
     boolean requestProvidesBudget = dailyBudgetMinor != null || lifetimeBudgetMinor != null;
+    if (campaignHasBudget && requestProvidesBudget) {
+      throw new BadRequestException(
+          "This campaign uses a campaign-level budget, so omit the ad-set budget");
+    }
     if (!campaignHasBudget && !adSetAlreadyHasBudget && !requestProvidesBudget) {
       throw new BadRequestException(
           "This campaign has no campaign-level budget, so the ad set requires a budget");
