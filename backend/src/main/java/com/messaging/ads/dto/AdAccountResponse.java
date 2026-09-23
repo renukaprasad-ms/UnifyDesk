@@ -18,6 +18,7 @@ public record AdAccountResponse(
     AdAccountStatus status,
     boolean primaryAccount,
     boolean managed,
+    boolean accessible,
     Instant lastSyncAt,
     Instant createdAt,
     Instant updatedAt) {
@@ -36,6 +37,7 @@ public record AdAccountResponse(
         account.getStatus(),
         account.isPrimaryAccount(),
         account.isManaged(),
+        account.isAccessible(),
         account.getLastSyncAt(),
         account.getCreatedAt(),
         account.getUpdatedAt());
