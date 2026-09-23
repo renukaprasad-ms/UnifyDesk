@@ -6,6 +6,7 @@ import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
   AdAccountResource,
+  AdAudience,
   AdCampaign,
   AdConversion,
   AdSet,
@@ -68,6 +69,7 @@ export default function AdCampaignDetails() {
   const [accounts, setAccounts] = useState<AdAccount[]>([])
   const [adSets, setAdSets] = useState<AdSet[]>([])
   const [resources, setResources] = useState<AdAccountResource[]>([])
+  const [audiences, setAudiences] = useState<AdAudience[]>([])
   const [conversions, setConversions] = useState<AdConversion[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -111,16 +113,18 @@ export default function AdCampaignDetails() {
       ])
       const accountValue =
         accountData.find((item) => item.id === campaignData.adAccountId) ?? null
-      const [resourceData, conversionData] = accountValue
+      const [resourceData, audienceData, conversionData] = accountValue
         ? await Promise.all([
             adCenterApi.resources(selectedCompany.companyId, accountValue.id),
+            adCenterApi.audiences(selectedCompany.companyId, accountValue.id),
             adCenterApi.conversions(selectedCompany.companyId, accountValue.id),
           ])
-        : [[], []]
+        : [[], [], []]
       setCampaign(campaignData)
       setAccounts(accountData)
       setAdSets(adSetData)
       setResources(resourceData)
+      setAudiences(audienceData)
       setConversions(conversionData)
       syncForm(campaignData, accountValue)
     } catch (loadError) {
@@ -597,6 +601,7 @@ export default function AdCampaignDetails() {
                 account={account}
                 campaign={campaign}
                 resources={resources}
+                audiences={audiences}
                 conversions={conversions}
                 open={adSetModalOpen}
                 saving={creatingAdSet}
