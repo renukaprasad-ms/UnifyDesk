@@ -56,6 +56,7 @@ import type {
   GoogleAudienceSync,
   GoogleConversionSync,
   GoogleInsightsSync,
+  GoogleInsightBreakdownsSync,
   PageResponse,
   UpdateMetaCampaignInput,
   UpdateMetaAdInput,
@@ -508,6 +509,20 @@ export const adCenterApi = {
   ) {
     const response = await apiClient.post<ApiResponse<GoogleInsightsSync>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/insights/sync`,
+      null,
+      { params: { from, to } },
+    )
+    return unwrap(response.data)
+  },
+
+  async syncGoogleInsightBreakdowns(
+    companyId: string,
+    accountId: string,
+    from: string,
+    to: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleInsightBreakdownsSync>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/insights/breakdowns/sync`,
       null,
       { params: { from, to } },
     )
