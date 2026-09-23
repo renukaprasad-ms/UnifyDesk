@@ -39,7 +39,7 @@ public class EmailTemplateService {
     Page<EmailTemplate> page =
         templateRepository.search(
             companyId,
-            trimToNull(query),
+            normalizeQuery(query),
             category,
             status,
             includeArchived,
@@ -285,6 +285,11 @@ public class EmailTemplateService {
     version.setContentHash(compiled.contentHash());
     version.setCreatedByUserId(userId);
     return versionRepository.saveAndFlush(version);
+  }
+
+  private String normalizeQuery(String query) {
+    String value = trimToNull(query);
+    return value == null ? "" : value.toLowerCase(Locale.ROOT);
   }
 
   private EmailTemplate require(Long companyId, Long templateId) {
