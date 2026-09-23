@@ -284,6 +284,17 @@ public class AdCenterController {
             "Advertising keyword fetched"));
   }
 
+  @GetMapping("/accounts/{accountId}/ads")
+  public ResponseEntity<ApiResponse<List<AdResponse>>> accountAds(
+      @PathVariable Long companyId, @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            adService.listByAccount(companyId, accountId),
+            "Advertising ads fetched"));
+  }
+
   @GetMapping("/ad-sets/{adSetId}/ads")
   public ResponseEntity<ApiResponse<List<AdResponse>>> ads(
       @PathVariable Long companyId, @PathVariable Long adSetId) {
