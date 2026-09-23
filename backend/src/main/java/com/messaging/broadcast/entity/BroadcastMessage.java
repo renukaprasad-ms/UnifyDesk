@@ -50,6 +50,9 @@ public class BroadcastMessage {
   @Column(name = "body_html", columnDefinition = "text")
   private String bodyHtml;
 
+  @Column(name = "template_variables_json", nullable = false, columnDefinition = "text")
+  private String templateVariablesJson = "{}";
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
   private BroadcastMessageStatus status;
