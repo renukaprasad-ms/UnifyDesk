@@ -3,6 +3,7 @@ package com.messaging.ads.meta;
 import com.messaging.ads.dto.AdSetResponse;
 import com.messaging.ads.entity.AdAccount;
 import com.messaging.ads.entity.AdCampaign;
+import com.messaging.ads.entity.AdConversion;
 import com.messaging.ads.entity.AdSet;
 import com.messaging.ads.enums.AdConnectionStatus;
 import com.messaging.ads.enums.AdProvider;
@@ -10,6 +11,7 @@ import com.messaging.ads.meta.dto.CreateMetaAdSetRequest;
 import com.messaging.ads.meta.dto.UpdateMetaAdSetRequest;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdCampaignRepository;
+import com.messaging.ads.repository.AdConversionRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
 import com.messaging.ads.repository.AdSetRepository;
 import com.messaging.common.exception.BadRequestException;
@@ -33,6 +35,7 @@ public class MetaAdsAdSetMutationService {
 
   private final AdCampaignRepository campaignRepository;
   private final AdSetRepository adSetRepository;
+  private final AdConversionRepository conversionRepository;
   private final AdAccountRepository accountRepository;
   private final AdProviderConnectionRepository connectionRepository;
   private final MetaAdsTokenService tokenService;
@@ -70,7 +73,13 @@ public class MetaAdsAdSetMutationService {
     put(payload, "start_time", request.startAt());
     put(payload, "end_time", request.endAt());
 
-    Map<String, Object> promotedObject = promotedObject(request.pixelId(), request.customEventType());
+    Map<String, Object> promotedObject =
+        promotedObject(
+            companyId,
+            account.getId(),
+            request.pixelId(),
+            request.customEventType(),
+            request.customConversionId());
     if (!promotedObject.isEmpty()) payload.put("promoted_object", promotedObject);
 
     String accessToken = accessToken(companyId, account);
@@ -117,8 +126,16 @@ public class MetaAdsAdSetMutationService {
           request.excludedCustomAudienceIds()));
     }
 
-    if (request.pixelId() != null || request.customEventType() != null) {
-      Map<String, Object> promotedObject = promotedObject(request.pixelId(), request.customEventType());
+    if (request.pixelId() != null
+        || request.customEventType() != null
+        || request.customConversionId() != null) {
+      Map<String, Object> promotedObject =
+          promotedObject(
+              companyId,
+              account.getId(),
+              request.pixelId(),
+              request.customEventType(),
+              request.customConversionId());
       if (!promotedObject.isEmpty()) updates.put("promoted_object", promotedObject);
     }
 
@@ -249,8 +266,26 @@ public class MetaAdsAdSetMutationService {
     if (!audiences.isEmpty()) target.put(key, audiences);
   }
 
-  private Map<String, Object> promotedObject(String pixelId, String customEventType) {
+  private Map<String, Object> promotedObject(
+      Long companyId,
+      Long accountId,
+      String pixelId,
+      String customEventType,
+      String customConversionId) {
     Map<String, Object> promotedObject = new LinkedHashMap<>();
+
+    if (customConversionId != null && !customConversionId.isBlank()) {
+      AdConversion conversion = requireConversion(companyId, accountId, customConversionId);
+      promotedObject.put("custom_conversion_id", conversion.getExternalConversionId());
+      if (conversion.getPixelId() != null && !conversion.getPixelId().isBlank()) {
+        promotedObject.put("pixel_id", conversion.getPixelId());
+      }
+      if (conversion.getCustomEventType() != null && !conversion.getCustomEventType().isBlank()) {
+        promotedObject.put("custom_event_type", conversion.getCustomEventType());
+      }
+      return promotedObject;
+    }
+
     if (pixelId != null && !pixelId.isBlank()) {
       promotedObject.put("pixel_id", pixelId.trim());
     }
@@ -261,6 +296,29 @@ public class MetaAdsAdSetMutationService {
       promotedObject.put("custom_event_type", customEventType.trim().toUpperCase());
     }
     return promotedObject;
+  }
+
+  private AdConversion requireConversion(
+      Long companyId, Long accountId, String conversionId) {
+    Long internalId;
+    try {
+      internalId = Long.valueOf(conversionId);
+    } catch (NumberFormatException exception) {
+      throw new BadRequestException("Custom conversion ID is invalid");
+    }
+    AdConversion conversion =
+        conversionRepository
+            .findByIdAndCompanyId(internalId, companyId)
+            .orElseThrow(() -> new NotFoundException("Advertising custom conversion not found"));
+    if (conversion.getProvider() != AdProvider.META_ADS
+        || !accountId.equals(conversion.getAdAccountId())
+        || !conversion.isAccessible()
+        || conversion.isArchived()
+        || conversion.isUnavailable()) {
+      throw new BadRequestException(
+          "Custom conversion is not available for this Meta ad account");
+    }
+    return conversion;
   }
 
   private boolean hasTargetingChanges(UpdateMetaAdSetRequest request) {
