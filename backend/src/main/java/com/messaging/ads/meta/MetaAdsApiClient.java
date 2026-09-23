@@ -329,6 +329,74 @@ public class MetaAdsApiClient {
         + "data_sources,default_conversion_value,is_archived,is_unavailable,"
         + "first_fired_time,last_fired_time,creation_time";
   }
+  public List<InsightSummary> insightBreakdown(
+      String accessToken,
+      String accountId,
+      LocalDate from,
+      LocalDate to,
+      String breakdown,
+      String actionBreakdown) {
+    List<InsightSummary> result = new ArrayList<>();
+    String after = null;
+    for (int page = 0; page < MAX_PAGES; page++) {
+      InsightPage response =
+          insightBreakdownPage(
+              accessToken,
+              accountId,
+              from,
+              to,
+              breakdown,
+              actionBreakdown,
+              after);
+      if (response.data() != null) result.addAll(response.data());
+      after = nextCursor(response.paging());
+      if (after == null) break;
+    }
+    return List.copyOf(result);
+  }
+
+  private InsightPage insightBreakdownPage(
+      String accessToken,
+      String accountId,
+      LocalDate from,
+      LocalDate to,
+      String breakdown,
+      String actionBreakdown,
+      String after) {
+    String timeRange =
+        "{\"since\":\"" + from + "\",\"until\":\"" + to + "\"}";
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder -> {
+                      var builder =
+                          uriBuilder
+                              .path("/{version}/{account}/insights")
+                              .queryParam("fields", insightFields())
+                              .queryParam("level", "account")
+                              .queryParam("time_range", timeRange)
+                              .queryParam("time_increment", "all_days")
+                              .queryParam("limit", PAGE_LIMIT)
+                              .queryParam("appsecret_proof", appSecretProof(accessToken));
+                      if (breakdown != null && !breakdown.isBlank()) {
+                        builder.queryParam("breakdowns", breakdown);
+                      }
+                      if (actionBreakdown != null && !actionBreakdown.isBlank()) {
+                        builder.queryParam("action_breakdowns", actionBreakdown);
+                      }
+                      if (after != null && !after.isBlank()) {
+                        builder.queryParam("after", after);
+                      }
+                      return builder.build(
+                          properties.getGraphApiVersion(), accountPath(accountId));
+                    })
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(InsightPage.class));
+  }
+
   public List<InsightSummary> insights(
       String accessToken,
       String accountId,
@@ -389,7 +457,8 @@ public class MetaAdsApiClient {
         + "adset_id,adset_name,ad_id,ad_name,date_start,date_stop,spend,impressions,"
         + "reach,clicks,unique_clicks,inline_link_clicks,ctr,cpc,cpm,frequency,"
         + "actions,action_values,conversions,conversion_values,purchase_roas,"
-        + "website_purchase_roas";
+        + "website_purchase_roas,age,gender,country,region,publisher_platform,"
+        + "platform_position,impression_device,device_platform,conversion_destination";
   }
 
   public List<CampaignSummary> campaigns(String accessToken, String accountId) {
@@ -1081,7 +1150,16 @@ public class MetaAdsApiClient {
       JsonNode conversions,
       @JsonProperty("conversion_values") JsonNode conversionValues,
       @JsonProperty("purchase_roas") JsonNode purchaseRoas,
-      @JsonProperty("website_purchase_roas") JsonNode websitePurchaseRoas) {}
+      @JsonProperty("website_purchase_roas") JsonNode websitePurchaseRoas,
+      String age,
+      String gender,
+      String country,
+      String region,
+      @JsonProperty("publisher_platform") String publisherPlatform,
+      @JsonProperty("platform_position") String platformPosition,
+      @JsonProperty("impression_device") String impressionDevice,
+      @JsonProperty("device_platform") String devicePlatform,
+      @JsonProperty("conversion_destination") String conversionDestination) {}
 
   public record InsightPage(List<InsightSummary> data, Paging paging) {}
 
