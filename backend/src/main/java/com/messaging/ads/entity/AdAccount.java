@@ -66,6 +66,9 @@ public class AdAccount {
   @Column(nullable = false)
   private boolean managed;
 
+  @Column(nullable = false)
+  private boolean accessible = true;
+
   @Column(name = "provider_payload_json", columnDefinition = "text")
   private String providerPayloadJson;
 
