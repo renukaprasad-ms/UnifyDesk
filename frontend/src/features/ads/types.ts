@@ -81,7 +81,7 @@ export type MetaAdsResourceSync = {
 
 
 
-export type AdEntityStatus = 'ACTIVE' | 'PAUSED' | 'ARCHIVED' | 'REMOVED' | 'UNKNOWN'
+export type AdEntityStatus = 'ACTIVE' | 'PAUSED' | 'ARCHIVED' | 'REMOVED' | 'DISABLED' | 'UNKNOWN'
 
 export type AdCampaign = {
   id: string
