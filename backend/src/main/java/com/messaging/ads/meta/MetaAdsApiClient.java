@@ -171,7 +171,12 @@ public class MetaAdsApiClient {
   }
 
   private String nextCursor(Paging paging) {
-    if (paging == null || paging.cursors() == null) return null;
+    if (paging == null
+        || paging.next() == null
+        || paging.next().isBlank()
+        || paging.cursors() == null) {
+      return null;
+    }
     String after = paging.cursors().after();
     return after == null || after.isBlank() ? null : after;
   }
@@ -242,7 +247,7 @@ public class MetaAdsApiClient {
 
   public record AdAccountPage(List<AdAccountSummary> data, Paging paging) {}
 
-  public record Paging(Cursors cursors) {}
+  public record Paging(Cursors cursors, String next) {}
 
   public record Cursors(String before, String after) {}
 }
