@@ -49,36 +49,27 @@ public class BroadcastSenderService {
         request.replyToAddress() == null || request.replyToAddress().isBlank()
             ? null
             : normalizeEmail(request.replyToAddress(), "Reply-To address");
-
-    senderRepository
-        .findByCompanyIdAndProviderAndFromAddressIgnoreCase(
-            companyId, BroadcastSenderProvider.AMAZON_SES, fromAddress)
-        .ifPresent(
-            existing -> {
-              throw new BadRequestException(
-                  "This Amazon SES sender is already connected to the company");
-            });
-
-    channelEntitlementService.assertCanCreateConnection(
-        companyId, com.messaging.channel.enums.ChannelType.EMAIL);
     validateAuth(request);
 
-    BroadcastSenderConnection connection = new BroadcastSenderConnection();
-    connection.setId(IdGenerator.nextId());
-    connection.setCompanyId(companyId);
-    connection.setProvider(BroadcastSenderProvider.AMAZON_SES);
-    connection.setManagementMode(BroadcastSenderManagementMode.CUSTOMER_MANAGED);
+    ReconnectState state =
+        prepareSender(
+            companyId,
+            userId,
+            BroadcastSenderProvider.AMAZON_SES,
+            fromAddress,
+            "This Amazon SES sender is already connected to the company");
+    BroadcastSenderConnection connection = state.connection();
+    BroadcastSender sender = state.sender();
+
     connection.setAuthMode(request.authMode());
     connection.setName(request.name().trim());
     connection.setRegion(request.region().trim());
     connection.setRoleArn(trimToNull(request.roleArn()));
     connection.setExternalId(trimToNull(request.externalId()));
-    connection.setCreatedByUserId(userId);
-    connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
-    if (request.authMode() == BroadcastSenderAuthMode.ACCESS_KEYS) {
-      connection.setEncryptedCredentials(
-          encryptCredentials(request.accessKeyId(), request.secretAccessKey()));
-    }
+    connection.setEncryptedCredentials(
+        request.authMode() == BroadcastSenderAuthMode.ACCESS_KEYS
+            ? encryptCredentials(request.accessKeyId(), request.secretAccessKey())
+            : null);
 
     try {
       AmazonSesAccountSnapshot snapshot = sesGateway.inspect(connection, fromAddress);
@@ -87,16 +78,11 @@ public class BroadcastSenderService {
       }
       applySnapshot(connection, snapshot);
 
-      BroadcastSender sender = new BroadcastSender();
-      sender.setCompanyId(companyId);
-      sender.setConnectionId(connection.getId());
-      sender.setProvider(BroadcastSenderProvider.AMAZON_SES);
       sender.setFromAddress(fromAddress);
       sender.setDisplayName(trimToNull(request.displayName()));
       sender.setReplyToAddress(replyTo);
       sender.setVerifiedIdentity(snapshot.verifiedIdentity());
-      sender.setStatus(BroadcastSenderStatus.ACTIVE);
-      return persistAndCompleteSetup(connection, sender);
+      return persistAndCompleteSetup(connection, sender, state.reconnecting());
     } catch (RuntimeException exception) {
       sesClientManager.invalidate(connection.getId());
       throw exception;
@@ -111,43 +97,32 @@ public class BroadcastSenderService {
             ? null
             : normalizeEmail(request.replyToAddress(), "Reply-To address");
 
-    senderRepository
-        .findByCompanyIdAndProviderAndFromAddressIgnoreCase(
-            companyId, BroadcastSenderProvider.SENDGRID, fromAddress)
-        .ifPresent(
-            existing -> {
-              throw new BadRequestException(
-                  "This SendGrid sender is already connected to the company");
-            });
+    ReconnectState state =
+        prepareSender(
+            companyId,
+            userId,
+            BroadcastSenderProvider.SENDGRID,
+            fromAddress,
+            "This SendGrid sender is already connected to the company");
+    BroadcastSenderConnection connection = state.connection();
+    BroadcastSender sender = state.sender();
 
-    channelEntitlementService.assertCanCreateConnection(
-        companyId, com.messaging.channel.enums.ChannelType.EMAIL);
-
-    BroadcastSenderConnection connection = new BroadcastSenderConnection();
-    connection.setId(IdGenerator.nextId());
-    connection.setCompanyId(companyId);
-    connection.setProvider(BroadcastSenderProvider.SENDGRID);
-    connection.setManagementMode(BroadcastSenderManagementMode.CUSTOMER_MANAGED);
     connection.setAuthMode(BroadcastSenderAuthMode.API_KEY);
     connection.setName(request.name().trim());
     connection.setRegion(request.region().name());
-    connection.setCreatedByUserId(userId);
-    connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
+    connection.setRoleArn(null);
+    connection.setExternalId(null);
+    connection.setProviderConfigJson(null);
     connection.setEncryptedCredentials(encryptSendGridApiKey(request.apiKey()));
 
     SendGridAccountSnapshot snapshot = sendGridGateway.inspect(connection, fromAddress);
     applySendGridSnapshot(connection, snapshot);
 
-    BroadcastSender sender = new BroadcastSender();
-    sender.setCompanyId(companyId);
-    sender.setConnectionId(connection.getId());
-    sender.setProvider(BroadcastSenderProvider.SENDGRID);
     sender.setFromAddress(fromAddress);
     sender.setDisplayName(trimToNull(request.displayName()));
     sender.setReplyToAddress(replyTo);
     sender.setVerifiedIdentity(snapshot.verifiedIdentity());
-    sender.setStatus(BroadcastSenderStatus.ACTIVE);
-    return persistAndCompleteSetup(connection, sender);
+    return persistAndCompleteSetup(connection, sender, state.reconnecting());
   }
 
   public BroadcastSenderResponse connectAzureEmail(
@@ -158,44 +133,32 @@ public class BroadcastSenderService {
             ? null
             : normalizeEmail(request.replyToAddress(), "Reply-To address");
 
-    senderRepository
-        .findByCompanyIdAndProviderAndFromAddressIgnoreCase(
-            companyId, BroadcastSenderProvider.AZURE_EMAIL, fromAddress)
-        .ifPresent(
-            existing -> {
-              throw new BadRequestException(
-                  "This Azure Email sender is already connected to the company");
-            });
+    ReconnectState state =
+        prepareSender(
+            companyId,
+            userId,
+            BroadcastSenderProvider.AZURE_EMAIL,
+            fromAddress,
+            "This Azure Email sender is already connected to the company");
+    BroadcastSenderConnection connection = state.connection();
+    BroadcastSender sender = state.sender();
 
-    channelEntitlementService.assertCanCreateConnection(
-        companyId, com.messaging.channel.enums.ChannelType.EMAIL);
-
-    BroadcastSenderConnection connection = new BroadcastSenderConnection();
-    connection.setId(IdGenerator.nextId());
-    connection.setCompanyId(companyId);
-    connection.setProvider(BroadcastSenderProvider.AZURE_EMAIL);
-    connection.setManagementMode(BroadcastSenderManagementMode.CUSTOMER_MANAGED);
     connection.setAuthMode(BroadcastSenderAuthMode.API_KEY);
     connection.setName(request.name().trim());
     connection.setRegion("AZURE");
-    connection.setCreatedByUserId(userId);
-    connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
+    connection.setRoleArn(null);
+    connection.setExternalId(null);
     connection.setProviderConfigJson(azureProviderConfig(request.endpoint()));
     connection.setEncryptedCredentials(encryptAzureAccessKey(request.accessKey()));
 
     AzureEmailAccountSnapshot snapshot = azureEmailGateway.inspect(connection, fromAddress);
     applyAzureSnapshot(connection, snapshot);
 
-    BroadcastSender sender = new BroadcastSender();
-    sender.setCompanyId(companyId);
-    sender.setConnectionId(connection.getId());
-    sender.setProvider(BroadcastSenderProvider.AZURE_EMAIL);
     sender.setFromAddress(fromAddress);
     sender.setDisplayName(trimToNull(request.displayName()));
     sender.setReplyToAddress(replyTo);
     sender.setVerifiedIdentity(snapshot.verifiedIdentity());
-    sender.setStatus(BroadcastSenderStatus.ACTIVE);
-    return persistAndCompleteSetup(connection, sender);
+    return persistAndCompleteSetup(connection, sender, state.reconnecting());
   }
 
   public BroadcastSenderResponse connectMsg91Sms(
@@ -205,29 +168,21 @@ public class BroadcastSenderService {
       throw new BadRequestException("MSG91 Sender ID is required");
     }
 
-    senderRepository
-        .findByCompanyIdAndProviderAndFromAddressIgnoreCase(
-            companyId, BroadcastSenderProvider.MSG91_SMS, senderId)
-        .ifPresent(
-            existing -> {
-              throw new BadRequestException(
-                  "This MSG91 Sender ID is already connected to the company");
-            });
+    ReconnectState state =
+        prepareSender(
+            companyId,
+            userId,
+            BroadcastSenderProvider.MSG91_SMS,
+            senderId,
+            "This MSG91 Sender ID is already connected to the company");
+    BroadcastSenderConnection connection = state.connection();
+    BroadcastSender sender = state.sender();
 
-    channelEntitlementService.assertCanCreateConnection(
-        companyId, com.messaging.channel.enums.ChannelType.SMS);
-
-    BroadcastSenderConnection connection = new BroadcastSenderConnection();
-    connection.setId(IdGenerator.nextId());
-    connection.setCompanyId(companyId);
-    connection.setProvider(BroadcastSenderProvider.MSG91_SMS);
-    connection.setManagementMode(BroadcastSenderManagementMode.CUSTOMER_MANAGED);
     connection.setAuthMode(BroadcastSenderAuthMode.API_KEY);
     connection.setName(request.name().trim());
     connection.setRegion("MSG91");
+    connection.setRoleArn(null);
     connection.setExternalId(request.flowId().trim());
-    connection.setCreatedByUserId(userId);
-    connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
     connection.setProviderConfigJson(
         msg91ProviderConfig(request.flowId(), request.messageVariable(), request.route()));
     connection.setEncryptedCredentials(encryptMsg91AuthKey(request.authKey()));
@@ -235,16 +190,11 @@ public class BroadcastSenderService {
     Msg91AccountSnapshot snapshot = msg91Gateway.inspect(connection, senderId);
     applyMsg91Snapshot(connection, snapshot);
 
-    BroadcastSender sender = new BroadcastSender();
-    sender.setCompanyId(companyId);
-    sender.setConnectionId(connection.getId());
-    sender.setProvider(BroadcastSenderProvider.MSG91_SMS);
     sender.setFromAddress(senderId);
     sender.setDisplayName(trimToNull(request.name()));
     sender.setReplyToAddress(null);
     sender.setVerifiedIdentity(snapshot.verifiedIdentity());
-    sender.setStatus(BroadcastSenderStatus.ACTIVE);
-    return persistAndCompleteSetup(connection, sender);
+    return persistAndCompleteSetup(connection, sender, state.reconnecting());
   }
 
   public BroadcastSenderResponse connectMsg91Email(
@@ -255,45 +205,32 @@ public class BroadcastSenderService {
             ? null
             : normalizeEmail(request.replyToAddress(), "Reply-To address");
 
-    senderRepository
-        .findByCompanyIdAndProviderAndFromAddressIgnoreCase(
-            companyId, BroadcastSenderProvider.MSG91_EMAIL, fromAddress)
-        .ifPresent(
-            existing -> {
-              throw new BadRequestException(
-                  "This MSG91 Email sender is already connected to the company");
-            });
+    ReconnectState state =
+        prepareSender(
+            companyId,
+            userId,
+            BroadcastSenderProvider.MSG91_EMAIL,
+            fromAddress,
+            "This MSG91 Email sender is already connected to the company");
+    BroadcastSenderConnection connection = state.connection();
+    BroadcastSender sender = state.sender();
 
-    channelEntitlementService.assertCanCreateConnection(
-        companyId, com.messaging.channel.enums.ChannelType.EMAIL);
-
-    BroadcastSenderConnection connection = new BroadcastSenderConnection();
-    connection.setId(IdGenerator.nextId());
-    connection.setCompanyId(companyId);
-    connection.setProvider(BroadcastSenderProvider.MSG91_EMAIL);
-    connection.setManagementMode(BroadcastSenderManagementMode.CUSTOMER_MANAGED);
     connection.setAuthMode(BroadcastSenderAuthMode.API_KEY);
     connection.setName(request.name().trim());
     connection.setRegion("MSG91_EMAIL");
+    connection.setRoleArn(null);
     connection.setExternalId(request.domain().trim().toLowerCase(Locale.ROOT));
-    connection.setCreatedByUserId(userId);
-    connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
     connection.setProviderConfigJson(msg91EmailProviderConfig(request.domain()));
     connection.setEncryptedCredentials(encryptMsg91AuthKey(request.authKey()));
 
     Msg91EmailAccountSnapshot snapshot = msg91EmailGateway.inspect(connection, fromAddress);
     applyMsg91EmailSnapshot(connection, snapshot);
 
-    BroadcastSender sender = new BroadcastSender();
-    sender.setCompanyId(companyId);
-    sender.setConnectionId(connection.getId());
-    sender.setProvider(BroadcastSenderProvider.MSG91_EMAIL);
     sender.setFromAddress(fromAddress);
     sender.setDisplayName(trimToNull(request.displayName()));
     sender.setReplyToAddress(replyTo);
     sender.setVerifiedIdentity(snapshot.verifiedIdentity());
-    sender.setStatus(BroadcastSenderStatus.ACTIVE);
-    return persistAndCompleteSetup(connection, sender);
+    return persistAndCompleteSetup(connection, sender, state.reconnecting());
   }
 
   @Transactional(readOnly = true)
@@ -401,8 +338,11 @@ public class BroadcastSenderService {
   }
 
   private BroadcastSenderResponse persistAndCompleteSetup(
-      BroadcastSenderConnection connection, BroadcastSender sender) {
-    BroadcastSenderResponse response = persistenceService.create(connection, sender);
+      BroadcastSenderConnection connection, BroadcastSender sender, boolean reconnecting) {
+    BroadcastSenderResponse response =
+        reconnecting
+            ? persistenceService.reactivate(connection, sender)
+            : persistenceService.create(connection, sender);
     try {
       setupSessionService.completeActive(connection.getCompanyId(), connection.getProvider());
     } catch (RuntimeException exception) {
@@ -414,6 +354,55 @@ public class BroadcastSenderService {
     }
     return response;
   }
+
+  private ReconnectState prepareSender(
+      Long companyId,
+      Long userId,
+      BroadcastSenderProvider provider,
+      String fromAddress,
+      String duplicateMessage) {
+    var existing =
+        senderRepository.findByCompanyIdAndProviderAndFromAddressIgnoreCase(
+            companyId, provider, fromAddress);
+    if (existing.isPresent()) {
+      BroadcastSender sender = existing.get();
+      if (sender.getStatus() != BroadcastSenderStatus.DISABLED) {
+        throw new BadRequestException(duplicateMessage);
+      }
+      BroadcastSenderConnection connection =
+          connectionRepository
+              .findByIdAndCompanyId(sender.getConnectionId(), companyId)
+              .orElseThrow(() -> new NotFoundException("Broadcast sender connection not found"));
+      if (connection.getProvider() != provider) {
+        throw new BadRequestException("Broadcast sender provider does not match the connection");
+      }
+      connection.setCreatedByUserId(userId);
+      connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
+      sender.setStatus(BroadcastSenderStatus.ACTIVE);
+      return new ReconnectState(connection, sender, true);
+    }
+
+    channelEntitlementService.assertCanCreateConnection(companyId, provider.channelType());
+
+    BroadcastSenderConnection connection = new BroadcastSenderConnection();
+    connection.setId(IdGenerator.nextId());
+    connection.setCompanyId(companyId);
+    connection.setProvider(provider);
+    connection.setManagementMode(BroadcastSenderManagementMode.CUSTOMER_MANAGED);
+    connection.setCreatedByUserId(userId);
+    connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
+
+    BroadcastSender sender = new BroadcastSender();
+    sender.setCompanyId(companyId);
+    sender.setConnectionId(connection.getId());
+    sender.setProvider(provider);
+    sender.setFromAddress(fromAddress);
+    sender.setStatus(BroadcastSenderStatus.ACTIVE);
+    return new ReconnectState(connection, sender, false);
+  }
+
+  private record ReconnectState(
+      BroadcastSenderConnection connection, BroadcastSender sender, boolean reconnecting) {}
 
   private void validateAuth(ConnectAmazonSesRequest request) {
     if (request.authMode() == BroadcastSenderAuthMode.ACCESS_KEYS) {

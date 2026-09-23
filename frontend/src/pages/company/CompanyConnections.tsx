@@ -318,6 +318,30 @@ export default function CompanyConnections() {
   const broadcastSenderFor = (connectionId: string) =>
     broadcastSenders.find((sender) => sender.channelConnectionId === connectionId) ?? null
 
+  const reconnectBroadcast = (connection: ChannelConnection) => {
+    if (workingConnectionId || connection.status !== 'DISCONNECTED') return
+
+    if (connection.providerType === 'AMAZON_SES') {
+      setSesConnectOpen(true)
+      return
+    }
+    if (connection.providerType === 'SENDGRID') {
+      setSendGridConnectOpen(true)
+      return
+    }
+    if (connection.providerType === 'AZURE_EMAIL') {
+      setAzureEmailConnectOpen(true)
+      return
+    }
+    if (connection.providerType === 'MSG91_EMAIL') {
+      setMsg91EmailConnectOpen(true)
+      return
+    }
+    if (connection.providerType === 'MSG91_SMS') {
+      setMsg91ConnectOpen(true)
+    }
+  }
+
   const reconnectEmail = async (connection: ChannelConnection) => {
     if (!selectedCompany || workingConnectionId) return
     setWorkingConnectionId(connection.id)
@@ -593,7 +617,10 @@ export default function CompanyConnections() {
                         connection.providerType === 'GMAIL' ||
                         connection.providerType === 'MICROSOFT'
                           ? () => void reconnectEmail(connection)
-                          : undefined
+                          : connection.capabilities.includes('BROADCAST') &&
+                              can(PERMISSIONS.BROADCAST_MODIFY)
+                            ? () => reconnectBroadcast(connection)
+                            : undefined
                       }
                       onDeleteNow={() => setDeleteTarget(connection)}
                     />
@@ -657,17 +684,31 @@ export default function CompanyConnections() {
                       ))}
                     </div>
                   </div>
-                  {connection.status !== 'DISCONNECTED' && can(PERMISSIONS.BROADCAST_MODIFY) && (
-                    <button
-                      type="button"
-                      className="secondary-button inline-flex shrink-0 items-center gap-2 text-rose-600"
-                      disabled={workingConnectionId === connection.id}
-                      onClick={() => setDisconnectTarget(connection)}
-                    >
-                      <FiSlash aria-hidden="true" />
-                      Disconnect
-                    </button>
-                  )}
+                  <div className="w-full shrink-0 lg:w-auto lg:max-w-md">
+                    {connection.status !== 'DISCONNECTED' && can(PERMISSIONS.BROADCAST_MODIFY) && (
+                      <button
+                        type="button"
+                        className="secondary-button inline-flex shrink-0 items-center gap-2 text-rose-600"
+                        disabled={workingConnectionId === connection.id}
+                        onClick={() => setDisconnectTarget(connection)}
+                      >
+                        <FiSlash aria-hidden="true" />
+                        Disconnect
+                      </button>
+                    )}
+
+                    <ConnectionRetentionNotice
+                      connection={connection}
+                      working={workingConnectionId === connection.id}
+                      onReconnect={
+                        connection.providerType === 'MSG91_SMS' &&
+                        can(PERMISSIONS.BROADCAST_MODIFY)
+                          ? () => reconnectBroadcast(connection)
+                          : undefined
+                      }
+                      onDeleteNow={() => setDeleteTarget(connection)}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
