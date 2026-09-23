@@ -286,6 +286,15 @@ public class Msg91EmailGateway {
     }
   }
 
+  private JsonNode parse(String body) {
+    if (body == null || body.isBlank()) return objectMapper.createObjectNode();
+    try {
+      return objectMapper.readTree(body);
+    } catch (IOException exception) {
+      return objectMapper.createObjectNode().put("message", body);
+    }
+  }
+
   private Msg91EmailProviderConfig config(BroadcastSenderConnection connection) {
     if (connection.getProviderConfigJson() == null
         || connection.getProviderConfigJson().isBlank()) {
