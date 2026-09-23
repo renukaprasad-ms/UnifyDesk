@@ -43,6 +43,7 @@ public class SecurityConfig {
                         "/api/auth/refresh",
                         "/api/v1/media/uploads",
                         "/api/v1/webhooks/meta/whatsapp",
+                        "/api/v1/webhooks/meta/ads",
                         "/api/v1/webhooks/microsoft",
                         "/api/v1/webhooks/google/gmail"))
         .sessionManagement(
@@ -60,6 +61,7 @@ public class SecurityConfig {
                         "/api/auth/password-reset/verify",
                         "/api/auth/password-reset/complete",
                         "/api/v1/webhooks/meta/whatsapp",
+                        "/api/v1/webhooks/meta/ads",
                         "/api/v1/webhooks/microsoft",
                         "/api/v1/webhooks/google/gmail",
                         "/api/v1/oauth/gmail/callback",
