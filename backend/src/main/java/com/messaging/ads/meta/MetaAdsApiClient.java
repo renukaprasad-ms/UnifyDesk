@@ -365,6 +365,10 @@ public class MetaAdsApiClient {
       String after) {
     String timeRange =
         "{\"since\":\"" + from + "\",\"until\":\"" + to + "\"}";
+    String fields =
+        actionBreakdown != null && !actionBreakdown.isBlank()
+            ? actionBreakdownFields()
+            : insightFields();
     return execute(
         () ->
             graphClient
@@ -374,7 +378,7 @@ public class MetaAdsApiClient {
                       var builder =
                           uriBuilder
                               .path("/{version}/{account}/insights")
-                              .queryParam("fields", insightFields())
+                              .queryParam("fields", fields)
                               .queryParam("level", "account")
                               .queryParam("time_range", timeRange)
                               .queryParam("time_increment", "all_days")
@@ -450,6 +454,10 @@ public class MetaAdsApiClient {
                 .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                 .retrieve()
                 .body(InsightPage.class));
+  }
+
+  private String actionBreakdownFields() {
+    return "account_id,account_name,account_currency,date_start,date_stop,actions,action_values";
   }
 
   private String insightFields() {
