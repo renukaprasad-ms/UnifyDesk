@@ -24,6 +24,7 @@ import com.messaging.ads.google.dto.GoogleCampaignStatusRequest;
 import com.messaging.ads.google.dto.GoogleCampaignSyncResponse;
 import com.messaging.ads.google.dto.GoogleConversionSyncResponse;
 import com.messaging.ads.google.dto.GoogleInsightsSyncResponse;
+import com.messaging.ads.google.dto.GoogleInsightBreakdownsSyncResponse;
 import com.messaging.ads.google.dto.GoogleKeywordSyncResponse;
 import com.messaging.ads.google.dto.UpdateGoogleAdGroupRequest;
 import com.messaging.ads.google.dto.UpdateGoogleCampaignRequest;
@@ -59,6 +60,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsConversionSyncService conversionSyncService;
   private final GoogleAdsConversionMutationService conversionMutationService;
   private final GoogleAdsInsightSyncService insightSyncService;
+  private final GoogleAdsInsightBreakdownSyncService insightBreakdownSyncService;
   private final GoogleAdsHealthService healthService;
   private final GoogleAdsBillingService billingService;
   private final CompanyAuthorizationService authorizationService;
@@ -333,6 +335,20 @@ public class GoogleAdsConnectionController {
             200,
             insightSyncService.sync(companyId, accountId, from, to),
             "Google Ads analytics synchronized"));
+  }
+
+  @PostMapping("/accounts/{accountId}/insights/breakdowns/sync")
+  public ResponseEntity<ApiResponse<GoogleInsightBreakdownsSyncResponse>> syncInsightBreakdowns(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @RequestParam LocalDate from,
+      @RequestParam LocalDate to) {
+    requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            insightBreakdownSyncService.sync(companyId, accountId, from, to),
+            "Google Ads analytics breakdowns synchronized"));
   }
 
   @PostMapping("/accounts/{accountId}/health/sync")
