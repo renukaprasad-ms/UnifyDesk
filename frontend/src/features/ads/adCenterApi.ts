@@ -15,6 +15,7 @@ import type {
   AdCreative,
   Ad,
   AdSet,
+  AdKeyword,
   AdProviderConnection,
   AdProviderInfo,
   AdRecommendations,
@@ -27,6 +28,16 @@ import type {
   CreateMetaCreativeInput,
   CreateMetaAdInput,
   CreateMetaAdSetInput,
+  CreateGoogleCampaignInput,
+  UpdateGoogleCampaignInput,
+  CreateGoogleAdGroupInput,
+  UpdateGoogleAdGroupInput,
+  CreateGoogleKeywordInput,
+  UpdateGoogleKeywordInput,
+  CreateGoogleResponsiveSearchAdInput,
+  UpdateGoogleResponsiveSearchAdInput,
+  CreateGoogleAudienceInput,
+  CreateGoogleConversionInput,
   MetaAdsAuthorization,
   GoogleAdsAuthorization,
   MetaAdsResourceSync,
@@ -38,6 +49,13 @@ import type {
   MetaCreativeSync,
   MetaAdSync,
   MetaAdSetSync,
+  GoogleCampaignSync,
+  GoogleAdGroupSync,
+  GoogleKeywordSync,
+  GoogleAdSync,
+  GoogleAudienceSync,
+  GoogleConversionSync,
+  GoogleInsightsSync,
   PageResponse,
   UpdateMetaCampaignInput,
   UpdateMetaAdInput,
@@ -150,6 +168,50 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+
+  async syncGoogleCampaigns(companyId: string, accountId: string) {
+    const response = await apiClient.post<ApiResponse<GoogleCampaignSync>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/campaigns/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleCampaign(
+    companyId: string,
+    accountId: string,
+    input: CreateGoogleCampaignInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<AdCampaign>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/campaigns`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleCampaign(
+    companyId: string,
+    campaignId: string,
+    input: UpdateGoogleCampaignInput,
+  ) {
+    const response = await apiClient.patch<ApiResponse<AdCampaign>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async setGoogleCampaignStatus(
+    companyId: string,
+    campaignId: string,
+    status: 'ACTIVE' | 'ENABLED' | 'PAUSED',
+  ) {
+    const response = await apiClient.post<ApiResponse<AdCampaign>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/status`,
+      { status },
+    )
+    return unwrap(response.data)
+  },
+
   async adSets(companyId: string, campaignId: string) {
     const response = await apiClient.get<ApiResponse<AdSet[]>>(
       `/api/v1/companies/${companyId}/ads/campaigns/${campaignId}/ad-sets`,
@@ -207,6 +269,95 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+
+  async syncGoogleAdGroups(companyId: string, campaignId: string) {
+    const response = await apiClient.post<ApiResponse<GoogleAdGroupSync>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/ad-groups/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleAdGroup(
+    companyId: string,
+    campaignId: string,
+    input: CreateGoogleAdGroupInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<AdSet>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/ad-groups`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleAdGroup(
+    companyId: string,
+    adGroupId: string,
+    input: UpdateGoogleAdGroupInput,
+  ) {
+    const response = await apiClient.patch<ApiResponse<AdSet>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async setGoogleAdGroupStatus(
+    companyId: string,
+    adGroupId: string,
+    status: 'ACTIVE' | 'ENABLED' | 'PAUSED',
+  ) {
+    const response = await apiClient.post<ApiResponse<AdSet>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/status`,
+      { status },
+    )
+    return unwrap(response.data)
+  },
+
+  async keywords(companyId: string, adGroupId: string) {
+    const response = await apiClient.get<ApiResponse<AdKeyword[]>>(
+      `/api/v1/companies/${companyId}/ads/ad-sets/${adGroupId}/keywords`,
+    )
+    return unwrap(response.data)
+  },
+
+  async keyword(companyId: string, keywordId: string) {
+    const response = await apiClient.get<ApiResponse<AdKeyword>>(
+      `/api/v1/companies/${companyId}/ads/keywords/${keywordId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async syncGoogleKeywords(companyId: string, adGroupId: string) {
+    const response = await apiClient.post<ApiResponse<GoogleKeywordSync>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/keywords/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleKeyword(
+    companyId: string,
+    adGroupId: string,
+    input: CreateGoogleKeywordInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<AdKeyword>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/keywords`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleKeyword(
+    companyId: string,
+    keywordId: string,
+    input: UpdateGoogleKeywordInput,
+  ) {
+    const response = await apiClient.patch<ApiResponse<AdKeyword>>(
+      `/api/v1/companies/${companyId}/ads/google/keywords/${keywordId}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
   async recommendationSummary(companyId: string) {
     const response = await apiClient.get<ApiResponse<AdRecommendationSummary>>(
       `/api/v1/companies/${companyId}/ads/recommendations/summary`,
@@ -259,6 +410,14 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+
+  async syncGoogleHealth(companyId: string, accountId: string) {
+    const response = await apiClient.post<ApiResponse<AdAccountHealth>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/health/sync`,
+    )
+    return unwrap(response.data)
+  },
+
   async activity(
     companyId: string,
     accountId?: string,
@@ -288,6 +447,14 @@ export const adCenterApi = {
   async syncMetaBilling(companyId: string, accountId: string) {
     const response = await apiClient.post<ApiResponse<AdAccountBilling>>(
       `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/billing/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+
+  async syncGoogleBilling(companyId: string, accountId: string) {
+    const response = await apiClient.post<ApiResponse<AdAccountBilling>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/billing/sync`,
     )
     return unwrap(response.data)
   },
@@ -326,6 +493,21 @@ export const adCenterApi = {
   ) {
     const response = await apiClient.post<ApiResponse<MetaInsightsSync>>(
       `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/insights/sync`,
+      null,
+      { params: { from, to } },
+    )
+    return unwrap(response.data)
+  },
+
+
+  async syncGoogleInsights(
+    companyId: string,
+    accountId: string,
+    from: string,
+    to: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleInsightsSync>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/insights/sync`,
       null,
       { params: { from, to } },
     )
@@ -394,6 +576,26 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+
+  async syncGoogleAudiences(companyId: string, accountId: string) {
+    const response = await apiClient.post<ApiResponse<GoogleAudienceSync>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/audiences/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleAudience(
+    companyId: string,
+    accountId: string,
+    input: CreateGoogleAudienceInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<AdAudience>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/audiences`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
   async conversions(companyId: string, accountId: string) {
     const response = await apiClient.get<ApiResponse<AdConversion[]>>(
       `/api/v1/companies/${companyId}/ads/accounts/${accountId}/conversions`,
@@ -415,6 +617,26 @@ export const adCenterApi = {
   ) {
     const response = await apiClient.post<ApiResponse<AdConversion>>(
       `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/conversions`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+
+  async syncGoogleConversions(companyId: string, accountId: string) {
+    const response = await apiClient.post<ApiResponse<GoogleConversionSync>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/conversions/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleConversion(
+    companyId: string,
+    accountId: string,
+    input: CreateGoogleConversionInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<AdConversion>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/conversions`,
       input,
     )
     return unwrap(response.data)
@@ -505,6 +727,50 @@ export const adCenterApi = {
   ) {
     const response = await apiClient.post<ApiResponse<Ad>>(
       `/api/v1/companies/${companyId}/ads/meta/ads/${adId}/status`,
+      { status },
+    )
+    return unwrap(response.data)
+  },
+
+
+  async syncGoogleAds(companyId: string, adGroupId: string) {
+    const response = await apiClient.post<ApiResponse<GoogleAdSync>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/ads/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleResponsiveSearchAd(
+    companyId: string,
+    adGroupId: string,
+    input: CreateGoogleResponsiveSearchAdInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<Ad>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/ads`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleResponsiveSearchAd(
+    companyId: string,
+    adId: string,
+    input: UpdateGoogleResponsiveSearchAdInput,
+  ) {
+    const response = await apiClient.patch<ApiResponse<Ad>>(
+      `/api/v1/companies/${companyId}/ads/google/ads/${adId}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async setGoogleAdStatus(
+    companyId: string,
+    adId: string,
+    status: 'ACTIVE' | 'ENABLED' | 'PAUSED',
+  ) {
+    const response = await apiClient.post<ApiResponse<Ad>>(
+      `/api/v1/companies/${companyId}/ads/google/ads/${adId}/status`,
       { status },
     )
     return unwrap(response.data)
