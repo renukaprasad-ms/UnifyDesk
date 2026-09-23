@@ -17,6 +17,7 @@ import type {
   AdSet,
   AdProviderConnection,
   AdProviderInfo,
+  AdRecommendations,
   AdCampaign,
   CreateMetaAudienceInput,
   CreateMetaCampaignInput,
@@ -199,6 +200,13 @@ export const adCenterApi = {
     const response = await apiClient.post<ApiResponse<AdSet>>(
       `/api/v1/companies/${companyId}/ads/meta/ad-sets/${adSetId}/status`,
       { status },
+    )
+    return unwrap(response.data)
+  },
+
+  async recommendations(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<AdRecommendations>>(
+      `/api/v1/companies/${companyId}/ads/accounts/${accountId}/recommendations`,
     )
     return unwrap(response.data)
   },
