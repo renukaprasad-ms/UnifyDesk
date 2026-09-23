@@ -280,7 +280,7 @@ app:
       redirect-uri: ${META_ADS_REDIRECT_URI:https://messaging.renukaprasad.in/api/v1/oauth/meta-ads/callback}
       frontend-base-url: ${APP_FRONTEND_BASE_URL:https://messaging.renukaprasad.in}
       graph-api-version: ${META_ADS_GRAPH_API_VERSION:v26.0}
-      scope: ${META_ADS_SCOPE:ads_management,business_management,pages_show_list,instagram_basic}
+      scope: ${META_ADS_SCOPE:ads_management,business_management,pages_show_list,pages_read_engagement,instagram_basic}
       oauth-state-ttl: ${META_ADS_OAUTH_STATE_TTL:10m}
   redis:
     key-prefix: ${REDIS_KEY_PREFIX:messaging}
