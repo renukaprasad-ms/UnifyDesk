@@ -129,6 +129,23 @@ const formatDate = (value?: string | null) => {
   }).format(date)
 }
 
+const automaticTemplateVariables = new Set([
+  'destination',
+  'email',
+  'phone',
+  'mobile',
+  'current_date',
+  'current_year',
+])
+
+const recipientNameVariables = new Set([
+  'name',
+  'display_name',
+  'full_name',
+  'first_name',
+  'last_name',
+])
+
 const emptyPage = <T,>(): Page<T> => ({
   content: [],
   number: 0,
@@ -184,6 +201,7 @@ export default function BroadcastWorkspace() {
   const [composeTemplateId, setComposeTemplateId] = useState('')
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
+  const [composeTemplateVariables, setComposeTemplateVariables] = useState<Record<string, string>>({})
   const [composeScheduleAt, setComposeScheduleAt] = useState('')
   const [composeBusy, setComposeBusy] = useState(false)
   const [actionBusy, setActionBusy] = useState(false)
@@ -268,9 +286,17 @@ export default function BroadcastWorkspace() {
     msg91ComposeTemplates,
   ])
 
+  const selectedComposeTemplate =
+    composeTemplates.find((template) => template.id === composeTemplateId) ?? null
+
   const selectedComposeTemplateReady =
     !composeUsesMsg91Email ||
     availableComposeTemplates.some((template) => template.id === composeTemplateId)
+
+  const editableComposeVariables =
+    selectedComposeTemplate?.variables.filter(
+      (variable) => !automaticTemplateVariables.has(variable),
+    ) ?? []
 
   const composeContentReady =
     Boolean(composeSenderId) &&
@@ -577,6 +603,7 @@ export default function BroadcastWorkspace() {
     const reset = () => {
       setComposeSubject('')
       setComposeBody('')
+      setComposeTemplateVariables({})
       setComposeScheduleAt('')
       setComposeTemplateId('')
       setComposeSenderId(selectedActiveSender?.id ?? '')
@@ -596,6 +623,7 @@ export default function BroadcastWorkspace() {
         setComposeTemplateId(message.sourceTemplateId ?? '')
         setComposeSubject(message.subject ?? '')
         setComposeBody(message.bodyText)
+        setComposeTemplateVariables(message.templateVariables ?? {})
         setComposeScheduleAt(
           message.scheduledAt ? new Date(message.scheduledAt).toISOString().slice(0, 16) : '',
         )
@@ -811,6 +839,7 @@ export default function BroadcastWorkspace() {
       senderId: composeSenderId,
       subject: channelType === 'EMAIL' ? composeSubject.trim() || null : null,
       bodyText: composeBody,
+      templateVariables: composeTemplateId ? composeTemplateVariables : undefined,
     }
     const message = editBroadcastId
       ? await broadcastApi.updateMessage(companyId, editBroadcastId, input)
@@ -1474,11 +1503,21 @@ export default function BroadcastWorkspace() {
                     onChange={(event) => {
                       const templateId = event.target.value
                       setComposeTemplateId(templateId)
-                      if (!templateId) return
+                      if (!templateId) {
+                        setComposeTemplateVariables({})
+                        return
+                      }
                       const template = composeTemplates.find((item) => item.id === templateId)
                       if (!template) return
                       setComposeSubject(template.subject ?? '')
                       setComposeBody('')
+                      setComposeTemplateVariables((current) => {
+                        const next: Record<string, string> = {}
+                        template.variables.forEach((variable) => {
+                          if (current[variable]) next[variable] = current[variable]
+                        })
+                        return next
+                      })
                     }}
                   >
                     <option value="">
@@ -1534,16 +1573,89 @@ export default function BroadcastWorkspace() {
                 </label>
 
                 {composeTemplateId ? (
-                  <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
-                    <p className="text-xs font-bold text-slate-900">
-                      Published template content is locked for this broadcast
-                    </p>
-                    <p className="mt-1 text-[11px] leading-5 text-slate-600">
-                      {composeUsesMsg91Email
-                        ? 'MSG91 will use the provider template synced for this exact published version.'
-                        : 'Messaging will send the immutable published HTML and text version.'}
-                    </p>
-                  </div>
+                  <>
+                    <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
+                      <p className="text-xs font-bold text-slate-900">
+                        Published template content is locked for this broadcast
+                      </p>
+                      <p className="mt-1 text-[11px] leading-5 text-slate-600">
+                        {composeUsesMsg91Email
+                          ? 'MSG91 will use the provider template synced for this exact published version.'
+                          : 'Messaging will send the immutable published HTML and text version.'}
+                      </p>
+                    </div>
+
+                    {selectedComposeTemplate && (
+                      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">Template variables</p>
+                          <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                            Recipient name/metadata overrides these fallback values. Leave a value blank
+                            only when every recipient provides that variable.
+                          </p>
+                        </div>
+
+                        {selectedComposeTemplate.variables.length === 0 ? (
+                          <p className="mt-3 text-[11px] text-slate-400">
+                            This template has no variables.
+                          </p>
+                        ) : (
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            {selectedComposeTemplate.variables.map((variable) => {
+                              if (automaticTemplateVariables.has(variable)) {
+                                return (
+                                  <div
+                                    key={variable}
+                                    className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2"
+                                  >
+                                    <p className="text-[11px] font-semibold text-emerald-800">
+                                      {'{{'}{variable}{'}}'}
+                                    </p>
+                                    <p className="mt-0.5 text-[10px] text-emerald-600">
+                                      Filled automatically for each recipient
+                                    </p>
+                                  </div>
+                                )
+                              }
+
+                              const nameFallback = recipientNameVariables.has(variable)
+                              return (
+                                <label
+                                  key={variable}
+                                  className="text-[11px] font-semibold text-slate-700"
+                                >
+                                  {'{{'}{variable}{'}}'}
+                                  <input
+                                    className="form-input mt-1.5"
+                                    value={composeTemplateVariables[variable] ?? ''}
+                                    onChange={(event) =>
+                                      setComposeTemplateVariables((current) => ({
+                                        ...current,
+                                        [variable]: event.target.value,
+                                      }))
+                                    }
+                                    placeholder={
+                                      nameFallback
+                                        ? 'Optional fallback if recipient name is missing'
+                                        : 'Enter ' + variable.replaceAll('_', ' ')
+                                    }
+                                    maxLength={10000}
+                                  />
+                                </label>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        {editableComposeVariables.length > 0 && (
+                          <p className="mt-3 text-[10px] leading-4 text-slate-400">
+                            For personalized values, add matching columns/metadata to group members.
+                            A recipient-specific value takes precedence over the fallback entered here.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <>
                     {channelType === 'EMAIL' && (
