@@ -34,6 +34,7 @@ public class MetaAdsCreativeMutationService {
     validateIdentity(companyId, accountId, request.pageId(), request.instagramActorId());
 
     String format = request.format().trim().toUpperCase();
+    String token = accessToken(companyId, account);
     Map<String, Object> story = new LinkedHashMap<>();
     story.put("page_id", request.pageId().trim());
     if (hasText(request.instagramActorId())) {
@@ -42,7 +43,10 @@ public class MetaAdsCreativeMutationService {
 
     switch (format) {
       case "SINGLE_IMAGE" -> story.put("link_data", singleImageData(request));
-      case "VIDEO" -> story.put("video_data", videoData(request));
+      case "VIDEO" ->
+          story.put(
+              "video_data",
+              videoData(request, token, account.getExternalAccountId()));
       case "CAROUSEL" -> story.put("link_data", carouselData(request));
       default -> throw new BadRequestException("Unsupported Meta creative format: " + format);
     }
@@ -52,7 +56,6 @@ public class MetaAdsCreativeMutationService {
     payload.put("object_story_spec", story);
     if (hasText(request.urlTags())) payload.put("url_tags", request.urlTags().trim());
 
-    String token = accessToken(companyId, account);
     String externalId = apiClient.createCreative(token, account.getExternalAccountId(), payload);
     return AdCreativeResponse.from(
         persistenceService.persistOne(companyId, accountId, apiClient.creative(token, externalId)));
@@ -66,10 +69,16 @@ public class MetaAdsCreativeMutationService {
     return data;
   }
 
-  private Map<String, Object> videoData(CreateMetaCreativeRequest request) {
+  private Map<String, Object> videoData(
+      CreateMetaCreativeRequest request, String token, String accountId) {
     String destination = requireDestination(request.destinationUrl());
+    String videoId =
+        hasText(request.videoId())
+            ? request.videoId().trim()
+            : apiClient.uploadVideoFromUrl(
+                token, accountId, requireDestination(request.videoUrl()));
     Map<String, Object> data = new LinkedHashMap<>();
-    data.put("video_id", request.videoId().trim());
+    data.put("video_id", videoId);
     if (hasText(request.primaryText())) data.put("message", request.primaryText().trim());
     if (hasText(request.headline())) data.put("title", request.headline().trim());
     if (hasText(request.description())) data.put("description", request.description().trim());
