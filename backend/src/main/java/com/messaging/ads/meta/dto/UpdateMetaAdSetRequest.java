@@ -30,7 +30,8 @@ public record UpdateMetaAdSetRequest(
     List<String> customAudienceIds,
     List<String> excludedCustomAudienceIds,
     String pixelId,
-    String customEventType) {
+    String customEventType,
+    String customConversionId) {
 
   @AssertTrue(message = "Choose either a daily budget or a lifetime budget, not both")
   public boolean hasValidBudgetChoice() {
