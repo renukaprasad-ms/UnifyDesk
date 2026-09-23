@@ -457,8 +457,7 @@ public class MetaAdsApiClient {
         + "adset_id,adset_name,ad_id,ad_name,date_start,date_stop,spend,impressions,"
         + "reach,clicks,unique_clicks,inline_link_clicks,ctr,cpc,cpm,frequency,"
         + "actions,action_values,conversions,conversion_values,purchase_roas,"
-        + "website_purchase_roas,age,gender,country,region,publisher_platform,"
-        + "platform_position,impression_device,device_platform,conversion_destination";
+        + "website_purchase_roas";
   }
 
   public List<CampaignSummary> campaigns(String accessToken, String accountId) {
