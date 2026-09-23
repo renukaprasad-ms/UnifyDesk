@@ -105,7 +105,7 @@ export default function AdCenterOverview() {
       setAccounts((current) =>
         current.map((account) =>
           account.connectionId === updated.id
-            ? { ...account, managed: false, primaryAccount: false }
+            ? { ...account, accessible: false, managed: false, primaryAccount: false }
             : account,
         ),
       )
@@ -196,7 +196,8 @@ export default function AdCenterOverview() {
             const providerAccounts = accounts.filter(
               (account) => account.provider === provider.provider,
             )
-            const managedCount = providerAccounts.filter((account) => account.managed).length
+            const accessibleAccounts = providerAccounts.filter((account) => account.accessible)
+            const managedCount = accessibleAccounts.filter((account) => account.managed).length
             const isMeta = provider.provider === 'META_ADS'
             const connectable =
               isMeta && provider.configured && can(PERMISSIONS.ADS_CONNECT)
@@ -233,7 +234,7 @@ export default function AdCenterOverview() {
                     <p className="mt-1 text-xl font-bold text-slate-950">
                       {managedCount}
                       <span className="ml-1 text-xs font-medium text-slate-400">
-                        managed / {providerAccounts.length} discovered
+                        managed / {accessibleAccounts.length} accessible
                       </span>
                     </p>
                   </div>
@@ -347,8 +348,14 @@ export default function AdCenterOverview() {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                      {account.status}
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        account.accessible
+                          ? 'bg-slate-100 text-slate-600'
+                          : 'bg-amber-50 text-amber-700'
+                      }`}
+                    >
+                      {account.accessible ? account.status : 'ACCESS REMOVED'}
                     </span>
                     {can(PERMISSIONS.ADS_MODIFY) && (
                       <button
@@ -358,7 +365,11 @@ export default function AdCenterOverview() {
                             ? 'secondary-button inline-flex items-center gap-2'
                             : 'primary-button inline-flex items-center gap-2'
                         }
-                        disabled={workingAccountId !== null || account.status === 'CLOSED'}
+                        disabled={
+                          workingAccountId !== null ||
+                          account.status === 'CLOSED' ||
+                          (!account.accessible && !account.managed)
+                        }
                         onClick={() => void setManaged(account, !account.managed)}
                       >
                         {account.managed ? (
