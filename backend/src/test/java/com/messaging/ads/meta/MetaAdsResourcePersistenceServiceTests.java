@@ -11,6 +11,7 @@ import com.messaging.ads.enums.AdAccountResourceType;
 import com.messaging.ads.enums.AdAccountStatus;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.meta.MetaAdsApiClient.PageSummary;
+import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdAccountResourceRepository;
 import java.util.List;
 import java.util.Optional;
@@ -26,13 +27,16 @@ class MetaAdsResourcePersistenceServiceTests {
   private static final Long COMPANY_ID = 101L;
   private static final Long ACCOUNT_ID = 202L;
 
+  @Mock private AdAccountRepository accountRepository;
   @Mock private AdAccountResourceRepository resourceRepository;
 
   private MetaAdsResourcePersistenceService service;
 
   @BeforeEach
   void setUp() {
-    service = new MetaAdsResourcePersistenceService(resourceRepository, new ObjectMapper());
+    service =
+        new MetaAdsResourcePersistenceService(
+            accountRepository, resourceRepository, new ObjectMapper());
   }
 
   @Test
@@ -51,6 +55,8 @@ class MetaAdsResourcePersistenceServiceTests {
     AdAccountResource removedPixel =
         resource(2L, AdAccountResourceType.META_PIXEL, "pixel-old");
 
+    when(accountRepository.findByIdAndCompanyIdForUpdate(ACCOUNT_ID, COMPANY_ID))
+        .thenReturn(Optional.of(account));
     when(resourceRepository
             .findByCompanyIdAndAdAccountIdAndResourceTypeAndExternalResourceId(
                 COMPANY_ID, ACCOUNT_ID, AdAccountResourceType.FACEBOOK_PAGE, "page-1"))
@@ -65,7 +71,8 @@ class MetaAdsResourcePersistenceServiceTests {
 
     var response =
         service.persist(
-            account,
+            COMPANY_ID,
+            ACCOUNT_ID,
             List.of(new PageSummary("page-1", "Acme")),
             List.of(),
             List.of());
