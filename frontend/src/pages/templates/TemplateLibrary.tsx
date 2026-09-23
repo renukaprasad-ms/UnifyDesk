@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { FiCode, FiCopy, FiEdit2, FiFileText, FiPlus, FiSearch, FiServer } from 'react-icons/fi'
 import EmailTemplateEditorModal from '../../components/email-templates/EmailTemplateEditorModal'
 import EmailTemplatePreview from '../../components/email-templates/EmailTemplatePreview'
@@ -8,6 +9,7 @@ import { emailTemplateApi } from '../../features/emailTemplate/emailTemplateApi'
 import type {
   EmailTemplate,
   EmailTemplateCatalogItem,
+  EmailTemplatePurpose,
   EmailTemplateSummary,
 } from '../../features/emailTemplate/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -20,6 +22,7 @@ export default function TemplateLibrary() {
   const companyId = useAppSelector(selectSelectedCompanyId)
   const snackbar = useSnackbar()
   const { can } = useIam()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [tab, setTab] = useState<'gallery' | 'mine'>('gallery')
   const [catalog, setCatalog] = useState<EmailTemplateCatalogItem[]>([])
   const [templates, setTemplates] = useState<EmailTemplateSummary[]>([])
@@ -28,6 +31,7 @@ export default function TemplateLibrary() {
   const [editor, setEditor] = useState<{
     template?: EmailTemplate | null
     mode?: 'BUILDER' | 'HTML'
+    purpose?: EmailTemplatePurpose
   } | null>(null)
   const [preview, setPreview] = useState<EmailTemplateCatalogItem | null>(null)
   const [providerTemplate, setProviderTemplate] = useState<EmailTemplateSummary | null>(null)
@@ -53,6 +57,19 @@ export default function TemplateLibrary() {
     const timer = window.setTimeout(() => void load(), 180)
     return () => window.clearTimeout(timer)
   }, [load])
+
+  useEffect(() => {
+    if (searchParams.get('create') !== 'transactional' || !can(PERMISSIONS.TEMPLATE_CREATE)) {
+      return
+    }
+
+    setEditor({ mode: 'BUILDER', purpose: 'TRANSACTIONAL' })
+    setTab('mine')
+
+    const next = new URLSearchParams(searchParams)
+    next.delete('create')
+    setSearchParams(next, { replace: true })
+  }, [can, searchParams, setSearchParams])
 
   const edit = async (templateId: string) => {
     if (!companyId) return
@@ -267,6 +284,7 @@ export default function TemplateLibrary() {
           companyId={companyId}
           template={editor.template}
           initialMode={editor.mode}
+          initialPurpose={editor.purpose}
           onClose={() => setEditor(null)}
           onSaved={() => {
             setEditor(null)
