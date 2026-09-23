@@ -14,12 +14,10 @@ import ConversationList, { conversationParticipant } from '../../components/inbo
 import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
 import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'
 import type { AsyncJob } from '../../features/asyncJob/types'
-import { channelApi } from '../../features/channel/channelApi'
 import { gmailApi } from '../../features/channel/gmailApi'
 import { imapSmtpApi } from '../../features/channel/imapSmtpApi'
 import { microsoftApi } from '../../features/channel/microsoftApi'
 import type {
-  ChannelConnection,
   EmailFolder,
   EmailSyncMode,
   EmailSyncRequest,
@@ -27,10 +25,24 @@ import type {
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { inboxApi } from '../../features/inbox/inboxApi'
-import type { InboxConversation, InboxMessage } from '../../features/inbox/types'
+import type {
+  InboxConversation,
+  InboxEmailChangedEvent,
+  InboxMessage,
+} from '../../features/inbox/types'
 import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { apiErrorMessage } from '../../lib/api/apiClient'
-import { useAppSelector } from '../../store/hooks'
+import { useSnackbar } from '../../components/feedback/SnackbarProvider'
+import {
+  applyConversationReadState,
+  applyMessageReadState,
+  applyRealtimeSnapshot,
+  clearConversationDetail,
+  fetchEmailConnections,
+  fetchInboxConversationDetail,
+  fetchInboxConversations,
+} from '../../store/inbox/inboxSlice'
+import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
 
 const messageTitle = (message: InboxMessage) =>
@@ -83,26 +95,19 @@ const defaultSyncRange = () => {
 }
 
 export default function EmailInbox() {
+  const dispatch = useAppDispatch()
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const inbox = useAppSelector((state) => state.inbox)
   const { can } = useIam()
+  const snackbar = useSnackbar()
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedConnectionId = searchParams.get('connectionId')
   const selectedConversationId = searchParams.get('conversationId')
   const selectedFolder = searchParams.get('folder') === 'SENT' ? 'SENT' : 'INBOX'
   const composeOpen = searchParams.get('compose') === '1'
-  const [connections, setConnections] = useState<ChannelConnection[]>([])
-  const [conversations, setConversations] = useState<InboxConversation[]>([])
-  const [selectedConversation, setSelectedConversation] = useState<InboxConversation | null>(null)
   const [mobileConversationOpen, setMobileConversationOpen] = useState(
     Boolean(selectedConversationId),
   )
-  const [messages, setMessages] = useState<InboxMessage[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [currentPage, setCurrentPage] = useState(0)
-  const [totalPages, setTotalPages] = useState(0)
-  const [totalElements, setTotalElements] = useState(0)
-  const [messagesLoading, setMessagesLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [sending, setSending] = useState(false)
   const [readUpdatingConversationId, setReadUpdatingConversationId] = useState<string | null>(null)
@@ -129,11 +134,45 @@ export default function EmailInbox() {
   const [syncFolder, setSyncFolder] = useState<EmailFolder>('INBOX')
   const [syncMessageCount, setSyncMessageCount] = useState(100)
   const [syncJobs, setSyncJobs] = useState<Record<string, AsyncJob>>({})
-  const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
   const [realtimeConnected, setRealtimeConnected] = useState(realtimeClient.isConnected())
-  const inboxRefreshTimerRef = useRef<number | null>(null)
-  const selectedConversationRefreshTimerRef = useRef<number | null>(null)
+  const completedSyncRefreshesRef = useRef(new Set<string>())
+  const trackedSyncJobIdsRef = useRef(new Set<string>())
+  const autoReadConversationRef = useRef<string | null>(null)
+  const realtimeBatchRef = useRef<{
+    conversationIds: Set<string>
+    messageIds: Set<string>
+    timer: number | null
+    fullRefresh: boolean
+  }>({
+    conversationIds: new Set(),
+    messageIds: new Set(),
+    timer: null,
+    fullRefresh: false,
+  })
+
+  const connections =
+    inbox.connectionsCompanyId === companyId
+      ? inbox.connections.filter(
+          (connection) =>
+            connection.status === 'ACTIVE' && connection.capabilities.includes('INBOX'),
+        )
+      : []
+  const sameConversationScope =
+    inbox.scopeCompanyId === companyId &&
+    inbox.scopeConnectionId === selectedConnectionId &&
+    inbox.scopeFolder === selectedFolder
+  const conversations = sameConversationScope ? inbox.conversations : []
+  const loading = sameConversationScope && inbox.conversationsStatus === 'loading'
+  const loadingMore = sameConversationScope && inbox.loadingMore
+  const currentPage = sameConversationScope ? inbox.conversationPage : 0
+  const totalPages = sameConversationScope ? inbox.conversationTotalPages : 0
+  const totalElements = sameConversationScope ? inbox.conversationTotalElements : 0
+  const detailSelected =
+    inbox.detailCompanyId === companyId &&
+    inbox.detailConversationId === selectedConversationId
+  const selectedConversation = detailSelected ? inbox.selectedConversation : null
+  const messages = detailSelected ? inbox.messages : []
+  const messagesLoading = detailSelected && inbox.detailStatus === 'loading'
 
   const selectedConnection = useMemo(
     () => connections.find((connection) => connection.id === selectedConnectionId) ?? null,
@@ -153,126 +192,76 @@ export default function EmailInbox() {
   }, [connections, selectedConnection, selectedConversation])
 
   const loadConversations = useCallback(
-    async (page = 0, append = false) => {
-      if (!companyId) return
-      setError(null)
-
-      if (append) {
-        setLoadingMore(true)
-      } else {
-        setLoading(true)
-      }
-
+    async (page = 0, append = false, force = false) => {
+      if (!companyId || !selectedConnectionId) return
       try {
-        const emailConnections = await channelApi.list(companyId, 'EMAIL')
-        setConnections(emailConnections)
-
-        const activeConnections = emailConnections.filter(
-          (connection) => connection.status === 'ACTIVE',
-        )
-        const selectedIsActive = activeConnections.some(
-          (connection) => connection.id === selectedConnectionId,
-        )
-
-        if (!selectedConnectionId || !selectedIsActive) {
-          const first = activeConnections[0]
-          setConversations([])
-          setCurrentPage(0)
-          setTotalPages(0)
-          setTotalElements(0)
-
-          if (first) {
-            const params = new URLSearchParams(window.location.search)
-            params.set('connectionId', first.id)
-            if (!params.get('folder')) params.set('folder', 'INBOX')
-            params.delete('conversationId')
-            setSearchParams(params, { replace: true })
-          }
-          return
-        }
-
-        const inbox = await inboxApi.conversations(
-          companyId,
-          page,
-          30,
-          selectedConnectionId,
-          selectedFolder,
-        )
-
-        setConversations((current) => {
-          if (!append) return inbox.items
-          const byId = new Map(current.map((conversation) => [conversation.id, conversation]))
-          inbox.items.forEach((conversation) => byId.set(conversation.id, conversation))
-          return Array.from(byId.values())
-        })
-        setCurrentPage(inbox.page)
-        setTotalPages(inbox.totalPages)
-        setTotalElements(inbox.totalElements)
-
+        await dispatch(
+          fetchInboxConversations({
+            companyId,
+            connectionId: selectedConnectionId,
+            folder: selectedFolder,
+            page,
+            append,
+            force,
+          }),
+        ).unwrap()
       } catch (requestError) {
-        setError(apiErrorMessage(requestError, 'Unable to load email inbox'))
-      } finally {
-        setLoading(false)
-        setLoadingMore(false)
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load email inbox'))
       }
     },
-    [companyId, selectedConnectionId, selectedFolder, setSearchParams],
+    [companyId, dispatch, selectedConnectionId, selectedFolder],
   )
 
-  const refreshConversationList = useCallback(async () => {
-    if (!companyId || !selectedConnectionId) return
-
-    try {
-      const inbox = await inboxApi.conversations(
-        companyId,
-        0,
-        30,
-        selectedConnectionId,
-        selectedFolder,
+  const refreshInbox = useCallback(
+    async (includeDetail = true) => {
+      if (!companyId || !selectedConnectionId) return
+      await dispatch(
+        fetchInboxConversations({
+          companyId,
+          connectionId: selectedConnectionId,
+          folder: selectedFolder,
+          force: true,
+        }),
       )
-      setConversations(inbox.items)
-      setCurrentPage(inbox.page)
-      setTotalPages(inbox.totalPages)
-      setTotalElements(inbox.totalElements)
-    } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to refresh email inbox'))
-    }
-  }, [companyId, selectedConnectionId, selectedFolder])
-
-  const scheduleInboxRefresh = useCallback(
-    (delayMs = 750) => {
-      if (inboxRefreshTimerRef.current !== null) return
-      inboxRefreshTimerRef.current = window.setTimeout(() => {
-        inboxRefreshTimerRef.current = null
-        void refreshConversationList()
-      }, delayMs)
-    },
-    [refreshConversationList],
-  )
-
-  useEffect(
-    () => () => {
-      if (inboxRefreshTimerRef.current !== null) {
-        window.clearTimeout(inboxRefreshTimerRef.current)
+      if (includeDetail && selectedConversationId) {
+        await dispatch(
+          fetchInboxConversationDetail({
+            companyId,
+            conversationId: selectedConversationId,
+            force: true,
+          }),
+        )
       }
     },
-    [],
+    [
+      companyId,
+      dispatch,
+      selectedConnectionId,
+      selectedConversationId,
+      selectedFolder,
+    ],
   )
 
   useEffect(() => {
-    if (inboxRefreshTimerRef.current !== null) {
-      window.clearTimeout(inboxRefreshTimerRef.current)
-      inboxRefreshTimerRef.current = null
-    }
-  }, [selectedConnectionId, selectedFolder])
+    if (!companyId) return
+    void dispatch(fetchEmailConnections({ companyId }))
+  }, [companyId, dispatch])
+
+  useEffect(() => {
+    if (!companyId || !selectedConnectionId) return
+    void dispatch(
+      fetchInboxConversations({
+        companyId,
+        connectionId: selectedConnectionId,
+        folder: selectedFolder,
+      }),
+    )
+  }, [companyId, dispatch, selectedConnectionId, selectedFolder])
 
   useEffect(() => {
     setMobileConversationOpen(Boolean(selectedConversationId))
+    if (!selectedConversationId) autoReadConversationRef.current = null
   }, [selectedConversationId])
-
-  useEffect(() => {
-    void loadConversations(0, false)
-  }, [companyId, selectedConnectionId, loadConversations])
 
   useEffect(() => {
     if (
@@ -297,9 +286,6 @@ export default function EmailInbox() {
       .then((job) => {
         if (!active) return
         setSyncJobs(job ? { [job.jobId]: job } : {})
-        if (job && job.completedUnits > 0) {
-          scheduleInboxRefresh()
-        }
       })
       .catch(() => {
         if (active) setSyncJobs({})
@@ -308,7 +294,7 @@ export default function EmailInbox() {
     return () => {
       active = false
     }
-  }, [companyId, selectedConnectionId, selectedProviderType, scheduleInboxRefresh])
+  }, [companyId, selectedConnectionId, selectedProviderType])
 
   useEffect(() => {
     const gmailResult = searchParams.get('gmail')
@@ -316,110 +302,54 @@ export default function EmailInbox() {
     if (!gmailResult && !microsoftResult) return
 
     if (gmailResult === 'connected') {
-      setNotice('Gmail connected successfully')
+      snackbar.success('Gmail connected successfully')
     } else if (gmailResult === 'cancelled') {
-      setNotice('Gmail connection was cancelled')
+      snackbar.info('Gmail connection was cancelled')
     } else if (gmailResult) {
-      setError('Unable to connect Gmail. Please try again.')
+      snackbar.error('Unable to connect Gmail. Please try again.')
     }
 
     if (microsoftResult === 'connected') {
-      setNotice('Microsoft 365 connected successfully')
+      snackbar.success('Microsoft 365 connected successfully')
     } else if (microsoftResult === 'cancelled') {
-      setNotice('Microsoft 365 connection was cancelled')
+      snackbar.info('Microsoft 365 connection was cancelled')
     } else if (microsoftResult) {
-      setError('Unable to connect Microsoft 365. Please try again.')
+      snackbar.error('Unable to connect Microsoft 365. Please try again.')
     }
 
     const params = new URLSearchParams(searchParams)
     params.delete('gmail')
     params.delete('microsoft')
     setSearchParams(params, { replace: true })
-    void loadConversations(0, false)
-  }, [loadConversations, searchParams, setSearchParams])
-
-  const refreshSelectedConversation = useCallback(async () => {
-    if (!companyId || !selectedConversationId) {
-      setSelectedConversation(null)
-      setMessages([])
-      return
+    if (companyId) {
+      void dispatch(fetchEmailConnections({ companyId, force: true }))
     }
-
-    try {
-      const [conversation, items] = await Promise.all([
-        inboxApi.conversation(companyId, selectedConversationId),
-        inboxApi.messages(companyId, selectedConversationId),
-      ])
-      setSelectedConversation(conversation)
-      setMessages(items)
-    } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to load conversation'))
-    }
-  }, [companyId, selectedConversationId])
-
-  const scheduleSelectedConversationRefresh = useCallback(
-    (delayMs = 750) => {
-      if (!selectedConversationId || selectedConversationRefreshTimerRef.current !== null) return
-      selectedConversationRefreshTimerRef.current = window.setTimeout(() => {
-        selectedConversationRefreshTimerRef.current = null
-        void refreshSelectedConversation()
-      }, delayMs)
-    },
-    [refreshSelectedConversation, selectedConversationId],
-  )
-
-  useEffect(
-    () => () => {
-      if (selectedConversationRefreshTimerRef.current !== null) {
-        window.clearTimeout(selectedConversationRefreshTimerRef.current)
-      }
-    },
-    [],
-  )
-
-  useEffect(() => {
-    if (selectedConversationRefreshTimerRef.current !== null) {
-      window.clearTimeout(selectedConversationRefreshTimerRef.current)
-      selectedConversationRefreshTimerRef.current = null
-    }
-  }, [selectedConversationId])
+  }, [companyId, dispatch, searchParams, setSearchParams])
 
   useEffect(() => {
     if (!companyId || !selectedConversationId) {
-      setSelectedConversation(null)
-      setMessages([])
-      setMessagesLoading(false)
+      dispatch(clearConversationDetail())
       return
     }
 
-    let active = true
-    setMessagesLoading(true)
-    Promise.all([
-      inboxApi.conversation(companyId, selectedConversationId),
-      inboxApi.messages(companyId, selectedConversationId),
-    ])
-      .then(([conversation, items]) => {
-        if (!active) return
-        setSelectedConversation(conversation)
-        setMessages(items)
-      })
-      .catch((requestError) => {
-        if (active) setError(apiErrorMessage(requestError, 'Unable to load conversation'))
-      })
-      .finally(() => {
-        if (active) setMessagesLoading(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [companyId, selectedConversationId])
+    void dispatch(
+      fetchInboxConversationDetail({
+        companyId,
+        conversationId: selectedConversationId,
+      }),
+    ).unwrap().catch((requestError) => {
+      snackbar.error(apiErrorMessage(requestError, 'Unable to load conversation'))
+    })
+  }, [companyId, dispatch, selectedConversationId])
 
   const trackedSyncJobs = useMemo(() => Object.values(syncJobs), [syncJobs])
   const activeSyncJobs = useMemo(
     () => trackedSyncJobs.filter((job) => job.status === 'QUEUED' || job.status === 'RUNNING'),
     [trackedSyncJobs],
   )
+  useEffect(() => {
+    trackedSyncJobIdsRef.current = new Set(trackedSyncJobs.map((job) => job.jobId))
+  }, [trackedSyncJobs])
   const activeMarkAllJob =
     markAllJob?.status === 'QUEUED' || markAllJob?.status === 'RUNNING' ? markAllJob : null
   const overallSyncProgress = useMemo(() => {
@@ -437,27 +367,75 @@ export default function EmailInbox() {
     setMarkAllStarting(false)
   }, [selectedConnectionId, selectedFolder])
 
-  useEffect(
-    () =>
-      realtimeClient.subscribe<{ connectionId?: string }>('inbox.email.changed', (event) => {
-        const changedConnectionId = event.payload?.connectionId
-        if (
-          changedConnectionId &&
-          selectedConnectionId &&
-          changedConnectionId !== selectedConnectionId
-        ) {
-          return
-        }
+  useEffect(() => {
+    if (!companyId || !selectedConnectionId) return
 
-        scheduleInboxRefresh(750)
-        scheduleSelectedConversationRefresh(750)
-      }),
-    [
-      scheduleInboxRefresh,
-      scheduleSelectedConversationRefresh,
-      selectedConnectionId,
-    ],
-  )
+    const batch = realtimeBatchRef.current
+
+    const flush = async () => {
+      batch.timer = null
+      const conversationIds = Array.from(batch.conversationIds)
+      const messageIds = Array.from(batch.messageIds)
+      const fullRefresh = batch.fullRefresh
+      batch.conversationIds.clear()
+      batch.messageIds.clear()
+      batch.fullRefresh = false
+
+      if (fullRefresh) {
+        await refreshInbox(true)
+        return
+      }
+      if (conversationIds.length === 0 && messageIds.length === 0) return
+
+      try {
+        const snapshot = await inboxApi.realtimeSnapshot(companyId, {
+          connectionId: selectedConnectionId,
+          folder: selectedFolder,
+          detailConversationId: selectedConversationId,
+          conversationIds,
+          messageIds: selectedConversationId ? messageIds : [],
+        })
+        dispatch(applyRealtimeSnapshot({ connectionId: selectedConnectionId, snapshot }))
+      } catch (requestError) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to apply realtime inbox update'))
+      }
+    }
+
+    const unsubscribe = realtimeClient.subscribe<InboxEmailChangedEvent>(
+      'inbox.email.changed',
+      (event) => {
+        const change = event.payload
+        if (!change || change.connectionId !== selectedConnectionId) return
+
+        if (change.fullRefreshRequired) batch.fullRefresh = true
+        change.conversationIds?.forEach((id) => batch.conversationIds.add(id))
+        change.messageIds?.forEach((id) => batch.messageIds.add(id))
+        change.deletedMessageIds?.forEach((id) => batch.messageIds.add(id))
+
+        if (batch.timer === null) {
+          batch.timer = window.setTimeout(() => void flush(), 100)
+        }
+      },
+    )
+
+    return () => {
+      unsubscribe()
+      if (batch.timer !== null) {
+        window.clearTimeout(batch.timer)
+        batch.timer = null
+      }
+      batch.conversationIds.clear()
+      batch.messageIds.clear()
+      batch.fullRefresh = false
+    }
+  }, [
+    companyId,
+    dispatch,
+    refreshInbox,
+    selectedConnectionId,
+    selectedConversationId,
+    selectedFolder,
+  ])
 
   useEffect(() => {
     return realtimeClient.subscribe<AsyncJob>('async.job.progress', (event) => {
@@ -472,32 +450,28 @@ export default function EmailInbox() {
           if (!current[job.jobId]) return current
           return { ...current, [job.jobId]: job }
         })
-        if (job.completedUnits > 0) {
-          scheduleInboxRefresh(5000)
-          scheduleSelectedConversationRefresh(5000)
-        }
-        if (job.status === 'FAILED') {
-          setError(job.errorMessage || 'Email sync failed')
+        if (
+          job.status === 'COMPLETED' &&
+          trackedSyncJobIdsRef.current.has(job.jobId) &&
+          !completedSyncRefreshesRef.current.has(job.jobId)
+        ) {
+          completedSyncRefreshesRef.current.add(job.jobId)
+          void refreshInbox(true)
+        } else if (job.status === 'FAILED') {
+          snackbar.error(job.errorMessage || 'Email sync failed')
         }
       }
 
       if (job.jobType === 'INBOX_READ_SYNC') {
         setMarkAllJob((current) => (current?.jobId === job.jobId ? job : current))
-        if (job.completedUnits > 0 || job.status === 'COMPLETED') {
-          scheduleInboxRefresh(1000)
-          scheduleSelectedConversationRefresh(1000)
-        }
         if (job.status === 'COMPLETED') {
-          setNotice('All unread messages in this inbox are now marked as read.')
+          snackbar.success('All unread messages in this inbox are now marked as read.')
         } else if (job.status === 'FAILED') {
-          setError(job.errorMessage || 'Unable to mark all messages as read')
+          snackbar.error(job.errorMessage || 'Unable to mark all messages as read')
         }
       }
     })
-  }, [
-    scheduleInboxRefresh,
-    scheduleSelectedConversationRefresh,
-  ])
+  }, [refreshInbox])
 
   useEffect(() => {
     if (activeSyncJobs.length === 0 || realtimeConnected) return
@@ -507,14 +481,23 @@ export default function EmailInbox() {
         activeSyncJobs.map((job) =>
           asyncJobApi
             .get(job.jobId)
-            .then((latest) => setSyncJobs((current) => ({ ...current, [latest.jobId]: latest })))
+            .then((latest) => {
+              setSyncJobs((current) => ({ ...current, [latest.jobId]: latest }))
+              if (
+                latest.status === 'COMPLETED' &&
+                !completedSyncRefreshesRef.current.has(latest.jobId)
+              ) {
+                completedSyncRefreshesRef.current.add(latest.jobId)
+                void refreshInbox(true)
+              }
+            })
             .catch(() => undefined),
         ),
       )
     }, 3000)
 
     return () => window.clearInterval(timer)
-  }, [activeSyncJobs, realtimeConnected])
+  }, [activeSyncJobs, realtimeConnected, refreshInbox])
 
   useEffect(() => {
     if (!activeMarkAllJob || realtimeConnected) return
@@ -524,38 +507,37 @@ export default function EmailInbox() {
         .get(activeMarkAllJob.jobId)
         .then((latest) => {
           setMarkAllJob(latest)
-          if (latest.completedUnits > 0 || latest.status === 'COMPLETED') {
-            scheduleInboxRefresh(1000)
+          if (latest.status === 'COMPLETED') {
+            void refreshInbox(true)
           }
           if (latest.status === 'COMPLETED') {
-            setNotice('All unread messages in this inbox are now marked as read.')
+            snackbar.success('All unread messages in this inbox are now marked as read.')
           } else if (latest.status === 'FAILED') {
-            setError(latest.errorMessage || 'Unable to mark all messages as read')
+            snackbar.error(latest.errorMessage || 'Unable to mark all messages as read')
           }
         })
         .catch(() => undefined)
     }, 3000)
 
     return () => window.clearInterval(timer)
-  }, [activeMarkAllJob, realtimeConnected, scheduleInboxRefresh])
+  }, [activeMarkAllJob, realtimeConnected, refreshInbox])
 
   const openSyncDialog = () => {
     if (!selectedConnection) {
-      setNotice('Select an email account before syncing.')
+      snackbar.info('Select an email account before syncing.')
       return
     }
     if (
       selectedConnection.status !== 'ACTIVE' ||
       !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
     ) {
-      setNotice('The selected email account does not support sync.')
+      snackbar.info('The selected email account does not support sync.')
       return
     }
 
     setSyncFolder(selectedFolder)
     setSyncMode('DATE_RANGE')
     setSyncMessageCount(100)
-    setError(null)
     setShowSyncDialog(true)
   }
 
@@ -566,21 +548,21 @@ export default function EmailInbox() {
       selectedConnection.status !== 'ACTIVE' ||
       !['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)
     ) {
-      setError('The selected email account is not active.')
+      snackbar.warning('The selected email account is not active.')
       return
     }
 
     if (syncMode === 'DATE_RANGE') {
       if (!syncFrom || !syncTo) {
-        setError('Choose both sync dates.')
+        snackbar.warning('Choose both sync dates.')
         return
       }
       if (syncFrom > syncTo) {
-        setError('From date must be before or equal to the to date.')
+        snackbar.warning('From date must be before or equal to the to date.')
         return
       }
     } else if (!Number.isInteger(syncMessageCount) || syncMessageCount < 1 || syncMessageCount > 10000) {
-      setError('Choose a message count between 1 and 10,000.')
+      snackbar.warning('Choose a message count between 1 and 10,000.')
       return
     }
 
@@ -599,8 +581,6 @@ export default function EmailInbox() {
           }
 
     setSyncing(true)
-    setError(null)
-    setNotice(null)
 
     try {
       const queued =
@@ -612,91 +592,97 @@ export default function EmailInbox() {
       const job = await asyncJobApi.get(queued.jobId)
       setSyncJobs({ [job.jobId]: job })
       setShowSyncDialog(false)
-      setNotice(
+      snackbar.info(
         `Email sync started for ${selectedConnection.externalAccountId || selectedConnection.name}.`,
       )
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to queue email sync'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to queue email sync'))
     } finally {
       setSyncing(false)
     }
   }
 
-  const changeConversationReadState = async (
-    conversation: InboxConversation,
-    read: boolean,
-    silent = false,
-  ) => {
-    if (!companyId || !can(PERMISSIONS.EMAIL_MODIFY)) return
-    if (readUpdatingConversationId === conversation.id) return
+  const changeConversationReadState = useCallback(
+    async (conversation: InboxConversation, read: boolean, silent = false) => {
+      if (!companyId || !can(PERMISSIONS.EMAIL_MODIFY)) return
+      if (readUpdatingConversationId === conversation.id) return
 
-    setReadUpdatingConversationId(conversation.id)
-    setError(null)
+      setReadUpdatingConversationId(conversation.id)
 
-    if (read) {
-      setConversations((current) =>
-        current.map((item) =>
-          item.id === conversation.id ? { ...item, unreadCount: 0 } : item,
-        ),
-      )
-      if (selectedConversation?.id === conversation.id) {
-        setSelectedConversation({ ...selectedConversation, unreadCount: 0 })
+      if (read) {
+        dispatch(applyConversationReadState({ conversationId: conversation.id, read: true }))
       }
-      if (selectedConversationId === conversation.id) {
-        setMessages((current) =>
-          current.map((message) =>
-            message.direction === 'INBOUND' ? { ...message, read: true } : message,
-          ),
+
+      try {
+        const result = await inboxApi.setConversationReadState(companyId, conversation.id, read)
+        if (!silent) {
+          snackbar.success(
+            result.updatedMessages === 0
+              ? read
+                ? 'Conversation is already read.'
+                : 'Conversation is already unread.'
+              : read
+                ? 'Conversation marked as read.'
+                : 'Conversation marked as unread.',
+          )
+        }
+      } catch (requestError) {
+        snackbar.error(
+          apiErrorMessage(requestError, 'Unable to update conversation read state'),
         )
+        void refreshInbox(selectedConversationId === conversation.id)
+      } finally {
+        setReadUpdatingConversationId(null)
       }
+    },
+    [
+      can,
+      companyId,
+      dispatch,
+      readUpdatingConversationId,
+      refreshInbox,
+      selectedConversationId,
+      snackbar,
+    ],
+  )
+
+  useEffect(() => {
+    if (
+      !selectedConversation ||
+      selectedFolder !== 'INBOX' ||
+      selectedConversation.unreadCount <= 0 ||
+      !can(PERMISSIONS.EMAIL_MODIFY) ||
+      readUpdatingConversationId === selectedConversation.id ||
+      autoReadConversationRef.current === selectedConversation.id
+    ) {
+      return
     }
 
-    try {
-      const result = await inboxApi.setConversationReadState(companyId, conversation.id, read)
-      if (!silent) {
-        setNotice(
-          result.updatedMessages === 0
-            ? read
-              ? 'Conversation is already read.'
-              : 'Conversation is already unread.'
-            : read
-              ? 'Conversation marked as read.'
-              : 'Conversation marked as unread.',
-        )
+    autoReadConversationRef.current = selectedConversation.id
+    void changeConversationReadState(selectedConversation, true, true).finally(() => {
+      if (autoReadConversationRef.current === selectedConversation.id) {
+        autoReadConversationRef.current = null
       }
-      scheduleInboxRefresh()
-      if (selectedConversationId === conversation.id) {
-        await refreshSelectedConversation()
-      }
-    } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to update conversation read state'))
-      void loadConversations(0, false)
-      if (selectedConversationId === conversation.id) {
-        void refreshSelectedConversation()
-      }
-    } finally {
-      setReadUpdatingConversationId(null)
-    }
-  }
+    })
+  }, [
+    can,
+    changeConversationReadState,
+    readUpdatingConversationId,
+    selectedConversation,
+    selectedFolder,
+  ])
 
   const changeMessageReadState = async (message: InboxMessage, read: boolean) => {
     if (!companyId || !can(PERMISSIONS.EMAIL_MODIFY)) return
     if (readUpdatingMessageId === message.id) return
 
     setReadUpdatingMessageId(message.id)
-    setError(null)
     try {
       await inboxApi.setMessageReadState(companyId, message.id, read)
-      setMessages((current) =>
-        current.map((item) => (item.id === message.id ? { ...item, read } : item)),
-      )
-      setNotice(read ? 'Message marked as read.' : 'Message marked as unread.')
-      scheduleInboxRefresh()
-      if (selectedConversationId) {
-        await refreshSelectedConversation()
-      }
+      dispatch(applyMessageReadState({ messageId: message.id, read }))
+      snackbar.success(read ? 'Message marked as read.' : 'Message marked as unread.')
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to update message read state'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to update message read state'))
     } finally {
       setReadUpdatingMessageId(null)
     }
@@ -715,18 +701,16 @@ export default function EmailInbox() {
     }
 
     setMarkAllStarting(true)
-    setError(null)
-    setNotice(null)
     try {
       const job = await inboxApi.markAllRead(companyId, selectedConnection.id, 'INBOX')
       setMarkAllJob(job)
-      setNotice(
+      snackbar.info(
         job.status === 'COMPLETED'
           ? 'This inbox has no unread messages.'
           : 'Mark all as read started. You can keep using the inbox while it finishes.',
       )
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to start mark all as read'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to start mark all as read'))
     } finally {
       setMarkAllStarting(false)
     }
@@ -759,7 +743,7 @@ export default function EmailInbox() {
 
   const showCompose = () => {
     if (!selectedConnection) {
-      setNotice('Select an email account before composing.')
+      snackbar.info('Select an email account before composing.')
       return
     }
     const params = new URLSearchParams(searchParams)
@@ -814,7 +798,7 @@ export default function EmailInbox() {
   const openReply = (message: InboxMessage, replyAll: boolean) => {
     const recipients = replyRecipients(message, replyAll)
     if (recipients.to.length === 0) {
-      setError('Unable to determine a recipient for this reply.')
+      snackbar.warning('Unable to determine a recipient for this reply.')
       return
     }
 
@@ -869,7 +853,7 @@ export default function EmailInbox() {
     event.preventDefault()
     if (!companyId || !selectedConnection || sending) return
     if (!['GMAIL', 'MICROSOFT', 'IMAP_SMTP'].includes(selectedConnection.providerType)) {
-      setError('Sending is not available for the selected email provider.')
+      snackbar.warning('Sending is not available for the selected email provider.')
       return
     }
 
@@ -877,13 +861,11 @@ export default function EmailInbox() {
     const cc = parseRecipients(composeCc)
     const bcc = parseRecipients(composeBcc)
     if (to.length === 0 && cc.length === 0 && bcc.length === 0) {
-      setError('Add at least one To, CC, or BCC recipient.')
+      snackbar.warning('Add at least one To, CC, or BCC recipient.')
       return
     }
 
     setSending(true)
-    setError(null)
-    setNotice(null)
     try {
       const sent =
         selectedConnection.providerType === 'GMAIL'
@@ -921,16 +903,14 @@ export default function EmailInbox() {
               })
       resetCompose()
       closeCompose()
-      setNotice(
+      snackbar.success(
         `Email sent from ${sent.from} to ${[...sent.to, ...sent.cc, ...sent.bcc].join(', ')}.`,
       )
-      await loadConversations(0, false)
-      if (selectedConversationId) {
-        const latestMessages = await inboxApi.messages(companyId, selectedConversationId)
-        setMessages(latestMessages)
+      if (!realtimeConnected) {
+        void refreshInbox(true)
       }
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Unable to send email'))
+      snackbar.error(apiErrorMessage(requestError, 'Unable to send email'))
     } finally {
       setSending(false)
     }
@@ -956,20 +936,20 @@ export default function EmailInbox() {
     <section className="channel-workspace-page">
       <div className="channel-workspace-toolbar">
         <div className="min-w-0 lg:hidden">
-          <p className="eyebrow">EMAIL</p>
+          <p className="eyebrow">{selectedFolder === 'INBOX' ? 'INBOX' : 'SENT'}</p>
           <p className="mt-1 truncate text-xs font-semibold text-slate-700">
             {selectedConnection?.externalAccountId || selectedConnection?.name || 'Inbox'}
           </p>
         </div>
-        <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+        <div className="inbox-toolbar-actions ml-auto flex w-full items-center justify-end gap-2 sm:w-auto">
             <button
               type="button"
               className="secondary-button flex-1 gap-2 sm:flex-none"
-              onClick={() => void loadConversations(0, false)}
+              onClick={() => void refreshInbox(true)}
               disabled={loading || !selectedConnection}
             >
               <FiRefreshCw aria-hidden="true" />
-              Refresh
+              <span className="inbox-action-label">Refresh</span>
             </button>
             {selectedFolder === 'INBOX' && can(PERMISSIONS.EMAIL_MODIFY) && (
               <button
@@ -979,7 +959,9 @@ export default function EmailInbox() {
                 disabled={!selectedConnection || markAllStarting || Boolean(activeMarkAllJob)}
               >
                 <FiCheckCircle aria-hidden="true" />
-                {markAllStarting || activeMarkAllJob ? 'Marking…' : 'Mark all read'}
+                <span className="inbox-action-label">
+                  {markAllStarting || activeMarkAllJob ? 'Marking…' : 'Mark all read'}
+                </span>
               </button>
             )}
             <button
@@ -994,7 +976,9 @@ export default function EmailInbox() {
               }
             >
               <FiMail aria-hidden="true" />
-              {syncing || activeSyncJobs.length > 0 ? 'Syncing…' : 'Sync'}
+              <span className="inbox-action-label">
+                {syncing || activeSyncJobs.length > 0 ? 'Syncing…' : 'Sync'}
+              </span>
             </button>
             {canSendSelectedEmail && (
               <button
@@ -1003,24 +987,13 @@ export default function EmailInbox() {
                 onClick={openCompose}
               >
                 <FiSend aria-hidden="true" />
-                Compose
+                <span className="inbox-action-label">Compose</span>
               </button>
             )}
           </div>
       </div>
 
       <div className="channel-workspace-body">
-        {error && (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-        {notice && (
-          <div className="mb-4 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
-            {notice}
-          </div>
-        )}
-
         {markAllJob && (
           <div className="panel mb-4 p-4">
             <div className="flex items-center justify-between gap-3">
@@ -1353,7 +1326,7 @@ export default function EmailInbox() {
         )}
 
         <div
-          className={`${mobileConversationOpen ? 'hidden' : 'block'} panel mb-4 overflow-hidden lg:hidden`}
+          className={`${mobileConversationOpen ? 'hidden' : 'block'} mobile-inbox-list panel mb-4 overflow-hidden lg:hidden`}
         >
           <div className="border-b border-slate-100 px-4 py-3">
             <p className="text-xs font-bold text-slate-900">Chats</p>
@@ -1362,6 +1335,7 @@ export default function EmailInbox() {
             </p>
           </div>
           <ConversationList
+            compact
             conversations={conversations}
             connections={connections}
             selectedId={selectedConversationId}
@@ -1387,11 +1361,17 @@ export default function EmailInbox() {
             </div>
           ) : (
             <>
-              <header className="flex items-start gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
+              <header className="inbox-thread-header flex items-start gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
                 <button
                   type="button"
                   className="secondary-button shrink-0 px-3 lg:hidden"
-                  onClick={() => setMobileConversationOpen(false)}
+                  onClick={() => {
+                    const params = new URLSearchParams(searchParams)
+                    params.delete('conversationId')
+                    params.delete('compose')
+                    setSearchParams(params)
+                    setMobileConversationOpen(false)
+                  }}
                   aria-label="Back to conversations"
                 >
                   <FiArrowLeft aria-hidden="true" />

@@ -32,11 +32,24 @@ public class MediaAuthorizationService {
       return;
     }
 
+    if (media.getCompanyId() != null && canReadCompanyMedia(media.getCompanyId(), userId)) {
+      return;
+    }
+
     if (media.getPurpose() == MediaPurpose.COMPANY_LOGO && canReadCompanyLogo(media, userId)) {
       return;
     }
 
     throw new MediaException(HttpStatus.FORBIDDEN, "MEDIA_ACCESS_DENIED");
+  }
+
+  private boolean canReadCompanyMedia(long companyId, long userId) {
+    if (companyMemberRepository.existsByCompanyIdAndUserIdAndStatus(
+        companyId, userId, CompanyMemberStatus.ACTIVE)) {
+      return true;
+    }
+    return platformAdminAuthorizationService.canAccessCompany(userId, companyId)
+        && platformAdminAuthorizationService.hasPermission(userId, PlatformPermission.COMPANY_VIEW);
   }
 
   private boolean canReadCompanyLogo(Media media, long userId) {

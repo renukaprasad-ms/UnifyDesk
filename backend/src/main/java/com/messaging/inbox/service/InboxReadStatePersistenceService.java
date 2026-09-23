@@ -22,17 +22,19 @@ public class InboxReadStatePersistenceService {
   @Transactional
   public ApplyResult apply(Collection<Long> messageIds, boolean read) {
     if (messageIds == null || messageIds.isEmpty()) {
-      return new ApplyResult(0, Set.of());
+      return new ApplyResult(0, Set.of(), Set.of());
     }
 
     List<InboxMessage> messages = messageRepository.findAllById(messageIds);
     Set<Long> conversationIds = new LinkedHashSet<>();
+    Set<Long> changedMessageIds = new LinkedHashSet<>();
     int changed = 0;
 
     for (InboxMessage message : messages) {
       if (message.isRead() == read) continue;
       message.setRead(read);
       conversationIds.add(message.getConversation().getId());
+      changedMessageIds.add(message.getId());
       changed++;
     }
 
@@ -52,8 +54,9 @@ public class InboxReadStatePersistenceService {
               });
     }
 
-    return new ApplyResult(changed, conversationIds);
+    return new ApplyResult(changed, conversationIds, changedMessageIds);
   }
 
-  public record ApplyResult(int changedMessages, Set<Long> conversationIds) {}
+  public record ApplyResult(
+      int changedMessages, Set<Long> conversationIds, Set<Long> messageIds) {}
 }

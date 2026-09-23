@@ -20,6 +20,7 @@ import InviteAccept from '../pages/invitations/InviteAccept'
 import BroadcastWorkspace from '../pages/broadcast/BroadcastWorkspace'
 import EmailInbox from '../pages/inbox/EmailInbox'
 import PlaceholderPage from '../pages/placeholder/PlaceholderPage'
+import TemplateLibrary from '../pages/templates/TemplateLibrary'
 import PlatformAdmins from '../pages/platform/PlatformAdmins'
 import PlatformBilling from '../pages/platform/PlatformBilling'
 import PlatformCompanies from '../pages/platform/PlatformCompanies'
@@ -81,7 +82,7 @@ const AppRoutes = () => (
               <Route path="broadcast/email" element={<BroadcastWorkspace />} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.TEMPLATE_READ]} />}>
-              <Route path="templates" element={<PlaceholderPage />} />
+              <Route path="templates" element={<TemplateLibrary />} />
             </Route>
 
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.COMPANY_READ]} />}>

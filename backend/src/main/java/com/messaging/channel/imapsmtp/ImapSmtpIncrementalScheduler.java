@@ -1,14 +1,17 @@
 package com.messaging.channel.imapsmtp;
 
 import com.messaging.channel.email.EmailFolder;
+import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.imapsmtp.ImapSmtpSyncStateService.ClaimedIncremental;
 import com.messaging.channel.repository.ChannelConnectionRepository;
+import com.messaging.inbox.dto.InboxEmailChangedEvent;
 import com.messaging.realtime.service.RealtimeService;
 import jakarta.annotation.PreDestroy;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -80,6 +83,8 @@ public class ImapSmtpIncrementalScheduler {
       ImapSmtpStoredCredentials credentials = connectionService.credentials(connection);
       ImapSmtpCursorState cursors = stateService.read(connection.getId());
       int changed = 0;
+      Set<Long> changedConversationIds = new LinkedHashSet<>();
+      Set<Long> changedMessageIds = new LinkedHashSet<>();
 
       for (EmailFolder folder : new EmailFolder[] {EmailFolder.INBOX, EmailFolder.SENT}) {
         ImapSmtpCursorState.FolderCursor cursor = cursors.cursor(folder);
@@ -94,6 +99,8 @@ public class ImapSmtpIncrementalScheduler {
         if (!delta.messages().isEmpty()) {
           var persisted = persistenceService.persist(connection, delta.messages());
           changed += persisted.created() + persisted.updated();
+          changedConversationIds.addAll(persisted.conversationIds());
+          changedMessageIds.addAll(persisted.messageIds());
         }
         stateService.advance(connection, folder, delta.uidValidity(), delta.lastUid());
       }
@@ -106,10 +113,12 @@ public class ImapSmtpIncrementalScheduler {
         realtimeService.sendToCompany(
             connection.getCompanyId(),
             "inbox.email.changed",
-            Map.of(
-                "connectionId", connection.getId().toString(),
-                "provider", "IMAP_SMTP",
-                "changed", changed));
+            InboxEmailChangedEvent.boundedDelta(
+                connection.getId(),
+                ProviderType.IMAP_SMTP,
+                changedConversationIds,
+                changedMessageIds,
+                Set.of()));
       }
     } catch (RuntimeException exception) {
       log.warn(

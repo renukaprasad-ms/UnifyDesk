@@ -1,5 +1,6 @@
 package com.messaging.channel.microsoft;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.microsoft.MicrosoftSubscriptionService.ChangeNotification;
@@ -153,5 +154,6 @@ public class MicrosoftWebhookController {
     }
   }
 
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public record NotificationEnvelope(List<ChangeNotification> value) {}
 }

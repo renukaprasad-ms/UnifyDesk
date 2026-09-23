@@ -86,7 +86,7 @@ class PricingResolverTests {
     return pricingResolver.resolve(
         companyId,
         ChannelType.SMS,
-        ProviderType.MSG91,
+        ProviderType.MSG91_SMS,
         BillingCategory.SMS_PROMOTIONAL,
         CommunicationDirection.OUTBOUND,
         "IN",
@@ -112,7 +112,7 @@ class PricingResolverTests {
     CompanyRateOverride override = new CompanyRateOverride();
     override.setId(id);
     override.setChannel(ChannelType.SMS);
-    override.setProvider(ProviderType.MSG91);
+    override.setProvider(ProviderType.MSG91_SMS);
     override.setBillingCategory(BillingCategory.SMS_PROMOTIONAL);
     override.setDirection(CommunicationDirection.OUTBOUND);
     override.setCountry("IN");
@@ -129,7 +129,7 @@ class PricingResolverTests {
     rateCard.setId(id);
     rateCard.setPlan(plan);
     rateCard.setChannel(ChannelType.SMS);
-    rateCard.setProvider(ProviderType.MSG91);
+    rateCard.setProvider(ProviderType.MSG91_SMS);
     rateCard.setBillingCategory(BillingCategory.SMS_PROMOTIONAL);
     rateCard.setDirection(CommunicationDirection.OUTBOUND);
     rateCard.setCountry("IN");

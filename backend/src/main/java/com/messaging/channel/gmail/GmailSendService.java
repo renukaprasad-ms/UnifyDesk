@@ -1,15 +1,14 @@
 package com.messaging.channel.gmail;
 
 import com.messaging.channel.entity.ChannelConnection;
-import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.gmail.GmailApiClient.SendMessageResponse;
 import com.messaging.channel.gmail.dto.GmailSendRequest;
 import com.messaging.channel.gmail.dto.GmailSendResponse;
-import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
-import com.messaging.common.exception.NotFoundException;
 import com.messaging.common.exception.ServiceUnavailableException;
+import com.messaging.inbox.dto.InboxEmailChangedEvent;
+import com.messaging.realtime.service.RealtimeService;
 import jakarta.mail.Message;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
@@ -34,24 +33,14 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class GmailSendService {
 
-  private final ChannelConnectionRepository connectionRepository;
   private final GmailTokenService tokenService;
   private final GmailApiClient gmailApiClient;
   private final GmailInboxPersistenceService persistenceService;
   private final GmailDistributedQuotaManager quotaManager;
+  private final RealtimeService realtimeService;
 
-  public GmailSendResponse send(Long companyId, Long connectionId, GmailSendRequest request) {
-    ChannelConnection connection =
-        connectionRepository
-            .findByIdAndCompanyId(connectionId, companyId)
-            .orElseThrow(() -> new NotFoundException("Gmail connection not found"));
-
-    if (connection.getProviderType() != ProviderType.GMAIL) {
-      throw new BadRequestException("Channel connection is not a Gmail account");
-    }
-    if (connection.getStatus() != ChannelConnectionStatus.ACTIVE) {
-      throw new BadRequestException("Gmail connection is not active");
-    }
+  public GmailSendResponse send(ChannelConnection connection, GmailSendRequest request) {
+    Long connectionId = connection.getId();
     if (connection.getExternalAccountId() == null || connection.getExternalAccountId().isBlank()) {
       throw new BadRequestException("Gmail sender address is missing");
     }
@@ -99,7 +88,16 @@ public class GmailSendService {
       if (refreshReservation.allowed()) {
         var storedMessage = gmailApiClient.message(accessToken, sent.id());
         if (storedMessage != null) {
-          persistenceService.persistBatch(connection, List.of(storedMessage));
+          var persisted = persistenceService.persistBatch(connection, List.of(storedMessage));
+          realtimeService.sendToCompany(
+              connection.getCompanyId(),
+              GmailRealtimeWorker.INBOX_CHANGED_EVENT,
+              InboxEmailChangedEvent.boundedDelta(
+                  connection.getId(),
+                  ProviderType.GMAIL,
+                  persisted.conversationIds().stream().map(Long::valueOf).toList(),
+                  persisted.messageIds().stream().map(Long::valueOf).toList(),
+                  List.of()));
         }
       }
     } catch (GmailRateLimitException exception) {

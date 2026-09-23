@@ -1,5 +1,6 @@
 package com.messaging.channel.gmail.dto;
 
+import com.messaging.channel.email.EmailSendResult;
 import java.time.Instant;
 import java.util.List;
 
@@ -12,4 +13,18 @@ public record GmailSendResponse(
     List<String> cc,
     List<String> bcc,
     String subject,
-    Instant sentAt) {}
+    Instant sentAt) {
+
+  public static GmailSendResponse from(EmailSendResult result) {
+    return new GmailSendResponse(
+        result.connectionId(),
+        result.externalMessageId(),
+        result.externalThreadId(),
+        result.from(),
+        result.to(),
+        result.cc(),
+        result.bcc(),
+        result.subject(),
+        result.acceptedAt());
+  }
+}

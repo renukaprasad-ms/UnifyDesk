@@ -6,6 +6,7 @@ import com.messaging.channel.dto.CreateSenderIdentityRequest;
 import com.messaging.channel.dto.DisconnectChannelRequest;
 import com.messaging.channel.dto.SenderIdentityResponse;
 import com.messaging.channel.dto.UpdateChannelConnectionRequest;
+import com.messaging.channel.enums.ChannelConnectionCapability;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.service.ChannelConnectionService;
 import com.messaging.common.response.ApiResponse;
@@ -59,16 +60,21 @@ public class ChannelConnectionController {
 
     List<ChannelConnectionResponse> connections;
     if (channelType != null) {
-      companyAuthorizationService.requirePermission(userId, companyId, readPermission(channelType));
-      connections = channelConnectionService.list(companyId, channelType);
+      requireTypeRead(userId, companyId, channelType);
+      connections =
+          visibleConnections(
+              userId, companyId, channelConnectionService.list(companyId, channelType));
     } else {
       connections =
           Arrays.stream(ChannelType.values())
-              .filter(
+              .filter(type -> canReadType(userId, companyId, type))
+              .flatMap(
                   type ->
-                      companyAuthorizationService.hasPermission(
-                          userId, companyId, readPermission(type)))
-              .flatMap(type -> channelConnectionService.list(companyId, type).stream())
+                      visibleConnections(
+                              userId,
+                              companyId,
+                              channelConnectionService.list(companyId, type))
+                          .stream())
               .sorted(Comparator.comparing(ChannelConnectionResponse::createdAt).reversed())
               .toList();
     }
@@ -82,8 +88,7 @@ public class ChannelConnectionController {
       @PathVariable Long companyId, @PathVariable Long connectionId) {
     Long userId = currentUserService.currentUserId();
     ChannelConnectionResponse connection = channelConnectionService.get(companyId, connectionId);
-    companyAuthorizationService.requirePermission(
-        userId, companyId, readPermission(connection.channelType()));
+    requireConnectionRead(userId, companyId, connection);
     return ResponseEntity.ok(
         ApiResponse.success(HttpStatus.OK.value(), connection, "Channel connection fetched"));
   }
@@ -95,8 +100,7 @@ public class ChannelConnectionController {
       @Valid @RequestBody UpdateChannelConnectionRequest request) {
     Long userId = currentUserService.currentUserId();
     ChannelConnectionResponse existing = channelConnectionService.get(companyId, connectionId);
-    companyAuthorizationService.requirePermission(
-        userId, companyId, modifyPermission(existing.channelType()));
+    requireConnectionModify(userId, companyId, existing);
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
@@ -111,8 +115,7 @@ public class ChannelConnectionController {
       @RequestBody(required = false) DisconnectChannelRequest request) {
     Long userId = currentUserService.currentUserId();
     ChannelConnectionResponse existing = channelConnectionService.get(companyId, connectionId);
-    companyAuthorizationService.requirePermission(
-        userId, companyId, disconnectPermission(existing.channelType()));
+    requireConnectionDisconnect(userId, companyId, existing);
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
@@ -144,8 +147,7 @@ public class ChannelConnectionController {
       @PathVariable Long companyId, @PathVariable Long connectionId) {
     Long userId = currentUserService.currentUserId();
     ChannelConnectionResponse existing = channelConnectionService.get(companyId, connectionId);
-    companyAuthorizationService.requirePermission(
-        userId, companyId, readSenderPermission(existing.channelType()));
+    requireConnectionRead(userId, companyId, existing);
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
@@ -167,6 +169,77 @@ public class ChannelConnectionController {
             HttpStatus.OK.value(),
             channelConnectionService.makeDefaultSender(companyId, connectionId, senderIdentityId),
             "Default sender updated"));
+  }
+
+  private List<ChannelConnectionResponse> visibleConnections(
+      Long userId, Long companyId, List<ChannelConnectionResponse> connections) {
+    boolean canReadEmail =
+        companyAuthorizationService.hasPermission(
+            userId, companyId, CompanyPermissionKeys.EMAIL_READ);
+    boolean canReadBroadcast =
+        companyAuthorizationService.hasPermission(
+            userId, companyId, CompanyPermissionKeys.BROADCAST_READ);
+
+    return connections.stream()
+        .filter(
+            connection -> {
+              if (connection.channelType() != ChannelType.EMAIL) return true;
+              boolean inbox =
+                  connection.capabilities().contains(ChannelConnectionCapability.INBOX);
+              boolean broadcast =
+                  connection.capabilities().contains(ChannelConnectionCapability.BROADCAST);
+              return (inbox && canReadEmail) || (broadcast && canReadBroadcast);
+            })
+        .toList();
+  }
+
+  private boolean broadcastOnly(ChannelConnectionResponse connection) {
+    return connection.capabilities().contains(ChannelConnectionCapability.BROADCAST)
+        && !connection.capabilities().contains(ChannelConnectionCapability.INBOX);
+  }
+
+  private boolean canReadType(Long userId, Long companyId, ChannelType type) {
+    if (type == ChannelType.EMAIL
+        && companyAuthorizationService.hasPermission(
+            userId, companyId, CompanyPermissionKeys.BROADCAST_READ)) {
+      return true;
+    }
+    return companyAuthorizationService.hasPermission(userId, companyId, readPermission(type));
+  }
+
+  private void requireTypeRead(Long userId, Long companyId, ChannelType type) {
+    if (canReadType(userId, companyId, type)) return;
+    companyAuthorizationService.requirePermission(userId, companyId, readPermission(type));
+  }
+
+  private void requireConnectionRead(
+      Long userId, Long companyId, ChannelConnectionResponse connection) {
+    companyAuthorizationService.requirePermission(
+        userId,
+        companyId,
+        broadcastOnly(connection)
+            ? CompanyPermissionKeys.BROADCAST_READ
+            : readPermission(connection.channelType()));
+  }
+
+  private void requireConnectionModify(
+      Long userId, Long companyId, ChannelConnectionResponse connection) {
+    companyAuthorizationService.requirePermission(
+        userId,
+        companyId,
+        broadcastOnly(connection)
+            ? CompanyPermissionKeys.BROADCAST_MODIFY
+            : modifyPermission(connection.channelType()));
+  }
+
+  private void requireConnectionDisconnect(
+      Long userId, Long companyId, ChannelConnectionResponse connection) {
+    companyAuthorizationService.requirePermission(
+        userId,
+        companyId,
+        broadcastOnly(connection)
+            ? CompanyPermissionKeys.BROADCAST_MODIFY
+            : disconnectPermission(connection.channelType()));
   }
 
   private String connectPermission(ChannelType type) {

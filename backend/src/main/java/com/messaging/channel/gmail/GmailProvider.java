@@ -1,21 +1,39 @@
 package com.messaging.channel.gmail;
 
+import com.messaging.asyncjob.dto.AsyncJobResponse;
+import com.messaging.channel.email.EmailReadStateMessage;
+import com.messaging.channel.email.EmailReadStateProvider;
+import com.messaging.channel.email.EmailSendCommand;
+import com.messaging.channel.email.EmailSendProvider;
+import com.messaging.channel.email.EmailSendResult;
+import com.messaging.channel.email.EmailSyncProvider;
+import com.messaging.channel.email.EmailSyncQueuedResult;
+import com.messaging.channel.email.EmailSyncRequest;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ProviderType;
-import com.messaging.channel.provider.ChannelProvider;
+import com.messaging.channel.gmail.dto.GmailSendRequest;
+import com.messaging.channel.gmail.dto.GmailSendResponse;
+import com.messaging.channel.gmail.dto.GmailSyncQueuedResponse;
+import com.messaging.channel.provider.DisconnectableChannelProvider;
 import com.messaging.channel.provider.ProviderAccountHealth;
-import com.messaging.channel.provider.ProviderSendRequest;
-import com.messaging.channel.provider.ProviderSendResult;
-import com.messaging.channel.provider.ProviderWebhookMessage;
-import com.messaging.channel.provider.ProviderWebhookRequest;
-import com.messaging.common.exception.BadRequestException;
 import java.time.Instant;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
-public class GmailProvider implements ChannelProvider {
+@RequiredArgsConstructor
+public class GmailProvider
+    implements EmailSendProvider,
+        EmailSyncProvider,
+        EmailReadStateProvider,
+        DisconnectableChannelProvider {
+
+  private final GmailSendService sendService;
+  private final GmailSyncQueueService syncQueueService;
+  private final GmailReadStateService readStateService;
+  private final GmailDisconnectService disconnectService;
 
   @Override
   public ProviderType providerType() {
@@ -23,13 +41,65 @@ public class GmailProvider implements ChannelProvider {
   }
 
   @Override
-  public ProviderSendResult send(ProviderSendRequest request) {
-    throw new BadRequestException("Gmail message sending is not enabled yet");
+  public EmailSendResult send(ChannelConnection connection, EmailSendCommand command) {
+    GmailSendResponse response =
+        sendService.send(
+            connection,
+            new GmailSendRequest(
+                command.to(),
+                command.cc(),
+                command.bcc(),
+                command.subject(),
+                command.bodyText(),
+                command.threadId(),
+                command.inReplyTo(),
+                command.references()));
+
+    return new EmailSendResult(
+        response.connectionId(),
+        response.messageId(),
+        response.threadId(),
+        response.from(),
+        response.to(),
+        response.cc(),
+        response.bcc(),
+        response.subject(),
+        response.sentAt());
   }
 
   @Override
-  public List<ProviderWebhookMessage> parseWebhook(ProviderWebhookRequest request) {
-    return List.of();
+  public EmailSyncQueuedResult queueSync(
+      ChannelConnection connection, Long userId, EmailSyncRequest request) {
+    GmailSyncQueuedResponse response =
+        syncQueueService.enqueue(connection.getCompanyId(), userId, connection.getId(), request);
+    return new EmailSyncQueuedResult(
+        response.connectionId(),
+        response.jobId(),
+        response.status(),
+        response.mode(),
+        response.folder(),
+        response.fromDate(),
+        response.toDate(),
+        response.messageCount());
+  }
+
+  @Override
+  public AsyncJobResponse activeSync(ChannelConnection connection) {
+    return syncQueueService.active(connection.getCompanyId(), connection.getId());
+  }
+
+  @Override
+  public void updateReadState(
+      ChannelConnection connection,
+      List<EmailReadStateMessage> messages,
+      boolean read,
+      boolean background) {
+    readStateService.update(connection, messages, read, background);
+  }
+
+  @Override
+  public void disconnect(ChannelConnection connection) {
+    disconnectService.disconnect(connection);
   }
 
   @Override

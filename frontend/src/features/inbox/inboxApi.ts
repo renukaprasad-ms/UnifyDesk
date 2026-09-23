@@ -3,9 +3,11 @@ import type { AsyncJob } from '../asyncJob/types'
 import type { ApiResponse } from '../../lib/api/types'
 import type {
   InboxConversation,
+  InboxConversationDetail,
   InboxMessage,
   InboxPage,
   InboxReadStateResponse,
+  InboxRealtimeSnapshot,
 } from './types'
 
 const unwrap = <T>(response: ApiResponse<T>) => {
@@ -31,6 +33,30 @@ export const inboxApi = {
   async conversation(companyId: string, conversationId: string) {
     const response = await apiClient.get<ApiResponse<InboxConversation>>(
       `/api/v1/companies/${companyId}/inbox/conversations/${conversationId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async conversationDetail(companyId: string, conversationId: string) {
+    const response = await apiClient.get<ApiResponse<InboxConversationDetail>>(
+      `/api/v1/companies/${companyId}/inbox/conversations/${conversationId}/detail`,
+    )
+    return unwrap(response.data)
+  },
+
+  async realtimeSnapshot(
+    companyId: string,
+    request: {
+      connectionId: string
+      folder: 'INBOX' | 'SENT'
+      detailConversationId?: string | null
+      conversationIds: string[]
+      messageIds: string[]
+    },
+  ) {
+    const response = await apiClient.post<ApiResponse<InboxRealtimeSnapshot>>(
+      `/api/v1/companies/${companyId}/inbox/realtime-snapshot`,
+      request,
     )
     return unwrap(response.data)
   },

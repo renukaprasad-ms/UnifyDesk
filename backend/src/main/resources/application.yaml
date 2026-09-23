@@ -98,6 +98,36 @@ app:
     redis-channel: ${REALTIME_REDIS_CHANNEL:messaging:realtime}
     heartbeat-interval-ms: ${REALTIME_HEARTBEAT_INTERVAL_MS:30000}
     allowed-origins: ${REALTIME_ALLOWED_ORIGINS:https://messaging.renukaprasad.in}
+  broadcast:
+    member-write-batch-size: ${BROADCAST_MEMBER_WRITE_BATCH_SIZE:500}
+    snapshot-batch-size: ${BROADCAST_SNAPSHOT_BATCH_SIZE:100}
+    recipient-claim-size: ${BROADCAST_RECIPIENT_CLAIM_SIZE:10}
+    worker-concurrency: ${BROADCAST_WORKER_CONCURRENCY:8}
+    worker-poll-interval-ms: ${BROADCAST_WORKER_POLL_INTERVAL_MS:250}
+    max-delivery-attempts: ${BROADCAST_MAX_DELIVERY_ATTEMPTS:5}
+    retry-initial-backoff: ${BROADCAST_RETRY_INITIAL_BACKOFF:2s}
+    retry-max-backoff: ${BROADCAST_RETRY_MAX_BACKOFF:5m}
+    stale-claim-after: ${BROADCAST_STALE_CLAIM_AFTER:5m}
+    outbox-batch-size: ${BROADCAST_OUTBOX_BATCH_SIZE:50}
+    outbox-poll-interval-ms: ${BROADCAST_OUTBOX_POLL_INTERVAL_MS:250}
+    outbox-stale-after: ${BROADCAST_OUTBOX_STALE_AFTER:2m}
+    outbox-max-attempts: ${BROADCAST_OUTBOX_MAX_ATTEMPTS:20}
+    message-id-domain: ${BROADCAST_MESSAGE_ID_DOMAIN:messaging.renukaprasad.in}
+    ses-max-per-second-cap: ${BROADCAST_SES_MAX_PER_SECOND_CAP:1000}
+    send-grid-max-per-second-cap: ${BROADCAST_SENDGRID_MAX_PER_SECOND_CAP:20}
+    azure-email-max-per-second-cap: ${BROADCAST_AZURE_EMAIL_MAX_PER_SECOND_CAP:0.5}
+    msg91-max-per-second-cap: ${BROADCAST_MSG91_MAX_PER_SECOND_CAP:20}
+    msg91-email-max-per-second-cap: ${BROADCAST_MSG91_EMAIL_MAX_PER_SECOND_CAP:20}
+    provider-max-per-second-cap: ${BROADCAST_PROVIDER_MAX_PER_SECOND_CAP:1000}
+  delivery:
+    email:
+      claim-size: ${EMAIL_DELIVERY_REPORT_CLAIM_SIZE:100}
+      poll-interval-ms: ${EMAIL_DELIVERY_REPORT_POLL_INTERVAL_MS:5000}
+      max-attempts: ${EMAIL_DELIVERY_REPORT_MAX_ATTEMPTS:12}
+      retry-initial-backoff: ${EMAIL_DELIVERY_REPORT_RETRY_INITIAL_BACKOFF:30s}
+      retry-max-backoff: ${EMAIL_DELIVERY_REPORT_RETRY_MAX_BACKOFF:10m}
+      stale-after: ${EMAIL_DELIVERY_REPORT_STALE_AFTER:5m}
+      match-lookback: ${EMAIL_DELIVERY_REPORT_MATCH_LOOKBACK:14d}
   datasource:
     write:
       url: ${APP_DATASOURCE_WRITE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5001/messaging}}
@@ -275,9 +305,16 @@ app:
       http-connect-timeout: ${MEDIA_STORAGE_HTTP_CONNECT_TIMEOUT:3s}
       http-read-timeout: ${MEDIA_STORAGE_HTTP_READ_TIMEOUT:5s}
       supabase:
-        base-url: ${SUPABASE_URL}
-        service-role-key: ${SUPABASE_SERVICE_ROLE_KEY}
-        bucket: ${SUPABASE_MEDIA_BUCKET}
+        base-url: ${SUPABASE_URL:}
+        service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
+        bucket: ${SUPABASE_MEDIA_BUCKET:}
+      s3:
+        region: ${S3_MEDIA_REGION:${AWS_REGION:}}
+        bucket: ${S3_MEDIA_BUCKET:}
+        endpoint: ${S3_MEDIA_ENDPOINT:}
+        access-key-id: ${S3_MEDIA_ACCESS_KEY_ID:}
+        secret-access-key: ${S3_MEDIA_SECRET_ACCESS_KEY:}
+        path-style-access-enabled: ${S3_MEDIA_PATH_STYLE_ACCESS_ENABLED:false}
     validation:
       image-max-size: ${MEDIA_IMAGE_MAX_SIZE}
       document-max-size: ${MEDIA_DOCUMENT_MAX_SIZE}

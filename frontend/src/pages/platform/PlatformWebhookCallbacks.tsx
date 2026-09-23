@@ -293,14 +293,14 @@ export default function PlatformWebhookCallbacks() {
       </div>
 
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 p-0 sm:items-center sm:p-5">
+        <div className="mobile-modal-shell fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 p-0 sm:items-center sm:p-5">
           <button
             type="button"
             className="absolute inset-0 cursor-default"
             aria-label="Close callback details"
             onClick={() => setSelected(null)}
           />
-          <div className="relative z-10 max-h-[94vh] w-full max-w-5xl overflow-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+          <div className="mobile-sheet relative z-10 max-h-[94vh] w-full max-w-5xl overflow-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
             <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur sm:px-6">
               <div>
                 <p className="eyebrow">Webhook callback</p>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   FiCheck,
   FiChevronDown,
@@ -12,20 +12,26 @@ import {
   FiSend,
   FiServer,
   FiSmartphone,
+  FiUsers,
 } from 'react-icons/fi'
 import { SiGmail } from 'react-icons/si'
 import { useLocation, useNavigate } from 'react-router'
 import EmailProviderPicker from '../email/EmailProviderPicker'
 import ConversationList from '../inbox/ConversationList'
 import { channelApi } from '../../features/channel/channelApi'
+import { broadcastApi } from '../../features/broadcast/broadcastApi'
+import { fetchBroadcastGroups } from '../../store/broadcast/broadcastSlice'
+import type { BroadcastSender } from '../../features/broadcast/types'
 import type { ChannelConnection, ChannelType, SenderIdentity } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
-import { inboxApi } from '../../features/inbox/inboxApi'
-import type { InboxConversation } from '../../features/inbox/types'
-import { realtimeClient } from '../../features/realtime/realtimeClient'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { apiErrorMessage } from '../../lib/api/apiClient'
-import { useAppSelector } from '../../store/hooks'
+import {
+  fetchEmailConnections,
+  fetchInboxConversations,
+} from '../../store/inbox/inboxSlice'
+import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
 
 type ChannelContextSidebarProps = {
@@ -34,7 +40,9 @@ type ChannelContextSidebarProps = {
 }
 
 type IdentityItem = {
-  connection: ChannelConnection
+  connectionId: string
+  providerType: string
+  senderId?: string
   sender?: SenderIdentity
   label: string
   secondary: string
@@ -73,6 +81,14 @@ const channelFromPath = (pathname: string): ChannelType => {
 const identityFallback = (connection: ChannelConnection) =>
   connection.externalAccountId || connection.name
 
+const broadcastProviderLabel = (provider: BroadcastSender['provider']) => {
+  if (provider === 'AMAZON_SES') return 'Amazon SES'
+  if (provider === 'SENDGRID') return 'SendGrid'
+  if (provider === 'AZURE_EMAIL') return 'Azure Email'
+  if (provider === 'MSG91_EMAIL') return 'MSG91 Email'
+  return 'MSG91 SMS'
+}
+
 const emailProviderIcon = (providerType: string) => {
   if (providerType === 'GMAIL') return <SiGmail aria-hidden="true" />
   if (providerType === 'MICROSOFT') return <FiGrid aria-hidden="true" />
@@ -81,30 +97,65 @@ const emailProviderIcon = (providerType: string) => {
 }
 
 export default function ChannelContextSidebar({ mode, onNavigate }: ChannelContextSidebarProps) {
+  const dispatch = useAppDispatch()
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const inbox = useAppSelector((state) => state.inbox)
+  const broadcast = useAppSelector((state) => state.broadcast)
   const { can } = useIam()
   const location = useLocation()
   const navigate = useNavigate()
+  const desktop = useMediaQuery('(min-width: 1024px)')
   const menuRef = useRef<HTMLDivElement | null>(null)
   const channelType = channelFromPath(location.pathname)
   const meta = channelMeta[channelType]
-  const [connections, setConnections] = useState<ChannelConnection[]>([])
+  const [localConnections, setLocalConnections] = useState<ChannelConnection[]>([])
   const [senders, setSenders] = useState<Record<string, SenderIdentity[]>>({})
-  const [loading, setLoading] = useState(true)
+  const [broadcastSenders, setBroadcastSenders] = useState<BroadcastSender[]>([])
+  const [broadcastSenderLoading, setBroadcastSenderLoading] = useState(false)
+  const [localLoading, setLocalLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [conversations, setConversations] = useState<InboxConversation[]>([])
-  const [conversationLoading, setConversationLoading] = useState(false)
-  const [conversationLoadingMore, setConversationLoadingMore] = useState(false)
-  const [conversationPage, setConversationPage] = useState(0)
-  const [conversationTotalPages, setConversationTotalPages] = useState(0)
-  const [conversationTotalElements, setConversationTotalElements] = useState(0)
 
   const search = useMemo(() => new URLSearchParams(location.search), [location.search])
   const selectedConnectionId = search.get('connectionId')
   const selectedSenderId = search.get('senderId')
   const selectedConversationId = search.get('conversationId')
+  const selectedGroupId = search.get('groupId')
   const selectedFolder = search.get('folder') === 'SENT' ? 'SENT' : 'INBOX'
+
+  const emailMode = mode === 'inbox' && channelType === 'EMAIL'
+  const broadcastMode = mode === 'broadcast'
+  const broadcastGroups =
+    broadcast.groupsCompanyId === companyId && broadcast.groupsChannelType === channelType
+      ? broadcast.groups
+      : []
+  const emailConnections =
+    inbox.connectionsCompanyId === companyId ? inbox.connections : []
+  const connections = (
+    channelType === 'EMAIL'
+      ? emailConnections.filter((connection) => connection.capabilities.includes('INBOX'))
+      : localConnections
+  ).filter((connection) => connection.status === 'ACTIVE')
+  const loading =
+    broadcastMode && channelType !== 'WHATSAPP'
+      ? broadcastSenderLoading
+      : channelType === 'EMAIL'
+        ? inbox.connectionsCompanyId === companyId && inbox.connectionsStatus === 'loading'
+        : localLoading
+  const sameConversationScope =
+    emailMode &&
+    inbox.scopeCompanyId === companyId &&
+    inbox.scopeConnectionId === selectedConnectionId &&
+    inbox.scopeFolder === selectedFolder
+  const conversations = sameConversationScope ? inbox.conversations : []
+  const conversationLoading =
+    sameConversationScope && inbox.conversationsStatus === 'loading'
+  const conversationLoadingMore = sameConversationScope && inbox.loadingMore
+  const conversationPage = sameConversationScope ? inbox.conversationPage : 0
+  const conversationTotalPages = sameConversationScope ? inbox.conversationTotalPages : 0
+  const conversationTotalElements = sameConversationScope
+    ? inbox.conversationTotalElements
+    : 0
 
   useEffect(() => {
     if (!menuOpen) return
@@ -116,15 +167,35 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   }, [menuOpen])
 
   useEffect(() => {
-    if (!companyId) {
-      setConnections([])
+    if (broadcastMode) return
+    if (channelType !== 'EMAIL') return
+    if (!companyId) return
+    void dispatch(fetchEmailConnections({ companyId }))
+  }, [broadcastMode, channelType, companyId, dispatch])
+
+  useEffect(() => {
+    if (broadcastMode) {
+      setLocalConnections([])
       setSenders({})
-      setLoading(false)
+      setLocalLoading(false)
+      return
+    }
+    if (channelType === 'EMAIL') {
+      setLocalConnections([])
+      setSenders({})
+      setLocalLoading(false)
+      return
+    }
+
+    if (!companyId) {
+      setLocalConnections([])
+      setSenders({})
+      setLocalLoading(false)
       return
     }
 
     let active = true
-    setLoading(true)
+    setLocalLoading(true)
     setError(null)
 
     channelApi
@@ -133,12 +204,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         if (!active) return
 
         const connected = items.filter((item) => item.status === 'ACTIVE')
-        setConnections(connected)
-
-        if (channelType === 'EMAIL') {
-          setSenders({})
-          return
-        }
+        setLocalConnections(connected)
 
         const senderEntries = await Promise.all(
           connected.map(async (connection) => {
@@ -158,21 +224,102 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         }
       })
       .finally(() => {
-        if (active) setLoading(false)
+        if (active) setLocalLoading(false)
       })
 
     return () => {
       active = false
     }
-  }, [channelType, companyId, meta.label])
+  }, [broadcastMode, channelType, companyId, meta.label])
+
+  useEffect(() => {
+    if (!companyId || !broadcastMode || channelType === 'WHATSAPP') {
+      setBroadcastSenders([])
+      setBroadcastSenderLoading(false)
+      return
+    }
+
+    let active = true
+    setBroadcastSenderLoading(true)
+    setError(null)
+    broadcastApi
+      .senders(companyId)
+      .then((items) => {
+        if (active) setBroadcastSenders(items)
+      })
+      .catch((requestError) => {
+        if (active) setError(apiErrorMessage(requestError, 'Unable to load Broadcast senders'))
+      })
+      .finally(() => {
+        if (active) setBroadcastSenderLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [broadcastMode, channelType, companyId])
+
+  useEffect(() => {
+    if (!companyId || !broadcastMode) return
+    void dispatch(fetchBroadcastGroups({ companyId, channelType }))
+  }, [broadcastMode, channelType, companyId, dispatch])
+
+  useEffect(() => {
+    if (
+      !companyId ||
+      !emailMode ||
+      !selectedConnectionId
+    ) {
+      return
+    }
+
+    void dispatch(
+      fetchInboxConversations({
+        companyId,
+        connectionId: selectedConnectionId,
+        folder: selectedFolder,
+      }),
+    )
+  }, [companyId, dispatch, emailMode, selectedConnectionId, selectedFolder])
 
   const identities = useMemo<IdentityItem[]>(() => {
+    if (broadcastMode && channelType !== 'WHATSAPP') {
+      return broadcastSenders
+        .filter(
+          (sender) =>
+            sender.status === 'ACTIVE' &&
+            sender.sendingEnabled &&
+            (channelType === 'SMS'
+              ? sender.provider === 'MSG91_SMS'
+              : sender.provider !== 'MSG91_SMS'),
+        )
+        .map((sender) => ({
+          connectionId: sender.channelConnectionId,
+          providerType: sender.provider,
+          senderId: sender.id,
+          label: sender.fromAddress,
+          secondary:
+            sender.provider === 'MSG91_SMS'
+              ? `MSG91 SMS · ${sender.connectionName}`
+              : sender.provider === 'MSG91_EMAIL'
+                ? `MSG91 Email · ${sender.connectionName}`
+                : `${broadcastProviderLabel(sender.provider)} · ${sender.region}${
+                  sender.maxSendRate ? ` · ${sender.maxSendRate}/sec` : ''
+                }${
+                  sender.provider === 'AMAZON_SES' && !sender.productionAccessEnabled
+                    ? ' · Sandbox'
+                    : ''
+                }`,
+        }))
+    }
+
     const result: IdentityItem[] = []
 
     for (const connection of connections) {
       if (channelType === 'EMAIL') {
         result.push({
-          connection,
+          connectionId: connection.id,
+          providerType: connection.providerType,
           label: identityFallback(connection),
           secondary: connection.providerType.replaceAll('_', ' '),
         })
@@ -185,7 +332,8 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
 
       if (activeSenders.length === 0) {
         result.push({
-          connection,
+          connectionId: connection.id,
+          providerType: connection.providerType,
           label: identityFallback(connection),
           secondary: connection.providerType.replaceAll('_', ' '),
         })
@@ -194,7 +342,9 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
 
       activeSenders.forEach((sender) =>
         result.push({
-          connection,
+          connectionId: connection.id,
+          providerType: connection.providerType,
+          senderId: sender.id,
           sender,
           label: sender.value,
           secondary:
@@ -204,14 +354,14 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     }
 
     return result
-  }, [channelType, connections, senders])
+  }, [broadcastMode, broadcastSenders, channelType, connections, senders])
 
   const selectedItem = useMemo(
     () =>
       identities.find(
         (item) =>
-          item.connection.id === selectedConnectionId &&
-          (!item.sender || !selectedSenderId || item.sender.id === selectedSenderId),
+          item.connectionId === selectedConnectionId &&
+          (item.senderId ? item.senderId === selectedSenderId : !selectedSenderId),
       ) ?? null,
     [identities, selectedConnectionId, selectedSenderId],
   )
@@ -221,9 +371,9 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
 
     const first = identities[0]
     const params = new URLSearchParams(location.search)
-    params.set('connectionId', first.connection.id)
-    if (channelType === 'EMAIL' && !params.get('folder')) params.set('folder', 'INBOX')
-    if (first.sender) params.set('senderId', first.sender.id)
+    params.set('connectionId', first.connectionId)
+    if (emailMode && !params.get('folder')) params.set('folder', 'INBOX')
+    if (first.senderId) params.set('senderId', first.senderId)
     else params.delete('senderId')
     params.delete('conversationId')
 
@@ -234,61 +384,20 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       },
       { replace: true },
     )
-  }, [identities, loading, location.pathname, location.search, navigate, selectedItem])
-
-  const loadConversations = useCallback(
-    async (page = 0, append = false) => {
-      if (
-        !companyId ||
-        mode !== 'inbox' ||
-        channelType !== 'EMAIL' ||
-        !selectedConnectionId
-      ) {
-        setConversations([])
-        setConversationPage(0)
-        setConversationTotalPages(0)
-        setConversationTotalElements(0)
-        return
-      }
-
-      if (append) setConversationLoadingMore(true)
-      else setConversationLoading(true)
-
-      try {
-        const inbox = await inboxApi.conversations(
-          companyId,
-          page,
-          30,
-          selectedConnectionId,
-          selectedFolder,
-        )
-        setConversations((current) => {
-          if (!append) return inbox.items
-          const byId = new Map(current.map((conversation) => [conversation.id, conversation]))
-          inbox.items.forEach((conversation) => byId.set(conversation.id, conversation))
-          return Array.from(byId.values())
-        })
-        setConversationPage(inbox.page)
-        setConversationTotalPages(inbox.totalPages)
-        setConversationTotalElements(inbox.totalElements)
-      } catch (requestError) {
-        setError(apiErrorMessage(requestError, 'Unable to load conversations'))
-      } finally {
-        setConversationLoading(false)
-        setConversationLoadingMore(false)
-      }
-    },
-    [channelType, companyId, mode, selectedConnectionId, selectedFolder],
-  )
-
-  useEffect(() => {
-    void loadConversations(0, false)
-  }, [loadConversations])
+  }, [
+    emailMode,
+    identities,
+    loading,
+    location.pathname,
+    location.search,
+    navigate,
+    selectedItem,
+  ])
 
   useEffect(() => {
     if (
-      mode !== 'inbox' ||
-      channelType !== 'EMAIL' ||
+      !desktop ||
+      !emailMode ||
       selectedConversationId ||
       conversations.length === 0
     ) {
@@ -305,27 +414,20 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       { replace: true },
     )
   }, [
-    channelType,
     conversations,
+    desktop,
+    emailMode,
     location.pathname,
     location.search,
-    mode,
     navigate,
     selectedConversationId,
   ])
 
-  useEffect(() => {
-    if (mode !== 'inbox' || channelType !== 'EMAIL') return
-    return realtimeClient.subscribe('inbox.email.changed', () => {
-      void loadConversations(0, false)
-    })
-  }, [channelType, loadConversations, mode])
-
   const selectIdentity = (item: IdentityItem) => {
     const params = new URLSearchParams(location.search)
-    params.set('connectionId', item.connection.id)
-    if (channelType === 'EMAIL' && !params.get('folder')) params.set('folder', 'INBOX')
-    if (item.sender) params.set('senderId', item.sender.id)
+    params.set('connectionId', item.connectionId)
+    if (emailMode && !params.get('folder')) params.set('folder', 'INBOX')
+    if (item.senderId) params.set('senderId', item.senderId)
     else params.delete('senderId')
     params.delete('conversationId')
     params.delete('compose')
@@ -338,6 +440,72 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     onNavigate()
   }
 
+  useEffect(() => {
+    if (
+      !desktop ||
+      !broadcastMode ||
+      selectedGroupId ||
+      broadcastGroups.length === 0
+    ) {
+      return
+    }
+
+    const params = new URLSearchParams(location.search)
+    params.set('groupId', broadcastGroups[0].id)
+    params.delete('broadcastId')
+    params.delete('compose')
+    params.delete('newGroup')
+    navigate(
+      { pathname: location.pathname, search: `?${params.toString()}` },
+      { replace: true },
+    )
+  }, [
+    broadcastGroups,
+    broadcastMode,
+    desktop,
+    location.pathname,
+    location.search,
+    navigate,
+    selectedGroupId,
+  ])
+
+  const selectBroadcastGroup = (groupId: string) => {
+    const params = new URLSearchParams(location.search)
+    params.set('groupId', groupId)
+    params.delete('broadcastId')
+    params.delete('compose')
+    params.delete('newGroup')
+    navigate({ pathname: location.pathname, search: `?${params.toString()}` })
+    onNavigate()
+  }
+
+  const createBroadcastGroup = () => {
+    if (channelType === 'WHATSAPP') return
+    const params = new URLSearchParams(location.search)
+    params.set('newGroup', '1')
+    params.delete('broadcastId')
+    navigate({ pathname: location.pathname, search: `?${params.toString()}` })
+    onNavigate()
+  }
+
+  const loadMoreBroadcastGroups = () => {
+    if (
+      !companyId ||
+      broadcast.loadingMoreGroups ||
+      broadcast.groupsPage + 1 >= broadcast.groupsTotalPages
+    ) {
+      return
+    }
+    void dispatch(
+      fetchBroadcastGroups({
+        companyId,
+        channelType,
+        page: broadcast.groupsPage + 1,
+        append: true,
+      }),
+    )
+  }
+
   const selectFolder = (folder: 'INBOX' | 'SENT') => {
     const params = new URLSearchParams(location.search)
     params.set('folder', folder)
@@ -347,17 +515,38 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       pathname: location.pathname,
       search: `?${params.toString()}`,
     })
+    onNavigate()
   }
 
-  const selectConversation = (conversation: InboxConversation) => {
+  const selectConversation = (conversationId: string) => {
     const params = new URLSearchParams(location.search)
-    params.set('conversationId', conversation.id)
+    params.set('conversationId', conversationId)
     params.delete('compose')
     navigate({
       pathname: location.pathname,
       search: `?${params.toString()}`,
     })
     onNavigate()
+  }
+
+  const loadMoreConversations = () => {
+    if (
+      !companyId ||
+      !selectedConnectionId ||
+      conversationLoadingMore ||
+      conversationPage + 1 >= conversationTotalPages
+    ) {
+      return
+    }
+    void dispatch(
+      fetchInboxConversations({
+        companyId,
+        connectionId: selectedConnectionId,
+        folder: selectedFolder,
+        page: conversationPage + 1,
+        append: true,
+      }),
+    )
   }
 
   const connectAllowed =
@@ -368,11 +557,16 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         : can(PERMISSIONS.SMS_CONNECT)
 
   const emptyListLabel =
-    mode === 'inbox' && channelType === 'EMAIL'
-      ? 'Conversations'
-      : mode === 'inbox'
-        ? 'Chats'
-        : 'Broadcasts'
+    emailMode ? 'Conversations' : mode === 'inbox' ? 'Chats' : 'Broadcasts'
+
+  const effectiveError =
+    error ||
+    (!broadcastMode && channelType === 'EMAIL' && inbox.connectionsStatus === 'error'
+      ? 'Unable to load connected email accounts.'
+      : emailMode && sameConversationScope && inbox.conversationsStatus === 'error'
+        ? 'Unable to load conversations.'
+        : null)
+
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -386,23 +580,24 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         </span>
       </div>
 
+      {(!broadcastMode || channelType !== 'WHATSAPP') && (
       <div className="mt-4">
         <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
-          {channelType === 'EMAIL' ? 'Email account' : 'Sender'}
+          {broadcastMode ? 'Broadcast account' : channelType === 'EMAIL' ? 'Email account' : 'Sender'}
         </p>
 
         <div ref={menuRef} className="relative">
           <button
             type="button"
             className="workspace-switcher"
-            disabled={loading || identities.length === 0}
+            disabled={loading || (!broadcastMode && identities.length === 0)}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((current) => !current)}
           >
             <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-indigo-50 text-indigo-500">
               {channelType === 'EMAIL' && selectedItem
-                ? emailProviderIcon(selectedItem.connection.providerType)
+                ? emailProviderIcon(selectedItem.providerType)
                 : channelType === 'WHATSAPP'
                   ? <FiRadio aria-hidden="true" />
                   : meta.icon}
@@ -427,7 +622,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
             <div className="workspace-menu left-0 right-auto" role="menu">
               {identities.map((item) => (
                 <button
-                  key={`${item.connection.id}:${item.sender?.id ?? 'connection'}`}
+                  key={`${item.connectionId}:${item.senderId ?? 'connection'}`}
                   type="button"
                   className="workspace-menu-item"
                   role="menuitem"
@@ -435,7 +630,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                 >
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-indigo-50 text-indigo-500">
                     {channelType === 'EMAIL'
-                      ? emailProviderIcon(item.connection.providerType)
+                      ? emailProviderIcon(item.providerType)
                       : channelType === 'WHATSAPP'
                         ? <FiRadio aria-hidden="true" />
                         : meta.icon}
@@ -446,65 +641,172 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                       {item.secondary}
                     </span>
                   </span>
-                  {selectedItem?.connection.id === item.connection.id &&
-                    selectedItem?.sender?.id === item.sender?.id && (
+                  {selectedItem?.connectionId === item.connectionId &&
+                    selectedItem?.senderId === item.senderId && (
                       <FiCheck aria-hidden="true" className="shrink-0 text-indigo-500" />
                     )}
                 </button>
               ))}
 
-              {channelType === 'EMAIL' && connectAllowed && companyId && (
+              {channelType === 'EMAIL' && companyId && (
                 <div className="border-t border-slate-100 pt-1">
-                  <EmailProviderPicker
-                    companyId={companyId}
-                    returnTo={location.pathname}
-                    label="Connect email"
-                    className="workspace-menu-item justify-start"
-                    buttonIcon="plus"
-                    onClose={() => setMenuOpen(false)}
-                    onError={setError}
-                    onConnected={() => window.location.reload()}
-                  />
-                  <button
-                    type="button"
-                    className="workspace-menu-item justify-start"
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false)
-                      navigate('/company/connections')
-                      onNavigate()
-                    }}
-                  >
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
-                      <FiPlus aria-hidden="true" />
-                    </span>
-                    <span className="text-left">
-                      <span className="block text-[12px] font-semibold text-slate-800">
-                        Manage email accounts
+                  {!broadcastMode && connectAllowed && (
+                    <EmailProviderPicker
+                      companyId={companyId}
+                      returnTo={location.pathname}
+                      label="Connect inbox email"
+                      className="workspace-menu-item justify-start"
+                      buttonIcon="plus"
+                      onClose={() => setMenuOpen(false)}
+                      onError={setError}
+                      onConnected={() => {
+                        setMenuOpen(false)
+                        void dispatch(fetchEmailConnections({ companyId, force: true }))
+                      }}
+                    />
+                  )}
+                  {broadcastMode ? (
+                    can(PERMISSIONS.BROADCAST_MODIFY) && (
+                      <>
+                        <div className="px-3 pb-1 pt-2 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                          Broadcast email setup
+                        </div>
+                        <button
+                          type="button"
+                          className="workspace-menu-item justify-start"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuOpen(false)
+                            navigate('/company/connections?connect=broadcast-email')
+                            onNavigate()
+                          }}
+                        >
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-indigo-50 text-indigo-600">
+                            <FiPlus aria-hidden="true" />
+                          </span>
+                          <span className="text-left">
+                            <span className="block text-[12px] font-semibold text-slate-800">
+                              Connect broadcast email
+                            </span>
+                            <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                              Guided setup for SES, SendGrid, Azure or MSG91
+                            </span>
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className="workspace-menu-item justify-start"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuOpen(false)
+                            navigate('/company/connections')
+                            onNavigate()
+                          }}
+                        >
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
+                            <FiLink aria-hidden="true" />
+                          </span>
+                          <span className="text-left">
+                            <span className="block text-[12px] font-semibold text-slate-800">
+                              Manage connections
+                            </span>
+                            <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                              View connected senders and provider status
+                            </span>
+                          </span>
+                        </button>
+                      </>
+                    )
+                  ) : (
+                    <button
+                      type="button"
+                      className="workspace-menu-item justify-start"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false)
+                        navigate('/company/connections')
+                        onNavigate()
+                      }}
+                    >
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
+                        <FiPlus aria-hidden="true" />
                       </span>
-                      <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
-                        Connections and provider settings
+                      <span className="text-left">
+                        <span className="block text-[12px] font-semibold text-slate-800">
+                          Manage email connections
+                        </span>
+                        <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                          Inbox connections and provider settings
+                        </span>
                       </span>
-                    </span>
-                  </button>
+                    </button>
+                  )}
                 </div>
               )}
+
+              {channelType === 'SMS' &&
+                broadcastMode &&
+                companyId &&
+                can(PERMISSIONS.BROADCAST_MODIFY) && (
+                  <div className="border-t border-slate-100 pt-1">
+                    <div className="px-3 pb-1 pt-2 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                      Connect SMS provider
+                    </div>
+                    <button
+                      type="button"
+                      className="workspace-menu-item justify-start"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false)
+                        navigate('/company/connections?connect=msg91-sms')
+                        onNavigate()
+                      }}
+                    >
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
+                        <FiSmartphone aria-hidden="true" />
+                      </span>
+                      <span className="text-left">
+                        <span className="block text-[12px] font-semibold text-slate-800">
+                          MSG91 SMS
+                        </span>
+                        <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                          Guided Flow, Header and template setup
+                        </span>
+                      </span>
+                    </button>
+                  </div>
+                )}
             </div>
           )}
         </div>
 
-        {error && <p className="mt-3 px-1 text-xs leading-5 text-rose-600">{error}</p>}
+        {effectiveError && (
+          <p className="mt-3 px-1 text-xs leading-5 text-rose-600">{effectiveError}</p>
+        )}
       </div>
+      )}
 
-      {mode === 'inbox' && channelType === 'EMAIL' && (
+      {broadcastMode && (
+        <div className="mt-4 flex items-center gap-2">
+          <button
+            type="button"
+            className="primary-button min-w-0 flex-1 gap-2"
+            disabled={channelType === 'WHATSAPP' || !can(PERMISSIONS.BROADCAST_CREATE)}
+            onClick={createBroadcastGroup}
+          >
+            <FiPlus aria-hidden="true" />
+            <span>New group</span>
+          </button>
+        </div>
+      )}
+
+      {emailMode && (
         <div className="email-folder-switcher" role="tablist" aria-label="Email folders">
           <button
             type="button"
             role="tab"
             aria-selected={selectedFolder === 'INBOX'}
-            className={`email-folder-tab ${
-              selectedFolder === 'INBOX' ? 'is-active' : ''
-            }`}
+            className={`email-folder-tab ${selectedFolder === 'INBOX' ? 'is-active' : ''}`}
             onClick={() => selectFolder('INBOX')}
           >
             <FiInbox aria-hidden="true" />
@@ -514,9 +816,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
             type="button"
             role="tab"
             aria-selected={selectedFolder === 'SENT'}
-            className={`email-folder-tab ${
-              selectedFolder === 'SENT' ? 'is-active' : ''
-            }`}
+            className={`email-folder-tab ${selectedFolder === 'SENT' ? 'is-active' : ''}`}
             onClick={() => selectFolder('SENT')}
           >
             <FiSend aria-hidden="true" />
@@ -525,19 +825,19 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         </div>
       )}
 
-      <div className="mt-4 flex min-h-0 flex-1 flex-col border-t border-slate-100 pt-4">
+      <div className="context-conversation-section mt-4 flex min-h-0 flex-1 flex-col border-t border-slate-100 pt-4">
         <div className="mb-2 flex items-center justify-between gap-2 px-1">
           <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
             {emptyListLabel}
           </p>
-          {mode === 'inbox' && channelType === 'EMAIL' && conversationTotalElements > 0 && (
+          {emailMode && conversationTotalElements > 0 && (
             <span className="text-[10px] font-medium text-slate-400">
               {conversationTotalElements}
             </span>
           )}
         </div>
 
-        {mode === 'inbox' && channelType === 'EMAIL' ? (
+        {emailMode ? (
           <div className="-mx-3 min-h-0 flex-1 overflow-y-auto border-t border-slate-100">
             <ConversationList
               compact
@@ -548,9 +848,58 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
               loadingMore={conversationLoadingMore}
               totalElements={conversationTotalElements}
               hasMore={conversationPage + 1 < conversationTotalPages}
-              onSelect={selectConversation}
-              onLoadMore={() => void loadConversations(conversationPage + 1, true)}
+              onSelect={(conversation) => selectConversation(conversation.id)}
+              onLoadMore={loadMoreConversations}
             />
+          </div>
+        ) : broadcastMode ? (
+          <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+            {broadcast.groupsStatus === 'loading' && broadcastGroups.length === 0 ? (
+              <p className="px-2 py-6 text-center text-xs text-slate-500">Loading groups…</p>
+            ) : broadcastGroups.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center">
+                <FiUsers className="mx-auto text-2xl text-slate-300" aria-hidden="true" />
+                <p className="mt-3 text-xs font-semibold text-slate-700">No groups yet</p>
+                <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                  Create a reusable recipient group, then send broadcasts to it whenever needed.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-1.5">
+                {broadcastGroups.map((group) => (
+                  <button
+                    key={group.id}
+                    type="button"
+                    className={`broadcast-group-nav-item ${
+                      selectedGroupId === group.id ? 'is-active' : ''
+                    }`}
+                    onClick={() => selectBroadcastGroup(group.id)}
+                  >
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-[9px] bg-indigo-50 text-indigo-500">
+                      <FiUsers aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0 flex-1 text-left">
+                      <span className="block truncate text-xs font-semibold text-slate-800">
+                        {group.name}
+                      </span>
+                      <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                        {group.memberCount.toLocaleString()} recipients
+                      </span>
+                    </span>
+                  </button>
+                ))}
+                {broadcast.groupsPage + 1 < broadcast.groupsTotalPages && (
+                  <button
+                    type="button"
+                    className="secondary-button mt-2 w-full"
+                    onClick={loadMoreBroadcastGroups}
+                    disabled={broadcast.loadingMoreGroups}
+                  >
+                    {broadcast.loadingMoreGroups ? 'Loading…' : 'Load more'}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center">
@@ -558,15 +907,13 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
               No {emptyListLabel.toLowerCase()} yet
             </p>
             <p className="mt-1 text-[11px] leading-5 text-slate-500">
-              {mode === 'broadcast'
-                ? 'Created broadcasts will appear in this list.'
-                : 'Conversations will appear here when this channel is available.'}
+              Conversations will appear here when this channel is available.
             </p>
           </div>
         )}
       </div>
 
-      {channelType !== 'EMAIL' && connectAllowed && (
+      {!broadcastMode && channelType !== 'EMAIL' && connectAllowed && (
         <div className="mt-4 border-t border-slate-100 pt-4">
           <button
             type="button"

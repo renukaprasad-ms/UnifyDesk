@@ -5,13 +5,7 @@ import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.provider.ChannelProvider;
 import com.messaging.channel.provider.ProviderAccountHealth;
-import com.messaging.channel.provider.ProviderSendRequest;
-import com.messaging.channel.provider.ProviderSendResult;
-import com.messaging.channel.provider.ProviderWebhookMessage;
-import com.messaging.channel.provider.ProviderWebhookRequest;
-import com.messaging.common.exception.BadRequestException;
 import java.time.Instant;
-import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -20,16 +14,6 @@ public class MetaWhatsAppProvider implements ChannelProvider {
   @Override
   public ProviderType providerType() {
     return ProviderType.META_WHATSAPP;
-  }
-
-  @Override
-  public ProviderSendResult send(ProviderSendRequest request) {
-    throw new BadRequestException("WhatsApp message sending is not enabled yet");
-  }
-
-  @Override
-  public List<ProviderWebhookMessage> parseWebhook(ProviderWebhookRequest request) {
-    return List.of();
   }
 
   @Override

@@ -3,6 +3,7 @@ package com.messaging.channel.microsoft;
 import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.channel.dto.ChannelConnectionResponse;
 import com.messaging.channel.dto.DisconnectChannelRequest;
+import com.messaging.channel.email.EmailChannelOperationsService;
 import com.messaging.channel.email.EmailSyncRequest;
 import com.messaging.channel.microsoft.dto.MicrosoftAuthorizationResponse;
 import com.messaging.channel.microsoft.dto.MicrosoftSendRequest;
@@ -23,7 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class MicrosoftConnectionController {
 
   private final MicrosoftConnectionService connectionService;
-  private final MicrosoftSendService sendService;
+  private final EmailChannelOperationsService emailOperationsService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -47,7 +48,7 @@ public class MicrosoftConnectionController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            connectionService.activeSync(companyId, connectionId),
+            emailOperationsService.activeSync(companyId, connectionId),
             "Active Microsoft sync fetched"));
   }
 
@@ -62,7 +63,8 @@ public class MicrosoftConnectionController {
         .body(
             ApiResponse.success(
                 HttpStatus.ACCEPTED.value(),
-                connectionService.requestSync(companyId, userId, connectionId, request),
+                MicrosoftSyncQueuedResponse.from(
+                    emailOperationsService.queueSync(companyId, userId, connectionId, request)),
                 "Microsoft sync queued"));
   }
 
@@ -77,7 +79,8 @@ public class MicrosoftConnectionController {
         .body(
             ApiResponse.success(
                 HttpStatus.ACCEPTED.value(),
-                sendService.send(companyId, connectionId, request),
+                MicrosoftSendResponse.from(
+                emailOperationsService.send(companyId, connectionId, request.toCommand())),
                 "Email accepted by Microsoft"));
   }
 
@@ -92,7 +95,7 @@ public class MicrosoftConnectionController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            connectionService.disconnect(
+            emailOperationsService.disconnect(
                 companyId,
                 connectionId,
                 userId,

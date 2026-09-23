@@ -1,13 +1,14 @@
 package com.messaging.channel.microsoft;
 
 import com.messaging.channel.email.EmailFolder;
+import com.messaging.channel.email.EmailSentMessageHandler;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.microsoft.MicrosoftApiClient.*;
 import com.messaging.inbox.entity.*;
 import com.messaging.inbox.enums.*;
 import com.messaging.inbox.repository.*;
-import com.messaging.realtime.service.RealtimeService;
+import com.messaging.inbox.service.InboxMessagePostProcessor;
 import com.messaging.storage.enums.StorageUsageType;
 import com.messaging.storage.service.MessageStorageMeter;
 import com.messaging.storage.service.StorageAccountingService;
@@ -32,7 +33,8 @@ public class MicrosoftInboxPersistenceService {
   private final MessageStorageMeter messageStorageMeter;
   private final StorageQuotaService storageQuotaService;
   private final StorageAccountingService storageAccountingService;
-  private final RealtimeService realtimeService;
+  private final List<EmailSentMessageHandler> sentMessageHandlers;
+  private final List<InboxMessagePostProcessor> messagePostProcessors;
 
   @Transactional
   public SyncResult persistPage(
@@ -79,7 +81,9 @@ public class MicrosoftInboxPersistenceService {
     int created = 0;
     int updated = 0;
     int deleted = 0;
-    Set<Long> touchedConversationIds = new HashSet<>();
+    Set<Long> touchedConversationIds = new LinkedHashSet<>();
+    Set<Long> changedMessageIds = new LinkedHashSet<>();
+    Set<Long> deletedMessageIds = new LinkedHashSet<>();
     List<StorageConsumption> consumptions = new ArrayList<>();
 
     for (GraphMessage graphMessage : messages) {
@@ -102,10 +106,24 @@ public class MicrosoftInboxPersistenceService {
                 existing.getId().toString(),
                 existing.getStorageBytes());
           }
+          deletedMessageIds.add(existing.getId());
           messageRepository.delete(existing);
           touchedConversationIds.add(conversationId);
           deleted++;
         }
+        continue;
+      }
+
+      String broadcastCorrelationId =
+          header(graphMessage.internetMessageHeaders(), "x-messaging-broadcast-recipient");
+      if (normalizedFolder == EmailFolder.SENT
+          && hasText(broadcastCorrelationId)
+          && handleBroadcastSentMessage(
+              connection,
+              broadcastCorrelationId,
+              graphMessage.id(),
+              graphMessage.internetMessageId(),
+              sentAt(graphMessage))) {
         continue;
       }
 
@@ -187,7 +205,13 @@ public class MicrosoftInboxPersistenceService {
       }
 
       message = messageRepository.save(message);
+      if (message.getDirection() == InboxMessageDirection.INBOUND) {
+        for (InboxMessagePostProcessor processor : messagePostProcessors) {
+          processor.afterPersist(message);
+        }
+      }
       existingMessages.put(graphMessage.id(), message);
+      changedMessageIds.add(message.getId());
 
       if (accountStorage && message.getStorageBytes() > 0) {
         consumptions.add(
@@ -220,19 +244,34 @@ public class MicrosoftInboxPersistenceService {
               });
     }
 
-    if (created > 0 || updated > 0 || deleted > 0) {
-      realtimeService.sendToCompany(
-          connection.getCompanyId(),
-          "inbox.email.changed",
-          Map.of(
-              "connectionId", connection.getId().toString(),
-              "provider", ProviderType.MICROSOFT.name(),
-              "created", created,
-              "updated", updated,
-              "deleted", deleted));
-    }
+    return new SyncResult(
+        created,
+        updated,
+        deleted,
+        touchedConversationIds.size(),
+        Set.copyOf(touchedConversationIds),
+        Set.copyOf(changedMessageIds),
+        Set.copyOf(deletedMessageIds));
+  }
 
-    return new SyncResult(created, updated, deleted, touchedConversationIds.size());
+  private boolean handleBroadcastSentMessage(
+      ChannelConnection connection,
+      String correlationId,
+      String providerMessageId,
+      String internetMessageId,
+      Instant sentAt) {
+    for (EmailSentMessageHandler handler : sentMessageHandlers) {
+      if (handler.handle(
+          connection,
+          ProviderType.MICROSOFT,
+          correlationId,
+          providerMessageId,
+          internetMessageId,
+          sentAt)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void upsertParticipants(InboxConversation conversation, GraphMessage message) {
@@ -368,5 +407,12 @@ public class MicrosoftInboxPersistenceService {
     return value != null && !value.isBlank();
   }
 
-  public record SyncResult(int created, int updated, int deleted, int conversationsTouched) {}
+  public record SyncResult(
+      int created,
+      int updated,
+      int deleted,
+      int conversationsTouched,
+      Set<Long> conversationIds,
+      Set<Long> messageIds,
+      Set<Long> deletedMessageIds) {}
 }

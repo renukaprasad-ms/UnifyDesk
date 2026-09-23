@@ -4,7 +4,9 @@ import com.messaging.kafka.event.KafkaEvent;
 import com.messaging.kafka.key.KafkaKeyResolver;
 import com.messaging.kafka.topic.KafkaTopics;
 import lombok.RequiredArgsConstructor;
+import java.util.concurrent.CompletableFuture;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,7 +22,12 @@ public class EventPublisher {
   }
 
   public void publish(String key, KafkaEvent<?> event) {
+    publishAsync(key, event);
+  }
+
+  public CompletableFuture<SendResult<String, KafkaEvent<?>>> publishAsync(
+      String key, KafkaEvent<?> event) {
     String topic = kafkaTopics.topic(event.priority());
-    kafkaTemplate.send(topic, key, event);
+    return kafkaTemplate.send(topic, key, event);
   }
 }

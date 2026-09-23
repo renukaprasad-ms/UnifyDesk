@@ -8,6 +8,7 @@ import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.inbox.dto.InboxEmailChangedEvent;
 import com.messaging.inbox.dto.InboxReadStateResponse;
 import com.messaging.inbox.entity.InboxConversation;
 import com.messaging.inbox.entity.InboxMessage;
@@ -17,7 +18,7 @@ import com.messaging.inbox.repository.InboxConversationRepository;
 import com.messaging.inbox.repository.InboxMessageRepository;
 import com.messaging.realtime.service.RealtimeService;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -57,7 +58,7 @@ public class InboxReadStateService {
 
     providerReadStateService.update(connection, List.of(message), read, false);
     var applied = persistenceService.apply(List.of(message.getId()), read);
-    publishChange(connection, applied.changedMessages(), read);
+    publishChange(connection, applied);
     return new InboxReadStateResponse(
         read, applied.changedMessages(), applied.conversationIds().size());
   }
@@ -91,7 +92,7 @@ public class InboxReadStateService {
     var applied =
         persistenceService.apply(
             candidates.stream().map(InboxMessage::getId).toList(), read);
-    publishChange(connection, applied.changedMessages(), read);
+    publishChange(connection, applied);
     return new InboxReadStateResponse(
         read, applied.changedMessages(), applied.conversationIds().size());
   }
@@ -127,7 +128,7 @@ public class InboxReadStateService {
       providerReadStateService.update(connection, batch, true, true);
       var applied =
           persistenceService.apply(batch.stream().map(InboxMessage::getId).toList(), true);
-      publishChange(connection, applied.changedMessages(), true);
+      publishChange(connection, applied);
 
       long remaining = unreadCount(companyId, connectionId, resolvedFolder);
       long completed = Math.max(0, total - remaining);
@@ -167,15 +168,17 @@ public class InboxReadStateService {
     return connection;
   }
 
-  private void publishChange(ChannelConnection connection, int changed, boolean read) {
-    if (changed <= 0) return;
+  private void publishChange(
+      ChannelConnection connection, InboxReadStatePersistenceService.ApplyResult applied) {
+    if (applied.changedMessages() <= 0) return;
     realtimeService.sendToCompany(
         connection.getCompanyId(),
         "inbox.email.changed",
-        Map.of(
-            "connectionId", connection.getId().toString(),
-            "provider", connection.getProviderType().name(),
-            "readStateChanged", changed,
-            "read", read));
+        InboxEmailChangedEvent.boundedDelta(
+            connection.getId(),
+            connection.getProviderType(),
+            applied.conversationIds(),
+            applied.messageIds(),
+            Set.of()));
   }
 }

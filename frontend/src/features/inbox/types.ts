@@ -34,7 +34,9 @@ export type InboxAttachment = {
 
 export type InboxMessage = {
   id: string
+  conversationId: string
   externalMessageId: string
+  providerFolderKey?: string | null
   internetMessageId?: string | null
   direction: InboxMessageDirection
   status: InboxMessageStatus
@@ -66,4 +68,26 @@ export type InboxReadStateResponse = {
   read: boolean
   updatedMessages: number
   updatedConversations: number
+}
+
+
+export type InboxConversationDetail = {
+  conversation: InboxConversation
+  messages: InboxMessage[]
+}
+
+export type InboxEmailChangedEvent = {
+  connectionId: string
+  provider: ProviderType
+  conversationIds: string[]
+  messageIds: string[]
+  deletedMessageIds: string[]
+  fullRefreshRequired: boolean
+}
+
+export type InboxRealtimeSnapshot = {
+  conversations: InboxConversation[]
+  messages: InboxMessage[]
+  missingConversationIds: string[]
+  missingMessageIds: string[]
 }

@@ -3,6 +3,7 @@ package com.messaging.channel.gmail;
 import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.channel.dto.ChannelConnectionResponse;
 import com.messaging.channel.dto.DisconnectChannelRequest;
+import com.messaging.channel.email.EmailChannelOperationsService;
 import com.messaging.channel.email.EmailSyncRequest;
 import com.messaging.channel.gmail.dto.GmailAuthorizationResponse;
 import com.messaging.channel.gmail.dto.GmailSendRequest;
@@ -30,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class GmailConnectionController {
 
   private final GmailConnectionService gmailConnectionService;
-  private final GmailSendService gmailSendService;
+  private final EmailChannelOperationsService emailOperationsService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -55,7 +56,7 @@ public class GmailConnectionController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            gmailConnectionService.activeSync(companyId, connectionId),
+            emailOperationsService.activeSync(companyId, connectionId),
             "Active Gmail sync fetched"));
   }
 
@@ -71,7 +72,8 @@ public class GmailConnectionController {
         .body(
             ApiResponse.success(
                 HttpStatus.ACCEPTED.value(),
-                gmailConnectionService.queueSync(companyId, userId, connectionId, request),
+                GmailSyncQueuedResponse.from(
+                    emailOperationsService.queueSync(companyId, userId, connectionId, request)),
                 "Gmail sync queued"));
   }
 
@@ -86,7 +88,8 @@ public class GmailConnectionController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            gmailSendService.send(companyId, connectionId, request),
+            GmailSendResponse.from(
+                emailOperationsService.send(companyId, connectionId, request.toCommand())),
             "Email sent"));
   }
 
@@ -101,7 +104,7 @@ public class GmailConnectionController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            gmailConnectionService.disconnect(
+            emailOperationsService.disconnect(
                 companyId,
                 connectionId,
                 userId,

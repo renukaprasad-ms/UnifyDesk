@@ -39,11 +39,19 @@ public class ChannelConnectionService {
   private final ProviderCredentialService credentialService;
   private final ChannelProviderRegistry providerRegistry;
   private final DeletionPurgeService deletionPurgeService;
+  private final ChannelConnectionLifecycleService lifecycleService;
 
   @Transactional
   public ChannelConnectionResponse create(
       Long companyId, Long userId, CreateChannelConnectionRequest request) {
     validateProvider(request.channelType(), request.providerType());
+    if (request.providerType().supportsCapability(
+        com.messaging.channel.enums.ChannelConnectionCapability.BROADCAST)
+        && !request.providerType().supportsCapability(
+            com.messaging.channel.enums.ChannelConnectionCapability.INBOX)) {
+      throw new BadRequestException(
+          request.providerType() + " must be connected through its validated Broadcast provider flow");
+    }
     entitlementService.assertCanCreateConnection(companyId, request.channelType());
 
     String externalAccountId = normalizeNullable(request.externalAccountId());
@@ -164,14 +172,8 @@ public class ChannelConnectionService {
     return toResponse(connection);
   }
 
-  @Transactional
   public void cancelPendingPurge(Long companyId, Long connectionId) {
-    ChannelConnection connection = requireConnection(companyId, connectionId);
-    connection.setDisconnectedAt(null);
-    connection.setPurgeAfter(null);
-    connection.setDeletionRequestedByUserId(null);
-    connectionRepository.save(connection);
-    deletionPurgeService.cancel(LifecycleEntityType.CHANNEL_CONNECTION, connectionId);
+    lifecycleService.cancelPendingPurge(companyId, connectionId);
   }
 
   @Transactional
@@ -294,7 +296,8 @@ public class ChannelConnectionService {
         connection.getPurgeAfter(),
         connection.getCreatedAt(),
         connection.getUpdatedAt(),
-        providerRegistry.isConfigured(connection.getProviderType()));
+        providerRegistry.isConfigured(connection.getProviderType()),
+        connection.getProviderType().capabilities());
   }
 
   private SenderIdentityResponse toResponse(SenderIdentity sender) {

@@ -1,6 +1,7 @@
 package com.messaging.channel.imapsmtp;
 
 import com.messaging.channel.email.EmailFolder;
+import com.messaging.channel.email.EmailSentMessageHandler;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.imapsmtp.ImapSmtpMailClient.MailboxMessage;
@@ -14,6 +15,7 @@ import com.messaging.inbox.enums.InboxParticipantType;
 import com.messaging.inbox.repository.InboxConversationRepository;
 import com.messaging.inbox.repository.InboxMessageRepository;
 import com.messaging.inbox.repository.InboxParticipantRepository;
+import com.messaging.inbox.service.InboxMessagePostProcessor;
 import com.messaging.storage.enums.StorageUsageType;
 import com.messaging.storage.service.MessageStorageMeter;
 import com.messaging.storage.service.StorageQuotaService;
@@ -38,20 +40,28 @@ public class ImapSmtpInboxPersistenceService {
   private final InboxParticipantRepository participantRepository;
   private final MessageStorageMeter messageStorageMeter;
   private final StorageQuotaService storageQuotaService;
+  private final List<EmailSentMessageHandler> sentMessageHandlers;
+  private final List<InboxMessagePostProcessor> messagePostProcessors;
 
   @Transactional
   public PersistResult persist(ChannelConnection connection, List<MailboxMessage> snapshots) {
     if (snapshots == null || snapshots.isEmpty()) {
-      return new PersistResult(0, 0, Set.of());
+      return new PersistResult(0, 0, Set.of(), Set.of());
     }
 
     int created = 0;
     int updated = 0;
     Set<Long> touchedConversations = new LinkedHashSet<>();
+    Set<Long> touchedMessages = new LinkedHashSet<>();
     List<StorageConsumption> storage = new ArrayList<>();
 
     for (MailboxMessage snapshot : snapshots) {
       if (snapshot == null || !hasText(snapshot.externalMessageId())) continue;
+      if (snapshot.folder() == EmailFolder.SENT
+          && hasText(snapshot.broadcastCorrelationId())
+          && handleBroadcastSentMessage(connection, snapshot)) {
+        continue;
+      }
 
       InboxMessage message =
           messageRepository
@@ -149,6 +159,12 @@ public class ImapSmtpInboxPersistenceService {
       }
 
       message = messageRepository.save(message);
+      if (message.getDirection() == InboxMessageDirection.INBOUND) {
+        for (InboxMessagePostProcessor processor : messagePostProcessors) {
+          processor.afterPersist(message);
+        }
+      }
+      touchedMessages.add(message.getId());
       if (accountStorage) {
         storage.add(
             new StorageConsumption(
@@ -178,7 +194,23 @@ public class ImapSmtpInboxPersistenceService {
               });
     }
 
-    return new PersistResult(created, updated, touchedConversations);
+    return new PersistResult(created, updated, touchedConversations, touchedMessages);
+  }
+
+  private boolean handleBroadcastSentMessage(
+      ChannelConnection connection, MailboxMessage snapshot) {
+    for (EmailSentMessageHandler handler : sentMessageHandlers) {
+      if (handler.handle(
+          connection,
+          ProviderType.IMAP_SMTP,
+          snapshot.broadcastCorrelationId(),
+          snapshot.externalMessageId(),
+          snapshot.internetMessageId(),
+          snapshot.sentAt())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void upsertParticipants(InboxConversation conversation, MailboxMessage snapshot) {
@@ -247,5 +279,6 @@ public class ImapSmtpInboxPersistenceService {
     return value != null && !value.isBlank();
   }
 
-  public record PersistResult(int created, int updated, Set<Long> conversationIds) {}
+  public record PersistResult(
+      int created, int updated, Set<Long> conversationIds, Set<Long> messageIds) {}
 }

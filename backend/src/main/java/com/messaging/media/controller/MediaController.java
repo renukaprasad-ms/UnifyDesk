@@ -40,6 +40,16 @@ public class MediaController {
             HttpStatus.OK.value(), mediaService.completeUpload(mediaId), "Media upload completed"));
   }
 
+  @GetMapping("/company/{companyId}")
+  public ResponseEntity<ApiResponse<java.util.List<MediaResponse>>> companyMedia(
+      @PathVariable Long companyId) {
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            mediaService.listCompanyMedia(companyId),
+            "Company media fetched"));
+  }
+
   @GetMapping("/{mediaId}/access")
   public ResponseEntity<ApiResponse<MediaAccessResponse>> access(@PathVariable String mediaId) {
     return ResponseEntity.ok(

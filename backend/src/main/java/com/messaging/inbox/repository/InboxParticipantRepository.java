@@ -2,6 +2,7 @@ package com.messaging.inbox.repository;
 
 import com.messaging.inbox.entity.InboxParticipant;
 import com.messaging.inbox.enums.InboxParticipantType;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,4 +13,6 @@ public interface InboxParticipantRepository extends JpaRepository<InboxParticipa
       Long conversationId, InboxParticipantType participantType, String address);
 
   List<InboxParticipant> findByConversationIdOrderByAddressAsc(Long conversationId);
+
+  List<InboxParticipant> findByConversationIdInOrderByAddressAsc(Collection<Long> conversationIds);
 }

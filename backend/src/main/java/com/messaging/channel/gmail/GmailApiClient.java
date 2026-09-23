@@ -340,6 +340,44 @@ public class GmailApiClient {
                 .body(SendMessageResponse.class));
   }
 
+  /**
+   * Single-attempt send for non-idempotent bulk delivery. The caller owns retry classification so
+   * an ambiguous provider response is never retried automatically.
+   */
+  public SendMessageResponse sendMessageOnce(
+      String accessToken, String rawMessage, String threadId) {
+    try {
+      SendMessageResponse response =
+          gmailApi
+              .post()
+              .uri("/gmail/v1/users/me/messages/send")
+              .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+              .contentType(MediaType.APPLICATION_JSON)
+              .body(new SendMessageRequest(rawMessage, threadId))
+              .retrieve()
+              .body(SendMessageResponse.class);
+      if (response == null) {
+        throw new ServiceUnavailableException("Google returned an empty Gmail send response");
+      }
+      return response;
+    } catch (RestClientResponseException exception) {
+      int status = exception.getStatusCode().value();
+      GoogleFailure failure = googleFailure(exception);
+      if (isRateLimit(status, failure.reason())) {
+        throw new GmailRateLimitException(
+            failure.reason(), retryAfter(exception.getResponseHeaders()));
+      }
+      if (status >= 500) {
+        throw new ServiceUnavailableException(
+            "Gmail send outcome could not be confirmed", exception);
+      }
+      if (status == 403) {
+        throw new BadRequestException(googleForbiddenMessage(failure.reason()));
+      }
+      throw new BadRequestException("Google Gmail send failed with HTTP " + status);
+    }
+  }
+
   public void updateReadState(
       String accessToken, List<String> messageIds, boolean read) {
     if (messageIds == null || messageIds.isEmpty()) return;

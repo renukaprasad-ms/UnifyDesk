@@ -6,8 +6,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.messaging.channel.credential.ProviderCredentialService;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.ProviderType;
@@ -18,7 +16,7 @@ import com.messaging.channel.gmail.GmailOAuthStateService.OAuthState;
 import com.messaging.channel.gmail.dto.GmailAuthorizationResponse;
 import com.messaging.channel.gmail.dto.GmailConnectionResponse;
 import com.messaging.channel.repository.ChannelConnectionRepository;
-import com.messaging.channel.service.ChannelConnectionService;
+import com.messaging.channel.service.ChannelConnectionLifecycleService;
 import com.messaging.channel.service.ChannelEntitlementService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.company.iam.CompanyPermissionKeys;
@@ -40,13 +38,11 @@ class GmailConnectionServiceTests {
   @Mock private GmailOAuthStateService stateService;
   @Mock private GmailApiClient gmailApiClient;
   @Mock private GmailPersistenceService persistenceService;
-  @Mock private GmailSyncQueueService syncQueueService;
   @Mock private GmailWatchService watchService;
   @Mock private ChannelConnectionRepository connectionRepository;
   @Mock private ChannelEntitlementService entitlementService;
   @Mock private CompanyAuthorizationService authorizationService;
-  @Mock private ProviderCredentialService credentialService;
-  @Mock private ChannelConnectionService channelConnectionService;
+  @Mock private ChannelConnectionLifecycleService lifecycleService;
 
   private GmailConnectionService service;
 
@@ -65,14 +61,11 @@ class GmailConnectionServiceTests {
             stateService,
             gmailApiClient,
             persistenceService,
-            syncQueueService,
             watchService,
             connectionRepository,
             entitlementService,
             authorizationService,
-            credentialService,
-            channelConnectionService,
-            new ObjectMapper());
+            lifecycleService);
   }
 
   @Test

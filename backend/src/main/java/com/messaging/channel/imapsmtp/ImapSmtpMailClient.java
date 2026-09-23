@@ -289,6 +289,14 @@ public class ImapSmtpMailClient {
   }
 
   public SentMessage send(ImapSmtpStoredCredentials credentials, ImapSmtpSendRequest request) {
+    return send(credentials, request, null, null);
+  }
+
+  public SentMessage send(
+      ImapSmtpStoredCredentials credentials,
+      ImapSmtpSendRequest request,
+      String requestedMessageId,
+      String broadcastCorrelationId) {
     List<String> to = normalizeRecipients(request.to());
     List<String> cc = normalizeRecipients(request.cc());
     List<String> bcc = normalizeRecipients(request.bcc());
@@ -323,6 +331,12 @@ public class ImapSmtpMailClient {
       Date sentAt = new Date();
       message.setSentDate(sentAt);
       message.saveChanges();
+      if (hasText(requestedMessageId)) {
+        message.setHeader("Message-ID", requestedMessageId.trim());
+      }
+      if (hasText(broadcastCorrelationId)) {
+        message.setHeader("X-Messaging-Broadcast-Recipient", broadcastCorrelationId.trim());
+      }
 
       Transport transport = null;
       try {
@@ -500,6 +514,7 @@ public class ImapSmtpMailClient {
     String internetMessageId = firstHeader(message, "Message-ID");
     String inReplyTo = firstHeader(message, "In-Reply-To");
     String references = firstHeader(message, "References");
+    String broadcastCorrelationId = firstHeader(message, "X-Messaging-Broadcast-Recipient");
     String threadKey = threadKey(internetMessageId, inReplyTo, references, uidValidity, uid);
     Body body = extractBody(message);
 
@@ -526,12 +541,17 @@ public class ImapSmtpMailClient {
         trimToNull(message.getSubject()),
         body.text(),
         body.html(),
+        trimToNull(broadcastCorrelationId),
         sentAt,
         !message.isSet(Flags.Flag.SEEN),
         emailFolder);
   }
 
   private Body extractBody(Part part) throws Exception {
+    if (part.isMimeType("message/delivery-status")) {
+      Object content = part.getContent();
+      return new Body(limit(content == null ? null : content.toString()), null);
+    }
     if (part.isMimeType("text/plain")) {
       Object content = part.getContent();
       return new Body(limit(content == null ? null : content.toString()), null);
@@ -709,9 +729,52 @@ public class ImapSmtpMailClient {
       String subject,
       String bodyText,
       String bodyHtml,
+      String broadcastCorrelationId,
       Instant sentAt,
       boolean unread,
-      EmailFolder folder) {}
+      EmailFolder folder) {
+
+    public MailboxMessage(
+        long uid,
+        long uidValidity,
+        String externalMessageId,
+        String internetMessageId,
+        String threadKey,
+        String from,
+        String replyTo,
+        List<String> to,
+        List<String> cc,
+        List<String> bcc,
+        String inReplyTo,
+        String references,
+        String subject,
+        String bodyText,
+        String bodyHtml,
+        Instant sentAt,
+        boolean unread,
+        EmailFolder folder) {
+      this(
+          uid,
+          uidValidity,
+          externalMessageId,
+          internetMessageId,
+          threadKey,
+          from,
+          replyTo,
+          to,
+          cc,
+          bcc,
+          inReplyTo,
+          references,
+          subject,
+          bodyText,
+          bodyHtml,
+          null,
+          sentAt,
+          unread,
+          folder);
+    }
+  }
 
   public record SentMessage(
       String messageId,

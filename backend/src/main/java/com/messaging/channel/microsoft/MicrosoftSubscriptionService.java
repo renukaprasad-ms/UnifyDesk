@@ -1,5 +1,6 @@
 package com.messaging.channel.microsoft;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ProviderType;
@@ -194,6 +195,7 @@ public class MicrosoftSubscriptionService {
         right.getBytes(java.nio.charset.StandardCharsets.UTF_8));
   }
 
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public record ChangeNotification(
       String subscriptionId, String clientState, String changeType, String resource) {}
 

@@ -112,7 +112,7 @@ public class MediaService {
     media.setOwnerUserId(userId);
     media.setCompanyId(request.companyId());
     media.setStorageProvider(storageProperties.getDefaultProvider());
-    media.setBucket(storageProperties.getSupabase().getBucket());
+    media.setBucket(configuredBucket());
     media.setObjectKey(
         objectKeyFactory.createTemporaryObjectKey(userId, mediaId, validated.extension()));
     media.setOriginalFileName(validated.fileName());
@@ -132,7 +132,7 @@ public class MediaService {
     media.setId(mediaId);
     media.setOwnerUserId(PRE_REGISTER_OWNER_ID);
     media.setStorageProvider(storageProperties.getDefaultProvider());
-    media.setBucket(storageProperties.getSupabase().getBucket());
+    media.setBucket(configuredBucket());
     media.setObjectKey(objectKeyFactory.createPreRegisterObjectKey(mediaId, validated.extension()));
     media.setOriginalFileName(validated.fileName());
     media.setContentType(validated.contentType());
@@ -352,6 +352,63 @@ public class MediaService {
   private String finalObjectKey(Media media, long ownerUserId) {
     return objectKeyFactory.createUserObjectKey(
         ownerUserId, media.getPurpose(), media.getId(), extension(media.getObjectKey()));
+  }
+
+  @Transactional(readOnly = true)
+  public java.util.List<MediaResponse> listCompanyMedia(Long companyId) {
+    long userId = currentUserService.currentUserId();
+    companyAuthorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.MEDIA_READ);
+    return mediaRepository
+        .findByCompanyIdAndStatusOrderByCreatedAtDesc(
+            companyId,
+            MediaStatus.ACTIVE,
+            org.springframework.data.domain.PageRequest.of(0, 100))
+        .stream()
+        .map(mediaMapper::toResponse)
+        .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public Media requireActiveCompanyMedia(long mediaId, long companyId) {
+    Media media =
+        mediaRepository
+            .findById(mediaId)
+            .orElseThrow(() -> new MediaException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND"));
+    if (media.getCompanyId() == null || !media.getCompanyId().equals(companyId)) {
+      throw new MediaException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND");
+    }
+    if (media.getStatus() != MediaStatus.ACTIVE) {
+      throw new MediaException(HttpStatus.CONFLICT, "MEDIA_NOT_ACTIVE");
+    }
+    return media;
+  }
+
+  @Transactional(readOnly = true)
+  public MediaAccessResponse createTrustedAccessUrl(long mediaId) {
+    Media media =
+        mediaRepository
+            .findById(mediaId)
+            .orElseThrow(() -> new MediaException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND"));
+    if (media.getStatus() != MediaStatus.ACTIVE) {
+      throw new MediaException(HttpStatus.CONFLICT, "MEDIA_NOT_ACTIVE");
+    }
+    StorageProvider provider = storageProviderResolver.resolve(media.getStorageProvider());
+    SignedDownloadResult signedDownload =
+        provider.createSignedDownloadUrl(
+            media.getBucket(), media.getObjectKey(), storageProperties.getDownloadUrlExpiry());
+    return new MediaAccessResponse(signedDownload.url(), signedDownload.expiresAt());
+  }
+
+  private String configuredBucket() {
+    String bucket =
+        switch (storageProperties.getDefaultProvider()) {
+          case SUPABASE -> storageProperties.getSupabase().getBucket();
+          case S3 -> storageProperties.getS3().getBucket();
+        };
+    if (!org.springframework.util.StringUtils.hasText(bucket)) {
+      throw new MediaException(HttpStatus.SERVICE_UNAVAILABLE, "MEDIA_STORAGE_NOT_CONFIGURED");
+    }
+    return bucket.trim();
   }
 
   private String secureToken() {

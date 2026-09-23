@@ -6,6 +6,9 @@ import com.messaging.channel.imapsmtp.ImapSmtpMailClient.MailboxMessage;
 import com.messaging.channel.imapsmtp.ImapSmtpMailClient.SentMessage;
 import com.messaging.channel.imapsmtp.dto.ImapSmtpSendRequest;
 import com.messaging.channel.imapsmtp.dto.ImapSmtpSendResponse;
+import com.messaging.channel.enums.ProviderType;
+import com.messaging.inbox.dto.InboxEmailChangedEvent;
+import com.messaging.realtime.service.RealtimeService;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -19,10 +22,11 @@ public class ImapSmtpSendService {
   private final ImapSmtpConnectionService connectionService;
   private final ImapSmtpMailClient mailClient;
   private final ImapSmtpInboxPersistenceService persistenceService;
+  private final RealtimeService realtimeService;
 
   public ImapSmtpSendResponse send(
-      Long companyId, Long connectionId, ImapSmtpSendRequest request) {
-    ChannelConnection connection = connectionService.requireActive(companyId, connectionId);
+      ChannelConnection connection, ImapSmtpSendRequest request) {
+    Long connectionId = connection.getId();
     ImapSmtpStoredCredentials credentials = connectionService.credentials(connection);
 
     SentMessage sent = mailClient.send(credentials, request);
@@ -52,7 +56,16 @@ public class ImapSmtpSendService {
             sent.sentAt(),
             false,
             EmailFolder.SENT);
-    persistenceService.persist(connection, List.of(local));
+    var persisted = persistenceService.persist(connection, List.of(local));
+    realtimeService.sendToCompany(
+        connection.getCompanyId(),
+        "inbox.email.changed",
+        InboxEmailChangedEvent.boundedDelta(
+            connection.getId(),
+            ProviderType.IMAP_SMTP,
+            persisted.conversationIds(),
+            persisted.messageIds(),
+            List.of()));
 
     return new ImapSmtpSendResponse(
         connectionId.toString(),
