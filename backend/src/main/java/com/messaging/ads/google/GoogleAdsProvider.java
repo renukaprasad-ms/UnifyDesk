@@ -25,8 +25,14 @@ public class GoogleAdsProvider implements AdsProvider {
 
   @Override
   public Set<AdCapability> capabilities() {
-    // Only advertise capabilities that are live. Campaign, analytics, conversions,
-    // recommendations and billing are added as their provider adapters land.
-    return Set.of(AdCapability.ACCOUNT_DISCOVERY);
+    return Set.of(
+        AdCapability.ACCOUNT_DISCOVERY,
+        AdCapability.CAMPAIGN_MANAGEMENT,
+        AdCapability.CREATIVE_MANAGEMENT,
+        AdCapability.AUDIENCE_MANAGEMENT,
+        AdCapability.CONVERSION_MANAGEMENT,
+        AdCapability.ANALYTICS,
+        AdCapability.BILLING_READ,
+        AdCapability.RECOMMENDATIONS);
   }
 }
