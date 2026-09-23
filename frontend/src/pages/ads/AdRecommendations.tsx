@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   FiAlertTriangle,
   FiCheckCircle,
@@ -42,7 +42,7 @@ const pretty = (value: string) =>
 
 const severityTone: Record<
   AdRecommendationSeverity,
-  { badge: string; border: string; icon: JSX.Element }
+  { badge: string; border: string; icon: ReactNode }
 > = {
   CRITICAL: {
     badge: 'bg-red-50 text-red-700',
