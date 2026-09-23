@@ -26,6 +26,7 @@ import com.messaging.ads.google.dto.GoogleConversionSyncResponse;
 import com.messaging.ads.google.dto.GoogleInsightsSyncResponse;
 import com.messaging.ads.google.dto.GoogleInsightBreakdownsSyncResponse;
 import com.messaging.ads.google.dto.GoogleKeywordSyncResponse;
+import com.messaging.ads.google.dto.GoogleFullSyncResponse;
 import com.messaging.ads.google.dto.UpdateGoogleAdGroupRequest;
 import com.messaging.ads.google.dto.UpdateGoogleCampaignRequest;
 import com.messaging.ads.google.dto.UpdateGoogleKeywordRequest;
@@ -63,6 +64,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsInsightBreakdownSyncService insightBreakdownSyncService;
   private final GoogleAdsHealthService healthService;
   private final GoogleAdsBillingService billingService;
+  private final GoogleAdsFullSyncService fullSyncService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -78,6 +80,17 @@ public class GoogleAdsConnectionController {
             HttpStatus.OK.value(),
             connectionService.authorization(companyId, userId, returnTo),
             "Google Ads authorization created"));
+  }
+
+  @PostMapping("/accounts/{accountId}/sync")
+  public ResponseEntity<ApiResponse<GoogleFullSyncResponse>> syncAll(
+      @PathVariable Long companyId, @PathVariable Long accountId) {
+    requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            fullSyncService.sync(companyId, accountId),
+            "Google Ads account fully synchronized"));
   }
 
   @PostMapping("/accounts/{accountId}/campaigns/sync")
