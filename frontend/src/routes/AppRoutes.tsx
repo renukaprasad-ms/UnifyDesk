@@ -7,6 +7,8 @@ import AdCenterOverview from '../pages/ads/AdCenterOverview'
 import AdCampaigns from '../pages/ads/AdCampaigns'
 import AdCampaignDetails from '../pages/ads/AdCampaignDetails'
 import AdSetDetails from '../pages/ads/AdSetDetails'
+import AdCreatives from '../pages/ads/AdCreatives'
+import AdDetails from '../pages/ads/AdDetails'
 import AccountSettings from '../pages/account/AccountSettings'
 import ChangePassword from '../pages/account/ChangePassword'
 import ForgotPassword from '../pages/auth/ForgotPassword'
@@ -90,7 +92,8 @@ const AppRoutes = () => (
               <Route path="ad-center/campaigns" element={<AdCampaigns />} />
               <Route path="ad-center/campaigns/:campaignId" element={<AdCampaignDetails />} />
               <Route path="ad-center/ad-sets/:adSetId" element={<AdSetDetails />} />
-              <Route path="ad-center/creatives" element={<PlaceholderPage />} />
+              <Route path="ad-center/ads/:adId" element={<AdDetails />} />
+              <Route path="ad-center/creatives" element={<AdCreatives />} />
               <Route path="ad-center/audiences" element={<PlaceholderPage />} />
               <Route path="ad-center/conversions" element={<PlaceholderPage />} />
               <Route path="ad-center/analytics" element={<PlaceholderPage />} />
