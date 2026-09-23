@@ -10,7 +10,11 @@ import {
   FiUsers,
   FiZap,
 } from 'react-icons/fi'
+import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router'
+import { adCenterApi } from '../../features/ads/adCenterApi'
+import { useAppSelector } from '../../store/hooks'
+import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 
 const items = [
   { label: 'Overview', to: '/ad-center', icon: <FiGrid /> },
@@ -26,6 +30,36 @@ const items = [
 ]
 
 export default function AdCenterSidebar({ onNavigate }: { onNavigate: () => void }) {
+  const selectedCompany = useAppSelector(selectSelectedCompany)
+  const [attentionCount, setAttentionCount] = useState(0)
+
+  useEffect(() => {
+    let active = true
+
+    const loadAttention = async () => {
+      if (!selectedCompany) {
+        if (active) setAttentionCount(0)
+        return
+      }
+      try {
+        const summary = await adCenterApi.recommendationSummary(
+          selectedCompany.companyId,
+        )
+        if (active) setAttentionCount(summary.attentionCount)
+      } catch {
+        if (active) setAttentionCount(0)
+      }
+    }
+
+    const handleChanged = () => void loadAttention()
+    void loadAttention()
+    window.addEventListener('ad-center:recommendations-changed', handleChanged)
+    return () => {
+      active = false
+      window.removeEventListener('ad-center:recommendations-changed', handleChanged)
+    }
+  }, [selectedCompany?.companyId])
+
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `sidebar-link ${isActive ? 'sidebar-link-active' : ''}`
 
@@ -39,6 +73,11 @@ export default function AdCenterSidebar({ onNavigate }: { onNavigate: () => void
           <NavLink key={item.to} to={item.to} end={item.to === '/ad-center'} className={linkClass} onClick={onNavigate}>
             <span className="sidebar-icon" aria-hidden="true">{item.icon}</span>
             <span>{item.label}</span>
+            {item.to === '/ad-center/recommendations' && attentionCount > 0 && (
+              <span className="ml-auto rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
+                {attentionCount > 99 ? '99+' : attentionCount}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>
