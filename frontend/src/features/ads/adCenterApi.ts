@@ -56,6 +56,7 @@ import type {
   GoogleAudienceSync,
   GoogleConversionSync,
   GoogleInsightsSync,
+  GoogleFullSync,
   GoogleInsightBreakdownsSync,
   PageResponse,
   UpdateMetaCampaignInput,
@@ -169,6 +170,13 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+
+  async syncGoogleAll(companyId: string, accountId: string) {
+    const response = await apiClient.post<ApiResponse<GoogleFullSync>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/sync`,
+    )
+    return unwrap(response.data)
+  },
 
   async syncGoogleCampaigns(companyId: string, accountId: string) {
     const response = await apiClient.post<ApiResponse<GoogleCampaignSync>>(
