@@ -11,6 +11,7 @@ import com.messaging.ads.dto.AdAnalyticsResponse;
 import com.messaging.ads.dto.AdCampaignResponse;
 import com.messaging.ads.dto.AdConversionResponse;
 import com.messaging.ads.dto.AdCreativeResponse;
+import com.messaging.ads.dto.AdKeywordResponse;
 import com.messaging.ads.dto.AdResponse;
 import com.messaging.ads.dto.AdProviderConnectionResponse;
 import com.messaging.ads.dto.AdProviderResponse;
@@ -29,6 +30,7 @@ import com.messaging.ads.service.AdAnalyticsService;
 import com.messaging.ads.service.AdCampaignService;
 import com.messaging.ads.service.AdConversionService;
 import com.messaging.ads.service.AdCreativeService;
+import com.messaging.ads.service.AdKeywordService;
 import com.messaging.ads.service.AdService;
 import com.messaging.ads.service.AdCenterService;
 import com.messaging.ads.service.AdSetService;
@@ -72,6 +74,7 @@ public class AdCenterController {
   private final AdCampaignService campaignService;
   private final AdConversionService conversionService;
   private final AdCreativeService creativeService;
+  private final AdKeywordService keywordService;
   private final AdService adService;
   private final AdSetService adSetService;
   private final AdRecommendationLifecycleService recommendationLifecycleService;
@@ -257,6 +260,28 @@ public class AdCenterController {
     return ResponseEntity.ok(
         ApiResponse.success(
             200, creativeService.get(companyId, creativeId), "Advertising creative fetched"));
+  }
+
+  @GetMapping("/ad-sets/{adSetId}/keywords")
+  public ResponseEntity<ApiResponse<List<AdKeywordResponse>>> keywords(
+      @PathVariable Long companyId, @PathVariable Long adSetId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            keywordService.list(companyId, adSetId),
+            "Advertising keywords fetched"));
+  }
+
+  @GetMapping("/keywords/{keywordId}")
+  public ResponseEntity<ApiResponse<AdKeywordResponse>> keyword(
+      @PathVariable Long companyId, @PathVariable Long keywordId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            keywordService.get(companyId, keywordId),
+            "Advertising keyword fetched"));
   }
 
   @GetMapping("/ad-sets/{adSetId}/ads")
