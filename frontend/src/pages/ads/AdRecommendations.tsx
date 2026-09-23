@@ -255,8 +255,13 @@ export default function AdRecommendations() {
           account.managed &&
           account.accessible,
       )
+      const requestedAccountId = new URLSearchParams(
+        window.location.search,
+      ).get('accountId')
       const preferred =
-        eligible.find((account) => account.primaryAccount) ?? eligible[0]
+        eligible.find((account) => account.id === requestedAccountId) ??
+        eligible.find((account) => account.primaryAccount) ??
+        eligible[0]
       if (preferred) {
         setSelectedAccountId(preferred.id)
         await loadRecommendations(preferred.id)
@@ -276,6 +281,13 @@ export default function AdRecommendations() {
 
   const chooseAccount = async (accountId: string) => {
     setSelectedAccountId(accountId)
+    const url = new URL(window.location.href)
+    url.searchParams.set('accountId', accountId)
+    window.history.replaceState(
+      {},
+      '',
+      `${url.pathname}${url.search}${url.hash}`,
+    )
     setFilter('ALL')
     setNotice('')
     setError('')
