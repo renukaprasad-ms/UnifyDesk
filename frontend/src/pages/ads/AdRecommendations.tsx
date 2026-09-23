@@ -114,7 +114,11 @@ function RecommendationCard({
               {pretty(item.category)}
             </span>
             <span className="rounded-full border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
-              {item.source === 'META_PROVIDER' ? 'Meta' : 'Reachlyo diagnostic'}
+              {item.source === 'META_PROVIDER'
+                ? 'Meta'
+                : item.source === 'GOOGLE_PROVIDER'
+                  ? 'Google Ads'
+                  : 'Reachlyo diagnostic'}
             </span>
           </div>
 
@@ -209,12 +213,7 @@ export default function AdRecommendations() {
 
   const managedAccounts = useMemo(
     () =>
-      accounts.filter(
-        (account) =>
-          account.provider === 'META_ADS' &&
-          account.managed &&
-          account.accessible,
-      ),
+      accounts.filter((account) => account.managed && account.accessible),
     [accounts],
   )
 
@@ -250,10 +249,7 @@ export default function AdRecommendations() {
       const accountData = await adCenterApi.accounts(selectedCompany.companyId)
       setAccounts(accountData)
       const eligible = accountData.filter(
-        (account) =>
-          account.provider === 'META_ADS' &&
-          account.managed &&
-          account.accessible,
+        (account) => account.managed && account.accessible,
       )
       const requestedAccountId = new URLSearchParams(
         window.location.search,
@@ -349,58 +345,112 @@ export default function AdRecommendations() {
     setNotice('')
 
     const range = lastSevenDays()
-    const tasks = [
-      {
-        name: 'campaigns',
-        run: () =>
-          adCenterApi.syncMetaCampaigns(
-            selectedCompany.companyId,
-            selectedAccount.id,
-          ),
-      },
-      {
-        name: 'account health',
-        run: () =>
-          adCenterApi.syncMetaHealth(
-            selectedCompany.companyId,
-            selectedAccount.id,
-          ),
-      },
-      {
-        name: 'billing',
-        run: () =>
-          adCenterApi.syncMetaBilling(
-            selectedCompany.companyId,
-            selectedAccount.id,
-          ),
-      },
-      {
-        name: 'resources',
-        run: () =>
-          adCenterApi.syncMetaResources(
-            selectedCompany.companyId,
-            selectedAccount.id,
-          ),
-      },
-      {
-        name: 'conversions',
-        run: () =>
-          adCenterApi.syncMetaConversions(
-            selectedCompany.companyId,
-            selectedAccount.id,
-          ),
-      },
-      {
-        name: 'analytics',
-        run: () =>
-          adCenterApi.syncMetaInsights(
-            selectedCompany.companyId,
-            selectedAccount.id,
-            range.from,
-            range.to,
-          ),
-      },
-    ]
+    const tasks =
+      selectedAccount.provider === 'GOOGLE_ADS'
+        ? [
+            {
+              name: 'campaigns',
+              run: () =>
+                adCenterApi.syncGoogleCampaigns(
+                  selectedCompany.companyId,
+                  selectedAccount.id,
+                ),
+            },
+            {
+              name: 'account health',
+              run: () =>
+                adCenterApi.syncGoogleHealth(
+                  selectedCompany.companyId,
+                  selectedAccount.id,
+                ),
+            },
+            {
+              name: 'billing',
+              run: () =>
+                adCenterApi.syncGoogleBilling(
+                  selectedCompany.companyId,
+                  selectedAccount.id,
+                ),
+            },
+            {
+              name: 'audiences',
+              run: () =>
+                adCenterApi.syncGoogleAudiences(
+                  selectedCompany.companyId,
+                  selectedAccount.id,
+                ),
+            },
+            {
+              name: 'conversions',
+              run: () =>
+                adCenterApi.syncGoogleConversions(
+                  selectedCompany.companyId,
+                  selectedAccount.id,
+                ),
+            },
+            {
+              name: 'analytics',
+              run: () =>
+                adCenterApi.syncGoogleInsights(
+                  selectedCompany.companyId,
+                  selectedAccount.id,
+                  range.from,
+                  range.to,
+                ),
+            },
+          ]
+        : [
+            {
+              name: 'campaigns',
+              run: () =>
+                adCenterApi.syncMetaCampaigns(
+                  selectedCompany.companyId,
+                  selectedAccount.id,
+                ),
+            },
+            {
+              name: 'account health',
+              run: () =>
+                adCenterApi.syncMetaHealth(
+                  selectedCompany.companyId,
+                  selectedAccount.id,
+                ),
+            },
+            {
+              name: 'billing',
+              run: () =>
+                adCenterApi.syncMetaBilling(
+                  selectedCompany.companyId,
+                  selectedAccount.id,
+                ),
+            },
+            {
+              name: 'resources',
+              run: () =>
+                adCenterApi.syncMetaResources(
+                  selectedCompany.companyId,
+                  selectedAccount.id,
+                ),
+            },
+            {
+              name: 'conversions',
+              run: () =>
+                adCenterApi.syncMetaConversions(
+                  selectedCompany.companyId,
+                  selectedAccount.id,
+                ),
+            },
+            {
+              name: 'analytics',
+              run: () =>
+                adCenterApi.syncMetaInsights(
+                  selectedCompany.companyId,
+                  selectedAccount.id,
+                  range.from,
+                  range.to,
+                ),
+            },
+          ]
 
     try {
       const results = await Promise.allSettled(tasks.map((task) => task.run()))
@@ -419,7 +469,7 @@ export default function AdRecommendations() {
 
       setNotice(
         failed.length === 0
-          ? 'Meta account, delivery, billing, tracking, and seven-day performance signals synchronized and recommendation lifecycle reconciled.'
+          ? `${selectedAccount.provider === 'GOOGLE_ADS' ? 'Google Ads' : 'Meta'} account, delivery, billing, tracking, and seven-day performance signals synchronized and recommendation lifecycle reconciled.`
           : `Recommendations refreshed and reconciled. ${failed.length} signal source(s) could not be synchronized: ${failed.join(', ')}.`,
       )
     } catch (syncError) {
@@ -478,7 +528,7 @@ export default function AdRecommendations() {
               Recommendations
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Prioritize Meta delivery issues, account risks, tracking gaps, billing limits, and provable campaign-performance problems.
+              Prioritize provider delivery issues, account risks, tracking gaps, billing limits, and provable campaign-performance problems.
             </p>
           </div>
 
@@ -509,7 +559,7 @@ export default function AdRecommendations() {
 
         <div className="mt-6 max-w-sm">
           <label className="text-xs font-semibold text-slate-700">
-            Managed Meta ad account
+            Managed ad account
             <select
               className="form-input mt-2"
               value={selectedAccount?.id ?? ''}
@@ -517,7 +567,7 @@ export default function AdRecommendations() {
               onChange={(event) => void chooseAccount(event.target.value)}
             >
               {managedAccounts.length === 0 ? (
-                <option value="">No managed Meta account</option>
+                <option value="">No managed ad account</option>
               ) : (
                 managedAccounts.map((account) => (
                   <option key={account.id} value={account.id}>
@@ -531,7 +581,7 @@ export default function AdRecommendations() {
 
         {managedAccounts.length === 0 ? (
           <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
-            Connect and manage a Meta ad account before using recommendations.
+            Connect and manage an ad account before using recommendations.
           </div>
         ) : loading ? (
           <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
@@ -542,7 +592,7 @@ export default function AdRecommendations() {
             <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
               <article className="panel p-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Meta opportunity score
+                  {selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google optimization score' : 'Meta opportunity score'}
                 </p>
                 <p className="mt-2 text-2xl font-bold text-slate-950">
                   {recommendations.metaOpportunityScore ?? '—'}
