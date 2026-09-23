@@ -38,6 +38,7 @@ public class BroadcastDeliveryService {
               run.getSubjectSnapshot(),
               run.getBodyTextSnapshot(),
               run.getBodyHtmlSnapshot(),
+              run.getTemplateVariablesJsonSnapshot(),
               recipient,
               channelType);
 
