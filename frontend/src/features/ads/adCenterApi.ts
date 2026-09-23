@@ -36,6 +36,13 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+  async allResources(companyId: string) {
+    const response = await apiClient.get<ApiResponse<AdAccountResource[]>>(
+      `/api/v1/companies/${companyId}/ads/resources`,
+    )
+    return unwrap(response.data)
+  },
+
   async resources(companyId: string, accountId: string) {
     const response = await apiClient.get<ApiResponse<AdAccountResource[]>>(
       `/api/v1/companies/${companyId}/ads/accounts/${accountId}/resources`,
