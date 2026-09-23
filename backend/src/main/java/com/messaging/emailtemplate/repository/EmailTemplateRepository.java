@@ -19,7 +19,7 @@ public interface EmailTemplateRepository extends JpaRepository<EmailTemplate, Lo
         and (:includeArchived = true or t.status <> com.messaging.emailtemplate.enums.EmailTemplateStatus.ARCHIVED)
         and (:category is null or t.category = :category)
         and (:status is null or t.status = :status)
-        and (:q is null or lower(t.name) like lower(concat('%', :q, '%')))
+        and (:q = '' or lower(t.name) like concat('%', :q, '%'))
       order by t.updatedAt desc
       """)
   Page<EmailTemplate> search(
