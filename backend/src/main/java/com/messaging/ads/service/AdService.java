@@ -20,6 +20,15 @@ public class AdService {
   }
 
   @Transactional(readOnly = true)
+  public List<AdResponse> listByAccount(Long companyId, Long accountId) {
+    return repository
+        .findByCompanyIdAndAdAccountIdOrderByProviderUpdatedAtDesc(companyId, accountId)
+        .stream()
+        .map(AdResponse::from)
+        .toList();
+  }
+
+  @Transactional(readOnly = true)
   public AdResponse get(Long companyId, Long adId) {
     return repository.findByIdAndCompanyId(adId, companyId)
         .map(AdResponse::from)
