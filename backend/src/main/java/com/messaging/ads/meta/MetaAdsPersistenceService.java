@@ -17,7 +17,9 @@ import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
 import com.messaging.ads.service.AdProviderCredentialService;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -78,8 +80,13 @@ public class MetaAdsPersistenceService {
                 profile.id())),
         expiresAt);
 
+    List<AdAccount> previouslyLinkedAccounts =
+        accountRepository.findByCompanyIdAndConnectionId(companyId, connection.getId());
+    Set<String> discoveredAccountIds = new HashSet<>();
+
     for (AdAccountSummary summary : accounts) {
       String externalAccountId = externalAccountId(summary);
+      discoveredAccountIds.add(externalAccountId);
       AdAccount account =
           accountRepository
               .findByCompanyIdAndProviderAndExternalAccountId(
@@ -104,10 +111,21 @@ public class MetaAdsPersistenceService {
       account.setCurrency(summary.currency());
       account.setTimezone(summary.timezoneName());
       account.setStatus(mapStatus(summary.accountStatus()));
+      account.setAccessible(true);
       account.setProviderPayloadJson(json(summary));
       account.setLastSyncAt(Instant.now());
       accountRepository.save(account);
     }
+
+    previouslyLinkedAccounts.stream()
+        .filter(account -> !discoveredAccountIds.contains(account.getExternalAccountId()))
+        .forEach(
+            account -> {
+              account.setAccessible(false);
+              account.setManaged(false);
+              account.setPrimaryAccount(false);
+            });
+    accountRepository.saveAll(previouslyLinkedAccounts);
 
     return new MetaAdsConnectionResponse(
         connection.getId().toString(),
