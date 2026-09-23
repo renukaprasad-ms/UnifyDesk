@@ -40,14 +40,28 @@ export default function TemplateLibrary() {
     if (!companyId) return
     setLoading(true)
     try {
-      const [gallery, mine] = await Promise.all([
+      const [galleryResult, mineResult] = await Promise.allSettled([
         emailTemplateApi.catalog(),
         emailTemplateApi.list(companyId, { q: search.trim() || undefined, size: 48 }),
       ])
-      setCatalog(gallery)
-      setTemplates(mine.content)
-    } catch (error) {
-      snackbar.error(apiErrorMessage(error, 'Unable to load email templates'))
+
+      if (galleryResult.status === 'fulfilled') {
+        setCatalog(galleryResult.value)
+      } else {
+        setCatalog([])
+        snackbar.error(
+          apiErrorMessage(galleryResult.reason, 'Unable to load the template gallery'),
+        )
+      }
+
+      if (mineResult.status === 'fulfilled') {
+        setTemplates(mineResult.value.content)
+      } else {
+        setTemplates([])
+        snackbar.error(
+          apiErrorMessage(mineResult.reason, 'Unable to load your email templates'),
+        )
+      }
     } finally {
       setLoading(false)
     }
