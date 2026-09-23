@@ -115,6 +115,7 @@ class MetaAdsCreativeMutationServiceTests {
                 "image-hash",
                 null,
                 null,
+                null,
                 "utm_source=meta",
                 List.of()));
 
@@ -152,6 +153,7 @@ class MetaAdsCreativeMutationServiceTests {
                         "LEARN_MORE",
                         "https://example.com",
                         "hash",
+                        null,
                         null,
                         null,
                         null,
