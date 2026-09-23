@@ -553,7 +553,7 @@ export default function AdBilling() {
                   </div>
                 </div>
 
-                {selectedAccount && (
+                {selectedAccount && can(PERMISSIONS.ADS_BALANCE_ADD) && (
                   <a
                     className="primary-button mt-5 inline-flex items-center gap-2"
                     href={metaBillingUrl(selectedAccount.externalAccountId)}
