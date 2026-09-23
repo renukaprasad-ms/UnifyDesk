@@ -1,6 +1,8 @@
 package com.messaging.ads.controller;
 
 import com.messaging.ads.dto.AdAccountBillingResponse;
+import com.messaging.ads.dto.AdAccountHealthResponse;
+import com.messaging.ads.dto.AdActivityLogResponse;
 import com.messaging.ads.dto.AdAccountResourceResponse;
 import com.messaging.ads.dto.AdAccountResponse;
 import com.messaging.ads.dto.AdAudienceResponse;
@@ -15,6 +17,8 @@ import com.messaging.ads.dto.AdProviderResponse;
 import com.messaging.ads.dto.AdSetResponse;
 import com.messaging.ads.dto.UpdateAdAccountSelectionRequest;
 import com.messaging.ads.service.AdAccountBillingService;
+import com.messaging.ads.service.AdAccountHealthService;
+import com.messaging.ads.service.AdActivityService;
 import com.messaging.ads.service.AdAccountResourceService;
 import com.messaging.ads.service.AdAudienceService;
 import com.messaging.ads.service.AdAnalyticsBreakdownService;
@@ -55,6 +59,8 @@ public class AdCenterController {
 
   private final AdCenterService adCenterService;
   private final AdAccountBillingService billingService;
+  private final AdAccountHealthService healthService;
+  private final AdActivityService activityService;
   private final AdAccountResourceService resourceService;
   private final AdAnalyticsService analyticsService;
   private final AdAnalyticsBreakdownService analyticsBreakdownService;
@@ -90,6 +96,31 @@ public class AdCenterController {
     requireRead(companyId);
     return ResponseEntity.ok(
         ApiResponse.success(200, adCenterService.accounts(companyId), "Ad accounts fetched"));
+  }
+
+  @GetMapping("/accounts/{accountId}/health")
+  public ResponseEntity<ApiResponse<AdAccountHealthResponse>> health(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            healthService.get(companyId, accountId),
+            "Advertising account health fetched"));
+  }
+
+  @GetMapping("/activity")
+  public ResponseEntity<ApiResponse<Page<AdActivityLogResponse>>> activity(
+      @PathVariable Long companyId,
+      @RequestParam(required = false) Long accountId,
+      @PageableDefault(size = 50) Pageable pageable) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            activityService.list(companyId, accountId, pageable),
+            "Advertising activity fetched"));
   }
 
   @GetMapping("/accounts/{accountId}/billing")
