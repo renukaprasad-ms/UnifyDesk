@@ -3,6 +3,7 @@ import { FiCheck, FiExternalLink, FiRefreshCw, FiX } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
+  AdAccountResource,
   AdProviderConnection,
   AdProviderInfo,
 } from '../../features/ads/types'
@@ -25,9 +26,13 @@ export default function AdCenterOverview() {
   const [providers, setProviders] = useState<AdProviderInfo[]>([])
   const [connections, setConnections] = useState<AdProviderConnection[]>([])
   const [accounts, setAccounts] = useState<AdAccount[]>([])
+  const [resourcesByAccount, setResourcesByAccount] = useState<
+    Record<string, AdAccountResource[]>
+  >({})
   const [loading, setLoading] = useState(true)
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null)
   const [workingAccountId, setWorkingAccountId] = useState<string | null>(null)
+  const [syncingResourceAccountId, setSyncingResourceAccountId] = useState<string | null>(null)
   const [workingConnectionId, setWorkingConnectionId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -117,28 +122,74 @@ export default function AdCenterOverview() {
     }
   }
 
+  const syncResources = async (account: AdAccount) => {
+    if (!selectedCompany || account.provider !== 'META_ADS' || !account.managed) return
+
+    setSyncingResourceAccountId(account.id)
+    setError('')
+    try {
+      const result = await adCenterApi.syncMetaResources(
+        selectedCompany.companyId,
+        account.id,
+      )
+      setResourcesByAccount((current) => ({
+        ...current,
+        [account.id]: result.resources,
+      }))
+      setNotice(
+        `Synced ${result.pages} Facebook page(s), ${result.instagramAccounts} Instagram account(s), and ${result.pixels} pixel(s) for ${account.name}.`,
+      )
+    } catch (syncError) {
+      setError(apiErrorMessage(syncError, 'Unable to sync Meta Ads account resources'))
+    } finally {
+      setSyncingResourceAccountId(null)
+    }
+  }
+
   const setManaged = async (account: AdAccount, managed: boolean) => {
     if (!selectedCompany) return
 
     setWorkingAccountId(account.id)
     setError('')
     setNotice('')
+    let updated: AdAccount | null = null
+
     try {
-      const updated = await adCenterApi.updateAccount(
+      updated = await adCenterApi.updateAccount(
         selectedCompany.companyId,
         account.id,
         managed,
       )
       setAccounts((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
+        current.map((item) => (item.id === updated?.id ? updated : item)),
       )
-      setNotice(
-        managed
-          ? `${updated.name} is now managed in Ad Center.`
-          : `${updated.name} was removed from active Ad Center management.`,
-      )
+
+      if (managed && updated.provider === 'META_ADS') {
+        const result = await adCenterApi.syncMetaResources(
+          selectedCompany.companyId,
+          updated.id,
+        )
+        setResourcesByAccount((current) => ({
+          ...current,
+          [updated!.id]: result.resources,
+        }))
+        setNotice(
+          `${updated.name} is managed. Found ${result.pages} Facebook page(s), ${result.instagramAccounts} Instagram account(s), and ${result.pixels} pixel(s).`,
+        )
+      } else {
+        setNotice(
+          `${updated.name} was removed from active Ad Center management.`,
+        )
+      }
     } catch (updateError) {
-      setError(apiErrorMessage(updateError, 'Unable to update ad account selection'))
+      setError(
+        apiErrorMessage(
+          updateError,
+          updated
+            ? 'Ad account selection was saved, but provider resources could not be synchronized'
+            : 'Unable to update ad account selection',
+        ),
+      )
     } finally {
       setWorkingAccountId(null)
     }
@@ -323,71 +374,114 @@ export default function AdCenterOverview() {
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {accounts.map((account) => (
-                <div
-                  key={account.id}
-                  className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
-                >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold text-slate-950">{account.name}</p>
-                      {account.primaryAccount && (
-                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
-                          Primary
-                        </span>
+              {accounts.map((account) => {
+                const resources = resourcesByAccount[account.id] ?? []
+                const accessibleResources = resources.filter((resource) => resource.accessible)
+                const pages = accessibleResources.filter(
+                  (resource) => resource.resourceType === 'FACEBOOK_PAGE',
+                ).length
+                const instagramAccounts = accessibleResources.filter(
+                  (resource) => resource.resourceType === 'INSTAGRAM_ACCOUNT',
+                ).length
+                const pixels = accessibleResources.filter(
+                  (resource) => resource.resourceType === 'META_PIXEL',
+                ).length
+
+                return (
+                  <div
+                    key={account.id}
+                    className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-slate-950">{account.name}</p>
+                        {account.primaryAccount && (
+                          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                            Primary
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {account.provider === 'META_ADS' ? 'Meta Ads' : 'Google Ads'} ·{' '}
+                        {account.externalAccountId}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {[account.currency, account.timezone].filter(Boolean).join(' · ') ||
+                          'Provider settings'}
+                      </p>
+                      {resources.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <span className="rounded-full bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                            {pages} Page{pages === 1 ? '' : 's'}
+                          </span>
+                          <span className="rounded-full bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                            {instagramAccounts} Instagram
+                          </span>
+                          <span className="rounded-full bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                            {pixels} Pixel{pixels === 1 ? '' : 's'}
+                          </span>
+                        </div>
                       )}
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {account.provider === 'META_ADS' ? 'Meta Ads' : 'Google Ads'} ·{' '}
-                      {account.externalAccountId}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      {[account.currency, account.timezone].filter(Boolean).join(' · ') ||
-                        'Provider settings'}
-                    </p>
-                  </div>
 
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        account.accessible
-                          ? 'bg-slate-100 text-slate-600'
-                          : 'bg-amber-50 text-amber-700'
-                      }`}
-                    >
-                      {account.accessible ? account.status : 'ACCESS REMOVED'}
-                    </span>
-                    {can(PERMISSIONS.ADS_MODIFY) && (
-                      <button
-                        type="button"
-                        className={
-                          account.managed
-                            ? 'secondary-button inline-flex items-center gap-2'
-                            : 'primary-button inline-flex items-center gap-2'
-                        }
-                        disabled={
-                          workingAccountId !== null ||
-                          account.status === 'CLOSED' ||
-                          (!account.accessible && !account.managed)
-                        }
-                        onClick={() => void setManaged(account, !account.managed)}
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          account.accessible
+                            ? 'bg-slate-100 text-slate-600'
+                            : 'bg-amber-50 text-amber-700'
+                        }`}
                       >
-                        {account.managed ? (
-                          <>
-                            <FiX aria-hidden="true" />
-                            Stop managing
-                          </>
-                        ) : (
-                          <>
-                            <FiCheck aria-hidden="true" />
-                            Manage account
-                          </>
+                        {account.accessible ? account.status : 'ACCESS REMOVED'}
+                      </span>
+                      {account.provider === 'META_ADS' &&
+                        account.managed &&
+                        account.accessible &&
+                        can(PERMISSIONS.ADS_MODIFY) && (
+                          <button
+                            type="button"
+                            className="secondary-button inline-flex items-center gap-2"
+                            disabled={syncingResourceAccountId !== null}
+                            onClick={() => void syncResources(account)}
+                          >
+                            <FiRefreshCw aria-hidden="true" />
+                            {syncingResourceAccountId === account.id
+                              ? 'Syncing…'
+                              : 'Sync resources'}
+                          </button>
                         )}
-                      </button>
-                    )}
+                      {can(PERMISSIONS.ADS_MODIFY) && (
+                        <button
+                          type="button"
+                          className={
+                            account.managed
+                              ? 'secondary-button inline-flex items-center gap-2'
+                              : 'primary-button inline-flex items-center gap-2'
+                          }
+                          disabled={
+                            workingAccountId !== null ||
+                            account.status === 'CLOSED' ||
+                            (!account.accessible && !account.managed)
+                          }
+                          onClick={() => void setManaged(account, !account.managed)}
+                        >
+                          {account.managed ? (
+                            <>
+                              <FiX aria-hidden="true" />
+                              Stop managing
+                            </>
+                          ) : (
+                            <>
+                              <FiCheck aria-hidden="true" />
+                              Manage account
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
