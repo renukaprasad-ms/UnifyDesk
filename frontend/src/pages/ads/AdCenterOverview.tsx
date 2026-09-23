@@ -41,14 +41,21 @@ export default function AdCenterOverview() {
     if (!selectedCompany) return
     setLoading(true)
     try {
-      const [providerData, connectionData, accountData] = await Promise.all([
+      const [providerData, connectionData, accountData, resourceData] = await Promise.all([
         adCenterApi.providers(selectedCompany.companyId),
         adCenterApi.connections(selectedCompany.companyId),
         adCenterApi.accounts(selectedCompany.companyId),
+        adCenterApi.allResources(selectedCompany.companyId),
       ])
       setProviders(providerData)
       setConnections(connectionData)
       setAccounts(accountData)
+      setResourcesByAccount(
+        resourceData.reduce<Record<string, AdAccountResource[]>>((grouped, resource) => {
+          grouped[resource.adAccountId] = [...(grouped[resource.adAccountId] ?? []), resource]
+          return grouped
+        }, {}),
+      )
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load Ad Center'))
     } finally {
