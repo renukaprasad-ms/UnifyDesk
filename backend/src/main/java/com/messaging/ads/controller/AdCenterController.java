@@ -65,6 +65,15 @@ public class AdCenterController {
         ApiResponse.success(200, adCenterService.accounts(companyId), "Ad accounts fetched"));
   }
 
+  @GetMapping("/campaigns/{campaignId}")
+  public ResponseEntity<ApiResponse<AdCampaignResponse>> campaign(
+      @PathVariable Long companyId, @PathVariable Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200, campaignService.get(companyId, campaignId), "Advertising campaign fetched"));
+  }
+
   @GetMapping("/campaigns")
   public ResponseEntity<ApiResponse<Page<AdCampaignResponse>>> campaigns(
       @PathVariable Long companyId,
