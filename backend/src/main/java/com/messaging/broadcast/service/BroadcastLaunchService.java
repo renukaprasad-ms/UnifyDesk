@@ -6,6 +6,8 @@ import com.messaging.broadcast.repository.*;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.emailtemplate.entity.EmailTemplateProviderBinding;
+import com.messaging.emailtemplate.service.EmailTemplateProviderBindingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,7 @@ public class BroadcastLaunchService {
   private final BroadcastSenderService senderService;
   private final BroadcastStateMachine stateMachine;
   private final BroadcastOutboxService outboxService;
+  private final EmailTemplateProviderBindingService templateProviderBindingService;
 
   @Transactional
   public BroadcastRun launch(Long companyId, Long broadcastId) {
@@ -85,7 +88,22 @@ public class BroadcastLaunchService {
     run.setSubjectSnapshot(message.getSubject());
     run.setBodyTextSnapshot(message.getBodyText());
     run.setBodyHtmlSnapshot(message.getBodyHtml());
-    run.setBodyHtmlSnapshot(message.getBodyHtml());
+
+    if (sender.getProvider() == BroadcastSenderProvider.MSG91_EMAIL) {
+      if (message.getSourceTemplateId() == null || message.getSourceTemplateVersion() == null) {
+        throw new BadRequestException(
+            "MSG91 Email requires a published template synced to the selected connection");
+      }
+      EmailTemplateProviderBinding binding =
+          templateProviderBindingService.requireSendableForBroadcast(
+              companyId,
+              message.getSourceTemplateId(),
+              message.getSourceTemplateVersion(),
+              senderConnection.getId());
+      run.setProviderTemplateBindingId(binding.getId());
+      run.setProviderTemplateIdSnapshot(binding.getProviderTemplateId());
+    }
+
     run.setSnapshotMaxMemberId(maxMemberId);
     run = runRepository.saveAndFlush(run);
 

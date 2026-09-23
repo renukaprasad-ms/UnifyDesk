@@ -49,6 +49,16 @@ public class BroadcastDeliveryService {
         return;
       }
 
+      if (run.getProviderType() == com.messaging.broadcast.enums.BroadcastSenderProvider.MSG91_EMAIL
+          && rendered.templateVariables().values().stream()
+              .anyMatch(value -> value != null && (value.contains("<") || value.contains(">")))) {
+        stateService.failed(
+            attempt,
+            "UNSAFE_TEMPLATE_VARIABLE",
+            "MSG91 template variable contains HTML markup");
+        return;
+      }
+
       if (!rendered.unresolvedVariables().isEmpty()) {
         stateService.failed(
             attempt,
@@ -83,6 +93,8 @@ public class BroadcastDeliveryService {
                         rendered.subject(),
                         rendered.bodyText(),
                         rendered.bodyHtml(),
+                        run.getProviderTemplateIdSnapshot(),
+                        rendered.templateVariables(),
                         recipient.getInternetMessageId(),
                         recipient.getProviderCorrelationId()));
         stateService.accepted(attempt, result);

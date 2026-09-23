@@ -275,15 +275,10 @@ public class BroadcastSenderService {
     connection.setAuthMode(BroadcastSenderAuthMode.API_KEY);
     connection.setName(request.name().trim());
     connection.setRegion("MSG91_EMAIL");
-    connection.setExternalId(request.templateId().trim());
+    connection.setExternalId(request.domain().trim().toLowerCase(Locale.ROOT));
     connection.setCreatedByUserId(userId);
     connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
-    connection.setProviderConfigJson(
-        msg91EmailProviderConfig(
-            request.domain(),
-            request.templateId(),
-            request.messageVariable(),
-            request.subjectVariable()));
+    connection.setProviderConfigJson(msg91EmailProviderConfig(request.domain()));
     connection.setEncryptedCredentials(encryptMsg91AuthKey(request.authKey()));
 
     Msg91EmailAccountSnapshot snapshot = msg91EmailGateway.inspect(connection, fromAddress);
@@ -487,20 +482,14 @@ public class BroadcastSenderService {
     }
   }
 
-  private String msg91EmailProviderConfig(
-      String domain,
-      String templateId,
-      String messageVariable,
-      String subjectVariable) {
-    String bodyVariable =
-        isBlank(messageVariable) ? "message" : messageVariable.trim();
+  private String msg91EmailProviderConfig(String domain) {
+    if (isBlank(domain)) {
+      throw new BadRequestException("MSG91 Email domain is required");
+    }
     try {
       return objectMapper.writeValueAsString(
           new Msg91EmailProviderConfig(
-              domain.trim().toLowerCase(Locale.ROOT),
-              templateId.trim(),
-              bodyVariable,
-              isBlank(subjectVariable) ? null : subjectVariable.trim()));
+              domain.trim().toLowerCase(Locale.ROOT), null, null, null));
     } catch (Exception exception) {
       throw new IllegalStateException("Unable to serialize MSG91 Email configuration", exception);
     }

@@ -7,6 +7,7 @@ import type {
   EmailTemplate,
   EmailTemplateCategory,
   EmailTemplateEditorMode,
+  EmailTemplatePurpose,
   SaveEmailTemplateInput,
 } from '../../features/emailTemplate/types'
 import { mediaApi } from '../../features/media/mediaApi'
@@ -117,6 +118,9 @@ export default function EmailTemplateEditorModal({
   const [category, setCategory] = useState<EmailTemplateCategory>(
     template?.category ?? 'PROMOTIONAL',
   )
+  const [purpose, setPurpose] = useState<EmailTemplatePurpose>(
+    template?.purpose ?? 'MARKETING',
+  )
   const [subject, setSubject] = useState(template?.subject ?? '')
   const [preheader, setPreheader] = useState(template?.preheader ?? '')
   const [htmlSource, setHtmlSource] = useState(
@@ -155,6 +159,7 @@ export default function EmailTemplateEditorModal({
     () => ({
       name: name.trim(),
       category,
+      purpose,
       editorMode: mode,
       subject: subject.trim() || null,
       preheader: preheader.trim() || null,
@@ -162,7 +167,7 @@ export default function EmailTemplateEditorModal({
       htmlSource: mode === 'HTML' ? htmlSource : null,
       previewValues,
     }),
-    [category, document, htmlSource, mode, name, preheader, previewValues, subject],
+    [category, document, htmlSource, mode, name, preheader, previewValues, purpose, subject],
   )
 
   const preview = async () => {
@@ -267,6 +272,21 @@ export default function EmailTemplateEditorModal({
                   ))}
                 </select>
               </label>
+              <label className="text-xs font-semibold text-slate-700 sm:col-span-2">
+                Delivery purpose
+                <select
+                  className="form-input mt-2"
+                  value={purpose}
+                  onChange={(event) => setPurpose(event.target.value as EmailTemplatePurpose)}
+                >
+                  <option value="MARKETING">Marketing — offers, newsletters, campaigns</option>
+                  <option value="TRANSACTIONAL">Transactional — expected service/account messages</option>
+                </select>
+                <span className="mt-1 block text-[10px] font-medium leading-4 text-slate-400">
+                  MSG91 Email can only be synced when this template is genuinely transactional.
+                </span>
+              </label>
+
               <label className="text-xs font-semibold text-slate-700 sm:col-span-2">
                 Subject
                 <input

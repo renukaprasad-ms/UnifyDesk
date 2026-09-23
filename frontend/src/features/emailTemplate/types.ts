@@ -9,7 +9,15 @@ export type EmailTemplateCategory =
   | 'MINIMAL'
 
 export type EmailTemplateStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+export type EmailTemplatePurpose = 'MARKETING' | 'TRANSACTIONAL'
 export type EmailTemplateEditorMode = 'BUILDER' | 'HTML'
+export type EmailTemplateProviderBindingStatus =
+  | 'SYNCING'
+  | 'PENDING_REVIEW'
+  | 'SYNCED'
+  | 'READY'
+  | 'REJECTED'
+  | 'FAILED'
 
 export type EmailBlock =
   | { id: string; type: 'HEADER'; brandText?: string; logoUrl?: string }
@@ -37,6 +45,8 @@ export type EmailTemplateSummary = {
   id: string
   name: string
   category: EmailTemplateCategory
+  purpose: EmailTemplatePurpose
+  publishedPurpose?: EmailTemplatePurpose | null
   status: EmailTemplateStatus
   currentVersion: number
   publishedVersion?: number | null
@@ -65,6 +75,7 @@ export type EmailTemplateCatalogItem = {
   name: string
   description: string
   category: EmailTemplateCategory
+  purpose: EmailTemplatePurpose
   editorMode: EmailTemplateEditorMode
   subject?: string | null
   preheader?: string | null
@@ -77,6 +88,7 @@ export type EmailTemplateCatalogItem = {
 export type SaveEmailTemplateInput = {
   name: string
   category: EmailTemplateCategory
+  purpose: EmailTemplatePurpose
   editorMode: EmailTemplateEditorMode
   subject?: string | null
   preheader?: string | null
@@ -102,4 +114,24 @@ export type Page<T> = {
   totalPages: number
   first: boolean
   last: boolean
+}
+
+
+export type EmailTemplateProviderBinding = {
+  id: string
+  templateId: string
+  templateVersionId: string
+  templateVersion: number
+  connectionId: string
+  provider: 'MSG91_EMAIL'
+  providerTemplateId?: string | null
+  providerTemplateSlug: string
+  status: EmailTemplateProviderBindingStatus
+  sendable: boolean
+  providerStatus?: string | null
+  errorCode?: string | null
+  errorMessage?: string | null
+  syncedAt?: string | null
+  lastCheckedAt?: string | null
+  updatedAt: string
 }

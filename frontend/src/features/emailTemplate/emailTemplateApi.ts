@@ -5,6 +5,7 @@ import type {
   EmailTemplateCatalogItem,
   EmailTemplateCategory,
   EmailTemplatePreview,
+  EmailTemplateProviderBinding,
   EmailTemplateStatus,
   EmailTemplateSummary,
   Page,
@@ -106,6 +107,31 @@ export const emailTemplateApi = {
     const response = await apiClient.post<ApiResponse<{ id: string; mediaId: string; publicUrl: string }>>(
       `/api/v1/companies/${companyId}/email-template-assets`,
       { mediaId },
+    )
+    return unwrap(response.data)
+  },
+
+  async providerBindings(
+    companyId: string,
+    params: { templateId?: string; connectionId?: string },
+  ) {
+    const response = await apiClient.get<ApiResponse<EmailTemplateProviderBinding[]>>(
+      `/api/v1/companies/${companyId}/email-template-provider-bindings`,
+      { params },
+    )
+    return unwrap(response.data)
+  },
+
+  async syncMsg91(companyId: string, templateId: string, connectionId: string) {
+    const response = await apiClient.post<ApiResponse<EmailTemplateProviderBinding>>(
+      `/api/v1/companies/${companyId}/email-templates/${templateId}/providers/msg91/${connectionId}/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async refreshProviderBinding(companyId: string, bindingId: string) {
+    const response = await apiClient.post<ApiResponse<EmailTemplateProviderBinding>>(
+      `/api/v1/companies/${companyId}/email-template-provider-bindings/${bindingId}/refresh`,
     )
     return unwrap(response.data)
   },

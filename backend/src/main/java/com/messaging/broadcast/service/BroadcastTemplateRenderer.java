@@ -43,13 +43,16 @@ public class BroadcastTemplateRenderer {
 
     boolean unsafeHtml =
         renderedHtml.value() != null && UNSAFE_URI_ATTRIBUTE.matcher(renderedHtml.value()).find();
+    Map<String, String> templateVariables =
+        templateVariables(subject, bodyText, bodyHtml, values);
 
     return new RenderedContent(
         renderedSubject.value(),
         renderedBody.value(),
         renderedHtml.value(),
         List.copyOf(unresolved),
-        unsafeHtml);
+        unsafeHtml,
+        templateVariables);
   }
 
   private Map<String, String> values(BroadcastRecipient recipient, ChannelType channelType) {
@@ -123,6 +126,26 @@ public class BroadcastTemplateRenderer {
     return new RenderedValue(output.toString(), List.copyOf(unresolved));
   }
 
+  private Map<String, String> templateVariables(
+      String subject,
+      String bodyText,
+      String bodyHtml,
+      Map<String, String> values) {
+    LinkedHashMap<String, String> resolved = new LinkedHashMap<>();
+    for (String template : List.of(
+        subject == null ? "" : subject,
+        bodyText == null ? "" : bodyText,
+        bodyHtml == null ? "" : bodyHtml)) {
+      Matcher matcher = VARIABLE_PATTERN.matcher(template);
+      while (matcher.find()) {
+        String variable = matcher.group(1);
+        String value = resolve(variable, values);
+        if (value != null) resolved.putIfAbsent(variable, value);
+      }
+    }
+    return Map.copyOf(resolved);
+  }
+
   private String resolve(String variable, Map<String, String> values) {
     String exact = trimToNull(values.get(variable));
     if (exact != null) return exact;
@@ -147,7 +170,8 @@ public class BroadcastTemplateRenderer {
       String bodyText,
       String bodyHtml,
       List<String> unresolvedVariables,
-      boolean unsafeHtml) {}
+      boolean unsafeHtml,
+      Map<String, String> templateVariables) {}
 
   private record RenderedValue(String value, List<String> unresolved) {}
 }

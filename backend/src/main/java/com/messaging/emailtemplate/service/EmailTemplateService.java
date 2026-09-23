@@ -106,6 +106,7 @@ public class EmailTemplateService {
     template.setCompanyId(companyId);
     template.setName(name);
     template.setCategory(request.category());
+    template.setPurpose(request.purpose());
     template.setCreatedByUserId(userId);
     template.setStatus(EmailTemplateStatus.DRAFT);
     template = templateRepository.saveAndFlush(template);
@@ -130,6 +131,7 @@ public class EmailTemplateService {
 
     template.setName(name);
     template.setCategory(request.category());
+    template.setPurpose(request.purpose());
     template.setCurrentVersionId(next.getId());
     if (template.getPublishedVersionId() == null) {
       template.setStatus(EmailTemplateStatus.DRAFT);
@@ -158,6 +160,7 @@ public class EmailTemplateService {
         new SaveEmailTemplateRequest(
             name,
             item.getCategory(),
+            item.getPurpose(),
             item.getEditorMode(),
             item.getSubjectTemplate(),
             item.getPreheaderTemplate(),
@@ -238,10 +241,14 @@ public class EmailTemplateService {
     EmailTemplateVersion published = version(template.getPublishedVersionId(), templateId);
     return new PublishedEmail(
         template.getId(),
+        published.getId(),
         published.getVersionNumber(),
+        published.getPurpose(),
         published.getSubjectTemplate(),
         published.getCompiledText(),
-        published.getCompiledHtml());
+        published.getCompiledHtml(),
+        published.getContentHash(),
+        variables(published));
   }
 
   private EmailTemplateVersion createVersion(
@@ -261,6 +268,7 @@ public class EmailTemplateService {
     version.setTemplateId(template.getId());
     version.setVersionNumber(versionNumber);
     version.setEditorMode(request.editorMode());
+    version.setPurpose(request.purpose());
     version.setSubjectTemplate(trimToNull(request.subject()));
     version.setPreheaderTemplate(trimToNull(request.preheader()));
     version.setDocumentJson(
@@ -357,5 +365,13 @@ public class EmailTemplateService {
   }
 
   public record PublishedEmail(
-      Long templateId, long version, String subject, String bodyText, String bodyHtml) {}
+      Long templateId,
+      Long versionId,
+      long version,
+      EmailTemplatePurpose purpose,
+      String subject,
+      String bodyText,
+      String bodyHtml,
+      String contentHash,
+      List<String> variables) {}
 }

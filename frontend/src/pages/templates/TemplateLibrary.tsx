@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { FiCode, FiCopy, FiEdit2, FiFileText, FiPlus, FiSearch } from 'react-icons/fi'
+import { FiCode, FiCopy, FiEdit2, FiFileText, FiPlus, FiSearch, FiServer } from 'react-icons/fi'
 import EmailTemplateEditorModal from '../../components/email-templates/EmailTemplateEditorModal'
 import EmailTemplatePreview from '../../components/email-templates/EmailTemplatePreview'
+import EmailTemplateProviderModal from '../../components/email-templates/EmailTemplateProviderModal'
 import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import { emailTemplateApi } from '../../features/emailTemplate/emailTemplateApi'
 import type {
@@ -29,6 +30,7 @@ export default function TemplateLibrary() {
     mode?: 'BUILDER' | 'HTML'
   } | null>(null)
   const [preview, setPreview] = useState<EmailTemplateCatalogItem | null>(null)
+  const [providerTemplate, setProviderTemplate] = useState<EmailTemplateSummary | null>(null)
 
   const load = useCallback(async () => {
     if (!companyId) return
@@ -153,9 +155,12 @@ export default function TemplateLibrary() {
                 <EmailTemplatePreview html={item.previewHtml} compact title={item.name} />
                 <div className="p-4">
                   <h2 className="text-sm font-bold text-slate-950">{item.name}</h2>
-                  <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-indigo-500">
-                    {item.category.replaceAll('_', ' ')}
-                  </p>
+                  <div className="mt-1 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-[0.08em]">
+                    <span className="text-indigo-500">{item.category.replaceAll('_', ' ')}</span>
+                    <span className={item.purpose === 'TRANSACTIONAL' ? 'text-emerald-600' : 'text-fuchsia-600'}>
+                      {item.purpose}
+                    </span>
+                  </div>
                   <p className="mt-3 min-h-10 text-xs leading-5 text-slate-500">
                     {item.description}
                   </p>
@@ -196,9 +201,12 @@ export default function TemplateLibrary() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-sm font-bold text-slate-950">{template.name}</h2>
-                    <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
-                      {template.category.replaceAll('_', ' ')}
-                    </p>
+                    <div className="mt-1 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                      <span>{template.category.replaceAll('_', ' ')}</span>
+                      <span className={template.purpose === 'TRANSACTIONAL' ? 'text-emerald-600' : 'text-fuchsia-600'}>
+                        {template.purpose}
+                      </span>
+                    </div>
                   </div>
                   <span
                     className={`rounded-full px-2 py-1 text-[9px] font-bold ${
@@ -228,15 +236,26 @@ export default function TemplateLibrary() {
                     </span>
                   )}
                 </div>
-                {can(PERMISSIONS.TEMPLATE_MODIFY) && (
-                  <button
-                    type="button"
-                    className="secondary-button mt-5 inline-flex items-center gap-2"
-                    onClick={() => void edit(template.id)}
-                  >
-                    <FiEdit2 /> Edit
-                  </button>
-                )}
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {can(PERMISSIONS.TEMPLATE_MODIFY) && (
+                    <button
+                      type="button"
+                      className="secondary-button inline-flex items-center gap-2"
+                      onClick={() => void edit(template.id)}
+                    >
+                      <FiEdit2 /> Edit
+                    </button>
+                  )}
+                  {template.status === 'PUBLISHED' && (
+                    <button
+                      type="button"
+                      className="secondary-button inline-flex items-center gap-2"
+                      onClick={() => setProviderTemplate(template)}
+                    >
+                      <FiServer /> Providers
+                    </button>
+                  )}
+                </div>
               </article>
             ))}
           </div>
@@ -254,6 +273,15 @@ export default function TemplateLibrary() {
             setTab('mine')
             void load()
           }}
+        />
+      )}
+
+      {providerTemplate && companyId && (
+        <EmailTemplateProviderModal
+          companyId={companyId}
+          template={providerTemplate}
+          canModify={can(PERMISSIONS.TEMPLATE_MODIFY)}
+          onClose={() => setProviderTemplate(null)}
         />
       )}
 
