@@ -281,12 +281,14 @@ export default function AdConversions() {
           </div>
         ) : (
           <>
+            {selectedAccount?.provider === 'META_ADS' && (
+              <>
             <div className="mt-6">
               <div className="flex items-end justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-bold text-slate-950">Pixels</h2>
                   <p className="mt-1 text-xs text-slate-500">
-                    {selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google conversion actions are synchronized directly from the selected account.' : 'Event sources discovered from the selected Meta ad account.'}
+                    Event sources discovered from the selected Meta ad account.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -309,8 +311,7 @@ export default function AdConversions() {
 
               {pixels.length === 0 ? (
                 <div className="panel mt-3 p-8 text-center text-sm text-slate-500">
-                  {selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google Ads does not use Meta Pixels. Conversion actions are managed below.' : 'No Meta pixels are accessible for this account. Sync Meta resources to refresh'}
-                  the account assets.
+                  No Meta pixels are accessible for this account. Sync Meta resources to refresh the account assets.
                 </div>
               ) : (
                 <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -341,11 +342,18 @@ export default function AdConversions() {
               )}
             </div>
 
+              </>
+            )}
+
             <div className="mt-8">
               <div>
-                <h2 className="text-lg font-bold text-slate-950">Custom conversions</h2>
+                <h2 className="text-lg font-bold text-slate-950">
+                  {selectedAccount?.provider === 'GOOGLE_ADS' ? 'Conversion actions' : 'Custom conversions'}
+                </h2>
                 <p className="mt-1 text-xs text-slate-500">
-                  Conversion definitions created from pixel event and URL rules.
+                  {selectedAccount?.provider === 'GOOGLE_ADS'
+                    ? 'Google Ads conversion actions used for measurement and bidding.'
+                    : 'Conversion definitions created from pixel event and URL rules.'}
                 </p>
               </div>
 
@@ -353,10 +361,14 @@ export default function AdConversions() {
                 <div className="panel mt-3 p-10 text-center">
                   <FiActivity className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
                   <h3 className="mt-3 text-base font-bold text-slate-950">
-                    No custom conversions yet
+                    {selectedAccount?.provider === 'GOOGLE_ADS'
+                      ? 'No conversion actions yet'
+                      : 'No custom conversions yet'}
                   </h3>
                   <p className="mt-2 text-sm text-slate-500">
-                    Sync existing conversions or create one from a connected pixel.
+                    {selectedAccount?.provider === 'GOOGLE_ADS'
+                      ? 'Sync existing Google conversion actions or create the first one.'
+                      : 'Sync existing conversions or create one from a connected pixel.'}
                   </p>
                 </div>
               ) : (
@@ -367,7 +379,9 @@ export default function AdConversions() {
                         <tr>
                           <th className="px-5 py-3">Conversion</th>
                           <th className="px-5 py-3">Event</th>
-                          <th className="px-5 py-3">Pixel</th>
+                          <th className="px-5 py-3">
+                            {selectedAccount?.provider === 'GOOGLE_ADS' ? 'Source' : 'Pixel'}
+                          </th>
                           <th className="px-5 py-3">Last fired</th>
                           <th className="px-5 py-3">Status</th>
                         </tr>
@@ -385,7 +399,9 @@ export default function AdConversions() {
                               {formatValue(conversion.customEventType)}
                             </td>
                             <td className="px-5 py-4 text-slate-600">
-                              {conversion.pixelId ?? '—'}
+                              {selectedAccount?.provider === 'GOOGLE_ADS'
+                                ? formatValue(conversion.eventSourceType)
+                                : conversion.pixelId ?? '—'}
                             </td>
                             <td className="px-5 py-4 text-slate-600">
                               {conversion.lastFiredAt
@@ -428,7 +444,9 @@ export default function AdConversions() {
                           </span>
                         </div>
                         <p className="mt-3 text-xs text-slate-400">
-                          Pixel {conversion.pixelId ?? '—'}
+                          {selectedAccount?.provider === 'GOOGLE_ADS'
+                            ? `Source ${formatValue(conversion.eventSourceType)}`
+                            : `Pixel ${conversion.pixelId ?? '—'}`}
                         </p>
                       </div>
                     ))}
@@ -440,12 +458,14 @@ export default function AdConversions() {
         )}
       </div>
 
-      <MetaPixelModal
-        open={pixelModalOpen}
-        saving={creatingPixel}
-        onClose={() => setPixelModalOpen(false)}
-        onCreate={createPixel}
-      />
+      {selectedAccount?.provider === 'META_ADS' && (
+        <MetaPixelModal
+          open={pixelModalOpen}
+          saving={creatingPixel}
+          onClose={() => setPixelModalOpen(false)}
+          onCreate={createPixel}
+        />
+      )}
 
       {selectedAccount?.provider === 'META_ADS' && (
         <MetaConversionModal
