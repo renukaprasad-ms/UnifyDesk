@@ -297,6 +297,28 @@ public class MetaAdsApiClient {
         + "destination_type,bid_amount,daily_budget,lifetime_budget,start_time,end_time,"
         + "targeting,promoted_object,attribution_spec,status,effective_status,created_time,updated_time";
   }
+  public String uploadVideoFromUrl(String accessToken, String accountId, String fileUrl) {
+    IdResponse response =
+        execute(
+            () ->
+                graphClient
+                    .post()
+                    .uri(
+                        uriBuilder ->
+                            uriBuilder
+                                .path("/{version}/{account}/advideos")
+                                .queryParam("appsecret_proof", appSecretProof(accessToken))
+                                .build(properties.getGraphApiVersion(), accountPath(accountId)))
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("file_url", fileUrl))
+                    .retrieve()
+                    .body(IdResponse.class));
+    if (response.id() == null || response.id().isBlank()) {
+      throw new BadRequestException("Meta uploaded the video without returning an ID");
+    }
+    return response.id();
+  }
   public List<CreativeSummary> creatives(String accessToken, String accountId) {
     List<CreativeSummary> result = new ArrayList<>();
     String after = null;
