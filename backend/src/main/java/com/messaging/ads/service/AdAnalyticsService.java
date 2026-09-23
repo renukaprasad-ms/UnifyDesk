@@ -195,6 +195,7 @@ public class AdAnalyticsService {
 
   private AdAnalyticsResponse.EntityRow entity(AdInsightDaily value) {
     return new AdAnalyticsResponse.EntityRow(
+        entityId(value),
         value.getEntityRef(),
         value.getEntityName(),
         nz(value.getSpend()),
@@ -208,6 +209,15 @@ public class AdAnalyticsService {
         value.getRoas(),
         nz(value.getLeads()),
         nz(value.getPurchases()));
+  }
+
+  private String entityId(AdInsightDaily value) {
+    return switch (value.getInsightLevel()) {
+      case ACCOUNT -> value.getAdAccountId() == null ? null : value.getAdAccountId().toString();
+      case CAMPAIGN -> value.getCampaignId() == null ? null : value.getCampaignId().toString();
+      case AD_SET -> value.getAdSetId() == null ? null : value.getAdSetId().toString();
+      case AD -> value.getAdId() == null ? null : value.getAdId().toString();
+    };
   }
 
   private BigDecimal divide(BigDecimal numerator, BigDecimal denominator) {
