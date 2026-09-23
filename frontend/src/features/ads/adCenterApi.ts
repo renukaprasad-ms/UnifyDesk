@@ -690,6 +690,13 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+  async accountAds(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<Ad[]>>(
+      `/api/v1/companies/${companyId}/ads/accounts/${accountId}/ads`,
+    )
+    return unwrap(response.data)
+  },
+
   async ads(companyId: string, adSetId: string) {
     const response = await apiClient.get<ApiResponse<Ad[]>>(
       `/api/v1/companies/${companyId}/ads/ad-sets/${adSetId}/ads`,
