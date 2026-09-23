@@ -1,19 +1,17 @@
 package com.messaging.ads.meta;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.ads.entity.AdAccount;
-import com.messaging.ads.entity.AdAccountResource;
 import com.messaging.ads.entity.AdProviderConnection;
-import com.messaging.ads.enums.AdAccountResourceType;
 import com.messaging.ads.enums.AdAccountStatus;
 import com.messaging.ads.enums.AdConnectionStatus;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.meta.MetaAdsApiClient.PageSummary;
+import com.messaging.ads.meta.dto.MetaAdsResourceSyncResponse;
 import com.messaging.ads.repository.AdAccountRepository;
-import com.messaging.ads.repository.AdAccountResourceRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
 import java.util.List;
 import java.util.Optional;
@@ -31,10 +29,10 @@ class MetaAdsResourceSyncServiceTests {
   private static final Long CONNECTION_ID = 303L;
 
   @Mock private AdAccountRepository accountRepository;
-  @Mock private AdAccountResourceRepository resourceRepository;
   @Mock private AdProviderConnectionRepository connectionRepository;
   @Mock private MetaAdsTokenService tokenService;
   @Mock private MetaAdsApiClient apiClient;
+  @Mock private MetaAdsResourcePersistenceService persistenceService;
 
   private MetaAdsResourceSyncService service;
 
@@ -43,15 +41,14 @@ class MetaAdsResourceSyncServiceTests {
     service =
         new MetaAdsResourceSyncService(
             accountRepository,
-            resourceRepository,
             connectionRepository,
             tokenService,
             apiClient,
-            new ObjectMapper());
+            persistenceService);
   }
 
   @Test
-  void syncMarksMissingResourcesInaccessibleWithoutDeletingHistory() {
+  void discoversResourcesWithStoredGrantThenPersistsSnapshot() {
     AdAccount account = new AdAccount();
     account.setId(ACCOUNT_ID);
     account.setCompanyId(COMPANY_ID);
@@ -69,9 +66,9 @@ class MetaAdsResourceSyncServiceTests {
     connection.setProvider(AdProvider.META_ADS);
     connection.setStatus(AdConnectionStatus.ACTIVE);
 
-    AdAccountResource page = resource(1L, AdAccountResourceType.FACEBOOK_PAGE, "page-1");
-    AdAccountResource removedPixel =
-        resource(2L, AdAccountResourceType.META_PIXEL, "pixel-old");
+    List<PageSummary> pages = List.of(new PageSummary("page-1", "Acme"));
+    MetaAdsResourceSyncResponse expected =
+        new MetaAdsResourceSyncResponse(1, 0, 0, List.of());
 
     when(accountRepository.findByIdAndCompanyId(ACCOUNT_ID, COMPANY_ID))
         .thenReturn(Optional.of(account));
@@ -81,41 +78,15 @@ class MetaAdsResourceSyncServiceTests {
         .thenReturn(
             new MetaAdsTokenService.TokenValue(
                 new MetaAdsStoredToken("access-token", "bearer", "v26.0", "meta-user"), null));
-    when(apiClient.promotePages("access-token", "123"))
-        .thenReturn(List.of(new PageSummary("page-1", "Acme")));
+    when(apiClient.promotePages("access-token", "123")).thenReturn(pages);
     when(apiClient.instagramAccounts("access-token", "123")).thenReturn(List.of());
     when(apiClient.pixels("access-token", "123")).thenReturn(List.of());
-    when(resourceRepository
-            .findByCompanyIdAndAdAccountIdAndResourceTypeAndExternalResourceId(
-                COMPANY_ID, ACCOUNT_ID, AdAccountResourceType.FACEBOOK_PAGE, "page-1"))
-        .thenReturn(Optional.of(page));
-    when(resourceRepository.findByCompanyIdAndAdAccountId(COMPANY_ID, ACCOUNT_ID))
-        .thenReturn(List.of(page, removedPixel));
-    when(resourceRepository.findByCompanyIdAndAdAccountIdOrderByResourceTypeAscNameAsc(
-            COMPANY_ID, ACCOUNT_ID))
-        .thenReturn(List.of(page, removedPixel));
+    when(persistenceService.persist(account, pages, List.of(), List.of()))
+        .thenReturn(expected);
 
-    var response = service.sync(COMPANY_ID, ACCOUNT_ID);
+    MetaAdsResourceSyncResponse actual = service.sync(COMPANY_ID, ACCOUNT_ID);
 
-    assertThat(response.pages()).isEqualTo(1);
-    assertThat(response.instagramAccounts()).isZero();
-    assertThat(response.pixels()).isZero();
-    assertThat(page.isAccessible()).isTrue();
-    assertThat(page.getName()).isEqualTo("Acme");
-    assertThat(removedPixel.isAccessible()).isFalse();
-  }
-
-  private AdAccountResource resource(
-      Long id, AdAccountResourceType type, String externalResourceId) {
-    AdAccountResource resource = new AdAccountResource();
-    resource.setId(id);
-    resource.setCompanyId(COMPANY_ID);
-    resource.setAdAccountId(ACCOUNT_ID);
-    resource.setProvider(AdProvider.META_ADS);
-    resource.setResourceType(type);
-    resource.setExternalResourceId(externalResourceId);
-    resource.setName(externalResourceId);
-    resource.setAccessible(true);
-    return resource;
+    assertThat(actual).isSameAs(expected);
+    verify(persistenceService).persist(account, pages, List.of(), List.of());
   }
 }
