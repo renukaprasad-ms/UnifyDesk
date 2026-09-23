@@ -5,6 +5,7 @@ import com.messaging.ads.dto.AdProviderConnectionResponse;
 import com.messaging.ads.dto.AdProviderResponse;
 import com.messaging.ads.dto.UpdateAdAccountSelectionRequest;
 import com.messaging.ads.enums.AdConnectionStatus;
+import com.messaging.ads.entity.AdAccount;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.provider.AdsProviderRegistry;
 import com.messaging.ads.repository.AdAccountRepository;
@@ -25,6 +26,7 @@ public class AdCenterService {
   private final AdAccountRepository accountRepository;
   private final AdProviderConnectionRepository connectionRepository;
   private final AdProviderCredentialService credentialService;
+  private final AdAccountResourceLifecycleService resourceLifecycleService;
 
   public List<AdProviderResponse> providers() {
     return Arrays.stream(AdProvider.values())
@@ -69,7 +71,7 @@ public class AdCenterService {
       throw new BadRequestException("A primary ad account must be managed");
     }
 
-    List<com.messaging.ads.entity.AdAccount> providerAccounts =
+    List<AdAccount> providerAccounts =
         accountRepository.findByCompanyIdAndProvider(companyId, account.getProvider());
 
     account.setManaged(managed);
@@ -91,6 +93,7 @@ public class AdCenterService {
       account.setPrimaryAccount(true);
     }
 
+    normalizePrimary(providerAccounts);
     accountRepository.saveAll(providerAccounts);
     return AdAccountResponse.from(accountRepository.save(account));
   }
@@ -103,15 +106,49 @@ public class AdCenterService {
             .orElseThrow(() -> new NotFoundException("Advertising provider connection not found"));
 
     credentialService.deleteAll(connection.getId());
-    accountRepository.findByCompanyIdAndConnectionId(companyId, connectionId).forEach(
+    List<AdAccount> disconnectedAccounts =
+        accountRepository.findByCompanyIdAndConnectionId(companyId, connectionId);
+    disconnectedAccounts.forEach(
         account -> {
           account.setAccessible(false);
           account.setManaged(false);
           account.setPrimaryAccount(false);
+          resourceLifecycleService.markAllInaccessible(companyId, account.getId());
         });
+
+    List<AdAccount> providerAccounts =
+        accountRepository.findByCompanyIdAndProvider(companyId, connection.getProvider());
+    normalizePrimary(providerAccounts);
+    accountRepository.saveAll(providerAccounts);
 
     connection.setStatus(AdConnectionStatus.DISCONNECTED);
     connection.setLastError(null);
     return AdProviderConnectionResponse.from(connectionRepository.save(connection));
+  }
+
+  private void normalizePrimary(List<AdAccount> providerAccounts) {
+    List<AdAccount> managedAccounts =
+        providerAccounts.stream()
+            .filter(AdAccount::isAccessible)
+            .filter(AdAccount::isManaged)
+            .sorted(java.util.Comparator.comparing(AdAccount::getId))
+            .toList();
+
+    if (managedAccounts.isEmpty()) {
+      providerAccounts.forEach(account -> account.setPrimaryAccount(false));
+      return;
+    }
+
+    AdAccount primary =
+        managedAccounts.stream()
+            .filter(AdAccount::isPrimaryAccount)
+            .findFirst()
+            .orElse(managedAccounts.getFirst());
+
+    managedAccounts.forEach(
+        candidate -> candidate.setPrimaryAccount(candidate.getId().equals(primary.getId())));
+    providerAccounts.stream()
+        .filter(candidate -> !managedAccounts.contains(candidate))
+        .forEach(candidate -> candidate.setPrimaryAccount(false));
   }
 }
