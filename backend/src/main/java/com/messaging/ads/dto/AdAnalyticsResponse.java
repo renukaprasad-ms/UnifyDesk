@@ -1,13 +1,16 @@
 package com.messaging.ads.dto;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
 public record AdAnalyticsResponse(
     Summary summary,
     List<DailyPoint> daily,
-    List<EntityRow> entities) {
+    List<EntityRow> entities,
+    boolean exactRangeAvailable,
+    Instant lastSyncedAt) {
 
   public record Summary(
       String currency,
