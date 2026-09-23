@@ -50,6 +50,18 @@ public class MetaAdsCampaignMutationService {
       throw new BadRequestException("Unsupported Meta buying type: " + buyingType);
     }
 
+    var specialCategories =
+        request.specialAdCategories().stream()
+            .map(value -> value.trim().toUpperCase())
+            .distinct()
+            .toList();
+    if (specialCategories.contains("NONE") && specialCategories.size() > 1) {
+      throw new BadRequestException("NONE cannot be combined with another special ad category");
+    }
+    if (specialCategories.contains("NONE")) {
+      specialCategories = java.util.List.of();
+    }
+
     String accessToken = accessToken(companyId, account);
     String campaignId =
         apiClient.createCampaign(
@@ -61,10 +73,7 @@ public class MetaAdsCampaignMutationService {
             trimToNull(request.bidStrategy()),
             request.dailyBudgetMinor(),
             request.lifetimeBudgetMinor(),
-            request.specialAdCategories().stream()
-                .map(value -> value.trim().toUpperCase())
-                .distinct()
-                .toList());
+            specialCategories);
 
     return refresh(companyId, account, campaignId, accessToken);
   }
