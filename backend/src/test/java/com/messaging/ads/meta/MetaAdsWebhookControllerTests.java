@@ -43,7 +43,7 @@ class MetaAdsWebhookControllerTests {
 
   @Test
   void acceptsPayloadWithValidMetaSignature() throws Exception {
-    String body = "{"object":"ad_account","entry":[]}";
+    String body = "{\"object\":\"ad_account\",\"entry\":[]}";
     String signature = "sha256=" + signature(body);
 
     var response = controller.receive(body, signature);
@@ -56,7 +56,7 @@ class MetaAdsWebhookControllerTests {
   void rejectsPayloadWithInvalidMetaSignature() {
     var response =
         controller.receive(
-            "{"object":"ad_account","entry":[]}",
+            "{\"object\":\"ad_account\",\"entry\":[]}",
             "sha256=0000000000000000000000000000000000000000000000000000000000000000");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
