@@ -215,6 +215,246 @@ function TrendChart({ points, currency }: { points: AdAnalyticsDailyPoint[]; cur
   )
 }
 
+
+function BreakdownPanel({
+  breakdown,
+  type,
+  loading,
+  currency,
+  onSelect,
+}: {
+  breakdown: AdAnalyticsBreakdown
+  type: AdInsightBreakdownType
+  loading: boolean
+  currency?: string | null
+  onSelect: (type: AdInsightBreakdownType) => void
+}) {
+  const isActionDevice = type === 'ACTION_DEVICE'
+  const maxPrimary = Math.max(
+    ...breakdown.rows.map((row) => (isActionDevice ? row.actionValue : row.spend)),
+    1,
+  )
+
+  return (
+    <div className="panel mt-6 overflow-hidden">
+      <div className="border-b border-slate-100 px-5 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <FiActivity className="text-indigo-500" aria-hidden="true" />
+              <h2 className="text-base font-bold text-slate-950">
+                Audience & delivery breakdowns
+              </h2>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              Inspect who saw the ads, where delivery happened, and which devices produced actions.
+            </p>
+          </div>
+          {breakdown.lastSyncedAt && (
+            <span className="text-xs text-slate-400">
+              Synced {new Date(breakdown.lastSyncedAt).toLocaleString()}
+            </span>
+          )}
+        </div>
+
+        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+          {breakdownOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                type === option.value
+                  ? 'bg-slate-950 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+              title={option.group}
+              onClick={() => onSelect(option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="p-10 text-center text-sm text-slate-500">
+          Loading breakdown…
+        </div>
+      ) : breakdown.rows.length === 0 ? (
+        <div className="p-10 text-center">
+          <FiBarChart2 className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
+          <h3 className="mt-3 text-base font-bold text-slate-950">
+            No {prettyDimension(type).toLowerCase()} data
+          </h3>
+          <p className="mt-2 text-sm text-slate-500">
+            Sync Meta analytics for this date range. Meta may not return every breakdown for every account or campaign mix.
+          </p>
+        </div>
+      ) : isActionDevice ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-5 py-3">Device</th>
+                <th className="px-5 py-3">Action</th>
+                <th className="px-5 py-3 text-right">Count</th>
+                <th className="px-5 py-3 text-right">Action value</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {breakdown.rows.map((row, index) => (
+                <tr key={`${row.dimension}-${row.actionType ?? 'action'}-${index}`}>
+                  <td className="px-5 py-4">
+                    <div className="min-w-44">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-semibold text-slate-950">
+                          {prettyDimension(row.dimension)}
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          {formatNumber((row.actionValue / maxPrimary) * 100, 1)}%
+                        </span>
+                      </div>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-indigo-500"
+                          style={{ width: `${Math.max(2, (row.actionValue / maxPrimary) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 text-slate-600">
+                    {prettyDimension(row.actionType ?? 'Unknown')}
+                  </td>
+                  <td className="px-5 py-4 text-right font-semibold text-slate-700">
+                    {formatNumber(row.actionValue)}
+                  </td>
+                  <td className="px-5 py-4 text-right text-slate-600">
+                    {row.conversionValue > 0
+                      ? formatCurrency(row.conversionValue, row.currency ?? currency)
+                      : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <>
+          <div className="hidden overflow-x-auto lg:block">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-5 py-3">Dimension</th>
+                  <th className="px-5 py-3 text-right">Spend</th>
+                  <th className="px-5 py-3 text-right">Impressions</th>
+                  <th className="px-5 py-3 text-right">Reach</th>
+                  <th className="px-5 py-3 text-right">Clicks</th>
+                  <th className="px-5 py-3 text-right">CTR</th>
+                  <th className="px-5 py-3 text-right">Conversions</th>
+                  <th className="px-5 py-3 text-right">CPA</th>
+                  <th className="px-5 py-3 text-right">ROAS</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {breakdown.rows.map((row, index) => {
+                  const cpa = metricCpa(row)
+                  const roas = metricRoas(row)
+                  return (
+                    <tr key={`${row.dimension}-${index}`}>
+                      <td className="px-5 py-4">
+                        <div className="min-w-48">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="font-semibold text-slate-950">
+                              {prettyDimension(row.dimension)}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              {formatNumber((row.spend / maxPrimary) * 100, 1)}%
+                            </span>
+                          </div>
+                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className="h-full rounded-full bg-indigo-500"
+                              style={{ width: `${Math.max(2, (row.spend / maxPrimary) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-right font-medium text-slate-700">
+                        {formatCurrency(row.spend, row.currency ?? currency)}
+                      </td>
+                      <td className="px-5 py-4 text-right text-slate-600">
+                        {formatCompact(row.impressions)}
+                      </td>
+                      <td className="px-5 py-4 text-right text-slate-600">
+                        {formatCompact(row.reach)}
+                      </td>
+                      <td className="px-5 py-4 text-right text-slate-600">
+                        {formatCompact(row.clicks)}
+                      </td>
+                      <td className="px-5 py-4 text-right text-slate-600">
+                        {row.ctr == null ? '—' : `${formatNumber(row.ctr)}%`}
+                      </td>
+                      <td className="px-5 py-4 text-right text-slate-600">
+                        {formatNumber(row.conversions)}
+                      </td>
+                      <td className="px-5 py-4 text-right text-slate-600">
+                        {cpa == null ? '—' : formatCurrency(cpa, row.currency ?? currency)}
+                      </td>
+                      <td className="px-5 py-4 text-right font-semibold text-slate-700">
+                        {roas == null ? '—' : `${formatNumber(roas)}×`}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="divide-y divide-slate-100 lg:hidden">
+            {breakdown.rows.map((row, index) => (
+              <div key={`${row.dimension}-mobile-${index}`} className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-slate-950">
+                      {prettyDimension(row.dimension)}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {formatCompact(row.impressions)} impressions · {formatCompact(row.reach)} reach
+                    </p>
+                  </div>
+                  <p className="font-bold text-slate-950">
+                    {formatCurrency(row.spend, row.currency ?? currency)}
+                  </p>
+                </div>
+                <div className="mt-4 grid grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <p className="text-slate-400">Clicks</p>
+                    <p className="mt-1 font-semibold text-slate-700">
+                      {formatCompact(row.clicks)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400">Conversions</p>
+                    <p className="mt-1 font-semibold text-slate-700">
+                      {formatNumber(row.conversions)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400">ROAS</p>
+                    <p className="mt-1 font-semibold text-slate-700">
+                      {metricRoas(row) == null ? '—' : `${formatNumber(metricRoas(row))}×`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 export default function AdAnalytics() {
   const selectedCompany = useAppSelector(selectSelectedCompany)
   const { can } = useIam()
@@ -644,6 +884,14 @@ export default function AdAnalytics() {
                 />
               </div>
             </div>
+
+            <BreakdownPanel
+              breakdown={breakdown}
+              type={breakdownType}
+              loading={breakdownLoading}
+              currency={currency}
+              onSelect={(next) => void chooseBreakdown(next)}
+            />
 
             <div className="panel mt-6 overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
