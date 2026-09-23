@@ -309,6 +309,23 @@ public class AdRecommendationService {
       AdAccount account,
       List<com.messaging.ads.entity.AdAccountResource> resources,
       List<AdRecommendationsResponse.Item> items) {
+    if (resources.isEmpty()) {
+      items.add(
+          item(
+              "RESOURCES_NOT_DISCOVERED",
+              AdRecommendationSeverity.INFO,
+              AdRecommendationCategory.SETUP,
+              AdRecommendationSource.REACHLYO_DIAGNOSTIC,
+              "No Meta account resources are synchronized",
+              "Reachlyo has no synchronized Page, Instagram, or Pixel records for this account. Sync resources before treating individual resource types as missing.",
+              "AD_ACCOUNT",
+              account.getId().toString(),
+              "Sync resources",
+              "/ad-center/settings",
+              Map.of()));
+      return;
+    }
+
     long pages =
         resources.stream()
             .filter(resource -> resource.isAccessible())
