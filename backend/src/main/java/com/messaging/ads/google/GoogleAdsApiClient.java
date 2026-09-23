@@ -214,6 +214,67 @@ public class GoogleAdsApiClient {
     return List.copyOf(result);
   }
 
+  public List<JsonNode> searchRows(
+      String accessToken,
+      String customerId,
+      String loginCustomerId,
+      String query) {
+    JsonNode response = searchStream(accessToken, customerId, loginCustomerId, query);
+    List<JsonNode> rows = new ArrayList<>();
+    for (JsonNode batch : iterable(response)) {
+      for (JsonNode row : iterable(batch.path("results"))) {
+        rows.add(row);
+      }
+    }
+    return List.copyOf(rows);
+  }
+
+  public JsonNode mutate(
+      String accessToken,
+      String customerId,
+      String loginCustomerId,
+      String resourceCollection,
+      List<Map<String, Object>> operations) {
+    if (operations == null || operations.isEmpty()) {
+      throw new BadRequestException("Google Ads mutation requires at least one operation");
+    }
+    return execute(
+        () -> {
+          RestClient.RequestBodySpec request =
+              adsClient
+                  .post()
+                  .uri(
+                      "/{version}/customers/{customerId}/{resourceCollection}:mutate",
+                      properties.getApiVersion().trim(),
+                      normalizeCustomerId(customerId),
+                      resourceCollection)
+                  .contentType(MediaType.APPLICATION_JSON);
+          addAdsHeaders(request, accessToken, loginCustomerId);
+          return request
+              .body(Map.of("operations", operations, "partialFailure", false))
+              .retrieve()
+              .body(JsonNode.class);
+        },
+        "Google Ads mutation failed for " + resourceCollection);
+  }
+
+  public String firstMutatedResourceName(JsonNode response) {
+    if (response == null) return null;
+    JsonNode results = response.path("results");
+    if (!results.isArray() || results.isEmpty()) return null;
+    String resourceName = results.get(0).path("resourceName").asText(null);
+    return resourceName == null || resourceName.isBlank() ? null : resourceName;
+  }
+
+  public String customerResourceName(String customerId, String collection, String id) {
+    return "customers/"
+        + normalizeCustomerId(customerId)
+        + "/"
+        + collection
+        + "/"
+        + id;
+  }
+
   private JsonNode searchStream(
       String accessToken, String customerId, String loginCustomerId, String query) {
     return execute(
