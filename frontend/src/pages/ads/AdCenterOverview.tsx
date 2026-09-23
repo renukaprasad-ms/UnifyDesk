@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { FiCheck, FiExternalLink, FiRefreshCw, FiX } from 'react-icons/fi'
+import { FiAlertTriangle, FiCheck, FiCheckCircle, FiExternalLink, FiRefreshCw, FiX, FiZap } from 'react-icons/fi'
+import { Link } from 'react-router'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
   AdAccountResource,
   AdProviderConnection,
   AdProviderInfo,
+  AdRecommendationSummary,
 } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -29,6 +31,8 @@ export default function AdCenterOverview() {
   const [resourcesByAccount, setResourcesByAccount] = useState<
     Record<string, AdAccountResource[]>
   >({})
+  const [recommendationSummary, setRecommendationSummary] =
+    useState<AdRecommendationSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null)
   const [workingAccountId, setWorkingAccountId] = useState<string | null>(null)
@@ -41,15 +45,25 @@ export default function AdCenterOverview() {
     if (!selectedCompany) return
     setLoading(true)
     try {
-      const [providerData, connectionData, accountData, resourceData] = await Promise.all([
+      const [
+        providerData,
+        connectionData,
+        accountData,
+        resourceData,
+        recommendationData,
+      ] = await Promise.all([
         adCenterApi.providers(selectedCompany.companyId),
         adCenterApi.connections(selectedCompany.companyId),
         adCenterApi.accounts(selectedCompany.companyId),
         adCenterApi.allResources(selectedCompany.companyId),
+        adCenterApi
+          .recommendationSummary(selectedCompany.companyId)
+          .catch(() => null),
       ])
       setProviders(providerData)
       setConnections(connectionData)
       setAccounts(accountData)
+      setRecommendationSummary(recommendationData)
       setResourcesByAccount(
         resourceData.reduce<Record<string, AdAccountResource[]>>((grouped, resource) => {
           grouped[resource.adAccountId] = [...(grouped[resource.adAccountId] ?? []), resource]
@@ -65,6 +79,27 @@ export default function AdCenterOverview() {
 
   useEffect(() => {
     void load()
+  }, [selectedCompany?.companyId])
+
+  useEffect(() => {
+    const refreshRecommendations = async () => {
+      if (!selectedCompany) return
+      try {
+        setRecommendationSummary(
+          await adCenterApi.recommendationSummary(selectedCompany.companyId),
+        )
+      } catch {
+        // Recommendation summary must not block provider/account management.
+      }
+    }
+
+    const handleChanged = () => void refreshRecommendations()
+    window.addEventListener('ad-center:recommendations-changed', handleChanged)
+    return () =>
+      window.removeEventListener(
+        'ad-center:recommendations-changed',
+        handleChanged,
+      )
   }, [selectedCompany?.companyId])
 
   useEffect(() => {
@@ -248,6 +283,101 @@ export default function AdCenterOverview() {
             {error || notice}
           </div>
         )}
+
+        {recommendationSummary &&
+          recommendationSummary.managedAccountCount > 0 && (
+            <div
+              className={`panel mt-7 overflow-hidden border ${
+                recommendationSummary.attentionCount > 0
+                  ? 'border-amber-200'
+                  : 'border-emerald-200'
+              }`}
+            >
+              <div
+                className={`flex flex-wrap items-start justify-between gap-4 px-5 py-5 ${
+                  recommendationSummary.attentionCount > 0
+                    ? 'bg-amber-50/70'
+                    : 'bg-emerald-50/70'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  {recommendationSummary.attentionCount > 0 ? (
+                    <FiAlertTriangle
+                      className="mt-0.5 shrink-0 text-amber-600"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <FiCheckCircle
+                      className="mt-0.5 shrink-0 text-emerald-600"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <div>
+                    <h2 className="font-bold text-slate-950">
+                      {recommendationSummary.attentionCount > 0
+                        ? 'Needs attention'
+                        : 'No urgent Ad Center issues'}
+                    </h2>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      {recommendationSummary.attentionCount > 0
+                        ? `${recommendationSummary.criticalCount} critical and ${recommendationSummary.warningCount} warning item(s) across managed Meta accounts.`
+                        : `${recommendationSummary.opportunityCount} optimization opportunity item(s) are currently available.`}
+                    </p>
+                  </div>
+                </div>
+
+                <Link
+                  to="/ad-center/recommendations"
+                  className="secondary-button inline-flex items-center gap-2"
+                >
+                  <FiZap aria-hidden="true" />
+                  View recommendations
+                </Link>
+              </div>
+
+              {recommendationSummary.topItems.length > 0 && (
+                <div className="divide-y divide-slate-100">
+                  {recommendationSummary.topItems.slice(0, 4).map((entry) => (
+                    <div
+                      key={`${entry.adAccountId}-${entry.item.key}`}
+                      className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                              entry.item.severity === 'CRITICAL'
+                                ? 'bg-red-50 text-red-700'
+                                : entry.item.severity === 'WARNING'
+                                  ? 'bg-amber-50 text-amber-700'
+                                  : entry.item.severity === 'OPPORTUNITY'
+                                    ? 'bg-indigo-50 text-indigo-700'
+                                    : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {entry.item.severity}
+                          </span>
+                          <span className="text-xs font-semibold text-slate-400">
+                            {entry.accountName}
+                          </span>
+                        </div>
+                        <p className="mt-2 font-semibold text-slate-950">
+                          {entry.item.title}
+                        </p>
+                      </div>
+
+                      <Link
+                        to={entry.item.actionPath || '/ad-center/recommendations'}
+                        className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                      >
+                        Review →
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
         <div className="mt-7 grid gap-4 md:grid-cols-2">
           {providers.map((provider) => {
