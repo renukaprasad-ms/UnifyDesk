@@ -3,19 +3,25 @@ import type { ApiResponse } from '../../lib/api/types'
 import type {
   AdAccount,
   AdAccountResource,
+  AdAudience,
+  AdConversion,
   AdCreative,
   Ad,
   AdSet,
   AdProviderConnection,
   AdProviderInfo,
   AdCampaign,
+  CreateMetaAudienceInput,
   CreateMetaCampaignInput,
+  CreateMetaConversionInput,
   CreateMetaCreativeInput,
   CreateMetaAdInput,
   CreateMetaAdSetInput,
   MetaAdsAuthorization,
   MetaAdsResourceSync,
+  MetaAudienceSync,
   MetaCampaignSync,
+  MetaConversionSync,
   MetaCreativeSync,
   MetaAdSync,
   MetaAdSetSync,
@@ -184,6 +190,58 @@ export const adCenterApi = {
     const response = await apiClient.post<ApiResponse<AdSet>>(
       `/api/v1/companies/${companyId}/ads/meta/ad-sets/${adSetId}/status`,
       { status },
+    )
+    return unwrap(response.data)
+  },
+
+  async audiences(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<AdAudience[]>>(
+      `/api/v1/companies/${companyId}/ads/accounts/${accountId}/audiences`,
+    )
+    return unwrap(response.data)
+  },
+
+  async syncMetaAudiences(companyId: string, accountId: string) {
+    const response = await apiClient.post<ApiResponse<MetaAudienceSync>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/audiences/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createMetaAudience(
+    companyId: string,
+    accountId: string,
+    input: CreateMetaAudienceInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<AdAudience>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/audiences`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async conversions(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<AdConversion[]>>(
+      `/api/v1/companies/${companyId}/ads/accounts/${accountId}/conversions`,
+    )
+    return unwrap(response.data)
+  },
+
+  async syncMetaConversions(companyId: string, accountId: string) {
+    const response = await apiClient.post<ApiResponse<MetaConversionSync>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/conversions/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createMetaConversion(
+    companyId: string,
+    accountId: string,
+    input: CreateMetaConversionInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<AdConversion>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/conversions`,
+      input,
     )
     return unwrap(response.data)
   },
