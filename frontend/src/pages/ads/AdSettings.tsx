@@ -551,6 +551,28 @@ export default function AdSettings() {
                     )}
                   </div>
                 </div>
+
+                <div className="mt-5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    All provider capabilities
+                  </p>
+                  <div className="mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto">
+                    {(health?.allCapabilities ?? []).length > 0 ? (
+                      health!.allCapabilities.map((capability) => (
+                        <span
+                          key={capability}
+                          className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-500"
+                        >
+                          {pretty(capability)}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-sm text-slate-400">
+                        No broader capability set reported
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="panel p-5 sm:p-6">
