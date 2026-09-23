@@ -16,7 +16,7 @@ import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.broadcast.transport.BroadcastEmailCommand;
 import com.messaging.broadcast.transport.BroadcastEmailResult;
 import com.messaging.broadcast.transport.BroadcastTransportException;
-import com.messaging.channel.credential.CredentialCipher;
+import com.messaging.common.credential.CredentialCipher;
 import com.messaging.common.exception.BadRequestException;
 import java.net.URI;
 import java.time.Instant;
