@@ -160,7 +160,14 @@ public class Msg91EmailGateway {
     String resolvedSlug =
         firstText(match, "slug", "template_id", "templateId");
     String providerStatus =
-        firstText(match, "status", "template_status", "approval_status");
+        firstDeepText(
+            match,
+            "status",
+            "template_status",
+            "approval_status",
+            "version_status",
+            "templateStatus",
+            "approvalStatus");
 
     if (resolvedId == null) resolvedId = providerTemplateId == null ? slug : providerTemplateId;
     if (resolvedSlug == null) resolvedSlug = slug;
