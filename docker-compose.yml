@@ -38,7 +38,7 @@ services:
       META_ADS_APP_SECRET: ${META_ADS_APP_SECRET:-}
       META_ADS_REDIRECT_URI: ${META_ADS_REDIRECT_URI:-http://localhost:8001/api/v1/oauth/meta-ads/callback}
       META_ADS_GRAPH_API_VERSION: ${META_ADS_GRAPH_API_VERSION:-v26.0}
-      META_ADS_SCOPE: ${META_ADS_SCOPE:-ads_management,business_management,pages_show_list,instagram_basic}
+      META_ADS_SCOPE: ${META_ADS_SCOPE:-ads_management,business_management,pages_show_list,pages_read_engagement,instagram_basic}
       META_ADS_OAUTH_STATE_TTL: ${META_ADS_OAUTH_STATE_TTL:-10m}
       JAVA_TOOL_OPTIONS: "-Xms128m -Xmx512m -XX:MaxMetaspaceSize=192m -XX:ReservedCodeCacheSize=64m -Xss512k -XX:ActiveProcessorCount=2"
       APP_DATASOURCE_WRITE_URL: jdbc:postgresql://postgres:${POSTGRES_CONTAINER_PORT}/${POSTGRES_DB}
