@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 public class MetaAdsProperties {
 
   private static final String DEFAULT_SCOPE =
-      "ads_management,business_management,pages_show_list,instagram_basic";
+      "ads_management,business_management,pages_show_list,pages_read_engagement,instagram_basic";
 
   private boolean enabled;
   private String appId;
