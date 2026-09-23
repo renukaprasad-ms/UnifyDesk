@@ -14,6 +14,7 @@ import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ public class AdCenterService {
   private final AdProviderConnectionRepository connectionRepository;
   private final AdProviderCredentialService credentialService;
   private final AdAccountResourceLifecycleService resourceLifecycleService;
+  private final AdActivityLogService activityLogService;
 
   public List<AdProviderResponse> providers() {
     return Arrays.stream(AdProvider.values())
@@ -56,7 +58,10 @@ public class AdCenterService {
 
   @Transactional
   public AdAccountResponse updateSelection(
-      Long companyId, Long accountId, UpdateAdAccountSelectionRequest request) {
+      Long companyId,
+      Long accountId,
+      UpdateAdAccountSelectionRequest request,
+      Long actorUserId) {
     AdAccount accountSnapshot =
         accountRepository
             .findByIdAndCompanyId(accountId, companyId)
@@ -79,6 +84,12 @@ public class AdCenterService {
       throw new BadRequestException("A primary ad account must be managed");
     }
 
+    Map<String, Object> before =
+        Map.of(
+            "managed", account.isManaged(),
+            "primaryAccount", account.isPrimaryAccount(),
+            "accessible", account.isAccessible());
+
     account.setManaged(managed);
     if (!managed) {
       account.setPrimaryAccount(false);
@@ -100,11 +111,29 @@ public class AdCenterService {
 
     normalizePrimary(providerAccounts);
     accountRepository.saveAll(providerAccounts);
-    return AdAccountResponse.from(accountRepository.save(account));
+    AdAccount saved = accountRepository.save(account);
+
+    activityLogService.record(
+        companyId,
+        saved.getId(),
+        saved.getProvider(),
+        actorUserId,
+        "AD_ACCOUNT_SELECTION_UPDATED",
+        "AD_ACCOUNT",
+        saved.getExternalAccountId(),
+        before,
+        Map.of(
+            "managed", saved.isManaged(),
+            "primaryAccount", saved.isPrimaryAccount(),
+            "accessible", saved.isAccessible()),
+        null);
+
+    return AdAccountResponse.from(saved);
   }
 
   @Transactional
-  public AdProviderConnectionResponse disconnect(Long companyId, Long connectionId) {
+  public AdProviderConnectionResponse disconnect(
+      Long companyId, Long connectionId, Long actorUserId) {
     var connection =
         connectionRepository
             .findByIdAndCompanyId(connectionId, companyId)
@@ -130,7 +159,21 @@ public class AdCenterService {
 
     connection.setStatus(AdConnectionStatus.DISCONNECTED);
     connection.setLastError(null);
-    return AdProviderConnectionResponse.from(connectionRepository.save(connection));
+    var saved = connectionRepository.save(connection);
+
+    activityLogService.record(
+        companyId,
+        null,
+        saved.getProvider(),
+        actorUserId,
+        "AD_PROVIDER_DISCONNECTED",
+        "PROVIDER_CONNECTION",
+        saved.getId().toString(),
+        Map.of("status", AdConnectionStatus.ACTIVE.name()),
+        Map.of("status", saved.getStatus().name()),
+        Map.of("affectedAccountCount", disconnectedAccounts.size()));
+
+    return AdProviderConnectionResponse.from(saved);
   }
 
   private void normalizePrimary(List<AdAccount> providerAccounts) {
