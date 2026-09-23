@@ -206,6 +206,7 @@ export type BroadcastMessageSummary = {
 
 export type BroadcastMessage = Omit<BroadcastMessageSummary, 'bodyPreview'> & {
   bodyText: string
+  templateVariables?: Record<string, string>
 }
 
 export type BroadcastRecipientStatus =
@@ -253,4 +254,5 @@ export type CreateBroadcastMessageInput = {
   senderId: string
   subject?: string | null
   bodyText: string
+  templateVariables?: Record<string, string>
 }
