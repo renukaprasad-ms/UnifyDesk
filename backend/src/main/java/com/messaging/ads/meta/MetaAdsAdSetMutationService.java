@@ -2,6 +2,7 @@ package com.messaging.ads.meta;
 
 import com.messaging.ads.dto.AdSetResponse;
 import com.messaging.ads.entity.AdAccount;
+import com.messaging.ads.entity.AdAudience;
 import com.messaging.ads.entity.AdCampaign;
 import com.messaging.ads.entity.AdConversion;
 import com.messaging.ads.entity.AdSet;
@@ -10,6 +11,7 @@ import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.meta.dto.CreateMetaAdSetRequest;
 import com.messaging.ads.meta.dto.UpdateMetaAdSetRequest;
 import com.messaging.ads.repository.AdAccountRepository;
+import com.messaging.ads.repository.AdAudienceRepository;
 import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.ads.repository.AdConversionRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
@@ -35,6 +37,7 @@ public class MetaAdsAdSetMutationService {
 
   private final AdCampaignRepository campaignRepository;
   private final AdSetRepository adSetRepository;
+  private final AdAudienceRepository audienceRepository;
   private final AdConversionRepository conversionRepository;
   private final AdAccountRepository accountRepository;
   private final AdProviderConnectionRepository connectionRepository;
@@ -55,6 +58,8 @@ public class MetaAdsAdSetMutationService {
     payload.put("billing_event", normalizedRequired(request.billingEvent(), "Billing event"));
     payload.put("status", "PAUSED");
     payload.put("targeting", targeting(
+        companyId,
+        account.getId(),
         request.locations(),
         request.ageMin(),
         request.ageMax(),
@@ -115,6 +120,8 @@ public class MetaAdsAdSetMutationService {
             "Locations are required when replacing Meta ad-set targeting");
       }
       updates.put("targeting", targeting(
+          companyId,
+          account.getId(),
           request.locations(),
           request.ageMin(),
           request.ageMax(),
@@ -172,6 +179,8 @@ public class MetaAdsAdSetMutationService {
   }
 
   private Map<String, Object> targeting(
+      Long companyId,
+      Long accountId,
       List<CreateMetaAdSetRequest.TargetingLocation> locations,
       Integer ageMin,
       Integer ageMax,
@@ -223,8 +232,14 @@ public class MetaAdsAdSetMutationService {
     }
     putStringList(targeting, "facebook_positions", facebookPositions, true);
     putStringList(targeting, "instagram_positions", instagramPositions, true);
-    putAudienceList(targeting, "custom_audiences", customAudienceIds);
-    putAudienceList(targeting, "excluded_custom_audiences", excludedCustomAudienceIds);
+    putAudienceList(
+        targeting, "custom_audiences", customAudienceIds, companyId, accountId);
+    putAudienceList(
+        targeting,
+        "excluded_custom_audiences",
+        excludedCustomAudienceIds,
+        companyId,
+        accountId);
     return targeting;
   }
 
@@ -255,15 +270,43 @@ public class MetaAdsAdSetMutationService {
   }
 
   private void putAudienceList(
-      Map<String, Object> target, String key, List<String> ids) {
+      Map<String, Object> target,
+      String key,
+      List<String> ids,
+      Long companyId,
+      Long accountId) {
     if (ids == null || ids.isEmpty()) return;
     List<Map<String, String>> audiences = new ArrayList<>();
     ids.stream()
         .filter(id -> id != null && !id.isBlank())
         .map(String::trim)
         .distinct()
-        .forEach(id -> audiences.add(Map.of("id", id)));
+        .map(id -> requireAudience(companyId, accountId, id))
+        .forEach(
+            audience ->
+                audiences.add(Map.of("id", audience.getExternalAudienceId())));
     if (!audiences.isEmpty()) target.put(key, audiences);
+  }
+
+  private AdAudience requireAudience(
+      Long companyId, Long accountId, String audienceId) {
+    Long internalId;
+    try {
+      internalId = Long.valueOf(audienceId);
+    } catch (NumberFormatException exception) {
+      throw new BadRequestException("Audience ID is invalid");
+    }
+    AdAudience audience =
+        audienceRepository
+            .findByIdAndCompanyId(internalId, companyId)
+            .orElseThrow(() -> new NotFoundException("Advertising audience not found"));
+    if (audience.getProvider() != AdProvider.META_ADS
+        || !accountId.equals(audience.getAdAccountId())
+        || !audience.isAccessible()) {
+      throw new BadRequestException(
+          "Audience is not available for this Meta ad account");
+    }
+    return audience;
   }
 
   private Map<String, Object> promotedObject(
