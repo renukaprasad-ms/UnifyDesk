@@ -8,6 +8,7 @@ import {
   FiSettings,
   FiTarget,
   FiUsers,
+  FiZap,
 } from 'react-icons/fi'
 import { NavLink } from 'react-router'
 
@@ -18,6 +19,7 @@ const items = [
   { label: 'Audiences', to: '/ad-center/audiences', icon: <FiUsers /> },
   { label: 'Conversions', to: '/ad-center/conversions', icon: <FiActivity /> },
   { label: 'Analytics', to: '/ad-center/analytics', icon: <FiBarChart2 /> },
+  { label: 'Recommendations', to: '/ad-center/recommendations', icon: <FiZap /> },
   { label: 'Billing', to: '/ad-center/billing', icon: <FiCreditCard /> },
   { label: 'Activity', to: '/ad-center/activity', icon: <FiClock /> },
   { label: 'Settings', to: '/ad-center/settings', icon: <FiSettings /> },
