@@ -1,0 +1,14 @@
+package com.messaging.ads.enums;
+
+public enum AdInsightBreakdownType {
+  AGE,
+  GENDER,
+  COUNTRY,
+  REGION,
+  PUBLISHER_PLATFORM,
+  PLATFORM_POSITION,
+  IMPRESSION_DEVICE,
+  DEVICE_PLATFORM,
+  CONVERSION_DESTINATION,
+  ACTION_DEVICE
+}
