@@ -17,7 +17,7 @@ const fractionDigits = (currency?: string | null) => {
     return new Intl.NumberFormat(undefined, {
       style: 'currency',
       currency,
-    }).resolvedOptions().maximumFractionDigits
+    }).resolvedOptions().maximumFractionDigits ?? 2
   } catch {
     return 2
   }
