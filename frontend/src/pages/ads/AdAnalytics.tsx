@@ -120,7 +120,7 @@ function TrendChart({ points, currency }: { points: AdAnalyticsDailyPoint[]; cur
   if (points.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center text-sm text-slate-400">
-        Sync Meta analytics to populate the daily trend.
+        Sync advertising analytics to populate the daily trend.
       </div>
     )
   }
@@ -171,7 +171,7 @@ function TrendChart({ points, currency }: { points: AdAnalyticsDailyPoint[]; cur
       <div className="overflow-hidden rounded-xl border border-slate-100 bg-slate-50/60">
         <svg
           role="img"
-          aria-label="Daily Meta Ads spend and conversion trend"
+          aria-label="Daily advertising spend and conversion trend"
           viewBox={`0 0 ${width} ${height}`}
           className="h-64 w-full"
           preserveAspectRatio="none"
@@ -288,7 +288,7 @@ function BreakdownPanel({
             No {prettyDimension(type).toLowerCase()} data
           </h3>
           <p className="mt-2 text-sm text-slate-500">
-            Sync Meta analytics for this date range. Meta may not return every breakdown for every account or campaign mix.
+            Sync analytics for this date range. The selected provider may not return every breakdown for every account or campaign mix.
           </p>
         </div>
       ) : isActionBreakdown ? (
@@ -627,16 +627,29 @@ export default function AdAnalytics() {
     setNotice('')
     try {
       if (selectedAccount.provider === 'GOOGLE_ADS') {
-        const result = await adCenterApi.syncGoogleInsights(
-          selectedCompany.companyId,
-          selectedAccount.id,
-          from,
-          to,
-        )
-        await loadAnalytics(selectedAccount.id)
-        setBreakdown(emptyBreakdown(breakdownType))
+        const [result, breakdownResult] = await Promise.all([
+          adCenterApi.syncGoogleInsights(
+            selectedCompany.companyId,
+            selectedAccount.id,
+            from,
+            to,
+          ),
+          adCenterApi.syncGoogleInsightBreakdowns(
+            selectedCompany.companyId,
+            selectedAccount.id,
+            from,
+            to,
+          ),
+        ])
+        await Promise.all([
+          loadAnalytics(selectedAccount.id),
+          loadBreakdown(selectedAccount.id),
+        ])
+        const failed = breakdownResult.failedBreakdowns ?? []
         setNotice(
-          `Synced Google Ads analytics: ${result.campaignRows} campaign, ${result.adGroupRows} ad group, and ${result.adRows} ad row(s).`,
+          failed.length === 0
+            ? `Synced Google Ads analytics: ${result.campaignRows} campaign, ${result.adGroupRows} ad group, ${result.adRows} ad row(s), plus all supported reporting breakdowns.`
+            : `Google Ads core analytics synchronized. Breakdown sync completed with ${failed.length} unavailable dimension(s): ${failed.join(', ')}.`,
         )
       } else {
         const result = await adCenterApi.syncMetaInsights(
