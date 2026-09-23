@@ -167,6 +167,7 @@ export default function AdBilling() {
       )
       setBilling(updated)
       setNotice('Meta billing state synchronized.')
+      window.dispatchEvent(new Event('ad-center:recommendations-changed'))
     } catch (syncError) {
       setError(apiErrorMessage(syncError, 'Unable to synchronize Meta billing'))
     } finally {
@@ -187,6 +188,7 @@ export default function AdBilling() {
       )
       setBilling(updated)
       setCapModalOpen(false)
+      window.dispatchEvent(new Event('ad-center:recommendations-changed'))
       setNotice(
         spendCapMinor === 0
           ? 'Meta account spending limit removed.'
