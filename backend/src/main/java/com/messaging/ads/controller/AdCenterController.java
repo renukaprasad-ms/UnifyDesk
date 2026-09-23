@@ -14,6 +14,7 @@ import com.messaging.ads.dto.AdCreativeResponse;
 import com.messaging.ads.dto.AdResponse;
 import com.messaging.ads.dto.AdProviderConnectionResponse;
 import com.messaging.ads.dto.AdProviderResponse;
+import com.messaging.ads.dto.AdRecommendationsResponse;
 import com.messaging.ads.dto.AdSetResponse;
 import com.messaging.ads.dto.UpdateAdAccountSelectionRequest;
 import com.messaging.ads.service.AdAccountBillingService;
@@ -29,6 +30,7 @@ import com.messaging.ads.service.AdCreativeService;
 import com.messaging.ads.service.AdService;
 import com.messaging.ads.service.AdCenterService;
 import com.messaging.ads.service.AdSetService;
+import com.messaging.ads.service.AdRecommendationService;
 import com.messaging.ads.enums.AdInsightBreakdownType;
 import com.messaging.ads.enums.AdInsightLevel;
 import com.messaging.common.response.ApiResponse;
@@ -70,6 +72,7 @@ public class AdCenterController {
   private final AdCreativeService creativeService;
   private final AdService adService;
   private final AdSetService adSetService;
+  private final AdRecommendationService recommendationService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -96,6 +99,18 @@ public class AdCenterController {
     requireRead(companyId);
     return ResponseEntity.ok(
         ApiResponse.success(200, adCenterService.accounts(companyId), "Ad accounts fetched"));
+  }
+
+  @GetMapping("/accounts/{accountId}/recommendations")
+  public ResponseEntity<ApiResponse<AdRecommendationsResponse>> recommendations(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            recommendationService.recommendations(companyId, accountId),
+            "Advertising recommendations fetched"));
   }
 
   @GetMapping("/accounts/{accountId}/health")
