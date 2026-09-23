@@ -1,10 +1,12 @@
 package com.messaging.ads.dto;
 
+import com.messaging.ads.entity.AdAccount;
 import com.messaging.ads.entity.AdAccountBilling;
 import com.messaging.ads.enums.AdProvider;
 import java.time.Instant;
 
 public record AdAccountBillingResponse(
+    boolean synced,
     String id,
     String companyId,
     String adAccountId,
@@ -38,6 +40,7 @@ public record AdAccountBillingResponse(
             : null;
 
     return new AdAccountBillingResponse(
+        true,
         billing.getId().toString(),
         billing.getCompanyId().toString(),
         billing.getAdAccountId().toString(),
@@ -60,5 +63,32 @@ public record AdAccountBillingResponse(
         billing.getDisableReason(),
         billing.getBusinessCountryCode(),
         billing.getLastSyncAt());
+  }
+
+  public static AdAccountBillingResponse empty(AdAccount account) {
+    return new AdAccountBillingResponse(
+        false,
+        null,
+        account.getCompanyId().toString(),
+        account.getId().toString(),
+        account.getProvider(),
+        account.getCurrency(),
+        null,
+        null,
+        null,
+        null,
+        false,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null);
   }
 }
