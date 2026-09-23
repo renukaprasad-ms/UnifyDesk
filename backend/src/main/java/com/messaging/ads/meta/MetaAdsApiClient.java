@@ -163,6 +163,29 @@ public class MetaAdsApiClient {
     return List.copyOf(result);
   }
 
+  public String createPixel(String accessToken, String accountId, String name) {
+    IdResponse response =
+        execute(
+            () ->
+                graphClient
+                    .post()
+                    .uri(
+                        uriBuilder ->
+                            uriBuilder
+                                .path("/{version}/{account}/adspixels")
+                                .queryParam("appsecret_proof", appSecretProof(accessToken))
+                                .build(properties.getGraphApiVersion(), accountPath(accountId)))
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("name", name))
+                    .retrieve()
+                    .body(IdResponse.class));
+    if (response.id() == null || response.id().isBlank()) {
+      throw new BadRequestException("Meta created the pixel without returning an ID");
+    }
+    return response.id();
+  }
+
   public List<PixelSummary> pixels(String accessToken, String accountId) {
     List<PixelSummary> result = new ArrayList<>();
     String after = null;
