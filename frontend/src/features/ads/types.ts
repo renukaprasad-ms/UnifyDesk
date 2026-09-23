@@ -460,6 +460,7 @@ export type AdInsightBreakdownType =
   | 'IMPRESSION_DEVICE'
   | 'DEVICE_PLATFORM'
   | 'CONVERSION_DESTINATION'
+  | 'ACTION_TYPE'
   | 'ACTION_DEVICE'
 
 export type AdAnalyticsBreakdownRow = {
@@ -497,6 +498,7 @@ export type MetaInsightBreakdownsSync = {
   impressionDevice: number
   devicePlatform: number
   conversionDestination: number
+  actionType: number
   actionDevice: number
   failedBreakdowns: string[]
   totalRows?: number
