@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { FiCheckCircle, FiMail, FiSend, FiX } from 'react-icons/fi'
+import { FiCheckCircle, FiMail, FiPlus, FiSend, FiX } from 'react-icons/fi'
+import { Link } from 'react-router'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import type { BroadcastSender } from '../../features/broadcast/types'
 import { emailTemplateApi } from '../../features/emailTemplate/emailTemplateApi'
@@ -208,10 +209,28 @@ export default function BroadcastTestEmailModal({
                     ))}
                   </select>
                   {sendableTemplates.length === 0 && (
-                    <span className="mt-1 block text-[10px] leading-4 text-amber-600">
-                      No MSG91-ready templates. Publish a transactional template and sync it from
-                      Templates first.
-                    </span>
+                    <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50/70 p-3">
+                      <p className="text-[10px] leading-4 text-amber-700">
+                        No MSG91-ready templates. Create and publish a transactional template, then
+                        sync it to MSG91 from Providers.
+                      </p>
+                      <Link
+                        to="/templates?create=transactional"
+                        className="secondary-button mt-3 inline-flex items-center gap-2 px-3 py-2 text-xs"
+                      >
+                        <FiPlus aria-hidden="true" />
+                        Create new template
+                      </Link>
+                    </div>
+                  )}
+                  {sendableTemplates.length > 0 && (
+                    <Link
+                      to="/templates?create=transactional"
+                      className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
+                    >
+                      <FiPlus aria-hidden="true" />
+                      Create another template
+                    </Link>
                   )}
                 </label>
 
