@@ -54,3 +54,28 @@ export type AdProviderConnection = {
   createdAt: string
   updatedAt: string
 }
+
+export type AdAccountResourceType =
+  | 'FACEBOOK_PAGE'
+  | 'INSTAGRAM_ACCOUNT'
+  | 'META_PIXEL'
+
+export type AdAccountResource = {
+  id: string
+  companyId: string
+  adAccountId: string
+  provider: AdProvider
+  resourceType: AdAccountResourceType
+  externalResourceId: string
+  name?: string | null
+  accessible: boolean
+  lastSyncAt?: string | null
+}
+
+export type MetaAdsResourceSync = {
+  pages: number
+  instagramAccounts: number
+  pixels: number
+  resources: AdAccountResource[]
+}
+
