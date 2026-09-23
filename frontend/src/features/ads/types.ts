@@ -587,6 +587,12 @@ export type AdRecommendationCategory =
   | 'SETUP'
   | 'PERFORMANCE'
 export type AdRecommendationSource = 'META_PROVIDER' | 'REACHLYO_DIAGNOSTIC'
+export type AdRecommendationLifecycleStatus =
+  | 'ACTIVE'
+  | 'DISMISSED'
+  | 'SNOOZED'
+  | 'RESOLVED'
+export type AdRecommendationLifecycleAction = 'DISMISS' | 'SNOOZE' | 'REOPEN'
 
 export type AdRecommendationItem = {
   key: string
@@ -600,6 +606,10 @@ export type AdRecommendationItem = {
   actionLabel?: string | null
   actionPath?: string | null
   evidence: Record<string, unknown>
+  lifecycleStatus: AdRecommendationLifecycleStatus
+  snoozedUntil?: string | null
+  dismissible: boolean
+  snoozable: boolean
 }
 
 export type AdRecommendations = {
@@ -610,9 +620,30 @@ export type AdRecommendations = {
   warningCount: number
   opportunityCount: number
   infoCount: number
+  dismissedCount: number
+  snoozedCount: number
   generatedAt: string
   healthLastSyncAt?: string | null
   billingLastSyncAt?: string | null
   analyticsLastSyncAt?: string | null
   items: AdRecommendationItem[]
+  suppressedItems: AdRecommendationItem[]
+}
+
+export type AdRecommendationSummaryItem = {
+  adAccountId: string
+  accountName: string
+  item: AdRecommendationItem
+}
+
+export type AdRecommendationSummary = {
+  managedAccountCount: number
+  criticalCount: number
+  warningCount: number
+  opportunityCount: number
+  infoCount: number
+  attentionCount: number
+  dismissedCount: number
+  snoozedCount: number
+  topItems: AdRecommendationSummaryItem[]
 }
