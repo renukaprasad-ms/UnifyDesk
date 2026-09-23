@@ -28,6 +28,7 @@ import type {
   CreateMetaAdInput,
   CreateMetaAdSetInput,
   MetaAdsAuthorization,
+  GoogleAdsAuthorization,
   MetaAdsResourceSync,
   MetaAudienceSync,
   MetaCampaignSync,
@@ -512,6 +513,14 @@ export const adCenterApi = {
   async authorizeMeta(companyId: string, returnTo = '/ad-center') {
     const response = await apiClient.get<ApiResponse<MetaAdsAuthorization>>(
       `/api/v1/companies/${companyId}/ads/meta/authorize`,
+      { params: { returnTo } },
+    )
+    return unwrap(response.data)
+  },
+
+  async authorizeGoogle(companyId: string, returnTo = '/ad-center') {
+    const response = await apiClient.get<ApiResponse<GoogleAdsAuthorization>>(
+      `/api/v1/companies/${companyId}/ads/google/authorize`,
       { params: { returnTo } },
     )
     return unwrap(response.data)
