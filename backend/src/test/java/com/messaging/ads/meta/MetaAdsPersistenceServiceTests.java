@@ -17,7 +17,6 @@ import com.messaging.ads.meta.MetaAdsApiClient.TokenResponse;
 import com.messaging.ads.meta.MetaAdsApiClient.UserProfile;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
-import com.messaging.ads.service.AdProviderCredentialService;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,21 +33,15 @@ class MetaAdsPersistenceServiceTests {
 
   @Mock private AdProviderConnectionRepository connectionRepository;
   @Mock private AdAccountRepository accountRepository;
-  @Mock private AdProviderCredentialService credentialService;
+  @Mock private MetaAdsTokenService tokenService;
 
   private MetaAdsPersistenceService service;
 
   @BeforeEach
   void setUp() {
-    MetaAdsProperties properties = new MetaAdsProperties();
-    properties.setGraphApiVersion("v26.0");
     service =
         new MetaAdsPersistenceService(
-            connectionRepository,
-            accountRepository,
-            credentialService,
-            properties,
-            new ObjectMapper());
+            connectionRepository, accountRepository, tokenService, new ObjectMapper());
   }
 
   @Test
