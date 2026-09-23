@@ -1,6 +1,7 @@
 package com.messaging.ads.repository;
 
 import com.messaging.ads.entity.AdInsightDaily;
+import com.messaging.ads.enums.AdInsightGranularity;
 import com.messaging.ads.enums.AdInsightLevel;
 import com.messaging.ads.enums.AdProvider;
 import java.time.LocalDate;
@@ -11,25 +12,48 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AdInsightDailyRepository extends JpaRepository<AdInsightDaily, Long> {
 
   Optional<AdInsightDaily>
-      findByAdAccountIdAndProviderAndInsightLevelAndEntityRefAndInsightDate(
+      findByAdAccountIdAndProviderAndInsightLevelAndGranularityAndEntityRefAndInsightDateAndPeriodEnd(
           Long adAccountId,
           AdProvider provider,
           AdInsightLevel insightLevel,
+          AdInsightGranularity granularity,
           String entityRef,
-          LocalDate insightDate);
+          LocalDate insightDate,
+          LocalDate periodEnd);
 
-  List<AdInsightDaily> findByCompanyIdAndAdAccountIdAndInsightLevelAndInsightDateBetweenOrderByInsightDateAsc(
-      Long companyId,
-      Long adAccountId,
-      AdInsightLevel insightLevel,
-      LocalDate from,
-      LocalDate to);
+  List<AdInsightDaily>
+      findByCompanyIdAndAdAccountIdAndInsightLevelAndGranularityAndInsightDateBetweenOrderByInsightDateAsc(
+          Long companyId,
+          Long adAccountId,
+          AdInsightLevel insightLevel,
+          AdInsightGranularity granularity,
+          LocalDate from,
+          LocalDate to);
 
-  void deleteByCompanyIdAndAdAccountIdAndProviderAndInsightLevelAndInsightDateBetween(
+  List<AdInsightDaily>
+      findByCompanyIdAndAdAccountIdAndInsightLevelAndGranularityAndInsightDateAndPeriodEnd(
+          Long companyId,
+          Long adAccountId,
+          AdInsightLevel insightLevel,
+          AdInsightGranularity granularity,
+          LocalDate from,
+          LocalDate to);
+
+  void deleteByCompanyIdAndAdAccountIdAndProviderAndInsightLevelAndGranularityAndInsightDateBetween(
       Long companyId,
       Long adAccountId,
       AdProvider provider,
       AdInsightLevel insightLevel,
+      AdInsightGranularity granularity,
+      LocalDate from,
+      LocalDate to);
+
+  void deleteByCompanyIdAndAdAccountIdAndProviderAndInsightLevelAndGranularityAndInsightDateAndPeriodEnd(
+      Long companyId,
+      Long adAccountId,
+      AdProvider provider,
+      AdInsightLevel insightLevel,
+      AdInsightGranularity granularity,
       LocalDate from,
       LocalDate to);
 }
