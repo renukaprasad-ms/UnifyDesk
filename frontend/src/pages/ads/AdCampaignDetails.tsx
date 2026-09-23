@@ -27,7 +27,7 @@ const formatMinor = (value: number | null | undefined, currency?: string | null)
   if (!currency) return `${value} minor units`
   try {
     const formatter = new Intl.NumberFormat(undefined, { style: 'currency', currency })
-    const digits = formatter.resolvedOptions().maximumFractionDigits
+    const digits = formatter.resolvedOptions().maximumFractionDigits ?? 2
     return formatter.format(value / 10 ** digits)
   } catch {
     return `${value} ${currency}`
@@ -40,7 +40,7 @@ const toMajor = (value: number | null | undefined, currency?: string | null) => 
   try {
     const digits = new Intl.NumberFormat(undefined, { style: 'currency', currency })
       .resolvedOptions()
-      .maximumFractionDigits
+      .maximumFractionDigits ?? 2
     return String(value / 10 ** digits)
   } catch {
     return String(value)
@@ -54,7 +54,7 @@ const toMinor = (value: string, currency?: string | null) => {
   try {
     const digits = new Intl.NumberFormat(undefined, { style: 'currency', currency })
       .resolvedOptions()
-      .maximumFractionDigits
+      .maximumFractionDigits ?? 2
     return Math.round(numeric * 10 ** digits)
   } catch {
     return Math.round(numeric)
