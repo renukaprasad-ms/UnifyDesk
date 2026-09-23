@@ -206,9 +206,14 @@ export default function MetaAdSetModal({
               <label className="block text-xs font-semibold text-slate-700">
                 Budget source
                 <select className="form-input mt-2" value={budgetType} onChange={(e) => setBudgetType(e.target.value as 'NONE' | 'DAILY' | 'LIFETIME')}>
-                  {campaignHasBudget && <option value="NONE">Use campaign budget</option>}
-                  <option value="DAILY">Daily ad-set budget</option>
-                  <option value="LIFETIME">Lifetime ad-set budget</option>
+                  {campaignHasBudget ? (
+                    <option value="NONE">Use campaign budget</option>
+                  ) : (
+                    <>
+                      <option value="DAILY">Daily ad-set budget</option>
+                      <option value="LIFETIME">Lifetime ad-set budget</option>
+                    </>
+                  )}
                 </select>
               </label>
 
