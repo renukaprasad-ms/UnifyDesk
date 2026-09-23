@@ -232,6 +232,7 @@ export type AdCreative = {
   imageHash?: string | null
   imageUrl?: string | null
   videoId?: string | null
+  videoUrl?: string | null
   urlTags?: string | null
   objectStorySpecJson?: string | null
   carouselJson?: string | null
