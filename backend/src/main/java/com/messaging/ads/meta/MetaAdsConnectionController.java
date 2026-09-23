@@ -102,7 +102,7 @@ public class MetaAdsConnectionController {
         ApiResponse.success(
             HttpStatus.OK.value(),
             billingService.updateSpendCap(
-                companyId, accountId, request.spendCapMinor()),
+                companyId, accountId, request.spendCapMinor(), userId),
             "Meta account spend cap updated"));
   }
 
