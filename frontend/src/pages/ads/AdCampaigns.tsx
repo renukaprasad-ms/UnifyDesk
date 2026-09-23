@@ -22,7 +22,7 @@ const formatMinor = (value: number | null | undefined, currency?: string | null)
   if (!currency) return `${value} minor units`
   try {
     const formatter = new Intl.NumberFormat(undefined, { style: 'currency', currency })
-    const digits = formatter.resolvedOptions().maximumFractionDigits
+    const digits = formatter.resolvedOptions().maximumFractionDigits ?? 2
     return formatter.format(value / 10 ** digits)
   } catch {
     return `${value} ${currency}`
