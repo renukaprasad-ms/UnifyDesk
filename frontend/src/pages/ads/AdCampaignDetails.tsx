@@ -570,7 +570,7 @@ export default function AdCampaignDetails() {
 
               {adSets.length === 0 ? (
                 <div className="p-8 text-center text-sm text-slate-500">
-                  No ad sets are stored for this campaign yet. Sync Meta or create the first
+                  No delivery groups are stored for this campaign yet. Sync the provider or create the first
                   paused ad set.
                 </div>
               ) : (
