@@ -18,6 +18,16 @@ type Props = {
   onDone: (recipient: string) => void
 }
 
+const msg91TemplateStatusLabel = (binding?: EmailTemplateProviderBinding | null) => {
+  if (!binding) return 'not synced'
+  if (binding.sendable || binding.status === 'READY') return 'ready'
+  if (binding.status === 'PENDING_REVIEW') return 'pending approval'
+  if (binding.status === 'SYNCING') return 'syncing'
+  if (binding.status === 'REJECTED') return 'rejected'
+  if (binding.status === 'FAILED') return 'sync failed'
+  return 'status not confirmed'
+}
+
 const sampleValue = (variable: string) => {
   const key = variable.toLowerCase()
   if (key === 'first_name') return 'Test'
@@ -52,37 +62,78 @@ export default function BroadcastTestEmailModal({
   useEffect(() => {
     if (!isMsg91) return
     let active = true
-    Promise.all([
-      emailTemplateApi.published(companyId),
-      emailTemplateApi.providerBindings(companyId, { connectionId: sender.connectionId }),
-    ])
-      .then(([published, providerBindings]) => {
+    void (async () => {
+      try {
+        const [published, providerBindings] = await Promise.all([
+          emailTemplateApi.published(companyId),
+          emailTemplateApi.providerBindings(companyId, {
+            connectionId: sender.connectionId,
+          }),
+        ])
         if (!active) return
+
         setTemplates(published.filter((template) => template.purpose === 'TRANSACTIONAL'))
-        setBindings(providerBindings)
-      })
-      .catch((error) => {
+
+        const refreshable = providerBindings.filter((binding) =>
+          ['SYNCING', 'SYNCED', 'PENDING_REVIEW'].includes(binding.status),
+        )
+        if (refreshable.length === 0) {
+          setBindings(providerBindings)
+          return
+        }
+
+        const refreshed = await Promise.allSettled(
+          refreshable.map((binding) =>
+            emailTemplateApi.refreshProviderBinding(companyId, binding.id),
+          ),
+        )
+        if (!active) return
+
+        const updates = new Map(
+          refreshed
+            .filter(
+              (
+                result,
+              ): result is PromiseFulfilledResult<EmailTemplateProviderBinding> =>
+                result.status === 'fulfilled',
+            )
+            .map((result) => [result.value.id, result.value]),
+        )
+        setBindings(
+          providerBindings.map((binding) => updates.get(binding.id) ?? binding),
+        )
+      } catch (error) {
         if (active) snackbar.error(apiErrorMessage(error, 'Unable to load MSG91 templates'))
-      })
+      }
+    })()
     return () => {
       active = false
     }
   }, [companyId, isMsg91, sender.connectionId, snackbar])
 
+  const bindingByTemplateVersion = useMemo(
+    () =>
+      new Map(
+        bindings.map((binding) => [
+          `${binding.templateId}:${binding.templateVersion}`,
+          binding,
+        ]),
+      ),
+    [bindings],
+  )
+
   const sendableTemplates = useMemo(() => {
     if (!isMsg91) return templates
-    const sendable = new Set(
-      bindings
-        .filter((binding) => binding.sendable)
-        .map((binding) => `${binding.templateId}:${binding.templateVersion}`),
-    )
-    return templates.filter(
-      (template) =>
-        template.publishedVersion !== null &&
-        template.publishedVersion !== undefined &&
-        sendable.has(`${template.id}:${template.publishedVersion}`),
-    )
-  }, [bindings, isMsg91, templates])
+    return templates.filter((template) => {
+      if (template.publishedVersion === null || template.publishedVersion === undefined) {
+        return false
+      }
+      return (
+        bindingByTemplateVersion.get(`${template.id}:${template.publishedVersion}`)
+          ?.sendable === true
+      )
+    })
+  }, [bindingByTemplateVersion, isMsg91, templates])
 
   const selectedTemplate = sendableTemplates.find((template) => template.id === templateId) ?? null
 
@@ -202,17 +253,28 @@ export default function BroadcastTestEmailModal({
                     required
                   >
                     <option value="">Choose a template</option>
-                    {sendableTemplates.map((template) => (
-                      <option key={template.id} value={template.id}>
-                        {template.name} · v{template.publishedVersion}
-                      </option>
-                    ))}
+                    {templates.map((template) => {
+                      const binding =
+                        template.publishedVersion !== null
+                          ? bindingByTemplateVersion.get(
+                              `${template.id}:${template.publishedVersion}`,
+                            )
+                          : null
+                      const ready = binding?.sendable === true
+                      return (
+                        <option key={template.id} value={template.id} disabled={!ready}>
+                          {template.name} · v{template.publishedVersion} ·{' '}
+                          {msg91TemplateStatusLabel(binding)}
+                        </option>
+                      )
+                    })}
                   </select>
                   {sendableTemplates.length === 0 && (
                     <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50/70 p-3">
                       <p className="text-[10px] leading-4 text-amber-700">
-                        No MSG91-ready templates. Create and publish a transactional template, then
-                        sync it to MSG91 from Providers.
+                        {templates.length > 0
+                          ? 'Your transactional templates are shown above, but MSG91 has not confirmed one as ready yet. Messaging is refreshing their status automatically.'
+                          : 'No transactional templates yet. Create and publish one, then sync it to MSG91 from Providers.'}
                       </p>
                       <Link
                         to="/templates?create=transactional"
