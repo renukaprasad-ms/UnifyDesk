@@ -110,9 +110,10 @@ public class BroadcastSenderPersistenceService {
     channelConnection.setDisconnectedAt(null);
     channelConnection.setPurgeAfter(null);
     channelConnection.setDeletionRequestedByUserId(null);
-    channelConnection = channelConnectionRepository.save(channelConnection);
+    ChannelConnection savedChannelConnection =
+        channelConnectionRepository.save(channelConnection);
 
-    connection.setChannelConnectionId(channelConnection.getId());
+    connection.setChannelConnectionId(savedChannelConnection.getId());
     connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
     BroadcastSenderConnection savedConnection = connectionRepository.save(connection);
 
@@ -121,24 +122,21 @@ public class BroadcastSenderPersistenceService {
     BroadcastSender savedSender = senderRepository.save(sender);
 
     List<SenderIdentity> identities =
-        senderIdentityRepository.findByConnectionIdOrderByCreatedAtAsc(channelConnection.getId());
-    SenderIdentity identity =
-        identities.stream()
-            .filter(existing -> existing.getId().equals(savedSender.getId()))
-            .findFirst()
-            .orElseGet(
-                () -> {
-                  SenderIdentity restored = new SenderIdentity();
-                  restored.setId(savedSender.getId());
-                  restored.setConnection(channelConnection);
-                  restored.setIdentityType(
-                      connection.getProvider().channelType() == ChannelType.SMS
-                          ? SenderIdentityType.SMS_HEADER
-                          : SenderIdentityType.EMAIL_ADDRESS);
-                  restored.setExternalId(savedSender.getId().toString());
-                  identities.add(restored);
-                  return restored;
-                });
+        senderIdentityRepository.findByConnectionIdOrderByCreatedAtAsc(
+            savedChannelConnection.getId());
+    boolean identityExists =
+        identities.stream().anyMatch(existing -> existing.getId().equals(savedSender.getId()));
+    if (!identityExists) {
+      SenderIdentity restored = new SenderIdentity();
+      restored.setId(savedSender.getId());
+      restored.setConnection(savedChannelConnection);
+      restored.setIdentityType(
+          connection.getProvider().channelType() == ChannelType.SMS
+              ? SenderIdentityType.SMS_HEADER
+              : SenderIdentityType.EMAIL_ADDRESS);
+      restored.setExternalId(savedSender.getId().toString());
+      identities.add(restored);
+    }
 
     for (SenderIdentity existing : identities) {
       boolean selected = existing.getId().equals(savedSender.getId());
@@ -150,7 +148,8 @@ public class BroadcastSenderPersistenceService {
     }
     senderIdentityRepository.saveAll(identities);
 
-    deletionPurgeService.cancel(LifecycleEntityType.CHANNEL_CONNECTION, channelConnection.getId());
+    deletionPurgeService.cancel(
+        LifecycleEntityType.CHANNEL_CONNECTION, savedChannelConnection.getId());
     return BroadcastSenderResponse.from(savedSender, savedConnection);
   }
 
