@@ -29,9 +29,10 @@ public class BroadcastTemplateRenderer {
       String subject,
       String bodyText,
       String bodyHtml,
+      String globalVariablesJson,
       BroadcastRecipient recipient,
       ChannelType channelType) {
-    Map<String, String> values = values(recipient, channelType);
+    Map<String, String> values = values(globalVariablesJson, recipient, channelType);
     RenderedValue renderedSubject = renderValue(subject, values, false);
     RenderedValue renderedBody = renderValue(bodyText, values, false);
     RenderedValue renderedHtml = renderValue(bodyHtml, values, true);
@@ -55,8 +56,16 @@ public class BroadcastTemplateRenderer {
         templateVariables);
   }
 
-  private Map<String, String> values(BroadcastRecipient recipient, ChannelType channelType) {
+  private Map<String, String> values(
+      String globalVariablesJson, BroadcastRecipient recipient, ChannelType channelType) {
     LinkedHashMap<String, String> values = new LinkedHashMap<>();
+    readMetadata(globalVariablesJson).forEach(
+        (key, value) -> {
+          String clean = trimToNull(value);
+          if (clean == null) return;
+          values.put(key, clean);
+          values.put(normalizeKey(key), clean);
+        });
 
     values.put("destination", recipient.getDestination());
     if (channelType == ChannelType.EMAIL) {
