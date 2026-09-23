@@ -79,3 +79,69 @@ export type MetaAdsResourceSync = {
   resources: AdAccountResource[]
 }
 
+
+
+export type AdEntityStatus = 'ACTIVE' | 'PAUSED' | 'ARCHIVED' | 'REMOVED' | 'UNKNOWN'
+
+export type AdCampaign = {
+  id: string
+  companyId: string
+  adAccountId: string
+  provider: AdProvider
+  externalCampaignId: string
+  name: string
+  objective?: string | null
+  buyingType?: string | null
+  bidStrategy?: string | null
+  status: AdEntityStatus
+  providerStatus?: string | null
+  effectiveStatus?: string | null
+  dailyBudgetMinor?: number | null
+  lifetimeBudgetMinor?: number | null
+  spendCapMinor?: number | null
+  startAt?: string | null
+  endAt?: string | null
+  providerCreatedAt?: string | null
+  providerUpdatedAt?: string | null
+  accessible: boolean
+  lastSyncAt?: string | null
+}
+
+export type PageResponse<T> = {
+  content: T[]
+  number: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+}
+
+export type MetaCampaignObjective =
+  | 'OUTCOME_AWARENESS'
+  | 'OUTCOME_TRAFFIC'
+  | 'OUTCOME_ENGAGEMENT'
+  | 'OUTCOME_LEADS'
+  | 'OUTCOME_APP_PROMOTION'
+  | 'OUTCOME_SALES'
+
+export type CreateMetaCampaignInput = {
+  name: string
+  objective: MetaCampaignObjective
+  buyingType?: 'AUCTION' | 'RESERVED'
+  bidStrategy?: string | null
+  dailyBudgetMinor?: number | null
+  lifetimeBudgetMinor?: number | null
+  specialAdCategories: string[]
+}
+
+export type UpdateMetaCampaignInput = {
+  name?: string
+  bidStrategy?: string
+  dailyBudgetMinor?: number
+  lifetimeBudgetMinor?: number
+}
+
+export type MetaCampaignSync = {
+  synchronizedCount: number
+}
