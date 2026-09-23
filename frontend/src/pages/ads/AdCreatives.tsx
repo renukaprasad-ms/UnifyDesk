@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FiImage, FiPlus, FiRefreshCw, FiVideo } from 'react-icons/fi'
+import { Link } from 'react-router'
 import MetaCreativeModal from '../../components/ads/MetaCreativeModal'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
+  Ad,
   AdAccount,
   AdAccountResource,
   AdCreative,
@@ -23,6 +25,7 @@ export default function AdCreatives() {
   const [accounts, setAccounts] = useState<AdAccount[]>([])
   const [resources, setResources] = useState<AdAccountResource[]>([])
   const [creatives, setCreatives] = useState<AdCreative[]>([])
+  const [googleAds, setGoogleAds] = useState<Ad[]>([])
   const [selectedAccountId, setSelectedAccountId] = useState('')
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -34,7 +37,7 @@ export default function AdCreatives() {
   const managedAccounts = useMemo(
     () =>
       accounts.filter(
-        (account) => account.provider === 'META_ADS' && account.managed && account.accessible,
+        (account) => account.managed && account.accessible,
       ),
     [accounts],
   )
@@ -45,13 +48,25 @@ export default function AdCreatives() {
     managedAccounts[0] ??
     null
 
-  const loadForAccount = async (accountId: string) => {
+  const loadForAccount = async (account: AdAccount) => {
     if (!selectedCompany) return
+    if (account.provider === 'GOOGLE_ADS') {
+      const adData = await adCenterApi.accountAds(
+        selectedCompany.companyId,
+        account.id,
+      )
+      setGoogleAds(adData)
+      setCreatives([])
+      setResources([])
+      return
+    }
+
     const [creativeData, resourceData] = await Promise.all([
-      adCenterApi.creatives(selectedCompany.companyId, accountId),
-      adCenterApi.resources(selectedCompany.companyId, accountId),
+      adCenterApi.creatives(selectedCompany.companyId, account.id),
+      adCenterApi.resources(selectedCompany.companyId, account.id),
     ])
     setCreatives(creativeData)
+    setGoogleAds([])
     setResources(resourceData)
   }
 
@@ -63,14 +78,15 @@ export default function AdCreatives() {
       const accountData = await adCenterApi.accounts(selectedCompany.companyId)
       setAccounts(accountData)
       const eligible = accountData.filter(
-        (account) => account.provider === 'META_ADS' && account.managed && account.accessible,
+        (account) => account.managed && account.accessible,
       )
       const preferred = eligible.find((account) => account.primaryAccount) ?? eligible[0]
       if (preferred) {
         setSelectedAccountId(preferred.id)
-        await loadForAccount(preferred.id)
+        await loadForAccount(preferred)
       } else {
         setCreatives([])
+        setGoogleAds([])
         setResources([])
       }
     } catch (loadError) {
@@ -85,11 +101,13 @@ export default function AdCreatives() {
   }, [selectedCompany?.companyId])
 
   const chooseAccount = async (accountId: string) => {
+    const account = managedAccounts.find((item) => item.id === accountId)
+    if (!account) return
     setSelectedAccountId(accountId)
     setLoading(true)
     setError('')
     try {
-      await loadForAccount(accountId)
+      await loadForAccount(account)
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load creatives'))
     } finally {
@@ -103,14 +121,45 @@ export default function AdCreatives() {
     setError('')
     setNotice('')
     try {
-      const result = await adCenterApi.syncMetaCreatives(
-        selectedCompany.companyId,
-        selectedAccount.id,
-      )
-      await loadForAccount(selectedAccount.id)
-      setNotice(`Synchronized ${result.synchronizedCount} creative(s) from Meta.`)
+      if (selectedAccount.provider === 'GOOGLE_ADS') {
+        const campaigns = await adCenterApi.campaigns(
+          selectedCompany.companyId,
+          selectedAccount.id,
+          0,
+          100,
+        )
+        let synchronized = 0
+        for (const campaign of campaigns.content) {
+          await adCenterApi.syncGoogleAdGroups(selectedCompany.companyId, campaign.id)
+          const groups = await adCenterApi.adSets(
+            selectedCompany.companyId,
+            campaign.id,
+          )
+          for (const group of groups) {
+            const result = await adCenterApi.syncGoogleAds(
+              selectedCompany.companyId,
+              group.id,
+            )
+            synchronized += result.synchronizedCount
+          }
+        }
+        await loadForAccount(selectedAccount)
+        setNotice(`Synchronized ${synchronized} Google ad creative unit(s).`)
+      } else {
+        const result = await adCenterApi.syncMetaCreatives(
+          selectedCompany.companyId,
+          selectedAccount.id,
+        )
+        await loadForAccount(selectedAccount)
+        setNotice(`Synchronized ${result.synchronizedCount} creative(s) from Meta.`)
+      }
     } catch (syncError) {
-      setError(apiErrorMessage(syncError, 'Unable to synchronize Meta creatives'))
+      setError(
+        apiErrorMessage(
+          syncError,
+          'Unable to synchronize advertising creative content',
+        ),
+      )
     } finally {
       setSyncing(false)
     }
@@ -152,7 +201,9 @@ export default function AdCreatives() {
               Creatives
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Build reusable Meta image, video, and carousel creatives before attaching them to ads.
+              {selectedAccount?.provider === 'GOOGLE_ADS'
+                ? 'Inspect Google responsive search ads as creative units. Create and edit them inside their Ad Groups.'
+                : 'Build reusable Meta image, video, and carousel creatives before attaching them to ads.'}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -164,10 +215,12 @@ export default function AdCreatives() {
                 onClick={() => void sync()}
               >
                 <FiRefreshCw aria-hidden="true" />
-                {syncing ? 'Syncing…' : 'Sync Meta'}
+                {syncing
+                  ? 'Syncing…'
+                  : `Sync ${selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google' : 'Meta'}`}
               </button>
             )}
-            {can(PERMISSIONS.ADS_CREATE) && (
+            {can(PERMISSIONS.ADS_CREATE) && selectedAccount?.provider === 'META_ADS' && (
               <button
                 type="button"
                 className="primary-button inline-flex items-center gap-2"
@@ -195,7 +248,7 @@ export default function AdCreatives() {
 
         <div className="mt-6 max-w-sm">
           <label className="text-xs font-semibold text-slate-700">
-            Meta ad account
+            Ad account
             <select
               className="form-input mt-2"
               value={selectedAccount?.id ?? ''}
@@ -203,7 +256,7 @@ export default function AdCreatives() {
               onChange={(event) => void chooseAccount(event.target.value)}
             >
               {managedAccounts.length === 0 ? (
-                <option value="">No managed Meta account</option>
+                <option value="">No managed ad account</option>
               ) : (
                 managedAccounts.map((account) => (
                   <option key={account.id} value={account.id}>
@@ -217,12 +270,66 @@ export default function AdCreatives() {
 
         {!loading && managedAccounts.length === 0 ? (
           <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
-            Connect and manage a Meta ad account before creating creatives.
+            Connect and manage an ad account before using creative management.
           </div>
         ) : loading ? (
           <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
             Loading creatives…
           </div>
+        ) : selectedAccount?.provider === 'GOOGLE_ADS' ? (
+          googleAds.length === 0 ? (
+            <div className="panel mt-6 p-10 text-center">
+              <FiImage className="mx-auto text-2xl text-slate-300" aria-hidden="true" />
+              <h2 className="mt-3 text-base font-bold text-slate-950">
+                No Google ad creative units yet
+              </h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Create Responsive Search Ads inside an Ad Group, then sync them here.
+              </p>
+              <Link
+                to="/ad-center/campaigns"
+                className="primary-button mt-4 inline-flex items-center gap-2"
+              >
+                <FiPlus aria-hidden="true" />
+                Open campaigns
+              </Link>
+            </div>
+          ) : (
+            <div className="panel mt-6 overflow-hidden">
+              <div className="divide-y divide-slate-100">
+                {googleAds.map((ad) => (
+                  <div
+                    key={ad.id}
+                    className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-950">{ad.name}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Responsive Search Ad · {ad.externalAdId}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          ad.status === 'ACTIVE'
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {ad.status}
+                      </span>
+                      <Link
+                        to={`/ad-center/ad-sets/${ad.adSetId}`}
+                        className="secondary-button text-xs"
+                      >
+                        Open ad group
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
         ) : creatives.length === 0 ? (
           <div className="panel mt-6 p-10 text-center">
             <FiImage className="mx-auto text-2xl text-slate-300" aria-hidden="true" />
@@ -281,7 +388,7 @@ export default function AdCreatives() {
         )}
       </div>
 
-      {selectedAccount && (
+      {selectedAccount?.provider === 'META_ADS' && (
         <MetaCreativeModal
           account={selectedAccount}
           resources={resources}
