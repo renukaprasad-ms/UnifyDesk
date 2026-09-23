@@ -16,6 +16,7 @@ import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.meta.MetaAdsApiClient.AdSetSummary;
 import com.messaging.ads.meta.dto.CreateMetaAdSetRequest;
 import com.messaging.ads.repository.AdAccountRepository;
+import com.messaging.ads.repository.AdAudienceRepository;
 import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.ads.repository.AdConversionRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
@@ -41,6 +42,7 @@ class MetaAdsAdSetMutationServiceTests {
 
   @Mock private AdCampaignRepository campaignRepository;
   @Mock private AdSetRepository adSetRepository;
+  @Mock private AdAudienceRepository audienceRepository;
   @Mock private AdConversionRepository conversionRepository;
   @Mock private AdAccountRepository accountRepository;
   @Mock private AdProviderConnectionRepository connectionRepository;
@@ -56,6 +58,7 @@ class MetaAdsAdSetMutationServiceTests {
         new MetaAdsAdSetMutationService(
             campaignRepository,
             adSetRepository,
+            audienceRepository,
             conversionRepository,
             accountRepository,
             connectionRepository,
