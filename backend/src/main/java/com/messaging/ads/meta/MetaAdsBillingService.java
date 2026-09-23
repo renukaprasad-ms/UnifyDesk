@@ -67,8 +67,14 @@ public class MetaAdsBillingService {
           "META_ACCOUNT_SPEND_CAP_UPDATED",
           "AD_ACCOUNT",
           context.account().getExternalAccountId(),
-          before,
-          after,
+          Map.of(
+              "spendCapMinor", nullableLong(before.spendCap()),
+              "amountSpentMinor", nullableLong(before.amountSpent()),
+              "currency", before.currency() == null ? "" : before.currency()),
+          Map.of(
+              "spendCapMinor", nullableLong(after.spendCap()),
+              "amountSpentMinor", nullableLong(after.amountSpent()),
+              "currency", after.currency() == null ? "" : after.currency()),
           Map.of("requestedSpendCapMinor", spendCapMinor));
     } catch (RuntimeException exception) {
       log.error(
@@ -119,6 +125,15 @@ public class MetaAdsBillingService {
 
     String accessToken = tokenService.read(connection.getId()).token().accessToken();
     return new Context(account, accessToken);
+  }
+
+  private long nullableLong(String value) {
+    if (value == null || value.isBlank()) return 0L;
+    try {
+      return new java.math.BigDecimal(value.trim()).longValue();
+    } catch (NumberFormatException ignored) {
+      return 0L;
+    }
   }
 
   private record Context(AdAccount account, String accessToken) {}
