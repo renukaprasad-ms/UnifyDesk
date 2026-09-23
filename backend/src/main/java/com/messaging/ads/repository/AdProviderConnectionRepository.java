@@ -17,6 +17,9 @@ public interface AdProviderConnectionRepository
   Optional<AdProviderConnection> findByCompanyIdAndProviderAndExternalUserId(
       Long companyId, AdProvider provider, String externalUserId);
 
+  Optional<AdProviderConnection> findByCompanyIdAndProviderAndExternalBusinessId(
+      Long companyId, AdProvider provider, String externalBusinessId);
+
   List<AdProviderConnection> findByCompanyIdAndProviderAndStatus(
       Long companyId, AdProvider provider, AdConnectionStatus status);
 }
