@@ -13,9 +13,6 @@ import com.messaging.ads.repository.AdCreativeRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -27,9 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class MetaAdsCreativePersistenceService {
-
-  private static final DateTimeFormatter META_OFFSET_TIME =
-      DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssZ");
 
   private final AdAccountRepository accountRepository;
   private final AdCreativeRepository creativeRepository;
@@ -161,19 +155,6 @@ public class MetaAdsCreativePersistenceService {
 
   private String blankFallback(String value, String fallback) {
     return value == null || value.isBlank() ? fallback : value.trim();
-  }
-
-  private Instant parseInstant(String value) {
-    if (value == null || value.isBlank()) return null;
-    try {
-      return Instant.parse(value.trim());
-    } catch (DateTimeParseException ignored) {
-      try {
-        return OffsetDateTime.parse(value.trim(), META_OFFSET_TIME).toInstant();
-      } catch (DateTimeParseException ignoredAgain) {
-        return null;
-      }
-    }
   }
 
   private String jsonNode(JsonNode value) {
