@@ -60,41 +60,10 @@ public class MetaAdsCampaignPersistenceService {
     Instant syncedAt = Instant.now();
 
     for (CampaignSummary snapshot : snapshots) {
-      if (snapshot.id() == null || snapshot.id().isBlank()) {
-        continue;
-      }
-
+      if (snapshot.id() == null || snapshot.id().isBlank()) continue;
       String externalId = snapshot.id().trim();
       AdCampaign campaign = existing.remove(externalId);
-      if (campaign == null) {
-        campaign = new AdCampaign();
-        campaign.setCompanyId(companyId);
-        campaign.setAdAccountId(adAccountId);
-        campaign.setProvider(AdProvider.META_ADS);
-        campaign.setExternalCampaignId(externalId);
-      }
-
-      campaign.setName(
-          snapshot.name() == null || snapshot.name().isBlank()
-              ? "Meta Campaign " + externalId
-              : snapshot.name().trim());
-      campaign.setObjective(trimToNull(snapshot.objective()));
-      campaign.setBuyingType(trimToNull(snapshot.buyingType()));
-      campaign.setBidStrategy(trimToNull(snapshot.bidStrategy()));
-      campaign.setProviderStatus(trimToNull(snapshot.status()));
-      campaign.setStatus(mapStatus(snapshot.status()));
-      campaign.setEffectiveStatus(trimToNull(snapshot.effectiveStatus()));
-      campaign.setDailyBudgetMinor(parseLong(snapshot.dailyBudget()));
-      campaign.setLifetimeBudgetMinor(parseLong(snapshot.lifetimeBudget()));
-      campaign.setSpendCapMinor(parseLong(snapshot.spendCap()));
-      campaign.setStartAt(parseInstant(snapshot.startTime()));
-      campaign.setEndAt(parseInstant(snapshot.stopTime()));
-      campaign.setProviderCreatedAt(parseInstant(snapshot.createdTime()));
-      campaign.setProviderUpdatedAt(parseInstant(snapshot.updatedTime()));
-      campaign.setAccessible(true);
-      campaign.setProviderPayloadJson(json(snapshot));
-      campaign.setLastSyncAt(syncedAt);
-      changed.add(campaign);
+      changed.add(applySnapshot(companyId, adAccountId, campaign, snapshot, syncedAt));
       synchronizedCount++;
     }
 
@@ -109,6 +78,66 @@ public class MetaAdsCampaignPersistenceService {
     return new MetaAdsCampaignSyncResponse(synchronizedCount);
   }
 
+  @Transactional
+  public AdCampaign persistOne(
+      Long companyId, Long adAccountId, CampaignSummary snapshot) {
+    AdAccount account =
+        accountRepository
+            .findByIdAndCompanyIdForUpdate(adAccountId, companyId)
+            .orElseThrow(() -> new NotFoundException("Ad account not found"));
+    if (account.getProvider() != AdProvider.META_ADS
+        || !account.isAccessible()
+        || !account.isManaged()) {
+      throw new BadRequestException("Meta ad account is not available for campaign updates");
+    }
+    if (snapshot.id() == null || snapshot.id().isBlank()) {
+      throw new BadRequestException("Meta campaign snapshot is missing an ID");
+    }
+    AdCampaign existing =
+        campaignRepository
+            .findByCompanyIdAndAdAccountIdAndProviderAndExternalCampaignId(
+                companyId, adAccountId, AdProvider.META_ADS, snapshot.id().trim())
+            .orElse(null);
+    return campaignRepository.save(
+        applySnapshot(companyId, adAccountId, existing, snapshot, Instant.now()));
+  }
+
+  private AdCampaign applySnapshot(
+      Long companyId,
+      Long adAccountId,
+      AdCampaign campaign,
+      CampaignSummary snapshot,
+      Instant syncedAt) {
+    String externalId = snapshot.id().trim();
+    if (campaign == null) {
+      campaign = new AdCampaign();
+      campaign.setCompanyId(companyId);
+      campaign.setAdAccountId(adAccountId);
+      campaign.setProvider(AdProvider.META_ADS);
+      campaign.setExternalCampaignId(externalId);
+    }
+    campaign.setName(
+        snapshot.name() == null || snapshot.name().isBlank()
+            ? "Meta Campaign " + externalId
+            : snapshot.name().trim());
+    campaign.setObjective(trimToNull(snapshot.objective()));
+    campaign.setBuyingType(trimToNull(snapshot.buyingType()));
+    campaign.setBidStrategy(trimToNull(snapshot.bidStrategy()));
+    campaign.setProviderStatus(trimToNull(snapshot.status()));
+    campaign.setStatus(mapStatus(snapshot.status()));
+    campaign.setEffectiveStatus(trimToNull(snapshot.effectiveStatus()));
+    campaign.setDailyBudgetMinor(parseLong(snapshot.dailyBudget()));
+    campaign.setLifetimeBudgetMinor(parseLong(snapshot.lifetimeBudget()));
+    campaign.setSpendCapMinor(parseLong(snapshot.spendCap()));
+    campaign.setStartAt(parseInstant(snapshot.startTime()));
+    campaign.setEndAt(parseInstant(snapshot.stopTime()));
+    campaign.setProviderCreatedAt(parseInstant(snapshot.createdTime()));
+    campaign.setProviderUpdatedAt(parseInstant(snapshot.updatedTime()));
+    campaign.setAccessible(true);
+    campaign.setProviderPayloadJson(json(snapshot));
+    campaign.setLastSyncAt(syncedAt);
+    return campaign;
+  }
   private AdEntityStatus mapStatus(String status) {
     if (status == null) return AdEntityStatus.UNKNOWN;
     return switch (status.trim().toUpperCase()) {
