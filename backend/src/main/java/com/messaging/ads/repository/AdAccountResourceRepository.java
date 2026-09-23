@@ -8,6 +8,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AdAccountResourceRepository extends JpaRepository<AdAccountResource, Long> {
 
+  List<AdAccountResource> findByCompanyIdOrderByAdAccountIdAscResourceTypeAscNameAsc(
+      Long companyId);
+
   List<AdAccountResource> findByCompanyIdAndAdAccountIdOrderByResourceTypeAscNameAsc(
       Long companyId, Long adAccountId);
 
