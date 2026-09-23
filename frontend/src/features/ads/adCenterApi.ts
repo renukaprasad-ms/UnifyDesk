@@ -5,8 +5,13 @@ import type {
   AdAccountResource,
   AdProviderConnection,
   AdProviderInfo,
+  AdCampaign,
+  CreateMetaCampaignInput,
   MetaAdsAuthorization,
   MetaAdsResourceSync,
+  MetaCampaignSync,
+  PageResponse,
+  UpdateMetaCampaignInput,
 } from './types'
 
 const unwrap = <T>(response: ApiResponse<T>) => {
@@ -53,6 +58,64 @@ export const adCenterApi = {
   async syncMetaResources(companyId: string, accountId: string) {
     const response = await apiClient.post<ApiResponse<MetaAdsResourceSync>>(
       `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/resources/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async campaigns(companyId: string, accountId?: string, page = 0, size = 50) {
+    const response = await apiClient.get<ApiResponse<PageResponse<AdCampaign>>>(
+      `/api/v1/companies/${companyId}/ads/campaigns`,
+      { params: { ...(accountId ? { accountId } : {}), page, size } },
+    )
+    return unwrap(response.data)
+  },
+
+  async campaign(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<AdCampaign>>(
+      `/api/v1/companies/${companyId}/ads/campaigns/${campaignId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async syncMetaCampaigns(companyId: string, accountId: string) {
+    const response = await apiClient.post<ApiResponse<MetaCampaignSync>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/campaigns/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createMetaCampaign(
+    companyId: string,
+    accountId: string,
+    input: CreateMetaCampaignInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<AdCampaign>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/campaigns`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateMetaCampaign(
+    companyId: string,
+    campaignId: string,
+    input: UpdateMetaCampaignInput,
+  ) {
+    const response = await apiClient.patch<ApiResponse<AdCampaign>>(
+      `/api/v1/companies/${companyId}/ads/meta/campaigns/${campaignId}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async setMetaCampaignStatus(
+    companyId: string,
+    campaignId: string,
+    status: 'ACTIVE' | 'PAUSED',
+  ) {
+    const response = await apiClient.post<ApiResponse<AdCampaign>>(
+      `/api/v1/companies/${companyId}/ads/meta/campaigns/${campaignId}/status`,
+      { status },
     )
     return unwrap(response.data)
   },
