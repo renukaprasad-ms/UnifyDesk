@@ -54,11 +54,20 @@ const paymentModel = (prepay?: boolean | null) => {
   return 'Not reported'
 }
 
-const taxStatus = (value?: number | null) =>
-  value == null ? 'Not reported' : `Meta status code ${value}`
+const taxStatus = (value?: number | null, provider?: AdAccount['provider']) =>
+  value == null
+    ? 'Not reported'
+    : provider === 'META_ADS'
+      ? `Meta status code ${value}`
+      : `Provider status code ${value}`
 
-const metaBillingUrl = (externalAccountId: string) =>
-  `https://adsmanager.facebook.com/adsmanager/manage/billing?act=${encodeURIComponent(externalAccountId)}`
+const billingUrl = (account: AdAccount) =>
+  account.provider === 'GOOGLE_ADS'
+    ? 'https://ads.google.com/aw/billing/settings'
+    : `https://adsmanager.facebook.com/adsmanager/manage/billing?act=${encodeURIComponent(account.externalAccountId)}`
+
+const providerName = (account?: AdAccount | null) =>
+  account?.provider === 'GOOGLE_ADS' ? 'Google Ads' : 'Meta Ads'
 
 const emptyBilling = (account: AdAccount): AdAccountBilling => ({
   synced: false,
@@ -85,12 +94,7 @@ export default function AdBilling() {
 
   const managedAccounts = useMemo(
     () =>
-      accounts.filter(
-        (account) =>
-          account.provider === 'META_ADS' &&
-          account.managed &&
-          account.accessible,
-      ),
+      accounts.filter((account) => account.managed && account.accessible),
     [accounts],
   )
 
@@ -114,10 +118,7 @@ export default function AdBilling() {
       const accountData = await adCenterApi.accounts(selectedCompany.companyId)
       setAccounts(accountData)
       const eligible = accountData.filter(
-        (account) =>
-          account.provider === 'META_ADS' &&
-          account.managed &&
-          account.accessible,
+        (account) => account.managed && account.accessible,
       )
       const preferred =
         eligible.find((account) => account.primaryAccount) ?? eligible[0]
@@ -161,12 +162,18 @@ export default function AdBilling() {
     setError('')
     setNotice('')
     try {
-      const updated = await adCenterApi.syncMetaBilling(
-        selectedCompany.companyId,
-        selectedAccount.id,
-      )
+      const updated =
+        selectedAccount.provider === 'GOOGLE_ADS'
+          ? await adCenterApi.syncGoogleBilling(
+              selectedCompany.companyId,
+              selectedAccount.id,
+            )
+          : await adCenterApi.syncMetaBilling(
+              selectedCompany.companyId,
+              selectedAccount.id,
+            )
       setBilling(updated)
-      setNotice('Meta billing state synchronized.')
+      setNotice(`${providerName(selectedAccount)} billing state synchronized.`)
       try {
         await adCenterApi.reconcileRecommendations(
           selectedCompany.companyId,
@@ -177,7 +184,7 @@ export default function AdBilling() {
       }
       window.dispatchEvent(new Event('ad-center:recommendations-changed'))
     } catch (syncError) {
-      setError(apiErrorMessage(syncError, 'Unable to synchronize Meta billing'))
+      setError(apiErrorMessage(syncError, 'Unable to synchronize provider billing'))
     } finally {
       setSyncing(false)
     }
@@ -240,7 +247,7 @@ export default function AdBilling() {
               Billing
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Monitor Meta account spend, payment state, and the account-level spending limit.
+              Monitor provider billing setup, payment-account information, and available account budget limits.
             </p>
           </div>
 
@@ -248,12 +255,16 @@ export default function AdBilling() {
             {selectedAccount && can(PERMISSIONS.ADS_BALANCE_ADD) && (
               <a
                 className="secondary-button inline-flex items-center gap-2"
-                href={metaBillingUrl(selectedAccount.externalAccountId)}
+                href={billingUrl(selectedAccount)}
                 target="_blank"
                 rel="noreferrer"
               >
                 <FiExternalLink aria-hidden="true" />
-                {billing?.prepayAccount ? 'Add funds in Meta' : 'Open Meta billing'}
+                {selectedAccount.provider === 'GOOGLE_ADS'
+                  ? 'Open Google Ads billing'
+                  : billing?.prepayAccount
+                    ? 'Add funds in Meta'
+                    : 'Open Meta billing'}
               </a>
             )}
 
@@ -285,7 +296,7 @@ export default function AdBilling() {
 
         <div className="mt-6 max-w-sm">
           <label className="text-xs font-semibold text-slate-700">
-            Meta ad account
+            Ad account
             <select
               className="form-input mt-2"
               value={selectedAccount?.id ?? ''}
@@ -293,7 +304,7 @@ export default function AdBilling() {
               onChange={(event) => void chooseAccount(event.target.value)}
             >
               {managedAccounts.length === 0 ? (
-                <option value="">No managed Meta account</option>
+                <option value="">No managed ad account</option>
               ) : (
                 managedAccounts.map((account) => (
                   <option key={account.id} value={account.id}>
@@ -307,7 +318,7 @@ export default function AdBilling() {
 
         {managedAccounts.length === 0 ? (
           <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
-            Connect and manage a Meta ad account before using billing.
+            Connect and manage an ad account before using billing.
           </div>
         ) : loading ? (
           <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
@@ -320,7 +331,7 @@ export default function AdBilling() {
               Billing has not been synchronized
             </h2>
             <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">
-              Sync this account to read Meta's current balance, amount spent, spending limit, payment model, and funding-source summary.
+              Sync this account to read the billing and payment information exposed by the selected advertising provider.
             </p>
             {can(PERMISSIONS.ADS_MODIFY) && (
               <button
@@ -329,7 +340,7 @@ export default function AdBilling() {
                 onClick={() => void sync()}
               >
                 <FiRefreshCw aria-hidden="true" />
-                Sync Meta billing
+                Sync {providerName(selectedAccount)} billing
               </button>
             )}
           </div>
@@ -338,13 +349,13 @@ export default function AdBilling() {
             <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <article className="panel p-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Meta balance
+                  {selectedAccount?.provider === 'GOOGLE_ADS' ? 'Provider balance' : 'Meta balance'}
                 </p>
                 <p className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
                   {formatMinor(billing.balanceMinor, currency)}
                 </p>
                 <p className="mt-2 text-xs leading-5 text-slate-500">
-                  Provider-reported balance; meaning varies by Meta payment model.
+                  Provider-reported balance when the selected advertising API exposes one.
                 </p>
               </article>
 
@@ -356,7 +367,7 @@ export default function AdBilling() {
                   {formatMinor(billing.amountSpentMinor, currency)}
                 </p>
                 <p className="mt-2 text-xs leading-5 text-slate-500">
-                  Meta's account-level amount-spent counter.
+                  Provider-reported account-level amount spent when available.
                 </p>
               </article>
 
@@ -372,18 +383,19 @@ export default function AdBilling() {
                         : 'No limit'}
                     </p>
                   </div>
-                  {can(PERMISSIONS.ADS_MODIFY) && (
-                    <button
-                      type="button"
-                      className="secondary-button px-3 py-2 text-xs"
-                      onClick={() => setCapModalOpen(true)}
-                    >
-                      Edit
-                    </button>
-                  )}
+                  {selectedAccount?.provider === 'META_ADS' &&
+                    can(PERMISSIONS.ADS_MODIFY) && (
+                      <button
+                        type="button"
+                        className="secondary-button px-3 py-2 text-xs"
+                        onClick={() => setCapModalOpen(true)}
+                      >
+                        Edit
+                      </button>
+                    )}
                 </div>
                 <p className="mt-2 text-xs leading-5 text-slate-500">
-                  Account-level limit across Meta campaigns.
+                  {selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google account-budget spending limit when exposed by the billing setup.' : 'Account-level limit across Meta campaigns.'}
                 </p>
               </article>
 
@@ -429,7 +441,11 @@ export default function AdBilling() {
                   <div className="flex items-start justify-between gap-4 py-3">
                     <dt className="text-slate-500">Payment model</dt>
                     <dd className="text-right font-semibold text-slate-900">
-                      {paymentModel(billing.prepayAccount)}
+                      {selectedAccount?.provider === 'GOOGLE_ADS'
+                        ? billing.fundingSourceId
+                          ? 'Google payments account'
+                          : 'Not reported'
+                        : paymentModel(billing.prepayAccount)}
                     </dd>
                   </div>
                   <div className="flex items-start justify-between gap-4 py-3">
@@ -437,7 +453,9 @@ export default function AdBilling() {
                     <dd className="max-w-xs text-right font-semibold text-slate-900">
                       {billing.fundingSourceDisplay ||
                         (billing.fundingSourceId
-                          ? 'Configured in Meta'
+                          ? selectedAccount?.provider === 'GOOGLE_ADS'
+                            ? 'Configured in Google Ads'
+                            : 'Configured in Meta'
                           : 'Not reported')}
                     </dd>
                   </div>
@@ -445,7 +463,9 @@ export default function AdBilling() {
                     <dt className="text-slate-500">Funding source type</dt>
                     <dd className="text-right font-semibold text-slate-900">
                       {billing.fundingSourceType != null
-                        ? `Meta type ${billing.fundingSourceType}`
+                        ? selectedAccount?.provider === 'GOOGLE_ADS'
+                          ? `Provider type ${billing.fundingSourceType}`
+                          : `Meta type ${billing.fundingSourceType}`
                         : 'Not reported'}
                     </dd>
                   </div>
@@ -460,12 +480,12 @@ export default function AdBilling() {
                 {can(PERMISSIONS.ADS_BALANCE_ADD) && selectedAccount && (
                   <a
                     className="secondary-button mt-5 inline-flex items-center gap-2"
-                    href={metaBillingUrl(selectedAccount.externalAccountId)}
+                    href={billingUrl(selectedAccount)}
                     target="_blank"
                     rel="noreferrer"
                   >
                     <FiExternalLink aria-hidden="true" />
-                    Manage payment settings in Meta
+                    Manage payment settings in {providerName(selectedAccount)}
                   </a>
                 )}
               </div>
@@ -506,7 +526,9 @@ export default function AdBilling() {
                     <dt className="text-slate-500">Disable reason</dt>
                     <dd className="text-right font-semibold text-slate-900">
                       {billing.disableReason != null
-                        ? `Meta reason code ${billing.disableReason}`
+                        ? selectedAccount?.provider === 'GOOGLE_ADS'
+                          ? `Provider reason code ${billing.disableReason}`
+                          : `Meta reason code ${billing.disableReason}`
                         : 'None reported'}
                     </dd>
                   </div>
@@ -549,7 +571,7 @@ export default function AdBilling() {
                   <div className="flex items-start justify-between gap-4 py-3">
                     <dt className="text-slate-500">Tax status</dt>
                     <dd className="text-right font-semibold text-slate-900">
-                      {taxStatus(billing.taxIdStatus)}
+                      {taxStatus(billing.taxIdStatus, selectedAccount?.provider)}
                     </dd>
                   </div>
                 </dl>
@@ -563,10 +585,10 @@ export default function AdBilling() {
                   />
                   <div>
                     <h2 className="text-base font-bold text-slate-950">
-                      Payment actions stay with Meta
+                      Payment actions stay with the provider
                     </h2>
                     <p className="mt-2 text-sm leading-6 text-slate-500">
-                      Ad Center reads Meta's billing state and can manage the account spending limit. Adding funds, replacing a payment method, resolving payment failures, invoices, and checkout remain provider-hosted operations.
+                      Ad Center reads the billing state exposed by the provider. Meta spend-cap changes are supported where available; Google payment methods, funds, invoices, and checkout remain provider-hosted operations.
                     </p>
                   </div>
                 </div>
@@ -574,12 +596,12 @@ export default function AdBilling() {
                 {selectedAccount && can(PERMISSIONS.ADS_BALANCE_ADD) && (
                   <a
                     className="primary-button mt-5 inline-flex items-center gap-2"
-                    href={metaBillingUrl(selectedAccount.externalAccountId)}
+                    href={billingUrl(selectedAccount)}
                     target="_blank"
                     rel="noreferrer"
                   >
                     <FiExternalLink aria-hidden="true" />
-                    Open Meta billing
+                    Open {providerName(selectedAccount)} billing
                   </a>
                 )}
 
@@ -595,15 +617,17 @@ export default function AdBilling() {
         )}
       </div>
 
-      <MetaSpendCapModal
-        open={capModalOpen}
-        saving={savingCap}
-        currency={currency}
-        currentSpendCapMinor={billing?.spendCapMinor}
-        amountSpentMinor={billing?.amountSpentMinor}
-        onClose={() => setCapModalOpen(false)}
-        onSave={updateSpendCap}
-      />
+      {selectedAccount?.provider === 'META_ADS' && (
+        <MetaSpendCapModal
+          open={capModalOpen}
+          saving={savingCap}
+          currency={currency}
+          currentSpendCapMinor={billing?.spendCapMinor}
+          amountSpentMinor={billing?.amountSpentMinor}
+          onClose={() => setCapModalOpen(false)}
+          onSave={updateSpendCap}
+        />
+      )}
     </section>
   )
 }
