@@ -170,6 +170,7 @@ public class AdRecommendationLifecycleService {
       state.setStatus(AdRecommendationLifecycleStatus.RESOLVED);
       state.setResolvedAt(now);
       state.setSnoozedUntil(null);
+      state.setActorUserId(actorUserId);
       changed.add(state);
 
       activityLogService.record(
@@ -444,8 +445,14 @@ public class AdRecommendationLifecycleService {
   }
 
   private AdAccount requireAccount(Long companyId, Long accountId) {
-    return accountRepository
-        .findByIdAndCompanyId(accountId, companyId)
-        .orElseThrow(() -> new NotFoundException("Ad account not found"));
+    AdAccount account =
+        accountRepository
+            .findByIdAndCompanyId(accountId, companyId)
+            .orElseThrow(() -> new NotFoundException("Ad account not found"));
+    if (account.getProvider() != AdProvider.META_ADS) {
+      throw new BadRequestException(
+          "Recommendations are not implemented for this advertising provider yet");
+    }
+    return account;
   }
 }
