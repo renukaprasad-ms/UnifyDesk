@@ -62,10 +62,11 @@ public class MetaAdsInsightBreakdownPersistenceService {
     Instant syncedAt = Instant.now();
     List<AdInsightBreakdown> rows = new ArrayList<>();
 
-    if (type == AdInsightBreakdownType.ACTION_DEVICE) {
+    if (type == AdInsightBreakdownType.ACTION_DEVICE
+        || type == AdInsightBreakdownType.ACTION_TYPE) {
       snapshots.forEach(
           snapshot ->
-              rows.addAll(actionDeviceRows(account, type, from, to, snapshot, syncedAt)));
+              rows.addAll(actionRows(account, type, from, to, snapshot, syncedAt)));
     } else {
       for (InsightSummary snapshot : snapshots) {
         String dimension = dimension(snapshot, type);
@@ -137,7 +138,7 @@ public class MetaAdsInsightBreakdownPersistenceService {
     return row;
   }
 
-  private List<AdInsightBreakdown> actionDeviceRows(
+  private List<AdInsightBreakdown> actionRows(
       AdAccount account,
       AdInsightBreakdownType type,
       LocalDate from,
@@ -152,7 +153,8 @@ public class MetaAdsInsightBreakdownPersistenceService {
     for (JsonNode action : snapshot.actions()) {
       String device = blank(action.path("action_device").asText(null));
       String actionType = blank(action.path("action_type").asText(null));
-      if (device == null || actionType == null) continue;
+      if (actionType == null) continue;
+      if (type == AdInsightBreakdownType.ACTION_DEVICE && device == null) continue;
 
       AdInsightBreakdown row = new AdInsightBreakdown();
       row.setCompanyId(account.getCompanyId());
@@ -162,7 +164,8 @@ public class MetaAdsInsightBreakdownPersistenceService {
       row.setEntityRef(account.getExternalAccountId());
       row.setEntityName(account.getName());
       row.setBreakdownType(type);
-      row.setDimensionValue(device);
+      row.setDimensionValue(
+          type == AdInsightBreakdownType.ACTION_DEVICE ? device : actionType);
       row.setActionType(actionType);
       row.setRangeStart(from);
       row.setRangeEnd(to);
@@ -172,7 +175,10 @@ public class MetaAdsInsightBreakdownPersistenceService {
               : account.getCurrency());
       row.setActionValue(decimal(action.path("value").asText(null)));
       row.setConversionValue(
-          matchingActionValue(snapshot.actionValues(), actionType, device));
+          matchingActionValue(
+              snapshot.actionValues(),
+              actionType,
+              type == AdInsightBreakdownType.ACTION_DEVICE ? device : null));
       row.setActionsJson(json(action));
       row.setActionValuesJson(json(snapshot.actionValues()));
       row.setProviderMetricsJson(json(snapshot));
@@ -186,10 +192,12 @@ public class MetaAdsInsightBreakdownPersistenceService {
       JsonNode values, String actionType, String actionDevice) {
     if (values == null || !values.isArray()) return ZERO;
     for (JsonNode item : values) {
-      if (actionType.equals(item.path("action_type").asText())
-          && actionDevice.equals(item.path("action_device").asText())) {
-        return decimal(item.path("value").asText(null));
+      if (!actionType.equals(item.path("action_type").asText())) continue;
+      if (actionDevice != null
+          && !actionDevice.equals(item.path("action_device").asText())) {
+        continue;
       }
+      return decimal(item.path("value").asText(null));
     }
     return ZERO;
   }
@@ -205,7 +213,7 @@ public class MetaAdsInsightBreakdownPersistenceService {
       case IMPRESSION_DEVICE -> blank(snapshot.impressionDevice());
       case DEVICE_PLATFORM -> blank(snapshot.devicePlatform());
       case CONVERSION_DESTINATION -> blank(snapshot.conversionDestination());
-      case ACTION_DEVICE -> null;
+      case ACTION_TYPE, ACTION_DEVICE -> null;
     };
   }
 
