@@ -55,6 +55,7 @@ public class MetaAdsResourceSyncService {
         apiClient.instagramAccounts(accessToken, account.getExternalAccountId());
     List<PixelSummary> pixels = apiClient.pixels(accessToken, account.getExternalAccountId());
 
-    return persistenceService.persist(account, pages, instagramAccounts, pixels);
+    return persistenceService.persist(
+        companyId, adAccountId, pages, instagramAccounts, pixels);
   }
 }
