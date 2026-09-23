@@ -1,6 +1,7 @@
 package com.messaging.ads.dto;
 
 import com.messaging.ads.enums.AdRecommendationCategory;
+import com.messaging.ads.enums.AdRecommendationLifecycleStatus;
 import com.messaging.ads.enums.AdRecommendationSeverity;
 import com.messaging.ads.enums.AdRecommendationSource;
 import java.math.BigDecimal;
@@ -16,11 +17,14 @@ public record AdRecommendationsResponse(
     int warningCount,
     int opportunityCount,
     int infoCount,
+    int dismissedCount,
+    int snoozedCount,
     Instant generatedAt,
     Instant healthLastSyncAt,
     Instant billingLastSyncAt,
     Instant analyticsLastSyncAt,
-    List<Item> items) {
+    List<Item> items,
+    List<Item> suppressedItems) {
 
   public record Item(
       String key,
@@ -33,5 +37,9 @@ public record AdRecommendationsResponse(
       String entityId,
       String actionLabel,
       String actionPath,
-      Map<String, Object> evidence) {}
+      Map<String, Object> evidence,
+      AdRecommendationLifecycleStatus lifecycleStatus,
+      Instant snoozedUntil,
+      boolean dismissible,
+      boolean snoozable) {}
 }
