@@ -251,7 +251,13 @@ export default function CompanyConnections() {
 
     setConnecting(true)
 
-    launchMetaWhatsAppSignup(signupConfig)
+    launchMetaWhatsAppSignup(signupConfig, {
+      onPopupNotObserved: () => {
+        snackbar.info(
+          'Meta login has not opened yet. Allow pop-ups for messaging.renukaprasad.in, then try again.',
+        )
+      },
+    })
       .then((result) =>
         metaWhatsAppApi.complete(selectedCompany.companyId, signupConfig.state, result),
       )
@@ -263,7 +269,11 @@ export default function CompanyConnections() {
         await prepareMeta()
       })
       .catch((connectError) => {
-        snackbar.error(apiErrorMessage(connectError, 'Unable to connect WhatsApp'))
+        const message =
+          connectError instanceof Error
+            ? connectError.message
+            : apiErrorMessage(connectError, 'Unable to connect WhatsApp')
+        snackbar.error(message)
         void prepareMeta()
       })
       .finally(() => setConnecting(false))
