@@ -292,8 +292,12 @@ public class GoogleAdsCampaignMutationService {
         target.put("maximizeConversions", Map.of());
         yield "maximize_conversions";
       }
+      case "MAXIMIZE_CONVERSION_VALUE" -> {
+        target.put("maximizeConversionValue", Map.of());
+        yield "maximize_conversion_value";
+      }
       default -> throw new BadRequestException(
-          "Unsupported Google Search campaign bid strategy: " + strategy);
+          "Unsupported Google campaign bid strategy: " + strategy);
     };
   }
 
