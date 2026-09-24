@@ -25,6 +25,8 @@ public class GoogleAdsProperties {
   private String developerToken;
   private Duration oauthStateTtl = Duration.ofMinutes(10);
   private Duration tokenRefreshSkew = Duration.ofMinutes(2);
+  private boolean backgroundSyncEnabled = true;
+  private Duration backgroundSyncLockTtl = Duration.ofMinutes(20);
 
   public boolean configured() {
     return enabled
