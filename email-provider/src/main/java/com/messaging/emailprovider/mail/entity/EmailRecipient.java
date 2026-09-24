@@ -9,6 +9,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -45,4 +46,19 @@ public class EmailRecipient extends BaseEntity {
 
   @Column(name = "smtp_response", length = 2048)
   private String smtpResponse;
+
+  @Column(name = "attempt_count", nullable = false)
+  private int attemptCount;
+
+  @Column(name = "next_attempt_at")
+  private Instant nextAttemptAt;
+
+  @Column(name = "last_attempt_at")
+  private Instant lastAttemptAt;
+
+  @Column(name = "handed_off_at")
+  private Instant handedOffAt;
+
+  @Column(name = "delivered_at")
+  private Instant deliveredAt;
 }

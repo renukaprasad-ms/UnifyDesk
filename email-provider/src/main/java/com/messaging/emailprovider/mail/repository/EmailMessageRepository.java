@@ -10,6 +10,8 @@ public interface EmailMessageRepository extends JpaRepository<EmailMessage, Long
 
   Optional<EmailMessage> findByIdAndCompanyId(Long id, Long companyId);
 
+  Optional<EmailMessage> findByCompanyIdAndIdempotencyKey(Long companyId, String idempotencyKey);
+
   List<EmailMessage> findAllByCompanyIdAndStatusOrderByCreatedAtAsc(
       Long companyId, EmailMessageStatus status);
 

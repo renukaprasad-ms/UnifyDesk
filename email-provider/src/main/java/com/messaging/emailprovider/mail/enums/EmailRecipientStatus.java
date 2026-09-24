@@ -3,8 +3,9 @@ package com.messaging.emailprovider.mail.enums;
 public enum EmailRecipientStatus {
   QUEUED,
   PROCESSING,
-  DELIVERED,
   DEFERRED,
+  HANDED_OFF,
+  DELIVERED,
   BOUNCED,
   COMPLAINED,
   SUPPRESSED,

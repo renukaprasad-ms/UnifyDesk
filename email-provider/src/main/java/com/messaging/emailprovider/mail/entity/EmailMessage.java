@@ -8,6 +8,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -50,4 +51,13 @@ public class EmailMessage extends BaseEntity {
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
   private EmailMessageStatus status = EmailMessageStatus.ACCEPTED;
+
+  @Column(name = "idempotency_key", length = 128)
+  private String idempotencyKey;
+
+  @Column(name = "request_hash", length = 64)
+  private String requestHash;
+
+  @Column(name = "accepted_at")
+  private Instant acceptedAt;
 }
