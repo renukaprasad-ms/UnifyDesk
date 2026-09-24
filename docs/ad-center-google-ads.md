@@ -221,10 +221,11 @@ Billing read                          implemented
 Background sync                       implemented
 ```
 
-Existing Google OAuth connections created before Data Manager support must reconnect once so the refresh token includes:
+Existing Google OAuth connections created before Data Manager or Merchant support must reconnect once so the refresh token includes both:
 
 ```text
 https://www.googleapis.com/auth/datamanager
+https://www.googleapis.com/auth/content
 ```
 
 Reachlyo never logs raw Customer Match email/phone identifiers. Contact identifiers are normalized and SHA-256 hashed before the Google Data Manager request is made.
@@ -247,8 +248,23 @@ Implemented beyond core parity:
 Google platform limitation:
 - standalone Video campaigns cannot be created or updated through the Google Ads API; Google only exposes them for fetch/reporting. Reachlyo therefore treats VIDEO campaigns as read-only and uses Demand Gen for API-managed YouTube/video creation.
 
-Still planned:
-- add/reuse assets against existing Performance Max asset groups after initial creation
-- optional portrait and landscape-logo Performance Max assets
-- deeper Merchant Center product/feed management beyond Shopping campaign linkage
+Implemented in the final advanced slice:
+- add new assets to existing Performance Max Asset Groups
+- reuse existing account-level Google assets in Performance Max Asset Groups
+- unlink Asset Group assets while enforcing required minimum counts
+- optional Performance Max portrait marketing images
+- optional Performance Max landscape logos
+- optional Performance Max YouTube video assets
+- Demand Gen Multi-Asset ads
+- Demand Gen Carousel ads with 2–10 card assets
+- Merchant API OAuth scope
+- accessible Merchant Center account discovery
+- Merchant Center API data-source list/create/delete
+- processed product catalog listing with pagination
+- API product input create/update through idempotent insert/upsert
+- API product input deletion
+- Merchant product issue visibility
+- Shopping campaign Merchant-account discovery instead of manual Merchant ID entry
+
+Merchant API product writes are intentionally limited to API-managed product data sources. Existing file-based and other data sources remain visible but read-only.
 
