@@ -215,6 +215,42 @@ export type GoogleAssetGroup = {
 }
 
 
+export type GoogleAssetGroupAsset = {
+  resourceName: string
+  assetResourceName?: string | null
+  assetId?: string | null
+  assetName?: string | null
+  assetType?: string | null
+  fieldType: string
+  status?: string | null
+  primaryStatus?: string | null
+  policyApprovalStatus?: string | null
+  text?: string | null
+  imageUrl?: string | null
+  imageWidth?: number | null
+  imageHeight?: number | null
+  youtubeVideoId?: string | null
+}
+
+export type GoogleAssetGroupAssetInput = {
+  fieldType:
+    | 'HEADLINE'
+    | 'LONG_HEADLINE'
+    | 'DESCRIPTION'
+    | 'BUSINESS_NAME'
+    | 'MARKETING_IMAGE'
+    | 'SQUARE_MARKETING_IMAGE'
+    | 'PORTRAIT_MARKETING_IMAGE'
+    | 'LOGO'
+    | 'LANDSCAPE_LOGO'
+    | 'YOUTUBE_VIDEO'
+  existingAssetResourceName?: string | null
+  name?: string | null
+  text?: string | null
+  imageBase64?: string | null
+  youtubeVideoId?: string | null
+}
+
 export type GoogleAssetGroupSignal = {
   resourceName?: string | null
   type: 'SEARCH_THEME' | 'AUDIENCE'
