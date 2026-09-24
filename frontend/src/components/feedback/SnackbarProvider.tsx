@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -16,7 +17,7 @@ import {
 
 export type SnackbarVariant = 'success' | 'error' | 'warning' | 'info'
 
-type SnackbarOptions = {
+export type SnackbarOptions = {
   variant?: SnackbarVariant
   title?: string
   duration?: number
@@ -41,6 +42,26 @@ type SnackbarApi = {
 }
 
 const SnackbarContext = createContext<SnackbarApi | null>(null)
+
+type ExternalSnackbarRequest = {
+  message: string
+  options?: SnackbarOptions
+}
+
+const externalSnackbarListeners = new Set<
+  (request: ExternalSnackbarRequest) => void
+>()
+
+export const showGlobalSnackbar = (
+  message: string,
+  options?: SnackbarOptions,
+) => {
+  const normalized = message.trim()
+  if (!normalized) return
+  externalSnackbarListeners.forEach((listener) =>
+    listener({ message: normalized, options }),
+  )
+}
 
 const durationFor = (variant: SnackbarVariant) => {
   if (variant === 'error' || variant === 'warning') return 6500
@@ -171,6 +192,16 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
     timers.current.clear()
     setItems([])
   }, [])
+
+  useEffect(() => {
+    const listener = ({ message, options }: ExternalSnackbarRequest) => {
+      show(message, options)
+    }
+    externalSnackbarListeners.add(listener)
+    return () => {
+      externalSnackbarListeners.delete(listener)
+    }
+  }, [show])
 
   const api = useMemo<SnackbarApi>(
     () => ({
