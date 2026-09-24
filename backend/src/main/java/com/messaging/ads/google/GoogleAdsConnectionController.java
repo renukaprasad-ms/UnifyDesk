@@ -29,6 +29,7 @@ import com.messaging.ads.google.dto.GoogleInsightBreakdownsSyncResponse;
 import com.messaging.ads.google.dto.GoogleKeywordSyncResponse;
 import com.messaging.ads.google.dto.GoogleFullSyncResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupResponse;
+import com.messaging.ads.google.dto.GoogleAssetGroupStatusRequest;
 import com.messaging.ads.google.dto.GoogleAssetResponse;
 import com.messaging.ads.google.dto.UpdateGoogleAdGroupRequest;
 import com.messaging.ads.google.dto.UpdateGoogleCampaignRequest;
@@ -117,6 +118,21 @@ public class GoogleAdsConnectionController {
             200,
             performanceMaxService.assetGroups(companyId, campaignId),
             "Google Performance Max asset groups fetched"));
+  }
+
+  @PostMapping("/campaigns/{campaignId}/asset-groups/{assetGroupId}/status")
+  public ResponseEntity<ApiResponse<GoogleAssetGroupResponse>> updateAssetGroupStatus(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @PathVariable String assetGroupId,
+      @Valid @RequestBody GoogleAssetGroupStatusRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxService.setAssetGroupStatus(
+                companyId, campaignId, assetGroupId, request.status(), userId),
+            "Google Performance Max asset group status updated"));
   }
 
   @PostMapping("/accounts/{accountId}/performance-max-campaigns")
