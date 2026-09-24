@@ -162,7 +162,7 @@ public class GoogleAdsInsightBreakdownSyncService {
     return "SELECT "
         + dimension
         + ", metrics.cost_micros, metrics.impressions, metrics.clicks, "
-        + "metrics.unique_users, metrics.conversions, metrics.conversions_value "
+        + "metrics.conversions, metrics.conversions_value "
         + "FROM "
         + resource
         + " WHERE segments.date BETWEEN '"
