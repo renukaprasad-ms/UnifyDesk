@@ -246,7 +246,7 @@ export type GoogleCustomerMatchUploadInput = {
 export type GoogleConversionEventInput = {
   eventTimestamp: string
   transactionId?: string | null
-  eventSource?: 'WEB' | 'APP' | 'IN_STORE' | 'PHONE' | 'OTHER'
+  eventSource?: 'WEB' | 'APP' | 'IN_STORE' | 'PHONE' | 'MESSAGE' | 'OTHER'
   conversionValue?: number | null
   currency?: string | null
   gclid?: string | null
