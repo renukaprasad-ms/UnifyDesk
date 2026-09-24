@@ -10,6 +10,6 @@ public record CreateGoogleCampaignRequest(
     @NotBlank @Size(max = 255) String name,
     @Positive Long dailyBudgetMinor,
     String bidStrategy,
-    @NotNull Boolean containsEuPoliticalAdvertising,
+    @NotNull(message = "Choose whether this campaign contains EU political advertising") Boolean containsEuPoliticalAdvertising,
     LocalDate startDate,
     LocalDate endDate) {}
