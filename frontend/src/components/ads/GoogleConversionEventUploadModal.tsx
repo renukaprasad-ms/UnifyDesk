@@ -26,7 +26,7 @@ export default function GoogleConversionEventUploadModal({
     new Date().toISOString().slice(0, 16),
   )
   const [eventSource, setEventSource] =
-    useState<'WEB' | 'APP' | 'IN_STORE' | 'PHONE' | 'OTHER'>('WEB')
+    useState<'WEB' | 'APP' | 'IN_STORE' | 'PHONE' | 'MESSAGE' | 'OTHER'>('WEB')
   const [transactionId, setTransactionId] = useState('')
   const [value, setValue] = useState('')
   const [currency, setCurrency] = useState(defaultCurrency ?? '')
@@ -36,8 +36,8 @@ export default function GoogleConversionEventUploadModal({
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [userId, setUserId] = useState('')
-  const [adUserDataConsent, setAdUserDataConsent] = useState(true)
-  const [adPersonalizationConsent, setAdPersonalizationConsent] = useState(true)
+  const [adUserDataConsent, setAdUserDataConsent] = useState(false)
+  const [adPersonalizationConsent, setAdPersonalizationConsent] = useState(false)
   const [validateOnly, setValidateOnly] = useState(false)
 
   if (!open || !conversion) return null
@@ -113,6 +113,7 @@ export default function GoogleConversionEventUploadModal({
                       | 'APP'
                       | 'IN_STORE'
                       | 'PHONE'
+                      | 'MESSAGE'
                       | 'OTHER',
                   )
                 }
@@ -121,6 +122,7 @@ export default function GoogleConversionEventUploadModal({
                 <option value="APP">App</option>
                 <option value="IN_STORE">In store</option>
                 <option value="PHONE">Phone</option>
+                <option value="MESSAGE">Message</option>
                 <option value="OTHER">Other</option>
               </select>
             </label>
