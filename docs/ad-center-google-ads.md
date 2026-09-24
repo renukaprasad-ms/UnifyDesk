@@ -228,3 +228,27 @@ https://www.googleapis.com/auth/datamanager
 ```
 
 Reachlyo never logs raw Customer Match email/phone identifiers. Contact identifiers are normalized and SHA-256 hashed before the Google Data Manager request is made.
+
+
+## Advanced Google coverage
+
+Implemented beyond core parity:
+- add/reuse Google asset library read surface
+- Performance Max audience signals and search themes
+- Customer Match member upload through Google Data Manager
+- offline/enhanced conversion event upload with click IDs and hashed first-party identifiers
+- native Google RecommendationService fetch/apply/dismiss actions
+- scheduled Google background synchronization
+- Display campaign creation and responsive display ads
+- Demand Gen campaign creation and YouTube/video responsive ads
+- Shopping campaign creation with Merchant Center ID, listing group, and shopping product ads
+- standalone Google Video campaign sync/reporting in read-only mode
+
+Google platform limitation:
+- standalone Video campaigns cannot be created or updated through the Google Ads API; Google only exposes them for fetch/reporting. Reachlyo therefore treats VIDEO campaigns as read-only and uses Demand Gen for API-managed YouTube/video creation.
+
+Still planned:
+- add/reuse assets against existing Performance Max asset groups after initial creation
+- optional portrait and landscape-logo Performance Max assets
+- deeper Merchant Center product/feed management beyond Shopping campaign linkage
+
