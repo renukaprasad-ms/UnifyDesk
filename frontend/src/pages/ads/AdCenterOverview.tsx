@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import AdFeedbackAlert from '../../components/ads/AdFeedbackAlert'
+import { showGlobalSnackbar } from '../../components/feedback/SnackbarProvider'
 import { FiAlertTriangle, FiCheck, FiCheckCircle, FiExternalLink, FiRefreshCw, FiX, FiZap } from 'react-icons/fi'
 import { Link } from 'react-router'
 import { adCenterApi } from '../../features/ads/adCenterApi'
@@ -118,7 +119,10 @@ export default function AdCenterOverview() {
       } else if (metaResult === 'cancelled') {
         setNotice('Meta Ads connection was cancelled.')
       } else {
-        setError('Unable to connect Meta Ads. Check the Meta app configuration and permissions.')
+        const message =
+          'Unable to connect Meta Ads. Check the Meta app configuration and permissions.'
+        setError(message)
+        showGlobalSnackbar(message, { variant: 'warning', title: 'Action needed' })
       }
       url.searchParams.delete('metaAds')
     }
@@ -131,9 +135,10 @@ export default function AdCenterOverview() {
       } else if (googleResult === 'cancelled') {
         setNotice('Google Ads connection was cancelled.')
       } else {
-        setError(
-          'Unable to connect Google Ads. Check the Google OAuth client and Google Ads API access for the Cloud project.',
-        )
+        const message =
+          'Unable to connect Google Ads. Check the Google OAuth client and Google Ads API access for the Cloud project.'
+        setError(message)
+        showGlobalSnackbar(message, { variant: 'warning', title: 'Action needed' })
       }
       url.searchParams.delete('googleAds')
     }
