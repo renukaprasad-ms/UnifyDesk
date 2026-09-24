@@ -28,6 +28,18 @@ import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 const displayValue = (value?: string | null) =>
   value ? value.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : '—'
 
+type GoogleCampaignBidStrategy = NonNullable<UpdateGoogleCampaignInput['bidStrategy']>
+
+const isGoogleCampaignBidStrategy = (value: string): value is GoogleCampaignBidStrategy =>
+  (
+    [
+      'MANUAL_CPC',
+      'MAXIMIZE_CLICKS',
+      'MAXIMIZE_CONVERSIONS',
+      'MAXIMIZE_CONVERSION_VALUE',
+    ] as const
+  ).some((strategy) => strategy === value)
+
 const formatMinor = (value: number | null | undefined, currency?: string | null) => {
   if (value == null) return '—'
   if (!currency) return `${value} minor units`
@@ -176,7 +188,7 @@ export default function AdCampaignDetails() {
               campaign.id,
               {
                 name: name.trim(),
-                ...(bidStrategy ? { bidStrategy } : {}),
+                ...(isGoogleCampaignBidStrategy(bidStrategy) ? { bidStrategy } : {}),
                 ...(minor ? { dailyBudgetMinor: minor } : {}),
               } satisfies UpdateGoogleCampaignInput,
             )
