@@ -89,11 +89,14 @@ const showAdCenterError = (
     return
   }
 
+  const status = error.response?.status
+  const userActionable = status !== undefined && status >= 400 && status < 500
+
   showGlobalSnackbar(
     apiErrorMessage(error, 'Unable to complete this Ad Center request'),
     {
-      variant: 'error',
-      title: 'Action needed',
+      variant: userActionable ? 'warning' : 'error',
+      title: userActionable ? 'Action needed' : 'Request failed',
     },
   )
 }
