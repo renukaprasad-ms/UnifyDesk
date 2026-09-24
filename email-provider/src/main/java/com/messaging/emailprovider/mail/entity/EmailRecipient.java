@@ -23,7 +23,8 @@ import lombok.Setter;
     indexes = {
       @Index(name = "idx_email_recipients_message_id", columnList = "message_id"),
       @Index(name = "idx_email_recipients_address", columnList = "recipient_address"),
-      @Index(name = "idx_email_recipients_status", columnList = "status")
+      @Index(name = "idx_email_recipients_status", columnList = "status"),
+      @Index(name = "idx_email_recipients_postfix_queue_id", columnList = "postfix_queue_id")
     })
 public class EmailRecipient extends BaseEntity {
 
@@ -46,6 +47,9 @@ public class EmailRecipient extends BaseEntity {
 
   @Column(name = "smtp_response", length = 2048)
   private String smtpResponse;
+
+  @Column(name = "postfix_queue_id", length = 128)
+  private String postfixQueueId;
 
   @Column(name = "attempt_count", nullable = false)
   private int attemptCount;

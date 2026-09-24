@@ -4,6 +4,7 @@ import com.messaging.emailprovider.common.exception.NotFoundException;
 import com.messaging.emailprovider.mail.entity.EmailRecipient;
 import com.messaging.emailprovider.mail.enums.EmailRecipientStatus;
 import com.messaging.emailprovider.mail.repository.EmailRecipientRepository;
+import com.messaging.emailprovider.smtp.PostfixQueueIdExtractor;
 import com.messaging.emailprovider.smtp.SmtpDeliveryResult;
 import java.time.Instant;
 import org.springframework.stereotype.Service;
@@ -14,12 +15,15 @@ public class RecipientDeliveryStateService {
 
   private final EmailRecipientRepository recipientRepository;
   private final EmailDeliveryAttemptRepository attemptRepository;
+  private final PostfixQueueIdExtractor queueIdExtractor;
 
   public RecipientDeliveryStateService(
       EmailRecipientRepository recipientRepository,
-      EmailDeliveryAttemptRepository attemptRepository) {
+      EmailDeliveryAttemptRepository attemptRepository,
+      PostfixQueueIdExtractor queueIdExtractor) {
     this.recipientRepository = recipientRepository;
     this.attemptRepository = attemptRepository;
+    this.queueIdExtractor = queueIdExtractor;
   }
 
   @Transactional
@@ -40,6 +44,7 @@ public class RecipientDeliveryStateService {
     current.setStatus(EmailRecipientStatus.HANDED_OFF);
     current.setSmtpStatusCode(result.statusCode());
     current.setSmtpResponse(truncate(result.response()));
+    current.setPostfixQueueId(queueIdExtractor.extract(result.response()).orElse(null));
     current.setHandedOffAt(Instant.now());
     current.setNextAttemptAt(null);
     recipientRepository.save(current);
@@ -67,7 +72,7 @@ public class RecipientDeliveryStateService {
     }
 
     long multiplier = 1L << Math.min(Math.max(current.getAttemptCount() - 1, 0), 20);
-    long delay = Math.min(maxRetrySeconds, Math.multiplyExact(initialRetrySeconds, multiplier));
+    long delay = Math.min(maxRetrySeconds, initialRetrySeconds * multiplier);
     current.setStatus(EmailRecipientStatus.DEFERRED);
     current.setNextAttemptAt(Instant.now().plusSeconds(delay));
     recipientRepository.save(current);

@@ -28,13 +28,16 @@ public class SuppressionService {
     if (repository.findActive(companyId, normalized, Instant.now()).isPresent()) {
       throw new ConflictException("Recipient is already suppressed");
     }
+    return create(companyId, normalized, reason, expiresAt);
+  }
 
-    EmailSuppression suppression = new EmailSuppression();
-    suppression.setCompanyId(companyId);
-    suppression.setRecipientAddress(normalized);
-    suppression.setReason(reason);
-    suppression.setExpiresAt(expiresAt);
-    return repository.save(suppression);
+  @Transactional
+  public EmailSuppression suppressIfAbsent(
+      Long companyId, String address, SuppressionReason reason) {
+    String normalized = normalize(address);
+    return repository
+        .findActive(companyId, normalized, Instant.now())
+        .orElseGet(() -> create(companyId, normalized, reason, null));
   }
 
   @Transactional(readOnly = true)
@@ -50,6 +53,16 @@ public class SuppressionService {
             .orElseThrow(() -> new NotFoundException("Suppression not found"));
     suppression.setActive(false);
     repository.save(suppression);
+  }
+
+  private EmailSuppression create(
+      Long companyId, String address, SuppressionReason reason, Instant expiresAt) {
+    EmailSuppression suppression = new EmailSuppression();
+    suppression.setCompanyId(companyId);
+    suppression.setRecipientAddress(address);
+    suppression.setReason(reason);
+    suppression.setExpiresAt(expiresAt);
+    return repository.save(suppression);
   }
 
   private String normalize(String address) {

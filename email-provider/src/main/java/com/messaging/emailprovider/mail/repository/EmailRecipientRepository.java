@@ -4,6 +4,7 @@ import com.messaging.emailprovider.mail.entity.EmailRecipient;
 import com.messaging.emailprovider.mail.enums.EmailRecipientStatus;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -14,6 +15,8 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
   List<EmailRecipient> findAllByMessageIdOrderByCreatedAtAsc(Long messageId);
 
   List<EmailRecipient> findAllByStatusOrderByCreatedAtAsc(EmailRecipientStatus status);
+
+  Optional<EmailRecipient> findFirstByPostfixQueueId(String postfixQueueId);
 
   @Query(
       value =
