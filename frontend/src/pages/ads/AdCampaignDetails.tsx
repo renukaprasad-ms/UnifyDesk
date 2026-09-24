@@ -11,6 +11,7 @@ import type {
   AdCampaign,
   AdConversion,
   AdSet,
+  GoogleAssetGroup,
   CreateMetaAdSetInput,
   CreateGoogleAdGroupInput,
   UpdateMetaCampaignInput,
@@ -71,6 +72,7 @@ export default function AdCampaignDetails() {
   const [campaign, setCampaign] = useState<AdCampaign | null>(null)
   const [accounts, setAccounts] = useState<AdAccount[]>([])
   const [adSets, setAdSets] = useState<AdSet[]>([])
+  const [assetGroups, setAssetGroups] = useState<GoogleAssetGroup[]>([])
   const [resources, setResources] = useState<AdAccountResource[]>([])
   const [audiences, setAudiences] = useState<AdAudience[]>([])
   const [conversions, setConversions] = useState<AdConversion[]>([])
@@ -109,11 +111,23 @@ export default function AdCampaignDetails() {
     setLoading(true)
     setError('')
     try {
-      const [campaignData, accountData, adSetData] = await Promise.all([
+      const [campaignData, accountData] = await Promise.all([
         adCenterApi.campaign(selectedCompany.companyId, campaignId),
         adCenterApi.accounts(selectedCompany.companyId),
-        adCenterApi.adSets(selectedCompany.companyId, campaignId),
       ])
+      const isPerformanceMax =
+        campaignData.provider === 'GOOGLE_ADS' &&
+        campaignData.objective === 'PERFORMANCE_MAX'
+
+      const [adSetData, assetGroupData] = await Promise.all([
+        isPerformanceMax
+          ? Promise.resolve([])
+          : adCenterApi.adSets(selectedCompany.companyId, campaignId),
+        isPerformanceMax
+          ? adCenterApi.googleAssetGroups(selectedCompany.companyId, campaignId)
+          : Promise.resolve([]),
+      ])
+
       const accountValue =
         accountData.find((item) => item.id === campaignData.adAccountId) ?? null
       const [resourceData, audienceData, conversionData] = accountValue
@@ -126,6 +140,7 @@ export default function AdCampaignDetails() {
       setCampaign(campaignData)
       setAccounts(accountData)
       setAdSets(adSetData)
+      setAssetGroups(assetGroupData)
       setResources(resourceData)
       setAudiences(audienceData)
       setConversions(conversionData)
@@ -201,6 +216,20 @@ export default function AdCampaignDetails() {
     setError('')
     setNotice('')
     try {
+      const isPerformanceMax =
+        campaign.provider === 'GOOGLE_ADS' &&
+        campaign.objective === 'PERFORMANCE_MAX'
+
+      if (isPerformanceMax) {
+        const groups = await adCenterApi.googleAssetGroups(
+          selectedCompany.companyId,
+          campaign.id,
+        )
+        setAssetGroups(groups)
+        setNotice(`Loaded ${groups.length} Performance Max asset group(s).`)
+        return
+      }
+
       const result =
         campaign.provider === 'GOOGLE_ADS'
           ? await adCenterApi.syncGoogleAdGroups(selectedCompany.companyId, campaign.id)
