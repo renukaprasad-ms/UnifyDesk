@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import GoogleKeywordModal from './GoogleKeywordModal'
 import GoogleResponsiveSearchAdModal from './GoogleResponsiveSearchAdModal'
 import GoogleVisualAdModal from './GoogleVisualAdModal'
+import GoogleDemandGenCreativeModal from './GoogleDemandGenCreativeModal'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   Ad,
@@ -14,6 +15,8 @@ import type {
   CreateGoogleKeywordInput,
   CreateGoogleResponsiveDisplayAdInput,
   CreateGoogleDemandGenVideoAdInput,
+  CreateGoogleDemandGenMultiAssetAdInput,
+  CreateGoogleDemandGenCarouselAdInput,
   CreateGoogleResponsiveSearchAdInput,
 } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -88,6 +91,7 @@ export default function GoogleAdGroupDetails({
   const [workingId, setWorkingId] = useState<string | null>(null)
   const [keywordOpen, setKeywordOpen] = useState(false)
   const [adOpen, setAdOpen] = useState(false)
+  const [demandGenCreativeOpen, setDemandGenCreativeOpen] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const channel = campaign?.objective ?? 'SEARCH'
@@ -268,6 +272,59 @@ export default function GoogleAdGroupDetails({
     }
   }
 
+  const createDemandGenMultiAssetAd = async (
+    input: CreateGoogleDemandGenMultiAssetAdInput,
+  ) => {
+    setCreatingAd(true)
+    setError('')
+    try {
+      const created = await adCenterApi.createGoogleDemandGenMultiAssetAd(
+        companyId,
+        adGroup.id,
+        input,
+      )
+      setAds((current) => [
+        created,
+        ...current.filter((item) => item.id !== created.id),
+      ])
+      setDemandGenCreativeOpen(false)
+      setNotice(`${created.name} was created as a paused Demand Gen Multi-Asset ad.`)
+    } catch (createError) {
+      setError(
+        apiErrorMessage(createError, 'Unable to create Demand Gen Multi-Asset ad'),
+      )
+    } finally {
+      setCreatingAd(false)
+    }
+  }
+
+  const createDemandGenCarouselAd = async (
+    input: CreateGoogleDemandGenCarouselAdInput,
+  ) => {
+    setCreatingAd(true)
+    setError('')
+    try {
+      const created = await adCenterApi.createGoogleDemandGenCarouselAd(
+        companyId,
+        adGroup.id,
+        input,
+      )
+      setAds((current) => [
+        created,
+        ...current.filter((item) => item.id !== created.id),
+      ])
+      setDemandGenCreativeOpen(false)
+      setNotice(`${created.name} was created as a paused Demand Gen Carousel ad.`)
+    } catch (createError) {
+      setError(
+        apiErrorMessage(createError, 'Unable to create Demand Gen Carousel ad'),
+      )
+    } finally {
+      setCreatingAd(false)
+    }
+  }
+
+
   const createShoppingAd = async () => {
     setCreatingAd(true)
     setError('')
@@ -388,7 +445,7 @@ export default function GoogleAdGroupDetails({
                 {isDisplay
                   ? 'Responsive display ads'
                   : isDemandGen
-                    ? 'Demand Gen video ads'
+                    ? 'Demand Gen ads'
                     : isShopping
                       ? 'Shopping Product Ads'
                       : isVideo
@@ -399,7 +456,7 @@ export default function GoogleAdGroupDetails({
                 {isDisplay
                   ? 'Responsive image and text creative for the Google Display Network.'
                   : isDemandGen
-                    ? 'Video creative for YouTube and Demand Gen inventory.'
+                    ? 'Video, Multi-Asset, and Carousel creatives for Demand Gen inventory.'
                     : isShopping
                       ? 'Product ads generated from the linked Merchant Center inventory.'
                       : isVideo
@@ -423,7 +480,11 @@ export default function GoogleAdGroupDetails({
                 ) : (
                   <button
                     className="primary-button inline-flex items-center gap-2"
-                    onClick={() => setAdOpen(true)}
+                    onClick={() =>
+                      isDemandGen
+                        ? setDemandGenCreativeOpen(true)
+                        : setAdOpen(true)
+                    }
                   >
                     <FiPlus />
                     Create ad
@@ -438,7 +499,7 @@ export default function GoogleAdGroupDetails({
                   {isDisplay
                     ? 'Responsive Display Ad'
                     : isDemandGen
-                      ? 'Demand Gen Video Ad'
+                      ? 'Demand Gen Ad'
                       : isShopping
                         ? 'Shopping Product Ad'
                         : isVideo
@@ -477,6 +538,19 @@ export default function GoogleAdGroupDetails({
           onClose={() => setAdOpen(false)}
           onCreateDisplay={createDisplayAd}
           onCreateDemandGen={createDemandGenAd}
+        />
+      )}
+      {isDemandGen && (
+        <GoogleDemandGenCreativeModal
+          open={demandGenCreativeOpen}
+          saving={creatingAd}
+          onClose={() => setDemandGenCreativeOpen(false)}
+          onCreateMultiAsset={createDemandGenMultiAssetAd}
+          onCreateCarousel={createDemandGenCarouselAd}
+          onChooseVideo={() => {
+            setDemandGenCreativeOpen(false)
+            setAdOpen(true)
+          }}
         />
       )}
     </section>
