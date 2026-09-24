@@ -271,6 +271,10 @@ public class GoogleAdsCampaignMutationService {
     if (campaign.getProvider() != AdProvider.GOOGLE_ADS || !campaign.isAccessible()) {
       throw new BadRequestException("Google campaign is not available for management");
     }
+    if ("VIDEO".equalsIgnoreCase(campaign.getObjective())) {
+      throw new BadRequestException(
+          "Google Ads API exposes Video campaigns as read-only. Manage Video campaign settings in Google Ads or use Demand Gen for API-managed video delivery");
+    }
     return campaign;
   }
 
