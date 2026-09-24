@@ -199,6 +199,78 @@ export type GoogleAssetGroup = {
   finalUrls: string[]
 }
 
+
+export type GoogleAssetGroupSignal = {
+  resourceName?: string | null
+  type: 'SEARCH_THEME' | 'AUDIENCE'
+  value?: string | null
+  approvalStatus?: string | null
+  disapprovalReasons: string[]
+}
+
+export type AddGoogleAssetGroupSignalsInput = {
+  searchThemes?: string[]
+  audienceIds?: string[]
+}
+
+export type GoogleCustomerMatchMember = {
+  emails?: string[]
+  phoneNumbers?: string[]
+  mobileIds?: string[]
+  userId?: string | null
+}
+
+export type GoogleCustomerMatchUploadInput = {
+  members: GoogleCustomerMatchMember[]
+  adUserDataConsent: boolean
+  adPersonalizationConsent: boolean
+  customerMatchTermsAccepted: boolean
+  validateOnly: boolean
+}
+
+export type GoogleConversionEventInput = {
+  eventTimestamp: string
+  transactionId?: string | null
+  eventSource?: 'WEB' | 'APP' | 'IN_STORE' | 'PHONE' | 'OTHER'
+  conversionValue?: number | null
+  currency?: string | null
+  gclid?: string | null
+  gbraid?: string | null
+  wbraid?: string | null
+  emails?: string[]
+  phoneNumbers?: string[]
+  userId?: string | null
+}
+
+export type GoogleConversionEventUploadInput = {
+  events: GoogleConversionEventInput[]
+  adUserDataConsent: boolean
+  adPersonalizationConsent: boolean
+  validateOnly: boolean
+}
+
+export type GoogleDataManagerUpload = {
+  requestIds: string[]
+  submittedCount: number
+  validateOnly: boolean
+  warnings: string[]
+}
+
+export type GoogleNativeRecommendation = {
+  resourceName: string
+  type: string
+  dismissed: boolean
+  campaignResourceName?: string | null
+  adGroupResourceName?: string | null
+  impactJson?: string | null
+}
+
+export type GoogleRecommendationAction = {
+  action: 'APPLY' | 'DISMISS'
+  processedCount: number
+  resourceNames: string[]
+}
+
 export type GoogleCampaignSync = {
   synchronizedCount: number
 }
