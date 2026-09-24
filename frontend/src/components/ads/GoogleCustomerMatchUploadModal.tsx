@@ -24,8 +24,8 @@ export default function GoogleCustomerMatchUploadModal({
 }: Props) {
   const [identifierType, setIdentifierType] = useState<IdentifierType>('EMAIL')
   const [values, setValues] = useState('')
-  const [adUserDataConsent, setAdUserDataConsent] = useState(true)
-  const [adPersonalizationConsent, setAdPersonalizationConsent] = useState(true)
+  const [adUserDataConsent, setAdUserDataConsent] = useState(false)
+  const [adPersonalizationConsent, setAdPersonalizationConsent] = useState(false)
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [validateOnly, setValidateOnly] = useState(false)
 
