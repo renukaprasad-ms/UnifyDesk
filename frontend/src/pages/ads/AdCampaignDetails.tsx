@@ -3,6 +3,7 @@ import { FiArrowLeft, FiEdit2, FiPause, FiPlay, FiPlus, FiRefreshCw, FiSave, FiX
 import { Link, useParams } from 'react-router'
 import MetaAdSetModal from '../../components/ads/MetaAdSetModal'
 import GoogleAdGroupModal from '../../components/ads/GoogleAdGroupModal'
+import GooglePerformanceMaxSignals from '../../components/ads/GooglePerformanceMaxSignals'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -684,55 +685,64 @@ export default function AdCampaignDetails() {
                 ) : (
                   <div className="divide-y divide-slate-100">
                     {assetGroups.map((group) => (
-                      <div
-                        key={group.resourceName ?? group.id}
-                        className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
-                      >
-                        <div className="min-w-0">
-                          <p className="font-semibold text-slate-950">
-                            {group.name ?? 'Performance Max asset group'}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            Ad strength {displayValue(group.adStrength)}
-                          </p>
-                          <p className="mt-1 break-all text-xs text-slate-400">
-                            {group.finalUrls?.join(', ') || 'No final URL returned'}
-                          </p>
+                      <div key={group.resourceName ?? group.id}>
+                        <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-950">
+                              {group.name ?? 'Performance Max asset group'}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Ad strength {displayValue(group.adStrength)}
+                            </p>
+                            <p className="mt-1 break-all text-xs text-slate-400">
+                              {group.finalUrls?.join(', ') || 'No final URL returned'}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                              {group.status ?? 'UNKNOWN'}
+                            </span>
+                            {group.primaryStatus &&
+                              group.primaryStatus !== group.status && (
+                                <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                                  {displayValue(group.primaryStatus)}
+                                </span>
+                              )}
+                            {can(PERMISSIONS.ADS_MODIFY) &&
+                              group.id &&
+                              (group.status === 'ENABLED' ? (
+                                <button
+                                  type="button"
+                                  className="secondary-button inline-flex items-center gap-2"
+                                  disabled={workingAssetGroupId !== null}
+                                  onClick={() => void setAssetGroupStatus(group, 'PAUSED')}
+                                >
+                                  <FiPause aria-hidden="true" />
+                                  Pause group
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="secondary-button inline-flex items-center gap-2"
+                                  disabled={workingAssetGroupId !== null}
+                                  onClick={() => void setAssetGroupStatus(group, 'ACTIVE')}
+                                >
+                                  <FiPlay aria-hidden="true" />
+                                  Start group
+                                </button>
+                              ))}
+                          </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                            {group.status ?? 'UNKNOWN'}
-                          </span>
-                          {group.primaryStatus &&
-                            group.primaryStatus !== group.status && (
-                              <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
-                                {displayValue(group.primaryStatus)}
-                              </span>
-                            )}
-                          {can(PERMISSIONS.ADS_MODIFY) &&
-                            group.id &&
-                            (group.status === 'ENABLED' ? (
-                              <button
-                                type="button"
-                                className="secondary-button inline-flex items-center gap-2"
-                                disabled={workingAssetGroupId !== null}
-                                onClick={() => void setAssetGroupStatus(group, 'PAUSED')}
-                              >
-                                <FiPause aria-hidden="true" />
-                                Pause group
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="secondary-button inline-flex items-center gap-2"
-                                disabled={workingAssetGroupId !== null}
-                                onClick={() => void setAssetGroupStatus(group, 'ACTIVE')}
-                              >
-                                <FiPlay aria-hidden="true" />
-                                Start group
-                              </button>
-                            ))}
-                        </div>
+
+                        {group.id && (
+                          <GooglePerformanceMaxSignals
+                            companyId={selectedCompany.companyId}
+                            campaignId={campaign.id}
+                            assetGroup={group}
+                            audiences={audiences}
+                            canModify={can(PERMISSIONS.ADS_MODIFY)}
+                          />
+                        )}
                       </div>
                     ))}
                   </div>
