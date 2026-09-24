@@ -104,7 +104,7 @@ apiClient.interceptors.response.use(
 const cleanApiErrorMessage = (message: string | undefined, fallback: string) => {
   if (!message) return fallback
 
-  let cleaned = message.replace(/\\s+/g, ' ').trim()
+  let cleaned = message.replace(/\s+/g, ' ').trim()
   if (
     cleaned.includes('Type definition error') ||
     cleaned.includes('com.fasterxml.jackson.databind.JsonNode')
@@ -112,7 +112,7 @@ const cleanApiErrorMessage = (message: string | undefined, fallback: string) => 
     return fallback
   }
 
-  const rawJsonMatch = cleaned.match(/\\s*\\(HTTP\\s+\\d+\\)\\s*:\\s*[\\[{]/i)
+  const rawJsonMatch = cleaned.match(/\s*\(HTTP\s+\d+\)\s*:\s*[\[{]/i)
   if (rawJsonMatch?.index !== undefined) {
     cleaned = cleaned.slice(0, rawJsonMatch.index).trim()
   } else {
