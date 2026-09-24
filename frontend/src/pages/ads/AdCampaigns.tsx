@@ -641,6 +641,7 @@ export default function AdCampaigns() {
       {selectedAccount?.provider === 'GOOGLE_ADS' &&
         googleCreateType === 'ADVANCED' && (
           <GoogleAdvancedCampaignModal
+            companyId={selectedCompany.companyId}
             account={selectedAccount}
             open={createOpen}
             saving={creating}
