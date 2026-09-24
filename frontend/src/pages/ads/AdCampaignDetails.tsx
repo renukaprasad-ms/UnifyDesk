@@ -82,6 +82,7 @@ export default function AdCampaignDetails() {
   const [syncingAdSets, setSyncingAdSets] = useState(false)
   const [creatingAdSet, setCreatingAdSet] = useState(false)
   const [workingAdSetId, setWorkingAdSetId] = useState<string | null>(null)
+  const [workingAssetGroupId, setWorkingAssetGroupId] = useState<string | null>(null)
   const [adSetModalOpen, setAdSetModalOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState('')
@@ -244,6 +245,40 @@ export default function AdCampaignDetails() {
       setError(apiErrorMessage(syncError, 'Unable to synchronize delivery groups'))
     } finally {
       setSyncingAdSets(false)
+    }
+  }
+
+  const setAssetGroupStatus = async (
+    group: GoogleAssetGroup,
+    status: 'ACTIVE' | 'PAUSED',
+  ) => {
+    if (!selectedCompany || !campaign || !group.id) return
+
+    setWorkingAssetGroupId(group.id)
+    setError('')
+    setNotice('')
+    try {
+      const updated = await adCenterApi.setGoogleAssetGroupStatus(
+        selectedCompany.companyId,
+        campaign.id,
+        group.id,
+        status,
+      )
+      setAssetGroups((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      )
+      setNotice(
+        `${updated.name ?? 'Performance Max asset group'} is now ${status.toLowerCase()}.`,
+      )
+    } catch (statusError) {
+      setError(
+        apiErrorMessage(
+          statusError,
+          'Unable to update Performance Max asset group status',
+        ),
+      )
+    } finally {
+      setWorkingAssetGroupId(null)
     }
   }
 
@@ -674,6 +709,29 @@ export default function AdCampaignDetails() {
                                 {displayValue(group.primaryStatus)}
                               </span>
                             )}
+                          {can(PERMISSIONS.ADS_MODIFY) &&
+                            group.id &&
+                            (group.status === 'ENABLED' ? (
+                              <button
+                                type="button"
+                                className="secondary-button inline-flex items-center gap-2"
+                                disabled={workingAssetGroupId !== null}
+                                onClick={() => void setAssetGroupStatus(group, 'PAUSED')}
+                              >
+                                <FiPause aria-hidden="true" />
+                                Pause group
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="secondary-button inline-flex items-center gap-2"
+                                disabled={workingAssetGroupId !== null}
+                                onClick={() => void setAssetGroupStatus(group, 'ACTIVE')}
+                              >
+                                <FiPlay aria-hidden="true" />
+                                Start group
+                              </button>
+                            ))}
                         </div>
                       </div>
                     ))}
