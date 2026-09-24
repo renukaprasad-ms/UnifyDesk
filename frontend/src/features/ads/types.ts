@@ -1003,6 +1003,83 @@ export type AdRecommendationSummary = {
   topItems: AdRecommendationSummaryItem[]
 }
 
+export type GoogleMerchantAccount = {
+  name: string
+  accountId: string
+  accountName?: string | null
+  timeZone?: string | null
+  languageCode?: string | null
+  adultContent: boolean
+}
+
+export type GoogleMerchantDataSource = {
+  name: string
+  dataSourceId: string
+  displayName?: string | null
+  input?: string | null
+  contentLanguage?: string | null
+  feedLabel?: string | null
+  countries: string[]
+  apiManaged: boolean
+}
+
+export type CreateGoogleMerchantDataSourceInput = {
+  displayName: string
+  contentLanguage: string
+  feedLabel: string
+  countries: string[]
+}
+
+export type GoogleMerchantProduct = {
+  name?: string | null
+  offerId: string
+  contentLanguage: string
+  feedLabel: string
+  dataSource?: string | null
+  title?: string | null
+  description?: string | null
+  link?: string | null
+  imageLink?: string | null
+  availability?: string | null
+  condition?: string | null
+  brand?: string | null
+  priceAmountMicros?: string | null
+  priceCurrency?: string | null
+  gtins: string[]
+  googleProductCategory?: string | null
+  issues: string[]
+}
+
+export type GoogleMerchantProductPage = {
+  products: GoogleMerchantProduct[]
+  nextPageToken?: string | null
+}
+
+export type UpsertGoogleMerchantProductInput = {
+  dataSourceName: string
+  offerId: string
+  contentLanguage: string
+  feedLabel: string
+  title: string
+  description?: string | null
+  link: string
+  imageLink: string
+  availability: 'IN_STOCK' | 'OUT_OF_STOCK' | 'PREORDER' | 'BACKORDER'
+  condition: 'NEW' | 'REFURBISHED' | 'USED'
+  brand?: string | null
+  price?: number | null
+  currency?: string | null
+  gtins?: string[]
+  googleProductCategory?: string | null
+}
+
+export type DeleteGoogleMerchantProductInput = {
+  dataSourceName: string
+  contentLanguage: string
+  feedLabel: string
+  offerId: string
+}
+
 export type GoogleFullSync = {
   campaigns: number
   adGroups: number
