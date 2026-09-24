@@ -33,6 +33,8 @@ import type {
   CreateGooglePerformanceMaxCampaignInput,
   GoogleAsset,
   GoogleAssetGroup,
+  GoogleAssetGroupAsset,
+  GoogleAssetGroupAssetInput,
   GoogleAssetGroupSignal,
   AddGoogleAssetGroupSignalsInput,
   GoogleCustomerMatchUploadInput,
@@ -245,6 +247,43 @@ export const adCenterApi = {
   async googleAssetGroups(companyId: string, campaignId: string) {
     const response = await apiClient.get<ApiResponse<GoogleAssetGroup[]>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups`,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleAssetGroupAssets(
+    companyId: string,
+    campaignId: string,
+    assetGroupId: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleAssetGroupAsset[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/assets`,
+    )
+    return unwrap(response.data)
+  },
+
+  async addGoogleAssetGroupAsset(
+    companyId: string,
+    campaignId: string,
+    assetGroupId: string,
+    input: GoogleAssetGroupAssetInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleAssetGroupAsset[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/assets`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async removeGoogleAssetGroupAsset(
+    companyId: string,
+    campaignId: string,
+    assetGroupId: string,
+    resourceName: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleAssetGroupAsset[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/assets:remove`,
+      { resourceName },
     )
     return unwrap(response.data)
   },
