@@ -29,6 +29,9 @@ import type {
   CreateMetaAdInput,
   CreateMetaAdSetInput,
   CreateGoogleCampaignInput,
+  CreateGooglePerformanceMaxCampaignInput,
+  GoogleAsset,
+  GoogleAssetGroup,
   UpdateGoogleCampaignInput,
   CreateGoogleAdGroupInput,
   UpdateGoogleAdGroupInput,
@@ -193,6 +196,32 @@ export const adCenterApi = {
     const response = await apiClient.post<ApiResponse<AdCampaign>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/campaigns`,
       input,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGooglePerformanceMaxCampaign(
+    companyId: string,
+    accountId: string,
+    input: CreateGooglePerformanceMaxCampaignInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<AdCampaign>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/performance-max-campaigns`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleAssets(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleAsset[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/assets`,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleAssetGroups(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleAssetGroup[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups`,
     )
     return unwrap(response.data)
   },
