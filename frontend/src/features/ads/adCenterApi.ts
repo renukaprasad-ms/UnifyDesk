@@ -226,6 +226,19 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+  async setGoogleAssetGroupStatus(
+    companyId: string,
+    campaignId: string,
+    assetGroupId: string,
+    status: 'ACTIVE' | 'ENABLED' | 'PAUSED',
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleAssetGroup>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/status`,
+      { status },
+    )
+    return unwrap(response.data)
+  },
+
   async updateGoogleCampaign(
     companyId: string,
     campaignId: string,
