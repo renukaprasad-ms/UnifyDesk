@@ -14,7 +14,10 @@ import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -26,6 +29,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class GoogleAdsCampaignPersistenceService {
+
+  private static final DateTimeFormatter GOOGLE_DATE_TIME =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
   private final AdAccountRepository accountRepository;
   private final AdCampaignRepository campaignRepository;
@@ -113,8 +119,10 @@ public class GoogleAdsCampaignPersistenceService {
         GoogleAdsMoney.microsToMinor(amountMicros, account.getCurrency()));
     campaign.setLifetimeBudgetMinor(null);
     campaign.setSpendCapMinor(null);
-    campaign.setStartAt(date(text(snapshot, "startDate"), false));
-    campaign.setEndAt(date(text(snapshot, "endDate"), true));
+    campaign.setStartAt(
+        dateTime(text(snapshot, "startDateTime"), false, account.getTimezone()));
+    campaign.setEndAt(
+        dateTime(text(snapshot, "endDateTime"), true, account.getTimezone()));
     campaign.setAccessible(true);
     campaign.setProviderPayloadJson(json(row));
     campaign.setLastSyncAt(syncedAt);
@@ -145,15 +153,29 @@ public class GoogleAdsCampaignPersistenceService {
     };
   }
 
-  private Instant date(String value, boolean endOfDay) {
+  private Instant dateTime(String value, boolean endOfDay, String timezone) {
     if (value == null) return null;
+    ZoneId zone = zone(timezone);
     try {
-      LocalDate date = LocalDate.parse(value);
-      return endOfDay
-          ? date.plusDays(1).atStartOfDay(ZoneOffset.UTC).minusNanos(1).toInstant()
-          : date.atStartOfDay(ZoneOffset.UTC).toInstant();
+      return LocalDateTime.parse(value, GOOGLE_DATE_TIME).atZone(zone).toInstant();
     } catch (RuntimeException ignored) {
-      return null;
+      try {
+        LocalDate date = LocalDate.parse(value);
+        return endOfDay
+            ? date.plusDays(1).atStartOfDay(zone).minusNanos(1).toInstant()
+            : date.atStartOfDay(zone).toInstant();
+      } catch (RuntimeException ignoredAgain) {
+        return null;
+      }
+    }
+  }
+
+  private ZoneId zone(String timezone) {
+    if (timezone == null || timezone.isBlank()) return ZoneOffset.UTC;
+    try {
+      return ZoneId.of(timezone);
+    } catch (RuntimeException ignored) {
+      return ZoneOffset.UTC;
     }
   }
 
