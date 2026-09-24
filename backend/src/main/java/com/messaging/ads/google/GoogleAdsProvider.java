@@ -33,6 +33,7 @@ public class GoogleAdsProvider implements AdsProvider {
         AdCapability.CONVERSION_MANAGEMENT,
         AdCapability.ANALYTICS,
         AdCapability.BILLING_READ,
+        AdCapability.PRODUCT_CATALOG,
         AdCapability.RECOMMENDATIONS);
   }
 }
