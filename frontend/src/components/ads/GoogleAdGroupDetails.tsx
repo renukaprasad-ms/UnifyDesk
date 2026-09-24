@@ -95,6 +95,7 @@ export default function GoogleAdGroupDetails({
   const isDisplay = channel === 'DISPLAY'
   const isDemandGen = channel === 'DEMAND_GEN'
   const isShopping = channel === 'SHOPPING'
+  const isVideo = channel === 'VIDEO'
 
   const loadKeywords = async () => {
     setKeywords(await adCenterApi.keywords(companyId, adGroup.id))
@@ -317,7 +318,7 @@ export default function GoogleAdGroupDetails({
             <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">{adGroup.name}</h1>
             <p className="mt-2 text-sm text-slate-500">{campaign?.name ?? 'Campaign'} · {adGroup.externalAdSetId}</p>
           </div>
-          {can(PERMISSIONS.ADS_MODIFY) && (
+          {!isVideo && can(PERMISSIONS.ADS_MODIFY) && (
             adGroup.status === 'ACTIVE' ? (
               <button className="secondary-button inline-flex items-center gap-2" disabled={workingId !== null} onClick={() => void setGroupStatus('PAUSED')}><FiPause />Pause</button>
             ) : (
@@ -328,6 +329,13 @@ export default function GoogleAdGroupDetails({
 
         {(error || notice) && <div className={`mt-6 rounded-xl border px-4 py-3 text-sm font-medium ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{error || notice}</div>}
 
+        {isVideo && (
+          <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+            This Video Ad Group is read-only through Google Ads API. Reachlyo keeps it synchronized for reporting.
+          </div>
+        )}
+
+        {!isVideo && (
         <form className="panel mt-6 p-6" onSubmit={save}>
           <h2 className="text-base font-bold text-slate-950">Ad group settings</h2>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -348,6 +356,7 @@ export default function GoogleAdGroupDetails({
           </div>
           {can(PERMISSIONS.ADS_MODIFY) && <div className="mt-5 flex justify-end"><button type="submit" className="primary-button inline-flex items-center gap-2" disabled={saving || !name.trim()}><FiSave />{saving ? 'Saving…' : 'Save to Google'}</button></div>}
         </form>
+        )}
 
         {isSearch && (
           <>
@@ -382,7 +391,9 @@ export default function GoogleAdGroupDetails({
                     ? 'Demand Gen video ads'
                     : isShopping
                       ? 'Shopping Product Ads'
-                      : 'Responsive search ads'}
+                      : isVideo
+                        ? 'Video ads'
+                        : 'Responsive search ads'}
               </h2>
               <p className="mt-1 text-xs text-slate-500">
                 {isDisplay
@@ -391,12 +402,15 @@ export default function GoogleAdGroupDetails({
                     ? 'Video creative for YouTube and Demand Gen inventory.'
                     : isShopping
                       ? 'Product ads generated from the linked Merchant Center inventory.'
-                      : 'Headlines, descriptions, final URLs, and delivery status.'}
+                      : isVideo
+                        ? 'Synced Video ads are available for reporting; mutations remain in Google Ads.'
+                        : 'Headlines, descriptions, final URLs, and delivery status.'}
               </p>
             </div>
             <div className="flex gap-2">
               {can(PERMISSIONS.ADS_MODIFY) && <button className="secondary-button inline-flex items-center gap-2" disabled={syncing} onClick={() => void syncAds()}><FiRefreshCw />{syncing ? 'Syncing…' : 'Sync ads'}</button>}
-              {can(PERMISSIONS.ADS_CREATE) &&
+              {!isVideo &&
+                can(PERMISSIONS.ADS_CREATE) &&
                 (isShopping ? (
                   <button
                     className="primary-button inline-flex items-center gap-2"
@@ -427,9 +441,11 @@ export default function GoogleAdGroupDetails({
                       ? 'Demand Gen Video Ad'
                       : isShopping
                         ? 'Shopping Product Ad'
-                        : 'Responsive Search Ad'} · {ad.externalAdId}
+                        : isVideo
+                          ? 'Video Ad'
+                          : 'Responsive Search Ad'} · {ad.externalAdId}
                 </p></div>
-                <div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{ad.providerStatus ?? ad.status}</span>{can(PERMISSIONS.ADS_MODIFY) && <button className="secondary-button" disabled={workingId !== null} onClick={() => void setAdStatus(ad, ad.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}>{ad.status === 'ACTIVE' ? 'Pause' : 'Enable'}</button>}</div>
+                <div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{ad.providerStatus ?? ad.status}</span>{!isVideo && can(PERMISSIONS.ADS_MODIFY) && <button className="secondary-button" disabled={workingId !== null} onClick={() => void setAdStatus(ad, ad.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}>{ad.status === 'ACTIVE' ? 'Pause' : 'Enable'}</button>}</div>
               </div>)}
             </div>
           )}
