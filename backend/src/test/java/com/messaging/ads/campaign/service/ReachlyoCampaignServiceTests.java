@@ -14,6 +14,7 @@ import com.messaging.ads.campaign.entity.BudgetPlan;
 import com.messaging.ads.campaign.entity.CampaignChannel;
 import com.messaging.ads.campaign.entity.ReachlyoCampaign;
 import com.messaging.ads.campaign.enums.BudgetAllocationMode;
+import com.messaging.ads.campaign.enums.BudgetPeriod;
 import com.messaging.ads.campaign.enums.CampaignBusinessGoal;
 import com.messaging.ads.campaign.enums.CampaignChannelType;
 import com.messaging.ads.campaign.enums.ReachlyoCampaignObjective;
@@ -187,7 +188,7 @@ class ReachlyoCampaignServiceTests {
         .thenReturn(List.of());
 
     service.upsertBudget(
-        COMPANY_ID, 77L, new UpsertBudgetPlanRequest(10_000L, BudgetAllocationMode.AUTOMATIC));
+        COMPANY_ID, 77L, new UpsertBudgetPlanRequest(10_000L, BudgetPeriod.TOTAL, BudgetAllocationMode.AUTOMATIC));
 
     assertThat(channel.getBudgetAllocationMinor()).isNull();
     assertThat(channel.getAllocationPercent()).isNull();

@@ -60,6 +60,7 @@ create table campaign_budget_plans (
   company_id bigint not null,
   reachlyo_campaign_id bigint not null,
   total_budget_minor bigint not null,
+  budget_period varchar(16) not null,
   allocation_mode varchar(24) not null,
   version bigint not null default 0,
   created_at timestamp(6) with time zone not null,

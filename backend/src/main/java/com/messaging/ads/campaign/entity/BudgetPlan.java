@@ -1,6 +1,7 @@
 package com.messaging.ads.campaign.entity;
 
 import com.messaging.ads.campaign.enums.BudgetAllocationMode;
+import com.messaging.ads.campaign.enums.BudgetPeriod;
 import com.messaging.common.id.IdGenerator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -46,6 +47,10 @@ public class BudgetPlan {
 
   @Column(name = "total_budget_minor", nullable = false)
   private Long totalBudgetMinor;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "budget_period", nullable = false, length = 16)
+  private BudgetPeriod budgetPeriod;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "allocation_mode", nullable = false, length = 24)

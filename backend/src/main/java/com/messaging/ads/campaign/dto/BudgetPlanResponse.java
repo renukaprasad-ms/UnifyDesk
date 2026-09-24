@@ -2,6 +2,7 @@ package com.messaging.ads.campaign.dto;
 
 import com.messaging.ads.campaign.entity.BudgetPlan;
 import com.messaging.ads.campaign.enums.BudgetAllocationMode;
+import com.messaging.ads.campaign.enums.BudgetPeriod;
 import java.time.Instant;
 
 public record BudgetPlanResponse(
@@ -9,6 +10,7 @@ public record BudgetPlanResponse(
     String campaignId,
     String currency,
     Long totalBudgetMinor,
+    BudgetPeriod budgetPeriod,
     BudgetAllocationMode allocationMode,
     Instant createdAt,
     Instant updatedAt) {
@@ -19,6 +21,7 @@ public record BudgetPlanResponse(
         plan.getReachlyoCampaignId().toString(),
         currency,
         plan.getTotalBudgetMinor(),
+        plan.getBudgetPeriod(),
         plan.getAllocationMode(),
         plan.getCreatedAt(),
         plan.getUpdatedAt());

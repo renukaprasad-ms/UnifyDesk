@@ -1,6 +1,5 @@
 export type AdProvider = 'GOOGLE_ADS' | 'META_ADS'
 
-
 export type ReachlyoCampaignObjective =
   | 'SALES'
   | 'LEADS'
@@ -61,12 +60,14 @@ export type ProviderDeploymentStatus =
   | 'ARCHIVED'
 
 export type BudgetAllocationMode = 'AUTOMATIC' | 'PERCENTAGE' | 'FIXED'
+export type BudgetPeriod = 'DAILY' | 'TOTAL'
 
 export type ReachlyoBudgetPlan = {
   id: string
   campaignId: string
   currency: string
   totalBudgetMinor: number
+  budgetPeriod: BudgetPeriod
   allocationMode: BudgetAllocationMode
   createdAt: string
   updatedAt: string
@@ -154,6 +155,7 @@ export type UpdateReachlyoCampaignChannelInput = {
 
 export type UpsertReachlyoBudgetPlanInput = {
   totalBudgetMinor: number
+  budgetPeriod: BudgetPeriod
   allocationMode: BudgetAllocationMode
 }
 

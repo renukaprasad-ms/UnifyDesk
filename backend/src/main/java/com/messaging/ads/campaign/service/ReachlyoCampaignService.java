@@ -214,6 +214,7 @@ public class ReachlyoCampaignService {
       plan.setReachlyoCampaignId(campaignId);
     }
     plan.setTotalBudgetMinor(request.totalBudgetMinor());
+    plan.setBudgetPeriod(request.budgetPeriod());
     plan.setAllocationMode(request.allocationMode());
     budgetPlanRepository.save(plan);
     channelRepository.saveAll(channels);

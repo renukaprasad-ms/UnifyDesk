@@ -123,8 +123,6 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-
-
   async reachlyoCampaigns(companyId: string, page = 0, size = 50) {
     const response = await apiClient.get<ApiResponse<PageResponse<ReachlyoCampaignSummary>>>(
       `/api/v1/companies/${companyId}/ads/reachlyo-campaigns`,
