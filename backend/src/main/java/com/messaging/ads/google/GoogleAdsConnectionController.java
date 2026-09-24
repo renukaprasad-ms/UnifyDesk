@@ -9,6 +9,7 @@ import com.messaging.ads.dto.AdKeywordResponse;
 import com.messaging.ads.dto.AdResponse;
 import com.messaging.ads.dto.AdSetResponse;
 import com.messaging.ads.google.dto.CreateGoogleAdGroupRequest;
+import com.messaging.ads.google.dto.CreateGoogleAdvancedCampaignRequest;
 import com.messaging.ads.google.dto.CreateGoogleAudienceRequest;
 import com.messaging.ads.google.dto.CreateGoogleCampaignRequest;
 import com.messaging.ads.google.dto.CreateGoogleConversionRequest;
@@ -62,6 +63,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsConnectionService connectionService;
   private final GoogleAdsCampaignSyncService campaignSyncService;
   private final GoogleAdsCampaignMutationService campaignMutationService;
+  private final GoogleAdsAdvancedCampaignService advancedCampaignService;
   private final GoogleAdsAdGroupSyncService adGroupSyncService;
   private final GoogleAdsAdGroupMutationService adGroupMutationService;
   private final GoogleAdsKeywordSyncService keywordSyncService;
@@ -172,6 +174,21 @@ public class GoogleAdsConnectionController {
             performanceMaxService.setAssetGroupStatus(
                 companyId, campaignId, assetGroupId, request.status(), userId),
             "Google Performance Max asset group status updated"));
+  }
+
+  @PostMapping("/accounts/{accountId}/advanced-campaigns")
+  public ResponseEntity<ApiResponse<AdCampaignResponse>> createAdvancedCampaign(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody CreateGoogleAdvancedCampaignRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                advancedCampaignService.create(
+                    companyId, accountId, request, userId),
+                "Google advanced campaign created in paused state"));
   }
 
   @PostMapping("/accounts/{accountId}/performance-max-campaigns")
