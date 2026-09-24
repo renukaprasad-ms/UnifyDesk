@@ -98,7 +98,7 @@ public class GoogleAdsInsightSyncService {
         "metrics.cost_micros, metrics.impressions, metrics.clicks, "
             + "metrics.ctr, metrics.average_cpc, metrics.average_cpm, "
             + "metrics.conversions, metrics.conversions_value, "
-            + "metrics.engagements, metrics.video_views ");
+            + "metrics.engagements, metrics.video_trueview_views ");
 
     return select
         + "FROM "
