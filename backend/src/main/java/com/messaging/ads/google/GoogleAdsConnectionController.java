@@ -16,6 +16,9 @@ import com.messaging.ads.google.dto.CreateGoogleConversionRequest;
 import com.messaging.ads.google.dto.CreateGoogleKeywordRequest;
 import com.messaging.ads.google.dto.CreateGooglePerformanceMaxCampaignRequest;
 import com.messaging.ads.google.dto.CreateGoogleResponsiveSearchAdRequest;
+import com.messaging.ads.google.dto.CreateGoogleResponsiveDisplayAdRequest;
+import com.messaging.ads.google.dto.CreateGoogleDemandGenVideoAdRequest;
+import com.messaging.ads.google.dto.CreateGoogleShoppingProductAdRequest;
 import com.messaging.ads.google.dto.GoogleAdGroupStatusRequest;
 import com.messaging.ads.google.dto.GoogleAdGroupSyncResponse;
 import com.messaging.ads.google.dto.GoogleAdStatusRequest;
@@ -70,6 +73,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsKeywordMutationService keywordMutationService;
   private final GoogleAdsAdSyncService adSyncService;
   private final GoogleAdsAdMutationService adMutationService;
+  private final GoogleAdsVisualAdService visualAdService;
   private final GoogleAdsAudienceSyncService audienceSyncService;
   private final GoogleAdsAudienceMutationService audienceMutationService;
   private final GoogleAdsConversionSyncService conversionSyncService;
@@ -370,6 +374,51 @@ public class GoogleAdsConnectionController {
                 201,
                 adMutationService.create(companyId, adGroupId, request, userId),
                 "Google responsive search ad created in paused state"));
+  }
+
+  @PostMapping("/ad-groups/{adGroupId}/display-ads")
+  public ResponseEntity<ApiResponse<AdResponse>> createResponsiveDisplayAd(
+      @PathVariable Long companyId,
+      @PathVariable Long adGroupId,
+      @Valid @RequestBody CreateGoogleResponsiveDisplayAdRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                visualAdService.createResponsiveDisplay(
+                    companyId, adGroupId, request, userId),
+                "Google responsive display ad created in paused state"));
+  }
+
+  @PostMapping("/ad-groups/{adGroupId}/demand-gen-video-ads")
+  public ResponseEntity<ApiResponse<AdResponse>> createDemandGenVideoAd(
+      @PathVariable Long companyId,
+      @PathVariable Long adGroupId,
+      @Valid @RequestBody CreateGoogleDemandGenVideoAdRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                visualAdService.createDemandGenVideo(
+                    companyId, adGroupId, request, userId),
+                "Google Demand Gen video ad created in paused state"));
+  }
+
+  @PostMapping("/ad-groups/{adGroupId}/shopping-product-ads")
+  public ResponseEntity<ApiResponse<AdResponse>> createShoppingProductAd(
+      @PathVariable Long companyId,
+      @PathVariable Long adGroupId,
+      @RequestBody CreateGoogleShoppingProductAdRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                visualAdService.createShoppingProductAd(
+                    companyId, adGroupId, request, userId),
+                "Google Shopping product ad created in paused state"));
   }
 
   @PatchMapping("/ads/{adId}")
