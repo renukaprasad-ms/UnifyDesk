@@ -11,6 +11,9 @@ import com.messaging.ads.service.AdActivityLogService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,6 +24,9 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class GoogleAdsCampaignMutationService {
+
+  private static final DateTimeFormatter GOOGLE_DATE_TIME =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
   private final GoogleAdsAccountContextService contextService;
   private final GoogleAdsApiClient apiClient;
@@ -83,11 +89,14 @@ public class GoogleAdsCampaignMutationService {
             "targetContentNetwork", false,
             "targetPartnerSearchNetwork", false));
     applyBidStrategy(campaign, request.bidStrategy());
+    campaign.put(
+        "containsEuPoliticalAdvertising",
+        politicalAdvertisingStatus(request.containsEuPoliticalAdvertising()));
     if (request.startDate() != null) {
-      campaign.put("startDate", request.startDate().toString());
+      campaign.put("startDateTime", startDateTime(request.startDate()));
     }
     if (request.endDate() != null) {
-      campaign.put("endDate", request.endDate().toString());
+      campaign.put("endDateTime", endDateTime(request.endDate()));
     }
 
     JsonNode campaignResponse =
@@ -170,12 +179,12 @@ public class GoogleAdsCampaignMutationService {
       masks.add("name");
     }
     if (request.startDate() != null) {
-      updates.put("startDate", request.startDate().toString());
-      masks.add("start_date");
+      updates.put("startDateTime", startDateTime(request.startDate()));
+      masks.add("start_date_time");
     }
     if (request.endDate() != null) {
-      updates.put("endDate", request.endDate().toString());
-      masks.add("end_date");
+      updates.put("endDateTime", endDateTime(request.endDate()));
+      masks.add("end_date_time");
     }
     if (request.bidStrategy() != null) {
       String strategyMask = applyBidStrategy(updates, request.bidStrategy());
@@ -314,6 +323,24 @@ public class GoogleAdsCampaignMutationService {
           "Google campaign status must be ENABLED/ACTIVE or PAUSED");
     }
     return status;
+  }
+
+  private String politicalAdvertisingStatus(Boolean containsEuPoliticalAdvertising) {
+    if (containsEuPoliticalAdvertising == null) {
+      throw new BadRequestException(
+          "Choose whether this campaign contains EU political advertising");
+    }
+    return containsEuPoliticalAdvertising
+        ? "CONTAINS_EU_POLITICAL_ADVERTISING"
+        : "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING";
+  }
+
+  private String startDateTime(LocalDate date) {
+    return LocalDateTime.of(date, LocalTime.MIDNIGHT).format(GOOGLE_DATE_TIME);
+  }
+
+  private String endDateTime(LocalDate date) {
+    return LocalDateTime.of(date, LocalTime.of(23, 59, 59)).format(GOOGLE_DATE_TIME);
   }
 
   private void validateSchedule(LocalDate start, LocalDate end) {

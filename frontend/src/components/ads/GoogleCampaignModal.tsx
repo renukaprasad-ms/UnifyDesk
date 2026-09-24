@@ -35,6 +35,8 @@ export default function GoogleCampaignModal({
   const [budget, setBudget] = useState('')
   const [bidStrategy, setBidStrategy] =
     useState<CreateGoogleCampaignInput['bidStrategy']>('MANUAL_CPC')
+  const [containsEuPoliticalAdvertising, setContainsEuPoliticalAdvertising] =
+    useState<'YES' | 'NO' | ''>('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
@@ -43,11 +45,12 @@ export default function GoogleCampaignModal({
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     const dailyBudgetMinor = toMinor(budget, account.currency)
-    if (dailyBudgetMinor == null) return
+    if (dailyBudgetMinor == null || !containsEuPoliticalAdvertising) return
     await onCreate({
       name: name.trim(),
       dailyBudgetMinor,
       bidStrategy,
+      containsEuPoliticalAdvertising: containsEuPoliticalAdvertising === 'YES',
       startDate: startDate || null,
       endDate: endDate || null,
     })
@@ -91,6 +94,27 @@ export default function GoogleCampaignModal({
               </select>
             </label>
 
+            <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
+              EU political advertising
+              <select
+                className="form-input mt-2"
+                value={containsEuPoliticalAdvertising}
+                required
+                onChange={(event) =>
+                  setContainsEuPoliticalAdvertising(
+                    event.target.value as 'YES' | 'NO' | '',
+                  )
+                }
+              >
+                <option value="">Select an answer</option>
+                <option value="NO">No, this campaign does not contain EU political advertising</option>
+                <option value="YES">Yes, this campaign contains EU political advertising</option>
+              </select>
+              <span className="mt-1 block font-normal text-slate-400">
+                Google requires an explicit declaration for every new campaign.
+              </span>
+            </label>
+
             <label className="block text-xs font-semibold text-slate-700">
               Start date
               <input className="form-input mt-2" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
@@ -108,7 +132,7 @@ export default function GoogleCampaignModal({
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
             <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>Cancel</button>
-            <button type="submit" className="primary-button" disabled={saving || !name.trim() || !budget}>
+            <button type="submit" className="primary-button" disabled={saving || !name.trim() || !budget || !containsEuPoliticalAdvertising}>
               {saving ? 'Creating…' : 'Create paused campaign'}
             </button>
           </div>

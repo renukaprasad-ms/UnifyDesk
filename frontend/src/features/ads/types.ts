@@ -156,6 +156,7 @@ export type CreateGoogleCampaignInput = {
   name: string
   dailyBudgetMinor: number
   bidStrategy?: 'MANUAL_CPC' | 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
+  containsEuPoliticalAdvertising: boolean
   startDate?: string | null
   endDate?: string | null
 }
@@ -172,7 +173,7 @@ export type CreateGoogleAdvancedCampaignInput = {
   merchantId?: string | null
   campaignPriority?: number | null
   enableLocal?: boolean | null
-  containsEuPoliticalAdvertising?: boolean
+  containsEuPoliticalAdvertising: boolean
   startDate?: string | null
   endDate?: string | null
 }
@@ -192,6 +193,7 @@ export type CreateGooglePerformanceMaxCampaignInput = {
   landscapeLogoImageBase64?: string | null
   youtubeVideoIds?: string[]
   bidStrategy?: 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
+  containsEuPoliticalAdvertising: boolean
   startDate?: string | null
   endDate?: string | null
 }

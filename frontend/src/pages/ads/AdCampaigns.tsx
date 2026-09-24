@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FiPlay, FiPlus, FiRefreshCw, FiPause } from 'react-icons/fi'
 import { Link, useSearchParams } from 'react-router'
+import AdFeedbackAlert from '../../components/ads/AdFeedbackAlert'
 import MetaCampaignModal from '../../components/ads/MetaCampaignModal'
 import GoogleCampaignModal from '../../components/ads/GoogleCampaignModal'
 import GoogleAdvancedCampaignModal from '../../components/ads/GoogleAdvancedCampaignModal'
@@ -382,17 +383,7 @@ export default function AdCampaigns() {
           </div>
         </header>
 
-        {(error || notice) && (
-          <div
-            className={`mt-6 rounded-xl border px-4 py-3 text-sm font-medium ${
-              error
-                ? 'border-red-200 bg-red-50 text-red-700'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-            }`}
-          >
-            {error || notice}
-          </div>
-        )}
+        <AdFeedbackAlert error={error} notice={notice} />
 
         <div className="mt-6 flex flex-wrap items-end gap-3">
           <label className="min-w-[260px] text-xs font-semibold text-slate-700">

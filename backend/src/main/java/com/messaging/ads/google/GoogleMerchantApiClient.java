@@ -1,36 +1,43 @@
 package com.messaging.ads.google;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.exception.BadRequestException;
 import java.util.Map;
 import java.util.function.Supplier;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+@Slf4j
 @Component
 public class GoogleMerchantApiClient {
+
+  private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
   private final RestClient client = RestClient.create("https://merchantapi.googleapis.com");
 
   public JsonNode listAccounts(String accessToken, String pageToken) {
     return execute(
         () ->
-            client
-                .get()
-                .uri(
-                    builder -> {
-                      builder.path("/accounts/v1/accounts").queryParam("pageSize", 500);
-                      if (pageToken != null && !pageToken.isBlank()) {
-                        builder.queryParam("pageToken", pageToken);
-                      }
-                      return builder.build();
-                    })
-                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
-                .retrieve()
-                .body(JsonNode.class),
+            parseJson(
+                client
+                    .get()
+                    .uri(
+                        builder -> {
+                          builder.path("/accounts/v1/accounts").queryParam("pageSize", 500);
+                          if (pageToken != null && !pageToken.isBlank()) {
+                            builder.queryParam("pageToken", pageToken);
+                          }
+                          return builder.build();
+                        })
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .retrieve()
+                    .body(String.class)),
         "Unable to list Google Merchant Center accounts");
   }
 
@@ -38,21 +45,22 @@ public class GoogleMerchantApiClient {
       String accessToken, String merchantId, String pageToken) {
     return execute(
         () ->
-            client
-                .get()
-                .uri(
-                    builder -> {
-                      builder
-                          .path("/datasources/v1/accounts/{merchantId}/dataSources")
-                          .queryParam("pageSize", 1000);
-                      if (pageToken != null && !pageToken.isBlank()) {
-                        builder.queryParam("pageToken", pageToken);
-                      }
-                      return builder.build(merchantId);
-                    })
-                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
-                .retrieve()
-                .body(JsonNode.class),
+            parseJson(
+                client
+                    .get()
+                    .uri(
+                        builder -> {
+                          builder
+                              .path("/datasources/v1/accounts/{merchantId}/dataSources")
+                              .queryParam("pageSize", 1000);
+                          if (pageToken != null && !pageToken.isBlank()) {
+                            builder.queryParam("pageToken", pageToken);
+                          }
+                          return builder.build(merchantId);
+                        })
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .retrieve()
+                    .body(String.class)),
         "Unable to list Merchant Center data sources");
   }
 
@@ -60,14 +68,15 @@ public class GoogleMerchantApiClient {
       String accessToken, String merchantId, Map<String, Object> body) {
     return execute(
         () ->
-            client
-                .post()
-                .uri("/datasources/v1/accounts/{merchantId}/dataSources", merchantId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(body)
-                .retrieve()
-                .body(JsonNode.class),
+            parseJson(
+                client
+                    .post()
+                    .uri("/datasources/v1/accounts/{merchantId}/dataSources", merchantId)
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(String.class)),
         "Unable to create Merchant Center data source");
   }
 
@@ -91,21 +100,22 @@ public class GoogleMerchantApiClient {
       String accessToken, String merchantId, String pageToken, int pageSize) {
     return execute(
         () ->
-            client
-                .get()
-                .uri(
-                    builder -> {
-                      builder
-                          .path("/products/v1/accounts/{merchantId}/products")
-                          .queryParam("pageSize", Math.max(1, Math.min(pageSize, 250)));
-                      if (pageToken != null && !pageToken.isBlank()) {
-                        builder.queryParam("pageToken", pageToken);
-                      }
-                      return builder.build(merchantId);
-                    })
-                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
-                .retrieve()
-                .body(JsonNode.class),
+            parseJson(
+                client
+                    .get()
+                    .uri(
+                        builder -> {
+                          builder
+                              .path("/products/v1/accounts/{merchantId}/products")
+                              .queryParam("pageSize", Math.max(1, Math.min(pageSize, 250)));
+                          if (pageToken != null && !pageToken.isBlank()) {
+                            builder.queryParam("pageToken", pageToken);
+                          }
+                          return builder.build(merchantId);
+                        })
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .retrieve()
+                    .body(String.class)),
         "Unable to list Merchant Center products");
   }
 
@@ -116,20 +126,21 @@ public class GoogleMerchantApiClient {
       Map<String, Object> body) {
     return execute(
         () ->
-            client
-                .post()
-                .uri(
-                    builder ->
-                        builder
-                            .path(
-                                "/products/v1/accounts/{merchantId}/productInputs:insert")
-                            .queryParam("dataSource", dataSource)
-                            .build(merchantId))
-                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(body)
-                .retrieve()
-                .body(JsonNode.class),
+            parseJson(
+                client
+                    .post()
+                    .uri(
+                        builder ->
+                            builder
+                                .path(
+                                    "/products/v1/accounts/{merchantId}/productInputs:insert")
+                                .queryParam("dataSource", dataSource)
+                                .build(merchantId))
+                    .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(String.class)),
         "Unable to upload Merchant Center product");
   }
 
@@ -153,6 +164,15 @@ public class GoogleMerchantApiClient {
                 .retrieve()
                 .toBodilessEntity(),
         "Unable to delete Merchant Center product input");
+  }
+
+  private JsonNode parseJson(String body) {
+    if (body == null || body.isBlank()) return null;
+    try {
+      return JSON_MAPPER.readTree(body);
+    } catch (JsonProcessingException exception) {
+      throw new BadRequestException("Unable to parse Google Merchant API JSON response");
+    }
   }
 
   private String bearer(String accessToken) {
@@ -188,16 +208,17 @@ public class GoogleMerchantApiClient {
   private BadRequestException providerError(
       RestClientResponseException exception, String fallbackMessage) {
     String providerMessage = exception.getResponseBodyAsString();
-    if (providerMessage != null && providerMessage.length() > 900) {
-      providerMessage = providerMessage.substring(0, 900);
-    }
-    return new BadRequestException(
-        fallbackMessage
-            + " (HTTP "
-            + exception.getStatusCode().value()
-            + ")"
-            + (providerMessage == null || providerMessage.isBlank()
-                ? ""
-                : ": " + providerMessage));
+    log.warn(
+        "google_merchant_provider_error operation={} status={} response={}",
+        fallbackMessage,
+        exception.getStatusCode().value(),
+        truncateForLog(providerMessage));
+    return new BadRequestException(GoogleApiErrorMapper.merchant(exception, fallbackMessage));
+  }
+
+  private String truncateForLog(String value) {
+    if (value == null || value.isBlank()) return "<empty>";
+    String normalized = value.replaceAll("\\s+", " ").trim();
+    return normalized.length() > 2000 ? normalized.substring(0, 2000) + "..." : normalized;
   }
 }

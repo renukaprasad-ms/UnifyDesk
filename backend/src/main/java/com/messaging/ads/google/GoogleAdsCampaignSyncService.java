@@ -43,7 +43,7 @@ public class GoogleAdsCampaignSyncService {
     String query =
         "SELECT campaign.id, campaign.name, campaign.status, campaign.primary_status, "
             + "campaign.advertising_channel_type, campaign.advertising_channel_sub_type, "
-            + "campaign.bidding_strategy_type, campaign.start_date, campaign.end_date, "
+            + "campaign.bidding_strategy_type, campaign.start_date_time, campaign.end_date_time, "
             + "campaign.campaign_budget, campaign_budget.resource_name, "
             + "campaign_budget.amount_micros "
             + "FROM campaign";

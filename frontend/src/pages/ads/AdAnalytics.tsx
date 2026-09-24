@@ -7,6 +7,7 @@ import {
   FiTrendingUp,
 } from 'react-icons/fi'
 import { Link } from 'react-router'
+import AdFeedbackAlert from '../../components/ads/AdFeedbackAlert'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -776,17 +777,7 @@ export default function AdAnalytics() {
           )}
         </header>
 
-        {(error || notice) && (
-          <div
-            className={`mt-6 rounded-xl border px-4 py-3 text-sm font-medium ${
-              error
-                ? 'border-red-200 bg-red-50 text-red-700'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-            }`}
-          >
-            {error || notice}
-          </div>
-        )}
+        <AdFeedbackAlert error={error} notice={notice} />
 
         <div className="panel mt-6 p-5">
           <div className="grid gap-4 lg:grid-cols-[minmax(220px,1fr)_auto_auto] lg:items-end">

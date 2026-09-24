@@ -28,6 +28,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class GoogleAdsPerformanceMaxService {
 
+  private static final DateTimeFormatter GOOGLE_DATE_TIME =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
   private static final int MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
   private final GoogleAdsAccountContextService contextService;
@@ -77,8 +80,15 @@ public class GoogleAdsPerformanceMaxService {
     campaign.put("campaignBudget", budgetResource);
     campaign.put("brandGuidelinesEnabled", false);
     applyBidStrategy(campaign, request.bidStrategy());
-    if (request.startDate() != null) campaign.put("startDate", request.startDate().toString());
-    if (request.endDate() != null) campaign.put("endDate", request.endDate().toString());
+    campaign.put(
+        "containsEuPoliticalAdvertising",
+        politicalAdvertisingStatus(request.containsEuPoliticalAdvertising()));
+    if (request.startDate() != null) {
+      campaign.put("startDateTime", startDateTime(request.startDate()));
+    }
+    if (request.endDate() != null) {
+      campaign.put("endDateTime", endDateTime(request.endDate()));
+    }
     operations.add(operation("campaignOperation", campaign));
 
     List<AssetLink> assets = new ArrayList<>();
@@ -424,6 +434,24 @@ public class GoogleAdsPerformanceMaxService {
     if (value == null || !value.trim().matches("[A-Za-z0-9_-]{6,32}")) {
       throw new BadRequestException("A valid YouTube video ID is required");
     }
+  }
+
+  private String politicalAdvertisingStatus(Boolean containsEuPoliticalAdvertising) {
+    if (containsEuPoliticalAdvertising == null) {
+      throw new BadRequestException(
+          "Choose whether this campaign contains EU political advertising");
+    }
+    return containsEuPoliticalAdvertising
+        ? "CONTAINS_EU_POLITICAL_ADVERTISING"
+        : "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING";
+  }
+
+  private String startDateTime(LocalDate date) {
+    return LocalDateTime.of(date, LocalTime.MIDNIGHT).format(GOOGLE_DATE_TIME);
+  }
+
+  private String endDateTime(LocalDate date) {
+    return LocalDateTime.of(date, LocalTime.of(23, 59, 59)).format(GOOGLE_DATE_TIME);
   }
 
   private void validate(CreateGooglePerformanceMaxCampaignRequest request) {

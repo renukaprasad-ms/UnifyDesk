@@ -56,6 +56,8 @@ export default function GooglePerformanceMaxCampaignModal({
     useState<CreateGooglePerformanceMaxCampaignInput['bidStrategy']>(
       'MAXIMIZE_CONVERSIONS',
     )
+  const [containsEuPoliticalAdvertising, setContainsEuPoliticalAdvertising] =
+    useState<'YES' | 'NO' | ''>('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [landscapeImage, setLandscapeImage] = useState('')
@@ -78,7 +80,8 @@ export default function GooglePerformanceMaxCampaignModal({
           descriptions.every((value) => value.trim()) &&
           landscapeImage &&
           squareImage &&
-          logoImage,
+          logoImage &&
+          containsEuPoliticalAdvertising,
       ),
     [
       name,
@@ -91,6 +94,7 @@ export default function GooglePerformanceMaxCampaignModal({
       landscapeImage,
       squareImage,
       logoImage,
+      containsEuPoliticalAdvertising,
     ],
   )
 
@@ -144,6 +148,7 @@ export default function GooglePerformanceMaxCampaignModal({
         .map((value) => value.trim())
         .filter(Boolean),
       bidStrategy,
+      containsEuPoliticalAdvertising: containsEuPoliticalAdvertising === 'YES',
       startDate: startDate || null,
       endDate: endDate || null,
     })
@@ -424,6 +429,27 @@ export default function GooglePerformanceMaxCampaignModal({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
+              EU political advertising
+              <select
+                className="form-input mt-2"
+                value={containsEuPoliticalAdvertising}
+                required
+                onChange={(event) =>
+                  setContainsEuPoliticalAdvertising(
+                    event.target.value as 'YES' | 'NO' | '',
+                  )
+                }
+              >
+                <option value="">Select an answer</option>
+                <option value="NO">No, this campaign does not contain EU political advertising</option>
+                <option value="YES">Yes, this campaign contains EU political advertising</option>
+              </select>
+              <span className="mt-1 block font-normal text-slate-400">
+                Google requires an explicit declaration for every new campaign.
+              </span>
+            </label>
+
             <label className="block text-xs font-semibold text-slate-700">
               Start date
               <input

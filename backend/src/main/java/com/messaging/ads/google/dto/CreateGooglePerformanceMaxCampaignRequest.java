@@ -21,5 +21,6 @@ public record CreateGooglePerformanceMaxCampaignRequest(
     String landscapeLogoImageBase64,
     List<String> youtubeVideoIds,
     String bidStrategy,
+    @NotNull Boolean containsEuPoliticalAdvertising,
     LocalDate startDate,
     LocalDate endDate) {}
