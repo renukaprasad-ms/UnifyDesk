@@ -411,6 +411,7 @@ export default function AdCampaignDetails() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {can(PERMISSIONS.ADS_MODIFY) &&
+                  campaign.objective !== 'VIDEO' &&
                   (campaign.status === 'ACTIVE' ? (
                     <button
                       type="button"
@@ -498,6 +499,15 @@ export default function AdCampaignDetails() {
               </div>
             </div>
 
+            {campaign.provider === 'GOOGLE_ADS' &&
+              campaign.objective === 'VIDEO' && (
+                <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+                  Google Ads API exposes standalone Video campaigns for sync and reporting only.
+                  Create or modify standalone Video campaigns in Google Ads. For programmatic
+                  YouTube/video creation inside Reachlyo, use Demand Gen.
+                </div>
+              )}
+
             <form className="panel mt-5 p-6" onSubmit={save}>
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -515,7 +525,7 @@ export default function AdCampaignDetails() {
                   <input
                     className="form-input mt-2"
                     value={name}
-                    disabled={!editing}
+                    disabled={!editing || campaign.objective === 'VIDEO'}
                     maxLength={255}
                     onChange={(event) => setName(event.target.value)}
                   />
@@ -526,7 +536,7 @@ export default function AdCampaignDetails() {
                   <select
                     className="form-input mt-2"
                     value={bidStrategy}
-                    disabled={!editing}
+                    disabled={!editing || campaign.objective === 'VIDEO'}
                     onChange={(event) => setBidStrategy(event.target.value)}
                   >
                     {campaign.provider === 'GOOGLE_ADS' ? (
@@ -577,7 +587,7 @@ export default function AdCampaignDetails() {
                     min="0.01"
                     step="0.01"
                     value={budget}
-                    disabled={!editing}
+                    disabled={!editing || campaign.objective === 'VIDEO'}
                     onChange={(event) => setBudget(event.target.value)}
                     placeholder={
                       campaign.dailyBudgetMinor == null && campaign.lifetimeBudgetMinor == null
