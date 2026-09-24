@@ -51,6 +51,7 @@ type ExternalSnackbarRequest = {
 const externalSnackbarListeners = new Set<
   (request: ExternalSnackbarRequest) => void
 >()
+const pendingExternalSnackbars: ExternalSnackbarRequest[] = []
 
 export const showGlobalSnackbar = (
   message: string,
@@ -58,9 +59,17 @@ export const showGlobalSnackbar = (
 ) => {
   const normalized = message.trim()
   if (!normalized) return
-  externalSnackbarListeners.forEach((listener) =>
-    listener({ message: normalized, options }),
-  )
+
+  const request = { message: normalized, options }
+  if (externalSnackbarListeners.size === 0) {
+    pendingExternalSnackbars.push(request)
+    if (pendingExternalSnackbars.length > 3) {
+      pendingExternalSnackbars.splice(0, pendingExternalSnackbars.length - 3)
+    }
+    return
+  }
+
+  externalSnackbarListeners.forEach((listener) => listener(request))
 }
 
 const durationFor = (variant: SnackbarVariant) => {
@@ -176,7 +185,20 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
         duration,
       }
 
-      setItems((current) => [...current.slice(-2), item])
+      setItems((current) => {
+        const next = [...current, item]
+        if (next.length <= 3) return next
+
+        const removed = next.slice(0, next.length - 3)
+        removed.forEach((removedItem) => {
+          const timer = timers.current.get(removedItem.id)
+          if (timer !== undefined) {
+            window.clearTimeout(timer)
+            timers.current.delete(removedItem.id)
+          }
+        })
+        return next.slice(-3)
+      })
 
       if (duration > 0) {
         const timer = window.setTimeout(() => dismiss(id), duration)
@@ -198,6 +220,7 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
       show(message, options)
     }
     externalSnackbarListeners.add(listener)
+    pendingExternalSnackbars.splice(0).forEach(listener)
     return () => {
       externalSnackbarListeners.delete(listener)
     }
