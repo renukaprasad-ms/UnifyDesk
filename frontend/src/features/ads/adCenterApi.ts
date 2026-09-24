@@ -46,6 +46,9 @@ import type {
   CreateGoogleKeywordInput,
   UpdateGoogleKeywordInput,
   CreateGoogleResponsiveSearchAdInput,
+  CreateGoogleResponsiveDisplayAdInput,
+  CreateGoogleDemandGenVideoAdInput,
+  CreateGoogleShoppingProductAdInput,
   UpdateGoogleResponsiveSearchAdInput,
   CreateGoogleAudienceInput,
   CreateGoogleConversionInput,
@@ -907,6 +910,42 @@ export const adCenterApi = {
   async syncGoogleAds(companyId: string, adGroupId: string) {
     const response = await apiClient.post<ApiResponse<GoogleAdSync>>(
       `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/ads/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleResponsiveDisplayAd(
+    companyId: string,
+    adGroupId: string,
+    input: CreateGoogleResponsiveDisplayAdInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<Ad>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/display-ads`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleDemandGenVideoAd(
+    companyId: string,
+    adGroupId: string,
+    input: CreateGoogleDemandGenVideoAdInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<Ad>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/demand-gen-video-ads`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleShoppingProductAd(
+    companyId: string,
+    adGroupId: string,
+    input: CreateGoogleShoppingProductAdInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<Ad>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/shopping-product-ads`,
+      input,
     )
     return unwrap(response.data)
   },
