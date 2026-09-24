@@ -297,6 +297,33 @@ public class GoogleAdsApiClient {
     return null;
   }
 
+  public JsonNode customerAction(
+      String accessToken,
+      String customerId,
+      String loginCustomerId,
+      String actionPath,
+      Map<String, Object> body) {
+    if (actionPath == null || actionPath.isBlank()) {
+      throw new BadRequestException("Google Ads customer action path is required");
+    }
+
+    return execute(
+        () -> {
+          RestClient.RequestBodySpec request =
+              adsClient
+                  .post()
+                  .uri(
+                      "/{version}/customers/{customerId}/{actionPath}",
+                      properties.getApiVersion().trim(),
+                      normalizeCustomerId(customerId),
+                      actionPath)
+                  .contentType(MediaType.APPLICATION_JSON);
+          addAdsHeaders(request, accessToken, loginCustomerId);
+          return request.body(body == null ? Map.of() : body).retrieve().body(JsonNode.class);
+        },
+        "Google Ads customer action failed for " + actionPath);
+  }
+
   public String firstMutatedResourceName(JsonNode response) {
     if (response == null) return null;
     JsonNode results = response.path("results");
