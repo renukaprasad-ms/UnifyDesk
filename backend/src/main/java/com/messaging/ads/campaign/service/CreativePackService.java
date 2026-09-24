@@ -136,8 +136,8 @@ public class CreativePackService {
     variant.setCampaignChannelId(request.campaignChannelId());
     variant.setProvider(request.variantType().provider());
     variant.setVariantType(request.variantType());
-    variant.setOrigin(request.origin());
-    variant.setStatus(request.status());
+    variant.setOrigin(com.messaging.ads.campaign.enums.CreativeVariantOrigin.USER);
+    variant.setStatus(com.messaging.ads.campaign.enums.CreativeVariantStatus.DRAFT);
     variant.setName(request.name().trim());
     variant.setPlacement(normalizeText(request.placement()));
     variant.setPrimaryText(normalizeText(request.primaryText()));
@@ -166,8 +166,6 @@ public class CreativePackService {
     validateChannel(companyId, campaignId, request.campaignChannelId(), variant.getProvider());
 
     if (request.campaignChannelId() != null) variant.setCampaignChannelId(request.campaignChannelId());
-    if (request.origin() != null) variant.setOrigin(request.origin());
-    if (request.status() != null) variant.setStatus(request.status());
     if (request.name() != null) {
       if (request.name().isBlank()) throw new BadRequestException("Creative variant name cannot be blank");
       variant.setName(request.name().trim());

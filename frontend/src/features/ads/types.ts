@@ -245,8 +245,6 @@ export type UpdateReachlyoCreativePackInput = Partial<CreateReachlyoCreativePack
 export type CreateReachlyoCreativeVariantInput = {
   variantType: CreativeVariantType
   campaignChannelId?: string | null
-  origin?: CreativeVariantOrigin
-  status?: CreativeVariantStatus
   name: string
   placement?: string | null
   primaryText?: string | null

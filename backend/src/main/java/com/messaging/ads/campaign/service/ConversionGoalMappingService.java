@@ -103,7 +103,7 @@ public class ConversionGoalMappingService {
       mapping.setProviderEventName(eventName);
     }
 
-    mapping.setValidated(true);
+    mapping.setValidated(request.targetType() == ConversionTargetType.PROVIDER_CONVERSION);
     mappingRepository.save(mapping);
     return ConversionGoalMappingResponse.from(mapping);
   }

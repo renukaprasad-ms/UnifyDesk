@@ -137,7 +137,7 @@ create table conversion_goal_mappings (
   constraint fk_conversion_goal_mappings_company foreign key (company_id) references companies (id) on delete cascade,
   constraint fk_conversion_goal_mappings_campaign foreign key (reachlyo_campaign_id) references reachlyo_campaigns (id) on delete cascade,
   constraint fk_conversion_goal_mappings_account foreign key (ad_account_id) references ad_accounts (id),
-  constraint fk_conversion_goal_mappings_conversion foreign key (ad_conversion_id) references ad_conversions (id) on delete set null,
+  constraint fk_conversion_goal_mappings_conversion foreign key (ad_conversion_id) references ad_conversions (id) on delete cascade,
   constraint ck_conversion_goal_target check (
     (target_type = 'PROVIDER_CONVERSION' and ad_conversion_id is not null)
     or (target_type = 'STANDARD_EVENT' and provider_event_name is not null)

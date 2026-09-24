@@ -1,18 +1,15 @@
 package com.messaging.ads.campaign.dto;
 
-import com.messaging.ads.campaign.enums.CreativeVariantOrigin;
-import com.messaging.ads.campaign.enums.CreativeVariantStatus;
 import com.messaging.ads.campaign.enums.CreativeVariantType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record CreateCreativeVariantRequest(
     @NotNull CreativeVariantType variantType,
-    Long campaignChannelId,
-    CreativeVariantOrigin origin,
-    CreativeVariantStatus status,
+    @Positive Long campaignChannelId,
     @NotBlank @Size(max = 255) String name,
     @Size(max = 120) String placement,
     String primaryText,
