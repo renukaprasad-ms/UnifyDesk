@@ -33,6 +33,9 @@ import com.messaging.ads.google.dto.GoogleInsightBreakdownsSyncResponse;
 import com.messaging.ads.google.dto.GoogleKeywordSyncResponse;
 import com.messaging.ads.google.dto.GoogleFullSyncResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupResponse;
+import com.messaging.ads.google.dto.GoogleAssetGroupAssetResponse;
+import com.messaging.ads.google.dto.GoogleAssetGroupAssetMutationRequest;
+import com.messaging.ads.google.dto.GoogleAssetGroupAssetRemoveRequest;
 import com.messaging.ads.google.dto.GoogleAssetGroupStatusRequest;
 import com.messaging.ads.google.dto.GoogleAssetGroupSignalResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupSignalsRequest;
@@ -85,6 +88,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsFullSyncService fullSyncService;
   private final GoogleAdsPerformanceMaxService performanceMaxService;
   private final GoogleAdsAssetGroupSignalService assetGroupSignalService;
+  private final GoogleAdsAssetGroupAssetService assetGroupAssetService;
   private final GoogleDataManagerService dataManagerService;
   private final GoogleAdsNativeRecommendationService nativeRecommendationService;
   private final CompanyAuthorizationService authorizationService;
@@ -135,6 +139,49 @@ public class GoogleAdsConnectionController {
             200,
             performanceMaxService.assetGroups(companyId, campaignId),
             "Google Performance Max asset groups fetched"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/asset-groups/{assetGroupId}/assets")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleAssetGroupAssetResponse>>> assetGroupAssets(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @PathVariable String assetGroupId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            assetGroupAssetService.list(companyId, campaignId, assetGroupId),
+            "Google Performance Max Asset Group assets fetched"));
+  }
+
+  @PostMapping("/campaigns/{campaignId}/asset-groups/{assetGroupId}/assets")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleAssetGroupAssetResponse>>> addAssetGroupAsset(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @PathVariable String assetGroupId,
+      @Valid @RequestBody GoogleAssetGroupAssetMutationRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            assetGroupAssetService.add(
+                companyId, campaignId, assetGroupId, request, userId),
+            "Google Performance Max Asset Group asset added"));
+  }
+
+  @PostMapping("/campaigns/{campaignId}/asset-groups/{assetGroupId}/assets:remove")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleAssetGroupAssetResponse>>> removeAssetGroupAsset(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @PathVariable String assetGroupId,
+      @Valid @RequestBody GoogleAssetGroupAssetRemoveRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            assetGroupAssetService.remove(
+                companyId, campaignId, assetGroupId, request, userId),
+            "Google Performance Max Asset Group asset removed"));
   }
 
   @GetMapping("/campaigns/{campaignId}/asset-groups/{assetGroupId}/signals")
