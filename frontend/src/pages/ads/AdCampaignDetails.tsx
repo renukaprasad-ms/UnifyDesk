@@ -432,7 +432,9 @@ export default function AdCampaignDetails() {
                       {statusWorking ? 'Updating…' : 'Start campaign'}
                     </button>
                   ))}
-                {!editing && can(PERMISSIONS.ADS_MODIFY) && (
+                {!editing &&
+                  campaign.objective !== 'VIDEO' &&
+                  can(PERMISSIONS.ADS_MODIFY) && (
                   <button
                     type="button"
                     className="secondary-button inline-flex items-center gap-2"
@@ -444,6 +446,14 @@ export default function AdCampaignDetails() {
                 )}
               </div>
             </header>
+
+            {campaign.objective === 'VIDEO' && (
+              <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+                Google Ads API exposes Video campaigns for synchronization and reporting only.
+                Campaign, ad group, and ad mutations remain managed in Google Ads. Demand Gen is
+                available when API-managed YouTube/video delivery is required.
+              </div>
+            )}
 
             {(error || notice) && (
               <div
@@ -659,6 +669,7 @@ export default function AdCampaignDetails() {
                   )}
                   {can(PERMISSIONS.ADS_CREATE) &&
                     account &&
+                    campaign.objective !== 'VIDEO' &&
                     !(
                       campaign.provider === 'GOOGLE_ADS' &&
                       campaign.objective === 'PERFORMANCE_MAX'
@@ -790,7 +801,8 @@ export default function AdCampaignDetails() {
                               {adSet.effectiveStatus}
                             </span>
                           )}
-                        {can(PERMISSIONS.ADS_MODIFY) &&
+                        {campaign.objective !== 'VIDEO' &&
+                          can(PERMISSIONS.ADS_MODIFY) &&
                           (adSet.status === 'ACTIVE' ? (
                             <button
                               type="button"
