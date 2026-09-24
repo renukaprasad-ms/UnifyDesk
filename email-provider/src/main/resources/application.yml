@@ -70,7 +70,9 @@ app:
     enabled: ${EMAIL_PROVIDER_DELIVERY_ENABLED:false}
     max-recipients-per-message: ${EMAIL_PROVIDER_MAX_RECIPIENTS:100}
     max-body-bytes: ${EMAIL_PROVIDER_MAX_BODY_BYTES:5242880}
+    processing-stale-after-seconds: ${EMAIL_PROVIDER_PROCESSING_STALE_AFTER_SECONDS:300}
     retry:
+      poll-interval-ms: ${EMAIL_PROVIDER_RETRY_POLL_INTERVAL_MS:1000}
       max-attempts: ${EMAIL_PROVIDER_DELIVERY_MAX_ATTEMPTS:8}
       initial-seconds: ${EMAIL_PROVIDER_RETRY_INITIAL_SECONDS:60}
       max-seconds: ${EMAIL_PROVIDER_RETRY_MAX_SECONDS:3600}
