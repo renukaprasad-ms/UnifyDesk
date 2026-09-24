@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FiPlus, FiRefreshCw, FiUsers } from 'react-icons/fi'
+import { FiPlus, FiRefreshCw, FiUploadCloud, FiUsers } from 'react-icons/fi'
 import MetaAudienceModal from '../../components/ads/MetaAudienceModal'
 import GoogleAudienceModal from '../../components/ads/GoogleAudienceModal'
+import GoogleCustomerMatchUploadModal from '../../components/ads/GoogleCustomerMatchUploadModal'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -9,6 +10,7 @@ import type {
   AdAudience,
   CreateMetaAudienceInput,
   CreateGoogleAudienceInput,
+  GoogleCustomerMatchUploadInput,
 } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -52,6 +54,8 @@ export default function AdAudiences() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [uploadingMembers, setUploadingMembers] = useState(false)
+  const [uploadAudience, setUploadAudience] = useState<AdAudience | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -174,6 +178,39 @@ export default function AdAudiences() {
     }
   }
 
+  const uploadGoogleMembers = async (
+    input: GoogleCustomerMatchUploadInput,
+  ) => {
+    if (!selectedCompany || !uploadAudience) return
+    setUploadingMembers(true)
+    setError('')
+    setNotice('')
+    try {
+      const result = await adCenterApi.uploadGoogleCustomerMatchMembers(
+        selectedCompany.companyId,
+        uploadAudience.id,
+        input,
+      )
+      setUploadAudience(null)
+      setNotice(
+        result.validateOnly
+          ? `Validated ${result.submittedCount} Customer Match member(s).`
+          : `Submitted ${result.submittedCount} Customer Match member(s) to Google Data Manager.`,
+      )
+      if (result.warnings.length > 0) {
+        setNotice(
+          `${result.validateOnly ? 'Validation' : 'Upload'} completed with ${result.warnings.length} warning(s).`,
+        )
+      }
+    } catch (uploadError) {
+      setError(
+        apiErrorMessage(uploadError, 'Unable to upload Google Customer Match members'),
+      )
+    } finally {
+      setUploadingMembers(false)
+    }
+  }
+
   if (!selectedCompany) return null
 
   return (
@@ -276,6 +313,9 @@ export default function AdAudiences() {
                     <th className="px-5 py-3">Estimated size</th>
                     <th className="px-5 py-3">Delivery</th>
                     <th className="px-5 py-3">Retention</th>
+                    {selectedAccount?.provider === 'GOOGLE_ADS' && (
+                      <th className="px-5 py-3 text-right">Action</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -309,6 +349,20 @@ export default function AdAudiences() {
                           ? `${audience.retentionDays} days`
                           : '—'}
                       </td>
+                      {selectedAccount?.provider === 'GOOGLE_ADS' && (
+                        <td className="px-5 py-4 text-right">
+                          {can(PERMISSIONS.ADS_MODIFY) && audience.accessible && (
+                            <button
+                              type="button"
+                              className="secondary-button inline-flex items-center gap-2 text-xs"
+                              onClick={() => setUploadAudience(audience)}
+                            >
+                              <FiUploadCloud aria-hidden="true" />
+                              Upload members
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -330,6 +384,18 @@ export default function AdAudiences() {
                     </span>
                   </div>
                   <p className="mt-3 text-xs text-slate-500">{countLabel(audience)}</p>
+                  {selectedAccount?.provider === 'GOOGLE_ADS' &&
+                    can(PERMISSIONS.ADS_MODIFY) &&
+                    audience.accessible && (
+                      <button
+                        type="button"
+                        className="secondary-button mt-4 inline-flex items-center gap-2 text-xs"
+                        onClick={() => setUploadAudience(audience)}
+                      >
+                        <FiUploadCloud aria-hidden="true" />
+                        Upload members
+                      </button>
+                    )}
                 </div>
               ))}
             </div>
@@ -347,6 +413,14 @@ export default function AdAudiences() {
           onCreate={createMeta}
         />
       )}
+      <GoogleCustomerMatchUploadModal
+        audience={uploadAudience}
+        open={uploadAudience !== null}
+        saving={uploadingMembers}
+        onClose={() => setUploadAudience(null)}
+        onUpload={uploadGoogleMembers}
+      />
+
       {selectedAccount?.provider === 'GOOGLE_ADS' && (
         <GoogleAudienceModal
           open={modalOpen}
