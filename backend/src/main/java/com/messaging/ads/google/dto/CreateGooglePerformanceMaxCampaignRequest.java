@@ -21,6 +21,6 @@ public record CreateGooglePerformanceMaxCampaignRequest(
     String landscapeLogoImageBase64,
     List<String> youtubeVideoIds,
     String bidStrategy,
-    @NotNull Boolean containsEuPoliticalAdvertising,
+    @NotNull(message = "Choose whether this campaign contains EU political advertising") Boolean containsEuPoliticalAdvertising,
     LocalDate startDate,
     LocalDate endDate) {}
