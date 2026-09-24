@@ -6,12 +6,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.exception.BadRequestException;
 import java.util.Map;
 import java.util.function.Supplier;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+@Slf4j
 @Component
 public class GoogleMerchantApiClient {
 
@@ -206,16 +208,17 @@ public class GoogleMerchantApiClient {
   private BadRequestException providerError(
       RestClientResponseException exception, String fallbackMessage) {
     String providerMessage = exception.getResponseBodyAsString();
-    if (providerMessage != null && providerMessage.length() > 900) {
-      providerMessage = providerMessage.substring(0, 900);
-    }
-    return new BadRequestException(
-        fallbackMessage
-            + " (HTTP "
-            + exception.getStatusCode().value()
-            + ")"
-            + (providerMessage == null || providerMessage.isBlank()
-                ? ""
-                : ": " + providerMessage));
+    log.warn(
+        "google_merchant_provider_error operation={} status={} response={}",
+        fallbackMessage,
+        exception.getStatusCode().value(),
+        truncateForLog(providerMessage));
+    return new BadRequestException(GoogleApiErrorMapper.merchant(exception, fallbackMessage));
+  }
+
+  private String truncateForLog(String value) {
+    if (value == null || value.isBlank()) return "<empty>";
+    String normalized = value.replaceAll("\\s+", " ").trim();
+    return normalized.length() > 2000 ? normalized.substring(0, 2000) + "..." : normalized;
   }
 }
