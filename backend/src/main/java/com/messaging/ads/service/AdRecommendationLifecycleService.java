@@ -55,7 +55,6 @@ public class AdRecommendationLifecycleService {
         accountRepository.findByCompanyIdOrderByProviderAscNameAsc(companyId).stream()
             .filter(AdAccount::isAccessible)
             .filter(AdAccount::isManaged)
-            .filter(account -> account.getProvider() == AdProvider.META_ADS)
             .toList();
 
     int critical = 0;
@@ -449,10 +448,6 @@ public class AdRecommendationLifecycleService {
         accountRepository
             .findByIdAndCompanyId(accountId, companyId)
             .orElseThrow(() -> new NotFoundException("Ad account not found"));
-    if (account.getProvider() != AdProvider.META_ADS) {
-      throw new BadRequestException(
-          "Recommendations are not implemented for this advertising provider yet");
-    }
     return account;
   }
 }

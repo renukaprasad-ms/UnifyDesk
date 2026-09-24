@@ -9,5 +9,6 @@ public enum AdCapability {
   ANALYTICS,
   BILLING_READ,
   BILLING_WRITE,
+  PRODUCT_CATALOG,
   RECOMMENDATIONS
 }

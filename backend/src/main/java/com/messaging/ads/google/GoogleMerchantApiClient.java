@@ -1,0 +1,203 @@
+package com.messaging.ads.google;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.messaging.common.exception.BadRequestException;
+import java.util.Map;
+import java.util.function.Supplier;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
+
+@Component
+public class GoogleMerchantApiClient {
+
+  private final RestClient client = RestClient.create("https://merchantapi.googleapis.com");
+
+  public JsonNode listAccounts(String accessToken, String pageToken) {
+    return execute(
+        () ->
+            client
+                .get()
+                .uri(
+                    builder -> {
+                      builder.path("/accounts/v1/accounts").queryParam("pageSize", 500);
+                      if (pageToken != null && !pageToken.isBlank()) {
+                        builder.queryParam("pageToken", pageToken);
+                      }
+                      return builder.build();
+                    })
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(JsonNode.class),
+        "Unable to list Google Merchant Center accounts");
+  }
+
+  public JsonNode listDataSources(
+      String accessToken, String merchantId, String pageToken) {
+    return execute(
+        () ->
+            client
+                .get()
+                .uri(
+                    builder -> {
+                      builder
+                          .path("/datasources/v1/accounts/{merchantId}/dataSources")
+                          .queryParam("pageSize", 1000);
+                      if (pageToken != null && !pageToken.isBlank()) {
+                        builder.queryParam("pageToken", pageToken);
+                      }
+                      return builder.build(merchantId);
+                    })
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(JsonNode.class),
+        "Unable to list Merchant Center data sources");
+  }
+
+  public JsonNode createDataSource(
+      String accessToken, String merchantId, Map<String, Object> body) {
+    return execute(
+        () ->
+            client
+                .post()
+                .uri("/datasources/v1/accounts/{merchantId}/dataSources", merchantId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(JsonNode.class),
+        "Unable to create Merchant Center data source");
+  }
+
+  public void deleteDataSource(
+      String accessToken, String merchantId, String dataSourceId) {
+    executeVoid(
+        () ->
+            client
+                .delete()
+                .uri(
+                    "/datasources/v1/accounts/{merchantId}/dataSources/{dataSourceId}",
+                    merchantId,
+                    dataSourceId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .toBodilessEntity(),
+        "Unable to delete Merchant Center data source");
+  }
+
+  public JsonNode listProducts(
+      String accessToken, String merchantId, String pageToken, int pageSize) {
+    return execute(
+        () ->
+            client
+                .get()
+                .uri(
+                    builder -> {
+                      builder
+                          .path("/products/v1/accounts/{merchantId}/products")
+                          .queryParam("pageSize", Math.max(1, Math.min(pageSize, 250)));
+                      if (pageToken != null && !pageToken.isBlank()) {
+                        builder.queryParam("pageToken", pageToken);
+                      }
+                      return builder.build(merchantId);
+                    })
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(JsonNode.class),
+        "Unable to list Merchant Center products");
+  }
+
+  public JsonNode insertProductInput(
+      String accessToken,
+      String merchantId,
+      String dataSource,
+      Map<String, Object> body) {
+    return execute(
+        () ->
+            client
+                .post()
+                .uri(
+                    builder ->
+                        builder
+                            .path(
+                                "/products/v1/accounts/{merchantId}/productInputs:insert")
+                            .queryParam("dataSource", dataSource)
+                            .build(merchantId))
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(JsonNode.class),
+        "Unable to upload Merchant Center product");
+  }
+
+  public void deleteProductInput(
+      String accessToken,
+      String merchantId,
+      String encodedProductInputId,
+      String dataSource) {
+    executeVoid(
+        () ->
+            client
+                .delete()
+                .uri(
+                    builder ->
+                        builder
+                            .path(
+                                "/products/v1/accounts/{merchantId}/productInputs/{productInputId}")
+                            .queryParam("dataSource", dataSource)
+                            .build(merchantId, encodedProductInputId))
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .toBodilessEntity(),
+        "Unable to delete Merchant Center product input");
+  }
+
+  private String bearer(String accessToken) {
+    return "Bearer " + accessToken;
+  }
+
+  private <T> T execute(Supplier<T> operation, String fallbackMessage) {
+    try {
+      T result = operation.get();
+      if (result == null) {
+        throw new BadRequestException(fallbackMessage + ": empty response");
+      }
+      return result;
+    } catch (BadRequestException exception) {
+      throw exception;
+    } catch (RestClientResponseException exception) {
+      throw providerError(exception, fallbackMessage);
+    } catch (RuntimeException exception) {
+      throw new BadRequestException(fallbackMessage + ": " + exception.getMessage());
+    }
+  }
+
+  private void executeVoid(Runnable operation, String fallbackMessage) {
+    try {
+      operation.run();
+    } catch (RestClientResponseException exception) {
+      throw providerError(exception, fallbackMessage);
+    } catch (RuntimeException exception) {
+      throw new BadRequestException(fallbackMessage + ": " + exception.getMessage());
+    }
+  }
+
+  private BadRequestException providerError(
+      RestClientResponseException exception, String fallbackMessage) {
+    String providerMessage = exception.getResponseBodyAsString();
+    if (providerMessage != null && providerMessage.length() > 900) {
+      providerMessage = providerMessage.substring(0, 900);
+    }
+    return new BadRequestException(
+        fallbackMessage
+            + " (HTTP "
+            + exception.getStatusCode().value()
+            + ")"
+            + (providerMessage == null || providerMessage.isBlank()
+                ? ""
+                : ": " + providerMessage));
+  }
+}

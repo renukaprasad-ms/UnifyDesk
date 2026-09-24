@@ -120,7 +120,7 @@ function TrendChart({ points, currency }: { points: AdAnalyticsDailyPoint[]; cur
   if (points.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center text-sm text-slate-400">
-        Sync Meta analytics to populate the daily trend.
+        Sync advertising analytics to populate the daily trend.
       </div>
     )
   }
@@ -171,7 +171,7 @@ function TrendChart({ points, currency }: { points: AdAnalyticsDailyPoint[]; cur
       <div className="overflow-hidden rounded-xl border border-slate-100 bg-slate-50/60">
         <svg
           role="img"
-          aria-label="Daily Meta Ads spend and conversion trend"
+          aria-label="Daily advertising spend and conversion trend"
           viewBox={`0 0 ${width} ${height}`}
           className="h-64 w-full"
           preserveAspectRatio="none"
@@ -288,7 +288,7 @@ function BreakdownPanel({
             No {prettyDimension(type).toLowerCase()} data
           </h3>
           <p className="mt-2 text-sm text-slate-500">
-            Sync Meta analytics for this date range. Meta may not return every breakdown for every account or campaign mix.
+            Sync analytics for this date range. The selected provider may not return every breakdown for every account or campaign mix.
           </p>
         </div>
       ) : isActionBreakdown ? (
@@ -483,10 +483,7 @@ export default function AdAnalytics() {
 
   const managedAccounts = useMemo(
     () =>
-      accounts.filter(
-        (account) =>
-          account.provider === 'META_ADS' && account.managed && account.accessible,
-      ),
+      accounts.filter((account) => account.managed && account.accessible),
     [accounts],
   )
 
@@ -537,10 +534,7 @@ export default function AdAnalytics() {
     try {
       const accountData = await adCenterApi.accounts(selectedCompany.companyId)
       setAccounts(accountData)
-      const eligible = accountData.filter(
-        (account) =>
-          account.provider === 'META_ADS' && account.managed && account.accessible,
-      )
+      const eligible = accountData.filter((account) => account.managed && account.accessible)
       const preferred = eligible.find((account) => account.primaryAccount) ?? eligible[0]
       if (preferred) {
         setSelectedAccountId(preferred.id)
@@ -632,30 +626,57 @@ export default function AdAnalytics() {
     setError('')
     setNotice('')
     try {
-      const result = await adCenterApi.syncMetaInsights(
-        selectedCompany.companyId,
-        selectedAccount.id,
-        from,
-        to,
-      )
-      const breakdownResult = await adCenterApi.syncMetaInsightBreakdowns(
-        selectedCompany.companyId,
-        selectedAccount.id,
-        from,
-        to,
-      )
-      await Promise.all([
-        loadAnalytics(selectedAccount.id),
-        loadBreakdown(selectedAccount.id),
-      ])
-      const failed = breakdownResult.failedBreakdowns ?? []
-      setNotice(
-        failed.length === 0
-          ? `Synced Meta analytics: ${result.campaignRows} campaign, ${result.adSetRows} ad set, ${result.adRows} ad, plus all reporting breakdowns.`
-          : `Core analytics synchronized. Breakdown sync completed with ${failed.length} unavailable dimension(s): ${failed.join(', ')}.`,
-      )
+      if (selectedAccount.provider === 'GOOGLE_ADS') {
+        const [result, breakdownResult] = await Promise.all([
+          adCenterApi.syncGoogleInsights(
+            selectedCompany.companyId,
+            selectedAccount.id,
+            from,
+            to,
+          ),
+          adCenterApi.syncGoogleInsightBreakdowns(
+            selectedCompany.companyId,
+            selectedAccount.id,
+            from,
+            to,
+          ),
+        ])
+        await Promise.all([
+          loadAnalytics(selectedAccount.id),
+          loadBreakdown(selectedAccount.id),
+        ])
+        const failed = breakdownResult.failedBreakdowns ?? []
+        setNotice(
+          failed.length === 0
+            ? `Synced Google Ads analytics: ${result.campaignRows} campaign, ${result.adGroupRows} ad group, ${result.adRows} ad row(s), plus all supported reporting breakdowns.`
+            : `Google Ads core analytics synchronized. Breakdown sync completed with ${failed.length} unavailable dimension(s): ${failed.join(', ')}.`,
+        )
+      } else {
+        const result = await adCenterApi.syncMetaInsights(
+          selectedCompany.companyId,
+          selectedAccount.id,
+          from,
+          to,
+        )
+        const breakdownResult = await adCenterApi.syncMetaInsightBreakdowns(
+          selectedCompany.companyId,
+          selectedAccount.id,
+          from,
+          to,
+        )
+        await Promise.all([
+          loadAnalytics(selectedAccount.id),
+          loadBreakdown(selectedAccount.id),
+        ])
+        const failed = breakdownResult.failedBreakdowns ?? []
+        setNotice(
+          failed.length === 0
+            ? `Synced Meta analytics: ${result.campaignRows} campaign, ${result.adSetRows} ad set, ${result.adRows} ad, plus all reporting breakdowns.`
+            : `Core analytics synchronized. Breakdown sync completed with ${failed.length} unavailable dimension(s): ${failed.join(', ')}.`,
+        )
+      }
     } catch (syncError) {
-      setError(apiErrorMessage(syncError, 'Unable to synchronize Meta analytics'))
+      setError(apiErrorMessage(syncError, 'Unable to synchronize advertising analytics'))
     } finally {
       setSyncing(false)
     }
@@ -704,7 +725,7 @@ export default function AdAnalytics() {
     {
       label: 'Conversions',
       value: formatNumber(summary.conversions),
-      hint: 'Normalized Meta conversions',
+      hint: 'Normalized provider conversions',
     },
     {
       label: 'CPA',
@@ -719,12 +740,12 @@ export default function AdAnalytics() {
     {
       label: 'Leads',
       value: formatNumber(summary.leads),
-      hint: 'Meta attributed leads',
+      hint: 'Provider attributed leads',
     },
     {
       label: 'Purchases',
       value: formatNumber(summary.purchases),
-      hint: 'Meta attributed purchases',
+      hint: 'Provider attributed purchases',
     },
   ]
 
@@ -738,7 +759,7 @@ export default function AdAnalytics() {
               Analytics
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Meta Ads performance from account totals down to campaigns, ad sets, and ads.
+              Provider performance from account totals down to campaigns, delivery groups, and ads.
             </p>
           </div>
 
@@ -750,7 +771,7 @@ export default function AdAnalytics() {
               onClick={() => void sync()}
             >
               <FiRefreshCw aria-hidden="true" />
-              {syncing ? 'Syncing Meta…' : 'Sync Meta analytics'}
+              {syncing ? 'Syncing…' : `Sync ${selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google' : 'Meta'} analytics`}
             </button>
           )}
         </header>
@@ -770,7 +791,7 @@ export default function AdAnalytics() {
         <div className="panel mt-6 p-5">
           <div className="grid gap-4 lg:grid-cols-[minmax(220px,1fr)_auto_auto] lg:items-end">
             <label className="block text-xs font-semibold text-slate-700">
-              Meta ad account
+              Ad account
               <select
                 className="form-input mt-2"
                 value={selectedAccount?.id ?? ''}
@@ -778,7 +799,7 @@ export default function AdAnalytics() {
                 onChange={(event) => void chooseAccount(event.target.value)}
               >
                 {managedAccounts.length === 0 ? (
-                  <option value="">No managed Meta account</option>
+                  <option value="">No managed ad account</option>
                 ) : (
                   managedAccounts.map((account) => (
                     <option key={account.id} value={account.id}>
@@ -839,7 +860,7 @@ export default function AdAnalytics() {
             </span>
             {!analytics.exactRangeAvailable && selectedAccount && (
               <span className="rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-700">
-                Sync Meta for exact Reach and range totals
+                Sync provider for exact range totals
               </span>
             )}
           </div>
@@ -847,7 +868,7 @@ export default function AdAnalytics() {
 
         {managedAccounts.length === 0 ? (
           <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
-            Connect and manage a Meta ad account before using analytics.
+            Connect and manage an ad account before using analytics.
           </div>
         ) : loading ? (
           <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
@@ -910,7 +931,7 @@ export default function AdAnalytics() {
                     </h2>
                   </div>
                   <p className="mt-1 text-xs text-slate-500">
-                    Exact range totals returned by Meta for each object.
+                    Exact synchronized range totals for each provider object.
                   </p>
                 </div>
 
@@ -918,7 +939,7 @@ export default function AdAnalytics() {
                   {(
                     [
                       ['CAMPAIGN', 'Campaigns'],
-                      ['AD_SET', 'Ad sets'],
+                      ['AD_SET', selectedAccount?.provider === 'GOOGLE_ADS' ? 'Ad groups' : 'Ad sets'],
                       ['AD', 'Ads'],
                     ] as const
                   ).map(([value, label]) => (

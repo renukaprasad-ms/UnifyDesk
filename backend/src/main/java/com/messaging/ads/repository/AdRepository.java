@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AdRepository extends JpaRepository<Ad, Long> {
   List<Ad> findByCompanyIdAndAdSetIdOrderByProviderUpdatedAtDesc(Long companyId, Long adSetId);
+  List<Ad> findByCompanyIdAndAdAccountIdOrderByProviderUpdatedAtDesc(Long companyId, Long adAccountId);
   Optional<Ad> findByIdAndCompanyId(Long id, Long companyId);
   Optional<Ad> findByCompanyIdAndAdAccountIdAndProviderAndExternalAdId(
       Long companyId, Long adAccountId, AdProvider provider, String externalAdId);

@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { FiArrowLeft, FiEdit2, FiPause, FiPlay, FiPlus, FiRefreshCw, FiSave, FiX } from 'react-icons/fi'
 import { Link, useParams } from 'react-router'
 import MetaAdSetModal from '../../components/ads/MetaAdSetModal'
+import GoogleAdGroupModal from '../../components/ads/GoogleAdGroupModal'
+import GooglePerformanceMaxSignals from '../../components/ads/GooglePerformanceMaxSignals'
+import GooglePerformanceMaxAssets from '../../components/ads/GooglePerformanceMaxAssets'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -10,8 +13,11 @@ import type {
   AdCampaign,
   AdConversion,
   AdSet,
+  GoogleAssetGroup,
   CreateMetaAdSetInput,
+  CreateGoogleAdGroupInput,
   UpdateMetaCampaignInput,
+  UpdateGoogleCampaignInput,
 } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -68,6 +74,7 @@ export default function AdCampaignDetails() {
   const [campaign, setCampaign] = useState<AdCampaign | null>(null)
   const [accounts, setAccounts] = useState<AdAccount[]>([])
   const [adSets, setAdSets] = useState<AdSet[]>([])
+  const [assetGroups, setAssetGroups] = useState<GoogleAssetGroup[]>([])
   const [resources, setResources] = useState<AdAccountResource[]>([])
   const [audiences, setAudiences] = useState<AdAudience[]>([])
   const [conversions, setConversions] = useState<AdConversion[]>([])
@@ -77,6 +84,7 @@ export default function AdCampaignDetails() {
   const [syncingAdSets, setSyncingAdSets] = useState(false)
   const [creatingAdSet, setCreatingAdSet] = useState(false)
   const [workingAdSetId, setWorkingAdSetId] = useState<string | null>(null)
+  const [workingAssetGroupId, setWorkingAssetGroupId] = useState<string | null>(null)
   const [adSetModalOpen, setAdSetModalOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState('')
@@ -106,11 +114,23 @@ export default function AdCampaignDetails() {
     setLoading(true)
     setError('')
     try {
-      const [campaignData, accountData, adSetData] = await Promise.all([
+      const [campaignData, accountData] = await Promise.all([
         adCenterApi.campaign(selectedCompany.companyId, campaignId),
         adCenterApi.accounts(selectedCompany.companyId),
-        adCenterApi.adSets(selectedCompany.companyId, campaignId),
       ])
+      const isPerformanceMax =
+        campaignData.provider === 'GOOGLE_ADS' &&
+        campaignData.objective === 'PERFORMANCE_MAX'
+
+      const [adSetData, assetGroupData] = await Promise.all([
+        isPerformanceMax
+          ? Promise.resolve([])
+          : adCenterApi.adSets(selectedCompany.companyId, campaignId),
+        isPerformanceMax
+          ? adCenterApi.googleAssetGroups(selectedCompany.companyId, campaignId)
+          : Promise.resolve([]),
+      ])
+
       const accountValue =
         accountData.find((item) => item.id === campaignData.adAccountId) ?? null
       const [resourceData, audienceData, conversionData] = accountValue
@@ -123,6 +143,7 @@ export default function AdCampaignDetails() {
       setCampaign(campaignData)
       setAccounts(accountData)
       setAdSets(adSetData)
+      setAssetGroups(assetGroupData)
       setResources(resourceData)
       setAudiences(audienceData)
       setConversions(conversionData)
@@ -145,24 +166,33 @@ export default function AdCampaignDetails() {
     setError('')
     setNotice('')
 
-    const input: UpdateMetaCampaignInput = {
-      name: name.trim(),
-    }
-    if (bidStrategy) input.bidStrategy = bidStrategy
-
     const minor = toMinor(budget, account?.currency)
-    if (minor) {
-      if (campaign.lifetimeBudgetMinor != null) input.lifetimeBudgetMinor = minor
-      else if (campaign.dailyBudgetMinor != null) input.dailyBudgetMinor = minor
-      else input.dailyBudgetMinor = minor
-    }
 
     try {
-      const updated = await adCenterApi.updateMetaCampaign(
-        selectedCompany.companyId,
-        campaign.id,
-        input,
-      )
+      const updated =
+        campaign.provider === 'GOOGLE_ADS'
+          ? await adCenterApi.updateGoogleCampaign(
+              selectedCompany.companyId,
+              campaign.id,
+              {
+                name: name.trim(),
+                ...(bidStrategy ? { bidStrategy } : {}),
+                ...(minor ? { dailyBudgetMinor: minor } : {}),
+              } satisfies UpdateGoogleCampaignInput,
+            )
+          : await adCenterApi.updateMetaCampaign(
+              selectedCompany.companyId,
+              campaign.id,
+              {
+                name: name.trim(),
+                ...(bidStrategy ? { bidStrategy } : {}),
+                ...(minor
+                  ? campaign.lifetimeBudgetMinor != null
+                    ? { lifetimeBudgetMinor: minor }
+                    : { dailyBudgetMinor: minor }
+                  : {}),
+              } satisfies UpdateMetaCampaignInput,
+            )
       setCampaign(updated)
       syncForm(updated, account)
       setEditing(false)
@@ -175,7 +205,7 @@ export default function AdCampaignDetails() {
         // Meta accepted the campaign edit; lifecycle reconciliation is best effort.
       }
       window.dispatchEvent(new Event('ad-center:recommendations-changed'))
-      setNotice('Campaign settings updated in Meta.')
+      setNotice(`Campaign settings updated in ${campaign.provider === 'GOOGLE_ADS' ? 'Google Ads' : 'Meta'}.`)
     } catch (saveError) {
       setError(apiErrorMessage(saveError, 'Unable to update campaign'))
     } finally {
@@ -189,24 +219,72 @@ export default function AdCampaignDetails() {
     setError('')
     setNotice('')
     try {
-      const result = await adCenterApi.syncMetaAdSets(
-        selectedCompany.companyId,
-        campaign.id,
-      )
+      const isPerformanceMax =
+        campaign.provider === 'GOOGLE_ADS' &&
+        campaign.objective === 'PERFORMANCE_MAX'
+
+      if (isPerformanceMax) {
+        const groups = await adCenterApi.googleAssetGroups(
+          selectedCompany.companyId,
+          campaign.id,
+        )
+        setAssetGroups(groups)
+        setNotice(`Loaded ${groups.length} Performance Max asset group(s).`)
+        return
+      }
+
+      const result =
+        campaign.provider === 'GOOGLE_ADS'
+          ? await adCenterApi.syncGoogleAdGroups(selectedCompany.companyId, campaign.id)
+          : await adCenterApi.syncMetaAdSets(selectedCompany.companyId, campaign.id)
       const refreshed = await adCenterApi.adSets(
         selectedCompany.companyId,
         campaign.id,
       )
       setAdSets(refreshed)
-      setNotice(`Synchronized ${result.synchronizedCount} ad set(s) from Meta.`)
+      setNotice(`Synchronized ${result.synchronizedCount} ${campaign.provider === 'GOOGLE_ADS' ? 'ad group' : 'ad set'}(s).`)
     } catch (syncError) {
-      setError(apiErrorMessage(syncError, 'Unable to synchronize Meta ad sets'))
+      setError(apiErrorMessage(syncError, 'Unable to synchronize delivery groups'))
     } finally {
       setSyncingAdSets(false)
     }
   }
 
-  const createAdSet = async (input: CreateMetaAdSetInput) => {
+  const setAssetGroupStatus = async (
+    group: GoogleAssetGroup,
+    status: 'ACTIVE' | 'PAUSED',
+  ) => {
+    if (!selectedCompany || !campaign || !group.id) return
+
+    setWorkingAssetGroupId(group.id)
+    setError('')
+    setNotice('')
+    try {
+      const updated = await adCenterApi.setGoogleAssetGroupStatus(
+        selectedCompany.companyId,
+        campaign.id,
+        group.id,
+        status,
+      )
+      setAssetGroups((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      )
+      setNotice(
+        `${updated.name ?? 'Performance Max asset group'} is now ${status.toLowerCase()}.`,
+      )
+    } catch (statusError) {
+      setError(
+        apiErrorMessage(
+          statusError,
+          'Unable to update Performance Max asset group status',
+        ),
+      )
+    } finally {
+      setWorkingAssetGroupId(null)
+    }
+  }
+
+  const createMetaAdSet = async (input: CreateMetaAdSetInput) => {
     if (!selectedCompany || !campaign) return
     setCreatingAdSet(true)
     setError('')
@@ -217,14 +295,32 @@ export default function AdCampaignDetails() {
         campaign.id,
         input,
       )
-      setAdSets((current) => [
-        created,
-        ...current.filter((item) => item.id !== created.id),
-      ])
+      setAdSets((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setAdSetModalOpen(false)
       setNotice(`${created.name} was created in paused state.`)
     } catch (createError) {
       setError(apiErrorMessage(createError, 'Unable to create Meta ad set'))
+    } finally {
+      setCreatingAdSet(false)
+    }
+  }
+
+  const createGoogleAdGroup = async (input: CreateGoogleAdGroupInput) => {
+    if (!selectedCompany || !campaign) return
+    setCreatingAdSet(true)
+    setError('')
+    setNotice('')
+    try {
+      const created = await adCenterApi.createGoogleAdGroup(
+        selectedCompany.companyId,
+        campaign.id,
+        input,
+      )
+      setAdSets((current) => [created, ...current.filter((item) => item.id !== created.id)])
+      setAdSetModalOpen(false)
+      setNotice(`${created.name} was created in paused state.`)
+    } catch (createError) {
+      setError(apiErrorMessage(createError, 'Unable to create Google Ads ad group'))
     } finally {
       setCreatingAdSet(false)
     }
@@ -236,11 +332,10 @@ export default function AdCampaignDetails() {
     setError('')
     setNotice('')
     try {
-      const updated = await adCenterApi.setMetaAdSetStatus(
-        selectedCompany.companyId,
-        adSet.id,
-        status,
-      )
+      const updated =
+        adSet.provider === 'GOOGLE_ADS'
+          ? await adCenterApi.setGoogleAdGroupStatus(selectedCompany.companyId, adSet.id, status)
+          : await adCenterApi.setMetaAdSetStatus(selectedCompany.companyId, adSet.id, status)
       setAdSets((current) =>
         current.map((item) => (item.id === updated.id ? updated : item)),
       )
@@ -258,11 +353,10 @@ export default function AdCampaignDetails() {
     setError('')
     setNotice('')
     try {
-      const updated = await adCenterApi.setMetaCampaignStatus(
-        selectedCompany.companyId,
-        campaign.id,
-        status,
-      )
+      const updated =
+        campaign.provider === 'GOOGLE_ADS'
+          ? await adCenterApi.setGoogleCampaignStatus(selectedCompany.companyId, campaign.id, status)
+          : await adCenterApi.setMetaCampaignStatus(selectedCompany.companyId, campaign.id, status)
       setCampaign(updated)
       try {
         await adCenterApi.reconcileRecommendations(
@@ -308,17 +402,18 @@ export default function AdCampaignDetails() {
           <>
             <header className="mt-5 flex flex-wrap items-end justify-between gap-4">
               <div>
-                <p className="eyebrow">Meta campaign</p>
+                <p className="eyebrow">{campaign.provider === 'GOOGLE_ADS' ? 'Google Ads campaign' : 'Meta campaign'}</p>
                 <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
                   {campaign.name}
                 </h1>
                 <p className="mt-2 text-sm text-slate-500">
-                  {account?.name ?? 'Meta Ads'} · {campaign.externalCampaignId}
+                  {account?.name ?? (campaign.provider === 'GOOGLE_ADS' ? 'Google Ads' : 'Meta Ads')} · {campaign.externalCampaignId}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {can(PERMISSIONS.ADS_MODIFY) &&
-                  (campaign.providerStatus === 'ACTIVE' ? (
+                  campaign.objective !== 'VIDEO' &&
+                  (campaign.status === 'ACTIVE' ? (
                     <button
                       type="button"
                       className="secondary-button inline-flex items-center gap-2"
@@ -332,14 +427,16 @@ export default function AdCampaignDetails() {
                     <button
                       type="button"
                       className="primary-button inline-flex items-center gap-2"
-                      disabled={statusWorking || campaign.providerStatus === 'ARCHIVED'}
+                      disabled={statusWorking || campaign.status === 'ARCHIVED'}
                       onClick={() => void setStatus('ACTIVE')}
                     >
                       <FiPlay aria-hidden="true" />
                       {statusWorking ? 'Updating…' : 'Start campaign'}
                     </button>
                   ))}
-                {!editing && can(PERMISSIONS.ADS_MODIFY) && (
+                {!editing &&
+                  campaign.objective !== 'VIDEO' &&
+                  can(PERMISSIONS.ADS_MODIFY) && (
                   <button
                     type="button"
                     className="secondary-button inline-flex items-center gap-2"
@@ -351,6 +448,14 @@ export default function AdCampaignDetails() {
                 )}
               </div>
             </header>
+
+            {campaign.objective === 'VIDEO' && (
+              <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+                Google Ads API exposes Video campaigns for synchronization and reporting only.
+                Campaign, ad group, and ad mutations remain managed in Google Ads. Demand Gen is
+                available when API-managed YouTube/video delivery is required.
+              </div>
+            )}
 
             {(error || notice) && (
               <div
@@ -395,6 +500,15 @@ export default function AdCampaignDetails() {
               </div>
             </div>
 
+            {campaign.provider === 'GOOGLE_ADS' &&
+              campaign.objective === 'VIDEO' && (
+                <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+                  Google Ads API exposes standalone Video campaigns for sync and reporting only.
+                  Create or modify standalone Video campaigns in Google Ads. For programmatic
+                  YouTube/video creation inside Reachlyo, use Demand Gen.
+                </div>
+              )}
+
             <form className="panel mt-5 p-6" onSubmit={save}>
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -412,7 +526,7 @@ export default function AdCampaignDetails() {
                   <input
                     className="form-input mt-2"
                     value={name}
-                    disabled={!editing}
+                    disabled={!editing || campaign.objective === 'VIDEO'}
                     maxLength={255}
                     onChange={(event) => setName(event.target.value)}
                   />
@@ -423,13 +537,35 @@ export default function AdCampaignDetails() {
                   <select
                     className="form-input mt-2"
                     value={bidStrategy}
-                    disabled={!editing}
+                    disabled={!editing || campaign.objective === 'VIDEO'}
                     onChange={(event) => setBidStrategy(event.target.value)}
                   >
-                    <option value="">Meta default</option>
-                    <option value="LOWEST_COST_WITHOUT_CAP">Lowest cost</option>
-                    <option value="LOWEST_COST_WITH_BID_CAP">Bid cap</option>
-                    <option value="COST_CAP">Cost cap</option>
+                    {campaign.provider === 'GOOGLE_ADS' ? (
+                      campaign.objective === 'PERFORMANCE_MAX' ? (
+                        <>
+                          <option value="MAXIMIZE_CONVERSIONS">Maximize conversions</option>
+                          <option value="MAXIMIZE_CONVERSION_VALUE">
+                            Maximize conversion value
+                          </option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="MANUAL_CPC">Manual CPC</option>
+                          <option value="MAXIMIZE_CLICKS">Maximize clicks</option>
+                          <option value="MAXIMIZE_CONVERSIONS">Maximize conversions</option>
+                          <option value="MAXIMIZE_CONVERSION_VALUE">
+                            Maximize conversion value
+                          </option>
+                        </>
+                      )
+                    ) : (
+                      <>
+                        <option value="">Meta default</option>
+                        <option value="LOWEST_COST_WITHOUT_CAP">Lowest cost</option>
+                        <option value="LOWEST_COST_WITH_BID_CAP">Bid cap</option>
+                        <option value="COST_CAP">Cost cap</option>
+                      </>
+                    )}
                   </select>
                 </label>
 
@@ -452,7 +588,7 @@ export default function AdCampaignDetails() {
                     min="0.01"
                     step="0.01"
                     value={budget}
-                    disabled={!editing}
+                    disabled={!editing || campaign.objective === 'VIDEO'}
                     onChange={(event) => setBudget(event.target.value)}
                     placeholder={
                       campaign.dailyBudgetMinor == null && campaign.lifetimeBudgetMinor == null
@@ -471,7 +607,7 @@ export default function AdCampaignDetails() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-400">Meta last updated</p>
+                  <p className="text-xs font-semibold text-slate-400">Provider last updated</p>
                   <p className="mt-1 text-sm text-slate-700">
                     {campaign.providerUpdatedAt
                       ? new Date(campaign.providerUpdatedAt).toLocaleString()
@@ -501,7 +637,7 @@ export default function AdCampaignDetails() {
                     disabled={saving || !name.trim()}
                   >
                     <FiSave aria-hidden="true" />
-                    {saving ? 'Saving…' : 'Save to Meta'}
+                    {saving ? 'Saving…' : `Save to ${campaign.provider === 'GOOGLE_ADS' ? 'Google' : 'Meta'}`}
                   </button>
                 </div>
               )}
@@ -510,9 +646,19 @@ export default function AdCampaignDetails() {
             <div className="panel mt-5 overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
                 <div>
-                  <h2 className="text-base font-bold text-slate-950">Ad sets</h2>
+                  <h2 className="text-base font-bold text-slate-950">
+                    {campaign.provider === 'GOOGLE_ADS' &&
+                    campaign.objective === 'PERFORMANCE_MAX'
+                      ? 'Asset groups'
+                      : campaign.provider === 'GOOGLE_ADS'
+                        ? 'Ad groups'
+                        : 'Ad sets'}
+                  </h2>
                   <p className="mt-1 text-xs text-slate-500">
-                    Targeting, placements, schedule, bidding, budget, and conversion settings.
+                    {campaign.provider === 'GOOGLE_ADS' &&
+                    campaign.objective === 'PERFORMANCE_MAX'
+                      ? 'Creative assets, final URLs, ad strength, and delivery status for Performance Max.'
+                      : 'Targeting, placements, schedule, bidding, budget, and conversion settings.'}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -524,26 +670,120 @@ export default function AdCampaignDetails() {
                       onClick={() => void syncAdSets()}
                     >
                       <FiRefreshCw aria-hidden="true" />
-                      {syncingAdSets ? 'Syncing…' : 'Sync ad sets'}
+                      {syncingAdSets
+                        ? 'Syncing…'
+                        : campaign.provider === 'GOOGLE_ADS' &&
+                            campaign.objective === 'PERFORMANCE_MAX'
+                          ? 'Refresh asset groups'
+                          : `Sync ${campaign.provider === 'GOOGLE_ADS' ? 'ad groups' : 'ad sets'}`}
                     </button>
                   )}
-                  {can(PERMISSIONS.ADS_CREATE) && account && (
+                  {can(PERMISSIONS.ADS_CREATE) &&
+                    account &&
+                    campaign.objective !== 'VIDEO' &&
+                    !(
+                      campaign.provider === 'GOOGLE_ADS' &&
+                      campaign.objective === 'PERFORMANCE_MAX'
+                    ) && (
                     <button
                       type="button"
                       className="primary-button inline-flex items-center gap-2"
                       onClick={() => setAdSetModalOpen(true)}
                     >
                       <FiPlus aria-hidden="true" />
-                      Create ad set
+                      Create {campaign.provider === 'GOOGLE_ADS' ? 'ad group' : 'ad set'}
                     </button>
                   )}
                 </div>
               </div>
 
-              {adSets.length === 0 ? (
+              {campaign.provider === 'GOOGLE_ADS' &&
+              campaign.objective === 'PERFORMANCE_MAX' ? (
+                assetGroups.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-slate-500">
+                    No Performance Max asset groups were returned. Refresh after Google finishes
+                    processing the campaign assets.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {assetGroups.map((group) => (
+                      <div key={group.resourceName ?? group.id}>
+                        <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-950">
+                              {group.name ?? 'Performance Max asset group'}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Ad strength {displayValue(group.adStrength)}
+                            </p>
+                            <p className="mt-1 break-all text-xs text-slate-400">
+                              {group.finalUrls?.join(', ') || 'No final URL returned'}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                              {group.status ?? 'UNKNOWN'}
+                            </span>
+                            {group.primaryStatus &&
+                              group.primaryStatus !== group.status && (
+                                <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                                  {displayValue(group.primaryStatus)}
+                                </span>
+                              )}
+                            {can(PERMISSIONS.ADS_MODIFY) &&
+                              group.id &&
+                              (group.status === 'ENABLED' ? (
+                                <button
+                                  type="button"
+                                  className="secondary-button inline-flex items-center gap-2"
+                                  disabled={workingAssetGroupId !== null}
+                                  onClick={() => void setAssetGroupStatus(group, 'PAUSED')}
+                                >
+                                  <FiPause aria-hidden="true" />
+                                  Pause group
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="secondary-button inline-flex items-center gap-2"
+                                  disabled={workingAssetGroupId !== null}
+                                  onClick={() => void setAssetGroupStatus(group, 'ACTIVE')}
+                                >
+                                  <FiPlay aria-hidden="true" />
+                                  Start group
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+
+                        {group.id && account && (
+                          <GooglePerformanceMaxAssets
+                            companyId={selectedCompany.companyId}
+                            campaignId={campaign.id}
+                            accountId={account.id}
+                            assetGroup={group}
+                            canModify={can(PERMISSIONS.ADS_MODIFY)}
+                          />
+                        )}
+
+                        {group.id && (
+                          <GooglePerformanceMaxSignals
+                            companyId={selectedCompany.companyId}
+                            campaignId={campaign.id}
+                            assetGroup={group}
+                            audiences={audiences}
+                            canModify={can(PERMISSIONS.ADS_MODIFY)}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : adSets.length === 0 ? (
                 <div className="p-8 text-center text-sm text-slate-500">
-                  No ad sets are stored for this campaign yet. Sync Meta or create the first
-                  paused ad set.
+                  No {campaign.provider === 'GOOGLE_ADS' ? 'ad groups' : 'ad sets'} are stored
+                  for this campaign yet. Sync the provider or create the first paused{' '}
+                  {campaign.provider === 'GOOGLE_ADS' ? 'ad group' : 'ad set'}.
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
@@ -582,8 +822,9 @@ export default function AdCampaignDetails() {
                               {adSet.effectiveStatus}
                             </span>
                           )}
-                        {can(PERMISSIONS.ADS_MODIFY) &&
-                          (adSet.providerStatus === 'ACTIVE' ? (
+                        {campaign.objective !== 'VIDEO' &&
+                          can(PERMISSIONS.ADS_MODIFY) &&
+                          (adSet.status === 'ACTIVE' ? (
                             <button
                               type="button"
                               className="secondary-button inline-flex items-center gap-2"
@@ -599,7 +840,7 @@ export default function AdCampaignDetails() {
                               className="secondary-button inline-flex items-center gap-2"
                               disabled={
                                 workingAdSetId !== null ||
-                                adSet.providerStatus === 'ARCHIVED'
+                                adSet.status === 'ARCHIVED'
                               }
                               onClick={() => void setAdSetStatus(adSet, 'ACTIVE')}
                             >
@@ -614,7 +855,7 @@ export default function AdCampaignDetails() {
               )}
             </div>
 
-            {account && (
+            {account && campaign.provider === 'META_ADS' && (
               <MetaAdSetModal
                 account={account}
                 campaign={campaign}
@@ -624,7 +865,17 @@ export default function AdCampaignDetails() {
                 open={adSetModalOpen}
                 saving={creatingAdSet}
                 onClose={() => setAdSetModalOpen(false)}
-                onCreate={createAdSet}
+                onCreate={createMetaAdSet}
+              />
+            )}
+            {account && campaign.provider === 'GOOGLE_ADS' && (
+              <GoogleAdGroupModal
+                account={account}
+                campaign={campaign}
+                open={adSetModalOpen}
+                saving={creatingAdSet}
+                onClose={() => setAdSetModalOpen(false)}
+                onCreate={createGoogleAdGroup}
               />
             )}
           </>

@@ -104,33 +104,64 @@ export default function AdCenterOverview() {
 
   useEffect(() => {
     const url = new URL(window.location.href)
-    const result = url.searchParams.get('metaAds')
-    if (!result) return
+    const metaResult = url.searchParams.get('metaAds')
+    const googleResult = url.searchParams.get('googleAds')
 
-    if (result === 'connected') {
-      setNotice('Meta Ads connected. Select which discovered ad accounts this workspace may manage.')
-    } else if (result === 'cancelled') {
-      setNotice('Meta Ads connection was cancelled.')
-    } else {
-      setError('Unable to connect Meta Ads. Check the Meta app configuration and permissions.')
+    if (!metaResult && !googleResult) return
+
+    if (metaResult) {
+      if (metaResult === 'connected') {
+        setNotice(
+          'Meta Ads connected. Select which discovered ad accounts this workspace may manage.',
+        )
+      } else if (metaResult === 'cancelled') {
+        setNotice('Meta Ads connection was cancelled.')
+      } else {
+        setError('Unable to connect Meta Ads. Check the Meta app configuration and permissions.')
+      }
+      url.searchParams.delete('metaAds')
     }
 
-    url.searchParams.delete('metaAds')
+    if (googleResult) {
+      if (googleResult === 'connected') {
+        setNotice(
+          'Google Ads connected. Select which discovered advertiser accounts this workspace may manage.',
+        )
+      } else if (googleResult === 'cancelled') {
+        setNotice('Google Ads connection was cancelled.')
+      } else {
+        setError(
+          'Unable to connect Google Ads. Check the Google OAuth client and Google Ads API access for the Cloud project.',
+        )
+      }
+      url.searchParams.delete('googleAds')
+    }
+
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
     void load()
   }, [])
 
   const connect = async (provider: AdProviderInfo) => {
-    if (!selectedCompany || provider.provider !== 'META_ADS') return
+    if (!selectedCompany) return
 
     setConnectingProvider(provider.provider)
     setError('')
     setNotice('')
+
     try {
-      const authorization = await adCenterApi.authorizeMeta(selectedCompany.companyId)
+      const authorization =
+        provider.provider === 'META_ADS'
+          ? await adCenterApi.authorizeMeta(selectedCompany.companyId)
+          : await adCenterApi.authorizeGoogle(selectedCompany.companyId)
+
       window.location.assign(authorization.authorizationUrl)
     } catch (connectError) {
-      setError(apiErrorMessage(connectError, 'Unable to start Meta Ads connection'))
+      setError(
+        apiErrorMessage(
+          connectError,
+          `Unable to start ${provider.displayName} connection`,
+        ),
+      )
       setConnectingProvider(null)
     }
   }
@@ -190,6 +221,38 @@ export default function AdCenterOverview() {
     }
   }
 
+  const syncGoogleAccount = async (account: AdAccount) => {
+    if (
+      !selectedCompany ||
+      account.provider !== 'GOOGLE_ADS' ||
+      !account.managed ||
+      !account.accessible
+    ) {
+      return
+    }
+
+    setSyncingResourceAccountId(account.id)
+    setError('')
+    setNotice('')
+    try {
+      const result = await adCenterApi.syncGoogleAll(
+        selectedCompany.companyId,
+        account.id,
+      )
+      const failed = result.failedOperations ?? []
+      setNotice(
+        failed.length === 0
+          ? `Google Ads synchronized: ${result.campaigns} campaign(s), ${result.adGroups} ad group(s), ${result.keywords} keyword(s), ${result.ads} ad(s), ${result.conversions} conversion action(s).`
+          : `Google Ads core data synchronized with ${failed.length} unavailable operation(s): ${failed.join(', ')}.`,
+      )
+      window.dispatchEvent(new Event('ad-center:recommendations-changed'))
+    } catch (syncError) {
+      setError(apiErrorMessage(syncError, 'Unable to synchronize Google Ads account'))
+    } finally {
+      setSyncingResourceAccountId(null)
+    }
+  }
+
   const setManaged = async (account: AdAccount, managed: boolean) => {
     if (!selectedCompany) return
 
@@ -220,13 +283,25 @@ export default function AdCenterOverview() {
         setNotice(
           `${updated.name} is managed. Found ${result.pages} Facebook page(s), ${result.instagramAccounts} Instagram account(s), and ${result.pixels} pixel(s).`,
         )
-        window.dispatchEvent(new Event('ad-center:recommendations-changed'))
+      } else if (managed && updated.provider === 'GOOGLE_ADS') {
+        const result = await adCenterApi.syncGoogleAll(
+          selectedCompany.companyId,
+          updated.id,
+        )
+        const failed = result.failedOperations ?? []
+        setNotice(
+          failed.length === 0
+            ? `${updated.name} is managed and Google Ads data is synchronized.`
+            : `${updated.name} is managed. Initial Google sync completed with ${failed.length} unavailable operation(s): ${failed.join(', ')}.`,
+        )
+      } else if (managed) {
+        setNotice(`${updated.name} is now managed by Ad Center.`)
       } else {
         setNotice(
           `${updated.name} was removed from active Ad Center management.`,
         )
-        window.dispatchEvent(new Event('ad-center:recommendations-changed'))
       }
+      window.dispatchEvent(new Event('ad-center:recommendations-changed'))
     } catch (updateError) {
       setError(
         apiErrorMessage(
@@ -324,7 +399,7 @@ export default function AdCenterOverview() {
                     </h2>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
                       {recommendationSummary.attentionCount > 0
-                        ? `${recommendationSummary.criticalCount} critical and ${recommendationSummary.warningCount} warning item(s) across managed Meta accounts.`
+                        ? `${recommendationSummary.criticalCount} critical and ${recommendationSummary.warningCount} warning item(s) across managed ad accounts.`
                         : `${recommendationSummary.opportunityCount} optimization opportunity item(s) are currently available.`}
                     </p>
                   </div>
@@ -394,7 +469,7 @@ export default function AdCenterOverview() {
             const managedCount = accessibleAccounts.filter((account) => account.managed).length
             const isMeta = provider.provider === 'META_ADS'
             const connectable =
-              isMeta && provider.configured && can(PERMISSIONS.ADS_CONNECT)
+              provider.configured && can(PERMISSIONS.ADS_CONNECT)
 
             return (
               <article key={provider.provider} className="panel p-5">
@@ -437,17 +512,15 @@ export default function AdCenterOverview() {
                     className="secondary-button inline-flex items-center gap-2"
                     disabled={!connectable || connectingProvider !== null}
                     title={
-                      !isMeta
-                        ? 'Google Ads connection will be implemented after Meta Ads'
-                        : !provider.configured
-                          ? 'Configure the Meta Ads environment variables first'
-                          : undefined
+                      !provider.configured
+                        ? `Configure the ${provider.displayName} environment variables first`
+                        : undefined
                     }
                     onClick={() => void connect(provider)}
                   >
                     <FiExternalLink aria-hidden="true" />
                     {connectingProvider === provider.provider
-                      ? 'Opening Meta…'
+                      ? `Opening ${isMeta ? 'Meta' : 'Google'}…`
                       : providerAccounts.length > 0
                         ? 'Reconnect'
                         : 'Connect'}
@@ -512,8 +585,7 @@ export default function AdCenterOverview() {
 
           {accounts.length === 0 ? (
             <div className="p-8 text-center text-sm text-slate-500">
-              No advertising accounts have been discovered yet. Connect Meta Ads to import the
-              accounts available to your Meta user.
+              No advertising accounts have been discovered yet. Connect an advertising provider to import the accounts available to your authorized user.
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
@@ -591,6 +663,22 @@ export default function AdCenterOverview() {
                             {syncingResourceAccountId === account.id
                               ? 'Syncing…'
                               : 'Sync resources'}
+                          </button>
+                        )}
+                      {account.provider === 'GOOGLE_ADS' &&
+                        account.managed &&
+                        account.accessible &&
+                        can(PERMISSIONS.ADS_MODIFY) && (
+                          <button
+                            type="button"
+                            className="secondary-button inline-flex items-center gap-2"
+                            disabled={syncingResourceAccountId !== null}
+                            onClick={() => void syncGoogleAccount(account)}
+                          >
+                            <FiRefreshCw aria-hidden="true" />
+                            {syncingResourceAccountId === account.id
+                              ? 'Syncing…'
+                              : 'Sync Google'}
                           </button>
                         )}
                       {can(PERMISSIONS.ADS_MODIFY) && (

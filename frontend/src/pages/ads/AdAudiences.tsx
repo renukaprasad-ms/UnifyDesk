@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FiPlus, FiRefreshCw, FiUsers } from 'react-icons/fi'
+import { FiPlus, FiRefreshCw, FiUploadCloud, FiUsers } from 'react-icons/fi'
 import MetaAudienceModal from '../../components/ads/MetaAudienceModal'
+import GoogleAudienceModal from '../../components/ads/GoogleAudienceModal'
+import GoogleCustomerMatchUploadModal from '../../components/ads/GoogleCustomerMatchUploadModal'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
   AdAccountResource,
   AdAudience,
   CreateMetaAudienceInput,
+  CreateGoogleAudienceInput,
+  GoogleCustomerMatchUploadInput,
 } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -50,15 +54,15 @@ export default function AdAudiences() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [uploadingMembers, setUploadingMembers] = useState(false)
+  const [uploadAudience, setUploadAudience] = useState<AdAudience | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
   const managedAccounts = useMemo(
     () =>
-      accounts.filter(
-        (account) => account.provider === 'META_ADS' && account.managed && account.accessible,
-      ),
+      accounts.filter((account) => account.managed && account.accessible),
     [accounts],
   )
 
@@ -85,9 +89,7 @@ export default function AdAudiences() {
     try {
       const accountData = await adCenterApi.accounts(selectedCompany.companyId)
       setAccounts(accountData)
-      const eligible = accountData.filter(
-        (account) => account.provider === 'META_ADS' && account.managed && account.accessible,
-      )
+      const eligible = accountData.filter((account) => account.managed && account.accessible)
       const preferred = eligible.find((account) => account.primaryAccount) ?? eligible[0]
       if (preferred) {
         setSelectedAccountId(preferred.id)
@@ -126,41 +128,86 @@ export default function AdAudiences() {
     setError('')
     setNotice('')
     try {
-      await adCenterApi.syncMetaResources(selectedCompany.companyId, selectedAccount.id)
-      const result = await adCenterApi.syncMetaAudiences(
-        selectedCompany.companyId,
-        selectedAccount.id,
-      )
+      if (selectedAccount.provider === 'META_ADS') {
+        await adCenterApi.syncMetaResources(selectedCompany.companyId, selectedAccount.id)
+      }
+      const result =
+        selectedAccount.provider === 'GOOGLE_ADS'
+          ? await adCenterApi.syncGoogleAudiences(selectedCompany.companyId, selectedAccount.id)
+          : await adCenterApi.syncMetaAudiences(selectedCompany.companyId, selectedAccount.id)
       await loadForAccount(selectedAccount.id)
-      setNotice(`Synchronized ${result.synchronizedCount} audience(s) from Meta.`)
+      setNotice(`Synchronized ${result.synchronizedCount} audience(s) from ${selectedAccount.provider === 'GOOGLE_ADS' ? 'Google Ads' : 'Meta'}.`)
     } catch (syncError) {
-      setError(apiErrorMessage(syncError, 'Unable to synchronize Meta audiences'))
+      setError(apiErrorMessage(syncError, 'Unable to synchronize audiences'))
     } finally {
       setSyncing(false)
     }
   }
 
-  const create = async (input: CreateMetaAudienceInput) => {
+  const createMeta = async (input: CreateMetaAudienceInput) => {
     if (!selectedCompany || !selectedAccount) return
     setCreating(true)
     setError('')
     setNotice('')
     try {
-      const created = await adCenterApi.createMetaAudience(
-        selectedCompany.companyId,
-        selectedAccount.id,
-        input,
-      )
-      setAudiences((current) => [
-        created,
-        ...current.filter((item) => item.id !== created.id),
-      ])
+      const created = await adCenterApi.createMetaAudience(selectedCompany.companyId, selectedAccount.id, input)
+      setAudiences((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setModalOpen(false)
       setNotice(`${created.name} was created in Meta.`)
     } catch (createError) {
       setError(apiErrorMessage(createError, 'Unable to create Meta audience'))
     } finally {
       setCreating(false)
+    }
+  }
+
+  const createGoogle = async (input: CreateGoogleAudienceInput) => {
+    if (!selectedCompany || !selectedAccount) return
+    setCreating(true)
+    setError('')
+    setNotice('')
+    try {
+      const created = await adCenterApi.createGoogleAudience(selectedCompany.companyId, selectedAccount.id, input)
+      setAudiences((current) => [created, ...current.filter((item) => item.id !== created.id)])
+      setModalOpen(false)
+      setNotice(`${created.name} was created in Google Ads.`)
+    } catch (createError) {
+      setError(apiErrorMessage(createError, 'Unable to create Google Ads audience'))
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const uploadGoogleMembers = async (
+    input: GoogleCustomerMatchUploadInput,
+  ) => {
+    if (!selectedCompany || !uploadAudience) return
+    setUploadingMembers(true)
+    setError('')
+    setNotice('')
+    try {
+      const result = await adCenterApi.uploadGoogleCustomerMatchMembers(
+        selectedCompany.companyId,
+        uploadAudience.id,
+        input,
+      )
+      setUploadAudience(null)
+      setNotice(
+        result.validateOnly
+          ? `Validated ${result.submittedCount} Customer Match member(s).`
+          : `Submitted ${result.submittedCount} Customer Match member(s) to Google Data Manager.`,
+      )
+      if (result.warnings.length > 0) {
+        setNotice(
+          `${result.validateOnly ? 'Validation' : 'Upload'} completed with ${result.warnings.length} warning(s).`,
+        )
+      }
+    } catch (uploadError) {
+      setError(
+        apiErrorMessage(uploadError, 'Unable to upload Google Customer Match members'),
+      )
+    } finally {
+      setUploadingMembers(false)
     }
   }
 
@@ -176,7 +223,7 @@ export default function AdAudiences() {
               Audiences
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Sync reusable Meta audiences and create website or lookalike audiences for targeting.
+              Sync and create reusable audiences across Meta Ads and Google Ads.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -188,7 +235,7 @@ export default function AdAudiences() {
                 onClick={() => void sync()}
               >
                 <FiRefreshCw aria-hidden="true" />
-                {syncing ? 'Syncing…' : 'Sync Meta'}
+                {syncing ? 'Syncing…' : `Sync ${selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google' : 'Meta'}`}
               </button>
             )}
             {can(PERMISSIONS.ADS_CREATE) && (
@@ -219,7 +266,7 @@ export default function AdAudiences() {
 
         <div className="mt-6 max-w-sm">
           <label className="text-xs font-semibold text-slate-700">
-            Meta ad account
+            Ad account
             <select
               className="form-input mt-2"
               value={selectedAccount?.id ?? ''}
@@ -227,7 +274,7 @@ export default function AdAudiences() {
               onChange={(event) => void chooseAccount(event.target.value)}
             >
               {managedAccounts.length === 0 ? (
-                <option value="">No managed Meta account</option>
+                <option value="">No managed ad account</option>
               ) : (
                 managedAccounts.map((account) => (
                   <option key={account.id} value={account.id}>
@@ -245,14 +292,14 @@ export default function AdAudiences() {
           </div>
         ) : managedAccounts.length === 0 ? (
           <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
-            Connect and manage a Meta ad account before using audiences.
+            Connect and manage an ad account before using audiences.
           </div>
         ) : audiences.length === 0 ? (
           <div className="panel mt-6 p-10 text-center">
             <FiUsers className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
             <h2 className="mt-3 text-base font-bold text-slate-950">No audiences yet</h2>
             <p className="mt-2 text-sm text-slate-500">
-              Sync existing Meta audiences or create a website custom audience.
+              Sync existing provider audiences or create a new audience.
             </p>
           </div>
         ) : (
@@ -266,6 +313,9 @@ export default function AdAudiences() {
                     <th className="px-5 py-3">Estimated size</th>
                     <th className="px-5 py-3">Delivery</th>
                     <th className="px-5 py-3">Retention</th>
+                    {selectedAccount?.provider === 'GOOGLE_ADS' && (
+                      <th className="px-5 py-3 text-right">Action</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -299,6 +349,20 @@ export default function AdAudiences() {
                           ? `${audience.retentionDays} days`
                           : '—'}
                       </td>
+                      {selectedAccount?.provider === 'GOOGLE_ADS' && (
+                        <td className="px-5 py-4 text-right">
+                          {can(PERMISSIONS.ADS_MODIFY) && audience.accessible && (
+                            <button
+                              type="button"
+                              className="secondary-button inline-flex items-center gap-2 text-xs"
+                              onClick={() => setUploadAudience(audience)}
+                            >
+                              <FiUploadCloud aria-hidden="true" />
+                              Upload members
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -320,6 +384,18 @@ export default function AdAudiences() {
                     </span>
                   </div>
                   <p className="mt-3 text-xs text-slate-500">{countLabel(audience)}</p>
+                  {selectedAccount?.provider === 'GOOGLE_ADS' &&
+                    can(PERMISSIONS.ADS_MODIFY) &&
+                    audience.accessible && (
+                      <button
+                        type="button"
+                        className="secondary-button mt-4 inline-flex items-center gap-2 text-xs"
+                        onClick={() => setUploadAudience(audience)}
+                      >
+                        <FiUploadCloud aria-hidden="true" />
+                        Upload members
+                      </button>
+                    )}
                 </div>
               ))}
             </div>
@@ -327,14 +403,32 @@ export default function AdAudiences() {
         )}
       </div>
 
-      <MetaAudienceModal
-        audiences={audiences}
-        resources={resources}
-        open={modalOpen}
-        saving={creating}
-        onClose={() => setModalOpen(false)}
-        onCreate={create}
+      {selectedAccount?.provider === 'META_ADS' && (
+        <MetaAudienceModal
+          audiences={audiences}
+          resources={resources}
+          open={modalOpen}
+          saving={creating}
+          onClose={() => setModalOpen(false)}
+          onCreate={createMeta}
+        />
+      )}
+      <GoogleCustomerMatchUploadModal
+        audience={uploadAudience}
+        open={uploadAudience !== null}
+        saving={uploadingMembers}
+        onClose={() => setUploadAudience(null)}
+        onUpload={uploadGoogleMembers}
       />
+
+      {selectedAccount?.provider === 'GOOGLE_ADS' && (
+        <GoogleAudienceModal
+          open={modalOpen}
+          saving={creating}
+          onClose={() => setModalOpen(false)}
+          onCreate={createGoogle}
+        />
+      )}
     </section>
   )
 }

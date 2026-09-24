@@ -2,8 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { FiPlay, FiPlus, FiRefreshCw, FiPause } from 'react-icons/fi'
 import { Link, useSearchParams } from 'react-router'
 import MetaCampaignModal from '../../components/ads/MetaCampaignModal'
+import GoogleCampaignModal from '../../components/ads/GoogleCampaignModal'
+import GoogleAdvancedCampaignModal from '../../components/ads/GoogleAdvancedCampaignModal'
+import GooglePerformanceMaxCampaignModal from '../../components/ads/GooglePerformanceMaxCampaignModal'
 import { adCenterApi } from '../../features/ads/adCenterApi'
-import type { AdAccount, AdCampaign, CreateMetaCampaignInput } from '../../features/ads/types'
+import type { AdAccount, AdCampaign, CreateGoogleAdvancedCampaignInput, CreateGoogleCampaignInput, CreateGooglePerformanceMaxCampaignInput, CreateMetaCampaignInput } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -46,14 +49,13 @@ export default function AdCampaigns() {
   const [creating, setCreating] = useState(false)
   const [workingCampaignId, setWorkingCampaignId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [googleCreateType, setGoogleCreateType] = useState<'SEARCH' | 'PERFORMANCE_MAX' | 'ADVANCED'>('SEARCH')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
   const managedAccounts = useMemo(
     () =>
-      accounts.filter(
-        (account) => account.provider === 'META_ADS' && account.managed && account.accessible,
-      ),
+      accounts.filter((account) => account.managed && account.accessible),
     [accounts],
   )
 
@@ -78,7 +80,7 @@ export default function AdCampaigns() {
       const accountData = await adCenterApi.accounts(selectedCompany.companyId)
       setAccounts(accountData)
       const eligible = accountData.filter(
-        (account) => account.provider === 'META_ADS' && account.managed && account.accessible,
+        (account) => account.managed && account.accessible,
       )
       const preferred =
         eligible.find((account) => account.id === requestedAccountId) ??
@@ -119,10 +121,16 @@ export default function AdCampaigns() {
     setError('')
     setNotice('')
     try {
-      const result = await adCenterApi.syncMetaCampaigns(
-        selectedCompany.companyId,
-        selectedAccount.id,
-      )
+      const result =
+        selectedAccount.provider === 'GOOGLE_ADS'
+          ? await adCenterApi.syncGoogleCampaigns(
+              selectedCompany.companyId,
+              selectedAccount.id,
+            )
+          : await adCenterApi.syncMetaCampaigns(
+              selectedCompany.companyId,
+              selectedAccount.id,
+            )
       await loadCampaigns(selectedAccount.id)
       try {
         await adCenterApi.reconcileRecommendations(
@@ -133,15 +141,15 @@ export default function AdCampaigns() {
         // Campaign sync succeeded; recommendation lifecycle reconciliation is best effort.
       }
       window.dispatchEvent(new Event('ad-center:recommendations-changed'))
-      setNotice(`Synchronized ${result.synchronizedCount} campaign(s) from Meta.`)
+      setNotice(`Synchronized ${result.synchronizedCount} campaign(s) from ${selectedAccount.provider === 'GOOGLE_ADS' ? 'Google Ads' : 'Meta'}.`)
     } catch (syncError) {
-      setError(apiErrorMessage(syncError, 'Unable to synchronize Meta campaigns'))
+      setError(apiErrorMessage(syncError, 'Unable to synchronize advertising campaigns'))
     } finally {
       setSyncing(false)
     }
   }
 
-  const create = async (input: CreateMetaCampaignInput) => {
+  const createMeta = async (input: CreateMetaCampaignInput) => {
     if (!selectedCompany || !selectedAccount) return
     setCreating(true)
     setError('')
@@ -162,17 +170,106 @@ export default function AdCampaigns() {
     }
   }
 
+  const createGoogle = async (input: CreateGoogleCampaignInput) => {
+    if (!selectedCompany || !selectedAccount) return
+    setCreating(true)
+    setError('')
+    setNotice('')
+    try {
+      const created = await adCenterApi.createGoogleCampaign(
+        selectedCompany.companyId,
+        selectedAccount.id,
+        input,
+      )
+      setCampaigns((current) => [created, ...current.filter((item) => item.id !== created.id)])
+      setCreateOpen(false)
+      setNotice(`${created.name} was created in paused state.`)
+    } catch (createError) {
+      setError(apiErrorMessage(createError, 'Unable to create Google Ads campaign'))
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const createGooglePerformanceMax = async (
+    input: CreateGooglePerformanceMaxCampaignInput,
+  ) => {
+    if (!selectedCompany || !selectedAccount) return
+    setCreating(true)
+    setError('')
+    setNotice('')
+    try {
+      const created = await adCenterApi.createGooglePerformanceMaxCampaign(
+        selectedCompany.companyId,
+        selectedAccount.id,
+        input,
+      )
+      setCampaigns((current) => [
+        created,
+        ...current.filter((item) => item.id !== created.id),
+      ])
+      setCreateOpen(false)
+      setNotice(
+        `${created.name} was created as a paused Performance Max campaign with its initial asset group.`,
+      )
+    } catch (createError) {
+      setError(
+        apiErrorMessage(createError, 'Unable to create Google Performance Max campaign'),
+      )
+    } finally {
+      setCreating(false)
+    }
+  }
+
+
+  const createGoogleAdvanced = async (
+    input: CreateGoogleAdvancedCampaignInput,
+  ) => {
+    if (!selectedCompany || !selectedAccount) return
+    setCreating(true)
+    setError('')
+    setNotice('')
+    try {
+      const created = await adCenterApi.createGoogleAdvancedCampaign(
+        selectedCompany.companyId,
+        selectedAccount.id,
+        input,
+      )
+      setCampaigns((current) => [
+        created,
+        ...current.filter((item) => item.id !== created.id),
+      ])
+      setCreateOpen(false)
+      setNotice(
+        `${created.name} was created as a paused ${objectiveLabel(created.objective)} campaign.`,
+      )
+    } catch (createError) {
+      setError(
+        apiErrorMessage(createError, 'Unable to create Google Ads campaign'),
+      )
+    } finally {
+      setCreating(false)
+    }
+  }
+
   const setStatus = async (campaign: AdCampaign, status: 'ACTIVE' | 'PAUSED') => {
     if (!selectedCompany) return
     setWorkingCampaignId(campaign.id)
     setError('')
     setNotice('')
     try {
-      const updated = await adCenterApi.setMetaCampaignStatus(
-        selectedCompany.companyId,
-        campaign.id,
-        status,
-      )
+      const updated =
+        campaign.provider === 'GOOGLE_ADS'
+          ? await adCenterApi.setGoogleCampaignStatus(
+              selectedCompany.companyId,
+              campaign.id,
+              status,
+            )
+          : await adCenterApi.setMetaCampaignStatus(
+              selectedCompany.companyId,
+              campaign.id,
+              status,
+            )
       setCampaigns((current) =>
         current.map((item) => (item.id === updated.id ? updated : item)),
       )
@@ -215,8 +312,7 @@ export default function AdCampaigns() {
               Campaigns
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Import existing Meta campaigns or create a new paused campaign before building its
-              ad set and ads.
+              Manage campaigns across connected ad providers. New campaigns are created paused so their delivery structure can be reviewed first.
             </p>
           </div>
 
@@ -229,20 +325,60 @@ export default function AdCampaigns() {
                 onClick={() => void sync()}
               >
                 <FiRefreshCw aria-hidden="true" />
-                {syncing ? 'Syncing…' : 'Sync Meta'}
+                {syncing ? 'Syncing…' : `Sync ${selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google' : 'Meta'}`}
               </button>
             )}
-            {can(PERMISSIONS.ADS_CREATE) && (
-              <button
-                type="button"
-                className="primary-button inline-flex items-center gap-2"
-                disabled={!selectedAccount}
-                onClick={() => setCreateOpen(true)}
-              >
-                <FiPlus aria-hidden="true" />
-                Create campaign
-              </button>
-            )}
+            {can(PERMISSIONS.ADS_CREATE) &&
+              (selectedAccount?.provider === 'GOOGLE_ADS' ? (
+                <>
+                  <button
+                    type="button"
+                    className="secondary-button inline-flex items-center gap-2"
+                    disabled={!selectedAccount}
+                    onClick={() => {
+                      setGoogleCreateType('SEARCH')
+                      setCreateOpen(true)
+                    }}
+                  >
+                    <FiPlus aria-hidden="true" />
+                    Create Search
+                  </button>
+                  <button
+                    type="button"
+                    className="primary-button inline-flex items-center gap-2"
+                    disabled={!selectedAccount}
+                    onClick={() => {
+                      setGoogleCreateType('PERFORMANCE_MAX')
+                      setCreateOpen(true)
+                    }}
+                  >
+                    <FiPlus aria-hidden="true" />
+                    Create Performance Max
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button inline-flex items-center gap-2"
+                    disabled={!selectedAccount}
+                    onClick={() => {
+                      setGoogleCreateType('ADVANCED')
+                      setCreateOpen(true)
+                    }}
+                  >
+                    <FiPlus aria-hidden="true" />
+                    Display / Demand Gen / Shopping
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="primary-button inline-flex items-center gap-2"
+                  disabled={!selectedAccount}
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <FiPlus aria-hidden="true" />
+                  Create campaign
+                </button>
+              ))}
           </div>
         </header>
 
@@ -260,7 +396,7 @@ export default function AdCampaigns() {
 
         <div className="mt-6 flex flex-wrap items-end gap-3">
           <label className="min-w-[260px] text-xs font-semibold text-slate-700">
-            Meta ad account
+            Ad account
             <select
               className="form-input mt-2"
               value={selectedAccount?.id ?? ''}
@@ -268,7 +404,7 @@ export default function AdCampaigns() {
               onChange={(event) => chooseAccount(event.target.value)}
             >
               {managedAccounts.length === 0 ? (
-                <option value="">No managed Meta account</option>
+                <option value="">No managed ad account</option>
               ) : (
                 managedAccounts.map((account) => (
                   <option key={account.id} value={account.id}>
@@ -281,17 +417,16 @@ export default function AdCampaigns() {
           </label>
           {selectedAccount && (
             <p className="pb-2 text-xs text-slate-400">
-              Meta account {selectedAccount.externalAccountId}
+              {selectedAccount.provider === 'GOOGLE_ADS' ? 'Google Ads' : 'Meta'} account {selectedAccount.externalAccountId}
             </p>
           )}
         </div>
 
         {!loading && managedAccounts.length === 0 ? (
           <div className="panel mt-6 p-10 text-center">
-            <h2 className="text-lg font-bold text-slate-950">Choose a Meta ad account first</h2>
+            <h2 className="text-lg font-bold text-slate-950">Choose an ad account first</h2>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
-              Connect Meta Ads in Ad Center, then mark at least one accessible ad account as
-              managed before campaigns can be synchronized or created.
+              Connect an advertising provider in Ad Center, then mark at least one accessible ad account as managed before campaigns can be synchronized or created.
             </p>
             <Link to="/ad-center" className="primary-button mt-5 inline-flex">
               Open Ad Center
@@ -312,8 +447,7 @@ export default function AdCampaigns() {
               <div className="p-8 text-center text-sm text-slate-500">Loading campaigns…</div>
             ) : campaigns.length === 0 ? (
               <div className="p-10 text-center text-sm text-slate-500">
-                No campaigns are stored for this account yet. Sync Meta or create your first
-                campaign.
+                No campaigns are stored for this account yet. Sync the provider or create your first campaign.
               </div>
             ) : (
               <>
@@ -373,11 +507,16 @@ export default function AdCampaigns() {
                                     campaign.lifetimeBudgetMinor,
                                     selectedAccount?.currency,
                                   )} lifetime`
-                                : 'Ad-set budget'}
+                                : selectedAccount?.provider === 'GOOGLE_ADS' ? 'Campaign budget unavailable' : 'Ad-set budget'}
                           </td>
                           <td className="px-5 py-4 text-right">
-                            {can(PERMISSIONS.ADS_MODIFY) &&
-                              (campaign.providerStatus === 'ACTIVE' ? (
+                            {campaign.objective === 'VIDEO' ? (
+                              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+                                Read only
+                              </span>
+                            ) : (
+                              can(PERMISSIONS.ADS_MODIFY) &&
+                              (campaign.status === 'ACTIVE' ? (
                                 <button
                                   type="button"
                                   className="secondary-button inline-flex items-center gap-2"
@@ -393,14 +532,15 @@ export default function AdCampaigns() {
                                   className="secondary-button inline-flex items-center gap-2"
                                   disabled={
                                     workingCampaignId !== null ||
-                                    campaign.providerStatus === 'ARCHIVED'
+                                    campaign.status === 'ARCHIVED'
                                   }
                                   onClick={() => void setStatus(campaign, 'ACTIVE')}
                                 >
                                   <FiPlay aria-hidden="true" />
                                   Start
                                 </button>
-                              ))}
+                              ))
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -442,27 +582,33 @@ export default function AdCampaigns() {
                                 campaign.lifetimeBudgetMinor,
                                 selectedAccount?.currency,
                               )} lifetime`
-                            : 'Budget will be configured at ad-set level'}
+                            : selectedAccount?.provider === 'GOOGLE_ADS' ? 'Campaign budget unavailable' : 'Budget will be configured at ad-set level'}
                       </p>
-                      {can(PERMISSIONS.ADS_MODIFY) && (
-                        <button
-                          type="button"
-                          className="secondary-button mt-4 inline-flex items-center gap-2"
-                          disabled={workingCampaignId !== null}
-                          onClick={() =>
-                            void setStatus(
-                              campaign,
-                              campaign.providerStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE',
-                            )
-                          }
-                        >
-                          {campaign.providerStatus === 'ACTIVE' ? (
-                            <FiPause aria-hidden="true" />
-                          ) : (
-                            <FiPlay aria-hidden="true" />
-                          )}
-                          {campaign.providerStatus === 'ACTIVE' ? 'Pause' : 'Start'}
-                        </button>
+                      {campaign.objective === 'VIDEO' ? (
+                        <p className="mt-4 text-xs font-semibold text-slate-400">
+                          Video campaign · read only in Google Ads API
+                        </p>
+                      ) : (
+                        can(PERMISSIONS.ADS_MODIFY) && (
+                          <button
+                            type="button"
+                            className="secondary-button mt-4 inline-flex items-center gap-2"
+                            disabled={workingCampaignId !== null}
+                            onClick={() =>
+                              void setStatus(
+                                campaign,
+                                campaign.providerStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE',
+                              )
+                            }
+                          >
+                            {campaign.providerStatus === 'ACTIVE' ? (
+                              <FiPause aria-hidden="true" />
+                            ) : (
+                              <FiPlay aria-hidden="true" />
+                            )}
+                            {campaign.providerStatus === 'ACTIVE' ? 'Pause' : 'Start'}
+                          </button>
+                        )
                       )}
                     </div>
                   ))}
@@ -473,15 +619,46 @@ export default function AdCampaigns() {
         )}
       </div>
 
-      {selectedAccount && (
+      {selectedAccount?.provider === 'META_ADS' && (
         <MetaCampaignModal
           account={selectedAccount}
           open={createOpen}
           saving={creating}
           onClose={() => setCreateOpen(false)}
-          onCreate={create}
+          onCreate={createMeta}
         />
       )}
+      {selectedAccount?.provider === 'GOOGLE_ADS' &&
+        googleCreateType === 'SEARCH' && (
+          <GoogleCampaignModal
+            account={selectedAccount}
+            open={createOpen}
+            saving={creating}
+            onClose={() => setCreateOpen(false)}
+            onCreate={createGoogle}
+          />
+        )}
+      {selectedAccount?.provider === 'GOOGLE_ADS' &&
+        googleCreateType === 'ADVANCED' && (
+          <GoogleAdvancedCampaignModal
+            companyId={selectedCompany.companyId}
+            account={selectedAccount}
+            open={createOpen}
+            saving={creating}
+            onClose={() => setCreateOpen(false)}
+            onCreate={createGoogleAdvanced}
+          />
+        )}
+      {selectedAccount?.provider === 'GOOGLE_ADS' &&
+        googleCreateType === 'PERFORMANCE_MAX' && (
+          <GooglePerformanceMaxCampaignModal
+            account={selectedAccount}
+            open={createOpen}
+            saving={creating}
+            onClose={() => setCreateOpen(false)}
+            onCreate={createGooglePerformanceMax}
+          />
+        )}
     </section>
   )
 }

@@ -25,6 +25,9 @@ public interface AdAccountRepository extends JpaRepository<AdAccount, Long> {
 
   List<AdAccount> findByCompanyIdAndProvider(Long companyId, AdProvider provider);
 
+  List<AdAccount> findByProviderAndManagedTrueAndAccessibleTrueOrderByIdAsc(
+      AdProvider provider);
+
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query(
       "select account from AdAccount account where account.companyId = :companyId and"

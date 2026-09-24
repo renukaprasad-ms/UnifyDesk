@@ -9,6 +9,7 @@ export type AdCapability =
   | 'ANALYTICS'
   | 'BILLING_READ'
   | 'BILLING_WRITE'
+  | 'PRODUCT_CATALOG'
   | 'RECOMMENDATIONS'
 
 export type AdProviderInfo = {
@@ -39,6 +40,10 @@ export type AdAccount = {
 
 
 export type MetaAdsAuthorization = {
+  authorizationUrl: string
+}
+
+export type GoogleAdsAuthorization = {
   authorizationUrl: string
 }
 
@@ -147,6 +152,185 @@ export type MetaCampaignSync = {
 }
 
 
+export type CreateGoogleCampaignInput = {
+  name: string
+  dailyBudgetMinor: number
+  bidStrategy?: 'MANUAL_CPC' | 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
+  startDate?: string | null
+  endDate?: string | null
+}
+
+export type UpdateGoogleCampaignInput = Partial<CreateGoogleCampaignInput>
+
+export type CreateGoogleAdvancedCampaignInput = {
+  name: string
+  channelType: 'DISPLAY' | 'DEMAND_GEN' | 'SHOPPING'
+  dailyBudgetMinor: number
+  bidStrategy?: 'MANUAL_CPC' | 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'TARGET_CPA' | 'TARGET_ROAS'
+  targetCpaMinor?: number | null
+  targetRoas?: number | null
+  merchantId?: string | null
+  campaignPriority?: number | null
+  enableLocal?: boolean | null
+  containsEuPoliticalAdvertising?: boolean
+  startDate?: string | null
+  endDate?: string | null
+}
+
+export type CreateGooglePerformanceMaxCampaignInput = {
+  name: string
+  dailyBudgetMinor: number
+  finalUrl: string
+  businessName: string
+  headlines: string[]
+  longHeadline: string
+  descriptions: string[]
+  marketingImageBase64: string
+  squareMarketingImageBase64: string
+  logoImageBase64: string
+  portraitMarketingImageBase64?: string | null
+  landscapeLogoImageBase64?: string | null
+  youtubeVideoIds?: string[]
+  bidStrategy?: 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
+  startDate?: string | null
+  endDate?: string | null
+}
+
+export type GoogleAsset = {
+  id?: string | null
+  resourceName?: string | null
+  name?: string | null
+  type?: string | null
+  text?: string | null
+  imageUrl?: string | null
+  imageWidth?: number | null
+  imageHeight?: number | null
+  youtubeVideoId?: string | null
+}
+
+export type GoogleAssetGroup = {
+  id?: string | null
+  resourceName?: string | null
+  name?: string | null
+  status?: string | null
+  primaryStatus?: string | null
+  adStrength?: string | null
+  finalUrls: string[]
+}
+
+
+export type GoogleAssetGroupAsset = {
+  resourceName: string
+  assetResourceName?: string | null
+  assetId?: string | null
+  assetName?: string | null
+  assetType?: string | null
+  fieldType: string
+  status?: string | null
+  primaryStatus?: string | null
+  policyApprovalStatus?: string | null
+  text?: string | null
+  imageUrl?: string | null
+  imageWidth?: number | null
+  imageHeight?: number | null
+  youtubeVideoId?: string | null
+}
+
+export type GoogleAssetGroupAssetInput = {
+  fieldType:
+    | 'HEADLINE'
+    | 'LONG_HEADLINE'
+    | 'DESCRIPTION'
+    | 'BUSINESS_NAME'
+    | 'MARKETING_IMAGE'
+    | 'SQUARE_MARKETING_IMAGE'
+    | 'PORTRAIT_MARKETING_IMAGE'
+    | 'LOGO'
+    | 'LANDSCAPE_LOGO'
+    | 'YOUTUBE_VIDEO'
+  existingAssetResourceName?: string | null
+  name?: string | null
+  text?: string | null
+  imageBase64?: string | null
+  youtubeVideoId?: string | null
+}
+
+export type GoogleAssetGroupSignal = {
+  resourceName?: string | null
+  type: 'SEARCH_THEME' | 'AUDIENCE'
+  value?: string | null
+  approvalStatus?: string | null
+  disapprovalReasons: string[]
+}
+
+export type AddGoogleAssetGroupSignalsInput = {
+  searchThemes?: string[]
+  audienceIds?: string[]
+}
+
+export type GoogleCustomerMatchMember = {
+  emails?: string[]
+  phoneNumbers?: string[]
+  mobileIds?: string[]
+  userId?: string | null
+}
+
+export type GoogleCustomerMatchUploadInput = {
+  members: GoogleCustomerMatchMember[]
+  adUserDataConsent: boolean
+  adPersonalizationConsent: boolean
+  customerMatchTermsAccepted: boolean
+  validateOnly: boolean
+}
+
+export type GoogleConversionEventInput = {
+  eventTimestamp: string
+  transactionId?: string | null
+  eventSource?: 'WEB' | 'APP' | 'IN_STORE' | 'PHONE' | 'MESSAGE' | 'OTHER'
+  conversionValue?: number | null
+  currency?: string | null
+  gclid?: string | null
+  gbraid?: string | null
+  wbraid?: string | null
+  emails?: string[]
+  phoneNumbers?: string[]
+  userId?: string | null
+}
+
+export type GoogleConversionEventUploadInput = {
+  events: GoogleConversionEventInput[]
+  adUserDataConsent: boolean
+  adPersonalizationConsent: boolean
+  validateOnly: boolean
+}
+
+export type GoogleDataManagerUpload = {
+  requestIds: string[]
+  submittedCount: number
+  validateOnly: boolean
+  warnings: string[]
+}
+
+export type GoogleNativeRecommendation = {
+  resourceName: string
+  type: string
+  dismissed: boolean
+  campaignResourceName?: string | null
+  adGroupResourceName?: string | null
+  impactJson?: string | null
+}
+
+export type GoogleRecommendationAction = {
+  action: 'APPLY' | 'DISMISS'
+  processedCount: number
+  resourceNames: string[]
+}
+
+export type GoogleCampaignSync = {
+  synchronizedCount: number
+}
+
+
 export type AdSet = {
   id: string
   companyId: string
@@ -209,6 +393,18 @@ export type CreateMetaAdSetInput = {
 export type UpdateMetaAdSetInput = Partial<CreateMetaAdSetInput>
 
 export type MetaAdSetSync = {
+  synchronizedCount: number
+}
+
+
+export type CreateGoogleAdGroupInput = {
+  name: string
+  cpcBidMinor?: number | null
+}
+
+export type UpdateGoogleAdGroupInput = Partial<CreateGoogleAdGroupInput>
+
+export type GoogleAdGroupSync = {
   synchronizedCount: number
 }
 
@@ -311,6 +507,118 @@ export type MetaAdSync = {
 }
 
 
+export type CreateGoogleResponsiveDisplayAdInput = {
+  name: string
+  finalUrl: string
+  businessName: string
+  headlines: string[]
+  longHeadline: string
+  descriptions: string[]
+  marketingImageBase64: string
+  squareMarketingImageBase64: string
+  squareLogoImageBase64?: string | null
+}
+
+export type CreateGoogleDemandGenVideoAdInput = {
+  name: string
+  finalUrl: string
+  businessName: string
+  headlines: string[]
+  longHeadlines: string[]
+  descriptions: string[]
+  youtubeVideoId: string
+  logoImageBase64: string
+}
+
+export type CreateGoogleDemandGenMultiAssetAdInput = {
+  name: string
+  finalUrl: string
+  businessName: string
+  headlines: string[]
+  descriptions: string[]
+  callToActionText?: string | null
+  marketingImageBase64?: string | null
+  squareMarketingImageBase64?: string | null
+  portraitMarketingImageBase64?: string | null
+  tallPortraitMarketingImageBase64?: string | null
+  logoImageBase64: string
+}
+
+export type GoogleDemandGenCarouselCardInput = {
+  headline: string
+  callToActionText?: string | null
+  marketingImageBase64?: string | null
+  squareMarketingImageBase64?: string | null
+  portraitMarketingImageBase64?: string | null
+}
+
+export type CreateGoogleDemandGenCarouselAdInput = {
+  name: string
+  finalUrl: string
+  businessName: string
+  headline: string
+  description: string
+  callToActionText?: string | null
+  logoImageBase64: string
+  cards: GoogleDemandGenCarouselCardInput[]
+}
+
+export type CreateGoogleShoppingProductAdInput = {
+  name?: string | null
+}
+
+export type CreateGoogleResponsiveSearchAdInput = {
+  name: string
+  finalUrl: string
+  headlines: string[]
+  descriptions: string[]
+  path1?: string | null
+  path2?: string | null
+}
+
+export type UpdateGoogleResponsiveSearchAdInput = Partial<CreateGoogleResponsiveSearchAdInput>
+
+export type GoogleAdSync = {
+  synchronizedCount: number
+}
+
+export type AdKeyword = {
+  id: string
+  companyId: string
+  adAccountId: string
+  campaignId: string
+  adSetId: string
+  provider: AdProvider
+  externalKeywordId: string
+  keywordText: string
+  matchType?: string | null
+  status: AdEntityStatus
+  providerStatus?: string | null
+  bidAmountMicros?: number | null
+  qualityScore?: number | null
+  finalUrlsJson?: string | null
+  negative: boolean
+  accessible: boolean
+  lastSyncAt?: string | null
+}
+
+export type CreateGoogleKeywordInput = {
+  text: string
+  matchType: 'BROAD' | 'PHRASE' | 'EXACT'
+  cpcBidMinor?: number | null
+  negative?: boolean
+}
+
+export type UpdateGoogleKeywordInput = {
+  cpcBidMinor?: number | null
+  status?: 'ENABLED' | 'ACTIVE' | 'PAUSED'
+}
+
+export type GoogleKeywordSync = {
+  synchronizedCount: number
+}
+
+
 export type AdAudience = {
   id: string
   companyId: string
@@ -350,6 +658,18 @@ export type MetaAudienceSync = {
   synchronizedCount: number
 }
 
+
+export type CreateGoogleAudienceInput = {
+  name: string
+  description?: string | null
+  membershipLifeSpan?: number | null
+  uploadKeyType?: 'CONTACT_INFO' | 'CRM_ID' | 'MOBILE_ADVERTISING_ID'
+}
+
+export type GoogleAudienceSync = {
+  synchronizedCount: number
+}
+
 export type AdConversion = {
   id: string
   companyId: string
@@ -383,6 +703,19 @@ export type CreateMetaConversionInput = {
 }
 
 export type MetaConversionSync = {
+  synchronizedCount: number
+}
+
+
+export type CreateGoogleConversionInput = {
+  name: string
+  category: string
+  type?: string | null
+  defaultValue?: number | null
+  countingType?: 'ONE_PER_CLICK' | 'MANY_PER_CLICK'
+}
+
+export type GoogleConversionSync = {
   synchronizedCount: number
 }
 
@@ -450,6 +783,14 @@ export type MetaInsightsSync = {
 }
 
 
+export type GoogleInsightsSync = {
+  accountRows: number
+  campaignRows: number
+  adGroupRows: number
+  adRows: number
+}
+
+
 export type AdInsightBreakdownType =
   | 'AGE'
   | 'GENDER'
@@ -502,6 +843,21 @@ export type MetaInsightBreakdownsSync = {
   actionDevice: number
   failedBreakdowns: string[]
   totalRows?: number
+}
+
+export type GoogleInsightBreakdownsSync = {
+  age: number
+  gender: number
+  country: number
+  region: number
+  publisherPlatform: number
+  platformPosition: number
+  impressionDevice: number
+  devicePlatform: number
+  conversionDestination: number
+  actionType: number
+  actionDevice: number
+  failedBreakdowns: string[]
 }
 
 
@@ -586,7 +942,7 @@ export type AdRecommendationCategory =
   | 'TRACKING'
   | 'SETUP'
   | 'PERFORMANCE'
-export type AdRecommendationSource = 'META_PROVIDER' | 'REACHLYO_DIAGNOSTIC'
+export type AdRecommendationSource = 'META_PROVIDER' | 'GOOGLE_PROVIDER' | 'REACHLYO_DIAGNOSTIC'
 export type AdRecommendationLifecycleStatus =
   | 'ACTIVE'
   | 'DISMISSED'
@@ -646,4 +1002,92 @@ export type AdRecommendationSummary = {
   dismissedCount: number
   snoozedCount: number
   topItems: AdRecommendationSummaryItem[]
+}
+
+export type GoogleMerchantAccount = {
+  name: string
+  accountId: string
+  accountName?: string | null
+  timeZone?: string | null
+  languageCode?: string | null
+  adultContent: boolean
+}
+
+export type GoogleMerchantDataSource = {
+  name: string
+  dataSourceId: string
+  displayName?: string | null
+  input?: string | null
+  contentLanguage?: string | null
+  feedLabel?: string | null
+  countries: string[]
+  apiManaged: boolean
+}
+
+export type CreateGoogleMerchantDataSourceInput = {
+  displayName: string
+  contentLanguage: string
+  feedLabel: string
+  countries: string[]
+}
+
+export type GoogleMerchantProduct = {
+  name?: string | null
+  offerId: string
+  contentLanguage: string
+  feedLabel: string
+  dataSource?: string | null
+  title?: string | null
+  description?: string | null
+  link?: string | null
+  imageLink?: string | null
+  availability?: string | null
+  condition?: string | null
+  brand?: string | null
+  priceAmountMicros?: string | null
+  priceCurrency?: string | null
+  gtins: string[]
+  googleProductCategory?: string | null
+  issues: string[]
+}
+
+export type GoogleMerchantProductPage = {
+  products: GoogleMerchantProduct[]
+  nextPageToken?: string | null
+}
+
+export type UpsertGoogleMerchantProductInput = {
+  dataSourceName: string
+  offerId: string
+  contentLanguage: string
+  feedLabel: string
+  title: string
+  description?: string | null
+  link: string
+  imageLink: string
+  availability: 'IN_STOCK' | 'OUT_OF_STOCK' | 'PREORDER' | 'BACKORDER'
+  condition: 'NEW' | 'REFURBISHED' | 'USED'
+  brand?: string | null
+  price?: number | null
+  currency?: string | null
+  gtins?: string[]
+  googleProductCategory?: string | null
+}
+
+export type DeleteGoogleMerchantProductInput = {
+  dataSourceName: string
+  contentLanguage: string
+  feedLabel: string
+  offerId: string
+}
+
+export type GoogleFullSync = {
+  campaigns: number
+  adGroups: number
+  keywords: number
+  ads: number
+  audiences: number
+  conversions: number
+  analyticsRows: number
+  failedOperations: string[]
 }
