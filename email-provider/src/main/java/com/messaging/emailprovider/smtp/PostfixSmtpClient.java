@@ -25,6 +25,7 @@ public class PostfixSmtpClient {
       @Value("${app.smtp.connect-timeout-ms:5000}") int connectTimeoutMs,
       @Value("${app.smtp.read-timeout-ms:10000}") int readTimeoutMs,
       @Value("${app.smtp.ehlo-host:localhost}") String ehloHost) {
+    validateCommandValue(ehloHost, "EHLO host");
     this.host = host;
     this.port = port;
     this.connectTimeoutMs = connectTimeoutMs;
@@ -34,6 +35,9 @@ public class PostfixSmtpClient {
 
   public SmtpDeliveryResult handoff(
       String envelopeFrom, String recipient, byte[] rawMessage) {
+    validateCommandValue(envelopeFrom, "Envelope sender");
+    validateCommandValue(recipient, "Recipient");
+
     try (Socket socket = new Socket()) {
       socket.connect(new InetSocketAddress(host, port), connectTimeoutMs);
       socket.setSoTimeout(readTimeoutMs);
@@ -53,8 +57,7 @@ public class PostfixSmtpClient {
         return classify(ehlo);
       }
 
-      SmtpResponse mailFrom =
-          command(output, reader, "MAIL FROM:<" + envelopeFrom + ">");
+      SmtpResponse mailFrom = command(output, reader, "MAIL FROM:<" + envelopeFrom + ">");
       if (mailFrom.code() / 100 != 2) {
         return classify(mailFrom);
       }
@@ -98,12 +101,17 @@ public class PostfixSmtpClient {
 
   private void writeMessage(OutputStream output, byte[] rawMessage) throws IOException {
     String raw = new String(rawMessage, StandardCharsets.ISO_8859_1);
-    String normalized = raw.replace("\r\n", "\n").replace("\r", "\n");
-    for (String line : normalized.split("\n", -1)) {
-      if (line.startsWith(".")) {
+    boolean lineStart = true;
+    for (int index = 0; index < raw.length(); index++) {
+      char character = raw.charAt(index);
+      if (lineStart && character == '.') {
         output.write('.');
       }
-      output.write(line.getBytes(StandardCharsets.ISO_8859_1));
+      output.write(String.valueOf(character).getBytes(StandardCharsets.ISO_8859_1));
+      lineStart = character == '\n';
+    }
+
+    if (!raw.endsWith("\r\n")) {
       output.write("\r\n".getBytes(StandardCharsets.US_ASCII));
     }
     output.write(".\r\n".getBytes(StandardCharsets.US_ASCII));
@@ -142,6 +150,15 @@ public class PostfixSmtpClient {
             : SmtpDeliveryOutcome.FAILED;
     return new SmtpDeliveryResult(
         outcome, Integer.toString(response.code()), response.message());
+  }
+
+  private void validateCommandValue(String value, String label) {
+    if (value == null
+        || value.isBlank()
+        || value.indexOf('\r') >= 0
+        || value.indexOf('\n') >= 0) {
+      throw new IllegalArgumentException(label + " is invalid");
+    }
   }
 
   private String safeMessage(Exception exception) {

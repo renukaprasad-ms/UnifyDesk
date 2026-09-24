@@ -1,6 +1,7 @@
 package com.messaging.emailprovider.queue;
 
 import java.time.Instant;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,13 +24,14 @@ public class EmailOutboxService {
   }
 
   @Transactional
-  public java.util.List<EmailOutbox> claim(int limit, int staleAfterSeconds) {
+  public List<EmailOutbox> claim(int limit, int staleAfterSeconds) {
     Instant now = Instant.now();
     repository.recoverStale(now.minusSeconds(staleAfterSeconds), now);
-    java.util.List<EmailOutbox> rows = repository.findClaimable(now, limit);
+    List<EmailOutbox> rows = repository.findClaimable(now, limit);
     for (EmailOutbox row : rows) {
       row.setStatus(OutboxStatus.PROCESSING);
       row.setClaimedAt(now);
+      row.setNextAttemptAt(null);
       row.setAttempts(row.getAttempts() + 1);
     }
     return repository.saveAll(rows);
@@ -41,6 +43,7 @@ public class EmailOutboxService {
     row.setStatus(OutboxStatus.PUBLISHED);
     row.setPublishedAt(Instant.now());
     row.setClaimedAt(null);
+    row.setNextAttemptAt(null);
     row.setLastError(null);
     repository.save(row);
   }
@@ -52,6 +55,7 @@ public class EmailOutboxService {
     row.setLastError(truncate(error));
     if (row.getAttempts() >= maxAttempts) {
       row.setStatus(OutboxStatus.FAILED);
+      row.setNextAttemptAt(null);
     } else {
       row.setStatus(OutboxStatus.PENDING);
       long seconds = Math.min(300L, 1L << Math.min(row.getAttempts(), 8));

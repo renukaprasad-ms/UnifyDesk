@@ -75,18 +75,39 @@ public class EmailDeliveryWorkerService {
       return;
     }
 
-    SendingDomain domain = domainRepository.findById(message.getSendingDomainId()).orElse(null);
-    if (domain == null || domain.getStatus() != SendingDomainStatus.VERIFIED) {
+    List<EmailRecipient> allRecipients =
+        recipientRepository.findAllByMessageIdOrderByCreatedAtAsc(messageId);
+    List<Long> dueIds = recipientRepository.findDueRecipientIds(messageId, Instant.now());
+    if (dueIds.isEmpty()) {
       messageState.refresh(messageId);
       return;
     }
 
-    List<EmailRecipient> allRecipients =
-        recipientRepository.findAllByMessageIdOrderByCreatedAtAsc(messageId);
-    List<Long> dueIds = recipientRepository.findDueRecipientIds(messageId, Instant.now());
+    SendingDomain domain = domainRepository.findById(message.getSendingDomainId()).orElse(null);
+    if (domain == null || domain.getStatus() != SendingDomainStatus.VERIFIED) {
+      deferInfrastructure(
+          dueIds,
+          new SmtpDeliveryResult(
+              SmtpDeliveryOutcome.DEFERRED, null, "Sending domain is not currently verified"));
+      messageState.refresh(messageId);
+      return;
+    }
 
-    DkimKey dkimKey = dkimKeyService.getActiveForDomain(domain.getId());
-    var privateKey = dkimKeyService.loadPrivateKey(domain.getId());
+    final DkimKey dkimKey;
+    final java.security.PrivateKey privateKey;
+    try {
+      dkimKey = dkimKeyService.getActiveForDomain(domain.getId());
+      privateKey = dkimKeyService.loadPrivateKey(domain.getId());
+    } catch (RuntimeException exception) {
+      deferInfrastructure(
+          dueIds,
+          new SmtpDeliveryResult(
+              SmtpDeliveryOutcome.DEFERRED,
+              null,
+              "DKIM signing key is temporarily unavailable"));
+      messageState.refresh(messageId);
+      return;
+    }
 
     for (Long recipientId : dueIds) {
       EmailRecipient recipient = recipientState.claim(recipientId);
@@ -100,10 +121,22 @@ public class EmailDeliveryWorkerService {
         continue;
       }
 
-      byte[] raw =
-          mimeBuilder.build(message, recipient, allRecipients, domain.getDomainName());
-      byte[] signed =
-          dkimSigner.sign(raw, domain.getDomainName(), dkimKey.getSelector(), privateKey);
+      final byte[] signed;
+      try {
+        byte[] raw =
+            mimeBuilder.build(message, recipient, allRecipients, domain.getDomainName());
+        signed = dkimSigner.sign(raw, domain.getDomainName(), dkimKey.getSelector(), privateKey);
+      } catch (RuntimeException exception) {
+        recipientState.deferred(
+            recipient,
+            new SmtpDeliveryResult(
+                SmtpDeliveryOutcome.DEFERRED, null, "Unable to build or sign MIME message"),
+            startedAt,
+            maxAttempts,
+            initialRetrySeconds,
+            maxRetrySeconds);
+        continue;
+      }
 
       SmtpDeliveryResult result =
           smtpClient.handoff(
@@ -125,6 +158,21 @@ public class EmailDeliveryWorkerService {
     }
 
     messageState.refresh(messageId);
+  }
+
+  private void deferInfrastructure(List<Long> recipientIds, SmtpDeliveryResult result) {
+    for (Long recipientId : recipientIds) {
+      EmailRecipient recipient = recipientState.claim(recipientId);
+      if (recipient != null) {
+        recipientState.deferred(
+            recipient,
+            result,
+            Instant.now(),
+            maxAttempts,
+            initialRetrySeconds,
+            maxRetrySeconds);
+      }
+    }
   }
 
   private String envelopeFrom(EmailMessage message, EmailRecipient recipient) {

@@ -67,12 +67,12 @@ public class EmailMessageService {
   @Transactional
   public EmailAcceptedResponse accept(
       Long companyId, String idempotencyKey, SendEmailRequest request) {
+    validateHeaderValue(request.subject(), "Subject");
     String normalizedKey = normalizeIdempotencyKey(idempotencyKey);
     String requestHash = requestHasher.hash(request);
 
     if (normalizedKey != null) {
-      var existing =
-          messageRepository.findByCompanyIdAndIdempotencyKey(companyId, normalizedKey);
+      var existing = messageRepository.findByCompanyIdAndIdempotencyKey(companyId, normalizedKey);
       if (existing.isPresent()) {
         EmailMessage message = existing.get();
         if (!requestHash.equals(message.getRequestHash())) {
@@ -155,8 +155,7 @@ public class EmailMessageService {
       message.setStatus(EmailMessageStatus.SUPPRESSED);
     } else {
       message.setStatus(EmailMessageStatus.QUEUED);
-      outboxService.enqueue(
-          deliveryTopic, message.getId().toString(), message.getId().toString());
+      outboxService.enqueue(deliveryTopic, message.getId().toString(), message.getId().toString());
     }
     message = messageRepository.save(message);
     return EmailAcceptedResponse.of(message, queued, suppressed, false);
@@ -207,7 +206,18 @@ public class EmailMessageService {
   }
 
   private String normalizeEmail(String email) {
-    return email.trim().toLowerCase(Locale.ROOT);
+    String value = email == null ? "" : email.trim();
+    if (value.isBlank()
+        || value.indexOf('\r') >= 0
+        || value.indexOf('\n') >= 0
+        || value.indexOf('<') >= 0
+        || value.indexOf('>') >= 0
+        || value.chars().anyMatch(character -> character > 127)
+        || value.chars().anyMatch(Character::isWhitespace)
+        || value.indexOf('@') != value.lastIndexOf('@')) {
+      throw new BadRequestException("Invalid email address");
+    }
+    return value.toLowerCase(Locale.ROOT);
   }
 
   private String domainPart(String email) {
@@ -216,6 +226,12 @@ public class EmailMessageService {
       throw new BadRequestException("Invalid email address");
     }
     return email.substring(at + 1);
+  }
+
+  private void validateHeaderValue(String value, String field) {
+    if (value != null && (value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0)) {
+      throw new BadRequestException(field + " must not contain line breaks");
+    }
   }
 
   private void validateBody(SendEmailRequest request) {
