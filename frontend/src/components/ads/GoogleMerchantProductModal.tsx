@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { FiX } from 'react-icons/fi'
 import type {
   GoogleMerchantDataSource,
@@ -31,7 +31,10 @@ export default function GoogleMerchantProductModal({
   onClose,
   onSave,
 }: Props) {
-  const apiSources = dataSources.filter((source) => source.apiManaged)
+  const apiSources = useMemo(
+    () => dataSources.filter((source) => source.apiManaged),
+    [dataSources],
+  )
   const [dataSourceName, setDataSourceName] = useState('')
   const [offerId, setOfferId] = useState('')
   const [language, setLanguage] = useState('en')
