@@ -245,6 +245,63 @@ public class GoogleAdsPerformanceMaxService {
         .toList();
   }
 
+  public GoogleAssetGroupResponse setAssetGroupStatus(
+      Long companyId,
+      Long campaignId,
+      String assetGroupId,
+      String requestedStatus,
+      Long actorUserId) {
+    AdCampaign campaign = requirePerformanceMaxCampaign(companyId, campaignId);
+    var context = contextService.requireManaged(companyId, campaign.getAdAccountId());
+
+    String status = requestedStatus == null ? "" : requestedStatus.trim().toUpperCase();
+    if ("ACTIVE".equals(status)) status = "ENABLED";
+    if (!"ENABLED".equals(status) && !"PAUSED".equals(status)) {
+      throw new BadRequestException(
+          "Google Performance Max asset group status must be ENABLED/ACTIVE or PAUSED");
+    }
+
+    String normalizedId = numeric(assetGroupId);
+    Map<String, Object> update =
+        Map.of(
+            "resourceName",
+            resource(
+                context.account().getExternalAccountId(),
+                "assetGroups",
+                normalizedId),
+            "status",
+            status);
+
+    apiClient.mutate(
+        context.accessToken(),
+        context.account().getExternalAccountId(),
+        context.loginCustomerId(),
+        "assetGroups",
+        List.of(Map.of("update", update, "updateMask", "status")));
+
+    GoogleAssetGroupResponse after =
+        assetGroups(companyId, campaignId).stream()
+            .filter(group -> normalizedId.equals(group.id()))
+            .findFirst()
+            .orElseThrow(
+                () -> new NotFoundException(
+                    "Google Performance Max asset group was updated but could not be reloaded"));
+
+    activityLogService.record(
+        companyId,
+        campaign.getAdAccountId(),
+        AdProvider.GOOGLE_ADS,
+        actorUserId,
+        "GOOGLE_ASSET_GROUP_STATUS_UPDATED",
+        "ASSET_GROUP",
+        normalizedId,
+        null,
+        after,
+        Map.of("requestedStatus", status, "campaignId", campaign.getExternalCampaignId()));
+
+    return after;
+  }
+
   private AdCampaign requirePerformanceMaxCampaign(Long companyId, Long campaignId) {
     AdCampaign campaign =
         campaignRepository
