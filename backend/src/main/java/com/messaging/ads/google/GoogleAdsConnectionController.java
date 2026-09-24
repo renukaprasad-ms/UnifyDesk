@@ -18,6 +18,8 @@ import com.messaging.ads.google.dto.CreateGooglePerformanceMaxCampaignRequest;
 import com.messaging.ads.google.dto.CreateGoogleResponsiveSearchAdRequest;
 import com.messaging.ads.google.dto.CreateGoogleResponsiveDisplayAdRequest;
 import com.messaging.ads.google.dto.CreateGoogleDemandGenVideoAdRequest;
+import com.messaging.ads.google.dto.CreateGoogleDemandGenMultiAssetAdRequest;
+import com.messaging.ads.google.dto.CreateGoogleDemandGenCarouselAdRequest;
 import com.messaging.ads.google.dto.CreateGoogleShoppingProductAdRequest;
 import com.messaging.ads.google.dto.GoogleAdGroupStatusRequest;
 import com.messaging.ads.google.dto.GoogleAdGroupSyncResponse;
@@ -77,6 +79,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsAdSyncService adSyncService;
   private final GoogleAdsAdMutationService adMutationService;
   private final GoogleAdsVisualAdService visualAdService;
+  private final GoogleAdsDemandGenCreativeService demandGenCreativeService;
   private final GoogleAdsAudienceSyncService audienceSyncService;
   private final GoogleAdsAudienceMutationService audienceMutationService;
   private final GoogleAdsConversionSyncService conversionSyncService;
@@ -451,6 +454,36 @@ public class GoogleAdsConnectionController {
                 visualAdService.createDemandGenVideo(
                     companyId, adGroupId, request, userId),
                 "Google Demand Gen video ad created in paused state"));
+  }
+
+  @PostMapping("/ad-groups/{adGroupId}/demand-gen-multi-asset-ads")
+  public ResponseEntity<ApiResponse<AdResponse>> createDemandGenMultiAssetAd(
+      @PathVariable Long companyId,
+      @PathVariable Long adGroupId,
+      @Valid @RequestBody CreateGoogleDemandGenMultiAssetAdRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                demandGenCreativeService.createMultiAsset(
+                    companyId, adGroupId, request, userId),
+                "Google Demand Gen Multi-Asset ad created in paused state"));
+  }
+
+  @PostMapping("/ad-groups/{adGroupId}/demand-gen-carousel-ads")
+  public ResponseEntity<ApiResponse<AdResponse>> createDemandGenCarouselAd(
+      @PathVariable Long companyId,
+      @PathVariable Long adGroupId,
+      @Valid @RequestBody CreateGoogleDemandGenCarouselAdRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                demandGenCreativeService.createCarousel(
+                    companyId, adGroupId, request, userId),
+                "Google Demand Gen Carousel ad created in paused state"));
   }
 
   @PostMapping("/ad-groups/{adGroupId}/shopping-product-ads")
