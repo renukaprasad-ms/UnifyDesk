@@ -510,7 +510,12 @@ export default function AdCampaigns() {
                                 : selectedAccount?.provider === 'GOOGLE_ADS' ? 'Campaign budget unavailable' : 'Ad-set budget'}
                           </td>
                           <td className="px-5 py-4 text-right">
-                            {can(PERMISSIONS.ADS_MODIFY) &&
+                            {campaign.objective === 'VIDEO' ? (
+                              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+                                Read only
+                              </span>
+                            ) : (
+                              can(PERMISSIONS.ADS_MODIFY) &&
                               (campaign.status === 'ACTIVE' ? (
                                 <button
                                   type="button"
@@ -534,7 +539,8 @@ export default function AdCampaigns() {
                                   <FiPlay aria-hidden="true" />
                                   Start
                                 </button>
-                              ))}
+                              ))
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -578,25 +584,31 @@ export default function AdCampaigns() {
                               )} lifetime`
                             : selectedAccount?.provider === 'GOOGLE_ADS' ? 'Campaign budget unavailable' : 'Budget will be configured at ad-set level'}
                       </p>
-                      {can(PERMISSIONS.ADS_MODIFY) && (
-                        <button
-                          type="button"
-                          className="secondary-button mt-4 inline-flex items-center gap-2"
-                          disabled={workingCampaignId !== null}
-                          onClick={() =>
-                            void setStatus(
-                              campaign,
-                              campaign.providerStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE',
-                            )
-                          }
-                        >
-                          {campaign.providerStatus === 'ACTIVE' ? (
-                            <FiPause aria-hidden="true" />
-                          ) : (
-                            <FiPlay aria-hidden="true" />
-                          )}
-                          {campaign.providerStatus === 'ACTIVE' ? 'Pause' : 'Start'}
-                        </button>
+                      {campaign.objective === 'VIDEO' ? (
+                        <p className="mt-4 text-xs font-semibold text-slate-400">
+                          Video campaign · read only in Google Ads API
+                        </p>
+                      ) : (
+                        can(PERMISSIONS.ADS_MODIFY) && (
+                          <button
+                            type="button"
+                            className="secondary-button mt-4 inline-flex items-center gap-2"
+                            disabled={workingCampaignId !== null}
+                            onClick={() =>
+                              void setStatus(
+                                campaign,
+                                campaign.providerStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE',
+                              )
+                            }
+                          >
+                            {campaign.providerStatus === 'ACTIVE' ? (
+                              <FiPause aria-hidden="true" />
+                            ) : (
+                              <FiPlay aria-hidden="true" />
+                            )}
+                            {campaign.providerStatus === 'ACTIVE' ? 'Pause' : 'Start'}
+                          </button>
+                        )
                       )}
                     </div>
                   ))}
