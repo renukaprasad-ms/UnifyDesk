@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -19,6 +20,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
+@Slf4j
 @Component
 public class GoogleAdsApiClient {
 
@@ -427,6 +429,12 @@ public class GoogleAdsApiClient {
     }
   }
 
+  private String truncateForLog(String value) {
+    if (value == null || value.isBlank()) return "<empty>";
+    String normalized = value.replaceAll("\\s+", " ").trim();
+    return normalized.length() > 2000 ? normalized.substring(0, 2000) + "..." : normalized;
+  }
+
   private <T> T execute(Supplier<T> operation, String fallbackMessage) {
     try {
       T result = operation.get();
@@ -438,17 +446,12 @@ public class GoogleAdsApiClient {
       throw exception;
     } catch (RestClientResponseException exception) {
       String providerMessage = exception.getResponseBodyAsString();
-      if (providerMessage != null && providerMessage.length() > 700) {
-        providerMessage = providerMessage.substring(0, 700);
-      }
-      throw new BadRequestException(
-          fallbackMessage
-              + " (HTTP "
-              + exception.getStatusCode().value()
-              + ")"
-              + (providerMessage == null || providerMessage.isBlank()
-                  ? ""
-                  : ": " + providerMessage));
+      log.warn(
+          "google_ads_provider_error operation={} status={} response={}",
+          fallbackMessage,
+          exception.getStatusCode().value(),
+          truncateForLog(providerMessage));
+      throw new BadRequestException(GoogleApiErrorMapper.googleAds(exception, fallbackMessage));
     } catch (RuntimeException exception) {
       throw new BadRequestException(fallbackMessage + ": " + exception.getMessage());
     }
