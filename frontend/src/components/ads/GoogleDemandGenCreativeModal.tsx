@@ -199,8 +199,7 @@ export default function GoogleDemandGenCreativeModal({
       description: description.trim(),
       callToActionText: callToAction.trim() || null,
       logoImageBase64: logoImage,
-      cards: cards.map(({ id: _id, ...card }) => ({
-        ...card,
+      cards: cards.map((card) => ({
         headline: card.headline.trim(),
         callToActionText: card.callToActionText?.trim() || null,
         marketingImageBase64: card.marketingImageBase64 || null,
