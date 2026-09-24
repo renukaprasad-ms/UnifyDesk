@@ -258,6 +258,45 @@ public class GoogleAdsApiClient {
         "Google Ads mutation failed for " + resourceCollection);
   }
 
+  public JsonNode mutateAll(
+      String accessToken,
+      String customerId,
+      String loginCustomerId,
+      List<Map<String, Object>> mutateOperations) {
+    if (mutateOperations == null || mutateOperations.isEmpty()) {
+      throw new BadRequestException("Google Ads bulk mutation requires at least one operation");
+    }
+
+    return execute(
+        () -> {
+          RestClient.RequestBodySpec request =
+              adsClient
+                  .post()
+                  .uri(
+                      "/{version}/customers/{customerId}/googleAds:mutate",
+                      properties.getApiVersion().trim(),
+                      normalizeCustomerId(customerId))
+                  .contentType(MediaType.APPLICATION_JSON);
+          addAdsHeaders(request, accessToken, loginCustomerId);
+          return request
+              .body(Map.of("mutateOperations", mutateOperations, "partialFailure", false))
+              .retrieve()
+              .body(JsonNode.class);
+        },
+        "Google Ads bulk mutation failed");
+  }
+
+  public String firstBulkResourceName(JsonNode response, String resultField) {
+    if (response == null || resultField == null || resultField.isBlank()) return null;
+    JsonNode operations = response.path("mutateOperationResponses");
+    if (!operations.isArray()) return null;
+    for (JsonNode operation : operations) {
+      String resourceName = operation.path(resultField).path("resourceName").asText(null);
+      if (resourceName != null && !resourceName.isBlank()) return resourceName;
+    }
+    return null;
+  }
+
   public String firstMutatedResourceName(JsonNode response) {
     if (response == null) return null;
     JsonNode results = response.path("results");
