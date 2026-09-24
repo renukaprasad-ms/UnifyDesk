@@ -96,6 +96,7 @@ class GoogleAdsPerformanceMaxServiceTests {
             null,
             List.of(),
             "MAXIMIZE_CONVERSIONS",
+            false,
             null,
             null);
 
@@ -152,6 +153,7 @@ class GoogleAdsPerformanceMaxServiceTests {
             null,
             List.of(),
             "MAXIMIZE_CONVERSIONS",
+            false,
             LocalDate.now(),
             LocalDate.now().plusDays(30));
 
