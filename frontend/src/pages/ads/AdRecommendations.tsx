@@ -14,6 +14,7 @@ import type {
   AdRecommendationItem,
   AdRecommendationSeverity,
   AdRecommendations as AdRecommendationsData,
+  GoogleNativeRecommendation,
 } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -208,6 +209,10 @@ export default function AdRecommendations() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [workingKey, setWorkingKey] = useState<string | null>(null)
+  const [nativeRecommendations, setNativeRecommendations] = useState<
+    GoogleNativeRecommendation[]
+  >([])
+  const [nativeWorking, setNativeWorking] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -241,6 +246,19 @@ export default function AdRecommendations() {
     setRecommendations(data)
   }
 
+  const loadNativeRecommendations = async (account: AdAccount) => {
+    if (!selectedCompany || account.provider !== 'GOOGLE_ADS') {
+      setNativeRecommendations([])
+      return
+    }
+    setNativeRecommendations(
+      await adCenterApi.googleNativeRecommendations(
+        selectedCompany.companyId,
+        account.id,
+      ),
+    )
+  }
+
   const load = async () => {
     if (!selectedCompany) return
     setLoading(true)
@@ -260,7 +278,10 @@ export default function AdRecommendations() {
         eligible[0]
       if (preferred) {
         setSelectedAccountId(preferred.id)
-        await loadRecommendations(preferred.id)
+        await Promise.all([
+          loadRecommendations(preferred.id),
+          loadNativeRecommendations(preferred),
+        ])
       } else {
         setRecommendations(null)
       }
@@ -289,7 +310,11 @@ export default function AdRecommendations() {
     setError('')
     setLoading(true)
     try {
-      await loadRecommendations(accountId)
+      const account = managedAccounts.find((item) => item.id === accountId)
+      await Promise.all([
+        loadRecommendations(accountId),
+        account ? loadNativeRecommendations(account) : Promise.resolve(),
+      ])
     } catch (loadError) {
       setRecommendations(emptyRecommendations(accountId))
       setError(apiErrorMessage(loadError, 'Unable to load recommendations'))
@@ -334,6 +359,43 @@ export default function AdRecommendations() {
       )
     } finally {
       setWorkingKey(null)
+    }
+  }
+
+  const actOnNativeRecommendation = async (
+    recommendation: GoogleNativeRecommendation,
+    action: 'APPLY' | 'DISMISS',
+  ) => {
+    if (!selectedCompany || !selectedAccount) return
+    setNativeWorking(recommendation.resourceName)
+    setError('')
+    setNotice('')
+    try {
+      const result =
+        action === 'APPLY'
+          ? await adCenterApi.applyGoogleNativeRecommendations(
+              selectedCompany.companyId,
+              selectedAccount.id,
+              [recommendation.resourceName],
+            )
+          : await adCenterApi.dismissGoogleNativeRecommendations(
+              selectedCompany.companyId,
+              selectedAccount.id,
+              [recommendation.resourceName],
+            )
+      await loadNativeRecommendations(selectedAccount)
+      setNotice(
+        `${result.processedCount} Google Ads recommendation(s) ${action === 'APPLY' ? 'applied' : 'dismissed'}.`,
+      )
+    } catch (actionError) {
+      setError(
+        apiErrorMessage(
+          actionError,
+          `Unable to ${action.toLowerCase()} Google Ads recommendation`,
+        ),
+      )
+    } finally {
+      setNativeWorking(null)
     }
   }
 
@@ -465,6 +527,9 @@ export default function AdRecommendations() {
         selectedAccount.id,
       )
       setRecommendations(updated)
+      if (selectedAccount.provider === 'GOOGLE_ADS') {
+        await loadNativeRecommendations(selectedAccount)
+      }
       window.dispatchEvent(new Event('ad-center:recommendations-changed'))
 
       setNotice(
@@ -662,6 +727,95 @@ export default function AdRecommendations() {
                 </div>
               </div>
             </div>
+
+            {selectedAccount?.provider === 'GOOGLE_ADS' && (
+              <div className="panel mt-6 overflow-hidden">
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-950">
+                      Native Google Ads recommendations
+                    </h2>
+                    <p className="mt-1 text-xs text-slate-500">
+                      These come directly from Google RecommendationService. Apply changes only after reviewing the recommendation type and affected campaign.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                    {nativeRecommendations.length} active
+                  </span>
+                </div>
+
+                {nativeRecommendations.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-slate-500">
+                    Google did not return any active native recommendations for this account.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {nativeRecommendations.map((recommendation) => (
+                      <div
+                        key={recommendation.resourceName}
+                        className="flex flex-wrap items-start justify-between gap-4 px-5 py-4"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                              {pretty(recommendation.type)}
+                            </span>
+                            {recommendation.campaignResourceName && (
+                              <span className="max-w-full truncate rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
+                                {recommendation.campaignResourceName.split('/').at(-1)}
+                              </span>
+                            )}
+                          </div>
+                          {recommendation.impactJson && (
+                            <details className="mt-3">
+                              <summary className="cursor-pointer text-xs font-semibold text-slate-500">
+                                Provider impact details
+                              </summary>
+                              <pre className="mt-2 max-h-40 overflow-auto rounded-lg bg-slate-950 p-3 text-[11px] leading-5 text-slate-200">
+                                {recommendation.impactJson}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+
+                        {can(PERMISSIONS.ADS_MODIFY) && (
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              className="primary-button px-3 py-2 text-xs"
+                              disabled={nativeWorking !== null}
+                              onClick={() =>
+                                void actOnNativeRecommendation(
+                                  recommendation,
+                                  'APPLY',
+                                )
+                              }
+                            >
+                              {nativeWorking === recommendation.resourceName
+                                ? 'Working…'
+                                : 'Apply in Google'}
+                            </button>
+                            <button
+                              type="button"
+                              className="secondary-button px-3 py-2 text-xs"
+                              disabled={nativeWorking !== null}
+                              onClick={() =>
+                                void actOnNativeRecommendation(
+                                  recommendation,
+                                  'DISMISS',
+                                )
+                              }
+                            >
+                              Dismiss in Google
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
               {filters.map((item) => (
