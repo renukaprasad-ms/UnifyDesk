@@ -529,6 +529,39 @@ export type CreateGoogleDemandGenVideoAdInput = {
   logoImageBase64: string
 }
 
+export type CreateGoogleDemandGenMultiAssetAdInput = {
+  name: string
+  finalUrl: string
+  businessName: string
+  headlines: string[]
+  descriptions: string[]
+  callToActionText?: string | null
+  marketingImageBase64?: string | null
+  squareMarketingImageBase64?: string | null
+  portraitMarketingImageBase64?: string | null
+  tallPortraitMarketingImageBase64?: string | null
+  logoImageBase64: string
+}
+
+export type GoogleDemandGenCarouselCardInput = {
+  headline: string
+  callToActionText?: string | null
+  marketingImageBase64?: string | null
+  squareMarketingImageBase64?: string | null
+  portraitMarketingImageBase64?: string | null
+}
+
+export type CreateGoogleDemandGenCarouselAdInput = {
+  name: string
+  finalUrl: string
+  businessName: string
+  headline: string
+  description: string
+  callToActionText?: string | null
+  logoImageBase64: string
+  cards: GoogleDemandGenCarouselCardInput[]
+}
+
 export type CreateGoogleShoppingProductAdInput = {
   name?: string | null
 }
