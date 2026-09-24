@@ -13,6 +13,7 @@ import com.messaging.ads.google.dto.CreateGoogleAudienceRequest;
 import com.messaging.ads.google.dto.CreateGoogleCampaignRequest;
 import com.messaging.ads.google.dto.CreateGoogleConversionRequest;
 import com.messaging.ads.google.dto.CreateGoogleKeywordRequest;
+import com.messaging.ads.google.dto.CreateGooglePerformanceMaxCampaignRequest;
 import com.messaging.ads.google.dto.CreateGoogleResponsiveSearchAdRequest;
 import com.messaging.ads.google.dto.GoogleAdGroupStatusRequest;
 import com.messaging.ads.google.dto.GoogleAdGroupSyncResponse;
@@ -27,6 +28,8 @@ import com.messaging.ads.google.dto.GoogleInsightsSyncResponse;
 import com.messaging.ads.google.dto.GoogleInsightBreakdownsSyncResponse;
 import com.messaging.ads.google.dto.GoogleKeywordSyncResponse;
 import com.messaging.ads.google.dto.GoogleFullSyncResponse;
+import com.messaging.ads.google.dto.GoogleAssetGroupResponse;
+import com.messaging.ads.google.dto.GoogleAssetResponse;
 import com.messaging.ads.google.dto.UpdateGoogleAdGroupRequest;
 import com.messaging.ads.google.dto.UpdateGoogleCampaignRequest;
 import com.messaging.ads.google.dto.UpdateGoogleKeywordRequest;
@@ -65,6 +68,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsHealthService healthService;
   private final GoogleAdsBillingService billingService;
   private final GoogleAdsFullSyncService fullSyncService;
+  private final GoogleAdsPerformanceMaxService performanceMaxService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -91,6 +95,42 @@ public class GoogleAdsConnectionController {
             200,
             fullSyncService.sync(companyId, accountId),
             "Google Ads account fully synchronized"));
+  }
+
+  @GetMapping("/accounts/{accountId}/assets")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleAssetResponse>>> assets(
+      @PathVariable Long companyId, @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxService.assets(companyId, accountId),
+            "Google Ads asset library fetched"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/asset-groups")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleAssetGroupResponse>>> assetGroups(
+      @PathVariable Long companyId, @PathVariable Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxService.assetGroups(companyId, campaignId),
+            "Google Performance Max asset groups fetched"));
+  }
+
+  @PostMapping("/accounts/{accountId}/performance-max-campaigns")
+  public ResponseEntity<ApiResponse<AdCampaignResponse>> createPerformanceMaxCampaign(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody CreateGooglePerformanceMaxCampaignRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                performanceMaxService.create(companyId, accountId, request, userId),
+                "Google Performance Max campaign created in paused state"));
   }
 
   @PostMapping("/accounts/{accountId}/campaigns/sync")
@@ -391,6 +431,12 @@ public class GoogleAdsConnectionController {
     authorizationService.requirePermission(
         userId, companyId, CompanyPermissionKeys.ADS_CREATE);
     return userId;
+  }
+
+  private void requireRead(Long companyId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_READ);
   }
 
   private Long requireModify(Long companyId) {
