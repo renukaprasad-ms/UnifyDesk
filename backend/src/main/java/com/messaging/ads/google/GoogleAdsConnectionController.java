@@ -30,6 +30,11 @@ import com.messaging.ads.google.dto.GoogleKeywordSyncResponse;
 import com.messaging.ads.google.dto.GoogleFullSyncResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupStatusRequest;
+import com.messaging.ads.google.dto.GoogleAssetGroupSignalResponse;
+import com.messaging.ads.google.dto.GoogleAssetGroupSignalsRequest;
+import com.messaging.ads.google.dto.GoogleCustomerMatchUploadRequest;
+import com.messaging.ads.google.dto.GoogleConversionEventUploadRequest;
+import com.messaging.ads.google.dto.GoogleDataManagerUploadResponse;
 import com.messaging.ads.google.dto.GoogleAssetResponse;
 import com.messaging.ads.google.dto.UpdateGoogleAdGroupRequest;
 import com.messaging.ads.google.dto.UpdateGoogleCampaignRequest;
@@ -70,6 +75,8 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsBillingService billingService;
   private final GoogleAdsFullSyncService fullSyncService;
   private final GoogleAdsPerformanceMaxService performanceMaxService;
+  private final GoogleAdsAssetGroupSignalService assetGroupSignalService;
+  private final GoogleDataManagerService dataManagerService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -118,6 +125,34 @@ public class GoogleAdsConnectionController {
             200,
             performanceMaxService.assetGroups(companyId, campaignId),
             "Google Performance Max asset groups fetched"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/asset-groups/{assetGroupId}/signals")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleAssetGroupSignalResponse>>> assetGroupSignals(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @PathVariable String assetGroupId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            assetGroupSignalService.list(companyId, campaignId, assetGroupId),
+            "Google Performance Max signals fetched"));
+  }
+
+  @PostMapping("/campaigns/{campaignId}/asset-groups/{assetGroupId}/signals")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleAssetGroupSignalResponse>>> addAssetGroupSignals(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @PathVariable String assetGroupId,
+      @RequestBody GoogleAssetGroupSignalsRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            assetGroupSignalService.add(
+                companyId, campaignId, assetGroupId, request, userId),
+            "Google Performance Max signals updated"));
   }
 
   @PostMapping("/campaigns/{campaignId}/asset-groups/{assetGroupId}/status")
@@ -353,6 +388,22 @@ public class GoogleAdsConnectionController {
             "Google Ads audiences synchronized"));
   }
 
+  @PostMapping("/audiences/{audienceId}/members")
+  public ResponseEntity<ApiResponse<GoogleDataManagerUploadResponse>> uploadCustomerMatchMembers(
+      @PathVariable Long companyId,
+      @PathVariable Long audienceId,
+      @Valid @RequestBody GoogleCustomerMatchUploadRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            dataManagerService.uploadAudienceMembers(
+                companyId, audienceId, request, userId),
+            request.validateOnly()
+                ? "Google Customer Match members validated"
+                : "Google Customer Match members submitted"));
+  }
+
   @PostMapping("/accounts/{accountId}/audiences")
   public ResponseEntity<ApiResponse<AdAudienceResponse>> createAudience(
       @PathVariable Long companyId,
@@ -376,6 +427,22 @@ public class GoogleAdsConnectionController {
             200,
             conversionSyncService.sync(companyId, accountId),
             "Google Ads conversion actions synchronized"));
+  }
+
+  @PostMapping("/conversions/{conversionId}/events")
+  public ResponseEntity<ApiResponse<GoogleDataManagerUploadResponse>> uploadConversionEvents(
+      @PathVariable Long companyId,
+      @PathVariable Long conversionId,
+      @Valid @RequestBody GoogleConversionEventUploadRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            dataManagerService.uploadConversionEvents(
+                companyId, conversionId, request, userId),
+            request.validateOnly()
+                ? "Google conversion events validated"
+                : "Google conversion events submitted"));
   }
 
   @PostMapping("/accounts/{accountId}/conversions")
