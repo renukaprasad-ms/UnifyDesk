@@ -161,6 +161,44 @@ export type CreateGoogleCampaignInput = {
 
 export type UpdateGoogleCampaignInput = Partial<CreateGoogleCampaignInput>
 
+export type CreateGooglePerformanceMaxCampaignInput = {
+  name: string
+  dailyBudgetMinor: number
+  finalUrl: string
+  businessName: string
+  headlines: string[]
+  longHeadline: string
+  descriptions: string[]
+  marketingImageBase64: string
+  squareMarketingImageBase64: string
+  logoImageBase64: string
+  bidStrategy?: 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
+  startDate?: string | null
+  endDate?: string | null
+}
+
+export type GoogleAsset = {
+  id?: string | null
+  resourceName?: string | null
+  name?: string | null
+  type?: string | null
+  text?: string | null
+  imageUrl?: string | null
+  imageWidth?: number | null
+  imageHeight?: number | null
+  youtubeVideoId?: string | null
+}
+
+export type GoogleAssetGroup = {
+  id?: string | null
+  resourceName?: string | null
+  name?: string | null
+  status?: string | null
+  primaryStatus?: string | null
+  adStrength?: string | null
+  finalUrls: string[]
+}
+
 export type GoogleCampaignSync = {
   synchronizedCount: number
 }
