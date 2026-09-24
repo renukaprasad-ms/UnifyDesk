@@ -12,4 +12,6 @@ public interface EmailMessageRepository extends JpaRepository<EmailMessage, Long
 
   List<EmailMessage> findAllByCompanyIdAndStatusOrderByCreatedAtAsc(
       Long companyId, EmailMessageStatus status);
+
+  boolean existsBySendingDomainId(Long sendingDomainId);
 }

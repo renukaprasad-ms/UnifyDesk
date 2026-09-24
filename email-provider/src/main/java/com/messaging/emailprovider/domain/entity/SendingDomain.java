@@ -42,6 +42,15 @@ public class SendingDomain extends BaseEntity {
   @Column(name = "verification_token", nullable = false, length = 128)
   private String verificationToken;
 
+  @Column(name = "ownership_verified_at")
+  private Instant ownershipVerifiedAt;
+
+  @Column(name = "dkim_verified_at")
+  private Instant dkimVerifiedAt;
+
+  @Column(name = "last_checked_at")
+  private Instant lastCheckedAt;
+
   @Column(name = "verified_at")
   private Instant verifiedAt;
 }

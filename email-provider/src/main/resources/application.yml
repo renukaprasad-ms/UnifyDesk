@@ -29,6 +29,13 @@ server:
   port: ${EMAIL_PROVIDER_PORT:8010}
   shutdown: graceful
 
+app:
+  security:
+    credentials:
+      master-key: ${EMAIL_PROVIDER_MASTER_KEY:}
+  dkim:
+    selector: ${EMAIL_PROVIDER_DKIM_SELECTOR:rly1}
+
 management:
   endpoints:
     web:
