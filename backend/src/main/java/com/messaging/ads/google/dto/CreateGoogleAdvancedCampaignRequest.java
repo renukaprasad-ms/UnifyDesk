@@ -16,6 +16,6 @@ public record CreateGoogleAdvancedCampaignRequest(
     String merchantId,
     Integer campaignPriority,
     Boolean enableLocal,
-    @NotNull Boolean containsEuPoliticalAdvertising,
+    @NotNull(message = "Choose whether this campaign contains EU political advertising") Boolean containsEuPoliticalAdvertising,
     LocalDate startDate,
     LocalDate endDate) {}
