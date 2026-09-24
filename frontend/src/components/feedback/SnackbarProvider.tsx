@@ -176,7 +176,7 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
         duration,
       }
 
-      setItems((current) => [...current.slice(-3), item])
+      setItems((current) => [...current.slice(-2), item])
 
       if (duration > 0) {
         const timer = window.setTimeout(() => dismiss(id), duration)
@@ -202,6 +202,14 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
       externalSnackbarListeners.delete(listener)
     }
   }, [show])
+
+  useEffect(
+    () => () => {
+      timers.current.forEach((timer) => window.clearTimeout(timer))
+      timers.current.clear()
+    },
+    [],
+  )
 
   const api = useMemo<SnackbarApi>(
     () => ({
