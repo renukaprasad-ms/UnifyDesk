@@ -3,7 +3,7 @@ package com.messaging.ads.google.dto;
 import java.util.List;
 
 public record GoogleDataManagerUploadResponse(
-    String requestId,
+    List<String> requestIds,
     int submittedCount,
     boolean validateOnly,
     List<String> warnings) {}
