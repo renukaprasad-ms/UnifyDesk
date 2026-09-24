@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 public class GoogleAdsProperties {
 
   private static final String DEFAULT_SCOPE =
-      "openid email profile https://www.googleapis.com/auth/adwords https://www.googleapis.com/auth/datamanager";
+      "openid email profile https://www.googleapis.com/auth/adwords https://www.googleapis.com/auth/datamanager https://www.googleapis.com/auth/content";
 
   private boolean enabled;
   private String clientId;
