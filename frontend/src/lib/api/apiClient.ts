@@ -101,9 +101,36 @@ apiClient.interceptors.response.use(
   },
 )
 
+const cleanApiErrorMessage = (message: string | undefined, fallback: string) => {
+  if (!message) return fallback
+
+  let cleaned = message.replace(/\\s+/g, ' ').trim()
+  if (
+    cleaned.includes('Type definition error') ||
+    cleaned.includes('com.fasterxml.jackson.databind.JsonNode')
+  ) {
+    return fallback
+  }
+
+  const rawJsonMatch = cleaned.match(/\\s*\\(HTTP\\s+\\d+\\)\\s*:\\s*[\\[{]/i)
+  if (rawJsonMatch?.index !== undefined) {
+    cleaned = cleaned.slice(0, rawJsonMatch.index).trim()
+  } else {
+    const jsonIndex = [cleaned.indexOf(': {'), cleaned.indexOf(': [')]
+      .filter((index) => index >= 0)
+      .sort((a, b) => a - b)[0]
+    if (jsonIndex !== undefined) {
+      cleaned = cleaned.slice(0, jsonIndex).trim()
+    }
+  }
+
+  if (!cleaned) return fallback
+  return cleaned.length > 320 ? cleaned.slice(0, 317) + '...' : cleaned
+}
+
 export const apiErrorMessage = (error: unknown, fallback = 'Something went wrong') => {
   if (axios.isAxiosError<ApiResponse<never>>(error)) {
-    return error.response?.data?.error_message ?? fallback
+    return cleanApiErrorMessage(error.response?.data?.error_message, fallback)
   }
   return fallback
 }
