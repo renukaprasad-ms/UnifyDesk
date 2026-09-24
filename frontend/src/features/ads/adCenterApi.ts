@@ -42,6 +42,13 @@ import type {
   GoogleDataManagerUpload,
   GoogleNativeRecommendation,
   GoogleRecommendationAction,
+  GoogleMerchantAccount,
+  GoogleMerchantDataSource,
+  CreateGoogleMerchantDataSourceInput,
+  GoogleMerchantProductPage,
+  GoogleMerchantProduct,
+  UpsertGoogleMerchantProductInput,
+  DeleteGoogleMerchantProductInput,
   UpdateGoogleCampaignInput,
   CreateGoogleAdGroupInput,
   UpdateGoogleAdGroupInput,
@@ -621,6 +628,89 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+
+  async googleMerchantAccounts(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleMerchantAccount[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/merchant/accounts`,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleMerchantDataSources(
+    companyId: string,
+    accountId: string,
+    merchantId: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleMerchantDataSource[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/merchant/accounts/${merchantId}/data-sources`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleMerchantDataSource(
+    companyId: string,
+    accountId: string,
+    merchantId: string,
+    input: CreateGoogleMerchantDataSourceInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleMerchantDataSource>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/merchant/accounts/${merchantId}/data-sources`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async deleteGoogleMerchantDataSource(
+    companyId: string,
+    accountId: string,
+    merchantId: string,
+    dataSourceId: string,
+  ) {
+    const response = await apiClient.delete<ApiResponse<boolean>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/merchant/accounts/${merchantId}/data-sources/${dataSourceId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleMerchantProducts(
+    companyId: string,
+    accountId: string,
+    merchantId: string,
+    pageToken?: string | null,
+    pageSize = 100,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleMerchantProductPage>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/merchant/accounts/${merchantId}/products`,
+      { params: { pageToken: pageToken || undefined, pageSize } },
+    )
+    return unwrap(response.data)
+  },
+
+  async upsertGoogleMerchantProduct(
+    companyId: string,
+    accountId: string,
+    merchantId: string,
+    input: UpsertGoogleMerchantProductInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleMerchantProduct>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/merchant/accounts/${merchantId}/products`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async deleteGoogleMerchantProduct(
+    companyId: string,
+    accountId: string,
+    merchantId: string,
+    input: DeleteGoogleMerchantProductInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<boolean>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/merchant/accounts/${merchantId}/products:delete`,
+      input,
+    )
+    return unwrap(response.data)
+  },
 
   async syncGoogleBilling(companyId: string, accountId: string) {
     const response = await apiClient.post<ApiResponse<AdAccountBilling>>(
