@@ -3,6 +3,7 @@ import { FiArrowLeft, FiPause, FiPlay, FiPlus, FiRefreshCw, FiSave } from 'react
 import { Link } from 'react-router'
 import GoogleKeywordModal from './GoogleKeywordModal'
 import GoogleResponsiveSearchAdModal from './GoogleResponsiveSearchAdModal'
+import GoogleVisualAdModal from './GoogleVisualAdModal'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   Ad,
@@ -11,6 +12,8 @@ import type {
   AdKeyword,
   AdSet,
   CreateGoogleKeywordInput,
+  CreateGoogleResponsiveDisplayAdInput,
+  CreateGoogleDemandGenVideoAdInput,
   CreateGoogleResponsiveSearchAdInput,
 } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -87,14 +90,23 @@ export default function GoogleAdGroupDetails({
   const [adOpen, setAdOpen] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const channel = campaign?.objective ?? 'SEARCH'
+  const isSearch = channel === 'SEARCH'
+  const isDisplay = channel === 'DISPLAY'
+  const isDemandGen = channel === 'DEMAND_GEN'
+  const isShopping = channel === 'SHOPPING'
 
   const loadKeywords = async () => {
     setKeywords(await adCenterApi.keywords(companyId, adGroup.id))
   }
 
   useEffect(() => {
-    void loadKeywords().catch(() => undefined)
-  }, [companyId, adGroup.id])
+    if (isSearch) {
+      void loadKeywords().catch(() => undefined)
+    } else {
+      setKeywords([])
+    }
+  }, [companyId, adGroup.id, isSearch])
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
@@ -203,6 +215,81 @@ export default function GoogleAdGroupDetails({
     }
   }
 
+  const createDisplayAd = async (
+    input: CreateGoogleResponsiveDisplayAdInput,
+  ) => {
+    setCreatingAd(true)
+    setError('')
+    try {
+      const created = await adCenterApi.createGoogleResponsiveDisplayAd(
+        companyId,
+        adGroup.id,
+        input,
+      )
+      setAds((current) => [
+        created,
+        ...current.filter((item) => item.id !== created.id),
+      ])
+      setAdOpen(false)
+      setNotice(`${created.name} was created in paused state.`)
+    } catch (createError) {
+      setError(
+        apiErrorMessage(createError, 'Unable to create responsive display ad'),
+      )
+    } finally {
+      setCreatingAd(false)
+    }
+  }
+
+  const createDemandGenAd = async (
+    input: CreateGoogleDemandGenVideoAdInput,
+  ) => {
+    setCreatingAd(true)
+    setError('')
+    try {
+      const created = await adCenterApi.createGoogleDemandGenVideoAd(
+        companyId,
+        adGroup.id,
+        input,
+      )
+      setAds((current) => [
+        created,
+        ...current.filter((item) => item.id !== created.id),
+      ])
+      setAdOpen(false)
+      setNotice(`${created.name} was created in paused state.`)
+    } catch (createError) {
+      setError(
+        apiErrorMessage(createError, 'Unable to create Demand Gen video ad'),
+      )
+    } finally {
+      setCreatingAd(false)
+    }
+  }
+
+  const createShoppingAd = async () => {
+    setCreatingAd(true)
+    setError('')
+    try {
+      const created = await adCenterApi.createGoogleShoppingProductAd(
+        companyId,
+        adGroup.id,
+        { name: `${campaign?.name ?? 'Shopping'} product ad` },
+      )
+      setAds((current) => [
+        created,
+        ...current.filter((item) => item.id !== created.id),
+      ])
+      setNotice('Shopping Product Ad was created in paused state.')
+    } catch (createError) {
+      setError(
+        apiErrorMessage(createError, 'Unable to create Shopping Product Ad'),
+      )
+    } finally {
+      setCreatingAd(false)
+    }
+  }
+
   const setAdStatus = async (ad: Ad, status: 'ACTIVE' | 'PAUSED') => {
     setWorkingId(ad.id)
     setError('')
@@ -245,11 +332,25 @@ export default function GoogleAdGroupDetails({
           <h2 className="text-base font-bold text-slate-950">Ad group settings</h2>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <label className="text-xs font-semibold text-slate-700">Name<input className="form-input mt-2" value={name} maxLength={255} onChange={(e) => setName(e.target.value)} /></label>
-            <label className="text-xs font-semibold text-slate-700">Default CPC bid {account?.currency ? `(${account.currency})` : ''}<input className="form-input mt-2" type="number" min="0.01" step="0.01" value={cpcBid} onChange={(e) => setCpcBid(e.target.value)} /></label>
+            {!isDemandGen && (
+              <label className="text-xs font-semibold text-slate-700">
+                Default CPC bid {account?.currency ? `(${account.currency})` : ''}
+                <input
+                  className="form-input mt-2"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={cpcBid}
+                  onChange={(e) => setCpcBid(e.target.value)}
+                />
+              </label>
+            )}
           </div>
           {can(PERMISSIONS.ADS_MODIFY) && <div className="mt-5 flex justify-end"><button type="submit" className="primary-button inline-flex items-center gap-2" disabled={saving || !name.trim()}><FiSave />{saving ? 'Saving…' : 'Save to Google'}</button></div>}
         </form>
 
+        {isSearch && (
+          <>
         <div className="panel mt-5 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
             <div><h2 className="font-bold text-slate-950">Keywords</h2><p className="mt-1 text-xs text-slate-500">Broad, phrase, exact, and negative keywords for this ad group.</p></div>
@@ -268,18 +369,66 @@ export default function GoogleAdGroupDetails({
           )}
         </div>
 
+          </>
+        )}
+
         <div className="panel mt-5 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-            <div><h2 className="font-bold text-slate-950">Responsive search ads</h2><p className="mt-1 text-xs text-slate-500">Headlines, descriptions, final URLs, and delivery status.</p></div>
+            <div>
+              <h2 className="font-bold text-slate-950">
+                {isDisplay
+                  ? 'Responsive display ads'
+                  : isDemandGen
+                    ? 'Demand Gen video ads'
+                    : isShopping
+                      ? 'Shopping Product Ads'
+                      : 'Responsive search ads'}
+              </h2>
+              <p className="mt-1 text-xs text-slate-500">
+                {isDisplay
+                  ? 'Responsive image and text creative for the Google Display Network.'
+                  : isDemandGen
+                    ? 'Video creative for YouTube and Demand Gen inventory.'
+                    : isShopping
+                      ? 'Product ads generated from the linked Merchant Center inventory.'
+                      : 'Headlines, descriptions, final URLs, and delivery status.'}
+              </p>
+            </div>
             <div className="flex gap-2">
               {can(PERMISSIONS.ADS_MODIFY) && <button className="secondary-button inline-flex items-center gap-2" disabled={syncing} onClick={() => void syncAds()}><FiRefreshCw />{syncing ? 'Syncing…' : 'Sync ads'}</button>}
-              {can(PERMISSIONS.ADS_CREATE) && <button className="primary-button inline-flex items-center gap-2" onClick={() => setAdOpen(true)}><FiPlus />Create ad</button>}
+              {can(PERMISSIONS.ADS_CREATE) &&
+                (isShopping ? (
+                  <button
+                    className="primary-button inline-flex items-center gap-2"
+                    disabled={creatingAd}
+                    onClick={() => void createShoppingAd()}
+                  >
+                    <FiPlus />
+                    {creatingAd ? 'Creating…' : 'Create product ad'}
+                  </button>
+                ) : (
+                  <button
+                    className="primary-button inline-flex items-center gap-2"
+                    onClick={() => setAdOpen(true)}
+                  >
+                    <FiPlus />
+                    Create ad
+                  </button>
+                ))}
             </div>
           </div>
           {ads.length === 0 ? <div className="p-8 text-center text-sm text-slate-500">No ads stored yet.</div> : (
             <div className="divide-y divide-slate-100">
               {ads.map((ad) => <div key={ad.id} className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
-                <div><Link to={`/ad-center/ads/${ad.id}`} className="font-semibold text-slate-950 hover:text-indigo-600">{ad.name}</Link><p className="mt-1 text-xs text-slate-500">Google ad {ad.externalAdId}</p></div>
+                <div><Link to={`/ad-center/ads/${ad.id}`} className="font-semibold text-slate-950 hover:text-indigo-600">{ad.name}</Link><p className="mt-1 text-xs text-slate-500">
+                  {isDisplay
+                    ? 'Responsive Display Ad'
+                    : isDemandGen
+                      ? 'Demand Gen Video Ad'
+                      : isShopping
+                        ? 'Shopping Product Ad'
+                        : 'Responsive Search Ad'} · {ad.externalAdId}
+                </p></div>
                 <div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{ad.providerStatus ?? ad.status}</span>{can(PERMISSIONS.ADS_MODIFY) && <button className="secondary-button" disabled={workingId !== null} onClick={() => void setAdStatus(ad, ad.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}>{ad.status === 'ACTIVE' ? 'Pause' : 'Enable'}</button>}</div>
               </div>)}
             </div>
@@ -287,8 +436,33 @@ export default function GoogleAdGroupDetails({
         </div>
       </div>
 
-      {account && <GoogleKeywordModal account={account} open={keywordOpen} saving={creatingKeyword} onClose={() => setKeywordOpen(false)} onCreate={createKeyword} />}
-      <GoogleResponsiveSearchAdModal open={adOpen} saving={creatingAd} onClose={() => setAdOpen(false)} onCreate={createAd} />
+      {account && isSearch && (
+        <GoogleKeywordModal
+          account={account}
+          open={keywordOpen}
+          saving={creatingKeyword}
+          onClose={() => setKeywordOpen(false)}
+          onCreate={createKeyword}
+        />
+      )}
+      {isSearch && (
+        <GoogleResponsiveSearchAdModal
+          open={adOpen}
+          saving={creatingAd}
+          onClose={() => setAdOpen(false)}
+          onCreate={createAd}
+        />
+      )}
+      {(isDisplay || isDemandGen) && (
+        <GoogleVisualAdModal
+          mode={isDisplay ? 'DISPLAY' : 'DEMAND_GEN'}
+          open={adOpen}
+          saving={creatingAd}
+          onClose={() => setAdOpen(false)}
+          onCreateDisplay={createDisplayAd}
+          onCreateDemandGen={createDemandGenAd}
+        />
+      )}
     </section>
   )
 }
