@@ -286,7 +286,7 @@ public class GoogleAdsPerformanceMaxService {
     return apiClient
         .searchRows(
             context.accessToken(),
-            context.customerId(),
+            context.account().getExternalAccountId(),
             context.loginCustomerId(),
             query)
         .stream()
