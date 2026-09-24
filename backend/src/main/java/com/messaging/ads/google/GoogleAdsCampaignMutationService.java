@@ -298,8 +298,8 @@ public class GoogleAdsCampaignMutationService {
         yield "manual_cpc";
       }
       case "MAXIMIZE_CLICKS" -> {
-        target.put("maximizeClicks", Map.of());
-        yield "maximize_clicks";
+        target.put("targetSpend", Map.of());
+        yield "target_spend";
       }
       case "MAXIMIZE_CONVERSIONS" -> {
         target.put("maximizeConversions", Map.of());
