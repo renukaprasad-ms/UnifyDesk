@@ -87,6 +87,7 @@ export default function GoogleCampaignModal({
                 <option value="MANUAL_CPC">Manual CPC</option>
                 <option value="MAXIMIZE_CLICKS">Maximize clicks</option>
                 <option value="MAXIMIZE_CONVERSIONS">Maximize conversions</option>
+                <option value="MAXIMIZE_CONVERSION_VALUE">Maximize conversion value</option>
               </select>
             </label>
 
