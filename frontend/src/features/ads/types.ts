@@ -161,6 +161,21 @@ export type CreateGoogleCampaignInput = {
 
 export type UpdateGoogleCampaignInput = Partial<CreateGoogleCampaignInput>
 
+export type CreateGoogleAdvancedCampaignInput = {
+  name: string
+  channelType: 'DISPLAY' | 'DEMAND_GEN' | 'SHOPPING'
+  dailyBudgetMinor: number
+  bidStrategy?: 'MANUAL_CPC' | 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'TARGET_CPA' | 'TARGET_ROAS'
+  targetCpaMinor?: number | null
+  targetRoas?: number | null
+  merchantId?: string | null
+  campaignPriority?: number | null
+  enableLocal?: boolean | null
+  containsEuPoliticalAdvertising?: boolean
+  startDate?: string | null
+  endDate?: string | null
+}
+
 export type CreateGooglePerformanceMaxCampaignInput = {
   name: string
   dailyBudgetMinor: number
