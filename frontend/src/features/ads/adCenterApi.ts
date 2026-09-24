@@ -18,6 +18,13 @@ import type {
   AdKeyword,
   AdProviderConnection,
   AdProviderInfo,
+  ReachlyoCampaign,
+  ReachlyoCampaignSummary,
+  CreateReachlyoCampaignInput,
+  UpdateReachlyoCampaignInput,
+  CreateReachlyoCampaignChannelInput,
+  UpdateReachlyoCampaignChannelInput,
+  UpsertReachlyoBudgetPlanInput,
   AdRecommendations,
   AdRecommendationSummary,
   AdRecommendationLifecycleAction,
@@ -112,6 +119,105 @@ export const adCenterApi = {
   async accounts(companyId: string) {
     const response = await apiClient.get<ApiResponse<AdAccount[]>>(
       `/api/v1/companies/${companyId}/ads/accounts`,
+    )
+    return unwrap(response.data)
+  },
+
+
+
+  async reachlyoCampaigns(companyId: string, page = 0, size = 50) {
+    const response = await apiClient.get<ApiResponse<PageResponse<ReachlyoCampaignSummary>>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns`,
+      { params: { page, size } },
+    )
+    return unwrap(response.data)
+  },
+
+  async reachlyoCampaign(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createReachlyoCampaign(companyId: string, input: CreateReachlyoCampaignInput) {
+    const response = await apiClient.post<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateReachlyoCampaign(
+    companyId: string,
+    campaignId: string,
+    input: UpdateReachlyoCampaignInput,
+  ) {
+    const response = await apiClient.patch<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async archiveReachlyoCampaign(companyId: string, campaignId: string) {
+    const response = await apiClient.post<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/archive`,
+    )
+    return unwrap(response.data)
+  },
+
+  async addReachlyoCampaignChannel(
+    companyId: string,
+    campaignId: string,
+    input: CreateReachlyoCampaignChannelInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/channels`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateReachlyoCampaignChannel(
+    companyId: string,
+    campaignId: string,
+    channelId: string,
+    input: UpdateReachlyoCampaignChannelInput,
+  ) {
+    const response = await apiClient.patch<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/channels/${channelId}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async removeReachlyoCampaignChannel(
+    companyId: string,
+    campaignId: string,
+    channelId: string,
+  ) {
+    const response = await apiClient.delete<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/channels/${channelId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async upsertReachlyoBudgetPlan(
+    companyId: string,
+    campaignId: string,
+    input: UpsertReachlyoBudgetPlanInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/budget`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async removeReachlyoBudgetPlan(companyId: string, campaignId: string) {
+    const response = await apiClient.delete<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/budget`,
     )
     return unwrap(response.data)
   },

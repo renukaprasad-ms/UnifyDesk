@@ -1912,9 +1912,9 @@ Do NOT attempt all provider parity features at once.
 
 ## Phase A - Foundation / P0
 
-A1. Reachlyo Campaign domain  
-A2. CampaignChannel + ProviderDeployment  
-A3. BudgetPlan  
+A1. [x] Reachlyo Campaign domain — implemented on `feature/ad-center-unified-campaign-foundation`  
+A2. [x] CampaignChannel + ProviderDeployment — implemented foundation; remote launch wiring remains in A8-A10  
+A3. [x] BudgetPlan — implemented with automatic/fixed/percentage allocation modes  
 A4. CreativePack + CreativeVariant  
 A5. AudienceDefinition + mapping status  
 A6. ConversionGoalMapping  

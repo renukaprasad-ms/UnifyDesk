@@ -1,5 +1,162 @@
 export type AdProvider = 'GOOGLE_ADS' | 'META_ADS'
 
+
+export type ReachlyoCampaignObjective =
+  | 'SALES'
+  | 'LEADS'
+  | 'TRAFFIC'
+  | 'AWARENESS'
+  | 'APP_PROMOTION'
+  | 'LOCAL_PROMOTION'
+  | 'RETARGETING'
+  | 'PRODUCT_SALES'
+
+export type CampaignBusinessGoal =
+  | 'PURCHASE'
+  | 'LEAD'
+  | 'QUALIFIED_LEAD'
+  | 'SIGN_UP'
+  | 'PHONE_CALL'
+  | 'WHATSAPP_CONVERSATION'
+  | 'APP_INSTALL'
+  | 'TRAFFIC'
+  | 'AWARENESS'
+
+export type ReachlyoCampaignStatus =
+  | 'DRAFT'
+  | 'VALIDATING'
+  | 'READY'
+  | 'DEPLOYING'
+  | 'PARTIALLY_DEPLOYED'
+  | 'PAUSED'
+  | 'ACTIVE'
+  | 'PARTIAL_FAILURE'
+  | 'FAILED'
+  | 'COMPLETED'
+  | 'ARCHIVED'
+
+export type CampaignChannelType =
+  | 'GOOGLE_SEARCH'
+  | 'GOOGLE_PERFORMANCE_MAX'
+  | 'GOOGLE_DEMAND_GEN'
+  | 'GOOGLE_DISPLAY'
+  | 'GOOGLE_SHOPPING'
+  | 'META_ADS'
+
+export type CampaignChannelStatus =
+  | 'DRAFT'
+  | 'READY'
+  | 'DEPLOYING'
+  | 'DEPLOYED'
+  | 'FAILED'
+  | 'DISABLED'
+
+export type ProviderDeploymentStatus =
+  | 'PENDING'
+  | 'DEPLOYING'
+  | 'PAUSED'
+  | 'ACTIVE'
+  | 'PARTIAL_FAILURE'
+  | 'FAILED'
+  | 'ARCHIVED'
+
+export type BudgetAllocationMode = 'AUTOMATIC' | 'PERCENTAGE' | 'FIXED'
+
+export type ReachlyoBudgetPlan = {
+  id: string
+  campaignId: string
+  currency: string
+  totalBudgetMinor: number
+  allocationMode: BudgetAllocationMode
+  createdAt: string
+  updatedAt: string
+}
+
+export type ReachlyoCampaignChannel = {
+  id: string
+  campaignId: string
+  provider: AdProvider
+  channelType: CampaignChannelType
+  enabled: boolean
+  budgetAllocationMinor?: number | null
+  allocationPercent?: number | null
+  providerOverrideJson?: string | null
+  status: CampaignChannelStatus
+  createdAt: string
+  updatedAt: string
+}
+
+export type ReachlyoProviderDeployment = {
+  id: string
+  campaignId: string
+  channelId: string
+  provider: AdProvider
+  adAccountId: string
+  localCampaignId?: string | null
+  externalCampaignId?: string | null
+  providerStatus?: string | null
+  deploymentStatus: ProviderDeploymentStatus
+  lastErrorCode?: string | null
+  lastErrorMessage?: string | null
+  lastSyncAt?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type ReachlyoCampaignSummary = {
+  id: string
+  companyId: string
+  name: string
+  objective: ReachlyoCampaignObjective
+  businessGoal: CampaignBusinessGoal
+  landingPageUrl?: string | null
+  status: ReachlyoCampaignStatus
+  currency: string
+  startAt?: string | null
+  endAt?: string | null
+  createdByUserId: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type ReachlyoCampaign = ReachlyoCampaignSummary & {
+  budgetPlan?: ReachlyoBudgetPlan | null
+  channels: ReachlyoCampaignChannel[]
+  deployments: ReachlyoProviderDeployment[]
+}
+
+export type CreateReachlyoCampaignInput = {
+  name: string
+  objective: ReachlyoCampaignObjective
+  businessGoal: CampaignBusinessGoal
+  landingPageUrl?: string | null
+  currency: string
+  startAt?: string | null
+  endAt?: string | null
+}
+
+export type UpdateReachlyoCampaignInput = Partial<CreateReachlyoCampaignInput>
+
+export type CreateReachlyoCampaignChannelInput = {
+  channelType: CampaignChannelType
+  enabled?: boolean
+  budgetAllocationMinor?: number | null
+  allocationPercent?: number | null
+  providerOverrideJson?: string | null
+}
+
+export type UpdateReachlyoCampaignChannelInput = {
+  enabled?: boolean
+  budgetAllocationMinor?: number | null
+  allocationPercent?: number | null
+  providerOverrideJson?: string | null
+}
+
+export type UpsertReachlyoBudgetPlanInput = {
+  totalBudgetMinor: number
+  allocationMode: BudgetAllocationMode
+}
+
 export type AdCapability =
   | 'ACCOUNT_DISCOVERY'
   | 'CAMPAIGN_MANAGEMENT'
