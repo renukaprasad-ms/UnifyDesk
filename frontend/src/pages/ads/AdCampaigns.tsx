@@ -3,9 +3,10 @@ import { FiPlay, FiPlus, FiRefreshCw, FiPause } from 'react-icons/fi'
 import { Link, useSearchParams } from 'react-router'
 import MetaCampaignModal from '../../components/ads/MetaCampaignModal'
 import GoogleCampaignModal from '../../components/ads/GoogleCampaignModal'
+import GoogleAdvancedCampaignModal from '../../components/ads/GoogleAdvancedCampaignModal'
 import GooglePerformanceMaxCampaignModal from '../../components/ads/GooglePerformanceMaxCampaignModal'
 import { adCenterApi } from '../../features/ads/adCenterApi'
-import type { AdAccount, AdCampaign, CreateGoogleCampaignInput, CreateGooglePerformanceMaxCampaignInput, CreateMetaCampaignInput } from '../../features/ads/types'
+import type { AdAccount, AdCampaign, CreateGoogleAdvancedCampaignInput, CreateGoogleCampaignInput, CreateGooglePerformanceMaxCampaignInput, CreateMetaCampaignInput } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -48,7 +49,7 @@ export default function AdCampaigns() {
   const [creating, setCreating] = useState(false)
   const [workingCampaignId, setWorkingCampaignId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
-  const [googleCreateType, setGoogleCreateType] = useState<'SEARCH' | 'PERFORMANCE_MAX'>('SEARCH')
+  const [googleCreateType, setGoogleCreateType] = useState<'SEARCH' | 'PERFORMANCE_MAX' | 'ADVANCED'>('SEARCH')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -221,6 +222,36 @@ export default function AdCampaigns() {
   }
 
 
+  const createGoogleAdvanced = async (
+    input: CreateGoogleAdvancedCampaignInput,
+  ) => {
+    if (!selectedCompany || !selectedAccount) return
+    setCreating(true)
+    setError('')
+    setNotice('')
+    try {
+      const created = await adCenterApi.createGoogleAdvancedCampaign(
+        selectedCompany.companyId,
+        selectedAccount.id,
+        input,
+      )
+      setCampaigns((current) => [
+        created,
+        ...current.filter((item) => item.id !== created.id),
+      ])
+      setCreateOpen(false)
+      setNotice(
+        `${created.name} was created as a paused ${objectiveLabel(created.objective)} campaign.`,
+      )
+    } catch (createError) {
+      setError(
+        apiErrorMessage(createError, 'Unable to create Google Ads campaign'),
+      )
+    } finally {
+      setCreating(false)
+    }
+  }
+
   const setStatus = async (campaign: AdCampaign, status: 'ACTIVE' | 'PAUSED') => {
     if (!selectedCompany) return
     setWorkingCampaignId(campaign.id)
@@ -323,6 +354,18 @@ export default function AdCampaigns() {
                   >
                     <FiPlus aria-hidden="true" />
                     Create Performance Max
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button inline-flex items-center gap-2"
+                    disabled={!selectedAccount}
+                    onClick={() => {
+                      setGoogleCreateType('ADVANCED')
+                      setCreateOpen(true)
+                    }}
+                  >
+                    <FiPlus aria-hidden="true" />
+                    Display / Demand Gen / Shopping
                   </button>
                 </>
               ) : (
@@ -581,6 +624,16 @@ export default function AdCampaigns() {
             saving={creating}
             onClose={() => setCreateOpen(false)}
             onCreate={createGoogle}
+          />
+        )}
+      {selectedAccount?.provider === 'GOOGLE_ADS' &&
+        googleCreateType === 'ADVANCED' && (
+          <GoogleAdvancedCampaignModal
+            account={selectedAccount}
+            open={createOpen}
+            saving={creating}
+            onClose={() => setCreateOpen(false)}
+            onCreate={createGoogleAdvanced}
           />
         )}
       {selectedAccount?.provider === 'GOOGLE_ADS' &&
