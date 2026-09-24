@@ -1,6 +1,29 @@
 spring:
   application:
     name: email-provider
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5003/email_provider}
+    username: ${SPRING_DATASOURCE_USERNAME:email_provider}
+    password: ${SPRING_DATASOURCE_PASSWORD:email_provider}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
+    url: ${SPRING_FLYWAY_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5003/email_provider}}
+    user: ${SPRING_FLYWAY_USER:${SPRING_DATASOURCE_USERNAME:email_provider}}
+    password: ${SPRING_FLYWAY_PASSWORD:${SPRING_DATASOURCE_PASSWORD:email_provider}}
+    locations: classpath:db/migration
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: ${FLYWAY_BASELINE_VERSION:0}
 
 server:
   port: ${EMAIL_PROVIDER_PORT:8010}
@@ -26,6 +49,8 @@ info:
     description: First-party outbound email delivery service for Messaging
 
 logging:
+  pattern:
+    level: "%5p [requestId=%X{requestId:-}]"
   level:
     root: INFO
     com.messaging.emailprovider: INFO
