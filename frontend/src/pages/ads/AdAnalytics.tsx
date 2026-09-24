@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi'
 import { Link } from 'react-router'
 import AdFeedbackAlert from '../../components/ads/AdFeedbackAlert'
+import { showGlobalSnackbar } from '../../components/feedback/SnackbarProvider'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -619,7 +620,9 @@ export default function AdAnalytics() {
   const sync = async () => {
     if (!selectedCompany || !selectedAccount) return
     if (!from || !to || to < from) {
-      setError('Choose a valid analytics date range.')
+      const message = 'Choose a valid analytics date range.'
+      setError(message)
+      showGlobalSnackbar(message, { variant: 'warning', title: 'Check date range' })
       return
     }
 
