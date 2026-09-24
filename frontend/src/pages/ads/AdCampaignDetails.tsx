@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router'
 import MetaAdSetModal from '../../components/ads/MetaAdSetModal'
 import GoogleAdGroupModal from '../../components/ads/GoogleAdGroupModal'
 import GooglePerformanceMaxSignals from '../../components/ads/GooglePerformanceMaxSignals'
+import GooglePerformanceMaxAssets from '../../components/ads/GooglePerformanceMaxAssets'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -754,6 +755,16 @@ export default function AdCampaignDetails() {
                               ))}
                           </div>
                         </div>
+
+                        {group.id && account && (
+                          <GooglePerformanceMaxAssets
+                            companyId={selectedCompany.companyId}
+                            campaignId={campaign.id}
+                            accountId={account.id}
+                            assetGroup={group}
+                            canModify={can(PERMISSIONS.ADS_MODIFY)}
+                          />
+                        )}
 
                         {group.id && (
                           <GooglePerformanceMaxSignals
