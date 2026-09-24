@@ -5,6 +5,7 @@ import java.util.Hashtable;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import javax.naming.Context;
+import javax.naming.NameNotFoundException;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
 import javax.naming.directory.Attribute;
@@ -40,20 +41,11 @@ public class JndiDnsResolver implements DnsResolver {
       } finally {
         context.close();
       }
+    } catch (NameNotFoundException exception) {
+      return Set.of();
     } catch (NamingException exception) {
-      if (isNameNotFound(exception)) {
-        return Set.of();
-      }
       throw new ServiceUnavailableException("DNS lookup failed", exception);
     }
-  }
-
-  private boolean isNameNotFound(NamingException exception) {
-    String message = exception.getMessage();
-    return message != null
-        && (message.contains("DNS name not found")
-            || message.contains("Name not found")
-            || message.contains("NXDOMAIN"));
   }
 
   static String normalizeTxtValue(String value) {
