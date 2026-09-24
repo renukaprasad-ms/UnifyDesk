@@ -467,6 +467,33 @@ export type MetaAdSync = {
 }
 
 
+export type CreateGoogleResponsiveDisplayAdInput = {
+  name: string
+  finalUrl: string
+  businessName: string
+  headlines: string[]
+  longHeadline: string
+  descriptions: string[]
+  marketingImageBase64: string
+  squareMarketingImageBase64: string
+  squareLogoImageBase64?: string | null
+}
+
+export type CreateGoogleDemandGenVideoAdInput = {
+  name: string
+  finalUrl: string
+  businessName: string
+  headlines: string[]
+  longHeadlines: string[]
+  descriptions: string[]
+  youtubeVideoId: string
+  logoImageBase64: string
+}
+
+export type CreateGoogleShoppingProductAdInput = {
+  name?: string | null
+}
+
 export type CreateGoogleResponsiveSearchAdInput = {
   name: string
   finalUrl: string
