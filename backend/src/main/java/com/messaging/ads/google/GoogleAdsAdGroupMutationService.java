@@ -113,6 +113,10 @@ public class GoogleAdsAdGroupMutationService {
       masks.add("name");
     }
     if (request.cpcBidMinor() != null) {
+      if ("DEMAND_GEN".equalsIgnoreCase(campaign.getObjective())) {
+        throw new BadRequestException(
+            "Demand Gen uses campaign-level automated bidding; do not set an ad-group CPC bid");
+      }
       update.put(
           "cpcBidMicros",
           GoogleAdsMoney.minorToMicros(
