@@ -50,6 +50,8 @@ import type {
   CreateGoogleResponsiveSearchAdInput,
   CreateGoogleResponsiveDisplayAdInput,
   CreateGoogleDemandGenVideoAdInput,
+  CreateGoogleDemandGenMultiAssetAdInput,
+  CreateGoogleDemandGenCarouselAdInput,
   CreateGoogleShoppingProductAdInput,
   UpdateGoogleResponsiveSearchAdInput,
   CreateGoogleAudienceInput,
@@ -972,6 +974,30 @@ export const adCenterApi = {
   ) {
     const response = await apiClient.post<ApiResponse<Ad>>(
       `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/demand-gen-video-ads`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleDemandGenMultiAssetAd(
+    companyId: string,
+    adGroupId: string,
+    input: CreateGoogleDemandGenMultiAssetAdInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<Ad>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/demand-gen-multi-asset-ads`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleDemandGenCarouselAd(
+    companyId: string,
+    adGroupId: string,
+    input: CreateGoogleDemandGenCarouselAdInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<Ad>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/demand-gen-carousel-ads`,
       input,
     )
     return unwrap(response.data)
