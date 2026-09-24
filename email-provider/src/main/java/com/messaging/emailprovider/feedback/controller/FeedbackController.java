@@ -33,8 +33,8 @@ public class FeedbackController {
     this.dsnFeedbackParser = dsnFeedbackParser;
   }
 
-  @PostMapping("/postfix")
-  public ApiResponse<FeedbackResultResponse> postfix(
+  @PostMapping({"/event", "/postfix"})
+  public ApiResponse<FeedbackResultResponse> event(
       @RequestHeader("X-Reachlyo-Feedback-Token") String token,
       @Valid @RequestBody PostfixFeedbackRequest request) {
     authenticator.verify(token);

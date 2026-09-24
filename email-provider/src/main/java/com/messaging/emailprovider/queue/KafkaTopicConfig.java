@@ -16,6 +16,18 @@ public class KafkaTopicConfig {
       @Value("${app.kafka.topics.delivery-requested:email.delivery.requested}") String name,
       @Value("${app.kafka.partitions:6}") int partitions,
       @Value("${app.kafka.replication-factor:1}") short replicationFactor) {
+    return topic(name, partitions, replicationFactor);
+  }
+
+  @Bean
+  NewTopic emailLifecycleTopic(
+      @Value("${app.kafka.topics.lifecycle:email.lifecycle.events}") String name,
+      @Value("${app.kafka.partitions:6}") int partitions,
+      @Value("${app.kafka.replication-factor:1}") short replicationFactor) {
+    return topic(name, partitions, replicationFactor);
+  }
+
+  private NewTopic topic(String name, int partitions, short replicationFactor) {
     return TopicBuilder.name(name)
         .partitions(partitions)
         .replicas(replicationFactor)
