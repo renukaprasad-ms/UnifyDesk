@@ -109,7 +109,7 @@ public class GoogleAdsCampaignPersistenceService {
     campaign.setName(first(text(snapshot, "name"), "Google Campaign " + externalId));
     campaign.setObjective(text(snapshot, "advertisingChannelType"));
     campaign.setBuyingType(text(snapshot, "advertisingChannelSubType"));
-    campaign.setBidStrategy(text(snapshot, "biddingStrategyType"));
+    campaign.setBidStrategy(productBidStrategy(text(snapshot, "biddingStrategyType")));
     campaign.setProviderStatus(text(snapshot, "status"));
     campaign.setEffectiveStatus(text(snapshot, "primaryStatus"));
     campaign.setStatus(mapStatus(text(snapshot, "status")));
@@ -141,6 +141,13 @@ public class GoogleAdsCampaignPersistenceService {
           "Google Ads account is not available for campaign synchronization");
     }
     return account;
+  }
+
+  private String productBidStrategy(String providerStrategy) {
+    if (providerStrategy == null) return null;
+    return "TARGET_SPEND".equalsIgnoreCase(providerStrategy)
+        ? "MAXIMIZE_CLICKS"
+        : providerStrategy;
   }
 
   private AdEntityStatus mapStatus(String status) {
