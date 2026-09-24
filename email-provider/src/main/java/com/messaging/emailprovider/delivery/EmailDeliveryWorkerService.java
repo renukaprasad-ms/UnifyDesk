@@ -102,9 +102,7 @@ public class EmailDeliveryWorkerService {
       deferInfrastructure(
           dueIds,
           new SmtpDeliveryResult(
-              SmtpDeliveryOutcome.DEFERRED,
-              null,
-              "DKIM signing key is temporarily unavailable"));
+              SmtpDeliveryOutcome.DEFERRED, null, "DKIM signing key is temporarily unavailable"));
       messageState.refresh(messageId);
       return;
     }
@@ -123,9 +121,9 @@ public class EmailDeliveryWorkerService {
 
       final byte[] signed;
       try {
-        byte[] raw =
-            mimeBuilder.build(message, recipient, allRecipients, domain.getDomainName());
-        signed = dkimSigner.sign(raw, domain.getDomainName(), dkimKey.getSelector(), privateKey);
+        byte[] raw = mimeBuilder.build(message, recipient, allRecipients, domain.getDomainName());
+        signed =
+            dkimSigner.sign(raw, domain.getDomainName(), dkimKey.getSelector(), privateKey);
       } catch (RuntimeException exception) {
         recipientState.deferred(
             recipient,
@@ -138,9 +136,16 @@ public class EmailDeliveryWorkerService {
         continue;
       }
 
-      SmtpDeliveryResult result =
-          smtpClient.handoff(
-              envelopeFrom(message, recipient), recipient.getRecipientAddress(), signed);
+      SmtpDeliveryResult result;
+      try {
+        result =
+            smtpClient.handoff(
+                envelopeFrom(message, recipient), recipient.getRecipientAddress(), signed);
+      } catch (RuntimeException exception) {
+        result =
+            new SmtpDeliveryResult(
+                SmtpDeliveryOutcome.DEFERRED, null, "SMTP handoff failed unexpectedly");
+      }
 
       if (result.outcome() == SmtpDeliveryOutcome.HANDED_OFF) {
         recipientState.handedOff(recipient, result, startedAt);

@@ -2,6 +2,7 @@ package com.messaging.emailprovider.mime;
 
 import com.messaging.emailprovider.mail.entity.EmailMessage;
 import com.messaging.emailprovider.mail.entity.EmailRecipient;
+import com.messaging.emailprovider.mail.enums.EmailRecipientStatus;
 import com.messaging.emailprovider.mail.enums.EmailRecipientType;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneOffset;
@@ -16,46 +17,60 @@ import org.springframework.stereotype.Component;
 public class MimeMessageBuilder {
 
   public byte[] build(
-      EmailMessage message, EmailRecipient target, List<EmailRecipient> allRecipients, String domain) {
+      EmailMessage message,
+      EmailRecipient target,
+      List<EmailRecipient> allRecipients,
+      String domain) {
     StringBuilder headers = new StringBuilder();
     headers.append("From: ").append(message.getFromAddress()).append("\r\n");
 
     List<String> to =
         allRecipients.stream()
+            .filter(r -> r.getStatus() != EmailRecipientStatus.SUPPRESSED)
             .filter(r -> r.getRecipientType() == EmailRecipientType.TO)
             .map(EmailRecipient::getRecipientAddress)
             .toList();
     List<String> cc =
         allRecipients.stream()
+            .filter(r -> r.getStatus() != EmailRecipientStatus.SUPPRESSED)
             .filter(r -> r.getRecipientType() == EmailRecipientType.CC)
             .map(EmailRecipient::getRecipientAddress)
             .toList();
 
-    headers
-        .append("To: ")
-        .append(to.isEmpty() ? "undisclosed-recipients:;" : String.join(", ", to))
-        .append("\r\n");
+    appendAddressHeader(headers, "To", to, true);
     if (!cc.isEmpty()) {
-      headers.append("Cc: ").append(String.join(", ", cc)).append("\r\n");
+      appendAddressHeader(headers, "Cc", cc, false);
     }
     if (message.getReplyToAddress() != null && !message.getReplyToAddress().isBlank()) {
       headers.append("Reply-To: ").append(message.getReplyToAddress()).append("\r\n");
     }
 
-    headers.append("Subject: ").append(encodeHeader(message.getSubject())).append("\r\n");
+    appendFoldedHeader(headers, "Subject", encodeHeader(message.getSubject()));
     headers
         .append("Date: ")
         .append(DateTimeFormatter.RFC_1123_DATE_TIME.format(ZonedDateTime.now(ZoneOffset.UTC)))
         .append("\r\n");
-    headers.append("Message-ID: <").append(message.getId()).append("@").append(domain).append(">\r\n");
+    headers
+        .append("Message-ID: <")
+        .append(message.getId())
+        .append("@")
+        .append(domain)
+        .append(">\r\n");
     headers.append("MIME-Version: 1.0\r\n");
     headers.append("X-Reachlyo-Message-ID: ").append(message.getId()).append("\r\n");
     headers.append("X-Reachlyo-Recipient-ID: ").append(target.getId()).append("\r\n");
 
     String body;
     if (message.getTextBody() != null && message.getHtmlBody() != null) {
-      String boundary = "=_reachlyo_" + message.getId() + "_" + UUID.randomUUID().toString().replace("-", "");
-      headers.append("Content-Type: multipart/alternative; boundary=\"").append(boundary).append("\"\r\n");
+      String boundary =
+          "=_reachlyo_"
+              + message.getId()
+              + "_"
+              + UUID.randomUUID().toString().replace("-", "");
+      headers
+          .append("Content-Type: multipart/alternative; boundary=\"")
+          .append(boundary)
+          .append("\"\r\n");
       body =
           "--"
               + boundary
@@ -83,6 +98,48 @@ public class MimeMessageBuilder {
     }
 
     return (headers + "\r\n" + body).getBytes(StandardCharsets.ISO_8859_1);
+  }
+
+  private void appendAddressHeader(
+      StringBuilder headers, String name, List<String> addresses, boolean allowEmpty) {
+    if (addresses.isEmpty()) {
+      if (allowEmpty) {
+        headers.append(name).append(": undisclosed-recipients:;\r\n");
+      }
+      return;
+    }
+
+    headers.append(name).append(": ");
+    int lineLength = name.length() + 2;
+    for (int index = 0; index < addresses.size(); index++) {
+      String token = (index == 0 ? "" : ", ") + addresses.get(index);
+      if (lineLength + token.length() > 78) {
+        headers.append("\r\n ");
+        lineLength = 1;
+        token = (index == 0 ? "" : "") + addresses.get(index);
+      }
+      headers.append(token);
+      lineLength += token.length();
+    }
+    headers.append("\r\n");
+  }
+
+  private void appendFoldedHeader(StringBuilder headers, String name, String value) {
+    String prefix = name + ": ";
+    headers.append(prefix);
+    int lineLength = prefix.length();
+    int index = 0;
+    while (index < value.length()) {
+      int available = Math.max(1, 78 - lineLength);
+      int end = Math.min(value.length(), index + available);
+      headers.append(value, index, end);
+      index = end;
+      if (index < value.length()) {
+        headers.append("\r\n ");
+        lineLength = 1;
+      }
+    }
+    headers.append("\r\n");
   }
 
   private String encodeHeader(String value) {

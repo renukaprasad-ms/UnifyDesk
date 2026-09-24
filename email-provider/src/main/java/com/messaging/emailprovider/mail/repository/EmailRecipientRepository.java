@@ -16,56 +16,66 @@ public interface EmailRecipientRepository extends JpaRepository<EmailRecipient, 
   List<EmailRecipient> findAllByStatusOrderByCreatedAtAsc(EmailRecipientStatus status);
 
   @Query(
-      """
-      select r.id from EmailRecipient r
-      where r.messageId = :messageId
-        and (
-          r.status = com.messaging.emailprovider.mail.enums.EmailRecipientStatus.QUEUED
-          or (
-            r.status = com.messaging.emailprovider.mail.enums.EmailRecipientStatus.DEFERRED
-            and (r.nextAttemptAt is null or r.nextAttemptAt <= :now)
-          )
-        )
-      order by r.createdAt
-      """)
+      value =
+          """
+          SELECT id FROM email_recipients
+          WHERE message_id = :messageId
+            AND (
+              status = 'QUEUED'
+              OR (
+                status = 'DEFERRED'
+                AND (next_attempt_at IS NULL OR next_attempt_at <= :now)
+              )
+            )
+          ORDER BY created_at
+          """,
+      nativeQuery = true)
   List<Long> findDueRecipientIds(@Param("messageId") Long messageId, @Param("now") Instant now);
 
   @Query(
-      """
-      select distinct r.messageId from EmailRecipient r
-      where r.status = com.messaging.emailprovider.mail.enums.EmailRecipientStatus.DEFERRED
-        and r.nextAttemptAt <= :now
-      """)
+      value =
+          """
+          SELECT DISTINCT message_id FROM email_recipients
+          WHERE status = 'DEFERRED'
+            AND next_attempt_at <= :now
+          """,
+      nativeQuery = true)
   List<Long> findMessageIdsWithDueRetries(@Param("now") Instant now);
 
   @Modifying
   @Query(
-      """
-      update EmailRecipient r
-      set r.status = com.messaging.emailprovider.mail.enums.EmailRecipientStatus.PROCESSING,
-          r.attemptCount = r.attemptCount + 1,
-          r.lastAttemptAt = :now,
-          r.nextAttemptAt = null
-      where r.id = :id
-        and (
-          r.status = com.messaging.emailprovider.mail.enums.EmailRecipientStatus.QUEUED
-          or (
-            r.status = com.messaging.emailprovider.mail.enums.EmailRecipientStatus.DEFERRED
-            and (r.nextAttemptAt is null or r.nextAttemptAt <= :now)
-          )
-        )
-      """)
+      value =
+          """
+          UPDATE email_recipients
+          SET status = 'PROCESSING',
+              attempt_count = attempt_count + 1,
+              last_attempt_at = :now,
+              next_attempt_at = NULL,
+              updated_at = :now
+          WHERE id = :id
+            AND (
+              status = 'QUEUED'
+              OR (
+                status = 'DEFERRED'
+                AND (next_attempt_at IS NULL OR next_attempt_at <= :now)
+              )
+            )
+          """,
+      nativeQuery = true)
   int claimForDelivery(@Param("id") Long id, @Param("now") Instant now);
 
   @Modifying
   @Query(
-      """
-      update EmailRecipient r
-      set r.status = com.messaging.emailprovider.mail.enums.EmailRecipientStatus.DEFERRED,
-          r.nextAttemptAt = :now
-      where r.status = com.messaging.emailprovider.mail.enums.EmailRecipientStatus.PROCESSING
-        and r.lastAttemptAt < :staleBefore
-      """)
+      value =
+          """
+          UPDATE email_recipients
+          SET status = 'DEFERRED',
+              next_attempt_at = :now,
+              updated_at = :now
+          WHERE status = 'PROCESSING'
+            AND last_attempt_at < :staleBefore
+          """,
+      nativeQuery = true)
   int recoverStale(
       @Param("staleBefore") Instant staleBefore, @Param("now") Instant now);
 }
