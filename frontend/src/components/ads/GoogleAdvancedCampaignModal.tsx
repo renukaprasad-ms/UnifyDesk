@@ -89,9 +89,7 @@ export default function GoogleAdvancedCampaignModal({
       .then((merchants) => {
         if (!active) return
         setMerchantAccounts(merchants)
-        if (!merchantId && merchants.length > 0) {
-          setMerchantId(merchants[0].accountId)
-        }
+        setMerchantId((current) => current || merchants[0]?.accountId || '')
       })
       .catch((loadError) => {
         if (!active) return
