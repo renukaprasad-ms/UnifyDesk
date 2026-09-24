@@ -1,7 +1,9 @@
 package com.messaging.ads.google;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.exception.BadRequestException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -19,6 +21,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 public class GoogleAdsApiClient {
+
+  private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
   private final RestClient oauthClient = RestClient.create("https://oauth2.googleapis.com");
   private final RestClient identityClient =
@@ -133,7 +137,7 @@ public class GoogleAdsApiClient {
                           "/{version}/customers:listAccessibleCustomers",
                           properties.getApiVersion().trim());
               addAdsHeaders(request, accessToken, null);
-              return request.retrieve().body(JsonNode.class);
+              return parseJson(request.retrieve().body(String.class));
             },
             "Unable to list accessible Google Ads customers");
 
@@ -250,10 +254,11 @@ public class GoogleAdsApiClient {
                       resourceCollection)
                   .contentType(MediaType.APPLICATION_JSON);
           addAdsHeaders(request, accessToken, loginCustomerId);
-          return request
-              .body(Map.of("operations", operations, "partialFailure", false))
-              .retrieve()
-              .body(JsonNode.class);
+          return parseJson(
+              request
+                  .body(Map.of("operations", operations, "partialFailure", false))
+                  .retrieve()
+                  .body(String.class));
         },
         "Google Ads mutation failed for " + resourceCollection);
   }
@@ -278,10 +283,11 @@ public class GoogleAdsApiClient {
                       normalizeCustomerId(customerId))
                   .contentType(MediaType.APPLICATION_JSON);
           addAdsHeaders(request, accessToken, loginCustomerId);
-          return request
-              .body(Map.of("mutateOperations", mutateOperations, "partialFailure", false))
-              .retrieve()
-              .body(JsonNode.class);
+          return parseJson(
+              request
+                  .body(Map.of("mutateOperations", mutateOperations, "partialFailure", false))
+                  .retrieve()
+                  .body(String.class));
         },
         "Google Ads bulk mutation failed");
   }
@@ -319,7 +325,11 @@ public class GoogleAdsApiClient {
                       actionPath)
                   .contentType(MediaType.APPLICATION_JSON);
           addAdsHeaders(request, accessToken, loginCustomerId);
-          return request.body(body == null ? Map.of() : body).retrieve().body(JsonNode.class);
+          return parseJson(
+              request
+                  .body(body == null ? Map.of() : body)
+                  .retrieve()
+                  .body(String.class));
         },
         "Google Ads customer action failed for " + actionPath);
   }
@@ -354,7 +364,8 @@ public class GoogleAdsApiClient {
                       normalizeCustomerId(customerId))
                   .contentType(MediaType.APPLICATION_JSON);
           addAdsHeaders(request, accessToken, loginCustomerId);
-          return request.body(Map.of("query", query)).retrieve().body(JsonNode.class);
+          return parseJson(
+              request.body(Map.of("query", query)).retrieve().body(String.class));
         },
         "Unable to query Google Ads customer " + normalizeCustomerId(customerId));
   }
@@ -373,6 +384,15 @@ public class GoogleAdsApiClient {
     }
     if (loginCustomerId != null && !loginCustomerId.isBlank()) {
       request.header("login-customer-id", normalizeCustomerId(loginCustomerId));
+    }
+  }
+
+  private JsonNode parseJson(String body) {
+    if (body == null || body.isBlank()) return null;
+    try {
+      return JSON_MAPPER.readTree(body);
+    } catch (JsonProcessingException exception) {
+      throw new BadRequestException("Unable to parse Google API JSON response");
     }
   }
 
