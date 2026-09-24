@@ -17,6 +17,9 @@ public record CreateGooglePerformanceMaxCampaignRequest(
     @NotBlank String marketingImageBase64,
     @NotBlank String squareMarketingImageBase64,
     @NotBlank String logoImageBase64,
+    String portraitMarketingImageBase64,
+    String landscapeLogoImageBase64,
+    List<String> youtubeVideoIds,
     String bidStrategy,
     LocalDate startDate,
     LocalDate endDate) {}
