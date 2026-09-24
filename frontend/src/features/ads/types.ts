@@ -154,7 +154,7 @@ export type MetaCampaignSync = {
 export type CreateGoogleCampaignInput = {
   name: string
   dailyBudgetMinor: number
-  bidStrategy?: 'MANUAL_CPC' | 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS'
+  bidStrategy?: 'MANUAL_CPC' | 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
   startDate?: string | null
   endDate?: string | null
 }
