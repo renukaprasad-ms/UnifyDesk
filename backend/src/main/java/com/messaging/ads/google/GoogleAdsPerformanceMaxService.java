@@ -51,7 +51,7 @@ public class GoogleAdsPerformanceMaxService {
 
     validate(request);
 
-    String customerId = context.customerId();
+    String customerId = context.account().getExternalAccountId();
     long budgetMicros =
         GoogleAdsMoney.minorToMicros(
             request.dailyBudgetMinor(), context.account().getCurrency());
@@ -211,7 +211,7 @@ public class GoogleAdsPerformanceMaxService {
     List<JsonNode> rows =
         apiClient.searchRows(
             context.accessToken(),
-            context.customerId(),
+            context.account().getExternalAccountId(),
             context.loginCustomerId(),
             "SELECT asset.id, asset.resource_name, asset.name, asset.type, "
                 + "asset.text_asset.text, asset.image_asset.full_size.url, "
