@@ -1,11 +1,15 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { FiX } from 'react-icons/fi'
+import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
   CreateGoogleAdvancedCampaignInput,
+  GoogleMerchantAccount,
 } from '../../features/ads/types'
+import { apiErrorMessage } from '../../lib/api/apiClient'
 
 type Props = {
+  companyId: string
   account: AdAccount
   open: boolean
   saving: boolean
@@ -28,6 +32,7 @@ const toMinor = (value: string, currency?: string | null) => {
 }
 
 export default function GoogleAdvancedCampaignModal({
+  companyId,
   account,
   open,
   saving,
@@ -45,6 +50,9 @@ export default function GoogleAdvancedCampaignModal({
   const [targetCpa, setTargetCpa] = useState('')
   const [targetRoas, setTargetRoas] = useState('')
   const [merchantId, setMerchantId] = useState('')
+  const [merchantAccounts, setMerchantAccounts] = useState<GoogleMerchantAccount[]>([])
+  const [loadingMerchants, setLoadingMerchants] = useState(false)
+  const [merchantError, setMerchantError] = useState('')
   const [campaignPriority, setCampaignPriority] = useState('0')
   const [enableLocal, setEnableLocal] = useState(false)
   const [containsEuPoliticalAdvertising, setContainsEuPoliticalAdvertising] =
@@ -70,6 +78,38 @@ export default function GoogleAdvancedCampaignModal({
     }
     return [['MANUAL_CPC', 'Manual CPC']] as const
   }, [channelType])
+
+  useEffect(() => {
+    if (!open || channelType !== 'SHOPPING') return
+    let active = true
+    setLoadingMerchants(true)
+    setMerchantError('')
+    void adCenterApi
+      .googleMerchantAccounts(companyId, account.id)
+      .then((merchants) => {
+        if (!active) return
+        setMerchantAccounts(merchants)
+        if (!merchantId && merchants.length > 0) {
+          setMerchantId(merchants[0].accountId)
+        }
+      })
+      .catch((loadError) => {
+        if (!active) return
+        setMerchantAccounts([])
+        setMerchantError(
+          apiErrorMessage(
+            loadError,
+            'Unable to load Merchant Center accounts. Reconnect Google Ads if this connection predates Merchant API access.',
+          ),
+        )
+      })
+      .finally(() => {
+        if (active) setLoadingMerchants(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [open, channelType, companyId, account.id])
 
   if (!open) return null
 
@@ -255,16 +295,35 @@ export default function GoogleAdvancedCampaignModal({
           {channelType === 'SHOPPING' && (
             <div className="grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
               <label className="text-xs font-semibold text-slate-700">
-                Merchant Center ID
-                <input
+                Merchant Center account
+                <select
                   className="form-input mt-2"
-                  inputMode="numeric"
                   value={merchantId}
                   required
-                  onChange={(event) =>
-                    setMerchantId(event.target.value.replace(/\D/g, ''))
-                  }
-                />
+                  disabled={loadingMerchants || merchantAccounts.length === 0}
+                  onChange={(event) => setMerchantId(event.target.value)}
+                >
+                  {merchantAccounts.length === 0 ? (
+                    <option value="">
+                      {loadingMerchants
+                        ? 'Loading Merchant accounts…'
+                        : 'No accessible Merchant account'}
+                    </option>
+                  ) : (
+                    merchantAccounts.map((merchant) => (
+                      <option key={merchant.accountId} value={merchant.accountId}>
+                        {(merchant.accountName || 'Merchant Center') +
+                          ' · ' +
+                          merchant.accountId}
+                      </option>
+                    ))
+                  )}
+                </select>
+                {merchantError && (
+                  <span className="mt-1 block font-normal text-red-600">
+                    {merchantError}
+                  </span>
+                )}
               </label>
 
               <label className="text-xs font-semibold text-slate-700">
@@ -339,7 +398,8 @@ export default function GoogleAdvancedCampaignModal({
                 saving ||
                 !name.trim() ||
                 !budget ||
-                (channelType === 'SHOPPING' && !merchantId)
+                (channelType === 'SHOPPING' &&
+                  (!merchantId || loadingMerchants || merchantAccounts.length === 0))
               }
             >
               {saving ? 'Creating…' : `Create paused ${channelType === 'DEMAND_GEN' ? 'Demand Gen' : channelType.toLowerCase()}`}
