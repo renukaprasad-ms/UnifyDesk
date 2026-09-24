@@ -157,7 +157,7 @@ public class GoogleAdsPerformanceMaxService {
 
     Map<String, Object> assetGroup = new LinkedHashMap<>();
     assetGroup.put("resourceName", assetGroupResource);
-    assetGroup.put("name", request.name().trim() + " asset group");
+    assetGroup.put("name", generatedName(request.name(), "asset group"));
     assetGroup.put("campaign", campaignResource);
     assetGroup.put("finalUrls", List.of(request.finalUrl().trim()));
     assetGroup.put("status", "PAUSED");
@@ -330,7 +330,7 @@ public class GoogleAdsPerformanceMaxService {
     String resourceName = resource(customerId, "assets", String.valueOf(temporaryId));
     Map<String, Object> asset = new LinkedHashMap<>();
     asset.put("resourceName", resourceName);
-    asset.put("name", name);
+    asset.put("name", truncate(name, 128));
     asset.put("textAsset", Map.of("text", text.trim()));
     operations.add(operation("assetOperation", asset));
     return new AssetLink(resourceName, fieldType);
@@ -537,6 +537,16 @@ public class GoogleAdsPerformanceMaxService {
       throw new BadRequestException("Invalid Google Ads campaign ID");
     }
     return value;
+  }
+
+  private String generatedName(String base, String suffix) {
+    return truncate(base.trim() + " " + suffix, 128);
+  }
+
+  private String truncate(String value, int max) {
+    if (value == null) return null;
+    String normalized = value.trim();
+    return normalized.length() <= max ? normalized : normalized.substring(0, max);
   }
 
   private String resource(String customerId, String collection, String id) {
