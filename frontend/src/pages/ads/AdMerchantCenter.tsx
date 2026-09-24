@@ -424,7 +424,7 @@ export default function AdMerchantCenter() {
           </div>
         )}
 
-        {selectedAccount && merchantAccounts.length === 0 && !loadingMerchant && (
+        {selectedAccount && merchantAccounts.length === 0 && !loadingMerchant && !error && (
           <div className="panel mt-6 p-10 text-center">
             <FiShoppingBag className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
             <h2 className="mt-3 font-bold text-slate-950">

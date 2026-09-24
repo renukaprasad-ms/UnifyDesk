@@ -436,6 +436,10 @@ export default function AdCampaigns() {
 
             {loading ? (
               <div className="p-8 text-center text-sm text-slate-500">Loading campaigns…</div>
+            ) : error && campaigns.length === 0 ? (
+              <div className="p-10 text-center text-sm text-slate-500">
+                Campaign data could not be refreshed. Resolve the issue above and try again.
+              </div>
             ) : campaigns.length === 0 ? (
               <div className="p-10 text-center text-sm text-slate-500">
                 No campaigns are stored for this account yet. Sync the provider or create your first campaign.
