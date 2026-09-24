@@ -1,11 +1,13 @@
 package com.messaging.ads.google;
 
 import com.messaging.ads.dto.AdKeywordResponse;
+import com.messaging.ads.entity.AdCampaign;
 import com.messaging.ads.entity.AdKeyword;
 import com.messaging.ads.entity.AdSet;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.google.dto.CreateGoogleKeywordRequest;
 import com.messaging.ads.google.dto.UpdateGoogleKeywordRequest;
+import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.ads.repository.AdKeywordRepository;
 import com.messaging.ads.repository.AdSetRepository;
 import com.messaging.ads.service.AdActivityLogService;
@@ -26,6 +28,7 @@ public class GoogleAdsKeywordMutationService {
   private static final Set<String> MATCH_TYPES = Set.of("BROAD", "PHRASE", "EXACT");
 
   private final AdSetRepository adSetRepository;
+  private final AdCampaignRepository campaignRepository;
   private final AdKeywordRepository keywordRepository;
   private final GoogleAdsAccountContextService contextService;
   private final GoogleAdsApiClient apiClient;
@@ -172,6 +175,14 @@ public class GoogleAdsKeywordMutationService {
             .orElseThrow(() -> new NotFoundException("Advertising ad group not found"));
     if (adGroup.getProvider() != AdProvider.GOOGLE_ADS || !adGroup.isAccessible()) {
       throw new BadRequestException("Google ad group is not available for management");
+    }
+    AdCampaign campaign =
+        campaignRepository
+            .findByIdAndCompanyId(adGroup.getCampaignId(), companyId)
+            .orElseThrow(() -> new NotFoundException("Advertising campaign not found"));
+    if (!"SEARCH".equalsIgnoreCase(campaign.getObjective())) {
+      throw new BadRequestException(
+          "Google keywords are supported only for Search campaign ad groups");
     }
     return adGroup;
   }
