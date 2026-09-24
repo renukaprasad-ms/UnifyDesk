@@ -45,6 +45,13 @@ import com.messaging.ads.google.dto.GoogleCustomerMatchUploadRequest;
 import com.messaging.ads.google.dto.GoogleConversionEventUploadRequest;
 import com.messaging.ads.google.dto.GoogleDataManagerUploadResponse;
 import com.messaging.ads.google.dto.GoogleNativeRecommendation;
+import com.messaging.ads.google.dto.GoogleMerchantAccountResponse;
+import com.messaging.ads.google.dto.GoogleMerchantDataSourceResponse;
+import com.messaging.ads.google.dto.CreateGoogleMerchantDataSourceRequest;
+import com.messaging.ads.google.dto.GoogleMerchantProductPage;
+import com.messaging.ads.google.dto.GoogleMerchantProductResponse;
+import com.messaging.ads.google.dto.UpsertGoogleMerchantProductRequest;
+import com.messaging.ads.google.dto.DeleteGoogleMerchantProductRequest;
 import com.messaging.ads.google.dto.GoogleRecommendationActionRequest;
 import com.messaging.ads.google.dto.GoogleRecommendationActionResponse;
 import com.messaging.ads.google.dto.GoogleAssetResponse;
@@ -94,6 +101,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsAssetGroupAssetService assetGroupAssetService;
   private final GoogleDataManagerService dataManagerService;
   private final GoogleAdsNativeRecommendationService nativeRecommendationService;
+  private final GoogleMerchantService merchantService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -674,6 +682,105 @@ public class GoogleAdsConnectionController {
             nativeRecommendationService.dismiss(
                 companyId, accountId, request.resourceNames(), userId),
             "Google Ads recommendations dismissed"));
+  }
+
+  @GetMapping("/accounts/{accountId}/merchant/accounts")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleMerchantAccountResponse>>> merchantAccounts(
+      @PathVariable Long companyId, @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            merchantService.accounts(companyId, accountId),
+            "Accessible Google Merchant Center accounts fetched"));
+  }
+
+  @GetMapping("/accounts/{accountId}/merchant/accounts/{merchantId}/data-sources")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleMerchantDataSourceResponse>>> merchantDataSources(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String merchantId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            merchantService.dataSources(companyId, accountId, merchantId),
+            "Merchant Center data sources fetched"));
+  }
+
+  @PostMapping("/accounts/{accountId}/merchant/accounts/{merchantId}/data-sources")
+  public ResponseEntity<ApiResponse<GoogleMerchantDataSourceResponse>> createMerchantDataSource(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String merchantId,
+      @Valid @RequestBody CreateGoogleMerchantDataSourceRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                merchantService.createDataSource(
+                    companyId, accountId, merchantId, request, userId),
+                "Merchant Center API data source created"));
+  }
+
+  @DeleteMapping("/accounts/{accountId}/merchant/accounts/{merchantId}/data-sources/{dataSourceId}")
+  public ResponseEntity<ApiResponse<Boolean>> deleteMerchantDataSource(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String merchantId,
+      @PathVariable String dataSourceId) {
+    Long userId = requireModify(companyId);
+    merchantService.deleteDataSource(
+        companyId, accountId, merchantId, dataSourceId, userId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200, true, "Merchant Center data source deleted"));
+  }
+
+  @GetMapping("/accounts/{accountId}/merchant/accounts/{merchantId}/products")
+  public ResponseEntity<ApiResponse<GoogleMerchantProductPage>> merchantProducts(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String merchantId,
+      @RequestParam(required = false) String pageToken,
+      @RequestParam(defaultValue = "100") int pageSize) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            merchantService.products(
+                companyId, accountId, merchantId, pageToken, pageSize),
+            "Merchant Center products fetched"));
+  }
+
+  @PostMapping("/accounts/{accountId}/merchant/accounts/{merchantId}/products")
+  public ResponseEntity<ApiResponse<GoogleMerchantProductResponse>> upsertMerchantProduct(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String merchantId,
+      @Valid @RequestBody UpsertGoogleMerchantProductRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            merchantService.upsertProduct(
+                companyId, accountId, merchantId, request, userId),
+            "Merchant Center product submitted"));
+  }
+
+  @PostMapping("/accounts/{accountId}/merchant/accounts/{merchantId}/products:delete")
+  public ResponseEntity<ApiResponse<Boolean>> deleteMerchantProduct(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String merchantId,
+      @Valid @RequestBody DeleteGoogleMerchantProductRequest request) {
+    Long userId = requireModify(companyId);
+    merchantService.deleteProduct(
+        companyId, accountId, merchantId, request, userId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200, true, "Merchant Center product input deleted"));
   }
 
   @PostMapping("/accounts/{accountId}/health/sync")
