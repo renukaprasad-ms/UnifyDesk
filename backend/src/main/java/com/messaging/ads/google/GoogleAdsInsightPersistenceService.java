@@ -131,7 +131,7 @@ public class GoogleAdsInsightPersistenceService {
       insight.setLeads(BigDecimal.ZERO);
       insight.setPurchases(BigDecimal.ZERO);
       insight.setEngagements(decimal(metrics, "engagements"));
-      insight.setVideoViews(decimal(metrics, "videoViews"));
+      insight.setVideoViews(decimal(metrics, "videoTrueviewViews"));
       insight.setCpa(divide(spend, conversions));
       insight.setRoas(divide(conversionValue, spend));
       insight.setProviderMetricsJson(json(row));
