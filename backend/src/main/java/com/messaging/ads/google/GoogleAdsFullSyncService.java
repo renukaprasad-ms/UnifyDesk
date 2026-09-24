@@ -61,6 +61,10 @@ public class GoogleAdsFullSyncService {
             .toList();
 
     for (AdCampaign campaign : storedCampaigns) {
+      if ("PERFORMANCE_MAX".equalsIgnoreCase(campaign.getObjective())) {
+        continue;
+      }
+
       adGroups +=
           attempt(
               "ad-groups:" + campaign.getId(),
