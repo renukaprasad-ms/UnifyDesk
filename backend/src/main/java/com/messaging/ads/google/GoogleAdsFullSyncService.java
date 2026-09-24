@@ -81,11 +81,13 @@ public class GoogleAdsFullSyncService {
               .toList();
 
       for (AdSet group : groups) {
-        keywords +=
-            attempt(
-                "keywords:" + group.getId(),
-                failed,
-                () -> keywordSyncService.sync(companyId, group.getId()).synchronizedCount());
+        if ("SEARCH".equalsIgnoreCase(campaign.getObjective())) {
+          keywords +=
+              attempt(
+                  "keywords:" + group.getId(),
+                  failed,
+                  () -> keywordSyncService.sync(companyId, group.getId()).synchronizedCount());
+        }
         ads +=
             attempt(
                 "ads:" + group.getId(),
