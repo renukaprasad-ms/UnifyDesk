@@ -136,23 +136,44 @@ Implemented:
 - atomic campaign budget + campaign + asset + asset group + asset group asset creation
 - required Performance Max text/image/business/logo validation
 - Performance Max asset group listing and delivery status controls
+- Performance Max search-theme signals
+- Performance Max Customer Match audience signals
 - provider-aware creative UI for reusable Google assets
 - Google Smart Bidding support for Maximize Conversions and Maximize Conversion Value
+- standard Display campaign creation
+- Responsive Display Ad creation with native Google image assets
+- Demand Gen campaign creation
+- Demand Gen video-responsive ad creation with YouTube + logo assets
+- Standard Shopping campaign creation with Merchant Center ID
+- initial Shopping Product Ad Group, Product Ad, and root listing group
+- synchronization/reporting of existing Video campaigns and ads
+
+Intentional provider limitation:
+- Google Ads API exposes Video campaigns for synchronization/reporting but does not support creating or updating Video campaigns. Reachlyo therefore renders Video entities as read-only instead of offering mutations Google cannot honor.
 
 Still planned:
-- add/reuse assets against existing asset groups
-- optional portrait/landscape-logo/video assets
-- Display / Video / Demand Gen where supported
-- Shopping / Merchant Center integrations
-- Performance Max audience/search-theme signals
+- optional portrait/landscape-logo assets and additional Demand Gen creative formats
+- Merchant Center product/feed management outside the Ads campaign surface
 
-### Slice 5 - recommendations and billing
+### Slice 5 - recommendations, first-party data, billing, and automation
 
-- Google RecommendationService
+Implemented:
+- native Google RecommendationService read
+- native recommendation apply/dismiss actions
 - optimization score
-- Reachlyo diagnostics
-- supported billing setup/read operations
-- deep links to Google Ads for payment actions unavailable through API
+- Reachlyo diagnostics and recommendation lifecycle
+- Google Customer Match member ingestion through the Data Manager API
+- request-level consent and Customer Match terms confirmation
+- email/phone normalization + SHA-256 hashing before upload
+- Data Manager validate-only mode and field-warning handling
+- offline/enhanced conversion event ingestion through Data Manager
+- GCLID / GBRAID / WBRAID and hashed first-party matching data
+- supported Google billing/account-budget read operations
+- scheduled Google account synchronization
+- Redis distributed per-account sync locks for multi-pod deployments
+
+Provider-hosted operations:
+- payment-method and account-funding actions that Google Ads API does not expose remain in Google Ads
 
 ## Future providers
 
@@ -165,3 +186,45 @@ A third provider should require:
 5. provider-specific mapping into shared read models.
 
 No frontend feature should depend on a provider name when capability detection can express the behavior.
+
+
+## Current Google Ads coverage
+
+```text
+Connection / MCC hierarchy            implemented
+Search campaigns                      implemented
+Performance Max                       implemented
+Display                               implemented
+Demand Gen                            implemented
+Standard Shopping                     implemented
+Video                                 sync/report only (Google API limitation)
+
+Campaign budgets                      implemented
+Ad Groups                             implemented where channel uses them
+Asset Groups                          implemented for Performance Max
+Keywords                              implemented for Search only
+Responsive Search Ads                 implemented
+Responsive Display Ads                implemented
+Demand Gen video-responsive ads       implemented
+Shopping Product Ads                  implemented
+Google asset library                  implemented
+
+Customer Match list creation          implemented
+Customer Match member ingestion       implemented via Data Manager API
+Conversion actions                    implemented
+Offline/enhanced event ingestion      implemented via Data Manager API
+Analytics + breakdowns                implemented
+Native Google recommendations         implemented
+Reachlyo recommendations              implemented
+Account health / optimization score   implemented
+Billing read                          implemented
+Background sync                       implemented
+```
+
+Existing Google OAuth connections created before Data Manager support must reconnect once so the refresh token includes:
+
+```text
+https://www.googleapis.com/auth/datamanager
+```
+
+Reachlyo never logs raw Customer Match email/phone identifiers. Contact identifiers are normalized and SHA-256 hashed before the Google Data Manager request is made.
