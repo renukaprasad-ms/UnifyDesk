@@ -3,14 +3,17 @@ import { sessionCleared, setAuthUser } from '../../store/auth/authSlice'
 import { store } from '../../store/store'
 import type { AuthUser } from '../../features/auth/types'
 import type { ApiResponse } from './types'
+import { showGlobalSnackbar } from '../../components/feedback/SnackbarProvider'
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean
   _skipAuthRefresh?: boolean
+  _skipErrorSnackbar?: boolean
 }
 
 export type ApiRequestConfig = AxiosRequestConfig & {
   _skipAuthRefresh?: boolean
+  _skipErrorSnackbar?: boolean
 }
 
 const configuredBaseURL = import.meta.env.VITE_API_BASE_URL
@@ -70,6 +73,31 @@ const refreshSession = async () => {
   return user
 }
 
+const isAdCenterRequest = (url?: string) =>
+  Boolean(url && (url.includes('/ads') || url.includes('/oauth/google-ads')))
+
+const showAdCenterError = (
+  error: AxiosError<ApiResponse<never>>,
+  request?: RetryableRequestConfig,
+) => {
+  if (
+    !request ||
+    request._skipErrorSnackbar ||
+    !isAdCenterRequest(request.url) ||
+    error.response?.status === 401
+  ) {
+    return
+  }
+
+  showGlobalSnackbar(
+    apiErrorMessage(error, 'Unable to complete this Ad Center request'),
+    {
+      variant: 'error',
+      title: 'Action needed',
+    },
+  )
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiResponse<never>>) => {
@@ -84,6 +112,7 @@ apiClient.interceptors.response.use(
       originalRequest._skipAuthRefresh ||
       refreshRequest
     ) {
+      showAdCenterError(error, originalRequest)
       return Promise.reject(error)
     }
 
