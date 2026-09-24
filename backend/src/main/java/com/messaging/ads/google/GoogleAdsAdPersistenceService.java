@@ -124,14 +124,46 @@ public class GoogleAdsAdPersistenceService {
         creative.setProvider(AdProvider.GOOGLE_ADS);
         creative.setExternalCreativeId(creativeExternalId);
       }
-      creative.setName(first(text(snapshot, "name"), "Google RSA " + creativeExternalId));
-      creative.setCreativeFormat(first(text(snapshot, "type"), "RESPONSIVE_SEARCH_AD"));
-      JsonNode rsa = snapshot.path("responsiveSearchAd");
-      creative.setHeadline(joinTextAssets(rsa.path("headlines")));
-      creative.setDescription(joinTextAssets(rsa.path("descriptions")));
+      String adType = first(text(snapshot, "type"), "UNKNOWN");
+      creative.setName(
+          first(
+              text(snapshot, "name"),
+              "Google " + adType.replace('_', ' ') + " " + creativeExternalId));
+      creative.setCreativeFormat(adType);
+
+      JsonNode formatPayload;
+      if ("RESPONSIVE_DISPLAY_AD".equals(adType)) {
+        JsonNode display = snapshot.path("responsiveDisplayAd");
+        creative.setHeadline(
+            first(
+                joinTextAssets(display.path("headlines")),
+                text(display.path("longHeadline"), "text")));
+        creative.setDescription(joinTextAssets(display.path("descriptions")));
+        creative.setPrimaryText(text(display, "businessName"));
+        formatPayload = display;
+      } else if ("DEMAND_GEN_VIDEO_RESPONSIVE_AD".equals(adType)) {
+        JsonNode demandGen = snapshot.path("demandGenVideoResponsiveAd");
+        creative.setHeadline(
+            first(
+                joinTextAssets(demandGen.path("headlines")),
+                joinTextAssets(demandGen.path("longHeadlines"))));
+        creative.setDescription(joinTextAssets(demandGen.path("descriptions")));
+        creative.setPrimaryText(text(demandGen.path("businessName"), "text"));
+        formatPayload = demandGen;
+      } else if ("SHOPPING_PRODUCT_AD".equals(adType)) {
+        creative.setHeadline("Shopping product ad");
+        creative.setDescription(null);
+        formatPayload = snapshot.path("shoppingProductAd");
+      } else {
+        JsonNode rsa = snapshot.path("responsiveSearchAd");
+        creative.setHeadline(joinTextAssets(rsa.path("headlines")));
+        creative.setDescription(joinTextAssets(rsa.path("descriptions")));
+        formatPayload = rsa;
+      }
+
       creative.setDestinationUrl(firstArrayText(snapshot.path("finalUrls")));
       creative.setUrlTags(text(snapshot, "finalUrlSuffix"));
-      creative.setObjectStorySpecJson(json(rsa));
+      creative.setObjectStorySpecJson(json(formatPayload));
       creative.setAccessible(true);
       creative.setProviderPayloadJson(json(snapshot));
       creative.setLastSyncAt(syncedAt);
