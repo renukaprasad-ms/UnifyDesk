@@ -130,11 +130,21 @@ Provider-only concepts should use provider-specific tables or adapters rather th
 
 ### Slice 4 - assets and advanced campaign types
 
-- reusable Google assets
-- asset links
+Implemented:
+- Google account asset library read surface
+- Performance Max campaign creation
+- atomic campaign budget + campaign + asset + asset group + asset group asset creation
+- required Performance Max text/image/business/logo validation
+- Performance Max asset group listing and delivery status controls
+- provider-aware creative UI for reusable Google assets
+- Google Smart Bidding support for Maximize Conversions and Maximize Conversion Value
+
+Still planned:
+- add/reuse assets against existing asset groups
+- optional portrait/landscape-logo/video assets
 - Display / Video / Demand Gen where supported
-- Shopping integrations
-- Performance Max asset groups
+- Shopping / Merchant Center integrations
+- Performance Max audience/search-theme signals
 
 ### Slice 5 - recommendations and billing
 
