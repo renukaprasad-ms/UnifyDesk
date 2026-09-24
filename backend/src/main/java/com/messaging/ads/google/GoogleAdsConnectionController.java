@@ -35,6 +35,9 @@ import com.messaging.ads.google.dto.GoogleAssetGroupSignalsRequest;
 import com.messaging.ads.google.dto.GoogleCustomerMatchUploadRequest;
 import com.messaging.ads.google.dto.GoogleConversionEventUploadRequest;
 import com.messaging.ads.google.dto.GoogleDataManagerUploadResponse;
+import com.messaging.ads.google.dto.GoogleNativeRecommendation;
+import com.messaging.ads.google.dto.GoogleRecommendationActionRequest;
+import com.messaging.ads.google.dto.GoogleRecommendationActionResponse;
 import com.messaging.ads.google.dto.GoogleAssetResponse;
 import com.messaging.ads.google.dto.UpdateGoogleAdGroupRequest;
 import com.messaging.ads.google.dto.UpdateGoogleCampaignRequest;
@@ -77,6 +80,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsPerformanceMaxService performanceMaxService;
   private final GoogleAdsAssetGroupSignalService assetGroupSignalService;
   private final GoogleDataManagerService dataManagerService;
+  private final GoogleAdsNativeRecommendationService nativeRecommendationService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -485,6 +489,45 @@ public class GoogleAdsConnectionController {
             200,
             insightBreakdownSyncService.sync(companyId, accountId, from, to),
             "Google Ads analytics breakdowns synchronized"));
+  }
+
+  @GetMapping("/accounts/{accountId}/native-recommendations")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleNativeRecommendation>>> nativeRecommendations(
+      @PathVariable Long companyId, @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            nativeRecommendationService.list(companyId, accountId),
+            "Google Ads native recommendations fetched"));
+  }
+
+  @PostMapping("/accounts/{accountId}/native-recommendations/apply")
+  public ResponseEntity<ApiResponse<GoogleRecommendationActionResponse>> applyNativeRecommendations(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody GoogleRecommendationActionRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            nativeRecommendationService.apply(
+                companyId, accountId, request.resourceNames(), userId),
+            "Google Ads recommendations applied"));
+  }
+
+  @PostMapping("/accounts/{accountId}/native-recommendations/dismiss")
+  public ResponseEntity<ApiResponse<GoogleRecommendationActionResponse>> dismissNativeRecommendations(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody GoogleRecommendationActionRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            nativeRecommendationService.dismiss(
+                companyId, accountId, request.resourceNames(), userId),
+            "Google Ads recommendations dismissed"));
   }
 
   @PostMapping("/accounts/{accountId}/health/sync")
