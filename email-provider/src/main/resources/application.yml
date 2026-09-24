@@ -61,6 +61,7 @@ app:
     replication-factor: ${EMAIL_PROVIDER_KAFKA_REPLICATION_FACTOR:1}
     topics:
       delivery-requested: ${EMAIL_PROVIDER_DELIVERY_TOPIC:email.delivery.requested}
+      lifecycle: ${EMAIL_PROVIDER_LIFECYCLE_TOPIC:email.lifecycle.events}
   outbox:
     batch-size: ${EMAIL_PROVIDER_OUTBOX_BATCH_SIZE:50}
     poll-interval-ms: ${EMAIL_PROVIDER_OUTBOX_POLL_INTERVAL_MS:250}
@@ -83,6 +84,9 @@ app:
     read-timeout-ms: ${EMAIL_PROVIDER_SMTP_READ_TIMEOUT_MS:10000}
     ehlo-host: ${EMAIL_PROVIDER_SMTP_EHLO_HOST:localhost}
     envelope-from-domain: ${EMAIL_PROVIDER_ENVELOPE_FROM_DOMAIN:}
+  feedback:
+    enabled: ${EMAIL_PROVIDER_FEEDBACK_ENABLED:false}
+    token: ${EMAIL_PROVIDER_FEEDBACK_TOKEN:}
 
 management:
   endpoints:

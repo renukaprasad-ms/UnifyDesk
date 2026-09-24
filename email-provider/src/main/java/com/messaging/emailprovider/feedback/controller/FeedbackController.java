@@ -1,6 +1,7 @@
 package com.messaging.emailprovider.feedback.controller;
 
 import com.messaging.emailprovider.common.response.ApiResponse;
+import com.messaging.emailprovider.feedback.DsnFeedbackParser;
 import com.messaging.emailprovider.feedback.FeedbackAuthenticator;
 import com.messaging.emailprovider.feedback.FeedbackService;
 import com.messaging.emailprovider.feedback.dto.FeedbackResultResponse;
@@ -21,10 +22,15 @@ public class FeedbackController {
 
   private final FeedbackAuthenticator authenticator;
   private final FeedbackService service;
+  private final DsnFeedbackParser dsnFeedbackParser;
 
-  public FeedbackController(FeedbackAuthenticator authenticator, FeedbackService service) {
+  public FeedbackController(
+      FeedbackAuthenticator authenticator,
+      FeedbackService service,
+      DsnFeedbackParser dsnFeedbackParser) {
     this.authenticator = authenticator;
     this.service = service;
+    this.dsnFeedbackParser = dsnFeedbackParser;
   }
 
   @PostMapping("/postfix")
@@ -34,5 +40,16 @@ public class FeedbackController {
     authenticator.verify(token);
     return ApiResponse.success(
         HttpStatus.OK.value(), service.apply(request, null), "Feedback processed");
+  }
+
+  @PostMapping(value = "/dsn", consumes = {"text/plain", "message/rfc822", "application/octet-stream"})
+  public ApiResponse<FeedbackResultResponse> dsn(
+      @RequestHeader("X-Reachlyo-Feedback-Token") String token,
+      @RequestHeader("X-Reachlyo-Envelope-Recipient") String envelopeRecipient,
+      @RequestBody String rawMessage) {
+    authenticator.verify(token);
+    PostfixFeedbackRequest request = dsnFeedbackParser.parse(envelopeRecipient, rawMessage);
+    return ApiResponse.success(
+        HttpStatus.OK.value(), service.apply(request, rawMessage), "DSN feedback processed");
   }
 }

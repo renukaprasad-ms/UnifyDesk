@@ -18,6 +18,7 @@ import com.messaging.emailprovider.mail.enums.EmailRecipientType;
 import com.messaging.emailprovider.mail.repository.EmailMessageRepository;
 import com.messaging.emailprovider.mail.repository.EmailRecipientRepository;
 import com.messaging.emailprovider.queue.EmailOutboxService;
+import com.messaging.emailprovider.reputation.ReputationService;
 import com.messaging.emailprovider.suppression.SuppressionService;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -39,6 +40,7 @@ public class EmailMessageService {
   private final SuppressionService suppressionService;
   private final EmailRequestHasher requestHasher;
   private final EmailOutboxService outboxService;
+  private final ReputationService reputationService;
   private final String deliveryTopic;
   private final int maxRecipients;
   private final int maxBodyBytes;
@@ -50,6 +52,7 @@ public class EmailMessageService {
       SuppressionService suppressionService,
       EmailRequestHasher requestHasher,
       EmailOutboxService outboxService,
+      ReputationService reputationService,
       @Value("${app.kafka.topics.delivery-requested:email.delivery.requested}") String deliveryTopic,
       @Value("${app.delivery.max-recipients-per-message:100}") int maxRecipients,
       @Value("${app.delivery.max-body-bytes:5242880}") int maxBodyBytes) {
@@ -59,6 +62,7 @@ public class EmailMessageService {
     this.suppressionService = suppressionService;
     this.requestHasher = requestHasher;
     this.outboxService = outboxService;
+    this.reputationService = reputationService;
     this.deliveryTopic = deliveryTopic;
     this.maxRecipients = maxRecipients;
     this.maxBodyBytes = maxBodyBytes;
@@ -155,6 +159,8 @@ public class EmailMessageService {
       message.setStatus(EmailMessageStatus.SUPPRESSED);
     } else {
       message.setStatus(EmailMessageStatus.QUEUED);
+      reputationService.recordAccepted(
+          companyId, domain.getId(), queued, message.getAcceptedAt());
       outboxService.enqueue(deliveryTopic, message.getId().toString(), message.getId().toString());
     }
     message = messageRepository.save(message);

@@ -50,7 +50,11 @@ public class EmailMessageStateService {
                     r.getStatus() == EmailRecipientStatus.PROCESSING
                         || r.getStatus() == EmailRecipientStatus.QUEUED);
     boolean deferred =
-        recipients.stream().anyMatch(r -> r.getStatus() == EmailRecipientStatus.DEFERRED);
+        recipients.stream()
+            .anyMatch(
+                r ->
+                    r.getStatus() == EmailRecipientStatus.DEFERRED
+                        || r.getStatus() == EmailRecipientStatus.REMOTE_DEFERRED);
 
     if (processing) {
       message.setStatus(EmailMessageStatus.PROCESSING);
@@ -59,7 +63,10 @@ public class EmailMessageStateService {
     } else if (delivered == recipients.size()) {
       message.setStatus(EmailMessageStatus.DELIVERED);
     } else if (delivered + handedOff == recipients.size()) {
-      message.setStatus(delivered == recipients.size() ? EmailMessageStatus.DELIVERED : EmailMessageStatus.HANDED_OFF);
+      message.setStatus(
+          delivered == recipients.size()
+              ? EmailMessageStatus.DELIVERED
+              : EmailMessageStatus.HANDED_OFF);
     } else if (suppressed == recipients.size()) {
       message.setStatus(EmailMessageStatus.SUPPRESSED);
     } else if (delivered + handedOff > 0) {

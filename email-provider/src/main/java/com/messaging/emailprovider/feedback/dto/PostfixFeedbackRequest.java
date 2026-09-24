@@ -2,7 +2,6 @@ package com.messaging.emailprovider.feedback.dto;
 
 import com.messaging.emailprovider.feedback.EmailEventSource;
 import com.messaging.emailprovider.feedback.EmailEventType;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 
