@@ -32,6 +32,13 @@ import type {
   CreateGooglePerformanceMaxCampaignInput,
   GoogleAsset,
   GoogleAssetGroup,
+  GoogleAssetGroupSignal,
+  AddGoogleAssetGroupSignalsInput,
+  GoogleCustomerMatchUploadInput,
+  GoogleConversionEventUploadInput,
+  GoogleDataManagerUpload,
+  GoogleNativeRecommendation,
+  GoogleRecommendationAction,
   UpdateGoogleCampaignInput,
   CreateGoogleAdGroupInput,
   UpdateGoogleAdGroupInput,
@@ -226,6 +233,30 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+  async googleAssetGroupSignals(
+    companyId: string,
+    campaignId: string,
+    assetGroupId: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleAssetGroupSignal[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/signals`,
+    )
+    return unwrap(response.data)
+  },
+
+  async addGoogleAssetGroupSignals(
+    companyId: string,
+    campaignId: string,
+    assetGroupId: string,
+    input: AddGoogleAssetGroupSignalsInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleAssetGroupSignal[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/signals`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
   async setGoogleAssetGroupStatus(
     companyId: string,
     campaignId: string,
@@ -412,6 +443,37 @@ export const adCenterApi = {
   async recommendationSummary(companyId: string) {
     const response = await apiClient.get<ApiResponse<AdRecommendationSummary>>(
       `/api/v1/companies/${companyId}/ads/recommendations/summary`,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleNativeRecommendations(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleNativeRecommendation[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/native-recommendations`,
+    )
+    return unwrap(response.data)
+  },
+
+  async applyGoogleNativeRecommendations(
+    companyId: string,
+    accountId: string,
+    resourceNames: string[],
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleRecommendationAction>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/native-recommendations/apply`,
+      { resourceNames },
+    )
+    return unwrap(response.data)
+  },
+
+  async dismissGoogleNativeRecommendations(
+    companyId: string,
+    accountId: string,
+    resourceNames: string[],
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleRecommendationAction>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/native-recommendations/dismiss`,
+      { resourceNames },
     )
     return unwrap(response.data)
   },
@@ -649,6 +711,18 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+  async uploadGoogleCustomerMatchMembers(
+    companyId: string,
+    audienceId: string,
+    input: GoogleCustomerMatchUploadInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleDataManagerUpload>>(
+      `/api/v1/companies/${companyId}/ads/google/audiences/${audienceId}/members`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
   async createGoogleAudience(
     companyId: string,
     accountId: string,
@@ -691,6 +765,18 @@ export const adCenterApi = {
   async syncGoogleConversions(companyId: string, accountId: string) {
     const response = await apiClient.post<ApiResponse<GoogleConversionSync>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/conversions/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async uploadGoogleConversionEvents(
+    companyId: string,
+    conversionId: string,
+    input: GoogleConversionEventUploadInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleDataManagerUpload>>(
+      `/api/v1/companies/${companyId}/ads/google/conversions/${conversionId}/events`,
+      input,
     )
     return unwrap(response.data)
   },
