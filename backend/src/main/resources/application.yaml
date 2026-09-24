@@ -294,6 +294,10 @@ app:
       developer-token: ${GOOGLE_ADS_DEVELOPER_TOKEN:}
       oauth-state-ttl: ${GOOGLE_ADS_OAUTH_STATE_TTL:10m}
       token-refresh-skew: ${GOOGLE_ADS_TOKEN_REFRESH_SKEW:2m}
+      background-sync-enabled: ${GOOGLE_ADS_BACKGROUND_SYNC_ENABLED:true}
+      background-sync-interval: ${GOOGLE_ADS_BACKGROUND_SYNC_INTERVAL:30m}
+      background-sync-initial-delay: ${GOOGLE_ADS_BACKGROUND_SYNC_INITIAL_DELAY:5m}
+      background-sync-lock-ttl: ${GOOGLE_ADS_BACKGROUND_SYNC_LOCK_TTL:20m}
   redis:
     key-prefix: ${REDIS_KEY_PREFIX:messaging}
     ttl:
