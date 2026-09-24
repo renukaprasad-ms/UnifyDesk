@@ -61,6 +61,9 @@ export default function GooglePerformanceMaxCampaignModal({
   const [landscapeImage, setLandscapeImage] = useState('')
   const [squareImage, setSquareImage] = useState('')
   const [logoImage, setLogoImage] = useState('')
+  const [portraitImage, setPortraitImage] = useState('')
+  const [landscapeLogoImage, setLandscapeLogoImage] = useState('')
+  const [youtubeVideoIds, setYoutubeVideoIds] = useState('')
   const [imageError, setImageError] = useState('')
 
   const canSubmit = useMemo(
@@ -134,6 +137,12 @@ export default function GooglePerformanceMaxCampaignModal({
       marketingImageBase64: landscapeImage,
       squareMarketingImageBase64: squareImage,
       logoImageBase64: logoImage,
+      portraitMarketingImageBase64: portraitImage || null,
+      landscapeLogoImageBase64: landscapeLogoImage || null,
+      youtubeVideoIds: youtubeVideoIds
+        .split(/[\n,]/)
+        .map((value) => value.trim())
+        .filter(Boolean),
       bidStrategy,
       startDate: startDate || null,
       endDate: endDate || null,
@@ -361,6 +370,53 @@ export default function GooglePerformanceMaxCampaignModal({
                 />
               </label>
             </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className="rounded-xl border border-dashed border-slate-300 p-4 text-xs font-semibold text-slate-700">
+                <span className="flex items-center gap-2">
+                  <FiUpload aria-hidden="true" />
+                  Portrait marketing image
+                </span>
+                <span className="mt-1 block font-normal text-slate-400">
+                  Optional · 4:5 · minimum 480×600
+                </span>
+                <input
+                  className="mt-3 block w-full text-xs"
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif"
+                  onChange={readImage(setPortraitImage)}
+                />
+              </label>
+
+              <label className="rounded-xl border border-dashed border-slate-300 p-4 text-xs font-semibold text-slate-700">
+                <span className="flex items-center gap-2">
+                  <FiUpload aria-hidden="true" />
+                  Landscape logo
+                </span>
+                <span className="mt-1 block font-normal text-slate-400">
+                  Optional · 4:1 · minimum 512×128
+                </span>
+                <input
+                  className="mt-3 block w-full text-xs"
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif"
+                  onChange={readImage(setLandscapeLogoImage)}
+                />
+              </label>
+            </div>
+
+            <label className="mt-4 block text-xs font-semibold text-slate-700">
+              YouTube video IDs
+              <textarea
+                className="form-input mt-2 min-h-24"
+                placeholder={'videoIdOne\nvideoIdTwo'}
+                value={youtubeVideoIds}
+                onChange={(event) => setYoutubeVideoIds(event.target.value)}
+              />
+              <span className="mt-1 block font-normal text-slate-400">
+                Optional · one ID per line or comma-separated · up to 15 videos.
+              </span>
+            </label>
 
             {imageError && (
               <p className="mt-3 text-xs font-semibold text-red-600">{imageError}</p>
