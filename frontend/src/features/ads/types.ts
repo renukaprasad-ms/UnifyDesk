@@ -187,6 +187,9 @@ export type CreateGooglePerformanceMaxCampaignInput = {
   marketingImageBase64: string
   squareMarketingImageBase64: string
   logoImageBase64: string
+  portraitMarketingImageBase64?: string | null
+  landscapeLogoImageBase64?: string | null
+  youtubeVideoIds?: string[]
   bidStrategy?: 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
   startDate?: string | null
   endDate?: string | null
