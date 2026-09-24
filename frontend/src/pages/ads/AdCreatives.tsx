@@ -8,6 +8,7 @@ import type {
   AdAccount,
   AdAccountResource,
   AdCreative,
+  GoogleAsset,
   CreateMetaCreativeInput,
 } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -26,6 +27,7 @@ export default function AdCreatives() {
   const [resources, setResources] = useState<AdAccountResource[]>([])
   const [creatives, setCreatives] = useState<AdCreative[]>([])
   const [googleAds, setGoogleAds] = useState<Ad[]>([])
+  const [googleAssets, setGoogleAssets] = useState<GoogleAsset[]>([])
   const [selectedAccountId, setSelectedAccountId] = useState('')
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -51,11 +53,12 @@ export default function AdCreatives() {
   const loadForAccount = async (account: AdAccount) => {
     if (!selectedCompany) return
     if (account.provider === 'GOOGLE_ADS') {
-      const adData = await adCenterApi.accountAds(
-        selectedCompany.companyId,
-        account.id,
-      )
+      const [adData, assetData] = await Promise.all([
+        adCenterApi.accountAds(selectedCompany.companyId, account.id),
+        adCenterApi.googleAssets(selectedCompany.companyId, account.id),
+      ])
       setGoogleAds(adData)
+      setGoogleAssets(assetData)
       setCreatives([])
       setResources([])
       return
@@ -67,6 +70,7 @@ export default function AdCreatives() {
     ])
     setCreatives(creativeData)
     setGoogleAds([])
+    setGoogleAssets([])
     setResources(resourceData)
   }
 
@@ -87,6 +91,7 @@ export default function AdCreatives() {
       } else {
         setCreatives([])
         setGoogleAds([])
+        setGoogleAssets([])
         setResources([])
       }
     } catch (loadError) {
@@ -202,7 +207,7 @@ export default function AdCreatives() {
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
               {selectedAccount?.provider === 'GOOGLE_ADS'
-                ? 'Inspect Google responsive search ads as creative units. Create and edit them inside their Ad Groups.'
+                ? 'Inspect the Google asset library used by Performance Max and the responsive search ads created inside Ad Groups.'
                 : 'Build reusable Meta image, video, and carousel creatives before attaching them to ads.'}
             </p>
           </div>
@@ -277,59 +282,133 @@ export default function AdCreatives() {
             Loading creatives…
           </div>
         ) : selectedAccount?.provider === 'GOOGLE_ADS' ? (
-          googleAds.length === 0 ? (
-            <div className="panel mt-6 p-10 text-center">
-              <FiImage className="mx-auto text-2xl text-slate-300" aria-hidden="true" />
-              <h2 className="mt-3 text-base font-bold text-slate-950">
-                No Google ad creative units yet
-              </h2>
-              <p className="mt-2 text-sm text-slate-500">
-                Create Responsive Search Ads inside an Ad Group, then sync them here.
-              </p>
-              <Link
-                to="/ad-center/campaigns"
-                className="primary-button mt-4 inline-flex items-center gap-2"
-              >
-                <FiPlus aria-hidden="true" />
-                Open campaigns
-              </Link>
-            </div>
-          ) : (
-            <div className="panel mt-6 overflow-hidden">
-              <div className="divide-y divide-slate-100">
-                {googleAds.map((ad) => (
-                  <div
-                    key={ad.id}
-                    className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-bold text-slate-950">{ad.name}</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Responsive Search Ad · {ad.externalAdId}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          ad.status === 'ACTIVE'
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : 'bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        {ad.status}
-                      </span>
-                      <Link
-                        to={`/ad-center/ad-sets/${ad.adSetId}`}
-                        className="secondary-button text-xs"
-                      >
-                        Open ad group
-                      </Link>
-                    </div>
-                  </div>
-                ))}
+          <div className="mt-6 space-y-6">
+            <div className="panel overflow-hidden">
+              <div className="border-b border-slate-100 px-5 py-4">
+                <h2 className="text-base font-bold text-slate-950">Google asset library</h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Reusable text, image, and YouTube assets available to Performance Max and other Google campaign types.
+                </p>
               </div>
+
+              {googleAssets.length === 0 ? (
+                <div className="p-8 text-center text-sm text-slate-500">
+                  No reusable Google assets are stored yet. Create a Performance Max campaign to add its first asset set.
+                </div>
+              ) : (
+                <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
+                  {googleAssets.map((asset) => (
+                    <article
+                      key={asset.resourceName ?? asset.id ?? asset.name}
+                      className="overflow-hidden rounded-xl border border-slate-200 bg-white"
+                    >
+                      {asset.imageUrl ? (
+                        <div className="flex aspect-[16/9] items-center justify-center bg-slate-100">
+                          <img
+                            src={asset.imageUrl}
+                            alt=""
+                            className="h-full w-full object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex aspect-[16/9] items-center justify-center bg-slate-50">
+                          {asset.type === 'YOUTUBE_VIDEO' ? (
+                            <FiVideo className="text-3xl text-slate-400" aria-hidden="true" />
+                          ) : (
+                            <FiImage className="text-3xl text-slate-400" aria-hidden="true" />
+                          )}
+                        </div>
+                      )}
+                      <div className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="min-w-0 truncate font-semibold text-slate-950">
+                            {asset.name || asset.text || 'Google asset'}
+                          </p>
+                          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                            {formatLabel(asset.type)}
+                          </span>
+                        </div>
+                        {asset.text && (
+                          <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
+                            {asset.text}
+                          </p>
+                        )}
+                        {asset.youtubeVideoId && (
+                          <p className="mt-2 text-xs text-slate-500">
+                            YouTube {asset.youtubeVideoId}
+                          </p>
+                        )}
+                        {asset.imageWidth && asset.imageHeight && (
+                          <p className="mt-2 text-xs text-slate-400">
+                            {asset.imageWidth}×{asset.imageHeight}
+                          </p>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
             </div>
-          )
+
+            <div className="panel overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                <div>
+                  <h2 className="text-base font-bold text-slate-950">
+                    Responsive Search Ads
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Search creative units remain attached to their Google Ad Groups.
+                  </p>
+                </div>
+                <Link
+                  to="/ad-center/campaigns"
+                  className="secondary-button inline-flex items-center gap-2"
+                >
+                  <FiPlus aria-hidden="true" />
+                  Open campaigns
+                </Link>
+              </div>
+
+              {googleAds.length === 0 ? (
+                <div className="p-8 text-center text-sm text-slate-500">
+                  No Responsive Search Ads are stored yet.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {googleAds.map((ad) => (
+                    <div
+                      key={ad.id}
+                      className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-950">{ad.name}</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Responsive Search Ad · {ad.externalAdId}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            ad.status === 'ACTIVE'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {ad.status}
+                        </span>
+                        <Link
+                          to={`/ad-center/ad-sets/${ad.adSetId}`}
+                          className="secondary-button text-xs"
+                        >
+                          Open ad group
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         ) : creatives.length === 0 ? (
           <div className="panel mt-6 p-10 text-center">
             <FiImage className="mx-auto text-2xl text-slate-300" aria-hidden="true" />
