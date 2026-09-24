@@ -154,6 +154,56 @@ public class GoogleAdsPerformanceMaxService {
             "LOGO",
             ImageRule.LOGO));
 
+    if (request.portraitMarketingImageBase64() != null
+        && !request.portraitMarketingImageBase64().isBlank()) {
+      assets.add(
+          imageAsset(
+              operations,
+              customerId,
+              assetId--,
+              request.name() + " marketing portrait",
+              request.portraitMarketingImageBase64(),
+              "PORTRAIT_MARKETING_IMAGE",
+              ImageRule.PORTRAIT_MARKETING));
+    }
+
+    if (request.landscapeLogoImageBase64() != null
+        && !request.landscapeLogoImageBase64().isBlank()) {
+      assets.add(
+          imageAsset(
+              operations,
+              customerId,
+              assetId--,
+              request.name() + " landscape logo",
+              request.landscapeLogoImageBase64(),
+              "LANDSCAPE_LOGO",
+              ImageRule.LANDSCAPE_LOGO));
+    }
+
+    if (request.youtubeVideoIds() != null) {
+      List<String> videoIds =
+          request.youtubeVideoIds().stream()
+              .filter(value -> value != null && !value.isBlank())
+              .map(String::trim)
+              .distinct()
+              .toList();
+      if (videoIds.size() > 15) {
+        throw new BadRequestException(
+            "Performance Max supports at most 15 YouTube video assets per Asset Group");
+      }
+      for (int i = 0; i < videoIds.size(); i++) {
+        String videoId = videoIds.get(i);
+        validateYouTubeId(videoId);
+        assets.add(
+            youtubeAsset(
+                operations,
+                customerId,
+                assetId--,
+                request.name() + " YouTube video " + (i + 1),
+                videoId));
+      }
+    }
+
     Map<String, Object> assetGroup = new LinkedHashMap<>();
     assetGroup.put("resourceName", assetGroupResource);
     assetGroup.put("name", generatedName(request.name(), "asset group"));
@@ -352,6 +402,28 @@ public class GoogleAdsPerformanceMaxService {
     asset.put("imageAsset", Map.of("data", Base64.getEncoder().encodeToString(data)));
     operations.add(operation("assetOperation", asset));
     return new AssetLink(resourceName, fieldType);
+  }
+
+  private AssetLink youtubeAsset(
+      List<Map<String, Object>> operations,
+      String customerId,
+      int temporaryId,
+      String name,
+      String youtubeVideoId) {
+    String resourceName =
+        resource(customerId, "assets", String.valueOf(temporaryId));
+    Map<String, Object> asset = new LinkedHashMap<>();
+    asset.put("resourceName", resourceName);
+    asset.put("name", truncate(name, 128));
+    asset.put("youtubeVideoAsset", Map.of("youtubeVideoId", youtubeVideoId));
+    operations.add(operation("assetOperation", asset));
+    return new AssetLink(resourceName, "YOUTUBE_VIDEO");
+  }
+
+  private void validateYouTubeId(String value) {
+    if (value == null || !value.trim().matches("[A-Za-z0-9_-]{6,32}")) {
+      throw new BadRequestException("A valid YouTube video ID is required");
+    }
   }
 
   private void validate(CreateGooglePerformanceMaxCampaignRequest request) {
@@ -557,7 +629,9 @@ public class GoogleAdsPerformanceMaxService {
   private enum ImageRule {
     LANDSCAPE_MARKETING("Landscape marketing image", 600, 314, 1.91d, 0.04d),
     SQUARE_MARKETING("Square marketing image", 300, 300, 1.0d, 0.02d),
-    LOGO("Square logo", 128, 128, 1.0d, 0.02d);
+    LOGO("Square logo", 128, 128, 1.0d, 0.02d),
+    PORTRAIT_MARKETING("Portrait marketing image", 480, 600, 0.8d, 0.02d),
+    LANDSCAPE_LOGO("Landscape logo", 512, 128, 4.0d, 0.08d);
 
     final String label;
     final int minWidth;
