@@ -26,7 +26,16 @@ public class GlobalExceptionHandler {
     String message =
         exception.getBindingResult().getFieldErrors().stream()
             .findFirst()
-            .map(error -> error.getField() + ": " + error.getDefaultMessage())
+            .map(
+                error -> {
+                  String defaultMessage = error.getDefaultMessage();
+                  if ("containsEuPoliticalAdvertising".equals(error.getField())
+                      && defaultMessage != null
+                      && !defaultMessage.isBlank()) {
+                    return defaultMessage;
+                  }
+                  return error.getField() + ": " + defaultMessage;
+                })
             .orElse("Invalid request");
 
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
