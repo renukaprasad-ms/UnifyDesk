@@ -151,9 +151,10 @@ Implemented:
 Intentional provider limitation:
 - Google Ads API exposes Video campaigns for synchronization/reporting but does not support creating or updating Video campaigns. Reachlyo therefore renders Video entities as read-only instead of offering mutations Google cannot honor.
 
-Still planned:
-- optional portrait/landscape-logo assets and additional Demand Gen creative formats
-- Merchant Center product/feed management outside the Ads campaign surface
+Final advanced slice completed:
+- optional Performance Max portrait marketing images and landscape logos
+- additional Demand Gen Multi-Asset and Carousel creative formats
+- Merchant Center product/data-source management outside the Ads campaign surface
 
 ### Slice 5 - recommendations, first-party data, billing, and automation
 
