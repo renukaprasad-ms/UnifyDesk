@@ -29,6 +29,7 @@ import type {
   CreateMetaAdInput,
   CreateMetaAdSetInput,
   CreateGoogleCampaignInput,
+  CreateGoogleAdvancedCampaignInput,
   CreateGooglePerformanceMaxCampaignInput,
   GoogleAsset,
   GoogleAssetGroup,
@@ -202,6 +203,18 @@ export const adCenterApi = {
   ) {
     const response = await apiClient.post<ApiResponse<AdCampaign>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/campaigns`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleAdvancedCampaign(
+    companyId: string,
+    accountId: string,
+    input: CreateGoogleAdvancedCampaignInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<AdCampaign>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/advanced-campaigns`,
       input,
     )
     return unwrap(response.data)
