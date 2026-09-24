@@ -3,8 +3,9 @@ import { FiPlay, FiPlus, FiRefreshCw, FiPause } from 'react-icons/fi'
 import { Link, useSearchParams } from 'react-router'
 import MetaCampaignModal from '../../components/ads/MetaCampaignModal'
 import GoogleCampaignModal from '../../components/ads/GoogleCampaignModal'
+import GooglePerformanceMaxCampaignModal from '../../components/ads/GooglePerformanceMaxCampaignModal'
 import { adCenterApi } from '../../features/ads/adCenterApi'
-import type { AdAccount, AdCampaign, CreateGoogleCampaignInput, CreateMetaCampaignInput } from '../../features/ads/types'
+import type { AdAccount, AdCampaign, CreateGoogleCampaignInput, CreateGooglePerformanceMaxCampaignInput, CreateMetaCampaignInput } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -47,6 +48,7 @@ export default function AdCampaigns() {
   const [creating, setCreating] = useState(false)
   const [workingCampaignId, setWorkingCampaignId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [googleCreateType, setGoogleCreateType] = useState<'SEARCH' | 'PERFORMANCE_MAX'>('SEARCH')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -188,6 +190,37 @@ export default function AdCampaigns() {
     }
   }
 
+  const createGooglePerformanceMax = async (
+    input: CreateGooglePerformanceMaxCampaignInput,
+  ) => {
+    if (!selectedCompany || !selectedAccount) return
+    setCreating(true)
+    setError('')
+    setNotice('')
+    try {
+      const created = await adCenterApi.createGooglePerformanceMaxCampaign(
+        selectedCompany.companyId,
+        selectedAccount.id,
+        input,
+      )
+      setCampaigns((current) => [
+        created,
+        ...current.filter((item) => item.id !== created.id),
+      ])
+      setCreateOpen(false)
+      setNotice(
+        `${created.name} was created as a paused Performance Max campaign with its initial asset group.`,
+      )
+    } catch (createError) {
+      setError(
+        apiErrorMessage(createError, 'Unable to create Google Performance Max campaign'),
+      )
+    } finally {
+      setCreating(false)
+    }
+  }
+
+
   const setStatus = async (campaign: AdCampaign, status: 'ACTIVE' | 'PAUSED') => {
     if (!selectedCompany) return
     setWorkingCampaignId(campaign.id)
@@ -264,17 +297,45 @@ export default function AdCampaigns() {
                 {syncing ? 'Syncing…' : `Sync ${selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google' : 'Meta'}`}
               </button>
             )}
-            {can(PERMISSIONS.ADS_CREATE) && (
-              <button
-                type="button"
-                className="primary-button inline-flex items-center gap-2"
-                disabled={!selectedAccount}
-                onClick={() => setCreateOpen(true)}
-              >
-                <FiPlus aria-hidden="true" />
-                Create campaign
-              </button>
-            )}
+            {can(PERMISSIONS.ADS_CREATE) &&
+              (selectedAccount?.provider === 'GOOGLE_ADS' ? (
+                <>
+                  <button
+                    type="button"
+                    className="secondary-button inline-flex items-center gap-2"
+                    disabled={!selectedAccount}
+                    onClick={() => {
+                      setGoogleCreateType('SEARCH')
+                      setCreateOpen(true)
+                    }}
+                  >
+                    <FiPlus aria-hidden="true" />
+                    Create Search
+                  </button>
+                  <button
+                    type="button"
+                    className="primary-button inline-flex items-center gap-2"
+                    disabled={!selectedAccount}
+                    onClick={() => {
+                      setGoogleCreateType('PERFORMANCE_MAX')
+                      setCreateOpen(true)
+                    }}
+                  >
+                    <FiPlus aria-hidden="true" />
+                    Create Performance Max
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="primary-button inline-flex items-center gap-2"
+                  disabled={!selectedAccount}
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <FiPlus aria-hidden="true" />
+                  Create campaign
+                </button>
+              ))}
           </div>
         </header>
 
@@ -512,15 +573,26 @@ export default function AdCampaigns() {
           onCreate={createMeta}
         />
       )}
-      {selectedAccount?.provider === 'GOOGLE_ADS' && (
-        <GoogleCampaignModal
-          account={selectedAccount}
-          open={createOpen}
-          saving={creating}
-          onClose={() => setCreateOpen(false)}
-          onCreate={createGoogle}
-        />
-      )}
+      {selectedAccount?.provider === 'GOOGLE_ADS' &&
+        googleCreateType === 'SEARCH' && (
+          <GoogleCampaignModal
+            account={selectedAccount}
+            open={createOpen}
+            saving={creating}
+            onClose={() => setCreateOpen(false)}
+            onCreate={createGoogle}
+          />
+        )}
+      {selectedAccount?.provider === 'GOOGLE_ADS' &&
+        googleCreateType === 'PERFORMANCE_MAX' && (
+          <GooglePerformanceMaxCampaignModal
+            account={selectedAccount}
+            open={createOpen}
+            saving={creating}
+            onClose={() => setCreateOpen(false)}
+            onCreate={createGooglePerformanceMax}
+          />
+        )}
     </section>
   )
 }
