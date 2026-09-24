@@ -148,6 +148,9 @@ class GoogleAdsPerformanceMaxServiceTests {
             image(600, 314),
             image(300, 300),
             image(128, 128),
+            null,
+            null,
+            List.of(),
             "MAXIMIZE_CONVERSIONS",
             LocalDate.now(),
             LocalDate.now().plusDays(30));
