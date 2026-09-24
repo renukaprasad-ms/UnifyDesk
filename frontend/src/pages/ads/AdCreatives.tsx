@@ -135,6 +135,7 @@ export default function AdCreatives() {
         )
         let synchronized = 0
         for (const campaign of campaigns.content) {
+          if (campaign.objective === 'PERFORMANCE_MAX') continue
           await adCenterApi.syncGoogleAdGroups(selectedCompany.companyId, campaign.id)
           const groups = await adCenterApi.adSets(
             selectedCompany.companyId,
