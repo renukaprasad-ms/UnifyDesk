@@ -3,10 +3,12 @@ package com.messaging.ads.google;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.messaging.ads.dto.AdResponse;
 import com.messaging.ads.entity.Ad;
+import com.messaging.ads.entity.AdCampaign;
 import com.messaging.ads.entity.AdSet;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.google.dto.CreateGoogleResponsiveSearchAdRequest;
 import com.messaging.ads.google.dto.UpdateGoogleResponsiveSearchAdRequest;
+import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.ads.repository.AdRepository;
 import com.messaging.ads.repository.AdSetRepository;
 import com.messaging.ads.service.AdActivityLogService;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 public class GoogleAdsAdMutationService {
 
   private final AdSetRepository adSetRepository;
+  private final AdCampaignRepository campaignRepository;
   private final AdRepository adRepository;
   private final GoogleAdsAccountContextService contextService;
   private final GoogleAdsApiClient apiClient;
@@ -36,7 +39,7 @@ public class GoogleAdsAdMutationService {
       Long adSetId,
       CreateGoogleResponsiveSearchAdRequest request,
       Long actorUserId) {
-    AdSet adGroup = requireAdGroup(companyId, adSetId);
+    AdSet adGroup = requireSearchAdGroup(companyId, adSetId);
     var context = contextService.requireManaged(companyId, adGroup.getAdAccountId());
     validateAssets(request.headlines(), request.descriptions());
     validateUrl(request.finalUrl());
@@ -93,7 +96,7 @@ public class GoogleAdsAdMutationService {
       UpdateGoogleResponsiveSearchAdRequest request,
       Long actorUserId) {
     Ad stored = requireAd(companyId, adId);
-    AdSet adGroup = requireAdGroup(companyId, stored.getAdSetId());
+    AdSet adGroup = requireSearchAdGroup(companyId, stored.getAdSetId());
     var context = contextService.requireManaged(companyId, stored.getAdAccountId());
     AdResponse before = AdResponse.from(stored);
 
@@ -299,6 +302,19 @@ public class GoogleAdsAdMutationService {
             .orElseThrow(() -> new NotFoundException("Advertising ad group not found"));
     if (adGroup.getProvider() != AdProvider.GOOGLE_ADS || !adGroup.isAccessible()) {
       throw new BadRequestException("Google ad group is not available for management");
+    }
+    return adGroup;
+  }
+
+  private AdSet requireSearchAdGroup(Long companyId, Long adSetId) {
+    AdSet adGroup = requireAdGroup(companyId, adSetId);
+    AdCampaign campaign =
+        campaignRepository
+            .findByIdAndCompanyId(adGroup.getCampaignId(), companyId)
+            .orElseThrow(() -> new NotFoundException("Advertising campaign not found"));
+    if (!"SEARCH".equalsIgnoreCase(campaign.getObjective())) {
+      throw new BadRequestException(
+          "Responsive Search Ads are supported only for Search campaign ad groups");
     }
     return adGroup;
   }
