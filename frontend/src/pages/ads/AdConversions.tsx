@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FiActivity, FiPlus, FiRefreshCw } from 'react-icons/fi'
+import { FiActivity, FiPlus, FiRefreshCw, FiUploadCloud } from 'react-icons/fi'
 import MetaConversionModal from '../../components/ads/MetaConversionModal'
 import GoogleConversionModal from '../../components/ads/GoogleConversionModal'
+import GoogleConversionEventUploadModal from '../../components/ads/GoogleConversionEventUploadModal'
 import MetaPixelModal from '../../components/ads/MetaPixelModal'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
@@ -10,6 +11,7 @@ import type {
   AdConversion,
   CreateMetaConversionInput,
   CreateGoogleConversionInput,
+  GoogleConversionEventUploadInput,
 } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -33,6 +35,8 @@ export default function AdConversions() {
   const [syncing, setSyncing] = useState(false)
   const [creating, setCreating] = useState(false)
   const [creatingPixel, setCreatingPixel] = useState(false)
+  const [uploadingEvent, setUploadingEvent] = useState(false)
+  const [uploadConversion, setUploadConversion] = useState<AdConversion | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [pixelModalOpen, setPixelModalOpen] = useState(false)
   const [error, setError] = useState('')
@@ -196,6 +200,42 @@ export default function AdConversions() {
     }
   }
 
+  const uploadGoogleConversionEvent = async (
+    input: GoogleConversionEventUploadInput,
+  ) => {
+    if (!selectedCompany || !uploadConversion) return
+    setUploadingEvent(true)
+    setError('')
+    setNotice('')
+    try {
+      const result = await adCenterApi.uploadGoogleConversionEvents(
+        selectedCompany.companyId,
+        uploadConversion.id,
+        input,
+      )
+      setUploadConversion(null)
+      setNotice(
+        result.validateOnly
+          ? `Validated ${result.submittedCount} Google conversion event(s).`
+          : `Submitted ${result.submittedCount} conversion event(s) to Google Data Manager.`,
+      )
+      if (result.warnings.length > 0) {
+        setNotice(
+          `${result.validateOnly ? 'Validation' : 'Upload'} completed with ${result.warnings.length} warning(s).`,
+        )
+      }
+    } catch (uploadError) {
+      setError(
+        apiErrorMessage(
+          uploadError,
+          'Unable to upload Google conversion events',
+        ),
+      )
+    } finally {
+      setUploadingEvent(false)
+    }
+  }
+
   if (!selectedCompany) return null
 
   return (
@@ -227,7 +267,10 @@ export default function AdConversions() {
               <button
                 type="button"
                 className="primary-button inline-flex items-center gap-2"
-                disabled={!selectedAccount || pixels.length === 0}
+                disabled={
+                  !selectedAccount ||
+                  (selectedAccount.provider === 'META_ADS' && pixels.length === 0)
+                }
                 onClick={() => setModalOpen(true)}
               >
                 <FiPlus aria-hidden="true" />
@@ -384,6 +427,9 @@ export default function AdConversions() {
                           </th>
                           <th className="px-5 py-3">Last fired</th>
                           <th className="px-5 py-3">Status</th>
+                          {selectedAccount?.provider === 'GOOGLE_ADS' && (
+                            <th className="px-5 py-3 text-right">Action</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -423,6 +469,22 @@ export default function AdConversions() {
                                     : 'Active'}
                               </span>
                             </td>
+                            {selectedAccount?.provider === 'GOOGLE_ADS' && (
+                              <td className="px-5 py-4 text-right">
+                                {can(PERMISSIONS.ADS_MODIFY) &&
+                                  conversion.accessible &&
+                                  !conversion.archived && (
+                                    <button
+                                      type="button"
+                                      className="secondary-button inline-flex items-center gap-2 text-xs"
+                                      onClick={() => setUploadConversion(conversion)}
+                                    >
+                                      <FiUploadCloud aria-hidden="true" />
+                                      Upload event
+                                    </button>
+                                  )}
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -448,6 +510,19 @@ export default function AdConversions() {
                             ? `Source ${formatValue(conversion.eventSourceType)}`
                             : `Pixel ${conversion.pixelId ?? '—'}`}
                         </p>
+                        {selectedAccount?.provider === 'GOOGLE_ADS' &&
+                          can(PERMISSIONS.ADS_MODIFY) &&
+                          conversion.accessible &&
+                          !conversion.archived && (
+                            <button
+                              type="button"
+                              className="secondary-button mt-4 inline-flex items-center gap-2 text-xs"
+                              onClick={() => setUploadConversion(conversion)}
+                            >
+                              <FiUploadCloud aria-hidden="true" />
+                              Upload event
+                            </button>
+                          )}
                       </div>
                     ))}
                   </div>
@@ -476,6 +551,15 @@ export default function AdConversions() {
           onCreate={createMeta}
         />
       )}
+      <GoogleConversionEventUploadModal
+        conversion={uploadConversion}
+        open={uploadConversion !== null}
+        saving={uploadingEvent}
+        defaultCurrency={selectedAccount?.currency}
+        onClose={() => setUploadConversion(null)}
+        onUpload={uploadGoogleConversionEvent}
+      />
+
       {selectedAccount?.provider === 'GOOGLE_ADS' && (
         <GoogleConversionModal
           open={modalOpen}
