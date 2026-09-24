@@ -47,6 +47,14 @@ public class GoogleAdsAdGroupMutationService {
             "campaigns",
             campaign.getExternalCampaignId()));
     create.put("status", "PAUSED");
+    if ("SHOPPING".equalsIgnoreCase(campaign.getObjective())) {
+      create.put("type", "SHOPPING_PRODUCT_ADS");
+    }
+    if ("DEMAND_GEN".equalsIgnoreCase(campaign.getObjective())
+        && request.cpcBidMinor() != null) {
+      throw new BadRequestException(
+          "Demand Gen uses campaign-level automated bidding; do not set an ad-group CPC bid");
+    }
     if (request.cpcBidMinor() != null) {
       create.put(
           "cpcBidMicros",
@@ -198,6 +206,14 @@ public class GoogleAdsAdGroupMutationService {
             .orElseThrow(() -> new NotFoundException("Advertising campaign not found"));
     if (campaign.getProvider() != AdProvider.GOOGLE_ADS || !campaign.isAccessible()) {
       throw new BadRequestException("Google campaign is not available for management");
+    }
+    if ("VIDEO".equalsIgnoreCase(campaign.getObjective())) {
+      throw new BadRequestException(
+          "Google Ads API exposes Video campaigns as read-only");
+    }
+    if ("PERFORMANCE_MAX".equalsIgnoreCase(campaign.getObjective())) {
+      throw new BadRequestException(
+          "Performance Max uses Asset Groups instead of Ad Groups");
     }
     return campaign;
   }
