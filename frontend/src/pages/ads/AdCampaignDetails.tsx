@@ -483,10 +483,32 @@ export default function AdCampaignDetails() {
                     disabled={!editing}
                     onChange={(event) => setBidStrategy(event.target.value)}
                   >
-                    <option value="">Meta default</option>
-                    <option value="LOWEST_COST_WITHOUT_CAP">Lowest cost</option>
-                    <option value="LOWEST_COST_WITH_BID_CAP">Bid cap</option>
-                    <option value="COST_CAP">Cost cap</option>
+                    {campaign.provider === 'GOOGLE_ADS' ? (
+                      campaign.objective === 'PERFORMANCE_MAX' ? (
+                        <>
+                          <option value="MAXIMIZE_CONVERSIONS">Maximize conversions</option>
+                          <option value="MAXIMIZE_CONVERSION_VALUE">
+                            Maximize conversion value
+                          </option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="MANUAL_CPC">Manual CPC</option>
+                          <option value="MAXIMIZE_CLICKS">Maximize clicks</option>
+                          <option value="MAXIMIZE_CONVERSIONS">Maximize conversions</option>
+                          <option value="MAXIMIZE_CONVERSION_VALUE">
+                            Maximize conversion value
+                          </option>
+                        </>
+                      )
+                    ) : (
+                      <>
+                        <option value="">Meta default</option>
+                        <option value="LOWEST_COST_WITHOUT_CAP">Lowest cost</option>
+                        <option value="LOWEST_COST_WITH_BID_CAP">Bid cap</option>
+                        <option value="COST_CAP">Cost cap</option>
+                      </>
+                    )}
                   </select>
                 </label>
 
@@ -567,9 +589,19 @@ export default function AdCampaignDetails() {
             <div className="panel mt-5 overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
                 <div>
-                  <h2 className="text-base font-bold text-slate-950">{campaign.provider === 'GOOGLE_ADS' ? 'Ad groups' : 'Ad sets'}</h2>
+                  <h2 className="text-base font-bold text-slate-950">
+                    {campaign.provider === 'GOOGLE_ADS' &&
+                    campaign.objective === 'PERFORMANCE_MAX'
+                      ? 'Asset groups'
+                      : campaign.provider === 'GOOGLE_ADS'
+                        ? 'Ad groups'
+                        : 'Ad sets'}
+                  </h2>
                   <p className="mt-1 text-xs text-slate-500">
-                    Targeting, placements, schedule, bidding, budget, and conversion settings.
+                    {campaign.provider === 'GOOGLE_ADS' &&
+                    campaign.objective === 'PERFORMANCE_MAX'
+                      ? 'Creative assets, final URLs, ad strength, and delivery status for Performance Max.'
+                      : 'Targeting, placements, schedule, bidding, budget, and conversion settings.'}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -581,10 +613,20 @@ export default function AdCampaignDetails() {
                       onClick={() => void syncAdSets()}
                     >
                       <FiRefreshCw aria-hidden="true" />
-                      {syncingAdSets ? 'Syncing…' : `Sync ${campaign.provider === 'GOOGLE_ADS' ? 'ad groups' : 'ad sets'}`}
+                      {syncingAdSets
+                        ? 'Syncing…'
+                        : campaign.provider === 'GOOGLE_ADS' &&
+                            campaign.objective === 'PERFORMANCE_MAX'
+                          ? 'Refresh asset groups'
+                          : `Sync ${campaign.provider === 'GOOGLE_ADS' ? 'ad groups' : 'ad sets'}`}
                     </button>
                   )}
-                  {can(PERMISSIONS.ADS_CREATE) && account && (
+                  {can(PERMISSIONS.ADS_CREATE) &&
+                    account &&
+                    !(
+                      campaign.provider === 'GOOGLE_ADS' &&
+                      campaign.objective === 'PERFORMANCE_MAX'
+                    ) && (
                     <button
                       type="button"
                       className="primary-button inline-flex items-center gap-2"
@@ -597,9 +639,51 @@ export default function AdCampaignDetails() {
                 </div>
               </div>
 
-              {adSets.length === 0 ? (
+              {campaign.provider === 'GOOGLE_ADS' &&
+              campaign.objective === 'PERFORMANCE_MAX' ? (
+                assetGroups.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-slate-500">
+                    No Performance Max asset groups were returned. Refresh after Google finishes
+                    processing the campaign assets.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {assetGroups.map((group) => (
+                      <div
+                        key={group.resourceName ?? group.id}
+                        className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-950">
+                            {group.name ?? 'Performance Max asset group'}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Ad strength {displayValue(group.adStrength)}
+                          </p>
+                          <p className="mt-1 break-all text-xs text-slate-400">
+                            {group.finalUrls?.join(', ') || 'No final URL returned'}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                            {group.status ?? 'UNKNOWN'}
+                          </span>
+                          {group.primaryStatus &&
+                            group.primaryStatus !== group.status && (
+                              <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                                {displayValue(group.primaryStatus)}
+                              </span>
+                            )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : adSets.length === 0 ? (
                 <div className="p-8 text-center text-sm text-slate-500">
-                  No ${campaign.provider === 'GOOGLE_ADS' ? 'ad groups' : 'ad sets'} are stored for this campaign yet. Sync the provider or create the first paused ${campaign.provider === 'GOOGLE_ADS' ? 'ad group' : 'ad set'}.
+                  No {campaign.provider === 'GOOGLE_ADS' ? 'ad groups' : 'ad sets'} are stored
+                  for this campaign yet. Sync the provider or create the first paused{' '}
+                  {campaign.provider === 'GOOGLE_ADS' ? 'ad group' : 'ad set'}.
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
