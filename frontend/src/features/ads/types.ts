@@ -9,6 +9,7 @@ export type AdCapability =
   | 'ANALYTICS'
   | 'BILLING_READ'
   | 'BILLING_WRITE'
+  | 'PRODUCT_CATALOG'
   | 'RECOMMENDATIONS'
 
 export type AdProviderInfo = {
