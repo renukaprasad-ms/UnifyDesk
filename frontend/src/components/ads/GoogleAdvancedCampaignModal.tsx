@@ -56,7 +56,7 @@ export default function GoogleAdvancedCampaignModal({
   const [campaignPriority, setCampaignPriority] = useState('0')
   const [enableLocal, setEnableLocal] = useState(false)
   const [containsEuPoliticalAdvertising, setContainsEuPoliticalAdvertising] =
-    useState(false)
+    useState<'YES' | 'NO' | ''>('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
@@ -146,7 +146,7 @@ export default function GoogleAdvancedCampaignModal({
       campaignPriority:
         channelType === 'SHOPPING' ? Number(campaignPriority) : null,
       enableLocal: channelType === 'SHOPPING' ? enableLocal : null,
-      containsEuPoliticalAdvertising,
+      containsEuPoliticalAdvertising: containsEuPoliticalAdvertising === 'YES',
       startDate: startDate || null,
       endDate: endDate || null,
     })
@@ -359,17 +359,24 @@ export default function GoogleAdvancedCampaignModal({
             </div>
           )}
 
-          <label className="flex items-start gap-2 rounded-xl border border-slate-200 p-4 text-xs text-slate-600">
-            <input
-              className="mt-0.5"
-              type="checkbox"
-              checked={containsEuPoliticalAdvertising}
+          <label className="block rounded-xl border border-slate-200 p-4 text-xs font-semibold text-slate-700">
+            EU political advertising
+            <select
+              className="form-input mt-2"
+              value={containsEuPoliticalAdvertising}
+              required
               onChange={(event) =>
-                setContainsEuPoliticalAdvertising(event.target.checked)
+                setContainsEuPoliticalAdvertising(
+                  event.target.value as 'YES' | 'NO' | '',
+                )
               }
-            />
-            <span>
-              This campaign contains EU political advertising. Leave unchecked when it does not.
+            >
+              <option value="">Select an answer</option>
+              <option value="NO">No, this campaign does not contain EU political advertising</option>
+              <option value="YES">Yes, this campaign contains EU political advertising</option>
+            </select>
+            <span className="mt-1 block font-normal text-slate-400">
+              Google requires an explicit declaration for every new campaign.
             </span>
           </label>
 
@@ -401,6 +408,7 @@ export default function GoogleAdvancedCampaignModal({
                 saving ||
                 !name.trim() ||
                 !budget ||
+                !containsEuPoliticalAdvertising ||
                 (channelType === 'SHOPPING' &&
                   (!merchantId || loadingMerchants || merchantAccounts.length === 0))
               }
