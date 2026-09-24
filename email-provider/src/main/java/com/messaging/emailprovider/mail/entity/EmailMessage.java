@@ -7,7 +7,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Index;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -42,12 +41,10 @@ public class EmailMessage extends BaseEntity {
   @Column(nullable = false, length = 998)
   private String subject;
 
-  @Lob
-  @Column(name = "text_body")
+  @Column(name = "text_body", columnDefinition = "TEXT")
   private String textBody;
 
-  @Lob
-  @Column(name = "html_body")
+  @Column(name = "html_body", columnDefinition = "TEXT")
   private String htmlBody;
 
   @Enumerated(EnumType.STRING)
