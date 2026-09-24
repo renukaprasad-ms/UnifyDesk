@@ -159,6 +159,200 @@ export type UpsertReachlyoBudgetPlanInput = {
   allocationMode: BudgetAllocationMode
 }
 
+
+
+export type CreativeAssetRole = 'IMAGE' | 'LOGO' | 'VIDEO'
+export type CreativeVariantOrigin = 'USER' | 'ADAPTED' | 'GENERATED'
+export type CreativeVariantStatus = 'DRAFT' | 'READY' | 'INVALID'
+export type CreativeVariantType =
+  | 'GOOGLE_RSA'
+  | 'GOOGLE_DISPLAY'
+  | 'GOOGLE_PERFORMANCE_MAX'
+  | 'GOOGLE_DEMAND_GEN'
+  | 'META_FEED'
+  | 'META_STORY'
+  | 'META_REEL'
+  | 'META_CAROUSEL'
+  | 'META_WHATSAPP_STATUS'
+
+export type CreativePackAssetInput = {
+  mediaId: string
+  role: CreativeAssetRole
+  label?: string | null
+  sortOrder?: number | null
+}
+
+export type ReachlyoCreativePackAsset = {
+  id: string
+  mediaId: string
+  role: CreativeAssetRole
+  label?: string | null
+  sortOrder: number
+}
+
+export type ReachlyoCreativeVariant = {
+  id: string
+  creativePackId: string
+  campaignChannelId?: string | null
+  provider: AdProvider
+  variantType: CreativeVariantType
+  origin: CreativeVariantOrigin
+  status: CreativeVariantStatus
+  name: string
+  placement?: string | null
+  primaryText?: string | null
+  headlinesJson?: string | null
+  descriptionsJson?: string | null
+  callToAction?: string | null
+  destinationUrl?: string | null
+  assetSpecJson?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type ReachlyoCreativePack = {
+  id: string
+  campaignId: string
+  name: string
+  businessName?: string | null
+  offerText?: string | null
+  primaryMessage?: string | null
+  callToAction?: string | null
+  destinationUrl?: string | null
+  headlinesJson?: string | null
+  descriptionsJson?: string | null
+  createdByUserId: string
+  assets: ReachlyoCreativePackAsset[]
+  variants: ReachlyoCreativeVariant[]
+  createdAt: string
+  updatedAt: string
+}
+
+export type CreateReachlyoCreativePackInput = {
+  name: string
+  businessName?: string | null
+  offerText?: string | null
+  primaryMessage?: string | null
+  callToAction?: string | null
+  destinationUrl?: string | null
+  headlines?: string[]
+  descriptions?: string[]
+  assets?: CreativePackAssetInput[]
+}
+
+export type UpdateReachlyoCreativePackInput = Partial<CreateReachlyoCreativePackInput>
+
+export type CreateReachlyoCreativeVariantInput = {
+  variantType: CreativeVariantType
+  campaignChannelId?: string | null
+  origin?: CreativeVariantOrigin
+  status?: CreativeVariantStatus
+  name: string
+  placement?: string | null
+  primaryText?: string | null
+  headlines?: string[]
+  descriptions?: string[]
+  callToAction?: string | null
+  destinationUrl?: string | null
+  assetSpecJson?: string | null
+}
+
+export type UpdateReachlyoCreativeVariantInput = Omit<
+  Partial<CreateReachlyoCreativeVariantInput>,
+  'variantType'
+>
+
+export type AudienceMappingStatus =
+  | 'EXACT'
+  | 'APPROXIMATE'
+  | 'PROVIDER_ONLY'
+  | 'UNSUPPORTED'
+
+export type ReachlyoAudienceLocationInput = {
+  countryCode: string
+  region?: string | null
+  city?: string | null
+  postalCode?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  radiusKm?: number | null
+}
+
+export type ReachlyoAudienceMapping = {
+  id: string
+  campaignChannelId: string
+  provider: AdProvider
+  mappingStatus: AudienceMappingStatus
+  localAudienceId?: string | null
+  externalAudienceId?: string | null
+  providerCriteriaJson?: string | null
+  notes?: string | null
+}
+
+export type ReachlyoAudienceDefinition = {
+  id: string
+  campaignId: string
+  name: string
+  description?: string | null
+  ageMin?: number | null
+  ageMax?: number | null
+  locationsJson?: string | null
+  languagesJson?: string | null
+  gendersJson?: string | null
+  customerSegmentsJson?: string | null
+  retargetingJson?: string | null
+  exclusionsJson?: string | null
+  interestsJson?: string | null
+  searchIntentJson?: string | null
+  createdByUserId: string
+  mappings: ReachlyoAudienceMapping[]
+  createdAt: string
+  updatedAt: string
+}
+
+export type CreateReachlyoAudienceDefinitionInput = {
+  name: string
+  description?: string | null
+  ageMin?: number | null
+  ageMax?: number | null
+  locations?: ReachlyoAudienceLocationInput[]
+  languages?: string[]
+  genders?: string[]
+  customerSegmentIds?: string[]
+  retargeting?: unknown
+  exclusions?: unknown
+  interests?: string[]
+  searchIntents?: string[]
+}
+
+export type UpdateReachlyoAudienceDefinitionInput =
+  Partial<CreateReachlyoAudienceDefinitionInput>
+
+export type ConversionTargetType = 'PROVIDER_CONVERSION' | 'STANDARD_EVENT'
+
+export type ReachlyoConversionGoalMapping = {
+  id: string
+  campaignId: string
+  businessGoal: CampaignBusinessGoal
+  provider: AdProvider
+  adAccountId: string
+  targetType: ConversionTargetType
+  adConversionId?: string | null
+  providerEventName?: string | null
+  externalConversionId?: string | null
+  validated: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type UpsertReachlyoConversionGoalMappingInput = {
+  provider: AdProvider
+  adAccountId: string
+  targetType: ConversionTargetType
+  adConversionId?: string | null
+  providerEventName?: string | null
+}
+
 export type AdCapability =
   | 'ACCOUNT_DISCOVERY'
   | 'CAMPAIGN_MANAGEMENT'
