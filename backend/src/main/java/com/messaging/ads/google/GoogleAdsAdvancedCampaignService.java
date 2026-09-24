@@ -169,7 +169,7 @@ public class GoogleAdsAdvancedCampaignService {
     String strategy = normalize(
         request.bidStrategy(), "MAXIMIZE_CONVERSIONS");
     switch (strategy) {
-      case "MAXIMIZE_CLICKS" -> campaign.put("maximizeClicks", Map.of());
+      case "MAXIMIZE_CLICKS" -> campaign.put("targetSpend", Map.of());
       case "MAXIMIZE_CONVERSIONS" -> campaign.put("maximizeConversions", Map.of());
       case "TARGET_CPA" -> {
         if (request.targetCpaMinor() == null || request.targetCpaMinor() <= 0) {
