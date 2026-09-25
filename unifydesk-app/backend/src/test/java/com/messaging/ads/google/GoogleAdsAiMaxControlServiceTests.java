@@ -76,6 +76,8 @@ class GoogleAdsAiMaxControlServiceTests {
                 account, null, "token", null, false, false));
     when(apiClient.searchRows(eq("token"), eq("1234567890"), eq(null), org.mockito.ArgumentMatchers.anyString()))
         .thenReturn(List.of());
+    when(apiClient.customerResourceName("1234567890", "campaigns", "111"))
+        .thenReturn("customers/1234567890/campaigns/111");
 
     service.applyUrlExclusions(
         1L, 10L, List.of("https://example.com/old"), 99L);
