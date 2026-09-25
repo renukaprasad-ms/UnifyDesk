@@ -99,7 +99,7 @@ class GoogleProviderCampaignCompilerTests {
         .anyMatch(
             operation ->
                 operation.resource() == ProviderPlanResource.NEGATIVE_KEYWORDS
-                    && "configure-negative-keywords".equals(operation.key()));
+                    && "configure-negative-keywords".equals(operation.operationKey()));
   }
 
   @Test
@@ -252,7 +252,7 @@ class GoogleProviderCampaignCompilerTests {
     assertThat(plan.issues())
         .anyMatch(issue -> "AI_MAX_KEYWORD_MATCH_TYPE_OVERRIDDEN".equals(issue.code()));
     assertThat(plan.operations())
-        .extracting(ProviderPlanOperation::key)
+        .extracting(ProviderPlanOperation::operationKey)
         .contains(
             "configure-ai-max-ad-group",
             "configure-ai-max-url-exclusions",
