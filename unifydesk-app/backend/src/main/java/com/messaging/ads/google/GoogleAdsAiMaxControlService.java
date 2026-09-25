@@ -65,6 +65,8 @@ public class GoogleAdsAiMaxControlService {
       if (existing.contains(value.toLowerCase())) continue;
       Map<String, Object> webpage =
           Map.of(
+              "criterionName",
+              "UnifyDesk AI Max exclusion " + Integer.toUnsignedString(value.hashCode()),
               "conditions",
               List.of(
                   Map.of(
