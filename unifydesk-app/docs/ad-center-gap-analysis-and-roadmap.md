@@ -1489,9 +1489,11 @@ Eventually Reachlyo-owned messaging/CRM events should feed provider offline/enha
 
 ## X-08 Cross-provider reporting - P1
 
-Current normalized analytics is a strong base.
+Status: **core unified campaign reporting complete**. Reachlyo Campaign analytics now resolve ProviderDeployments to the normalized provider campaign insight rows and expose one currency-safe parent report with total spend, impressions, clicks, conversions, conversion value, CPA, ROAS, daily trend, provider/channel performance, provider spend share, exact-range availability, and last-sync state. A single refresh operation synchronizes each unique deployed Google/Meta ad account and reports partial provider failures without discarding already stored analytics.
 
-Add Reachlyo campaign reporting:
+Cross-provider reach is intentionally not summed because Google and Meta users cannot be de-duplicated. Existing provider analytics and breakdown surfaces remain available for provider-specific metrics. Creative- and audience-level cross-provider identity mapping is not fabricated in B7; richer unified creative/audience reporting remains part of C9 once provider ads/assets/audience mappings can be compared on a trustworthy common identity.
+
+Reachlyo campaign reporting includes:
 
 - total spend
 - spend by provider/channel
@@ -1503,8 +1505,6 @@ Add Reachlyo campaign reporting:
 - ROAS
 - provider share
 - campaign trend
-- creative performance
-- audience performance
 
 Provider-specific metrics should remain accessible.
 
@@ -1945,7 +1945,7 @@ B3. [x] Meta detailed geo targeting — provider geo search, regions/cities/post
 B4. [x] Meta proper placement tree — structured Facebook/Instagram/Messenger/Audience Network positions, native create/edit/read-back, unified launch mapping, capability exposure, and compiler placement warnings  
 B5. [x] placement-specific Creative Pack variants — Feed/Story/Reel copy + image/video variants, validated AD_CREATIVE media, single-family launch selection, mixed-placement Meta asset_feed_spec PLACEMENT customization, and safe canonical fallback for unsupported/unmodeled placement families  
 B6. [x] unified conversion mapping — one business goal with current-goal provider/account mappings, goal-aware defaults and mismatch warnings, current Meta standard-event validation/custom-conversion execution, and Google conversion-action preflight + CustomConversionGoal + ConversionGoalCampaignConfig + competing-goal isolation  
-B7. cross-provider campaign analytics  
+B7. [x] cross-provider campaign analytics — deployment-linked Google + Meta campaign rollups, unified KPIs, provider/channel spend share, daily trend, exact-range/daily fallback consistency, mixed-currency protection, one-click multi-provider refresh, and partial-sync failure reporting  
 B8. search-term reporting  
 B9. campaign-level recommendation improvements
 
@@ -2085,6 +2085,11 @@ Keyword/bid planning:
 
 - https://developers.google.com/google-ads/api/docs/bid-simulations/overview
 
+Analytics/reporting:
+
+- https://developers.google.com/google-ads/api/reference/rpc/v25/Metrics
+- https://developers.google.com/google-ads/api/fields/v25/campaign
+
 Assets:
 
 - https://developers.google.com/google-ads/api/docs/assets/overview
@@ -2108,6 +2113,7 @@ Start/current docs:
 Official Meta Marketing API Postman workspace:
 
 - https://www.postman.com/meta/facebook-marketing-api/overview
+- https://www.postman.com/meta/facebook-marketing-api/request/zo3xvu7/get-campaign-insights-l3
 
 Official Meta Business SDK schema/codegen (used to verify asset_feed_spec and placement customization fields):
 
