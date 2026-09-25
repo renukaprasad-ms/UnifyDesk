@@ -1,0 +1,1 @@
+import type {MetadataRoute} from "next";export default function manifest():MetadataRoute.Manifest{return {name:"UnifyDesk",short_name:"UnifyDesk",description:"Customer communication, campaigns and ads in one connected workspace.",start_url:"/",display:"standalone",background_color:"#f8fafd",theme_color:"#6366f1"}}
