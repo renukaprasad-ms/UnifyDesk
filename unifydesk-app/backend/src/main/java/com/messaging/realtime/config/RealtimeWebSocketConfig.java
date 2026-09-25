@@ -2,6 +2,8 @@ package com.messaging.realtime.config;
 
 import com.messaging.realtime.websocket.RealtimeWebSocketHandler;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -21,12 +23,18 @@ public class RealtimeWebSocketConfig implements WebSocketConfigurer {
 
   @Override
   public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+    Set<String> origins = new LinkedHashSet<>();
+    Arrays.stream(allowedOrigins.split(","))
+        .map(String::trim)
+        .filter(value -> !value.isBlank())
+        .forEach(origins::add);
+
+    // Keep the canonical production app origin valid even when an older
+    // REALTIME_ALLOWED_ORIGINS value is still present in deployment secrets.
+    origins.add("https://app.unifydesk.in");
+
     registry
         .addHandler(handler, "/api/v1/realtime/ws")
-        .setAllowedOrigins(
-            Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
-                .filter(value -> !value.isBlank())
-                .toArray(String[]::new));
+        .setAllowedOrigins(origins.toArray(String[]::new));
   }
 }
