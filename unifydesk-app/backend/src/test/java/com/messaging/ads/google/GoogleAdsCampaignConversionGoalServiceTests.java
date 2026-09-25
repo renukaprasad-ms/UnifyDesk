@@ -78,7 +78,25 @@ class GoogleAdsCampaignConversionGoalServiceTests {
 
     when(apiClient.searchRows(
             eq("token"), eq("5555555555"), eq("9999999999"), anyString()))
-        .thenReturn(List.of());
+        .thenAnswer(
+            invocation -> {
+              String query = invocation.getArgument(3);
+              if (query.contains("FROM conversion_action")) {
+                return List.of(
+                    objectMapper.readTree(
+                        """
+                        {
+                          "conversionAction": {
+                            "id": "777",
+                            "status": "ENABLED",
+                            "category": "SUBMIT_LEAD_FORM",
+                            "origin": "WEBSITE"
+                          }
+                        }
+                        """));
+              }
+              return List.of();
+            });
 
     when(apiClient.customerResourceName("5555555555", "conversionActions", "777"))
         .thenReturn("customers/5555555555/conversionActions/777");
@@ -170,21 +188,38 @@ class GoogleAdsCampaignConversionGoalServiceTests {
                         }
                         """));
               }
-              return List.of(
-                  objectMapper.readTree(
-                      """
-                      {
-                        "customConversionGoal": {
-                          "resourceName":
-                            "customers/1234567890/customConversionGoals/333",
-                          "name": "UnifyDesk campaign 10 conversion mapping 20",
-                          "status": "ENABLED",
-                          "conversionActions": [
-                            "customers/1234567890/conversionActions/777"
-                          ]
+              if (query.contains("FROM conversion_action")) {
+                return List.of(
+                    objectMapper.readTree(
+                        """
+                        {
+                          "conversionAction": {
+                            "id": "777",
+                            "status": "ENABLED",
+                            "category": "SUBMIT_LEAD_FORM",
+                            "origin": "WEBSITE"
+                          }
                         }
-                      }
-                      """));
+                        """));
+              }
+              if (query.contains("FROM custom_conversion_goal")) {
+                return List.of(
+                    objectMapper.readTree(
+                        """
+                        {
+                          "customConversionGoal": {
+                            "resourceName":
+                              "customers/1234567890/customConversionGoals/333",
+                            "name": "UnifyDesk campaign 10 conversion mapping 20",
+                            "status": "ENABLED",
+                            "conversionActions": [
+                              "customers/1234567890/conversionActions/777"
+                            ]
+                          }
+                        }
+                        """));
+              }
+              return List.of();
             });
     when(apiClient.customerResourceName("1234567890", "conversionActions", "777"))
         .thenReturn("customers/1234567890/conversionActions/777");
