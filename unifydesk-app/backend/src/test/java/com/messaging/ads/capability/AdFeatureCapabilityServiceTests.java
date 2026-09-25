@@ -89,6 +89,16 @@ class AdFeatureCapabilityServiceTests {
     assertThat(forecast.implemented()).isTrue();
     assertThat(forecast.supported()).isTrue();
     assertThat(forecast.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
+
+    var reusableAssets =
+        capabilities.stream()
+            .filter(item -> item.feature() == AdFeatureCapability.GOOGLE_REUSABLE_ASSETS)
+            .findFirst()
+            .orElseThrow();
+    assertThat(reusableAssets.implemented()).isTrue();
+    assertThat(reusableAssets.supported()).isTrue();
+    assertThat(reusableAssets.availability())
+        .isEqualTo(AdFeatureAvailability.AVAILABLE);
   }
 
   @Test
