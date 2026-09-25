@@ -259,6 +259,28 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
               "providerOverride.negativeKeywords",
               exception.getMessage()));
     }
+
+    if (plan.conversionGoalMappingId() != null
+        && !plan.conversionGoalMappingId().isBlank()) {
+      try {
+        ConversionGoalMapping mapping =
+            conversionGoalMappingRepository
+                .findByIdAndCompanyIdAndReachlyoCampaignId(
+                    Long.valueOf(plan.conversionGoalMappingId()),
+                    companyId,
+                    campaign.getId())
+                .orElseThrow(
+                    () -> new NotFoundException("Conversion goal mapping not found"));
+        campaignConversionGoalService.validate(
+            companyId, account.getId(), mapping);
+      } catch (RuntimeException exception) {
+        issues.add(
+            error(
+                "GOOGLE_CONVERSION_MAPPING_INVALID",
+                "conversion",
+                exception.getMessage()));
+      }
+    }
     return issues;
   }
 
