@@ -59,6 +59,7 @@ import com.messaging.ads.google.dto.UpsertGoogleMerchantProductRequest;
 import com.messaging.ads.google.dto.DeleteGoogleMerchantProductRequest;
 import com.messaging.ads.google.dto.GoogleRecommendationActionRequest;
 import com.messaging.ads.google.dto.GoogleRecommendationActionResponse;
+import com.messaging.ads.google.dto.GoogleSearchTermReportResponse;
 import com.messaging.ads.google.dto.GoogleAssetResponse;
 import com.messaging.ads.google.dto.UpdateGoogleAdGroupRequest;
 import com.messaging.ads.google.dto.UpdateGoogleCampaignRequest;
@@ -98,6 +99,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsConversionSyncService conversionSyncService;
   private final GoogleAdsConversionMutationService conversionMutationService;
   private final GoogleAdsInsightSyncService insightSyncService;
+  private final GoogleAdsSearchTermService searchTermService;
   private final GoogleAdsInsightBreakdownSyncService insightBreakdownSyncService;
   private final GoogleAdsHealthService healthService;
   private final GoogleAdsBillingService billingService;
@@ -801,6 +803,20 @@ public class GoogleAdsConnectionController {
             200,
             insightSyncService.sync(companyId, accountId, from, to),
             "Google Ads analytics synchronized"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/search-terms")
+  public ResponseEntity<ApiResponse<GoogleSearchTermReportResponse>> searchTerms(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @RequestParam LocalDate from,
+      @RequestParam LocalDate to) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            searchTermService.report(companyId, campaignId, from, to),
+            "Google search-term report fetched"));
   }
 
   @PostMapping("/accounts/{accountId}/insights/breakdowns/sync")
