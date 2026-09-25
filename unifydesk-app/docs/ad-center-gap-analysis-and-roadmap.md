@@ -910,7 +910,7 @@ Reference:
 
 ## G-05 Keyword Planner - P1
 
-Status: **complete for C2**. The unified Google Search audience step now includes a Keyword Planner workflow backed by the current v25 `KeywordPlanIdeaService`.
+Status: **complete for C2 and C3**. The unified Google Search audience step now includes Keyword Planner discovery, historical metrics, and planless keyword forecasts backed by the current v25 `KeywordPlanIdeaService`.
 
 Implemented inputs:
 
@@ -936,16 +936,31 @@ Implemented outputs:
 - [x] selectable keyword list merged into the canonical Search-intent field
 - [x] historical-metrics analysis for entered keywords
 
+Forecasting (C3):
+
+- [x] planless Search keyword forecasts through `GenerateKeywordForecastMetrics`
+- [x] future forecast period validation with Google's one-year horizon
+- [x] BROAD / PHRASE / EXACT keyword match types
+- [x] MANUAL_CPC with required max CPC and optional daily budget
+- [x] MAXIMIZE_CLICKS with required daily target spend and optional max CPC ceiling
+- [x] MAXIMIZE_CONVERSIONS with required daily target spend
+- [x] canonical geo/language targeting reused from C2
+- [x] estimated clicks, cost, average CPC, conversions, and average CPA as returned by the active v25 response
+- [x] one-hour best-effort Redis cache keyed by the full forecast request
+- [x] UI clearly labels forecast values as estimates rather than guarantees
+- [x] selected planner ideas are forecast first; otherwise current campaign Search intents are used
+- [x] backend request-shape/date/bid tests and responsive loading/error/result states
+
 Operational behavior:
 
-- [x] `GOOGLE_KEYWORD_PLANNER` fine-grained capability is implemented while `GOOGLE_FORECAST` remains planned for C3
+- [x] `GOOGLE_KEYWORD_PLANNER` and `GOOGLE_FORECAST` fine-grained capabilities are implemented
 - [x] managed customer-account validation and ADS_CREATE RBAC
 - [x] 6-hour Redis cache for idea responses and 24-hour cache for historical metrics, with best-effort fallback when Redis is unavailable
 - [x] activity audit stores counts/network/cache state but not raw user keyword text
 - [x] loading, empty, error, cached-result, filtering, selection and mobile horizontal-table states
 - [x] backend tests for idea request construction, geo/language resolution, metrics/concept mapping, Redis reuse, historical metrics, and unsupported-radius validation
 
-Google's `GenerateAdGroupThemes` method groups keywords into existing ad groups/campaigns, so it is not used as the pre-campaign grouping primitive. C2 instead exposes current `KEYWORD_CONCEPT` annotations as planning themes. Forecast metrics intentionally remain C3 rather than being folded into this milestone.
+Google's `GenerateAdGroupThemes` method groups keywords into existing ad groups/campaigns, so it is not used as the pre-campaign grouping primitive. C2 instead exposes current `KEYWORD_CONCEPT` annotations as planning themes. Forecast metrics are implemented as C3 using Google's current planless campaign forecast model. The active v25 `CampaignToForecast` contains language constants, geo constants, a bidding strategy, and forecast ad groups with keyword text/match type; older network/negative-keyword forecast request shapes are not exposed.
 
 Current Reachlyo flow:
 
@@ -956,7 +971,7 @@ Website/Product + seed terms
    -> concept/theme review
    -> user selects
    -> canonical Search intents
-   -> C3 forecast
+   -> forecast traffic/conversions
    -> create Search campaign
 ~~~
 
@@ -967,6 +982,7 @@ Reference:
 - https://developers.google.com/google-ads/api/docs/keyword-planning/overview
 - https://developers.google.com/google-ads/api/docs/keyword-planning/generate-keyword-ideas
 - https://developers.google.com/google-ads/api/docs/keyword-planning/generate-historical-metrics
+- https://developers.google.com/google-ads/api/docs/keyword-planning/generate-forecast-metrics
 - https://developers.google.com/google-ads/api/reference/rpc/v25/KeywordPlanIdeaService
 
 ## G-06 Google assets/extensions - P1
@@ -2007,7 +2023,7 @@ B9. [x] campaign-level recommendation improvements — unified deployment/provid
 
 C1. [x] AI Max for Search — campaign/ad-group AI Max controls, text and URL automation, text restrictions, retry-safe page-feed inclusions and URL exclusions, verified brand lists, match-source + combination reporting, migration read-back, capability/preflight/audit/UI/tests  
 C2. [x] Keyword Planner — v25 idea + historical-metrics service, URL/keyword/site seeds, geo/language/network targeting, competition/bid/monthly metrics, concept themes, Redis caching, selectable Search-intent UI, RBAC/audit/tests  
-C3. forecasts  
+C3. [x] forecasts — v25 planless keyword forecast API, date horizon, match types, Manual CPC / Maximize Clicks / Maximize Conversions, geo/language reuse, one-hour cache, estimate-only UI, capability/audit/tests  
 C4. reusable Google campaign assets/extensions  
 C5. PMax URL/automation updates  
 C6. Google AI asset generation where eligible  
