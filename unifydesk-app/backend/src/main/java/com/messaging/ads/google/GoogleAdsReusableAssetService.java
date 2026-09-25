@@ -50,7 +50,8 @@ public class GoogleAdsReusableAssetService {
             + "asset.structured_snippet_asset.header, asset.structured_snippet_asset.values, "
             + "asset.final_urls, asset.final_mobile_urls, asset.tracking_url_template, "
             + "asset.final_url_suffix, asset.url_custom_parameters "
-            + "FROM asset WHERE asset.type IN ('SITELINK','CALLOUT','STRUCTURED_SNIPPET')";
+            + "FROM asset WHERE asset.type IN ('SITELINK','CALLOUT','STRUCTURED_SNIPPET') "
+            + "AND asset.source = 'ADVERTISER'";
     return apiClient
         .searchRows(
             context.accessToken(),
