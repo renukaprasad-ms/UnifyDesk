@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react'
 import { FiClock, FiPlus, FiRefreshCw, FiTrash2 } from 'react-icons/fi'
+import GoogleAiMaxBrandSelector from './GoogleAiMaxBrandSelector'
 import type {
   AdAccountResource,
   AdConversion,
   GoogleNegativeKeywordInput,
   GoogleNegativeKeywordList,
+  GoogleBrandSuggestion,
   CampaignBusinessGoal,
   CampaignChannelType,
 } from '../../features/ads/types'
@@ -16,6 +18,7 @@ export type GoogleAdScheduleDraft = {
 }
 
 type Props = {
+  companyId: string
   businessGoal: CampaignBusinessGoal
   selectedChannels: CampaignChannelType[]
   accountByChannel: Record<string, string>
@@ -51,6 +54,10 @@ type Props = {
   setGoogleAiMaxUrlExclusions: (value: string) => void
   googleAiMaxUrlInclusions: string
   setGoogleAiMaxUrlInclusions: (value: string) => void
+  googleAiMaxBrandInclusions: GoogleBrandSuggestion[]
+  setGoogleAiMaxBrandInclusions: (value: GoogleBrandSuggestion[]) => void
+  googleAiMaxBrandExclusions: GoogleBrandSuggestion[]
+  setGoogleAiMaxBrandExclusions: (value: GoogleBrandSuggestion[]) => void
   googleAdSchedules: GoogleAdScheduleDraft[]
   setGoogleAdSchedules: (value: GoogleAdScheduleDraft[]) => void
   googleNegativeKeywords: GoogleNegativeKeywordInput[]
@@ -481,6 +488,17 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                     />
                   </Field>
                 </div>
+                {googleAccount && (
+                  <GoogleAiMaxBrandSelector
+                    companyId={props.companyId}
+                    accountId={googleAccount}
+                    inclusions={props.googleAiMaxBrandInclusions}
+                    exclusions={props.googleAiMaxBrandExclusions}
+                    setInclusions={props.setGoogleAiMaxBrandInclusions}
+                    setExclusions={props.setGoogleAiMaxBrandExclusions}
+                    disabled={props.disabled}
+                  />
+                )}
               )}
             </div>
 
