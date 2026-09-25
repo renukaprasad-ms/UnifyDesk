@@ -1,0 +1,7 @@
+# Seed list. Replace/extend from a curated maintained source during deployment.
+10minutemail.com
+guerrillamail.com
+mailinator.com
+temp-mail.org
+tempmail.com
+yopmail.com
