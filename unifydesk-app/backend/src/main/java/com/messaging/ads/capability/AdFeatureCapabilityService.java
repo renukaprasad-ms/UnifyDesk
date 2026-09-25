@@ -301,6 +301,7 @@ public class AdFeatureCapabilityService {
     planned(specs, AdFeatureCapability.META_DETAILED_TARGETING);
     planned(specs, AdFeatureCapability.META_CUSTOM_AUDIENCE_CUSTOMER_LIST);
     planned(specs, AdFeatureCapability.META_ADVANTAGE_AUDIENCE);
+    add(specs, AdFeatureCapability.META_PLACEMENT_TREE, true, META_ADS_SCOPE);
     planned(specs, AdFeatureCapability.META_ADVANTAGE_PLACEMENTS);
     planned(specs, AdFeatureCapability.META_ADVANTAGE_CREATIVE);
     planned(specs, AdFeatureCapability.META_GENERATIVE_TEXT);
