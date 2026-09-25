@@ -126,7 +126,49 @@ public class GoogleAdsCampaignConversionGoalService {
                 "updateMask",
                 "custom_conversion_goal")));
 
-    return new ApplyResult(customGoalResource, created, updated);
+    int disabledCampaignGoals =
+        disableOtherCampaignGoals(context, account.getExternalAccountId(), campaignId);
+
+    return new ApplyResult(
+        customGoalResource, created, updated, disabledCampaignGoals);
+  }
+
+  private int disableOtherCampaignGoals(
+      GoogleAdsAccountContextService.Context context,
+      String customerId,
+      String campaignId) {
+    List<JsonNode> rows =
+        apiClient.searchRows(
+            context.accessToken(),
+            customerId,
+            context.loginCustomerId(),
+            "SELECT campaign_conversion_goal.resource_name, "
+                + "campaign_conversion_goal.biddable "
+                + "FROM campaign_conversion_goal "
+                + "WHERE campaign.id = "
+                + campaignId);
+    List<Map<String, Object>> operations = new java.util.ArrayList<>();
+    for (JsonNode row : rows) {
+      JsonNode goal = row.path("campaignConversionGoal");
+      if (!goal.path("biddable").asBoolean(false)) continue;
+      String resourceName = goal.path("resourceName").asText(null);
+      if (resourceName == null || resourceName.isBlank()) continue;
+      operations.add(
+          Map.of(
+              "update",
+              Map.of("resourceName", resourceName, "biddable", false),
+              "updateMask",
+              "biddable"));
+    }
+    if (!operations.isEmpty()) {
+      apiClient.mutate(
+          context.accessToken(),
+          customerId,
+          context.loginCustomerId(),
+          "campaignConversionGoals",
+          operations);
+    }
+    return operations.size();
   }
 
   private String conversionCustomerId(
@@ -217,5 +259,8 @@ public class GoogleAdsCampaignConversionGoalService {
       String resourceName, String status, List<String> conversionActions) {}
 
   public record ApplyResult(
-      String customConversionGoalResource, boolean created, boolean updated) {}
+      String customConversionGoalResource,
+      boolean created,
+      boolean updated,
+      int disabledCampaignGoals) {}
 }
