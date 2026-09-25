@@ -70,6 +70,7 @@ class ConversionGoalMappingServiceTests {
     conversion.setProvider(AdProvider.GOOGLE_ADS);
     conversion.setExternalConversionId("customers/123/conversionActions/456");
     conversion.setName("Lead");
+    conversion.setCustomEventType("SUBMIT_LEAD_FORM");
     conversion.setAccessible(true);
     when(conversionRepository.findByIdAndCompanyId(30L, 1L))
         .thenReturn(Optional.of(conversion));
@@ -98,5 +99,6 @@ class ConversionGoalMappingServiceTests {
 
     assertThat(response.validated()).isTrue();
     assertThat(response.externalConversionId()).contains("conversionActions/456");
+    assertThat(response.providerEventName()).isEqualTo("SUBMIT_LEAD_FORM");
   }
 }
