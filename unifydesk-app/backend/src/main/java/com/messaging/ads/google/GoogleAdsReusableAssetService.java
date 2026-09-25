@@ -5,6 +5,8 @@ import com.messaging.ads.entity.AdCampaign;
 import com.messaging.ads.entity.AdSet;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.google.dto.GoogleAssetLinkRequest;
+import com.messaging.ads.google.dto.GoogleAdvancedReusableAssetCreateRequest;
+import com.messaging.ads.google.dto.GooglePriceOfferingInput;
 import com.messaging.ads.google.dto.GoogleReusableAssetCreateRequest;
 import com.messaging.ads.google.dto.GoogleReusableAssetLinkResponse;
 import com.messaging.ads.google.dto.GoogleReusableAssetResponse;
@@ -17,6 +19,8 @@ import com.messaging.ads.service.AdActivityLogService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import java.net.URI;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -33,7 +37,64 @@ import org.springframework.stereotype.Service;
 public class GoogleAdsReusableAssetService {
 
   private static final Set<String> REUSABLE_TYPES =
-      Set.of("SITELINK", "CALLOUT", "STRUCTURED_SNIPPET");
+      Set.of(
+          "SITELINK",
+          "CALLOUT",
+          "STRUCTURED_SNIPPET",
+          "CALL",
+          "PRICE",
+          "PROMOTION",
+          "LEAD_FORM");
+
+  private static final Set<String> PRICE_TYPES =
+      Set.of(
+          "BRANDS",
+          "EVENTS",
+          "LOCATIONS",
+          "NEIGHBORHOODS",
+          "PRODUCT_CATEGORIES",
+          "PRODUCT_TIERS",
+          "SERVICES",
+          "SERVICE_CATEGORIES",
+          "SERVICE_TIERS");
+  private static final Set<String> PRICE_QUALIFIERS =
+      Set.of("FROM", "UP_TO", "AVERAGE");
+  private static final Set<String> PRICE_UNITS =
+      Set.of("PER_HOUR", "PER_DAY", "PER_WEEK", "PER_MONTH", "PER_YEAR", "PER_NIGHT");
+  private static final Set<String> LEAD_CTA_TYPES =
+      Set.of(
+          "LEARN_MORE",
+          "GET_QUOTE",
+          "APPLY_NOW",
+          "SIGN_UP",
+          "CONTACT_US",
+          "SUBSCRIBE",
+          "DOWNLOAD",
+          "BOOK_NOW",
+          "GET_OFFER",
+          "REGISTER",
+          "GET_INFO",
+          "REQUEST_DEMO",
+          "JOIN_NOW",
+          "GET_STARTED");
+  private static final Set<String> LEAD_POST_CTA_TYPES =
+      Set.of("VISIT_SITE", "DOWNLOAD", "LEARN_MORE", "SHOP_NOW");
+  private static final Set<String> LEAD_FIELDS =
+      Set.of(
+          "FULL_NAME",
+          "FIRST_NAME",
+          "LAST_NAME",
+          "EMAIL",
+          "PHONE_NUMBER",
+          "POSTAL_CODE",
+          "STREET_ADDRESS",
+          "CITY",
+          "REGION",
+          "COUNTRY",
+          "WORK_EMAIL",
+          "COMPANY_NAME",
+          "WORK_PHONE",
+          "JOB_TITLE");
 
   private final GoogleAdsAccountContextService contextService;
   private final GoogleAdsApiClient apiClient;
@@ -50,7 +111,8 @@ public class GoogleAdsReusableAssetService {
             + "asset.structured_snippet_asset.header, asset.structured_snippet_asset.values, "
             + "asset.final_urls, asset.final_mobile_urls, asset.tracking_url_template, "
             + "asset.final_url_suffix, asset.url_custom_parameters "
-            + "FROM asset WHERE asset.type IN ('SITELINK','CALLOUT','STRUCTURED_SNIPPET') "
+            + "FROM asset WHERE asset.type IN "
+            + "('SITELINK','CALLOUT','STRUCTURED_SNIPPET','CALL','PRICE','PROMOTION','LEAD_FORM') "
             + "AND asset.source = 'ADVERTISER'";
     return apiClient
         .searchRows(
@@ -111,6 +173,68 @@ public class GoogleAdsReusableAssetService {
     return after;
   }
 
+  public GoogleReusableAssetResponse createAdvanced(
+      Long companyId,
+      Long accountId,
+      GoogleAdvancedReusableAssetCreateRequest request,
+      Long actorUserId) {
+    var context = contextService.requireManaged(companyId, accountId);
+    if (context.managerAccount()) {
+      throw new BadRequestException(
+          "Google reusable assets must be created in a managed advertising customer account");
+    }
+
+    Map<String, Object> create = buildAdvancedAsset(request);
+    JsonNode response =
+        apiClient.mutate(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            "assets",
+            List.of(Map.of("create", create)));
+    String resourceName = apiClient.firstMutatedResourceName(response);
+    if (resourceName == null || resourceName.isBlank()) {
+      throw new BadRequestException("Google did not return the created asset resource");
+    }
+    String assetId = suffix(resourceName, "asset");
+
+    GoogleReusableAssetResponse after =
+        assets(companyId, accountId).stream()
+            .filter(item -> assetId.equals(item.id()))
+            .findFirst()
+            .orElse(
+                new GoogleReusableAssetResponse(
+                    assetId,
+                    resourceName,
+                    hasText(request.name()) ? request.name().trim() : null,
+                    request.type().name(),
+                    "ADVERTISER",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    null,
+                    null,
+                    List.of()));
+
+    activityLogService.record(
+        companyId,
+        accountId,
+        AdProvider.GOOGLE_ADS,
+        actorUserId,
+        "GOOGLE_REUSABLE_ASSET_CREATED",
+        "ASSET",
+        assetId,
+        null,
+        after,
+        Map.of("type", request.type().name()));
+    return after;
+  }
+
   public List<GoogleReusableAssetLinkResponse> links(
       Long companyId,
       Long accountId,
@@ -150,6 +274,11 @@ public class GoogleAdsReusableAssetService {
 
     LinkTarget target =
         linkTarget(companyId, accountId, context, request.level(), request.targetId());
+    if ("LEAD_FORM".equals(asset.type())
+        && request.level() != GoogleAssetLinkRequest.Level.CAMPAIGN) {
+      throw new BadRequestException(
+          "Google Lead Form assets can only be attached at campaign level");
+    }
 
     var existing =
         links(companyId, accountId, request.level(), request.targetId()).stream()
@@ -415,6 +544,250 @@ public class GoogleAdsReusableAssetService {
     return asset;
   }
 
+  private Map<String, Object> buildAdvancedAsset(
+      GoogleAdvancedReusableAssetCreateRequest request) {
+    if (request.type() == null) {
+      throw new BadRequestException("Google advanced asset type is required");
+    }
+    Map<String, Object> asset = new LinkedHashMap<>();
+    if (hasText(request.name())) asset.put("name", request.name().trim());
+
+    switch (request.type()) {
+      case CALL -> {
+        requireText(request.callCountryCode(), "Call asset country code");
+        requireText(request.callPhoneNumber(), "Call asset phone number");
+        String countryCode = request.callCountryCode().trim().toUpperCase(Locale.ROOT);
+        if (!countryCode.matches("[A-Z]{2}")) {
+          throw new BadRequestException(
+              "Call asset country code must be a two-letter country code");
+        }
+        asset.put(
+            "callAsset",
+            Map.of(
+                "countryCode", countryCode,
+                "phoneNumber", request.callPhoneNumber().trim(),
+                "callConversionReportingState",
+                "USE_ACCOUNT_LEVEL_CALL_CONVERSION_ACTION"));
+      }
+      case PRICE -> {
+        String type = enumValue(request.priceType(), PRICE_TYPES, "Price asset type", true);
+        String qualifier =
+            enumValue(request.priceQualifier(), PRICE_QUALIFIERS, "Price qualifier", false);
+        requireText(request.languageCode(), "Price asset language code");
+        if (request.priceOfferings() == null
+            || request.priceOfferings().size() < 3
+            || request.priceOfferings().size() > 8) {
+          throw new BadRequestException(
+              "Google Price assets require between 3 and 8 offerings");
+        }
+        List<Map<String, Object>> offerings = new ArrayList<>();
+        for (GooglePriceOfferingInput offering : request.priceOfferings()) {
+          if (offering == null) {
+            throw new BadRequestException("Google Price offering cannot be empty");
+          }
+          requireText(offering.header(), "Price offering header");
+          requireText(offering.description(), "Price offering description");
+          requireText(offering.currencyCode(), "Price offering currency");
+          requireText(offering.finalUrl(), "Price offering final URL");
+          if (offering.amount() == null || offering.amount().signum() <= 0) {
+            throw new BadRequestException("Price offering amount must be greater than zero");
+          }
+          validateHttpUrl(offering.finalUrl(), "Price offering final URL");
+          if (hasText(offering.finalMobileUrl())) {
+            validateHttpUrl(offering.finalMobileUrl(), "Price offering mobile URL");
+          }
+          Map<String, Object> item = new LinkedHashMap<>();
+          item.put("header", offering.header().trim());
+          item.put("description", offering.description().trim());
+          item.put(
+              "price",
+              Map.of(
+                  "amountMicros", majorToMicros(offering.amount()),
+                  "currencyCode",
+                  offering.currencyCode().trim().toUpperCase(Locale.ROOT)));
+          if (hasText(offering.unit())) {
+            item.put(
+                "unit",
+                enumValue(offering.unit(), PRICE_UNITS, "Price offering unit", true));
+          }
+          item.put("finalUrl", offering.finalUrl().trim());
+          if (hasText(offering.finalMobileUrl())) {
+            item.put("finalMobileUrl", offering.finalMobileUrl().trim());
+          }
+          offerings.add(item);
+        }
+        Map<String, Object> price = new LinkedHashMap<>();
+        price.put("type", type);
+        price.put("languageCode", request.languageCode().trim());
+        price.put("priceOfferings", offerings);
+        if (qualifier != null) price.put("priceQualifier", qualifier);
+        asset.put("priceAsset", price);
+      }
+      case PROMOTION -> {
+        requireText(request.promotionTarget(), "Promotion target");
+        requireText(request.finalUrl(), "Promotion final URL");
+        validateHttpUrl(request.finalUrl(), "Promotion final URL");
+        boolean percent = request.promotionPercentOff() != null;
+        boolean money = request.promotionMoneyAmountOff() != null;
+        if (percent == money) {
+          throw new BadRequestException(
+              "Promotion requires exactly one discount: percent off or money amount off");
+        }
+        Map<String, Object> promotion = new LinkedHashMap<>();
+        promotion.put("promotionTarget", request.promotionTarget().trim());
+        if (percent) {
+          if (request.promotionPercentOff().signum() <= 0
+              || request.promotionPercentOff().compareTo(BigDecimal.valueOf(100)) > 0) {
+            throw new BadRequestException(
+                "Promotion percent off must be greater than 0 and at most 100");
+          }
+          promotion.put(
+              "percentOff",
+              request
+                  .promotionPercentOff()
+                  .multiply(BigDecimal.valueOf(10_000L))
+                  .setScale(0, RoundingMode.HALF_UP)
+                  .longValueExact());
+        } else {
+          requireText(request.promotionCurrencyCode(), "Promotion currency code");
+          if (request.promotionMoneyAmountOff().signum() <= 0) {
+            throw new BadRequestException(
+                "Promotion money amount off must be greater than zero");
+          }
+          promotion.put(
+              "moneyAmountOff",
+              Map.of(
+                  "amountMicros", majorToMicros(request.promotionMoneyAmountOff()),
+                  "currencyCode",
+                  request.promotionCurrencyCode().trim().toUpperCase(Locale.ROOT)));
+        }
+        if (hasText(request.promotionDiscountModifier())) {
+          promotion.put(
+              "discountModifier",
+              enumValue(
+                  request.promotionDiscountModifier(),
+                  Set.of("UP_TO"),
+                  "Promotion discount modifier",
+                  true));
+        }
+        if (hasText(request.promotionCode())) {
+          promotion.put("promotionCode", request.promotionCode().trim());
+        }
+        if (hasText(request.promotionOccasion())) {
+          promotion.put(
+              "occasion", request.promotionOccasion().trim().toUpperCase(Locale.ROOT));
+        }
+        if (hasText(request.promotionLanguageCode())) {
+          promotion.put("languageCode", request.promotionLanguageCode().trim());
+        }
+        asset.put("promotionAsset", promotion);
+        asset.put("finalUrls", List.of(request.finalUrl().trim()));
+      }
+      case LEAD_FORM -> {
+        requireText(request.leadBusinessName(), "Lead Form business name");
+        requireText(request.leadCallToActionType(), "Lead Form call-to-action");
+        requireText(
+            request.leadCallToActionDescription(),
+            "Lead Form call-to-action description");
+        requireText(request.leadHeadline(), "Lead Form headline");
+        requireText(request.leadDescription(), "Lead Form description");
+        requireText(request.leadPrivacyPolicyUrl(), "Lead Form privacy policy URL");
+        requireText(request.finalUrl(), "Lead Form final URL");
+        validateHttpUrl(request.leadPrivacyPolicyUrl(), "Lead Form privacy policy URL");
+        validateHttpUrl(request.finalUrl(), "Lead Form final URL");
+        String cta =
+            enumValue(
+                request.leadCallToActionType(),
+                LEAD_CTA_TYPES,
+                "Lead Form call-to-action",
+                true);
+        List<String> fields =
+            normalizeEnumValues(
+                request.leadFields(), LEAD_FIELDS, "Lead Form fields", 1, 20);
+        Map<String, Object> lead = new LinkedHashMap<>();
+        lead.put("businessName", request.leadBusinessName().trim());
+        lead.put("callToActionType", cta);
+        lead.put(
+            "callToActionDescription",
+            request.leadCallToActionDescription().trim());
+        lead.put("headline", request.leadHeadline().trim());
+        lead.put("description", request.leadDescription().trim());
+        lead.put("privacyPolicyUrl", request.leadPrivacyPolicyUrl().trim());
+        lead.put(
+            "fields",
+            fields.stream().map(value -> Map.of("inputType", value)).toList());
+        if (hasText(request.leadPostSubmitCallToActionType())) {
+          lead.put(
+              "postSubmitCallToActionType",
+              enumValue(
+                  request.leadPostSubmitCallToActionType(),
+                  LEAD_POST_CTA_TYPES,
+                  "Lead Form post-submit call-to-action",
+                  true));
+        }
+        if (hasText(request.leadPostSubmitHeadline())) {
+          lead.put("postSubmitHeadline", request.leadPostSubmitHeadline().trim());
+        }
+        if (hasText(request.leadPostSubmitDescription())) {
+          lead.put(
+              "postSubmitDescription",
+              request.leadPostSubmitDescription().trim());
+        }
+        asset.put("leadFormAsset", lead);
+        asset.put("finalUrls", List.of(request.finalUrl().trim()));
+      }
+    }
+    return asset;
+  }
+
+  private String enumValue(
+      String value, Set<String> allowed, String label, boolean required) {
+    if (!hasText(value)) {
+      if (required) throw new BadRequestException(label + " is required");
+      return null;
+    }
+    String normalized = value.trim().toUpperCase(Locale.ROOT);
+    if (!allowed.contains(normalized)) {
+      throw new BadRequestException(
+          "Unsupported Google " + label.toLowerCase(Locale.ROOT) + ": " + normalized);
+    }
+    return normalized;
+  }
+
+  private List<String> normalizeEnumValues(
+      List<String> values,
+      Set<String> allowed,
+      String label,
+      int min,
+      int max) {
+    if (values == null) throw new BadRequestException(label + " are required");
+    LinkedHashSet<String> result = new LinkedHashSet<>();
+    for (String value : values) {
+      result.add(enumValue(value, allowed, label, true));
+    }
+    if (result.size() < min || result.size() > max) {
+      throw new BadRequestException(
+          label + " must contain between " + min + " and " + max + " values");
+    }
+    if (result.contains("FULL_NAME")
+        && (result.contains("FIRST_NAME") || result.contains("LAST_NAME"))) {
+      throw new BadRequestException(
+          "Lead Form FULL_NAME cannot be combined with FIRST_NAME or LAST_NAME");
+    }
+    return List.copyOf(result);
+  }
+
+  private long majorToMicros(BigDecimal value) {
+    try {
+      return value
+          .multiply(BigDecimal.valueOf(1_000_000L))
+          .setScale(0, RoundingMode.HALF_UP)
+          .longValueExact();
+    } catch (ArithmeticException exception) {
+      throw new BadRequestException("Google asset money value is too large");
+    }
+  }
+
   private void applyAssetUrlOptions(
       Map<String, Object> asset, GoogleReusableAssetCreateRequest request) {
     if (hasText(request.trackingUrlTemplate())) {
@@ -512,7 +885,7 @@ public class GoogleAdsReusableAssetService {
     }
     query
         .append(gaqlPrefix)
-        .append(".field_type IN ('SITELINK','CALLOUT','STRUCTURED_SNIPPET')");
+        .append(".field_type IN ('SITELINK','CALLOUT','STRUCTURED_SNIPPET','CALL','PRICE','PROMOTION','LEAD_FORM')");
     return query.toString();
   }
 
