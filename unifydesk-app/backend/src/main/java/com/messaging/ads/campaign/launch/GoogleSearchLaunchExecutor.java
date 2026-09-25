@@ -9,6 +9,7 @@ import com.messaging.ads.campaign.compiler.ProviderPlanIssue;
 import com.messaging.ads.campaign.entity.AudienceDefinition;
 import com.messaging.ads.campaign.entity.CampaignChannel;
 import com.messaging.ads.campaign.entity.CreativePack;
+import com.messaging.ads.campaign.entity.ConversionGoalMapping;
 import com.messaging.ads.campaign.entity.CreativeVariant;
 import com.messaging.ads.campaign.entity.ReachlyoCampaign;
 import com.messaging.ads.campaign.enums.BudgetPeriod;
@@ -17,6 +18,7 @@ import com.messaging.ads.campaign.enums.CreativeVariantType;
 import com.messaging.ads.campaign.repository.AudienceDefinitionRepository;
 import com.messaging.ads.campaign.repository.CampaignChannelRepository;
 import com.messaging.ads.campaign.repository.CreativePackRepository;
+import com.messaging.ads.campaign.repository.ConversionGoalMappingRepository;
 import com.messaging.ads.campaign.repository.CreativeVariantRepository;
 import com.messaging.ads.campaign.repository.ReachlyoCampaignRepository;
 import com.messaging.ads.campaign.service.ProviderDeploymentService;
@@ -33,6 +35,7 @@ import com.messaging.ads.google.GoogleAdsAdGroupSyncService;
 import com.messaging.ads.google.GoogleAdsAdMutationService;
 import com.messaging.ads.google.GoogleAdsAdSyncService;
 import com.messaging.ads.google.GoogleAdsCampaignMutationService;
+import com.messaging.ads.google.GoogleAdsCampaignConversionGoalService;
 import com.messaging.ads.google.GoogleAdsCampaignTargetingService;
 import com.messaging.ads.google.GoogleAdsCampaignSyncService;
 import com.messaging.ads.google.GoogleAdsKeywordMutationService;
@@ -70,6 +73,7 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
   private final CreativePackRepository creativePackRepository;
   private final CreativeVariantRepository creativeVariantRepository;
   private final AudienceDefinitionRepository audienceDefinitionRepository;
+  private final ConversionGoalMappingRepository conversionGoalMappingRepository;
   private final AdAccountRepository accountRepository;
   private final AdCampaignRepository adCampaignRepository;
   private final AdSetRepository adSetRepository;
@@ -78,6 +82,7 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
   private final GoogleAdsCampaignMutationService campaignMutationService;
   private final GoogleAdsCampaignTargetingService campaignTargetingService;
   private final GoogleAdsCampaignSyncService campaignSyncService;
+  private final GoogleAdsCampaignConversionGoalService campaignConversionGoalService;
   private final GoogleAdsAdGroupMutationService adGroupMutationService;
   private final GoogleAdsAdGroupSyncService adGroupSyncService;
   private final GoogleAdsKeywordMutationService keywordMutationService;
@@ -281,10 +286,52 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
       case "create-provider-creative" ->
           createSearchAd(companyId, run, plan, step, campaign);
       case "configure-conversion-goal" ->
-          LaunchStepExecutionResult.skipped(
-              "The validated Google conversion action already exists on the selected account; campaign-specific conversion-goal mutation is not implemented yet.");
+          configureConversionGoal(companyId, run, plan, step, campaign);
       default -> throw new BadRequestException("Unsupported Google Search launch operation: " + step.getOperationKey());
     };
+  }
+
+  private LaunchStepExecutionResult configureConversionGoal(
+      Long companyId,
+      LaunchRun run,
+      ProviderCampaignPlan plan,
+      LaunchStep step,
+      ReachlyoCampaign campaign) {
+    if (plan.conversionGoalMappingId() == null || plan.conversionGoalMappingId().isBlank()) {
+      return LaunchStepExecutionResult.skipped(
+          "No Google conversion mapping is configured for this campaign.");
+    }
+
+    ConversionGoalMapping mapping =
+        conversionGoalMappingRepository
+            .findByIdAndCompanyIdAndReachlyoCampaignId(
+                Long.valueOf(plan.conversionGoalMappingId()),
+                companyId,
+                campaign.getId())
+            .orElseThrow(() -> new NotFoundException("Conversion goal mapping not found"));
+
+    var deployment = deploymentService.get(companyId, step.getProviderDeploymentId());
+    if (deployment.getExternalCampaignId() == null
+        || deployment.getExternalCampaignId().isBlank()) {
+      throw new BadRequestException(
+          "Google campaign must exist before configuring its conversion goal");
+    }
+
+    var result =
+        campaignConversionGoalService.apply(
+            companyId,
+            step.getAdAccountId(),
+            deployment.getExternalCampaignId(),
+            run.getReachlyoCampaignId(),
+            mapping);
+
+    return LaunchStepExecutionResult.succeeded(
+        null,
+        result.customConversionGoalResource(),
+        Map.of(
+            "created", result.created(),
+            "updated", result.updated(),
+            "customConversionGoalResource", result.customConversionGoalResource()));
   }
 
   private LaunchStepExecutionResult createCampaign(
