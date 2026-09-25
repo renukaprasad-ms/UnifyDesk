@@ -412,6 +412,8 @@ export default function GoogleKeywordPlannerPanel(props: Props) {
             </div>
           )}
         </div>
+      )}
+
       <GoogleKeywordForecastPanel
         companyId={props.companyId}
         accountId={props.accountId}
@@ -426,8 +428,6 @@ export default function GoogleKeywordPlannerPanel(props: Props) {
         language={language.trim() || null}
         disabled={props.disabled}
       />
-
-      )}
     </section>
   )
 }
