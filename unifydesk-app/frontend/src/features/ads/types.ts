@@ -1264,6 +1264,10 @@ export type GoogleNegativeKeywordInput = {
 export type GoogleSearchTermRow = {
   searchTerm: string
   targetingStatus?: string | null
+  matchedKeyword?: string | null
+  matchedKeywordMatchType?: string | null
+  searchTermMatchType?: string | null
+  searchTermMatchSource?: string | null
   externalAdGroupId: string
   adGroupId?: string | null
   adGroupName?: string | null
@@ -1274,6 +1278,7 @@ export type GoogleSearchTermRow = {
   conversions: number
   conversionValue: number
   cpa?: number | null
+  roas?: number | null
 }
 
 export type GoogleSearchTermReport = {
