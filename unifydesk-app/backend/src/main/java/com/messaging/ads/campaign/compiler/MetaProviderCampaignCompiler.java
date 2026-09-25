@@ -108,7 +108,7 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
             ProviderCampaignPlanSupport.warning(
                 "STANDARD_EVENT_REMOTE_VALIDATION_PENDING",
                 "conversion",
-                "The Meta standard event name will be validated against the provider during deployment preflight."));
+                "The Meta standard event is validated against the current provider enum; Pixel/account eligibility will be verified during deployment preflight."));
       }
 
       if (context.conversionGoalMapping() != null
