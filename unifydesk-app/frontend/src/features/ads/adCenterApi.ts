@@ -922,7 +922,14 @@ export const adCenterApi = {
   ) {
     const response = await apiClient.get<ApiResponse<GoogleBrandSuggestion[]>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/ai-max/brands/suggest`,
-      { params: { prefix, selectedBrandIds } },
+      {
+        params: {
+          prefix,
+          ...(selectedBrandIds.length
+            ? { selectedBrandIds: selectedBrandIds.join(',') }
+            : {}),
+        },
+      },
     )
     return unwrap(response.data)
   },
