@@ -58,6 +58,12 @@ import type {
   CreateGoogleAdvancedCampaignInput,
   CreateGooglePerformanceMaxCampaignInput,
   GoogleAsset,
+  GoogleReusableAsset,
+  CreateGoogleReusableAssetInput,
+  GoogleAssetLinkLevel,
+  GoogleReusableAssetLink,
+  GoogleUrlOptions,
+  UpdateGoogleUrlOptionsInput,
   GoogleAssetGroup,
   GoogleAssetGroupAsset,
   GoogleAssetGroupAssetInput,
@@ -135,6 +141,104 @@ const unwrap = <T>(response: ApiResponse<T>) => {
 }
 
 export const adCenterApi = {
+  async googleReusableAssets(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleReusableAsset[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/reusable-assets`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleReusableAsset(
+    companyId: string,
+    accountId: string,
+    input: CreateGoogleReusableAssetInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleReusableAsset>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/reusable-assets`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleReusableAssetLinks(
+    companyId: string,
+    accountId: string,
+    level: GoogleAssetLinkLevel,
+    targetId?: string | null,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleReusableAssetLink[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/reusable-assets/links`,
+      { params: { level, ...(targetId ? { targetId } : {}) } },
+    )
+    return unwrap(response.data)
+  },
+
+  async attachGoogleReusableAsset(
+    companyId: string,
+    accountId: string,
+    assetId: string,
+    level: GoogleAssetLinkLevel,
+    targetId?: string | null,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleReusableAssetLink>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/reusable-assets/${assetId}/links`,
+      { level, targetId: targetId ?? null },
+    )
+    return unwrap(response.data)
+  },
+
+  async detachGoogleReusableAsset(
+    companyId: string,
+    accountId: string,
+    assetId: string,
+    level: GoogleAssetLinkLevel,
+    targetId?: string | null,
+  ) {
+    const response = await apiClient.post<ApiResponse<boolean>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/reusable-assets/${assetId}/links:detach`,
+      { level, targetId: targetId ?? null },
+    )
+    return unwrap(response.data)
+  },
+
+  async googleUrlOptions(
+    companyId: string,
+    accountId: string,
+    level: GoogleAssetLinkLevel,
+    targetId?: string | null,
+  ) {
+    const suffix =
+      level === 'CUSTOMER'
+        ? `accounts/${accountId}/url-options`
+        : level === 'CAMPAIGN'
+          ? `accounts/${accountId}/campaigns/${targetId}/url-options`
+          : `accounts/${accountId}/ad-groups/${targetId}/url-options`
+    const response = await apiClient.get<ApiResponse<GoogleUrlOptions>>(
+      `/api/v1/companies/${companyId}/ads/google/${suffix}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleUrlOptions(
+    companyId: string,
+    accountId: string,
+    level: GoogleAssetLinkLevel,
+    targetId: string | null | undefined,
+    input: UpdateGoogleUrlOptionsInput,
+  ) {
+    const suffix =
+      level === 'CUSTOMER'
+        ? `accounts/${accountId}/url-options`
+        : level === 'CAMPAIGN'
+          ? `accounts/${accountId}/campaigns/${targetId}/url-options`
+          : `accounts/${accountId}/ad-groups/${targetId}/url-options`
+    const response = await apiClient.put<ApiResponse<GoogleUrlOptions>>(
+      `/api/v1/companies/${companyId}/ads/google/${suffix}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
   async providers(companyId: string) {
     const response = await apiClient.get<ApiResponse<AdProviderInfo[]>>(
       `/api/v1/companies/${companyId}/ads/providers`,
