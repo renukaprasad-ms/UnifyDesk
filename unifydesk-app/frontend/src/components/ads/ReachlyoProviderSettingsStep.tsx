@@ -380,6 +380,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
               </div>
 
               {props.googleAiMaxEnabled && (
+                <>
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
                   <label className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
                     <span className="flex items-center gap-2 font-semibold text-slate-800">
@@ -499,6 +500,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                     disabled={props.disabled}
                   />
                 )}
+                </>
               )}
             </div>
 
