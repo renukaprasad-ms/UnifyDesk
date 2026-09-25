@@ -13,6 +13,8 @@ import com.messaging.ads.entity.AdAccount;
 import com.messaging.ads.entity.AdCampaign;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.google.dto.GoogleAssetLinkRequest;
+import com.messaging.ads.google.dto.GoogleAdvancedReusableAssetCreateRequest;
+import com.messaging.ads.google.dto.GooglePriceOfferingInput;
 import com.messaging.ads.google.dto.GoogleReusableAssetCreateRequest;
 import com.messaging.ads.google.dto.GoogleUrlCustomParameter;
 import com.messaging.ads.google.dto.GoogleUrlOptionsRequest;
@@ -20,6 +22,7 @@ import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.ads.repository.AdSetRepository;
 import com.messaging.ads.service.AdActivityLogService;
 import com.messaging.common.exception.BadRequestException;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -253,6 +256,206 @@ class GoogleAdsReusableAssetServiceTests {
     assertThat(create.get("asset"))
         .isEqualTo("customers/1234567890/assets/77");
     assertThat(create.get("fieldType")).isEqualTo("CALLOUT");
+  }
+
+  @Test
+  void createsPromotionWithPercentDiscountInGoogleMicros() throws Exception {
+    AdAccount account = account();
+    when(contextService.requireManaged(1L, 20L))
+        .thenReturn(context(account));
+
+    var mutateResponse =
+        objectMapper.readTree(
+            """
+            {"results":[{"resourceName":"customers/1234567890/assets/88"}]}
+            """);
+    when(apiClient.mutate(
+            eq("token"),
+            eq("1234567890"),
+            eq(null),
+            eq("assets"),
+            any()))
+        .thenReturn(mutateResponse);
+    when(apiClient.firstMutatedResourceName(mutateResponse))
+        .thenReturn("customers/1234567890/assets/88");
+    when(apiClient.searchRows(eq("token"), eq("1234567890"), eq(null), anyString()))
+        .thenReturn(List.of());
+
+    service.createAdvanced(
+        1L,
+        20L,
+        new GoogleAdvancedReusableAssetCreateRequest(
+            GoogleAdvancedReusableAssetCreateRequest.Type.PROMOTION,
+            "Diwali offer",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "Annual plan",
+            new BigDecimal("20"),
+            null,
+            null,
+            "UP_TO",
+            "SAVE20",
+            "DIWALI",
+            "en",
+            "https://example.com/offer",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null),
+        99L);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<Map<String, Object>>> operations =
+        ArgumentCaptor.forClass(List.class);
+    verify(apiClient)
+        .mutate(
+            eq("token"),
+            eq("1234567890"),
+            eq(null),
+            eq("assets"),
+            operations.capture());
+    @SuppressWarnings("unchecked")
+    Map<String, Object> create =
+        (Map<String, Object>) operations.getValue().getFirst().get("create");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> promotion =
+        (Map<String, Object>) create.get("promotionAsset");
+    assertThat(promotion.get("percentOff")).isEqualTo(200_000L);
+    assertThat(promotion.get("promotionCode")).isEqualTo("SAVE20");
+    assertThat(create.get("finalUrls"))
+        .isEqualTo(List.of("https://example.com/offer"));
+  }
+
+  @Test
+  void createsPriceAssetWithThreeOfferings() throws Exception {
+    AdAccount account = account();
+    when(contextService.requireManaged(1L, 20L))
+        .thenReturn(context(account));
+
+    var mutateResponse =
+        objectMapper.readTree(
+            """
+            {"results":[{"resourceName":"customers/1234567890/assets/89"}]}
+            """);
+    when(apiClient.mutate(
+            eq("token"),
+            eq("1234567890"),
+            eq(null),
+            eq("assets"),
+            any()))
+        .thenReturn(mutateResponse);
+    when(apiClient.firstMutatedResourceName(mutateResponse))
+        .thenReturn("customers/1234567890/assets/89");
+    when(apiClient.searchRows(eq("token"), eq("1234567890"), eq(null), anyString()))
+        .thenReturn(List.of());
+
+    GooglePriceOfferingInput offering =
+        new GooglePriceOfferingInput(
+            "Starter",
+            "For small teams",
+            new BigDecimal("999"),
+            "INR",
+            "PER_MONTH",
+            "https://example.com/pricing",
+            null);
+
+    service.createAdvanced(
+        1L,
+        20L,
+        new GoogleAdvancedReusableAssetCreateRequest(
+            GoogleAdvancedReusableAssetCreateRequest.Type.PRICE,
+            "Plans",
+            null,
+            null,
+            "SERVICES",
+            "FROM",
+            "en",
+            List.of(offering, offering, offering),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null),
+        99L);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<Map<String, Object>>> operations =
+        ArgumentCaptor.forClass(List.class);
+    verify(apiClient)
+        .mutate(
+            eq("token"),
+            eq("1234567890"),
+            eq(null),
+            eq("assets"),
+            operations.capture());
+
+    @SuppressWarnings("unchecked")
+    Map<String, Object> create =
+        (Map<String, Object>) operations.getValue().getFirst().get("create");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> price =
+        (Map<String, Object>) create.get("priceAsset");
+    assertThat(price.get("type")).isEqualTo("SERVICES");
+    assertThat((List<?>) price.get("priceOfferings")).hasSize(3);
+  }
+
+  @Test
+  void leadFormCanOnlyAttachAtCampaignLevel() throws Exception {
+    AdAccount account = account();
+    when(contextService.requireManaged(1L, 20L))
+        .thenReturn(context(account));
+
+    var assetRow =
+        objectMapper.readTree(
+            """
+            {
+              "asset": {
+                "id": "91",
+                "resourceName": "customers/1234567890/assets/91",
+                "name": "Demo form",
+                "type": "LEAD_FORM",
+                "source": "ADVERTISER"
+              }
+            }
+            """);
+    when(apiClient.searchRows(eq("token"), eq("1234567890"), eq(null), anyString()))
+        .thenReturn(List.of(assetRow));
+
+    assertThatThrownBy(
+            () ->
+                service.attach(
+                    1L,
+                    20L,
+                    "91",
+                    new GoogleAssetLinkRequest(
+                        GoogleAssetLinkRequest.Level.CUSTOMER, null),
+                    99L))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("campaign level");
   }
 
   @Test
