@@ -262,7 +262,7 @@ public class AdFeatureCapabilityService {
 
     add(specs, AdFeatureCapability.GOOGLE_AI_MAX, true, GOOGLE_ADS_SCOPE);
     planned(specs, AdFeatureCapability.GOOGLE_APP_CAMPAIGN);
-    planned(specs, AdFeatureCapability.GOOGLE_KEYWORD_PLANNER);
+    add(specs, AdFeatureCapability.GOOGLE_KEYWORD_PLANNER, true, GOOGLE_ADS_SCOPE);
     planned(specs, AdFeatureCapability.GOOGLE_FORECAST);
     planned(specs, AdFeatureCapability.GOOGLE_EXPERIMENTS);
     planned(specs, AdFeatureCapability.GOOGLE_ASSET_GENERATION);
