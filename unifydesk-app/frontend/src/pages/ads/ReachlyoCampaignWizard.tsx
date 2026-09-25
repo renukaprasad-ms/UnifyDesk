@@ -22,6 +22,7 @@ import ReachlyoProviderPlanReview from '../../components/ads/ReachlyoProviderPla
 import ReachlyoProviderSettingsStep, {
   type GoogleAdScheduleDraft,
 } from '../../components/ads/ReachlyoProviderSettingsStep'
+import MetaCreativeVariantsEditor from '../../components/ads/MetaCreativeVariantsEditor'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -2279,6 +2280,32 @@ export default function ReachlyoCampaignWizard() {
                 title="6. Provider-only settings"
                 description="Only settings that cannot be safely inferred belong here."
               >
+                {selectedChannels.includes('META_ADS') &&
+                  creativePacks[0] &&
+                  campaign.channels.find(
+                    (channel) => channel.channelType === 'META_ADS',
+                  ) && (
+                    <MetaCreativeVariantsEditor
+                      companyId={selectedCompany.companyId}
+                      campaignId={campaign.id}
+                      channelId={
+                        campaign.channels.find(
+                          (channel) => channel.channelType === 'META_ADS',
+                        )!.id
+                      }
+                      pack={creativePacks[0]}
+                      selectedPositions={[
+                        ...metaFacebookPositions,
+                        ...metaInstagramPositions,
+                        ...metaMessengerPositions,
+                        ...metaAudienceNetworkPositions,
+                      ]}
+                      disabled={!canEdit || !editableDefinition}
+                      onSaved={(pack) => setCreativePacks([pack])}
+                      onError={setError}
+                    />
+                  )}
+
                 <ReachlyoProviderSettingsStep
                   businessGoal={campaign?.businessGoal ?? businessGoal}
                   selectedChannels={selectedChannels}
