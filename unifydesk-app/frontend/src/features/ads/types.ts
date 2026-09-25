@@ -1373,6 +1373,43 @@ export type GoogleKeywordPlannerHistoricalInput = {
   includeAdultKeywords?: boolean
 }
 
+export type GoogleKeywordForecastMatchType = 'BROAD' | 'PHRASE' | 'EXACT'
+export type GoogleKeywordForecastBiddingStrategy =
+  | 'MANUAL_CPC'
+  | 'MAXIMIZE_CLICKS'
+  | 'MAXIMIZE_CONVERSIONS'
+
+export type GoogleKeywordForecastInput = {
+  keywords: Array<{
+    text: string
+    matchType: GoogleKeywordForecastMatchType
+  }>
+  locations?: ReachlyoAudienceLocationInput[]
+  language?: string | null
+  startDate: string
+  endDate: string
+  biddingStrategy: GoogleKeywordForecastBiddingStrategy
+  dailyBudget?: number | null
+  maxCpcBid?: number | null
+  maxCpcBidCeiling?: number | null
+}
+
+export type GoogleKeywordForecastResponse = {
+  cached: boolean
+  currency?: string | null
+  startDate: string
+  endDate: string
+  biddingStrategy: GoogleKeywordForecastBiddingStrategy | string
+  keywordCount: number
+  geoTargetResources: string[]
+  languageResource?: string | null
+  clicks?: number | null
+  cost?: number | null
+  averageCpc?: number | null
+  conversions?: number | null
+  averageCpa?: number | null
+}
+
 export type GoogleBrandSuggestion = {
   id: string
   name: string
