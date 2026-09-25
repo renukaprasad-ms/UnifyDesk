@@ -31,6 +31,7 @@ import com.messaging.ads.entity.AdKeyword;
 import com.messaging.ads.entity.AdSet;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.google.GoogleAdsAdGroupMutationService;
+import com.messaging.ads.google.GoogleAdsAiMaxControlService;
 import com.messaging.ads.google.GoogleAdsAdGroupSyncService;
 import com.messaging.ads.google.GoogleAdsAdMutationService;
 import com.messaging.ads.google.GoogleAdsAdSyncService;
@@ -84,6 +85,7 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
   private final GoogleAdsCampaignSyncService campaignSyncService;
   private final GoogleAdsCampaignConversionGoalService campaignConversionGoalService;
   private final GoogleAdsAdGroupMutationService adGroupMutationService;
+  private final GoogleAdsAiMaxControlService aiMaxControlService;
   private final GoogleAdsAdGroupSyncService adGroupSyncService;
   private final GoogleAdsKeywordMutationService keywordMutationService;
   private final GoogleAdsKeywordSyncService keywordSyncService;
@@ -303,6 +305,8 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
           createAdGroup(companyId, run, plan, step, campaign, channel);
       case "configure-ai-max-ad-group" ->
           configureAiMaxAdGroup(companyId, run, step, channel);
+      case "configure-ai-max-url-exclusions" ->
+          configureAiMaxUrlExclusions(companyId, run, step, channel);
       case "configure-keywords" ->
           configureKeywords(companyId, run, plan, step);
       case "configure-negative-keywords" ->
@@ -486,6 +490,29 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
         adGroup.getId(),
         adGroup.getExternalAdSetId(),
         Map.of("disableSearchTermMatching", disableSearchTermMatching));
+  }
+
+  private LaunchStepExecutionResult configureAiMaxUrlExclusions(
+      Long companyId,
+      LaunchRun run,
+      LaunchStep step,
+      CampaignChannel channel) {
+    AdCampaign providerCampaign =
+        providerCampaign(companyId, step.getProviderDeploymentId());
+    List<String> exclusions =
+        stringsFromOverrideArray(override(channel), "aiMaxUrlExclusions");
+    var result =
+        aiMaxControlService.applyUrlExclusions(
+            companyId,
+            providerCampaign.getId(),
+            exclusions,
+            run.getRequestedByUserId());
+    return LaunchStepExecutionResult.succeeded(
+        null,
+        null,
+        Map.of(
+            "createdCount", result.createdCount(),
+            "reusedCount", result.reusedCount()));
   }
 
   private LaunchStepExecutionResult configureKeywords(
@@ -755,6 +782,18 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
   private String text(JsonNode node, String key) {
     JsonNode value = node.get(key);
     return value == null || value.isNull() ? null : value.asText(null);
+  }
+
+  private List<String> stringsFromOverrideArray(JsonNode node, String key) {
+    JsonNode value = node.get(key);
+    if (value == null || value.isNull() || !value.isArray()) return List.of();
+    List<String> result = new java.util.ArrayList<>();
+    for (JsonNode item : value) {
+      if (item.isTextual() && !item.asText().isBlank()) {
+        result.add(item.asText().trim());
+      }
+    }
+    return List.copyOf(result);
   }
 
   private Long longValue(JsonNode node, String key) {
