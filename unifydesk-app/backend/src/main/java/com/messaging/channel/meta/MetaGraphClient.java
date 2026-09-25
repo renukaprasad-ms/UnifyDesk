@@ -2,8 +2,10 @@ package com.messaging.channel.meta;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.messaging.common.exception.BadRequestException;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -36,6 +38,46 @@ public class MetaGraphClient {
                             .build(properties.getGraphApiVersion()))
                 .retrieve()
                 .body(TokenResponse.class));
+  }
+
+
+  public List<String> getGrantedWabaIds(String accessToken) {
+    DebugTokenResponse response =
+        execute(
+            () ->
+                restClient
+                    .get()
+                    .uri(
+                        uriBuilder ->
+                            uriBuilder
+                                .path("/{version}/debug_token")
+                                .queryParam("input_token", accessToken)
+                                .queryParam(
+                                    "access_token",
+                                    properties.getAppId() + "|" + properties.getAppSecret())
+                                .build(properties.getGraphApiVersion()))
+                    .retrieve()
+                    .body(DebugTokenResponse.class));
+
+    if (response == null
+        || response.data() == null
+        || response.data().granularScopes() == null) {
+      return List.of();
+    }
+
+    Set<String> ids = new LinkedHashSet<>();
+    response.data().granularScopes().stream()
+        .filter(scope -> scope != null && scope.scope() != null)
+        .filter(
+            scope ->
+                "whatsapp_business_management".equals(scope.scope())
+                    || "whatsapp_business_messaging".equals(scope.scope()))
+        .filter(scope -> scope.targetIds() != null)
+        .flatMap(scope -> scope.targetIds().stream())
+        .filter(id -> id != null && !id.isBlank())
+        .forEach(ids::add);
+
+    return List.copyOf(ids);
   }
 
   public WabaDetails getWaba(String wabaId, String accessToken) {
@@ -133,6 +175,14 @@ public class MetaGraphClient {
       @JsonProperty("access_token") String accessToken,
       @JsonProperty("token_type") String tokenType,
       @JsonProperty("expires_in") Long expiresIn) {}
+
+  public record DebugTokenResponse(DebugTokenData data) {}
+
+  public record DebugTokenData(
+      @JsonProperty("granular_scopes") List<GranularScope> granularScopes) {}
+
+  public record GranularScope(
+      String scope, @JsonProperty("target_ids") List<String> targetIds) {}
 
   public record WabaDetails(
       String id, String name, String currency, @JsonProperty("timezone_id") String timezoneId) {}
