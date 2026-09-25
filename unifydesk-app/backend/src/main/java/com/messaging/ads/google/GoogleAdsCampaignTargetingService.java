@@ -59,8 +59,22 @@ public class GoogleAdsCampaignTargetingService {
       throw new BadRequestException(
           "Google positive geo target type must be PRESENCE or PRESENCE_OR_INTEREST");
     }
+    boolean aiMaxEnabled = booleanValue(override, "aiMaxEnabled", false);
+    boolean textCustomizationEnabled =
+        booleanValue(override, "aiMaxTextCustomizationEnabled", false);
+    boolean finalUrlExpansionEnabled =
+        booleanValue(override, "aiMaxFinalUrlExpansionEnabled", false);
+    if (!aiMaxEnabled && (textCustomizationEnabled || finalUrlExpansionEnabled)) {
+      throw new BadRequestException(
+          "Google AI Max text customization/final URL expansion require AI Max to be enabled");
+    }
     return new GoogleSearchCampaignSettings(
-        searchPartners, contentNetwork, positiveGeoType);
+        searchPartners,
+        contentNetwork,
+        positiveGeoType,
+        aiMaxEnabled,
+        textCustomizationEnabled,
+        finalUrlExpansionEnabled);
   }
 
   public ValidationResult resolve(
