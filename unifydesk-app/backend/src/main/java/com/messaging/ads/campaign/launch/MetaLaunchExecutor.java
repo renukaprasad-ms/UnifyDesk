@@ -44,6 +44,7 @@ import com.messaging.ads.meta.MetaAdsCampaignSyncService;
 import com.messaging.ads.meta.MetaAdsCreativeMutationService;
 import com.messaging.ads.meta.MetaAdsCreativeSyncService;
 import com.messaging.ads.meta.MetaAdsGeoTargetingService;
+import com.messaging.ads.meta.MetaStandardConversionEvent;
 import com.messaging.ads.meta.dto.CreateMetaAdRequest;
 import com.messaging.ads.meta.dto.CreateMetaAdSetRequest;
 import com.messaging.ads.meta.dto.CreateMetaCampaignRequest;
@@ -303,6 +304,13 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
     ConversionGoalMapping conversion = conversion(companyId, campaign.getId(), plan.conversionGoalMappingId());
     if (conversion != null
         && conversion.getTargetType() == ConversionTargetType.STANDARD_EVENT) {
+      if (!MetaStandardConversionEvent.supports(conversion.getProviderEventName())) {
+        issues.add(
+            error(
+                "META_STANDARD_EVENT_INVALID",
+                "conversion.providerEventName",
+                "The stored Meta standard conversion event is no longer supported by the current provider adapter."));
+      }
       String pixelId = text(override, "pixelId");
       if (!hasText(pixelId)) {
         issues.add(
