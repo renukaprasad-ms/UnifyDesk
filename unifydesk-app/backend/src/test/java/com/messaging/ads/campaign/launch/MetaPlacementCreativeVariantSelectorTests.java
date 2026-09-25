@@ -47,6 +47,37 @@ class MetaPlacementCreativeVariantSelectorTests {
   }
 
   @Test
+  void returnsAllMappedFamiliesForMixedPlacements() throws Exception {
+    var override =
+        objectMapper.readTree(
+            "{\"publisherPlatforms\":[\"facebook\",\"instagram\"],"
+                + "\"facebookPositions\":[\"feed\",\"story\",\"reels\"],"
+                + "\"instagramPositions\":[\"stream\",\"story\",\"reels\"]}");
+
+    assertThat(MetaPlacementCreativeVariantSelector.selectedFamilies(override))
+        .containsExactlyInAnyOrder(
+            CreativeVariantType.META_FEED,
+            CreativeVariantType.META_STORY,
+            CreativeVariantType.META_REEL);
+    assertThat(MetaPlacementCreativeVariantSelector.fullyMapped(override)).isTrue();
+    assertThat(
+            MetaPlacementCreativeVariantSelector.facebookPositions(
+                override, CreativeVariantType.META_STORY))
+        .containsExactly("story");
+  }
+
+  @Test
+  void marksUnmodeledPlacementAsNotFullyMapped() throws Exception {
+    var override =
+        objectMapper.readTree(
+            "{\"publisherPlatforms\":[\"messenger\"],"
+                + "\"messengerPositions\":[\"messenger_home\"]}");
+
+    assertThat(MetaPlacementCreativeVariantSelector.selectedFamilies(override)).isEmpty();
+    assertThat(MetaPlacementCreativeVariantSelector.fullyMapped(override)).isFalse();
+  }
+
+  @Test
   void returnsNullForMixedPlacementFamilies() throws Exception {
     var override =
         objectMapper.readTree(
