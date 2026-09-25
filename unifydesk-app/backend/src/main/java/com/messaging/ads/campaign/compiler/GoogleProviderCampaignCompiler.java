@@ -137,6 +137,16 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                 "providerOverride.aiMaxFinalUrlExpansionEnabled",
                 "AI Max final URL expansion requires a campaign or Creative Pack landing URL."));
       }
+      if (!providerStrings(context, "aiMaxUrlInclusions").isEmpty()
+          && (!providerBoolean(context, "aiMaxTextCustomizationEnabled", false)
+              || !providerBoolean(context, "aiMaxFinalUrlExpansionEnabled", false)
+              || providerBoolean(context, "aiMaxDisableSearchTermMatching", false))) {
+        issues.add(
+            ProviderCampaignPlanSupport.error(
+                "AI_MAX_URL_INCLUSIONS_REQUIRE_AUTOMATION",
+                "providerOverride.aiMaxUrlInclusions",
+                "AI Max URL inclusions require text customization, final URL expansion, and AI Max search-term matching to remain enabled."));
+      }
     }
 
     if (ProviderCampaignPlanSupport.requiresConversion(context)) {
@@ -350,6 +360,19 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                     ProviderCampaignPlanSupport.config(
                         "urlExclusions",
                         providerStrings(context, "aiMaxUrlExclusions"))));
+          }
+          if (!providerStrings(context, "aiMaxUrlInclusions").isEmpty()) {
+            operations.add(
+                operation(
+                    sequence++,
+                    "configure-ai-max-url-inclusions",
+                    ProviderPlanAction.CONFIGURE,
+                    ProviderPlanResource.AD_GROUP,
+                    false,
+                    Set.of(AdFeatureCapability.GOOGLE_AI_MAX),
+                    ProviderCampaignPlanSupport.config(
+                        "urlInclusions",
+                        providerStrings(context, "aiMaxUrlInclusions"))));
           }
         }
         operations.add(
