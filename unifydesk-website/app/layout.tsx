@@ -1,4 +1,4 @@
 import type { Metadata } from "next";
 import "./globals.css";
-export const metadata: Metadata={title:{default:"UnifyDesk — Customer communication, campaigns & ads in one workspace",template:"%s | UnifyDesk"},description:"Bring customer conversations, broadcasts, advertising and team workflows into one connected workspace."};
+export const metadata: Metadata={title:{default:"UnifyDesk — Customer communication, campaigns & ads in one workspace",template:"%s | UnifyDesk"},description:"Bring customer conversations, broadcasts, advertising and team workflows into one connected workspace.",metadataBase:new URL("https://unifydesk.in"),openGraph:{title:"UnifyDesk — One workspace for customer communication and growth",description:"Bring customer conversations, broadcasts, advertising and team workflows into one connected workspace.",url:"https://unifydesk.in",siteName:"UnifyDesk",type:"website"},twitter:{card:"summary_large_image",title:"UnifyDesk",description:"Customer communication, campaigns and ads in one connected workspace."}};
 export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="en"><body>{children}</body></html>}
