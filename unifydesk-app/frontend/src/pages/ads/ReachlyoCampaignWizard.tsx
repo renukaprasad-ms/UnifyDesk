@@ -25,6 +25,7 @@ import ReachlyoProviderSettingsStep, {
   type GoogleAdScheduleDraft,
 } from '../../components/ads/ReachlyoProviderSettingsStep'
 import MetaCreativeVariantsEditor from '../../components/ads/MetaCreativeVariantsEditor'
+import GoogleKeywordPlannerPanel from '../../components/ads/GoogleKeywordPlannerPanel'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -2459,6 +2460,26 @@ export default function ReachlyoCampaignWizard() {
                       }
                     />
                   </Field>
+                  {selectedChannels.includes('GOOGLE_SEARCH') &&
+                    accountByChannel.GOOGLE_SEARCH && (
+                      <GoogleKeywordPlannerPanel
+                        companyId={selectedCompany.companyId}
+                        accountId={accountByChannel.GOOGLE_SEARCH}
+                        landingPageUrl={
+                          creativeUrl.trim() ||
+                          campaign.landingPageUrl ||
+                          landingPageUrl
+                        }
+                        locations={audienceLocations}
+                        language={listValues(languages)[0] ?? null}
+                        includeSearchPartners={googleSearchPartners}
+                        currentKeywords={listValues(searchIntents)}
+                        disabled={!canEdit || !editableDefinition}
+                        onApply={(keywords) =>
+                          setSearchIntents(keywords.join('\n'))
+                        }
+                      />
+                    )}
                 </div>
 
                 <StepActions
