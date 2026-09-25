@@ -135,6 +135,23 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                 "CONVERSION_MAPPING_UNVALIDATED",
                 "conversion",
                 "The selected Google conversion mapping is not validated."));
+      } else if (ConversionGoalCompatibility.shouldWarn(
+          context.campaign().getBusinessGoal(),
+          context.channel().getProvider(),
+          context.conversionGoalMapping().getProviderEventName())) {
+        issues.add(
+            ProviderCampaignPlanSupport.warning(
+                "CONVERSION_GOAL_MISMATCH",
+                "conversion",
+                "The selected Google conversion category "
+                    + context.conversionGoalMapping().getProviderEventName()
+                    + " does not closely match business goal "
+                    + context.campaign().getBusinessGoal()
+                    + ". Typical matches: "
+                    + ConversionGoalCompatibility.recommendedLabel(
+                        context.campaign().getBusinessGoal(),
+                        context.channel().getProvider())
+                    + "."));
       }
     }
 
