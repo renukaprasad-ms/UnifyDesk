@@ -448,7 +448,7 @@ export default function ReachlyoCampaignWizard() {
       hydrateCampaign(campaignData, accountData)
       hydrateCreative(packs[0], campaignData)
       hydrateAudience(audienceData[0])
-      hydrateConversionMappings(mappings)
+      hydrateConversionMappings(mappings, campaignData.businessGoal)
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load unified campaign'))
     } finally {
@@ -630,19 +630,36 @@ export default function ReachlyoCampaignWizard() {
     }
   }
 
-  const hydrateConversionMappings = (mappings: ReachlyoConversionGoalMapping[]) => {
-    const google = mappings.find(
-      (mapping) => mapping.provider === 'GOOGLE_ADS' && mapping.targetType === 'PROVIDER_CONVERSION',
+  const hydrateConversionMappings = (
+    mappings: ReachlyoConversionGoalMapping[],
+    currentBusinessGoal: CampaignBusinessGoal,
+  ) => {
+    const current = mappings.filter(
+      (mapping) => mapping.businessGoal === currentBusinessGoal,
     )
-    if (google?.adConversionId) setGoogleConversionId(google.adConversionId)
+    const google = current.find(
+      (mapping) =>
+        mapping.provider === 'GOOGLE_ADS' &&
+        mapping.targetType === 'PROVIDER_CONVERSION',
+    )
+    setGoogleConversionId(google?.adConversionId ?? '')
 
-    const meta = mappings.find((mapping) => mapping.provider === 'META_ADS')
+    const meta = current.find((mapping) => mapping.provider === 'META_ADS')
     if (meta?.targetType === 'PROVIDER_CONVERSION') {
       setMetaConversionMode('PROVIDER')
-      if (meta.adConversionId) setMetaConversionId(meta.adConversionId)
+      setMetaConversionId(meta.adConversionId ?? '')
     } else if (meta?.targetType === 'STANDARD_EVENT') {
       setMetaConversionMode('STANDARD')
-      if (meta.providerEventName) setMetaStandardEvent(meta.providerEventName)
+      setMetaConversionId('')
+      setMetaStandardEvent(
+        meta.providerEventName ??
+          defaultMetaStandardEvent(currentBusinessGoal) ??
+          '',
+      )
+    } else {
+      setMetaConversionMode('PROVIDER')
+      setMetaConversionId('')
+      setMetaStandardEvent(defaultMetaStandardEvent(currentBusinessGoal) ?? '')
     }
   }
 
