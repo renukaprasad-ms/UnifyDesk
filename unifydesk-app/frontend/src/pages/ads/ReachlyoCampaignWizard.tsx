@@ -373,6 +373,7 @@ export default function ReachlyoCampaignWizard() {
     setGoogleAiMaxMessagingRestrictions,
   ] = useState('')
   const [googleAiMaxUrlExclusions, setGoogleAiMaxUrlExclusions] = useState('')
+  const [googleAiMaxUrlInclusions, setGoogleAiMaxUrlInclusions] = useState('')
   const [googleAdSchedules, setGoogleAdSchedules] = useState<GoogleAdScheduleDraft[]>([])
   const [googleNegativeKeywords, setGoogleNegativeKeywords] = useState<GoogleNegativeKeywordInput[]>([])
   const [googleNegativeKeywordLists, setGoogleNegativeKeywordLists] =
@@ -572,6 +573,13 @@ export default function ReachlyoCampaignWizard() {
       setGoogleAiMaxUrlExclusions(
         Array.isArray(override.aiMaxUrlExclusions)
           ? override.aiMaxUrlExclusions
+              .filter((value): value is string => typeof value === 'string')
+              .join('\n')
+          : '',
+      )
+      setGoogleAiMaxUrlInclusions(
+        Array.isArray(override.aiMaxUrlInclusions)
+          ? override.aiMaxUrlInclusions
               .filter((value): value is string => typeof value === 'string')
               .join('\n')
           : '',
@@ -1228,6 +1236,9 @@ export default function ReachlyoCampaignWizard() {
               : [],
             aiMaxUrlExclusions: googleAiMaxEnabled
               ? listValues(googleAiMaxUrlExclusions)
+              : [],
+            aiMaxUrlInclusions: googleAiMaxEnabled
+              ? listValues(googleAiMaxUrlInclusions)
               : [],
             adSchedules: googleAdSchedules,
             negativeKeywords: googleNegativeKeywords
@@ -2497,6 +2508,8 @@ export default function ReachlyoCampaignWizard() {
                   }
                   googleAiMaxUrlExclusions={googleAiMaxUrlExclusions}
                   setGoogleAiMaxUrlExclusions={setGoogleAiMaxUrlExclusions}
+                  googleAiMaxUrlInclusions={googleAiMaxUrlInclusions}
+                  setGoogleAiMaxUrlInclusions={setGoogleAiMaxUrlInclusions}
                   googleAdSchedules={googleAdSchedules}
                   setGoogleAdSchedules={setGoogleAdSchedules}
                   googleNegativeKeywords={googleNegativeKeywords}
