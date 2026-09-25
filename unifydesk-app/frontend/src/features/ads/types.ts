@@ -1174,6 +1174,41 @@ export type GoogleKeywordSync = {
   synchronizedCount: number
 }
 
+export type GoogleNegativeKeywordInput = {
+  text: string
+  matchType: 'BROAD' | 'PHRASE' | 'EXACT'
+}
+
+export type GoogleNegativeKeyword = {
+  resourceName: string
+  criterionId: string
+  text: string
+  matchType: 'BROAD' | 'PHRASE' | 'EXACT' | string
+  status?: string | null
+}
+
+export type GoogleNegativeKeywordList = {
+  resourceName: string
+  id: string
+  name: string
+  status?: string | null
+  memberCount: number
+  referenceCount: number
+  attachedToCampaign: boolean
+  members: GoogleNegativeKeyword[]
+}
+
+export type GoogleNegativeKeywordMutation = {
+  requestedCount: number
+  createdCount: number
+  reusedCount: number
+}
+
+export type CreateGoogleNegativeKeywordListInput = {
+  name: string
+  keywords?: GoogleNegativeKeywordInput[]
+}
+
 
 export type AdAudience = {
   id: string

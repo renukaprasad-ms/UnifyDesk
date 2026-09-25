@@ -297,6 +297,19 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                     context.audienceDefinition() == null
                         ? null
                         : context.audienceDefinition().getId().toString())));
+        operations.add(
+            operation(
+                sequence++,
+                "configure-negative-keywords",
+                ProviderPlanAction.CONFIGURE,
+                ProviderPlanResource.NEGATIVE_KEYWORDS,
+                false,
+                Set.of(),
+                ProviderCampaignPlanSupport.config(
+                    "source",
+                    "PROVIDER_OVERRIDE",
+                    "providerOverrideJson",
+                    context.channel().getProviderOverrideJson())));
         operations.add(creativeOperation(sequence++, context, ProviderPlanResource.CREATIVE));
       }
       case GOOGLE_PERFORMANCE_MAX -> {

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { FiArrowLeft, FiPause, FiPlay, FiPlus, FiRefreshCw, FiSave } from 'react-icons/fi'
+import { FiArrowLeft, FiPause, FiPlay, FiPlus, FiRefreshCw, FiSave, FiTrash2 } from 'react-icons/fi'
 import { Link } from 'react-router'
 import GoogleKeywordModal from './GoogleKeywordModal'
 import GoogleResponsiveSearchAdModal from './GoogleResponsiveSearchAdModal'
@@ -186,6 +186,20 @@ export default function GoogleAdGroupDetails({
       setNotice(`${updated.keywordText} is now ${status.toLowerCase()}.`)
     } catch (statusError) {
       setError(apiErrorMessage(statusError, 'Unable to update Google Ads keyword'))
+    } finally {
+      setWorkingId(null)
+    }
+  }
+
+  const removeNegativeKeyword = async (keyword: AdKeyword) => {
+    setWorkingId(keyword.id)
+    setError('')
+    try {
+      await adCenterApi.removeGoogleKeyword(companyId, keyword.id)
+      setKeywords((current) => current.filter((item) => item.id !== keyword.id))
+      setNotice(`${keyword.keywordText} was removed.`)
+    } catch (removeError) {
+      setError(apiErrorMessage(removeError, 'Unable to remove Google negative keyword'))
     } finally {
       setWorkingId(null)
     }
@@ -429,7 +443,23 @@ export default function GoogleAdGroupDetails({
             <div className="divide-y divide-slate-100">
               {keywords.map((keyword) => <div key={keyword.id} className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
                 <div><p className="font-semibold text-slate-950">{keyword.negative ? '− ' : ''}{keyword.keywordText}</p><p className="mt-1 text-xs text-slate-500">{keyword.matchType ?? 'Keyword'} · CPC {formatMicros(keyword.bidAmountMicros, account?.currency)}{keyword.qualityScore != null ? ` · Quality ${keyword.qualityScore}/10` : ''}</p></div>
-                <div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{keyword.providerStatus ?? keyword.status}</span>{can(PERMISSIONS.ADS_MODIFY) && !keyword.negative && <button className="secondary-button" disabled={workingId !== null} onClick={() => void setKeywordStatus(keyword, keyword.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}>{keyword.status === 'ACTIVE' ? 'Pause' : 'Enable'}</button>}</div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{keyword.providerStatus ?? keyword.status}</span>
+                  {can(PERMISSIONS.ADS_MODIFY) &&
+                    (keyword.negative ? (
+                      <button
+                        type="button"
+                        className="secondary-button inline-flex items-center gap-2"
+                        disabled={workingId !== null}
+                        onClick={() => void removeNegativeKeyword(keyword)}
+                      >
+                        <FiTrash2 />
+                        Remove
+                      </button>
+                    ) : (
+                      <button className="secondary-button" disabled={workingId !== null} onClick={() => void setKeywordStatus(keyword, keyword.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}>{keyword.status === 'ACTIVE' ? 'Pause' : 'Enable'}</button>
+                    ))}
+                </div>
               </div>)}
             </div>
           )}

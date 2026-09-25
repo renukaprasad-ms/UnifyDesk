@@ -187,6 +187,51 @@ public class GoogleAdsKeywordMutationService {
     return adGroup;
   }
 
+  public boolean remove(
+      Long companyId,
+      Long keywordId,
+      Long actorUserId) {
+    AdKeyword keyword = requireKeyword(companyId, keywordId);
+    if (!keyword.isNegative()) {
+      throw new BadRequestException(
+          "Only negative Google keywords can be removed through this action");
+    }
+    var context = contextService.requireManaged(companyId, keyword.getAdAccountId());
+    AdKeywordResponse before = AdKeywordResponse.from(keyword);
+
+    String resourceName =
+        apiClient.customerResourceName(
+            context.account().getExternalAccountId(),
+            "adGroupCriteria",
+            keyword.getExternalKeywordId());
+    apiClient.mutate(
+        context.accessToken(),
+        context.account().getExternalAccountId(),
+        context.loginCustomerId(),
+        "adGroupCriteria",
+        List.of(Map.of("remove", resourceName)));
+
+    keyword.setAccessible(false);
+    keyword.setProviderStatus("REMOVED");
+    keyword.setStatus(com.messaging.ads.enums.AdEntityStatus.REMOVED);
+    keywordRepository.save(keyword);
+
+    activityLogService.record(
+        companyId,
+        keyword.getAdAccountId(),
+        AdProvider.GOOGLE_ADS,
+        actorUserId,
+        "GOOGLE_NEGATIVE_KEYWORD_REMOVED",
+        "KEYWORD",
+        keyword.getExternalKeywordId(),
+        before,
+        null,
+        Map.of(
+            "text", keyword.getKeywordText(),
+            "matchType", keyword.getMatchType()));
+    return true;
+  }
+
   private AdKeyword requireKeyword(Long companyId, Long keywordId) {
     AdKeyword keyword =
         keywordRepository
