@@ -19,3 +19,14 @@ html{width:100%;min-width:320px;overflow-x:hidden}body{width:100%;min-width:320p
 .featureList article:nth-child(even) .featureVisual{order:1}
 .featureList article:nth-child(even) .featureCopy{order:2}
 @media(max-width:850px){.featureList article,.featureList article:nth-child(even){grid-template-columns:1fr;gap:32px}.featureList article:nth-child(even) .featureCopy,.featureList article:nth-child(even) .featureVisual{order:initial}}
+
+/* Product page rhythm */
+.featureList{max-width:1240px!important;width:min(100% - 48px,1240px)!important}
+.featureList article{grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:clamp(48px,6vw,88px);padding:64px 0;min-height:0}
+.featureCopy{max-width:500px}
+.featureList article:nth-child(even) .featureCopy{justify-self:end;width:100%}
+.featureVisual{width:100%;max-width:600px;justify-self:end}
+.featureList article:nth-child(even) .featureVisual{justify-self:start}
+.visualCanvas{height:220px;padding:22px}
+@media(max-width:850px){.featureList{width:calc(100% - 28px)!important}.featureList article{grid-template-columns:1fr;gap:28px;padding:48px 0}.featureCopy,.featureList article:nth-child(even) .featureCopy{max-width:none;justify-self:stretch}.featureVisual,.featureList article:nth-child(even) .featureVisual{max-width:none;justify-self:stretch}.visualCanvas{height:210px}}
+@media(max-width:520px){.featureList article{padding:40px 0;gap:24px}.visualCanvas{height:190px;padding:18px}.featureCopy h2{font-size:25px}}
