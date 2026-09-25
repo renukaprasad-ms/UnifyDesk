@@ -69,6 +69,7 @@ import com.messaging.ads.google.dto.GoogleKeywordPlannerHistoricalRequest;
 import com.messaging.ads.google.dto.GoogleKeywordPlannerResponse;
 import com.messaging.ads.google.dto.GoogleAssetResponse;
 import com.messaging.ads.google.dto.GoogleAssetLinkRequest;
+import com.messaging.ads.google.dto.GoogleAdvancedReusableAssetCreateRequest;
 import com.messaging.ads.google.dto.GoogleReusableAssetCreateRequest;
 import com.messaging.ads.google.dto.GoogleReusableAssetLinkResponse;
 import com.messaging.ads.google.dto.GoogleReusableAssetResponse;
@@ -178,6 +179,20 @@ public class GoogleAdsConnectionController {
             ApiResponse.success(
                 201,
                 reusableAssetService.create(companyId, accountId, request, userId),
+                "Google reusable asset created"));
+  }
+
+  @PostMapping("/accounts/{accountId}/reusable-assets/advanced")
+  public ResponseEntity<ApiResponse<GoogleReusableAssetResponse>> createAdvancedReusableAsset(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody GoogleAdvancedReusableAssetCreateRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                reusableAssetService.createAdvanced(companyId, accountId, request, userId),
                 "Google reusable asset created"));
   }
 
