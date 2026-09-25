@@ -19,6 +19,9 @@ public interface AdCampaignRepository extends JpaRepository<AdCampaign, Long> {
 
   List<AdCampaign> findByCompanyIdAndAdAccountId(Long companyId, Long adAccountId);
 
+  Optional<AdCampaign> findFirstByCompanyIdAndAdAccountIdAndProviderAndNameOrderByIdAsc(
+      Long companyId, Long adAccountId, AdProvider provider, String name);
+
   Optional<AdCampaign> findByCompanyIdAndAdAccountIdAndProviderAndExternalCampaignId(
       Long companyId,
       Long adAccountId,

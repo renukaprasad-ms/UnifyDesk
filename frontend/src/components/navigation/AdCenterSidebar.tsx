@@ -5,6 +5,7 @@ import {
   FiCreditCard,
   FiGrid,
   FiImage,
+  FiLayers,
   FiSettings,
   FiShoppingBag,
   FiTarget,
@@ -19,7 +20,8 @@ import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 
 const items = [
   { label: 'Overview', to: '/ad-center', icon: <FiGrid /> },
-  { label: 'Campaigns', to: '/ad-center/campaigns', icon: <FiTarget /> },
+  { label: 'Unified campaigns', to: '/ad-center/unified-campaigns', icon: <FiLayers /> },
+  { label: 'Provider campaigns', to: '/ad-center/campaigns', icon: <FiTarget /> },
   { label: 'Creatives', to: '/ad-center/creatives', icon: <FiImage /> },
   { label: 'Audiences', to: '/ad-center/audiences', icon: <FiUsers /> },
   { label: 'Conversions', to: '/ad-center/conversions', icon: <FiActivity /> },

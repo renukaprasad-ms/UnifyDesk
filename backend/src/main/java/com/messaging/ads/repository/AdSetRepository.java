@@ -12,6 +12,9 @@ public interface AdSetRepository extends JpaRepository<AdSet, Long> {
 
   Optional<AdSet> findByIdAndCompanyId(Long id, Long companyId);
 
+  Optional<AdSet> findFirstByCompanyIdAndCampaignIdAndNameOrderByIdAsc(
+      Long companyId, Long campaignId, String name);
+
   Optional<AdSet> findByCompanyIdAndAdAccountIdAndProviderAndExternalAdSetId(
       Long companyId, Long adAccountId, AdProvider provider, String externalAdSetId);
 }

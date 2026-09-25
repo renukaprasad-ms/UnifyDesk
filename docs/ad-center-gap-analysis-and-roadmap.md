@@ -796,6 +796,8 @@ This section is the Google backlog.
 
 ## G-01 Search targeting completeness - P0
 
+Status: **in progress**. B1 now covers geo/language/network/daypart creation in the unified Reachlyo flow. Devices, deeper audience/demographic criteria, observation-vs-targeting controls, exclusions, provider-native read/edit surfaces, and campaign-specific conversion-goal mutation remain.
+
 Current Search campaign creation is too minimal.
 
 Add:
@@ -1918,13 +1920,13 @@ A3. [x] BudgetPlan — implemented with automatic/fixed/percentage allocation mo
 A4. [x] CreativePack + CreativeVariant — company media-backed source packs and provider/channel-specific variants  
 A5. [x] AudienceDefinition + mapping status — canonical audience definitions with compiler-owned EXACT/APPROXIMATE/PROVIDER_ONLY/UNSUPPORTED mappings  
 A6. [x] ConversionGoalMapping — campaign business goal mapped to validated provider conversion resources or standard events  
-A7. Provider capability model v2  
-A8. Provider campaign compiler contract  
-A9. LaunchRun/LaunchStep  
-A10. paused multi-provider launch orchestrator  
-A11. unified campaign wizard  
-A12. provider plan/review UI  
-A13. partial failure/retry UI
+A7. [x] Provider capability model v2 — feature-level provider/account support, API version, scopes, eligibility and planned/read-only states  
+A8. [x] Provider campaign compiler contract — side-effect-free Google/Meta plan compilation with budget, capability, creative, audience and conversion preflight  
+A9. [x] LaunchRun/LaunchStep — persistent idempotent run/step audit state with retry metadata and provider resource IDs  
+A10. [x] paused multi-provider launch orchestrator — resumable Saga with Google Search + Meta paused-first executors; unsupported channel executors are blocked during preflight before remote mutation  
+A11. [x] unified campaign wizard — persisted goal-first flow for channels/accounts, shared budget, canonical creative, audience, provider-only settings and conversion mappings  
+A12. [x] provider plan/review UI — side-effect-free per-channel review of ordered operations, capabilities, budget, mapping quality, warnings and paused-resource creation  
+A13. [x] partial failure/retry UI — persistent launch history with validation issues, per-step status/attempts/provider IDs and failed-step retry controls
 
 Completion condition:
 
@@ -1932,7 +1934,7 @@ A user can create one Reachlyo Campaign and deploy a simple valid campaign to Go
 
 ## Phase B - Core parity gaps / P0-P1
 
-B1. Google geo/language/network/daypart targeting  
+B1. [x] Google geo/language/network/daypart targeting — canonical country/region/city/postal/proximity + language mapping, Search Partners/Display expansion, presence mode, quarter-hour dayparting, provider preflight and idempotent campaign-criterion execution  
 B2. Google negative keywords/shared negatives  
 B3. Meta detailed geo targeting  
 B4. Meta proper placement tree  

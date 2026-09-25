@@ -5,6 +5,7 @@ import com.messaging.ads.dto.AdCampaignResponse;
 import com.messaging.ads.entity.AdCampaign;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.google.dto.CreateGoogleCampaignRequest;
+import com.messaging.ads.google.dto.GoogleSearchCampaignSettings;
 import com.messaging.ads.google.dto.UpdateGoogleCampaignRequest;
 import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.ads.service.AdActivityLogService;
@@ -39,6 +40,20 @@ public class GoogleAdsCampaignMutationService {
       Long companyId,
       Long accountId,
       CreateGoogleCampaignRequest request,
+      Long actorUserId) {
+    return create(
+        companyId,
+        accountId,
+        request,
+        GoogleSearchCampaignSettings.defaults(),
+        actorUserId);
+  }
+
+  public AdCampaignResponse create(
+      Long companyId,
+      Long accountId,
+      CreateGoogleCampaignRequest request,
+      GoogleSearchCampaignSettings settings,
       Long actorUserId) {
     var context = contextService.requireManaged(companyId, accountId);
     if (context.managerAccount()) {
@@ -81,13 +96,20 @@ public class GoogleAdsCampaignMutationService {
     campaign.put("status", "PAUSED");
     campaign.put("advertisingChannelType", "SEARCH");
     campaign.put("campaignBudget", budgetResource);
+    GoogleSearchCampaignSettings effectiveSettings =
+        settings == null ? GoogleSearchCampaignSettings.defaults() : settings;
     campaign.put(
         "networkSettings",
         Map.of(
             "targetGoogleSearch", true,
-            "targetSearchNetwork", true,
-            "targetContentNetwork", false,
+            "targetSearchNetwork", effectiveSettings.targetSearchNetwork(),
+            "targetContentNetwork", effectiveSettings.targetContentNetwork(),
             "targetPartnerSearchNetwork", false));
+    campaign.put(
+        "geoTargetTypeSetting",
+        Map.of(
+            "positiveGeoTargetType", effectiveSettings.positiveGeoTargetType(),
+            "negativeGeoTargetType", "PRESENCE"));
     applyBidStrategy(campaign, request.bidStrategy());
     campaign.put(
         "containsEuPoliticalAdvertising",

@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.messaging.ads.capability.AdFeatureCapabilityService;
 import com.messaging.ads.dto.UpdateAdAccountSelectionRequest;
 import com.messaging.ads.entity.AdAccount;
 import com.messaging.ads.entity.AdProviderConnection;
@@ -30,6 +31,7 @@ class AdCenterServiceTests {
   private static final Long COMPANY_ID = 101L;
 
   @Mock private AdsProviderRegistry providerRegistry;
+  @Mock private AdFeatureCapabilityService featureCapabilityService;
   @Mock private AdAccountRepository accountRepository;
   @Mock private AdProviderConnectionRepository connectionRepository;
   @Mock private AdProviderCredentialService credentialService;
@@ -43,6 +45,7 @@ class AdCenterServiceTests {
     service =
         new AdCenterService(
             providerRegistry,
+            featureCapabilityService,
             accountRepository,
             connectionRepository,
             credentialService,

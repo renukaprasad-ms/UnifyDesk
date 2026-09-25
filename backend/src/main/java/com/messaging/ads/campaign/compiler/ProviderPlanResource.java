@@ -1,0 +1,18 @@
+package com.messaging.ads.campaign.compiler;
+
+public enum ProviderPlanResource {
+  CAMPAIGN_BUDGET,
+  CAMPAIGN,
+  CAMPAIGN_TARGETING,
+  AD_GROUP,
+  AD_SET,
+  KEYWORDS,
+  CREATIVE,
+  AD,
+  ASSET_GROUP,
+  ASSET_GROUP_ASSETS,
+  AUDIENCE_SIGNALS,
+  LISTING_GROUP,
+  PRODUCT_AD,
+  CONVERSION_GOAL
+}

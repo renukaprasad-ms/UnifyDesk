@@ -5,6 +5,8 @@ import MainLayout from '../layouts/MainLayout'
 import AccountProfile from '../pages/account/AccountProfile'
 import AdCenterOverview from '../pages/ads/AdCenterOverview'
 import AdCampaigns from '../pages/ads/AdCampaigns'
+import ReachlyoCampaigns from '../pages/ads/ReachlyoCampaigns'
+import ReachlyoCampaignWizard from '../pages/ads/ReachlyoCampaignWizard'
 import AdCampaignDetails from '../pages/ads/AdCampaignDetails'
 import AdSetDetails from '../pages/ads/AdSetDetails'
 import AdAnalytics from '../pages/ads/AdAnalytics'
@@ -97,6 +99,9 @@ const AppRoutes = () => (
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.ADS_READ]} />}>
               <Route path="ad-center" element={<AdCenterOverview />} />
+              <Route path="ad-center/unified-campaigns" element={<ReachlyoCampaigns />} />
+              <Route path="ad-center/unified-campaigns/new" element={<ReachlyoCampaignWizard />} />
+              <Route path="ad-center/unified-campaigns/:campaignId" element={<ReachlyoCampaignWizard />} />
               <Route path="ad-center/campaigns" element={<AdCampaigns />} />
               <Route path="ad-center/campaigns/:campaignId" element={<AdCampaignDetails />} />
               <Route path="ad-center/ad-sets/:adSetId" element={<AdSetDetails />} />
