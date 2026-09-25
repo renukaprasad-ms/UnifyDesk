@@ -3,6 +3,7 @@ package com.messaging.ads.campaign.controller;
 import com.messaging.ads.campaign.dto.CreateCampaignChannelRequest;
 import com.messaging.ads.campaign.dto.CreateReachlyoCampaignRequest;
 import com.messaging.ads.campaign.dto.ReachlyoCampaignResponse;
+import com.messaging.ads.campaign.dto.ReachlyoCampaignRecommendationsResponse;
 import com.messaging.ads.campaign.dto.ReachlyoCampaignAnalyticsResponse;
 import com.messaging.ads.campaign.dto.ReachlyoCampaignAnalyticsSyncResponse;
 import com.messaging.ads.campaign.dto.ReachlyoCampaignSummaryResponse;
@@ -10,6 +11,7 @@ import com.messaging.ads.campaign.dto.UpdateCampaignChannelRequest;
 import com.messaging.ads.campaign.dto.UpdateReachlyoCampaignRequest;
 import com.messaging.ads.campaign.dto.UpsertBudgetPlanRequest;
 import com.messaging.ads.campaign.service.ReachlyoCampaignService;
+import com.messaging.ads.campaign.service.ReachlyoCampaignRecommendationService;
 import com.messaging.ads.campaign.service.ReachlyoCampaignAnalyticsService;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
@@ -41,6 +43,7 @@ public class ReachlyoCampaignController {
 
   private final ReachlyoCampaignService campaignService;
   private final ReachlyoCampaignAnalyticsService campaignAnalyticsService;
+  private final ReachlyoCampaignRecommendationService campaignRecommendationService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -102,6 +105,18 @@ public class ReachlyoCampaignController {
             200,
             campaignAnalyticsService.analytics(companyId, campaignId, from, to),
             "Unified campaign analytics fetched"));
+  }
+
+  @GetMapping("/{campaignId}/recommendations")
+  public ResponseEntity<ApiResponse<ReachlyoCampaignRecommendationsResponse>> recommendations(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId) {
+    require(companyId, CompanyPermissionKeys.ADS_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            campaignRecommendationService.recommendations(companyId, campaignId),
+            "Unified campaign recommendations fetched"));
   }
 
   @PostMapping("/{campaignId}/analytics/sync")
