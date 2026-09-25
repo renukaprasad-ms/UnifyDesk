@@ -19,6 +19,7 @@ import com.messaging.ads.enums.AdAccountStatus;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdConversionRepository;
+import com.messaging.common.exception.BadRequestException;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
