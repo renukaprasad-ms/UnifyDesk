@@ -1261,6 +1261,29 @@ export type GoogleNegativeKeywordInput = {
   matchType: 'BROAD' | 'PHRASE' | 'EXACT'
 }
 
+export type GoogleSearchTermRow = {
+  searchTerm: string
+  targetingStatus?: string | null
+  externalAdGroupId: string
+  adGroupId?: string | null
+  adGroupName?: string | null
+  impressions: number
+  clicks: number
+  ctr?: number | null
+  spend: number
+  conversions: number
+  conversionValue: number
+  cpa?: number | null
+}
+
+export type GoogleSearchTermReport = {
+  campaignId: string
+  from: string
+  to: string
+  currency?: string | null
+  rows: GoogleSearchTermRow[]
+}
+
 export type GoogleNegativeKeyword = {
   resourceName: string
   criterionId: string
