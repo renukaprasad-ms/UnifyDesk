@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -186,7 +187,7 @@ public class ReachlyoCampaignAnalyticsService {
 
   public ReachlyoCampaignAnalyticsSyncResponse sync(
       Long companyId, Long campaignId, LocalDate from, LocalDate to) {
-    validateRange(from, to);
+    validateSyncRange(from, to);
     requireCampaign(companyId, campaignId);
     List<ProviderDeployment> deployments =
         deploymentRepository.findByCompanyIdAndReachlyoCampaignIdOrderByIdAsc(
@@ -274,6 +275,17 @@ public class ReachlyoCampaignAnalyticsService {
   private void validateRange(LocalDate from, LocalDate to) {
     if (from == null || to == null || to.isBefore(from)) {
       throw new BadRequestException("A valid campaign analytics date range is required");
+    }
+  }
+
+  private void validateSyncRange(LocalDate from, LocalDate to) {
+    validateRange(from, to);
+    if (to.isAfter(LocalDate.now())) {
+      throw new BadRequestException("Campaign analytics end date cannot be in the future");
+    }
+    if (ChronoUnit.DAYS.between(from, to) + 1 > 90) {
+      throw new BadRequestException(
+          "Campaign analytics provider refresh is limited to 90 days per request");
     }
   }
 
