@@ -39,7 +39,7 @@ public class ValidationJobService {
   private final EmailNormalizer normalizer;
   private final int batchSize;
   private final int maxAttempts;
-  private final String batchTopic;
+  private final String batchTopic;\n  private final String lifecycleTopic;
 
   public ValidationJobService(
       EmailValidationJobRepository jobs,
@@ -49,7 +49,7 @@ public class ValidationJobService {
       EmailNormalizer normalizer,
       @Value("${app.validation.batch-size:100}") int batchSize,
       @Value("${app.validation.retry.max-attempts:4}") int maxAttempts,
-      @Value("${app.kafka.topics.validation-batch:email.validation.batch}") String batchTopic) {
+      @Value("${app.kafka.topics.validation-batch:email.validation.batch}") String batchTopic,\n      @Value("${app.kafka.topics.validation-lifecycle:email.validation.lifecycle}")\n          String lifecycleTopic) {
     this.jobs = jobs;
     this.batches = batches;
     this.items = items;
@@ -57,7 +57,7 @@ public class ValidationJobService {
     this.normalizer = normalizer;
     this.batchSize = Math.max(1, Math.min(batchSize, 500));
     this.maxAttempts = Math.max(1, maxAttempts);
-    this.batchTopic = batchTopic;
+    this.batchTopic = batchTopic;\n    this.lifecycleTopic = lifecycleTopic;
   }
 
   @Transactional
@@ -105,7 +105,7 @@ public class ValidationJobService {
       job.setStatus(ValidationJobStatus.COMPLETED);
       job.setCompletedAt(Instant.now());
     }
-    return ValidationJobResponse.from(jobs.save(job));
+    job = jobs.save(job);\n    emitLifecycle(job, "JOB_ACCEPTED");\n    return ValidationJobResponse.from(job);
   }
 
   @Transactional(readOnly = true)
@@ -233,7 +233,7 @@ public class ValidationJobService {
     return due.size();
   }
 
-  private void finishIfDone(EmailValidationJob job) {
+  private boolean finishIfDone(EmailValidationJob job) {
     int finished = job.getCompletedBatches() + job.getFailedBatches();
     if (finished < job.getTotalBatches()) {
       return;
@@ -246,6 +246,28 @@ public class ValidationJobService {
     } else {
       job.setStatus(ValidationJobStatus.PARTIAL_FAILED);
     }
+  }
+
+  private void emitLifecycle(EmailValidationJob job, String eventType) {
+    String payload =
+        "{"
+            + "\\\"eventType\\\":\\\""
+            + eventType
+            + "\\","
+            + "\\\"jobId\\\":\\\""
+            + job.getId()
+            + "\\","
+            + "\\\"companyId\\\":\\\""
+            + job.getCompanyId()
+            + "\\","
+            + "\\\"status\\\":\\\""
+            + job.getStatus()
+            + "\\","
+            + "\\\"occurredAt\\\":\\\""
+            + Instant.now()
+            + "\\\""
+            + "}";
+    outbox.enqueue(lifecycleTopic, job.getId().toString(), payload);
   }
 
   private EmailValidationJob requireJob(Long companyId, Long jobId) {

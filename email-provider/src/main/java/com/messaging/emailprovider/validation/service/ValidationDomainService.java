@@ -1,5 +1,6 @@
 package com.messaging.emailprovider.validation.service;
 
+import com.messaging.emailprovider.common.id.IdGenerator;
 import com.messaging.emailprovider.validation.core.DisposableDomainPolicy;
 import com.messaging.emailprovider.validation.core.DomainValidationSnapshot;
 import com.messaging.emailprovider.validation.dns.MailRoute;
@@ -11,7 +12,6 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,26 +56,22 @@ public class ValidationDomainService {
 
   private DomainValidationSnapshot resolveAndStore(String domain, Instant now) {
     MailRoute route = resolver.resolve(domain);
-    EmailValidationDomainCache row =
-        repository.findByDomain(domain).orElseGet(EmailValidationDomainCache::new);
-    row.setDomain(domain);
-    row.setMailRoutable(route.routable());
-    row.setNullMx(route.nullMx());
-    row.setMxFound(route.mxFound());
-    row.setMxHosts(String.join("\n", route.hosts()));
-    row.setDisposable(disposableDomainPolicy.isDisposable(domain));
-    row.setDnsLookupFailed(route.lookupFailed());
-    row.setCheckedAt(now);
-    row.setExpiresAt(now.plus(ttl));
-
-    try {
-      return snapshot(repository.save(row));
-    } catch (DataIntegrityViolationException race) {
-      return repository
-          .findByDomain(domain)
-          .map(this::snapshot)
-          .orElseThrow(() -> race);
-    }
+    repository.upsert(
+        IdGenerator.nextId(),
+        domain,
+        route.routable(),
+        route.nullMx(),
+        route.mxFound(),
+        String.join("\n", route.hosts()),
+        disposableDomainPolicy.isDisposable(domain),
+        route.lookupFailed(),
+        now,
+        now.plus(ttl),
+        now);
+    return repository
+        .findByDomain(domain)
+        .map(this::snapshot)
+        .orElseThrow(() -> new IllegalStateException("Domain cache upsert failed"));
   }
 
   private DomainValidationSnapshot snapshot(EmailValidationDomainCache row) {
