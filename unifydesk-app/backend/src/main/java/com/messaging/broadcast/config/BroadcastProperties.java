@@ -25,7 +25,7 @@ public class BroadcastProperties {
   private int outboxPollIntervalMs = 250;
   private Duration outboxStaleAfter = Duration.ofMinutes(2);
   private int outboxMaxAttempts = 20;
-  private String messageIdDomain = "messaging.renukaprasad.in";
+  private String messageIdDomain = "unifydesk.in";
   private double sesMaxPerSecondCap = 1000.0;
   private double sendGridMaxPerSecondCap = 20.0;
   private double azureEmailMaxPerSecondCap = 0.5;
