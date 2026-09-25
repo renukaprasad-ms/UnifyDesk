@@ -75,6 +75,11 @@ public class ConversionGoalMappingService {
     }
 
     mapping.setTargetType(request.targetType());
+    if (request.targetType() == ConversionTargetType.STANDARD_EVENT
+        && request.provider() != com.messaging.ads.enums.AdProvider.META_ADS) {
+      throw new BadRequestException(
+          "Standard event conversion targets are only supported for Meta Ads");
+    }
     if (request.targetType() == ConversionTargetType.PROVIDER_CONVERSION) {
       if (request.adConversionId() == null) {
         throw new BadRequestException("Provider conversion target requires adConversionId");
