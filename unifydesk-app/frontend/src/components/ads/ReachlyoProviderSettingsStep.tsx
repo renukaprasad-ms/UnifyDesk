@@ -113,6 +113,38 @@ const isRecommendedConversion = (
 const recommendedMetaEvent = (goal: CampaignBusinessGoal) =>
   META_GOAL_EVENTS[goal]?.[0] ?? ''
 
+const META_STANDARD_EVENTS = [
+  'ACHIEVEMENT_UNLOCKED',
+  'ADD_PAYMENT_INFO',
+  'ADD_TO_CART',
+  'ADD_TO_WISHLIST',
+  'AD_IMPRESSION',
+  'COMPLETE_REGISTRATION',
+  'CONTACT',
+  'CONTENT_VIEW',
+  'CUSTOMIZE_PRODUCT',
+  'D2_RETENTION',
+  'D7_RETENTION',
+  'DONATE',
+  'FIND_LOCATION',
+  'INITIATED_CHECKOUT',
+  'LEAD',
+  'LEVEL_ACHIEVED',
+  'LISTING_INTERACTION',
+  'MESSAGING_CONVERSATION_STARTED_7D',
+  'OTHER',
+  'PURCHASE',
+  'RATE',
+  'SCHEDULE',
+  'SEARCH',
+  'SERVICE_BOOKING_REQUEST',
+  'SPENT_CREDITS',
+  'START_TRIAL',
+  'SUBMIT_APPLICATION',
+  'SUBSCRIBE',
+  'TUTORIAL_COMPLETION',
+] as const
+
 const DAYS = [
   'MONDAY',
   'TUESDAY',
@@ -813,16 +845,25 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                   </Field>
                 ) : (
                   <Field label="Standard event">
-                    <input
-                      className="form-input mt-2 uppercase"
+                    <select
+                      className="form-input mt-2"
                       value={props.metaStandardEvent}
                       disabled={props.disabled}
                       onChange={(event) => props.setMetaStandardEvent(event.target.value)}
-                      placeholder={recommendedMetaEvent(props.businessGoal) || 'PURCHASE'}
-                    />
+                    >
+                      <option value="">Select standard event</option>
+                      {META_STANDARD_EVENTS.map((eventName) => (
+                        <option key={eventName} value={eventName}>
+                          {pretty(eventName)}
+                          {eventName === recommendedMetaEvent(props.businessGoal)
+                            ? ' · Recommended'
+                            : ''}
+                        </option>
+                      ))}
+                    </select>
                     {recommendedMetaEvent(props.businessGoal) && (
                       <span className="mt-1 block text-[11px] font-normal text-slate-500">
-                        Suggested for {pretty(props.businessGoal)}: {recommendedMetaEvent(props.businessGoal)}
+                        Suggested for {pretty(props.businessGoal)}: {pretty(recommendedMetaEvent(props.businessGoal))}
                       </span>
                     )}
                   </Field>
