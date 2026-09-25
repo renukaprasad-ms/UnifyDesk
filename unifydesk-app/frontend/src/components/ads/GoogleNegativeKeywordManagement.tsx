@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { FiLink, FiPlus, FiRefreshCw, FiTrash2, FiUnlink } from 'react-icons/fi'
+import { FiLink, FiPlus, FiRefreshCw, FiTrash2, FiX } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -438,7 +438,7 @@ export default function GoogleNegativeKeywordManagement({
                         onClick={() => void toggleAttachment(list)}
                       >
                         {list.attachedToCampaign ? (
-                          <FiUnlink aria-hidden="true" />
+                          <FiX aria-hidden="true" />
                         ) : (
                           <FiLink aria-hidden="true" />
                         )}
