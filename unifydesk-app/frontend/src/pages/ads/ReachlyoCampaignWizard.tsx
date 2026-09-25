@@ -332,6 +332,12 @@ export default function ReachlyoCampaignWizard() {
   const [metaConversionMode, setMetaConversionMode] = useState<'PROVIDER' | 'STANDARD'>('PROVIDER')
   const [metaConversionId, setMetaConversionId] = useState('')
   const [metaStandardEvent, setMetaStandardEvent] = useState('PURCHASE')
+  const [metaPlacementMode, setMetaPlacementMode] = useState<'AUTO' | 'MANUAL'>('AUTO')
+  const [metaPublisherPlatforms, setMetaPublisherPlatforms] = useState<string[]>([])
+  const [metaFacebookPositions, setMetaFacebookPositions] = useState<string[]>([])
+  const [metaInstagramPositions, setMetaInstagramPositions] = useState<string[]>([])
+  const [metaMessengerPositions, setMetaMessengerPositions] = useState<string[]>([])
+  const [metaAudienceNetworkPositions, setMetaAudienceNetworkPositions] = useState<string[]>([])
 
   const managedAccounts = useMemo(
     () =>
@@ -544,6 +550,31 @@ export default function ReachlyoCampaignWizard() {
         setMetaSpecialCategory(override.specialAdCategories[0])
       }
       if (typeof override.pixelId === 'string') setMetaPixelId(override.pixelId)
+      const publisherPlatforms = Array.isArray(override.publisherPlatforms)
+        ? override.publisherPlatforms.filter((value): value is string => typeof value === 'string')
+        : []
+      setMetaPlacementMode(publisherPlatforms.length ? 'MANUAL' : 'AUTO')
+      setMetaPublisherPlatforms(publisherPlatforms)
+      setMetaFacebookPositions(
+        Array.isArray(override.facebookPositions)
+          ? override.facebookPositions.filter((value): value is string => typeof value === 'string')
+          : [],
+      )
+      setMetaInstagramPositions(
+        Array.isArray(override.instagramPositions)
+          ? override.instagramPositions.filter((value): value is string => typeof value === 'string')
+          : [],
+      )
+      setMetaMessengerPositions(
+        Array.isArray(override.messengerPositions)
+          ? override.messengerPositions.filter((value): value is string => typeof value === 'string')
+          : [],
+      )
+      setMetaAudienceNetworkPositions(
+        Array.isArray(override.audienceNetworkPositions)
+          ? override.audienceNetworkPositions.filter((value): value is string => typeof value === 'string')
+          : [],
+      )
     }
   }
 
@@ -1073,6 +1104,25 @@ export default function ReachlyoCampaignWizard() {
             billingEvent: metaBillingEvent,
             specialAdCategories: [metaSpecialCategory],
             pixelId: metaPixelId || undefined,
+            publisherPlatforms:
+              metaPlacementMode === 'MANUAL' ? metaPublisherPlatforms : [],
+            facebookPositions:
+              metaPlacementMode === 'MANUAL' && metaPublisherPlatforms.includes('facebook')
+                ? metaFacebookPositions
+                : [],
+            instagramPositions:
+              metaPlacementMode === 'MANUAL' && metaPublisherPlatforms.includes('instagram')
+                ? metaInstagramPositions
+                : [],
+            messengerPositions:
+              metaPlacementMode === 'MANUAL' && metaPublisherPlatforms.includes('messenger')
+                ? metaMessengerPositions
+                : [],
+            audienceNetworkPositions:
+              metaPlacementMode === 'MANUAL' &&
+              metaPublisherPlatforms.includes('audience_network')
+                ? metaAudienceNetworkPositions
+                : [],
           }
         }
 
