@@ -45,7 +45,13 @@ class RealtimeClient {
       }
     }
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
+      console.warn('[RealtimeDebug] SOCKET_CLOSED', {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+        url,
+      })
       this.setConnected(false)
       this.stopHeartbeat()
       if (this.socket === socket) this.socket = null
@@ -53,6 +59,7 @@ class RealtimeClient {
     }
 
     socket.onerror = () => {
+      console.error('[RealtimeDebug] SOCKET_ERROR', { url })
       socket.close()
     }
   }
