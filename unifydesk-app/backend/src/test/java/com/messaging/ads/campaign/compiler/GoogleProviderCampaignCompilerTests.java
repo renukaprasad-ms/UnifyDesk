@@ -95,6 +95,11 @@ class GoogleProviderCampaignCompilerTests {
             operation ->
                 operation.resource() == ProviderPlanResource.CAMPAIGN
                     && operation.createPaused());
+    assertThat(plan.operations())
+        .anyMatch(
+            operation ->
+                operation.resource() == ProviderPlanResource.NEGATIVE_KEYWORDS
+                    && "configure-negative-keywords".equals(operation.key()));
   }
 
   @Test

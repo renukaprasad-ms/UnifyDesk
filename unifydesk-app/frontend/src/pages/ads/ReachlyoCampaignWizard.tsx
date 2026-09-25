@@ -39,6 +39,8 @@ import type {
   ReachlyoCampaignObjective,
   ReachlyoCreativePack,
   ReachlyoConversionGoalMapping,
+  GoogleNegativeKeywordInput,
+  GoogleNegativeKeywordList,
 } from '../../features/ads/types'
 import { mediaApi } from '../../features/media/mediaApi'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -315,6 +317,11 @@ export default function ReachlyoCampaignWizard() {
     'PRESENCE' | 'PRESENCE_OR_INTEREST'
   >('PRESENCE_OR_INTEREST')
   const [googleAdSchedules, setGoogleAdSchedules] = useState<GoogleAdScheduleDraft[]>([])
+  const [googleNegativeKeywords, setGoogleNegativeKeywords] = useState<GoogleNegativeKeywordInput[]>([])
+  const [googleNegativeKeywordLists, setGoogleNegativeKeywordLists] =
+    useState<GoogleNegativeKeywordList[]>([])
+  const [selectedGoogleNegativeKeywordListIds, setSelectedGoogleNegativeKeywordListIds] =
+    useState<string[]>([])
 
   const [metaPageId, setMetaPageId] = useState('')
   const [metaInstagramId, setMetaInstagramId] = useState('')
@@ -484,6 +491,36 @@ export default function ReachlyoCampaignWizard() {
             },
           ]
         }),
+      )
+      const savedNegativeKeywords = Array.isArray(override.negativeKeywords)
+        ? override.negativeKeywords
+        : []
+      setGoogleNegativeKeywords(
+        savedNegativeKeywords.flatMap((value) => {
+          if (!value || typeof value !== 'object' || Array.isArray(value)) return []
+          const keyword = value as Record<string, unknown>
+          if (
+            typeof keyword.text !== 'string' ||
+            !['BROAD', 'PHRASE', 'EXACT'].includes(String(keyword.matchType))
+          ) {
+            return []
+          }
+          return [
+            {
+              text: keyword.text,
+              matchType: String(keyword.matchType) as
+                | 'BROAD'
+                | 'PHRASE'
+                | 'EXACT',
+            },
+          ]
+        }),
+      )
+      setSelectedGoogleNegativeKeywordListIds(
+        Array.isArray(override.negativeKeywordSharedSetIds)
+          ? override.negativeKeywordSharedSetIds
+              .filter((value): value is string => typeof value === 'string')
+          : [],
       )
     }
 
@@ -898,6 +935,7 @@ export default function ReachlyoCampaignWizard() {
     const nextConversions: Record<string, AdConversion[]> = {
       ...conversionsByAccount,
     }
+    let nextGoogleNegativeKeywordLists = googleNegativeKeywordLists
 
     await Promise.all(
       accountIds.map(async (accountId) => {
@@ -924,6 +962,14 @@ export default function ReachlyoCampaignWizard() {
             item.accessible && !item.archived && !item.unavailable,
         )
 
+        if (account?.provider === 'GOOGLE_ADS') {
+          nextGoogleNegativeKeywordLists =
+            await adCenterApi.googleNegativeKeywordLists(
+              selectedCompany.companyId,
+              accountId,
+            )
+        }
+
         if (account?.provider === 'META_ADS') {
           const resourceData = await adCenterApi.resources(
             selectedCompany.companyId,
@@ -938,6 +984,7 @@ export default function ReachlyoCampaignWizard() {
 
     setResourcesByAccount(nextResources)
     setConversionsByAccount(nextConversions)
+    setGoogleNegativeKeywordLists(nextGoogleNegativeKeywordLists)
 
     const googleAccount = accountByChannel.GOOGLE_SEARCH
     if (
@@ -1006,6 +1053,13 @@ export default function ReachlyoCampaignWizard() {
             targetContentNetwork: googleContentNetwork,
             positiveGeoTargetType: googleGeoMode,
             adSchedules: googleAdSchedules,
+            negativeKeywords: googleNegativeKeywords
+              .map((keyword) => ({
+                text: keyword.text.trim(),
+                matchType: keyword.matchType,
+              }))
+              .filter((keyword) => keyword.text),
+            negativeKeywordSharedSetIds: selectedGoogleNegativeKeywordListIds,
           }
         }
 
@@ -1915,7 +1969,7 @@ export default function ReachlyoCampaignWizard() {
                       <div>
                         <p className="text-xs font-semibold text-slate-700">Locations</p>
                         <p className="mt-1 text-[11px] leading-4 text-slate-400">
-                          Country, region, city and postal targets map to Google geo targets. Add a radius for proximity targeting.
+                          Country, region, city and postal targets map to Google and Meta provider geo targets during preflight. Radius targeting requires latitude and longitude so both providers can map it safely.
                         </p>
                       </div>
                       <button
@@ -2197,6 +2251,15 @@ export default function ReachlyoCampaignWizard() {
                   setGoogleGeoMode={setGoogleGeoMode}
                   googleAdSchedules={googleAdSchedules}
                   setGoogleAdSchedules={setGoogleAdSchedules}
+                  googleNegativeKeywords={googleNegativeKeywords}
+                  setGoogleNegativeKeywords={setGoogleNegativeKeywords}
+                  googleNegativeKeywordLists={googleNegativeKeywordLists}
+                  selectedGoogleNegativeKeywordListIds={
+                    selectedGoogleNegativeKeywordListIds
+                  }
+                  setSelectedGoogleNegativeKeywordListIds={
+                    setSelectedGoogleNegativeKeywordListIds
+                  }
                   metaPageId={metaPageId}
                   setMetaPageId={setMetaPageId}
                   metaInstagramId={metaInstagramId}

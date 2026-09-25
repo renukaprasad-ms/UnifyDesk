@@ -550,6 +550,47 @@ public class MetaAdsApiClient {
         + "website_purchase_roas";
   }
 
+  public JsonNode searchAdGeoLocations(
+      String accessToken,
+      String query,
+      List<String> locationTypes,
+      String countryCode,
+      int limit) {
+    String typesJson =
+        locationTypes == null || locationTypes.isEmpty()
+            ? null
+            : locationTypes.stream()
+                .map(value -> "\"" + value.replace("\"", "") + "\"")
+                .collect(java.util.stream.Collectors.joining(",", "[", "]"));
+    int safeLimit = Math.max(1, Math.min(limit, 50));
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder -> {
+                      var builder =
+                          uriBuilder
+                              .path("/{version}/search")
+                              .queryParam("type", "adgeolocation")
+                              .queryParam("limit", safeLimit)
+                              .queryParam("appsecret_proof", appSecretProof(accessToken));
+                      if (query != null && !query.isBlank()) {
+                        builder.queryParam("q", query.trim());
+                      }
+                      if (typesJson != null) {
+                        builder.queryParam("location_types", typesJson);
+                      }
+                      if (countryCode != null && !countryCode.isBlank()) {
+                        builder.queryParam("country_code", countryCode.trim().toUpperCase());
+                      }
+                      return builder.build(properties.getGraphApiVersion());
+                    })
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(JsonNode.class));
+  }
+
   public List<CampaignSummary> campaigns(String accessToken, String accountId) {
     List<CampaignSummary> result = new ArrayList<>();
     String after = null;

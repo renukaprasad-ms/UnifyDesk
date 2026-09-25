@@ -167,6 +167,132 @@ class MetaAdsAdSetMutationServiceTests {
   }
 
   @Test
+  void createBuildsDetailedGeoAndRadiusPayload() {
+    AdCampaign campaign = campaign(false);
+    AdAccount account = account();
+    AdProviderConnection connection = connection();
+
+    when(campaignRepository.findByIdAndCompanyId(CAMPAIGN_ID, COMPANY_ID))
+        .thenReturn(Optional.of(campaign));
+    when(accountRepository.findByIdAndCompanyId(ACCOUNT_ID, COMPANY_ID))
+        .thenReturn(Optional.of(account));
+    when(connectionRepository.findByIdAndCompanyId(CONNECTION_ID, COMPANY_ID))
+        .thenReturn(Optional.of(connection));
+    when(tokenService.read(CONNECTION_ID))
+        .thenReturn(
+            new MetaAdsTokenService.TokenValue(
+                new MetaAdsStoredToken("access-token", "bearer", "v26.0", "meta-user"), null));
+
+    ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
+    when(apiClient.createAdSet(
+            eq("access-token"), eq("123456"), payloadCaptor.capture()))
+        .thenReturn("meta-ad-set");
+
+    AdSetSummary snapshot =
+        new AdSetSummary(
+            "meta-ad-set",
+            "Bengaluru traffic",
+            "123456",
+            "meta-campaign",
+            "LINK_CLICKS",
+            "IMPRESSIONS",
+            "LOWEST_COST_WITHOUT_CAP",
+            "WEBSITE",
+            null,
+            "2100",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "PAUSED",
+            "PAUSED",
+            null,
+            null);
+    when(apiClient.adSet("access-token", "meta-ad-set")).thenReturn(snapshot);
+
+    AdSet stored = new AdSet();
+    stored.setId(100L);
+    stored.setCompanyId(COMPANY_ID);
+    stored.setAdAccountId(ACCOUNT_ID);
+    stored.setCampaignId(CAMPAIGN_ID);
+    stored.setProvider(AdProvider.META_ADS);
+    stored.setExternalAdSetId("meta-ad-set");
+    stored.setName("Bengaluru traffic");
+    stored.setStatus(AdEntityStatus.PAUSED);
+    when(persistenceService.persistOne(COMPANY_ID, CAMPAIGN_ID, snapshot))
+        .thenReturn(stored);
+
+    service.create(
+        COMPANY_ID,
+        CAMPAIGN_ID,
+        new CreateMetaAdSetRequest(
+            "Bengaluru traffic",
+            "LINK_CLICKS",
+            "IMPRESSIONS",
+            "LOWEST_COST_WITHOUT_CAP",
+            null,
+            2100L,
+            null,
+            null,
+            null,
+            "WEBSITE",
+            List.of(
+                new CreateMetaAdSetRequest.TargetingLocation(
+                    "IN",
+                    "CITY",
+                    "1028297",
+                    "Bengaluru",
+                    null,
+                    null,
+                    null,
+                    List.of("home", "recent")),
+                new CreateMetaAdSetRequest.TargetingLocation(
+                    "IN",
+                    "CUSTOM",
+                    null,
+                    "Office radius",
+                    12.9716,
+                    77.5946,
+                    10.0,
+                    List.of("home", "recent"))),
+            21,
+            65,
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            null,
+            null,
+            null));
+
+    @SuppressWarnings("unchecked")
+    Map<String, Object> targeting =
+        (Map<String, Object>) payloadCaptor.getValue().get("targeting");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> geoLocations =
+        (Map<String, Object>) targeting.get("geo_locations");
+
+    assertThat(geoLocations.get("cities"))
+        .isEqualTo(List.of(Map.of("key", "1028297")));
+    assertThat(geoLocations.get("location_types"))
+        .isEqualTo(List.of("home", "recent"));
+
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> customLocations =
+        (List<Map<String, Object>>) geoLocations.get("custom_locations");
+    assertThat(customLocations).hasSize(1);
+    assertThat(customLocations.getFirst())
+        .containsEntry("latitude", 12.9716)
+        .containsEntry("longitude", 77.5946)
+        .containsEntry("radius", 10.0)
+        .containsEntry("distance_unit", "kilometer");
+  }
+
+  @Test
   void createRejectsAdSetBudgetWhenCampaignOwnsBudget() {
     AdCampaign campaign = campaign(true);
     when(campaignRepository.findByIdAndCompanyId(CAMPAIGN_ID, COMPANY_ID))

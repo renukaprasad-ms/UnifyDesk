@@ -4,6 +4,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Positive;
@@ -51,5 +53,25 @@ public record CreateMetaAdSetRequest(
   }
 
   public record TargetingLocation(
-      @NotBlank String countryCode, List<String> locationTypes) {}
+      String countryCode,
+      String type,
+      String key,
+      @Size(max = 255) String name,
+      @DecimalMin("-90.0") @DecimalMax("90.0") Double latitude,
+      @DecimalMin("-180.0") @DecimalMax("180.0") Double longitude,
+      @Positive Double radiusKm,
+      List<String> locationTypes) {
+
+    public TargetingLocation(String countryCode, List<String> locationTypes) {
+      this(
+          countryCode,
+          "COUNTRY",
+          countryCode,
+          countryCode,
+          null,
+          null,
+          null,
+          locationTypes);
+    }
+  }
 }

@@ -5,6 +5,7 @@ import MetaAdSetModal from '../../components/ads/MetaAdSetModal'
 import GoogleAdGroupModal from '../../components/ads/GoogleAdGroupModal'
 import GooglePerformanceMaxSignals from '../../components/ads/GooglePerformanceMaxSignals'
 import GooglePerformanceMaxAssets from '../../components/ads/GooglePerformanceMaxAssets'
+import GoogleNegativeKeywordManagement from '../../components/ads/GoogleNegativeKeywordManagement'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -655,6 +656,18 @@ export default function AdCampaignDetails() {
               )}
             </form>
 
+            {campaign.provider === 'GOOGLE_ADS' &&
+              campaign.objective === 'SEARCH' &&
+              account && (
+                <GoogleNegativeKeywordManagement
+                  companyId={selectedCompany.companyId}
+                  campaign={campaign}
+                  account={account}
+                  canCreate={can(PERMISSIONS.ADS_CREATE)}
+                  canModify={can(PERMISSIONS.ADS_MODIFY)}
+                />
+              )}
+
             <div className="panel mt-5 overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
                 <div>
@@ -869,6 +882,7 @@ export default function AdCampaignDetails() {
 
             {account && campaign.provider === 'META_ADS' && (
               <MetaAdSetModal
+                companyId={selectedCompany.companyId}
                 account={account}
                 campaign={campaign}
                 resources={resources}

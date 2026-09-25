@@ -195,27 +195,81 @@ public class MetaAdsAdSetMutationService {
     }
 
     LinkedHashSet<String> countries = new LinkedHashSet<>();
+    List<Map<String, String>> regions = new ArrayList<>();
+    List<Map<String, String>> cities = new ArrayList<>();
+    List<Map<String, String>> zips = new ArrayList<>();
+    List<Map<String, Object>> customLocations = new ArrayList<>();
     LinkedHashSet<String> locationTypes = new LinkedHashSet<>();
+
     for (CreateMetaAdSetRequest.TargetingLocation location : locations) {
-      countries.add(location.countryCode().trim().toUpperCase());
+      if (location == null) continue;
+      String type =
+          location.type() == null || location.type().isBlank()
+              ? "COUNTRY"
+              : location.type().trim().toUpperCase();
+
       if (location.locationTypes() != null) {
         location.locationTypes().stream()
             .filter(value -> value != null && !value.isBlank())
             .map(value -> value.trim().toLowerCase())
-            .forEach(locationTypes::add);
+            .forEach(
+                value -> {
+                  if (!Set.of("home", "recent").contains(value)) {
+                    throw new BadRequestException(
+                        "Meta location types currently support only home and recent");
+                  }
+                  locationTypes.add(value);
+                });
+      }
+
+      switch (type) {
+        case "COUNTRY" -> countries.add(normalizeCountryCode(location.countryCode()));
+        case "REGION" -> regions.add(providerGeoKey(location, "region"));
+        case "CITY" -> cities.add(providerGeoKey(location, "city"));
+        case "ZIP", "POSTAL", "POSTAL_CODE" -> zips.add(providerGeoKey(location, "postal code"));
+        case "CUSTOM", "RADIUS" -> {
+          if (location.latitude() == null
+              || location.longitude() == null
+              || location.radiusKm() == null) {
+            throw new BadRequestException(
+                "Meta radius targeting requires latitude, longitude, and radiusKm");
+          }
+          Map<String, Object> custom = new LinkedHashMap<>();
+          custom.put("latitude", location.latitude());
+          custom.put("longitude", location.longitude());
+          custom.put("radius", location.radiusKm());
+          custom.put("distance_unit", "kilometer");
+          if (location.name() != null && !location.name().isBlank()) {
+            custom.put("name", location.name().trim());
+          }
+          customLocations.add(custom);
+        }
+        default ->
+            throw new BadRequestException(
+                "Meta location type must be COUNTRY, REGION, CITY, ZIP, or CUSTOM");
       }
     }
+
     if (locationTypes.isEmpty()) {
       locationTypes.add("home");
       locationTypes.add("recent");
     }
 
+    Map<String, Object> geoLocations = new LinkedHashMap<>();
+    if (!countries.isEmpty()) geoLocations.put("countries", List.copyOf(countries));
+    if (!regions.isEmpty()) geoLocations.put("regions", List.copyOf(regions));
+    if (!cities.isEmpty()) geoLocations.put("cities", List.copyOf(cities));
+    if (!zips.isEmpty()) geoLocations.put("zips", List.copyOf(zips));
+    if (!customLocations.isEmpty()) {
+      geoLocations.put("custom_locations", List.copyOf(customLocations));
+    }
+    if (geoLocations.isEmpty()) {
+      throw new BadRequestException("At least one valid Meta targeting location is required");
+    }
+    geoLocations.put("location_types", List.copyOf(locationTypes));
+
     Map<String, Object> targeting = new LinkedHashMap<>();
-    targeting.put(
-        "geo_locations",
-        Map.of(
-            "countries", List.copyOf(countries),
-            "location_types", List.copyOf(locationTypes)));
+    targeting.put("geo_locations", geoLocations);
     targeting.put("age_min", ageMin == null ? 18 : ageMin);
     targeting.put("age_max", ageMax == null ? 65 : ageMax);
 
@@ -241,6 +295,22 @@ public class MetaAdsAdSetMutationService {
         companyId,
         accountId);
     return targeting;
+  }
+
+  private Map<String, String> providerGeoKey(
+      CreateMetaAdSetRequest.TargetingLocation location, String label) {
+    if (location.key() == null || location.key().isBlank()) {
+      throw new BadRequestException("Meta " + label + " targeting requires a provider key");
+    }
+    return Map.of("key", location.key().trim());
+  }
+
+  private String normalizeCountryCode(String value) {
+    if (value == null || !value.trim().toUpperCase().matches("[A-Z]{2}")) {
+      throw new BadRequestException(
+          "Meta country targeting requires a two-letter ISO country code");
+    }
+    return value.trim().toUpperCase();
   }
 
   private List<String> normalizePlatforms(List<String> values) {

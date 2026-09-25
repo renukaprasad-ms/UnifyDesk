@@ -7,6 +7,7 @@ public enum ProviderPlanResource {
   AD_GROUP,
   AD_SET,
   KEYWORDS,
+  NEGATIVE_KEYWORDS,
   CREATIVE,
   AD,
   ASSET_GROUP,

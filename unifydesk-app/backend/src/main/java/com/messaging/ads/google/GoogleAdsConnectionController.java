@@ -45,6 +45,11 @@ import com.messaging.ads.google.dto.GoogleCustomerMatchUploadRequest;
 import com.messaging.ads.google.dto.GoogleConversionEventUploadRequest;
 import com.messaging.ads.google.dto.GoogleDataManagerUploadResponse;
 import com.messaging.ads.google.dto.GoogleNativeRecommendation;
+import com.messaging.ads.google.dto.GoogleNegativeKeywordBatchRequest;
+import com.messaging.ads.google.dto.GoogleNegativeKeywordListResponse;
+import com.messaging.ads.google.dto.GoogleNegativeKeywordMutationResponse;
+import com.messaging.ads.google.dto.GoogleNegativeKeywordResponse;
+import com.messaging.ads.google.dto.CreateGoogleNegativeKeywordListRequest;
 import com.messaging.ads.google.dto.GoogleMerchantAccountResponse;
 import com.messaging.ads.google.dto.GoogleMerchantDataSourceResponse;
 import com.messaging.ads.google.dto.CreateGoogleMerchantDataSourceRequest;
@@ -83,6 +88,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsAdGroupMutationService adGroupMutationService;
   private final GoogleAdsKeywordSyncService keywordSyncService;
   private final GoogleAdsKeywordMutationService keywordMutationService;
+  private final GoogleAdsNegativeKeywordService negativeKeywordService;
   private final GoogleAdsAdSyncService adSyncService;
   private final GoogleAdsAdMutationService adMutationService;
   private final GoogleAdsVisualAdService visualAdService;
@@ -407,6 +413,172 @@ public class GoogleAdsConnectionController {
             200,
             keywordMutationService.update(companyId, keywordId, request, userId),
             "Google Ads keyword updated"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/negative-keywords")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleNegativeKeywordResponse>>> campaignNegativeKeywords(
+      @PathVariable Long companyId, @PathVariable Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            negativeKeywordService.campaignNegatives(companyId, campaignId),
+            "Google campaign negative keywords fetched"));
+  }
+
+  @PostMapping("/campaigns/{campaignId}/negative-keywords")
+  public ResponseEntity<ApiResponse<GoogleNegativeKeywordMutationResponse>> addCampaignNegativeKeywords(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @Valid @RequestBody GoogleNegativeKeywordBatchRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            negativeKeywordService.addCampaignNegatives(
+                companyId, campaignId, request, userId),
+            "Google campaign negative keywords updated"));
+  }
+
+  @DeleteMapping("/campaigns/{campaignId}/negative-keywords/{criterionId}")
+  public ResponseEntity<ApiResponse<Boolean>> removeCampaignNegativeKeyword(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @PathVariable String criterionId) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            negativeKeywordService.removeCampaignNegative(
+                companyId, campaignId, criterionId, userId),
+            "Google campaign negative keyword removed"));
+  }
+
+  @GetMapping("/accounts/{accountId}/negative-keyword-lists")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleNegativeKeywordListResponse>>> negativeKeywordLists(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @RequestParam(required = false) Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            negativeKeywordService.sharedLists(companyId, accountId, campaignId),
+            "Google negative keyword lists fetched"));
+  }
+
+  @PostMapping("/accounts/{accountId}/negative-keyword-lists")
+  public ResponseEntity<ApiResponse<GoogleNegativeKeywordListResponse>> createNegativeKeywordList(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody CreateGoogleNegativeKeywordListRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                negativeKeywordService.createSharedList(
+                    companyId, accountId, request, userId),
+                "Google negative keyword list created"));
+  }
+
+  @GetMapping("/accounts/{accountId}/negative-keyword-lists/{sharedSetId}")
+  public ResponseEntity<ApiResponse<GoogleNegativeKeywordListResponse>> negativeKeywordList(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String sharedSetId,
+      @RequestParam(required = false) Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            negativeKeywordService.sharedList(
+                companyId, accountId, sharedSetId, campaignId),
+            "Google negative keyword list fetched"));
+  }
+
+  @GetMapping("/accounts/{accountId}/negative-keyword-lists/{sharedSetId}/members")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleNegativeKeywordResponse>>> negativeKeywordListMembers(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String sharedSetId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            negativeKeywordService.sharedMembers(
+                companyId, accountId, sharedSetId),
+            "Google negative keyword list members fetched"));
+  }
+
+  @PostMapping("/accounts/{accountId}/negative-keyword-lists/{sharedSetId}/members")
+  public ResponseEntity<ApiResponse<GoogleNegativeKeywordMutationResponse>> addNegativeKeywordListMembers(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String sharedSetId,
+      @Valid @RequestBody GoogleNegativeKeywordBatchRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            negativeKeywordService.addSharedMembers(
+                companyId, accountId, sharedSetId, request, userId),
+            "Google negative keyword list members updated"));
+  }
+
+  @DeleteMapping("/accounts/{accountId}/negative-keyword-lists/{sharedSetId}/members/{criterionId}")
+  public ResponseEntity<ApiResponse<Boolean>> removeNegativeKeywordListMember(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String sharedSetId,
+      @PathVariable String criterionId) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            negativeKeywordService.removeSharedMember(
+                companyId, accountId, sharedSetId, criterionId, userId),
+            "Google negative keyword list member removed"));
+  }
+
+  @PostMapping("/campaigns/{campaignId}/negative-keyword-lists/{sharedSetId}")
+  public ResponseEntity<ApiResponse<GoogleNegativeKeywordListResponse>> attachNegativeKeywordList(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @PathVariable String sharedSetId) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            negativeKeywordService.attachSharedList(
+                companyId, campaignId, sharedSetId, userId),
+            "Google negative keyword list attached"));
+  }
+
+  @DeleteMapping("/campaigns/{campaignId}/negative-keyword-lists/{sharedSetId}")
+  public ResponseEntity<ApiResponse<GoogleNegativeKeywordListResponse>> detachNegativeKeywordList(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @PathVariable String sharedSetId) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            negativeKeywordService.detachSharedList(
+                companyId, campaignId, sharedSetId, userId),
+            "Google negative keyword list detached"));
+  }
+
+  @DeleteMapping("/keywords/{keywordId}")
+  public ResponseEntity<ApiResponse<Boolean>> removeKeyword(
+      @PathVariable Long companyId,
+      @PathVariable Long keywordId) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            keywordMutationService.remove(companyId, keywordId, userId),
+            "Google negative keyword removed"));
   }
 
   @PostMapping("/ad-groups/{adGroupId}/ads/sync")
