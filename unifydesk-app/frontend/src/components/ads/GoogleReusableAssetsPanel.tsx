@@ -9,6 +9,7 @@ import type {
   GoogleUrlCustomParameter,
 } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import GoogleAdvancedAssetForm from './GoogleAdvancedAssetForm'
 
 type Props = {
   companyId: string
@@ -326,7 +327,8 @@ export default function GoogleReusableAssetsPanel(props: Props) {
             <div>
               <h3 className="text-sm font-bold text-slate-900">Reusable asset library</h3>
               <p className="mt-1 text-xs text-slate-500">
-                Sitelinks, callouts, and structured snippets created by the advertiser.
+                Advertiser-created sitelinks, callouts, structured snippets, calls,
+                prices, promotions, and lead forms.
               </p>
             </div>
             <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
@@ -370,21 +372,35 @@ export default function GoogleReusableAssetsPanel(props: Props) {
                         {assetSecondary(asset)}
                       </p>
                     </div>
-                    {props.canModify && (
-                      <button
-                        type="button"
-                        className="secondary-button inline-flex items-center gap-2"
-                        disabled={workingId !== null}
-                        onClick={() => void toggleLink(asset)}
-                      >
-                        {attached ? <FiX aria-hidden="true" /> : <FiLink aria-hidden="true" />}
-                        {workingId === asset.id
-                          ? 'Updating…'
-                          : attached
-                            ? 'Detach'
-                            : 'Attach'}
-                      </button>
-                    )}
+                    {props.canModify &&
+                      !(
+                        asset.type === 'LEAD_FORM' &&
+                        current?.level !== 'CAMPAIGN'
+                      ) && (
+                        <button
+                          type="button"
+                          className="secondary-button inline-flex items-center gap-2"
+                          disabled={workingId !== null}
+                          onClick={() => void toggleLink(asset)}
+                        >
+                          {attached ? (
+                            <FiX aria-hidden="true" />
+                          ) : (
+                            <FiLink aria-hidden="true" />
+                          )}
+                          {workingId === asset.id
+                            ? 'Updating…'
+                            : attached
+                              ? 'Detach'
+                              : 'Attach'}
+                        </button>
+                      )}
+                    {asset.type === 'LEAD_FORM' &&
+                      current?.level !== 'CAMPAIGN' && (
+                        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
+                          Campaign only
+                        </span>
+                      )}
                   </div>
                 )
               })}
@@ -548,6 +564,22 @@ export default function GoogleReusableAssetsPanel(props: Props) {
                 </button>
               </div>
             </form>
+          )}
+
+          {props.canCreate && (
+            <GoogleAdvancedAssetForm
+              companyId={props.companyId}
+              accountId={props.accountId}
+              onCreated={(created) => {
+                setAssets((currentAssets) => [
+                  created,
+                  ...currentAssets.filter((item) => item.id !== created.id),
+                ])
+                setNotice(
+                  `${pretty(created.type)} created in the Google asset library.`,
+                )
+              }}
+            />
           )}
         </div>
 
