@@ -32,10 +32,8 @@ const AuthLayout = () => {
         <div className="absolute -right-24 bottom-20 h-80 w-80 rounded-full bg-violet-200/30 blur-3xl" />
 
         <div className="relative z-10 flex shrink-0 items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500 text-lg font-bold text-white shadow-lg shadow-indigo-200">
-            •••
-          </div>
-          <span className="text-2xl font-bold tracking-tight text-slate-900">Messaging</span>
+          <img src="/favicon.svg" alt="" className="h-10 w-10" />
+          <span className="text-2xl font-bold tracking-tight text-slate-900">UnifyDesk</span>
         </div>
 
         <div className="relative z-0 flex min-h-0 flex-1 flex-col justify-top py-8">
@@ -89,7 +87,7 @@ const AuthLayout = () => {
               <div className="h-full w-[70%] rounded-full bg-indigo-500" />
             </div>
             <p className="mt-3 text-[10px] font-medium text-indigo-500">
-              Messaging + marketing, together
+              Communication + marketing, together
             </p>
           </div>
         </div>
@@ -106,10 +104,8 @@ const AuthLayout = () => {
       <section className="flex h-dvh items-center justify-center overflow-y-auto bg-white px-6 py-6 sm:px-10 lg:py-5">
         <div className="w-full max-w-[390px]">
           <div className="mb-7 flex items-center gap-3 lg:hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500 text-sm font-bold text-white">
-              •••
-            </div>
-            <span className="text-xl font-bold text-slate-900">Messaging</span>
+            <img src="/favicon.svg" alt="" className="h-9 w-9" />
+            <span className="text-xl font-bold text-slate-900">UnifyDesk</span>
           </div>
           <Outlet />
         </div>
