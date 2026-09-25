@@ -7,6 +7,7 @@ import type {
   ReachlyoAudienceLocationInput,
 } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import GoogleKeywordForecastPanel from './GoogleKeywordForecastPanel'
 
 type Props = {
   companyId: string
@@ -191,7 +192,7 @@ export default function GoogleKeywordPlannerPanel(props: Props) {
             </span>
           )}
           <span className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-500">
-            Forecasting comes in C3
+            Ideas · history · forecasts
           </span>
         </div>
       </div>
@@ -411,6 +412,21 @@ export default function GoogleKeywordPlannerPanel(props: Props) {
             </div>
           )}
         </div>
+      <GoogleKeywordForecastPanel
+        companyId={props.companyId}
+        accountId={props.accountId}
+        keywords={
+          selected.length > 0
+            ? selected
+            : props.currentKeywords.length > 0
+              ? props.currentKeywords
+              : values(seedText)
+        }
+        locations={plannerLocations}
+        language={language.trim() || null}
+        disabled={props.disabled}
+      />
+
       )}
     </section>
   )
