@@ -83,10 +83,10 @@ spec:
           resources:
             requests:
               cpu: 25m
-              memory: 64Mi
+              memory: 48Mi
             limits:
               cpu: 500m
-              memory: 192Mi
+              memory: 160Mi
           volumeMounts:
             - name: redis-data
               mountPath: /data

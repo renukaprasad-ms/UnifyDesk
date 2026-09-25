@@ -33,21 +33,19 @@ spec:
         app: email-postgres
     spec:
       terminationGracePeriodSeconds: 30
-      securityContext:
-        fsGroup: 999
       containers:
         - name: postgres
           image: postgres:18.6-alpine
           imagePullPolicy: IfNotPresent
           args:
             - -c
-            - max_connections=50
+            - max_connections=40
             - -c
-            - shared_buffers=128MB
+            - shared_buffers=96MB
             - -c
-            - effective_cache_size=256MB
+            - effective_cache_size=192MB
             - -c
-            - maintenance_work_mem=32MB
+            - maintenance_work_mem=24MB
             - -c
             - work_mem=2MB
           env:
@@ -97,7 +95,7 @@ spec:
               memory: 128Mi
             limits:
               cpu: "1"
-              memory: 384Mi
+              memory: 320Mi
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data

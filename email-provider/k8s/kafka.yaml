@@ -39,6 +39,8 @@ spec:
           image: apache/kafka:4.1.0
           imagePullPolicy: IfNotPresent
           env:
+            - name: CLUSTER_ID
+              value: MkU3OEVBNTcwNTJENDM2Qk
             - name: KAFKA_NODE_ID
               value: "1"
             - name: KAFKA_PROCESS_ROLES
@@ -53,6 +55,8 @@ spec:
               value: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
             - name: KAFKA_CONTROLLER_QUORUM_VOTERS
               value: 1@email-kafka-0.email-kafka.email-platform.svc.cluster.local:9093
+            - name: KAFKA_LOG_DIRS
+              value: /var/lib/kafka/data
             - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
               value: "1"
             - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
@@ -89,11 +93,11 @@ spec:
             failureThreshold: 6
           resources:
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: 75m
+              memory: 192Mi
             limits:
               cpu: "1"
-              memory: 640Mi
+              memory: 512Mi
           volumeMounts:
             - name: kafka-data
               mountPath: /var/lib/kafka/data
