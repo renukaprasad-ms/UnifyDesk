@@ -15,5 +15,19 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:8.2-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${EMAIL_PROVIDER_REDIS_PORT:-6380}:6379"
+    volumes:
+      - email-provider-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   email-provider-postgres-data:
+  email-provider-redis-data:
