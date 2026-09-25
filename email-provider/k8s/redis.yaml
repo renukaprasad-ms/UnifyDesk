@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: email-redis
+  namespace: email-platform
+  labels:
+    app: email-redis
+spec:
+  clusterIP: None
+  selector:
+    app: email-redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: email-redis
+  namespace: email-platform
+spec:
+  serviceName: email-redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: email-redis
+  template:
+    metadata:
+      labels:
+        app: email-redis
+    spec:
+      terminationGracePeriodSeconds: 20
+      containers:
+        - name: redis
+          image: redis:8.2-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - >
+              exec redis-server
+              --appendonly yes
+              --appendfsync everysec
+              --requirepass "$EMAIL_PROVIDER_REDIS_PASSWORD"
+              --maxmemory "$EMAIL_PROVIDER_REDIS_MAXMEMORY"
+              --maxmemory-policy volatile-lru
+          env:
+            - name: EMAIL_PROVIDER_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: email-provider-env
+                  key: EMAIL_PROVIDER_REDIS_PASSWORD
+            - name: EMAIL_PROVIDER_REDIS_MAXMEMORY
+              valueFrom:
+                secretKeyRef:
+                  name: email-provider-env
+                  key: EMAIL_PROVIDER_REDIS_MAXMEMORY
+          ports:
+            - name: redis
+              containerPort: 6379
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - redis-cli -a "$EMAIL_PROVIDER_REDIS_PASSWORD" ping | grep -q PONG
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 12
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - redis-cli -a "$EMAIL_PROVIDER_REDIS_PASSWORD" ping | grep -q PONG
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 25m
+              memory: 48Mi
+            limits:
+              cpu: 500m
+              memory: 160Mi
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 1Gi
