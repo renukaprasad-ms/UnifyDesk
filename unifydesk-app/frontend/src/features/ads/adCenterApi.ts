@@ -104,6 +104,7 @@ import type {
   GoogleAdGroupSync,
   GoogleKeywordSync,
   GoogleNegativeKeyword,
+  GoogleSearchTermReport,
   GoogleNegativeKeywordInput,
   GoogleNegativeKeywordList,
   GoogleNegativeKeywordMutation,
@@ -896,6 +897,19 @@ export const adCenterApi = {
     const response = await apiClient.patch<ApiResponse<AdKeyword>>(
       `/api/v1/companies/${companyId}/ads/google/keywords/${keywordId}`,
       input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleSearchTerms(
+    companyId: string,
+    campaignId: string,
+    from: string,
+    to: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleSearchTermReport>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/search-terms`,
+      { params: { from, to } },
     )
     return unwrap(response.data)
   },
