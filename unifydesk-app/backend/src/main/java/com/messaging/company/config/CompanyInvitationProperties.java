@@ -13,5 +13,5 @@ import org.springframework.stereotype.Component;
 public class CompanyInvitationProperties {
 
   private Duration expiry = Duration.ofHours(72);
-  private String frontendBaseUrl = "https://messaging.renukaprasad.in";
+  private String frontendBaseUrl = "https://app.unifydesk.in";
 }
