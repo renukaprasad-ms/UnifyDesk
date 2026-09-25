@@ -1,0 +1,24 @@
+# Reference Postfix configuration for a dedicated Reachlyo mail node.
+# Review hostnames, IPs, TLS certificates, limits and provider policy before production use.
+
+myhostname = mail1.reachlyo.com
+myorigin = $myhostname
+mydestination = localhost
+inet_interfaces = loopback-only
+inet_protocols = all
+
+# Only the local email-provider process may relay through this instance.
+mynetworks = 127.0.0.0/8 [::1]/128
+smtpd_relay_restrictions = permit_mynetworks,reject_unauth_destination
+
+# Deliver directly to recipient MX servers.
+relayhost =
+smtp_helo_name = $myhostname
+smtp_tls_security_level = may
+smtp_tls_loglevel = 1
+
+# Keep Postfix responsible for remote-MX retries after our application receives 250.
+maximal_queue_lifetime = 5d
+bounce_queue_lifetime = 5d
+
+# Production nodes must have matching A/PTR/EHLO and a static public IP.

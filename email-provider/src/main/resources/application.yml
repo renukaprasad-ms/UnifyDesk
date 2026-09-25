@@ -1,0 +1,115 @@
+spring:
+  application:
+    name: email-provider
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5003/email_provider}
+    username: ${SPRING_DATASOURCE_USERNAME:email_provider}
+    password: ${SPRING_DATASOURCE_PASSWORD:email_provider}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
+    url: ${SPRING_FLYWAY_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5003/email_provider}}
+    user: ${SPRING_FLYWAY_USER:${SPRING_DATASOURCE_USERNAME:email_provider}}
+    password: ${SPRING_FLYWAY_PASSWORD:${SPRING_DATASOURCE_PASSWORD:email_provider}}
+    locations: classpath:db/migration
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: ${FLYWAY_BASELINE_VERSION:0}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9001}
+    client-id: ${KAFKA_CLIENT_ID:email-provider}
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:email-provider-delivery}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: record
+    admin:
+      fail-fast: false
+
+server:
+  port: ${EMAIL_PROVIDER_PORT:8010}
+  shutdown: graceful
+
+app:
+  security:
+    credentials:
+      master-key: ${EMAIL_PROVIDER_MASTER_KEY:}
+  dkim:
+    selector: ${EMAIL_PROVIDER_DKIM_SELECTOR:rly1}
+  kafka:
+    enabled: ${EMAIL_PROVIDER_KAFKA_ENABLED:false}
+    partitions: ${EMAIL_PROVIDER_KAFKA_PARTITIONS:6}
+    replication-factor: ${EMAIL_PROVIDER_KAFKA_REPLICATION_FACTOR:1}
+    topics:
+      delivery-requested: ${EMAIL_PROVIDER_DELIVERY_TOPIC:email.delivery.requested}
+      lifecycle: ${EMAIL_PROVIDER_LIFECYCLE_TOPIC:email.lifecycle.events}
+  outbox:
+    batch-size: ${EMAIL_PROVIDER_OUTBOX_BATCH_SIZE:50}
+    poll-interval-ms: ${EMAIL_PROVIDER_OUTBOX_POLL_INTERVAL_MS:250}
+    stale-after-seconds: ${EMAIL_PROVIDER_OUTBOX_STALE_AFTER_SECONDS:120}
+    max-attempts: ${EMAIL_PROVIDER_OUTBOX_MAX_ATTEMPTS:20}
+  delivery:
+    enabled: ${EMAIL_PROVIDER_DELIVERY_ENABLED:false}
+    max-recipients-per-message: ${EMAIL_PROVIDER_MAX_RECIPIENTS:100}
+    max-body-bytes: ${EMAIL_PROVIDER_MAX_BODY_BYTES:5242880}
+    processing-stale-after-seconds: ${EMAIL_PROVIDER_PROCESSING_STALE_AFTER_SECONDS:300}
+    retry:
+      poll-interval-ms: ${EMAIL_PROVIDER_RETRY_POLL_INTERVAL_MS:1000}
+      max-attempts: ${EMAIL_PROVIDER_DELIVERY_MAX_ATTEMPTS:8}
+      initial-seconds: ${EMAIL_PROVIDER_RETRY_INITIAL_SECONDS:60}
+      max-seconds: ${EMAIL_PROVIDER_RETRY_MAX_SECONDS:3600}
+  smtp:
+    host: ${EMAIL_PROVIDER_SMTP_HOST:127.0.0.1}
+    port: ${EMAIL_PROVIDER_SMTP_PORT:25}
+    connect-timeout-ms: ${EMAIL_PROVIDER_SMTP_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${EMAIL_PROVIDER_SMTP_READ_TIMEOUT_MS:10000}
+    ehlo-host: ${EMAIL_PROVIDER_SMTP_EHLO_HOST:localhost}
+    envelope-from-domain: ${EMAIL_PROVIDER_ENVELOPE_FROM_DOMAIN:}
+  feedback:
+    enabled: ${EMAIL_PROVIDER_FEEDBACK_ENABLED:false}
+    token: ${EMAIL_PROVIDER_FEEDBACK_TOKEN:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when-authorized
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: email-provider
+    description: First-party outbound email delivery service for Messaging
+
+logging:
+  pattern:
+    level: "%5p [requestId=%X{requestId:-}]"
+  level:
+    root: INFO
+    com.messaging.emailprovider: INFO
