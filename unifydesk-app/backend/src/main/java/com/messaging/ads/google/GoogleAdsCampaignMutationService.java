@@ -124,6 +124,25 @@ public class GoogleAdsCampaignMutationService {
               "assetAutomationStatus",
               effectiveSettings.finalUrlExpansionEnabled() ? "OPTED_IN" : "OPTED_OUT"));
       campaign.put("assetAutomationSettings", automationSettings);
+      if (!effectiveSettings.termExclusions().isEmpty()
+          || !effectiveSettings.messagingRestrictions().isEmpty()) {
+        Map<String, Object> textGuidelines = new LinkedHashMap<>();
+        if (!effectiveSettings.termExclusions().isEmpty()) {
+          textGuidelines.put("termExclusions", effectiveSettings.termExclusions());
+        }
+        if (!effectiveSettings.messagingRestrictions().isEmpty()) {
+          textGuidelines.put(
+              "messagingRestrictions",
+              effectiveSettings.messagingRestrictions().stream()
+                  .map(
+                      value ->
+                          Map.<String, Object>of(
+                              "restrictionText", value,
+                              "restrictionType", "RESTRICTION_BASED_EXCLUSION"))
+                  .toList());
+        }
+        campaign.put("textGuidelines", textGuidelines);
+      }
     }
     applyBidStrategy(campaign, request.bidStrategy());
     campaign.put(
