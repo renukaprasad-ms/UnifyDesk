@@ -92,7 +92,7 @@ public class ConversionGoalMappingService {
       }
       mapping.setAdConversionId(conversion.getId());
       mapping.setExternalConversionId(conversion.getExternalConversionId());
-      mapping.setProviderEventName(null);
+      mapping.setProviderEventName(normalizeText(conversion.getCustomEventType()));
     } else {
       String eventName = normalizeText(request.providerEventName());
       if (eventName == null) {
