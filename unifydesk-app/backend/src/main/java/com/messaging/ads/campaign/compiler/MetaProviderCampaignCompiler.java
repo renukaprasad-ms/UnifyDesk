@@ -164,21 +164,43 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
       needed.add(com.messaging.ads.campaign.enums.CreativeVariantType.META_REEL);
     }
 
-    Set<com.messaging.ads.campaign.enums.CreativeVariantType> available =
+    java.util.Map<com.messaging.ads.campaign.enums.CreativeVariantType, CreativeVariant> available =
         context.creativeVariants().stream()
             .filter(variant -> variant.getProvider() == context.channel().getProvider())
-            .map(CreativeVariant::getVariantType)
-            .collect(java.util.stream.Collectors.toSet());
+            .collect(
+                java.util.stream.Collectors.toMap(
+                    CreativeVariant::getVariantType,
+                    variant -> variant,
+                    (first, ignored) -> first));
 
     for (com.messaging.ads.campaign.enums.CreativeVariantType type : needed) {
-      if (!available.contains(type)) {
+      CreativeVariant variant = available.get(type);
+      if (variant == null) {
         issues.add(
             ProviderCampaignPlanSupport.warning(
                 "META_PLACEMENT_CREATIVE_VARIANT_MISSING",
                 "creativePack.variants",
                 "Selected Meta placements would benefit from a " + type.name()
                     + " creative variant; the source creative will be reused unless a placement-specific variant is added."));
+      } else if (!hasPlacementMedia(variant)) {
+        issues.add(
+            ProviderCampaignPlanSupport.warning(
+                "META_PLACEMENT_CREATIVE_MEDIA_MISSING",
+                "creativePack.variants",
+                type.name()
+                    + " exists but has no placement-specific image/video; the canonical campaign media will be used where placement customization cannot be assembled."));
       }
+    }
+  }
+
+  private boolean hasPlacementMedia(CreativeVariant variant) {
+    if (isBlank(variant.getAssetSpecJson())) return false;
+    try {
+      JsonNode node = OBJECT_MAPPER.readTree(variant.getAssetSpecJson());
+      JsonNode mediaId = node == null ? null : node.get("mediaId");
+      return mediaId != null && !mediaId.isNull() && !mediaId.asText("").isBlank();
+    } catch (Exception ignored) {
+      return false;
     }
   }
 
