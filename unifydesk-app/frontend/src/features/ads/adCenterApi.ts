@@ -108,6 +108,9 @@ import type {
   GoogleSearchTermReport,
   GoogleAiMaxCombinationReport,
   GoogleBrandSuggestion,
+  GoogleKeywordPlannerIdeasInput,
+  GoogleKeywordPlannerHistoricalInput,
+  GoogleKeywordPlannerResponse,
   GoogleNegativeKeywordInput,
   GoogleNegativeKeywordList,
   GoogleNegativeKeywordMutation,
@@ -909,6 +912,30 @@ export const adCenterApi = {
   ) {
     const response = await apiClient.patch<ApiResponse<AdKeyword>>(
       `/api/v1/companies/${companyId}/ads/google/keywords/${keywordId}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleKeywordPlannerIdeas(
+    companyId: string,
+    accountId: string,
+    input: GoogleKeywordPlannerIdeasInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleKeywordPlannerResponse>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/keyword-planner/ideas`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleKeywordPlannerHistoricalMetrics(
+    companyId: string,
+    accountId: string,
+    input: GoogleKeywordPlannerHistoricalInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleKeywordPlannerResponse>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/keyword-planner/historical-metrics`,
       input,
     )
     return unwrap(response.data)
