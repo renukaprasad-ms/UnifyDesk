@@ -5,6 +5,7 @@ import type {
   ReachlyoCreativePack,
   ReachlyoCreativeVariant,
 } from '../../features/ads/types'
+import { mediaApi } from '../../features/media/mediaApi'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 
 type Props = {
@@ -23,6 +24,8 @@ type Draft = {
   primaryText: string
   headline: string
   description: string
+  mediaId: string
+  mediaFile: File | null
 }
 
 const VARIANTS: Array<{
@@ -34,20 +37,29 @@ const VARIANTS: Array<{
   {
     type: 'META_FEED',
     label: 'Feed',
-    placements: ['feed', 'stream', 'marketplace', 'video_feeds', 'search', 'explore', 'explore_home', 'profile_feed'],
-    hint: 'For Facebook/Instagram feed-style placements.',
+    placements: [
+      'feed',
+      'stream',
+      'marketplace',
+      'video_feeds',
+      'search',
+      'explore',
+      'explore_home',
+      'profile_feed',
+    ],
+    hint: 'Use square or landscape media for feed-style placements.',
   },
   {
     type: 'META_STORY',
     label: 'Stories',
     placements: ['story'],
-    hint: 'For vertical Story placements.',
+    hint: 'Use a vertical image or video for Story placements.',
   },
   {
     type: 'META_REEL',
     label: 'Reels',
     placements: ['reels'],
-    hint: 'For vertical Reels placements.',
+    hint: 'Use a vertical video or image for Reels placements.',
   },
 ]
 
@@ -56,6 +68,16 @@ const parseFirst = (value?: string | null) => {
   try {
     const parsed = JSON.parse(value)
     return Array.isArray(parsed) && typeof parsed[0] === 'string' ? parsed[0] : ''
+  } catch {
+    return ''
+  }
+}
+
+const parseMediaId = (value?: string | null) => {
+  if (!value) return ''
+  try {
+    const parsed = JSON.parse(value) as { mediaId?: string | number }
+    return parsed.mediaId == null ? '' : String(parsed.mediaId)
   } catch {
     return ''
   }
@@ -83,6 +105,7 @@ export default function MetaCreativeVariantsEditor({
 
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
   const [savingType, setSavingType] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
 
   useEffect(() => {
     const next: Record<string, Draft> = {}
@@ -93,10 +116,12 @@ export default function MetaCreativeVariantsEditor({
         primaryText: existing?.primaryText ?? pack.primaryMessage ?? '',
         headline: parseFirst(existing?.headlinesJson) || parseFirst(pack.headlinesJson),
         description: parseFirst(existing?.descriptionsJson) || parseFirst(pack.descriptionsJson),
+        mediaId: parseMediaId(existing?.assetSpecJson),
+        mediaFile: null,
       }
     }
     setDrafts(next)
-  }, [pack.id, pack.updatedAt])
+  }, [pack.id, pack.updatedAt, pack.variants])
 
   const save = async (type: (typeof VARIANTS)[number]['type']) => {
     const draft = drafts[type]
@@ -106,6 +131,7 @@ export default function MetaCreativeVariantsEditor({
     try {
       const existing = existingByType.get(type)
       let variant: ReachlyoCreativeVariant | null = null
+      let mediaId = draft.mediaId
 
       if (!draft.enabled && existing) {
         await adCenterApi.deleteReachlyoCreativeVariant(
@@ -115,6 +141,17 @@ export default function MetaCreativeVariantsEditor({
           existing.id,
         )
       } else if (draft.enabled) {
+        if (draft.mediaFile) {
+          setUploadProgress((current) => ({ ...current, [type]: 1 }))
+          const uploaded = await mediaApi.uploadAdCreative(
+            draft.mediaFile,
+            companyId,
+            (progress) =>
+              setUploadProgress((current) => ({ ...current, [type]: progress })),
+          )
+          mediaId = uploaded.mediaId
+        }
+
         const input = {
           campaignChannelId: channelId,
           name: `${pack.name} · ${type.replace('META_', '').toLowerCase()}`,
@@ -124,6 +161,7 @@ export default function MetaCreativeVariantsEditor({
           descriptions: draft.description.trim() ? [draft.description.trim()] : [],
           callToAction: pack.callToAction ?? null,
           destinationUrl: pack.destinationUrl ?? null,
+          assetSpecJson: mediaId ? JSON.stringify({ mediaId }) : null,
         }
         variant = existing
           ? await adCenterApi.updateReachlyoCreativeVariant(
@@ -147,6 +185,15 @@ export default function MetaCreativeVariantsEditor({
             ...pack.variants.filter((item) => item.id !== existing?.id),
             ...(variant ? [variant] : []),
           ]
+      setDrafts((current) => ({
+        ...current,
+        [type]: {
+          ...current[type],
+          mediaId,
+          mediaFile: null,
+        },
+      }))
+      setUploadProgress((current) => ({ ...current, [type]: 0 }))
       onSaved({ ...pack, variants })
     } catch (error) {
       onError(apiErrorMessage(error, 'Unable to save Meta creative variant'))
@@ -168,7 +215,7 @@ export default function MetaCreativeVariantsEditor({
       <div>
         <h4 className="text-sm font-bold text-slate-900">Placement creative variants</h4>
         <p className="mt-1 text-xs leading-5 text-slate-500">
-          Customize copy for selected Meta placement families. Media-specific variants will build on the same variant records.
+          Customize copy and media for Feed, Stories, and Reels. Image and video uploads are stored as AD_CREATIVE media and validated by the backend.
         </p>
       </div>
 
@@ -179,6 +226,7 @@ export default function MetaCreativeVariantsEditor({
           const recommended = definition.placements.some((placement) =>
             selectedPositions.includes(placement),
           )
+          const progress = uploadProgress[definition.type] ?? 0
           return (
             <div key={definition.type} className="rounded-xl border border-slate-200 p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -218,6 +266,36 @@ export default function MetaCreativeVariantsEditor({
 
               {draft.enabled && (
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
+                    Placement media
+                    <span className="mt-1 block font-normal leading-5 text-slate-500">
+                      {draft.mediaFile
+                        ? draft.mediaFile.name
+                        : draft.mediaId
+                          ? 'Custom placement media is configured.'
+                          : 'No custom media yet; the canonical campaign image is used as fallback.'}
+                    </span>
+                    <input
+                      className="form-input mt-2"
+                      type="file"
+                      accept="image/*,video/*"
+                      disabled={disabled || savingType === definition.type}
+                      onChange={(event) =>
+                        setDrafts((current) => ({
+                          ...current,
+                          [definition.type]: {
+                            ...current[definition.type],
+                            mediaFile: event.target.files?.[0] ?? null,
+                          },
+                        }))
+                      }
+                    />
+                    {progress > 0 && (
+                      <span className="mt-2 block font-normal text-slate-500">
+                        Upload {progress}%
+                      </span>
+                    )}
+                  </label>
                   <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
                     Primary text
                     <textarea
