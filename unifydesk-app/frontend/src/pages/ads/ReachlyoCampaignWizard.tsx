@@ -372,6 +372,7 @@ export default function ReachlyoCampaignWizard() {
     googleAiMaxMessagingRestrictions,
     setGoogleAiMaxMessagingRestrictions,
   ] = useState('')
+  const [googleAiMaxUrlExclusions, setGoogleAiMaxUrlExclusions] = useState('')
   const [googleAdSchedules, setGoogleAdSchedules] = useState<GoogleAdScheduleDraft[]>([])
   const [googleNegativeKeywords, setGoogleNegativeKeywords] = useState<GoogleNegativeKeywordInput[]>([])
   const [googleNegativeKeywordLists, setGoogleNegativeKeywordLists] =
@@ -564,6 +565,13 @@ export default function ReachlyoCampaignWizard() {
       setGoogleAiMaxMessagingRestrictions(
         Array.isArray(override.aiMaxMessagingRestrictions)
           ? override.aiMaxMessagingRestrictions
+              .filter((value): value is string => typeof value === 'string')
+              .join('\n')
+          : '',
+      )
+      setGoogleAiMaxUrlExclusions(
+        Array.isArray(override.aiMaxUrlExclusions)
+          ? override.aiMaxUrlExclusions
               .filter((value): value is string => typeof value === 'string')
               .join('\n')
           : '',
@@ -1217,6 +1225,9 @@ export default function ReachlyoCampaignWizard() {
               : [],
             aiMaxMessagingRestrictions: googleAiMaxEnabled
               ? listValues(googleAiMaxMessagingRestrictions)
+              : [],
+            aiMaxUrlExclusions: googleAiMaxEnabled
+              ? listValues(googleAiMaxUrlExclusions)
               : [],
             adSchedules: googleAdSchedules,
             negativeKeywords: googleNegativeKeywords
@@ -2484,6 +2495,8 @@ export default function ReachlyoCampaignWizard() {
                   setGoogleAiMaxMessagingRestrictions={
                     setGoogleAiMaxMessagingRestrictions
                   }
+                  googleAiMaxUrlExclusions={googleAiMaxUrlExclusions}
+                  setGoogleAiMaxUrlExclusions={setGoogleAiMaxUrlExclusions}
                   googleAdSchedules={googleAdSchedules}
                   setGoogleAdSchedules={setGoogleAdSchedules}
                   googleNegativeKeywords={googleNegativeKeywords}
