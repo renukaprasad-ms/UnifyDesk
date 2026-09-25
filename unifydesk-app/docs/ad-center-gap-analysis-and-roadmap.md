@@ -910,43 +910,64 @@ Reference:
 
 ## G-05 Keyword Planner - P1
 
-Build a planning service.
+Status: **complete for C2**. The unified Google Search audience step now includes a Keyword Planner workflow backed by the current v25 `KeywordPlanIdeaService`.
 
-Inputs:
+Implemented inputs:
 
-- business URL
-- seed keywords
-- locations
-- language
-- network
+- [x] business/page URL
+- [x] up to 20 seed keywords for idea generation
+- [x] URL-only, keyword-only, keyword+URL, and entire-site seed modes
+- [x] canonical campaign country/region/city/postal targets, resolved to Google geo target constants
+- [x] one planning language at a time, resolved from targetable Google language constants
+- [x] Google Search vs Google Search + Search Partners
+- [x] explicit rejection of unsupported proximity/radius planning instead of silently dropping it
 
-Outputs:
+Implemented outputs:
 
-- keyword ideas
-- suggested groups/themes
-- monthly search volume
-- CPC/competition metrics exposed by API
-- forecast metrics
-- selectable keyword list
+- [x] keyword ideas
+- [x] Google concept annotations used as pre-campaign theme labels
+- [x] average monthly searches
+- [x] monthly search-volume history
+- [x] competition level and competition index
+- [x] low/high top-of-page bid ranges
+- [x] average CPC when Google returns it
+- [x] close variants
+- [x] pagination / load-more
+- [x] selectable keyword list merged into the canonical Search-intent field
+- [x] historical-metrics analysis for entered keywords
 
-Recommended Reachlyo flow:
+Operational behavior:
+
+- [x] `GOOGLE_KEYWORD_PLANNER` fine-grained capability is implemented while `GOOGLE_FORECAST` remains planned for C3
+- [x] managed customer-account validation and ADS_CREATE RBAC
+- [x] 6-hour Redis cache for idea responses and 24-hour cache for historical metrics, with best-effort fallback when Redis is unavailable
+- [x] activity audit stores counts/network/cache state but not raw user keyword text
+- [x] loading, empty, error, cached-result, filtering, selection and mobile horizontal-table states
+- [x] backend tests for idea request construction, geo/language resolution, metrics/concept mapping, Redis reuse, historical metrics, and unsupported-radius validation
+
+Google's `GenerateAdGroupThemes` method groups keywords into existing ad groups/campaigns, so it is not used as the pre-campaign grouping primitive. C2 instead exposes current `KEYWORD_CONCEPT` annotations as planning themes. Forecast metrics intentionally remain C3 rather than being folded into this milestone.
+
+Current Reachlyo flow:
 
 ~~~
-Website/Product
+Website/Product + seed terms
    -> keyword ideas
    -> historical metrics
-   -> cluster/theme
+   -> concept/theme review
    -> user selects
-   -> forecast
+   -> canonical Search intents
+   -> C3 forecast
    -> create Search campaign
 ~~~
 
-Cache results because Google rate limits planning services and historical values do not change rapidly.
+Google rate-limits Keyword Planning more tightly than ordinary services and recommends caching/storing results because they are stable over useful periods; historical statistics refresh monthly.
 
 Reference:
 
 - https://developers.google.com/google-ads/api/docs/keyword-planning/overview
 - https://developers.google.com/google-ads/api/docs/keyword-planning/generate-keyword-ideas
+- https://developers.google.com/google-ads/api/docs/keyword-planning/generate-historical-metrics
+- https://developers.google.com/google-ads/api/reference/rpc/v25/KeywordPlanIdeaService
 
 ## G-06 Google assets/extensions - P1
 
@@ -1985,7 +2006,7 @@ B9. [x] campaign-level recommendation improvements — unified deployment/provid
 ## Phase C - Modern Google / P1
 
 C1. [x] AI Max for Search — campaign/ad-group AI Max controls, text and URL automation, text restrictions, retry-safe page-feed inclusions and URL exclusions, verified brand lists, match-source + combination reporting, migration read-back, capability/preflight/audit/UI/tests  
-C2. Keyword Planner  
+C2. [x] Keyword Planner — v25 idea + historical-metrics service, URL/keyword/site seeds, geo/language/network targeting, competition/bid/monthly metrics, concept themes, Redis caching, selectable Search-intent UI, RBAC/audit/tests  
 C3. forecasts  
 C4. reusable Google campaign assets/extensions  
 C5. PMax URL/automation updates  

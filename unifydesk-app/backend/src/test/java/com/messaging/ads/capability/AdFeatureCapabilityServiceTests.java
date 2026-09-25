@@ -70,7 +70,24 @@ class AdFeatureCapabilityServiceTests {
     assertThat(searchTerms.supported()).isTrue();
     assertThat(aiMax.implemented()).isTrue();
     assertThat(aiMax.supported()).isTrue();
-    assertThat(aiMax.availability()).isEqualTo(AdFeatureAvailability.PLANNED);
+
+    var planner =
+        capabilities.stream()
+            .filter(item -> item.feature() == AdFeatureCapability.GOOGLE_KEYWORD_PLANNER)
+            .findFirst()
+            .orElseThrow();
+    assertThat(planner.implemented()).isTrue();
+    assertThat(planner.supported()).isTrue();
+    assertThat(aiMax.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
+    assertThat(planner.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
+
+    var forecast =
+        capabilities.stream()
+            .filter(item -> item.feature() == AdFeatureCapability.GOOGLE_FORECAST)
+            .findFirst()
+            .orElseThrow();
+    assertThat(forecast.implemented()).isFalse();
+    assertThat(forecast.availability()).isEqualTo(AdFeatureAvailability.PLANNED);
   }
 
   @Test
