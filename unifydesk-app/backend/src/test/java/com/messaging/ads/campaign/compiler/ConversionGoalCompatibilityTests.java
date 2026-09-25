@@ -42,5 +42,13 @@ class ConversionGoalCompatibilityTests {
             ConversionGoalCompatibility.defaultMetaStandardEvent(
                 CampaignBusinessGoal.LEAD))
         .isEqualTo("LEAD");
+    assertThat(
+            ConversionGoalCompatibility.defaultMetaStandardEvent(
+                CampaignBusinessGoal.TRAFFIC))
+        .isEqualTo("CONTENT_VIEW");
+    assertThat(
+            ConversionGoalCompatibility.defaultMetaStandardEvent(
+                CampaignBusinessGoal.APP_INSTALL))
+        .isNull();
   }
 }
