@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.ads.entity.AdAccount;
@@ -20,6 +21,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -79,6 +81,16 @@ class GoogleAdsSearchTermServiceTests {
                         "id": "222",
                         "name": "Main ad group"
                       },
+                      "segments": {
+                        "keyword": {
+                          "info": {
+                            "text": "crm software",
+                            "matchType": "BROAD"
+                          }
+                        },
+                        "searchTermMatchType": "NEAR_PHRASE",
+                        "searchTermMatchSource": "ADVERTISER_PROVIDED_KEYWORD"
+                      },
                       "customer": {
                         "currencyCode": "INR"
                       },
@@ -107,10 +119,22 @@ class GoogleAdsSearchTermServiceTests {
           assertThat(row.targetingStatus()).isEqualTo("NONE");
           assertThat(row.adGroupId()).isEqualTo("30");
           assertThat(row.adGroupName()).isEqualTo("Main ad group");
+          assertThat(row.matchedKeyword()).isEqualTo("crm software");
+          assertThat(row.matchedKeywordMatchType()).isEqualTo("BROAD");
+          assertThat(row.searchTermMatchType()).isEqualTo("NEAR_PHRASE");
+          assertThat(row.searchTermMatchSource()).isEqualTo("ADVERTISER_PROVIDED_KEYWORD");
           assertThat(row.spend()).isEqualByComparingTo("25");
           assertThat(row.conversions()).isEqualByComparingTo("2");
           assertThat(row.cpa()).isEqualByComparingTo("12.5");
+          assertThat(row.roas()).isEqualByComparingTo("4");
         });
+
+    ArgumentCaptor<String> query = ArgumentCaptor.forClass(String.class);
+    verify(apiClient)
+        .searchRows(eq("token"), eq("1234567890"), eq(null), query.capture());
+    assertThat(query.getValue()).contains("FROM search_term_view");
+    assertThat(query.getValue()).contains("segments.keyword.info.text");
+    assertThat(query.getValue()).contains("segments.search_term_match_source");
   }
 
   @Test
