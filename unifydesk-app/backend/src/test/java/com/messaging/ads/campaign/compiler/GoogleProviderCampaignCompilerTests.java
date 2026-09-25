@@ -173,6 +173,84 @@ class GoogleProviderCampaignCompilerTests {
         .anyMatch(issue -> "AUDIENCE_MAPPING_APPROXIMATE".equals(issue.code()));
   }
 
+  @Test
+  void requiresAiMaxCapabilityAndWarnsWhenKeywordMatchTypesWillBeOverridden() {
+    GoogleProviderCampaignCompiler compiler = new GoogleProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(12L);
+    campaign.setName("AI Max search");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+    campaign.setLandingPageUrl("https://example.com");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(22L);
+    channel.setReachlyoCampaignId(12L);
+    channel.setProvider(AdProvider.GOOGLE_ADS);
+    channel.setChannelType(CampaignChannelType.GOOGLE_SEARCH);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(5_000L);
+    channel.setProviderOverrideJson(
+        "{\"aiMaxEnabled\":true,\"aiMaxTextCustomizationEnabled\":true,"
+            + "\"aiMaxFinalUrlExpansionEnabled\":true,"
+            + "\"aiMaxDisableSearchTermMatching\":false,"
+            + "\"keywordMatchType\":\"EXACT\"}");
+
+    AdAccount account = new AdAccount();
+    account.setId(32L);
+    account.setProvider(AdProvider.GOOGLE_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(5_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(42L);
+    pack.setHeadlinesJson("[\"Headline one\",\"Headline two\",\"Headline three\"]");
+    pack.setDescriptionsJson("[\"Description one\",\"Description two\"]");
+    pack.setDestinationUrl("https://example.com");
+
+    AudienceDefinition audience = new AudienceDefinition();
+    audience.setId(52L);
+    audience.setSearchIntentJson("[\"crm software\"]");
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities =
+        new EnumMap<>(AdFeatureCapability.class);
+    capabilities.put(
+        AdFeatureCapability.CAMPAIGN_CREATE, available(AdFeatureCapability.CAMPAIGN_CREATE));
+    capabilities.put(
+        AdFeatureCapability.GOOGLE_SEARCH, available(AdFeatureCapability.GOOGLE_SEARCH));
+    capabilities.put(
+        AdFeatureCapability.CREATIVE_CREATE, available(AdFeatureCapability.CREATIVE_CREATE));
+    capabilities.put(
+        AdFeatureCapability.GOOGLE_AI_MAX, available(AdFeatureCapability.GOOGLE_AI_MAX));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(),
+                List.of(),
+                audience,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isTrue();
+    assertThat(plan.requiredCapabilities()).contains(AdFeatureCapability.GOOGLE_AI_MAX);
+    assertThat(plan.issues())
+        .anyMatch(issue -> "AI_MAX_KEYWORD_MATCH_TYPE_OVERRIDDEN".equals(issue.code()));
+    assertThat(plan.operations())
+        .anyMatch(operation -> "configure-ai-max-ad-group".equals(operation.key()));
+  }
+
   private AdFeatureCapabilityResponse available(AdFeatureCapability feature) {
     return new AdFeatureCapabilityResponse(
         feature,
