@@ -18,6 +18,7 @@ import {
 } from 'react-icons/fi'
 import { Link, useNavigate, useParams } from 'react-router'
 import ReachlyoLaunchRunPanel from '../../components/ads/ReachlyoLaunchRunPanel'
+import ReachlyoCampaignAnalyticsPanel from '../../components/ads/ReachlyoCampaignAnalyticsPanel'
 import ReachlyoProviderPlanReview from '../../components/ads/ReachlyoProviderPlanReview'
 import ReachlyoProviderSettingsStep, {
   type GoogleAdScheduleDraft,
@@ -291,6 +292,7 @@ export default function ReachlyoCampaignWizard() {
   const navigate = useNavigate()
   const { can } = useIam()
   const canEdit = can(PERMISSIONS.ADS_CREATE) || can(PERMISSIONS.ADS_MODIFY)
+  const canSyncAnalytics = can(PERMISSIONS.ADS_MODIFY)
 
   const [step, setStep] = useState(0)
   const [campaign, setCampaign] = useState<ReachlyoCampaign | null>(null)
@@ -2567,6 +2569,14 @@ export default function ReachlyoCampaignWizard() {
                       Review provider plans
                     </button>
                   </div>
+                )}
+
+                {campaign && campaign.deployments.length > 0 && (
+                  <ReachlyoCampaignAnalyticsPanel
+                    companyId={selectedCompany.companyId}
+                    campaignId={campaign.id}
+                    canSync={canSyncAnalytics}
+                  />
                 )}
 
                 {launchRuns.length > 1 && (
