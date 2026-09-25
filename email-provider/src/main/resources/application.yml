@@ -8,7 +8,9 @@ spring:
     driver-class-name: org.postgresql.Driver
   data:
     redis:
-      url: ${EMAIL_PROVIDER_REDIS_URL:redis://localhost:6380}
+      host: ${EMAIL_PROVIDER_REDIS_HOST:localhost}
+      port: ${EMAIL_PROVIDER_REDIS_PORT:6379}
+      password: ${EMAIL_PROVIDER_REDIS_PASSWORD:}
       connect-timeout: 2s
       timeout: 2s
   jpa:
@@ -103,7 +105,7 @@ app:
       read-timeout-ms: ${EMAIL_PROVIDER_VALIDATION_SMTP_READ_TIMEOUT_MS:6000}
       probes-per-domain-per-minute: ${EMAIL_PROVIDER_VALIDATION_PROBES_PER_DOMAIN_PER_MINUTE:20}
       per-domain-concurrency: ${EMAIL_PROVIDER_VALIDATION_PER_DOMAIN_CONCURRENCY:2}
-      acquire-timeout-ms: ${EMAIL_PROVIDER_VALIDATION_ACQUIRE_TIMEOUT_MS:1500}
+      concurrency-lease-seconds: ${EMAIL_PROVIDER_VALIDATION_CONCURRENCY_LEASE_SECONDS:20}
   smtp:
     host: ${EMAIL_PROVIDER_SMTP_HOST:127.0.0.1}
     port: ${EMAIL_PROVIDER_SMTP_PORT:25}
