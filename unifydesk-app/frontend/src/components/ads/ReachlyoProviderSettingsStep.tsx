@@ -3,6 +3,8 @@ import { FiClock, FiPlus, FiRefreshCw, FiTrash2 } from 'react-icons/fi'
 import type {
   AdAccountResource,
   AdConversion,
+  GoogleNegativeKeywordInput,
+  GoogleNegativeKeywordList,
   CampaignBusinessGoal,
   CampaignChannelType,
 } from '../../features/ads/types'
@@ -35,6 +37,11 @@ type Props = {
   setGoogleGeoMode: (value: 'PRESENCE' | 'PRESENCE_OR_INTEREST') => void
   googleAdSchedules: GoogleAdScheduleDraft[]
   setGoogleAdSchedules: (value: GoogleAdScheduleDraft[]) => void
+  googleNegativeKeywords: GoogleNegativeKeywordInput[]
+  setGoogleNegativeKeywords: (value: GoogleNegativeKeywordInput[]) => void
+  googleNegativeKeywordLists: GoogleNegativeKeywordList[]
+  selectedGoogleNegativeKeywordListIds: string[]
+  setSelectedGoogleNegativeKeywordListIds: (value: string[]) => void
   metaPageId: string
   setMetaPageId: (value: string) => void
   metaInstagramId: string
@@ -336,6 +343,160 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="mt-5 border-t border-slate-100 pt-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h4 className="text-sm font-bold text-slate-900">Negative keywords</h4>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Campaign negatives apply to every ad group in this Search campaign. Reusable lists stay managed in Google Ads and can be attached here.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="secondary-button inline-flex items-center gap-2"
+                disabled={props.disabled}
+                onClick={() =>
+                  props.setGoogleNegativeKeywords([
+                    ...props.googleNegativeKeywords,
+                    { text: '', matchType: 'PHRASE' },
+                  ])
+                }
+              >
+                <FiPlus aria-hidden="true" />
+                Add negative
+              </button>
+            </div>
+
+            {props.googleNegativeKeywords.length === 0 ? (
+              <p className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
+                No campaign-level negative keywords configured.
+              </p>
+            ) : (
+              <div className="mt-4 grid gap-2">
+                {props.googleNegativeKeywords.map((keyword, index) => (
+                  <div
+                    key={index}
+                    className="grid gap-2 rounded-xl border border-slate-100 p-3 sm:grid-cols-[1fr_150px_auto]"
+                  >
+                    <input
+                      className="form-input"
+                      value={keyword.text}
+                      maxLength={80}
+                      disabled={props.disabled}
+                      placeholder="free, jobs, support…"
+                      onChange={(event) =>
+                        props.setGoogleNegativeKeywords(
+                          props.googleNegativeKeywords.map((item, itemIndex) =>
+                            itemIndex === index
+                              ? { ...item, text: event.target.value }
+                              : item,
+                          ),
+                        )
+                      }
+                    />
+                    <select
+                      className="form-input"
+                      value={keyword.matchType}
+                      disabled={props.disabled}
+                      onChange={(event) =>
+                        props.setGoogleNegativeKeywords(
+                          props.googleNegativeKeywords.map((item, itemIndex) =>
+                            itemIndex === index
+                              ? {
+                                  ...item,
+                                  matchType: event.target.value as
+                                    | 'BROAD'
+                                    | 'PHRASE'
+                                    | 'EXACT',
+                                }
+                              : item,
+                          ),
+                        )
+                      }
+                    >
+                      <option value="BROAD">Broad</option>
+                      <option value="PHRASE">Phrase</option>
+                      <option value="EXACT">Exact</option>
+                    </select>
+                    <button
+                      type="button"
+                      className="secondary-button inline-flex items-center justify-center"
+                      disabled={props.disabled}
+                      aria-label="Remove negative keyword"
+                      onClick={() =>
+                        props.setGoogleNegativeKeywords(
+                          props.googleNegativeKeywords.filter(
+                            (_, itemIndex) => itemIndex !== index,
+                          ),
+                        )
+                      }
+                    >
+                      <FiTrash2 aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-5">
+              <p className="text-xs font-semibold text-slate-700">
+                Reusable negative keyword lists
+              </p>
+              {props.googleNegativeKeywordLists.length === 0 ? (
+                <p className="mt-2 rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
+                  No reusable negative keyword lists were found on this Google Ads account.
+                </p>
+              ) : (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {props.googleNegativeKeywordLists.map((list) => {
+                    const checked =
+                      props.selectedGoogleNegativeKeywordListIds.includes(list.id)
+                    return (
+                      <label
+                        key={list.id}
+                        className={
+                          'flex cursor-pointer items-start gap-3 rounded-xl border p-3 ' +
+                          (checked
+                            ? 'border-indigo-200 bg-indigo-50/50'
+                            : 'border-slate-200')
+                        }
+                      >
+                        <input
+                          className="mt-1"
+                          type="checkbox"
+                          checked={checked}
+                          disabled={props.disabled}
+                          onChange={(event) =>
+                            props.setSelectedGoogleNegativeKeywordListIds(
+                              event.target.checked
+                                ? [
+                                    ...new Set([
+                                      ...props.selectedGoogleNegativeKeywordListIds,
+                                      list.id,
+                                    ]),
+                                  ]
+                                : props.selectedGoogleNegativeKeywordListIds.filter(
+                                    (id) => id !== list.id,
+                                  ),
+                            )
+                          }
+                        />
+                        <span>
+                          <span className="block text-sm font-semibold text-slate-800">
+                            {list.name}
+                          </span>
+                          <span className="mt-1 block text-xs text-slate-500">
+                            {list.memberCount} keyword{list.memberCount === 1 ? '' : 's'} · used by {list.referenceCount} campaign{list.referenceCount === 1 ? '' : 's'}
+                          </span>
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </section>
       )}

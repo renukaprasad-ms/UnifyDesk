@@ -827,19 +827,21 @@ Reference:
 
 ## G-02 Negative keywords - P0
 
-Missing:
+Status: **core management complete**. Reachlyo now supports ad-group negatives, campaign negatives, reusable Google shared negative keyword lists, provider-live read-through/sync, attach/detach, bulk entry, and unified-launch application. Search-term suggestions and the "search term -> add as negative" action remain intentionally coupled to G-03/B8 search-term reporting.
 
-- campaign negative keywords
-- ad-group negative keywords where supported
-- shared negative keyword lists
-- attach/detach shared lists
-- sync existing negatives
+Missing/next integration:
+
+- [x] campaign negative keywords
+- [x] ad-group negative keywords where supported
+- [x] shared negative keyword lists
+- [x] attach/detach shared lists
+- [x] sync/read existing negatives
 
 Frontend:
 
-- suggestions
-- bulk add
-- search-term -> add as negative action
+- [x] bulk add
+- suggestions — deliver with search-term reporting so suggestions are evidence-backed
+- search-term -> add as negative action — deliver with G-03/B8
 
 Reference:
 
@@ -1935,7 +1937,7 @@ A user can create one Reachlyo Campaign and deploy a simple valid campaign to Go
 ## Phase B - Core parity gaps / P0-P1
 
 B1. [x] Google geo/language/network/daypart targeting — canonical country/region/city/postal/proximity + language mapping, Search Partners/Display expansion, presence mode, quarter-hour dayparting, provider preflight and idempotent campaign-criterion execution  
-B2. Google negative keywords/shared negatives  
+B2. [x] Google negative keywords/shared negatives — ad-group negative create/remove + sync, campaign negatives with bulk add/remove, live reusable shared-list discovery/member management/attach-detach, unified campaign selection, preflight validation and idempotent launch execution  
 B3. Meta detailed geo targeting  
 B4. Meta proper placement tree  
 B5. placement-specific Creative Pack variants  

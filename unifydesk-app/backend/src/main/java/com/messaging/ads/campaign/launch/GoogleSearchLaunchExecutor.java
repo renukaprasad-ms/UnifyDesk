@@ -36,6 +36,7 @@ import com.messaging.ads.google.GoogleAdsCampaignMutationService;
 import com.messaging.ads.google.GoogleAdsCampaignTargetingService;
 import com.messaging.ads.google.GoogleAdsCampaignSyncService;
 import com.messaging.ads.google.GoogleAdsKeywordMutationService;
+import com.messaging.ads.google.GoogleAdsNegativeKeywordService;
 import com.messaging.ads.google.GoogleAdsKeywordSyncService;
 import com.messaging.ads.google.dto.CreateGoogleAdGroupRequest;
 import com.messaging.ads.google.dto.CreateGoogleCampaignRequest;
@@ -81,6 +82,7 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
   private final GoogleAdsAdGroupSyncService adGroupSyncService;
   private final GoogleAdsKeywordMutationService keywordMutationService;
   private final GoogleAdsKeywordSyncService keywordSyncService;
+  private final GoogleAdsNegativeKeywordService negativeKeywordService;
   private final GoogleAdsAdMutationService adMutationService;
   private final GoogleAdsAdSyncService adSyncService;
   private final ProviderDeploymentService deploymentService;
@@ -241,6 +243,17 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
               "audience",
               exception.getMessage()));
     }
+
+    try {
+      negativeKeywordService.validateLaunchConfiguration(
+          companyId, account.getId(), override);
+    } catch (BadRequestException exception) {
+      issues.add(
+          error(
+              "GOOGLE_NEGATIVE_KEYWORDS_INVALID",
+              "providerOverride.negativeKeywords",
+              exception.getMessage()));
+    }
     return issues;
   }
 
@@ -263,6 +276,8 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
           createAdGroup(companyId, run, plan, step, campaign, channel);
       case "configure-keywords" ->
           configureKeywords(companyId, run, plan, step);
+      case "configure-negative-keywords" ->
+          configureNegativeKeywords(companyId, run, step, campaign, channel);
       case "create-provider-creative" ->
           createSearchAd(companyId, run, plan, step, campaign);
       case "configure-conversion-goal" ->
@@ -440,6 +455,33 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
         firstId,
         firstExternal,
         Map.of("createdCount", created, "requestedCount", terms.size(), "matchType", matchType));
+  }
+
+  private LaunchStepExecutionResult configureNegativeKeywords(
+      Long companyId,
+      LaunchRun run,
+      LaunchStep step,
+      ReachlyoCampaign campaign,
+      CampaignChannel channel) {
+    AdCampaign providerCampaign = providerCampaign(companyId, step.getProviderDeploymentId());
+    var result =
+        negativeKeywordService.applyLaunchConfiguration(
+            companyId,
+            providerCampaign.getId(),
+            override(channel),
+            run.getRequestedByUserId());
+    return LaunchStepExecutionResult.succeeded(
+        null,
+        null,
+        Map.of(
+            "campaignNegativeKeywordsCreated",
+            result.campaignNegativeKeywordsCreated(),
+            "campaignNegativeKeywordsReused",
+            result.campaignNegativeKeywordsReused(),
+            "sharedListsAttached",
+            result.sharedListsAttached(),
+            "sharedListsReused",
+            result.sharedListsReused()));
   }
 
   private LaunchStepExecutionResult createSearchAd(
