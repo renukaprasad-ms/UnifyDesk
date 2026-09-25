@@ -5,6 +5,7 @@ import GoogleKeywordModal from './GoogleKeywordModal'
 import GoogleResponsiveSearchAdModal from './GoogleResponsiveSearchAdModal'
 import GoogleVisualAdModal from './GoogleVisualAdModal'
 import GoogleDemandGenCreativeModal from './GoogleDemandGenCreativeModal'
+import GoogleReusableAssetsPanel from './GoogleReusableAssetsPanel'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   Ad,
@@ -431,6 +432,16 @@ export default function GoogleAdGroupDetails({
 
         {isSearch && (
           <>
+        {!isVideo && account && (
+          <GoogleReusableAssetsPanel
+            companyId={companyId}
+            accountId={account.id}
+            adGroupId={adGroup.id}
+            canCreate={can(PERMISSIONS.ADS_CREATE)}
+            canModify={can(PERMISSIONS.ADS_MODIFY)}
+          />
+        )}
+
         <div className="panel mt-5 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
             <div><h2 className="font-bold text-slate-950">Keywords</h2><p className="mt-1 text-xs text-slate-500">Broad, phrase, exact, and negative keywords for this ad group.</p></div>
