@@ -138,6 +138,7 @@ export default function EmailInbox() {
   const completedSyncRefreshesRef = useRef(new Set<string>())
   const trackedSyncJobIdsRef = useRef(new Set<string>())
   const autoReadConversationRef = useRef<string | null>(null)
+  const autoReadAttemptedRef = useRef(new Set<string>())
   const realtimeBatchRef = useRef<{
     conversationIds: Set<string>
     messageIds: Set<string>
@@ -627,10 +628,11 @@ export default function EmailInbox() {
           )
         }
       } catch (requestError) {
-        snackbar.error(
-          apiErrorMessage(requestError, 'Unable to update conversation read state'),
-        )
-        void refreshInbox(selectedConversationId === conversation.id)
+        if (!silent) {
+          snackbar.error(
+            apiErrorMessage(requestError, 'Unable to update conversation read state'),
+          )
+        }
       } finally {
         setReadUpdatingConversationId(null)
       }
@@ -640,8 +642,6 @@ export default function EmailInbox() {
       companyId,
       dispatch,
       readUpdatingConversationId,
-      refreshInbox,
-      selectedConversationId,
       snackbar,
     ],
   )
@@ -653,12 +653,14 @@ export default function EmailInbox() {
       selectedConversation.unreadCount <= 0 ||
       !can(PERMISSIONS.EMAIL_MODIFY) ||
       readUpdatingConversationId === selectedConversation.id ||
-      autoReadConversationRef.current === selectedConversation.id
+      autoReadConversationRef.current === selectedConversation.id ||
+      autoReadAttemptedRef.current.has(selectedConversation.id)
     ) {
       return
     }
 
     autoReadConversationRef.current = selectedConversation.id
+    autoReadAttemptedRef.current.add(selectedConversation.id)
     void changeConversationReadState(selectedConversation, true, true).finally(() => {
       if (autoReadConversationRef.current === selectedConversation.id) {
         autoReadConversationRef.current = null
@@ -723,9 +725,8 @@ export default function EmailInbox() {
     setSearchParams(params)
     setMobileConversationOpen(true)
 
-    if (conversation.unreadCount > 0 && can(PERMISSIONS.EMAIL_MODIFY)) {
-      void changeConversationReadState(conversation, true, true)
-    }
+    // Opening a conversation is enough to trigger the single automatic read-state attempt.
+    // Avoid firing the same mutation here and again from the selected-conversation effect.
   }
 
   const resetCompose = () => {
