@@ -7,6 +7,7 @@ import GooglePerformanceMaxSignals from '../../components/ads/GooglePerformanceM
 import GooglePerformanceMaxAssets from '../../components/ads/GooglePerformanceMaxAssets'
 import GoogleNegativeKeywordManagement from '../../components/ads/GoogleNegativeKeywordManagement'
 import GoogleSearchTermReport from '../../components/ads/GoogleSearchTermReport'
+import GoogleAiMaxCombinationReport from '../../components/ads/GoogleAiMaxCombinationReport'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -666,6 +667,10 @@ export default function AdCampaignDetails() {
                     campaign={campaign}
                     canCreate={can(PERMISSIONS.ADS_CREATE)}
                     canModify={can(PERMISSIONS.ADS_MODIFY)}
+                  />
+                  <GoogleAiMaxCombinationReport
+                    companyId={selectedCompany.companyId}
+                    campaignId={campaign.id}
                   />
                   <GoogleNegativeKeywordManagement
                     companyId={selectedCompany.companyId}
