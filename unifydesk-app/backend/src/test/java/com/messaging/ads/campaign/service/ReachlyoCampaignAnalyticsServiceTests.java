@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 
 import com.messaging.ads.campaign.entity.CampaignChannel;
 import com.messaging.ads.campaign.entity.ProviderDeployment;
@@ -202,6 +203,33 @@ class ReachlyoCampaignAnalyticsServiceTests {
     assertThat(result.exactRangeAvailable()).isFalse();
     assertThat(result.summary().spend()).isEqualByComparingTo("40");
     assertThat(result.summary().conversions()).isEqualByComparingTo("3");
+  }
+
+  @Test
+  void returnsPartialSyncFailuresWithoutDiscardingStoredAnalytics() {
+    stubCampaignGraph();
+    when(insightRepository
+            .findByCompanyIdAndCampaignIdInAndInsightLevelAndGranularityAndInsightDateBetweenOrderByInsightDateAsc(
+                any(), any(), any(), any(), any(), any()))
+        .thenReturn(List.of());
+    when(insightRepository
+            .findByCompanyIdAndCampaignIdInAndInsightLevelAndGranularityAndInsightDateAndPeriodEnd(
+                any(), any(), any(), any(), any(), any()))
+        .thenReturn(List.of());
+    doThrow(new BadRequestException("Google temporary provider error"))
+        .when(googleInsightSyncService)
+        .sync(1L, 40L, from, to);
+
+    var result = service.sync(1L, 10L, from, to);
+
+    assertThat(result.synchronizedAccounts()).isEqualTo(1);
+    assertThat(result.failures()).singleElement().satisfies(
+        failure -> {
+          assertThat(failure.provider()).isEqualTo(AdProvider.GOOGLE_ADS);
+          assertThat(failure.adAccountId()).isEqualTo("40");
+          assertThat(failure.message()).contains("Google temporary provider error");
+        });
+    assertThat(result.analytics()).isNotNull();
   }
 
   @Test
