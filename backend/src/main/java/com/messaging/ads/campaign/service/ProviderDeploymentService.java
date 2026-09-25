@@ -77,6 +77,13 @@ public class ProviderDeploymentService {
     return deploymentRepository.save(deployment);
   }
 
+  @Transactional(readOnly = true)
+  public ProviderDeployment get(Long companyId, Long deploymentId) {
+    return deploymentRepository
+        .findByIdAndCompanyId(deploymentId, companyId)
+        .orElseThrow(() -> new NotFoundException("Provider deployment not found"));
+  }
+
   @Transactional
   public ProviderDeployment bindProviderCampaign(
       Long companyId, Long deploymentId, Long localCampaignId) {

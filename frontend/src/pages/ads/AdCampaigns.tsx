@@ -310,14 +310,23 @@ export default function AdCampaigns() {
           <div>
             <p className="eyebrow">Ad Center</p>
             <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
-              Campaigns
+              Provider campaigns
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Manage campaigns across connected ad providers. New campaigns are created paused so their delivery structure can be reviewed first.
+              Inspect and manage raw Google and Meta campaign objects. For one campaign brief that compiles across providers, use Unified campaigns.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
+            {can(PERMISSIONS.ADS_CREATE) && (
+              <Link
+                to="/ad-center/unified-campaigns/new"
+                className="primary-button inline-flex items-center gap-2"
+              >
+                <FiPlus aria-hidden="true" />
+                Create unified campaign
+              </Link>
+            )}
             {can(PERMISSIONS.ADS_MODIFY) && (
               <button
                 type="button"

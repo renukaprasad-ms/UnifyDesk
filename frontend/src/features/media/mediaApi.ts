@@ -46,6 +46,10 @@ export const mediaApi = {
     return mediaApi.initiateUpload(file, 'TEMPLATE_MEDIA', companyId)
   },
 
+  async initiateAdCreativeUpload(file: File, companyId: string) {
+    return mediaApi.initiateUpload(file, 'AD_CREATIVE', companyId)
+  },
+
   async uploadFileToStorage(
     upload: InitiateMediaUploadResponse,
     file: File,
@@ -74,6 +78,18 @@ export const mediaApi = {
       `/api/v1/media/company/${companyId}`,
     )
     return unwrap(response.data)
+  },
+
+  async uploadAdCreative(
+    file: File,
+    companyId: string,
+    onProgress?: (progress: number) => void,
+  ) {
+    const upload = await mediaApi.initiateAdCreativeUpload(file, companyId)
+    await mediaApi.uploadFileToStorage(upload, file, onProgress)
+    await mediaApi.completeUpload(upload.mediaId)
+    const access = await mediaApi.access(upload.mediaId)
+    return { mediaId: upload.mediaId, access }
   },
 
   async uploadTemplateMedia(

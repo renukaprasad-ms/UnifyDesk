@@ -10,6 +10,9 @@ public interface AdCreativeRepository extends JpaRepository<AdCreative, Long> {
   List<AdCreative> findByCompanyIdAndAdAccountIdOrderByProviderUpdatedAtDesc(
       Long companyId, Long adAccountId);
   Optional<AdCreative> findByIdAndCompanyId(Long id, Long companyId);
+  Optional<AdCreative> findFirstByCompanyIdAndAdAccountIdAndProviderAndNameOrderByIdAsc(
+      Long companyId, Long adAccountId, AdProvider provider, String name);
+
   Optional<AdCreative> findByCompanyIdAndAdAccountIdAndProviderAndExternalCreativeId(
       Long companyId, Long adAccountId, AdProvider provider, String externalCreativeId);
 }

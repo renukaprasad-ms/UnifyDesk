@@ -1,5 +1,6 @@
 package com.messaging.ads.service;
 
+import com.messaging.ads.capability.AdFeatureCapabilityService;
 import com.messaging.ads.dto.AdAccountResponse;
 import com.messaging.ads.dto.AdProviderConnectionResponse;
 import com.messaging.ads.dto.AdProviderResponse;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AdCenterService {
 
   private final AdsProviderRegistry providerRegistry;
+  private final AdFeatureCapabilityService featureCapabilityService;
   private final AdAccountRepository accountRepository;
   private final AdProviderConnectionRepository connectionRepository;
   private final AdProviderCredentialService credentialService;
@@ -38,7 +40,8 @@ public class AdCenterService {
                     provider,
                     provider.displayName(),
                     providerRegistry.isConfigured(provider),
-                    providerRegistry.capabilities(provider)))
+                    providerRegistry.capabilities(provider),
+                    featureCapabilityService.providerCapabilities(provider)))
         .toList();
   }
 

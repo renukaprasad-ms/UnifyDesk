@@ -18,6 +18,7 @@ import type {
   AdKeyword,
   AdProviderConnection,
   AdProviderInfo,
+  AdFeatureCapabilityInfo,
   ReachlyoCampaign,
   ReachlyoCampaignSummary,
   CreateReachlyoCampaignInput,
@@ -25,6 +26,10 @@ import type {
   CreateReachlyoCampaignChannelInput,
   UpdateReachlyoCampaignChannelInput,
   UpsertReachlyoBudgetPlanInput,
+  ProviderCampaignPlan,
+  CompileReachlyoCampaignInput,
+  LaunchRun,
+  StartCampaignLaunchInput,
   ReachlyoCreativePack,
   ReachlyoCreativeVariant,
   CreateReachlyoCreativePackInput,
@@ -116,6 +121,13 @@ export const adCenterApi = {
   async providers(companyId: string) {
     const response = await apiClient.get<ApiResponse<AdProviderInfo[]>>(
       `/api/v1/companies/${companyId}/ads/providers`,
+    )
+    return unwrap(response.data)
+  },
+
+  async accountCapabilities(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<AdFeatureCapabilityInfo[]>>(
+      `/api/v1/companies/${companyId}/ads/accounts/${accountId}/capabilities`,
     )
     return unwrap(response.data)
   },
@@ -227,6 +239,71 @@ export const adCenterApi = {
   async removeReachlyoBudgetPlan(companyId: string, campaignId: string) {
     const response = await apiClient.delete<ApiResponse<ReachlyoCampaign>>(
       `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/budget`,
+    )
+    return unwrap(response.data)
+  },
+
+  async compileReachlyoCampaignChannel(
+    companyId: string,
+    campaignId: string,
+    channelId: string,
+    input: CompileReachlyoCampaignInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<ProviderCampaignPlan>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/channels/${channelId}/compile`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async prepareReachlyoCampaignLaunch(
+    companyId: string,
+    campaignId: string,
+    input: StartCampaignLaunchInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<LaunchRun>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/launch-runs/prepare`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async reachlyoCampaignLaunchRuns(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<LaunchRun[]>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/launch-runs`,
+    )
+    return unwrap(response.data)
+  },
+
+  async reachlyoCampaignLaunchRun(
+    companyId: string,
+    campaignId: string,
+    runId: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<LaunchRun>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/launch-runs/${runId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async executeReachlyoCampaignLaunch(
+    companyId: string,
+    campaignId: string,
+    runId: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<LaunchRun>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/launch-runs/${runId}/execute`,
+    )
+    return unwrap(response.data)
+  },
+
+  async retryReachlyoCampaignLaunch(
+    companyId: string,
+    campaignId: string,
+    runId: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<LaunchRun>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/launch-runs/${runId}/retry`,
     )
     return unwrap(response.data)
   },

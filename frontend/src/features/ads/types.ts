@@ -351,6 +351,138 @@ export type UpsertReachlyoConversionGoalMappingInput = {
   providerEventName?: string | null
 }
 
+
+export type PlanIssueSeverity = 'ERROR' | 'WARNING' | 'INFO'
+export type ProviderPlanAction = 'CREATE' | 'CONFIGURE' | 'ATTACH'
+export type ProviderPlanResource =
+  | 'CAMPAIGN_BUDGET'
+  | 'CAMPAIGN'
+  | 'CAMPAIGN_TARGETING'
+  | 'AD_GROUP'
+  | 'AD_SET'
+  | 'KEYWORDS'
+  | 'CREATIVE'
+  | 'AD'
+  | 'ASSET_GROUP'
+  | 'ASSET_GROUP_ASSETS'
+  | 'AUDIENCE_SIGNALS'
+  | 'LISTING_GROUP'
+  | 'PRODUCT_AD'
+  | 'CONVERSION_GOAL'
+
+export type ProviderPlanIssue = {
+  severity: PlanIssueSeverity
+  code: string
+  field?: string | null
+  message: string
+}
+
+export type ProviderPlanOperation = {
+  sequence: number
+  operationKey: string
+  action: ProviderPlanAction
+  resource: ProviderPlanResource
+  createPaused: boolean
+  requiredCapabilities: AdFeatureCapability[]
+  configuration: Record<string, unknown>
+}
+
+export type ProviderCampaignPlan = {
+  planVersion: number
+  campaignId: string
+  channelId: string
+  provider: AdProvider
+  channelType: CampaignChannelType
+  adAccountId: string
+  deployable: boolean
+  effectiveBudgetMinor?: number | null
+  budgetPeriod?: BudgetPeriod | null
+  creativePackId?: string | null
+  audienceDefinitionId?: string | null
+  audienceMappingStatus?: AudienceMappingStatus | null
+  audienceMappingNote?: string | null
+  conversionGoalMappingId?: string | null
+  requiredCapabilities: AdFeatureCapability[]
+  issues: ProviderPlanIssue[]
+  operations: ProviderPlanOperation[]
+}
+
+export type CompileReachlyoCampaignInput = {
+  adAccountId: string
+  creativePackId?: string | null
+  audienceDefinitionId?: string | null
+}
+
+
+export type LaunchRunStatus =
+  | 'VALIDATING'
+  | 'VALIDATION_FAILED'
+  | 'READY'
+  | 'RUNNING'
+  | 'PAUSED_READY'
+  | 'PARTIAL_FAILURE'
+  | 'FAILED'
+
+export type LaunchStepStatus =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'SUCCEEDED'
+  | 'FAILED'
+  | 'SKIPPED'
+
+export type LaunchChannelInput = {
+  channelId: string
+  adAccountId: string
+  creativePackId?: string | null
+  audienceDefinitionId?: string | null
+}
+
+export type StartCampaignLaunchInput = {
+  idempotencyKey: string
+  channels: LaunchChannelInput[]
+}
+
+export type LaunchStep = {
+  id: string
+  runId: string
+  channelId: string
+  deploymentId: string
+  adAccountId: string
+  provider: AdProvider
+  sequence: number
+  operationKey: string
+  action: ProviderPlanAction
+  resource: ProviderPlanResource
+  createPaused: boolean
+  status: LaunchStepStatus
+  attemptCount: number
+  localResourceId?: string | null
+  externalResourceId?: string | null
+  lastErrorCode?: string | null
+  lastErrorMessage?: string | null
+  startedAt?: string | null
+  completedAt?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type LaunchRun = {
+  id: string
+  companyId: string
+  campaignId: string
+  idempotencyKey: string
+  status: LaunchRunStatus
+  requestedByUserId: string
+  validationIssuesJson?: string | null
+  lastErrorCode?: string | null
+  lastErrorMessage?: string | null
+  startedAt?: string | null
+  completedAt?: string | null
+  steps: LaunchStep[]
+  createdAt: string
+  updatedAt: string
+}
+
 export type AdCapability =
   | 'ACCOUNT_DISCOVERY'
   | 'CAMPAIGN_MANAGEMENT'
@@ -363,11 +495,82 @@ export type AdCapability =
   | 'PRODUCT_CATALOG'
   | 'RECOMMENDATIONS'
 
+export type AdFeatureCapability =
+  | 'ACCOUNT_DISCOVERY'
+  | 'CAMPAIGN_CREATE'
+  | 'CAMPAIGN_UPDATE'
+  | 'CAMPAIGN_STATUS'
+  | 'CREATIVE_CREATE'
+  | 'AUDIENCE_CREATE'
+  | 'CONVERSION_CREATE'
+  | 'ANALYTICS_READ'
+  | 'RECOMMENDATIONS'
+  | 'BILLING_READ'
+  | 'GOOGLE_SEARCH'
+  | 'GOOGLE_PERFORMANCE_MAX'
+  | 'GOOGLE_DISPLAY'
+  | 'GOOGLE_DEMAND_GEN'
+  | 'GOOGLE_SHOPPING'
+  | 'GOOGLE_STANDALONE_VIDEO_READ_ONLY'
+  | 'GOOGLE_CUSTOMER_MATCH'
+  | 'GOOGLE_DATA_MANAGER'
+  | 'GOOGLE_MERCHANT'
+  | 'GOOGLE_OFFLINE_CONVERSION_UPLOAD'
+  | 'GOOGLE_NATIVE_RECOMMENDATIONS'
+  | 'GOOGLE_AI_MAX'
+  | 'GOOGLE_APP_CAMPAIGN'
+  | 'GOOGLE_KEYWORD_PLANNER'
+  | 'GOOGLE_FORECAST'
+  | 'GOOGLE_EXPERIMENTS'
+  | 'GOOGLE_ASSET_GENERATION'
+  | 'GOOGLE_BID_SIMULATION'
+  | 'GOOGLE_BILLING_WRITE_MONTHLY_INVOICE'
+  | 'META_CAMPAIGN_HIERARCHY'
+  | 'META_IMAGE_VIDEO_CAROUSEL'
+  | 'META_WEBSITE_AUDIENCE'
+  | 'META_LOOKALIKE'
+  | 'META_PIXEL'
+  | 'META_CUSTOM_CONVERSION'
+  | 'META_BILLING_SPEND_CAP_WRITE'
+  | 'META_DETAILED_TARGETING'
+  | 'META_CUSTOM_AUDIENCE_CUSTOMER_LIST'
+  | 'META_ADVANTAGE_AUDIENCE'
+  | 'META_ADVANTAGE_PLACEMENTS'
+  | 'META_ADVANTAGE_CREATIVE'
+  | 'META_GENERATIVE_TEXT'
+  | 'META_IMAGE_UNCROP'
+  | 'META_BACKGROUND_GENERATION'
+  | 'META_CATALOG'
+  | 'META_EXISTING_POST'
+  | 'META_PARTNERSHIP_ADS'
+  | 'META_WHATSAPP_STATUS'
+
+export type AdFeatureAvailability =
+  | 'AVAILABLE'
+  | 'ACCOUNT_ELIGIBILITY_REQUIRED'
+  | 'READ_ONLY'
+  | 'PROVIDER_HOSTED'
+  | 'PLANNED'
+  | 'UNAVAILABLE'
+
+export type AdFeatureCapabilityInfo = {
+  feature: AdFeatureCapability
+  availability: AdFeatureAvailability
+  implemented: boolean
+  supported: boolean
+  accountEligible?: boolean | null
+  requiresManagedAccount: boolean
+  reason?: string | null
+  apiVersion?: string | null
+  requiredScopes: string[]
+}
+
 export type AdProviderInfo = {
   provider: AdProvider
   displayName: string
   configured: boolean
   capabilities: AdCapability[]
+  featureCapabilities: AdFeatureCapabilityInfo[]
 }
 
 export type AdAccount = {

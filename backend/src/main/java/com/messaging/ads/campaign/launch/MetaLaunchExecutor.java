@@ -1,0 +1,763 @@
+package com.messaging.ads.campaign.launch;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.messaging.ads.campaign.compiler.PlanIssueSeverity;
+import com.messaging.ads.campaign.compiler.ProviderCampaignPlan;
+import com.messaging.ads.campaign.compiler.ProviderPlanIssue;
+import com.messaging.ads.campaign.dto.AudienceLocationInput;
+import com.messaging.ads.campaign.entity.AudienceDefinition;
+import com.messaging.ads.campaign.entity.CampaignChannel;
+import com.messaging.ads.campaign.entity.ConversionGoalMapping;
+import com.messaging.ads.campaign.entity.CreativePack;
+import com.messaging.ads.campaign.entity.CreativePackAsset;
+import com.messaging.ads.campaign.entity.ReachlyoCampaign;
+import com.messaging.ads.campaign.enums.BudgetPeriod;
+import com.messaging.ads.campaign.enums.CampaignChannelType;
+import com.messaging.ads.campaign.enums.ConversionTargetType;
+import com.messaging.ads.campaign.enums.CreativeAssetRole;
+import com.messaging.ads.campaign.repository.AudienceDefinitionRepository;
+import com.messaging.ads.campaign.repository.CampaignChannelRepository;
+import com.messaging.ads.campaign.repository.ConversionGoalMappingRepository;
+import com.messaging.ads.campaign.repository.CreativePackAssetRepository;
+import com.messaging.ads.campaign.repository.CreativePackRepository;
+import com.messaging.ads.campaign.repository.ReachlyoCampaignRepository;
+import com.messaging.ads.campaign.service.ProviderDeploymentService;
+import com.messaging.ads.dto.AdCampaignResponse;
+import com.messaging.ads.dto.AdCreativeResponse;
+import com.messaging.ads.dto.AdResponse;
+import com.messaging.ads.dto.AdSetResponse;
+import com.messaging.ads.entity.AdCampaign;
+import com.messaging.ads.entity.AdCreative;
+import com.messaging.ads.entity.AdSet;
+import com.messaging.ads.enums.AdAccountResourceType;
+import com.messaging.ads.enums.AdProvider;
+import com.messaging.ads.meta.MetaAdsAdMutationService;
+import com.messaging.ads.meta.MetaAdsAdSyncService;
+import com.messaging.ads.meta.MetaAdsAdSetMutationService;
+import com.messaging.ads.meta.MetaAdsAdSetSyncService;
+import com.messaging.ads.meta.MetaAdsCampaignMutationService;
+import com.messaging.ads.meta.MetaAdsCampaignSyncService;
+import com.messaging.ads.meta.MetaAdsCreativeMutationService;
+import com.messaging.ads.meta.MetaAdsCreativeSyncService;
+import com.messaging.ads.meta.dto.CreateMetaAdRequest;
+import com.messaging.ads.meta.dto.CreateMetaAdSetRequest;
+import com.messaging.ads.meta.dto.CreateMetaCampaignRequest;
+import com.messaging.ads.meta.dto.CreateMetaCreativeRequest;
+import com.messaging.ads.repository.AdAccountResourceRepository;
+import com.messaging.ads.repository.AdCampaignRepository;
+import com.messaging.ads.repository.AdCreativeRepository;
+import com.messaging.ads.repository.AdRepository;
+import com.messaging.ads.repository.AdSetRepository;
+import com.messaging.common.exception.BadRequestException;
+import com.messaging.common.exception.NotFoundException;
+import com.messaging.media.entity.Media;
+import com.messaging.media.enums.MediaPurpose;
+import com.messaging.media.enums.MediaStatus;
+import com.messaging.media.enums.MediaType;
+import com.messaging.media.service.MediaService;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+
+@Component
+@RequiredArgsConstructor
+public class MetaLaunchExecutor implements LaunchProviderExecutor {
+
+  private final ReachlyoCampaignRepository campaignRepository;
+  private final CampaignChannelRepository channelRepository;
+  private final CreativePackRepository creativePackRepository;
+  private final CreativePackAssetRepository creativePackAssetRepository;
+  private final AudienceDefinitionRepository audienceDefinitionRepository;
+  private final ConversionGoalMappingRepository conversionGoalMappingRepository;
+  private final AdAccountResourceRepository accountResourceRepository;
+  private final AdCampaignRepository adCampaignRepository;
+  private final AdSetRepository adSetRepository;
+  private final AdCreativeRepository adCreativeRepository;
+  private final AdRepository adRepository;
+  private final MetaAdsCampaignMutationService campaignMutationService;
+  private final MetaAdsCampaignSyncService campaignSyncService;
+  private final MetaAdsAdSetMutationService adSetMutationService;
+  private final MetaAdsAdSetSyncService adSetSyncService;
+  private final MetaAdsCreativeMutationService creativeMutationService;
+  private final MetaAdsCreativeSyncService creativeSyncService;
+  private final MetaAdsAdMutationService adMutationService;
+  private final MetaAdsAdSyncService adSyncService;
+  private final ProviderDeploymentService deploymentService;
+  private final MediaService mediaService;
+  private final ObjectMapper objectMapper;
+
+  @Override
+  public Set<CampaignChannelType> supportedChannels() {
+    return Set.of(CampaignChannelType.META_ADS);
+  }
+
+  @Override
+  public List<ProviderPlanIssue> preflight(
+      Long companyId, LaunchRun run, ProviderCampaignPlan plan) {
+    List<ProviderPlanIssue> issues = new ArrayList<>();
+    ReachlyoCampaign campaign = campaign(companyId, run.getReachlyoCampaignId());
+    CampaignChannel channel = channel(companyId, campaign.getId(), Long.valueOf(plan.channelId()));
+    JsonNode override = override(channel);
+
+    requireTextIssue(
+        issues,
+        override,
+        "pageId",
+        "META_PAGE_REQUIRED",
+        "providerOverride.pageId",
+        "Meta launch requires a Facebook Page identity.");
+
+    String pageId = text(override, "pageId");
+    if (hasText(pageId)) {
+      var page =
+          accountResourceRepository
+              .findByCompanyIdAndAdAccountIdAndResourceTypeAndExternalResourceId(
+                  companyId,
+                  Long.valueOf(plan.adAccountId()),
+                  AdAccountResourceType.FACEBOOK_PAGE,
+                  pageId.trim())
+              .orElse(null);
+      if (page == null || !page.isAccessible()) {
+        issues.add(
+            error(
+                "META_PAGE_UNAVAILABLE",
+                "providerOverride.pageId",
+                "Selected Facebook Page is not available for this Meta ad account."));
+      }
+    }
+    String instagramActorId = text(override, "instagramActorId");
+    if (hasText(instagramActorId)) {
+      var instagram =
+          accountResourceRepository
+              .findByCompanyIdAndAdAccountIdAndResourceTypeAndExternalResourceId(
+                  companyId,
+                  Long.valueOf(plan.adAccountId()),
+                  AdAccountResourceType.INSTAGRAM_ACCOUNT,
+                  instagramActorId.trim())
+              .orElse(null);
+      if (instagram == null || !instagram.isAccessible()) {
+        issues.add(
+            error(
+                "META_INSTAGRAM_UNAVAILABLE",
+                "providerOverride.instagramActorId",
+                "Selected Instagram account is not available for this Meta ad account."));
+      }
+    }
+    requireTextIssue(
+        issues,
+        override,
+        "optimizationGoal",
+        "META_OPTIMIZATION_GOAL_REQUIRED",
+        "providerOverride.optimizationGoal",
+        "Meta launch requires an explicit optimizationGoal.");
+    requireTextIssue(
+        issues,
+        override,
+        "billingEvent",
+        "META_BILLING_EVENT_REQUIRED",
+        "providerOverride.billingEvent",
+        "Meta launch requires an explicit billingEvent.");
+
+    List<String> specialCategories = stringArray(override, "specialAdCategories");
+    if (specialCategories.isEmpty()) {
+      issues.add(
+          error(
+              "META_SPECIAL_AD_CATEGORY_REQUIRED",
+              "providerOverride.specialAdCategories",
+              "Meta launch requires an explicit specialAdCategories selection; use [\"NONE\"] when none apply."));
+    } else if (specialCategories.stream().anyMatch(value -> "NONE".equalsIgnoreCase(value))
+        && specialCategories.size() > 1) {
+      issues.add(
+          error(
+              "META_SPECIAL_AD_CATEGORY_INVALID",
+              "providerOverride.specialAdCategories",
+              "NONE cannot be combined with another Meta special ad category."));
+    }
+
+    String buyingType = text(override, "buyingType");
+    if (hasText(buyingType)
+        && !Set.of("AUCTION", "RESERVED").contains(buyingType.trim().toUpperCase(Locale.ROOT))) {
+      issues.add(error("META_BUYING_TYPE_INVALID", "providerOverride.buyingType", "Meta buyingType must be AUCTION or RESERVED."));
+    }
+    String objectiveOverride = text(override, "objective");
+    if (hasText(objectiveOverride)
+        && !Set.of(
+                "OUTCOME_AWARENESS",
+                "OUTCOME_TRAFFIC",
+                "OUTCOME_ENGAGEMENT",
+                "OUTCOME_LEADS",
+                "OUTCOME_APP_PROMOTION",
+                "OUTCOME_SALES")
+            .contains(objectiveOverride.trim().toUpperCase(Locale.ROOT))) {
+      issues.add(error("META_OBJECTIVE_INVALID", "providerOverride.objective", "Unsupported Meta campaign objective."));
+    }
+
+    if (plan.effectiveBudgetMinor() == null || plan.effectiveBudgetMinor() <= 0) {
+      issues.add(error("META_BUDGET_MISSING", "budget", "Meta launch requires a positive budget."));
+    }
+    if (plan.budgetPeriod() == BudgetPeriod.TOTAL
+        && (campaign.getStartAt() == null || campaign.getEndAt() == null)) {
+      issues.add(
+          error(
+              "META_LIFETIME_SCHEDULE_REQUIRED",
+              "schedule",
+              "Meta lifetime budget requires both campaign start and end times."));
+    }
+
+    CreativePack pack = creativePack(companyId, campaign.getId(), plan.creativePackId(), false);
+    if (pack == null) {
+      issues.add(error("CREATIVE_PACK_MISSING", "creativePack", "Meta launch requires a Creative Pack."));
+    } else {
+      CreativePackAsset image = imageAsset(companyId, pack.getId());
+      if (image == null) {
+        issues.add(
+            error(
+                "META_IMAGE_MISSING",
+                "creativePack.assets",
+                "The baseline Meta executor requires at least one IMAGE creative asset."));
+      } else {
+        Media media = mediaService.requireActiveCompanyMedia(image.getMediaId(), companyId);
+        if (media.getStatus() != MediaStatus.ACTIVE
+            || media.getPurpose() != MediaPurpose.AD_CREATIVE
+            || media.getMediaType() != MediaType.IMAGE) {
+          issues.add(
+              error(
+                  "META_IMAGE_INVALID",
+                  "creativePack.assets",
+                  "Meta launch image must be active AD_CREATIVE image media."));
+        }
+      }
+      if (!hasText(destination(pack, campaign))) {
+        issues.add(
+            error(
+                "META_DESTINATION_MISSING",
+                "creativePack.destinationUrl",
+                "Meta launch requires a destination URL."));
+      }
+    }
+
+    AudienceDefinition audience =
+        audience(companyId, campaign.getId(), plan.audienceDefinitionId(), false);
+    if (audience == null) {
+      issues.add(
+          error(
+              "META_AUDIENCE_REQUIRED",
+              "audience",
+              "The current Meta executor requires a canonical audience with at least one country."));
+    } else {
+      List<AudienceLocationInput> locations = locations(audience);
+      if (locations.stream().noneMatch(location -> hasText(location.countryCode()))) {
+        issues.add(
+            error(
+                "META_COUNTRY_REQUIRED",
+                "audience.locations",
+                "Meta launch requires at least one country in the canonical audience."));
+      }
+      if (audience.getAgeMin() != null && audience.getAgeMin() > 65) {
+        issues.add(
+            error(
+                "META_AGE_MIN_INVALID",
+                "audience.ageMin",
+                "Meta audience ageMin cannot exceed 65 in the current executor."));
+      }
+      if (audience.getAgeMax() != null && audience.getAgeMax() > 65) {
+        issues.add(
+            warning(
+                "META_AGE_MAX_CLAMPED",
+                "audience.ageMax",
+                "Meta represents the upper age bucket as 65+; Reachlyo will send ageMax=65."));
+      }
+      if (locations.stream().anyMatch(this::hasUnsupportedGeoDetail)) {
+        issues.add(
+            warning(
+                "META_GEO_MAPPING_APPROXIMATE",
+                "audience.locations",
+                "Regions, cities, postal codes, and radius details are not yet executable; this baseline launch uses the selected countries only."));
+      }
+      if (hasText(audience.getInterestsJson())
+          || hasText(audience.getRetargetingJson())
+          || hasText(audience.getCustomerSegmentsJson())) {
+        issues.add(
+            warning(
+                "META_AUDIENCE_DETAIL_NOT_EXECUTED",
+                "audience",
+                "Detailed targeting, retargeting, and customer-segment mappings are not yet executed in the baseline Meta launcher."));
+      }
+    }
+
+    ConversionGoalMapping conversion = conversion(companyId, campaign.getId(), plan.conversionGoalMappingId());
+    if (conversion != null
+        && conversion.getTargetType() == ConversionTargetType.STANDARD_EVENT) {
+      String pixelId = text(override, "pixelId");
+      if (!hasText(pixelId)) {
+        issues.add(
+            error(
+                "META_PIXEL_REQUIRED",
+                "providerOverride.pixelId",
+                "A Meta pixelId is required when using a standard conversion event."));
+      } else {
+        var pixel =
+            accountResourceRepository
+                .findByCompanyIdAndAdAccountIdAndResourceTypeAndExternalResourceId(
+                    companyId,
+                    Long.valueOf(plan.adAccountId()),
+                    AdAccountResourceType.META_PIXEL,
+                    pixelId.trim())
+                .orElse(null);
+        if (pixel == null || !pixel.isAccessible()) {
+          issues.add(
+              error(
+                  "META_PIXEL_UNAVAILABLE",
+                  "providerOverride.pixelId",
+                  "Selected Meta Pixel is not available for this ad account."));
+        }
+      }
+    }
+    return issues;
+  }
+
+  @Override
+  public LaunchStepExecutionResult execute(
+      Long companyId, LaunchRun run, ProviderCampaignPlan plan, LaunchStep step) {
+    ReachlyoCampaign campaign = campaign(companyId, run.getReachlyoCampaignId());
+    CampaignChannel channel = channel(companyId, campaign.getId(), step.getCampaignChannelId());
+
+    return switch (step.getOperationKey()) {
+      case "create-campaign-paused" ->
+          createCampaign(companyId, run, plan, step, campaign, channel);
+      case "create-ad-set-paused" ->
+          createAdSet(companyId, run, plan, step, campaign, channel);
+      case "configure-ad-set-targeting" ->
+          LaunchStepExecutionResult.skipped(
+              "Canonical country/age/gender targeting was applied atomically while creating the paused Meta ad set.");
+      case "create-creative" ->
+          createCreative(companyId, run, plan, step, campaign, channel);
+      case "create-ad-paused" ->
+          createAd(companyId, run, plan, step, campaign);
+      case "configure-conversion-goal" ->
+          LaunchStepExecutionResult.skipped(
+              "Meta promoted-object conversion configuration was applied while creating the paused ad set.");
+      default -> throw new BadRequestException("Unsupported Meta launch operation: " + step.getOperationKey());
+    };
+  }
+
+  private LaunchStepExecutionResult createCampaign(
+      Long companyId,
+      LaunchRun run,
+      ProviderCampaignPlan plan,
+      LaunchStep step,
+      ReachlyoCampaign campaign,
+      CampaignChannel channel) {
+    String name = launchName(campaign.getName(), run.getId(), plan.channelId());
+    if (step.getAttemptCount() > 1) {
+      campaignSyncService.sync(companyId, step.getAdAccountId());
+    }
+    AdCampaign existing =
+        adCampaignRepository
+            .findFirstByCompanyIdAndAdAccountIdAndProviderAndNameOrderByIdAsc(
+                companyId, step.getAdAccountId(), AdProvider.META_ADS, name)
+            .orElse(null);
+    JsonNode override = override(channel);
+
+    AdCampaignResponse result =
+        existing != null
+            ? AdCampaignResponse.from(existing)
+            : campaignMutationService.create(
+                companyId,
+                step.getAdAccountId(),
+                new CreateMetaCampaignRequest(
+                    name,
+                    firstText(text(override, "objective"), metaObjective(campaign)),
+                    text(override, "buyingType"),
+                    text(override, "bidStrategy"),
+                    null,
+                    null,
+                    stringArray(override, "specialAdCategories")));
+
+    deploymentService.bindProviderCampaign(
+        companyId, step.getProviderDeploymentId(), Long.valueOf(result.id()));
+    return LaunchStepExecutionResult.succeeded(
+        Long.valueOf(result.id()),
+        result.externalCampaignId(),
+        Map.of("reused", existing != null));
+  }
+
+  private LaunchStepExecutionResult createAdSet(
+      Long companyId,
+      LaunchRun run,
+      ProviderCampaignPlan plan,
+      LaunchStep step,
+      ReachlyoCampaign campaign,
+      CampaignChannel channel) {
+    AdCampaign providerCampaign = providerCampaign(companyId, step.getProviderDeploymentId());
+    if (step.getAttemptCount() > 1) {
+      adSetSyncService.sync(companyId, providerCampaign.getId());
+    }
+    String name = launchName(campaign.getName() + " Ad Set", run.getId(), plan.channelId());
+    AdSet existing =
+        adSetRepository
+            .findFirstByCompanyIdAndCampaignIdAndNameOrderByIdAsc(
+                companyId, providerCampaign.getId(), name)
+            .orElse(null);
+    if (existing != null) {
+      return LaunchStepExecutionResult.succeeded(
+          existing.getId(), existing.getExternalAdSetId(), Map.of("reused", true));
+    }
+
+    JsonNode override = override(channel);
+    AudienceDefinition audience =
+        audience(companyId, campaign.getId(), plan.audienceDefinitionId(), true);
+    List<CreateMetaAdSetRequest.TargetingLocation> targetingLocations =
+        metaLocations(locations(audience));
+    ConversionGoalMapping conversion =
+        conversion(companyId, campaign.getId(), plan.conversionGoalMappingId());
+
+    Long dailyBudget = plan.budgetPeriod() == BudgetPeriod.DAILY ? plan.effectiveBudgetMinor() : null;
+    Long lifetimeBudget = plan.budgetPeriod() == BudgetPeriod.TOTAL ? plan.effectiveBudgetMinor() : null;
+
+    String pixelId = null;
+    String customEventType = null;
+    String customConversionId = null;
+    if (conversion != null) {
+      if (conversion.getTargetType() == ConversionTargetType.PROVIDER_CONVERSION) {
+        customConversionId =
+            conversion.getAdConversionId() == null ? null : conversion.getAdConversionId().toString();
+      } else {
+        pixelId = text(override, "pixelId");
+        customEventType = conversion.getProviderEventName();
+      }
+    }
+
+    AdSetResponse result =
+        adSetMutationService.create(
+            companyId,
+            providerCampaign.getId(),
+            new CreateMetaAdSetRequest(
+                name,
+                text(override, "optimizationGoal"),
+                text(override, "billingEvent"),
+                text(override, "adSetBidStrategy"),
+                longValue(override, "bidAmountMinor"),
+                dailyBudget,
+                lifetimeBudget,
+                campaign.getStartAt(),
+                campaign.getEndAt(),
+                text(override, "destinationType"),
+                targetingLocations,
+                audience.getAgeMin(),
+                audience.getAgeMax() == null ? null : Math.min(65, audience.getAgeMax()),
+                metaGenders(audience),
+                stringArray(override, "publisherPlatforms"),
+                stringArray(override, "facebookPositions"),
+                stringArray(override, "instagramPositions"),
+                List.of(),
+                List.of(),
+                pixelId,
+                customEventType,
+                customConversionId));
+
+    return LaunchStepExecutionResult.succeeded(
+        Long.valueOf(result.id()), result.externalAdSetId(), Map.of("reused", false));
+  }
+
+  private LaunchStepExecutionResult createCreative(
+      Long companyId,
+      LaunchRun run,
+      ProviderCampaignPlan plan,
+      LaunchStep step,
+      ReachlyoCampaign campaign,
+      CampaignChannel channel) {
+    CreativePack pack = creativePack(companyId, campaign.getId(), plan.creativePackId(), true);
+    if (step.getAttemptCount() > 1) {
+      creativeSyncService.sync(companyId, step.getAdAccountId());
+    }
+    String name = launchName(campaign.getName() + " Creative", run.getId(), plan.channelId());
+    AdCreative existing =
+        adCreativeRepository
+            .findFirstByCompanyIdAndAdAccountIdAndProviderAndNameOrderByIdAsc(
+                companyId, step.getAdAccountId(), AdProvider.META_ADS, name)
+            .orElse(null);
+    if (existing != null) {
+      return LaunchStepExecutionResult.succeeded(
+          existing.getId(), existing.getExternalCreativeId(), Map.of("reused", true));
+    }
+
+    CreativePackAsset image = imageAsset(companyId, pack.getId());
+    if (image == null) throw new BadRequestException("Meta IMAGE creative asset is missing");
+    Media media = mediaService.requireActiveCompanyMedia(image.getMediaId(), companyId);
+    if (media.getMediaType() != MediaType.IMAGE) {
+      throw new BadRequestException("Meta baseline creative requires image media");
+    }
+    String imageUrl = mediaService.createTrustedAccessUrl(media.getId()).url();
+    JsonNode override = override(channel);
+    List<String> headlines = strings(pack.getHeadlinesJson());
+    List<String> descriptions = strings(pack.getDescriptionsJson());
+
+    AdCreativeResponse result =
+        creativeMutationService.create(
+            companyId,
+            step.getAdAccountId(),
+            new CreateMetaCreativeRequest(
+                name,
+                "SINGLE_IMAGE",
+                text(override, "pageId"),
+                text(override, "instagramActorId"),
+                pack.getPrimaryMessage(),
+                headlines.isEmpty() ? null : headlines.getFirst(),
+                descriptions.isEmpty() ? null : descriptions.getFirst(),
+                firstText(text(override, "callToActionType"), pack.getCallToAction()),
+                destination(pack, campaign),
+                null,
+                imageUrl,
+                null,
+                null,
+                text(override, "urlTags"),
+                List.of()));
+
+    return LaunchStepExecutionResult.succeeded(
+        Long.valueOf(result.id()), result.externalCreativeId(), Map.of("reused", false));
+  }
+
+  private LaunchStepExecutionResult createAd(
+      Long companyId,
+      LaunchRun run,
+      ProviderCampaignPlan plan,
+      LaunchStep step,
+      ReachlyoCampaign campaign) {
+    AdCampaign providerCampaign = providerCampaign(companyId, step.getProviderDeploymentId());
+    AdSet adSet =
+        adSetRepository
+            .findByCompanyIdAndCampaignIdOrderByProviderUpdatedAtDesc(
+                companyId, providerCampaign.getId())
+            .stream()
+            .findFirst()
+            .orElseThrow(() -> new BadRequestException("Meta ad set has not been created yet"));
+    if (step.getAttemptCount() > 1) {
+      adSyncService.sync(companyId, adSet.getId());
+    }
+    AdCreative creative =
+        adCreativeRepository
+            .findByCompanyIdAndAdAccountIdOrderByProviderUpdatedAtDesc(
+                companyId, step.getAdAccountId())
+            .stream()
+            .filter(value -> value.getName().equals(launchName(campaign.getName() + " Creative", run.getId(), plan.channelId())))
+            .findFirst()
+            .orElseThrow(() -> new BadRequestException("Meta creative has not been created yet"));
+
+    String name = launchName(campaign.getName() + " Ad", run.getId(), plan.channelId());
+    var existing =
+        adRepository
+            .findFirstByCompanyIdAndAdSetIdAndNameOrderByIdAsc(companyId, adSet.getId(), name)
+            .orElse(null);
+    AdResponse result =
+        existing != null
+            ? AdResponse.from(existing)
+            : adMutationService.create(
+                companyId,
+                adSet.getId(),
+                new CreateMetaAdRequest(name, creative.getId().toString()));
+
+    return LaunchStepExecutionResult.succeeded(
+        Long.valueOf(result.id()), result.externalAdId(), Map.of("reused", existing != null));
+  }
+
+  private ReachlyoCampaign campaign(Long companyId, Long campaignId) {
+    return campaignRepository
+        .findByIdAndCompanyId(campaignId, companyId)
+        .orElseThrow(() -> new NotFoundException("Reachlyo campaign not found"));
+  }
+
+  private CampaignChannel channel(Long companyId, Long campaignId, Long channelId) {
+    return channelRepository
+        .findByIdAndCompanyIdAndReachlyoCampaignId(channelId, companyId, campaignId)
+        .orElseThrow(() -> new NotFoundException("Campaign channel not found"));
+  }
+
+  private CreativePack creativePack(
+      Long companyId, Long campaignId, String packId, boolean required) {
+    if (!hasText(packId)) {
+      if (required) throw new BadRequestException("Creative Pack is required");
+      return null;
+    }
+    return creativePackRepository
+        .findByIdAndCompanyIdAndReachlyoCampaignId(Long.valueOf(packId), companyId, campaignId)
+        .orElseThrow(() -> new NotFoundException("Creative pack not found"));
+  }
+
+  private CreativePackAsset imageAsset(Long companyId, Long packId) {
+    return creativePackAssetRepository
+        .findByCompanyIdAndCreativePackIdOrderBySortOrderAscIdAsc(companyId, packId)
+        .stream()
+        .filter(asset -> asset.getRole() == CreativeAssetRole.IMAGE)
+        .findFirst()
+        .orElse(null);
+  }
+
+  private AudienceDefinition audience(
+      Long companyId, Long campaignId, String audienceId, boolean required) {
+    if (!hasText(audienceId)) {
+      if (required) throw new BadRequestException("Audience definition is required");
+      return null;
+    }
+    return audienceDefinitionRepository
+        .findByIdAndCompanyIdAndReachlyoCampaignId(
+            Long.valueOf(audienceId), companyId, campaignId)
+        .orElseThrow(() -> new NotFoundException("Audience definition not found"));
+  }
+
+  private ConversionGoalMapping conversion(
+      Long companyId, Long campaignId, String mappingId) {
+    if (!hasText(mappingId)) return null;
+    return conversionGoalMappingRepository
+        .findByIdAndCompanyIdAndReachlyoCampaignId(Long.valueOf(mappingId), companyId, campaignId)
+        .orElseThrow(() -> new NotFoundException("Conversion goal mapping not found"));
+  }
+
+  private AdCampaign providerCampaign(Long companyId, Long deploymentId) {
+    var deployment = deploymentService.get(companyId, deploymentId);
+    if (deployment.getLocalCampaignId() == null) {
+      throw new BadRequestException("Provider campaign has not been created yet");
+    }
+    return adCampaignRepository
+        .findByIdAndCompanyId(deployment.getLocalCampaignId(), companyId)
+        .orElseThrow(() -> new NotFoundException("Advertising campaign not found"));
+  }
+
+  private List<AudienceLocationInput> locations(AudienceDefinition audience) {
+    if (audience == null || !hasText(audience.getLocationsJson())) return List.of();
+    try {
+      return objectMapper.readValue(
+          audience.getLocationsJson(), new TypeReference<List<AudienceLocationInput>>() {});
+    } catch (Exception exception) {
+      throw new BadRequestException("Audience locations are invalid JSON");
+    }
+  }
+
+  private List<CreateMetaAdSetRequest.TargetingLocation> metaLocations(
+      List<AudienceLocationInput> locations) {
+    LinkedHashMap<String, List<String>> countries = new LinkedHashMap<>();
+    for (AudienceLocationInput location : locations) {
+      if (!hasText(location.countryCode())) continue;
+      countries.putIfAbsent(location.countryCode().trim().toUpperCase(Locale.ROOT), List.of("home", "recent"));
+    }
+    return countries.entrySet().stream()
+        .map(entry -> new CreateMetaAdSetRequest.TargetingLocation(entry.getKey(), entry.getValue()))
+        .toList();
+  }
+
+  private List<Integer> metaGenders(AudienceDefinition audience) {
+    List<String> genders = strings(audience.getGendersJson());
+    List<Integer> result = new ArrayList<>();
+    for (String gender : genders) {
+      if (!hasText(gender)) continue;
+      String value = gender.trim().toUpperCase(Locale.ROOT);
+      if ("MALE".equals(value) || "1".equals(value)) result.add(1);
+      if ("FEMALE".equals(value) || "2".equals(value)) result.add(2);
+    }
+    return result.stream().distinct().toList();
+  }
+
+  private boolean hasUnsupportedGeoDetail(AudienceLocationInput location) {
+    return hasText(location.region())
+        || hasText(location.city())
+        || hasText(location.postalCode())
+        || location.latitude() != null
+        || location.longitude() != null
+        || location.radiusKm() != null;
+  }
+
+  private String metaObjective(ReachlyoCampaign campaign) {
+    return switch (campaign.getObjective()) {
+      case SALES, PRODUCT_SALES -> "OUTCOME_SALES";
+      case LEADS -> "OUTCOME_LEADS";
+      case TRAFFIC, LOCAL_PROMOTION -> "OUTCOME_TRAFFIC";
+      case AWARENESS -> "OUTCOME_AWARENESS";
+      case APP_PROMOTION -> "OUTCOME_APP_PROMOTION";
+      case RETARGETING -> "OUTCOME_ENGAGEMENT";
+    };
+  }
+
+  private String destination(CreativePack pack, ReachlyoCampaign campaign) {
+    return firstText(pack.getDestinationUrl(), campaign.getLandingPageUrl());
+  }
+
+  private JsonNode override(CampaignChannel channel) {
+    try {
+      return hasText(channel.getProviderOverrideJson())
+          ? objectMapper.readTree(channel.getProviderOverrideJson())
+          : objectMapper.createObjectNode();
+    } catch (Exception exception) {
+      throw new BadRequestException("Campaign channel provider override is invalid JSON");
+    }
+  }
+
+  private List<String> stringArray(JsonNode node, String key) {
+    JsonNode value = node.get(key);
+    if (value == null || !value.isArray()) return List.of();
+    List<String> result = new ArrayList<>();
+    value.forEach(item -> {
+      if (item.isTextual() && !item.asText().isBlank()) result.add(item.asText().trim());
+    });
+    return result;
+  }
+
+  private List<String> strings(String json) {
+    if (!hasText(json)) return List.of();
+    try {
+      return objectMapper.readValue(json, new TypeReference<List<String>>() {});
+    } catch (Exception exception) {
+      throw new BadRequestException("Creative/audience text list is invalid JSON");
+    }
+  }
+
+  private String text(JsonNode node, String key) {
+    JsonNode value = node.get(key);
+    return value == null || value.isNull() ? null : value.asText(null);
+  }
+
+  private Long longValue(JsonNode node, String key) {
+    JsonNode value = node.get(key);
+    return value == null || value.isNull() || !value.canConvertToLong() ? null : value.longValue();
+  }
+
+  private void requireTextIssue(
+      List<ProviderPlanIssue> issues,
+      JsonNode override,
+      String key,
+      String code,
+      String field,
+      String message) {
+    if (!hasText(text(override, key))) issues.add(error(code, field, message));
+  }
+
+  private String firstText(String... values) {
+    for (String value : values) if (hasText(value)) return value.trim();
+    return null;
+  }
+
+  private String launchName(String base, Long runId, String channelId) {
+    String suffix = " [RLY-" + runId + "-" + channelId + "]";
+    String normalized = hasText(base) ? base.trim() : "Reachlyo";
+    int maxBase = Math.max(1, 255 - suffix.length());
+    return (normalized.length() > maxBase ? normalized.substring(0, maxBase) : normalized) + suffix;
+  }
+
+  private boolean hasText(String value) {
+    return value != null && !value.isBlank();
+  }
+
+  private ProviderPlanIssue error(String code, String field, String message) {
+    return new ProviderPlanIssue(PlanIssueSeverity.ERROR, code, field, message);
+  }
+
+  private ProviderPlanIssue warning(String code, String field, String message) {
+    return new ProviderPlanIssue(PlanIssueSeverity.WARNING, code, field, message);
+  }
+}

@@ -305,6 +305,39 @@ public class GoogleAdsApiClient {
     return null;
   }
 
+  public JsonNode suggestGeoTargets(
+      String accessToken,
+      String loginCustomerId,
+      String countryCode,
+      List<String> locationNames) {
+    if (countryCode == null || countryCode.isBlank()) {
+      throw new BadRequestException("Google geo target country code is required");
+    }
+    if (locationNames == null || locationNames.isEmpty()) {
+      throw new BadRequestException("Google geo target location names are required");
+    }
+
+    Map<String, Object> body = new LinkedHashMap<>();
+    body.put("locale", "en");
+    body.put("countryCode", countryCode.trim().toUpperCase());
+    body.put("locationNames", Map.of("names", locationNames));
+
+    return execute(
+        () -> {
+          RestClient.RequestBodySpec request =
+              adsClient
+                  .post()
+                  .uri(
+                      "/{version}/geoTargetConstants:suggest",
+                      properties.getApiVersion().trim())
+                  .contentType(MediaType.APPLICATION_JSON);
+          addAdsHeaders(request, accessToken, loginCustomerId);
+          return parseJson(
+              request.body(body).retrieve().body(String.class));
+        },
+        "Unable to resolve Google Ads geo targets");
+  }
+
   public JsonNode customerAction(
       String accessToken,
       String customerId,
