@@ -68,7 +68,8 @@ class AdFeatureCapabilityServiceTests {
     assertThat(search.supported()).isTrue();
     assertThat(searchTerms.implemented()).isTrue();
     assertThat(searchTerms.supported()).isTrue();
-    assertThat(aiMax.implemented()).isFalse();
+    assertThat(aiMax.implemented()).isTrue();
+    assertThat(aiMax.supported()).isTrue();
     assertThat(aiMax.availability()).isEqualTo(AdFeatureAvailability.PLANNED);
   }
 
