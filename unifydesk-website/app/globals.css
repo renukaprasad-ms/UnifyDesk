@@ -14,3 +14,8 @@ html{width:100%;min-width:320px;overflow-x:hidden}body{width:100%;min-width:320p
 @media(max-width:520px){.product{width:calc(100% - 16px)}.mock{grid-template-columns:92px minmax(0,1fr);height:390px}.mock aside>small{display:none}.mockWorkspace{border:0;padding:5px 2px}.mock aside i{font-size:9px;padding:7px 5px}.convos{padding:18px 12px}.person{padding:12px 8px}.pageHero{padding-left:16px;padding-right:16px}.nav{width:calc(100% - 20px)}}
 
 .legal{max-width:900px;width:calc(100% - 40px);margin:auto;padding:95px 0 120px}.legal h1{font-size:clamp(48px,7vw,72px);letter-spacing:-.055em;margin:12px 0 18px}.legalIntro{font-size:18px;line-height:1.7;color:var(--muted);margin-bottom:55px}.legal section{padding:30px 0;border-top:1px solid var(--line)}.legal section h2{font-size:21px;letter-spacing:-.025em;margin:0 0 12px}.legal section p{color:var(--muted);line-height:1.75;margin:0}.legal aside{margin-top:30px;border-left:3px solid var(--blue);background:#f3f5ff;border-radius:0 10px 10px 0;padding:18px 20px;color:#56657b;line-height:1.65;font-size:13px}@media(max-width:520px){.legal{width:calc(100% - 32px);padding-top:65px}.legalIntro{font-size:16px;margin-bottom:40px}}
+
+/* Product feature alternation: move the visual, not just the copy. */
+.featureList article:nth-child(even) .featureVisual{order:1}
+.featureList article:nth-child(even) .featureCopy{order:2}
+@media(max-width:850px){.featureList article,.featureList article:nth-child(even){grid-template-columns:1fr;gap:32px}.featureList article:nth-child(even) .featureCopy,.featureList article:nth-child(even) .featureVisual{order:initial}}
