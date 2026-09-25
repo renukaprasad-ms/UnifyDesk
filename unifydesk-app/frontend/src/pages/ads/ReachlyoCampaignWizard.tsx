@@ -172,6 +172,45 @@ const listValues = (value: string) =>
 const requiresConversion = (goal: CampaignBusinessGoal) =>
   goal !== 'TRAFFIC' && goal !== 'AWARENESS'
 
+const GOOGLE_GOAL_EVENTS: Partial<Record<CampaignBusinessGoal, string[]>> = {
+  PURCHASE: ['PURCHASE'],
+  LEAD: ['SUBMIT_LEAD_FORM', 'IMPORTED_LEAD', 'CONTACT', 'REQUEST_QUOTE'],
+  QUALIFIED_LEAD: ['QUALIFIED_LEAD', 'CONVERTED_LEAD'],
+  SIGN_UP: ['SIGNUP'],
+  PHONE_CALL: ['PHONE_CALL_LEAD'],
+  WHATSAPP_CONVERSATION: ['CONTACT', 'IMPORTED_LEAD'],
+  APP_INSTALL: ['DOWNLOAD', 'DEFAULT'],
+}
+
+const META_GOAL_EVENTS: Partial<Record<CampaignBusinessGoal, string[]>> = {
+  PURCHASE: ['PURCHASE'],
+  LEAD: ['LEAD'],
+  QUALIFIED_LEAD: ['LEAD'],
+  SIGN_UP: ['COMPLETE_REGISTRATION'],
+  PHONE_CALL: ['CONTACT', 'LEAD'],
+  WHATSAPP_CONVERSATION: ['CONTACT', 'LEAD'],
+  APP_INSTALL: ['ACTIVATE_APP'],
+  TRAFFIC: ['VIEW_CONTENT'],
+}
+
+const defaultMetaStandardEvent = (goal: CampaignBusinessGoal) =>
+  META_GOAL_EVENTS[goal]?.[0] ?? ''
+
+const recommendedConversion = (
+  conversions: AdConversion[],
+  goal: CampaignBusinessGoal,
+  provider: 'GOOGLE_ADS' | 'META_ADS',
+) => {
+  const events = provider === 'GOOGLE_ADS' ? GOOGLE_GOAL_EVENTS[goal] : META_GOAL_EVENTS[goal]
+  if (!events?.length) return conversions[0]
+  return (
+    conversions.find((conversion) => {
+      const event = conversion.customEventType?.trim().toUpperCase()
+      return event ? events.includes(event) : false
+    }) ?? conversions[0]
+  )
+}
+
 const defaultGoal = (objective: ReachlyoCampaignObjective): CampaignBusinessGoal => {
   switch (objective) {
     case 'SALES':
@@ -332,7 +371,7 @@ export default function ReachlyoCampaignWizard() {
   const [metaPixelId, setMetaPixelId] = useState('')
   const [metaConversionMode, setMetaConversionMode] = useState<'PROVIDER' | 'STANDARD'>('PROVIDER')
   const [metaConversionId, setMetaConversionId] = useState('')
-  const [metaStandardEvent, setMetaStandardEvent] = useState('PURCHASE')
+  const [metaStandardEvent, setMetaStandardEvent] = useState('LEAD')
   const [metaPlacementMode, setMetaPlacementMode] = useState<'AUTO' | 'MANUAL'>('AUTO')
   const [metaPublisherPlatforms, setMetaPublisherPlatforms] = useState<string[]>([])
   const [metaFacebookPositions, setMetaFacebookPositions] = useState<string[]>([])
@@ -366,6 +405,19 @@ export default function ReachlyoCampaignWizard() {
     if (!selectedCompany) return
     void load()
   }, [selectedCompany?.companyId, campaignId])
+
+  useEffect(() => {
+    const defaults = new Set(
+      Object.values(META_GOAL_EVENTS)
+        .flatMap((values) => values ?? [])
+        .map((value) => value.toUpperCase()),
+    )
+    setMetaStandardEvent((current) => {
+      const normalized = current.trim().toUpperCase()
+      if (normalized && !defaults.has(normalized)) return current
+      return defaultMetaStandardEvent(businessGoal) || current
+    })
+  }, [businessGoal])
 
   const load = async () => {
     if (!selectedCompany) return
@@ -1024,13 +1076,25 @@ export default function ReachlyoCampaignWizard() {
       !googleConversionId &&
       nextConversions[googleAccount]?.length
     ) {
-      setGoogleConversionId(nextConversions[googleAccount][0].id)
+      setGoogleConversionId(
+        recommendedConversion(
+          nextConversions[googleAccount],
+          businessGoal,
+          'GOOGLE_ADS',
+        )?.id ?? '',
+      )
     }
 
     const metaAccount = accountByChannel.META_ADS
     if (metaAccount) {
       if (!metaConversionId && nextConversions[metaAccount]?.length) {
-        setMetaConversionId(nextConversions[metaAccount][0].id)
+        setMetaConversionId(
+          recommendedConversion(
+            nextConversions[metaAccount],
+            businessGoal,
+            'META_ADS',
+          )?.id ?? '',
+        )
       }
       const resources = nextResources[metaAccount] ?? []
       if (!metaPageId) {
