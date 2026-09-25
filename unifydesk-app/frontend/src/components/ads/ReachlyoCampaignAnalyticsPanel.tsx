@@ -48,6 +48,9 @@ export default function ReachlyoCampaignAnalyticsPanel({
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [syncFailures, setSyncFailures] = useState<
+    Array<{ provider: string; adAccountId: string; message: string }>
+  >([])
 
   const money = (value: number | null | undefined) => {
     try {
@@ -65,6 +68,7 @@ export default function ReachlyoCampaignAnalyticsPanel({
     setLoading(true)
     setError('')
     setNotice('')
+    setSyncFailures([])
     try {
       setAnalytics(
         await adCenterApi.reachlyoCampaignAnalytics(
@@ -85,6 +89,7 @@ export default function ReachlyoCampaignAnalyticsPanel({
     setSyncing(true)
     setError('')
     setNotice('')
+    setSyncFailures([])
     try {
       const result = await adCenterApi.syncReachlyoCampaignAnalytics(
         companyId,
@@ -94,6 +99,7 @@ export default function ReachlyoCampaignAnalyticsPanel({
       )
       setAnalytics(result.analytics)
       if (result.failures.length > 0) {
+        setSyncFailures(result.failures)
         setNotice(
           `Synced ${result.synchronizedAccounts} account(s). ${result.failures.length} provider account(s) could not refresh; stored analytics are still shown.`,
         )
@@ -192,6 +198,21 @@ export default function ReachlyoCampaignAnalyticsPanel({
         </div>
       )}
 
+      {syncFailures.length > 0 && (
+        <div className="border-b border-amber-100 bg-amber-50 px-5 py-3">
+          <p className="text-xs font-semibold text-amber-900">
+            Provider refresh issues
+          </p>
+          <ul className="mt-1 grid gap-1 text-xs text-amber-800">
+            {syncFailures.map((failure) => (
+              <li key={failure.provider + '-' + failure.adAccountId}>
+                {pretty(failure.provider)} account {failure.adAccountId}: {failure.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {loading ? (
         <div className="p-8 text-center text-sm text-slate-500">
           Loading campaign analytics…
@@ -208,7 +229,14 @@ export default function ReachlyoCampaignAnalyticsPanel({
               label="Conversion value"
               value={money(analytics.summary.conversionValue)}
             />
-            <Metric label="CPA" value={money(analytics.summary.cpa)} />
+            <Metric
+              label="CPA"
+              value={
+                analytics.summary.cpa == null
+                  ? '—'
+                  : money(analytics.summary.cpa)
+              }
+            />
             <Metric
               label="ROAS"
               value={
