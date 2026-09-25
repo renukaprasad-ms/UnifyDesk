@@ -106,6 +106,7 @@ import type {
   GoogleKeywordSync,
   GoogleNegativeKeyword,
   GoogleSearchTermReport,
+  GoogleAiMaxCombinationReport,
   GoogleNegativeKeywordInput,
   GoogleNegativeKeywordList,
   GoogleNegativeKeywordMutation,
@@ -908,6 +909,19 @@ export const adCenterApi = {
     const response = await apiClient.patch<ApiResponse<AdKeyword>>(
       `/api/v1/companies/${companyId}/ads/google/keywords/${keywordId}`,
       input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleAiMaxReport(
+    companyId: string,
+    campaignId: string,
+    from: string,
+    to: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleAiMaxCombinationReport>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/ai-max/report`,
+      { params: { from, to } },
     )
     return unwrap(response.data)
   },
