@@ -18,7 +18,6 @@ import com.messaging.ads.campaign.enums.BudgetPeriod;
 import com.messaging.ads.campaign.enums.CampaignChannelType;
 import com.messaging.ads.campaign.enums.ConversionTargetType;
 import com.messaging.ads.campaign.enums.CreativeAssetRole;
-import com.messaging.ads.campaign.enums.CreativeVariantType;
 import com.messaging.ads.campaign.repository.AudienceDefinitionRepository;
 import com.messaging.ads.campaign.repository.CampaignChannelRepository;
 import com.messaging.ads.campaign.repository.ConversionGoalMappingRepository;
@@ -629,7 +628,7 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
   }
 
   private CreativeVariant placementVariant(Long companyId, Long packId, JsonNode override) {
-    CreativeVariantType type = singlePlacementVariantType(override);
+    var type = MetaPlacementCreativeVariantSelector.select(override);
     if (type == null) return null;
     return creativeVariantRepository
         .findByCompanyIdAndCreativePackIdOrderByCreatedAtAsc(companyId, packId)
@@ -638,37 +637,6 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
         .filter(variant -> variant.getVariantType() == type)
         .findFirst()
         .orElse(null);
-  }
-
-  private CreativeVariantType singlePlacementVariantType(JsonNode override) {
-    List<String> platforms = stringArray(override, "publisherPlatforms");
-    if (platforms.isEmpty()) return null;
-
-    List<String> positions = new ArrayList<>();
-    positions.addAll(stringArray(override, "facebookPositions"));
-    positions.addAll(stringArray(override, "instagramPositions"));
-    positions.addAll(stringArray(override, "messengerPositions"));
-    positions.addAll(stringArray(override, "audienceNetworkPositions"));
-    if (positions.isEmpty()) return null;
-
-    boolean storyOnly = positions.stream().allMatch(value -> "story".equalsIgnoreCase(value));
-    if (storyOnly) return CreativeVariantType.META_STORY;
-
-    boolean reelsOnly = positions.stream().allMatch(value -> "reels".equalsIgnoreCase(value));
-    if (reelsOnly) return CreativeVariantType.META_REEL;
-
-    Set<String> feedLike =
-        Set.of(
-            "feed",
-            "stream",
-            "marketplace",
-            "video_feeds",
-            "search",
-            "explore",
-            "explore_home",
-            "profile_feed");
-    boolean feedOnly = positions.stream().allMatch(value -> feedLike.contains(value.toLowerCase(Locale.ROOT)));
-    return feedOnly ? CreativeVariantType.META_FEED : null;
   }
 
   private AudienceDefinition audience(
