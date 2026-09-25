@@ -195,6 +195,10 @@ class GoogleProviderCampaignCompilerTests {
         "{\"aiMaxEnabled\":true,\"aiMaxTextCustomizationEnabled\":true,"
             + "\"aiMaxFinalUrlExpansionEnabled\":true,"
             + "\"aiMaxDisableSearchTermMatching\":false,"
+            + "\"aiMaxUrlExclusions\":[\"/privacy\"],"
+            + "\"aiMaxUrlInclusions\":[\"https://example.com/product\"],"
+            + "\"aiMaxBrandInclusions\":[{\"id\":\"/m/0123\",\"name\":\"Brand A\"}],"
+            + "\"aiMaxBrandExclusions\":[{\"id\":\"/m/0456\",\"name\":\"Brand B\"}],"
             + "\"keywordMatchType\":\"EXACT\"}");
 
     AdAccount account = new AdAccount();
@@ -248,7 +252,12 @@ class GoogleProviderCampaignCompilerTests {
     assertThat(plan.issues())
         .anyMatch(issue -> "AI_MAX_KEYWORD_MATCH_TYPE_OVERRIDDEN".equals(issue.code()));
     assertThat(plan.operations())
-        .anyMatch(operation -> "configure-ai-max-ad-group".equals(operation.key()));
+        .extracting(ProviderPlanOperation::key)
+        .contains(
+            "configure-ai-max-ad-group",
+            "configure-ai-max-url-exclusions",
+            "configure-ai-max-url-inclusions",
+            "configure-ai-max-brands");
   }
 
   private AdFeatureCapabilityResponse available(AdFeatureCapability feature) {
