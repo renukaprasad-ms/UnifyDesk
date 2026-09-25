@@ -266,6 +266,8 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
       try {
         aiMaxControlService.validateUrlExclusions(
             stringsFromOverrideArray(override, "aiMaxUrlExclusions"));
+        aiMaxControlService.validateUrlInclusions(
+            stringsFromOverrideArray(override, "aiMaxUrlInclusions"));
       } catch (BadRequestException exception) {
         issues.add(
             error(
@@ -320,6 +322,8 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
           configureAiMaxAdGroup(companyId, run, step, channel);
       case "configure-ai-max-url-exclusions" ->
           configureAiMaxUrlExclusions(companyId, run, step, channel);
+      case "configure-ai-max-url-inclusions" ->
+          configureAiMaxUrlInclusions(companyId, run, step, channel);
       case "configure-keywords" ->
           configureKeywords(companyId, run, plan, step);
       case "configure-negative-keywords" ->
@@ -503,6 +507,32 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
         adGroup.getId(),
         adGroup.getExternalAdSetId(),
         Map.of("disableSearchTermMatching", disableSearchTermMatching));
+  }
+
+  private LaunchStepExecutionResult configureAiMaxUrlInclusions(
+      Long companyId,
+      LaunchRun run,
+      LaunchStep step,
+      CampaignChannel channel) {
+    AdCampaign providerCampaign =
+        providerCampaign(companyId, step.getProviderDeploymentId());
+    AdSet adGroup = providerAdGroup(companyId, step.getProviderDeploymentId());
+    List<String> inclusions =
+        stringsFromOverrideArray(override(channel), "aiMaxUrlInclusions");
+    var result =
+        aiMaxControlService.applyUrlInclusions(
+            companyId,
+            providerCampaign.getId(),
+            Long.valueOf(adGroup.getExternalAdSetId()),
+            inclusions,
+            run.getRequestedByUserId());
+    return LaunchStepExecutionResult.succeeded(
+        adGroup.getId(),
+        adGroup.getExternalAdSetId(),
+        Map.of(
+            "createdAssets", result.createdAssets(),
+            "createdCriteria", result.createdCriteria(),
+            "reusedCriteria", result.reusedCriteria()));
   }
 
   private LaunchStepExecutionResult configureAiMaxUrlExclusions(
