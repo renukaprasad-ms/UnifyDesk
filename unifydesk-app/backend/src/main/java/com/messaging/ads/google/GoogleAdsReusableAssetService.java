@@ -327,15 +327,24 @@ public class GoogleAdsReusableAssetService {
       throw new BadRequestException("No Google URL option changes were supplied");
     }
 
-    apiClient.mutate(
-        context.accessToken(),
-        context.account().getExternalAccountId(),
-        context.loginCustomerId(),
-        target.collection(),
-        List.of(
-            Map.of(
-                "update", update,
-                "updateMask", String.join(",", masks))));
+    Map<String, Object> operation =
+        Map.of(
+            "update", update,
+            "updateMask", String.join(",", masks));
+    if (level == GoogleAssetLinkRequest.Level.CUSTOMER) {
+      apiClient.mutateCustomer(
+          context.accessToken(),
+          context.account().getExternalAccountId(),
+          context.loginCustomerId(),
+          operation);
+    } else {
+      apiClient.mutate(
+          context.accessToken(),
+          context.account().getExternalAccountId(),
+          context.loginCustomerId(),
+          target.collection(),
+          List.of(operation));
+    }
 
     GoogleUrlOptionsResponse after = urlOptions(companyId, accountId, level, targetId);
     activityLogService.record(
@@ -474,21 +483,22 @@ public class GoogleAdsReusableAssetService {
 
   private String linkQuery(LinkTarget target) {
     String prefix = target.jsonField();
+    String gaqlPrefix = snake(prefix);
     StringBuilder query =
         new StringBuilder(
             "SELECT "
-                + prefix
+                + gaqlPrefix
                 + ".resource_name, "
-                + prefix
+                + gaqlPrefix
                 + ".asset, "
-                + prefix
+                + gaqlPrefix
                 + ".field_type, "
-                + prefix
+                + gaqlPrefix
                 + ".status, "
-                + prefix
+                + gaqlPrefix
                 + ".primary_status, "
                 + "asset.id, asset.resource_name, asset.name, asset.type FROM "
-                + snake(target.jsonField()));
+                + gaqlPrefix);
     if (target.externalTargetId() != null) {
       query
           .append(" WHERE ")
@@ -500,7 +510,7 @@ public class GoogleAdsReusableAssetService {
       query.append(" WHERE ");
     }
     query
-        .append(prefix)
+        .append(gaqlPrefix)
         .append(".field_type IN ('SITELINK','CALLOUT','STRUCTURED_SNIPPET')");
     return query.toString();
   }
