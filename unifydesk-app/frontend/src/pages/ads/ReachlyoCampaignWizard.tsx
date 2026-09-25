@@ -235,8 +235,10 @@ const providerForChannel = (type: CampaignChannelType) =>
 
 const currencyDigits = (currency: string) => {
   try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency })
-      .resolvedOptions().maximumFractionDigits
+    return (
+      new Intl.NumberFormat(undefined, { style: 'currency', currency })
+        .resolvedOptions().maximumFractionDigits ?? 2
+    )
   } catch {
     return 2
   }
@@ -2467,7 +2469,7 @@ export default function ReachlyoCampaignWizard() {
                         accountId={accountByChannel.GOOGLE_SEARCH}
                         landingPageUrl={
                           creativeUrl.trim() ||
-                          campaign.landingPageUrl ||
+                          campaign?.landingPageUrl ||
                           landingPageUrl
                         }
                         locations={audienceLocations}
@@ -2497,6 +2499,7 @@ export default function ReachlyoCampaignWizard() {
                 description="Only settings that cannot be safely inferred belong here."
               >
                 {selectedChannels.includes('META_ADS') &&
+                  campaign &&
                   creativePacks[0] &&
                   campaign.channels.find(
                     (channel) => channel.channelType === 'META_ADS',
