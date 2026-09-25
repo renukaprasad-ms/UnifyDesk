@@ -1,0 +1,1 @@
+import type {MetadataRoute} from "next"; const routes=["","/product","/solutions","/integrations","/pricing","/security","/about","/contact","/privacy","/terms"]; export default function sitemap():MetadataRoute.Sitemap{return routes.map(path=>({url:"https://unifydesk.in"+path,lastModified:new Date(),changeFrequency:path===""?"weekly":"monthly",priority:path===""?1:.7}))}

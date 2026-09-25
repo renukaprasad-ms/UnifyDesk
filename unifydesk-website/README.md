@@ -1,14 +1,24 @@
 # UnifyDesk Website
 
-Public marketing website for https://unifydesk.in. The SaaS application lives separately in `../unifydesk-app` and is intended for https://app.unifydesk.in.
+Public marketing site for UnifyDesk, built with Next.js and TypeScript.
 
 ## Local development
+
+From this directory:
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Deployment
+## Production build
 
-Deploy this directory as an independent Netlify site. Set the Netlify base directory to `unifydesk-website`. No application secrets belong in this website.
+```bash
+npm run build
+```
+
+## Netlify
+
+When connecting the monorepo, use the repository root and keep `netlify.toml` at `unifydesk-website/netlify.toml`, or configure Netlify's package directory as `unifydesk-website`. The public production domain is `unifydesk.in`.
+
+The application itself lives at `app.unifydesk.in`; this site must never contain backend/provider secrets.
