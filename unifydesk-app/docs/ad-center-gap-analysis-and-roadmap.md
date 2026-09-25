@@ -827,7 +827,7 @@ Reference:
 
 ## G-02 Negative keywords - P0
 
-Status: **core management complete**. Reachlyo now supports ad-group negatives, campaign negatives, reusable Google shared negative keyword lists, provider-live read-through/sync, attach/detach, bulk entry, and unified-launch application. Search-term suggestions and the "search term -> add as negative" action remain intentionally coupled to G-03/B8 search-term reporting.
+Status: **complete for the current Search scope**. Reachlyo supports ad-group negatives, campaign negatives, reusable Google shared negative keyword lists, provider-live read-through/sync, attach/detach, bulk entry, unified-launch application, evidence-backed search-term review candidates, and direct search-term exclusion at ad-group or campaign level.
 
 Missing/next integration:
 
@@ -840,8 +840,8 @@ Missing/next integration:
 Frontend:
 
 - [x] bulk add
-- suggestions — deliver with search-term reporting so suggestions are evidence-backed
-- search-term -> add as negative action — deliver with G-03/B8
+- [x] evidence-backed review candidates from search-term performance
+- [x] search-term -> add as ad-group or campaign negative action
 
 Reference:
 
@@ -850,21 +850,29 @@ Reference:
 
 ## G-03 Search term reporting - P1
 
-Add:
+Status: **core Search reporting complete**. Reachlyo now queries Google's current `search_term_view` for managed Search campaigns with a validated 90-day date range and exposes search term, matched keyword, matched keyword match type, Search-term match type, Google targeting status, AI Max/search match source, ad group, impressions, clicks, spend, conversions, conversion value, CPA and ROAS. The provider-native campaign page includes filtering, zero-conversion review candidates, and direct actions to promote a term to an ad-group keyword or exclude it at ad-group/campaign scope. Exact is the default mutation match type to minimize accidental over-blocking.
 
-- search terms
-- matched keyword
-- match type
-- clicks
-- impressions
-- spend
-- conversions
-- value
-- CPA/ROAS
-- action to promote term to keyword
-- action to exclude term
+Current AI Max semantics are carried through `segments.search_term_match_source`, including keywordless and AI Max broad-match attribution where Google returns it. The more granular AI Max search-term/ad/headline/landing-page audit view remains part of C1 together with AI Max controls and URL/text automation.
 
-Must support AI Max reporting semantics as they evolve.
+Implemented:
+
+- [x] search terms
+- [x] matched keyword
+- [x] match type
+- [x] clicks
+- [x] impressions
+- [x] spend
+- [x] conversions
+- [x] value
+- [x] CPA/ROAS
+- [x] action to promote term to keyword
+- [x] action to exclude term at ad-group or campaign scope
+- [x] AI Max match-source attribution in the standard Search-term report
+
+Reference:
+
+- https://developers.google.com/google-ads/api/fields/v25/search_term_view
+- https://developers.google.com/google-ads/api/docs/campaigns/ai-max-for-search-campaigns/ai-max-reporting
 
 ## G-04 AI Max for Search - P1
 
@@ -1946,7 +1954,7 @@ B4. [x] Meta proper placement tree — structured Facebook/Instagram/Messenger/A
 B5. [x] placement-specific Creative Pack variants — Feed/Story/Reel copy + image/video variants, validated AD_CREATIVE media, single-family launch selection, mixed-placement Meta asset_feed_spec PLACEMENT customization, and safe canonical fallback for unsupported/unmodeled placement families  
 B6. [x] unified conversion mapping — one business goal with current-goal provider/account mappings, goal-aware defaults and mismatch warnings, current Meta standard-event validation/custom-conversion execution, and Google conversion-action preflight + CustomConversionGoal + ConversionGoalCampaignConfig + competing-goal isolation  
 B7. [x] cross-provider campaign analytics — deployment-linked Google + Meta campaign rollups, unified KPIs, provider/channel spend share, daily trend, exact-range/daily fallback consistency, mixed-currency protection, one-click multi-provider refresh, and partial-sync failure reporting  
-B8. search-term reporting  
+B8. [x] search-term reporting — Google search_term_view with matched keyword/match type, targeting status, AI Max match source, impressions/clicks/spend/conversions/value/CPA/ROAS, evidence-backed review filters, promote-to-keyword, and ad-group/campaign exclusion actions  
 B9. campaign-level recommendation improvements
 
 ## Phase C - Modern Google / P1
@@ -2038,6 +2046,8 @@ Main documentation:
 Search:
 
 - https://developers.google.com/google-ads/api/docs/campaigns/search-campaigns/getting-started
+- https://developers.google.com/google-ads/api/fields/v25/search_term_view
+- https://developers.google.com/google-ads/api/fields/v25/campaign_search_term_view
 
 Conversion goals:
 
