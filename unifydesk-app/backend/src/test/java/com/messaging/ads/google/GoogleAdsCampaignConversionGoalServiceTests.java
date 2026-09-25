@@ -118,19 +118,6 @@ class GoogleAdsCampaignConversionGoalServiceTests {
             new GoogleAdsAccountContextService.Context(
                 account, null, "token", null, false, false));
     when(apiClient.searchRows(eq("token"), eq("1234567890"), eq(null), anyString()))
-        .thenReturn(
-            List.of(
-                objectMapper.readTree(
-                    """
-                    {
-                      "customer": {
-                        "conversionTrackingSetting": {
-                          "googleAdsConversionCustomer": "customers/1234567890"
-                        }
-                      }
-                    }
-                    """)));
-    when(apiClient.searchRows(eq("token"), eq("1234567890"), eq(null), anyString()))
         .thenAnswer(
             invocation -> {
               String query = invocation.getArgument(3);
