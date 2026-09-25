@@ -260,7 +260,7 @@ public class AdFeatureCapabilityService {
     add(specs, AdFeatureCapability.GOOGLE_OFFLINE_CONVERSION_UPLOAD, true, GOOGLE_ADS_SCOPE);
     add(specs, AdFeatureCapability.GOOGLE_NATIVE_RECOMMENDATIONS, false, GOOGLE_ADS_SCOPE);
 
-    planned(specs, AdFeatureCapability.GOOGLE_AI_MAX);
+    add(specs, AdFeatureCapability.GOOGLE_AI_MAX, true, GOOGLE_ADS_SCOPE);
     planned(specs, AdFeatureCapability.GOOGLE_APP_CAMPAIGN);
     planned(specs, AdFeatureCapability.GOOGLE_KEYWORD_PLANNER);
     planned(specs, AdFeatureCapability.GOOGLE_FORECAST);
