@@ -40,6 +40,8 @@ public class GoogleAdsSearchTermService {
     String externalCampaignId = numeric(campaign.getExternalCampaignId(), "campaign");
     String query =
         "SELECT search_term_view.search_term, search_term_view.status, "
+            + "segments.keyword.info.text, segments.keyword.info.match_type, "
+            + "segments.search_term_match_type, segments.search_term_match_source, "
             + "campaign.id, campaign.name, ad_group.id, ad_group.name, "
             + "customer.currency_code, metrics.impressions, metrics.clicks, "
             + "metrics.ctr, metrics.cost_micros, metrics.conversions, "
@@ -95,10 +97,16 @@ public class GoogleAdsSearchTermService {
                 .divide(BigDecimal.valueOf(impressions), 8, RoundingMode.HALF_UP);
       }
 
+      JsonNode segments = row.path("segments");
+      JsonNode keyword = segments.path("keyword").path("info");
       rows.add(
           new GoogleSearchTermReportResponse.Row(
               searchTerm,
               text(view, "status"),
+              text(keyword, "text"),
+              text(keyword, "matchType"),
+              text(segments, "searchTermMatchType"),
+              text(segments, "searchTermMatchSource"),
               externalAdGroupId,
               localAdGroup == null ? null : localAdGroup.getId().toString(),
               first(text(adGroup, "name"), localAdGroup == null ? null : localAdGroup.getName()),
@@ -108,7 +116,8 @@ public class GoogleAdsSearchTermService {
               spend,
               conversions,
               conversionValue,
-              divide(spend, conversions)));
+              divide(spend, conversions),
+              divide(conversionValue, spend)));
 
       String rowCurrency = text(row.path("customer"), "currencyCode");
       if (rowCurrency != null) currency = rowCurrency;
