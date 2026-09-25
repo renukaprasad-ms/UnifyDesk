@@ -24,7 +24,7 @@ public class EmailTemplateAssetService {
   private final MediaService mediaService;
   private final SecureRandom secureRandom = new SecureRandom();
 
-  @Value("${APP_FRONTEND_BASE_URL:https://messaging.renukaprasad.in}")
+  @Value("${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}")
   private String publicBaseUrl;
 
   @Transactional
