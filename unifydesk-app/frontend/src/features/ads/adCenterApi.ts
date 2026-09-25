@@ -21,6 +21,8 @@ import type {
   AdFeatureCapabilityInfo,
   ReachlyoCampaign,
   ReachlyoCampaignSummary,
+  ReachlyoCampaignAnalytics,
+  ReachlyoCampaignAnalyticsSync,
   CreateReachlyoCampaignInput,
   UpdateReachlyoCampaignInput,
   CreateReachlyoCampaignChannelInput,
@@ -163,6 +165,33 @@ export const adCenterApi = {
   async reachlyoCampaign(companyId: string, campaignId: string) {
     const response = await apiClient.get<ApiResponse<ReachlyoCampaign>>(
       `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async reachlyoCampaignAnalytics(
+    companyId: string,
+    campaignId: string,
+    from: string,
+    to: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<ReachlyoCampaignAnalytics>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/analytics`,
+      { params: { from, to } },
+    )
+    return unwrap(response.data)
+  },
+
+  async syncReachlyoCampaignAnalytics(
+    companyId: string,
+    campaignId: string,
+    from: string,
+    to: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<ReachlyoCampaignAnalyticsSync>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/analytics/sync`,
+      null,
+      { params: { from, to } },
     )
     return unwrap(response.data)
   },
