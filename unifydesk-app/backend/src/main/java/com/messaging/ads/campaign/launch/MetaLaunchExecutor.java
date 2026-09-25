@@ -12,16 +12,19 @@ import com.messaging.ads.campaign.entity.CampaignChannel;
 import com.messaging.ads.campaign.entity.ConversionGoalMapping;
 import com.messaging.ads.campaign.entity.CreativePack;
 import com.messaging.ads.campaign.entity.CreativePackAsset;
+import com.messaging.ads.campaign.entity.CreativeVariant;
 import com.messaging.ads.campaign.entity.ReachlyoCampaign;
 import com.messaging.ads.campaign.enums.BudgetPeriod;
 import com.messaging.ads.campaign.enums.CampaignChannelType;
 import com.messaging.ads.campaign.enums.ConversionTargetType;
 import com.messaging.ads.campaign.enums.CreativeAssetRole;
+import com.messaging.ads.campaign.enums.CreativeVariantType;
 import com.messaging.ads.campaign.repository.AudienceDefinitionRepository;
 import com.messaging.ads.campaign.repository.CampaignChannelRepository;
 import com.messaging.ads.campaign.repository.ConversionGoalMappingRepository;
 import com.messaging.ads.campaign.repository.CreativePackAssetRepository;
 import com.messaging.ads.campaign.repository.CreativePackRepository;
+import com.messaging.ads.campaign.repository.CreativeVariantRepository;
 import com.messaging.ads.campaign.repository.ReachlyoCampaignRepository;
 import com.messaging.ads.campaign.service.ProviderDeploymentService;
 import com.messaging.ads.dto.AdCampaignResponse;
@@ -74,6 +77,7 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
   private final CampaignChannelRepository channelRepository;
   private final CreativePackRepository creativePackRepository;
   private final CreativePackAssetRepository creativePackAssetRepository;
+  private final CreativeVariantRepository creativeVariantRepository;
   private final AudienceDefinitionRepository audienceDefinitionRepository;
   private final ConversionGoalMappingRepository conversionGoalMappingRepository;
   private final AdAccountResourceRepository accountResourceRepository;
@@ -504,8 +508,22 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
     }
     String imageUrl = mediaService.createTrustedAccessUrl(media.getId()).url();
     JsonNode override = override(channel);
-    List<String> headlines = strings(pack.getHeadlinesJson());
-    List<String> descriptions = strings(pack.getDescriptionsJson());
+    CreativeVariant variant = placementVariant(companyId, pack.getId(), override);
+    List<String> headlines =
+        variant == null ? strings(pack.getHeadlinesJson()) : strings(variant.getHeadlinesJson());
+    List<String> descriptions =
+        variant == null ? strings(pack.getDescriptionsJson()) : strings(variant.getDescriptionsJson());
+
+    String primaryText =
+        variant == null ? pack.getPrimaryMessage() : firstText(variant.getPrimaryText(), pack.getPrimaryMessage());
+    String callToAction =
+        variant == null
+            ? firstText(text(override, "callToActionType"), pack.getCallToAction())
+            : firstText(variant.getCallToAction(), text(override, "callToActionType"), pack.getCallToAction());
+    String creativeDestination =
+        variant == null
+            ? destination(pack, campaign)
+            : firstText(variant.getDestinationUrl(), destination(pack, campaign));
 
     AdCreativeResponse result =
         creativeMutationService.create(
@@ -516,11 +534,11 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 "SINGLE_IMAGE",
                 text(override, "pageId"),
                 text(override, "instagramActorId"),
-                pack.getPrimaryMessage(),
+                primaryText,
                 headlines.isEmpty() ? null : headlines.getFirst(),
                 descriptions.isEmpty() ? null : descriptions.getFirst(),
-                firstText(text(override, "callToActionType"), pack.getCallToAction()),
-                destination(pack, campaign),
+                callToAction,
+                creativeDestination,
                 null,
                 imageUrl,
                 null,
@@ -528,8 +546,11 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 text(override, "urlTags"),
                 List.of()));
 
+    Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+    metadata.put("reused", false);
+    if (variant != null) metadata.put("creativeVariantType", variant.getVariantType().name());
     return LaunchStepExecutionResult.succeeded(
-        Long.valueOf(result.id()), result.externalCreativeId(), Map.of("reused", false));
+        Long.valueOf(result.id()), result.externalCreativeId(), Map.copyOf(metadata));
   }
 
   private LaunchStepExecutionResult createAd(
@@ -605,6 +626,49 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
         .filter(asset -> asset.getRole() == CreativeAssetRole.IMAGE)
         .findFirst()
         .orElse(null);
+  }
+
+  private CreativeVariant placementVariant(Long companyId, Long packId, JsonNode override) {
+    CreativeVariantType type = singlePlacementVariantType(override);
+    if (type == null) return null;
+    return creativeVariantRepository
+        .findByCompanyIdAndCreativePackIdOrderByCreatedAtAsc(companyId, packId)
+        .stream()
+        .filter(variant -> variant.getProvider() == AdProvider.META_ADS)
+        .filter(variant -> variant.getVariantType() == type)
+        .findFirst()
+        .orElse(null);
+  }
+
+  private CreativeVariantType singlePlacementVariantType(JsonNode override) {
+    List<String> platforms = stringArray(override, "publisherPlatforms");
+    if (platforms.isEmpty()) return null;
+
+    List<String> positions = new ArrayList<>();
+    positions.addAll(stringArray(override, "facebookPositions"));
+    positions.addAll(stringArray(override, "instagramPositions"));
+    positions.addAll(stringArray(override, "messengerPositions"));
+    positions.addAll(stringArray(override, "audienceNetworkPositions"));
+    if (positions.isEmpty()) return null;
+
+    boolean storyOnly = positions.stream().allMatch(value -> "story".equalsIgnoreCase(value));
+    if (storyOnly) return CreativeVariantType.META_STORY;
+
+    boolean reelsOnly = positions.stream().allMatch(value -> "reels".equalsIgnoreCase(value));
+    if (reelsOnly) return CreativeVariantType.META_REEL;
+
+    Set<String> feedLike =
+        Set.of(
+            "feed",
+            "stream",
+            "marketplace",
+            "video_feeds",
+            "search",
+            "explore",
+            "explore_home",
+            "profile_feed");
+    boolean feedOnly = positions.stream().allMatch(value -> feedLike.contains(value.toLowerCase(Locale.ROOT)));
+    return feedOnly ? CreativeVariantType.META_FEED : null;
   }
 
   private AudienceDefinition audience(
