@@ -189,8 +189,7 @@ const META_GOAL_EVENTS: Partial<Record<CampaignBusinessGoal, string[]>> = {
   SIGN_UP: ['COMPLETE_REGISTRATION'],
   PHONE_CALL: ['CONTACT', 'LEAD'],
   WHATSAPP_CONVERSATION: ['CONTACT', 'LEAD'],
-  APP_INSTALL: ['ACTIVATE_APP'],
-  TRAFFIC: ['VIEW_CONTENT'],
+  TRAFFIC: ['CONTENT_VIEW'],
 }
 
 const defaultMetaStandardEvent = (goal: CampaignBusinessGoal) =>
