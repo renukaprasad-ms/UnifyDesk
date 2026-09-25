@@ -32,6 +32,11 @@ public class GoogleAdsAiMaxControlService {
     return new ValidationResult(normalized.size());
   }
 
+  public ValidationResult validateUrlInclusions(List<String> values) {
+    List<String> normalized = normalizeAbsoluteUrls(values, "URL inclusions");
+    return new ValidationResult(normalized.size());
+  }
+
   public ApplyResult applyUrlExclusions(
       Long companyId,
       Long campaignId,
@@ -106,6 +111,235 @@ public class GoogleAdsAiMaxControlService {
         operations.size(), requested.size() - operations.size());
   }
 
+  public UrlInclusionApplyResult applyUrlInclusions(
+      Long companyId,
+      Long campaignId,
+      Long adGroupId,
+      List<String> values,
+      Long actorUserId) {
+    List<String> requested = normalizeAbsoluteUrls(values, "URL inclusions");
+    if (requested.isEmpty()) return new UrlInclusionApplyResult(0, 0, 0);
+
+    AdCampaign campaign =
+        campaignRepository
+            .findByIdAndCompanyId(campaignId, companyId)
+            .orElseThrow(() -> new NotFoundException("Advertising campaign not found"));
+    if (campaign.getProvider() != AdProvider.GOOGLE_ADS
+        || !"SEARCH".equalsIgnoreCase(campaign.getObjective())
+        || !campaign.isAccessible()) {
+      throw new BadRequestException(
+          "AI Max URL inclusions are available only for accessible Google Search campaigns");
+    }
+    var context = contextService.requireManaged(companyId, campaign.getAdAccountId());
+    String customerId = context.account().getExternalAccountId();
+    String adGroupResource =
+        apiClient.customerResourceName(customerId, "adGroups", adGroupId.toString());
+    String campaignResource =
+        apiClient.customerResourceName(
+            customerId, "campaigns", campaign.getExternalCampaignId());
+
+    String assetSetName = "UnifyDesk AI Max page feed " + campaign.getId();
+    String assetSetResource = pageFeedAssetSet(context, assetSetName);
+    if (assetSetResource == null) {
+      JsonNode created =
+          apiClient.mutate(
+              context.accessToken(),
+              customerId,
+              context.loginCustomerId(),
+              "assetSets",
+              List.of(
+                  Map.of(
+                      "create",
+                      Map.of("name", assetSetName, "type", "PAGE_FEED"))));
+      assetSetResource = apiClient.firstMutatedResourceName(created);
+    }
+    if (assetSetResource == null || assetSetResource.isBlank()) {
+      throw new BadRequestException("Google did not return an AI Max page-feed asset set");
+    }
+
+    Set<String> existingFeedUrls = pageFeedUrls(context, assetSetResource);
+    int createdAssets = 0;
+    for (String url : requested) {
+      if (existingFeedUrls.contains(url.toLowerCase())) continue;
+      JsonNode assetResponse =
+          apiClient.mutate(
+              context.accessToken(),
+              customerId,
+              context.loginCustomerId(),
+              "assets",
+              List.of(
+                  Map.of(
+                      "create",
+                      Map.of(
+                          "name", "UnifyDesk AI Max URL " + Integer.toUnsignedString(url.hashCode()),
+                          "pageFeedAsset",
+                          Map.of("pageUrl", url, "labels", List.of("unifydesk-ai-max"))))));
+      String assetResource = apiClient.firstMutatedResourceName(assetResponse);
+      if (assetResource == null || assetResource.isBlank()) {
+        throw new BadRequestException("Google did not return a page-feed asset");
+      }
+      apiClient.mutate(
+          context.accessToken(),
+          customerId,
+          context.loginCustomerId(),
+          "assetSetAssets",
+          List.of(
+              Map.of(
+                  "create",
+                  Map.of("assetSet", assetSetResource, "asset", assetResource))));
+      createdAssets++;
+    }
+
+    if (!campaignHasAssetSet(context, campaign.getExternalCampaignId(), assetSetResource)) {
+      apiClient.mutate(
+          context.accessToken(),
+          customerId,
+          context.loginCustomerId(),
+          "campaignAssetSets",
+          List.of(
+              Map.of(
+                  "create",
+                  Map.of("campaign", campaignResource, "assetSet", assetSetResource))));
+    }
+
+    Set<String> existingCriteria =
+        existingAdGroupWebpageInclusions(context, adGroupId.toString());
+    List<Map<String, Object>> operations = new ArrayList<>();
+    for (String url : requested) {
+      if (existingCriteria.contains(url.toLowerCase())) continue;
+      operations.add(
+          Map.of(
+              "create",
+              Map.of(
+                  "adGroup",
+                  adGroupResource,
+                  "negative",
+                  false,
+                  "webpage",
+                  Map.of(
+                      "criterionName",
+                      "UnifyDesk AI Max inclusion " + Integer.toUnsignedString(url.hashCode()),
+                      "conditions",
+                      List.of(Map.of("operand", "URL", "argument", url))))));
+    }
+    if (!operations.isEmpty()) {
+      apiClient.mutate(
+          context.accessToken(),
+          customerId,
+          context.loginCustomerId(),
+          "adGroupCriteria",
+          operations);
+    }
+
+    activityLogService.record(
+        companyId,
+        campaign.getAdAccountId(),
+        AdProvider.GOOGLE_ADS,
+        actorUserId,
+        "GOOGLE_AI_MAX_URL_INCLUSIONS_APPLIED",
+        "CAMPAIGN",
+        campaign.getExternalCampaignId(),
+        null,
+        null,
+        Map.of(
+            "requestedCount", requested.size(),
+            "createdAssets", createdAssets,
+            "createdCriteria", operations.size()));
+
+    return new UrlInclusionApplyResult(
+        createdAssets,
+        operations.size(),
+        requested.size() - operations.size());
+  }
+
+  private String pageFeedAssetSet(
+      GoogleAdsAccountContextService.Context context, String name) {
+    String escaped = name.replace("'", "\\'");
+    String query =
+        "SELECT asset_set.resource_name, asset_set.name, asset_set.type, asset_set.status "
+            + "FROM asset_set WHERE asset_set.type = 'PAGE_FEED' "
+            + "AND asset_set.name = '"
+            + escaped
+            + "' AND asset_set.status != 'REMOVED' LIMIT 1";
+    List<JsonNode> rows =
+        apiClient.searchRows(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            query);
+    return rows.isEmpty()
+        ? null
+        : rows.getFirst().path("assetSet").path("resourceName").asText(null);
+  }
+
+  private Set<String> pageFeedUrls(
+      GoogleAdsAccountContextService.Context context, String assetSetResource) {
+    String assetSetId = assetSetResource.substring(assetSetResource.lastIndexOf('/') + 1);
+    String query =
+        "SELECT asset.page_feed_asset.page_url "
+            + "FROM asset_set_asset WHERE asset_set.id = "
+            + numeric(assetSetId);
+    Set<String> result = new LinkedHashSet<>();
+    for (JsonNode row :
+        apiClient.searchRows(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            query)) {
+      String url = row.path("asset").path("pageFeedAsset").path("pageUrl").asText(null);
+      if (url != null && !url.isBlank()) result.add(url.trim().toLowerCase());
+    }
+    return result;
+  }
+
+  private boolean campaignHasAssetSet(
+      GoogleAdsAccountContextService.Context context,
+      String externalCampaignId,
+      String assetSetResource) {
+    String assetSetId = assetSetResource.substring(assetSetResource.lastIndexOf('/') + 1);
+    String query =
+        "SELECT campaign_asset_set.resource_name FROM campaign_asset_set "
+            + "WHERE campaign.id = "
+            + numeric(externalCampaignId)
+            + " AND asset_set.id = "
+            + numeric(assetSetId)
+            + " LIMIT 1";
+    return !apiClient
+        .searchRows(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            query)
+        .isEmpty();
+  }
+
+  private Set<String> existingAdGroupWebpageInclusions(
+      GoogleAdsAccountContextService.Context context, String adGroupId) {
+    String query =
+        "SELECT ad_group_criterion.webpage.conditions, ad_group_criterion.negative "
+            + "FROM ad_group_criterion WHERE ad_group.id = "
+            + numeric(adGroupId)
+            + " AND ad_group_criterion.type = 'WEBPAGE' "
+            + "AND ad_group_criterion.negative = FALSE "
+            + "AND ad_group_criterion.status != 'REMOVED'";
+    Set<String> result = new LinkedHashSet<>();
+    for (JsonNode row :
+        apiClient.searchRows(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            query)) {
+      JsonNode conditions = row.path("adGroupCriterion").path("webpage").path("conditions");
+      if (!conditions.isArray()) continue;
+      for (JsonNode condition : conditions) {
+        if (!"URL".equalsIgnoreCase(condition.path("operand").asText())) continue;
+        String argument = condition.path("argument").asText(null);
+        if (argument != null && !argument.isBlank()) result.add(argument.trim().toLowerCase());
+      }
+    }
+    return result;
+  }
+
   private Set<String> existingUrlExclusions(
       GoogleAdsAccountContextService.Context context,
       String externalCampaignId) {
@@ -135,6 +369,36 @@ public class GoogleAdsAiMaxControlService {
       }
     }
     return result;
+  }
+
+  private List<String> normalizeAbsoluteUrls(List<String> values, String label) {
+    if (values == null || values.isEmpty()) return List.of();
+    if (values.size() > MAX_URL_EXCLUSIONS) {
+      throw new BadRequestException("Google AI Max " + label + " are limited to 100 values");
+    }
+    Set<String> seen = new LinkedHashSet<>();
+    List<String> result = new ArrayList<>();
+    for (String value : values) {
+      if (value == null || value.isBlank()) {
+        throw new BadRequestException("Google AI Max " + label + " cannot be blank");
+      }
+      String normalized = value.trim();
+      try {
+        URI uri = URI.create(normalized);
+        if (uri.getScheme() == null
+            || (!"http".equalsIgnoreCase(uri.getScheme())
+                && !"https".equalsIgnoreCase(uri.getScheme()))
+            || uri.getHost() == null) {
+          throw new BadRequestException(
+              "Google AI Max " + label + " must be absolute HTTP(S) URLs");
+        }
+      } catch (IllegalArgumentException exception) {
+        throw new BadRequestException(
+            "Google AI Max " + label + " must be valid absolute URLs");
+      }
+      if (seen.add(normalized.toLowerCase())) result.add(normalized);
+    }
+    return List.copyOf(result);
   }
 
   private List<String> normalizeUrlExclusions(List<String> values) {
@@ -187,4 +451,8 @@ public class GoogleAdsAiMaxControlService {
   public record ValidationResult(int requestedCount) {}
 
   public record ApplyResult(int createdCount, int reusedCount) {}
+
+  public record UrlInclusionApplyResult(
+      int createdAssets, int createdCriteria, int reusedCriteria) {}
 }
+
