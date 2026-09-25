@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: messaging-ingress
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: unifydesk.in
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: messaging-frontend
+                port:
+                  number: 80
+
+    - host: api-unifydesk.in
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: messaging-backend
+                port:
+                  number: 8001

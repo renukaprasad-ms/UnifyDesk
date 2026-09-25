@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_DB: ${EMAIL_PROVIDER_DB_NAME:-email_provider}
+      POSTGRES_USER: ${EMAIL_PROVIDER_DB_USER:-email_provider}
+      POSTGRES_PASSWORD: ${EMAIL_PROVIDER_DB_PASSWORD:-email_provider}
+    ports:
+      - "${EMAIL_PROVIDER_POSTGRES_PORT:-5003}:5432"
+    volumes:
+      - email-provider-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${EMAIL_PROVIDER_DB_USER:-email_provider} -d ${EMAIL_PROVIDER_DB_NAME:-email_provider}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8.2-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${EMAIL_PROVIDER_REDIS_PORT:-6380}:6379"
+    volumes:
+      - email-provider-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  email-provider-postgres-data:
+  email-provider-redis-data:
