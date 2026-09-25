@@ -121,13 +121,9 @@ class GoogleAdsCampaignTargetingServiceTests {
             () ->
                 service.searchCampaignSettings(
                     objectMapper.readTree(
-                        """
-                        {
-                          "aiMaxEnabled": true,
-                          "aiMaxTermExclusions": [""""
+                        "{\"aiMaxEnabled\":true,\"aiMaxTermExclusions\":[\""
                             + overlongTerm
-                            + ""]
-                        }")))
+                            + "\"]}")))
         .isInstanceOf(BadRequestException.class)
         .hasMessageContaining("30 characters");
   }
