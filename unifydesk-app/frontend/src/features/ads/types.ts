@@ -840,6 +840,80 @@ export type CreateGooglePerformanceMaxCampaignInput = {
   endDate?: string | null
 }
 
+export type GoogleReusableAssetType =
+  | 'SITELINK'
+  | 'CALLOUT'
+  | 'STRUCTURED_SNIPPET'
+
+export type GoogleUrlCustomParameter = {
+  key: string
+  value: string
+}
+
+export type GoogleReusableAsset = {
+  id: string
+  resourceName: string
+  name?: string | null
+  type: GoogleReusableAssetType | string
+  source?: string | null
+  linkText?: string | null
+  description1?: string | null
+  description2?: string | null
+  calloutText?: string | null
+  structuredSnippetHeader?: string | null
+  structuredSnippetValues: string[]
+  finalUrls: string[]
+  finalMobileUrls: string[]
+  trackingUrlTemplate?: string | null
+  finalUrlSuffix?: string | null
+  customParameters: GoogleUrlCustomParameter[]
+}
+
+export type CreateGoogleReusableAssetInput = {
+  type: GoogleReusableAssetType
+  name?: string | null
+  linkText?: string | null
+  description1?: string | null
+  description2?: string | null
+  calloutText?: string | null
+  structuredSnippetHeader?: string | null
+  structuredSnippetValues?: string[]
+  finalUrl?: string | null
+  finalMobileUrl?: string | null
+  trackingUrlTemplate?: string | null
+  finalUrlSuffix?: string | null
+  customParameters?: GoogleUrlCustomParameter[]
+}
+
+export type GoogleAssetLinkLevel = 'CUSTOMER' | 'CAMPAIGN' | 'AD_GROUP'
+
+export type GoogleReusableAssetLink = {
+  resourceName: string
+  assetResourceName: string
+  assetId: string
+  assetName?: string | null
+  assetType?: string | null
+  fieldType: string
+  level: GoogleAssetLinkLevel
+  targetId?: string | null
+  status?: string | null
+  primaryStatus?: string | null
+}
+
+export type GoogleUrlOptions = {
+  level: GoogleAssetLinkLevel
+  targetId?: string | null
+  trackingUrlTemplate?: string | null
+  finalUrlSuffix?: string | null
+  customParameters: GoogleUrlCustomParameter[]
+}
+
+export type UpdateGoogleUrlOptionsInput = {
+  trackingUrlTemplate?: string | null
+  finalUrlSuffix?: string | null
+  customParameters?: GoogleUrlCustomParameter[] | null
+}
+
 export type GoogleAsset = {
   id?: string | null
   resourceName?: string | null
