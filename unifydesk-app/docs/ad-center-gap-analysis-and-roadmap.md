@@ -1518,13 +1518,26 @@ Provider-specific metrics should remain accessible.
 
 ## X-09 Cross-provider recommendations - P1
 
-Recommendations should be evidence-based and actionable.
+Status: **core campaign-level recommendation feed complete**. Reachlyo Campaigns now expose one recommendation surface that combines provider deployment state, the existing provider/account diagnostic lifecycle, seven-day unified campaign analytics, and campaign-targeted Google Ads native recommendations. Recommendations include evidence, severity/category/source, provider/deployment context, and an explicit review path when an existing management surface can resolve the issue.
 
-Examples:
+Current evidence-backed campaign diagnostics include:
+
+- failed or partially failed provider deployment
+- stale/missing analytics
+- campaign spend with zero recorded conversions
+- active provider deployment with no recent spend
+- cross-provider CPA divergence only after each compared deployment has at least three conversions
+- provider/account blocking diagnostics relevant to a deployment
+- campaign-scoped Google native recommendations and their provider impact payload
+
+The recommendation layer does **not** automatically change budgets, bids, targeting, creative, or provider recommendations. It recommends review and routes the user to the relevant management surface. Search-term exclusion remains directly actionable from B8 because that action is explicitly initiated by the user. Automated budget movement/optimization stays in X-10/E4 with approval/guardrail controls.
+
+Google's Recommendation resource is campaign-aware for many recommendation types and exposes provider impact estimates; these are preserved as provider evidence rather than treated as guaranteed outcomes.
+
+Examples for later expansion:
 
 - increase/decrease budget
 - move budget between channels
-- add negative keyword
 - fix missing creative variant
 - replace fatigued creative
 - fix conversion tracking
@@ -1955,7 +1968,7 @@ B5. [x] placement-specific Creative Pack variants — Feed/Story/Reel copy + ima
 B6. [x] unified conversion mapping — one business goal with current-goal provider/account mappings, goal-aware defaults and mismatch warnings, current Meta standard-event validation/custom-conversion execution, and Google conversion-action preflight + CustomConversionGoal + ConversionGoalCampaignConfig + competing-goal isolation  
 B7. [x] cross-provider campaign analytics — deployment-linked Google + Meta campaign rollups, unified KPIs, provider/channel spend share, daily trend, exact-range/daily fallback consistency, mixed-currency protection, one-click multi-provider refresh, and partial-sync failure reporting  
 B8. [x] search-term reporting — Google search_term_view with matched keyword/match type, targeting status, AI Max match source, impressions/clicks/spend/conversions/value/CPA/ROAS, evidence-backed review filters, promote-to-keyword, and ad-group/campaign exclusion actions  
-B9. campaign-level recommendation improvements
+B9. [x] campaign-level recommendation improvements — unified deployment/provider/cross-channel recommendation feed, failed-delivery and stale-data diagnostics, spend-without-conversion checks, minimum-sample CPA divergence detection, campaign-scoped Google native recommendations, evidence/context/action paths, and responsive campaign UI
 
 ## Phase C - Modern Google / P1
 
@@ -2099,6 +2112,11 @@ Analytics/reporting:
 
 - https://developers.google.com/google-ads/api/reference/rpc/v25/Metrics
 - https://developers.google.com/google-ads/api/fields/v25/campaign
+
+Recommendations:
+
+- https://developers.google.com/google-ads/api/docs/recommendations
+- https://developers.google.com/google-ads/api/fields/v25/recommendation
 
 Assets:
 
