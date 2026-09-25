@@ -844,6 +844,10 @@ export type GoogleReusableAssetType =
   | 'SITELINK'
   | 'CALLOUT'
   | 'STRUCTURED_SNIPPET'
+  | 'CALL'
+  | 'PRICE'
+  | 'PROMOTION'
+  | 'LEAD_FORM'
 
 export type GoogleUrlCustomParameter = {
   key: string
@@ -883,6 +887,46 @@ export type CreateGoogleReusableAssetInput = {
   trackingUrlTemplate?: string | null
   finalUrlSuffix?: string | null
   customParameters?: GoogleUrlCustomParameter[]
+}
+
+export type GooglePriceOfferingInput = {
+  header: string
+  description: string
+  amount: number
+  currencyCode: string
+  unit?: string | null
+  finalUrl: string
+  finalMobileUrl?: string | null
+}
+
+export type CreateGoogleAdvancedReusableAssetInput = {
+  type: 'CALL' | 'PRICE' | 'PROMOTION' | 'LEAD_FORM'
+  name?: string | null
+  callCountryCode?: string | null
+  callPhoneNumber?: string | null
+  priceType?: string | null
+  priceQualifier?: string | null
+  languageCode?: string | null
+  priceOfferings?: GooglePriceOfferingInput[]
+  promotionTarget?: string | null
+  promotionPercentOff?: number | null
+  promotionMoneyAmountOff?: number | null
+  promotionCurrencyCode?: string | null
+  promotionDiscountModifier?: string | null
+  promotionCode?: string | null
+  promotionOccasion?: string | null
+  promotionLanguageCode?: string | null
+  finalUrl?: string | null
+  leadBusinessName?: string | null
+  leadCallToActionType?: string | null
+  leadCallToActionDescription?: string | null
+  leadHeadline?: string | null
+  leadDescription?: string | null
+  leadPrivacyPolicyUrl?: string | null
+  leadFields?: string[]
+  leadPostSubmitCallToActionType?: string | null
+  leadPostSubmitHeadline?: string | null
+  leadPostSubmitDescription?: string | null
 }
 
 export type GoogleAssetLinkLevel = 'CUSTOMER' | 'CAMPAIGN' | 'AD_GROUP'
