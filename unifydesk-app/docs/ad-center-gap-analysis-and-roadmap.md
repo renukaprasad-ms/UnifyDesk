@@ -876,24 +876,36 @@ Reference:
 
 ## G-04 AI Max for Search - P1
 
-Add:
+Status: **complete for the unified Google Search flow**. AI Max remains an advanced provider override on a normal Search campaign rather than a separate Reachlyo channel type.
 
-- enable AI Max
-- search term matching controls
-- text customization controls
-- Final URL Expansion
-- URL inclusions/exclusions
-- brand inclusions/exclusions
-- text guidelines/restrictions
-- AI Max reporting
-- migration state read
+Implemented:
 
-Current Google API docs describe AI Max as an optimization layer over Search campaigns rather than a separate campaign type.
+- [x] campaign-level AI Max enablement through `campaign.ai_max_setting.enable_ai_max`
+- [x] ad-group search-term matching control through `ai_max_ad_group_setting.disable_search_term_matching`
+- [x] explicit compiler warning when individual keyword match types will be overridden by AI Max matching
+- [x] text customization through `TEXT_ASSET_AUTOMATION`
+- [x] Final URL Expansion through `FINAL_URL_EXPANSION_TEXT_ASSET_AUTOMATION`
+- [x] URL exclusions as named negative campaign `WEBPAGE` criteria with retry-safe reuse
+- [x] URL inclusions through reusable `PAGE_FEED` assets + AssetSet + CampaignAssetSet + positive ad-group `WEBPAGE` criteria
+- [x] verified brand suggestions through Google's BrandSuggestionService
+- [x] campaign-level brand inclusions/exclusions through reusable `BRANDS` SharedSets and positive/negative `brand_list` criteria
+- [x] generated-text term exclusions using Google's current 25-item / 30-character limits
+- [x] messaging restrictions using Google's current 40-item / 300-character limits and `RESTRICTION_BASED_EXCLUSION`
+- [x] standard Search-term attribution via `segments.search_term_match_source`
+- [x] dedicated `ai_max_search_term_ad_combination_view` transparency reporting for search term + headline + landing page with spend/conversion metrics
+- [x] provider read-back for AI Max enablement, bundling state, asset automation, text guidelines, ad-group matching state, and Google ACA/broad-match migration timestamps
+- [x] capability exposure, launch preflight, Saga operations, activity audit, responsive UI, and tests
+
+URL inclusion configuration intentionally requires text customization, Final URL Expansion, and AI Max search-term matching to remain enabled, matching Google's current page-feed inclusion model. Brand selection stores the verified provider brand ID plus human-readable name/URLs in the provider override; users are never asked to paste Commercial Knowledge Graph IDs manually.
+
+Current Google API docs describe AI Max as an optimization layer over Search campaigns rather than a separate campaign type. Provider migration timestamps are read-only state and are surfaced through synchronized provider payloads rather than mutated by Reachlyo.
 
 Reference:
 
 - https://developers.google.com/google-ads/api/docs/campaigns/ai-max-for-search-campaigns/getting-started
 - https://developers.google.com/google-ads/api/docs/campaigns/ai-max-for-search-campaigns/ai-max-reporting
+- https://developers.google.com/google-ads/api/docs/targeting/shared-sets
+- https://developers.google.com/google-ads/api/reference/rpc/v25/BrandSuggestionService
 - https://developers.google.com/google-ads/api/docs/release-notes
 
 ## G-05 Keyword Planner - P1
@@ -1972,7 +1984,7 @@ B9. [x] campaign-level recommendation improvements — unified deployment/provid
 
 ## Phase C - Modern Google / P1
 
-C1. AI Max for Search  
+C1. [x] AI Max for Search — campaign/ad-group AI Max controls, text and URL automation, text restrictions, retry-safe page-feed inclusions and URL exclusions, verified brand lists, match-source + combination reporting, migration read-back, capability/preflight/audit/UI/tests  
 C2. Keyword Planner  
 C3. forecasts  
 C4. reusable Google campaign assets/extensions  
