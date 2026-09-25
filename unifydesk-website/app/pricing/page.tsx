@@ -1,3 +1,5 @@
+import type {Metadata} from "next";
+export const metadata:Metadata={title:"Pricing",description:"Explore UnifyDesk plans for teams centralizing customer communication, broadcasts, connected channels and advertising workflows.",alternates:{canonical:"/pricing"}};
 import {Check,ArrowRight} from "lucide-react";import {Header,Footer,APP} from "../components";
 type Plan={name:string;description:string;items:string[];featured?:boolean};
 const plans:Plan[]=[{name:"Starter",description:"For individuals and small teams starting to centralize customer work.",items:["Core workspace","Connected channels","Customer context"]},{name:"Growth",description:"For teams running communication and campaign workflows together.",items:["Everything in Starter","Broadcast workflows","Ad Center workflows","Expanded team controls"],featured:true},{name:"Scale",description:"For organizations that need broader access and operating controls.",items:["Everything in Growth","Higher workspace limits","Advanced company controls","Priority support options"]}];
