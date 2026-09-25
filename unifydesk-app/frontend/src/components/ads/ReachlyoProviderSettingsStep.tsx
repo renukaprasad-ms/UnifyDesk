@@ -43,6 +43,10 @@ type Props = {
   setGoogleAiMaxFinalUrlExpansion: (value: boolean) => void
   googleAiMaxDisableSearchTermMatching: boolean
   setGoogleAiMaxDisableSearchTermMatching: (value: boolean) => void
+  googleAiMaxTermExclusions: string
+  setGoogleAiMaxTermExclusions: (value: string) => void
+  googleAiMaxMessagingRestrictions: string
+  setGoogleAiMaxMessagingRestrictions: (value: string) => void
   googleAdSchedules: GoogleAdScheduleDraft[]
   setGoogleAdSchedules: (value: GoogleAdScheduleDraft[]) => void
   googleNegativeKeywords: GoogleNegativeKeywordInput[]
@@ -414,6 +418,36 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                       Disable AI Max search-term matching for the created ad group so Exact/Phrase/Broad keyword settings apply normally.
                     </span>
                   </label>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <Field
+                    label="Generated-text exclusions"
+                    hint="One exact word or phrase per line. Up to 25 values, maximum 30 characters each."
+                  >
+                    <textarea
+                      className="form-input mt-2 min-h-28"
+                      value={props.googleAiMaxTermExclusions}
+                      disabled={props.disabled}
+                      onChange={(event) =>
+                        props.setGoogleAiMaxTermExclusions(event.target.value)
+                      }
+                      placeholder={'free\ncheap\ncompetitor phrase'}
+                    />
+                  </Field>
+                  <Field
+                    label="AI messaging restrictions"
+                    hint="One instruction per line. Up to 40 instructions, maximum 300 characters each."
+                  >
+                    <textarea
+                      className="form-input mt-2 min-h-28"
+                      value={props.googleAiMaxMessagingRestrictions}
+                      disabled={props.disabled}
+                      onChange={(event) =>
+                        props.setGoogleAiMaxMessagingRestrictions(event.target.value)
+                      }
+                      placeholder="Do not imply a guaranteed outcome"
+                    />
+                  </Field>
                 </div>
               )}
             </div>
