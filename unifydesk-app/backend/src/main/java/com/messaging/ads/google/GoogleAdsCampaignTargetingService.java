@@ -64,9 +64,17 @@ public class GoogleAdsCampaignTargetingService {
         booleanValue(override, "aiMaxTextCustomizationEnabled", false);
     boolean finalUrlExpansionEnabled =
         booleanValue(override, "aiMaxFinalUrlExpansionEnabled", false);
-    if (!aiMaxEnabled && (textCustomizationEnabled || finalUrlExpansionEnabled)) {
+    List<String> termExclusions =
+        stringArray(override, "aiMaxTermExclusions", 25, 30);
+    List<String> messagingRestrictions =
+        stringArray(override, "aiMaxMessagingRestrictions", 40, 300);
+    if (!aiMaxEnabled
+        && (textCustomizationEnabled
+            || finalUrlExpansionEnabled
+            || !termExclusions.isEmpty()
+            || !messagingRestrictions.isEmpty())) {
       throw new BadRequestException(
-          "Google AI Max text customization/final URL expansion require AI Max to be enabled");
+          "Google AI Max text customization, final URL expansion, and text guidelines require AI Max to be enabled");
     }
     return new GoogleSearchCampaignSettings(
         searchPartners,
@@ -74,7 +82,9 @@ public class GoogleAdsCampaignTargetingService {
         positiveGeoType,
         aiMaxEnabled,
         textCustomizationEnabled,
-        finalUrlExpansionEnabled);
+        finalUrlExpansionEnabled,
+        termExclusions,
+        messagingRestrictions);
   }
 
   public ValidationResult resolve(
@@ -528,6 +538,35 @@ public class GoogleAdsCampaignTargetingService {
         parsed.getHour(),
         parsed.getMinute(),
         parsed.toSecondOfDay() / 60);
+  }
+
+  private List<String> stringArray(
+      JsonNode node, String field, int maxItems, int maxLength) {
+    if (node == null || node.isNull() || !node.has(field) || node.get(field).isNull()) {
+      return List.of();
+    }
+    JsonNode value = node.get(field);
+    if (!value.isArray()) {
+      throw new BadRequestException("Google " + field + " must be an array");
+    }
+    if (value.size() > maxItems) {
+      throw new BadRequestException(
+          "Google " + field + " supports at most " + maxItems + " values");
+    }
+    List<String> result = new ArrayList<>();
+    Set<String> seen = new HashSet<>();
+    for (JsonNode item : value) {
+      if (!item.isTextual() || item.asText().isBlank()) {
+        throw new BadRequestException("Google " + field + " values must be non-empty text");
+      }
+      String normalized = item.asText().trim();
+      if (normalized.length() > maxLength) {
+        throw new BadRequestException(
+            "Google " + field + " values may contain at most " + maxLength + " characters");
+      }
+      if (seen.add(normalized.toLowerCase(Locale.ROOT))) result.add(normalized);
+    }
+    return List.copyOf(result);
   }
 
   private boolean booleanValue(JsonNode node, String field, boolean defaultValue) {
