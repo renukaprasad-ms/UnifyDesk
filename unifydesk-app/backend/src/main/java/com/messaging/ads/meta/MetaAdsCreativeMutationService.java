@@ -6,6 +6,7 @@ import com.messaging.ads.enums.AdAccountResourceType;
 import com.messaging.ads.enums.AdConnectionStatus;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.meta.dto.CreateMetaCreativeRequest;
+import com.messaging.ads.meta.dto.CreateMetaPlacementCreativeRequest;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdAccountResourceRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
@@ -59,6 +60,148 @@ public class MetaAdsCreativeMutationService {
     String externalId = apiClient.createCreative(token, account.getExternalAccountId(), payload);
     return AdCreativeResponse.from(
         persistenceService.persistOne(companyId, accountId, apiClient.creative(token, externalId)));
+  }
+
+  public AdCreativeResponse createPlacementCustomized(
+      Long companyId, Long accountId, CreateMetaPlacementCreativeRequest request) {
+    AdAccount account = requireManagedAccount(companyId, accountId);
+    validateIdentity(companyId, accountId, request.pageId(), request.instagramActorId());
+    if (request.placementAssets() == null || request.placementAssets().size() < 2) {
+      throw new BadRequestException(
+          "Meta placement customization requires at least two placement assets");
+    }
+
+    String token = accessToken(companyId, account);
+    Map<String, Object> story = new LinkedHashMap<>();
+    story.put("page_id", request.pageId().trim());
+    if (hasText(request.instagramActorId())) {
+      story.put("instagram_actor_id", request.instagramActorId().trim());
+    }
+
+    List<Map<String, Object>> images = new ArrayList<>();
+    List<Map<String, Object>> videos = new ArrayList<>();
+    List<Map<String, Object>> bodies = new ArrayList<>();
+    List<Map<String, Object>> titles = new ArrayList<>();
+    List<Map<String, Object>> descriptions = new ArrayList<>();
+    List<Map<String, Object>> linkUrls = new ArrayList<>();
+    List<Map<String, Object>> rules = new ArrayList<>();
+
+    int priority = 1;
+    for (CreateMetaPlacementCreativeRequest.PlacementAsset asset : request.placementAssets()) {
+      String baseLabel = "placement_" + priority;
+      Map<String, Object> mediaLabel = Map.of("name", baseLabel + "_media");
+      Map<String, Object> bodyLabel = Map.of("name", baseLabel + "_body");
+      Map<String, Object> titleLabel = Map.of("name", baseLabel + "_title");
+      Map<String, Object> descriptionLabel = Map.of("name", baseLabel + "_description");
+      Map<String, Object> linkLabel = Map.of("name", baseLabel + "_link");
+
+      String mediaType = asset.mediaType().trim().toUpperCase();
+      if ("IMAGE".equals(mediaType)) {
+        images.add(
+            Map.of(
+                "url", asset.mediaUrl().trim(),
+                "adlabels", List.of(mediaLabel)));
+      } else if ("VIDEO".equals(mediaType)) {
+        String videoId =
+            apiClient.uploadVideoFromUrl(
+                token, account.getExternalAccountId(), asset.mediaUrl().trim());
+        videos.add(
+            Map.of(
+                "video_id", videoId,
+                "adlabels", List.of(mediaLabel)));
+      } else {
+        throw new BadRequestException(
+            "Meta placement creative media must be IMAGE or VIDEO");
+      }
+
+      if (hasText(asset.primaryText())) {
+        bodies.add(
+            Map.of(
+                "text", asset.primaryText().trim(),
+                "adlabels", List.of(bodyLabel)));
+      }
+      if (hasText(asset.headline())) {
+        titles.add(
+            Map.of(
+                "text", asset.headline().trim(),
+                "adlabels", List.of(titleLabel)));
+      }
+      if (hasText(asset.description())) {
+        descriptions.add(
+            Map.of(
+                "text", asset.description().trim(),
+                "adlabels", List.of(descriptionLabel)));
+      }
+
+      String destination = requireDestination(asset.destinationUrl());
+      linkUrls.add(
+          Map.of(
+              "website_url", destination,
+              "adlabels", List.of(linkLabel)));
+
+      Map<String, Object> customization = new LinkedHashMap<>();
+      putStringList(customization, "publisher_platforms", asset.publisherPlatforms());
+      putStringList(customization, "facebook_positions", asset.facebookPositions());
+      putStringList(customization, "instagram_positions", asset.instagramPositions());
+      putStringList(customization, "messenger_positions", asset.messengerPositions());
+      putStringList(
+          customization, "audience_network_positions", asset.audienceNetworkPositions());
+      if (!customization.containsKey("publisher_platforms")) {
+        throw new BadRequestException(
+            "Meta placement customization requires publisher platforms");
+      }
+
+      Map<String, Object> rule = new LinkedHashMap<>();
+      rule.put("customization_spec", customization);
+      rule.put("priority", priority);
+      if ("IMAGE".equals(mediaType)) rule.put("image_label", mediaLabel);
+      else rule.put("video_label", mediaLabel);
+      if (hasText(asset.primaryText())) rule.put("body_label", bodyLabel);
+      if (hasText(asset.headline())) rule.put("title_label", titleLabel);
+      if (hasText(asset.description())) rule.put("description_label", descriptionLabel);
+      rule.put("link_url_label", linkLabel);
+      rules.add(rule);
+      priority++;
+    }
+
+    Map<String, Object> assetFeed = new LinkedHashMap<>();
+    if (!images.isEmpty()) assetFeed.put("images", images);
+    if (!videos.isEmpty()) assetFeed.put("videos", videos);
+    if (!bodies.isEmpty()) assetFeed.put("bodies", bodies);
+    if (!titles.isEmpty()) assetFeed.put("titles", titles);
+    if (!descriptions.isEmpty()) assetFeed.put("descriptions", descriptions);
+    assetFeed.put("link_urls", linkUrls);
+    if (hasText(request.callToActionType())) {
+      assetFeed.put(
+          "call_to_action_types",
+          List.of(request.callToActionType().trim().toUpperCase()));
+    }
+    assetFeed.put("asset_customization_rules", rules);
+    assetFeed.put("optimization_type", "PLACEMENT");
+
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("name", request.name().trim());
+    payload.put("object_story_spec", story);
+    payload.put("asset_feed_spec", assetFeed);
+    if (hasText(request.urlTags())) payload.put("url_tags", request.urlTags().trim());
+
+    String externalId =
+        apiClient.createCreative(token, account.getExternalAccountId(), payload);
+    return AdCreativeResponse.from(
+        persistenceService.persistOne(
+            companyId, accountId, apiClient.creative(token, externalId)));
+  }
+
+  private void putStringList(
+      Map<String, Object> target, String field, List<String> values) {
+    if (values == null || values.isEmpty()) return;
+    List<String> normalized =
+        values.stream()
+            .filter(this::hasText)
+            .map(value -> value.trim().toLowerCase())
+            .distinct()
+            .toList();
+    if (!normalized.isEmpty()) target.put(field, normalized);
   }
 
   private Map<String, Object> singleImageData(CreateMetaCreativeRequest request) {
