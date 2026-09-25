@@ -262,6 +262,19 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
               exception.getMessage()));
     }
 
+    if (override.path("aiMaxEnabled").asBoolean(false)) {
+      try {
+        aiMaxControlService.validateUrlExclusions(
+            stringsFromOverrideArray(override, "aiMaxUrlExclusions"));
+      } catch (BadRequestException exception) {
+        issues.add(
+            error(
+                "GOOGLE_AI_MAX_URL_EXCLUSIONS_INVALID",
+                "providerOverride.aiMaxUrlExclusions",
+                exception.getMessage()));
+      }
+    }
+
     if (plan.conversionGoalMappingId() != null
         && !plan.conversionGoalMappingId().isBlank()) {
       try {
