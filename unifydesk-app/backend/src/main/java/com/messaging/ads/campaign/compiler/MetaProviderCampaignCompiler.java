@@ -59,12 +59,25 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
               "audience",
               "No canonical audience is selected; broad Meta targeting will be used."));
     } else {
-      audienceMappingStatus = AudienceMappingStatus.APPROXIMATE;
+      boolean hasUnmappedAudienceDetails =
+          !isBlank(context.audienceDefinition().getLanguagesJson())
+              || !isBlank(context.audienceDefinition().getInterestsJson())
+              || !isBlank(context.audienceDefinition().getSearchIntentJson())
+              || !isBlank(context.audienceDefinition().getRetargetingJson())
+              || !isBlank(context.audienceDefinition().getCustomerSegmentsJson());
+      audienceMappingStatus =
+          hasUnmappedAudienceDetails
+              ? AudienceMappingStatus.APPROXIMATE
+              : AudienceMappingStatus.EXACT;
       audienceMappingNote =
-          "Canonical audience mapping is partial until detailed Meta geo/interest/placement targeting is implemented.";
-      issues.add(
-          ProviderCampaignPlanSupport.warning(
-              "AUDIENCE_MAPPING_APPROXIMATE", "audience", audienceMappingNote));
+          hasUnmappedAudienceDetails
+              ? "Meta geo, age, and gender map directly; language, interest, search-intent, retargeting, or customer-segment controls still require later provider mapping."
+              : "Canonical geo, age, and gender targeting maps directly to Meta.";
+      if (hasUnmappedAudienceDetails) {
+        issues.add(
+            ProviderCampaignPlanSupport.warning(
+                "AUDIENCE_MAPPING_APPROXIMATE", "audience", audienceMappingNote));
+      }
     }
 
     if (ProviderCampaignPlanSupport.requiresConversion(context)) {
@@ -94,7 +107,7 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
       }
     }
 
-    addOperations(context, effectiveBudget, operations);
+    addOperations(context, effectiveBudget, audienceMappingStatus, operations);
 
     return new ProviderCampaignPlan(
         1,
@@ -165,6 +178,7 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
   private void addOperations(
       ProviderCampaignCompileContext context,
       Long effectiveBudget,
+      AudienceMappingStatus audienceMappingStatus,
       List<ProviderPlanOperation> operations) {
     int sequence = 1;
     operations.add(
@@ -214,7 +228,7 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
                   "audienceDefinitionId",
                   context.audienceDefinition().getId().toString(),
                   "mappingStatus",
-                  AudienceMappingStatus.APPROXIMATE)));
+                  audienceMappingStatus)));
     }
     operations.add(
         operation(

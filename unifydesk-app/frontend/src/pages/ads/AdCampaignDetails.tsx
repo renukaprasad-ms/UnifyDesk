@@ -882,6 +882,7 @@ export default function AdCampaignDetails() {
 
             {account && campaign.provider === 'META_ADS' && (
               <MetaAdSetModal
+                companyId={selectedCompany.companyId}
                 account={account}
                 campaign={campaign}
                 resources={resources}

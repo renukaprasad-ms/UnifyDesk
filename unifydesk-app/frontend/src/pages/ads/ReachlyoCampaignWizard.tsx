@@ -1969,7 +1969,7 @@ export default function ReachlyoCampaignWizard() {
                       <div>
                         <p className="text-xs font-semibold text-slate-700">Locations</p>
                         <p className="mt-1 text-[11px] leading-4 text-slate-400">
-                          Country, region, city and postal targets map to Google geo targets. Add a radius for proximity targeting.
+                          Country, region, city and postal targets map to Google and Meta provider geo targets during preflight. Radius targeting requires latitude and longitude so both providers can map it safely.
                         </p>
                       </div>
                       <button

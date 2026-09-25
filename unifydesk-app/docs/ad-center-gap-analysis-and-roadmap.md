@@ -1161,18 +1161,19 @@ Reference:
 
 ## M-02 Geo targeting completeness - P0
 
-Current creation mainly uses country codes.
+Status: **core geo targeting complete**. Reachlyo now supports provider-valid Meta regions, cities and postal targets, coordinate radius targeting, home/recent location types, provider geo search, synced targeting reconstruction in the native editor, and canonical Reachlyo location resolution during launch preflight.
 
-Add:
+Implemented:
 
-- regions
-- cities
-- ZIP/postal where supported
-- radius targeting
-- location types
-- provider search UI for valid geo IDs
+- [x] regions
+- [x] cities
+- [x] ZIP/postal where supported
+- [x] radius targeting
+- [x] location types
+- [x] provider search UI for valid geo IDs
+- [x] canonical Reachlyo location -> provider mapping during preflight/launch
 
-Store canonical location plus provider mapping.
+Geo exclusions are intentionally not part of B3 and can be added with the broader targeting/exclusion work.
 
 ## M-03 Placement tree - P0
 
@@ -1938,7 +1939,7 @@ A user can create one Reachlyo Campaign and deploy a simple valid campaign to Go
 
 B1. [x] Google geo/language/network/daypart targeting — canonical country/region/city/postal/proximity + language mapping, Search Partners/Display expansion, presence mode, quarter-hour dayparting, provider preflight and idempotent campaign-criterion execution  
 B2. [x] Google negative keywords/shared negatives — ad-group negative create/remove + sync, campaign negatives with bulk add/remove, live reusable shared-list discovery/member management/attach-detach, unified campaign selection, preflight validation and idempotent launch execution  
-B3. Meta detailed geo targeting  
+B3. [x] Meta detailed geo targeting — provider geo search, regions/cities/postal codes, coordinate radius targeting, home/recent location types, native create/edit UI, canonical mapping, and launch preflight resolution  
 B4. Meta proper placement tree  
 B5. placement-specific Creative Pack variants  
 B6. unified conversion mapping  

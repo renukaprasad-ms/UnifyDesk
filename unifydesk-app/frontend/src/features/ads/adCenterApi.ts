@@ -89,6 +89,7 @@ import type {
   MetaAdsAuthorization,
   GoogleAdsAuthorization,
   MetaAdsResourceSync,
+  MetaGeoLocationSuggestion,
   MetaAudienceSync,
   MetaCampaignSync,
   MetaConversionSync,
@@ -477,6 +478,28 @@ export const adCenterApi = {
   async syncMetaResources(companyId: string, accountId: string) {
     const response = await apiClient.post<ApiResponse<MetaAdsResourceSync>>(
       `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/resources/sync`,
+    )
+    return unwrap(response.data)
+  },
+
+  async metaGeoLocations(
+    companyId: string,
+    accountId: string,
+    query: string,
+    types: Array<'COUNTRY' | 'REGION' | 'CITY' | 'ZIP'>,
+    countryCode?: string,
+    limit = 20,
+  ) {
+    const response = await apiClient.get<ApiResponse<MetaGeoLocationSuggestion[]>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/geo-targeting/search`,
+      {
+        params: {
+          q: query || undefined,
+          types: types.join(','),
+          countryCode: countryCode || undefined,
+          limit,
+        },
+      },
     )
     return unwrap(response.data)
   },

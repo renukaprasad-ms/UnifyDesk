@@ -41,6 +41,7 @@ import com.messaging.ads.meta.MetaAdsCampaignMutationService;
 import com.messaging.ads.meta.MetaAdsCampaignSyncService;
 import com.messaging.ads.meta.MetaAdsCreativeMutationService;
 import com.messaging.ads.meta.MetaAdsCreativeSyncService;
+import com.messaging.ads.meta.MetaAdsGeoTargetingService;
 import com.messaging.ads.meta.dto.CreateMetaAdRequest;
 import com.messaging.ads.meta.dto.CreateMetaAdSetRequest;
 import com.messaging.ads.meta.dto.CreateMetaCampaignRequest;
@@ -58,7 +59,6 @@ import com.messaging.media.enums.MediaStatus;
 import com.messaging.media.enums.MediaType;
 import com.messaging.media.service.MediaService;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -89,6 +89,7 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
   private final MetaAdsCreativeSyncService creativeSyncService;
   private final MetaAdsAdMutationService adMutationService;
   private final MetaAdsAdSyncService adSyncService;
+  private final MetaAdsGeoTargetingService geoTargetingService;
   private final ProviderDeploymentService deploymentService;
   private final MediaService mediaService;
   private final ObjectMapper objectMapper;
@@ -274,12 +275,15 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 "audience.ageMax",
                 "Meta represents the upper age bucket as 65+; Reachlyo will send ageMax=65."));
       }
-      if (locations.stream().anyMatch(this::hasUnsupportedGeoDetail)) {
+      try {
+        geoTargetingService.resolveCanonical(
+            companyId, Long.valueOf(plan.adAccountId()), locations);
+      } catch (BadRequestException exception) {
         issues.add(
-            warning(
-                "META_GEO_MAPPING_APPROXIMATE",
+            error(
+                "META_GEO_TARGETING_INVALID",
                 "audience.locations",
-                "Regions, cities, postal codes, and radius details are not yet executable; this baseline launch uses the selected countries only."));
+                exception.getMessage()));
       }
       if (hasText(audience.getInterestsJson())
           || hasText(audience.getRetargetingJson())
@@ -336,7 +340,7 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
           createAdSet(companyId, run, plan, step, campaign, channel);
       case "configure-ad-set-targeting" ->
           LaunchStepExecutionResult.skipped(
-              "Canonical country/age/gender targeting was applied atomically while creating the paused Meta ad set.");
+              "Canonical Meta geo/age/gender targeting was applied atomically while creating the paused Meta ad set.");
       case "create-creative" ->
           createCreative(companyId, run, plan, step, campaign, channel);
       case "create-ad-paused" ->
@@ -415,7 +419,8 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
     AudienceDefinition audience =
         audience(companyId, campaign.getId(), plan.audienceDefinitionId(), true);
     List<CreateMetaAdSetRequest.TargetingLocation> targetingLocations =
-        metaLocations(locations(audience));
+        geoTargetingService.resolveCanonical(
+            companyId, step.getAdAccountId(), locations(audience));
     ConversionGoalMapping conversion =
         conversion(companyId, campaign.getId(), plan.conversionGoalMappingId());
 
@@ -640,18 +645,6 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
     }
   }
 
-  private List<CreateMetaAdSetRequest.TargetingLocation> metaLocations(
-      List<AudienceLocationInput> locations) {
-    LinkedHashMap<String, List<String>> countries = new LinkedHashMap<>();
-    for (AudienceLocationInput location : locations) {
-      if (!hasText(location.countryCode())) continue;
-      countries.putIfAbsent(location.countryCode().trim().toUpperCase(Locale.ROOT), List.of("home", "recent"));
-    }
-    return countries.entrySet().stream()
-        .map(entry -> new CreateMetaAdSetRequest.TargetingLocation(entry.getKey(), entry.getValue()))
-        .toList();
-  }
-
   private List<Integer> metaGenders(AudienceDefinition audience) {
     List<String> genders = strings(audience.getGendersJson());
     List<Integer> result = new ArrayList<>();
@@ -662,15 +655,6 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
       if ("FEMALE".equals(value) || "2".equals(value)) result.add(2);
     }
     return result.stream().distinct().toList();
-  }
-
-  private boolean hasUnsupportedGeoDetail(AudienceLocationInput location) {
-    return hasText(location.region())
-        || hasText(location.city())
-        || hasText(location.postalCode())
-        || location.latitude() != null
-        || location.longitude() != null
-        || location.radiusKm() != null;
   }
 
   private String metaObjective(ReachlyoCampaign campaign) {

@@ -916,9 +916,29 @@ export type AdSet = {
   lastSyncAt?: string | null
 }
 
+export type MetaGeoTargetType = 'COUNTRY' | 'REGION' | 'CITY' | 'ZIP' | 'CUSTOM'
+
 export type MetaTargetingLocation = {
-  countryCode: string
-  locationTypes?: string[]
+  countryCode?: string | null
+  type?: MetaGeoTargetType
+  key?: string | null
+  name?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  radiusKm?: number | null
+  locationTypes?: Array<'home' | 'recent'>
+}
+
+export type MetaGeoLocationSuggestion = {
+  key: string
+  name: string
+  type: 'COUNTRY' | 'REGION' | 'CITY' | 'ZIP' | string
+  countryCode?: string | null
+  countryName?: string | null
+  region?: string | null
+  regionId?: string | null
+  supportsRegion?: boolean | null
+  supportsCity?: boolean | null
 }
 
 export type CreateMetaAdSetInput = {

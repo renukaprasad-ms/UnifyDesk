@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { FiX } from 'react-icons/fi'
+import MetaGeoTargetingEditor from './MetaGeoTargetingEditor'
 import type {
   AdAccount,
   AdAccountResource,
@@ -7,9 +8,11 @@ import type {
   AdCampaign,
   AdConversion,
   CreateMetaAdSetInput,
+  MetaTargetingLocation,
 } from '../../features/ads/types'
 
 type Props = {
+  companyId: string
   account: AdAccount
   campaign: AdCampaign
   resources: AdAccountResource[]
@@ -35,13 +38,8 @@ const toMinor = (value: string, currency?: string | null) => {
   }
 }
 
-const csv = (value: string) =>
-  value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean)
-
 export default function MetaAdSetModal({
+  companyId,
   account,
   campaign,
   resources,
@@ -67,7 +65,15 @@ export default function MetaAdSetModal({
     campaignHasBudget ? 'NONE' : 'DAILY',
   )
   const [budget, setBudget] = useState('')
-  const [countries, setCountries] = useState('IN')
+  const [locations, setLocations] = useState<MetaTargetingLocation[]>([
+    {
+      countryCode: 'IN',
+      type: 'COUNTRY',
+      key: 'IN',
+      name: 'IN',
+      locationTypes: ['home', 'recent'],
+    },
+  ])
   const [ageMin, setAgeMin] = useState('18')
   const [ageMax, setAgeMax] = useState('65')
   const [gender, setGender] = useState<'ALL' | 'MEN' | 'WOMEN'>('ALL')
@@ -117,10 +123,7 @@ export default function MetaAdSetModal({
       startAt: startAt ? new Date(startAt).toISOString() : null,
       endAt: endAt ? new Date(endAt).toISOString() : null,
       destinationType: destinationType || null,
-      locations: csv(countries).map((countryCode) => ({
-        countryCode,
-        locationTypes: ['home', 'recent'],
-      })),
+      locations,
       ageMin: Number(ageMin),
       ageMax: Number(ageMax),
       genders:
@@ -245,11 +248,13 @@ export default function MetaAdSetModal({
           <section className="border-t border-slate-100 pt-6">
             <h3 className="text-sm font-bold text-slate-950">Audience</h3>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
-                Countries
-                <input className="form-input mt-2" value={countries} required placeholder="IN, US" onChange={(e) => setCountries(e.target.value)} />
-                <span className="mt-1 block font-normal text-slate-400">ISO country codes separated by commas.</span>
-              </label>
+              <MetaGeoTargetingEditor
+                companyId={companyId}
+                accountId={account.id}
+                locations={locations}
+                onChange={setLocations}
+                disabled={saving}
+              />
 
               <label className="block text-xs font-semibold text-slate-700">
                 Minimum age
