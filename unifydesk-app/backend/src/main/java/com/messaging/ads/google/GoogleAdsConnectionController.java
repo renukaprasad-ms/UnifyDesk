@@ -68,6 +68,12 @@ import com.messaging.ads.google.dto.GoogleKeywordPlannerIdeasRequest;
 import com.messaging.ads.google.dto.GoogleKeywordPlannerHistoricalRequest;
 import com.messaging.ads.google.dto.GoogleKeywordPlannerResponse;
 import com.messaging.ads.google.dto.GoogleAssetResponse;
+import com.messaging.ads.google.dto.GoogleAssetLinkRequest;
+import com.messaging.ads.google.dto.GoogleReusableAssetCreateRequest;
+import com.messaging.ads.google.dto.GoogleReusableAssetLinkResponse;
+import com.messaging.ads.google.dto.GoogleReusableAssetResponse;
+import com.messaging.ads.google.dto.GoogleUrlOptionsRequest;
+import com.messaging.ads.google.dto.GoogleUrlOptionsResponse;
 import com.messaging.ads.google.dto.UpdateGoogleAdGroupRequest;
 import com.messaging.ads.google.dto.UpdateGoogleCampaignRequest;
 import com.messaging.ads.google.dto.UpdateGoogleKeywordRequest;
@@ -116,6 +122,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsBillingService billingService;
   private final GoogleAdsFullSyncService fullSyncService;
   private final GoogleAdsPerformanceMaxService performanceMaxService;
+  private final GoogleAdsReusableAssetService reusableAssetService;
   private final GoogleAdsAssetGroupSignalService assetGroupSignalService;
   private final GoogleAdsAssetGroupAssetService assetGroupAssetService;
   private final GoogleDataManagerService dataManagerService;
@@ -147,6 +154,170 @@ public class GoogleAdsConnectionController {
             200,
             fullSyncService.sync(companyId, accountId),
             "Google Ads account fully synchronized"));
+  }
+
+  @GetMapping("/accounts/{accountId}/reusable-assets")
+  public ResponseEntity<ApiResponse<List<GoogleReusableAssetResponse>>> reusableAssets(
+      @PathVariable Long companyId, @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            reusableAssetService.assets(companyId, accountId),
+            "Google reusable assets fetched"));
+  }
+
+  @PostMapping("/accounts/{accountId}/reusable-assets")
+  public ResponseEntity<ApiResponse<GoogleReusableAssetResponse>> createReusableAsset(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody GoogleReusableAssetCreateRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                reusableAssetService.create(companyId, accountId, request, userId),
+                "Google reusable asset created"));
+  }
+
+  @GetMapping("/accounts/{accountId}/reusable-assets/links")
+  public ResponseEntity<ApiResponse<List<GoogleReusableAssetLinkResponse>>> reusableAssetLinks(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @RequestParam GoogleAssetLinkRequest.Level level,
+      @RequestParam(required = false) Long targetId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            reusableAssetService.links(companyId, accountId, level, targetId),
+            "Google reusable asset links fetched"));
+  }
+
+  @PostMapping("/accounts/{accountId}/reusable-assets/{assetId}/links")
+  public ResponseEntity<ApiResponse<GoogleReusableAssetLinkResponse>> attachReusableAsset(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String assetId,
+      @Valid @RequestBody GoogleAssetLinkRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            reusableAssetService.attach(companyId, accountId, assetId, request, userId),
+            "Google reusable asset attached"));
+  }
+
+  @PostMapping("/accounts/{accountId}/reusable-assets/{assetId}/links:detach")
+  public ResponseEntity<ApiResponse<Boolean>> detachReusableAsset(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String assetId,
+      @Valid @RequestBody GoogleAssetLinkRequest request) {
+    Long userId = requireModify(companyId);
+    reusableAssetService.detach(companyId, accountId, assetId, request, userId);
+    return ResponseEntity.ok(
+        ApiResponse.success(200, true, "Google reusable asset detached"));
+  }
+
+  @GetMapping("/accounts/{accountId}/url-options")
+  public ResponseEntity<ApiResponse<GoogleUrlOptionsResponse>> accountUrlOptions(
+      @PathVariable Long companyId, @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            reusableAssetService.urlOptions(
+                companyId, accountId, GoogleAssetLinkRequest.Level.CUSTOMER, null),
+            "Google account URL options fetched"));
+  }
+
+  @PutMapping("/accounts/{accountId}/url-options")
+  public ResponseEntity<ApiResponse<GoogleUrlOptionsResponse>> updateAccountUrlOptions(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody GoogleUrlOptionsRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            reusableAssetService.updateUrlOptions(
+                companyId,
+                accountId,
+                GoogleAssetLinkRequest.Level.CUSTOMER,
+                null,
+                request,
+                userId),
+            "Google account URL options updated"));
+  }
+
+  @GetMapping("/accounts/{accountId}/campaigns/{campaignId}/url-options")
+  public ResponseEntity<ApiResponse<GoogleUrlOptionsResponse>> campaignUrlOptions(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            reusableAssetService.urlOptions(
+                companyId, accountId, GoogleAssetLinkRequest.Level.CAMPAIGN, campaignId),
+            "Google campaign URL options fetched"));
+  }
+
+  @PutMapping("/accounts/{accountId}/campaigns/{campaignId}/url-options")
+  public ResponseEntity<ApiResponse<GoogleUrlOptionsResponse>> updateCampaignUrlOptions(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable Long campaignId,
+      @Valid @RequestBody GoogleUrlOptionsRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            reusableAssetService.updateUrlOptions(
+                companyId,
+                accountId,
+                GoogleAssetLinkRequest.Level.CAMPAIGN,
+                campaignId,
+                request,
+                userId),
+            "Google campaign URL options updated"));
+  }
+
+  @GetMapping("/accounts/{accountId}/ad-groups/{adGroupId}/url-options")
+  public ResponseEntity<ApiResponse<GoogleUrlOptionsResponse>> adGroupUrlOptions(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable Long adGroupId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            reusableAssetService.urlOptions(
+                companyId, accountId, GoogleAssetLinkRequest.Level.AD_GROUP, adGroupId),
+            "Google ad-group URL options fetched"));
+  }
+
+  @PutMapping("/accounts/{accountId}/ad-groups/{adGroupId}/url-options")
+  public ResponseEntity<ApiResponse<GoogleUrlOptionsResponse>> updateAdGroupUrlOptions(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable Long adGroupId,
+      @Valid @RequestBody GoogleUrlOptionsRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            reusableAssetService.updateUrlOptions(
+                companyId,
+                accountId,
+                GoogleAssetLinkRequest.Level.AD_GROUP,
+                adGroupId,
+                request,
+                userId),
+            "Google ad-group URL options updated"));
   }
 
   @GetMapping("/accounts/{accountId}/assets")
