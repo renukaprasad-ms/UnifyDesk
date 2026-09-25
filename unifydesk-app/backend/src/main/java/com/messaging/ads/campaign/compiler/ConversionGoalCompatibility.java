@@ -32,8 +32,8 @@ final class ConversionGoalCompatibility {
       case LEAD, QUALIFIED_LEAD -> "LEAD";
       case SIGN_UP -> "COMPLETE_REGISTRATION";
       case PHONE_CALL, WHATSAPP_CONVERSATION -> "CONTACT";
-      case APP_INSTALL -> "ACTIVATE_APP";
-      case TRAFFIC -> "VIEW_CONTENT";
+      case APP_INSTALL -> null;
+      case TRAFFIC -> "CONTENT_VIEW";
       case AWARENESS -> null;
     };
   }
@@ -60,8 +60,8 @@ final class ConversionGoalCompatibility {
         case LEAD, QUALIFIED_LEAD -> Set.of("LEAD");
         case SIGN_UP -> Set.of("COMPLETE_REGISTRATION");
         case PHONE_CALL, WHATSAPP_CONVERSATION -> Set.of("CONTACT", "LEAD");
-        case APP_INSTALL -> Set.of("ACTIVATE_APP");
-        case TRAFFIC -> Set.of("VIEW_CONTENT");
+        case APP_INSTALL -> Set.of();
+        case TRAFFIC -> Set.of("CONTENT_VIEW");
         case AWARENESS -> Set.of();
       };
     }
