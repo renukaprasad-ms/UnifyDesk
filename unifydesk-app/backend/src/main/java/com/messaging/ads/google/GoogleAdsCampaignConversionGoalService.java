@@ -198,10 +198,19 @@ public class GoogleAdsCampaignConversionGoalService {
   }
 
   private String numeric(String value, String label) {
-    if (value == null || !value.trim().matches("\\d+")) {
+    if (value == null) {
       throw new BadRequestException(label + " is invalid");
     }
-    return value.trim();
+    String normalized = value.trim();
+    int slash = normalized.lastIndexOf('/');
+    if (slash >= 0 && slash < normalized.length() - 1) {
+      normalized = normalized.substring(slash + 1);
+    }
+    normalized = normalized.replace("-", "");
+    if (!normalized.matches("\\d+")) {
+      throw new BadRequestException(label + " is invalid");
+    }
+    return normalized;
   }
 
   private record ExistingGoal(
