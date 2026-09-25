@@ -900,7 +900,7 @@ export default function AdSetDetails() {
 
               {can(PERMISSIONS.ADS_MODIFY) && (
                 <div className="mt-6 flex justify-end border-t border-slate-100 pt-5">
-                  <button type="submit" className="primary-button inline-flex items-center gap-2" disabled={saving || !name.trim() || !countries.trim()}>
+                  <button type="submit" className="primary-button inline-flex items-center gap-2" disabled={saving || !name.trim() || locations.length === 0}>
                     <FiSave aria-hidden="true" />
                     {saving ? 'Saving…' : 'Save to Meta'}
                   </button>
