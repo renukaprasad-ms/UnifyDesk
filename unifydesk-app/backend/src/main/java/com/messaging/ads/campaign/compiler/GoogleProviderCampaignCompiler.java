@@ -374,6 +374,22 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                         "urlInclusions",
                         providerStrings(context, "aiMaxUrlInclusions"))));
           }
+          if (!providerObjectIds(context, "aiMaxBrandInclusions").isEmpty()
+              || !providerObjectIds(context, "aiMaxBrandExclusions").isEmpty()) {
+            operations.add(
+                operation(
+                    sequence++,
+                    "configure-ai-max-brands",
+                    ProviderPlanAction.CONFIGURE,
+                    ProviderPlanResource.CAMPAIGN_TARGETING,
+                    false,
+                    Set.of(AdFeatureCapability.GOOGLE_AI_MAX),
+                    ProviderCampaignPlanSupport.config(
+                        "brandInclusionCount",
+                        providerObjectIds(context, "aiMaxBrandInclusions").size(),
+                        "brandExclusionCount",
+                        providerObjectIds(context, "aiMaxBrandExclusions").size())));
+          }
         }
         operations.add(
             operation(
@@ -581,6 +597,18 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
     JsonNode root = providerOverride(context);
     JsonNode value = root.get(key);
     return value == null || value.isNull() ? fallback : value.asBoolean(fallback);
+  }
+
+  private List<String> providerObjectIds(
+      ProviderCampaignCompileContext context, String key) {
+    JsonNode value = providerOverride(context).get(key);
+    if (value == null || value.isNull() || !value.isArray()) return List.of();
+    List<String> result = new ArrayList<>();
+    for (JsonNode item : value) {
+      String id = item.isObject() ? item.path("id").asText(null) : null;
+      if (id != null && !id.isBlank()) result.add(id.trim());
+    }
+    return List.copyOf(result);
   }
 
   private List<String> providerStrings(
