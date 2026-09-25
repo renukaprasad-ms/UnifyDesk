@@ -6,6 +6,7 @@ import GoogleAdGroupModal from '../../components/ads/GoogleAdGroupModal'
 import GooglePerformanceMaxSignals from '../../components/ads/GooglePerformanceMaxSignals'
 import GooglePerformanceMaxAssets from '../../components/ads/GooglePerformanceMaxAssets'
 import GoogleNegativeKeywordManagement from '../../components/ads/GoogleNegativeKeywordManagement'
+import GoogleSearchTermReport from '../../components/ads/GoogleSearchTermReport'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -659,13 +660,21 @@ export default function AdCampaignDetails() {
             {campaign.provider === 'GOOGLE_ADS' &&
               campaign.objective === 'SEARCH' &&
               account && (
-                <GoogleNegativeKeywordManagement
-                  companyId={selectedCompany.companyId}
-                  campaign={campaign}
-                  account={account}
-                  canCreate={can(PERMISSIONS.ADS_CREATE)}
-                  canModify={can(PERMISSIONS.ADS_MODIFY)}
-                />
+                <>
+                  <GoogleSearchTermReport
+                    companyId={selectedCompany.companyId}
+                    campaign={campaign}
+                    canCreate={can(PERMISSIONS.ADS_CREATE)}
+                    canModify={can(PERMISSIONS.ADS_MODIFY)}
+                  />
+                  <GoogleNegativeKeywordManagement
+                    companyId={selectedCompany.companyId}
+                    campaign={campaign}
+                    account={account}
+                    canCreate={can(PERMISSIONS.ADS_CREATE)}
+                    canModify={can(PERMISSIONS.ADS_MODIFY)}
+                  />
+                </>
               )}
 
             <div className="panel mt-5 overflow-hidden">
