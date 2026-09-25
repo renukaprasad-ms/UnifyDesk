@@ -77,10 +77,22 @@ public class MetaWhatsAppConnectionService {
     stateService.consume(request.state(), companyId, userId);
     log.info("meta_whatsapp_state_validated companyId={} userId={}", companyId, userId);
 
+    log.info("meta_whatsapp_exchange_code_start companyId={}", companyId);
+    TokenResponse token = graphClient.exchangeCode(request.code());
+    if (token == null || token.accessToken() == null || token.accessToken().isBlank()) {
+      log.warn("meta_whatsapp_exchange_code_missing_token companyId={}", companyId);
+      throw new BadRequestException("Meta did not return an access token");
+    }
+    log.info("meta_whatsapp_exchange_code_success companyId={}", companyId);
+
+    String wabaId = resolveWabaId(request.wabaId(), token.accessToken());
+    List<PhoneNumber> phoneNumbers = graphClient.getPhoneNumbers(wabaId, token.accessToken());
+    PhoneNumber phone = resolvePhoneNumber(request.phoneNumberId(), phoneNumbers);
+
     ChannelConnection existing =
         connectionRepository
             .findByCompanyIdAndProviderTypeAndExternalAccountId(
-                companyId, ProviderType.META_WHATSAPP, request.wabaId())
+                companyId, ProviderType.META_WHATSAPP, wabaId)
             .orElse(null);
 
     if (existing == null) {
@@ -90,30 +102,19 @@ public class MetaWhatsAppConnectionService {
       boolean senderExists =
           senderIdentityRepository
               .findByConnectionIdAndIdentityTypeAndExternalId(
-                  existing.getId(), SenderIdentityType.PHONE_NUMBER, request.phoneNumberId())
+                  existing.getId(), SenderIdentityType.PHONE_NUMBER, phone.id())
               .isPresent();
       if (!senderExists) {
         entitlementService.assertCanCreateSender(companyId, SenderIdentityType.PHONE_NUMBER);
       }
     }
 
-    log.info("meta_whatsapp_exchange_code_start companyId={} wabaId={}", companyId, request.wabaId());
-    TokenResponse token = graphClient.exchangeCode(request.code());
-    if (token == null || token.accessToken() == null || token.accessToken().isBlank()) {
-      log.warn("meta_whatsapp_exchange_code_missing_token companyId={} wabaId={}", companyId, request.wabaId());
-      throw new BadRequestException("Meta did not return an access token");
-    }
-    log.info("meta_whatsapp_exchange_code_success companyId={} wabaId={}", companyId, request.wabaId());
-
-    WabaDetails waba = graphClient.getWaba(request.wabaId(), token.accessToken());
-    PhoneNumber phone =
-        requirePhoneNumber(
-            request, graphClient.getPhoneNumbers(request.wabaId(), token.accessToken()));
+    WabaDetails waba = graphClient.getWaba(wabaId, token.accessToken());
 
     log.info(
         "meta_whatsapp_assets_resolved companyId={} wabaId={} phoneNumberId={}",
         companyId,
-        request.wabaId(),
+        wabaId,
         phone.id());
 
     String pin = sixDigitPin();
@@ -121,14 +122,14 @@ public class MetaWhatsAppConnectionService {
     log.info(
         "meta_whatsapp_phone_registered companyId={} wabaId={} phoneNumberId={}",
         companyId,
-        request.wabaId(),
+        wabaId,
         phone.id());
 
-    graphClient.subscribeApp(request.wabaId(), token.accessToken());
-    log.info("meta_whatsapp_app_subscribed companyId={} wabaId={}", companyId, request.wabaId());
+    graphClient.subscribeApp(wabaId, token.accessToken());
+    log.info("meta_whatsapp_app_subscribed companyId={} wabaId={}", companyId, wabaId);
 
     MetaWhatsAppConnectionResponse response =
-        persistenceService.persist(companyId, userId, request.wabaId(), waba, phone, token, pin);
+        persistenceService.persist(companyId, userId, wabaId, waba, phone, token, pin);
     channelConnectionService.cancelPendingPurge(
         companyId, Long.valueOf(response.connectionId()));
 
@@ -136,21 +137,53 @@ public class MetaWhatsAppConnectionService {
         "meta_whatsapp_complete_success companyId={} connectionId={} wabaId={} phoneNumberId={}",
         companyId,
         response.connectionId(),
-        request.wabaId(),
+        wabaId,
         phone.id());
 
     return response;
   }
 
-  private PhoneNumber requirePhoneNumber(
-      CompleteMetaWhatsAppSignupRequest request, List<PhoneNumber> phoneNumbers) {
-    return phoneNumbers.stream()
-        .filter(phone -> request.phoneNumberId().equals(phone.id()))
-        .findFirst()
-        .orElseThrow(
-            () ->
-                new BadRequestException(
-                    "Selected WhatsApp phone number does not belong to this WABA"));
+  private String resolveWabaId(String requestedWabaId, String accessToken) {
+    if (requestedWabaId != null && !requestedWabaId.isBlank()) {
+      return requestedWabaId.trim();
+    }
+
+    List<String> grantedWabaIds = graphClient.getGrantedWabaIds(accessToken);
+    if (grantedWabaIds.isEmpty()) {
+      throw new BadRequestException(
+          "Meta login succeeded, but no WhatsApp Business Account was granted to this connection");
+    }
+    if (grantedWabaIds.size() > 1) {
+      throw new BadRequestException(
+          "Meta granted multiple WhatsApp Business Accounts. Complete Embedded Signup again and select one account");
+    }
+
+    log.info("meta_whatsapp_waba_discovered_from_token wabaId={}", grantedWabaIds.getFirst());
+    return grantedWabaIds.getFirst();
+  }
+
+  private PhoneNumber resolvePhoneNumber(
+      String requestedPhoneNumberId, List<PhoneNumber> phoneNumbers) {
+    if (requestedPhoneNumberId != null && !requestedPhoneNumberId.isBlank()) {
+      return phoneNumbers.stream()
+          .filter(phone -> requestedPhoneNumberId.trim().equals(phone.id()))
+          .findFirst()
+          .orElseThrow(
+              () ->
+                  new BadRequestException(
+                      "Selected WhatsApp phone number does not belong to this WABA"));
+    }
+
+    if (phoneNumbers.isEmpty()) {
+      throw new BadRequestException("The selected WhatsApp Business Account has no phone number");
+    }
+    if (phoneNumbers.size() > 1) {
+      throw new BadRequestException(
+          "The selected WhatsApp Business Account has multiple phone numbers. Complete Embedded Signup again and select one phone number");
+    }
+
+    log.info("meta_whatsapp_phone_discovered_from_waba phoneNumberId={}", phoneNumbers.getFirst().id());
+    return phoneNumbers.getFirst();
   }
 
   private String sixDigitPin() {
