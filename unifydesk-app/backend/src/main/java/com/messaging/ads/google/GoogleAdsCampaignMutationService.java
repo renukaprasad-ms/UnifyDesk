@@ -110,6 +110,21 @@ public class GoogleAdsCampaignMutationService {
         Map.of(
             "positiveGeoTargetType", effectiveSettings.positiveGeoTargetType(),
             "negativeGeoTargetType", "PRESENCE"));
+    if (effectiveSettings.aiMaxEnabled()) {
+      campaign.put("aiMaxSetting", Map.of("enableAiMax", true));
+      List<Map<String, Object>> automationSettings = new ArrayList<>();
+      automationSettings.add(
+          Map.of(
+              "assetAutomationType", "TEXT_ASSET_AUTOMATION",
+              "assetAutomationStatus",
+              effectiveSettings.textCustomizationEnabled() ? "OPTED_IN" : "OPTED_OUT"));
+      automationSettings.add(
+          Map.of(
+              "assetAutomationType", "FINAL_URL_EXPANSION_TEXT_ASSET_AUTOMATION",
+              "assetAutomationStatus",
+              effectiveSettings.finalUrlExpansionEnabled() ? "OPTED_IN" : "OPTED_OUT"));
+      campaign.put("assetAutomationSettings", automationSettings);
+    }
     applyBidStrategy(campaign, request.bidStrategy());
     campaign.put(
         "containsEuPoliticalAdvertising",
