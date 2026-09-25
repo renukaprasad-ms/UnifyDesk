@@ -166,6 +166,7 @@ class MetaAdsAdSetMutationServiceTests {
     assertThat(targeting.get("age_min")).isEqualTo(21);
     assertThat(targeting.get("age_max")).isEqualTo(65);
     assertThat(targeting.get("publisher_platforms")).isEqualTo(List.of("instagram"));
+    assertThat(targeting.get("instagram_positions")).isEqualTo(List.of("stream"));
   }
 
   @Test
