@@ -1317,6 +1317,62 @@ export type GoogleSearchTermReport = {
   rows: GoogleSearchTermRow[]
 }
 
+export type GoogleKeywordPlannerMonthlyVolume = {
+  year: number
+  month?: string | null
+  searches?: number | null
+}
+
+export type GoogleKeywordPlannerConcept = {
+  name?: string | null
+  groupName?: string | null
+  groupType?: string | null
+}
+
+export type GoogleKeywordPlannerRow = {
+  text: string
+  averageMonthlySearches?: number | null
+  competition?: string | null
+  competitionIndex?: number | null
+  lowTopOfPageBid?: number | null
+  highTopOfPageBid?: number | null
+  averageCpc?: number | null
+  monthlyVolumes: GoogleKeywordPlannerMonthlyVolume[]
+  closeVariants: string[]
+  concepts: GoogleKeywordPlannerConcept[]
+}
+
+export type GoogleKeywordPlannerResponse = {
+  cached: boolean
+  currency?: string | null
+  network: 'GOOGLE_SEARCH' | 'GOOGLE_SEARCH_AND_PARTNERS' | string
+  languageResource?: string | null
+  geoTargetResources: string[]
+  rows: GoogleKeywordPlannerRow[]
+  nextPageToken?: string | null
+  totalSize: number
+}
+
+export type GoogleKeywordPlannerIdeasInput = {
+  seedKeywords?: string[]
+  url?: string | null
+  useEntireSite?: boolean
+  locations?: ReachlyoAudienceLocationInput[]
+  language?: string | null
+  network?: 'GOOGLE_SEARCH' | 'GOOGLE_SEARCH_AND_PARTNERS'
+  includeAdultKeywords?: boolean
+  pageSize?: number
+  pageToken?: string | null
+}
+
+export type GoogleKeywordPlannerHistoricalInput = {
+  keywords: string[]
+  locations?: ReachlyoAudienceLocationInput[]
+  language?: string | null
+  network?: 'GOOGLE_SEARCH' | 'GOOGLE_SEARCH_AND_PARTNERS'
+  includeAdultKeywords?: boolean
+}
+
 export type GoogleBrandSuggestion = {
   id: string
   name: string
