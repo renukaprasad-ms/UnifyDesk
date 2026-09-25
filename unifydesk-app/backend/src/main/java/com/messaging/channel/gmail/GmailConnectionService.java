@@ -54,16 +54,44 @@ public class GmailConnectionService {
   }
 
   public GmailCompletion completeWithReturn(String state, String code) {
+    log.info("gmail_oauth_complete_start");
     requireConfigured();
     if (code == null || code.isBlank()) {
       throw new BadRequestException("Google authorization code is missing");
     }
 
     OAuthState oauthState = stateService.consume(state);
+    log.info(
+        "gmail_oauth_state_validated companyId={} userId={}",
+        oauthState.companyId(),
+        oauthState.userId());
     authorizationService.requirePermission(
         oauthState.userId(), oauthState.companyId(), CompanyPermissionKeys.EMAIL_CONNECT);
 
-    TokenResponse token = gmailApiClient.exchangeCode(code);
+    log.info(
+        "gmail_oauth_permission_validated companyId={} userId={}",
+        oauthState.companyId(),
+        oauthState.userId());
+
+    TokenResponse token;
+    try {
+      token = gmailApiClient.exchangeCode(code);
+      log.info(
+          "gmail_oauth_token_exchange_succeeded companyId={} userId={} hasAccessToken={} hasRefreshToken={}",
+          oauthState.companyId(),
+          oauthState.userId(),
+          token.accessToken() != null && !token.accessToken().isBlank(),
+          token.refreshToken() != null && !token.refreshToken().isBlank());
+    } catch (RuntimeException exception) {
+      log.error(
+          "gmail_oauth_token_exchange_failed companyId={} userId={} exceptionType={} message={}",
+          oauthState.companyId(),
+          oauthState.userId(),
+          exception.getClass().getSimpleName(),
+          exception.getMessage(),
+          exception);
+      throw exception;
+    }
     if (token.accessToken() == null || token.accessToken().isBlank()) {
       throw new BadRequestException("Google did not return an access token");
     }
@@ -72,7 +100,24 @@ public class GmailConnectionService {
           "Google did not return a refresh token. Revoke the previous grant and connect Gmail again");
     }
 
-    GmailProfile profile = gmailApiClient.profile(token.accessToken());
+    GmailProfile profile;
+    try {
+      profile = gmailApiClient.profile(token.accessToken());
+      log.info(
+          "gmail_oauth_profile_fetched companyId={} userId={} hasEmail={}",
+          oauthState.companyId(),
+          oauthState.userId(),
+          profile.emailAddress() != null && !profile.emailAddress().isBlank());
+    } catch (RuntimeException exception) {
+      log.error(
+          "gmail_oauth_profile_fetch_failed companyId={} userId={} exceptionType={} message={}",
+          oauthState.companyId(),
+          oauthState.userId(),
+          exception.getClass().getSimpleName(),
+          exception.getMessage(),
+          exception);
+      throw exception;
+    }
     if (profile.emailAddress() == null || profile.emailAddress().isBlank()) {
       throw new BadRequestException("Google did not return the Gmail account email address");
     }
@@ -87,8 +132,25 @@ public class GmailConnectionService {
       entitlementService.assertCanCreateConnection(oauthState.companyId(), ChannelType.EMAIL);
     }
 
-    GmailConnectionResponse response =
-        persistenceService.persist(oauthState.companyId(), oauthState.userId(), profile, token);
+    GmailConnectionResponse response;
+    try {
+      response =
+          persistenceService.persist(oauthState.companyId(), oauthState.userId(), profile, token);
+      log.info(
+          "gmail_oauth_connection_persisted companyId={} userId={} connectionId={}",
+          oauthState.companyId(),
+          oauthState.userId(),
+          response.connectionId());
+    } catch (RuntimeException exception) {
+      log.error(
+          "gmail_oauth_connection_persist_failed companyId={} userId={} exceptionType={} message={}",
+          oauthState.companyId(),
+          oauthState.userId(),
+          exception.getClass().getSimpleName(),
+          exception.getMessage(),
+          exception);
+      throw exception;
+    }
     lifecycleService.cancelPendingPurge(
         oauthState.companyId(), Long.valueOf(response.connectionId()));
 
@@ -100,12 +162,19 @@ public class GmailConnectionService {
                 watchService.ensureWatch(connection, true);
               } catch (RuntimeException exception) {
                 log.warn(
-                    "Gmail connected but realtime watch setup failed connectionId={} reason={}",
+                    "gmail_watch_setup_failed connectionId={} exceptionType={} message={}",
                     connection.getId(),
-                    exception.getClass().getSimpleName());
+                    exception.getClass().getSimpleName(),
+                    exception.getMessage(),
+                    exception);
               }
             });
 
+    log.info(
+        "gmail_oauth_complete_success companyId={} userId={} connectionId={}",
+        oauthState.companyId(),
+        oauthState.userId(),
+        response.connectionId());
     return new GmailCompletion(response, oauthState.returnTo());
   }
 
