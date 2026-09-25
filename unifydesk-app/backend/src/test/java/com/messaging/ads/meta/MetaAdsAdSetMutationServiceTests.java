@@ -148,6 +148,8 @@ class MetaAdsAdSetMutationServiceTests {
                 List.of("stream"),
                 List.of(),
                 List.of(),
+                List.of(),
+                List.of(),
                 null,
                 null,
                 null));
@@ -265,6 +267,8 @@ class MetaAdsAdSetMutationServiceTests {
             List.of(),
             List.of(),
             List.of(),
+            List.of(),
+            List.of(),
             null,
             null,
             null));
@@ -321,6 +325,8 @@ class MetaAdsAdSetMutationServiceTests {
                                 "IN", List.of("home"))),
                         18,
                         65,
+                        List.of(),
+                        List.of(),
                         List.of(),
                         List.of(),
                         List.of(),
