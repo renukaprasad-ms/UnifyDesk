@@ -62,6 +62,8 @@ import com.messaging.ads.google.dto.GoogleRecommendationActionResponse;
 import com.messaging.ads.google.dto.GoogleSearchTermReportResponse;
 import com.messaging.ads.google.dto.GoogleAiMaxCombinationReportResponse;
 import com.messaging.ads.google.dto.GoogleBrandSuggestionResponse;
+import com.messaging.ads.google.dto.GoogleKeywordForecastRequest;
+import com.messaging.ads.google.dto.GoogleKeywordForecastResponse;
 import com.messaging.ads.google.dto.GoogleKeywordPlannerIdeasRequest;
 import com.messaging.ads.google.dto.GoogleKeywordPlannerHistoricalRequest;
 import com.messaging.ads.google.dto.GoogleKeywordPlannerResponse;
@@ -825,6 +827,19 @@ public class GoogleAdsConnectionController {
             200,
             keywordPlannerService.ideas(companyId, accountId, request, userId),
             "Google Keyword Planner ideas generated"));
+  }
+
+  @PostMapping("/accounts/{accountId}/keyword-planner/forecast")
+  public ResponseEntity<ApiResponse<GoogleKeywordForecastResponse>> keywordForecast(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody GoogleKeywordForecastRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            keywordPlannerService.forecast(companyId, accountId, request, userId),
+            "Google keyword forecast generated"));
   }
 
   @PostMapping("/accounts/{accountId}/keyword-planner/historical-metrics")

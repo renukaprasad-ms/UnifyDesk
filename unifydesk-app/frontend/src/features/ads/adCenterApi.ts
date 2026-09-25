@@ -111,6 +111,8 @@ import type {
   GoogleKeywordPlannerIdeasInput,
   GoogleKeywordPlannerHistoricalInput,
   GoogleKeywordPlannerResponse,
+  GoogleKeywordForecastInput,
+  GoogleKeywordForecastResponse,
   GoogleNegativeKeywordInput,
   GoogleNegativeKeywordList,
   GoogleNegativeKeywordMutation,
@@ -924,6 +926,18 @@ export const adCenterApi = {
   ) {
     const response = await apiClient.post<ApiResponse<GoogleKeywordPlannerResponse>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/keyword-planner/ideas`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleKeywordForecast(
+    companyId: string,
+    accountId: string,
+    input: GoogleKeywordForecastInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleKeywordForecastResponse>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/keyword-planner/forecast`,
       input,
     )
     return unwrap(response.data)

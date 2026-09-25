@@ -14,11 +14,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.ads.campaign.dto.AudienceLocationInput;
 import com.messaging.ads.entity.AdAccount;
 import com.messaging.ads.enums.AdProvider;
+import com.messaging.ads.google.dto.GoogleKeywordForecastRequest;
 import com.messaging.ads.google.dto.GoogleKeywordPlannerIdeasRequest;
 import com.messaging.ads.google.dto.GoogleKeywordPlannerResponse;
 import com.messaging.ads.service.AdActivityLogService;
 import com.messaging.common.exception.BadRequestException;
+import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -247,6 +250,139 @@ class GoogleAdsKeywordPlannerServiceTests {
         });
     verify(valueOperations)
         .set(anyString(), anyString(), eq(Duration.ofHours(24)));
+  }
+
+  @Test
+  void generatesKeywordForecastWithManualCpc() throws Exception {
+    AdAccount account = account();
+    when(contextService.requireManaged(1L, 20L))
+        .thenReturn(
+            new GoogleAdsAccountContextService.Context(
+                account, null, "token", null, false, false));
+    when(valueOperations.get(anyString())).thenReturn(null);
+    when(apiClient.customerColonAction(
+            eq("token"),
+            eq("1234567890"),
+            eq(null),
+            eq("generateKeywordForecastMetrics"),
+            any()))
+        .thenReturn(
+            objectMapper.readTree(
+                """
+                {
+                  "campaignForecastMetrics": {
+                    "clicks": 123.5,
+                    "costMicros": "50000000",
+                    "averageCpcMicros": "404858",
+                    "conversions": 7.25,
+                    "averageCpaMicros": "6896552"
+                  }
+                }
+                """));
+
+    LocalDate start = LocalDate.now().plusDays(1);
+    LocalDate end = start.plusDays(29);
+    var result =
+        service.forecast(
+            1L,
+            20L,
+            new GoogleKeywordForecastRequest(
+                List.of(
+                    new GoogleKeywordForecastRequest.Keyword(
+                        "omnichannel inbox",
+                        GoogleKeywordForecastRequest.MatchType.PHRASE)),
+                List.of(),
+                null,
+                start,
+                end,
+                GoogleKeywordForecastRequest.BiddingStrategy.MANUAL_CPC,
+                new BigDecimal("100"),
+                new BigDecimal("8"),
+                null),
+            99L);
+
+    assertThat(result.clicks()).isEqualTo(123.5);
+    assertThat(result.cost()).isEqualByComparingTo("50");
+    assertThat(result.averageCpc()).isEqualByComparingTo("0.404858");
+    assertThat(result.conversions()).isEqualTo(7.25);
+    assertThat(result.averageCpa()).isEqualByComparingTo("6.896552");
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Map<String, Object>> body = ArgumentCaptor.forClass(Map.class);
+    verify(apiClient)
+        .customerColonAction(
+            eq("token"),
+            eq("1234567890"),
+            eq(null),
+            eq("generateKeywordForecastMetrics"),
+            body.capture());
+
+    @SuppressWarnings("unchecked")
+    Map<String, Object> campaign =
+        (Map<String, Object>) body.getValue().get("campaign");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> strategy =
+        (Map<String, Object>) campaign.get("biddingStrategy");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> manual =
+        (Map<String, Object>) strategy.get("manualCpcBiddingStrategy");
+    assertThat(manual.get("dailyBudgetMicros")).isEqualTo(100_000_000L);
+    assertThat(manual.get("maxCpcBidMicros")).isEqualTo(8_000_000L);
+    verify(valueOperations)
+        .set(anyString(), anyString(), eq(Duration.ofHours(1)));
+  }
+
+  @Test
+  void validatesForecastWindowAndRequiredBidInputs() {
+    AdAccount account = account();
+    when(contextService.requireManaged(1L, 20L))
+        .thenReturn(
+            new GoogleAdsAccountContextService.Context(
+                account, null, "token", null, false, false));
+
+    assertThatThrownBy(
+            () ->
+                service.forecast(
+                    1L,
+                    20L,
+                    new GoogleKeywordForecastRequest(
+                        List.of(
+                            new GoogleKeywordForecastRequest.Keyword(
+                                "crm",
+                                GoogleKeywordForecastRequest.MatchType.BROAD)),
+                        List.of(),
+                        null,
+                        LocalDate.now(),
+                        LocalDate.now().plusDays(30),
+                        GoogleKeywordForecastRequest.BiddingStrategy.MAXIMIZE_CLICKS,
+                        new BigDecimal("100"),
+                        null,
+                        null),
+                    99L))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("future");
+
+    assertThatThrownBy(
+            () ->
+                service.forecast(
+                    1L,
+                    20L,
+                    new GoogleKeywordForecastRequest(
+                        List.of(
+                            new GoogleKeywordForecastRequest.Keyword(
+                                "crm",
+                                GoogleKeywordForecastRequest.MatchType.BROAD)),
+                        List.of(),
+                        null,
+                        LocalDate.now().plusDays(1),
+                        LocalDate.now().plusDays(30),
+                        GoogleKeywordForecastRequest.BiddingStrategy.MANUAL_CPC,
+                        new BigDecimal("100"),
+                        null,
+                        null),
+                    99L))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("maxCpcBid");
   }
 
   @Test
