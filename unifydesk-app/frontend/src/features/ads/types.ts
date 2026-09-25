@@ -959,6 +959,8 @@ export type CreateMetaAdSetInput = {
   publisherPlatforms?: string[]
   facebookPositions?: string[]
   instagramPositions?: string[]
+  messengerPositions?: string[]
+  audienceNetworkPositions?: string[]
   customAudienceIds?: string[]
   excludedCustomAudienceIds?: string[]
   pixelId?: string | null
