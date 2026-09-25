@@ -14,6 +14,10 @@ public record GoogleSearchTermReportResponse(
   public record Row(
       String searchTerm,
       String targetingStatus,
+      String matchedKeyword,
+      String matchedKeywordMatchType,
+      String searchTermMatchType,
+      String searchTermMatchSource,
       String externalAdGroupId,
       String adGroupId,
       String adGroupName,
@@ -23,5 +27,6 @@ public record GoogleSearchTermReportResponse(
       BigDecimal spend,
       BigDecimal conversions,
       BigDecimal conversionValue,
-      BigDecimal cpa) {}
+      BigDecimal cpa,
+      BigDecimal roas) {}
 }
