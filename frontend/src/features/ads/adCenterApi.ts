@@ -18,6 +18,24 @@ import type {
   AdKeyword,
   AdProviderConnection,
   AdProviderInfo,
+  ReachlyoCampaign,
+  ReachlyoCampaignSummary,
+  CreateReachlyoCampaignInput,
+  UpdateReachlyoCampaignInput,
+  CreateReachlyoCampaignChannelInput,
+  UpdateReachlyoCampaignChannelInput,
+  UpsertReachlyoBudgetPlanInput,
+  ReachlyoCreativePack,
+  ReachlyoCreativeVariant,
+  CreateReachlyoCreativePackInput,
+  UpdateReachlyoCreativePackInput,
+  CreateReachlyoCreativeVariantInput,
+  UpdateReachlyoCreativeVariantInput,
+  ReachlyoAudienceDefinition,
+  CreateReachlyoAudienceDefinitionInput,
+  UpdateReachlyoAudienceDefinitionInput,
+  ReachlyoConversionGoalMapping,
+  UpsertReachlyoConversionGoalMappingInput,
   AdRecommendations,
   AdRecommendationSummary,
   AdRecommendationLifecycleAction,
@@ -114,6 +132,250 @@ export const adCenterApi = {
       `/api/v1/companies/${companyId}/ads/accounts`,
     )
     return unwrap(response.data)
+  },
+
+  async reachlyoCampaigns(companyId: string, page = 0, size = 50) {
+    const response = await apiClient.get<ApiResponse<PageResponse<ReachlyoCampaignSummary>>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns`,
+      { params: { page, size } },
+    )
+    return unwrap(response.data)
+  },
+
+  async reachlyoCampaign(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createReachlyoCampaign(companyId: string, input: CreateReachlyoCampaignInput) {
+    const response = await apiClient.post<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateReachlyoCampaign(
+    companyId: string,
+    campaignId: string,
+    input: UpdateReachlyoCampaignInput,
+  ) {
+    const response = await apiClient.patch<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async archiveReachlyoCampaign(companyId: string, campaignId: string) {
+    const response = await apiClient.post<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/archive`,
+    )
+    return unwrap(response.data)
+  },
+
+  async addReachlyoCampaignChannel(
+    companyId: string,
+    campaignId: string,
+    input: CreateReachlyoCampaignChannelInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/channels`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateReachlyoCampaignChannel(
+    companyId: string,
+    campaignId: string,
+    channelId: string,
+    input: UpdateReachlyoCampaignChannelInput,
+  ) {
+    const response = await apiClient.patch<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/channels/${channelId}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async removeReachlyoCampaignChannel(
+    companyId: string,
+    campaignId: string,
+    channelId: string,
+  ) {
+    const response = await apiClient.delete<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/channels/${channelId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async upsertReachlyoBudgetPlan(
+    companyId: string,
+    campaignId: string,
+    input: UpsertReachlyoBudgetPlanInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/budget`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async removeReachlyoBudgetPlan(companyId: string, campaignId: string) {
+    const response = await apiClient.delete<ApiResponse<ReachlyoCampaign>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/budget`,
+    )
+    return unwrap(response.data)
+  },
+
+  async reachlyoCreativePacks(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<ReachlyoCreativePack[]>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/creative-packs`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createReachlyoCreativePack(
+    companyId: string,
+    campaignId: string,
+    input: CreateReachlyoCreativePackInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<ReachlyoCreativePack>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/creative-packs`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateReachlyoCreativePack(
+    companyId: string,
+    campaignId: string,
+    packId: string,
+    input: UpdateReachlyoCreativePackInput,
+  ) {
+    const response = await apiClient.patch<ApiResponse<ReachlyoCreativePack>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/creative-packs/${packId}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async deleteReachlyoCreativePack(companyId: string, campaignId: string, packId: string) {
+    await apiClient.delete(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/creative-packs/${packId}`,
+    )
+  },
+
+  async createReachlyoCreativeVariant(
+    companyId: string,
+    campaignId: string,
+    packId: string,
+    input: CreateReachlyoCreativeVariantInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<ReachlyoCreativeVariant>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/creative-packs/${packId}/variants`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateReachlyoCreativeVariant(
+    companyId: string,
+    campaignId: string,
+    packId: string,
+    variantId: string,
+    input: UpdateReachlyoCreativeVariantInput,
+  ) {
+    const response = await apiClient.patch<ApiResponse<ReachlyoCreativeVariant>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/creative-packs/${packId}/variants/${variantId}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async deleteReachlyoCreativeVariant(
+    companyId: string,
+    campaignId: string,
+    packId: string,
+    variantId: string,
+  ) {
+    await apiClient.delete(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/creative-packs/${packId}/variants/${variantId}`,
+    )
+  },
+
+  async reachlyoAudienceDefinitions(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<ReachlyoAudienceDefinition[]>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/audience-definitions`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createReachlyoAudienceDefinition(
+    companyId: string,
+    campaignId: string,
+    input: CreateReachlyoAudienceDefinitionInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<ReachlyoAudienceDefinition>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/audience-definitions`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateReachlyoAudienceDefinition(
+    companyId: string,
+    campaignId: string,
+    definitionId: string,
+    input: UpdateReachlyoAudienceDefinitionInput,
+  ) {
+    const response = await apiClient.patch<ApiResponse<ReachlyoAudienceDefinition>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/audience-definitions/${definitionId}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async deleteReachlyoAudienceDefinition(
+    companyId: string,
+    campaignId: string,
+    definitionId: string,
+  ) {
+    await apiClient.delete(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/audience-definitions/${definitionId}`,
+    )
+  },
+
+  async reachlyoConversionGoalMappings(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<ReachlyoConversionGoalMapping[]>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/conversion-goal-mappings`,
+    )
+    return unwrap(response.data)
+  },
+
+  async upsertReachlyoConversionGoalMapping(
+    companyId: string,
+    campaignId: string,
+    input: UpsertReachlyoConversionGoalMappingInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<ReachlyoConversionGoalMapping>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/conversion-goal-mappings`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async deleteReachlyoConversionGoalMapping(
+    companyId: string,
+    campaignId: string,
+    mappingId: string,
+  ) {
+    await apiClient.delete(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/conversion-goal-mappings/${mappingId}`,
+    )
   },
 
   async allResources(companyId: string) {
