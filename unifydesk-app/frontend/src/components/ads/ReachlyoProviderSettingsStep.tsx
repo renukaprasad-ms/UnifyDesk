@@ -49,6 +49,8 @@ type Props = {
   setGoogleAiMaxMessagingRestrictions: (value: string) => void
   googleAiMaxUrlExclusions: string
   setGoogleAiMaxUrlExclusions: (value: string) => void
+  googleAiMaxUrlInclusions: string
+  setGoogleAiMaxUrlInclusions: (value: string) => void
   googleAdSchedules: GoogleAdScheduleDraft[]
   setGoogleAdSchedules: (value: GoogleAdScheduleDraft[]) => void
   googleNegativeKeywords: GoogleNegativeKeywordInput[]
@@ -462,6 +464,20 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                         props.setGoogleAiMaxUrlExclusions(event.target.value)
                       }
                       placeholder={'/careers/\n/privacy-policy\nhttps://example.com/old-page'}
+                    />
+                  </Field>
+                  <Field
+                    label="Landing-page URL inclusions"
+                    hint="One absolute URL per line. UnifyDesk creates/reuses a Google page feed and limits this ad group to those page-feed URLs. Requires text customization, Final URL expansion, and AI Max search-term matching."
+                  >
+                    <textarea
+                      className="form-input mt-2 min-h-28"
+                      value={props.googleAiMaxUrlInclusions}
+                      disabled={props.disabled}
+                      onChange={(event) =>
+                        props.setGoogleAiMaxUrlInclusions(event.target.value)
+                      }
+                      placeholder={'https://example.com/product\nhttps://example.com/pricing'}
                     />
                   </Field>
                 </div>
