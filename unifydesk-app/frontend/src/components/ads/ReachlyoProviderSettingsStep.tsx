@@ -60,6 +60,18 @@ type Props = {
   setMetaConversionId: (value: string) => void
   metaStandardEvent: string
   setMetaStandardEvent: (value: string) => void
+  metaPlacementMode: 'AUTO' | 'MANUAL'
+  setMetaPlacementMode: (value: 'AUTO' | 'MANUAL') => void
+  metaPublisherPlatforms: string[]
+  setMetaPublisherPlatforms: (value: string[]) => void
+  metaFacebookPositions: string[]
+  setMetaFacebookPositions: (value: string[]) => void
+  metaInstagramPositions: string[]
+  setMetaInstagramPositions: (value: string[]) => void
+  metaMessengerPositions: string[]
+  setMetaMessengerPositions: (value: string[]) => void
+  metaAudienceNetworkPositions: string[]
+  setMetaAudienceNetworkPositions: (value: string[]) => void
   disabled: boolean
   onRefresh: () => void
 }
@@ -93,6 +105,49 @@ const quarterHours = (includeEndOfDay: boolean) => {
 
 const START_TIMES = quarterHours(false)
 const END_TIMES = quarterHours(true)
+
+const META_PLACEMENT_GROUPS = [
+  {
+    key: 'facebook',
+    label: 'Facebook',
+    positions: [
+      ['feed', 'Feed'],
+      ['story', 'Stories'],
+      ['reels', 'Reels'],
+      ['marketplace', 'Marketplace'],
+      ['video_feeds', 'Video feeds'],
+      ['search', 'Search results'],
+    ],
+  },
+  {
+    key: 'instagram',
+    label: 'Instagram',
+    positions: [
+      ['stream', 'Feed'],
+      ['story', 'Stories'],
+      ['reels', 'Reels'],
+      ['explore', 'Explore'],
+      ['explore_home', 'Explore home'],
+      ['profile_feed', 'Profile feed'],
+    ],
+  },
+  {
+    key: 'messenger',
+    label: 'Messenger',
+    positions: [
+      ['messenger_home', 'Inbox'],
+      ['story', 'Stories'],
+    ],
+  },
+  {
+    key: 'audience_network',
+    label: 'Audience Network',
+    positions: [
+      ['classic', 'Native, banner and interstitial'],
+      ['rewarded_video', 'Rewarded video'],
+    ],
+  },
+] as const
 
 const pretty = (value: string) =>
   value
@@ -585,6 +640,86 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 <option value="ISSUES_ELECTIONS_POLITICS">Issues, elections or politics</option>
               </select>
             </Field>
+            <div className="sm:col-span-2 rounded-xl border border-slate-100 p-4">
+              <p className="text-xs font-semibold text-slate-700">Placements</p>
+              <select
+                className="form-input mt-2"
+                value={props.metaPlacementMode}
+                disabled={props.disabled}
+                onChange={(event) =>
+                  props.setMetaPlacementMode(event.target.value as 'AUTO' | 'MANUAL')
+                }
+              >
+                <option value="AUTO">Advantage+ / automatic placements</option>
+                <option value="MANUAL">Manual placements</option>
+              </select>
+              {props.metaPlacementMode === 'MANUAL' && (
+                <div className="mt-3 space-y-3">
+                  {META_PLACEMENT_GROUPS.map((group) => {
+                    const selected = props.metaPublisherPlatforms.includes(group.key)
+                    const positions =
+                      group.key === 'facebook'
+                        ? props.metaFacebookPositions
+                        : group.key === 'instagram'
+                          ? props.metaInstagramPositions
+                          : group.key === 'messenger'
+                            ? props.metaMessengerPositions
+                            : props.metaAudienceNetworkPositions
+                    const setPositions =
+                      group.key === 'facebook'
+                        ? props.setMetaFacebookPositions
+                        : group.key === 'instagram'
+                          ? props.setMetaInstagramPositions
+                          : group.key === 'messenger'
+                            ? props.setMetaMessengerPositions
+                            : props.setMetaAudienceNetworkPositions
+                    return (
+                      <div key={group.key} className="rounded-lg border border-slate-200 p-3">
+                        <label className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            disabled={props.disabled}
+                            onChange={(event) =>
+                              props.setMetaPublisherPlatforms(
+                                event.target.checked
+                                  ? [...new Set([...props.metaPublisherPlatforms, group.key])]
+                                  : props.metaPublisherPlatforms.filter((item) => item !== group.key),
+                              )
+                            }
+                          />
+                          {group.label}
+                        </label>
+                        {selected && (
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            {group.positions.map(([value, label]) => (
+                              <label key={value} className="flex items-center gap-2 text-xs text-slate-600">
+                                <input
+                                  type="checkbox"
+                                  checked={positions.includes(value)}
+                                  disabled={props.disabled}
+                                  onChange={(event) =>
+                                    setPositions(
+                                      event.target.checked
+                                        ? [...new Set([...positions, value])]
+                                        : positions.filter((item) => item !== value),
+                                    )
+                                  }
+                                />
+                                {label}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                  <p className="text-xs leading-5 text-slate-500">
+                    If a selected platform has no individual positions checked, Meta can use all eligible positions on that platform.
+                  </p>
+                </div>
+              )}
+            </div>
             <Field label="Meta Pixel">
               <select
                 className="form-input mt-2"
