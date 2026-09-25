@@ -338,6 +338,19 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                       "disableSearchTermMatching",
                       providerBoolean(
                           context, "aiMaxDisableSearchTermMatching", false))));
+          if (!providerStrings(context, "aiMaxUrlExclusions").isEmpty()) {
+            operations.add(
+                operation(
+                    sequence++,
+                    "configure-ai-max-url-exclusions",
+                    ProviderPlanAction.CONFIGURE,
+                    ProviderPlanResource.CAMPAIGN_TARGETING,
+                    false,
+                    Set.of(AdFeatureCapability.GOOGLE_AI_MAX),
+                    ProviderCampaignPlanSupport.config(
+                        "urlExclusions",
+                        providerStrings(context, "aiMaxUrlExclusions"))));
+          }
         }
         operations.add(
             operation(
@@ -545,6 +558,19 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
     JsonNode root = providerOverride(context);
     JsonNode value = root.get(key);
     return value == null || value.isNull() ? fallback : value.asBoolean(fallback);
+  }
+
+  private List<String> providerStrings(
+      ProviderCampaignCompileContext context, String key) {
+    JsonNode value = providerOverride(context).get(key);
+    if (value == null || value.isNull() || !value.isArray()) return List.of();
+    List<String> result = new ArrayList<>();
+    for (JsonNode item : value) {
+      if (item.isTextual() && !item.asText().isBlank()) {
+        result.add(item.asText().trim());
+      }
+    }
+    return List.copyOf(result);
   }
 
   private String providerText(ProviderCampaignCompileContext context, String key) {
