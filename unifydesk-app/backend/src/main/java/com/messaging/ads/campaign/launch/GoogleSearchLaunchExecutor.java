@@ -32,6 +32,7 @@ import com.messaging.ads.entity.AdSet;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.google.GoogleAdsAdGroupMutationService;
 import com.messaging.ads.google.GoogleAdsAiMaxControlService;
+import com.messaging.ads.google.GoogleAdsAiMaxBrandService;
 import com.messaging.ads.google.GoogleAdsAdGroupSyncService;
 import com.messaging.ads.google.GoogleAdsAdMutationService;
 import com.messaging.ads.google.GoogleAdsAdSyncService;
@@ -86,6 +87,7 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
   private final GoogleAdsCampaignConversionGoalService campaignConversionGoalService;
   private final GoogleAdsAdGroupMutationService adGroupMutationService;
   private final GoogleAdsAiMaxControlService aiMaxControlService;
+  private final GoogleAdsAiMaxBrandService aiMaxBrandService;
   private final GoogleAdsAdGroupSyncService adGroupSyncService;
   private final GoogleAdsKeywordMutationService keywordMutationService;
   private final GoogleAdsKeywordSyncService keywordSyncService;
@@ -268,6 +270,9 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
             stringsFromOverrideArray(override, "aiMaxUrlExclusions"));
         aiMaxControlService.validateUrlInclusions(
             stringsFromOverrideArray(override, "aiMaxUrlInclusions"));
+        aiMaxBrandService.validate(
+            objectIdsFromOverrideArray(override, "aiMaxBrandInclusions"),
+            objectIdsFromOverrideArray(override, "aiMaxBrandExclusions"));
       } catch (BadRequestException exception) {
         issues.add(
             error(
@@ -324,6 +329,8 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
           configureAiMaxUrlExclusions(companyId, run, step, channel);
       case "configure-ai-max-url-inclusions" ->
           configureAiMaxUrlInclusions(companyId, run, step, channel);
+      case "configure-ai-max-brands" ->
+          configureAiMaxBrands(companyId, run, step, channel);
       case "configure-keywords" ->
           configureKeywords(companyId, run, plan, step);
       case "configure-negative-keywords" ->
@@ -507,6 +514,33 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
         adGroup.getId(),
         adGroup.getExternalAdSetId(),
         Map.of("disableSearchTermMatching", disableSearchTermMatching));
+  }
+
+  private LaunchStepExecutionResult configureAiMaxBrands(
+      Long companyId,
+      LaunchRun run,
+      LaunchStep step,
+      CampaignChannel channel) {
+    AdCampaign providerCampaign =
+        providerCampaign(companyId, step.getProviderDeploymentId());
+    JsonNode override = override(channel);
+    List<String> inclusions =
+        objectIdsFromOverrideArray(override, "aiMaxBrandInclusions");
+    List<String> exclusions =
+        objectIdsFromOverrideArray(override, "aiMaxBrandExclusions");
+    var result =
+        aiMaxBrandService.apply(
+            companyId,
+            providerCampaign.getId(),
+            inclusions,
+            exclusions,
+            run.getRequestedByUserId());
+    return LaunchStepExecutionResult.succeeded(
+        null,
+        null,
+        Map.of(
+            "createdLists", result.createdLists(),
+            "createdCriteria", result.createdCriteria()));
   }
 
   private LaunchStepExecutionResult configureAiMaxUrlInclusions(
@@ -825,6 +859,17 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
   private String text(JsonNode node, String key) {
     JsonNode value = node.get(key);
     return value == null || value.isNull() ? null : value.asText(null);
+  }
+
+  private List<String> objectIdsFromOverrideArray(JsonNode node, String key) {
+    JsonNode value = node.get(key);
+    if (value == null || value.isNull() || !value.isArray()) return List.of();
+    List<String> result = new java.util.ArrayList<>();
+    for (JsonNode item : value) {
+      String id = item.isObject() ? item.path("id").asText(null) : null;
+      if (id != null && !id.isBlank()) result.add(id.trim());
+    }
+    return List.copyOf(result);
   }
 
   private List<String> stringsFromOverrideArray(JsonNode node, String key) {
