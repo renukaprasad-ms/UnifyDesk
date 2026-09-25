@@ -414,7 +414,7 @@ export default function ReachlyoCampaignWizard() {
     setMetaStandardEvent((current) => {
       const normalized = current.trim().toUpperCase()
       if (normalized && !defaults.has(normalized)) return current
-      return defaultMetaStandardEvent(businessGoal) || current
+      return defaultMetaStandardEvent(businessGoal)
     })
   }, [businessGoal])
 
