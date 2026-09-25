@@ -301,6 +301,8 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
           configureTargeting(companyId, run, plan, step, campaign, channel);
       case "create-ad-group" ->
           createAdGroup(companyId, run, plan, step, campaign, channel);
+      case "configure-ai-max-ad-group" ->
+          configureAiMaxAdGroup(companyId, run, step, channel);
       case "configure-keywords" ->
           configureKeywords(companyId, run, plan, step);
       case "configure-negative-keywords" ->
@@ -464,6 +466,26 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
         Long.valueOf(result.id()),
         result.externalAdSetId(),
         Map.of("reused", existing != null));
+  }
+
+  private LaunchStepExecutionResult configureAiMaxAdGroup(
+      Long companyId,
+      LaunchRun run,
+      LaunchStep step,
+      CampaignChannel channel) {
+    AdSet adGroup = providerAdGroup(companyId, step.getProviderDeploymentId());
+    JsonNode override = override(channel);
+    boolean disableSearchTermMatching =
+        override.path("aiMaxDisableSearchTermMatching").asBoolean(false);
+    adGroupMutationService.setAiMaxSearchTermMatching(
+        companyId,
+        adGroup.getId(),
+        disableSearchTermMatching,
+        run.getRequestedByUserId());
+    return LaunchStepExecutionResult.succeeded(
+        adGroup.getId(),
+        adGroup.getExternalAdSetId(),
+        Map.of("disableSearchTermMatching", disableSearchTermMatching));
   }
 
   private LaunchStepExecutionResult configureKeywords(
