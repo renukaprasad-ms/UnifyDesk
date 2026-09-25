@@ -126,6 +126,66 @@ export type ReachlyoCampaign = ReachlyoCampaignSummary & {
   deployments: ReachlyoProviderDeployment[]
 }
 
+export type ReachlyoCampaignAnalyticsSummary = {
+  spend: number
+  impressions: number
+  clicks: number
+  ctr?: number | null
+  conversions: number
+  conversionValue: number
+  cpa?: number | null
+  roas?: number | null
+  leads: number
+  purchases: number
+}
+
+export type ReachlyoCampaignAnalyticsDailyPoint = {
+  date: string
+  spend: number
+  impressions: number
+  clicks: number
+  conversions: number
+  conversionValue: number
+}
+
+export type ReachlyoCampaignAnalyticsDeployment = {
+  deploymentId: string
+  channelId: string
+  provider: AdProvider
+  channelType?: CampaignChannelType | null
+  adAccountId: string
+  localCampaignId?: string | null
+  externalCampaignId?: string | null
+  providerStatus?: string | null
+  deploymentStatus: ProviderDeploymentStatus
+  summary: ReachlyoCampaignAnalyticsSummary
+  spendSharePercent: number
+  exactRangeAvailable: boolean
+  lastSyncedAt?: string | null
+}
+
+export type ReachlyoCampaignAnalytics = {
+  campaignId: string
+  currency: string
+  from: string
+  to: string
+  summary: ReachlyoCampaignAnalyticsSummary
+  daily: ReachlyoCampaignAnalyticsDailyPoint[]
+  deployments: ReachlyoCampaignAnalyticsDeployment[]
+  exactRangeAvailable: boolean
+  lastSyncedAt?: string | null
+}
+
+export type ReachlyoCampaignAnalyticsSync = {
+  synchronizedAccounts: number
+  failures: Array<{
+    provider: AdProvider
+    adAccountId: string
+    message: string
+  }>
+  analytics: ReachlyoCampaignAnalytics
+}
+
 export type CreateReachlyoCampaignInput = {
   name: string
   objective: ReachlyoCampaignObjective
