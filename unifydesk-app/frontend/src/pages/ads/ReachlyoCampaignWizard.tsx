@@ -367,6 +367,11 @@ export default function ReachlyoCampaignWizard() {
     googleAiMaxDisableSearchTermMatching,
     setGoogleAiMaxDisableSearchTermMatching,
   ] = useState(false)
+  const [googleAiMaxTermExclusions, setGoogleAiMaxTermExclusions] = useState('')
+  const [
+    googleAiMaxMessagingRestrictions,
+    setGoogleAiMaxMessagingRestrictions,
+  ] = useState('')
   const [googleAdSchedules, setGoogleAdSchedules] = useState<GoogleAdScheduleDraft[]>([])
   const [googleNegativeKeywords, setGoogleNegativeKeywords] = useState<GoogleNegativeKeywordInput[]>([])
   const [googleNegativeKeywordLists, setGoogleNegativeKeywordLists] =
@@ -548,6 +553,20 @@ export default function ReachlyoCampaignWizard() {
       )
       setGoogleAiMaxDisableSearchTermMatching(
         override.aiMaxDisableSearchTermMatching === true,
+      )
+      setGoogleAiMaxTermExclusions(
+        Array.isArray(override.aiMaxTermExclusions)
+          ? override.aiMaxTermExclusions
+              .filter((value): value is string => typeof value === 'string')
+              .join('\n')
+          : '',
+      )
+      setGoogleAiMaxMessagingRestrictions(
+        Array.isArray(override.aiMaxMessagingRestrictions)
+          ? override.aiMaxMessagingRestrictions
+              .filter((value): value is string => typeof value === 'string')
+              .join('\n')
+          : '',
       )
       const savedSchedules = Array.isArray(override.adSchedules)
         ? override.adSchedules
@@ -1193,6 +1212,12 @@ export default function ReachlyoCampaignWizard() {
               googleAiMaxEnabled && googleAiMaxFinalUrlExpansion,
             aiMaxDisableSearchTermMatching:
               googleAiMaxEnabled && googleAiMaxDisableSearchTermMatching,
+            aiMaxTermExclusions: googleAiMaxEnabled
+              ? listValues(googleAiMaxTermExclusions)
+              : [],
+            aiMaxMessagingRestrictions: googleAiMaxEnabled
+              ? listValues(googleAiMaxMessagingRestrictions)
+              : [],
             adSchedules: googleAdSchedules,
             negativeKeywords: googleNegativeKeywords
               .map((keyword) => ({
@@ -2450,6 +2475,14 @@ export default function ReachlyoCampaignWizard() {
                   }
                   setGoogleAiMaxDisableSearchTermMatching={
                     setGoogleAiMaxDisableSearchTermMatching
+                  }
+                  googleAiMaxTermExclusions={googleAiMaxTermExclusions}
+                  setGoogleAiMaxTermExclusions={setGoogleAiMaxTermExclusions}
+                  googleAiMaxMessagingRestrictions={
+                    googleAiMaxMessagingRestrictions
+                  }
+                  setGoogleAiMaxMessagingRestrictions={
+                    setGoogleAiMaxMessagingRestrictions
                   }
                   googleAdSchedules={googleAdSchedules}
                   setGoogleAdSchedules={setGoogleAdSchedules}
