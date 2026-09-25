@@ -1317,6 +1317,29 @@ export type GoogleSearchTermReport = {
   rows: GoogleSearchTermRow[]
 }
 
+export type GoogleAiMaxCombinationRow = {
+  searchTerm?: string | null
+  headline?: string | null
+  landingPage?: string | null
+  externalAdGroupId?: string | null
+  adGroupName?: string | null
+  impressions: number
+  clicks: number
+  spend: number
+  conversions: number
+  conversionValue: number
+  cpa?: number | null
+  roas?: number | null
+}
+
+export type GoogleAiMaxCombinationReport = {
+  campaignId: string
+  from: string
+  to: string
+  currency?: string | null
+  rows: GoogleAiMaxCombinationRow[]
+}
+
 export type GoogleNegativeKeyword = {
   resourceName: string
   criterionId: string
