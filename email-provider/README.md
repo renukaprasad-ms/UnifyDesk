@@ -87,3 +87,53 @@ V1 will target controlled testing only:
 12. Delivery events and metrics.
 
 No unrestricted public/customer sending should be enabled until abuse controls, quotas, warm-up, and reputation monitoring are in place.
+
+
+## Email validation pipeline
+
+Bulk validation is asynchronous and isolated from the outbound delivery path.
+
+```text
+API
+ |
+ v
+validation job -> validation batches (default 100 addresses)
+ |
+ v
+transactional outbox
+ |
+ v
+Kafka: email.validation.batch
+ |
+ v
+validator workers
+ |-- syntax / normalization
+ |-- cached domain + MX routing
+ |-- disposable / role checks
+ |-- optional SMTP mailbox probe
+ |-- optional catch-all detection
+ v
+persisted item results + atomic job counters
+```
+
+Design constraints:
+
+- The request API is bounded to 10,000 addresses so one HTTP request cannot create unbounded heap pressure.
+- Each worker keeps only one batch and one per-batch domain map in memory, giving O(batch-size) working memory.
+- Job deduplication uses SHA-256 keys and a database uniqueness constraint.
+- Domain routing is resolved once per domain per batch and persisted in a TTL cache.
+- SMTP validation is disabled by default and must run from validator infrastructure, never from the production sending IP.
+- Redis provides a shared per-domain probe budget while local semaphores cap same-node concurrency.
+- SMTP temporary failures, rate limits and anti-enumeration responses are classified UNKNOWN, not INVALID.
+- Catch-all probing uses randomized recipient addresses and is cached at domain level.
+- Batch claims and job counters use pessimistic locking so duplicate Kafka delivery cannot double-count results.
+- Terminal batch failures are surfaced as UNKNOWN and jobs finish as PARTIAL_FAILED or FAILED rather than hanging indefinitely.
+
+Endpoints:
+
+- `POST /api/v1/companies/{companyId}/email-validation/jobs`
+- `POST /api/v1/companies/{companyId}/email-validation/single`
+- `GET /api/v1/companies/{companyId}/email-validation/jobs/{jobId}`
+- `GET /api/v1/companies/{companyId}/email-validation/jobs/{jobId}/results`
+
+For very large CSV/contact imports, the control plane should stream rows into bounded validation jobs rather than loading the complete file into memory.

@@ -27,6 +27,22 @@ public class KafkaTopicConfig {
     return topic(name, partitions, replicationFactor);
   }
 
+  @Bean
+  NewTopic emailValidationBatchTopic(
+      @Value("${app.kafka.topics.validation-batch:email.validation.batch}") String name,
+      @Value("${app.kafka.partitions:6}") int partitions,
+      @Value("${app.kafka.replication-factor:1}") short replicationFactor) {
+    return topic(name, partitions, replicationFactor);
+  }
+
+  @Bean
+  NewTopic emailValidationLifecycleTopic(
+      @Value("${app.kafka.topics.validation-lifecycle:email.validation.lifecycle}") String name,
+      @Value("${app.kafka.partitions:6}") int partitions,
+      @Value("${app.kafka.replication-factor:1}") short replicationFactor) {
+    return topic(name, partitions, replicationFactor);
+  }
+
   private NewTopic topic(String name, int partitions, short replicationFactor) {
     return TopicBuilder.name(name)
         .partitions(partitions)
