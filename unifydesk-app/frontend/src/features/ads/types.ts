@@ -1317,6 +1317,13 @@ export type GoogleSearchTermReport = {
   rows: GoogleSearchTermRow[]
 }
 
+export type GoogleBrandSuggestion = {
+  id: string
+  name: string
+  urls: string[]
+  state?: string | null
+}
+
 export type GoogleAiMaxCombinationRow = {
   searchTerm?: string | null
   headline?: string | null
