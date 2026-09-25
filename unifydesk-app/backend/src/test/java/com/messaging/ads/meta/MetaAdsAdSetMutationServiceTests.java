@@ -148,6 +148,8 @@ class MetaAdsAdSetMutationServiceTests {
                 List.of("stream"),
                 List.of(),
                 List.of(),
+                List.of(),
+                List.of(),
                 null,
                 null,
                 null));
@@ -164,6 +166,7 @@ class MetaAdsAdSetMutationServiceTests {
     assertThat(targeting.get("age_min")).isEqualTo(21);
     assertThat(targeting.get("age_max")).isEqualTo(65);
     assertThat(targeting.get("publisher_platforms")).isEqualTo(List.of("instagram"));
+    assertThat(targeting.get("instagram_positions")).isEqualTo(List.of("stream"));
   }
 
   @Test
@@ -265,6 +268,8 @@ class MetaAdsAdSetMutationServiceTests {
             List.of(),
             List.of(),
             List.of(),
+            List.of(),
+            List.of(),
             null,
             null,
             null));
@@ -321,6 +326,8 @@ class MetaAdsAdSetMutationServiceTests {
                                 "IN", List.of("home"))),
                         18,
                         65,
+                        List.of(),
+                        List.of(),
                         List.of(),
                         List.of(),
                         List.of(),

@@ -827,7 +827,7 @@ Reference:
 
 ## G-02 Negative keywords - P0
 
-Status: **core management complete**. Reachlyo now supports ad-group negatives, campaign negatives, reusable Google shared negative keyword lists, provider-live read-through/sync, attach/detach, bulk entry, and unified-launch application. Search-term suggestions and the "search term -> add as negative" action remain intentionally coupled to G-03/B8 search-term reporting.
+Status: **complete for the current Search scope**. Reachlyo supports ad-group negatives, campaign negatives, reusable Google shared negative keyword lists, provider-live read-through/sync, attach/detach, bulk entry, unified-launch application, evidence-backed search-term review candidates, and direct search-term exclusion at ad-group or campaign level.
 
 Missing/next integration:
 
@@ -840,8 +840,8 @@ Missing/next integration:
 Frontend:
 
 - [x] bulk add
-- suggestions — deliver with search-term reporting so suggestions are evidence-backed
-- search-term -> add as negative action — deliver with G-03/B8
+- [x] evidence-backed review candidates from search-term performance
+- [x] search-term -> add as ad-group or campaign negative action
 
 Reference:
 
@@ -850,42 +850,62 @@ Reference:
 
 ## G-03 Search term reporting - P1
 
-Add:
+Status: **core Search reporting complete**. Reachlyo now queries Google's current `search_term_view` for managed Search campaigns with a validated 90-day date range and exposes search term, matched keyword, matched keyword match type, Search-term match type, Google targeting status, AI Max/search match source, ad group, impressions, clicks, spend, conversions, conversion value, CPA and ROAS. The provider-native campaign page includes filtering, zero-conversion review candidates, and direct actions to promote a term to an ad-group keyword or exclude it at ad-group/campaign scope. Exact is the default mutation match type to minimize accidental over-blocking.
 
-- search terms
-- matched keyword
-- match type
-- clicks
-- impressions
-- spend
-- conversions
-- value
-- CPA/ROAS
-- action to promote term to keyword
-- action to exclude term
+Current AI Max semantics are carried through `segments.search_term_match_source`, including keywordless and AI Max broad-match attribution where Google returns it. The more granular AI Max search-term/ad/headline/landing-page audit view remains part of C1 together with AI Max controls and URL/text automation.
 
-Must support AI Max reporting semantics as they evolve.
+Implemented:
+
+- [x] search terms
+- [x] matched keyword
+- [x] match type
+- [x] clicks
+- [x] impressions
+- [x] spend
+- [x] conversions
+- [x] value
+- [x] CPA/ROAS
+- [x] action to promote term to keyword
+- [x] action to exclude term at ad-group or campaign scope
+- [x] AI Max match-source attribution in the standard Search-term report
+
+Reference:
+
+- https://developers.google.com/google-ads/api/fields/v25/search_term_view
+- https://developers.google.com/google-ads/api/docs/campaigns/ai-max-for-search-campaigns/ai-max-reporting
 
 ## G-04 AI Max for Search - P1
 
-Add:
+Status: **complete for the unified Google Search flow**. AI Max remains an advanced provider override on a normal Search campaign rather than a separate Reachlyo channel type.
 
-- enable AI Max
-- search term matching controls
-- text customization controls
-- Final URL Expansion
-- URL inclusions/exclusions
-- brand inclusions/exclusions
-- text guidelines/restrictions
-- AI Max reporting
-- migration state read
+Implemented:
 
-Current Google API docs describe AI Max as an optimization layer over Search campaigns rather than a separate campaign type.
+- [x] campaign-level AI Max enablement through `campaign.ai_max_setting.enable_ai_max`
+- [x] ad-group search-term matching control through `ai_max_ad_group_setting.disable_search_term_matching`
+- [x] explicit compiler warning when individual keyword match types will be overridden by AI Max matching
+- [x] text customization through `TEXT_ASSET_AUTOMATION`
+- [x] Final URL Expansion through `FINAL_URL_EXPANSION_TEXT_ASSET_AUTOMATION`
+- [x] URL exclusions as named negative campaign `WEBPAGE` criteria with retry-safe reuse
+- [x] URL inclusions through reusable `PAGE_FEED` assets + AssetSet + CampaignAssetSet + positive ad-group `WEBPAGE` criteria
+- [x] verified brand suggestions through Google's BrandSuggestionService
+- [x] campaign-level brand inclusions/exclusions through reusable `BRANDS` SharedSets and positive/negative `brand_list` criteria
+- [x] generated-text term exclusions using Google's current 25-item / 30-character limits
+- [x] messaging restrictions using Google's current 40-item / 300-character limits and `RESTRICTION_BASED_EXCLUSION`
+- [x] standard Search-term attribution via `segments.search_term_match_source`
+- [x] dedicated `ai_max_search_term_ad_combination_view` transparency reporting for search term + headline + landing page with spend/conversion metrics
+- [x] provider read-back for AI Max enablement, bundling state, asset automation, text guidelines, ad-group matching state, and Google ACA/broad-match migration timestamps
+- [x] capability exposure, launch preflight, Saga operations, activity audit, responsive UI, and tests
+
+URL inclusion configuration intentionally requires text customization, Final URL Expansion, and AI Max search-term matching to remain enabled, matching Google's current page-feed inclusion model. Brand selection stores the verified provider brand ID plus human-readable name/URLs in the provider override; users are never asked to paste Commercial Knowledge Graph IDs manually.
+
+Current Google API docs describe AI Max as an optimization layer over Search campaigns rather than a separate campaign type. Provider migration timestamps are read-only state and are surfaced through synchronized provider payloads rather than mutated by Reachlyo.
 
 Reference:
 
 - https://developers.google.com/google-ads/api/docs/campaigns/ai-max-for-search-campaigns/getting-started
 - https://developers.google.com/google-ads/api/docs/campaigns/ai-max-for-search-campaigns/ai-max-reporting
+- https://developers.google.com/google-ads/api/docs/targeting/shared-sets
+- https://developers.google.com/google-ads/api/reference/rpc/v25/BrandSuggestionService
 - https://developers.google.com/google-ads/api/docs/release-notes
 
 ## G-05 Keyword Planner - P1
@@ -1177,7 +1197,7 @@ Geo exclusions are intentionally not part of B3 and can be added with the broade
 
 ## M-03 Placement tree - P0
 
-Current frontend mostly exposes platform-level placement.
+Status: **core placement tree complete**. B4 carries manual Facebook, Instagram, Messenger, and Audience Network placement positions through native Meta create/edit/read-back and the unified Reachlyo campaign launch path. Automatic placement mode remains supported by omitting manual publisher-platform constraints. A dedicated META_PLACEMENT_TREE capability is exposed, and the compiler surfaces placement-specific creative-variant/media warnings. B5 adds persisted Feed/Story/Reel image/video Creative Variants and Meta placement asset customization for mixed fully modeled placement families. Provider/account-specific Advantage+ eligibility remains in D3 rather than being falsely treated as generic placement support.
 
 Build a placement selector with actual supported placement positions.
 
@@ -1479,17 +1499,21 @@ Never silently drop targeting.
 
 ## X-07 Unified conversion mapping - P0/P1
 
+Status: **core provider mapping complete**. A Reachlyo Campaign selects one business outcome, then stores a provider/account-specific ConversionGoalMapping for that same business goal. Synced Google conversion actions and Meta custom conversions retain their normalized provider category/event for goal-aware recommendations and review warnings. Meta also supports validated standard promoted-object events with a selected Pixel. Google Search preflight re-verifies the selected conversion action, launch creates/reuses a CustomConversionGoal in the effective Google Ads conversion customer, attaches it through ConversionGoalCampaignConfig, and disables other biddable CampaignConversionGoals so optimization stays scoped to the explicitly mapped action. Historical mappings remain scoped to the business goal that created them so changing a campaign goal cannot silently reuse the prior mapping.
+
 A campaign should select a business outcome once.
 
 Map that outcome to provider measurement objects.
 
-Eventually Reachlyo-owned messaging/CRM events should feed provider offline/enhanced conversion systems where lawful and configured.
+Eventually Reachlyo-owned messaging/CRM events should feed provider offline/enhanced conversion systems where lawful and configured. That event-ingestion/offline feedback loop remains future full-funnel attribution work rather than part of B6.
 
 ## X-08 Cross-provider reporting - P1
 
-Current normalized analytics is a strong base.
+Status: **core unified campaign reporting complete**. Reachlyo Campaign analytics now resolve ProviderDeployments to the normalized provider campaign insight rows and expose one currency-safe parent report with total spend, impressions, clicks, conversions, conversion value, CPA, ROAS, daily trend, provider/channel performance, provider spend share, exact-range availability, and last-sync state. A single refresh operation synchronizes each unique deployed Google/Meta ad account and reports partial provider failures without discarding already stored analytics.
 
-Add Reachlyo campaign reporting:
+Cross-provider reach is intentionally not summed because Google and Meta users cannot be de-duplicated. Existing provider analytics and breakdown surfaces remain available for provider-specific metrics. Creative- and audience-level cross-provider identity mapping is not fabricated in B7; richer unified creative/audience reporting remains part of C9 once provider ads/assets/audience mappings can be compared on a trustworthy common identity.
+
+Reachlyo campaign reporting includes:
 
 - total spend
 - spend by provider/channel
@@ -1501,20 +1525,31 @@ Add Reachlyo campaign reporting:
 - ROAS
 - provider share
 - campaign trend
-- creative performance
-- audience performance
 
 Provider-specific metrics should remain accessible.
 
 ## X-09 Cross-provider recommendations - P1
 
-Recommendations should be evidence-based and actionable.
+Status: **core campaign-level recommendation feed complete**. Reachlyo Campaigns now expose one recommendation surface that combines provider deployment state, the existing provider/account diagnostic lifecycle, seven-day unified campaign analytics, and campaign-targeted Google Ads native recommendations. Recommendations include evidence, severity/category/source, provider/deployment context, and an explicit review path when an existing management surface can resolve the issue.
 
-Examples:
+Current evidence-backed campaign diagnostics include:
+
+- failed or partially failed provider deployment
+- stale/missing analytics
+- campaign spend with zero recorded conversions
+- active provider deployment with no recent spend
+- cross-provider CPA divergence only after each compared deployment has at least three conversions
+- provider/account blocking diagnostics relevant to a deployment
+- campaign-scoped Google native recommendations and their provider impact payload
+
+The recommendation layer does **not** automatically change budgets, bids, targeting, creative, or provider recommendations. It recommends review and routes the user to the relevant management surface. Search-term exclusion remains directly actionable from B8 because that action is explicitly initiated by the user. Automated budget movement/optimization stays in X-10/E4 with approval/guardrail controls.
+
+Google's Recommendation resource is campaign-aware for many recommendation types and exposes provider impact estimates; these are preserved as provider evidence rather than treated as guaranteed outcomes.
+
+Examples for later expansion:
 
 - increase/decrease budget
 - move budget between channels
-- add negative keyword
 - fix missing creative variant
 - replace fatigued creative
 - fix conversion tracking
@@ -1940,16 +1975,16 @@ A user can create one Reachlyo Campaign and deploy a simple valid campaign to Go
 B1. [x] Google geo/language/network/daypart targeting — canonical country/region/city/postal/proximity + language mapping, Search Partners/Display expansion, presence mode, quarter-hour dayparting, provider preflight and idempotent campaign-criterion execution  
 B2. [x] Google negative keywords/shared negatives — ad-group negative create/remove + sync, campaign negatives with bulk add/remove, live reusable shared-list discovery/member management/attach-detach, unified campaign selection, preflight validation and idempotent launch execution  
 B3. [x] Meta detailed geo targeting — provider geo search, regions/cities/postal codes, coordinate radius targeting, home/recent location types, native create/edit UI, canonical mapping, and launch preflight resolution  
-B4. Meta proper placement tree  
-B5. placement-specific Creative Pack variants  
-B6. unified conversion mapping  
-B7. cross-provider campaign analytics  
-B8. search-term reporting  
-B9. campaign-level recommendation improvements
+B4. [x] Meta proper placement tree — structured Facebook/Instagram/Messenger/Audience Network positions, native create/edit/read-back, unified launch mapping, capability exposure, and compiler placement warnings  
+B5. [x] placement-specific Creative Pack variants — Feed/Story/Reel copy + image/video variants, validated AD_CREATIVE media, single-family launch selection, mixed-placement Meta asset_feed_spec PLACEMENT customization, and safe canonical fallback for unsupported/unmodeled placement families  
+B6. [x] unified conversion mapping — one business goal with current-goal provider/account mappings, goal-aware defaults and mismatch warnings, current Meta standard-event validation/custom-conversion execution, and Google conversion-action preflight + CustomConversionGoal + ConversionGoalCampaignConfig + competing-goal isolation  
+B7. [x] cross-provider campaign analytics — deployment-linked Google + Meta campaign rollups, unified KPIs, provider/channel spend share, daily trend, exact-range/daily fallback consistency, mixed-currency protection, one-click multi-provider refresh, and partial-sync failure reporting  
+B8. [x] search-term reporting — Google search_term_view with matched keyword/match type, targeting status, AI Max match source, impressions/clicks/spend/conversions/value/CPA/ROAS, evidence-backed review filters, promote-to-keyword, and ad-group/campaign exclusion actions  
+B9. [x] campaign-level recommendation improvements — unified deployment/provider/cross-channel recommendation feed, failed-delivery and stale-data diagnostics, spend-without-conversion checks, minimum-sample CPA divergence detection, campaign-scoped Google native recommendations, evidence/context/action paths, and responsive campaign UI
 
 ## Phase C - Modern Google / P1
 
-C1. AI Max for Search  
+C1. [x] AI Max for Search — campaign/ad-group AI Max controls, text and URL automation, text restrictions, retry-safe page-feed inclusions and URL exclusions, verified brand lists, match-source + combination reporting, migration read-back, capability/preflight/audit/UI/tests  
 C2. Keyword Planner  
 C3. forecasts  
 C4. reusable Google campaign assets/extensions  
@@ -2036,6 +2071,14 @@ Main documentation:
 Search:
 
 - https://developers.google.com/google-ads/api/docs/campaigns/search-campaigns/getting-started
+- https://developers.google.com/google-ads/api/fields/v25/search_term_view
+- https://developers.google.com/google-ads/api/fields/v25/campaign_search_term_view
+
+Conversion goals:
+
+- https://developers.google.com/google-ads/api/docs/conversions/goals/overview
+- https://developers.google.com/google-ads/api/docs/conversions/goals/campaign-goals
+- https://developers.google.com/google-ads/api/docs/conversions/getting-started
 
 AI Max:
 
@@ -2077,6 +2120,16 @@ Keyword/bid planning:
 
 - https://developers.google.com/google-ads/api/docs/bid-simulations/overview
 
+Analytics/reporting:
+
+- https://developers.google.com/google-ads/api/reference/rpc/v25/Metrics
+- https://developers.google.com/google-ads/api/fields/v25/campaign
+
+Recommendations:
+
+- https://developers.google.com/google-ads/api/docs/recommendations
+- https://developers.google.com/google-ads/api/fields/v25/recommendation
+
 Assets:
 
 - https://developers.google.com/google-ads/api/docs/assets/overview
@@ -2100,6 +2153,12 @@ Start/current docs:
 Official Meta Marketing API Postman workspace:
 
 - https://www.postman.com/meta/facebook-marketing-api/overview
+- https://www.postman.com/meta/facebook-marketing-api/request/zo3xvu7/get-campaign-insights-l3
+
+Official Meta Business SDK schema/codegen (used to verify asset_feed_spec and placement customization fields):
+
+- https://github.com/facebook/facebook-business-sdk-codegen/tree/main/api_specs/specs
+- https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adpromotedobject.py
 
 Official Meta generative creative collection:
 

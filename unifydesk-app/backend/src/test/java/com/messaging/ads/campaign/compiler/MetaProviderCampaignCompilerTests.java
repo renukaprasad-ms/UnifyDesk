@@ -9,12 +9,14 @@ import com.messaging.ads.campaign.entity.AudienceDefinition;
 import com.messaging.ads.campaign.entity.BudgetPlan;
 import com.messaging.ads.campaign.entity.CampaignChannel;
 import com.messaging.ads.campaign.entity.CreativePack;
+import com.messaging.ads.campaign.entity.CreativeVariant;
 import com.messaging.ads.campaign.entity.ReachlyoCampaign;
 import com.messaging.ads.campaign.enums.AudienceMappingStatus;
 import com.messaging.ads.campaign.enums.BudgetAllocationMode;
 import com.messaging.ads.campaign.enums.BudgetPeriod;
 import com.messaging.ads.campaign.enums.CampaignBusinessGoal;
 import com.messaging.ads.campaign.enums.CampaignChannelType;
+import com.messaging.ads.campaign.enums.CreativeVariantType;
 import com.messaging.ads.entity.AdAccount;
 import com.messaging.ads.enums.AdProvider;
 import java.util.EnumMap;
@@ -222,6 +224,72 @@ class MetaProviderCampaignCompilerTests {
         .isEqualTo(AudienceMappingStatus.APPROXIMATE);
     assertThat(plan.issues())
         .anyMatch(issue -> issue.code().equals("AUDIENCE_MAPPING_APPROXIMATE"));
+  }
+
+
+  @Test
+  void warnsWhenStoryAndReelPlacementsLackMatchingVariants() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(13L);
+    campaign.setName("Meta placement campaign");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(23L);
+    channel.setReachlyoCampaignId(13L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson(
+        "{\"publisherPlatforms\":[\"instagram\"],\"instagramPositions\":[\"story\",\"reels\"]}");
+
+    AdAccount account = new AdAccount();
+    account.setId(33L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(43L);
+    pack.setPrimaryMessage("Visit our site");
+    pack.setDestinationUrl("https://example.com");
+
+    CreativeVariant feed = new CreativeVariant();
+    feed.setProvider(AdProvider.META_ADS);
+    feed.setVariantType(CreativeVariantType.META_FEED);
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities = baseCapabilities();
+    capabilities.put(
+        AdFeatureCapability.META_PLACEMENT_TREE,
+        available(AdFeatureCapability.META_PLACEMENT_TREE));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(),
+                List.of(feed),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isTrue();
+    assertThat(plan.issues())
+        .filteredOn(issue -> issue.code().equals("META_PLACEMENT_CREATIVE_VARIANT_MISSING"))
+        .hasSize(2);
   }
 
   private Map<AdFeatureCapability, AdFeatureCapabilityResponse> baseCapabilities() {

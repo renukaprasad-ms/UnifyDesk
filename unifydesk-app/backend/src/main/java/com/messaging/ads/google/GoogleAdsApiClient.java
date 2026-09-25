@@ -338,6 +338,36 @@ public class GoogleAdsApiClient {
         "Unable to resolve Google Ads geo targets");
   }
 
+  public JsonNode suggestBrands(
+      String accessToken,
+      String customerId,
+      String loginCustomerId,
+      String brandPrefix,
+      List<String> selectedBrandIds) {
+    if (brandPrefix == null || brandPrefix.isBlank()) {
+      throw new BadRequestException("Google brand prefix is required");
+    }
+    Map<String, Object> body = new LinkedHashMap<>();
+    body.put("brandPrefix", brandPrefix.trim());
+    if (selectedBrandIds != null && !selectedBrandIds.isEmpty()) {
+      body.put("selectedBrands", selectedBrandIds);
+    }
+    return execute(
+        () -> {
+          RestClient.RequestBodySpec request =
+              adsClient
+                  .post()
+                  .uri(
+                      "/{version}/customers/{customerId}:suggestBrands",
+                      properties.getApiVersion().trim(),
+                      normalizeCustomerId(customerId))
+                  .contentType(MediaType.APPLICATION_JSON);
+          addAdsHeaders(request, accessToken, loginCustomerId);
+          return parseJson(request.body(body).retrieve().body(String.class));
+        },
+        "Unable to suggest Google Ads brands");
+  }
+
   public JsonNode customerAction(
       String accessToken,
       String customerId,

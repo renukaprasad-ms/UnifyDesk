@@ -12,6 +12,7 @@ import com.messaging.ads.campaign.entity.CampaignChannel;
 import com.messaging.ads.campaign.entity.ConversionGoalMapping;
 import com.messaging.ads.campaign.entity.CreativePack;
 import com.messaging.ads.campaign.entity.CreativePackAsset;
+import com.messaging.ads.campaign.entity.CreativeVariant;
 import com.messaging.ads.campaign.entity.ReachlyoCampaign;
 import com.messaging.ads.campaign.enums.BudgetPeriod;
 import com.messaging.ads.campaign.enums.CampaignChannelType;
@@ -22,6 +23,7 @@ import com.messaging.ads.campaign.repository.CampaignChannelRepository;
 import com.messaging.ads.campaign.repository.ConversionGoalMappingRepository;
 import com.messaging.ads.campaign.repository.CreativePackAssetRepository;
 import com.messaging.ads.campaign.repository.CreativePackRepository;
+import com.messaging.ads.campaign.repository.CreativeVariantRepository;
 import com.messaging.ads.campaign.repository.ReachlyoCampaignRepository;
 import com.messaging.ads.campaign.service.ProviderDeploymentService;
 import com.messaging.ads.dto.AdCampaignResponse;
@@ -42,10 +44,12 @@ import com.messaging.ads.meta.MetaAdsCampaignSyncService;
 import com.messaging.ads.meta.MetaAdsCreativeMutationService;
 import com.messaging.ads.meta.MetaAdsCreativeSyncService;
 import com.messaging.ads.meta.MetaAdsGeoTargetingService;
+import com.messaging.ads.meta.MetaStandardConversionEvent;
 import com.messaging.ads.meta.dto.CreateMetaAdRequest;
 import com.messaging.ads.meta.dto.CreateMetaAdSetRequest;
 import com.messaging.ads.meta.dto.CreateMetaCampaignRequest;
 import com.messaging.ads.meta.dto.CreateMetaCreativeRequest;
+import com.messaging.ads.meta.dto.CreateMetaPlacementCreativeRequest;
 import com.messaging.ads.repository.AdAccountResourceRepository;
 import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.ads.repository.AdCreativeRepository;
@@ -74,6 +78,7 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
   private final CampaignChannelRepository channelRepository;
   private final CreativePackRepository creativePackRepository;
   private final CreativePackAssetRepository creativePackAssetRepository;
+  private final CreativeVariantRepository creativeVariantRepository;
   private final AudienceDefinitionRepository audienceDefinitionRepository;
   private final ConversionGoalMappingRepository conversionGoalMappingRepository;
   private final AdAccountResourceRepository accountResourceRepository;
@@ -299,6 +304,13 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
     ConversionGoalMapping conversion = conversion(companyId, campaign.getId(), plan.conversionGoalMappingId());
     if (conversion != null
         && conversion.getTargetType() == ConversionTargetType.STANDARD_EVENT) {
+      if (!MetaStandardConversionEvent.supports(conversion.getProviderEventName())) {
+        issues.add(
+            error(
+                "META_STANDARD_EVENT_INVALID",
+                "conversion.providerEventName",
+                "The stored Meta standard conversion event is no longer supported by the current provider adapter."));
+      }
       String pixelId = text(override, "pixelId");
       if (!hasText(pixelId)) {
         issues.add(
@@ -462,6 +474,8 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 stringArray(override, "publisherPlatforms"),
                 stringArray(override, "facebookPositions"),
                 stringArray(override, "instagramPositions"),
+                stringArray(override, "messengerPositions"),
+                stringArray(override, "audienceNetworkPositions"),
                 List.of(),
                 List.of(),
                 pixelId,
@@ -496,14 +510,62 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
 
     CreativePackAsset image = imageAsset(companyId, pack.getId());
     if (image == null) throw new BadRequestException("Meta IMAGE creative asset is missing");
-    Media media = mediaService.requireActiveCompanyMedia(image.getMediaId(), companyId);
-    if (media.getMediaType() != MediaType.IMAGE) {
+    Media baselineMedia = mediaService.requireActiveCompanyMedia(image.getMediaId(), companyId);
+    if (baselineMedia.getMediaType() != MediaType.IMAGE) {
       throw new BadRequestException("Meta baseline creative requires image media");
     }
-    String imageUrl = mediaService.createTrustedAccessUrl(media.getId()).url();
+    String baselineImageUrl = mediaService.createTrustedAccessUrl(baselineMedia.getId()).url();
     JsonNode override = override(channel);
-    List<String> headlines = strings(pack.getHeadlinesJson());
-    List<String> descriptions = strings(pack.getDescriptionsJson());
+
+    Set<com.messaging.ads.campaign.enums.CreativeVariantType> families =
+        MetaPlacementCreativeVariantSelector.selectedFamilies(override);
+    if (MetaPlacementCreativeVariantSelector.fullyMapped(override) && families.size() > 1) {
+      List<CreateMetaPlacementCreativeRequest.PlacementAsset> placementAssets =
+          placementAssets(companyId, pack, campaign, override, families);
+      if (placementAssets.size() == families.size()) {
+        AdCreativeResponse customized =
+            creativeMutationService.createPlacementCustomized(
+                companyId,
+                step.getAdAccountId(),
+                new CreateMetaPlacementCreativeRequest(
+                    name,
+                    text(override, "pageId"),
+                    text(override, "instagramActorId"),
+                    firstText(text(override, "callToActionType"), pack.getCallToAction()),
+                    text(override, "urlTags"),
+                    placementAssets));
+        return LaunchStepExecutionResult.succeeded(
+            Long.valueOf(customized.id()),
+            customized.externalCreativeId(),
+            Map.of(
+                "reused", false,
+                "placementCustomized", true,
+                "creativeVariantTypes",
+                    families.stream().map(Enum::name).sorted().toList()));
+      }
+    }
+
+    CreativeVariant variant = placementVariant(companyId, pack.getId(), override);
+    List<String> headlines =
+        variant == null ? strings(pack.getHeadlinesJson()) : strings(variant.getHeadlinesJson());
+    List<String> descriptions =
+        variant == null ? strings(pack.getDescriptionsJson()) : strings(variant.getDescriptionsJson());
+
+    String primaryText =
+        variant == null ? pack.getPrimaryMessage() : firstText(variant.getPrimaryText(), pack.getPrimaryMessage());
+    String callToAction =
+        variant == null
+            ? firstText(text(override, "callToActionType"), pack.getCallToAction())
+            : firstText(variant.getCallToAction(), text(override, "callToActionType"), pack.getCallToAction());
+    String creativeDestination =
+        variant == null
+            ? destination(pack, campaign)
+            : firstText(variant.getDestinationUrl(), destination(pack, campaign));
+
+    VariantMedia variantMedia = variant == null ? null : variantMedia(companyId, variant);
+    Media selectedMedia = variantMedia == null ? baselineMedia : variantMedia.media();
+    String selectedUrl = variantMedia == null ? baselineImageUrl : variantMedia.url();
+    String format = selectedMedia.getMediaType() == MediaType.VIDEO ? "VIDEO" : "SINGLE_IMAGE";
 
     AdCreativeResponse result =
         creativeMutationService.create(
@@ -511,23 +573,27 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
             step.getAdAccountId(),
             new CreateMetaCreativeRequest(
                 name,
-                "SINGLE_IMAGE",
+                format,
                 text(override, "pageId"),
                 text(override, "instagramActorId"),
-                pack.getPrimaryMessage(),
+                primaryText,
                 headlines.isEmpty() ? null : headlines.getFirst(),
                 descriptions.isEmpty() ? null : descriptions.getFirst(),
-                firstText(text(override, "callToActionType"), pack.getCallToAction()),
-                destination(pack, campaign),
+                callToAction,
+                creativeDestination,
                 null,
-                imageUrl,
+                selectedMedia.getMediaType() == MediaType.IMAGE ? selectedUrl : null,
                 null,
-                null,
+                selectedMedia.getMediaType() == MediaType.VIDEO ? selectedUrl : null,
                 text(override, "urlTags"),
                 List.of()));
 
+    Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+    metadata.put("reused", false);
+    if (variant != null) metadata.put("creativeVariantType", variant.getVariantType().name());
+    if (variantMedia != null) metadata.put("placementMedia", true);
     return LaunchStepExecutionResult.succeeded(
-        Long.valueOf(result.id()), result.externalCreativeId(), Map.of("reused", false));
+        Long.valueOf(result.id()), result.externalCreativeId(), Map.copyOf(metadata));
   }
 
   private LaunchStepExecutionResult createAd(
@@ -603,6 +669,80 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
         .filter(asset -> asset.getRole() == CreativeAssetRole.IMAGE)
         .findFirst()
         .orElse(null);
+  }
+
+  private CreativeVariant placementVariant(Long companyId, Long packId, JsonNode override) {
+    return placementVariant(
+        companyId, packId, MetaPlacementCreativeVariantSelector.select(override));
+  }
+
+  private List<CreateMetaPlacementCreativeRequest.PlacementAsset> placementAssets(
+      Long companyId,
+      CreativePack pack,
+      ReachlyoCampaign campaign,
+      JsonNode override,
+      Set<com.messaging.ads.campaign.enums.CreativeVariantType> families) {
+    List<CreateMetaPlacementCreativeRequest.PlacementAsset> result = new ArrayList<>();
+    for (var family : families) {
+      CreativeVariant variant = placementVariant(companyId, pack.getId(), family);
+      VariantMedia media = variant == null ? null : variantMedia(companyId, variant);
+      if (variant == null || media == null) continue;
+
+      List<String> headlines = strings(variant.getHeadlinesJson());
+      List<String> descriptions = strings(variant.getDescriptionsJson());
+      result.add(
+          new CreateMetaPlacementCreativeRequest.PlacementAsset(
+              MetaPlacementCreativeVariantSelector.publisherPlatforms(override, family),
+              MetaPlacementCreativeVariantSelector.facebookPositions(override, family),
+              MetaPlacementCreativeVariantSelector.instagramPositions(override, family),
+              MetaPlacementCreativeVariantSelector.messengerPositions(override, family),
+              MetaPlacementCreativeVariantSelector.audienceNetworkPositions(override, family),
+              firstText(variant.getPrimaryText(), pack.getPrimaryMessage()),
+              headlines.isEmpty() ? null : headlines.getFirst(),
+              descriptions.isEmpty() ? null : descriptions.getFirst(),
+              firstText(variant.getDestinationUrl(), destination(pack, campaign)),
+              media.media().getMediaType().name(),
+              media.url()));
+    }
+    return List.copyOf(result);
+  }
+
+  private CreativeVariant placementVariant(
+      Long companyId,
+      Long packId,
+      com.messaging.ads.campaign.enums.CreativeVariantType type) {
+    if (type == null) return null;
+    return creativeVariantRepository
+        .findByCompanyIdAndCreativePackIdOrderByCreatedAtAsc(companyId, packId)
+        .stream()
+        .filter(variant -> variant.getProvider() == AdProvider.META_ADS)
+        .filter(variant -> variant.getVariantType() == type)
+        .findFirst()
+        .orElse(null);
+  }
+
+  private VariantMedia variantMedia(Long companyId, CreativeVariant variant) {
+    if (!hasText(variant.getAssetSpecJson())) return null;
+    try {
+      JsonNode spec = objectMapper.readTree(variant.getAssetSpecJson());
+      JsonNode mediaIdNode = spec.get("mediaId");
+      if (mediaIdNode == null || mediaIdNode.isNull()) return null;
+      String mediaId = mediaIdNode.asText();
+      if (!hasText(mediaId) || !mediaId.matches("\\d+")) {
+        throw new BadRequestException("Meta creative variant media ID is invalid");
+      }
+      Media media = mediaService.requireActiveCompanyMedia(Long.valueOf(mediaId), companyId);
+      if (media.getPurpose() != MediaPurpose.AD_CREATIVE
+          || (media.getMediaType() != MediaType.IMAGE && media.getMediaType() != MediaType.VIDEO)) {
+        throw new BadRequestException(
+            "Meta placement creative media must be active AD_CREATIVE image or video media");
+      }
+      return new VariantMedia(media, mediaService.createTrustedAccessUrl(media.getId()).url());
+    } catch (BadRequestException exception) {
+      throw exception;
+    } catch (Exception exception) {
+      throw new BadRequestException("Meta creative variant asset specification is invalid");
+    }
   }
 
   private AudienceDefinition audience(
@@ -740,6 +880,8 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
   private ProviderPlanIssue error(String code, String field, String message) {
     return new ProviderPlanIssue(PlanIssueSeverity.ERROR, code, field, message);
   }
+
+  private record VariantMedia(Media media, String url) {}
 
   private ProviderPlanIssue warning(String code, String field, String message) {
     return new ProviderPlanIssue(PlanIssueSeverity.WARNING, code, field, message);

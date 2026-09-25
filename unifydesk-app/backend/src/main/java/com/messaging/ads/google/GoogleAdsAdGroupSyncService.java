@@ -51,7 +51,8 @@ public class GoogleAdsAdGroupSyncService {
   private String query(String campaignId, String adGroupId) {
     String query =
         "SELECT campaign.id, ad_group.id, ad_group.name, ad_group.status, "
-            + "ad_group.primary_status, ad_group.type, ad_group.cpc_bid_micros "
+            + "ad_group.primary_status, ad_group.type, ad_group.cpc_bid_micros, "
+            + "ad_group.ai_max_ad_group_setting.disable_search_term_matching "
             + "FROM ad_group WHERE campaign.id = "
             + numericId(campaignId);
     if (adGroupId != null) {

@@ -24,6 +24,33 @@ type Props = {
   onCreate: (input: CreateMetaAdSetInput) => Promise<void>
 }
 
+const META_PLACEMENTS = {
+  facebook: [
+    ['feed', 'Feed'],
+    ['story', 'Stories'],
+    ['reels', 'Reels'],
+    ['marketplace', 'Marketplace'],
+    ['video_feeds', 'Video feeds'],
+    ['search', 'Search results'],
+  ],
+  instagram: [
+    ['stream', 'Feed'],
+    ['story', 'Stories'],
+    ['reels', 'Reels'],
+    ['explore', 'Explore'],
+    ['explore_home', 'Explore home'],
+    ['profile_feed', 'Profile feed'],
+  ],
+  messenger: [
+    ['messenger_home', 'Inbox'],
+    ['story', 'Stories'],
+  ],
+  audience_network: [
+    ['classic', 'Native, banner and interstitial'],
+    ['rewarded_video', 'Rewarded video'],
+  ],
+} as const
+
 const toMinor = (value: string, currency?: string | null) => {
   const numeric = Number(value)
   if (!Number.isFinite(numeric) || numeric <= 0) return null
@@ -82,6 +109,10 @@ export default function MetaAdSetModal({
   const [instagram, setInstagram] = useState(true)
   const [messenger, setMessenger] = useState(false)
   const [audienceNetwork, setAudienceNetwork] = useState(false)
+  const [facebookPositions, setFacebookPositions] = useState<string[]>([])
+  const [instagramPositions, setInstagramPositions] = useState<string[]>([])
+  const [messengerPositions, setMessengerPositions] = useState<string[]>([])
+  const [audienceNetworkPositions, setAudienceNetworkPositions] = useState<string[]>([])
   const [destinationType, setDestinationType] = useState('')
   const [startAt, setStartAt] = useState('')
   const [endAt, setEndAt] = useState('')
@@ -129,6 +160,11 @@ export default function MetaAdSetModal({
       genders:
         gender === 'ALL' ? [] : gender === 'MEN' ? [1] : [2],
       publisherPlatforms,
+      facebookPositions: placementMode === 'MANUAL' && facebook ? facebookPositions : [],
+      instagramPositions: placementMode === 'MANUAL' && instagram ? instagramPositions : [],
+      messengerPositions: placementMode === 'MANUAL' && messenger ? messengerPositions : [],
+      audienceNetworkPositions:
+        placementMode === 'MANUAL' && audienceNetwork ? audienceNetworkPositions : [],
       customAudienceIds: customAudiences,
       excludedCustomAudienceIds: excludedAudiences,
       pixelId: customConversionId ? null : pixelId || null,
@@ -331,11 +367,47 @@ export default function MetaAdSetModal({
             </label>
 
             {placementMode === 'MANUAL' && (
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700"><input type="checkbox" checked={facebook} onChange={(e) => setFacebook(e.target.checked)} />Facebook</label>
-                <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700"><input type="checkbox" checked={instagram} onChange={(e) => setInstagram(e.target.checked)} />Instagram</label>
-                <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700"><input type="checkbox" checked={messenger} onChange={(e) => setMessenger(e.target.checked)} />Messenger</label>
-                <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700"><input type="checkbox" checked={audienceNetwork} onChange={(e) => setAudienceNetwork(e.target.checked)} />Audience Network</label>
+              <div className="mt-4 space-y-3">
+                {[
+                  ['facebook', 'Facebook', facebook, setFacebook, facebookPositions, setFacebookPositions],
+                  ['instagram', 'Instagram', instagram, setInstagram, instagramPositions, setInstagramPositions],
+                  ['messenger', 'Messenger', messenger, setMessenger, messengerPositions, setMessengerPositions],
+                  ['audience_network', 'Audience Network', audienceNetwork, setAudienceNetwork, audienceNetworkPositions, setAudienceNetworkPositions],
+                ].map(([key, label, enabled, setEnabled, positions, setPositions]) => (
+                  <div key={key as string} className="rounded-xl border border-slate-200 p-4">
+                    <label className="flex items-center gap-3 text-sm font-semibold text-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={enabled as boolean}
+                        onChange={(event) => (setEnabled as (value: boolean) => void)(event.target.checked)}
+                      />
+                      {label as string}
+                    </label>
+                    {enabled && (
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        {META_PLACEMENTS[key as keyof typeof META_PLACEMENTS].map(([value, title]) => (
+                          <label key={value} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={(positions as string[]).includes(value)}
+                              onChange={(event) =>
+                                (setPositions as (value: string[]) => void)(
+                                  event.target.checked
+                                    ? [...new Set([...(positions as string[]), value])]
+                                    : (positions as string[]).filter((item) => item !== value),
+                                )
+                              }
+                            />
+                            {title}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <p className="text-xs leading-5 text-slate-500">
+                  Leaving all positions unchecked for a selected platform lets Meta use every eligible placement on that platform.
+                </p>
               </div>
             )}
           </section>
@@ -398,7 +470,7 @@ export default function MetaAdSetModal({
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
             <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>Cancel</button>
-            <button type="submit" className="primary-button" disabled={saving || !name.trim() || !countries.trim() || (budgetType !== 'NONE' && !budget)}>
+            <button type="submit" className="primary-button" disabled={saving || !name.trim() || locations.length === 0 || (budgetType !== 'NONE' && !budget)}>
               {saving ? 'Creating…' : 'Create paused ad set'}
             </button>
           </div>

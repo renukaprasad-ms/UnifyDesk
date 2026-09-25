@@ -39,6 +39,24 @@ public interface AdInsightDailyRepository extends JpaRepository<AdInsightDaily, 
           LocalDate from,
           LocalDate to);
 
+  List<AdInsightDaily>
+      findByCompanyIdAndCampaignIdInAndInsightLevelAndGranularityAndInsightDateBetweenOrderByInsightDateAsc(
+          Long companyId,
+          List<Long> campaignIds,
+          AdInsightLevel insightLevel,
+          AdInsightGranularity granularity,
+          LocalDate from,
+          LocalDate to);
+
+  List<AdInsightDaily>
+      findByCompanyIdAndCampaignIdInAndInsightLevelAndGranularityAndInsightDateAndPeriodEnd(
+          Long companyId,
+          List<Long> campaignIds,
+          AdInsightLevel insightLevel,
+          AdInsightGranularity granularity,
+          LocalDate from,
+          LocalDate to);
+
   void deleteByCompanyIdAndAdAccountIdAndProviderAndInsightLevelAndGranularityAndInsightDateBetween(
       Long companyId,
       Long adAccountId,

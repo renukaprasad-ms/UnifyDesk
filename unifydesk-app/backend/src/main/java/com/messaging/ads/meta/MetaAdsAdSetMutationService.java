@@ -67,6 +67,8 @@ public class MetaAdsAdSetMutationService {
         request.publisherPlatforms(),
         request.facebookPositions(),
         request.instagramPositions(),
+        request.messengerPositions(),
+        request.audienceNetworkPositions(),
         request.customAudienceIds(),
         request.excludedCustomAudienceIds()));
 
@@ -129,6 +131,8 @@ public class MetaAdsAdSetMutationService {
           request.publisherPlatforms(),
           request.facebookPositions(),
           request.instagramPositions(),
+          request.messengerPositions(),
+          request.audienceNetworkPositions(),
           request.customAudienceIds(),
           request.excludedCustomAudienceIds()));
     }
@@ -188,6 +192,8 @@ public class MetaAdsAdSetMutationService {
       List<String> publisherPlatforms,
       List<String> facebookPositions,
       List<String> instagramPositions,
+      List<String> messengerPositions,
+      List<String> audienceNetworkPositions,
       List<String> customAudienceIds,
       List<String> excludedCustomAudienceIds) {
     if (locations == null || locations.isEmpty()) {
@@ -284,8 +290,16 @@ public class MetaAdsAdSetMutationService {
     if (!normalizedPlatforms.isEmpty()) {
       targeting.put("publisher_platforms", normalizedPlatforms);
     }
+    validatePlacementSelection(
+        normalizedPlatforms,
+        facebookPositions,
+        instagramPositions,
+        messengerPositions,
+        audienceNetworkPositions);
     putStringList(targeting, "facebook_positions", facebookPositions, true);
     putStringList(targeting, "instagram_positions", instagramPositions, true);
+    putStringList(targeting, "messenger_positions", messengerPositions, true);
+    putStringList(targeting, "audience_network_positions", audienceNetworkPositions, true);
     putAudienceList(
         targeting, "custom_audiences", customAudienceIds, companyId, accountId);
     putAudienceList(
@@ -325,6 +339,40 @@ public class MetaAdsAdSetMutationService {
       throw new BadRequestException("Unsupported Meta publisher platform");
     }
     return result;
+  }
+
+  private void validatePlacementSelection(
+      List<String> platforms,
+      List<String> facebookPositions,
+      List<String> instagramPositions,
+      List<String> messengerPositions,
+      List<String> audienceNetworkPositions) {
+    if (platforms.isEmpty()) {
+      if (hasValues(facebookPositions)
+          || hasValues(instagramPositions)
+          || hasValues(messengerPositions)
+          || hasValues(audienceNetworkPositions)) {
+        throw new BadRequestException(
+            "Manual Meta positions require explicit publisher platforms");
+      }
+      return;
+    }
+    requirePlatformForPositions(platforms, "facebook", facebookPositions);
+    requirePlatformForPositions(platforms, "instagram", instagramPositions);
+    requirePlatformForPositions(platforms, "messenger", messengerPositions);
+    requirePlatformForPositions(platforms, "audience_network", audienceNetworkPositions);
+  }
+
+  private void requirePlatformForPositions(
+      List<String> platforms, String platform, List<String> positions) {
+    if (hasValues(positions) && !platforms.contains(platform)) {
+      throw new BadRequestException(
+          "Meta " + platform + " positions require the matching publisher platform");
+    }
+  }
+
+  private boolean hasValues(List<String> values) {
+    return values != null && values.stream().anyMatch(value -> value != null && !value.isBlank());
   }
 
   private void putStringList(
@@ -442,6 +490,8 @@ public class MetaAdsAdSetMutationService {
         || request.publisherPlatforms() != null
         || request.facebookPositions() != null
         || request.instagramPositions() != null
+        || request.messengerPositions() != null
+        || request.audienceNetworkPositions() != null
         || request.customAudienceIds() != null
         || request.excludedCustomAudienceIds() != null;
   }

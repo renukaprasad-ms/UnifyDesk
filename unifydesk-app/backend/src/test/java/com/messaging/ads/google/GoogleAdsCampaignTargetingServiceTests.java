@@ -74,6 +74,61 @@ class GoogleAdsCampaignTargetingServiceTests {
   }
 
   @Test
+  void parsesAiMaxAutomationAndTextGuidelines() throws Exception {
+    var settings =
+        service.searchCampaignSettings(
+            objectMapper.readTree(
+                """
+                {
+                  "aiMaxEnabled": true,
+                  "aiMaxTextCustomizationEnabled": true,
+                  "aiMaxFinalUrlExpansionEnabled": true,
+                  "aiMaxTermExclusions": ["free", "cheap"],
+                  "aiMaxMessagingRestrictions": [
+                    "Do not imply guaranteed outcomes"
+                  ]
+                }
+                """));
+
+    assertThat(settings.aiMaxEnabled()).isTrue();
+    assertThat(settings.textCustomizationEnabled()).isTrue();
+    assertThat(settings.finalUrlExpansionEnabled()).isTrue();
+    assertThat(settings.termExclusions()).containsExactly("free", "cheap");
+    assertThat(settings.messagingRestrictions())
+        .containsExactly("Do not imply guaranteed outcomes");
+  }
+
+  @Test
+  void rejectsAiMaxGuidelinesWhenAiMaxIsDisabled() throws Exception {
+    assertThatThrownBy(
+            () ->
+                service.searchCampaignSettings(
+                    objectMapper.readTree(
+                        """
+                        {
+                          "aiMaxEnabled": false,
+                          "aiMaxTermExclusions": ["free"]
+                        }
+                        """)))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("require AI Max");
+  }
+
+  @Test
+  void enforcesCurrentAiMaxTextGuidelineLimits() throws Exception {
+    String overlongTerm = "x".repeat(31);
+    assertThatThrownBy(
+            () ->
+                service.searchCampaignSettings(
+                    objectMapper.readTree(
+                        "{\"aiMaxEnabled\":true,\"aiMaxTermExclusions\":[\""
+                            + overlongTerm
+                            + "\"]}")))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("30 characters");
+  }
+
+  @Test
   void resolvesCountryLanguageAndDaypartDuringPreflight() throws Exception {
     AdAccount account = new AdAccount();
     account.setId(2L);

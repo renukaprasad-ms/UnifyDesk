@@ -21,6 +21,9 @@ import type {
   AdFeatureCapabilityInfo,
   ReachlyoCampaign,
   ReachlyoCampaignSummary,
+  ReachlyoCampaignAnalytics,
+  ReachlyoCampaignRecommendations,
+  ReachlyoCampaignAnalyticsSync,
   CreateReachlyoCampaignInput,
   UpdateReachlyoCampaignInput,
   CreateReachlyoCampaignChannelInput,
@@ -102,6 +105,9 @@ import type {
   GoogleAdGroupSync,
   GoogleKeywordSync,
   GoogleNegativeKeyword,
+  GoogleSearchTermReport,
+  GoogleAiMaxCombinationReport,
+  GoogleBrandSuggestion,
   GoogleNegativeKeywordInput,
   GoogleNegativeKeywordList,
   GoogleNegativeKeywordMutation,
@@ -163,6 +169,43 @@ export const adCenterApi = {
   async reachlyoCampaign(companyId: string, campaignId: string) {
     const response = await apiClient.get<ApiResponse<ReachlyoCampaign>>(
       `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async reachlyoCampaignRecommendations(
+    companyId: string,
+    campaignId: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<ReachlyoCampaignRecommendations>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/recommendations`,
+    )
+    return unwrap(response.data)
+  },
+
+  async reachlyoCampaignAnalytics(
+    companyId: string,
+    campaignId: string,
+    from: string,
+    to: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<ReachlyoCampaignAnalytics>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/analytics`,
+      { params: { from, to } },
+    )
+    return unwrap(response.data)
+  },
+
+  async syncReachlyoCampaignAnalytics(
+    companyId: string,
+    campaignId: string,
+    from: string,
+    to: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<ReachlyoCampaignAnalyticsSync>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/analytics/sync`,
+      null,
+      { params: { from, to } },
     )
     return unwrap(response.data)
   },
@@ -867,6 +910,52 @@ export const adCenterApi = {
     const response = await apiClient.patch<ApiResponse<AdKeyword>>(
       `/api/v1/companies/${companyId}/ads/google/keywords/${keywordId}`,
       input,
+    )
+    return unwrap(response.data)
+  },
+
+  async suggestGoogleAiMaxBrands(
+    companyId: string,
+    accountId: string,
+    prefix: string,
+    selectedBrandIds: string[] = [],
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleBrandSuggestion[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/ai-max/brands/suggest`,
+      {
+        params: {
+          prefix,
+          ...(selectedBrandIds.length
+            ? { selectedBrandIds: selectedBrandIds.join(',') }
+            : {}),
+        },
+      },
+    )
+    return unwrap(response.data)
+  },
+
+  async googleAiMaxReport(
+    companyId: string,
+    campaignId: string,
+    from: string,
+    to: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleAiMaxCombinationReport>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/ai-max/report`,
+      { params: { from, to } },
+    )
+    return unwrap(response.data)
+  },
+
+  async googleSearchTerms(
+    companyId: string,
+    campaignId: string,
+    from: string,
+    to: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleSearchTermReport>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/search-terms`,
+      { params: { from, to } },
     )
     return unwrap(response.data)
   },

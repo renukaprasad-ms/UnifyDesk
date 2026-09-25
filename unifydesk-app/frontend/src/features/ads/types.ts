@@ -126,6 +126,94 @@ export type ReachlyoCampaign = ReachlyoCampaignSummary & {
   deployments: ReachlyoProviderDeployment[]
 }
 
+export type ReachlyoCampaignAnalyticsSummary = {
+  spend: number
+  impressions: number
+  clicks: number
+  ctr?: number | null
+  conversions: number
+  conversionValue: number
+  cpa?: number | null
+  roas?: number | null
+  leads: number
+  purchases: number
+}
+
+export type ReachlyoCampaignAnalyticsDailyPoint = {
+  date: string
+  spend: number
+  impressions: number
+  clicks: number
+  conversions: number
+  conversionValue: number
+}
+
+export type ReachlyoCampaignAnalyticsDeployment = {
+  deploymentId: string
+  channelId: string
+  provider: AdProvider
+  channelType?: CampaignChannelType | null
+  adAccountId: string
+  localCampaignId?: string | null
+  externalCampaignId?: string | null
+  providerStatus?: string | null
+  deploymentStatus: ProviderDeploymentStatus
+  summary: ReachlyoCampaignAnalyticsSummary
+  spendSharePercent: number
+  exactRangeAvailable: boolean
+  lastSyncedAt?: string | null
+}
+
+export type ReachlyoCampaignRecommendationItem = {
+  key: string
+  severity: AdRecommendationSeverity
+  category: AdRecommendationCategory
+  source: AdRecommendationSource
+  provider?: AdProvider | null
+  adAccountId?: string | null
+  deploymentId?: string | null
+  localCampaignId?: string | null
+  title: string
+  description: string
+  actionLabel?: string | null
+  actionPath?: string | null
+  evidence: Record<string, unknown>
+  providerRecommendationResourceName?: string | null
+}
+
+export type ReachlyoCampaignRecommendations = {
+  campaignId: string
+  criticalCount: number
+  warningCount: number
+  opportunityCount: number
+  infoCount: number
+  generatedAt: string
+  analyticsLastSyncAt?: string | null
+  items: ReachlyoCampaignRecommendationItem[]
+}
+
+export type ReachlyoCampaignAnalytics = {
+  campaignId: string
+  currency: string
+  from: string
+  to: string
+  summary: ReachlyoCampaignAnalyticsSummary
+  daily: ReachlyoCampaignAnalyticsDailyPoint[]
+  deployments: ReachlyoCampaignAnalyticsDeployment[]
+  exactRangeAvailable: boolean
+  lastSyncedAt?: string | null
+}
+
+export type ReachlyoCampaignAnalyticsSync = {
+  synchronizedAccounts: number
+  failures: Array<{
+    provider: AdProvider
+    adAccountId: string
+    message: string
+  }>
+  analytics: ReachlyoCampaignAnalytics
+}
+
 export type CreateReachlyoCampaignInput = {
   name: string
   objective: ReachlyoCampaignObjective
@@ -959,6 +1047,8 @@ export type CreateMetaAdSetInput = {
   publisherPlatforms?: string[]
   facebookPositions?: string[]
   instagramPositions?: string[]
+  messengerPositions?: string[]
+  audienceNetworkPositions?: string[]
   customAudienceIds?: string[]
   excludedCustomAudienceIds?: string[]
   pixelId?: string | null
@@ -1197,6 +1287,64 @@ export type GoogleKeywordSync = {
 export type GoogleNegativeKeywordInput = {
   text: string
   matchType: 'BROAD' | 'PHRASE' | 'EXACT'
+}
+
+export type GoogleSearchTermRow = {
+  searchTerm: string
+  targetingStatus?: string | null
+  matchedKeyword?: string | null
+  matchedKeywordMatchType?: string | null
+  searchTermMatchType?: string | null
+  searchTermMatchSource?: string | null
+  externalAdGroupId: string
+  adGroupId?: string | null
+  adGroupName?: string | null
+  impressions: number
+  clicks: number
+  ctr?: number | null
+  spend: number
+  conversions: number
+  conversionValue: number
+  cpa?: number | null
+  roas?: number | null
+}
+
+export type GoogleSearchTermReport = {
+  campaignId: string
+  from: string
+  to: string
+  currency?: string | null
+  rows: GoogleSearchTermRow[]
+}
+
+export type GoogleBrandSuggestion = {
+  id: string
+  name: string
+  urls: string[]
+  state?: string | null
+}
+
+export type GoogleAiMaxCombinationRow = {
+  searchTerm?: string | null
+  headline?: string | null
+  landingPage?: string | null
+  externalAdGroupId?: string | null
+  adGroupName?: string | null
+  impressions: number
+  clicks: number
+  spend: number
+  conversions: number
+  conversionValue: number
+  cpa?: number | null
+  roas?: number | null
+}
+
+export type GoogleAiMaxCombinationReport = {
+  campaignId: string
+  from: string
+  to: string
+  currency?: string | null
+  rows: GoogleAiMaxCombinationRow[]
 }
 
 export type GoogleNegativeKeyword = {

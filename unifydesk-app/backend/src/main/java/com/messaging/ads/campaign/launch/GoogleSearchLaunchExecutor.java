@@ -9,6 +9,7 @@ import com.messaging.ads.campaign.compiler.ProviderPlanIssue;
 import com.messaging.ads.campaign.entity.AudienceDefinition;
 import com.messaging.ads.campaign.entity.CampaignChannel;
 import com.messaging.ads.campaign.entity.CreativePack;
+import com.messaging.ads.campaign.entity.ConversionGoalMapping;
 import com.messaging.ads.campaign.entity.CreativeVariant;
 import com.messaging.ads.campaign.entity.ReachlyoCampaign;
 import com.messaging.ads.campaign.enums.BudgetPeriod;
@@ -17,6 +18,7 @@ import com.messaging.ads.campaign.enums.CreativeVariantType;
 import com.messaging.ads.campaign.repository.AudienceDefinitionRepository;
 import com.messaging.ads.campaign.repository.CampaignChannelRepository;
 import com.messaging.ads.campaign.repository.CreativePackRepository;
+import com.messaging.ads.campaign.repository.ConversionGoalMappingRepository;
 import com.messaging.ads.campaign.repository.CreativeVariantRepository;
 import com.messaging.ads.campaign.repository.ReachlyoCampaignRepository;
 import com.messaging.ads.campaign.service.ProviderDeploymentService;
@@ -29,10 +31,13 @@ import com.messaging.ads.entity.AdKeyword;
 import com.messaging.ads.entity.AdSet;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.google.GoogleAdsAdGroupMutationService;
+import com.messaging.ads.google.GoogleAdsAiMaxControlService;
+import com.messaging.ads.google.GoogleAdsAiMaxBrandService;
 import com.messaging.ads.google.GoogleAdsAdGroupSyncService;
 import com.messaging.ads.google.GoogleAdsAdMutationService;
 import com.messaging.ads.google.GoogleAdsAdSyncService;
 import com.messaging.ads.google.GoogleAdsCampaignMutationService;
+import com.messaging.ads.google.GoogleAdsCampaignConversionGoalService;
 import com.messaging.ads.google.GoogleAdsCampaignTargetingService;
 import com.messaging.ads.google.GoogleAdsCampaignSyncService;
 import com.messaging.ads.google.GoogleAdsKeywordMutationService;
@@ -70,6 +75,7 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
   private final CreativePackRepository creativePackRepository;
   private final CreativeVariantRepository creativeVariantRepository;
   private final AudienceDefinitionRepository audienceDefinitionRepository;
+  private final ConversionGoalMappingRepository conversionGoalMappingRepository;
   private final AdAccountRepository accountRepository;
   private final AdCampaignRepository adCampaignRepository;
   private final AdSetRepository adSetRepository;
@@ -78,7 +84,10 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
   private final GoogleAdsCampaignMutationService campaignMutationService;
   private final GoogleAdsCampaignTargetingService campaignTargetingService;
   private final GoogleAdsCampaignSyncService campaignSyncService;
+  private final GoogleAdsCampaignConversionGoalService campaignConversionGoalService;
   private final GoogleAdsAdGroupMutationService adGroupMutationService;
+  private final GoogleAdsAiMaxControlService aiMaxControlService;
+  private final GoogleAdsAiMaxBrandService aiMaxBrandService;
   private final GoogleAdsAdGroupSyncService adGroupSyncService;
   private final GoogleAdsKeywordMutationService keywordMutationService;
   private final GoogleAdsKeywordSyncService keywordSyncService;
@@ -254,6 +263,46 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
               "providerOverride.negativeKeywords",
               exception.getMessage()));
     }
+
+    if (override.path("aiMaxEnabled").asBoolean(false)) {
+      try {
+        aiMaxControlService.validateUrlExclusions(
+            stringsFromOverrideArray(override, "aiMaxUrlExclusions"));
+        aiMaxControlService.validateUrlInclusions(
+            stringsFromOverrideArray(override, "aiMaxUrlInclusions"));
+        aiMaxBrandService.validate(
+            objectIdsFromOverrideArray(override, "aiMaxBrandInclusions"),
+            objectIdsFromOverrideArray(override, "aiMaxBrandExclusions"));
+      } catch (BadRequestException exception) {
+        issues.add(
+            error(
+                "GOOGLE_AI_MAX_URL_EXCLUSIONS_INVALID",
+                "providerOverride.aiMaxUrlExclusions",
+                exception.getMessage()));
+      }
+    }
+
+    if (plan.conversionGoalMappingId() != null
+        && !plan.conversionGoalMappingId().isBlank()) {
+      try {
+        ConversionGoalMapping mapping =
+            conversionGoalMappingRepository
+                .findByIdAndCompanyIdAndReachlyoCampaignId(
+                    Long.valueOf(plan.conversionGoalMappingId()),
+                    companyId,
+                    campaign.getId())
+                .orElseThrow(
+                    () -> new NotFoundException("Conversion goal mapping not found"));
+        campaignConversionGoalService.validate(
+            companyId, account.getId(), mapping);
+      } catch (RuntimeException exception) {
+        issues.add(
+            error(
+                "GOOGLE_CONVERSION_MAPPING_INVALID",
+                "conversion",
+                exception.getMessage()));
+      }
+    }
     return issues;
   }
 
@@ -274,6 +323,14 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
           configureTargeting(companyId, run, plan, step, campaign, channel);
       case "create-ad-group" ->
           createAdGroup(companyId, run, plan, step, campaign, channel);
+      case "configure-ai-max-ad-group" ->
+          configureAiMaxAdGroup(companyId, run, step, channel);
+      case "configure-ai-max-url-exclusions" ->
+          configureAiMaxUrlExclusions(companyId, run, step, channel);
+      case "configure-ai-max-url-inclusions" ->
+          configureAiMaxUrlInclusions(companyId, run, step, channel);
+      case "configure-ai-max-brands" ->
+          configureAiMaxBrands(companyId, run, step, channel);
       case "configure-keywords" ->
           configureKeywords(companyId, run, plan, step);
       case "configure-negative-keywords" ->
@@ -281,10 +338,53 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
       case "create-provider-creative" ->
           createSearchAd(companyId, run, plan, step, campaign);
       case "configure-conversion-goal" ->
-          LaunchStepExecutionResult.skipped(
-              "The validated Google conversion action already exists on the selected account; campaign-specific conversion-goal mutation is not implemented yet.");
+          configureConversionGoal(companyId, run, plan, step, campaign);
       default -> throw new BadRequestException("Unsupported Google Search launch operation: " + step.getOperationKey());
     };
+  }
+
+  private LaunchStepExecutionResult configureConversionGoal(
+      Long companyId,
+      LaunchRun run,
+      ProviderCampaignPlan plan,
+      LaunchStep step,
+      ReachlyoCampaign campaign) {
+    if (plan.conversionGoalMappingId() == null || plan.conversionGoalMappingId().isBlank()) {
+      return LaunchStepExecutionResult.skipped(
+          "No Google conversion mapping is configured for this campaign.");
+    }
+
+    ConversionGoalMapping mapping =
+        conversionGoalMappingRepository
+            .findByIdAndCompanyIdAndReachlyoCampaignId(
+                Long.valueOf(plan.conversionGoalMappingId()),
+                companyId,
+                campaign.getId())
+            .orElseThrow(() -> new NotFoundException("Conversion goal mapping not found"));
+
+    var deployment = deploymentService.get(companyId, step.getProviderDeploymentId());
+    if (deployment.getExternalCampaignId() == null
+        || deployment.getExternalCampaignId().isBlank()) {
+      throw new BadRequestException(
+          "Google campaign must exist before configuring its conversion goal");
+    }
+
+    var result =
+        campaignConversionGoalService.apply(
+            companyId,
+            step.getAdAccountId(),
+            deployment.getExternalCampaignId(),
+            run.getReachlyoCampaignId(),
+            mapping);
+
+    return LaunchStepExecutionResult.succeeded(
+        null,
+        result.customConversionGoalResource(),
+        Map.of(
+            "created", result.created(),
+            "updated", result.updated(),
+            "disabledCampaignGoals", result.disabledCampaignGoals(),
+            "customConversionGoalResource", result.customConversionGoalResource()));
   }
 
   private LaunchStepExecutionResult createCampaign(
@@ -394,6 +494,102 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
         Long.valueOf(result.id()),
         result.externalAdSetId(),
         Map.of("reused", existing != null));
+  }
+
+  private LaunchStepExecutionResult configureAiMaxAdGroup(
+      Long companyId,
+      LaunchRun run,
+      LaunchStep step,
+      CampaignChannel channel) {
+    AdSet adGroup = providerAdGroup(companyId, step.getProviderDeploymentId());
+    JsonNode override = override(channel);
+    boolean disableSearchTermMatching =
+        override.path("aiMaxDisableSearchTermMatching").asBoolean(false);
+    adGroupMutationService.setAiMaxSearchTermMatching(
+        companyId,
+        adGroup.getId(),
+        disableSearchTermMatching,
+        run.getRequestedByUserId());
+    return LaunchStepExecutionResult.succeeded(
+        adGroup.getId(),
+        adGroup.getExternalAdSetId(),
+        Map.of("disableSearchTermMatching", disableSearchTermMatching));
+  }
+
+  private LaunchStepExecutionResult configureAiMaxBrands(
+      Long companyId,
+      LaunchRun run,
+      LaunchStep step,
+      CampaignChannel channel) {
+    AdCampaign providerCampaign =
+        providerCampaign(companyId, step.getProviderDeploymentId());
+    JsonNode override = override(channel);
+    List<String> inclusions =
+        objectIdsFromOverrideArray(override, "aiMaxBrandInclusions");
+    List<String> exclusions =
+        objectIdsFromOverrideArray(override, "aiMaxBrandExclusions");
+    var result =
+        aiMaxBrandService.apply(
+            companyId,
+            providerCampaign.getId(),
+            inclusions,
+            exclusions,
+            run.getRequestedByUserId());
+    return LaunchStepExecutionResult.succeeded(
+        null,
+        null,
+        Map.of(
+            "createdLists", result.createdLists(),
+            "createdCriteria", result.createdCriteria()));
+  }
+
+  private LaunchStepExecutionResult configureAiMaxUrlInclusions(
+      Long companyId,
+      LaunchRun run,
+      LaunchStep step,
+      CampaignChannel channel) {
+    AdCampaign providerCampaign =
+        providerCampaign(companyId, step.getProviderDeploymentId());
+    AdSet adGroup = providerAdGroup(companyId, step.getProviderDeploymentId());
+    List<String> inclusions =
+        stringsFromOverrideArray(override(channel), "aiMaxUrlInclusions");
+    var result =
+        aiMaxControlService.applyUrlInclusions(
+            companyId,
+            providerCampaign.getId(),
+            Long.valueOf(adGroup.getExternalAdSetId()),
+            inclusions,
+            run.getRequestedByUserId());
+    return LaunchStepExecutionResult.succeeded(
+        adGroup.getId(),
+        adGroup.getExternalAdSetId(),
+        Map.of(
+            "createdAssets", result.createdAssets(),
+            "createdCriteria", result.createdCriteria(),
+            "reusedCriteria", result.reusedCriteria()));
+  }
+
+  private LaunchStepExecutionResult configureAiMaxUrlExclusions(
+      Long companyId,
+      LaunchRun run,
+      LaunchStep step,
+      CampaignChannel channel) {
+    AdCampaign providerCampaign =
+        providerCampaign(companyId, step.getProviderDeploymentId());
+    List<String> exclusions =
+        stringsFromOverrideArray(override(channel), "aiMaxUrlExclusions");
+    var result =
+        aiMaxControlService.applyUrlExclusions(
+            companyId,
+            providerCampaign.getId(),
+            exclusions,
+            run.getRequestedByUserId());
+    return LaunchStepExecutionResult.succeeded(
+        null,
+        null,
+        Map.of(
+            "createdCount", result.createdCount(),
+            "reusedCount", result.reusedCount()));
   }
 
   private LaunchStepExecutionResult configureKeywords(
@@ -663,6 +859,29 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
   private String text(JsonNode node, String key) {
     JsonNode value = node.get(key);
     return value == null || value.isNull() ? null : value.asText(null);
+  }
+
+  private List<String> objectIdsFromOverrideArray(JsonNode node, String key) {
+    JsonNode value = node.get(key);
+    if (value == null || value.isNull() || !value.isArray()) return List.of();
+    List<String> result = new java.util.ArrayList<>();
+    for (JsonNode item : value) {
+      String id = item.isObject() ? item.path("id").asText(null) : null;
+      if (id != null && !id.isBlank()) result.add(id.trim());
+    }
+    return List.copyOf(result);
+  }
+
+  private List<String> stringsFromOverrideArray(JsonNode node, String key) {
+    JsonNode value = node.get(key);
+    if (value == null || value.isNull() || !value.isArray()) return List.of();
+    List<String> result = new java.util.ArrayList<>();
+    for (JsonNode item : value) {
+      if (item.isTextual() && !item.asText().isBlank()) {
+        result.add(item.asText().trim());
+      }
+    }
+    return List.copyOf(result);
   }
 
   private Long longValue(JsonNode node, String key) {
