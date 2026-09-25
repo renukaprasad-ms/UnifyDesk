@@ -47,6 +47,8 @@ type Props = {
   setGoogleAiMaxTermExclusions: (value: string) => void
   googleAiMaxMessagingRestrictions: string
   setGoogleAiMaxMessagingRestrictions: (value: string) => void
+  googleAiMaxUrlExclusions: string
+  setGoogleAiMaxUrlExclusions: (value: string) => void
   googleAdSchedules: GoogleAdScheduleDraft[]
   setGoogleAdSchedules: (value: GoogleAdScheduleDraft[]) => void
   googleNegativeKeywords: GoogleNegativeKeywordInput[]
@@ -446,6 +448,20 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                         props.setGoogleAiMaxMessagingRestrictions(event.target.value)
                       }
                       placeholder="Do not imply a guaranteed outcome"
+                    />
+                  </Field>
+                  <Field
+                    label="Landing-page URL exclusions"
+                    hint="One absolute URL or path per line. Excluded pages will not be selected by AI Max final URL expansion."
+                  >
+                    <textarea
+                      className="form-input mt-2 min-h-28"
+                      value={props.googleAiMaxUrlExclusions}
+                      disabled={props.disabled}
+                      onChange={(event) =>
+                        props.setGoogleAiMaxUrlExclusions(event.target.value)
+                      }
+                      placeholder={'/careers/\n/privacy-policy\nhttps://example.com/old-page'}
                     />
                   </Field>
                 </div>
