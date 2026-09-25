@@ -24,27 +24,12 @@ public class GoogleAdsCampaignConversionGoalService {
       String externalCampaignId,
       Long reachlyoCampaignId,
       ConversionGoalMapping mapping) {
-    if (mapping == null
-        || mapping.getProvider() != AdProvider.GOOGLE_ADS
-        || mapping.getTargetType() != ConversionTargetType.PROVIDER_CONVERSION
-        || mapping.getAdConversionId() == null
-        || mapping.getExternalConversionId() == null
-        || mapping.getExternalConversionId().isBlank()) {
-      throw new BadRequestException(
-          "Google campaign conversion goal requires a validated provider conversion mapping");
-    }
-
-    GoogleAdsAccountContextService.Context context =
-        contextService.requireManaged(companyId, accountId);
+    ValidatedMapping validated = validatedMapping(companyId, accountId, mapping);
+    GoogleAdsAccountContextService.Context context = validated.context();
     AdAccount account = context.account();
     String campaignId = numeric(externalCampaignId, "Google campaign ID");
-    String conversionActionId =
-        numeric(mapping.getExternalConversionId(), "Google conversion action ID");
-
-    String conversionCustomerId = conversionCustomerId(context);
-    String conversionActionResource =
-        apiClient.customerResourceName(
-            conversionCustomerId, "conversionActions", conversionActionId);
+    String conversionCustomerId = validated.conversionCustomerId();
+    String conversionActionResource = validated.conversionActionResource();
     String goalName =
         "UnifyDesk campaign "
             + reachlyoCampaignId
@@ -131,6 +116,55 @@ public class GoogleAdsCampaignConversionGoalService {
 
     return new ApplyResult(
         customGoalResource, created, updated, disabledCampaignGoals);
+  }
+
+  public void validate(
+      Long companyId, Long accountId, ConversionGoalMapping mapping) {
+    validatedMapping(companyId, accountId, mapping);
+  }
+
+  private ValidatedMapping validatedMapping(
+      Long companyId, Long accountId, ConversionGoalMapping mapping) {
+    if (mapping == null
+        || mapping.getProvider() != AdProvider.GOOGLE_ADS
+        || mapping.getTargetType() != ConversionTargetType.PROVIDER_CONVERSION
+        || mapping.getAdConversionId() == null
+        || mapping.getExternalConversionId() == null
+        || mapping.getExternalConversionId().isBlank()
+        || !mapping.isValidated()) {
+      throw new BadRequestException(
+          "Google campaign conversion goal requires a validated provider conversion mapping");
+    }
+
+    GoogleAdsAccountContextService.Context context =
+        contextService.requireManaged(companyId, accountId);
+    String conversionCustomerId = conversionCustomerId(context);
+    String conversionActionId =
+        numeric(mapping.getExternalConversionId(), "Google conversion action ID");
+    List<JsonNode> rows =
+        apiClient.searchRows(
+            context.accessToken(),
+            conversionCustomerId,
+            context.loginCustomerId(),
+            "SELECT conversion_action.id, conversion_action.status, "
+                + "conversion_action.category, conversion_action.origin "
+                + "FROM conversion_action WHERE conversion_action.id = "
+                + conversionActionId
+                + " LIMIT 1");
+    if (rows.isEmpty()) {
+      throw new BadRequestException(
+          "Selected Google conversion action is no longer available");
+    }
+    JsonNode action = rows.getFirst().path("conversionAction");
+    String status = action.path("status").asText("");
+    if ("REMOVED".equalsIgnoreCase(status) || "HIDDEN".equalsIgnoreCase(status)) {
+      throw new BadRequestException(
+          "Selected Google conversion action is no longer active");
+    }
+    String resource =
+        apiClient.customerResourceName(
+            conversionCustomerId, "conversionActions", conversionActionId);
+    return new ValidatedMapping(context, conversionCustomerId, resource);
   }
 
   private int disableOtherCampaignGoals(
@@ -257,6 +291,11 @@ public class GoogleAdsCampaignConversionGoalService {
 
   private record ExistingGoal(
       String resourceName, String status, List<String> conversionActions) {}
+
+  private record ValidatedMapping(
+      GoogleAdsAccountContextService.Context context,
+      String conversionCustomerId,
+      String conversionActionResource) {}
 
   public record ApplyResult(
       String customConversionGoalResource,
