@@ -18,7 +18,7 @@ public class GmailOAuthProperties {
   private String clientId;
   private String clientSecret;
   private String redirectUri;
-  private String frontendBaseUrl = "https://messaging.renukaprasad.in";
+  private String frontendBaseUrl = "https://app.unifydesk.in";
   private String scope = DEFAULT_SCOPE;
   private Duration oauthStateTtl = Duration.ofMinutes(10);
   private Duration tokenRefreshSkew = Duration.ofMinutes(2);
