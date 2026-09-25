@@ -164,6 +164,34 @@ export type ReachlyoCampaignAnalyticsDeployment = {
   lastSyncedAt?: string | null
 }
 
+export type ReachlyoCampaignRecommendationItem = {
+  key: string
+  severity: AdRecommendationSeverity
+  category: AdRecommendationCategory
+  source: AdRecommendationSource
+  provider?: AdProvider | null
+  adAccountId?: string | null
+  deploymentId?: string | null
+  localCampaignId?: string | null
+  title: string
+  description: string
+  actionLabel?: string | null
+  actionPath?: string | null
+  evidence: Record<string, unknown>
+  providerRecommendationResourceName?: string | null
+}
+
+export type ReachlyoCampaignRecommendations = {
+  campaignId: string
+  criticalCount: number
+  warningCount: number
+  opportunityCount: number
+  infoCount: number
+  generatedAt: string
+  analyticsLastSyncAt?: string | null
+  items: ReachlyoCampaignRecommendationItem[]
+}
+
 export type ReachlyoCampaignAnalytics = {
   campaignId: string
   currency: string
