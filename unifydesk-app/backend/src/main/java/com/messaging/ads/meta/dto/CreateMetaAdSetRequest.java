@@ -31,6 +31,8 @@ public record CreateMetaAdSetRequest(
     List<String> publisherPlatforms,
     List<String> facebookPositions,
     List<String> instagramPositions,
+    List<String> messengerPositions,
+    List<String> audienceNetworkPositions,
     List<String> customAudienceIds,
     List<String> excludedCustomAudienceIds,
     String pixelId,
