@@ -62,6 +62,9 @@ import com.messaging.ads.google.dto.GoogleRecommendationActionResponse;
 import com.messaging.ads.google.dto.GoogleSearchTermReportResponse;
 import com.messaging.ads.google.dto.GoogleAiMaxCombinationReportResponse;
 import com.messaging.ads.google.dto.GoogleBrandSuggestionResponse;
+import com.messaging.ads.google.dto.GoogleKeywordPlannerIdeasRequest;
+import com.messaging.ads.google.dto.GoogleKeywordPlannerHistoricalRequest;
+import com.messaging.ads.google.dto.GoogleKeywordPlannerResponse;
 import com.messaging.ads.google.dto.GoogleAssetResponse;
 import com.messaging.ads.google.dto.UpdateGoogleAdGroupRequest;
 import com.messaging.ads.google.dto.UpdateGoogleCampaignRequest;
@@ -73,6 +76,7 @@ import com.messaging.company.service.CompanyAuthorizationService;
 import com.messaging.security.service.CurrentUserService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -104,6 +108,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsSearchTermService searchTermService;
   private final GoogleAdsAiMaxReportingService aiMaxReportingService;
   private final GoogleAdsAiMaxBrandService aiMaxBrandService;
+  private final GoogleAdsKeywordPlannerService keywordPlannerService;
   private final GoogleAdsInsightBreakdownSyncService insightBreakdownSyncService;
   private final GoogleAdsHealthService healthService;
   private final GoogleAdsBillingService billingService;
@@ -807,6 +812,32 @@ public class GoogleAdsConnectionController {
             200,
             insightSyncService.sync(companyId, accountId, from, to),
             "Google Ads analytics synchronized"));
+  }
+
+  @PostMapping("/accounts/{accountId}/keyword-planner/ideas")
+  public ResponseEntity<ApiResponse<GoogleKeywordPlannerResponse>> keywordIdeas(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody GoogleKeywordPlannerIdeasRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            keywordPlannerService.ideas(companyId, accountId, request, userId),
+            "Google Keyword Planner ideas generated"));
+  }
+
+  @PostMapping("/accounts/{accountId}/keyword-planner/historical-metrics")
+  public ResponseEntity<ApiResponse<GoogleKeywordPlannerResponse>> keywordHistoricalMetrics(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody GoogleKeywordPlannerHistoricalRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            keywordPlannerService.historical(companyId, accountId, request, userId),
+            "Google Keyword Planner historical metrics generated"));
   }
 
   @GetMapping("/accounts/{accountId}/ai-max/brands/suggest")
