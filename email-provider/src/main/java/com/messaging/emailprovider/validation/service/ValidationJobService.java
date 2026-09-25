@@ -216,21 +216,32 @@ public class ValidationJobService {
 
     List<EmailValidationItem> failedItems = items.findAllByBatchIdOrderByIdAsc(batchId);
     Instant now = Instant.now();
-    long newlyUnknown = 0;
+    long valid = 0;
+    long invalid = 0;
+    long risky = 0;
+    long unknown = 0;
     for (EmailValidationItem item : failedItems) {
       if (item.getStatus() == null) {
         item.setStatus(ValidationStatus.UNKNOWN);
         item.setReason(ValidationReason.VALIDATION_INTERNAL_ERROR);
         item.setScore(0);
         item.setValidatedAt(now);
-        newlyUnknown++;
+      }
+      switch (item.getStatus()) {
+        case VALID -> valid++;
+        case INVALID -> invalid++;
+        case RISKY -> risky++;
+        case UNKNOWN -> unknown++;
       }
     }
     items.saveAll(failedItems);
 
     EmailValidationJob job = jobs.findLockedById(batch.getJobId()).orElseThrow();
     job.setProcessedCount(job.getProcessedCount() + batch.getItemCount());
-    job.setUnknownCount(job.getUnknownCount() + newlyUnknown);
+    job.setValidCount(job.getValidCount() + valid);
+    job.setInvalidCount(job.getInvalidCount() + invalid);
+    job.setRiskyCount(job.getRiskyCount() + risky);
+    job.setUnknownCount(job.getUnknownCount() + unknown);
     job.setFailedBatches(job.getFailedBatches() + 1);
 
     boolean finished = finishIfDone(job);

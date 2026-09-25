@@ -1,76 +1,102 @@
 package com.messaging.emailprovider.validation.ratelimit;
 
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
 @Component
 public class DomainProbeLimiter {
 
+  private static final DefaultRedisScript<Long> ACQUIRE_SCRIPT =
+      new DefaultRedisScript<>(
+          """
+          local rate = redis.call('INCR', KEYS[1])
+          if rate == 1 then
+            redis.call('EXPIRE', KEYS[1], ARGV[1])
+          end
+          if rate > tonumber(ARGV[2]) then
+            return 0
+          end
+
+          local concurrent = redis.call('INCR', KEYS[2])
+          if concurrent == 1 then
+            redis.call('EXPIRE', KEYS[2], ARGV[3])
+          end
+          if concurrent > tonumber(ARGV[4]) then
+            redis.call('DECR', KEYS[2])
+            return 0
+          end
+          return 1
+          """,
+          Long.class);
+
+  private static final DefaultRedisScript<Long> RELEASE_SCRIPT =
+      new DefaultRedisScript<>(
+          """
+          local current = tonumber(redis.call('GET', KEYS[1]) or '0')
+          if current <= 1 then
+            redis.call('DEL', KEYS[1])
+            return 0
+          end
+          return redis.call('DECR', KEYS[1])
+          """,
+          Long.class);
+
   private final StringRedisTemplate redis;
-  private final Map<String, Semaphore> local = new ConcurrentHashMap<>();
-  private final int perMinute;
-  private final int localConcurrency;
-  private final long acquireTimeoutMs;
+  private final int probesPerMinute;
+  private final int perDomainConcurrency;
+  private final int concurrencyLeaseSeconds;
 
   public DomainProbeLimiter(
       StringRedisTemplate redis,
-      @Value("${app.validation.smtp.probes-per-domain-per-minute:20}") int perMinute,
-      @Value("${app.validation.smtp.per-domain-concurrency:2}") int localConcurrency,
-      @Value("${app.validation.smtp.acquire-timeout-ms:1500}") long acquireTimeoutMs) {
+      @Value("${app.validation.smtp.probes-per-domain-per-minute:20}") int probesPerMinute,
+      @Value("${app.validation.smtp.per-domain-concurrency:2}") int perDomainConcurrency,
+      @Value("${app.validation.smtp.concurrency-lease-seconds:20}") int concurrencyLeaseSeconds) {
     this.redis = redis;
-    this.perMinute = Math.max(1, perMinute);
-    this.localConcurrency = Math.max(1, localConcurrency);
-    this.acquireTimeoutMs = Math.max(1, acquireTimeoutMs);
+    this.probesPerMinute = Math.max(1, probesPerMinute);
+    this.perDomainConcurrency = Math.max(1, perDomainConcurrency);
+    this.concurrencyLeaseSeconds = Math.max(5, concurrencyLeaseSeconds);
   }
 
   public Lease tryAcquire(String domain) {
-    Semaphore semaphore =
-        local.computeIfAbsent(domain, ignored -> new Semaphore(localConcurrency, true));
-    boolean localAcquired;
-    try {
-      localAcquired = semaphore.tryAcquire(acquireTimeoutMs, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException exception) {
-      Thread.currentThread().interrupt();
-      return Lease.rejected();
-    }
-    if (!localAcquired) {
-      return Lease.rejected();
-    }
+    String safeDomain = domain.toLowerCase();
+    String rateKey = "email-validator:domain-rate:" + safeDomain;
+    String concurrencyKey = "email-validator:domain-concurrency:" + safeDomain;
 
     try {
-      String key = "email-validator:domain-rate:" + domain;
-      Long count = redis.opsForValue().increment(key);
-      if (count != null && count == 1) {
-        redis.expire(key, Duration.ofMinutes(1));
-      }
-      if (count == null || count > perMinute) {
-        semaphore.release();
-        return Lease.rejected();
-      }
-      return new Lease(true, semaphore);
+      Long acquired =
+          redis.execute(
+              ACQUIRE_SCRIPT,
+              List.of(rateKey, concurrencyKey),
+              "60",
+              Integer.toString(probesPerMinute),
+              Integer.toString(concurrencyLeaseSeconds),
+              Integer.toString(perDomainConcurrency));
+      return Long.valueOf(1L).equals(acquired)
+          ? new Lease(redis, concurrencyKey, true)
+          : Lease.rejected();
     } catch (RuntimeException exception) {
-      semaphore.release();
       return Lease.rejected();
     }
   }
 
   public static final class Lease implements AutoCloseable {
+    private final StringRedisTemplate redis;
+    private final String concurrencyKey;
     private final boolean acquired;
-    private final Semaphore semaphore;
+    private boolean closed;
 
-    private Lease(boolean acquired, Semaphore semaphore) {
+    private Lease(StringRedisTemplate redis, String concurrencyKey, boolean acquired) {
+      this.redis = redis;
+      this.concurrencyKey = concurrencyKey;
       this.acquired = acquired;
-      this.semaphore = semaphore;
     }
 
     static Lease rejected() {
-      return new Lease(false, null);
+      return new Lease(null, null, false);
     }
 
     public boolean acquired() {
@@ -79,8 +105,14 @@ public class DomainProbeLimiter {
 
     @Override
     public void close() {
-      if (acquired && semaphore != null) {
-        semaphore.release();
+      if (!acquired || closed) {
+        return;
+      }
+      closed = true;
+      try {
+        redis.execute(RELEASE_SCRIPT, List.of(concurrencyKey));
+      } catch (RuntimeException ignored) {
+        // Lease TTL provides crash safety if Redis release is temporarily unavailable.
       }
     }
   }
