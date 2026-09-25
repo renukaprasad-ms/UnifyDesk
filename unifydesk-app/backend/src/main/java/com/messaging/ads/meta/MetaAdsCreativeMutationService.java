@@ -167,6 +167,10 @@ public class MetaAdsCreativeMutationService {
     Map<String, Object> assetFeed = new LinkedHashMap<>();
     if (!images.isEmpty()) assetFeed.put("images", images);
     if (!videos.isEmpty()) assetFeed.put("videos", videos);
+    List<String> adFormats = new ArrayList<>();
+    if (!images.isEmpty()) adFormats.add("SINGLE_IMAGE");
+    if (!videos.isEmpty()) adFormats.add("SINGLE_VIDEO");
+    assetFeed.put("ad_formats", adFormats);
     if (!bodies.isEmpty()) assetFeed.put("bodies", bodies);
     if (!titles.isEmpty()) assetFeed.put("titles", titles);
     if (!descriptions.isEmpty()) assetFeed.put("descriptions", descriptions);
