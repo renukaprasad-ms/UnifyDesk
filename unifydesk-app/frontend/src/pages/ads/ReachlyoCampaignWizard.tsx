@@ -2328,6 +2328,18 @@ export default function ReachlyoCampaignWizard() {
                   setMetaConversionId={setMetaConversionId}
                   metaStandardEvent={metaStandardEvent}
                   setMetaStandardEvent={setMetaStandardEvent}
+                  metaPlacementMode={metaPlacementMode}
+                  setMetaPlacementMode={setMetaPlacementMode}
+                  metaPublisherPlatforms={metaPublisherPlatforms}
+                  setMetaPublisherPlatforms={setMetaPublisherPlatforms}
+                  metaFacebookPositions={metaFacebookPositions}
+                  setMetaFacebookPositions={setMetaFacebookPositions}
+                  metaInstagramPositions={metaInstagramPositions}
+                  setMetaInstagramPositions={setMetaInstagramPositions}
+                  metaMessengerPositions={metaMessengerPositions}
+                  setMetaMessengerPositions={setMetaMessengerPositions}
+                  metaAudienceNetworkPositions={metaAudienceNetworkPositions}
+                  setMetaAudienceNetworkPositions={setMetaAudienceNetworkPositions}
                   disabled={!canEdit || !editableDefinition}
                   onRefresh={() => void loadProviderData(true)}
                 />
