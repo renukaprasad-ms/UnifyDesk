@@ -462,6 +462,8 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 stringArray(override, "publisherPlatforms"),
                 stringArray(override, "facebookPositions"),
                 stringArray(override, "instagramPositions"),
+                stringArray(override, "messengerPositions"),
+                stringArray(override, "audienceNetworkPositions"),
                 List.of(),
                 List.of(),
                 pixelId,
