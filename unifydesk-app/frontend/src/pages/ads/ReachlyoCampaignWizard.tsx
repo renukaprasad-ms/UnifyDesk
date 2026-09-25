@@ -43,6 +43,7 @@ import type {
   ReachlyoCreativePack,
   ReachlyoConversionGoalMapping,
   GoogleNegativeKeywordInput,
+  GoogleBrandSuggestion,
   GoogleNegativeKeywordList,
 } from '../../features/ads/types'
 import { mediaApi } from '../../features/media/mediaApi'
@@ -374,6 +375,12 @@ export default function ReachlyoCampaignWizard() {
   ] = useState('')
   const [googleAiMaxUrlExclusions, setGoogleAiMaxUrlExclusions] = useState('')
   const [googleAiMaxUrlInclusions, setGoogleAiMaxUrlInclusions] = useState('')
+  const [googleAiMaxBrandInclusions, setGoogleAiMaxBrandInclusions] = useState<
+    GoogleBrandSuggestion[]
+  >([])
+  const [googleAiMaxBrandExclusions, setGoogleAiMaxBrandExclusions] = useState<
+    GoogleBrandSuggestion[]
+  >([])
   const [googleAdSchedules, setGoogleAdSchedules] = useState<GoogleAdScheduleDraft[]>([])
   const [googleNegativeKeywords, setGoogleNegativeKeywords] = useState<GoogleNegativeKeywordInput[]>([])
   const [googleNegativeKeywordLists, setGoogleNegativeKeywordLists] =
@@ -583,6 +590,32 @@ export default function ReachlyoCampaignWizard() {
               .filter((value): value is string => typeof value === 'string')
               .join('\n')
           : '',
+      )
+      setGoogleAiMaxBrandInclusions(
+        Array.isArray(override.aiMaxBrandInclusions)
+          ? override.aiMaxBrandInclusions.filter(
+              (value): value is GoogleBrandSuggestion =>
+                Boolean(
+                  value &&
+                    typeof value === 'object' &&
+                    typeof (value as GoogleBrandSuggestion).id === 'string' &&
+                    typeof (value as GoogleBrandSuggestion).name === 'string',
+                ),
+            )
+          : [],
+      )
+      setGoogleAiMaxBrandExclusions(
+        Array.isArray(override.aiMaxBrandExclusions)
+          ? override.aiMaxBrandExclusions.filter(
+              (value): value is GoogleBrandSuggestion =>
+                Boolean(
+                  value &&
+                    typeof value === 'object' &&
+                    typeof (value as GoogleBrandSuggestion).id === 'string' &&
+                    typeof (value as GoogleBrandSuggestion).name === 'string',
+                ),
+            )
+          : [],
       )
       const savedSchedules = Array.isArray(override.adSchedules)
         ? override.adSchedules
@@ -1239,6 +1272,12 @@ export default function ReachlyoCampaignWizard() {
               : [],
             aiMaxUrlInclusions: googleAiMaxEnabled
               ? listValues(googleAiMaxUrlInclusions)
+              : [],
+            aiMaxBrandInclusions: googleAiMaxEnabled
+              ? googleAiMaxBrandInclusions
+              : [],
+            aiMaxBrandExclusions: googleAiMaxEnabled
+              ? googleAiMaxBrandExclusions
               : [],
             adSchedules: googleAdSchedules,
             negativeKeywords: googleNegativeKeywords
@@ -2463,6 +2502,7 @@ export default function ReachlyoCampaignWizard() {
                   )}
 
                 <ReachlyoProviderSettingsStep
+                  companyId={selectedCompany.companyId}
                   businessGoal={campaign?.businessGoal ?? businessGoal}
                   selectedChannels={selectedChannels}
                   accountByChannel={accountByChannel}
@@ -2510,6 +2550,10 @@ export default function ReachlyoCampaignWizard() {
                   setGoogleAiMaxUrlExclusions={setGoogleAiMaxUrlExclusions}
                   googleAiMaxUrlInclusions={googleAiMaxUrlInclusions}
                   setGoogleAiMaxUrlInclusions={setGoogleAiMaxUrlInclusions}
+                  googleAiMaxBrandInclusions={googleAiMaxBrandInclusions}
+                  setGoogleAiMaxBrandInclusions={setGoogleAiMaxBrandInclusions}
+                  googleAiMaxBrandExclusions={googleAiMaxBrandExclusions}
+                  setGoogleAiMaxBrandExclusions={setGoogleAiMaxBrandExclusions}
                   googleAdSchedules={googleAdSchedules}
                   setGoogleAdSchedules={setGoogleAdSchedules}
                   googleNegativeKeywords={googleNegativeKeywords}
