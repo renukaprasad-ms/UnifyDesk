@@ -35,6 +35,14 @@ type Props = {
   setGoogleContentNetwork: (value: boolean) => void
   googleGeoMode: 'PRESENCE' | 'PRESENCE_OR_INTEREST'
   setGoogleGeoMode: (value: 'PRESENCE' | 'PRESENCE_OR_INTEREST') => void
+  googleAiMaxEnabled: boolean
+  setGoogleAiMaxEnabled: (value: boolean) => void
+  googleAiMaxTextCustomization: boolean
+  setGoogleAiMaxTextCustomization: (value: boolean) => void
+  googleAiMaxFinalUrlExpansion: boolean
+  setGoogleAiMaxFinalUrlExpansion: (value: boolean) => void
+  googleAiMaxDisableSearchTermMatching: boolean
+  setGoogleAiMaxDisableSearchTermMatching: (value: boolean) => void
   googleAdSchedules: GoogleAdScheduleDraft[]
   setGoogleAdSchedules: (value: GoogleAdScheduleDraft[]) => void
   googleNegativeKeywords: GoogleNegativeKeywordInput[]
@@ -280,7 +288,11 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
               <select
                 className="form-input mt-2"
                 value={props.keywordMatchType}
-                disabled={props.disabled}
+                disabled={
+                  props.disabled ||
+                  (props.googleAiMaxEnabled &&
+                    !props.googleAiMaxDisableSearchTermMatching)
+                }
                 onChange={(event) => props.setKeywordMatchType(event.target.value)}
               >
                 <option value="BROAD">Broad</option>
@@ -324,6 +336,88 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 <option value="PRESENCE">Presence only</option>
               </select>
             </Field>
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4 sm:col-span-2">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-slate-900">AI Max for Search</p>
+                  <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
+                    AI Max expands Search matching and can customize text and landing pages.
+                    Google treats keywords as broad match while AI Max search-term matching is
+                    active, so individual keyword match types apply only when matching is disabled.
+                  </p>
+                </div>
+                <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={props.googleAiMaxEnabled}
+                    disabled={props.disabled}
+                    onChange={(event) => {
+                      props.setGoogleAiMaxEnabled(event.target.checked)
+                      if (!event.target.checked) {
+                        props.setGoogleAiMaxTextCustomization(false)
+                        props.setGoogleAiMaxFinalUrlExpansion(false)
+                        props.setGoogleAiMaxDisableSearchTermMatching(false)
+                      }
+                    }}
+                  />
+                  Enable AI Max
+                </label>
+              </div>
+
+              {props.googleAiMaxEnabled && (
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <label className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
+                    <span className="flex items-center gap-2 font-semibold text-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={props.googleAiMaxTextCustomization}
+                        disabled={props.disabled}
+                        onChange={(event) =>
+                          props.setGoogleAiMaxTextCustomization(event.target.checked)
+                        }
+                      />
+                      Text customization
+                    </span>
+                    <span className="mt-1 block leading-5">
+                      Allow Google to tailor headlines and descriptions from campaign and landing-page context.
+                    </span>
+                  </label>
+                  <label className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
+                    <span className="flex items-center gap-2 font-semibold text-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={props.googleAiMaxFinalUrlExpansion}
+                        disabled={props.disabled}
+                        onChange={(event) =>
+                          props.setGoogleAiMaxFinalUrlExpansion(event.target.checked)
+                        }
+                      />
+                      Final URL expansion
+                    </span>
+                    <span className="mt-1 block leading-5">
+                      Let Google choose a more relevant landing page when eligible. This can also generate matching text assets.
+                    </span>
+                  </label>
+                  <label className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
+                    <span className="flex items-center gap-2 font-semibold text-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={props.googleAiMaxDisableSearchTermMatching}
+                        disabled={props.disabled}
+                        onChange={(event) =>
+                          props.setGoogleAiMaxDisableSearchTermMatching(event.target.checked)
+                        }
+                      />
+                      Preserve keyword match types
+                    </span>
+                    <span className="mt-1 block leading-5">
+                      Disable AI Max search-term matching for the created ad group so Exact/Phrase/Broad keyword settings apply normally.
+                    </span>
+                  </label>
+                </div>
+              )}
+            </div>
+
             <div className="rounded-xl border border-slate-100 p-3">
               <p className="text-xs font-semibold text-slate-700">Search networks</p>
               <div className="mt-3 grid gap-2">
