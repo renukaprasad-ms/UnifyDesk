@@ -1177,7 +1177,7 @@ Geo exclusions are intentionally not part of B3 and can be added with the broade
 
 ## M-03 Placement tree - P0
 
-Status: **core placement tree complete**. B4 carries manual Facebook, Instagram, Messenger, and Audience Network placement positions through native Meta create/edit/read-back and the unified Reachlyo campaign launch path. Automatic placement mode remains supported by omitting manual publisher-platform constraints. A dedicated META_PLACEMENT_TREE capability is exposed, and the compiler surfaces placement-specific creative-variant warnings. Provider/account-specific Advantage+ eligibility remains in D3 rather than being falsely treated as generic placement support.
+Status: **core placement tree complete**. B4 carries manual Facebook, Instagram, Messenger, and Audience Network placement positions through native Meta create/edit/read-back and the unified Reachlyo campaign launch path. Automatic placement mode remains supported by omitting manual publisher-platform constraints. A dedicated META_PLACEMENT_TREE capability is exposed, and the compiler surfaces placement-specific creative-variant/media warnings. B5 adds persisted Feed/Story/Reel image/video Creative Variants and Meta placement asset customization for mixed fully modeled placement families. Provider/account-specific Advantage+ eligibility remains in D3 rather than being falsely treated as generic placement support.
 
 Build a placement selector with actual supported placement positions.
 
@@ -1941,7 +1941,7 @@ B1. [x] Google geo/language/network/daypart targeting — canonical country/regi
 B2. [x] Google negative keywords/shared negatives — ad-group negative create/remove + sync, campaign negatives with bulk add/remove, live reusable shared-list discovery/member management/attach-detach, unified campaign selection, preflight validation and idempotent launch execution  
 B3. [x] Meta detailed geo targeting — provider geo search, regions/cities/postal codes, coordinate radius targeting, home/recent location types, native create/edit UI, canonical mapping, and launch preflight resolution  
 B4. [x] Meta proper placement tree — structured Facebook/Instagram/Messenger/Audience Network positions, native create/edit/read-back, unified launch mapping, capability exposure, and compiler placement warnings  
-B5. [~] placement-specific Creative Pack variants — Feed/Story/Reel variant editor, compiler requirements, and single-family launch execution are implemented; mixed-placement asset customization and placement-specific media execution remain  
+B5. [x] placement-specific Creative Pack variants — Feed/Story/Reel copy + image/video variants, validated AD_CREATIVE media, single-family launch selection, mixed-placement Meta asset_feed_spec PLACEMENT customization, and safe canonical fallback for unsupported/unmodeled placement families  
 B6. unified conversion mapping  
 B7. cross-provider campaign analytics  
 B8. search-term reporting  
@@ -2100,6 +2100,10 @@ Start/current docs:
 Official Meta Marketing API Postman workspace:
 
 - https://www.postman.com/meta/facebook-marketing-api/overview
+
+Official Meta Business SDK schema/codegen (used to verify asset_feed_spec and placement customization fields):
+
+- https://github.com/facebook/facebook-business-sdk-codegen/tree/main/api_specs/specs
 
 Official Meta generative creative collection:
 
