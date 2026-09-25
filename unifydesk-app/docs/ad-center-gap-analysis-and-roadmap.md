@@ -1479,7 +1479,7 @@ Never silently drop targeting.
 
 ## X-07 Unified conversion mapping - P0/P1
 
-Status: **core provider mapping complete**. A Reachlyo Campaign selects one business outcome, then stores a provider/account-specific ConversionGoalMapping for that same business goal. Synced Google conversion actions and Meta custom conversions retain their normalized provider category/event for goal-aware recommendations and review warnings. Meta also supports validated standard promoted-object events with a selected Pixel. Google Search launch creates/reuses a CustomConversionGoal in the effective Google Ads conversion customer and attaches it to the provider campaign through ConversionGoalCampaignConfig. Historical mappings remain scoped to the business goal that created them so changing a campaign goal cannot silently reuse the prior mapping.
+Status: **core provider mapping complete**. A Reachlyo Campaign selects one business outcome, then stores a provider/account-specific ConversionGoalMapping for that same business goal. Synced Google conversion actions and Meta custom conversions retain their normalized provider category/event for goal-aware recommendations and review warnings. Meta also supports validated standard promoted-object events with a selected Pixel. Google Search preflight re-verifies the selected conversion action, launch creates/reuses a CustomConversionGoal in the effective Google Ads conversion customer, attaches it through ConversionGoalCampaignConfig, and disables other biddable CampaignConversionGoals so optimization stays scoped to the explicitly mapped action. Historical mappings remain scoped to the business goal that created them so changing a campaign goal cannot silently reuse the prior mapping.
 
 A campaign should select a business outcome once.
 
@@ -1944,7 +1944,7 @@ B2. [x] Google negative keywords/shared negatives — ad-group negative create/r
 B3. [x] Meta detailed geo targeting — provider geo search, regions/cities/postal codes, coordinate radius targeting, home/recent location types, native create/edit UI, canonical mapping, and launch preflight resolution  
 B4. [x] Meta proper placement tree — structured Facebook/Instagram/Messenger/Audience Network positions, native create/edit/read-back, unified launch mapping, capability exposure, and compiler placement warnings  
 B5. [x] placement-specific Creative Pack variants — Feed/Story/Reel copy + image/video variants, validated AD_CREATIVE media, single-family launch selection, mixed-placement Meta asset_feed_spec PLACEMENT customization, and safe canonical fallback for unsupported/unmodeled placement families  
-B6. [x] unified conversion mapping — one business goal with provider/account mappings, goal-aware defaults and mismatch warnings, Meta custom-conversion/validated standard-event execution, and Google CustomConversionGoal + ConversionGoalCampaignConfig launch execution  
+B6. [x] unified conversion mapping — one business goal with current-goal provider/account mappings, goal-aware defaults and mismatch warnings, current Meta standard-event validation/custom-conversion execution, and Google conversion-action preflight + CustomConversionGoal + ConversionGoalCampaignConfig + competing-goal isolation  
 B7. cross-provider campaign analytics  
 B8. search-term reporting  
 B9. campaign-level recommendation improvements
