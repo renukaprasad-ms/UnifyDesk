@@ -385,7 +385,15 @@ export default function GoogleSearchTermReport({
                 const providerTargeted = row.targetingStatus === 'ADDED'
                 const reviewCandidate = row.clicks > 0 && row.conversions === 0
                 return (
-                  <tr key={row.externalAdGroupId + '|' + row.searchTerm}>
+                  <tr
+                    key={[
+                      row.externalAdGroupId,
+                      row.searchTerm,
+                      row.matchedKeyword ?? '',
+                      row.searchTermMatchType ?? '',
+                      row.searchTermMatchSource ?? '',
+                    ].join('|')}
+                  >
                     <td className="px-4 py-3">
                       <p className="max-w-xs font-semibold text-slate-900">
                         {row.searchTerm}
