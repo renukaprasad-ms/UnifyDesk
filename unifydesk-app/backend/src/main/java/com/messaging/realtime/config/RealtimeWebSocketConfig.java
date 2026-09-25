@@ -16,7 +16,7 @@ public class RealtimeWebSocketConfig implements WebSocketConfigurer {
 
   private final RealtimeWebSocketHandler handler;
 
-  @Value("${app.realtime.allowed-origins:https://messaging.renukaprasad.in}")
+  @Value("${app.realtime.allowed-origins:https://app.unifydesk.in}")
   private String allowedOrigins;
 
   @Override
