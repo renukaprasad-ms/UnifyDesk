@@ -79,6 +79,41 @@ type Props = {
 const requiresConversion = (goal: CampaignBusinessGoal) =>
   goal !== 'TRAFFIC' && goal !== 'AWARENESS'
 
+const GOOGLE_GOAL_EVENTS: Partial<Record<CampaignBusinessGoal, string[]>> = {
+  PURCHASE: ['PURCHASE'],
+  LEAD: ['SUBMIT_LEAD_FORM', 'IMPORTED_LEAD', 'CONTACT', 'REQUEST_QUOTE'],
+  QUALIFIED_LEAD: ['QUALIFIED_LEAD', 'CONVERTED_LEAD'],
+  SIGN_UP: ['SIGNUP'],
+  PHONE_CALL: ['PHONE_CALL_LEAD'],
+  WHATSAPP_CONVERSATION: ['CONTACT', 'IMPORTED_LEAD'],
+  APP_INSTALL: ['DOWNLOAD', 'DEFAULT'],
+}
+
+const META_GOAL_EVENTS: Partial<Record<CampaignBusinessGoal, string[]>> = {
+  PURCHASE: ['PURCHASE'],
+  LEAD: ['LEAD'],
+  QUALIFIED_LEAD: ['LEAD'],
+  SIGN_UP: ['COMPLETE_REGISTRATION'],
+  PHONE_CALL: ['CONTACT', 'LEAD'],
+  WHATSAPP_CONVERSATION: ['CONTACT', 'LEAD'],
+  APP_INSTALL: ['ACTIVATE_APP'],
+  TRAFFIC: ['VIEW_CONTENT'],
+}
+
+const isRecommendedConversion = (
+  conversion: AdConversion,
+  goal: CampaignBusinessGoal,
+  provider: 'GOOGLE_ADS' | 'META_ADS',
+) => {
+  const event = conversion.customEventType?.trim().toUpperCase()
+  if (!event) return false
+  const recommended = provider === 'GOOGLE_ADS' ? GOOGLE_GOAL_EVENTS[goal] : META_GOAL_EVENTS[goal]
+  return recommended?.includes(event) ?? false
+}
+
+const recommendedMetaEvent = (goal: CampaignBusinessGoal) =>
+  META_GOAL_EVENTS[goal]?.[0] ?? ''
+
 const DAYS = [
   'MONDAY',
   'TUESDAY',
@@ -234,6 +269,10 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                   {googleConversions.map((conversion) => (
                     <option key={conversion.id} value={conversion.id}>
                       {conversion.name}
+                      {conversion.customEventType ? ` · ${pretty(conversion.customEventType)}` : ''}
+                      {isRecommendedConversion(conversion, props.businessGoal, 'GOOGLE_ADS')
+                        ? ' · Recommended'
+                        : ''}
                     </option>
                   ))}
                 </select>
@@ -765,6 +804,10 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                       {metaConversions.map((conversion) => (
                         <option key={conversion.id} value={conversion.id}>
                           {conversion.name}
+                          {conversion.customEventType ? ` · ${pretty(conversion.customEventType)}` : ''}
+                          {isRecommendedConversion(conversion, props.businessGoal, 'META_ADS')
+                            ? ' · Recommended'
+                            : ''}
                         </option>
                       ))}
                     </select>
@@ -776,8 +819,13 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                       value={props.metaStandardEvent}
                       disabled={props.disabled}
                       onChange={(event) => props.setMetaStandardEvent(event.target.value)}
-                      placeholder="PURCHASE"
+                      placeholder={recommendedMetaEvent(props.businessGoal) || 'PURCHASE'}
                     />
+                    {recommendedMetaEvent(props.businessGoal) && (
+                      <span className="mt-1 block text-[11px] font-normal text-slate-500">
+                        Suggested for {pretty(props.businessGoal)}: {recommendedMetaEvent(props.businessGoal)}
+                      </span>
+                    )}
                   </Field>
                 )}
               </>
