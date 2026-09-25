@@ -41,6 +41,7 @@ declare global {
 const SDK_SCRIPT_ID = 'facebook-jssdk'
 const SDK_LOAD_TIMEOUT_MS = 15_000
 const SIGNUP_TIMEOUT_MS = 5 * 60_000
+const SESSION_INFO_GRACE_MS = 2_500
 
 let sdkPromise: Promise<void> | null = null
 let sdkInitializedKey: string | null = null
@@ -167,10 +168,12 @@ export const launchMetaWhatsAppSignup = (
     let wabaId = ''
     let phoneNumberId = ''
     let settled = false
+    let codeFallbackTimer: number | null = null
 
     const cleanup = () => {
       window.removeEventListener('message', onMessage)
       window.clearTimeout(timeout)
+      if (codeFallbackTimer !== null) window.clearTimeout(codeFallbackTimer)
     }
 
     const finishIfReady = () => {
