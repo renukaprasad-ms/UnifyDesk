@@ -1,5 +1,7 @@
 package com.messaging.ads.campaign.compiler;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.ads.capability.AdFeatureCapability;
 import com.messaging.ads.campaign.entity.CreativeVariant;
 import com.messaging.ads.campaign.enums.AudienceMappingStatus;
@@ -13,6 +15,8 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
+
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   @Override
   public Set<CampaignChannelType> supportedChannels() {
@@ -49,6 +53,7 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
             context.budgetPlan(), context.channel(), context.allChannels(), issues);
 
     validateCreative(context, issues);
+    validatePlacements(context, required, issues);
 
     AudienceMappingStatus audienceMappingStatus = null;
     String audienceMappingNote = null;
@@ -131,6 +136,75 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
         Set.copyOf(required),
         List.copyOf(issues),
         List.copyOf(operations));
+  }
+
+  private void validatePlacements(
+      ProviderCampaignCompileContext context,
+      Set<AdFeatureCapability> required,
+      List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    List<String> platforms = stringArray(override, "publisherPlatforms");
+    if (platforms.isEmpty()) return;
+
+    ProviderCampaignPlanSupport.requireCapability(
+        context, AdFeatureCapability.META_PLACEMENT_TREE, required, issues);
+
+    Set<com.messaging.ads.campaign.enums.CreativeVariantType> needed = new LinkedHashSet<>();
+    if (containsAny(stringArray(override, "facebookPositions"), "feed", "marketplace", "video_feeds", "search")
+        || containsAny(stringArray(override, "instagramPositions"), "stream", "explore", "explore_home", "profile_feed")) {
+      needed.add(com.messaging.ads.campaign.enums.CreativeVariantType.META_FEED);
+    }
+    if (containsAny(stringArray(override, "facebookPositions"), "story")
+        || containsAny(stringArray(override, "instagramPositions"), "story")
+        || containsAny(stringArray(override, "messengerPositions"), "story")) {
+      needed.add(com.messaging.ads.campaign.enums.CreativeVariantType.META_STORY);
+    }
+    if (containsAny(stringArray(override, "facebookPositions"), "reels")
+        || containsAny(stringArray(override, "instagramPositions"), "reels")) {
+      needed.add(com.messaging.ads.campaign.enums.CreativeVariantType.META_REEL);
+    }
+
+    Set<com.messaging.ads.campaign.enums.CreativeVariantType> available =
+        context.creativeVariants().stream()
+            .filter(variant -> variant.getProvider() == context.channel().getProvider())
+            .map(CreativeVariant::getVariantType)
+            .collect(java.util.stream.Collectors.toSet());
+
+    for (com.messaging.ads.campaign.enums.CreativeVariantType type : needed) {
+      if (!available.contains(type)) {
+        issues.add(
+            ProviderCampaignPlanSupport.warning(
+                "META_PLACEMENT_CREATIVE_VARIANT_MISSING",
+                "creativePack.variants",
+                "Selected Meta placements would benefit from a " + type.name()
+                    + " creative variant; the source creative will be reused unless a placement-specific variant is added."));
+      }
+    }
+  }
+
+  private JsonNode providerOverride(String value) {
+    if (isBlank(value)) return OBJECT_MAPPER.createObjectNode();
+    try {
+      JsonNode node = OBJECT_MAPPER.readTree(value);
+      return node != null && node.isObject() ? node : OBJECT_MAPPER.createObjectNode();
+    } catch (Exception ignored) {
+      return OBJECT_MAPPER.createObjectNode();
+    }
+  }
+
+  private List<String> stringArray(JsonNode node, String field) {
+    JsonNode values = node.path(field);
+    if (!values.isArray()) return List.of();
+    List<String> result = new ArrayList<>();
+    values.forEach(value -> {
+      if (value.isTextual() && !value.asText().isBlank()) result.add(value.asText().trim().toLowerCase());
+    });
+    return result;
+  }
+
+  private boolean containsAny(List<String> values, String... expected) {
+    Set<String> wanted = Set.of(expected);
+    return values.stream().anyMatch(wanted::contains);
   }
 
   private void validateCreative(
