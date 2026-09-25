@@ -19,7 +19,7 @@ public class GoogleAdsProperties {
   private String clientId;
   private String clientSecret;
   private String redirectUri;
-  private String frontendBaseUrl = "https://messaging.renukaprasad.in";
+  private String frontendBaseUrl = "https://app.unifydesk.in";
   private String apiVersion = "v25";
   private String scope = DEFAULT_SCOPE;
   private String developerToken;

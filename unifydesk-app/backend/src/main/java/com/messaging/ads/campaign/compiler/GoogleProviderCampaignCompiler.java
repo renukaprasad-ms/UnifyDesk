@@ -1,5 +1,7 @@
 package com.messaging.ads.campaign.compiler;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.ads.capability.AdFeatureCapability;
 import com.messaging.ads.campaign.entity.CreativeVariant;
 import com.messaging.ads.campaign.enums.AudienceMappingStatus;
@@ -113,6 +115,40 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
               "No search-intent terms are available to seed Search keywords."));
     }
 
+    if (context.channel().getChannelType() == CampaignChannelType.GOOGLE_SEARCH
+        && aiMaxEnabled(context)) {
+      ProviderCampaignPlanSupport.requireCapability(
+          context, AdFeatureCapability.GOOGLE_AI_MAX, required, issues);
+      if (providerText(context, "keywordMatchType") != null
+          && !providerBoolean(context, "aiMaxDisableSearchTermMatching", false)) {
+        issues.add(
+            ProviderCampaignPlanSupport.warning(
+                "AI_MAX_KEYWORD_MATCH_TYPE_OVERRIDDEN",
+                "providerOverride.keywordMatchType",
+                "With AI Max search-term matching enabled, Google treats keywords as broad match. Disable AI Max search-term matching at the ad-group level if individual keyword match types must apply."));
+      }
+      if (providerBoolean(context, "aiMaxFinalUrlExpansionEnabled", false)
+          && isBlank(context.campaign().getLandingPageUrl())
+          && (context.creativePack() == null
+              || isBlank(context.creativePack().getDestinationUrl()))) {
+        issues.add(
+            ProviderCampaignPlanSupport.error(
+                "AI_MAX_FINAL_URL_REQUIRED",
+                "providerOverride.aiMaxFinalUrlExpansionEnabled",
+                "AI Max final URL expansion requires a campaign or Creative Pack landing URL."));
+      }
+      if (!providerStrings(context, "aiMaxUrlInclusions").isEmpty()
+          && (!providerBoolean(context, "aiMaxTextCustomizationEnabled", false)
+              || !providerBoolean(context, "aiMaxFinalUrlExpansionEnabled", false)
+              || providerBoolean(context, "aiMaxDisableSearchTermMatching", false))) {
+        issues.add(
+            ProviderCampaignPlanSupport.error(
+                "AI_MAX_URL_INCLUSIONS_REQUIRE_AUTOMATION",
+                "providerOverride.aiMaxUrlInclusions",
+                "AI Max URL inclusions require text customization, final URL expansion, and AI Max search-term matching to remain enabled."));
+      }
+    }
+
     if (ProviderCampaignPlanSupport.requiresConversion(context)) {
       ProviderCampaignPlanSupport.requireCapability(
           context, AdFeatureCapability.CONVERSION_CREATE, required, issues);
@@ -135,6 +171,23 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                 "CONVERSION_MAPPING_UNVALIDATED",
                 "conversion",
                 "The selected Google conversion mapping is not validated."));
+      } else if (ConversionGoalCompatibility.shouldWarn(
+          context.campaign().getBusinessGoal(),
+          context.channel().getProvider(),
+          context.conversionGoalMapping().getProviderEventName())) {
+        issues.add(
+            ProviderCampaignPlanSupport.warning(
+                "CONVERSION_GOAL_MISMATCH",
+                "conversion",
+                "The selected Google conversion category "
+                    + context.conversionGoalMapping().getProviderEventName()
+                    + " does not closely match business goal "
+                    + context.campaign().getBusinessGoal()
+                    + ". Typical matches: "
+                    + ConversionGoalCompatibility.recommendedLabel(
+                        context.campaign().getBusinessGoal(),
+                        context.channel().getProvider())
+                    + "."));
       }
     }
 
@@ -282,6 +335,62 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                 true,
                 Set.of(),
                 ProviderCampaignPlanSupport.config("status", "PAUSED")));
+        if (aiMaxEnabled(context)) {
+          operations.add(
+              operation(
+                  sequence++,
+                  "configure-ai-max-ad-group",
+                  ProviderPlanAction.CONFIGURE,
+                  ProviderPlanResource.AD_GROUP,
+                  false,
+                  Set.of(AdFeatureCapability.GOOGLE_AI_MAX),
+                  ProviderCampaignPlanSupport.config(
+                      "disableSearchTermMatching",
+                      providerBoolean(
+                          context, "aiMaxDisableSearchTermMatching", false))));
+          if (!providerStrings(context, "aiMaxUrlExclusions").isEmpty()) {
+            operations.add(
+                operation(
+                    sequence++,
+                    "configure-ai-max-url-exclusions",
+                    ProviderPlanAction.CONFIGURE,
+                    ProviderPlanResource.CAMPAIGN_TARGETING,
+                    false,
+                    Set.of(AdFeatureCapability.GOOGLE_AI_MAX),
+                    ProviderCampaignPlanSupport.config(
+                        "urlExclusions",
+                        providerStrings(context, "aiMaxUrlExclusions"))));
+          }
+          if (!providerStrings(context, "aiMaxUrlInclusions").isEmpty()) {
+            operations.add(
+                operation(
+                    sequence++,
+                    "configure-ai-max-url-inclusions",
+                    ProviderPlanAction.CONFIGURE,
+                    ProviderPlanResource.AD_GROUP,
+                    false,
+                    Set.of(AdFeatureCapability.GOOGLE_AI_MAX),
+                    ProviderCampaignPlanSupport.config(
+                        "urlInclusions",
+                        providerStrings(context, "aiMaxUrlInclusions"))));
+          }
+          if (!providerObjectIds(context, "aiMaxBrandInclusions").isEmpty()
+              || !providerObjectIds(context, "aiMaxBrandExclusions").isEmpty()) {
+            operations.add(
+                operation(
+                    sequence++,
+                    "configure-ai-max-brands",
+                    ProviderPlanAction.CONFIGURE,
+                    ProviderPlanResource.CAMPAIGN_TARGETING,
+                    false,
+                    Set.of(AdFeatureCapability.GOOGLE_AI_MAX),
+                    ProviderCampaignPlanSupport.config(
+                        "brandInclusionCount",
+                        providerObjectIds(context, "aiMaxBrandInclusions").size(),
+                        "brandExclusionCount",
+                        providerObjectIds(context, "aiMaxBrandExclusions").size())));
+          }
+        }
         operations.add(
             operation(
                 sequence++,
@@ -477,6 +586,60 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
       default -> throw new IllegalArgumentException(
           "Channel has no Google creative variant: " + type);
     };
+  }
+
+  private boolean aiMaxEnabled(ProviderCampaignCompileContext context) {
+    return providerBoolean(context, "aiMaxEnabled", false);
+  }
+
+  private boolean providerBoolean(
+      ProviderCampaignCompileContext context, String key, boolean fallback) {
+    JsonNode root = providerOverride(context);
+    JsonNode value = root.get(key);
+    return value == null || value.isNull() ? fallback : value.asBoolean(fallback);
+  }
+
+  private List<String> providerObjectIds(
+      ProviderCampaignCompileContext context, String key) {
+    JsonNode value = providerOverride(context).get(key);
+    if (value == null || value.isNull() || !value.isArray()) return List.of();
+    List<String> result = new ArrayList<>();
+    for (JsonNode item : value) {
+      String id = item.isObject() ? item.path("id").asText(null) : null;
+      if (id != null && !id.isBlank()) result.add(id.trim());
+    }
+    return List.copyOf(result);
+  }
+
+  private List<String> providerStrings(
+      ProviderCampaignCompileContext context, String key) {
+    JsonNode value = providerOverride(context).get(key);
+    if (value == null || value.isNull() || !value.isArray()) return List.of();
+    List<String> result = new ArrayList<>();
+    for (JsonNode item : value) {
+      if (item.isTextual() && !item.asText().isBlank()) {
+        result.add(item.asText().trim());
+      }
+    }
+    return List.copyOf(result);
+  }
+
+  private String providerText(ProviderCampaignCompileContext context, String key) {
+    JsonNode root = providerOverride(context);
+    JsonNode value = root.get(key);
+    if (value == null || value.isNull()) return null;
+    String text = value.asText(null);
+    return text == null || text.isBlank() ? null : text.trim();
+  }
+
+  private JsonNode providerOverride(ProviderCampaignCompileContext context) {
+    String json = context.channel().getProviderOverrideJson();
+    if (json == null || json.isBlank()) return JSON.createObjectNode();
+    try {
+      return JSON.readTree(json);
+    } catch (Exception exception) {
+      return JSON.createObjectNode();
+    }
   }
 
   private boolean isBlank(String value) {

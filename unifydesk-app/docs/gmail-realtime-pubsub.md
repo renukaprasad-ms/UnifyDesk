@@ -26,7 +26,7 @@ Use the same Google Cloud project that owns `GMAIL_OAUTH_CLIENT_ID`.
 5. Set the push endpoint to:
 
    ```
-   https://messaging.renukaprasad.in/api/v1/webhooks/google/gmail?token=<GMAIL_PUBSUB_PUSH_VERIFICATION_TOKEN>
+   https://api.unifydesk.in/api/v1/webhooks/google/gmail?token=<GMAIL_PUBSUB_PUSH_VERIFICATION_TOKEN>
    ```
 
 6. Use a long random verification token:

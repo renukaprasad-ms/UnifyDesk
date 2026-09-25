@@ -44,6 +44,10 @@ public class GoogleAdsCampaignSyncService {
         "SELECT campaign.id, campaign.name, campaign.status, campaign.primary_status, "
             + "campaign.advertising_channel_type, campaign.advertising_channel_sub_type, "
             + "campaign.bidding_strategy_type, campaign.start_date_time, campaign.end_date_time, "
+            + "campaign.ai_max_setting.enable_ai_max, campaign.ai_max_setting.bundling_required, "
+            + "campaign.asset_automation_settings, campaign.text_guidelines.term_exclusions, "
+            + "campaign.text_guidelines.messaging_restrictions, "
+            + "campaign.aca_migration_date_time, campaign.broad_match_migration_date_time, "
             + "campaign.campaign_budget, campaign_budget.resource_name, "
             + "campaign_budget.amount_micros "
             + "FROM campaign";

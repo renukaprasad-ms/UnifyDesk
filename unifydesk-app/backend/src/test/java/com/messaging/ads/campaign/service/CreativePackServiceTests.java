@@ -6,10 +6,12 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.ads.campaign.dto.CreateCreativePackRequest;
+import com.messaging.ads.campaign.dto.CreateCreativeVariantRequest;
 import com.messaging.ads.campaign.dto.CreativePackAssetInput;
 import com.messaging.ads.campaign.entity.CreativePack;
 import com.messaging.ads.campaign.entity.ReachlyoCampaign;
 import com.messaging.ads.campaign.enums.CreativeAssetRole;
+import com.messaging.ads.campaign.enums.CreativeVariantType;
 import com.messaging.ads.campaign.enums.ReachlyoCampaignStatus;
 import com.messaging.ads.campaign.repository.CampaignChannelRepository;
 import com.messaging.ads.campaign.repository.CreativePackAssetRepository;
@@ -53,6 +55,50 @@ class CreativePackServiceTests {
             variantRepository,
             mediaRepository,
             new ObjectMapper());
+  }
+
+  @Test
+  void rejectsNonAdCreativeVariantMedia() {
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(10L);
+    campaign.setCompanyId(1L);
+    campaign.setStatus(ReachlyoCampaignStatus.DRAFT);
+    when(campaignRepository.findByIdAndCompanyId(10L, 1L)).thenReturn(Optional.of(campaign));
+
+    CreativePack pack = new CreativePack();
+    pack.setId(20L);
+    pack.setCompanyId(1L);
+    pack.setReachlyoCampaignId(10L);
+    when(packRepository.findByIdAndCompanyIdAndReachlyoCampaignId(20L, 1L, 10L))
+        .thenReturn(Optional.of(pack));
+
+    Media media = new Media();
+    media.setId(30L);
+    media.setCompanyId(1L);
+    media.setStatus(MediaStatus.ACTIVE);
+    media.setPurpose(MediaPurpose.MESSAGE_ATTACHMENT);
+    media.setMediaType(MediaType.IMAGE);
+    when(mediaRepository.findByIdAndCompanyId(30L, 1L)).thenReturn(Optional.of(media));
+
+    assertThatThrownBy(
+            () ->
+                service.createVariant(
+                    1L,
+                    10L,
+                    20L,
+                    new CreateCreativeVariantRequest(
+                        CreativeVariantType.META_STORY,
+                        null,
+                        "Story creative",
+                        "story",
+                        "Primary",
+                        List.of("Headline"),
+                        List.of("Description"),
+                        "LEARN_MORE",
+                        "https://example.com",
+                        "{\"mediaId\":\"30\"}")))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("AD_CREATIVE");
   }
 
   @Test

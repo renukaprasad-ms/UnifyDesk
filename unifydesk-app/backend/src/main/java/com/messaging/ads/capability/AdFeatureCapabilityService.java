@@ -234,6 +234,7 @@ public class AdFeatureCapabilityService {
     add(specs, AdFeatureCapability.BILLING_READ, false, GOOGLE_ADS_SCOPE);
 
     add(specs, AdFeatureCapability.GOOGLE_SEARCH, true, GOOGLE_ADS_SCOPE);
+    add(specs, AdFeatureCapability.GOOGLE_SEARCH_TERM_REPORTING, true, GOOGLE_ADS_SCOPE);
     add(specs, AdFeatureCapability.GOOGLE_PERFORMANCE_MAX, true, GOOGLE_ADS_SCOPE);
     add(specs, AdFeatureCapability.GOOGLE_DISPLAY, true, GOOGLE_ADS_SCOPE);
     add(specs, AdFeatureCapability.GOOGLE_DEMAND_GEN, true, GOOGLE_ADS_SCOPE);
@@ -259,10 +260,10 @@ public class AdFeatureCapabilityService {
     add(specs, AdFeatureCapability.GOOGLE_OFFLINE_CONVERSION_UPLOAD, true, GOOGLE_ADS_SCOPE);
     add(specs, AdFeatureCapability.GOOGLE_NATIVE_RECOMMENDATIONS, false, GOOGLE_ADS_SCOPE);
 
-    planned(specs, AdFeatureCapability.GOOGLE_AI_MAX);
+    add(specs, AdFeatureCapability.GOOGLE_AI_MAX, true, GOOGLE_ADS_SCOPE);
     planned(specs, AdFeatureCapability.GOOGLE_APP_CAMPAIGN);
-    planned(specs, AdFeatureCapability.GOOGLE_KEYWORD_PLANNER);
-    planned(specs, AdFeatureCapability.GOOGLE_FORECAST);
+    add(specs, AdFeatureCapability.GOOGLE_KEYWORD_PLANNER, true, GOOGLE_ADS_SCOPE);
+    add(specs, AdFeatureCapability.GOOGLE_FORECAST, true, GOOGLE_ADS_SCOPE);
     planned(specs, AdFeatureCapability.GOOGLE_EXPERIMENTS);
     planned(specs, AdFeatureCapability.GOOGLE_ASSET_GENERATION);
     planned(specs, AdFeatureCapability.GOOGLE_BID_SIMULATION);
@@ -301,6 +302,7 @@ public class AdFeatureCapabilityService {
     planned(specs, AdFeatureCapability.META_DETAILED_TARGETING);
     planned(specs, AdFeatureCapability.META_CUSTOM_AUDIENCE_CUSTOMER_LIST);
     planned(specs, AdFeatureCapability.META_ADVANTAGE_AUDIENCE);
+    add(specs, AdFeatureCapability.META_PLACEMENT_TREE, true, META_ADS_SCOPE);
     planned(specs, AdFeatureCapability.META_ADVANTAGE_PLACEMENTS);
     planned(specs, AdFeatureCapability.META_ADVANTAGE_CREATIVE);
     planned(specs, AdFeatureCapability.META_GENERATIVE_TEXT);

@@ -14,8 +14,8 @@ class GoogleAdsApiClientTests {
     properties.setClientId("client-id.apps.googleusercontent.com");
     properties.setClientSecret("secret");
     properties.setRedirectUri(
-        "https://messaging.renukaprasad.in/api/v1/oauth/google-ads/callback");
-    properties.setFrontendBaseUrl("https://messaging.renukaprasad.in");
+        "https://api.unifydesk.in/api/v1/oauth/google-ads/callback");
+    properties.setFrontendBaseUrl("https://app.unifydesk.in");
     properties.setApiVersion("v25");
     properties.setScope(
         "openid email profile https://www.googleapis.com/auth/adwords");

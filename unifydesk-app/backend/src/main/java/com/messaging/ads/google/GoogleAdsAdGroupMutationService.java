@@ -149,6 +149,58 @@ public class GoogleAdsAdGroupMutationService {
     return after;
   }
 
+  public AdSetResponse setAiMaxSearchTermMatching(
+      Long companyId,
+      Long adSetId,
+      boolean disableSearchTermMatching,
+      Long actorUserId) {
+    AdSet adGroup = requireAdGroup(companyId, adSetId);
+    AdCampaign campaign = requireCampaign(companyId, adGroup.getCampaignId());
+    if (!"SEARCH".equalsIgnoreCase(campaign.getObjective())) {
+      throw new BadRequestException(
+          "Google AI Max search-term matching applies only to Search ad groups");
+    }
+    var context = contextService.requireManaged(companyId, adGroup.getAdAccountId());
+    AdSetResponse before = AdSetResponse.from(adGroup);
+
+    Map<String, Object> update = new LinkedHashMap<>();
+    update.put(
+        "resourceName",
+        apiClient.customerResourceName(
+            context.account().getExternalAccountId(),
+            "adGroups",
+            adGroup.getExternalAdSetId()));
+    update.put(
+        "aiMaxAdGroupSetting",
+        Map.of("disableSearchTermMatching", disableSearchTermMatching));
+
+    apiClient.mutate(
+        context.accessToken(),
+        context.account().getExternalAccountId(),
+        context.loginCustomerId(),
+        "adGroups",
+        List.of(
+            Map.of(
+                "update",
+                update,
+                "updateMask",
+                "ai_max_ad_group_setting.disable_search_term_matching")));
+
+    AdSetResponse after = refresh(context, campaign, adGroup.getExternalAdSetId());
+    activityLogService.record(
+        companyId,
+        adGroup.getAdAccountId(),
+        AdProvider.GOOGLE_ADS,
+        actorUserId,
+        "GOOGLE_AI_MAX_SEARCH_TERM_MATCHING_UPDATED",
+        "AD_GROUP",
+        adGroup.getExternalAdSetId(),
+        before,
+        after,
+        Map.of("disableSearchTermMatching", disableSearchTermMatching));
+    return after;
+  }
+
   public AdSetResponse setStatus(
       Long companyId,
       Long adSetId,

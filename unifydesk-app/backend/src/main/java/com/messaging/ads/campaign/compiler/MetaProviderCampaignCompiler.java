@@ -1,5 +1,7 @@
 package com.messaging.ads.campaign.compiler;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.ads.capability.AdFeatureCapability;
 import com.messaging.ads.campaign.entity.CreativeVariant;
 import com.messaging.ads.campaign.enums.AudienceMappingStatus;
@@ -13,6 +15,8 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
+
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   @Override
   public Set<CampaignChannelType> supportedChannels() {
@@ -49,6 +53,7 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
             context.budgetPlan(), context.channel(), context.allChannels(), issues);
 
     validateCreative(context, issues);
+    validatePlacements(context, required, issues);
 
     AudienceMappingStatus audienceMappingStatus = null;
     String audienceMappingNote = null;
@@ -103,7 +108,27 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
             ProviderCampaignPlanSupport.warning(
                 "STANDARD_EVENT_REMOTE_VALIDATION_PENDING",
                 "conversion",
-                "The Meta standard event name will be validated against the provider during deployment preflight."));
+                "The Meta standard event is validated against the current provider enum; Pixel/account eligibility will be verified during deployment preflight."));
+      }
+
+      if (context.conversionGoalMapping() != null
+          && ConversionGoalCompatibility.shouldWarn(
+              context.campaign().getBusinessGoal(),
+              context.channel().getProvider(),
+              context.conversionGoalMapping().getProviderEventName())) {
+        issues.add(
+            ProviderCampaignPlanSupport.warning(
+                "CONVERSION_GOAL_MISMATCH",
+                "conversion",
+                "The selected Meta conversion event "
+                    + context.conversionGoalMapping().getProviderEventName()
+                    + " does not closely match business goal "
+                    + context.campaign().getBusinessGoal()
+                    + ". Typical matches: "
+                    + ConversionGoalCompatibility.recommendedLabel(
+                        context.campaign().getBusinessGoal(),
+                        context.channel().getProvider())
+                    + "."));
       }
     }
 
@@ -131,6 +156,97 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
         Set.copyOf(required),
         List.copyOf(issues),
         List.copyOf(operations));
+  }
+
+  private void validatePlacements(
+      ProviderCampaignCompileContext context,
+      Set<AdFeatureCapability> required,
+      List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    List<String> platforms = stringArray(override, "publisherPlatforms");
+    if (platforms.isEmpty()) return;
+
+    ProviderCampaignPlanSupport.requireCapability(
+        context, AdFeatureCapability.META_PLACEMENT_TREE, required, issues);
+
+    Set<com.messaging.ads.campaign.enums.CreativeVariantType> needed = new LinkedHashSet<>();
+    if (containsAny(stringArray(override, "facebookPositions"), "feed", "marketplace", "video_feeds", "search")
+        || containsAny(stringArray(override, "instagramPositions"), "stream", "explore", "explore_home", "profile_feed")) {
+      needed.add(com.messaging.ads.campaign.enums.CreativeVariantType.META_FEED);
+    }
+    if (containsAny(stringArray(override, "facebookPositions"), "story")
+        || containsAny(stringArray(override, "instagramPositions"), "story")
+        || containsAny(stringArray(override, "messengerPositions"), "story")) {
+      needed.add(com.messaging.ads.campaign.enums.CreativeVariantType.META_STORY);
+    }
+    if (containsAny(stringArray(override, "facebookPositions"), "reels")
+        || containsAny(stringArray(override, "instagramPositions"), "reels")) {
+      needed.add(com.messaging.ads.campaign.enums.CreativeVariantType.META_REEL);
+    }
+
+    java.util.Map<com.messaging.ads.campaign.enums.CreativeVariantType, CreativeVariant> available =
+        context.creativeVariants().stream()
+            .filter(variant -> variant.getProvider() == context.channel().getProvider())
+            .collect(
+                java.util.stream.Collectors.toMap(
+                    CreativeVariant::getVariantType,
+                    variant -> variant,
+                    (first, ignored) -> first));
+
+    for (com.messaging.ads.campaign.enums.CreativeVariantType type : needed) {
+      CreativeVariant variant = available.get(type);
+      if (variant == null) {
+        issues.add(
+            ProviderCampaignPlanSupport.warning(
+                "META_PLACEMENT_CREATIVE_VARIANT_MISSING",
+                "creativePack.variants",
+                "Selected Meta placements would benefit from a " + type.name()
+                    + " creative variant; the source creative will be reused unless a placement-specific variant is added."));
+      } else if (!hasPlacementMedia(variant)) {
+        issues.add(
+            ProviderCampaignPlanSupport.warning(
+                "META_PLACEMENT_CREATIVE_MEDIA_MISSING",
+                "creativePack.variants",
+                type.name()
+                    + " exists but has no placement-specific image/video; the canonical campaign media will be used where placement customization cannot be assembled."));
+      }
+    }
+  }
+
+  private boolean hasPlacementMedia(CreativeVariant variant) {
+    if (isBlank(variant.getAssetSpecJson())) return false;
+    try {
+      JsonNode node = OBJECT_MAPPER.readTree(variant.getAssetSpecJson());
+      JsonNode mediaId = node == null ? null : node.get("mediaId");
+      return mediaId != null && !mediaId.isNull() && !mediaId.asText("").isBlank();
+    } catch (Exception ignored) {
+      return false;
+    }
+  }
+
+  private JsonNode providerOverride(String value) {
+    if (isBlank(value)) return OBJECT_MAPPER.createObjectNode();
+    try {
+      JsonNode node = OBJECT_MAPPER.readTree(value);
+      return node != null && node.isObject() ? node : OBJECT_MAPPER.createObjectNode();
+    } catch (Exception ignored) {
+      return OBJECT_MAPPER.createObjectNode();
+    }
+  }
+
+  private List<String> stringArray(JsonNode node, String field) {
+    JsonNode values = node.path(field);
+    if (!values.isArray()) return List.of();
+    List<String> result = new ArrayList<>();
+    values.forEach(value -> {
+      if (value.isTextual() && !value.asText().isBlank()) result.add(value.asText().trim().toLowerCase());
+    });
+    return result;
+  }
+
+  private boolean containsAny(List<String> values, String... expected) {
+    Set<String> wanted = Set.of(expected);
+    return values.stream().anyMatch(wanted::contains);
   }
 
   private void validateCreative(

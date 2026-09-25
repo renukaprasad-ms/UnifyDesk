@@ -338,6 +338,66 @@ public class GoogleAdsApiClient {
         "Unable to resolve Google Ads geo targets");
   }
 
+  public JsonNode suggestBrands(
+      String accessToken,
+      String customerId,
+      String loginCustomerId,
+      String brandPrefix,
+      List<String> selectedBrandIds) {
+    if (brandPrefix == null || brandPrefix.isBlank()) {
+      throw new BadRequestException("Google brand prefix is required");
+    }
+    Map<String, Object> body = new LinkedHashMap<>();
+    body.put("brandPrefix", brandPrefix.trim());
+    if (selectedBrandIds != null && !selectedBrandIds.isEmpty()) {
+      body.put("selectedBrands", selectedBrandIds);
+    }
+    return execute(
+        () -> {
+          RestClient.RequestBodySpec request =
+              adsClient
+                  .post()
+                  .uri(
+                      "/{version}/customers/{customerId}:suggestBrands",
+                      properties.getApiVersion().trim(),
+                      normalizeCustomerId(customerId))
+                  .contentType(MediaType.APPLICATION_JSON);
+          addAdsHeaders(request, accessToken, loginCustomerId);
+          return parseJson(request.body(body).retrieve().body(String.class));
+        },
+        "Unable to suggest Google Ads brands");
+  }
+
+  public JsonNode customerColonAction(
+      String accessToken,
+      String customerId,
+      String loginCustomerId,
+      String action,
+      Map<String, Object> body) {
+    if (action == null || action.isBlank()) {
+      throw new BadRequestException("Google Ads customer action is required");
+    }
+    return execute(
+        () -> {
+          RestClient.RequestBodySpec request =
+              adsClient
+                  .post()
+                  .uri(
+                      "/{version}/customers/{customerId}:{action}",
+                      properties.getApiVersion().trim(),
+                      normalizeCustomerId(customerId),
+                      action.trim())
+                  .contentType(MediaType.APPLICATION_JSON);
+          addAdsHeaders(request, accessToken, loginCustomerId);
+          return parseJson(
+              request
+                  .body(body == null ? Map.of() : body)
+                  .retrieve()
+                  .body(String.class));
+        },
+        "Google Ads customer action failed for " + action);
+  }
+
   public JsonNode customerAction(
       String accessToken,
       String customerId,

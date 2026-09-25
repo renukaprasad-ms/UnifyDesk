@@ -18,10 +18,14 @@ import {
 } from 'react-icons/fi'
 import { Link, useNavigate, useParams } from 'react-router'
 import ReachlyoLaunchRunPanel from '../../components/ads/ReachlyoLaunchRunPanel'
+import ReachlyoCampaignAnalyticsPanel from '../../components/ads/ReachlyoCampaignAnalyticsPanel'
+import ReachlyoCampaignRecommendationsPanel from '../../components/ads/ReachlyoCampaignRecommendationsPanel'
 import ReachlyoProviderPlanReview from '../../components/ads/ReachlyoProviderPlanReview'
 import ReachlyoProviderSettingsStep, {
   type GoogleAdScheduleDraft,
 } from '../../components/ads/ReachlyoProviderSettingsStep'
+import MetaCreativeVariantsEditor from '../../components/ads/MetaCreativeVariantsEditor'
+import GoogleKeywordPlannerPanel from '../../components/ads/GoogleKeywordPlannerPanel'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -40,6 +44,7 @@ import type {
   ReachlyoCreativePack,
   ReachlyoConversionGoalMapping,
   GoogleNegativeKeywordInput,
+  GoogleBrandSuggestion,
   GoogleNegativeKeywordList,
 } from '../../features/ads/types'
 import { mediaApi } from '../../features/media/mediaApi'
@@ -171,6 +176,44 @@ const listValues = (value: string) =>
 const requiresConversion = (goal: CampaignBusinessGoal) =>
   goal !== 'TRAFFIC' && goal !== 'AWARENESS'
 
+const GOOGLE_GOAL_EVENTS: Partial<Record<CampaignBusinessGoal, string[]>> = {
+  PURCHASE: ['PURCHASE'],
+  LEAD: ['SUBMIT_LEAD_FORM', 'IMPORTED_LEAD', 'CONTACT', 'REQUEST_QUOTE'],
+  QUALIFIED_LEAD: ['QUALIFIED_LEAD', 'CONVERTED_LEAD'],
+  SIGN_UP: ['SIGNUP'],
+  PHONE_CALL: ['PHONE_CALL_LEAD'],
+  WHATSAPP_CONVERSATION: ['CONTACT', 'IMPORTED_LEAD'],
+  APP_INSTALL: ['DOWNLOAD', 'DEFAULT'],
+}
+
+const META_GOAL_EVENTS: Partial<Record<CampaignBusinessGoal, string[]>> = {
+  PURCHASE: ['PURCHASE'],
+  LEAD: ['LEAD'],
+  QUALIFIED_LEAD: ['LEAD'],
+  SIGN_UP: ['COMPLETE_REGISTRATION'],
+  PHONE_CALL: ['CONTACT', 'LEAD'],
+  WHATSAPP_CONVERSATION: ['CONTACT', 'LEAD'],
+  TRAFFIC: ['CONTENT_VIEW'],
+}
+
+const defaultMetaStandardEvent = (goal: CampaignBusinessGoal) =>
+  META_GOAL_EVENTS[goal]?.[0] ?? ''
+
+const recommendedConversion = (
+  conversions: AdConversion[],
+  goal: CampaignBusinessGoal,
+  provider: 'GOOGLE_ADS' | 'META_ADS',
+) => {
+  const events = provider === 'GOOGLE_ADS' ? GOOGLE_GOAL_EVENTS[goal] : META_GOAL_EVENTS[goal]
+  if (!events?.length) return conversions[0]
+  return (
+    conversions.find((conversion) => {
+      const event = conversion.customEventType?.trim().toUpperCase()
+      return event ? events.includes(event) : false
+    }) ?? conversions[0]
+  )
+}
+
 const defaultGoal = (objective: ReachlyoCampaignObjective): CampaignBusinessGoal => {
   switch (objective) {
     case 'SALES':
@@ -252,6 +295,7 @@ export default function ReachlyoCampaignWizard() {
   const navigate = useNavigate()
   const { can } = useIam()
   const canEdit = can(PERMISSIONS.ADS_CREATE) || can(PERMISSIONS.ADS_MODIFY)
+  const canSyncAnalytics = can(PERMISSIONS.ADS_MODIFY)
 
   const [step, setStep] = useState(0)
   const [campaign, setCampaign] = useState<ReachlyoCampaign | null>(null)
@@ -316,6 +360,28 @@ export default function ReachlyoCampaignWizard() {
   const [googleGeoMode, setGoogleGeoMode] = useState<
     'PRESENCE' | 'PRESENCE_OR_INTEREST'
   >('PRESENCE_OR_INTEREST')
+  const [googleAiMaxEnabled, setGoogleAiMaxEnabled] = useState(false)
+  const [googleAiMaxTextCustomization, setGoogleAiMaxTextCustomization] =
+    useState(false)
+  const [googleAiMaxFinalUrlExpansion, setGoogleAiMaxFinalUrlExpansion] =
+    useState(false)
+  const [
+    googleAiMaxDisableSearchTermMatching,
+    setGoogleAiMaxDisableSearchTermMatching,
+  ] = useState(false)
+  const [googleAiMaxTermExclusions, setGoogleAiMaxTermExclusions] = useState('')
+  const [
+    googleAiMaxMessagingRestrictions,
+    setGoogleAiMaxMessagingRestrictions,
+  ] = useState('')
+  const [googleAiMaxUrlExclusions, setGoogleAiMaxUrlExclusions] = useState('')
+  const [googleAiMaxUrlInclusions, setGoogleAiMaxUrlInclusions] = useState('')
+  const [googleAiMaxBrandInclusions, setGoogleAiMaxBrandInclusions] = useState<
+    GoogleBrandSuggestion[]
+  >([])
+  const [googleAiMaxBrandExclusions, setGoogleAiMaxBrandExclusions] = useState<
+    GoogleBrandSuggestion[]
+  >([])
   const [googleAdSchedules, setGoogleAdSchedules] = useState<GoogleAdScheduleDraft[]>([])
   const [googleNegativeKeywords, setGoogleNegativeKeywords] = useState<GoogleNegativeKeywordInput[]>([])
   const [googleNegativeKeywordLists, setGoogleNegativeKeywordLists] =
@@ -331,7 +397,13 @@ export default function ReachlyoCampaignWizard() {
   const [metaPixelId, setMetaPixelId] = useState('')
   const [metaConversionMode, setMetaConversionMode] = useState<'PROVIDER' | 'STANDARD'>('PROVIDER')
   const [metaConversionId, setMetaConversionId] = useState('')
-  const [metaStandardEvent, setMetaStandardEvent] = useState('PURCHASE')
+  const [metaStandardEvent, setMetaStandardEvent] = useState('LEAD')
+  const [metaPlacementMode, setMetaPlacementMode] = useState<'AUTO' | 'MANUAL'>('AUTO')
+  const [metaPublisherPlatforms, setMetaPublisherPlatforms] = useState<string[]>([])
+  const [metaFacebookPositions, setMetaFacebookPositions] = useState<string[]>([])
+  const [metaInstagramPositions, setMetaInstagramPositions] = useState<string[]>([])
+  const [metaMessengerPositions, setMetaMessengerPositions] = useState<string[]>([])
+  const [metaAudienceNetworkPositions, setMetaAudienceNetworkPositions] = useState<string[]>([])
 
   const managedAccounts = useMemo(
     () =>
@@ -359,6 +431,19 @@ export default function ReachlyoCampaignWizard() {
     if (!selectedCompany) return
     void load()
   }, [selectedCompany?.companyId, campaignId])
+
+  useEffect(() => {
+    const defaults = new Set(
+      Object.values(META_GOAL_EVENTS)
+        .flatMap((values) => values ?? [])
+        .map((value) => value.toUpperCase()),
+    )
+    setMetaStandardEvent((current) => {
+      const normalized = current.trim().toUpperCase()
+      if (normalized && !defaults.has(normalized)) return current
+      return defaultMetaStandardEvent(businessGoal)
+    })
+  }, [businessGoal])
 
   const load = async () => {
     if (!selectedCompany) return
@@ -390,7 +475,7 @@ export default function ReachlyoCampaignWizard() {
       hydrateCampaign(campaignData, accountData)
       hydrateCreative(packs[0], campaignData)
       hydrateAudience(audienceData[0])
-      hydrateConversionMappings(mappings)
+      hydrateConversionMappings(mappings, campaignData.businessGoal)
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load unified campaign'))
     } finally {
@@ -469,6 +554,70 @@ export default function ReachlyoCampaignWizard() {
       ) {
         setGoogleGeoMode(override.positiveGeoTargetType)
       }
+      setGoogleAiMaxEnabled(override.aiMaxEnabled === true)
+      setGoogleAiMaxTextCustomization(
+        override.aiMaxTextCustomizationEnabled === true,
+      )
+      setGoogleAiMaxFinalUrlExpansion(
+        override.aiMaxFinalUrlExpansionEnabled === true,
+      )
+      setGoogleAiMaxDisableSearchTermMatching(
+        override.aiMaxDisableSearchTermMatching === true,
+      )
+      setGoogleAiMaxTermExclusions(
+        Array.isArray(override.aiMaxTermExclusions)
+          ? override.aiMaxTermExclusions
+              .filter((value): value is string => typeof value === 'string')
+              .join('\n')
+          : '',
+      )
+      setGoogleAiMaxMessagingRestrictions(
+        Array.isArray(override.aiMaxMessagingRestrictions)
+          ? override.aiMaxMessagingRestrictions
+              .filter((value): value is string => typeof value === 'string')
+              .join('\n')
+          : '',
+      )
+      setGoogleAiMaxUrlExclusions(
+        Array.isArray(override.aiMaxUrlExclusions)
+          ? override.aiMaxUrlExclusions
+              .filter((value): value is string => typeof value === 'string')
+              .join('\n')
+          : '',
+      )
+      setGoogleAiMaxUrlInclusions(
+        Array.isArray(override.aiMaxUrlInclusions)
+          ? override.aiMaxUrlInclusions
+              .filter((value): value is string => typeof value === 'string')
+              .join('\n')
+          : '',
+      )
+      setGoogleAiMaxBrandInclusions(
+        Array.isArray(override.aiMaxBrandInclusions)
+          ? override.aiMaxBrandInclusions.filter(
+              (value): value is GoogleBrandSuggestion =>
+                Boolean(
+                  value &&
+                    typeof value === 'object' &&
+                    typeof (value as GoogleBrandSuggestion).id === 'string' &&
+                    typeof (value as GoogleBrandSuggestion).name === 'string',
+                ),
+            )
+          : [],
+      )
+      setGoogleAiMaxBrandExclusions(
+        Array.isArray(override.aiMaxBrandExclusions)
+          ? override.aiMaxBrandExclusions.filter(
+              (value): value is GoogleBrandSuggestion =>
+                Boolean(
+                  value &&
+                    typeof value === 'object' &&
+                    typeof (value as GoogleBrandSuggestion).id === 'string' &&
+                    typeof (value as GoogleBrandSuggestion).name === 'string',
+                ),
+            )
+          : [],
+      )
       const savedSchedules = Array.isArray(override.adSchedules)
         ? override.adSchedules
         : []
@@ -544,22 +693,64 @@ export default function ReachlyoCampaignWizard() {
         setMetaSpecialCategory(override.specialAdCategories[0])
       }
       if (typeof override.pixelId === 'string') setMetaPixelId(override.pixelId)
+      const publisherPlatforms = Array.isArray(override.publisherPlatforms)
+        ? override.publisherPlatforms.filter((value): value is string => typeof value === 'string')
+        : []
+      setMetaPlacementMode(publisherPlatforms.length ? 'MANUAL' : 'AUTO')
+      setMetaPublisherPlatforms(publisherPlatforms)
+      setMetaFacebookPositions(
+        Array.isArray(override.facebookPositions)
+          ? override.facebookPositions.filter((value): value is string => typeof value === 'string')
+          : [],
+      )
+      setMetaInstagramPositions(
+        Array.isArray(override.instagramPositions)
+          ? override.instagramPositions.filter((value): value is string => typeof value === 'string')
+          : [],
+      )
+      setMetaMessengerPositions(
+        Array.isArray(override.messengerPositions)
+          ? override.messengerPositions.filter((value): value is string => typeof value === 'string')
+          : [],
+      )
+      setMetaAudienceNetworkPositions(
+        Array.isArray(override.audienceNetworkPositions)
+          ? override.audienceNetworkPositions.filter((value): value is string => typeof value === 'string')
+          : [],
+      )
     }
   }
 
-  const hydrateConversionMappings = (mappings: ReachlyoConversionGoalMapping[]) => {
-    const google = mappings.find(
-      (mapping) => mapping.provider === 'GOOGLE_ADS' && mapping.targetType === 'PROVIDER_CONVERSION',
+  const hydrateConversionMappings = (
+    mappings: ReachlyoConversionGoalMapping[],
+    currentBusinessGoal: CampaignBusinessGoal,
+  ) => {
+    const current = mappings.filter(
+      (mapping) => mapping.businessGoal === currentBusinessGoal,
     )
-    if (google?.adConversionId) setGoogleConversionId(google.adConversionId)
+    const google = current.find(
+      (mapping) =>
+        mapping.provider === 'GOOGLE_ADS' &&
+        mapping.targetType === 'PROVIDER_CONVERSION',
+    )
+    setGoogleConversionId(google?.adConversionId ?? '')
 
-    const meta = mappings.find((mapping) => mapping.provider === 'META_ADS')
+    const meta = current.find((mapping) => mapping.provider === 'META_ADS')
     if (meta?.targetType === 'PROVIDER_CONVERSION') {
       setMetaConversionMode('PROVIDER')
-      if (meta.adConversionId) setMetaConversionId(meta.adConversionId)
+      setMetaConversionId(meta.adConversionId ?? '')
     } else if (meta?.targetType === 'STANDARD_EVENT') {
       setMetaConversionMode('STANDARD')
-      if (meta.providerEventName) setMetaStandardEvent(meta.providerEventName)
+      setMetaConversionId('')
+      setMetaStandardEvent(
+        meta.providerEventName ??
+          defaultMetaStandardEvent(currentBusinessGoal) ??
+          '',
+      )
+    } else {
+      setMetaConversionMode('PROVIDER')
+      setMetaConversionId('')
+      setMetaStandardEvent(defaultMetaStandardEvent(currentBusinessGoal) ?? '')
     }
   }
 
@@ -992,13 +1183,25 @@ export default function ReachlyoCampaignWizard() {
       !googleConversionId &&
       nextConversions[googleAccount]?.length
     ) {
-      setGoogleConversionId(nextConversions[googleAccount][0].id)
+      setGoogleConversionId(
+        recommendedConversion(
+          nextConversions[googleAccount],
+          businessGoal,
+          'GOOGLE_ADS',
+        )?.id ?? '',
+      )
     }
 
     const metaAccount = accountByChannel.META_ADS
     if (metaAccount) {
       if (!metaConversionId && nextConversions[metaAccount]?.length) {
-        setMetaConversionId(nextConversions[metaAccount][0].id)
+        setMetaConversionId(
+          recommendedConversion(
+            nextConversions[metaAccount],
+            businessGoal,
+            'META_ADS',
+          )?.id ?? '',
+        )
       }
       const resources = nextResources[metaAccount] ?? []
       if (!metaPageId) {
@@ -1052,6 +1255,31 @@ export default function ReachlyoCampaignWizard() {
             targetSearchNetwork: googleSearchPartners,
             targetContentNetwork: googleContentNetwork,
             positiveGeoTargetType: googleGeoMode,
+            aiMaxEnabled: googleAiMaxEnabled,
+            aiMaxTextCustomizationEnabled:
+              googleAiMaxEnabled && googleAiMaxTextCustomization,
+            aiMaxFinalUrlExpansionEnabled:
+              googleAiMaxEnabled && googleAiMaxFinalUrlExpansion,
+            aiMaxDisableSearchTermMatching:
+              googleAiMaxEnabled && googleAiMaxDisableSearchTermMatching,
+            aiMaxTermExclusions: googleAiMaxEnabled
+              ? listValues(googleAiMaxTermExclusions)
+              : [],
+            aiMaxMessagingRestrictions: googleAiMaxEnabled
+              ? listValues(googleAiMaxMessagingRestrictions)
+              : [],
+            aiMaxUrlExclusions: googleAiMaxEnabled
+              ? listValues(googleAiMaxUrlExclusions)
+              : [],
+            aiMaxUrlInclusions: googleAiMaxEnabled
+              ? listValues(googleAiMaxUrlInclusions)
+              : [],
+            aiMaxBrandInclusions: googleAiMaxEnabled
+              ? googleAiMaxBrandInclusions
+              : [],
+            aiMaxBrandExclusions: googleAiMaxEnabled
+              ? googleAiMaxBrandExclusions
+              : [],
             adSchedules: googleAdSchedules,
             negativeKeywords: googleNegativeKeywords
               .map((keyword) => ({
@@ -1073,6 +1301,25 @@ export default function ReachlyoCampaignWizard() {
             billingEvent: metaBillingEvent,
             specialAdCategories: [metaSpecialCategory],
             pixelId: metaPixelId || undefined,
+            publisherPlatforms:
+              metaPlacementMode === 'MANUAL' ? metaPublisherPlatforms : [],
+            facebookPositions:
+              metaPlacementMode === 'MANUAL' && metaPublisherPlatforms.includes('facebook')
+                ? metaFacebookPositions
+                : [],
+            instagramPositions:
+              metaPlacementMode === 'MANUAL' && metaPublisherPlatforms.includes('instagram')
+                ? metaInstagramPositions
+                : [],
+            messengerPositions:
+              metaPlacementMode === 'MANUAL' && metaPublisherPlatforms.includes('messenger')
+                ? metaMessengerPositions
+                : [],
+            audienceNetworkPositions:
+              metaPlacementMode === 'MANUAL' &&
+              metaPublisherPlatforms.includes('audience_network')
+                ? metaAudienceNetworkPositions
+                : [],
           }
         }
 
@@ -2213,6 +2460,26 @@ export default function ReachlyoCampaignWizard() {
                       }
                     />
                   </Field>
+                  {selectedChannels.includes('GOOGLE_SEARCH') &&
+                    accountByChannel.GOOGLE_SEARCH && (
+                      <GoogleKeywordPlannerPanel
+                        companyId={selectedCompany.companyId}
+                        accountId={accountByChannel.GOOGLE_SEARCH}
+                        landingPageUrl={
+                          creativeUrl.trim() ||
+                          campaign.landingPageUrl ||
+                          landingPageUrl
+                        }
+                        locations={audienceLocations}
+                        language={listValues(languages)[0] ?? null}
+                        includeSearchPartners={googleSearchPartners}
+                        currentKeywords={listValues(searchIntents)}
+                        disabled={!canEdit || !editableDefinition}
+                        onApply={(keywords) =>
+                          setSearchIntents(keywords.join('\n'))
+                        }
+                      />
+                    )}
                 </div>
 
                 <StepActions
@@ -2229,7 +2496,34 @@ export default function ReachlyoCampaignWizard() {
                 title="6. Provider-only settings"
                 description="Only settings that cannot be safely inferred belong here."
               >
+                {selectedChannels.includes('META_ADS') &&
+                  creativePacks[0] &&
+                  campaign.channels.find(
+                    (channel) => channel.channelType === 'META_ADS',
+                  ) && (
+                    <MetaCreativeVariantsEditor
+                      companyId={selectedCompany.companyId}
+                      campaignId={campaign.id}
+                      channelId={
+                        campaign.channels.find(
+                          (channel) => channel.channelType === 'META_ADS',
+                        )!.id
+                      }
+                      pack={creativePacks[0]}
+                      selectedPositions={[
+                        ...metaFacebookPositions,
+                        ...metaInstagramPositions,
+                        ...metaMessengerPositions,
+                        ...metaAudienceNetworkPositions,
+                      ]}
+                      disabled={!canEdit || !editableDefinition}
+                      onSaved={(pack) => setCreativePacks([pack])}
+                      onError={setError}
+                    />
+                  )}
+
                 <ReachlyoProviderSettingsStep
+                  companyId={selectedCompany.companyId}
                   businessGoal={campaign?.businessGoal ?? businessGoal}
                   selectedChannels={selectedChannels}
                   accountByChannel={accountByChannel}
@@ -2249,6 +2543,38 @@ export default function ReachlyoCampaignWizard() {
                   setGoogleContentNetwork={setGoogleContentNetwork}
                   googleGeoMode={googleGeoMode}
                   setGoogleGeoMode={setGoogleGeoMode}
+                  googleAiMaxEnabled={googleAiMaxEnabled}
+                  setGoogleAiMaxEnabled={setGoogleAiMaxEnabled}
+                  googleAiMaxTextCustomization={googleAiMaxTextCustomization}
+                  setGoogleAiMaxTextCustomization={
+                    setGoogleAiMaxTextCustomization
+                  }
+                  googleAiMaxFinalUrlExpansion={googleAiMaxFinalUrlExpansion}
+                  setGoogleAiMaxFinalUrlExpansion={
+                    setGoogleAiMaxFinalUrlExpansion
+                  }
+                  googleAiMaxDisableSearchTermMatching={
+                    googleAiMaxDisableSearchTermMatching
+                  }
+                  setGoogleAiMaxDisableSearchTermMatching={
+                    setGoogleAiMaxDisableSearchTermMatching
+                  }
+                  googleAiMaxTermExclusions={googleAiMaxTermExclusions}
+                  setGoogleAiMaxTermExclusions={setGoogleAiMaxTermExclusions}
+                  googleAiMaxMessagingRestrictions={
+                    googleAiMaxMessagingRestrictions
+                  }
+                  setGoogleAiMaxMessagingRestrictions={
+                    setGoogleAiMaxMessagingRestrictions
+                  }
+                  googleAiMaxUrlExclusions={googleAiMaxUrlExclusions}
+                  setGoogleAiMaxUrlExclusions={setGoogleAiMaxUrlExclusions}
+                  googleAiMaxUrlInclusions={googleAiMaxUrlInclusions}
+                  setGoogleAiMaxUrlInclusions={setGoogleAiMaxUrlInclusions}
+                  googleAiMaxBrandInclusions={googleAiMaxBrandInclusions}
+                  setGoogleAiMaxBrandInclusions={setGoogleAiMaxBrandInclusions}
+                  googleAiMaxBrandExclusions={googleAiMaxBrandExclusions}
+                  setGoogleAiMaxBrandExclusions={setGoogleAiMaxBrandExclusions}
                   googleAdSchedules={googleAdSchedules}
                   setGoogleAdSchedules={setGoogleAdSchedules}
                   googleNegativeKeywords={googleNegativeKeywords}
@@ -2278,6 +2604,18 @@ export default function ReachlyoCampaignWizard() {
                   setMetaConversionId={setMetaConversionId}
                   metaStandardEvent={metaStandardEvent}
                   setMetaStandardEvent={setMetaStandardEvent}
+                  metaPlacementMode={metaPlacementMode}
+                  setMetaPlacementMode={setMetaPlacementMode}
+                  metaPublisherPlatforms={metaPublisherPlatforms}
+                  setMetaPublisherPlatforms={setMetaPublisherPlatforms}
+                  metaFacebookPositions={metaFacebookPositions}
+                  setMetaFacebookPositions={setMetaFacebookPositions}
+                  metaInstagramPositions={metaInstagramPositions}
+                  setMetaInstagramPositions={setMetaInstagramPositions}
+                  metaMessengerPositions={metaMessengerPositions}
+                  setMetaMessengerPositions={setMetaMessengerPositions}
+                  metaAudienceNetworkPositions={metaAudienceNetworkPositions}
+                  setMetaAudienceNetworkPositions={setMetaAudienceNetworkPositions}
                   disabled={!canEdit || !editableDefinition}
                   onRefresh={() => void loadProviderData(true)}
                 />
@@ -2398,6 +2736,20 @@ export default function ReachlyoCampaignWizard() {
                       Review provider plans
                     </button>
                   </div>
+                )}
+
+                {campaign && campaign.deployments.length > 0 && (
+                  <>
+                    <ReachlyoCampaignAnalyticsPanel
+                      companyId={selectedCompany.companyId}
+                      campaignId={campaign.id}
+                      canSync={canSyncAnalytics}
+                    />
+                    <ReachlyoCampaignRecommendationsPanel
+                      companyId={selectedCompany.companyId}
+                      campaignId={campaign.id}
+                    />
+                  </>
                 )}
 
                 {launchRuns.length > 1 && (

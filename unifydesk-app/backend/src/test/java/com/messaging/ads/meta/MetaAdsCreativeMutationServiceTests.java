@@ -14,6 +14,7 @@ import com.messaging.ads.enums.AdConnectionStatus;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.meta.MetaAdsApiClient.CreativeSummary;
 import com.messaging.ads.meta.dto.CreateMetaCreativeRequest;
+import com.messaging.ads.meta.dto.CreateMetaPlacementCreativeRequest;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdAccountResourceRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
@@ -127,6 +128,113 @@ class MetaAdsCreativeMutationServiceTests {
     Map<String, Object> linkData = (Map<String, Object>) story.get("link_data");
     assertThat(linkData.get("image_hash")).isEqualTo("image-hash");
     assertThat(linkData.get("link")).isEqualTo("https://example.com");
+  }
+
+  @Test
+  void createsPlacementCustomizedCreativeWithLabeledAssets() {
+    when(accountRepository.findByIdAndCompanyId(ACCOUNT_ID, COMPANY_ID))
+        .thenReturn(Optional.of(account()));
+    when(resourceRepository.findByCompanyIdAndAdAccountIdAndResourceTypeAndExternalResourceId(
+            COMPANY_ID, ACCOUNT_ID, AdAccountResourceType.FACEBOOK_PAGE, "page-1"))
+        .thenReturn(Optional.of(resource(AdAccountResourceType.FACEBOOK_PAGE, "page-1")));
+    when(connectionRepository.findByIdAndCompanyId(CONNECTION_ID, COMPANY_ID))
+        .thenReturn(Optional.of(connection()));
+    when(tokenService.read(CONNECTION_ID))
+        .thenReturn(
+            new MetaAdsTokenService.TokenValue(
+                new MetaAdsStoredToken("token", "bearer", "v26.0", "meta-user"), null));
+
+    when(apiClient.uploadVideoFromUrl(
+            "token", "123456", "https://cdn.example.com/story.mp4"))
+        .thenReturn("video-1");
+    ArgumentCaptor<Map<String, Object>> payload = ArgumentCaptor.forClass(Map.class);
+    when(apiClient.createCreative(eq("token"), eq("123456"), payload.capture()))
+        .thenReturn("creative-placement");
+    CreativeSummary snapshot =
+        new CreativeSummary(
+            "creative-placement",
+            "Placement creative",
+            "123456",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
+    when(apiClient.creative("token", "creative-placement")).thenReturn(snapshot);
+
+    AdCreative stored = new AdCreative();
+    stored.setId(100L);
+    stored.setCompanyId(COMPANY_ID);
+    stored.setAdAccountId(ACCOUNT_ID);
+    stored.setProvider(AdProvider.META_ADS);
+    stored.setExternalCreativeId("creative-placement");
+    stored.setName("Placement creative");
+    when(persistenceService.persistOne(COMPANY_ID, ACCOUNT_ID, snapshot)).thenReturn(stored);
+
+    var response =
+        service.createPlacementCustomized(
+            COMPANY_ID,
+            ACCOUNT_ID,
+            new CreateMetaPlacementCreativeRequest(
+                "Placement creative",
+                "page-1",
+                null,
+                "LEARN_MORE",
+                "utm_source=meta",
+                List.of(
+                    new CreateMetaPlacementCreativeRequest.PlacementAsset(
+                        List.of("facebook", "instagram"),
+                        List.of("feed"),
+                        List.of("stream"),
+                        List.of(),
+                        List.of(),
+                        "Feed body",
+                        "Feed title",
+                        "Feed description",
+                        "https://example.com/feed",
+                        "IMAGE",
+                        "https://cdn.example.com/feed.jpg"),
+                    new CreateMetaPlacementCreativeRequest.PlacementAsset(
+                        List.of("facebook", "instagram"),
+                        List.of("story"),
+                        List.of("story"),
+                        List.of(),
+                        List.of(),
+                        "Story body",
+                        "Story title",
+                        "Story description",
+                        "https://example.com/story",
+                        "VIDEO",
+                        "https://cdn.example.com/story.mp4"))));
+
+    assertThat(response.externalCreativeId()).isEqualTo("creative-placement");
+
+    @SuppressWarnings("unchecked")
+    Map<String, Object> assetFeed =
+        (Map<String, Object>) payload.getValue().get("asset_feed_spec");
+    assertThat(assetFeed.get("optimization_type")).isEqualTo("PLACEMENT");
+    assertThat(assetFeed.get("ad_formats"))
+        .isEqualTo(List.of("SINGLE_IMAGE", "SINGLE_VIDEO"));
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> videos =
+        (List<Map<String, Object>>) assetFeed.get("videos");
+    assertThat(videos).singleElement().satisfies(video -> assertThat(video.get("video_id")).isEqualTo("video-1"));
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> rules =
+        (List<Map<String, Object>>) assetFeed.get("asset_customization_rules");
+    assertThat(rules).hasSize(2);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> firstSpec =
+        (Map<String, Object>) rules.getFirst().get("customization_spec");
+    assertThat(firstSpec.get("facebook_positions")).isEqualTo(List.of("feed"));
+    assertThat(firstSpec.get("instagram_positions")).isEqualTo(List.of("stream"));
+    assertThat(rules.getFirst()).containsKeys("image_label", "body_label", "title_label", "link_url_label");
+    assertThat(rules.get(1)).containsKey("video_label");
   }
 
   @Test

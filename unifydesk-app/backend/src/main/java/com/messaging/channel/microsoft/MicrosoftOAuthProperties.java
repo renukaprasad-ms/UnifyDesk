@@ -17,7 +17,7 @@ public class MicrosoftOAuthProperties {
   private String clientId;
   private String clientSecret;
   private String redirectUri;
-  private String frontendBaseUrl = "https://messaging.renukaprasad.in";
+  private String frontendBaseUrl = "https://app.unifydesk.in";
   private String webhookNotificationUrl;
   private String scope =
       "openid profile email offline_access User.Read Mail.ReadWrite Mail.Send";

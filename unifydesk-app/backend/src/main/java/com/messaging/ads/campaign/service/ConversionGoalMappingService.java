@@ -10,6 +10,7 @@ import com.messaging.ads.campaign.repository.ConversionGoalMappingRepository;
 import com.messaging.ads.campaign.repository.ReachlyoCampaignRepository;
 import com.messaging.ads.entity.AdAccount;
 import com.messaging.ads.entity.AdConversion;
+import com.messaging.ads.meta.MetaStandardConversionEvent;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdConversionRepository;
 import com.messaging.common.exception.BadRequestException;
@@ -75,6 +76,11 @@ public class ConversionGoalMappingService {
     }
 
     mapping.setTargetType(request.targetType());
+    if (request.targetType() == ConversionTargetType.STANDARD_EVENT
+        && request.provider() != com.messaging.ads.enums.AdProvider.META_ADS) {
+      throw new BadRequestException(
+          "Standard event conversion targets are only supported for Meta Ads");
+    }
     if (request.targetType() == ConversionTargetType.PROVIDER_CONVERSION) {
       if (request.adConversionId() == null) {
         throw new BadRequestException("Provider conversion target requires adConversionId");
@@ -92,11 +98,14 @@ public class ConversionGoalMappingService {
       }
       mapping.setAdConversionId(conversion.getId());
       mapping.setExternalConversionId(conversion.getExternalConversionId());
-      mapping.setProviderEventName(null);
+      mapping.setProviderEventName(normalizeText(conversion.getCustomEventType()));
     } else {
-      String eventName = normalizeText(request.providerEventName());
+      String eventName = MetaStandardConversionEvent.normalize(request.providerEventName());
       if (eventName == null) {
         throw new BadRequestException("Standard event target requires providerEventName");
+      }
+      if (!MetaStandardConversionEvent.supports(eventName)) {
+        throw new BadRequestException("Unsupported Meta standard conversion event: " + eventName);
       }
       mapping.setAdConversionId(null);
       mapping.setExternalConversionId(null);

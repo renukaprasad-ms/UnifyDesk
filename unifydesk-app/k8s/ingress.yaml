@@ -5,7 +5,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: unifydesk.in
+    - host: app.unifydesk.in
       http:
         paths:
           - path: /
@@ -16,7 +16,7 @@ spec:
                 port:
                   number: 80
 
-    - host: api-unifydesk.in
+    - host: api.unifydesk.in
       http:
         paths:
           - path: /

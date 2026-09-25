@@ -50,6 +50,14 @@ class AdFeatureCapabilityServiceTests {
             .filter(value -> value.feature() == AdFeatureCapability.GOOGLE_SEARCH)
             .findFirst()
             .orElseThrow();
+    var searchTerms =
+        capabilities.stream()
+            .filter(
+                value ->
+                    value.feature()
+                        == AdFeatureCapability.GOOGLE_SEARCH_TERM_REPORTING)
+            .findFirst()
+            .orElseThrow();
     var aiMax =
         capabilities.stream()
             .filter(value -> value.feature() == AdFeatureCapability.GOOGLE_AI_MAX)
@@ -58,8 +66,29 @@ class AdFeatureCapabilityServiceTests {
 
     assertThat(search.implemented()).isTrue();
     assertThat(search.supported()).isTrue();
-    assertThat(aiMax.implemented()).isFalse();
-    assertThat(aiMax.availability()).isEqualTo(AdFeatureAvailability.PLANNED);
+    assertThat(searchTerms.implemented()).isTrue();
+    assertThat(searchTerms.supported()).isTrue();
+    assertThat(aiMax.implemented()).isTrue();
+    assertThat(aiMax.supported()).isTrue();
+
+    var planner =
+        capabilities.stream()
+            .filter(item -> item.feature() == AdFeatureCapability.GOOGLE_KEYWORD_PLANNER)
+            .findFirst()
+            .orElseThrow();
+    assertThat(planner.implemented()).isTrue();
+    assertThat(planner.supported()).isTrue();
+    assertThat(aiMax.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
+    assertThat(planner.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
+
+    var forecast =
+        capabilities.stream()
+            .filter(item -> item.feature() == AdFeatureCapability.GOOGLE_FORECAST)
+            .findFirst()
+            .orElseThrow();
+    assertThat(forecast.implemented()).isTrue();
+    assertThat(forecast.supported()).isTrue();
+    assertThat(forecast.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
   }
 
   @Test

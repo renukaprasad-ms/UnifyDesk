@@ -19,7 +19,7 @@ public class MetaAdsProperties {
   private String appId;
   private String appSecret;
   private String redirectUri;
-  private String frontendBaseUrl = "https://messaging.renukaprasad.in";
+  private String frontendBaseUrl = "https://app.unifydesk.in";
   private String graphApiVersion = "v26.0";
   private String scope = DEFAULT_SCOPE;
   private Duration oauthStateTtl = Duration.ofMinutes(10);

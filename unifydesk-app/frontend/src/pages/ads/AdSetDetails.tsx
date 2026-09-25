@@ -49,6 +49,8 @@ type TargetingSnapshot = {
   publisher_platforms?: string[]
   facebook_positions?: string[]
   instagram_positions?: string[]
+  messenger_positions?: string[]
+  audience_network_positions?: string[]
   custom_audiences?: Array<{ id?: string }>
   excluded_custom_audiences?: Array<{ id?: string }>
 }
@@ -58,6 +60,13 @@ type PromotedObjectSnapshot = {
   custom_event_type?: string
   custom_conversion_id?: string
 }
+
+const META_PLACEMENT_GROUPS = [
+  { key: 'facebook', label: 'Facebook', positions: [['feed', 'Feed'], ['story', 'Stories'], ['reels', 'Reels'], ['marketplace', 'Marketplace'], ['video_feeds', 'Video feeds'], ['search', 'Search results']] },
+  { key: 'instagram', label: 'Instagram', positions: [['stream', 'Feed'], ['story', 'Stories'], ['reels', 'Reels'], ['explore', 'Explore'], ['explore_home', 'Explore home'], ['profile_feed', 'Profile feed']] },
+  { key: 'messenger', label: 'Messenger', positions: [['messenger_home', 'Inbox'], ['story', 'Stories']] },
+  { key: 'audience_network', label: 'Audience Network', positions: [['classic', 'Native, banner and interstitial'], ['rewarded_video', 'Rewarded video']] },
+] as const
 
 const parseJson = <T,>(value?: string | null): T | null => {
   if (!value) return null
@@ -214,6 +223,10 @@ export default function AdSetDetails() {
   const [instagram, setInstagram] = useState(false)
   const [messenger, setMessenger] = useState(false)
   const [audienceNetwork, setAudienceNetwork] = useState(false)
+  const [facebookPositions, setFacebookPositions] = useState<string[]>([])
+  const [instagramPositions, setInstagramPositions] = useState<string[]>([])
+  const [messengerPositions, setMessengerPositions] = useState<string[]>([])
+  const [audienceNetworkPositions, setAudienceNetworkPositions] = useState<string[]>([])
   const [customAudiences, setCustomAudiences] = useState<string[]>([])
   const [excludedAudiences, setExcludedAudiences] = useState<string[]>([])
   const [pixelId, setPixelId] = useState('')
@@ -268,6 +281,10 @@ export default function AdSetDetails() {
     setInstagram(platforms.includes('instagram'))
     setMessenger(platforms.includes('messenger'))
     setAudienceNetwork(platforms.includes('audience_network'))
+    setFacebookPositions(targeting?.facebook_positions ?? [])
+    setInstagramPositions(targeting?.instagram_positions ?? [])
+    setMessengerPositions(targeting?.messenger_positions ?? [])
+    setAudienceNetworkPositions(targeting?.audience_network_positions ?? [])
     const includedExternalIds = new Set(
       (targeting?.custom_audiences ?? []).map((item) => item.id).filter(Boolean),
     )
@@ -376,6 +393,11 @@ export default function AdSetDetails() {
       ageMax: Number(ageMax),
       genders: gender === 'ALL' ? [] : gender === 'MEN' ? [1] : [2],
       publisherPlatforms,
+      facebookPositions: placementMode === 'MANUAL' && facebook ? facebookPositions : [],
+      instagramPositions: placementMode === 'MANUAL' && instagram ? instagramPositions : [],
+      messengerPositions: placementMode === 'MANUAL' && messenger ? messengerPositions : [],
+      audienceNetworkPositions:
+        placementMode === 'MANUAL' && audienceNetwork ? audienceNetworkPositions : [],
       customAudienceIds: customAudiences,
       excludedCustomAudienceIds: excludedAudiences,
       pixelId: customConversionId ? undefined : pixelId || undefined,
@@ -751,11 +773,72 @@ export default function AdSetDetails() {
                 </div>
 
                 {placementMode === 'MANUAL' && (
-                  <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                    <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-3 text-sm"><input type="checkbox" checked={facebook} onChange={(e) => setFacebook(e.target.checked)} />Facebook</label>
-                    <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-3 text-sm"><input type="checkbox" checked={instagram} onChange={(e) => setInstagram(e.target.checked)} />Instagram</label>
-                    <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-3 text-sm"><input type="checkbox" checked={messenger} onChange={(e) => setMessenger(e.target.checked)} />Messenger</label>
-                    <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-3 text-sm"><input type="checkbox" checked={audienceNetwork} onChange={(e) => setAudienceNetwork(e.target.checked)} />Audience Network</label>
+                  <div className="mt-4 space-y-3">
+                    {META_PLACEMENT_GROUPS.map((group) => {
+                      const enabled =
+                        group.key === 'facebook'
+                          ? facebook
+                          : group.key === 'instagram'
+                            ? instagram
+                            : group.key === 'messenger'
+                              ? messenger
+                              : audienceNetwork
+                      const setEnabled =
+                        group.key === 'facebook'
+                          ? setFacebook
+                          : group.key === 'instagram'
+                            ? setInstagram
+                            : group.key === 'messenger'
+                              ? setMessenger
+                              : setAudienceNetwork
+                      const positions =
+                        group.key === 'facebook'
+                          ? facebookPositions
+                          : group.key === 'instagram'
+                            ? instagramPositions
+                            : group.key === 'messenger'
+                              ? messengerPositions
+                              : audienceNetworkPositions
+                      const setPositions =
+                        group.key === 'facebook'
+                          ? setFacebookPositions
+                          : group.key === 'instagram'
+                            ? setInstagramPositions
+                            : group.key === 'messenger'
+                              ? setMessengerPositions
+                              : setAudienceNetworkPositions
+                      return (
+                        <div key={group.key} className="rounded-xl border border-slate-200 p-4">
+                          <label className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+                            {group.label}
+                          </label>
+                          {enabled && (
+                            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                              {group.positions.map(([value, label]) => (
+                                <label key={value} className="flex items-center gap-2 text-xs text-slate-600">
+                                  <input
+                                    type="checkbox"
+                                    checked={positions.includes(value)}
+                                    onChange={(e) =>
+                                      setPositions(
+                                        e.target.checked
+                                          ? [...new Set([...positions, value])]
+                                          : positions.filter((item) => item !== value),
+                                      )
+                                    }
+                                  />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                    <p className="text-xs text-slate-500">
+                      Leave a platform's individual positions empty to allow all eligible positions on that platform.
+                    </p>
                   </div>
                 )}
               </div>

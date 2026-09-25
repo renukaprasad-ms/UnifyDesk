@@ -3,16 +3,22 @@ package com.messaging.ads.campaign.controller;
 import com.messaging.ads.campaign.dto.CreateCampaignChannelRequest;
 import com.messaging.ads.campaign.dto.CreateReachlyoCampaignRequest;
 import com.messaging.ads.campaign.dto.ReachlyoCampaignResponse;
+import com.messaging.ads.campaign.dto.ReachlyoCampaignRecommendationsResponse;
+import com.messaging.ads.campaign.dto.ReachlyoCampaignAnalyticsResponse;
+import com.messaging.ads.campaign.dto.ReachlyoCampaignAnalyticsSyncResponse;
 import com.messaging.ads.campaign.dto.ReachlyoCampaignSummaryResponse;
 import com.messaging.ads.campaign.dto.UpdateCampaignChannelRequest;
 import com.messaging.ads.campaign.dto.UpdateReachlyoCampaignRequest;
 import com.messaging.ads.campaign.dto.UpsertBudgetPlanRequest;
 import com.messaging.ads.campaign.service.ReachlyoCampaignService;
+import com.messaging.ads.campaign.service.ReachlyoCampaignRecommendationService;
+import com.messaging.ads.campaign.service.ReachlyoCampaignAnalyticsService;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
 import com.messaging.security.service.CurrentUserService;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +34,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -36,6 +43,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class ReachlyoCampaignController {
 
   private final ReachlyoCampaignService campaignService;
+  private final ReachlyoCampaignAnalyticsService campaignAnalyticsService;
+  private final ReachlyoCampaignRecommendationService campaignRecommendationService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -83,6 +92,46 @@ public class ReachlyoCampaignController {
             200,
             campaignService.update(companyId, campaignId, request),
             "Reachlyo campaign updated"));
+  }
+
+  @GetMapping("/{campaignId}/analytics")
+  public ResponseEntity<ApiResponse<ReachlyoCampaignAnalyticsResponse>> analytics(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @RequestParam LocalDate from,
+      @RequestParam LocalDate to) {
+    require(companyId, CompanyPermissionKeys.ADS_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            campaignAnalyticsService.analytics(companyId, campaignId, from, to),
+            "Unified campaign analytics fetched"));
+  }
+
+  @GetMapping("/{campaignId}/recommendations")
+  public ResponseEntity<ApiResponse<ReachlyoCampaignRecommendationsResponse>> recommendations(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId) {
+    require(companyId, CompanyPermissionKeys.ADS_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            campaignRecommendationService.recommendations(companyId, campaignId),
+            "Unified campaign recommendations fetched"));
+  }
+
+  @PostMapping("/{campaignId}/analytics/sync")
+  public ResponseEntity<ApiResponse<ReachlyoCampaignAnalyticsSyncResponse>> syncAnalytics(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @RequestParam LocalDate from,
+      @RequestParam LocalDate to) {
+    require(companyId, CompanyPermissionKeys.ADS_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            campaignAnalyticsService.sync(companyId, campaignId, from, to),
+            "Unified campaign analytics synchronized"));
   }
 
   @PostMapping("/{campaignId}/archive")
