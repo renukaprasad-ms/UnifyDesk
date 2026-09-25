@@ -30,3 +30,18 @@ html{width:100%;min-width:320px;overflow-x:hidden}body{width:100%;min-width:320p
 .visualCanvas{height:220px;padding:22px}
 @media(max-width:850px){.featureList{width:calc(100% - 28px)!important}.featureList article{grid-template-columns:1fr;gap:28px;padding:48px 0}.featureCopy,.featureList article:nth-child(even) .featureCopy{max-width:none;justify-self:stretch}.featureVisual,.featureList article:nth-child(even) .featureVisual{max-width:none;justify-self:stretch}.visualCanvas{height:210px}}
 @media(max-width:520px){.featureList article{padding:40px 0;gap:24px}.visualCanvas{height:190px;padding:18px}.featureCopy h2{font-size:25px}}
+
+/* Product page: compact card grid instead of repetitive full-width rows */
+.productFeatures{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;max-width:1160px!important;width:min(100% - 40px,1160px)!important;padding:0 0 40px}
+.productFeatures article,.productFeatures article:nth-child(even){display:flex;flex-direction:column;gap:0;padding:30px;border:1px solid var(--line);border-radius:18px;background:#fff;min-height:430px;overflow:hidden}
+.productFeatures article:nth-child(even) .featureCopy,.productFeatures article:nth-child(even) .featureVisual{order:initial;justify-self:auto;width:auto}
+.productFeatures .featureCopy{max-width:none}
+.productFeatures .featureCopy h2{margin:14px 0 8px}
+.productFeatures .featureCopy>p{margin:0 0 14px;min-height:48px}
+.productFeatures .featureCopy .icon{margin-top:12px}
+.productFeatures .micro{display:inline-flex;margin:5px 14px 5px 0}
+.productFeatures .featureVisual,.productFeatures article:nth-child(even) .featureVisual{max-width:none;width:100%;margin-top:auto;box-shadow:none;border-radius:13px}
+.productFeatures .visualCanvas{height:145px;padding:16px}
+.productFeatures .visualCanvas div{height:30px;margin-bottom:9px}
+.productFeatures .visualTop{padding:12px 14px}
+@media(max-width:850px){.productFeatures{grid-template-columns:1fr;width:calc(100% - 28px)!important}.productFeatures article,.productFeatures article:nth-child(even){min-height:0;padding:24px}.productFeatures .featureCopy>p{min-height:0}.productFeatures .featureVisual{margin-top:22px}.productFeatures .visualCanvas{height:150px}}
