@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FiFilter, FiRefreshCw, FiSlash } from 'react-icons/fi'
+import { FiFilter, FiPlus, FiRefreshCw, FiSlash } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdCampaign,
@@ -63,6 +63,7 @@ export default function GoogleSearchTermReport({
   const [loading, setLoading] = useState(true)
   const [workingKey, setWorkingKey] = useState<string | null>(null)
   const [locallyExcluded, setLocallyExcluded] = useState<Set<string>>(new Set())
+  const [locallyPromoted, setLocallyPromoted] = useState<Set<string>>(new Set())
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -96,7 +97,8 @@ export default function GoogleSearchTermReport({
       if (
         normalized &&
         !row.searchTerm.toLowerCase().includes(normalized) &&
-        !(row.adGroupName ?? '').toLowerCase().includes(normalized)
+        !(row.adGroupName ?? '').toLowerCase().includes(normalized) &&
+        !(row.matchedKeyword ?? '').toLowerCase().includes(normalized)
       ) {
         return false
       }
@@ -126,8 +128,36 @@ export default function GoogleSearchTermReport({
       maximumFractionDigits: digits,
     }).format(value ?? 0)
 
-  const localKey = (row: GoogleSearchTermRow, scope: 'CAMPAIGN' | 'AD_GROUP') =>
+  const localKey = (row: GoogleSearchTermRow, scope: 'CAMPAIGN' | 'AD_GROUP' | 'PROMOTE') =>
     `${scope}|${row.externalAdGroupId}|${row.searchTerm.toLowerCase()}`
+
+  const promoteToKeyword = async (row: GoogleSearchTermRow) => {
+    if (!row.adGroupId) return
+    const key = localKey(row, 'PROMOTE')
+    setWorkingKey(key)
+    setError('')
+    setNotice('')
+    try {
+      await adCenterApi.createGoogleKeyword(companyId, row.adGroupId, {
+        text: row.searchTerm,
+        matchType,
+        negative: false,
+      })
+      setLocallyPromoted((current) => new Set([...current, key]))
+      setNotice(
+        `“${row.searchTerm}” added as a ${pretty(matchType).toLowerCase()} keyword in ${row.adGroupName ?? 'this ad group'}.`,
+      )
+    } catch (actionError) {
+      setError(
+        apiErrorMessage(
+          actionError,
+          'Unable to promote this search term to a keyword',
+        ),
+      )
+    } finally {
+      setWorkingKey(null)
+    }
+  }
 
   const addCampaignNegative = async (row: GoogleSearchTermRow) => {
     const key = localKey(row, 'CAMPAIGN')
@@ -283,7 +313,7 @@ export default function GoogleSearchTermReport({
           </select>
         </label>
         <label className="text-[11px] font-semibold text-slate-600">
-          Negative match type
+          Keyword / negative match type
           <select
             className="form-input mt-1"
             value={matchType}
@@ -313,8 +343,9 @@ export default function GoogleSearchTermReport({
 
       <div className="border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs text-slate-600">
         <strong>{filtered.length}</strong> of {report?.rows.length ?? 0} reported
-        queries shown. Exact negative is the safest default because Phrase/Broad
-        can block additional queries.
+        queries shown. Exact is the safest default for exclusions because
+        Phrase/Broad can block additional queries. The same selector is used when
+        promoting a search term to a keyword.
       </div>
 
       {loading ? (
@@ -328,16 +359,19 @@ export default function GoogleSearchTermReport({
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-[1180px] w-full text-left text-xs">
+          <table className="min-w-[1460px] w-full text-left text-xs">
             <thead className="bg-slate-50 text-slate-500">
               <tr>
                 <th className="px-4 py-3 font-semibold">Search term</th>
+                <th className="px-4 py-3 font-semibold">Matched by</th>
                 <th className="px-4 py-3 font-semibold">Ad group</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
                 <th className="px-4 py-3 text-right font-semibold">Spend</th>
+                <th className="px-4 py-3 text-right font-semibold">Impr.</th>
                 <th className="px-4 py-3 text-right font-semibold">Clicks</th>
                 <th className="px-4 py-3 text-right font-semibold">Conv.</th>
                 <th className="px-4 py-3 text-right font-semibold">CPA</th>
+                <th className="px-4 py-3 text-right font-semibold">ROAS</th>
                 <th className="px-4 py-3 text-right font-semibold">Conv. value</th>
                 <th className="px-4 py-3 font-semibold">Action</th>
               </tr>
@@ -346,7 +380,9 @@ export default function GoogleSearchTermReport({
               {filtered.map((row) => {
                 const campaignKey = localKey(row, 'CAMPAIGN')
                 const groupKey = localKey(row, 'AD_GROUP')
+                const promoteKey = localKey(row, 'PROMOTE')
                 const providerExcluded = excluded(row.targetingStatus)
+                const providerTargeted = row.targetingStatus === 'ADDED'
                 const reviewCandidate = row.clicks > 0 && row.conversions === 0
                 return (
                   <tr key={row.externalAdGroupId + '|' + row.searchTerm}>
@@ -359,6 +395,19 @@ export default function GoogleSearchTermReport({
                           Review · clicks with no conversions
                         </span>
                       )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-slate-700">
+                        {row.matchedKeyword ?? pretty(row.searchTermMatchSource)}
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-slate-400">
+                        {row.matchedKeywordMatchType
+                          ? `${pretty(row.matchedKeywordMatchType)} keyword`
+                          : pretty(row.searchTermMatchType)}
+                        {row.searchTermMatchSource
+                          ? ` · ${pretty(row.searchTermMatchSource)}`
+                          : ''}
+                      </p>
                     </td>
                     <td className="px-4 py-3 text-slate-600">
                       {row.adGroupName ?? row.externalAdGroupId}
@@ -379,6 +428,9 @@ export default function GoogleSearchTermReport({
                       {money(row.spend)}
                     </td>
                     <td className="px-4 py-3 text-right text-slate-600">
+                      {number(row.impressions)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-slate-600">
                       {number(row.clicks)}
                     </td>
                     <td className="px-4 py-3 text-right text-slate-600">
@@ -386,6 +438,9 @@ export default function GoogleSearchTermReport({
                     </td>
                     <td className="px-4 py-3 text-right text-slate-600">
                       {row.cpa == null ? '—' : money(row.cpa)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-slate-600">
+                      {row.roas == null ? '—' : number(row.roas, 2) + '×'}
                     </td>
                     <td className="px-4 py-3 text-right text-slate-600">
                       {money(row.conversionValue)}
@@ -397,20 +452,20 @@ export default function GoogleSearchTermReport({
                         </span>
                       ) : (
                         <div className="flex flex-wrap gap-2">
-                          {canModify && (
+                          {canCreate && row.adGroupId && !providerTargeted && (
                             <button
                               type="button"
                               className="secondary-button inline-flex items-center gap-1"
                               disabled={
                                 workingKey !== null ||
-                                locallyExcluded.has(campaignKey)
+                                locallyPromoted.has(promoteKey)
                               }
-                              onClick={() => void addCampaignNegative(row)}
+                              onClick={() => void promoteToKeyword(row)}
                             >
-                              <FiSlash aria-hidden="true" />
-                              {locallyExcluded.has(campaignKey)
-                                ? 'Campaign blocked'
-                                : 'Block campaign'}
+                              <FiPlus aria-hidden="true" />
+                              {locallyPromoted.has(promoteKey)
+                                ? 'Keyword added'
+                                : 'Promote keyword'}
                             </button>
                           )}
                           {canCreate && row.adGroupId && (
@@ -427,6 +482,22 @@ export default function GoogleSearchTermReport({
                               {locallyExcluded.has(groupKey)
                                 ? 'Ad group blocked'
                                 : 'Block ad group'}
+                            </button>
+                          )}
+                          {canModify && (
+                            <button
+                              type="button"
+                              className="secondary-button inline-flex items-center gap-1"
+                              disabled={
+                                workingKey !== null ||
+                                locallyExcluded.has(campaignKey)
+                              }
+                              onClick={() => void addCampaignNegative(row)}
+                            >
+                              <FiSlash aria-hidden="true" />
+                              {locallyExcluded.has(campaignKey)
+                                ? 'Campaign blocked'
+                                : 'Block campaign'}
                             </button>
                           )}
                         </div>
