@@ -145,7 +145,7 @@ public class CreativePackService {
     variant.setDescriptionsJson(jsonNullable(request.descriptions()));
     variant.setCallToAction(normalizeText(request.callToAction()));
     variant.setDestinationUrl(normalizeText(request.destinationUrl()));
-    variant.setAssetSpecJson(normalizeJson(request.assetSpecJson()));
+    variant.setAssetSpecJson(normalizeAndValidateAssetSpec(companyId, request.assetSpecJson()));
     variantRepository.save(variant);
     return CreativeVariantResponse.from(variant);
   }
@@ -176,7 +176,9 @@ public class CreativePackService {
     if (request.descriptions() != null) variant.setDescriptionsJson(json(request.descriptions()));
     if (request.callToAction() != null) variant.setCallToAction(normalizeText(request.callToAction()));
     if (request.destinationUrl() != null) variant.setDestinationUrl(normalizeText(request.destinationUrl()));
-    if (request.assetSpecJson() != null) variant.setAssetSpecJson(normalizeJson(request.assetSpecJson()));
+    if (request.assetSpecJson() != null) {
+      variant.setAssetSpecJson(normalizeAndValidateAssetSpec(companyId, request.assetSpecJson()));
+    }
     variantRepository.save(variant);
     return CreativeVariantResponse.from(variant);
   }
@@ -310,6 +312,38 @@ public class CreativePackService {
       return objectMapper.writeValueAsString(value);
     } catch (JsonProcessingException exception) {
       throw new BadRequestException("Unable to serialize creative configuration");
+    }
+  }
+
+  private String normalizeAndValidateAssetSpec(Long companyId, String value) {
+    String normalized = normalizeJson(value);
+    if (normalized == null) return null;
+    try {
+      var node = objectMapper.readTree(normalized);
+      var mediaIdNode = node.get("mediaId");
+      if (mediaIdNode == null || mediaIdNode.isNull()) return normalized;
+
+      String mediaIdText =
+          mediaIdNode.isNumber() ? mediaIdNode.asText() : mediaIdNode.asText(null);
+      if (mediaIdText == null || !mediaIdText.matches("\\d+")) {
+        throw new BadRequestException("Creative variant mediaId must be a valid media ID");
+      }
+      Media media =
+          mediaRepository
+              .findByIdAndCompanyId(Long.valueOf(mediaIdText), companyId)
+              .orElseThrow(() -> new NotFoundException("Creative variant media not found"));
+      if (media.getStatus() != MediaStatus.ACTIVE) {
+        throw new BadRequestException("Creative variant media must be ACTIVE");
+      }
+      if (media.getPurpose() != MediaPurpose.AD_CREATIVE) {
+        throw new BadRequestException("Creative variant media must use AD_CREATIVE purpose");
+      }
+      if (media.getMediaType() != MediaType.IMAGE && media.getMediaType() != MediaType.VIDEO) {
+        throw new BadRequestException("Creative variant media must be an image or video");
+      }
+      return normalized;
+    } catch (JsonProcessingException exception) {
+      throw new BadRequestException("Creative asset specification must be valid JSON");
     }
   }
 
