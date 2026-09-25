@@ -144,6 +144,9 @@ class MetaAdsCreativeMutationServiceTests {
             new MetaAdsTokenService.TokenValue(
                 new MetaAdsStoredToken("token", "bearer", "v26.0", "meta-user"), null));
 
+    when(apiClient.uploadVideoFromUrl(
+            "token", "123456", "https://cdn.example.com/story.mp4"))
+        .thenReturn("video-1");
     ArgumentCaptor<Map<String, Object>> payload = ArgumentCaptor.forClass(Map.class);
     when(apiClient.createCreative(eq("token"), eq("123456"), payload.capture()))
         .thenReturn("creative-placement");
@@ -206,8 +209,8 @@ class MetaAdsCreativeMutationServiceTests {
                         "Story title",
                         "Story description",
                         "https://example.com/story",
-                        "IMAGE",
-                        "https://cdn.example.com/story.jpg"))));
+                        "VIDEO",
+                        "https://cdn.example.com/story.mp4"))));
 
     assertThat(response.externalCreativeId()).isEqualTo("creative-placement");
 
@@ -215,6 +218,12 @@ class MetaAdsCreativeMutationServiceTests {
     Map<String, Object> assetFeed =
         (Map<String, Object>) payload.getValue().get("asset_feed_spec");
     assertThat(assetFeed.get("optimization_type")).isEqualTo("PLACEMENT");
+    assertThat(assetFeed.get("ad_formats"))
+        .isEqualTo(List.of("SINGLE_IMAGE", "SINGLE_VIDEO"));
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> videos =
+        (List<Map<String, Object>>) assetFeed.get("videos");
+    assertThat(videos).singleElement().satisfies(video -> assertThat(video.get("video_id")).isEqualTo("video-1"));
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> rules =
         (List<Map<String, Object>>) assetFeed.get("asset_customization_rules");
@@ -225,6 +234,7 @@ class MetaAdsCreativeMutationServiceTests {
     assertThat(firstSpec.get("facebook_positions")).isEqualTo(List.of("feed"));
     assertThat(firstSpec.get("instagram_positions")).isEqualTo(List.of("stream"));
     assertThat(rules.getFirst()).containsKeys("image_label", "body_label", "title_label", "link_url_label");
+    assertThat(rules.get(1)).containsKey("video_label");
   }
 
   @Test
