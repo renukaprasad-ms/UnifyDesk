@@ -7,6 +7,20 @@ export type RealtimeEnvelope<T = unknown> = {
 type Listener<T = unknown> = (event: RealtimeEnvelope<T>) => void
 type ConnectionListener = (connected: boolean) => void
 
+const realtimeWebSocketUrl = () => {
+  const configuredBaseURL = import.meta.env.VITE_API_BASE_URL?.trim()
+  const httpBase =
+    configuredBaseURL && /^https?:\/\//i.test(configuredBaseURL)
+      ? configuredBaseURL
+      : window.location.origin
+  const base = new URL(httpBase, window.location.origin)
+  base.protocol = base.protocol === 'https:' ? 'wss:' : 'ws:'
+  base.pathname = '/api/v1/realtime/ws'
+  base.search = 'platform=WEB'
+  base.hash = ''
+  return base.toString()
+}
+
 class RealtimeClient {
   private socket: WebSocket | null = null
   private listeners = new Map<string, Set<Listener>>()
@@ -25,8 +39,7 @@ class RealtimeClient {
       return
 
     this.stopped = false
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const url = `${protocol}//${window.location.host}/api/v1/realtime/ws?platform=WEB`
+    const url = realtimeWebSocketUrl()
     const socket = new WebSocket(url)
     this.socket = socket
 
