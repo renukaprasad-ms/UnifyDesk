@@ -5,7 +5,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: messaging.renukaprasad.in
+    - host: unifydesk.in
       http:
         paths:
           - path: /
@@ -16,7 +16,7 @@ spec:
                 port:
                   number: 80
 
-    - host: api-messaging.renukaprasad.in
+    - host: api-unifydesk.in
       http:
         paths:
           - path: /

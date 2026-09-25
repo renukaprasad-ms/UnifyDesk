@@ -97,7 +97,7 @@ app:
   realtime:
     redis-channel: ${REALTIME_REDIS_CHANNEL:messaging:realtime}
     heartbeat-interval-ms: ${REALTIME_HEARTBEAT_INTERVAL_MS:30000}
-    allowed-origins: ${REALTIME_ALLOWED_ORIGINS:https://messaging.renukaprasad.in}
+    allowed-origins: ${REALTIME_ALLOWED_ORIGINS:https://app.unifydesk.in}
   broadcast:
     member-write-batch-size: ${BROADCAST_MEMBER_WRITE_BATCH_SIZE:500}
     snapshot-batch-size: ${BROADCAST_SNAPSHOT_BATCH_SIZE:100}
@@ -112,7 +112,7 @@ app:
     outbox-poll-interval-ms: ${BROADCAST_OUTBOX_POLL_INTERVAL_MS:250}
     outbox-stale-after: ${BROADCAST_OUTBOX_STALE_AFTER:2m}
     outbox-max-attempts: ${BROADCAST_OUTBOX_MAX_ATTEMPTS:20}
-    message-id-domain: ${BROADCAST_MESSAGE_ID_DOMAIN:messaging.renukaprasad.in}
+    message-id-domain: ${BROADCAST_MESSAGE_ID_DOMAIN:unifydesk.in}
     ses-max-per-second-cap: ${BROADCAST_SES_MAX_PER_SECOND_CAP:1000}
     send-grid-max-per-second-cap: ${BROADCAST_SENDGRID_MAX_PER_SECOND_CAP:20}
     azure-email-max-per-second-cap: ${BROADCAST_AZURE_EMAIL_MAX_PER_SECOND_CAP:0.5}
@@ -179,8 +179,8 @@ app:
       enabled: ${GMAIL_OAUTH_ENABLED:false}
       client-id: ${GMAIL_OAUTH_CLIENT_ID:}
       client-secret: ${GMAIL_OAUTH_CLIENT_SECRET:}
-      redirect-uri: ${GMAIL_OAUTH_REDIRECT_URI:https://messaging.renukaprasad.in/api/v1/oauth/gmail/callback}
-      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://messaging.renukaprasad.in}
+      redirect-uri: ${GMAIL_OAUTH_REDIRECT_URI:https://api.unifydesk.in/api/v1/oauth/gmail/callback}
+      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
       scope: ${GMAIL_OAUTH_SCOPE:https://www.googleapis.com/auth/gmail.modify}
       oauth-state-ttl: ${GMAIL_OAUTH_STATE_TTL:10m}
       token-refresh-skew: ${GMAIL_OAUTH_TOKEN_REFRESH_SKEW:2m}
@@ -249,9 +249,9 @@ app:
       tenant: ${MICROSOFT_OAUTH_TENANT:common}
       client-id: ${MICROSOFT_OAUTH_CLIENT_ID:}
       client-secret: ${MICROSOFT_OAUTH_CLIENT_SECRET:}
-      redirect-uri: ${MICROSOFT_OAUTH_REDIRECT_URI:https://messaging.renukaprasad.in/api/v1/oauth/microsoft/callback}
-      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://messaging.renukaprasad.in}
-      webhook-notification-url: ${MICROSOFT_WEBHOOK_NOTIFICATION_URL:https://messaging.renukaprasad.in/api/v1/webhooks/microsoft}
+      redirect-uri: ${MICROSOFT_OAUTH_REDIRECT_URI:https://api.unifydesk.in/api/v1/oauth/microsoft/callback}
+      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
+      webhook-notification-url: ${MICROSOFT_WEBHOOK_NOTIFICATION_URL:https://api.unifydesk.in/api/v1/webhooks/microsoft}
       scope: ${MICROSOFT_OAUTH_SCOPE:openid profile email offline_access User.Read Mail.ReadWrite Mail.Send}
       oauth-state-ttl: ${MICROSOFT_OAUTH_STATE_TTL:10m}
       token-refresh-skew: ${MICROSOFT_OAUTH_TOKEN_REFRESH_SKEW:2m}
@@ -277,8 +277,8 @@ app:
       enabled: ${META_ADS_ENABLED:false}
       app-id: ${META_ADS_APP_ID:}
       app-secret: ${META_ADS_APP_SECRET:}
-      redirect-uri: ${META_ADS_REDIRECT_URI:https://messaging.renukaprasad.in/api/v1/oauth/meta-ads/callback}
-      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://messaging.renukaprasad.in}
+      redirect-uri: ${META_ADS_REDIRECT_URI:https://api.unifydesk.in/api/v1/oauth/meta-ads/callback}
+      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
       graph-api-version: ${META_ADS_GRAPH_API_VERSION:v26.0}
       scope: ${META_ADS_SCOPE:ads_management,business_management,pages_show_list,pages_read_engagement,instagram_basic}
       oauth-state-ttl: ${META_ADS_OAUTH_STATE_TTL:10m}
@@ -287,8 +287,8 @@ app:
       enabled: ${GOOGLE_ADS_ENABLED:false}
       client-id: ${GOOGLE_ADS_CLIENT_ID:}
       client-secret: ${GOOGLE_ADS_CLIENT_SECRET:}
-      redirect-uri: ${GOOGLE_ADS_REDIRECT_URI:https://messaging.renukaprasad.in/api/v1/oauth/google-ads/callback}
-      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://messaging.renukaprasad.in}
+      redirect-uri: ${GOOGLE_ADS_REDIRECT_URI:https://api.unifydesk.in/api/v1/oauth/google-ads/callback}
+      frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
       api-version: ${GOOGLE_ADS_API_VERSION:v25}
       scope: ${GOOGLE_ADS_SCOPE:openid email profile https://www.googleapis.com/auth/adwords https://www.googleapis.com/auth/datamanager https://www.googleapis.com/auth/content}
       developer-token: ${GOOGLE_ADS_DEVELOPER_TOKEN:}
@@ -313,7 +313,7 @@ app:
     email:
       from: ${SMTP_FROM:${SMTP_USERNAME:}}
   invitation:
-    frontend-base-url: ${APP_FRONTEND_BASE_URL:https://messaging.renukaprasad.in}
+    frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
     expiry: ${APP_INVITATION_EXPIRY:72h}
   storage:
     reconciliation:
