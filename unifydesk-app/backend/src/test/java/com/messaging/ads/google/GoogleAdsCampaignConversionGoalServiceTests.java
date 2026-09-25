@@ -44,18 +44,37 @@ class GoogleAdsCampaignConversionGoalServiceTests {
 
     when(apiClient.searchRows(
             eq("token"), eq("1234567890"), eq("9999999999"), anyString()))
-        .thenReturn(
-            List.of(
-                objectMapper.readTree(
-                    """
-                    {
-                      "customer": {
-                        "conversionTrackingSetting": {
-                          "googleAdsConversionCustomer": "customers/5555555555"
+        .thenAnswer(
+            invocation -> {
+              String query = invocation.getArgument(3);
+              if (query.contains("conversion_tracking_setting")) {
+                return List.of(
+                    objectMapper.readTree(
+                        """
+                        {
+                          "customer": {
+                            "conversionTrackingSetting": {
+                              "googleAdsConversionCustomer": "customers/5555555555"
+                            }
+                          }
                         }
-                      }
-                    }
-                    """)));
+                        """));
+              }
+              if (query.contains("campaign_conversion_goal")) {
+                return List.of(
+                    objectMapper.readTree(
+                        """
+                        {
+                          "campaignConversionGoal": {
+                            "resourceName":
+                              "customers/1234567890/campaignConversionGoals/444~LEAD~WEBSITE",
+                            "biddable": true
+                          }
+                        }
+                        """));
+              }
+              return List.of();
+            });
 
     when(apiClient.searchRows(
             eq("token"), eq("5555555555"), eq("9999999999"), anyString()))
@@ -94,6 +113,7 @@ class GoogleAdsCampaignConversionGoalServiceTests {
     assertThat(result.created()).isTrue();
     assertThat(result.customConversionGoalResource())
         .isEqualTo("customers/5555555555/customConversionGoals/333");
+    assertThat(result.disabledCampaignGoals()).isEqualTo(1);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<Map<String, Object>>> operations =
@@ -108,6 +128,22 @@ class GoogleAdsCampaignConversionGoalServiceTests {
     assertThat(operations.getValue()).hasSize(1);
     assertThat(operations.getValue().getFirst().get("updateMask"))
         .isEqualTo("custom_conversion_goal");
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<Map<String, Object>>> campaignGoalOperations =
+        ArgumentCaptor.forClass(List.class);
+    verify(apiClient)
+        .mutate(
+            eq("token"),
+            eq("1234567890"),
+            eq("9999999999"),
+            eq("campaignConversionGoals"),
+            campaignGoalOperations.capture());
+    assertThat(campaignGoalOperations.getValue()).hasSize(1);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> disabledGoal =
+        (Map<String, Object>) campaignGoalOperations.getValue().getFirst().get("update");
+    assertThat(disabledGoal.get("biddable")).isEqualTo(false);
   }
 
   @Test
