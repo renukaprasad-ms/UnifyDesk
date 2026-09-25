@@ -1479,11 +1479,13 @@ Never silently drop targeting.
 
 ## X-07 Unified conversion mapping - P0/P1
 
+Status: **core provider mapping complete**. A Reachlyo Campaign selects one business outcome, then stores a provider/account-specific ConversionGoalMapping for that same business goal. Synced Google conversion actions and Meta custom conversions retain their normalized provider category/event for goal-aware recommendations and review warnings. Meta also supports validated standard promoted-object events with a selected Pixel. Google Search launch creates/reuses a CustomConversionGoal in the effective Google Ads conversion customer and attaches it to the provider campaign through ConversionGoalCampaignConfig. Historical mappings remain scoped to the business goal that created them so changing a campaign goal cannot silently reuse the prior mapping.
+
 A campaign should select a business outcome once.
 
 Map that outcome to provider measurement objects.
 
-Eventually Reachlyo-owned messaging/CRM events should feed provider offline/enhanced conversion systems where lawful and configured.
+Eventually Reachlyo-owned messaging/CRM events should feed provider offline/enhanced conversion systems where lawful and configured. That event-ingestion/offline feedback loop remains future full-funnel attribution work rather than part of B6.
 
 ## X-08 Cross-provider reporting - P1
 
@@ -1942,7 +1944,7 @@ B2. [x] Google negative keywords/shared negatives — ad-group negative create/r
 B3. [x] Meta detailed geo targeting — provider geo search, regions/cities/postal codes, coordinate radius targeting, home/recent location types, native create/edit UI, canonical mapping, and launch preflight resolution  
 B4. [x] Meta proper placement tree — structured Facebook/Instagram/Messenger/Audience Network positions, native create/edit/read-back, unified launch mapping, capability exposure, and compiler placement warnings  
 B5. [x] placement-specific Creative Pack variants — Feed/Story/Reel copy + image/video variants, validated AD_CREATIVE media, single-family launch selection, mixed-placement Meta asset_feed_spec PLACEMENT customization, and safe canonical fallback for unsupported/unmodeled placement families  
-B6. unified conversion mapping  
+B6. [x] unified conversion mapping — one business goal with provider/account mappings, goal-aware defaults and mismatch warnings, Meta custom-conversion/validated standard-event execution, and Google CustomConversionGoal + ConversionGoalCampaignConfig launch execution  
 B7. cross-provider campaign analytics  
 B8. search-term reporting  
 B9. campaign-level recommendation improvements
@@ -2037,6 +2039,12 @@ Search:
 
 - https://developers.google.com/google-ads/api/docs/campaigns/search-campaigns/getting-started
 
+Conversion goals:
+
+- https://developers.google.com/google-ads/api/docs/conversions/goals/overview
+- https://developers.google.com/google-ads/api/docs/conversions/goals/campaign-goals
+- https://developers.google.com/google-ads/api/docs/conversions/getting-started
+
 AI Max:
 
 - https://developers.google.com/google-ads/api/docs/campaigns/ai-max-for-search-campaigns/getting-started
@@ -2104,6 +2112,7 @@ Official Meta Marketing API Postman workspace:
 Official Meta Business SDK schema/codegen (used to verify asset_feed_spec and placement customization fields):
 
 - https://github.com/facebook/facebook-business-sdk-codegen/tree/main/api_specs/specs
+- https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adpromotedobject.py
 
 Official Meta generative creative collection:
 
