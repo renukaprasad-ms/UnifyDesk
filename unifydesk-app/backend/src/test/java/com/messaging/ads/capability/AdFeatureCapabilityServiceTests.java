@@ -86,8 +86,9 @@ class AdFeatureCapabilityServiceTests {
             .filter(item -> item.feature() == AdFeatureCapability.GOOGLE_FORECAST)
             .findFirst()
             .orElseThrow();
-    assertThat(forecast.implemented()).isFalse();
-    assertThat(forecast.availability()).isEqualTo(AdFeatureAvailability.PLANNED);
+    assertThat(forecast.implemented()).isTrue();
+    assertThat(forecast.supported()).isTrue();
+    assertThat(forecast.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
   }
 
   @Test
