@@ -331,6 +331,7 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
         Map.of(
             "created", result.created(),
             "updated", result.updated(),
+            "disabledCampaignGoals", result.disabledCampaignGoals(),
             "customConversionGoalResource", result.customConversionGoalResource()));
   }
 
