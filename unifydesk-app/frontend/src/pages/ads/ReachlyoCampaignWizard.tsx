@@ -358,6 +358,15 @@ export default function ReachlyoCampaignWizard() {
   const [googleGeoMode, setGoogleGeoMode] = useState<
     'PRESENCE' | 'PRESENCE_OR_INTEREST'
   >('PRESENCE_OR_INTEREST')
+  const [googleAiMaxEnabled, setGoogleAiMaxEnabled] = useState(false)
+  const [googleAiMaxTextCustomization, setGoogleAiMaxTextCustomization] =
+    useState(false)
+  const [googleAiMaxFinalUrlExpansion, setGoogleAiMaxFinalUrlExpansion] =
+    useState(false)
+  const [
+    googleAiMaxDisableSearchTermMatching,
+    setGoogleAiMaxDisableSearchTermMatching,
+  ] = useState(false)
   const [googleAdSchedules, setGoogleAdSchedules] = useState<GoogleAdScheduleDraft[]>([])
   const [googleNegativeKeywords, setGoogleNegativeKeywords] = useState<GoogleNegativeKeywordInput[]>([])
   const [googleNegativeKeywordLists, setGoogleNegativeKeywordLists] =
@@ -530,6 +539,16 @@ export default function ReachlyoCampaignWizard() {
       ) {
         setGoogleGeoMode(override.positiveGeoTargetType)
       }
+      setGoogleAiMaxEnabled(override.aiMaxEnabled === true)
+      setGoogleAiMaxTextCustomization(
+        override.aiMaxTextCustomizationEnabled === true,
+      )
+      setGoogleAiMaxFinalUrlExpansion(
+        override.aiMaxFinalUrlExpansionEnabled === true,
+      )
+      setGoogleAiMaxDisableSearchTermMatching(
+        override.aiMaxDisableSearchTermMatching === true,
+      )
       const savedSchedules = Array.isArray(override.adSchedules)
         ? override.adSchedules
         : []
@@ -1167,6 +1186,13 @@ export default function ReachlyoCampaignWizard() {
             targetSearchNetwork: googleSearchPartners,
             targetContentNetwork: googleContentNetwork,
             positiveGeoTargetType: googleGeoMode,
+            aiMaxEnabled: googleAiMaxEnabled,
+            aiMaxTextCustomizationEnabled:
+              googleAiMaxEnabled && googleAiMaxTextCustomization,
+            aiMaxFinalUrlExpansionEnabled:
+              googleAiMaxEnabled && googleAiMaxFinalUrlExpansion,
+            aiMaxDisableSearchTermMatching:
+              googleAiMaxEnabled && googleAiMaxDisableSearchTermMatching,
             adSchedules: googleAdSchedules,
             negativeKeywords: googleNegativeKeywords
               .map((keyword) => ({
@@ -2409,6 +2435,22 @@ export default function ReachlyoCampaignWizard() {
                   setGoogleContentNetwork={setGoogleContentNetwork}
                   googleGeoMode={googleGeoMode}
                   setGoogleGeoMode={setGoogleGeoMode}
+                  googleAiMaxEnabled={googleAiMaxEnabled}
+                  setGoogleAiMaxEnabled={setGoogleAiMaxEnabled}
+                  googleAiMaxTextCustomization={googleAiMaxTextCustomization}
+                  setGoogleAiMaxTextCustomization={
+                    setGoogleAiMaxTextCustomization
+                  }
+                  googleAiMaxFinalUrlExpansion={googleAiMaxFinalUrlExpansion}
+                  setGoogleAiMaxFinalUrlExpansion={
+                    setGoogleAiMaxFinalUrlExpansion
+                  }
+                  googleAiMaxDisableSearchTermMatching={
+                    googleAiMaxDisableSearchTermMatching
+                  }
+                  setGoogleAiMaxDisableSearchTermMatching={
+                    setGoogleAiMaxDisableSearchTermMatching
+                  }
                   googleAdSchedules={googleAdSchedules}
                   setGoogleAdSchedules={setGoogleAdSchedules}
                   googleNegativeKeywords={googleNegativeKeywords}
