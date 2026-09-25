@@ -60,6 +60,7 @@ import type {
   GoogleAsset,
   GoogleReusableAsset,
   CreateGoogleReusableAssetInput,
+  CreateGoogleAdvancedReusableAssetInput,
   GoogleAssetLinkLevel,
   GoogleReusableAssetLink,
   GoogleUrlOptions,
@@ -155,6 +156,18 @@ export const adCenterApi = {
   ) {
     const response = await apiClient.post<ApiResponse<GoogleReusableAsset>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/reusable-assets`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleAdvancedReusableAsset(
+    companyId: string,
+    accountId: string,
+    input: CreateGoogleAdvancedReusableAssetInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleReusableAsset>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/reusable-assets/advanced`,
       input,
     )
     return unwrap(response.data)
