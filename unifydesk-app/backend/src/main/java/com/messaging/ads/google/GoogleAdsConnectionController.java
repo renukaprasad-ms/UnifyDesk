@@ -60,6 +60,7 @@ import com.messaging.ads.google.dto.DeleteGoogleMerchantProductRequest;
 import com.messaging.ads.google.dto.GoogleRecommendationActionRequest;
 import com.messaging.ads.google.dto.GoogleRecommendationActionResponse;
 import com.messaging.ads.google.dto.GoogleSearchTermReportResponse;
+import com.messaging.ads.google.dto.GoogleAiMaxCombinationReportResponse;
 import com.messaging.ads.google.dto.GoogleAssetResponse;
 import com.messaging.ads.google.dto.UpdateGoogleAdGroupRequest;
 import com.messaging.ads.google.dto.UpdateGoogleCampaignRequest;
@@ -100,6 +101,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsConversionMutationService conversionMutationService;
   private final GoogleAdsInsightSyncService insightSyncService;
   private final GoogleAdsSearchTermService searchTermService;
+  private final GoogleAdsAiMaxReportingService aiMaxReportingService;
   private final GoogleAdsInsightBreakdownSyncService insightBreakdownSyncService;
   private final GoogleAdsHealthService healthService;
   private final GoogleAdsBillingService billingService;
@@ -803,6 +805,20 @@ public class GoogleAdsConnectionController {
             200,
             insightSyncService.sync(companyId, accountId, from, to),
             "Google Ads analytics synchronized"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/ai-max/report")
+  public ResponseEntity<ApiResponse<GoogleAiMaxCombinationReportResponse>> aiMaxReport(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @RequestParam LocalDate from,
+      @RequestParam LocalDate to) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            aiMaxReportingService.report(companyId, campaignId, from, to),
+            "Google AI Max report fetched"));
   }
 
   @GetMapping("/campaigns/{campaignId}/search-terms")
