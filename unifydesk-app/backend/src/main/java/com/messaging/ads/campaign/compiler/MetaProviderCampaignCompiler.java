@@ -110,6 +110,26 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
                 "conversion",
                 "The Meta standard event name will be validated against the provider during deployment preflight."));
       }
+
+      if (context.conversionGoalMapping() != null
+          && ConversionGoalCompatibility.shouldWarn(
+              context.campaign().getBusinessGoal(),
+              context.channel().getProvider(),
+              context.conversionGoalMapping().getProviderEventName())) {
+        issues.add(
+            ProviderCampaignPlanSupport.warning(
+                "CONVERSION_GOAL_MISMATCH",
+                "conversion",
+                "The selected Meta conversion event "
+                    + context.conversionGoalMapping().getProviderEventName()
+                    + " does not closely match business goal "
+                    + context.campaign().getBusinessGoal()
+                    + ". Typical matches: "
+                    + ConversionGoalCompatibility.recommendedLabel(
+                        context.campaign().getBusinessGoal(),
+                        context.channel().getProvider())
+                    + "."));
+      }
     }
 
     addOperations(context, effectiveBudget, audienceMappingStatus, operations);
