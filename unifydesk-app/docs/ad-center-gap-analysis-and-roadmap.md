@@ -987,31 +987,62 @@ Reference:
 
 ## G-06 Google assets/extensions - P1
 
-Build a complete reusable asset layer.
+Status: **in progress — reusable extension core implemented**.
 
-Include supported Google campaign assets such as:
+Implemented reusable Google asset library:
 
-- sitelinks
-- callouts
-- structured snippets
-- images
-- promotion assets
-- price assets
-- business information assets
-- lead-form related assets where public API/account eligibility allows
-- tracking templates
-- final URL suffix/custom params
+- [x] advertiser-created Sitelinks
+- [x] Callouts
+- [x] Structured Snippets
+- [x] Call assets
+- [x] Price assets with 3–8 offerings, language, type, qualifier, currency/unit and final URLs
+- [x] Promotion assets with percentage or money-off discounts, modifier, code, occasion/language and final URL
+- [x] Lead Form assets with business/CTA/form copy, privacy policy, standard contact fields and post-submit configuration
+- [x] provider read-back filters out automatically-created assets so Google text-customization output is not presented as an advertiser-managed reusable asset
 
-Support association at appropriate level:
+Association layer:
 
-- customer
-- campaign
-- ad group
+- [x] CustomerAsset attach/detach for supported reusable extensions
+- [x] CampaignAsset attach/detach
+- [x] AdGroupAsset attach/detach
+- [x] idempotent association checks before create
+- [x] detach removes the exact provider resource returned by Google rather than reconstructing composite resource names
+- [x] Lead Form association is hard-limited to CampaignAsset, matching Google's current public API support
+- [x] local campaign/ad-group ownership/account/access checks before provider mutation
+- [x] activity audit for create/attach/detach
+
+Upgraded URL controls:
+
+- [x] customer tracking template + final URL suffix using the dedicated Google Customer mutate endpoint
+- [x] campaign tracking template + final URL suffix + custom parameters
+- [x] ad-group tracking template + final URL suffix + custom parameters
+- [x] Sitelink asset-level final URL/mobile URL/tracking template/final URL suffix/custom parameters
+- [x] maximum eight custom parameters with provider-compatible key/value validation
+
+UI:
+
+- [x] one reusable manager on native Google campaign and ad-group detail pages
+- [x] Account defaults / Campaign / Ad-group scope tabs
+- [x] create and reuse assets instead of cloning one asset per campaign
+- [x] attach/detach state, loading/error/empty states and responsive layout
+- [x] advanced Call/Price/Promotion/Lead Form creation
+- [x] URL option inheritance editing at the selected scope
+
+Remaining before C4 can be marked complete:
+
+- [ ] campaign/ad-group `AD_IMAGE` reusable image assets
+- [ ] Business Name and Business Logo identity assets, whose underlying Asset types (TEXT/IMAGE) differ from their link field types
+- [ ] account/campaign eligibility UX for identity/lead-form restrictions beyond provider validation
+- [ ] final build/provider payload verification after the special image/business-identity path lands
+
+Google's current asset model creates an `Asset` once and associates it through `CustomerAsset`, `CampaignAsset`, or `AdGroupAsset` where that asset field type is supported. Lead Forms are campaign-only. Automatically-created assets are deliberately excluded from the reusable management surface because Google marks them as system-generated/non-editable.
 
 Reference:
 
 - https://developers.google.com/google-ads/api/docs/assets/overview
+- https://developers.google.com/google-ads/api/samples/add-lead-form-asset
 - https://developers.google.com/google-ads/api/docs/ads/upgraded-urls/supported-entities
+- https://developers.google.com/google-ads/api/fields/v25/asset
 
 ## G-07 Google AI asset generation - P1
 
@@ -2024,7 +2055,7 @@ B9. [x] campaign-level recommendation improvements — unified deployment/provid
 C1. [x] AI Max for Search — campaign/ad-group AI Max controls, text and URL automation, text restrictions, retry-safe page-feed inclusions and URL exclusions, verified brand lists, match-source + combination reporting, migration read-back, capability/preflight/audit/UI/tests  
 C2. [x] Keyword Planner — v25 idea + historical-metrics service, URL/keyword/site seeds, geo/language/network targeting, competition/bid/monthly metrics, concept themes, Redis caching, selectable Search-intent UI, RBAC/audit/tests  
 C3. [x] forecasts — v25 planless keyword forecast API, date horizon, match types, Manual CPC / Maximize Clicks / Maximize Conversions, geo/language reuse, one-hour cache, estimate-only UI, capability/audit/tests  
-C4. reusable Google campaign assets/extensions  
+C4. [~] reusable Google campaign assets/extensions — Sitelink/Callout/Structured Snippet/Call/Price/Promotion/Lead Form library, customer/campaign/ad-group association, URL options, audit/RBAC and responsive manager are implemented; AD_IMAGE + business identity assets remain  
 C5. PMax URL/automation updates  
 C6. Google AI asset generation where eligible  
 C7. Demand Gen targeting completeness  
