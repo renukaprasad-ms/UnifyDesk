@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.ads.campaign.dto.AudienceLocationInput;
 import com.messaging.ads.enums.AdProvider;
+import com.messaging.ads.google.dto.GoogleKeywordForecastRequest;
+import com.messaging.ads.google.dto.GoogleKeywordForecastResponse;
 import com.messaging.ads.google.dto.GoogleKeywordPlannerHistoricalRequest;
 import com.messaging.ads.google.dto.GoogleKeywordPlannerIdeasRequest;
 import com.messaging.ads.google.dto.GoogleKeywordPlannerResponse;
@@ -13,6 +15,7 @@ import com.messaging.common.exception.BadRequestException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -35,6 +38,7 @@ public class GoogleAdsKeywordPlannerService {
 
   private static final Duration IDEA_CACHE_TTL = Duration.ofHours(6);
   private static final Duration HISTORICAL_CACHE_TTL = Duration.ofHours(24);
+  private static final Duration FORECAST_CACHE_TTL = Duration.ofHours(1);
   private static final Set<String> NETWORKS =
       Set.of("GOOGLE_SEARCH", "GOOGLE_SEARCH_AND_PARTNERS");
 
@@ -88,7 +92,8 @@ public class GoogleAdsKeywordPlannerService {
     }
 
     String cacheKey = cacheKey("ideas", accountId, body);
-    GoogleKeywordPlannerResponse cached = readCache(cacheKey);
+    GoogleKeywordPlannerResponse cached =
+        readCache(cacheKey, GoogleKeywordPlannerResponse.class);
     if (cached != null) {
       recordActivity(
           companyId,
@@ -151,7 +156,8 @@ public class GoogleAdsKeywordPlannerService {
     body.put("historicalMetricsOptions", Map.of("includeAverageCpc", true));
 
     String cacheKey = cacheKey("historical", accountId, body);
-    GoogleKeywordPlannerResponse cached = readCache(cacheKey);
+    GoogleKeywordPlannerResponse cached =
+        readCache(cacheKey, GoogleKeywordPlannerResponse.class);
     if (cached != null) {
       recordActivity(
           companyId,
@@ -191,6 +197,231 @@ public class GoogleAdsKeywordPlannerService {
         response.rows().size(),
         network);
     return response;
+  }
+
+  public GoogleKeywordForecastResponse forecast(
+      Long companyId,
+      Long accountId,
+      GoogleKeywordForecastRequest request,
+      Long actorUserId) {
+    var context = contextService.requireManaged(companyId, accountId);
+    requirePlannerAccount(context);
+
+    LocalDate today = LocalDate.now();
+    if (!request.startDate().isAfter(today)) {
+      throw new BadRequestException("Google forecast startDate must be in the future");
+    }
+    if (request.endDate().isBefore(request.startDate())) {
+      throw new BadRequestException("Google forecast endDate must be on or after startDate");
+    }
+    if (request.endDate().isAfter(today.plusYears(1))) {
+      throw new BadRequestException(
+          "Google forecast endDate must be within one year from today");
+    }
+
+    List<Map<String, Object>> keywords = forecastKeywords(request.keywords());
+    PlannerTargets targets =
+        resolveTargets(context, request.locations(), request.language());
+
+    Map<String, Object> campaign = new LinkedHashMap<>();
+    if (targets.languageResource() != null) {
+      campaign.put("languageConstants", List.of(targets.languageResource()));
+    }
+    if (!targets.geoTargetResources().isEmpty()) {
+      campaign.put("geoTargetConstants", targets.geoTargetResources());
+    }
+    campaign.put("biddingStrategy", biddingStrategy(request));
+    campaign.put("adGroups", List.of(Map.of("keywords", keywords)));
+
+    Map<String, Object> body = new LinkedHashMap<>();
+    body.put(
+        "forecastPeriod",
+        Map.of(
+            "startDate", request.startDate().toString(),
+            "endDate", request.endDate().toString()));
+    body.put("campaign", campaign);
+
+    String cacheKey = cacheKey("forecast", accountId, body);
+    GoogleKeywordForecastResponse cached =
+        readCache(cacheKey, GoogleKeywordForecastResponse.class);
+    if (cached != null) {
+      recordForecastActivity(
+          companyId,
+          context,
+          actorUserId,
+          true,
+          keywords.size(),
+          request.biddingStrategy().name(),
+          request.startDate(),
+          request.endDate());
+      return cached.asCached();
+    }
+
+    JsonNode provider =
+        apiClient.customerColonAction(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            "generateKeywordForecastMetrics",
+            body);
+    JsonNode metrics = provider.path("campaignForecastMetrics");
+
+    GoogleKeywordForecastResponse response =
+        new GoogleKeywordForecastResponse(
+            false,
+            context.account().getCurrency(),
+            request.startDate(),
+            request.endDate(),
+            request.biddingStrategy().name(),
+            keywords.size(),
+            targets.geoTargetResources(),
+            targets.languageResource(),
+            doubleOrNull(metrics, "clicks"),
+            money(metrics, "costMicros"),
+            money(metrics, "averageCpcMicros"),
+            doubleOrNull(metrics, "conversions"),
+            money(metrics, "averageCpaMicros"));
+
+    writeCache(cacheKey, response, FORECAST_CACHE_TTL);
+    recordForecastActivity(
+        companyId,
+        context,
+        actorUserId,
+        false,
+        keywords.size(),
+        request.biddingStrategy().name(),
+        request.startDate(),
+        request.endDate());
+    return response;
+  }
+
+  private List<Map<String, Object>> forecastKeywords(
+      List<GoogleKeywordForecastRequest.Keyword> values) {
+    if (values == null || values.isEmpty()) {
+      throw new BadRequestException("Google forecast requires at least one keyword");
+    }
+    if (values.size() > 10_000) {
+      throw new BadRequestException("Google forecast supports at most 10000 keywords");
+    }
+
+    Set<String> seen = new LinkedHashSet<>();
+    List<Map<String, Object>> result = new ArrayList<>();
+    for (GoogleKeywordForecastRequest.Keyword value : values) {
+      if (value == null || value.text() == null || value.text().isBlank()) {
+        throw new BadRequestException("Google forecast keywords cannot be blank");
+      }
+      String text = value.text().trim();
+      if (text.length() > 80) {
+        throw new BadRequestException(
+            "Google forecast keyword text may contain at most 80 characters");
+      }
+      if (text.split("\\s+").length > 10) {
+        throw new BadRequestException(
+            "Google forecast keyword text may contain at most 10 words");
+      }
+      if (value.matchType() == null) {
+        throw new BadRequestException("Google forecast keyword matchType is required");
+      }
+      String fingerprint =
+          text.toLowerCase(Locale.ROOT) + "|" + value.matchType().name();
+      if (!seen.add(fingerprint)) continue;
+      result.add(Map.of("text", text, "matchType", value.matchType().name()));
+    }
+    if (result.isEmpty()) {
+      throw new BadRequestException("Google forecast requires at least one keyword");
+    }
+    return List.copyOf(result);
+  }
+
+  private Map<String, Object> biddingStrategy(GoogleKeywordForecastRequest request) {
+    return switch (request.biddingStrategy()) {
+      case MANUAL_CPC -> {
+        if (request.maxCpcBid() == null) {
+          throw new BadRequestException(
+              "MANUAL_CPC forecasts require maxCpcBid");
+        }
+        Map<String, Object> manual = new LinkedHashMap<>();
+        manual.put("maxCpcBidMicros", majorToMicros(request.maxCpcBid()));
+        if (request.dailyBudget() != null) {
+          manual.put("dailyBudgetMicros", majorToMicros(request.dailyBudget()));
+        }
+        yield Map.of("manualCpcBiddingStrategy", manual);
+      }
+      case MAXIMIZE_CLICKS -> {
+        if (request.dailyBudget() == null) {
+          throw new BadRequestException(
+              "MAXIMIZE_CLICKS forecasts require dailyBudget");
+        }
+        Map<String, Object> maximize = new LinkedHashMap<>();
+        maximize.put(
+            "dailyTargetSpendMicros", majorToMicros(request.dailyBudget()));
+        if (request.maxCpcBidCeiling() != null) {
+          maximize.put(
+              "maxCpcBidCeilingMicros",
+              majorToMicros(request.maxCpcBidCeiling()));
+        }
+        yield Map.of("maximizeClicksBiddingStrategy", maximize);
+      }
+      case MAXIMIZE_CONVERSIONS -> {
+        if (request.dailyBudget() == null) {
+          throw new BadRequestException(
+              "MAXIMIZE_CONVERSIONS forecasts require dailyBudget");
+        }
+        yield Map.of(
+            "maximizeConversionsBiddingStrategy",
+            Map.of(
+                "dailyTargetSpendMicros",
+                majorToMicros(request.dailyBudget())));
+      }
+    };
+  }
+
+  private long majorToMicros(java.math.BigDecimal value) {
+    try {
+      return value
+          .multiply(java.math.BigDecimal.valueOf(1_000_000L))
+          .setScale(0, java.math.RoundingMode.HALF_UP)
+          .longValueExact();
+    } catch (ArithmeticException exception) {
+      throw new BadRequestException("Google forecast monetary value is too large");
+    }
+  }
+
+  private Double doubleOrNull(JsonNode node, String field) {
+    String value = text(node, field);
+    if (value == null) return null;
+    try {
+      return Double.valueOf(value);
+    } catch (RuntimeException ignored) {
+      return null;
+    }
+  }
+
+  private void recordForecastActivity(
+      Long companyId,
+      GoogleAdsAccountContextService.Context context,
+      Long actorUserId,
+      boolean cached,
+      int keywordCount,
+      String biddingStrategy,
+      LocalDate startDate,
+      LocalDate endDate) {
+    activityLogService.record(
+        companyId,
+        context.account().getId(),
+        AdProvider.GOOGLE_ADS,
+        actorUserId,
+        "GOOGLE_KEYWORD_FORECAST_GENERATED",
+        "AD_ACCOUNT",
+        context.account().getExternalAccountId(),
+        null,
+        null,
+        Map.of(
+            "cached", cached,
+            "keywordCount", keywordCount,
+            "biddingStrategy", biddingStrategy,
+            "startDate", startDate.toString(),
+            "endDate", endDate.toString()));
   }
 
   private Map<String, Object> commonBody(
@@ -547,11 +778,11 @@ public class GoogleAdsKeywordPlannerService {
     }
   }
 
-  private GoogleKeywordPlannerResponse readCache(String key) {
+  private <T> T readCache(String key, Class<T> type) {
     try {
       String value = redisTemplate.opsForValue().get(key);
       if (!hasText(value)) return null;
-      return objectMapper.readValue(value, GoogleKeywordPlannerResponse.class);
+      return objectMapper.readValue(value, type);
     } catch (RuntimeException | JsonProcessingException exception) {
       log.debug("keyword_planner_cache_read_failed key={} reason={}", key, exception.getMessage());
       return null;
@@ -559,7 +790,7 @@ public class GoogleAdsKeywordPlannerService {
   }
 
   private void writeCache(
-      String key, GoogleKeywordPlannerResponse response, Duration ttl) {
+      String key, Object response, Duration ttl) {
     try {
       redisTemplate
           .opsForValue()
