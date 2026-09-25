@@ -89,6 +89,7 @@ import type {
   MetaAdsAuthorization,
   GoogleAdsAuthorization,
   MetaAdsResourceSync,
+  MetaGeoLocationSuggestion,
   MetaAudienceSync,
   MetaCampaignSync,
   MetaConversionSync,
@@ -100,6 +101,11 @@ import type {
   GoogleCampaignSync,
   GoogleAdGroupSync,
   GoogleKeywordSync,
+  GoogleNegativeKeyword,
+  GoogleNegativeKeywordInput,
+  GoogleNegativeKeywordList,
+  GoogleNegativeKeywordMutation,
+  CreateGoogleNegativeKeywordListInput,
   GoogleAdSync,
   GoogleAudienceSync,
   GoogleConversionSync,
@@ -476,6 +482,28 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+  async metaGeoLocations(
+    companyId: string,
+    accountId: string,
+    query: string,
+    types: Array<'COUNTRY' | 'REGION' | 'CITY' | 'ZIP'>,
+    countryCode?: string,
+    limit = 20,
+  ) {
+    const response = await apiClient.get<ApiResponse<MetaGeoLocationSuggestion[]>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/geo-targeting/search`,
+      {
+        params: {
+          q: query || undefined,
+          types: types.join(','),
+          countryCode: countryCode || undefined,
+          limit,
+        },
+      },
+    )
+    return unwrap(response.data)
+  },
+
   async campaigns(companyId: string, accountId?: string, page = 0, size = 50) {
     const response = await apiClient.get<ApiResponse<PageResponse<AdCampaign>>>(
       `/api/v1/companies/${companyId}/ads/campaigns`,
@@ -839,6 +867,127 @@ export const adCenterApi = {
     const response = await apiClient.patch<ApiResponse<AdKeyword>>(
       `/api/v1/companies/${companyId}/ads/google/keywords/${keywordId}`,
       input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleCampaignNegativeKeywords(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleNegativeKeyword[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/negative-keywords`,
+    )
+    return unwrap(response.data)
+  },
+
+  async addGoogleCampaignNegativeKeywords(
+    companyId: string,
+    campaignId: string,
+    keywords: GoogleNegativeKeywordInput[],
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleNegativeKeywordMutation>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/negative-keywords`,
+      { keywords },
+    )
+    return unwrap(response.data)
+  },
+
+  async removeGoogleCampaignNegativeKeyword(
+    companyId: string,
+    campaignId: string,
+    criterionId: string,
+  ) {
+    const response = await apiClient.delete<ApiResponse<boolean>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/negative-keywords/${criterionId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleNegativeKeywordLists(
+    companyId: string,
+    accountId: string,
+    campaignId?: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleNegativeKeywordList[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/negative-keyword-lists`,
+      { params: campaignId ? { campaignId } : undefined },
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleNegativeKeywordList(
+    companyId: string,
+    accountId: string,
+    input: CreateGoogleNegativeKeywordListInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleNegativeKeywordList>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/negative-keyword-lists`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleNegativeKeywordList(
+    companyId: string,
+    accountId: string,
+    sharedSetId: string,
+    campaignId?: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleNegativeKeywordList>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/negative-keyword-lists/${sharedSetId}`,
+      { params: campaignId ? { campaignId } : undefined },
+    )
+    return unwrap(response.data)
+  },
+
+  async addGoogleNegativeKeywordListMembers(
+    companyId: string,
+    accountId: string,
+    sharedSetId: string,
+    keywords: GoogleNegativeKeywordInput[],
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleNegativeKeywordMutation>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/negative-keyword-lists/${sharedSetId}/members`,
+      { keywords },
+    )
+    return unwrap(response.data)
+  },
+
+  async removeGoogleNegativeKeywordListMember(
+    companyId: string,
+    accountId: string,
+    sharedSetId: string,
+    criterionId: string,
+  ) {
+    const response = await apiClient.delete<ApiResponse<boolean>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/negative-keyword-lists/${sharedSetId}/members/${criterionId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async attachGoogleNegativeKeywordList(
+    companyId: string,
+    campaignId: string,
+    sharedSetId: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleNegativeKeywordList>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/negative-keyword-lists/${sharedSetId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async detachGoogleNegativeKeywordList(
+    companyId: string,
+    campaignId: string,
+    sharedSetId: string,
+  ) {
+    const response = await apiClient.delete<ApiResponse<GoogleNegativeKeywordList>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/negative-keyword-lists/${sharedSetId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async removeGoogleKeyword(companyId: string, keywordId: string) {
+    const response = await apiClient.delete<ApiResponse<boolean>>(
+      `/api/v1/companies/${companyId}/ads/google/keywords/${keywordId}`,
     )
     return unwrap(response.data)
   },

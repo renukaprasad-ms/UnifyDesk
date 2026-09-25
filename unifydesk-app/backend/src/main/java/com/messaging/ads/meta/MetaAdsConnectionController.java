@@ -22,6 +22,7 @@ import com.messaging.ads.meta.dto.MetaCampaignStatusRequest;
 import com.messaging.ads.meta.dto.MetaConversionSyncResponse;
 import com.messaging.ads.meta.dto.MetaInsightBreakdownsSyncResponse;
 import com.messaging.ads.meta.dto.MetaInsightsSyncResponse;
+import com.messaging.ads.meta.dto.MetaGeoLocationSuggestion;
 import com.messaging.ads.meta.dto.MetaAdStatusRequest;
 import com.messaging.ads.meta.dto.MetaAdSyncResponse;
 import com.messaging.ads.meta.dto.MetaCreativeSyncResponse;
@@ -39,6 +40,7 @@ import com.messaging.company.service.CompanyAuthorizationService;
 import com.messaging.security.service.CurrentUserService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -75,8 +77,28 @@ public class MetaAdsConnectionController {
   private final MetaAdsAdMutationService adMutationService;
   private final MetaAdsAdSetSyncService adSetSyncService;
   private final MetaAdsAdSetMutationService adSetMutationService;
+  private final MetaAdsGeoTargetingService geoTargetingService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
+
+  @GetMapping("/accounts/{accountId}/geo-targeting/search")
+  public ResponseEntity<ApiResponse<List<MetaGeoLocationSuggestion>>> searchGeoTargeting(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @RequestParam(required = false) String q,
+      @RequestParam(required = false) List<String> types,
+      @RequestParam(required = false) String countryCode,
+      @RequestParam(defaultValue = "20") Integer limit) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            geoTargetingService.search(
+                companyId, accountId, q, types, countryCode, limit),
+            "Meta geo targeting suggestions fetched"));
+  }
 
   @PostMapping("/accounts/{accountId}/health/sync")
   public ResponseEntity<ApiResponse<AdAccountHealthResponse>> syncHealth(

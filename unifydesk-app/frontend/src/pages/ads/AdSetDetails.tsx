@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { FiArrowLeft, FiPause, FiPlay, FiPlus, FiRefreshCw, FiSave } from 'react-icons/fi'
 import { Link, useParams } from 'react-router'
 import MetaAdModal from '../../components/ads/MetaAdModal'
+import MetaGeoTargetingEditor from '../../components/ads/MetaGeoTargetingEditor'
 import GoogleAdGroupDetails from '../../components/ads/GoogleAdGroupDetails'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
@@ -15,6 +16,7 @@ import type {
   AdSet,
   CreateMetaAdInput,
   UpdateMetaAdSetInput,
+  MetaTargetingLocation,
 } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -22,8 +24,25 @@ import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 
+type ProviderGeoTarget = {
+  key?: string
+  name?: string
+  country?: string
+  country_code?: string
+  latitude?: number | string
+  longitude?: number | string
+  radius?: number | string
+}
+
 type TargetingSnapshot = {
-  geo_locations?: { countries?: string[]; location_types?: string[] }
+  geo_locations?: {
+    countries?: string[]
+    regions?: ProviderGeoTarget[]
+    cities?: ProviderGeoTarget[]
+    zips?: ProviderGeoTarget[]
+    custom_locations?: ProviderGeoTarget[]
+    location_types?: Array<'home' | 'recent'>
+  }
   age_min?: number
   age_max?: number
   genders?: number[]
@@ -98,11 +117,61 @@ const toLocalInput = (value?: string | null) => {
   return local.toISOString().slice(0, 16)
 }
 
-const csv = (value: string) =>
-  value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean)
+const metaLocationsFromTargeting = (
+  targeting: TargetingSnapshot | null,
+): MetaTargetingLocation[] => {
+  const geo = targeting?.geo_locations
+  if (!geo) return []
+
+  const locationTypes =
+    geo.location_types?.filter(
+      (value): value is 'home' | 'recent' => value === 'home' || value === 'recent',
+    ) ?? ['home', 'recent']
+
+  const providerLocations = (
+    values: ProviderGeoTarget[] | undefined,
+    type: 'REGION' | 'CITY' | 'ZIP',
+  ): MetaTargetingLocation[] =>
+    (values ?? [])
+      .filter((value) => Boolean(value.key))
+      .map((value) => ({
+        countryCode: value.country_code ?? value.country ?? null,
+        type,
+        key: value.key ?? null,
+        name: value.name ?? value.key ?? null,
+        locationTypes,
+      }))
+
+  const customLocations: MetaTargetingLocation[] = (geo.custom_locations ?? [])
+    .filter(
+      (value) =>
+        value.latitude != null &&
+        value.longitude != null &&
+        value.radius != null,
+    )
+    .map((value) => ({
+      type: 'CUSTOM',
+      name: value.name ?? null,
+      latitude: Number(value.latitude),
+      longitude: Number(value.longitude),
+      radiusKm: Number(value.radius),
+      locationTypes,
+    }))
+
+  return [
+    ...(geo.countries ?? []).map((countryCode) => ({
+      countryCode,
+      type: 'COUNTRY' as const,
+      key: countryCode,
+      name: countryCode,
+      locationTypes,
+    })),
+    ...providerLocations(geo.regions, 'REGION'),
+    ...providerLocations(geo.cities, 'CITY'),
+    ...providerLocations(geo.zips, 'ZIP'),
+    ...customLocations,
+  ]
+}
 
 export default function AdSetDetails() {
   const { adSetId = '' } = useParams()
@@ -136,7 +205,7 @@ export default function AdSetDetails() {
   const [destinationType, setDestinationType] = useState('')
   const [startAt, setStartAt] = useState('')
   const [endAt, setEndAt] = useState('')
-  const [countries, setCountries] = useState('')
+  const [locations, setLocations] = useState<MetaTargetingLocation[]>([])
   const [ageMin, setAgeMin] = useState('18')
   const [ageMax, setAgeMax] = useState('65')
   const [gender, setGender] = useState<'ALL' | 'MEN' | 'WOMEN'>('ALL')
@@ -184,7 +253,7 @@ export default function AdSetDetails() {
     setDestinationType(value.destinationType ?? '')
     setStartAt(toLocalInput(value.startAt))
     setEndAt(toLocalInput(value.endAt))
-    setCountries((targeting?.geo_locations?.countries ?? []).join(', '))
+    setLocations(metaLocationsFromTargeting(targeting))
     setAgeMin(String(targeting?.age_min ?? 18))
     setAgeMax(String(targeting?.age_max ?? 65))
     setGender(
@@ -302,10 +371,7 @@ export default function AdSetDetails() {
       startAt: startAt ? new Date(startAt).toISOString() : undefined,
       endAt: endAt ? new Date(endAt).toISOString() : undefined,
       destinationType: destinationType || undefined,
-      locations: csv(countries).map((countryCode) => ({
-        countryCode,
-        locationTypes: ['home', 'recent'],
-      })),
+      locations,
       ageMin: Number(ageMin),
       ageMax: Number(ageMax),
       genders: gender === 'ALL' ? [] : gender === 'MEN' ? [1] : [2],
@@ -608,10 +674,15 @@ export default function AdSetDetails() {
               <div className="mt-6 border-t border-slate-100 pt-6">
                 <h2 className="text-base font-bold text-slate-950">Audience</h2>
                 <div className="mt-4 grid gap-5 sm:grid-cols-2">
-                  <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
-                    Countries
-                    <input className="form-input mt-2" value={countries} onChange={(e) => setCountries(e.target.value)} />
-                  </label>
+                  {account && (
+                    <MetaGeoTargetingEditor
+                      companyId={selectedCompany.companyId}
+                      accountId={account.id}
+                      locations={locations}
+                      onChange={setLocations}
+                      disabled={saving}
+                    />
+                  )}
                   <label className="block text-xs font-semibold text-slate-700">
                     Minimum age
                     <input className="form-input mt-2" type="number" min="13" max="65" value={ageMin} onChange={(e) => setAgeMin(e.target.value)} />

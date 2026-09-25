@@ -916,9 +916,29 @@ export type AdSet = {
   lastSyncAt?: string | null
 }
 
+export type MetaGeoTargetType = 'COUNTRY' | 'REGION' | 'CITY' | 'ZIP' | 'CUSTOM'
+
 export type MetaTargetingLocation = {
-  countryCode: string
-  locationTypes?: string[]
+  countryCode?: string | null
+  type?: MetaGeoTargetType
+  key?: string | null
+  name?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  radiusKm?: number | null
+  locationTypes?: Array<'home' | 'recent'>
+}
+
+export type MetaGeoLocationSuggestion = {
+  key: string
+  name: string
+  type: 'COUNTRY' | 'REGION' | 'CITY' | 'ZIP' | string
+  countryCode?: string | null
+  countryName?: string | null
+  region?: string | null
+  regionId?: string | null
+  supportsRegion?: boolean | null
+  supportsCity?: boolean | null
 }
 
 export type CreateMetaAdSetInput = {
@@ -1172,6 +1192,41 @@ export type UpdateGoogleKeywordInput = {
 
 export type GoogleKeywordSync = {
   synchronizedCount: number
+}
+
+export type GoogleNegativeKeywordInput = {
+  text: string
+  matchType: 'BROAD' | 'PHRASE' | 'EXACT'
+}
+
+export type GoogleNegativeKeyword = {
+  resourceName: string
+  criterionId: string
+  text: string
+  matchType: 'BROAD' | 'PHRASE' | 'EXACT' | string
+  status?: string | null
+}
+
+export type GoogleNegativeKeywordList = {
+  resourceName: string
+  id: string
+  name: string
+  status?: string | null
+  memberCount: number
+  referenceCount: number
+  attachedToCampaign: boolean
+  members: GoogleNegativeKeyword[]
+}
+
+export type GoogleNegativeKeywordMutation = {
+  requestedCount: number
+  createdCount: number
+  reusedCount: number
+}
+
+export type CreateGoogleNegativeKeywordListInput = {
+  name: string
+  keywords?: GoogleNegativeKeywordInput[]
 }
 
 
