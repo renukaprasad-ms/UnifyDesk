@@ -96,9 +96,17 @@ public class ReachlyoCampaignAnalyticsService {
       if (row.getCampaignId() != null) exactByCampaign.putIfAbsent(row.getCampaignId(), row);
     }
 
+    boolean exactRangeAvailable =
+        !deployments.isEmpty()
+            && deployments.stream()
+                .allMatch(
+                    deployment ->
+                        deployment.getLocalCampaignId() != null
+                            && exactByCampaign.containsKey(
+                                deployment.getLocalCampaignId()));
+
     List<ReachlyoCampaignAnalyticsResponse.DeploymentRow> deploymentRows =
         new ArrayList<>();
-    boolean exactRangeAvailable = !deployments.isEmpty();
     for (ProviderDeployment deployment : deployments) {
       Long localCampaignId = deployment.getLocalCampaignId();
       AdInsightDaily exact =
@@ -108,10 +116,9 @@ public class ReachlyoCampaignAnalyticsService {
               ? List.of()
               : dailyByCampaign.getOrDefault(localCampaignId, List.of());
       ReachlyoCampaignAnalyticsResponse.Summary summary =
-          exact == null ? aggregate(deploymentDaily) : summary(exact);
-      boolean deploymentExact = exact != null;
-      if (localCampaignId != null && !deploymentExact) exactRangeAvailable = false;
-      if (localCampaignId == null) exactRangeAvailable = false;
+          exactRangeAvailable && exact != null
+              ? summary(exact)
+              : aggregate(deploymentDaily);
 
       CampaignChannel channel = channelById.get(deployment.getCampaignChannelId());
       deploymentRows.add(
@@ -127,8 +134,11 @@ public class ReachlyoCampaignAnalyticsService {
               deployment.getDeploymentStatus(),
               summary,
               ZERO,
-              deploymentExact,
-              latest(exact == null ? deploymentDaily : List.of(exact))));
+              exactRangeAvailable && exact != null,
+              latest(
+                  exactRangeAvailable && exact != null
+                      ? List.of(exact)
+                      : deploymentDaily)));
     }
 
     ReachlyoCampaignAnalyticsResponse.Summary total =
