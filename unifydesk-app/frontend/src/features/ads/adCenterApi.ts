@@ -107,6 +107,7 @@ import type {
   GoogleNegativeKeyword,
   GoogleSearchTermReport,
   GoogleAiMaxCombinationReport,
+  GoogleBrandSuggestion,
   GoogleNegativeKeywordInput,
   GoogleNegativeKeywordList,
   GoogleNegativeKeywordMutation,
@@ -909,6 +910,19 @@ export const adCenterApi = {
     const response = await apiClient.patch<ApiResponse<AdKeyword>>(
       `/api/v1/companies/${companyId}/ads/google/keywords/${keywordId}`,
       input,
+    )
+    return unwrap(response.data)
+  },
+
+  async suggestGoogleAiMaxBrands(
+    companyId: string,
+    accountId: string,
+    prefix: string,
+    selectedBrandIds: string[] = [],
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleBrandSuggestion[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/ai-max/brands/suggest`,
+      { params: { prefix, selectedBrandIds } },
     )
     return unwrap(response.data)
   },
