@@ -19,6 +19,7 @@ import {
 import { Link, useNavigate, useParams } from 'react-router'
 import ReachlyoLaunchRunPanel from '../../components/ads/ReachlyoLaunchRunPanel'
 import ReachlyoCampaignAnalyticsPanel from '../../components/ads/ReachlyoCampaignAnalyticsPanel'
+import ReachlyoCampaignRecommendationsPanel from '../../components/ads/ReachlyoCampaignRecommendationsPanel'
 import ReachlyoProviderPlanReview from '../../components/ads/ReachlyoProviderPlanReview'
 import ReachlyoProviderSettingsStep, {
   type GoogleAdScheduleDraft,
@@ -2572,11 +2573,17 @@ export default function ReachlyoCampaignWizard() {
                 )}
 
                 {campaign && campaign.deployments.length > 0 && (
-                  <ReachlyoCampaignAnalyticsPanel
-                    companyId={selectedCompany.companyId}
-                    campaignId={campaign.id}
-                    canSync={canSyncAnalytics}
-                  />
+                  <>
+                    <ReachlyoCampaignAnalyticsPanel
+                      companyId={selectedCompany.companyId}
+                      campaignId={campaign.id}
+                      canSync={canSyncAnalytics}
+                    />
+                    <ReachlyoCampaignRecommendationsPanel
+                      companyId={selectedCompany.companyId}
+                      campaignId={campaign.id}
+                    />
+                  </>
                 )}
 
                 {launchRuns.length > 1 && (
