@@ -19,6 +19,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler {
 
+  private static final ObjectMapper JSON = new ObjectMapper();
+
   private static final Set<CampaignChannelType> CHANNELS =
       EnumSet.of(
           CampaignChannelType.GOOGLE_SEARCH,
