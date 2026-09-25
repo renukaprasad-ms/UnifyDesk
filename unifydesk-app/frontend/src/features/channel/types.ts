@@ -46,8 +46,8 @@ export type MetaWhatsAppSignupConfig = {
 
 export type MetaWhatsAppSignupResult = {
   code: string
-  wabaId: string
-  phoneNumberId: string
+  wabaId?: string
+  phoneNumberId?: string
 }
 
 export type MetaWhatsAppConnection = {
