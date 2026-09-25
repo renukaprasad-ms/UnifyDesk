@@ -22,6 +22,7 @@ import type {
   ReachlyoCampaign,
   ReachlyoCampaignSummary,
   ReachlyoCampaignAnalytics,
+  ReachlyoCampaignRecommendations,
   ReachlyoCampaignAnalyticsSync,
   CreateReachlyoCampaignInput,
   UpdateReachlyoCampaignInput,
@@ -166,6 +167,16 @@ export const adCenterApi = {
   async reachlyoCampaign(companyId: string, campaignId: string) {
     const response = await apiClient.get<ApiResponse<ReachlyoCampaign>>(
       `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async reachlyoCampaignRecommendations(
+    companyId: string,
+    campaignId: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<ReachlyoCampaignRecommendations>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/recommendations`,
     )
     return unwrap(response.data)
   },
