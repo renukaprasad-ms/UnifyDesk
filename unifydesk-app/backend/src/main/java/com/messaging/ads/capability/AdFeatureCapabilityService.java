@@ -234,6 +234,7 @@ public class AdFeatureCapabilityService {
     add(specs, AdFeatureCapability.BILLING_READ, false, GOOGLE_ADS_SCOPE);
 
     add(specs, AdFeatureCapability.GOOGLE_SEARCH, true, GOOGLE_ADS_SCOPE);
+    add(specs, AdFeatureCapability.GOOGLE_SEARCH_TERM_REPORTING, true, GOOGLE_ADS_SCOPE);
     add(specs, AdFeatureCapability.GOOGLE_PERFORMANCE_MAX, true, GOOGLE_ADS_SCOPE);
     add(specs, AdFeatureCapability.GOOGLE_DISPLAY, true, GOOGLE_ADS_SCOPE);
     add(specs, AdFeatureCapability.GOOGLE_DEMAND_GEN, true, GOOGLE_ADS_SCOPE);
