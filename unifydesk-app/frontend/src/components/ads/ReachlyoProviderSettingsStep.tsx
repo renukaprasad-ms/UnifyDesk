@@ -1059,15 +1059,22 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
 
 function Field({
   label,
+  hint,
   children,
 }: {
   label: string
+  hint?: string
   children: ReactNode
 }) {
   return (
     <label className="block text-xs font-semibold text-slate-700">
       {label}
       {children}
+      {hint && (
+        <span className="mt-1 block text-[11px] font-normal leading-5 text-slate-500">
+          {hint}
+        </span>
+      )}
     </label>
   )
 }
