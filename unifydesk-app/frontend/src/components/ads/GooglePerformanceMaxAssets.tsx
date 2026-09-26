@@ -56,7 +56,7 @@ const formatLabel = (value?: string | null) =>
     ? value
         .replaceAll('_', ' ')
         .toLowerCase()
-        .replace(/w/g, (character) => character.toUpperCase())
+        .replace(/\b\w/g, (character) => character.toUpperCase())
     : 'Unknown'
 
 const parseParameters = (value: string): GoogleUrlCustomParameter[] =>
@@ -280,7 +280,7 @@ export default function GooglePerformanceMaxAssets({
         campaignId,
         assetGroup.id,
         {
-          trackingUrlTemplate,
+          trackingUrlTemplate: trackingTemplate,
           finalUrlSuffix,
           customParameters: parseParameters(customParameters),
         },
