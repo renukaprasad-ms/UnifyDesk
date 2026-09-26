@@ -6,6 +6,7 @@ import type {
   GoogleAssetGroup,
   GoogleAssetGroupAsset,
   GoogleAssetGroupAssetInput,
+  GoogleUrlCustomParameter,
 } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 
@@ -58,6 +59,25 @@ const formatLabel = (value?: string | null) =>
         .replace(/w/g, (character) => character.toUpperCase())
     : 'Unknown'
 
+const parseParameters = (value: string): GoogleUrlCustomParameter[] =>
+  value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const separator = line.indexOf('=')
+      if (separator <= 0) {
+        throw new Error('Asset Group custom parameters must use key=value, one per line.')
+      }
+      return {
+        key: line.slice(0, separator).trim(),
+        value: line.slice(separator + 1).trim(),
+      }
+    })
+
+const formatParameters = (values: GoogleUrlCustomParameter[]) =>
+  values.map((item) => `${item.key}=${item.value}`).join('\n')
+
 const fileToDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
@@ -90,6 +110,10 @@ export default function GooglePerformanceMaxAssets({
   const [removing, setRemoving] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [trackingTemplate, setTrackingTemplate] = useState('')
+  const [finalUrlSuffix, setFinalUrlSuffix] = useState('')
+  const [customParameters, setCustomParameters] = useState('')
+  const [savingUrls, setSavingUrls] = useState(false)
 
   const field = FIELD_OPTIONS.find((option) => option.value === fieldType)!
 
@@ -115,12 +139,16 @@ export default function GooglePerformanceMaxAssets({
     setLoading(true)
     setError('')
     try {
-      const [linked, library] = await Promise.all([
+      const [linked, library, urlOptions] = await Promise.all([
         adCenterApi.googleAssetGroupAssets(companyId, campaignId, assetGroup.id),
         adCenterApi.googleAssets(companyId, accountId),
+        adCenterApi.googleAssetGroupUrlOptions(companyId, campaignId, assetGroup.id),
       ])
       setLinkedAssets(linked)
       setLibraryAssets(library)
+      setTrackingTemplate(urlOptions.trackingUrlTemplate ?? '')
+      setFinalUrlSuffix(urlOptions.finalUrlSuffix ?? '')
+      setCustomParameters(formatParameters(urlOptions.customParameters))
     } catch (loadError) {
       setError(
         apiErrorMessage(loadError, 'Unable to load Performance Max assets'),
@@ -241,6 +269,35 @@ export default function GooglePerformanceMaxAssets({
     }
   }
 
+  const saveUrlOptions = async () => {
+    if (!assetGroup.id) return
+    setSavingUrls(true)
+    setError('')
+    setNotice('')
+    try {
+      const updated = await adCenterApi.updateGoogleAssetGroupUrlOptions(
+        companyId,
+        campaignId,
+        assetGroup.id,
+        {
+          trackingUrlTemplate,
+          finalUrlSuffix,
+          customParameters: parseParameters(customParameters),
+        },
+      )
+      setTrackingTemplate(updated.trackingUrlTemplate ?? '')
+      setFinalUrlSuffix(updated.finalUrlSuffix ?? '')
+      setCustomParameters(formatParameters(updated.customParameters))
+      setNotice('Asset Group URL options saved to Google Ads.')
+    } catch (saveError) {
+      setError(
+        apiErrorMessage(saveError, 'Unable to update Asset Group URL options'),
+      )
+    } finally {
+      setSavingUrls(false)
+    }
+  }
+
   const canSubmit =
     sourceMode === 'EXISTING'
       ? Boolean(existingAssetResourceName)
@@ -281,6 +338,59 @@ export default function GooglePerformanceMaxAssets({
           {error || notice}
         </div>
       )}
+
+
+      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <div>
+          <p className="text-xs font-bold text-slate-800">Asset Group URL options</p>
+          <p className="mt-1 text-[11px] leading-5 text-slate-500">
+            Configure v25 Asset Group tracking template, final URL suffix, and custom parameters.
+          </p>
+        </div>
+        <div className="mt-3 grid gap-3 lg:grid-cols-2">
+          <label className="text-xs font-semibold text-slate-700 lg:col-span-2">
+            Tracking template
+            <input
+              className="form-input mt-2"
+              value={trackingTemplate}
+              disabled={!canModify || loading || savingUrls}
+              onChange={(event) => setTrackingTemplate(event.target.value)}
+              placeholder="{lpurl}?source=google"
+            />
+          </label>
+          <label className="text-xs font-semibold text-slate-700">
+            Final URL suffix
+            <input
+              className="form-input mt-2"
+              value={finalUrlSuffix}
+              disabled={!canModify || loading || savingUrls}
+              onChange={(event) => setFinalUrlSuffix(event.target.value)}
+              placeholder="utm_source=google&utm_campaign={campaignid}"
+            />
+          </label>
+          <label className="text-xs font-semibold text-slate-700">
+            Custom parameters
+            <textarea
+              className="form-input mt-2 min-h-20"
+              value={customParameters}
+              disabled={!canModify || loading || savingUrls}
+              onChange={(event) => setCustomParameters(event.target.value)}
+              placeholder={'source=pmax\nmarket=in'}
+            />
+          </label>
+        </div>
+        {canModify && (
+          <button
+            type="button"
+            className="secondary-button mt-3 inline-flex items-center gap-2 text-xs"
+            disabled={loading || savingUrls}
+            onClick={() => void saveUrlOptions()}
+          >
+            <FiLink2 aria-hidden="true" />
+            {savingUrls ? 'Saving URL options…' : 'Save URL options'}
+          </button>
+        )}
+      </div>
 
       {loading ? (
         <div className="mt-4 text-xs text-slate-400">Loading assets…</div>
