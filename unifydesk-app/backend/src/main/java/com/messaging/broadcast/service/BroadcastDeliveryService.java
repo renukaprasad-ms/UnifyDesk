@@ -8,6 +8,7 @@ import com.messaging.broadcast.transport.*;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.managedemail.delivery.ManagedEmailDeliveryGuard;
 import com.messaging.managedemail.delivery.ManagedEmailRateLimiter;
+import com.messaging.managedemail.events.ManagedEmailPostAcceptanceReconciler;
 import com.messaging.managedemail.metering.ManagedEmailUsageService;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
 import java.time.Instant;
@@ -29,6 +30,7 @@ public class BroadcastDeliveryService {
   private final ManagedEmailDeliveryGuard managedEmailDeliveryGuard;
   private final ManagedEmailRateLimiter managedEmailRateLimiter;
   private final ManagedEmailUsageService managedEmailUsageService;
+  private final ManagedEmailPostAcceptanceReconciler managedEmailPostAcceptanceReconciler;
 
   public void deliver(
       BroadcastRun run,
@@ -192,6 +194,15 @@ public class BroadcastDeliveryService {
                       recipient.getId()));
       stateService.accepted(attempt, result);
       if (usageReserved) safeCommit(run, recipient, attempt, result);
+      try {
+        managedEmailPostAcceptanceReconciler.reconcile(recipient.getId());
+      } catch (RuntimeException exception) {
+        log.warn(
+            "managed_email_post_acceptance_reconcile_deferred companyId={} runId={} recipientId={}",
+            run.getCompanyId(),
+            run.getId(),
+            recipient.getId());
+      }
     } catch (BroadcastTransportException exception) {
       if (usageReserved && exception.outcome() != BroadcastTransportOutcome.UNKNOWN) {
         safeRelease(run, recipient, attempt);

@@ -42,7 +42,10 @@ public class ManagedEmailSuppressionFeedbackService {
         values (?, ?, ?, ?, ?, ?, true, now(), now())
         on conflict (company_id, channel_type, normalized_destination) do update
           set active = true,
-              reason = excluded.reason,
+              reason = case
+                when broadcast_suppressions.reason = 'COMPLAINT' then 'COMPLAINT'
+                else excluded.reason
+              end,
               source_recipient_id = excluded.source_recipient_id,
               updated_at = now()
         """,

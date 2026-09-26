@@ -13,6 +13,7 @@ import com.messaging.broadcast.service.*;
 import com.messaging.broadcast.transport.*;
 import com.messaging.managedemail.delivery.ManagedEmailDeliveryGuard;
 import com.messaging.managedemail.delivery.ManagedEmailRateLimiter;
+import com.messaging.managedemail.events.ManagedEmailPostAcceptanceReconciler;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
 import java.time.Instant;
 import java.util.List;
@@ -80,6 +81,7 @@ class ManagedEmailDeliveryMeteringTests {
     ManagedEmailDeliveryGuard guard = mock(ManagedEmailDeliveryGuard.class);
     ManagedEmailRateLimiter managedRate = mock(ManagedEmailRateLimiter.class);
     ManagedEmailUsageService usage = mock(ManagedEmailUsageService.class);
+    ManagedEmailPostAcceptanceReconciler reconciler = mock(ManagedEmailPostAcceptanceReconciler.class);
     BroadcastEmailTransport transport = mock(BroadcastEmailTransport.class);
 
     BroadcastRun run = new BroadcastRun();
@@ -132,7 +134,8 @@ class ManagedEmailDeliveryMeteringTests {
             renderer,
             guard,
             managedRate,
-            usage);
+            usage,
+            reconciler);
     return new Fixture(service, state, usage, transport, run, connection, sender, recipient);
   }
 

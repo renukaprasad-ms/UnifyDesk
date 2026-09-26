@@ -27,12 +27,13 @@ public class ManagedEmailProviderEventProcessor {
     if (ledger.alreadyReceived(envelope.messageId())) return;
 
     if ("SubscriptionConfirmation".equals(envelope.type())) {
-      if (ledger.recordSubscription(envelope) && envelope.subscribeUrl() != null) {
+      if (envelope.subscribeUrl() != null) {
         URI uri =
             snsMessageVerifier.validateAwsHttpsUri(
                 envelope.subscribeUrl(), envelope.topicArn(), false);
         subscriptionConfirmer.confirm(uri);
       }
+      ledger.recordSubscription(envelope);
       return;
     }
     if (!"Notification".equals(envelope.type())) return;

@@ -22,6 +22,7 @@ public class ManagedEmailRuntimeProperties {
   private double runMaxPerSecond = 0.0;
   private double newTenantMaxPerSecond = 0.0;
 
+  private long accountDailySafetyCap = 0;
   private long newTenantHourlyCap = 0;
   private long newTenantDailyCap = 0;
   private long establishedHourlyCap = 0;

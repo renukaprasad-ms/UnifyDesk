@@ -66,6 +66,7 @@ class ManagedEmailRateLimiterTests {
     properties.setPlanMaxPerSecond(8);
     properties.setRunMaxPerSecond(5);
     properties.setNewTenantMaxPerSecond(2);
+    properties.setAccountDailySafetyCap(50000);
     properties.setNewTenantHourlyCap(100);
     properties.setNewTenantDailyCap(1000);
     properties.setEstablishedHourlyCap(1000);
