@@ -4,6 +4,11 @@ export const isMessagingManagedSender = (
   sender?: Pick<BroadcastSender, 'managementMode'> | null,
 ) => sender?.managementMode === 'MESSAGING_MANAGED'
 
+export const managedConnectionDisplayName = (
+  sender: Pick<BroadcastSender, 'managementMode'> | null | undefined,
+  connectionName: string,
+) => (isMessagingManagedSender(sender) ? 'UnifyDesk Managed Email' : connectionName)
+
 export const broadcastSenderProviderLabel = (
   sender?: Pick<BroadcastSender, 'managementMode' | 'provider'> | null,
 ) => {
