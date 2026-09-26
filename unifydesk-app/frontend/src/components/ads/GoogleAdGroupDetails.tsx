@@ -5,6 +5,7 @@ import GoogleKeywordModal from './GoogleKeywordModal'
 import GoogleResponsiveSearchAdModal from './GoogleResponsiveSearchAdModal'
 import GoogleVisualAdModal from './GoogleVisualAdModal'
 import GoogleDemandGenCreativeModal from './GoogleDemandGenCreativeModal'
+import GoogleDemandGenTargetingPanel from './GoogleDemandGenTargetingPanel'
 import GoogleReusableAssetsPanel from './GoogleReusableAssetsPanel'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
@@ -428,6 +429,15 @@ export default function GoogleAdGroupDetails({
           </div>
           {can(PERMISSIONS.ADS_MODIFY) && <div className="mt-5 flex justify-end"><button type="submit" className="primary-button inline-flex items-center gap-2" disabled={saving || !name.trim()}><FiSave />{saving ? 'Saving…' : 'Save to Google'}</button></div>}
         </form>
+        )}
+
+        {isDemandGen && (
+          <GoogleDemandGenTargetingPanel
+            companyId={companyId}
+            adGroupId={adGroup.id}
+            currency={account?.currency}
+            canModify={can(PERMISSIONS.ADS_MODIFY)}
+          />
         )}
 
         {isSearch && (

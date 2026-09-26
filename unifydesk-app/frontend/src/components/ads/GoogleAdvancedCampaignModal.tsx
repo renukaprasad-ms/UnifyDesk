@@ -43,6 +43,7 @@ export default function GoogleAdvancedCampaignModal({
     useState<CreateGoogleAdvancedCampaignInput['channelType']>('DISPLAY')
   const [name, setName] = useState('')
   const [budget, setBudget] = useState('')
+  const [budgetMode, setBudgetMode] = useState<'DAILY' | 'TOTAL'>('DAILY')
   const [bidStrategy, setBidStrategy] =
     useState<CreateGoogleAdvancedCampaignInput['bidStrategy']>(
       'MAXIMIZE_CONVERSIONS',
@@ -122,14 +123,15 @@ export default function GoogleAdvancedCampaignModal({
     setChannelType(next)
     setTargetCpa('')
     setTargetRoas('')
+    if (next !== 'DEMAND_GEN') setBudgetMode('DAILY')
     if (next === 'SHOPPING') setBidStrategy('MANUAL_CPC')
     else setBidStrategy('MAXIMIZE_CONVERSIONS')
   }
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    const dailyBudgetMinor = toMinor(budget, account.currency)
-    if (dailyBudgetMinor == null) return
+    const budgetMinor = toMinor(budget, account.currency)
+    if (budgetMinor == null) return
 
     const targetCpaMinor = targetCpa
       ? toMinor(targetCpa, account.currency)
@@ -138,7 +140,8 @@ export default function GoogleAdvancedCampaignModal({
     await onCreate({
       name: name.trim(),
       channelType,
-      dailyBudgetMinor,
+      dailyBudgetMinor: budgetMode === 'DAILY' ? budgetMinor : null,
+      totalBudgetMinor: budgetMode === 'TOTAL' ? budgetMinor : null,
       bidStrategy,
       targetCpaMinor,
       targetRoas: targetRoas ? Number(targetRoas) : null,
@@ -208,7 +211,7 @@ export default function GoogleAdvancedCampaignModal({
             </label>
 
             <label className="text-xs font-semibold text-slate-700">
-              Daily budget {account.currency ? `(${account.currency})` : ''}
+              {budgetMode === 'TOTAL' ? 'Total campaign budget' : 'Daily budget'} {account.currency ? `(${account.currency})` : ''}
               <input
                 className="form-input mt-2"
                 type="number"
@@ -219,6 +222,27 @@ export default function GoogleAdvancedCampaignModal({
                 onChange={(event) => setBudget(event.target.value)}
               />
             </label>
+
+            {channelType === 'DEMAND_GEN' && (
+              <label className="text-xs font-semibold text-slate-700">
+                Budget period
+                <select
+                  className="form-input mt-2"
+                  value={budgetMode}
+                  onChange={(event) =>
+                    setBudgetMode(event.target.value as 'DAILY' | 'TOTAL')
+                  }
+                >
+                  <option value="DAILY">Average daily budget</option>
+                  <option value="TOTAL">Campaign total budget</option>
+                </select>
+                {budgetMode === 'TOTAL' && (
+                  <span className="mt-1 block font-normal text-slate-400">
+                    Total budget requires both start and end dates and cannot be changed to daily after creation.
+                  </span>
+                )}
+              </label>
+            )}
 
             <label className="text-xs font-semibold text-slate-700">
               Bid strategy
@@ -410,7 +434,10 @@ export default function GoogleAdvancedCampaignModal({
                 !budget ||
                 !containsEuPoliticalAdvertising ||
                 (channelType === 'SHOPPING' &&
-                  (!merchantId || loadingMerchants || merchantAccounts.length === 0))
+                  (!merchantId || loadingMerchants || merchantAccounts.length === 0)) ||
+                (channelType === 'DEMAND_GEN' &&
+                  budgetMode === 'TOTAL' &&
+                  (!startDate || !endDate))
               }
             >
               {saving ? 'Creating…' : `Create paused ${channelType === 'DEMAND_GEN' ? 'Demand Gen' : channelType.toLowerCase()}`}

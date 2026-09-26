@@ -9,7 +9,8 @@ import java.time.LocalDate;
 public record CreateGoogleAdvancedCampaignRequest(
     @NotBlank String name,
     @NotBlank String channelType,
-    @NotNull @Positive Long dailyBudgetMinor,
+    @Positive Long dailyBudgetMinor,
+    @Positive Long totalBudgetMinor,
     String bidStrategy,
     Long targetCpaMinor,
     BigDecimal targetRoas,

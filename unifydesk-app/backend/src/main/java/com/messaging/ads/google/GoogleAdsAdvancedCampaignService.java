@@ -45,9 +45,21 @@ public class GoogleAdsAdvancedCampaignService {
     validateSchedule(request.startDate(), request.endDate());
     String channel = normalizeChannel(request.channelType());
     String customerId = context.account().getExternalAccountId();
+    boolean totalBudget = request.totalBudgetMinor() != null;
+    if (totalBudget && !"DEMAND_GEN".equals(channel)) {
+      throw new BadRequestException("Campaign total budget is currently supported here only for Demand Gen");
+    }
+    if (totalBudget && (request.startDate() == null || request.endDate() == null)) {
+      throw new BadRequestException(
+          "Demand Gen total budget requires both startDate and endDate");
+    }
+    if (!totalBudget && request.dailyBudgetMinor() == null) {
+      throw new BadRequestException("Google campaign daily budget is required");
+    }
     long budgetMicros =
         GoogleAdsMoney.minorToMicros(
-            request.dailyBudgetMinor(), context.account().getCurrency());
+            totalBudget ? request.totalBudgetMinor() : request.dailyBudgetMinor(),
+            context.account().getCurrency());
 
     String budgetResource =
         apiClient.customerResourceName(customerId, "campaignBudgets", "-1");
@@ -61,7 +73,12 @@ public class GoogleAdsAdvancedCampaignService {
     budget.put(
         "name",
         request.name().trim() + " budget " + System.currentTimeMillis());
-    budget.put("amountMicros", budgetMicros);
+    if (totalBudget) {
+      budget.put("period", "CUSTOM_PERIOD");
+      budget.put("totalAmountMicros", budgetMicros);
+    } else {
+      budget.put("amountMicros", budgetMicros);
+    }
     budget.put("deliveryMethod", "STANDARD");
     budget.put("explicitlyShared", false);
     operations.add(

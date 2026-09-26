@@ -39,6 +39,10 @@ import com.messaging.ads.google.dto.GoogleAssetGenerationImageResponse;
 import com.messaging.ads.google.dto.GoogleAssetGenerationTextRequest;
 import com.messaging.ads.google.dto.GoogleAssetGenerationTextResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupResponse;
+import com.messaging.ads.google.dto.GoogleDemandGenAudienceOption;
+import com.messaging.ads.google.dto.GoogleDemandGenChannelPerformance;
+import com.messaging.ads.google.dto.GoogleDemandGenTargetingRequest;
+import com.messaging.ads.google.dto.GoogleDemandGenTargetingResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupUrlOptionsResponse;
 import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationRequest;
 import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationResponse;
@@ -116,6 +120,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsAdMutationService adMutationService;
   private final GoogleAdsVisualAdService visualAdService;
   private final GoogleAdsDemandGenCreativeService demandGenCreativeService;
+  private final GoogleAdsDemandGenTargetingService demandGenTargetingService;
   private final GoogleAdsAudienceSyncService audienceSyncService;
   private final GoogleAdsAudienceMutationService audienceMutationService;
   private final GoogleAdsConversionSyncService conversionSyncService;
@@ -920,6 +925,55 @@ public class GoogleAdsConnectionController {
                 visualAdService.createDemandGenVideo(
                     companyId, adGroupId, request, userId),
                 "Google Demand Gen video ad created in paused state"));
+  }
+
+  @GetMapping("/ad-groups/{adGroupId}/demand-gen-targeting")
+  public ResponseEntity<ApiResponse<GoogleDemandGenTargetingResponse>> demandGenTargeting(
+      @PathVariable Long companyId, @PathVariable Long adGroupId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            demandGenTargetingService.targeting(companyId, adGroupId),
+            "Google Demand Gen targeting fetched"));
+  }
+
+  @PutMapping("/ad-groups/{adGroupId}/demand-gen-targeting")
+  public ResponseEntity<ApiResponse<GoogleDemandGenTargetingResponse>> updateDemandGenTargeting(
+      @PathVariable Long companyId,
+      @PathVariable Long adGroupId,
+      @Valid @RequestBody GoogleDemandGenTargetingRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            demandGenTargetingService.update(companyId, adGroupId, request, userId),
+            "Google Demand Gen targeting updated"));
+  }
+
+  @GetMapping("/ad-groups/{adGroupId}/demand-gen-audiences")
+  public ResponseEntity<ApiResponse<List<GoogleDemandGenAudienceOption>>> demandGenAudiences(
+      @PathVariable Long companyId, @PathVariable Long adGroupId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            demandGenTargetingService.audiences(companyId, adGroupId),
+            "Google Demand Gen audiences fetched"));
+  }
+
+  @GetMapping("/ad-groups/{adGroupId}/demand-gen-channel-performance")
+  public ResponseEntity<ApiResponse<List<GoogleDemandGenChannelPerformance>>> demandGenChannelPerformance(
+      @PathVariable Long companyId,
+      @PathVariable Long adGroupId,
+      @RequestParam LocalDate from,
+      @RequestParam LocalDate to) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            demandGenTargetingService.channelPerformance(companyId, adGroupId, from, to),
+            "Google Demand Gen channel performance fetched"));
   }
 
   @PostMapping("/ad-groups/{adGroupId}/demand-gen-multi-asset-ads")

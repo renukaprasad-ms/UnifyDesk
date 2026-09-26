@@ -808,7 +808,8 @@ export type UpdateGoogleCampaignInput = Partial<CreateGoogleCampaignInput>
 export type CreateGoogleAdvancedCampaignInput = {
   name: string
   channelType: 'DISPLAY' | 'DEMAND_GEN' | 'SHOPPING'
-  dailyBudgetMinor: number
+  dailyBudgetMinor?: number | null
+  totalBudgetMinor?: number | null
   bidStrategy?: 'MANUAL_CPC' | 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'TARGET_CPA' | 'TARGET_ROAS'
   targetCpaMinor?: number | null
   targetRoas?: number | null
@@ -1378,6 +1379,56 @@ export type CreateGoogleResponsiveDisplayAdInput = {
   marketingImageBase64: string
   squareMarketingImageBase64: string
   squareLogoImageBase64?: string | null
+}
+
+export type GoogleDemandGenSelectedChannels = {
+  youtubeInFeed?: boolean | null
+  youtubeInStream?: boolean | null
+  youtubeShorts?: boolean | null
+  discover?: boolean | null
+  gmail?: boolean | null
+  display?: boolean | null
+  maps?: boolean | null
+}
+
+export type GoogleDemandGenTargetingInput = {
+  channelStrategy?: 'ALL_CHANNELS' | 'ALL_OWNED_AND_OPERATED_CHANNELS' | null
+  selectedChannels?: GoogleDemandGenSelectedChannels | null
+  locations?: ReachlyoAudienceLocationInput[] | null
+  locationResourceNames?: string[] | null
+  excludedLocations?: ReachlyoAudienceLocationInput[] | null
+  excludedLocationResourceNames?: string[] | null
+  languages?: string[] | null
+  languageResourceNames?: string[] | null
+  audienceResourceNames?: string[] | null
+}
+
+export type GoogleDemandGenTargeting = {
+  channelConfig?: string | null
+  channelStrategy?: string | null
+  selectedChannels?: GoogleDemandGenSelectedChannels | null
+  useAudienceGrouped: boolean
+  locationResources: string[]
+  excludedLocationResources: string[]
+  languageResources: string[]
+  audienceResources: string[]
+}
+
+export type GoogleDemandGenAudienceOption = {
+  id?: string | null
+  resourceName: string
+  name?: string | null
+  status?: string | null
+  description?: string | null
+}
+
+export type GoogleDemandGenChannelPerformance = {
+  channel: string
+  impressions: number
+  clicks: number
+  costMicros: number
+  conversions: number
+  conversionsValue: number
 }
 
 export type CreateGoogleDemandGenVideoAdInput = {
