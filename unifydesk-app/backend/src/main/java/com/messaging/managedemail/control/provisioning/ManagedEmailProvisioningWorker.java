@@ -55,7 +55,6 @@ public class ManagedEmailProvisioningWorker {
       }
       succeed(operation.getId());
     } catch (RuntimeException exception) {
-      failClosedManagedConnection(operation.getCompanyId());
       retryOrFail(operation.getId(), exception);
     }
     return true;
@@ -78,7 +77,8 @@ public class ManagedEmailProvisioningWorker {
 
   private void ensureTenant(ManagedEmailProvisioningOperation operation) {
     TenantWork work = tenantWork(operation);
-    TenantSnapshot snapshot = sesGateway.ensureTenant(work.providerTenantName());
+    TenantSnapshot snapshot =
+        ensureTenantProviderState(work.companyId(), work.providerTenantName());
     sesGateway.ensureConfigurationSet(
         work.providerTenantName(), work.configurationSetName(), properties.getSnsTopicArn());
     persistTenantProviderState(work.companyId(), work.tenantId(), snapshot);
@@ -86,7 +86,8 @@ public class ManagedEmailProvisioningWorker {
 
   private void ensureDomain(ManagedEmailProvisioningOperation operation) {
     DomainWork work = domainWork(operation);
-    TenantSnapshot tenantSnapshot = sesGateway.ensureTenant(work.providerTenantName());
+    TenantSnapshot tenantSnapshot =
+        ensureTenantProviderState(work.companyId(), work.providerTenantName());
     sesGateway.ensureConfigurationSet(
         work.providerTenantName(), work.configurationSetName(), properties.getSnsTopicArn());
     persistTenantProviderState(work.companyId(), work.tenantId(), tenantSnapshot);
@@ -105,7 +106,8 @@ public class ManagedEmailProvisioningWorker {
 
   private void refreshDomain(ManagedEmailProvisioningOperation operation) {
     DomainWork work = domainWork(operation);
-    TenantSnapshot tenantSnapshot = sesGateway.getTenant(work.providerTenantName());
+    TenantSnapshot tenantSnapshot =
+        readTenantProviderState(work.companyId(), work.providerTenantName());
     persistTenantProviderState(work.companyId(), work.tenantId(), tenantSnapshot);
     if (work.type() == DomainType.UNIFYDESK_HOSTED) {
       ensureHostedDns(work);
@@ -483,6 +485,25 @@ public class ManagedEmailProvisioningWorker {
     }
   }
 
+
+
+  private TenantSnapshot ensureTenantProviderState(Long companyId, String providerTenantName) {
+    try {
+      return sesGateway.ensureTenant(providerTenantName);
+    } catch (RuntimeException exception) {
+      failClosedManagedConnection(companyId);
+      throw exception;
+    }
+  }
+
+  private TenantSnapshot readTenantProviderState(Long companyId, String providerTenantName) {
+    try {
+      return sesGateway.getTenant(providerTenantName);
+    } catch (RuntimeException exception) {
+      failClosedManagedConnection(companyId);
+      throw exception;
+    }
+  }
 
   private boolean providerQuotaAvailable(TenantSnapshot snapshot) {
     return snapshot.maxSendRate() != null
