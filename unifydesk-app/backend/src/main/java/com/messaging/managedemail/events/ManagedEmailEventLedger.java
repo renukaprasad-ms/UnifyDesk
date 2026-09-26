@@ -1,6 +1,6 @@
 package com.messaging.managedemail.events;
 
-import com.messaging.common.id.IdGenerator;
+import com.messaging.managedemail.runtime.ManagedEmailIdGenerator;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
 import java.sql.Timestamp;
 import java.util.List;
@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 public class ManagedEmailEventLedger {
 
   private final JdbcTemplate jdbcTemplate;
+  private final ManagedEmailIdGenerator idGenerator;
 
   public void ensureMatchedReceipt(
       ManagedEmailProviderEvent event,
@@ -27,7 +28,7 @@ public class ManagedEmailEventLedger {
         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'MATCHED', ?, now(), null)
         on conflict do nothing
         """,
-        IdGenerator.nextId(),
+        idGenerator.nextId(),
         event.snsMessageId(),
         normalizedKey(event),
         runtime.companyId(),
@@ -108,7 +109,7 @@ public class ManagedEmailEventLedger {
             values (?, ?, ?, ?, ?, ?, ?, ?, 'REJECTED_SCOPE', ?, now(), now())
             on conflict do nothing
             """,
-            IdGenerator.nextId(),
+            idGenerator.nextId(),
             event.snsMessageId(),
             normalizedKey(event) + ":rejected:" + safeReason(reason),
             event.providerMessageId(),
@@ -130,7 +131,7 @@ public class ManagedEmailEventLedger {
             values (?, ?, ?, 'SUBSCRIPTION', ?, 'SUBSCRIPTION', ?, now(), now())
             on conflict do nothing
             """,
-            IdGenerator.nextId(),
+            idGenerator.nextId(),
             envelope.messageId(),
             "sns:" + envelope.messageId() + ":subscription",
             Timestamp.from(envelope.timestamp()),
