@@ -1051,23 +1051,39 @@ Reference:
 
 ## G-07 Google AI asset generation - P1
 
-Investigate and implement eligible AssetGenerationService functions.
+Status: **complete for C6 — review-first Google AssetGenerationService integration implemented and closed-beta gated**.
 
-Potential UX:
+Implemented:
 
-- generate Search copy from landing page/business context
-- generate headline alternatives
-- generate descriptions
-- allow user selection/editing
-- log/generated-vs-user-supplied provenance
-- never silently publish AI output
+- [x] current v25 `AssetGenerationService.GenerateText` integration
+- [x] HEADLINE / LONG_HEADLINE / DESCRIPTION generation
+- [x] landing-page URL, freeform prompt, and keyword generation context
+- [x] current v25 `AssetGenerationService.GenerateImages` integration
+- [x] MARKETING_IMAGE / SQUARE_MARKETING_IMAGE / PORTRAIT_MARKETING_IMAGE / TALL_PORTRAIT_MARKETING_IMAGE outputs
+- [x] final-URL and freeform image generation modes
+- [x] SEARCH / PERFORMANCE_MAX / DISPLAY / DEMAND_GEN channel validation
+- [x] account capability changed from PLANNED to ACCOUNT_ELIGIBILITY_REQUIRED because Google documents AssetGenerationService as closed beta
+- [x] account-managed/RBAC validation before provider calls
+- [x] user-visible eligibility/unavailable state
+- [x] editable/copyable generated text drafts
+- [x] temporary generated image previews with explicit provider-URL warning
+- [x] generation audit events for text/images without logging prompt output as credentials or silently publishing content
+- [x] backend tests for payload mapping, response mapping, and unavailable-account blocking
+- [x] campaign-detail AI asset studio for eligible Google channel types
+- [x] generated suggestions are never automatically attached, published, or activated
 
-Reference starting point:
+Google remains authoritative for closed-beta enrollment. A capability may be structurally implemented in UnifyDesk while the selected Google Ads account is still rejected by the provider as ineligible.
 
-- Google Ads API reference and AssetGenerationService:
+Reference:
+
+- Google Ads API v25 AssetGenerationService:
   https://developers.google.com/google-ads/api/reference/rpc/v25/AssetGenerationService
-
-Availability and eligibility must be capability-checked before UI exposure.
+- GenerateText:
+  https://developers.google.com/google-ads/api/reference/rpc/v25/AssetGenerationService/GenerateText
+- GenerateImagesRequest:
+  https://developers.google.com/google-ads/api/reference/rpc/v25/GenerateImagesRequest
+- v25 release notes:
+  https://developers.google.com/google-ads/api/docs/release-notes
 
 ## G-08 Performance Max completeness - P1
 
@@ -2078,7 +2094,7 @@ C2. [x] Keyword Planner — v25 idea + historical-metrics service, URL/keyword/s
 C3. [x] forecasts — v25 planless keyword forecast API, date horizon, match types, Manual CPC / Maximize Clicks / Maximize Conversions, geo/language reuse, one-hour cache, estimate-only UI, capability/audit/tests  
 C4. [x] reusable Google campaign assets/extensions — Sitelink/Callout/Structured Snippet/Call/Price/Promotion/Lead Form plus AD_IMAGE, Business Name and Business Logo; raw TEXT/IMAGE assets use role-aware semantic linkage, correct scope eligibility, URL options, audit/RBAC, responsive UI and regression coverage  
 C5. [x] PMax URL/automation updates — current asset automation settings, Final URL Expansion dependency, enhanced video/image controls, approved automated video crawl sources, URL exclusions, v25.2 Asset Group URL options, RBAC/audit/UI/tests  
-C6. Google AI asset generation where eligible  
+C6. [x] Google AI asset generation where eligible — v25 closed-beta capability gating, text/image generation from landing page/prompt/keywords, review-first editable drafts, temporary image previews, audit/RBAC/UI/tests, no automatic publishing  
 C7. Demand Gen targeting completeness  
 C8. App campaigns  
 C9. richer provider reporting
