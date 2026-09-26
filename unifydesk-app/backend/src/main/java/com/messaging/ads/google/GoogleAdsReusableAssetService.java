@@ -1078,9 +1078,9 @@ public class GoogleAdsReusableAssetService {
             "Google image assets require fieldType AD_IMAGE or BUSINESS_LOGO");
       }
       if ("BUSINESS_LOGO".equals(requested)
-          && request.level() == GoogleAssetLinkRequest.Level.AD_GROUP) {
+          && request.level() != GoogleAssetLinkRequest.Level.CAMPAIGN) {
         throw new BadRequestException(
-            "Google Business Logo identity assets are not supported at ad-group level");
+            "Google Business Logo identity assets can only be attached at campaign level");
       }
       if ("AD_IMAGE".equals(requested)
           && request.level() == GoogleAssetLinkRequest.Level.CUSTOMER) {
