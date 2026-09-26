@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { FiCopy, FiImage, FiRefreshCw, FiSparkles } from 'react-icons/fi'
+import { FiCopy, FiImage, FiRefreshCw, FiStar } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdFeatureCapabilityInfo,
@@ -200,7 +200,7 @@ export default function GoogleAiAssetStudio({
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <div>
           <div className="flex items-center gap-2">
-            <FiSparkles className="text-indigo-600" aria-hidden="true" />
+            <FiStar className="text-indigo-600" aria-hidden="true" />
             <h2 className="text-base font-bold text-slate-950">Google AI asset studio</h2>
           </div>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
@@ -325,7 +325,7 @@ export default function GoogleAiAssetStudio({
                 !finalUrl.trim()
               }
             >
-              <FiSparkles aria-hidden="true" />
+              <FiStar aria-hidden="true" />
               {generatingText ? 'Generating…' : 'Generate text drafts'}
             </button>
           )}
@@ -429,7 +429,7 @@ export default function GoogleAiAssetStudio({
               }
               onClick={() => void generateImages()}
             >
-              <FiSparkles aria-hidden="true" />
+              <FiStar aria-hidden="true" />
               {generatingImages ? 'Generating…' : 'Generate image drafts'}
             </button>
           )}
