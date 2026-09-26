@@ -118,6 +118,25 @@ class ManagedEmailProviderBudgetServiceDatabaseTests {
   }
 
   @Test
+  void exactProviderObservationTimestampIsTheInclusiveLowerBound() {
+    Instant providerObservationT1 = Instant.parse("2026-09-26T10:00:00Z");
+    Instant acceptedAtBoundary = providerObservationT1;
+    Instant acceptedAfterObservationT2 = Instant.parse("2026-09-26T10:00:01Z");
+    Instant persistenceProcessingT3 = Instant.parse("2026-09-26T10:00:10Z");
+    properties.setProviderSnapshotMaxAgeSeconds(Integer.MAX_VALUE);
+
+    insertCommit(1001, 70, acceptedAtBoundary);
+    insertCommit(1002, 70, acceptedAfterObservationT2);
+
+    ManagedEmailRuntimeRepository.ManagedSenderRuntime runtime =
+        runtime(5.0, 100.0, 98.0, providerObservationT1);
+
+    assertThat(persistenceProcessingT3).isAfter(acceptedAfterObservationT2);
+    assertThat(service().reserveForSend(runtime, 70L, 60L, 3)).isFalse();
+    verifyNoInteractions(usage);
+  }
+
+  @Test
   void utcMidnightDoesNotResetProviderBudget() {
     Instant snapshot = Instant.parse("2026-09-25T23:59:00Z");
     properties.setProviderSnapshotMaxAgeSeconds(Integer.MAX_VALUE);

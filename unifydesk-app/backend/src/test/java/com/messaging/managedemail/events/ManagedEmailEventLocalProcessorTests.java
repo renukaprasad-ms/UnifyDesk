@@ -8,6 +8,7 @@ import com.messaging.managedemail.reputation.ManagedEmailReputationService;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.sesv2.model.SuppressionListReason;
 
 class ManagedEmailEventLocalProcessorTests {
 
@@ -20,13 +21,13 @@ class ManagedEmailEventLocalProcessorTests {
     fixture.processor.process(event, fixture.runtime);
     fixture.processor.process(event, fixture.runtime);
 
-    verify(fixture.usage, times(1))
-        .commitLatest(10L, 70L, 60L, "provider-1");
+    verify(fixture.usage, times(1)).commitLatest(10L, 70L, 60L, "provider-1");
+    verify(fixture.effects, never()).ensureTenantSuppressionScheduled(any(), any(), any());
     verify(fixture.ledger, times(1)).markProcessed(event);
   }
 
   @Test
-  void duplicateHardBounceDoesNotDoubleSuppress() {
+  void hardBounceSchedulesExactlyOneDurableProviderEffect() {
     Fixture fixture = fixture();
     ManagedEmailProviderEvent event =
         event(ManagedEmailProviderEventType.BOUNCE, "Permanent");
@@ -37,12 +38,13 @@ class ManagedEmailEventLocalProcessorTests {
 
     verify(fixture.suppression, times(1))
         .hardBounce(fixture.runtime, event.eventTimestamp());
-    verify(fixture.reputation, times(1)).evaluate(10L);
+    verify(fixture.effects, times(1))
+        .ensureTenantSuppressionScheduled(event, fixture.runtime, SuppressionListReason.BOUNCE);
     verify(fixture.ledger, times(1)).markProcessed(event);
   }
 
   @Test
-  void duplicateComplaintDoesNotDoubleSuppress() {
+  void complaintSchedulesExactlyOneDurableProviderEffect() {
     Fixture fixture = fixture();
     ManagedEmailProviderEvent event =
         event(ManagedEmailProviderEventType.COMPLAINT, null);
@@ -52,27 +54,25 @@ class ManagedEmailEventLocalProcessorTests {
     fixture.processor.process(event, fixture.runtime);
 
     verify(fixture.suppression, times(1)).complaint(fixture.runtime);
-    verify(fixture.reputation, times(1)).evaluate(10L);
+    verify(fixture.effects, times(1))
+        .ensureTenantSuppressionScheduled(event, fixture.runtime, SuppressionListReason.COMPLAINT);
+    verify(fixture.ledger, times(1)).markProcessed(event);
   }
 
   @Test
-  void sideEffectFailureDoesNotMarkEventProcessedAndRetryCompletes() {
+  void durableSchedulingFailureDoesNotMarkEventProcessed() {
     Fixture fixture = fixture();
     ManagedEmailProviderEvent event =
-        event(ManagedEmailProviderEventType.DELIVERY, null);
-    when(fixture.ledger.lockForLocalProcessing(event)).thenReturn(true, true);
-    doThrow(new IllegalStateException("projection failed"))
-        .doNothing()
-        .when(fixture.projection)
-        .apply(event, fixture.runtime);
+        event(ManagedEmailProviderEventType.BOUNCE, "Permanent");
+    when(fixture.ledger.lockForLocalProcessing(event)).thenReturn(true);
+    doThrow(new IllegalStateException("provider effect table unavailable"))
+        .when(fixture.effects)
+        .ensureTenantSuppressionScheduled(event, fixture.runtime, SuppressionListReason.BOUNCE);
 
     assertThatThrownBy(() -> fixture.processor.process(event, fixture.runtime))
         .isInstanceOf(IllegalStateException.class);
 
-    fixture.processor.process(event, fixture.runtime);
-
-    verify(fixture.projection, times(2)).apply(event, fixture.runtime);
-    verify(fixture.ledger, times(1)).markProcessed(event);
+    verify(fixture.ledger, never()).markProcessed(event);
   }
 
   private Fixture fixture() {
@@ -83,12 +83,13 @@ class ManagedEmailEventLocalProcessorTests {
         mock(ManagedEmailSuppressionFeedbackService.class);
     ManagedEmailUsageService usage = mock(ManagedEmailUsageService.class);
     ManagedEmailReputationService reputation = mock(ManagedEmailReputationService.class);
+    ManagedEmailProviderEffectRepository effects = mock(ManagedEmailProviderEffectRepository.class);
     ManagedEmailRuntimeRepository.ManagedRecipientRuntime runtime = runtime();
     ManagedEmailEventLocalProcessor processor =
         new ManagedEmailEventLocalProcessor(
-            ledger, projection, suppression, usage, reputation);
+            ledger, projection, suppression, usage, reputation, effects);
     return new Fixture(
-        processor, ledger, projection, suppression, usage, reputation, runtime);
+        processor, ledger, projection, suppression, usage, reputation, effects, runtime);
   }
 
   private ManagedEmailProviderEvent event(
@@ -150,5 +151,6 @@ class ManagedEmailEventLocalProcessorTests {
       ManagedEmailSuppressionFeedbackService suppression,
       ManagedEmailUsageService usage,
       ManagedEmailReputationService reputation,
+      ManagedEmailProviderEffectRepository effects,
       ManagedEmailRuntimeRepository.ManagedRecipientRuntime runtime) {}
 }

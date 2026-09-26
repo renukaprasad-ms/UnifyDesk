@@ -15,48 +15,44 @@ public class ManagedEmailAddressPolicy {
   }
 
   public String extractNormalizedDomain(String address) {
-    if (!isStrictPlainMailbox(address)) {
-      return null;
-    }
-    int at = address.indexOf('@');
-    return normalizeDomain(address.substring(at + 1));
-  }
-
-  private boolean isStrictPlainMailbox(String address) {
     if (address == null
         || address.isBlank()
         || !address.equals(address.trim())
         || address.length() > 320
         || address.chars().anyMatch(ch -> Character.isWhitespace(ch) || Character.isISOControl(ch))
         || containsMailboxWrapperSyntax(address)) {
-      return false;
+      return null;
     }
 
     int at = address.indexOf('@');
     if (at <= 0 || at != address.lastIndexOf('@') || at == address.length() - 1) {
-      return false;
+      return null;
     }
 
     String localPart = address.substring(0, at);
-    if (localPart.length() > 64
+    String normalizedDomain = normalizeDomain(address.substring(at + 1));
+    if (normalizedDomain == null
+        || localPart.length() > 64
         || localPart.startsWith(".")
         || localPart.endsWith(".")
         || localPart.contains("..")) {
-      return false;
+      return null;
     }
 
+    String normalizedMailbox = localPart + "@" + normalizedDomain;
     try {
-      InternetAddress[] parsed = InternetAddress.parse(address, true);
+      InternetAddress[] parsed = InternetAddress.parse(normalizedMailbox, true);
       if (parsed.length != 1) {
-        return false;
+        return null;
       }
       InternetAddress mailbox = parsed[0];
       mailbox.validate();
-      return mailbox.getPersonal() == null
-          && address.equals(mailbox.getAddress())
-          && normalizeDomain(address.substring(at + 1)) != null;
+      if (mailbox.getPersonal() != null || !normalizedMailbox.equals(mailbox.getAddress())) {
+        return null;
+      }
+      return normalizedDomain;
     } catch (Exception exception) {
-      return false;
+      return null;
     }
   }
 
