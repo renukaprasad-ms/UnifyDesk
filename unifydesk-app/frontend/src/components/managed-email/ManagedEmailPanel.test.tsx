@@ -106,7 +106,7 @@ describe('ManagedEmailPanel', () => {
     )
 
     expect(await screen.findByText('920')).toBeTruthy()
-    expect(screen.getByText(/80 remaining/i)).toBeTruthy()
+    expect(screen.getByText('80').parentElement?.textContent).toContain('remaining')
     expect(screen.getByText(/Limit: 1,000/i)).toBeTruthy()
     expect(screen.getByText(/close to this period/i)).toBeTruthy()
     expect(screen.getByText('WARNING')).toBeTruthy()
@@ -175,7 +175,7 @@ describe('ManagedEmailPanel', () => {
     )
 
     expect(await screen.findByText('offers@example.com')).toBeTruthy()
-    expect(screen.getByText(/UnifyDesk Managed Email/i)).toBeTruthy()
+    expect(screen.getAllByText(/UnifyDesk Managed Email/i).length).toBeGreaterThanOrEqual(2)
 
     fireEvent.click(screen.getByRole('button', { name: /Manage/i }))
     expect(openSetup).toHaveBeenCalledWith('domain-1')
