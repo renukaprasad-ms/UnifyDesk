@@ -27,6 +27,7 @@ export type BroadcastEmailProviderChoice =
 type Props = {
   companyId: string
   onClose: () => void
+  onManagedEmail: () => void
   onSelect: (provider: BroadcastEmailProviderChoice) => void
 }
 
@@ -226,6 +227,7 @@ const isEmailProvider = (
 export default function BroadcastEmailProviderPickerModal({
   companyId,
   onClose,
+  onManagedEmail,
   onSelect,
 }: Props) {
   const snackbar = useSnackbar()
@@ -416,20 +418,19 @@ export default function BroadcastEmailProviderPickerModal({
             <button
               type="button"
               className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5 text-left transition hover:border-indigo-300 hover:bg-indigo-50"
-              onClick={() => {
-                setGuidedChoice(true)
-                setStage('questions')
-              }}
+              onClick={onManagedEmail}
             >
               <span className="flex size-11 items-center justify-center rounded-xl bg-white text-indigo-600 shadow-sm">
-                <FiHelpCircle aria-hidden="true" />
+                <FiMail aria-hidden="true" />
               </span>
-              <span className="mt-4 block text-sm font-bold text-slate-950">Help me choose</span>
+              <span className="mt-4 block text-sm font-bold text-slate-950">
+                Use UnifyDesk Managed Email
+              </span>
               <span className="mt-1 block text-xs leading-5 text-slate-600">
-                I do not know which provider to use. Guide me based on the services I already use.
+                UnifyDesk handles the email-sending infrastructure for you. No provider credentials are needed.
               </span>
               <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-indigo-600">
-                Start guided setup <FiChevronRight aria-hidden="true" />
+                Set up Managed Email <FiChevronRight aria-hidden="true" />
               </span>
             </button>
 
@@ -442,15 +443,15 @@ export default function BroadcastEmailProviderPickerModal({
               }}
             >
               <span className="flex size-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                <FiMail aria-hidden="true" />
+                <FiCloud aria-hidden="true" />
               </span>
               <span className="mt-4 block text-sm font-bold text-slate-950">
-                I already have a provider
+                Connect my own provider
               </span>
               <span className="mt-1 block text-xs leading-5 text-slate-600">
-                Choose Amazon SES, SendGrid, Azure Email or MSG91 Email and follow the setup checklist.
+                Advanced: connect Amazon SES, SendGrid, Azure Email or MSG91 Email that you already manage.
               </span>
-              <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-indigo-600">
+              <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-slate-600">
                 Choose provider <FiChevronRight aria-hidden="true" />
               </span>
             </button>
