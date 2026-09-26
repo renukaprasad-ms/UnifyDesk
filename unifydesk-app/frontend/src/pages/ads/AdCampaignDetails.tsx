@@ -3,6 +3,8 @@ import { FiArrowLeft, FiEdit2, FiPause, FiPlay, FiPlus, FiRefreshCw, FiSave, FiX
 import { Link, useParams } from 'react-router'
 import MetaAdSetModal from '../../components/ads/MetaAdSetModal'
 import GoogleAdGroupModal from '../../components/ads/GoogleAdGroupModal'
+import GoogleAppAdGroupModal from '../../components/ads/GoogleAppAdGroupModal'
+import GoogleAppCampaignPanel from '../../components/ads/GoogleAppCampaignPanel'
 import GooglePerformanceMaxSignals from '../../components/ads/GooglePerformanceMaxSignals'
 import GooglePerformanceMaxAssets from '../../components/ads/GooglePerformanceMaxAssets'
 import GooglePerformanceMaxAutomationPanel from '../../components/ads/GooglePerformanceMaxAutomationPanel'
@@ -22,6 +24,7 @@ import type {
   GoogleAssetGroup,
   CreateMetaAdSetInput,
   CreateGoogleAdGroupInput,
+  CreateGoogleAppAdGroupInput,
   UpdateMetaCampaignInput,
   UpdateGoogleCampaignInput,
 } from '../../features/ads/types'
@@ -194,7 +197,9 @@ export default function AdCampaignDetails() {
               campaign.id,
               {
                 name: name.trim(),
-                ...(isGoogleCampaignBidStrategy(bidStrategy) ? { bidStrategy } : {}),
+                ...(campaign.objective !== 'APP' && isGoogleCampaignBidStrategy(bidStrategy)
+                  ? { bidStrategy }
+                  : {}),
                 ...(minor ? { dailyBudgetMinor: minor } : {}),
               } satisfies UpdateGoogleCampaignInput,
             )
@@ -339,6 +344,30 @@ export default function AdCampaignDetails() {
       setNotice(`${created.name} was created in paused state.`)
     } catch (createError) {
       setError(apiErrorMessage(createError, 'Unable to create Google Ads ad group'))
+    } finally {
+      setCreatingAdSet(false)
+    }
+  }
+
+  const createGoogleAppAdGroup = async (input: CreateGoogleAppAdGroupInput) => {
+    if (!selectedCompany || !campaign) return
+    setCreatingAdSet(true)
+    setError('')
+    setNotice('')
+    try {
+      const created = await adCenterApi.createGoogleAppAdGroup(
+        selectedCompany.companyId,
+        campaign.id,
+        input,
+      )
+      setAdSets((current) => [
+        created,
+        ...current.filter((item) => item.id !== created.id),
+      ])
+      setAdSetModalOpen(false)
+      setNotice(`${created.name} was created as a paused App ad group.`)
+    } catch (createError) {
+      setError(apiErrorMessage(createError, 'Unable to create Google App ad group'))
     } finally {
       setCreatingAdSet(false)
     }
@@ -555,7 +584,11 @@ export default function AdCampaignDetails() {
                   <select
                     className="form-input mt-2"
                     value={bidStrategy}
-                    disabled={!editing || campaign.objective === 'VIDEO'}
+                    disabled={
+                      !editing ||
+                      campaign.objective === 'VIDEO' ||
+                      campaign.objective === 'APP'
+                    }
                     onChange={(event) => setBidStrategy(event.target.value)}
                   >
                     {campaign.provider === 'GOOGLE_ADS' ? (
@@ -662,6 +695,15 @@ export default function AdCampaignDetails() {
             </form>
 
             {campaign.provider === 'GOOGLE_ADS' &&
+              campaign.objective === 'APP' && (
+                <GoogleAppCampaignPanel
+                  companyId={selectedCompany.companyId}
+                  campaignId={campaign.id}
+                  currency={account?.currency}
+                />
+              )}
+
+            {campaign.provider === 'GOOGLE_ADS' &&
               campaign.objective === 'SEARCH' &&
               account && (
                 <>
@@ -705,7 +747,7 @@ export default function AdCampaignDetails() {
               )}
 
             {campaign.provider === 'GOOGLE_ADS' &&
-              campaign.objective !== 'VIDEO' &&
+              !['VIDEO', 'APP'].includes(campaign.objective) &&
               account && (
                 <GoogleReusableAssetsPanel
                   companyId={selectedCompany.companyId}
@@ -951,16 +993,31 @@ export default function AdCampaignDetails() {
                 onCreate={createMetaAdSet}
               />
             )}
-            {account && campaign.provider === 'GOOGLE_ADS' && (
-              <GoogleAdGroupModal
-                account={account}
-                campaign={campaign}
-                open={adSetModalOpen}
-                saving={creatingAdSet}
-                onClose={() => setAdSetModalOpen(false)}
-                onCreate={createGoogleAdGroup}
-              />
-            )}
+            {account &&
+              campaign.provider === 'GOOGLE_ADS' &&
+              campaign.objective === 'APP' && (
+                <GoogleAppAdGroupModal
+                  companyId={selectedCompany.companyId}
+                  account={account}
+                  campaign={campaign}
+                  open={adSetModalOpen}
+                  saving={creatingAdSet}
+                  onClose={() => setAdSetModalOpen(false)}
+                  onCreate={createGoogleAppAdGroup}
+                />
+              )}
+            {account &&
+              campaign.provider === 'GOOGLE_ADS' &&
+              campaign.objective !== 'APP' && (
+                <GoogleAdGroupModal
+                  account={account}
+                  campaign={campaign}
+                  open={adSetModalOpen}
+                  saving={creatingAdSet}
+                  onClose={() => setAdSetModalOpen(false)}
+                  onCreate={createGoogleAdGroup}
+                />
+              )}
           </>
         ) : null}
       </div>
