@@ -347,6 +347,11 @@ export default function AdAudiences() {
                       </td>
                       <td className="px-5 py-4 text-slate-600">
                         {formatSubtype(audience.subtype)}
+                        {audience.customerFileSource && (
+                          <div className="mt-1 text-[11px] text-slate-400">
+                            {formatSubtype(audience.customerFileSource)}
+                          </div>
+                        )}
                       </td>
                       <td className="px-5 py-4 text-slate-600">{countLabel(audience)}</td>
                       <td className="px-5 py-4">
@@ -401,6 +406,9 @@ export default function AdAudiences() {
                       <p className="font-semibold text-slate-950">{audience.name}</p>
                       <p className="mt-1 text-xs text-slate-500">
                         {formatSubtype(audience.subtype)}
+                        {audience.customerFileSource
+                          ? ` · ${formatSubtype(audience.customerFileSource)}`
+                          : ''}
                       </p>
                     </div>
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
