@@ -123,6 +123,7 @@ export default function GoogleAdvancedCampaignModal({
     setChannelType(next)
     setTargetCpa('')
     setTargetRoas('')
+    if (next !== 'DEMAND_GEN') setBudgetMode('DAILY')
     if (next === 'SHOPPING') setBidStrategy('MANUAL_CPC')
     else setBidStrategy('MAXIMIZE_CONVERSIONS')
   }
