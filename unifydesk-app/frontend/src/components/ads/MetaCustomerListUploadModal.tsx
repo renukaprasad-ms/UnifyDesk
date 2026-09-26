@@ -83,6 +83,13 @@ export default function MetaCustomerListUploadModal({
 
   if (!open || !audience) return null
 
+  const close = () => {
+    setValues('')
+    setTermsAccepted(false)
+    setError('')
+    onClose()
+  }
+
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!rows.length || !termsAccepted) return
@@ -109,6 +116,7 @@ export default function MetaCustomerListUploadModal({
         customAudienceTermsAccepted: true,
       })
       setValues('')
+      setTermsAccepted(false)
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -134,7 +142,7 @@ export default function MetaCustomerListUploadModal({
           <button
             type="button"
             className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
-            onClick={onClose}
+            onClick={close}
           >
             <FiX size={18} aria-hidden="true" />
           </button>
@@ -230,7 +238,7 @@ export default function MetaCustomerListUploadModal({
               type="button"
               className="secondary-button"
               disabled={saving || hashing}
-              onClick={onClose}
+              onClick={close}
             >
               Cancel
             </button>
