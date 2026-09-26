@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -22,64 +23,12 @@ public class ManagedEmailReputationService {
 
   @Transactional
   public ManagedEmailDeliverabilityResponse evaluate(Long companyId) {
-    Instant end = Instant.now();
-    Instant start = end.minusSeconds(Math.max(1, properties.getReputationWindowHours()) * 3600L);
-    long accepted =
-        count(
-            """
-            select count(*)
-              from managed_email_usage_events
-             where company_id = ?
-               and event_type = 'COMMIT'
-               and created_at >= ?
-               and created_at < ?
-            """,
-            companyId,
-            start,
-            end);
-    long hardBounces =
-        count(
-            """
-            select count(*)
-              from managed_email_provider_events
-             where company_id = ?
-               and event_type = 'BOUNCE'
-               and upper(coalesce(bounce_type, '')) = 'PERMANENT'
-               and correlation_status = 'MATCHED'
-               and event_timestamp >= ?
-               and event_timestamp < ?
-            """,
-            companyId,
-            start,
-            end);
-    long complaints =
-        count(
-            """
-            select count(*)
-              from managed_email_provider_events
-             where company_id = ?
-               and event_type = 'COMPLAINT'
-               and correlation_status = 'MATCHED'
-               and event_timestamp >= ?
-               and event_timestamp < ?
-            """,
-            companyId,
-            start,
-            end);
-
-    BigDecimal bounceRate = rate(hardBounces, accepted);
-    BigDecimal complaintRate = rate(complaints, accepted);
+    ManagedEmailDeliverabilityResponse response = calculate(companyId);
     ManagedEmailRuntimeRepository.ManagedTenantRuntime tenant =
         runtimeRepository.findTenantRuntime(companyId).orElse(null);
 
-    ManagedEmailDeliverabilityResponse.Status status =
-        decide(accepted, bounceRate, complaintRate, tenant);
-    boolean restricted =
-        status == ManagedEmailDeliverabilityResponse.Status.THROTTLED
-            || status == ManagedEmailDeliverabilityResponse.Status.SUSPENDED
-            || (tenant != null && !tenant.isSendingEnabled());
-
-    if (status == ManagedEmailDeliverabilityResponse.Status.SUSPENDED && tenant != null) {
+    if (response.status() == ManagedEmailDeliverabilityResponse.Status.SUSPENDED
+        && tenant != null) {
       runtimeRepository.suspendTenant(
           companyId, tenant.tenantId(), "Automated Managed Email reputation safety policy");
     }
@@ -96,76 +45,54 @@ public class ManagedEmailReputationService {
           IdGenerator.nextId(),
           companyId,
           tenant.tenantId(),
-          Timestamp.from(start),
-          Timestamp.from(end),
-          accepted,
-          hardBounces,
-          complaints,
-          bounceRate,
-          complaintRate,
+          Timestamp.from(response.windowStart()),
+          Timestamp.from(response.windowEnd()),
+          response.accepted(),
+          response.hardBounces(),
+          response.complaints(),
+          response.hardBounceRate(),
+          response.complaintRate(),
           tenant.reputationStatus(),
-          status.name());
+          response.status().name());
     }
-
-    return new ManagedEmailDeliverabilityResponse(
-        status,
-        start,
-        end,
-        accepted,
-        hardBounces,
-        complaints,
-        bounceRate,
-        complaintRate,
-        restricted,
-        notice(status));
+    return response;
   }
 
   @Transactional(readOnly = true)
   public ManagedEmailDeliverabilityResponse current(Long companyId) {
+    return calculate(companyId);
+  }
+
+  @Transactional(readOnly = true)
+  public double rateMultiplier(Long companyId) {
+    List<String> decisions =
+        jdbcTemplate.queryForList(
+            """
+            select decision
+              from managed_email_reputation_snapshots
+             where company_id = ?
+             order by window_end desc
+             limit 1
+            """,
+            String.class,
+            companyId);
+    if (decisions.isEmpty()) return 1.0;
+    return switch (decisions.getFirst()) {
+      case "SUSPENDED" -> 0.0;
+      case "THROTTLED" ->
+          properties.getThrottleRateMultiplier() == null
+              ? 0.0
+              : properties.getThrottleRateMultiplier().doubleValue();
+      default -> 1.0;
+    };
+  }
+
+  private ManagedEmailDeliverabilityResponse calculate(Long companyId) {
     Instant end = Instant.now();
     Instant start = end.minusSeconds(Math.max(1, properties.getReputationWindowHours()) * 3600L);
-    long accepted =
-        count(
-            """
-            select count(*)
-              from managed_email_usage_events
-             where company_id = ?
-               and event_type = 'COMMIT'
-               and created_at >= ?
-               and created_at < ?
-            """,
-            companyId,
-            start,
-            end);
-    long hardBounces =
-        count(
-            """
-            select count(*)
-              from managed_email_provider_events
-             where company_id = ?
-               and event_type = 'BOUNCE'
-               and upper(coalesce(bounce_type, '')) = 'PERMANENT'
-               and correlation_status = 'MATCHED'
-               and event_timestamp >= ?
-               and event_timestamp < ?
-            """,
-            companyId,
-            start,
-            end);
-    long complaints =
-        count(
-            """
-            select count(*)
-              from managed_email_provider_events
-             where company_id = ?
-               and event_type = 'COMPLAINT'
-               and correlation_status = 'MATCHED'
-               and event_timestamp >= ?
-               and event_timestamp < ?
-            """,
-            companyId,
-            start,
-            end);
+    long accepted = accepted(companyId, start, end);
+    long hardBounces = events(companyId, "BOUNCE", true, start, end);
+    long complaints = events(companyId, "COMPLAINT", false, start, end);
     BigDecimal bounceRate = rate(hardBounces, accepted);
     BigDecimal complaintRate = rate(complaints, accepted);
     ManagedEmailRuntimeRepository.ManagedTenantRuntime tenant =
@@ -187,6 +114,48 @@ public class ManagedEmailReputationService {
         complaintRate,
         restricted,
         notice(status));
+  }
+
+  private long accepted(Long companyId, Instant start, Instant end) {
+    Long value =
+        jdbcTemplate.queryForObject(
+            """
+            select count(*)
+              from managed_email_usage_events
+             where company_id = ?
+               and event_type = 'COMMIT'
+               and created_at >= ?
+               and created_at < ?
+            """,
+            Long.class,
+            companyId,
+            Timestamp.from(start),
+            Timestamp.from(end));
+    return value == null ? 0 : value;
+  }
+
+  private long events(
+      Long companyId, String type, boolean hardOnly, Instant start, Instant end) {
+    String sql =
+        """
+        select count(*)
+          from managed_email_provider_events
+         where company_id = ?
+           and event_type = ?
+           and correlation_status = 'MATCHED'
+           and event_timestamp >= ?
+           and event_timestamp < ?
+        """
+            + (hardOnly ? " and upper(coalesce(bounce_type, '')) = 'PERMANENT'" : "");
+    Long value =
+        jdbcTemplate.queryForObject(
+            sql,
+            Long.class,
+            companyId,
+            type,
+            Timestamp.from(start),
+            Timestamp.from(end));
+    return value == null ? 0 : value;
   }
 
   private ManagedEmailDeliverabilityResponse.Status decide(
@@ -224,13 +193,6 @@ public class ManagedEmailReputationService {
     if (denominator <= 0) return BigDecimal.ZERO.setScale(8);
     return BigDecimal.valueOf(numerator)
         .divide(BigDecimal.valueOf(denominator), 8, RoundingMode.HALF_UP);
-  }
-
-  private long count(String sql, Long companyId, Instant start, Instant end) {
-    Long value =
-        jdbcTemplate.queryForObject(
-            sql, Long.class, companyId, Timestamp.from(start), Timestamp.from(end));
-    return value == null ? 0 : value;
   }
 
   private String notice(ManagedEmailDeliverabilityResponse.Status status) {

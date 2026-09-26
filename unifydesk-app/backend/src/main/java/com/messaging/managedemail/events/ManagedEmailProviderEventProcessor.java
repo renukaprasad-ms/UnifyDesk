@@ -3,6 +3,7 @@ package com.messaging.managedemail.events;
 import com.messaging.managedemail.metering.ManagedEmailUsageService;
 import com.messaging.managedemail.reputation.ManagedEmailReputationService;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
+import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.sesv2.model.SuppressionListReason;
@@ -19,17 +20,22 @@ public class ManagedEmailProviderEventProcessor {
   private final ManagedEmailProviderSuppressionService providerSuppressionService;
   private final ManagedEmailUsageService usageService;
   private final ManagedEmailReputationService reputationService;
+  private final SnsMessageVerifier snsMessageVerifier;
+  private final SnsSubscriptionConfirmer subscriptionConfirmer;
 
   public void process(SnsEnvelope envelope) {
     if (ledger.alreadyReceived(envelope.messageId())) return;
 
     if ("SubscriptionConfirmation".equals(envelope.type())) {
-      ledger.recordSubscription(envelope);
+      if (ledger.recordSubscription(envelope) && envelope.subscribeUrl() != null) {
+        URI uri =
+            snsMessageVerifier.validateAwsHttpsUri(
+                envelope.subscribeUrl(), envelope.topicArn(), false);
+        subscriptionConfirmer.confirm(uri);
+      }
       return;
     }
-    if (!"Notification".equals(envelope.type())) {
-      return;
-    }
+    if (!"Notification".equals(envelope.type())) return;
 
     ManagedEmailProviderEvent event = parser.parse(envelope);
     ManagedEmailRuntimeRepository.ManagedRecipientRuntime runtime =

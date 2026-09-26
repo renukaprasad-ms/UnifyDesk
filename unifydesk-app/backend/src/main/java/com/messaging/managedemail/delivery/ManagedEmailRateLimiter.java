@@ -1,6 +1,7 @@
 package com.messaging.managedemail.delivery;
 
 import com.messaging.billing.service.EntitlementService;
+import com.messaging.managedemail.reputation.ManagedEmailReputationService;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeProperties;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
 import java.time.Instant;
@@ -67,18 +68,21 @@ public class ManagedEmailRateLimiter {
   private final StringRedisTemplate redisTemplate;
   private final ManagedEmailRuntimeProperties properties;
   private final EntitlementService entitlementService;
+  private final ManagedEmailReputationService reputationService;
 
   public boolean tryAcquire(
       ManagedEmailRuntimeRepository.ManagedSenderRuntime runtime, Long runId) {
     double providerRate =
         runtime.providerMaxSendRate() == null ? 0.0 : runtime.providerMaxSendRate();
     double safetyRate = properties.getAccountSafetyMaxPerSecond();
-    if (providerRate <= 0 || safetyRate <= 0) {
-      return false;
-    }
+    if (providerRate <= 0 || safetyRate <= 0) return false;
+
+    double reputationMultiplier = reputationService.rateMultiplier(runtime.companyId());
+    if (reputationMultiplier <= 0) return false;
 
     double accountRate = Math.min(providerRate, safetyRate);
-    double companyRate = Math.min(properties.getCompanyMaxPerSecond(), accountRate);
+    double companyRate =
+        Math.min(properties.getCompanyMaxPerSecond(), accountRate) * reputationMultiplier;
     if (isNewTenant(runtime.rampStage())) {
       companyRate = Math.min(companyRate, properties.getNewTenantMaxPerSecond());
     }
@@ -88,9 +92,11 @@ public class ManagedEmailRateLimiter {
             .map(subscription -> subscription.getPlan().getId())
             .orElse(0L);
     double configuredPlanRate = properties.getPlanMaxPerSecond();
-    double planRate = configuredPlanRate > 0 ? Math.min(configuredPlanRate, companyRate) : companyRate;
+    double planRate =
+        configuredPlanRate > 0 ? Math.min(configuredPlanRate, companyRate) : companyRate;
     double configuredRunRate = properties.getRunMaxPerSecond();
-    double runRate = configuredRunRate > 0 ? Math.min(configuredRunRate, planRate) : planRate;
+    double runRate =
+        configuredRunRate > 0 ? Math.min(configuredRunRate, planRate) : planRate;
 
     long hourlyCap =
         isNewTenant(runtime.rampStage())
@@ -106,7 +112,7 @@ public class ManagedEmailRateLimiter {
         List.of(
             "unifydesk:managed-email:rate:account:" + runtime.region(),
             "unifydesk:managed-email:rate:company:" + runtime.companyId(),
-            "unifydesk:managed-email:rate:plan:" + planId,
+            "unifydesk:managed-email:rate:plan:" + planId + ":company:" + runtime.companyId(),
             "unifydesk:managed-email:rate:run:" + runId,
             "unifydesk:managed-email:count:hour:"
                 + runtime.companyId()
