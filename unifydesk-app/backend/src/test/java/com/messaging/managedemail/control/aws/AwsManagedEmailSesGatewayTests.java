@@ -21,6 +21,7 @@ import software.amazon.awssdk.services.sesv2.SesV2Client;
 import software.amazon.awssdk.services.sesv2.model.AlreadyExistsException;
 import software.amazon.awssdk.services.sesv2.model.CreateTenantRequest;
 import software.amazon.awssdk.services.sesv2.model.CreateTenantResponse;
+import software.amazon.awssdk.services.sesv2.model.GetAccountRequest;
 import software.amazon.awssdk.services.sesv2.model.GetAccountResponse;
 import software.amazon.awssdk.services.sesv2.model.GetReputationEntityRequest;
 import software.amazon.awssdk.services.sesv2.model.GetTenantRequest;
@@ -90,7 +91,7 @@ class AwsManagedEmailSesGatewayTests {
     when(ses.getTenant(any(GetTenantRequest.class))).thenReturn(enabledTenant());
     when(ses.getReputationEntity(any(GetReputationEntityRequest.class)))
         .thenThrow(NotFoundException.builder().message("not ready").build());
-    when(ses.getAccount())
+    when(ses.getAccount(any(GetAccountRequest.class)))
         .thenReturn(
             GetAccountResponse.builder()
                 .sendingEnabled(true)
@@ -123,7 +124,7 @@ class AwsManagedEmailSesGatewayTests {
     when(ses.getTenant(any(GetTenantRequest.class))).thenReturn(enabledTenant());
     when(ses.getReputationEntity(any(GetReputationEntityRequest.class)))
         .thenThrow(NotFoundException.builder().message("not ready").build());
-    when(ses.getAccount())
+    when(ses.getAccount(any(GetAccountRequest.class)))
         .thenReturn(
             GetAccountResponse.builder()
                 .sendingEnabled(true)
@@ -144,7 +145,7 @@ class AwsManagedEmailSesGatewayTests {
     assertThat(snapshot.sentLast24Hours()).isEqualTo(4321.0);
     var order = inOrder(clock, ses);
     order.verify(clock).instant();
-    order.verify(ses).getAccount();
+    order.verify(ses).getAccount(any(GetAccountRequest.class));
   }
 
   @Test
@@ -158,7 +159,7 @@ class AwsManagedEmailSesGatewayTests {
     when(ses.getTenant(any(GetTenantRequest.class))).thenReturn(enabledTenant());
     when(ses.getReputationEntity(any(GetReputationEntityRequest.class)))
         .thenThrow(NotFoundException.builder().message("not ready").build());
-    when(ses.getAccount())
+    when(ses.getAccount(any(GetAccountRequest.class)))
         .thenReturn(
             GetAccountResponse.builder()
                 .sendingEnabled(true)
