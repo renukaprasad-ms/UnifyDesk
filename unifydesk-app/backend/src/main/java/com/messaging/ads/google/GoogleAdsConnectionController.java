@@ -34,6 +34,10 @@ import com.messaging.ads.google.dto.GoogleInsightsSyncResponse;
 import com.messaging.ads.google.dto.GoogleInsightBreakdownsSyncResponse;
 import com.messaging.ads.google.dto.GoogleKeywordSyncResponse;
 import com.messaging.ads.google.dto.GoogleFullSyncResponse;
+import com.messaging.ads.google.dto.GoogleAssetGenerationImageRequest;
+import com.messaging.ads.google.dto.GoogleAssetGenerationImageResponse;
+import com.messaging.ads.google.dto.GoogleAssetGenerationTextRequest;
+import com.messaging.ads.google.dto.GoogleAssetGenerationTextResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupUrlOptionsResponse;
 import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationRequest;
@@ -127,6 +131,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsFullSyncService fullSyncService;
   private final GoogleAdsPerformanceMaxService performanceMaxService;
   private final GoogleAdsReusableAssetService reusableAssetService;
+  private final GoogleAdsAssetGenerationService assetGenerationService;
   private final GoogleAdsAssetGroupSignalService assetGroupSignalService;
   private final GoogleAdsAssetGroupAssetService assetGroupAssetService;
   private final GoogleDataManagerService dataManagerService;
@@ -158,6 +163,32 @@ public class GoogleAdsConnectionController {
             200,
             fullSyncService.sync(companyId, accountId),
             "Google Ads account fully synchronized"));
+  }
+
+  @PostMapping("/accounts/{accountId}/asset-generation:text")
+  public ResponseEntity<ApiResponse<GoogleAssetGenerationTextResponse>> generateTextAssets(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody GoogleAssetGenerationTextRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            assetGenerationService.generateText(companyId, accountId, request, userId),
+            "Google AI text asset suggestions generated"));
+  }
+
+  @PostMapping("/accounts/{accountId}/asset-generation:images")
+  public ResponseEntity<ApiResponse<GoogleAssetGenerationImageResponse>> generateImageAssets(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody GoogleAssetGenerationImageRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            assetGenerationService.generateImages(companyId, accountId, request, userId),
+            "Google AI image asset suggestions generated"));
   }
 
   @GetMapping("/accounts/{accountId}/reusable-assets")

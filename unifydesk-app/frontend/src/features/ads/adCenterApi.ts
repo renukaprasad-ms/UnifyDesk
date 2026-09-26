@@ -58,6 +58,10 @@ import type {
   CreateGoogleAdvancedCampaignInput,
   CreateGooglePerformanceMaxCampaignInput,
   GoogleAsset,
+  GoogleAssetGenerationTextInput,
+  GoogleAssetGenerationTextResult,
+  GoogleAssetGenerationImageInput,
+  GoogleAssetGenerationImageResult,
   GoogleReusableAsset,
   CreateGoogleReusableAssetInput,
   CreateGoogleAdvancedReusableAssetInput,
@@ -145,6 +149,30 @@ const unwrap = <T>(response: ApiResponse<T>) => {
 }
 
 export const adCenterApi = {
+  async generateGoogleTextAssets(
+    companyId: string,
+    accountId: string,
+    input: GoogleAssetGenerationTextInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleAssetGenerationTextResult>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/asset-generation:text`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async generateGoogleImageAssets(
+    companyId: string,
+    accountId: string,
+    input: GoogleAssetGenerationImageInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleAssetGenerationImageResult>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/asset-generation:images`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
   async googleReusableAssets(companyId: string, accountId: string) {
     const response = await apiClient.get<ApiResponse<GoogleReusableAsset[]>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/reusable-assets`,

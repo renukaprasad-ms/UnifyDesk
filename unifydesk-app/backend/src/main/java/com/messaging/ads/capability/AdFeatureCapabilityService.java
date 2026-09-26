@@ -266,7 +266,14 @@ public class AdFeatureCapabilityService {
     add(specs, AdFeatureCapability.GOOGLE_FORECAST, true, GOOGLE_ADS_SCOPE);
     add(specs, AdFeatureCapability.GOOGLE_REUSABLE_ASSETS, true, GOOGLE_ADS_SCOPE);
     planned(specs, AdFeatureCapability.GOOGLE_EXPERIMENTS);
-    planned(specs, AdFeatureCapability.GOOGLE_ASSET_GENERATION);
+    specs.add(
+        new CapabilitySpec(
+            AdFeatureCapability.GOOGLE_ASSET_GENERATION,
+            AdFeatureAvailability.ACCOUNT_ELIGIBILITY_REQUIRED,
+            true,
+            true,
+            "Google AssetGenerationService is a closed-beta capability and must be verified for the selected account at use time.",
+            GOOGLE_ADS_SCOPE));
     planned(specs, AdFeatureCapability.GOOGLE_BID_SIMULATION);
     specs.add(
         new CapabilitySpec(
