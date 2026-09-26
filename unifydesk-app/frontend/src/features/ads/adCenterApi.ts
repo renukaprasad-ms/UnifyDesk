@@ -60,6 +60,7 @@ import type {
   CreateGoogleAppCampaignInput,
   GoogleAppCampaignSettings,
   GoogleAppCampaignPerformance,
+  GoogleProviderReport,
   GoogleAppCreativeAsset,
   CreateGoogleAppAdGroupInput,
   CreateGoogleAppAdInput,
@@ -824,6 +825,26 @@ export const adCenterApi = {
   async googleAppCampaignSettings(companyId: string, campaignId: string) {
     const response = await apiClient.get<ApiResponse<GoogleAppCampaignSettings>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/app-settings`,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleProviderReport(
+    companyId: string,
+    accountId: string,
+    from: string,
+    to: string,
+    campaignExternalId?: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleProviderReport>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/provider-report`,
+      {
+        params: {
+          from,
+          to,
+          ...(campaignExternalId ? { campaignExternalId } : {}),
+        },
+      },
     )
     return unwrap(response.data)
   },
