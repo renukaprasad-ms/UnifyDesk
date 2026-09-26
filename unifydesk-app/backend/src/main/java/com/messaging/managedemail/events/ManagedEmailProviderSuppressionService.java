@@ -3,12 +3,13 @@ package com.messaging.managedemail.events;
 import com.messaging.managedemail.delivery.ManagedSesClientProvider;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.services.sesv2.SesV2Client;
+import software.amazon.awssdk.services.sesv2.model.GetSuppressedDestinationRequest;
+import software.amazon.awssdk.services.sesv2.model.NotFoundException;
 import software.amazon.awssdk.services.sesv2.model.PutSuppressedDestinationRequest;
 import software.amazon.awssdk.services.sesv2.model.SuppressionListReason;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ManagedEmailProviderSuppressionService {
@@ -18,23 +19,34 @@ public class ManagedEmailProviderSuppressionService {
   public void signal(
       ManagedEmailRuntimeRepository.ManagedRecipientRuntime runtime,
       SuppressionListReason reason) {
+    SesV2Client client = clientProvider.client(runtime.region());
+    if (alreadySuppressed(client, runtime, reason)) {
+      return;
+    }
+    client.putSuppressedDestination(
+        PutSuppressedDestinationRequest.builder()
+            .emailAddress(runtime.normalizedDestination())
+            .reason(reason)
+            .tenantName(runtime.providerTenantName())
+            .build());
+  }
+
+  private boolean alreadySuppressed(
+      SesV2Client client,
+      ManagedEmailRuntimeRepository.ManagedRecipientRuntime runtime,
+      SuppressionListReason reason) {
     try {
-      clientProvider
-          .client(runtime.region())
-          .putSuppressedDestination(
-              PutSuppressedDestinationRequest.builder()
+      var response =
+          client.getSuppressedDestination(
+              GetSuppressedDestinationRequest.builder()
                   .emailAddress(runtime.normalizedDestination())
-                  .reason(reason)
                   .tenantName(runtime.providerTenantName())
                   .build());
-    } catch (RuntimeException exception) {
-      log.warn(
-          "managed_email_provider_suppression_retry_required companyId={} tenantId={} recipientId={} reason={}",
-          runtime.companyId(),
-          runtime.tenantId(),
-          runtime.recipientId(),
-          reason);
-      throw exception;
+      return response.suppressedDestination() != null
+          && reason.toString().equals(response.suppressedDestination().reasonAsString())
+          && runtime.providerTenantName().equals(response.suppressedDestination().tenantName());
+    } catch (NotFoundException exception) {
+      return false;
     }
   }
 }
