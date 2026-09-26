@@ -2,11 +2,13 @@ package com.messaging.managedemail.control.aws;
 
 import com.messaging.common.exception.ServiceUnavailableException;
 import com.messaging.managedemail.control.config.ManagedEmailProperties;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.sesv2.SesV2Client;
@@ -14,7 +16,6 @@ import software.amazon.awssdk.services.sesv2.model.*;
 import software.amazon.awssdk.services.sts.StsClient;
 
 @Component
-@RequiredArgsConstructor
 public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
 
   private static final String EVENT_DESTINATION_NAME = "unifydesk-managed-email";
@@ -34,7 +35,22 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
   private final SesV2Client ses;
   private final StsClient sts;
   private final ManagedEmailProperties properties;
+  private final Clock clock;
   private final AtomicReference<String> accountId = new AtomicReference<>();
+
+  @Autowired
+  public AwsManagedEmailSesGateway(
+      SesV2Client ses, StsClient sts, ManagedEmailProperties properties) {
+    this(ses, sts, properties, Clock.systemUTC());
+  }
+
+  AwsManagedEmailSesGateway(
+      SesV2Client ses, StsClient sts, ManagedEmailProperties properties, Clock clock) {
+    this.ses = ses;
+    this.sts = sts;
+    this.properties = properties;
+    this.clock = clock;
+  }
 
   @Override
   public TenantSnapshot ensureTenant(String tenantName) {
@@ -81,6 +97,7 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
       } catch (software.amazon.awssdk.services.sesv2.model.NotFoundException ignored) {
         // Reputation data may not be available immediately after tenant creation.
       }
+      Instant providerObservedAt = clock.instant();
       GetAccountResponse account = ses.getAccount();
       SendQuota quota = account == null ? null : account.sendQuota();
       Double maxSendRate = quota == null ? null : quota.maxSendRate();
@@ -95,7 +112,8 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
           max24HourSend,
           sentLast24Hours,
           accountSendingEnabled,
-          productionAccessEnabled);
+          productionAccessEnabled,
+          providerObservedAt);
     } catch (SdkClientException | SesV2Exception exception) {
       throw providerUnavailable("Unable to read Managed Email tenant status", exception);
     }

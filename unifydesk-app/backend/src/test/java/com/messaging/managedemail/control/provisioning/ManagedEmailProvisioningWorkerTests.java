@@ -38,6 +38,7 @@ import com.messaging.managedemail.control.repository.ManagedEmailDomainRepositor
 import com.messaging.managedemail.control.repository.ManagedEmailProvisioningOperationRepository;
 import com.messaging.managedemail.control.repository.ManagedEmailTenantRepository;
 import com.messaging.managedemail.control.service.ManagedEmailSenderLifecycleService;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -91,6 +92,103 @@ class ManagedEmailProvisioningWorkerTests {
 
 
   @Test
+  void persistsExactProviderObservationTimestampEvenWhenPersistenceIsLater() {
+    Instant providerObservedAt = Instant.parse("2026-09-26T10:00:00Z");
+    Instant persistenceHappensLater = Instant.parse("2026-09-26T10:00:10Z");
+    ManagedEmailTenant tenant = tenant();
+    tenant.setBroadcastConnectionId(44L);
+    BroadcastSenderConnection connection = managedConnection();
+    when(tenantRepository.findByIdAndCompanyId(33L, 1L)).thenReturn(Optional.of(tenant));
+    when(connectionRepository.findByIdAndCompanyId(44L, 1L)).thenReturn(Optional.of(connection));
+
+    TenantSnapshot snapshot =
+        new TenantSnapshot(
+            "ENABLED", "LOW", 25.0, 50000.0, 1234.0, true, true, providerObservedAt);
+
+    worker.persistTenantProviderState(1L, 33L, snapshot);
+
+    assertThat(connection.getLastValidatedAt()).isEqualTo(providerObservedAt);
+    assertThat(tenant.getLastProviderSyncAt()).isEqualTo(providerObservedAt);
+    assertThat(connection.getLastValidatedAt()).isBefore(persistenceHappensLater);
+  }
+
+  @Test
+  void retryingPersistenceWithSameSnapshotNeverMakesObservationLookNewer() {
+    Instant providerObservedAt = Instant.parse("2026-09-26T10:00:00Z");
+    ManagedEmailTenant tenant = tenant();
+    tenant.setBroadcastConnectionId(44L);
+    BroadcastSenderConnection connection = managedConnection();
+    when(tenantRepository.findByIdAndCompanyId(33L, 1L)).thenReturn(Optional.of(tenant));
+    when(connectionRepository.findByIdAndCompanyId(44L, 1L)).thenReturn(Optional.of(connection));
+    TenantSnapshot snapshot =
+        new TenantSnapshot(
+            "ENABLED", "LOW", 25.0, 50000.0, 1234.0, true, true, providerObservedAt);
+
+    worker.persistTenantProviderState(1L, 33L, snapshot);
+    connection.setLastValidatedAt(Instant.parse("2026-09-26T10:10:00Z"));
+    tenant.setLastProviderSyncAt(Instant.parse("2026-09-26T10:10:00Z"));
+    worker.persistTenantProviderState(1L, 33L, snapshot);
+
+    assertThat(connection.getLastValidatedAt()).isEqualTo(providerObservedAt);
+    assertThat(tenant.getLastProviderSyncAt()).isEqualTo(providerObservedAt);
+  }
+
+  @Test
+  void newerProviderReadMovesQuotaValuesAndTimestampTogether() {
+    Instant firstObservedAt = Instant.parse("2026-09-26T10:00:00Z");
+    Instant secondObservedAt = Instant.parse("2026-09-26T10:05:00Z");
+    ManagedEmailTenant tenant = tenant();
+    tenant.setBroadcastConnectionId(44L);
+    BroadcastSenderConnection connection = managedConnection();
+    when(tenantRepository.findByIdAndCompanyId(33L, 1L)).thenReturn(Optional.of(tenant));
+    when(connectionRepository.findByIdAndCompanyId(44L, 1L)).thenReturn(Optional.of(connection));
+
+    worker.persistTenantProviderState(
+        1L,
+        33L,
+        new TenantSnapshot(
+            "ENABLED", "LOW", 40.0, 80000.0, 1000.0, true, true, firstObservedAt));
+    worker.persistTenantProviderState(
+        1L,
+        33L,
+        new TenantSnapshot(
+            "ENABLED", "LOW", 5.0, 10000.0, 9000.0, true, true, secondObservedAt));
+
+    assertThat(connection.getMaxSendRate()).isEqualTo(5.0);
+    assertThat(connection.getMax24HourSend()).isEqualTo(10000.0);
+    assertThat(connection.getSentLast24Hours()).isEqualTo(9000.0);
+    assertThat(connection.getLastValidatedAt()).isEqualTo(secondObservedAt);
+  }
+
+  @Test
+  void providerObservationLowerBoundIncludesSendAcceptedBetweenObservationAndPersistence() {
+    Instant providerObservedAt = Instant.parse("2026-09-26T10:00:00Z");
+    Instant localAcceptedSendAt = Instant.parse("2026-09-26T10:00:05Z");
+    Instant persistenceAt = Instant.parse("2026-09-26T10:00:10Z");
+    ManagedEmailTenant tenant = tenant();
+    tenant.setBroadcastConnectionId(44L);
+    BroadcastSenderConnection connection = managedConnection();
+    when(tenantRepository.findByIdAndCompanyId(33L, 1L)).thenReturn(Optional.of(tenant));
+    when(connectionRepository.findByIdAndCompanyId(44L, 1L)).thenReturn(Optional.of(connection));
+
+    worker.persistTenantProviderState(
+        1L,
+        33L,
+        new TenantSnapshot(
+            "ENABLED", "LOW", 25.0, 50000.0, 1234.0, true, true, providerObservedAt));
+
+    long localSendsSinceProviderObservation =
+        java.util.stream.Stream.of(localAcceptedSendAt)
+            .filter(acceptedAt -> !acceptedAt.isBefore(connection.getLastValidatedAt()))
+            .count();
+
+    assertThat(connection.getLastValidatedAt()).isEqualTo(providerObservedAt);
+    assertThat(localAcceptedSendAt).isAfter(connection.getLastValidatedAt());
+    assertThat(localAcceptedSendAt).isBefore(persistenceAt);
+    assertThat(localSendsSinceProviderObservation).isEqualTo(1);
+  }
+
+  @Test
   void productionAccountSynchronizesManagedConnectionAndEnablesSending() {
     ManagedEmailTenant tenant = tenant();
     tenant.setBroadcastConnectionId(44L);
@@ -101,7 +199,15 @@ class ManagedEmailProvisioningWorkerTests {
     worker.persistTenantProviderState(
         1L,
         33L,
-        new TenantSnapshot("ENABLED", "LOW", 25.0, 50000.0, 1234.0, true, true));
+        new TenantSnapshot(
+            "ENABLED",
+            "LOW",
+            25.0,
+            50000.0,
+            1234.0,
+            true,
+            true,
+            Instant.parse("2026-09-26T10:00:00Z")));
 
     assertThat(connection.isSendingEnabled()).isTrue();
     assertThat(connection.isProductionAccessEnabled()).isTrue();
@@ -122,7 +228,15 @@ class ManagedEmailProvisioningWorkerTests {
     worker.persistTenantProviderState(
         1L,
         33L,
-        new TenantSnapshot("ENABLED", "LOW", 25.0, 50000.0, 100.0, true, false));
+        new TenantSnapshot(
+            "ENABLED",
+            "LOW",
+            25.0,
+            50000.0,
+            100.0,
+            true,
+            false,
+            Instant.parse("2026-09-26T10:00:00Z")));
 
     assertThat(connection.isSendingEnabled()).isFalse();
     assertThat(connection.isProductionAccessEnabled()).isFalse();
@@ -139,7 +253,15 @@ class ManagedEmailProvisioningWorkerTests {
     worker.persistTenantProviderState(
         1L,
         33L,
-        new TenantSnapshot("ENABLED", "LOW", 25.0, 50000.0, 100.0, false, true));
+        new TenantSnapshot(
+            "ENABLED",
+            "LOW",
+            25.0,
+            50000.0,
+            100.0,
+            false,
+            true,
+            Instant.parse("2026-09-26T10:00:00Z")));
 
     assertThat(connection.isSendingEnabled()).isFalse();
   }
@@ -155,7 +277,15 @@ class ManagedEmailProvisioningWorkerTests {
     worker.persistTenantProviderState(
         1L,
         33L,
-        new TenantSnapshot("ENABLED", "LOW", null, 50000.0, 100.0, true, true));
+        new TenantSnapshot(
+            "ENABLED",
+            "LOW",
+            null,
+            50000.0,
+            100.0,
+            true,
+            true,
+            Instant.parse("2026-09-26T10:00:00Z")));
 
     assertThat(connection.isSendingEnabled()).isFalse();
   }
@@ -171,7 +301,15 @@ class ManagedEmailProvisioningWorkerTests {
     worker.persistTenantProviderState(
         1L,
         33L,
-        new TenantSnapshot("ENABLED", "LOW", 40.0, 80000.0, 1000.0, true, true));
+        new TenantSnapshot(
+            "ENABLED",
+            "LOW",
+            40.0,
+            80000.0,
+            1000.0,
+            true,
+            true,
+            Instant.parse("2026-09-26T10:00:00Z")));
     assertThat(connection.getMaxSendRate()).isEqualTo(40.0);
     assertThat(connection.getMax24HourSend()).isEqualTo(80000.0);
     assertThat(connection.getSentLast24Hours()).isEqualTo(1000.0);
@@ -179,7 +317,15 @@ class ManagedEmailProvisioningWorkerTests {
     worker.persistTenantProviderState(
         1L,
         33L,
-        new TenantSnapshot("ENABLED", "LOW", 5.0, 10000.0, 9000.0, true, true));
+        new TenantSnapshot(
+            "ENABLED",
+            "LOW",
+            5.0,
+            10000.0,
+            9000.0,
+            true,
+            true,
+            Instant.parse("2026-09-26T10:05:00Z")));
     assertThat(connection.getMaxSendRate()).isEqualTo(5.0);
     assertThat(connection.getMax24HourSend()).isEqualTo(10000.0);
     assertThat(connection.getSentLast24Hours()).isEqualTo(9000.0);
@@ -202,7 +348,15 @@ class ManagedEmailProvisioningWorkerTests {
     worker.persistTenantProviderState(
         1L,
         33L,
-        new TenantSnapshot("ENABLED", "LOW", 50.0, 50000.0, 500.0, true, true));
+        new TenantSnapshot(
+            "ENABLED",
+            "LOW",
+            50.0,
+            50000.0,
+            500.0,
+            true,
+            true,
+            Instant.parse("2026-09-26T10:00:00Z")));
 
     assertThat(connection.getMaxSendRate()).isEqualTo(7.0);
     assertThat(connection.getMax24HourSend()).isEqualTo(700.0);

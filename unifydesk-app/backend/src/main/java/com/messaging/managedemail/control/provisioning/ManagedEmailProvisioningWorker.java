@@ -344,7 +344,7 @@ public class ManagedEmailProvisioningWorker {
               Boolean.TRUE.equals(snapshot.accountSendingEnabled()));
           tenant.setProviderProductionAccessEnabled(
               Boolean.TRUE.equals(snapshot.productionAccessEnabled()));
-          tenant.setLastProviderSyncAt(Instant.now());
+          tenant.setLastProviderSyncAt(snapshot.providerObservedAt());
           tenantRepository.save(tenant);
 
           if (tenant.getBroadcastConnectionId() != null) {
@@ -372,7 +372,7 @@ public class ManagedEmailProvisioningWorker {
               connection.setMaxSendRate(tenant.getProviderMaxSendRate());
               connection.setMax24HourSend(tenant.getProviderMax24HourSend());
               connection.setSentLast24Hours(tenant.getProviderSentLast24Hours());
-              connection.setLastValidatedAt(Instant.now());
+              connection.setLastValidatedAt(snapshot.providerObservedAt());
               connectionRepository.save(connection);
               channelConnectionRepository
                   .findByIdAndCompanyId(
@@ -506,7 +506,8 @@ public class ManagedEmailProvisioningWorker {
   }
 
   private boolean providerQuotaAvailable(TenantSnapshot snapshot) {
-    return snapshot.maxSendRate() != null
+    return snapshot.providerObservedAt() != null
+        && snapshot.maxSendRate() != null
         && snapshot.maxSendRate() > 0
         && snapshot.max24HourSend() != null
         && snapshot.max24HourSend() > 0
