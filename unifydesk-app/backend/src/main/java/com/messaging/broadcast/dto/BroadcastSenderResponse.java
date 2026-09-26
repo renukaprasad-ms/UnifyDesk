@@ -26,6 +26,8 @@ public record BroadcastSenderResponse(
 
   public static BroadcastSenderResponse from(
       BroadcastSender sender, BroadcastSenderConnection connection) {
+    boolean managed =
+        connection.getManagementMode() == BroadcastSenderManagementMode.MESSAGING_MANAGED;
     return new BroadcastSenderResponse(
         sender.getId().toString(),
         connection.getId().toString(),
@@ -37,12 +39,12 @@ public record BroadcastSenderResponse(
         sender.getDisplayName(),
         sender.getReplyToAddress(),
         connection.getName(),
-        connection.getRegion(),
-        connection.isProductionAccessEnabled(),
+        managed ? "MANAGED" : connection.getRegion(),
+        managed ? connection.isSendingEnabled() : connection.isProductionAccessEnabled(),
         connection.isSendingEnabled(),
-        connection.getMax24HourSend(),
-        connection.getMaxSendRate(),
-        connection.getSentLast24Hours(),
-        connection.getLastValidatedAt());
+        managed ? null : connection.getMax24HourSend(),
+        managed ? null : connection.getMaxSendRate(),
+        managed ? null : connection.getSentLast24Hours(),
+        managed ? null : connection.getLastValidatedAt());
   }
 }

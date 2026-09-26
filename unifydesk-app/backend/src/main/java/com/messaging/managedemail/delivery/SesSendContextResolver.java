@@ -18,12 +18,14 @@ public class SesSendContextResolver {
   private final ManagedSesClientProvider managedClientProvider;
   private final ManagedEmailRuntimeRepository runtimeRepository;
   private final ManagedEmailRuntimeProperties properties;
+  private final ManagedEmailAddressPolicy addressPolicy;
+  private final ManagedEmailProviderBudgetService providerBudgetService;
 
   public SesSendContext resolve(
       BroadcastSenderConnection connection, BroadcastSender sender) {
     if (connection.getManagementMode() == BroadcastSenderManagementMode.CUSTOMER_MANAGED) {
       return new SesSendContext(
-          customerClientManager.client(connection), false, null, null, null);
+          customerClientManager.client(connection), false, null, null, null, null);
     }
 
     ManagedEmailRuntimeRepository.ManagedSenderRuntime runtime =
@@ -40,6 +42,9 @@ public class SesSendContextResolver {
         || !runtime.connectionId().equals(connection.getId())
         || !runtime.companyId().equals(connection.getCompanyId())
         || !runtime.companyId().equals(sender.getCompanyId())
+        || !addressPolicy.matchesBoundDomain(
+            runtime.senderFromAddress(), runtime.normalizedDomain())
+        || !providerBudgetService.hasUsableProviderSnapshot(runtime)
         || properties.getRegion() == null
         || properties.getRegion().isBlank()
         || !properties.getRegion().equals(runtime.region())) {
@@ -54,6 +59,7 @@ public class SesSendContextResolver {
         true,
         runtime.providerTenantName(),
         runtime.configurationSetName(),
-        runtime.domainId());
+        runtime.domainId(),
+        runtime.senderFromAddress());
   }
 }

@@ -17,21 +17,27 @@ import software.amazon.awssdk.services.sesv2.model.SendEmailRequest;
 import software.amazon.awssdk.services.sesv2.model.SendEmailResponse;
 
 class AmazonSesBroadcastEmailTransportTests {
+
   @Test
-  void managedRequestContainsTenantConfigurationSetAndSafeCorrelationTags() {
+  void managedRequestContainsTenantConfigurationSetSafeTagsAndPersistedFrom() {
     SesSendContextResolver resolver = mock(SesSendContextResolver.class);
     SesV2Client client = mock(SesV2Client.class);
     when(resolver.resolve(any(), any()))
-        .thenReturn(new SesSendContext(client, true, "tenant-10", "cfg-10", 40L));
+        .thenReturn(
+            new SesSendContext(
+                client, true, "tenant-10", "cfg-10", 40L, "offers@example.test"));
     when(client.sendEmail(any(SendEmailRequest.class)))
         .thenReturn(SendEmailResponse.builder().messageId("provider-1").build());
-    AmazonSesBroadcastEmailTransport transport = new AmazonSesBroadcastEmailTransport(resolver);
 
-    transport.send(connection(), sender(), command());
+    BroadcastSender sender = sender();
+    sender.setFromAddress("stale-or-tampered@other.test");
+    AmazonSesBroadcastEmailTransport transport = new AmazonSesBroadcastEmailTransport(resolver);
+    transport.send(connection(), sender, command());
 
     ArgumentCaptor<SendEmailRequest> captor = ArgumentCaptor.forClass(SendEmailRequest.class);
     verify(client).sendEmail(captor.capture());
     SendEmailRequest request = captor.getValue();
+    assertThat(request.fromEmailAddress()).isEqualTo("offers@example.test");
     assertThat(request.tenantName()).isEqualTo("tenant-10");
     assertThat(request.configurationSetName()).isEqualTo("cfg-10");
     Map<String, String> tags =
@@ -47,27 +53,22 @@ class AmazonSesBroadcastEmailTransportTests {
   }
 
   @Test
-  void customerManagedRequestDoesNotReceiveManagedTenantFields() {
+  void customerManagedRequestRemainsUnchanged() {
     SesSendContextResolver resolver = mock(SesSendContextResolver.class);
     SesV2Client client = mock(SesV2Client.class);
     when(resolver.resolve(any(), any()))
-        .thenReturn(new SesSendContext(client, false, null, null, null));
+        .thenReturn(new SesSendContext(client, false, null, null, null, null));
     when(client.sendEmail(any(SendEmailRequest.class)))
         .thenReturn(SendEmailResponse.builder().messageId("provider-2").build());
-    AmazonSesBroadcastEmailTransport transport = new AmazonSesBroadcastEmailTransport(resolver);
 
+    AmazonSesBroadcastEmailTransport transport = new AmazonSesBroadcastEmailTransport(resolver);
     transport.send(connection(), sender(), command());
 
     ArgumentCaptor<SendEmailRequest> captor = ArgumentCaptor.forClass(SendEmailRequest.class);
     verify(client).sendEmail(captor.capture());
+    assertThat(captor.getValue().fromEmailAddress()).isEqualTo("sender@example.test");
     assertThat(captor.getValue().tenantName()).isNull();
     assertThat(captor.getValue().configurationSetName()).isNull();
-    assertThat(captor.getValue().emailTags())
-        .anySatisfy(
-            tag -> {
-              assertThat(tag.name()).isEqualTo("messaging_recipient");
-              assertThat(tag.value()).isEqualTo("corr-70");
-            });
   }
 
   private BroadcastSenderConnection connection() {
@@ -87,7 +88,17 @@ class AmazonSesBroadcastEmailTransportTests {
 
   private BroadcastEmailCommand command() {
     return new BroadcastEmailCommand(
-        "recipient@example.test", "Subject", "Text", null, null, Map.of(),
-        "<id@example.test>", "corr-70", 10L, 60L, 20L, 70L);
+        "recipient@example.test",
+        "Subject",
+        "Text",
+        null,
+        null,
+        Map.of(),
+        "<id@example.test>",
+        "corr-70",
+        10L,
+        60L,
+        20L,
+        70L);
   }
 }

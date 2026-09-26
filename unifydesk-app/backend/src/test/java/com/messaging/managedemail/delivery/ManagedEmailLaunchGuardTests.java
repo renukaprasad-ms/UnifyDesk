@@ -13,6 +13,7 @@ import com.messaging.managedemail.metering.ManagedEmailUsageService;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeProperties;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -22,35 +23,79 @@ class ManagedEmailLaunchGuardTests {
   void globalKillSwitchRejectsManagedLaunch() {
     Fixture fixture = fixture();
     fixture.properties.setSendingEnabled(false);
-    assertThatThrownBy(() -> fixture.guard.validateLaunch(10L, fixture.sender, fixture.connection, 1))
-        .isInstanceOf(BadRequestException.class)
-        .hasMessage("MANAGED_EMAIL_PLATFORM_DISABLED");
+    assertSuspendedOrPlatform(fixture, "MANAGED_EMAIL_PLATFORM_DISABLED");
   }
 
   @Test
   void inactiveTenantRejectsManagedLaunch() {
     Fixture fixture = fixture();
     when(fixture.runtime.findSenderRuntime(10L, 20L))
-        .thenReturn(Optional.of(runtime("SUSPENDED", "ACTIVE")));
-    assertThatThrownBy(() -> fixture.guard.validateLaunch(10L, fixture.sender, fixture.connection, 1))
-        .isInstanceOf(BadRequestException.class)
-        .hasMessage("MANAGED_EMAIL_SENDING_SUSPENDED");
+        .thenReturn(Optional.of(runtime(true, true, "SUSPENDED", "ACTIVE")));
+    assertSuspendedOrPlatform(fixture, "MANAGED_EMAIL_SENDING_SUSPENDED");
   }
 
   @Test
   void inactiveDomainRejectsManagedLaunch() {
     Fixture fixture = fixture();
     when(fixture.runtime.findSenderRuntime(10L, 20L))
-        .thenReturn(Optional.of(runtime("ACTIVE", "SUSPENDED_VERIFICATION")));
-    assertThatThrownBy(() -> fixture.guard.validateLaunch(10L, fixture.sender, fixture.connection, 1))
+        .thenReturn(
+            Optional.of(runtime(true, true, "ACTIVE", "SUSPENDED_VERIFICATION")));
+    assertSuspendedOrPlatform(fixture, "MANAGED_EMAIL_SENDING_SUSPENDED");
+  }
+
+  @Test
+  void sandboxAndAccountDisabledRejectLaunch() {
+    Fixture fixture = fixture();
+    when(fixture.runtime.findSenderRuntime(10L, 20L))
+        .thenReturn(Optional.of(runtime(false, true, "ACTIVE", "ACTIVE")));
+    assertSuspendedOrPlatform(fixture, "MANAGED_EMAIL_SENDING_SUSPENDED");
+
+    when(fixture.runtime.findSenderRuntime(10L, 20L))
+        .thenReturn(Optional.of(runtime(true, false, "ACTIVE", "ACTIVE")));
+    assertSuspendedOrPlatform(fixture, "MANAGED_EMAIL_SENDING_SUSPENDED");
+  }
+
+  private void assertSuspendedOrPlatform(Fixture fixture, String message) {
+    assertThatThrownBy(
+            () -> fixture.guard.validateLaunch(10L, fixture.sender, fixture.connection, 1))
         .isInstanceOf(BadRequestException.class)
-        .hasMessage("MANAGED_EMAIL_SENDING_SUSPENDED");
+        .hasMessage(message);
   }
 
   private Fixture fixture() {
     ManagedEmailRuntimeRepository runtime = mock(ManagedEmailRuntimeRepository.class);
     EntitlementService entitlement = mock(EntitlementService.class);
     ManagedEmailUsageService usage = mock(ManagedEmailUsageService.class);
+    ManagedEmailProviderBudgetService budget = mock(ManagedEmailProviderBudgetService.class);
+    ManagedEmailRuntimeProperties properties = properties();
+    when(entitlement.booleanValue(10L, "MANAGED_EMAIL_ENABLED")).thenReturn(true);
+    when(usage.canReserve(10L, 1)).thenReturn(true);
+    when(budget.hasUsableProviderSnapshot(any())).thenReturn(true);
+
+    BroadcastSenderConnection connection = new BroadcastSenderConnection();
+    connection.setId(30L);
+    connection.setCompanyId(10L);
+    connection.setManagementMode(BroadcastSenderManagementMode.MESSAGING_MANAGED);
+    connection.setProvider(BroadcastSenderProvider.AMAZON_SES);
+    BroadcastSender sender = new BroadcastSender();
+    sender.setId(20L);
+    sender.setCompanyId(10L);
+    sender.setProvider(BroadcastSenderProvider.AMAZON_SES);
+    return new Fixture(
+        new ManagedEmailLaunchGuard(
+            runtime,
+            properties,
+            entitlement,
+            usage,
+            new ManagedEmailAddressPolicy(),
+            budget),
+        runtime,
+        properties,
+        connection,
+        sender);
+  }
+
+  private ManagedEmailRuntimeProperties properties() {
     ManagedEmailRuntimeProperties properties = new ManagedEmailRuntimeProperties();
     properties.setSendingEnabled(true);
     properties.setRegion("us-east-1");
@@ -64,31 +109,39 @@ class ManagedEmailLaunchGuardTests {
     properties.setSuspensionHardBounceRate(new BigDecimal("0.08"));
     properties.setSuspensionComplaintRate(new BigDecimal("0.005"));
     properties.setThrottleRateMultiplier(new BigDecimal("0.5"));
-    when(entitlement.booleanValue(10L, "MANAGED_EMAIL_ENABLED")).thenReturn(true);
-    when(usage.canReserve(10L, 1)).thenReturn(true);
-    BroadcastSenderConnection connection = new BroadcastSenderConnection();
-    connection.setId(30L);
-    connection.setCompanyId(10L);
-    connection.setManagementMode(BroadcastSenderManagementMode.MESSAGING_MANAGED);
-    connection.setProvider(BroadcastSenderProvider.AMAZON_SES);
-    BroadcastSender sender = new BroadcastSender();
-    sender.setId(20L);
-    sender.setCompanyId(10L);
-    sender.setProvider(BroadcastSenderProvider.AMAZON_SES);
-    return new Fixture(
-        new ManagedEmailLaunchGuard(runtime, properties, entitlement, usage),
-        runtime,
-        properties,
-        connection,
-        sender);
+    return properties;
   }
 
   private ManagedEmailRuntimeRepository.ManagedSenderRuntime runtime(
-      String tenantStatus, String domainStatus) {
+      boolean productionAccess,
+      boolean sendingEnabled,
+      String tenantStatus,
+      String domainStatus) {
     return new ManagedEmailRuntimeRepository.ManagedSenderRuntime(
-        10L, 20L, 30L, 50L, 40L, "ACTIVE", "ACTIVE", "MESSAGING_MANAGED", true,
-        tenantStatus, "ENABLED", "HEALTHY", "ESTABLISHED", domainStatus, "example.test",
-        "us-east-1", "tenant-10", "cfg-10", 20.0, 10000.0);
+        10L,
+        20L,
+        30L,
+        50L,
+        40L,
+        "offers@example.test",
+        "ACTIVE",
+        "ACTIVE",
+        "MESSAGING_MANAGED",
+        productionAccess,
+        sendingEnabled,
+        tenantStatus,
+        "ENABLED",
+        "HEALTHY",
+        "ESTABLISHED",
+        domainStatus,
+        "example.test",
+        "us-east-1",
+        "tenant-10",
+        "cfg-10",
+        20.0,
+        10000.0,
+        50.0,
+        Instant.now());
   }
 
   private record Fixture(

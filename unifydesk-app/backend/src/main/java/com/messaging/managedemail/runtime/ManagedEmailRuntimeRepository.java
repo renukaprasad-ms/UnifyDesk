@@ -1,5 +1,6 @@
 package com.messaging.managedemail.runtime;
 
+import java.time.Instant;
 import java.util.Optional;
 
 public interface ManagedEmailRuntimeRepository {
@@ -33,9 +34,11 @@ public interface ManagedEmailRuntimeRepository {
       Long connectionId,
       Long tenantId,
       Long domainId,
+      String senderFromAddress,
       String senderStatus,
       String connectionStatus,
       String managementMode,
+      boolean connectionProductionAccessEnabled,
       boolean connectionSendingEnabled,
       String tenantStatus,
       String tenantSendingStatus,
@@ -47,12 +50,15 @@ public interface ManagedEmailRuntimeRepository {
       String providerTenantName,
       String configurationSetName,
       Double providerMaxSendRate,
-      Double providerMax24HourSend) {
+      Double providerMax24HourSend,
+      Double providerSentLast24Hours,
+      Instant providerLastValidatedAt) {
 
     public boolean isSendable() {
       return "ACTIVE".equals(senderStatus)
           && "ACTIVE".equals(connectionStatus)
           && "MESSAGING_MANAGED".equals(managementMode)
+          && connectionProductionAccessEnabled
           && connectionSendingEnabled
           && "ACTIVE".equals(tenantStatus)
           && "ENABLED".equals(tenantSendingStatus)
@@ -72,9 +78,11 @@ public interface ManagedEmailRuntimeRepository {
       String normalizedDestination,
       String providerMessageId,
       String providerCorrelationId,
+      String senderFromAddress,
       String senderStatus,
       String connectionStatus,
       String managementMode,
+      boolean connectionProductionAccessEnabled,
       boolean connectionSendingEnabled,
       String tenantStatus,
       String tenantSendingStatus,
@@ -86,12 +94,15 @@ public interface ManagedEmailRuntimeRepository {
       String providerTenantName,
       String configurationSetName,
       Double providerMaxSendRate,
-      Double providerMax24HourSend) {
+      Double providerMax24HourSend,
+      Double providerSentLast24Hours,
+      Instant providerLastValidatedAt) {
 
     public boolean isSendable() {
       return "ACTIVE".equals(senderStatus)
           && "ACTIVE".equals(connectionStatus)
           && "MESSAGING_MANAGED".equals(managementMode)
+          && connectionProductionAccessEnabled
           && connectionSendingEnabled
           && "ACTIVE".equals(tenantStatus)
           && "ENABLED".equals(tenantSendingStatus)

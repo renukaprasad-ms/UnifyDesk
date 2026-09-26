@@ -54,7 +54,7 @@ public class AmazonSesBroadcastEmailTransport implements BroadcastEmailTransport
 
     SendEmailRequest.Builder request =
         SendEmailRequest.builder()
-            .fromEmailAddress(fromAddress(sender))
+            .fromEmailAddress(fromAddress(sender, context))
             .destination(destination)
             .content(EmailContent.builder().simple(message).build())
             .emailTags(tags(context, command));
@@ -124,11 +124,12 @@ public class AmazonSesBroadcastEmailTransport implements BroadcastEmailTransport
     return value.toString();
   }
 
-  private String fromAddress(BroadcastSender sender) {
+  private String fromAddress(BroadcastSender sender, SesSendContext context) {
+    String address = context.managed() ? context.managedFromAddress() : sender.getFromAddress();
     if (sender.getDisplayName() == null || sender.getDisplayName().isBlank()) {
-      return sender.getFromAddress();
+      return address;
     }
     String safeName = sender.getDisplayName().replace(""", "");
-    return safeName + " <" + sender.getFromAddress() + ">";
+    return safeName + " <" + address + ">";
   }
 }

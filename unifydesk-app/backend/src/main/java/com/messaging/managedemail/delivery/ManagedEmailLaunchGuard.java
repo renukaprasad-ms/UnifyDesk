@@ -23,6 +23,8 @@ public class ManagedEmailLaunchGuard {
   private final ManagedEmailRuntimeProperties properties;
   private final EntitlementService entitlementService;
   private final ManagedEmailUsageService usageService;
+  private final ManagedEmailAddressPolicy addressPolicy;
+  private final ManagedEmailProviderBudgetService providerBudgetService;
 
   public void validateLaunch(
       Long companyId,
@@ -53,7 +55,10 @@ public class ManagedEmailLaunchGuard {
 
     if (!runtime.companyId().equals(companyId)
         || !runtime.connectionId().equals(connection.getId())
-        || !runtime.isSendable()) {
+        || !runtime.isSendable()
+        || !addressPolicy.matchesBoundDomain(
+            runtime.senderFromAddress(), runtime.normalizedDomain())
+        || !providerBudgetService.hasUsableProviderSnapshot(runtime)) {
       throw new BadRequestException("MANAGED_EMAIL_SENDING_SUSPENDED");
     }
 
