@@ -41,14 +41,14 @@ public class ManagedEmailRateLimiter {
             nextTokens[i] = tokens - 1
           end
 
-          local accountDayCap = tonumber(ARGV[6])
+          local policyAccountDayCap = tonumber(ARGV[6])
           local companyHourCap = tonumber(ARGV[7])
           local companyDayCap = tonumber(ARGV[8])
-          if accountDayCap <= 0 or companyHourCap <= 0 or companyDayCap <= 0 then return 0 end
-          local accountDayCount = tonumber(redis.call('GET', KEYS[5]) or '0')
+          if policyAccountDayCap <= 0 or companyHourCap <= 0 or companyDayCap <= 0 then return 0 end
+          local accountPolicyCount = tonumber(redis.call('GET', KEYS[5]) or '0')
           local companyHourCount = tonumber(redis.call('GET', KEYS[6]) or '0')
           local companyDayCount = tonumber(redis.call('GET', KEYS[7]) or '0')
-          if accountDayCount + 1 > accountDayCap
+          if accountPolicyCount + 1 > policyAccountDayCap
               or companyHourCount + 1 > companyHourCap
               or companyDayCount + 1 > companyDayCap then
             return 0
@@ -82,11 +82,9 @@ public class ManagedEmailRateLimiter {
       ManagedEmailRuntimeRepository.ManagedSenderRuntime runtime, Long runId) {
     double providerRate =
         runtime.providerMaxSendRate() == null ? 0.0 : runtime.providerMaxSendRate();
-    double providerDaily =
-        runtime.providerMax24HourSend() == null ? 0.0 : runtime.providerMax24HourSend();
     double safetyRate = properties.getAccountSafetyMaxPerSecond();
-    long safetyDaily = properties.getAccountDailySafetyCap();
-    if (providerRate <= 0 || providerDaily <= 0 || safetyRate <= 0 || safetyDaily <= 0) {
+    long policyDaily = properties.getAccountDailySafetyCap();
+    if (providerRate <= 0 || safetyRate <= 0 || policyDaily <= 0) {
       return false;
     }
 
@@ -94,7 +92,6 @@ public class ManagedEmailRateLimiter {
     if (reputationMultiplier <= 0) return false;
 
     double accountRate = Math.min(providerRate, safetyRate);
-    long accountDailyCap = (long) Math.floor(Math.min(providerDaily, safetyDaily));
     double companyRate =
         Math.min(properties.getCompanyMaxPerSecond(), accountRate) * reputationMultiplier;
     if (isNewTenant(runtime.rampStage())) {
@@ -130,12 +127,12 @@ public class ManagedEmailRateLimiter {
             "unifydesk:managed-email:rate:company:" + runtime.companyId(),
             "unifydesk:managed-email:rate:plan:" + planId + ":company:" + runtime.companyId(),
             "unifydesk:managed-email:rate:run:" + runId,
-            "unifydesk:managed-email:count:account-day:" + runtime.region() + ":" + day,
-            "unifydesk:managed-email:count:company-hour:"
+            "unifydesk:managed-email:policy:account-day:" + runtime.region() + ":" + day,
+            "unifydesk:managed-email:policy:company-hour:"
                 + runtime.companyId()
                 + ":"
                 + HOUR.format(now),
-            "unifydesk:managed-email:count:company-day:" + runtime.companyId() + ":" + day);
+            "unifydesk:managed-email:policy:company-day:" + runtime.companyId() + ":" + day);
 
     Long allowed =
         redisTemplate.execute(
@@ -146,7 +143,7 @@ public class ManagedEmailRateLimiter {
             Double.toString(companyRate),
             Double.toString(planRate),
             Double.toString(runRate),
-            Long.toString(accountDailyCap),
+            Long.toString(policyDaily),
             Long.toString(companyHourlyCap),
             Long.toString(companyDailyCap));
     return Long.valueOf(1L).equals(allowed);

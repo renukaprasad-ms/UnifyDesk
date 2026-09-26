@@ -7,4 +7,5 @@ public record SesSendContext(
     boolean managed,
     String tenantName,
     String configurationSetName,
-    Long domainId) {}
+    Long domainId,
+    String managedFromAddress) {}
