@@ -808,7 +808,8 @@ export type UpdateGoogleCampaignInput = Partial<CreateGoogleCampaignInput>
 export type CreateGoogleAdvancedCampaignInput = {
   name: string
   channelType: 'DISPLAY' | 'DEMAND_GEN' | 'SHOPPING'
-  dailyBudgetMinor: number
+  dailyBudgetMinor?: number | null
+  totalBudgetMinor?: number | null
   bidStrategy?: 'MANUAL_CPC' | 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'TARGET_CPA' | 'TARGET_ROAS'
   targetCpaMinor?: number | null
   targetRoas?: number | null
