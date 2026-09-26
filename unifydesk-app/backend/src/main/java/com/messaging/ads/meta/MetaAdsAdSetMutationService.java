@@ -70,7 +70,10 @@ public class MetaAdsAdSetMutationService {
         request.messengerPositions(),
         request.audienceNetworkPositions(),
         request.customAudienceIds(),
-        request.excludedCustomAudienceIds()));
+        request.excludedCustomAudienceIds(),
+        request.advantageAudience(),
+        request.advantageAgeSuggestion(),
+        request.advantageGenderSuggestion()));
 
     putNormalized(payload, "bid_strategy", request.bidStrategy());
     putNormalized(payload, "destination_type", request.destinationType());
@@ -134,7 +137,10 @@ public class MetaAdsAdSetMutationService {
           request.messengerPositions(),
           request.audienceNetworkPositions(),
           request.customAudienceIds(),
-          request.excludedCustomAudienceIds()));
+          request.excludedCustomAudienceIds(),
+          request.advantageAudience(),
+          request.advantageAgeSuggestion(),
+          request.advantageGenderSuggestion()));
     }
 
     if (request.pixelId() != null
@@ -195,7 +201,10 @@ public class MetaAdsAdSetMutationService {
       List<String> messengerPositions,
       List<String> audienceNetworkPositions,
       List<String> customAudienceIds,
-      List<String> excludedCustomAudienceIds) {
+      List<String> excludedCustomAudienceIds,
+      Boolean advantageAudience,
+      Boolean advantageAgeSuggestion,
+      Boolean advantageGenderSuggestion) {
     if (locations == null || locations.isEmpty()) {
       throw new BadRequestException("At least one targeting location is required");
     }
@@ -308,6 +317,24 @@ public class MetaAdsAdSetMutationService {
         excludedCustomAudienceIds,
         companyId,
         accountId);
+
+    if (Boolean.TRUE.equals(advantageAudience)) {
+      Map<String, Object> automation = new LinkedHashMap<>();
+      automation.put("advantage_audience", 1);
+      Map<String, Object> individualSetting = new LinkedHashMap<>();
+      if (Boolean.TRUE.equals(advantageAgeSuggestion)) {
+        individualSetting.put("age", 1);
+      }
+      if (Boolean.TRUE.equals(advantageGenderSuggestion)) {
+        individualSetting.put("gender", 1);
+      }
+      if (!individualSetting.isEmpty()) {
+        automation.put("individual_setting", individualSetting);
+      }
+      targeting.put("targeting_automation", automation);
+    } else if (Boolean.FALSE.equals(advantageAudience)) {
+      targeting.put("targeting_automation", Map.of("advantage_audience", 0));
+    }
     return targeting;
   }
 
@@ -493,7 +520,10 @@ public class MetaAdsAdSetMutationService {
         || request.messengerPositions() != null
         || request.audienceNetworkPositions() != null
         || request.customAudienceIds() != null
-        || request.excludedCustomAudienceIds() != null;
+        || request.excludedCustomAudienceIds() != null
+        || request.advantageAudience() != null
+        || request.advantageAgeSuggestion() != null
+        || request.advantageGenderSuggestion() != null;
   }
 
   private void validateBudgetLocation(
