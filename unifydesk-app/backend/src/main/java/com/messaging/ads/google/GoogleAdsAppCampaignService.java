@@ -73,6 +73,7 @@ public class GoogleAdsAppCampaignService {
     String store = enumValue(request.appStore(), STORES, "App store");
     String goal = enumValue(request.biddingStrategyGoalType(), GOALS, "App bidding goal");
     validateCombination(subtype, store, goal, request);
+    validateAppId(store, request.appId());
 
     String customerId = context.account().getExternalAccountId();
     String budgetResource = apiClient.customerResourceName(customerId, "campaignBudgets", "-1");
@@ -467,6 +468,15 @@ public class GoogleAdsAppCampaignService {
         throw new BadRequestException(
             "Google App campaigns require conversion actions whose origin is APP: " + id);
       }
+      String type = text(action, "type");
+      if (Set.of(
+              "OPTIMIZE_RETURN_ON_ADVERTISING_SPEND",
+              "OPTIMIZE_TOTAL_VALUE_WITHOUT_TARGET_ROAS")
+          .contains(goal)
+          && (type == null || !type.toUpperCase(Locale.ROOT).startsWith("FIREBASE_"))) {
+        throw new BadRequestException(
+            "Google App value optimization requires Firebase SDK conversion actions: " + id);
+      }
       result.add(
           apiClient.customerResourceName(
               context.account().getExternalAccountId(), "conversionActions", id));
@@ -594,6 +604,22 @@ public class GoogleAdsAppCampaignService {
     }
     return new Context(
         campaign, contextService.requireManaged(companyId, campaign.getAdAccountId()));
+  }
+
+  private void validateAppId(String store, String value) {
+    if (!hasText(value)) {
+      throw new BadRequestException("Google App ID is required");
+    }
+    String appId = value.trim();
+    if ("APPLE_APP_STORE".equals(store) && !appId.matches("\\d+")) {
+      throw new BadRequestException(
+          "Apple App Store ID must contain digits only");
+    }
+    if ("GOOGLE_APP_STORE".equals(store)
+        && (!appId.contains(".") || appId.length() > 255)) {
+      throw new BadRequestException(
+          "Google Play App ID must be a valid package-style identifier");
+    }
   }
 
   private void requireTargetCpa(CreateGoogleAppCampaignRequest request) {
