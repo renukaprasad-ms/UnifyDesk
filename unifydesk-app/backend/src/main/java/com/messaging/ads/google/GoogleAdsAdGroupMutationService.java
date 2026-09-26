@@ -129,6 +129,10 @@ public class GoogleAdsAdGroupMutationService {
         throw new BadRequestException(
             "Demand Gen uses campaign-level automated bidding; do not set an ad-group CPC bid");
       }
+      if ("APP".equalsIgnoreCase(campaign.getObjective())) {
+        throw new BadRequestException(
+            "Google App campaigns use goal-driven bidding; CPC bids are not supported on App ad groups");
+      }
       update.put(
           "cpcBidMicros",
           GoogleAdsMoney.minorToMicros(
