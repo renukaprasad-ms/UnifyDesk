@@ -6,11 +6,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.messaging.broadcast.entity.BroadcastSender;
 import com.messaging.broadcast.entity.BroadcastSenderConnection;
+import com.messaging.broadcast.enums.BroadcastSenderConnectionStatus;
 import com.messaging.broadcast.enums.BroadcastSenderManagementMode;
 import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.broadcast.repository.BroadcastSenderConnectionRepository;
@@ -109,6 +111,72 @@ class ManagedEmailSenderServiceTests {
         .isInstanceOf(BadRequestException.class);
 
     verify(senderRepository, never()).save(any(BroadcastSender.class));
+  }
+
+
+  @Test
+  void rejectsForeignSenderIdWithoutDisablingAnything() {
+    when(bindingRepository.findBySenderIdAndCompanyId(55L, 1L)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.disable(1L, 55L)).isInstanceOf(NotFoundException.class);
+
+    verify(lifecycleService, never()).disableSender(anyLong(), anyLong());
+  }
+
+  @Test
+  void allowsMultipleSendersOnOneDomainAndReusesManagedConnection() {
+    ManagedEmailDomain domain = activeDomain();
+    ManagedEmailTenant tenant = activeTenant();
+    BroadcastSenderConnection connection = new BroadcastSenderConnection();
+    connection.setId(44L);
+    connection.setChannelConnectionId(44L);
+    connection.setCompanyId(1L);
+    connection.setProvider(BroadcastSenderProvider.AMAZON_SES);
+    connection.setManagementMode(BroadcastSenderManagementMode.MESSAGING_MANAGED);
+    connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
+    connection.setProductionAccessEnabled(true);
+    connection.setSendingEnabled(true);
+
+    ChannelConnection channel = new ChannelConnection();
+    channel.setId(44L);
+    channel.setCompanyId(1L);
+
+    when(domainRepository.findByIdAndCompanyId(22L, 1L)).thenReturn(Optional.of(domain));
+    when(tenantRepository.findByIdAndCompanyId(33L, 1L)).thenReturn(Optional.of(tenant));
+    when(senderRepository.findByCompanyIdAndProviderAndFromAddressIgnoreCase(
+            eq(1L), eq(BroadcastSenderProvider.AMAZON_SES), any(String.class)))
+        .thenReturn(Optional.empty());
+    when(jdbcTemplate.queryForObject(any(String.class), eq(String.class), anyLong()))
+        .thenReturn("");
+    when(connectionRepository
+            .findFirstByCompanyIdAndProviderAndManagementModeAndStatusNot(
+                eq(1L),
+                eq(BroadcastSenderProvider.AMAZON_SES),
+                eq(BroadcastSenderManagementMode.MESSAGING_MANAGED),
+                any()))
+        .thenReturn(Optional.of(connection));
+    when(channelConnectionRepository.findByIdAndCompanyId(44L, 1L))
+        .thenReturn(Optional.of(channel));
+    when(senderRepository.save(any(BroadcastSender.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(senderIdentityRepository.findFirstByConnectionIdAndDefaultIdentityTrue(44L))
+        .thenReturn(Optional.empty());
+    when(senderIdentityRepository.save(any(SenderIdentity.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(bindingRepository.save(any(ManagedEmailSenderBinding.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    var first =
+        service.create(1L, 7L, new CreateSenderRequest("22", "offers", "Offers", null));
+    var second =
+        service.create(1L, 7L, new CreateSenderRequest("22", "news", "News", null));
+
+    assertThat(first.fromAddress()).isEqualTo("offers@example.com");
+    assertThat(second.fromAddress()).isEqualTo("news@example.com");
+    assertThat(first.connectionId()).isEqualTo("44");
+    assertThat(second.connectionId()).isEqualTo("44");
+    verify(senderRepository, times(2)).save(any(BroadcastSender.class));
+    verify(connectionRepository, never()).save(any(BroadcastSenderConnection.class));
   }
 
   @Test
