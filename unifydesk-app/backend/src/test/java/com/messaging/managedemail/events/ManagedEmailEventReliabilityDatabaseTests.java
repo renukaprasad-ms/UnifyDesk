@@ -141,9 +141,11 @@ class ManagedEmailEventReliabilityDatabaseTests {
         mock(ManagedEmailSuppressionFeedbackService.class);
     ManagedEmailUsageService usage = mock(ManagedEmailUsageService.class);
     ManagedEmailReputationService reputation = mock(ManagedEmailReputationService.class);
+    ManagedEmailProviderEffectRepository effects =
+        mock(ManagedEmailProviderEffectRepository.class);
     ManagedEmailEventLocalProcessor local =
         new ManagedEmailEventLocalProcessor(
-            ledger, projection, suppression, usage, reputation);
+            ledger, projection, suppression, usage, reputation, effects);
 
     doThrow(new IllegalStateException("forced projection failure"))
         .doNothing()

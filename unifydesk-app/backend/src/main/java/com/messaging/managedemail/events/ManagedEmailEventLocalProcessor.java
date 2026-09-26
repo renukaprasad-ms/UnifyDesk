@@ -6,6 +6,7 @@ import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import software.amazon.awssdk.services.sesv2.model.SuppressionListReason;
 
 @Service
 @RequiredArgsConstructor
@@ -16,6 +17,7 @@ public class ManagedEmailEventLocalProcessor {
   private final ManagedEmailSuppressionFeedbackService suppressionService;
   private final ManagedEmailUsageService usageService;
   private final ManagedEmailReputationService reputationService;
+  private final ManagedEmailProviderEffectRepository providerEffectRepository;
 
   @Transactional
   public void process(
@@ -37,11 +39,15 @@ public class ManagedEmailEventLocalProcessor {
         if (event.hardBounce()) {
           suppressionService.hardBounce(runtime, event.eventTimestamp());
           reputationService.evaluate(runtime.companyId());
+          providerEffectRepository.ensureTenantSuppressionScheduled(
+              event, runtime, SuppressionListReason.BOUNCE);
         }
       }
       case COMPLAINT -> {
         suppressionService.complaint(runtime);
         reputationService.evaluate(runtime.companyId());
+        providerEffectRepository.ensureTenantSuppressionScheduled(
+            event, runtime, SuppressionListReason.COMPLAINT);
       }
       case DELIVERY, REJECT, OPEN, CLICK, DELIVERY_DELAY, RENDERING_FAILURE, SUBSCRIPTION -> {
       }

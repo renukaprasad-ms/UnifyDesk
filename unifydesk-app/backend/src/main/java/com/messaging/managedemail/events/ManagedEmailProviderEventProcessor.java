@@ -4,7 +4,6 @@ import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.services.sesv2.model.SuppressionListReason;
 
 @Service
 @RequiredArgsConstructor
@@ -15,7 +14,6 @@ public class ManagedEmailProviderEventProcessor {
   private final ManagedEmailRuntimeRepository runtimeRepository;
   private final ManagedEmailEventReceiptService receiptService;
   private final ManagedEmailEventLocalProcessor localProcessor;
-  private final ManagedEmailProviderSuppressionService providerSuppressionService;
   private final SnsMessageVerifier snsMessageVerifier;
   private final SnsSubscriptionConfirmer subscriptionConfirmer;
 
@@ -45,12 +43,6 @@ public class ManagedEmailProviderEventProcessor {
 
     receiptService.receiveMatched(event, runtime);
     localProcessor.process(event, runtime);
-
-    if (event.hardBounce()) {
-      providerSuppressionService.signal(runtime, SuppressionListReason.BOUNCE);
-    } else if (event.type() == ManagedEmailProviderEventType.COMPLAINT) {
-      providerSuppressionService.signal(runtime, SuppressionListReason.COMPLAINT);
-    }
   }
 
   private String mismatch(

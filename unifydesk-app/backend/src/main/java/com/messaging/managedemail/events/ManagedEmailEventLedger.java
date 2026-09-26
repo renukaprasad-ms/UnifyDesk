@@ -30,7 +30,7 @@ public class ManagedEmailEventLedger {
         """,
         idGenerator.nextId(),
         event.snsMessageId(),
-        normalizedKey(event),
+        ManagedEmailProviderEventKeys.normalized(event),
         runtime.companyId(),
         runtime.tenantId(),
         runtime.domainId(),
@@ -59,7 +59,7 @@ public class ManagedEmailEventLedger {
                     resultSet.getString("payload_hash"),
                     resultSet.getTimestamp("processed_at") != null),
             event.snsMessageId(),
-            normalizedKey(event));
+            ManagedEmailProviderEventKeys.normalized(event));
     if (states.isEmpty()) {
       throw new IllegalStateException("Managed Email provider event receipt was not persisted");
     }
@@ -82,10 +82,17 @@ public class ManagedEmailEventLedger {
             """,
             (resultSet, rowNum) -> resultSet.getBoolean(1),
             event.snsMessageId(),
-            normalizedKey(event));
+            ManagedEmailProviderEventKeys.normalized(event));
     return !states.isEmpty() && !states.getFirst();
   }
 
+  /**
+   * Marks required local processing complete.
+   *
+   * <p>For hard-bounce and complaint events this means the application-side effects are committed
+   * and the required provider suppression effect is durably scheduled. It does not mean the
+   * external SES suppression call has already completed.
+   */
   public void markProcessed(ManagedEmailProviderEvent event) {
     jdbcTemplate.update(
         """
@@ -95,7 +102,7 @@ public class ManagedEmailEventLedger {
            and processed_at is null
         """,
         event.snsMessageId(),
-        normalizedKey(event));
+        ManagedEmailProviderEventKeys.normalized(event));
   }
 
   public boolean recordRejected(ManagedEmailProviderEvent event, String reason) {
@@ -111,7 +118,7 @@ public class ManagedEmailEventLedger {
             """,
             idGenerator.nextId(),
             event.snsMessageId(),
-            normalizedKey(event) + ":rejected:" + safeReason(reason),
+            ManagedEmailProviderEventKeys.normalized(event) + ":rejected:" + safeReason(reason),
             event.providerMessageId(),
             event.type().name(),
             Timestamp.from(event.eventTimestamp()),
@@ -137,16 +144,6 @@ public class ManagedEmailEventLedger {
             Timestamp.from(envelope.timestamp()),
             envelope.messageId());
     return inserted == 1;
-  }
-
-  String normalizedKey(ManagedEmailProviderEvent event) {
-    return event.providerMessageId()
-        + ":"
-        + event.type().name()
-        + ":"
-        + event.eventTimestamp().toEpochMilli()
-        + ":"
-        + event.recipientId();
   }
 
   private String safeReason(String reason) {
