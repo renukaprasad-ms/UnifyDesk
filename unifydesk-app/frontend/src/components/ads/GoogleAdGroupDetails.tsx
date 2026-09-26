@@ -6,6 +6,7 @@ import GoogleResponsiveSearchAdModal from './GoogleResponsiveSearchAdModal'
 import GoogleVisualAdModal from './GoogleVisualAdModal'
 import GoogleDemandGenCreativeModal from './GoogleDemandGenCreativeModal'
 import GoogleDemandGenTargetingPanel from './GoogleDemandGenTargetingPanel'
+import GoogleAppAdModal from './GoogleAppAdModal'
 import GoogleReusableAssetsPanel from './GoogleReusableAssetsPanel'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
@@ -19,6 +20,7 @@ import type {
   CreateGoogleDemandGenVideoAdInput,
   CreateGoogleDemandGenMultiAssetAdInput,
   CreateGoogleDemandGenCarouselAdInput,
+  CreateGoogleAppAdInput,
   CreateGoogleResponsiveSearchAdInput,
 } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -101,6 +103,7 @@ export default function GoogleAdGroupDetails({
   const isDisplay = channel === 'DISPLAY'
   const isDemandGen = channel === 'DEMAND_GEN'
   const isShopping = channel === 'SHOPPING'
+  const isApp = channel === 'APP'
   const isVideo = channel === 'VIDEO'
 
   const loadKeywords = async () => {
@@ -123,7 +126,7 @@ export default function GoogleAdGroupDetails({
     try {
       const updated = await adCenterApi.updateGoogleAdGroup(companyId, adGroup.id, {
         name: name.trim(),
-        cpcBidMinor: toMinor(cpcBid, account?.currency),
+        cpcBidMinor: isApp ? undefined : toMinor(cpcBid, account?.currency),
       })
       setAdGroup(updated)
       setName(updated.name)
@@ -341,6 +344,29 @@ export default function GoogleAdGroupDetails({
   }
 
 
+  const createAppAd = async (input: CreateGoogleAppAdInput) => {
+    setCreatingAd(true)
+    setError('')
+    try {
+      const created = await adCenterApi.createGoogleAppAd(
+        companyId,
+        adGroup.id,
+        input,
+      )
+      setAds((current) => [
+        created,
+        ...current.filter((item) => item.id !== created.id),
+      ])
+      setAdOpen(false)
+      setNotice(`${created.name} was created as a paused App ad.`)
+    } catch (createError) {
+      setError(apiErrorMessage(createError, 'Unable to create Google App ad'))
+    } finally {
+      setCreatingAd(false)
+    }
+  }
+
+
   const createShoppingAd = async () => {
     setCreatingAd(true)
     setError('')
@@ -413,7 +439,7 @@ export default function GoogleAdGroupDetails({
           <h2 className="text-base font-bold text-slate-950">Ad group settings</h2>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <label className="text-xs font-semibold text-slate-700">Name<input className="form-input mt-2" value={name} maxLength={255} onChange={(e) => setName(e.target.value)} /></label>
-            {!isDemandGen && (
+            {!isDemandGen && !isApp && (
               <label className="text-xs font-semibold text-slate-700">
                 Default CPC bid {account?.currency ? `(${account.currency})` : ''}
                 <input
@@ -499,7 +525,9 @@ export default function GoogleAdGroupDetails({
                     ? 'Demand Gen ads'
                     : isShopping
                       ? 'Shopping Product Ads'
-                      : isVideo
+                      : isApp
+                        ? 'App ads'
+                        : isVideo
                         ? 'Video ads'
                         : 'Responsive search ads'}
               </h2>
@@ -510,7 +538,9 @@ export default function GoogleAdGroupDetails({
                     ? 'Video, Multi-Asset, and Carousel creatives for Demand Gen inventory.'
                     : isShopping
                       ? 'Product ads generated from the linked Merchant Center inventory.'
-                      : isVideo
+                      : isApp
+                        ? 'App, App Engagement, or Pre-registration creatives selected by campaign subtype.'
+                        : isVideo
                         ? 'Synced Video ads are available for reporting; mutations remain in Google Ads.'
                         : 'Headlines, descriptions, final URLs, and delivery status.'}
               </p>
@@ -553,7 +583,9 @@ export default function GoogleAdGroupDetails({
                       ? 'Demand Gen Ad'
                       : isShopping
                         ? 'Shopping Product Ad'
-                        : isVideo
+                        : isApp
+                          ? 'App Ad'
+                          : isVideo
                           ? 'Video Ad'
                           : 'Responsive Search Ad'} · {ad.externalAdId}
                 </p></div>
@@ -571,6 +603,17 @@ export default function GoogleAdGroupDetails({
           saving={creatingKeyword}
           onClose={() => setKeywordOpen(false)}
           onCreate={createKeyword}
+        />
+      )}
+      {isApp && account && campaign && (
+        <GoogleAppAdModal
+          companyId={companyId}
+          account={account}
+          campaign={campaign}
+          open={adOpen}
+          saving={creatingAd}
+          onClose={() => setAdOpen(false)}
+          onCreate={createAppAd}
         />
       )}
       {isSearch && (
