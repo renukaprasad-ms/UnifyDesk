@@ -1395,8 +1395,11 @@ export type GoogleDemandGenTargetingInput = {
   channelStrategy?: 'ALL_CHANNELS' | 'ALL_OWNED_AND_OPERATED_CHANNELS' | null
   selectedChannels?: GoogleDemandGenSelectedChannels | null
   locations?: ReachlyoAudienceLocationInput[] | null
+  locationResourceNames?: string[] | null
   excludedLocations?: ReachlyoAudienceLocationInput[] | null
+  excludedLocationResourceNames?: string[] | null
   languages?: string[] | null
+  languageResourceNames?: string[] | null
   audienceResourceNames?: string[] | null
 }
 
