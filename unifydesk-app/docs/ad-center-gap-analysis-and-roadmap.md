@@ -1172,19 +1172,67 @@ Reference:
 
 ## G-10 App campaigns - P1/P2
 
-Reachlyo does not currently create App campaigns.
+Status: **complete for C8 — current Google Ads API App campaign creation, management, creative and reporting flows implemented**.
 
-Research and implement supported App campaign flows.
+Implemented in C8:
 
-Must distinguish:
+- [x] Google capability catalog marks `GOOGLE_APP_CAMPAIGN` implemented with managed-account/API access requirements
+- [x] App campaign sync normalization: Google `MULTI_CHANNEL` plus `APP_CAMPAIGN*` subtype persists as UnifyDesk objective `APP`, while exact subtype is preserved
+- [x] standard `APP_CAMPAIGN` creation for installs, in-app actions and in-app conversion value
+- [x] `APP_CAMPAIGN_FOR_ENGAGEMENT` creation for existing app users
+- [x] Android `APP_CAMPAIGN_FOR_PRE_REGISTRATION` creation
+- [x] Google Play package ID and Apple App Store ID validation
+- [x] current bidding-goal matrix:
+  - target install cost
+  - maximize installs without target install cost
+  - in-app conversions with target install cost
+  - in-app conversions with target conversion cost
+  - maximize in-app conversions without target CPA
+  - target ROAS
+  - maximize total conversion value without target ROAS
+  - pre-registration conversion volume
+- [x] target CPA / Maximize Conversions / Target ROAS / Maximize Conversion Value campaign mutation payloads mapped to the selected App optimization goal
+- [x] selective optimization with synchronized App-origin Google conversion actions
+- [x] Firebase SDK conversion enforcement for tROAS and maximize-conversion-value App goals
+- [x] pre-registration `APP_PRE_REGISTRATION` optimization goal and provider-managed conversion behavior
+- [x] campaign-level location targets, location exclusions and languages
+- [x] non-shared App campaign budgets
+- [x] paused-first campaign creation
+- [x] App-specific ad groups without an explicit ad-group type
+- [x] App engagement user-list targeting and optional ad-group target CPA
+- [x] generic ad-group creation/CPC mutation guards so callers cannot bypass App-specific rules
+- [x] subtype-aware App ads:
+  - `APP_AD`
+  - `APP_ENGAGEMENT_AD`
+  - `APP_PRE_REGISTRATION_AD`
+- [x] inline headline/description assets plus reusable advertiser IMAGE and YOUTUBE_VIDEO assets
+- [x] App creative asset discovery UI with image preview / YouTube identifiers
+- [x] App campaign creation modal, App ad-group modal, App ad builder and App-specific campaign management panel
+- [x] provider read-back for App settings, subtype, optimization goal and selective conversion actions
+- [x] App asset creative sync/persistence after provider refresh
+- [x] 30-day campaign metrics including impressions, clicks, spend, conversions and all conversions
+- [x] iOS SKAdNetwork install/total-conversion metrics
+- [x] App creative asset performance from `ad_group_ad_asset_view`
+- [x] RBAC, activity audit and paused-first mutation behavior
+- [x] regression coverage for campaign payloads, Firebase value goals, pre-registration restrictions, engagement user lists, subtype-specific ad formats, capability status and sync normalization
 
-- createable/current API capabilities
-- legacy App campaign limitations
-- UI-only provider functionality
+Provider boundaries intentionally respected:
 
-Reference:
+- **App Campaign Legacy is not created by the Google Ads API**; it remains a Google Ads UI-only legacy flow.
+- App optimization bidding is goal-driven. UnifyDesk does not expose Search-style generic bid-strategy mutation on App campaigns.
+- Standard App ad groups do not expose manual CPC bidding.
+- App engagement user-list requirements and ad-group target CPA behavior are handled only in the dedicated engagement flow.
+- Pre-registration is exposed for Google Play and uses Google-managed pre-registration conversion behavior.
+- Images and YouTube videos are reused as Google Ads `Asset` resources; C8 does not duplicate media into every ad.
+- Google may generate additional App assets from store content according to provider behavior; UnifyDesk does not represent generated provider content as user-supplied assets.
+
+References:
 
 - https://developers.google.com/google-ads/api/docs/app-campaigns/overview
+- https://developers.google.com/google-ads/api/docs/app-campaigns/create-campaign
+- https://developers.google.com/google-ads/api/docs/app-campaigns/create-ad-group
+- https://developers.google.com/google-ads/api/docs/app-campaigns/create-ad
+- https://developers.google.com/google-ads/api/docs/app-campaigns/reporting
 
 ## G-11 Portfolio/shared bidding - P2
 
@@ -2115,7 +2163,7 @@ C4. [x] reusable Google campaign assets/extensions — Sitelink/Callout/Structur
 C5. [x] PMax URL/automation updates — current asset automation settings, Final URL Expansion dependency, enhanced video/image controls, approved automated video crawl sources, URL exclusions, v25.2 Asset Group URL options, RBAC/audit/UI/tests  
 C6. [x] Google AI asset generation where eligible — v25 closed-beta capability gating, text/image generation from landing page/prompt/keywords, review-first editable drafts, temporary image previews, audit/RBAC/UI/tests, no automatic publishing  
 C7. [x] Demand Gen targeting completeness — ad-group geo/language targeting and exclusions, reusable Audience resources with immutable grouped-audience handling, current channel strategy/individual inventory controls, total campaign budget support, channel-performance reporting, RBAC/audit/UI/tests; unsupported device/OS/network controls are not fabricated  
-C8. App campaigns  
+C8. [x] App campaigns — current App installs/in-app action/value, App Engagement and Android Pre-registration campaign creation; validated goal/bidding matrix, App conversion/Firebase rules, geo/language/exclusions, App-specific ad groups/user lists, App/Engagement/Pre-registration creatives with reusable image/video assets, sync normalization, SKAN + asset reporting, capability/RBAC/audit/UI/tests; App Campaign Legacy remains provider-UI-only  
 C9. richer provider reporting
 
 ## Phase D - Modern Meta / P1
