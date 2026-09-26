@@ -102,7 +102,9 @@ const msg91TemplateStatusLabel = (binding?: EmailTemplateProviderBinding | null)
   return 'status not confirmed'
 }
 
-const providerLabel = (provider?: string | null) => {
+const providerLabel = (sender?: BroadcastSender | null) => {
+  if (sender?.managementMode === 'MESSAGING_MANAGED') return 'UnifyDesk Managed Email'
+  const provider = sender?.provider
   if (!provider) return 'Legacy mailbox'
   if (provider === 'AMAZON_SES') return 'Amazon SES'
   if (provider === 'AZURE_EMAIL') return 'Azure Email'
@@ -1483,7 +1485,7 @@ export default function BroadcastWorkspace() {
                     {senderLabel(sendersById.get(composeSenderId) ?? null)}
                   </p>
                   <p className="mt-1 text-[11px] text-slate-500">
-                    {providerLabel(sendersById.get(composeSenderId)?.provider)}
+                    {providerLabel(sendersById.get(composeSenderId))}
                     {sendersById.get(composeSenderId)?.provider !== 'MSG91_SMS' &&
                     sendersById.get(composeSenderId)?.provider !== 'MSG91_EMAIL' &&
                     sendersById.get(composeSenderId)?.region
@@ -1789,7 +1791,7 @@ function BroadcastHistoryCard({
           </p>
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
             <span>
-              From {senderLabel(sender)} · {providerLabel(sender?.provider)}
+              From {senderLabel(sender)} · {providerLabel(sender)}
             </span>
             <span>{formatDate(message.scheduledAt || message.createdAt)}</span>
             {message.stats.total > 0 && (
@@ -1935,7 +1937,7 @@ function BroadcastDetail({
               </h1>
               <p className="mt-1 text-xs text-slate-500">
                 From {senderLabel(sender)} ·{' '}
-                {providerLabel(sender?.provider)}
+                {providerLabel(sender)}
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 Created {formatDate(message.createdAt)}
