@@ -848,6 +848,9 @@ export type GoogleReusableAssetType =
   | 'PRICE'
   | 'PROMOTION'
   | 'LEAD_FORM'
+  | 'BUSINESS_NAME'
+  | 'AD_IMAGE'
+  | 'BUSINESS_LOGO'
 
 export type GoogleUrlCustomParameter = {
   key: string
@@ -871,6 +874,10 @@ export type GoogleReusableAsset = {
   trackingUrlTemplate?: string | null
   finalUrlSuffix?: string | null
   customParameters: GoogleUrlCustomParameter[]
+  text?: string | null
+  imageUrl?: string | null
+  imageWidth?: number | null
+  imageHeight?: number | null
 }
 
 export type CreateGoogleReusableAssetInput = {
@@ -887,6 +894,8 @@ export type CreateGoogleReusableAssetInput = {
   trackingUrlTemplate?: string | null
   finalUrlSuffix?: string | null
   customParameters?: GoogleUrlCustomParameter[]
+  text?: string | null
+  imageBase64?: string | null
 }
 
 export type GooglePriceOfferingInput = {
@@ -930,6 +939,35 @@ export type CreateGoogleAdvancedReusableAssetInput = {
 }
 
 export type GoogleAssetLinkLevel = 'CUSTOMER' | 'CAMPAIGN' | 'AD_GROUP'
+
+export type GooglePerformanceMaxVideoCrawlSource = {
+  url: string
+  sourcePlatform: 'LANDING_PAGE' | 'SOCIAL' | 'YOUTUBE'
+  enabled?: boolean | null
+}
+
+export type GooglePerformanceMaxAutomation = {
+  automationStatuses: Record<string, string>
+  automatedVideoCrawlSources: GooglePerformanceMaxVideoCrawlSource[]
+  urlExclusions: string[]
+}
+
+export type UpdateGooglePerformanceMaxAutomationInput = {
+  finalUrlExpansion?: boolean | null
+  textAssetAutomation?: boolean | null
+  enhancedYoutubeVideos?: boolean | null
+  imageEnhancement?: boolean | null
+  automatedVideoCrawl?: boolean | null
+  automatedVideoCrawlSources?: GooglePerformanceMaxVideoCrawlSource[]
+  urlExclusions?: string[]
+}
+
+export type GoogleAssetGroupUrlOptions = {
+  assetGroupId: string
+  trackingUrlTemplate?: string | null
+  finalUrlSuffix?: string | null
+  customParameters: GoogleUrlCustomParameter[]
+}
 
 export type GoogleReusableAssetLink = {
   resourceName: string
