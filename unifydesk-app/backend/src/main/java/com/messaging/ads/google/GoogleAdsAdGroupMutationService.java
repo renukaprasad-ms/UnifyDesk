@@ -38,6 +38,11 @@ public class GoogleAdsAdGroupMutationService {
     AdCampaign campaign = requireCampaign(companyId, campaignId);
     var context = contextService.requireManaged(companyId, campaign.getAdAccountId());
 
+    if ("APP".equalsIgnoreCase(campaign.getObjective())) {
+      throw new BadRequestException(
+          "Google App campaigns require the dedicated App ad-group flow so subtype-specific bidding and audience rules are enforced");
+    }
+
     Map<String, Object> create = new LinkedHashMap<>();
     create.put("name", request.name().trim());
     create.put(
