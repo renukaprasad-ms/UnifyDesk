@@ -43,16 +43,7 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
         ses.getTenant(GetTenantRequest.builder().tenantName(tenantName).build());
       } catch (software.amazon.awssdk.services.sesv2.model.NotFoundException exception) {
         try {
-          ses.createTenant(
-              CreateTenantRequest.builder()
-                  .tenantName(tenantName)
-                  .suppressionAttributes(
-                      TenantSuppressionAttributes.builder()
-                          .suppressionScope(SuppressionListScope.TENANT)
-                          .suppressedReasons(
-                              SuppressionListReason.BOUNCE, SuppressionListReason.COMPLAINT)
-                          .build())
-                  .build());
+          ses.createTenant(CreateTenantRequest.builder().tenantName(tenantName).build());
         } catch (AlreadyExistsException ignored) {
           // Ambiguous create/retry converges through GetTenant below.
         }
@@ -252,7 +243,7 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
         region.startsWith("cn-")
             ? "aws-cn"
             : (region.startsWith("us-gov-") ? "aws-us-gov" : "aws");
-    return "arn:" + partition + ":ses:" + region + ":" + accountId() ;
+    return "arn:" + partition + ":ses:" + region + ":" + accountId();
   }
 
   private String accountId() {
