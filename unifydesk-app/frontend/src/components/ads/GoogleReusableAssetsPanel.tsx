@@ -65,7 +65,8 @@ const defaultLinkRole = (asset: GoogleReusableAsset, level: GoogleAssetLinkLevel
 
 const roleAllowed = (role: string, level: GoogleAssetLinkLevel) => {
   if (role === 'LEAD_FORM') return level === 'CAMPAIGN'
-  if (role === 'BUSINESS_NAME' || role === 'BUSINESS_LOGO') return level !== 'AD_GROUP'
+  if (role === 'BUSINESS_NAME') return level !== 'AD_GROUP'
+  if (role === 'BUSINESS_LOGO') return level === 'CAMPAIGN'
   if (role === 'AD_IMAGE') return level !== 'CUSTOMER'
   return true
 }
@@ -426,7 +427,7 @@ export default function GoogleReusableAssetsPanel(props: Props) {
                         {asset.type === 'IMAGE' && current.level !== 'CUSTOMER' && (
                           <option value="AD_IMAGE">Ad image</option>
                         )}
-                        {asset.type === 'IMAGE' && current.level !== 'AD_GROUP' && (
+                        {asset.type === 'IMAGE' && current.level === 'CAMPAIGN' && (
                           <option value="BUSINESS_LOGO">Business logo</option>
                         )}
                       </select>
