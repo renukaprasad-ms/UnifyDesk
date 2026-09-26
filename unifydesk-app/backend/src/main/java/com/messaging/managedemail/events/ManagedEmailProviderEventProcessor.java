@@ -1,7 +1,5 @@
 package com.messaging.managedemail.events;
 
-import com.messaging.managedemail.metering.ManagedEmailUsageService;
-import com.messaging.managedemail.reputation.ManagedEmailReputationService;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
@@ -15,17 +13,13 @@ public class ManagedEmailProviderEventProcessor {
   private final ManagedEmailEventLedger ledger;
   private final ManagedEmailSesEventParser parser;
   private final ManagedEmailRuntimeRepository runtimeRepository;
-  private final ManagedEmailDeliveryProjectionService projectionService;
-  private final ManagedEmailSuppressionFeedbackService suppressionService;
+  private final ManagedEmailEventReceiptService receiptService;
+  private final ManagedEmailEventLocalProcessor localProcessor;
   private final ManagedEmailProviderSuppressionService providerSuppressionService;
-  private final ManagedEmailUsageService usageService;
-  private final ManagedEmailReputationService reputationService;
   private final SnsMessageVerifier snsMessageVerifier;
   private final SnsSubscriptionConfirmer subscriptionConfirmer;
 
   public void process(SnsEnvelope envelope) {
-    if (ledger.alreadyReceived(envelope.messageId())) return;
-
     if ("SubscriptionConfirmation".equals(envelope.type())) {
       if (envelope.subscribeUrl() != null) {
         URI uri =
@@ -48,30 +42,14 @@ public class ManagedEmailProviderEventProcessor {
       ledger.recordRejected(event, mismatch);
       return;
     }
-    if (!ledger.recordMatched(event, runtime)) return;
 
-    projectionService.apply(event, runtime);
-    switch (event.type()) {
-      case SEND ->
-          usageService.commitLatest(
-              runtime.companyId(),
-              runtime.recipientId(),
-              runtime.runId(),
-              event.providerMessageId());
-      case BOUNCE -> {
-        if (event.hardBounce()) {
-          suppressionService.hardBounce(runtime, event.eventTimestamp());
-          providerSuppressionService.signal(runtime, SuppressionListReason.BOUNCE);
-          reputationService.evaluate(runtime.companyId());
-        }
-      }
-      case COMPLAINT -> {
-        suppressionService.complaint(runtime);
-        providerSuppressionService.signal(runtime, SuppressionListReason.COMPLAINT);
-        reputationService.evaluate(runtime.companyId());
-      }
-      case DELIVERY, REJECT, OPEN, CLICK, DELIVERY_DELAY, RENDERING_FAILURE, SUBSCRIPTION -> {
-      }
+    receiptService.receiveMatched(event, runtime);
+    localProcessor.process(event, runtime);
+
+    if (event.hardBounce()) {
+      providerSuppressionService.signal(runtime, SuppressionListReason.BOUNCE);
+    } else if (event.type() == ManagedEmailProviderEventType.COMPLAINT) {
+      providerSuppressionService.signal(runtime, SuppressionListReason.COMPLAINT);
     }
   }
 
