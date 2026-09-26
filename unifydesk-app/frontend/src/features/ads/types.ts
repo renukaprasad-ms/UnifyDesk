@@ -1407,6 +1407,9 @@ export type CreateMetaAdSetInput = {
   audienceNetworkPositions?: string[]
   customAudienceIds?: string[]
   excludedCustomAudienceIds?: string[]
+  advantageAudience?: boolean | null
+  advantageAgeSuggestion?: boolean | null
+  advantageGenderSuggestion?: boolean | null
   pixelId?: string | null
   customEventType?: string | null
   customConversionId?: string | null
