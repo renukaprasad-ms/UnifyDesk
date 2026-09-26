@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  deliverabilityCopy,
   isBareDomainInput,
   isNearUsageLimit,
   managedSenderProviderLabel,
@@ -53,6 +54,14 @@ describe('Managed Email UI helpers', () => {
     expect(managedSenderProviderLabel('CUSTOMER_MANAGED', 'AMAZON_SES')).toBe(
       'Amazon SES',
     )
+  })
+
+  it('supports every frozen deliverability status with customer-safe copy', () => {
+    expect(deliverabilityCopy('INSUFFICIENT_DATA')).toMatch(/not enough sending history/i)
+    expect(deliverabilityCopy('HEALTHY')).toMatch(/healthy/i)
+    expect(deliverabilityCopy('WARNING')).toMatch(/attention/i)
+    expect(deliverabilityCopy('THROTTLED')).toMatch(/temporarily limited/i)
+    expect(deliverabilityCopy('SUSPENDED')).toMatch(/suspended/i)
   })
 
   it('backs polling off and stops on active or terminal states', () => {
