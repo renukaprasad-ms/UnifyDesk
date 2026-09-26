@@ -733,6 +733,7 @@ export default function AdCampaignDetails() {
 
             {campaign.provider === 'GOOGLE_ADS' &&
               account &&
+              campaign.objective &&
               ['SEARCH', 'PERFORMANCE_MAX', 'DISPLAY', 'DEMAND_GEN'].includes(
                 campaign.objective,
               ) && (
@@ -751,6 +752,7 @@ export default function AdCampaignDetails() {
               )}
 
             {campaign.provider === 'GOOGLE_ADS' &&
+              campaign.objective &&
               !['VIDEO', 'APP'].includes(campaign.objective) &&
               account && (
                 <GoogleReusableAssetsPanel
