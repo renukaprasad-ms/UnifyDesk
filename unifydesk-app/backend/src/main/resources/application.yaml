@@ -164,6 +164,12 @@ app:
       established-hourly-cap: ${APP_MANAGED_EMAIL_ESTABLISHED_HOURLY_CAP:5000}
       established-daily-cap: ${APP_MANAGED_EMAIL_ESTABLISHED_DAILY_CAP:25000}
       campaign-size-cap: ${APP_MANAGED_EMAIL_CAMPAIGN_SIZE_CAP:5000}
+      provider-snapshot-max-age-seconds: ${APP_MANAGED_EMAIL_PROVIDER_SNAPSHOT_MAX_AGE_SECONDS:300}
+      provider-effect-poll-batch-size: ${APP_MANAGED_EMAIL_PROVIDER_EFFECT_POLL_BATCH_SIZE:25}
+      provider-effect-stale-after-seconds: ${APP_MANAGED_EMAIL_PROVIDER_EFFECT_STALE_AFTER_SECONDS:120}
+      provider-effect-max-attempts: ${APP_MANAGED_EMAIL_PROVIDER_EFFECT_MAX_ATTEMPTS:8}
+      provider-effect-retry-initial-seconds: ${APP_MANAGED_EMAIL_PROVIDER_EFFECT_RETRY_INITIAL_SECONDS:2}
+      provider-effect-retry-max-seconds: ${APP_MANAGED_EMAIL_PROVIDER_EFFECT_RETRY_MAX_SECONDS:900}
       sns-replay-window-seconds: ${APP_MANAGED_EMAIL_SNS_REPLAY_WINDOW_SECONDS:600}
       webhook-max-bytes: ${APP_MANAGED_EMAIL_WEBHOOK_MAX_BYTES:262144}
       webhook-max-json-depth: ${APP_MANAGED_EMAIL_WEBHOOK_MAX_JSON_DEPTH:32}
