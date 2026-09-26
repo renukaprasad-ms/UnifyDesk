@@ -136,8 +136,10 @@ class GoogleAdsAppCampaignServiceTests {
             eq(null),
             operations.capture());
 
+    Map<String, Object> secondOperation =
+        (Map<String, Object>) operations.getValue().get(1);
     Map<String, Object> campaignOperation =
-        (Map<String, Object>) operations.getValue().get(1).get("campaignOperation");
+        (Map<String, Object>) secondOperation.get("campaignOperation");
     Map<String, Object> campaign =
         (Map<String, Object>) campaignOperation.get("create");
 
