@@ -821,6 +821,92 @@ export type CreateGoogleAdvancedCampaignInput = {
   endDate?: string | null
 }
 
+export type GoogleAppCampaignSubtype =
+  | 'APP_CAMPAIGN'
+  | 'APP_CAMPAIGN_FOR_ENGAGEMENT'
+  | 'APP_CAMPAIGN_FOR_PRE_REGISTRATION'
+
+export type GoogleAppStore = 'GOOGLE_APP_STORE' | 'APPLE_APP_STORE'
+
+export type GoogleAppBiddingGoal =
+  | 'OPTIMIZE_INSTALLS_TARGET_INSTALL_COST'
+  | 'OPTIMIZE_INSTALLS_WITHOUT_TARGET_INSTALL_COST'
+  | 'OPTIMIZE_IN_APP_CONVERSIONS_TARGET_CONVERSION_COST'
+  | 'OPTIMIZE_IN_APP_CONVERSIONS_TARGET_INSTALL_COST'
+  | 'OPTIMIZE_IN_APP_CONVERSIONS_WITHOUT_TARGET_CPA'
+  | 'OPTIMIZE_PRE_REGISTRATION_CONVERSION_VOLUME'
+  | 'OPTIMIZE_RETURN_ON_ADVERTISING_SPEND'
+  | 'OPTIMIZE_TOTAL_VALUE_WITHOUT_TARGET_ROAS'
+
+export type CreateGoogleAppCampaignInput = {
+  name: string
+  advertisingChannelSubType: GoogleAppCampaignSubtype
+  appId: string
+  appStore: GoogleAppStore
+  biddingStrategyGoalType: GoogleAppBiddingGoal
+  dailyBudgetMinor: number
+  targetCpaMinor?: number | null
+  targetRoas?: number | null
+  conversionActionIds?: string[]
+  locations?: ReachlyoAudienceLocationInput[]
+  excludedLocations?: ReachlyoAudienceLocationInput[]
+  languages?: string[]
+  containsEuPoliticalAdvertising: boolean
+  startDate?: string | null
+  endDate?: string | null
+}
+
+export type GoogleAppCampaignSettings = {
+  advertisingChannelSubType: GoogleAppCampaignSubtype | string
+  appId: string
+  appStore: GoogleAppStore | string
+  biddingStrategyGoalType: GoogleAppBiddingGoal | string
+  conversionActionResources: string[]
+  locationResources: string[]
+  excludedLocationResources: string[]
+  languageResources: string[]
+}
+
+export type GoogleAppAssetPerformance = {
+  assetResourceName: string
+  assetName?: string | null
+  impressions: number
+  clicks: number
+}
+
+export type GoogleAppCampaignPerformance = {
+  impressions: number
+  clicks: number
+  costMicros: number
+  conversions: number
+  allConversions: number
+  skAdNetworkInstalls: number
+  skAdNetworkTotalConversions: number
+  assetPerformance: GoogleAppAssetPerformance[]
+}
+
+export type GoogleAppCreativeAsset = {
+  resourceName: string
+  name?: string | null
+  type: 'IMAGE' | 'YOUTUBE_VIDEO' | string
+  imageUrl?: string | null
+  youtubeVideoId?: string | null
+}
+
+export type CreateGoogleAppAdGroupInput = {
+  name: string
+  targetCpaMinor?: number | null
+  userListId?: string | null
+}
+
+export type CreateGoogleAppAdInput = {
+  name: string
+  headlines: string[]
+  descriptions: string[]
+  imageAssetResourceNames?: string[]
+  videoAssetResourceNames?: string[]
+}
+
 export type CreateGooglePerformanceMaxCampaignInput = {
   name: string
   dailyBudgetMinor: number
