@@ -36,6 +36,7 @@ Read TEAM_WORKFLOW.md before implementation. Role-specific chat prompts remain i
 - QA-SEC-PLAN.md — post-integration review plan.
 - TASKS.md — exact Round-1 ownership and forbidden-file boundaries.
 - ROUND2_TASKS.md — exact Round-2 QA remediation ownership and forbidden-file boundaries.
+- ROUND3_TASKS.md — residual Round-3 backend-only remediation after Round-2 retest.
 - INTEGRATION_STATUS.md — round/branch/PR status.
 - SECURITY_QA_FEEDBACK.md — QA/SEC findings in the review round.
 
