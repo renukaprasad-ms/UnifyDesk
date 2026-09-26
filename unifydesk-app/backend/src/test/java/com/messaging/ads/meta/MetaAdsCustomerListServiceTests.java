@@ -100,7 +100,7 @@ class MetaAdsCustomerListServiceTests {
     assertThat(data).hasSize(1);
     assertThat(data.getFirst().getFirst())
         .isEqualTo(
-            "973dfe463ec85785f5f95af5ba3906ee5db7618b21893e96245e337d3d7d2871");
+            "973dfe463ec85785f5f95af5ba3906eedb2d931c24e69824a89ea65dba4e813b");
     assertThat(data.getFirst().getFirst()).doesNotContain("example.com");
   }
 
