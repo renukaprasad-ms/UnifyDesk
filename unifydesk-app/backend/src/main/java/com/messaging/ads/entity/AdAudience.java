@@ -33,6 +33,7 @@ public class AdAudience {
   @Column(name="pixel_id", length=255) private String pixelId;
   @Column(name="rule_json", columnDefinition="text") private String ruleJson;
   @Column(name="lookalike_spec_json", columnDefinition="text") private String lookalikeSpecJson;
+  @Column(name="customer_file_source", length=64) private String customerFileSource;
   @Column(name="provider_created_at") private Instant providerCreatedAt;
   @Column(name="provider_updated_at") private Instant providerUpdatedAt;
   @Column(nullable=false) private boolean accessible = true;
