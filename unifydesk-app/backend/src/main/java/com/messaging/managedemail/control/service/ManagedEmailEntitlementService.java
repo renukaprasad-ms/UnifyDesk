@@ -36,7 +36,7 @@ public class ManagedEmailEntitlementService {
 
   public void requireSenderCapacity(Long companyId) {
     entitlementService.assertWithinLimit(
-        companyId, SENDERS, senderBindingRepository.countByCompanyId(companyId));
+        companyId, SENDERS, senderBindingRepository.countActiveByCompanyId(companyId));
   }
 
   public boolean enabled(Long companyId) {
