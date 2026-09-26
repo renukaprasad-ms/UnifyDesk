@@ -580,44 +580,48 @@ export default function AdCampaignDetails() {
                 </label>
 
                 <label className="block text-xs font-semibold text-slate-700">
-                  Bid strategy
-                  <select
-                    className="form-input mt-2"
-                    value={bidStrategy}
-                    disabled={
-                      !editing ||
-                      campaign.objective === 'VIDEO' ||
-                      campaign.objective === 'APP'
-                    }
-                    onChange={(event) => setBidStrategy(event.target.value)}
-                  >
-                    {campaign.provider === 'GOOGLE_ADS' ? (
-                      campaign.objective === 'PERFORMANCE_MAX' ? (
-                        <>
-                          <option value="MAXIMIZE_CONVERSIONS">Maximize conversions</option>
-                          <option value="MAXIMIZE_CONVERSION_VALUE">
-                            Maximize conversion value
-                          </option>
-                        </>
+                  {campaign.objective === 'APP' ? 'Optimization bidding' : 'Bid strategy'}
+                  {campaign.objective === 'APP' ? (
+                    <input
+                      className="form-input mt-2"
+                      value="Managed by App campaign optimization goal"
+                      disabled
+                    />
+                  ) : (
+                    <select
+                      className="form-input mt-2"
+                      value={bidStrategy}
+                      disabled={!editing || campaign.objective === 'VIDEO'}
+                      onChange={(event) => setBidStrategy(event.target.value)}
+                    >
+                      {campaign.provider === 'GOOGLE_ADS' ? (
+                        campaign.objective === 'PERFORMANCE_MAX' ? (
+                          <>
+                            <option value="MAXIMIZE_CONVERSIONS">Maximize conversions</option>
+                            <option value="MAXIMIZE_CONVERSION_VALUE">
+                              Maximize conversion value
+                            </option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="MANUAL_CPC">Manual CPC</option>
+                            <option value="MAXIMIZE_CLICKS">Maximize clicks</option>
+                            <option value="MAXIMIZE_CONVERSIONS">Maximize conversions</option>
+                            <option value="MAXIMIZE_CONVERSION_VALUE">
+                              Maximize conversion value
+                            </option>
+                          </>
+                        )
                       ) : (
                         <>
-                          <option value="MANUAL_CPC">Manual CPC</option>
-                          <option value="MAXIMIZE_CLICKS">Maximize clicks</option>
-                          <option value="MAXIMIZE_CONVERSIONS">Maximize conversions</option>
-                          <option value="MAXIMIZE_CONVERSION_VALUE">
-                            Maximize conversion value
-                          </option>
+                          <option value="">Meta default</option>
+                          <option value="LOWEST_COST_WITHOUT_CAP">Lowest cost</option>
+                          <option value="LOWEST_COST_WITH_BID_CAP">Bid cap</option>
+                          <option value="COST_CAP">Cost cap</option>
                         </>
-                      )
-                    ) : (
-                      <>
-                        <option value="">Meta default</option>
-                        <option value="LOWEST_COST_WITHOUT_CAP">Lowest cost</option>
-                        <option value="LOWEST_COST_WITH_BID_CAP">Bid cap</option>
-                        <option value="COST_CAP">Cost cap</option>
-                      </>
-                    )}
-                  </select>
+                      )}
+                    </select>
+                  )}
                 </label>
 
                 <label className="block text-xs font-semibold text-slate-700">
