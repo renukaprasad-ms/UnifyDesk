@@ -22,6 +22,11 @@ import { channelApi } from '../../features/channel/channelApi'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import { fetchBroadcastGroups } from '../../store/broadcast/broadcastSlice'
 import type { BroadcastSender } from '../../features/broadcast/types'
+import {
+  broadcastSenderConnectionDetails,
+  broadcastSenderProviderLabel,
+  isMessagingManagedSender,
+} from '../../features/managedEmail/privacy'
 import type { ChannelConnection, ChannelType, SenderIdentity } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -80,14 +85,6 @@ const channelFromPath = (pathname: string): ChannelType => {
 
 const identityFallback = (connection: ChannelConnection) =>
   connection.externalAccountId || connection.name
-
-const broadcastProviderLabel = (provider: BroadcastSender['provider']) => {
-  if (provider === 'AMAZON_SES') return 'Amazon SES'
-  if (provider === 'SENDGRID') return 'SendGrid'
-  if (provider === 'AZURE_EMAIL') return 'Azure Email'
-  if (provider === 'MSG91_EMAIL') return 'MSG91 Email'
-  return 'MSG91 SMS'
-}
 
 const emailProviderIcon = (providerType: string) => {
   if (providerType === 'GMAIL') return <SiGmail aria-hidden="true" />
@@ -298,18 +295,21 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           providerType: sender.provider,
           senderId: sender.id,
           label: sender.fromAddress,
-          secondary:
-            sender.provider === 'MSG91_SMS'
+          secondary: isMessagingManagedSender(sender)
+            ? broadcastSenderProviderLabel(sender)
+            : sender.provider === 'MSG91_SMS'
               ? `MSG91 SMS · ${sender.connectionName}`
               : sender.provider === 'MSG91_EMAIL'
                 ? `MSG91 Email · ${sender.connectionName}`
-                : `${broadcastProviderLabel(sender.provider)} · ${sender.region}${
-                  sender.maxSendRate ? ` · ${sender.maxSendRate}/sec` : ''
-                }${
-                  sender.provider === 'AMAZON_SES' && !sender.productionAccessEnabled
-                    ? ' · Sandbox'
-                    : ''
-                }`,
+                : [
+                    broadcastSenderProviderLabel(sender),
+                    ...broadcastSenderConnectionDetails(sender),
+                    sender.provider === 'AMAZON_SES' && !sender.productionAccessEnabled
+                      ? 'Sandbox'
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · '),
         }))
     }
 
