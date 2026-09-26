@@ -9,7 +9,7 @@ public record AdAudienceResponse(
     String externalAudienceId, String name, String subtype, String description,
     Integer retentionDays, Long approximateCountLowerBound, Long approximateCountUpperBound,
     String deliveryStatusJson, String operationStatusJson, String pixelId, String ruleJson,
-    String lookalikeSpecJson, Instant providerCreatedAt, Instant providerUpdatedAt,
+    String lookalikeSpecJson, String customerFileSource, Instant providerCreatedAt, Instant providerUpdatedAt,
     boolean accessible, Instant lastSyncAt) {
   public static AdAudienceResponse from(AdAudience value) {
     return new AdAudienceResponse(
@@ -18,7 +18,8 @@ public record AdAudienceResponse(
         value.getDescription(), value.getRetentionDays(), value.getApproximateCountLowerBound(),
         value.getApproximateCountUpperBound(), value.getDeliveryStatusJson(),
         value.getOperationStatusJson(), value.getPixelId(), value.getRuleJson(),
-        value.getLookalikeSpecJson(), value.getProviderCreatedAt(), value.getProviderUpdatedAt(),
+        value.getLookalikeSpecJson(), value.getCustomerFileSource(),
+        value.getProviderCreatedAt(), value.getProviderUpdatedAt(),
         value.isAccessible(), value.getLastSyncAt());
   }
 }
