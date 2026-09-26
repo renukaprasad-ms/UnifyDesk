@@ -35,6 +35,7 @@ type Props = {
   onClose: () => void
   onChanged?: () => void
   initialDomainId?: string | null
+  canModify?: boolean
   client?: ManagedEmailApi
 }
 
@@ -52,6 +53,7 @@ export default function ManagedEmailModal({
   onClose,
   onChanged,
   initialDomainId = null,
+  canModify = true,
   client = managedEmailApi,
 }: Props) {
   const [stage, setStage] = useState<Stage>(initialDomainId ? 'domain' : 'landing')
@@ -323,7 +325,7 @@ export default function ManagedEmailModal({
             <button
               type="button"
               className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5 text-left transition hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-60"
-              disabled={overview?.enabled === false}
+              disabled={!canModify || overview?.enabled !== true}
               onClick={() => setStage('customer-domain')}
             >
               <span className="flex size-11 items-center justify-center rounded-xl bg-white text-indigo-600 shadow-sm">
@@ -340,7 +342,7 @@ export default function ManagedEmailModal({
             <button
               type="button"
               className="rounded-2xl border border-slate-200 p-5 text-left transition hover:border-indigo-200 hover:bg-slate-50 disabled:opacity-60"
-              disabled={busy || overview?.enabled === false}
+              disabled={!canModify || busy || overview?.enabled !== true}
               onClick={() => void createHostedDomain()}
             >
               <span className="flex size-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
@@ -428,7 +430,7 @@ export default function ManagedEmailModal({
                       : 'DNS changes may need time to propagate. UnifyDesk will keep checking while this setup is open.'}
                 </p>
               </div>
-              {!['DELETED', 'RETIRED'].includes(domain.status) && (
+              {canModify && !['DELETED', 'RETIRED'].includes(domain.status) && (
                 <button
                   type="button"
                   className="secondary-button inline-flex items-center gap-2"
@@ -554,7 +556,7 @@ export default function ManagedEmailModal({
                       Create a sender address under this verified domain.
                     </p>
                   </div>
-                  {sendingAvailable && !senderFormOpen && (
+                  {canModify && sendingAvailable && !senderFormOpen && (
                     <button
                       type="button"
                       className="primary-button"
@@ -567,7 +569,7 @@ export default function ManagedEmailModal({
               </div>
             )}
 
-            {senderFormOpen && active && sendingAvailable && (
+            {canModify && senderFormOpen && active && sendingAvailable && (
               <form
                 className="mt-5 rounded-2xl border border-slate-200 p-4"
                 onSubmit={(event) => void createSender(event)}
