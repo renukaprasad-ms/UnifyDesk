@@ -109,6 +109,11 @@ public final class ManagedEmailEnums {
     DELETE_TENANT_RESOURCES
   }
 
+  public enum AdminActionType {
+    SUSPEND,
+    RESUME
+  }
+
   public enum ProvisioningOperationStatus {
     PENDING,
     PROCESSING,

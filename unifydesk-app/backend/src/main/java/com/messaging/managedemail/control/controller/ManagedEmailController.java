@@ -4,6 +4,8 @@ import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
 import com.messaging.managedemail.control.dto.ManagedEmailDtos.*;
+import com.messaging.managedemail.control.security.ManagedEmailControlPlaneRateLimiter;
+import com.messaging.managedemail.control.security.ManagedEmailControlPlaneRateLimiter.Operation;
 import com.messaging.managedemail.control.service.*;
 import com.messaging.security.service.CurrentUserService;
 import jakarta.validation.Valid;
@@ -20,6 +22,7 @@ public class ManagedEmailController {
   private final ManagedEmailOverviewService overviewService;
   private final ManagedEmailDomainService domainService;
   private final ManagedEmailSenderService senderService;
+  private final ManagedEmailControlPlaneRateLimiter rateLimiter;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -41,6 +44,7 @@ public class ManagedEmailController {
   public ResponseEntity<ApiResponse<DomainResponse>> createCustomerDomain(
       @PathVariable Long companyId, @Valid @RequestBody CustomerDomainRequest request) {
     Long userId = require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
+    rateLimiter.requireAllowed(Operation.CUSTOMER_DOMAIN_CREATE, companyId, userId);
     CreateResult<DomainResponse> result = domainService.createCustomer(companyId, userId, request);
     HttpStatus status = result.replay() ? HttpStatus.OK : HttpStatus.ACCEPTED;
     return ResponseEntity.status(status)
@@ -53,6 +57,7 @@ public class ManagedEmailController {
   public ResponseEntity<ApiResponse<DomainResponse>> createHostedDomain(
       @PathVariable Long companyId, @Valid @RequestBody HostedDomainRequest request) {
     Long userId = require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
+    rateLimiter.requireAllowed(Operation.HOSTED_DOMAIN_CREATE, companyId, userId);
     CreateResult<DomainResponse> result = domainService.createHosted(companyId, userId, request);
     HttpStatus status = result.replay() ? HttpStatus.OK : HttpStatus.ACCEPTED;
     return ResponseEntity.status(status)
@@ -73,7 +78,8 @@ public class ManagedEmailController {
   @PostMapping("/domains/{domainId}/refresh")
   public ResponseEntity<ApiResponse<DomainResponse>> refreshDomain(
       @PathVariable Long companyId, @PathVariable Long domainId) {
-    require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
+    Long userId = require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
+    rateLimiter.requireAllowed(Operation.DOMAIN_REFRESH, companyId, userId);
     return ResponseEntity.accepted()
         .body(
             ApiResponse.success(
@@ -85,7 +91,8 @@ public class ManagedEmailController {
   @DeleteMapping("/domains/{domainId}")
   public ResponseEntity<ApiResponse<DomainResponse>> deleteDomain(
       @PathVariable Long companyId, @PathVariable Long domainId) {
-    require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
+    Long userId = require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
+    rateLimiter.requireAllowed(Operation.DOMAIN_DELETE, companyId, userId);
     return ResponseEntity.accepted()
         .body(
             ApiResponse.success(
@@ -105,6 +112,7 @@ public class ManagedEmailController {
   public ResponseEntity<ApiResponse<SenderResponse>> createSender(
       @PathVariable Long companyId, @Valid @RequestBody CreateSenderRequest request) {
     Long userId = require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
+    rateLimiter.requireAllowed(Operation.SENDER_CREATE, companyId, userId);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(
             ApiResponse.success(
@@ -116,7 +124,8 @@ public class ManagedEmailController {
   @DeleteMapping("/senders/{senderId}")
   public ResponseEntity<ApiResponse<SenderResponse>> deleteSender(
       @PathVariable Long companyId, @PathVariable Long senderId) {
-    require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
+    Long userId = require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
+    rateLimiter.requireAllowed(Operation.SENDER_DISABLE, companyId, userId);
     return ResponseEntity.ok(
         ApiResponse.success(
             200, senderService.disable(companyId, senderId), "Managed Email sender disabled"));

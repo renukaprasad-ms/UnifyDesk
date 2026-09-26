@@ -13,6 +13,7 @@ import com.messaging.company.service.CompanyAuthorizationService;
 import com.messaging.managedemail.control.dto.ManagedEmailDtos.CreateSenderRequest;
 import com.messaging.managedemail.control.dto.ManagedEmailDtos.CustomerDomainRequest;
 import com.messaging.managedemail.control.dto.ManagedEmailDtos.HostedDomainRequest;
+import com.messaging.managedemail.control.security.ManagedEmailControlPlaneRateLimiter;
 import com.messaging.managedemail.control.service.ManagedEmailDomainService;
 import com.messaging.managedemail.control.service.ManagedEmailOverviewService;
 import com.messaging.managedemail.control.service.ManagedEmailSenderService;
@@ -29,6 +30,7 @@ class ManagedEmailControllerAuthorizationTests {
   @Mock private ManagedEmailOverviewService overviewService;
   @Mock private ManagedEmailDomainService domainService;
   @Mock private ManagedEmailSenderService senderService;
+  @Mock private ManagedEmailControlPlaneRateLimiter rateLimiter;
   @Mock private CompanyAuthorizationService authorizationService;
   @Mock private CurrentUserService currentUserService;
 
@@ -41,6 +43,7 @@ class ManagedEmailControllerAuthorizationTests {
             overviewService,
             domainService,
             senderService,
+            rateLimiter,
             authorizationService,
             currentUserService);
     when(currentUserService.currentUserId()).thenReturn(7L);
@@ -76,6 +79,6 @@ class ManagedEmailControllerAuthorizationTests {
         .isInstanceOf(SecurityException.class);
 
     verify(authorizationService, times(10)).requirePermission(eq(7L), eq(99L), anyString());
-    verifyNoInteractions(overviewService, domainService, senderService);
+    verifyNoInteractions(overviewService, domainService, senderService, rateLimiter);
   }
 }

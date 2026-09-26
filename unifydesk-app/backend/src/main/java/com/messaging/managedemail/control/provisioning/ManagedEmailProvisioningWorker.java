@@ -77,7 +77,8 @@ public class ManagedEmailProvisioningWorker {
 
   private void ensureTenant(ManagedEmailProvisioningOperation operation) {
     TenantWork work = tenantWork(operation);
-    TenantSnapshot snapshot = sesGateway.ensureTenant(work.providerTenantName());
+    TenantSnapshot snapshot =
+        ensureTenantProviderState(work.companyId(), work.providerTenantName());
     sesGateway.ensureConfigurationSet(
         work.providerTenantName(), work.configurationSetName(), properties.getSnsTopicArn());
     persistTenantProviderState(work.companyId(), work.tenantId(), snapshot);
@@ -85,7 +86,8 @@ public class ManagedEmailProvisioningWorker {
 
   private void ensureDomain(ManagedEmailProvisioningOperation operation) {
     DomainWork work = domainWork(operation);
-    TenantSnapshot tenantSnapshot = sesGateway.ensureTenant(work.providerTenantName());
+    TenantSnapshot tenantSnapshot =
+        ensureTenantProviderState(work.companyId(), work.providerTenantName());
     sesGateway.ensureConfigurationSet(
         work.providerTenantName(), work.configurationSetName(), properties.getSnsTopicArn());
     persistTenantProviderState(work.companyId(), work.tenantId(), tenantSnapshot);
@@ -104,7 +106,8 @@ public class ManagedEmailProvisioningWorker {
 
   private void refreshDomain(ManagedEmailProvisioningOperation operation) {
     DomainWork work = domainWork(operation);
-    TenantSnapshot tenantSnapshot = sesGateway.getTenant(work.providerTenantName());
+    TenantSnapshot tenantSnapshot =
+        readTenantProviderState(work.companyId(), work.providerTenantName());
     persistTenantProviderState(work.companyId(), work.tenantId(), tenantSnapshot);
     if (work.type() == DomainType.UNIFYDESK_HOSTED) {
       ensureHostedDns(work);
@@ -313,23 +316,34 @@ public class ManagedEmailProvisioningWorker {
         });
   }
 
-  private void persistTenantProviderState(Long companyId, Long tenantId, TenantSnapshot snapshot) {
+  void persistTenantProviderState(Long companyId, Long tenantId, TenantSnapshot snapshot) {
     transactionTemplate.executeWithoutResult(
         status -> {
           ManagedEmailTenant tenant =
               tenantRepository
                   .findByIdAndCompanyId(tenantId, companyId)
                   .orElseThrow(() -> new NotFoundException("Managed Email tenant not found"));
-          tenant.setStatus(TenantStatus.ACTIVE);
-          tenant.setSendingStatus(
+          boolean manuallyOrPolicySuspended = tenant.getStatus() == TenantStatus.SUSPENDED;
+          boolean tenantProviderSendingEnabled =
               "ENABLED".equals(snapshot.sendingStatus())
-                      || "REINSTATED".equals(snapshot.sendingStatus())
-                  ? SendingStatus.ENABLED
-                  : SendingStatus.PROVIDER_DISABLED);
+                  || "REINSTATED".equals(snapshot.sendingStatus());
+          if (!manuallyOrPolicySuspended) {
+            tenant.setStatus(TenantStatus.ACTIVE);
+            tenant.setSendingStatus(
+                tenantProviderSendingEnabled
+                    ? SendingStatus.ENABLED
+                    : SendingStatus.PROVIDER_DISABLED);
+          } else {
+            tenant.setSendingStatus(SendingStatus.DISABLED);
+          }
           tenant.setReputationStatus(snapshot.reputationStatus());
           tenant.setProviderMaxSendRate(snapshot.maxSendRate());
           tenant.setProviderMax24HourSend(snapshot.max24HourSend());
-          tenant.setProviderProductionAccessEnabled(snapshot.productionAccessEnabled());
+          tenant.setProviderSentLast24Hours(snapshot.sentLast24Hours());
+          tenant.setProviderAccountSendingEnabled(
+              Boolean.TRUE.equals(snapshot.accountSendingEnabled()));
+          tenant.setProviderProductionAccessEnabled(
+              Boolean.TRUE.equals(snapshot.productionAccessEnabled()));
           tenant.setLastProviderSyncAt(Instant.now());
           tenantRepository.save(tenant);
 
@@ -339,15 +353,25 @@ public class ManagedEmailProvisioningWorker {
                     .findByIdAndCompanyId(
                         tenant.getBroadcastConnectionId(), tenant.getCompanyId())
                     .orElse(null);
-            if (connection != null) {
-              connection.setSendingEnabled(
+            if (connection != null
+                && connection.getProvider()
+                    == com.messaging.broadcast.enums.BroadcastSenderProvider.AMAZON_SES
+                && connection.getManagementMode()
+                    == com.messaging.broadcast.enums.BroadcastSenderManagementMode.MESSAGING_MANAGED) {
+              boolean safeToSend =
                   properties.isEnabled()
                       && properties.isPlatformSendingEnabled()
-                      && tenant.getSendingStatus() == SendingStatus.ENABLED);
+                      && tenant.getStatus() == TenantStatus.ACTIVE
+                      && tenant.getSendingStatus() == SendingStatus.ENABLED
+                      && tenant.isProviderAccountSendingEnabled()
+                      && tenant.isProviderProductionAccessEnabled()
+                      && providerQuotaAvailable(snapshot);
+              connection.setSendingEnabled(safeToSend);
               connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
               connection.setProductionAccessEnabled(tenant.isProviderProductionAccessEnabled());
               connection.setMaxSendRate(tenant.getProviderMaxSendRate());
               connection.setMax24HourSend(tenant.getProviderMax24HourSend());
+              connection.setSentLast24Hours(tenant.getProviderSentLast24Hours());
               connection.setLastValidatedAt(Instant.now());
               connectionRepository.save(connection);
               channelConnectionRepository
@@ -458,6 +482,55 @@ public class ManagedEmailProvisioningWorker {
                 tenant.setSendingStatus(SendingStatus.DISABLED);
                 tenantRepository.save(tenant);
               });
+    }
+  }
+
+
+
+  private TenantSnapshot ensureTenantProviderState(Long companyId, String providerTenantName) {
+    try {
+      return sesGateway.ensureTenant(providerTenantName);
+    } catch (RuntimeException exception) {
+      failClosedManagedConnection(companyId);
+      throw exception;
+    }
+  }
+
+  private TenantSnapshot readTenantProviderState(Long companyId, String providerTenantName) {
+    try {
+      return sesGateway.getTenant(providerTenantName);
+    } catch (RuntimeException exception) {
+      failClosedManagedConnection(companyId);
+      throw exception;
+    }
+  }
+
+  private boolean providerQuotaAvailable(TenantSnapshot snapshot) {
+    return snapshot.maxSendRate() != null
+        && snapshot.maxSendRate() > 0
+        && snapshot.max24HourSend() != null
+        && snapshot.max24HourSend() > 0
+        && snapshot.sentLast24Hours() != null
+        && snapshot.sentLast24Hours() >= 0;
+  }
+
+  private void failClosedManagedConnection(Long companyId) {
+    try {
+      transactionTemplate.executeWithoutResult(
+          status ->
+              connectionRepository
+                  .findFirstByCompanyIdAndProviderAndManagementModeAndStatusNot(
+                      companyId,
+                      com.messaging.broadcast.enums.BroadcastSenderProvider.AMAZON_SES,
+                      com.messaging.broadcast.enums.BroadcastSenderManagementMode.MESSAGING_MANAGED,
+                      BroadcastSenderConnectionStatus.DISABLED)
+                  .ifPresent(
+                      connection -> {
+                        connection.setSendingEnabled(false);
+                        connectionRepository.save(connection);
+                      }));
+    } catch (RuntimeException ignored) {
+      // Preserve the original provisioning failure; runtime gates also fail closed on stale state.
     }
   }
 
