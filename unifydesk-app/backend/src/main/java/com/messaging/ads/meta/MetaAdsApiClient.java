@@ -13,6 +13,7 @@ import java.util.Map;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -322,6 +323,28 @@ public class MetaAdsApiClient {
       throw new BadRequestException("Meta created the audience without returning an ID");
     }
     return response.id();
+  }
+
+  public JsonNode customAudienceUsers(
+      String accessToken,
+      String audienceId,
+      boolean remove,
+      Map<String, Object> payload) {
+    return execute(
+        () ->
+            graphClient
+                .method(remove ? HttpMethod.DELETE : HttpMethod.POST)
+                .uri(
+                    uriBuilder ->
+                        uriBuilder
+                            .path("/{version}/{audienceId}/users")
+                            .queryParam("appsecret_proof", appSecretProof(accessToken))
+                            .build(properties.getGraphApiVersion(), audienceId))
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payload)
+                .retrieve()
+                .body(JsonNode.class));
   }
 
   public List<CustomConversionSummary> customConversions(
