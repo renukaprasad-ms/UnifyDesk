@@ -96,7 +96,7 @@ class MetaAdsCustomerListServiceTests {
         (List<List<String>>) providerPayload.get("data");
 
     assertThat(providerPayload.get("schema")).isEqualTo(List.of("EMAIL"));
-    assertThat(providerPayload.get("is_raw")).isEqualTo(false);
+    assertThat(providerPayload).doesNotContainKey("is_raw");
     assertThat(data).hasSize(1);
     assertThat(data.getFirst().getFirst())
         .isEqualTo(
