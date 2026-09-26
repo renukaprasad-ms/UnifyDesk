@@ -260,6 +260,7 @@ export default function GoogleReusableAssetsPanel(props: Props) {
           asset.id,
           current.level,
           current.targetId ?? null,
+          fieldType,
         )
         setLinkedIds((ids) => new Set([...ids, asset.id]))
         setNotice(`${assetLabel(asset)} attached to ${current.label.toLowerCase()}.`)
