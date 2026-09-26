@@ -49,6 +49,8 @@ import type {
   AdRecommendationLifecycleAction,
   AdCampaign,
   CreateMetaAudienceInput,
+  MetaCustomerListMembersInput,
+  MetaCustomerListMembersResult,
   CreateMetaCampaignInput,
   CreateMetaConversionInput,
   CreateMetaCreativeInput,
@@ -1755,6 +1757,18 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+
+  async mutateMetaCustomerListMembers(
+    companyId: string,
+    audienceId: string,
+    input: MetaCustomerListMembersInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<MetaCustomerListMembersResult>>(
+      `/api/v1/companies/${companyId}/ads/meta/audiences/${audienceId}/members`,
+      input,
+    )
+    return unwrap(response.data)
+  },
 
   async syncGoogleAudiences(companyId: string, accountId: string) {
     const response = await apiClient.post<ApiResponse<GoogleAudienceSync>>(
