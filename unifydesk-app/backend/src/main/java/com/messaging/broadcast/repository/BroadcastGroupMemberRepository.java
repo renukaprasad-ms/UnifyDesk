@@ -27,6 +27,15 @@ public interface BroadcastGroupMemberRepository extends JpaRepository<BroadcastG
 
   @Query(
       """
+      select count(member.id)
+      from BroadcastGroupMember member
+      where member.groupId = :groupId
+        and member.status = com.messaging.broadcast.enums.BroadcastGroupMemberStatus.ACTIVE
+      """)
+  long countActiveMembers(@Param("groupId") Long groupId);
+
+  @Query(
+      """
       select member
       from BroadcastGroupMember member
       where member.groupId = :groupId
