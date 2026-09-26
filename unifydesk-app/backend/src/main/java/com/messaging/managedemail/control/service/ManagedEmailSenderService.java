@@ -173,11 +173,15 @@ public class ManagedEmailSenderService {
     connection.setProductionAccessEnabled(tenant.isProviderProductionAccessEnabled());
     connection.setMaxSendRate(tenant.getProviderMaxSendRate());
     connection.setMax24HourSend(tenant.getProviderMax24HourSend());
+    connection.setSentLast24Hours(tenant.getProviderSentLast24Hours());
     connection.setSendingEnabled(
         properties.isEnabled()
             && properties.isPlatformSendingEnabled()
             && tenant.getStatus() == TenantStatus.ACTIVE
-            && tenant.getSendingStatus() == SendingStatus.ENABLED);
+            && tenant.getSendingStatus() == SendingStatus.ENABLED
+            && tenant.isProviderAccountSendingEnabled()
+            && tenant.isProviderProductionAccessEnabled()
+            && providerQuotaAvailable(tenant));
     connection.setLastValidatedAt(tenant.getLastProviderSyncAt());
     BroadcastSenderConnection saved = connectionRepository.save(connection);
 
@@ -224,6 +228,15 @@ public class ManagedEmailSenderService {
         connection.getLastValidatedAt(),
         domain.getId().toString(),
         domain.getDisplayDomain());
+  }
+
+  private boolean providerQuotaAvailable(ManagedEmailTenant tenant) {
+    return tenant.getProviderMaxSendRate() != null
+        && tenant.getProviderMaxSendRate() > 0
+        && tenant.getProviderMax24HourSend() != null
+        && tenant.getProviderMax24HourSend() > 0
+        && tenant.getProviderSentLast24Hours() != null
+        && tenant.getProviderSentLast24Hours() >= 0;
   }
 
   private String normalizeLocalPart(String value) {
