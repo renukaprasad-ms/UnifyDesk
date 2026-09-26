@@ -17,7 +17,16 @@ public interface ManagedEmailSesGateway {
 
   void deleteDomainIdentity(String tenantName, String domain);
 
-  record TenantSnapshot(String sendingStatus, String reputationStatus) {}
+  record TenantSnapshot(
+      String sendingStatus,
+      String reputationStatus,
+      Double maxSendRate,
+      Double max24HourSend,
+      boolean productionAccessEnabled) {
+    public TenantSnapshot(String sendingStatus, String reputationStatus) {
+      this(sendingStatus, reputationStatus, null, null, false);
+    }
+  }
 
   record DkimRecord(String name, String value) {}
 
