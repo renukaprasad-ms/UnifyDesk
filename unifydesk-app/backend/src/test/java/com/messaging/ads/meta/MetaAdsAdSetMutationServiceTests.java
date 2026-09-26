@@ -20,6 +20,7 @@ import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.ads.repository.AdConversionRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
 import com.messaging.ads.repository.AdSetRepository;
+import com.messaging.ads.service.AdActivityLogService;
 import com.messaging.common.exception.BadRequestException;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +49,7 @@ class MetaAdsAdSetMutationServiceTests {
   @Mock private MetaAdsTokenService tokenService;
   @Mock private MetaAdsApiClient apiClient;
   @Mock private MetaAdsAdSetPersistenceService persistenceService;
+  @Mock private AdActivityLogService activityLogService;
 
   private MetaAdsAdSetMutationService service;
 
@@ -63,7 +65,8 @@ class MetaAdsAdSetMutationServiceTests {
             connectionRepository,
             tokenService,
             apiClient,
-            persistenceService);
+            persistenceService,
+            activityLogService);
   }
 
   @Test
@@ -155,7 +158,8 @@ class MetaAdsAdSetMutationServiceTests {
                 false,
                 null,
                 null,
-                null));
+                null),
+            77L);
 
     assertThat(response.status()).isEqualTo(AdEntityStatus.PAUSED);
 
@@ -284,7 +288,8 @@ class MetaAdsAdSetMutationServiceTests {
             null,
             null,
             null,
-            null));
+            null),
+        77L);
 
     @SuppressWarnings("unchecked")
     Map<String, Object> targeting =
@@ -307,6 +312,56 @@ class MetaAdsAdSetMutationServiceTests {
         .containsEntry("longitude", 77.5946)
         .containsEntry("radius", 10.0)
         .containsEntry("distance_unit", "kilometer");
+  }
+
+  @Test
+  void createRejectsAdvantageSuggestionWithoutAdvantageAudience() {
+    AdCampaign campaign = campaign(false);
+    AdAccount account = account();
+
+    when(campaignRepository.findByIdAndCompanyId(CAMPAIGN_ID, COMPANY_ID))
+        .thenReturn(Optional.of(campaign));
+    when(accountRepository.findByIdAndCompanyId(ACCOUNT_ID, COMPANY_ID))
+        .thenReturn(Optional.of(account));
+
+    assertThatThrownBy(
+            () ->
+                service.create(
+                    COMPANY_ID,
+                    CAMPAIGN_ID,
+                    new CreateMetaAdSetRequest(
+                        "Invalid Advantage setup",
+                        "LINK_CLICKS",
+                        "IMPRESSIONS",
+                        "LOWEST_COST_WITHOUT_CAP",
+                        null,
+                        2100L,
+                        null,
+                        null,
+                        null,
+                        "WEBSITE",
+                        List.of(
+                            new CreateMetaAdSetRequest.TargetingLocation(
+                                "IN", List.of("home"))),
+                        21,
+                        65,
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        false,
+                        true,
+                        false,
+                        null,
+                        null,
+                        null),
+                    77L))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("require Advantage+ audience");
   }
 
   @Test
@@ -351,7 +406,8 @@ class MetaAdsAdSetMutationServiceTests {
                         null,
                         null,
                         null,
-                        null)))
+                        null),
+                    77L))
         .isInstanceOf(BadRequestException.class)
         .hasMessageContaining("campaign-level budget");
   }
