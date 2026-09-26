@@ -2,7 +2,7 @@ package com.messaging.managedemail.metering;
 
 import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.billing.service.EntitlementService;
-import com.messaging.common.id.IdGenerator;
+import com.messaging.managedemail.runtime.ManagedEmailIdGenerator;
 import java.sql.Date;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -21,6 +21,7 @@ public class ManagedEmailUsageService {
 
   private final JdbcTemplate jdbcTemplate;
   private final EntitlementService entitlementService;
+  private final ManagedEmailIdGenerator idGenerator;
 
   @Transactional(readOnly = true)
   public boolean canReserve(Long companyId, long units) {
@@ -53,7 +54,7 @@ public class ManagedEmailUsageService {
             values (?, ?, ?, ?, 'RESERVE', 1, ?, ?, now())
             on conflict (idempotency_key) do nothing
             """,
-            IdGenerator.nextId(),
+            idGenerator.nextId(),
             companyId,
             recipientId,
             runId,
@@ -96,7 +97,7 @@ public class ManagedEmailUsageService {
             values (?, ?, ?, ?, ?, 'COMMIT', 1, ?, ?, now())
             on conflict (idempotency_key) do nothing
             """,
-            IdGenerator.nextId(),
+            idGenerator.nextId(),
             companyId,
             recipientId,
             runId,
@@ -161,7 +162,7 @@ public class ManagedEmailUsageService {
             values (?, ?, ?, ?, 'RELEASE', -1, ?, ?, now())
             on conflict (idempotency_key) do nothing
             """,
-            IdGenerator.nextId(),
+            idGenerator.nextId(),
             companyId,
             recipientId,
             runId,
