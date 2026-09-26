@@ -69,7 +69,8 @@ public class GoogleAdsProviderReportingService {
             + "' AND '"
             + to
             + "'"
-            + campaignFilter;
+            + campaignFilter
+            + " ORDER BY metrics.cost_micros DESC LIMIT 1000";
 
     return apiClient
         .searchRows(
@@ -112,7 +113,8 @@ public class GoogleAdsProviderReportingService {
             + "' AND '"
             + to
             + "'"
-            + campaignFilter;
+            + campaignFilter
+            + " ORDER BY metrics.cost_micros DESC LIMIT 1000";
 
     return apiClient
         .searchRows(
@@ -160,7 +162,8 @@ public class GoogleAdsProviderReportingService {
             + "' AND '"
             + to
             + "'"
-            + campaignFilter;
+            + campaignFilter
+            + " ORDER BY metrics.auction_insight_search_impression_share DESC LIMIT 500";
 
     return apiClient
         .searchRows(
@@ -206,7 +209,8 @@ public class GoogleAdsProviderReportingService {
             + "' AND '"
             + to
             + "'"
-            + campaignFilter;
+            + campaignFilter
+            + " ORDER BY metrics.conversions DESC LIMIT 1000";
 
     return apiClient
         .searchRows(
