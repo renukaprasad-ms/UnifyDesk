@@ -163,7 +163,7 @@ public class CloudflareApiClient implements CloudflareDnsClient {
     }
   }
 
-  private ServiceUnavailableException unavailable(String message, RuntimeException cause) {
+  private ServiceUnavailableException unavailable(String message, Throwable cause) {
     return new ServiceUnavailableException(message, cause);
   }
 }
