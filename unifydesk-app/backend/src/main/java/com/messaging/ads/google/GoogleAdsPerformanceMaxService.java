@@ -702,6 +702,7 @@ public class GoogleAdsPerformanceMaxService {
             + " AND campaign_criterion.type = 'WEBPAGE' "
             + "AND campaign_criterion.negative = TRUE";
     Map<String, String> existing = new LinkedHashMap<>();
+    Map<String, String> managedExisting = new LinkedHashMap<>();
     for (JsonNode row :
         apiClient.searchRows(
             context.accessToken(),
@@ -715,11 +716,18 @@ public class GoogleAdsPerformanceMaxService {
       if (!"URL".equals(text(condition, "operand"))) continue;
       String argument = text(condition, "argument");
       String resourceName = text(criterion, "resourceName");
-      if (argument != null && resourceName != null) existing.put(argument, resourceName);
+      String criterionName = text(criterion.path("webpage"), "criterionName");
+      if (argument != null && resourceName != null) {
+        existing.put(argument, resourceName);
+        if (criterionName != null
+            && criterionName.startsWith("UnifyDesk URL exclusion ")) {
+          managedExisting.put(argument, resourceName);
+        }
+      }
     }
 
     List<Map<String, Object>> operations = new ArrayList<>();
-    for (Map.Entry<String, String> entry : existing.entrySet()) {
+    for (Map.Entry<String, String> entry : managedExisting.entrySet()) {
       if (!desired.contains(entry.getKey())) {
         operations.add(Map.of("remove", entry.getValue()));
       }
@@ -731,7 +739,7 @@ public class GoogleAdsPerformanceMaxService {
       if (existing.containsKey(value)) continue;
       Map<String, Object> webpage =
           Map.of(
-              "criterionName", "Reachlyo URL exclusion " + index++,
+              "criterionName", "UnifyDesk URL exclusion " + index++,
               "conditions",
                   List.of(
                       Map.of(
