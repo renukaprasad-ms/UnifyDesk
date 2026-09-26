@@ -7,6 +7,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.messaging.broadcast.entity.BroadcastSenderConnection;
+import com.messaging.broadcast.enums.BroadcastSenderConnectionStatus;
+import com.messaging.broadcast.enums.BroadcastSenderManagementMode;
+import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.broadcast.repository.BroadcastSenderConnectionRepository;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.ServiceUnavailableException;
@@ -83,6 +87,127 @@ class ManagedEmailProvisioningWorkerTests {
             connectionRepository,
             channelConnectionRepository,
             new TransactionTemplate(transactionManager));
+  }
+
+
+  @Test
+  void productionAccountSynchronizesManagedConnectionAndEnablesSending() {
+    ManagedEmailTenant tenant = tenant();
+    tenant.setBroadcastConnectionId(44L);
+    BroadcastSenderConnection connection = managedConnection();
+    when(tenantRepository.findByIdAndCompanyId(33L, 1L)).thenReturn(Optional.of(tenant));
+    when(connectionRepository.findByIdAndCompanyId(44L, 1L)).thenReturn(Optional.of(connection));
+
+    worker.persistTenantProviderState(
+        1L,
+        33L,
+        new TenantSnapshot("ENABLED", "LOW", 25.0, 50000.0, 1234.0, true, true));
+
+    assertThat(connection.isSendingEnabled()).isTrue();
+    assertThat(connection.isProductionAccessEnabled()).isTrue();
+    assertThat(connection.getMaxSendRate()).isEqualTo(25.0);
+    assertThat(connection.getMax24HourSend()).isEqualTo(50000.0);
+    assertThat(connection.getSentLast24Hours()).isEqualTo(1234.0);
+    assertThat(connection.getLastValidatedAt()).isNotNull();
+  }
+
+  @Test
+  void sandboxFailsClosedEvenWithQuotaAndAccountSendingEnabled() {
+    ManagedEmailTenant tenant = tenant();
+    tenant.setBroadcastConnectionId(44L);
+    BroadcastSenderConnection connection = managedConnection();
+    when(tenantRepository.findByIdAndCompanyId(33L, 1L)).thenReturn(Optional.of(tenant));
+    when(connectionRepository.findByIdAndCompanyId(44L, 1L)).thenReturn(Optional.of(connection));
+
+    worker.persistTenantProviderState(
+        1L,
+        33L,
+        new TenantSnapshot("ENABLED", "LOW", 25.0, 50000.0, 100.0, true, false));
+
+    assertThat(connection.isSendingEnabled()).isFalse();
+    assertThat(connection.isProductionAccessEnabled()).isFalse();
+  }
+
+  @Test
+  void accountSendingDisabledFailsClosed() {
+    ManagedEmailTenant tenant = tenant();
+    tenant.setBroadcastConnectionId(44L);
+    BroadcastSenderConnection connection = managedConnection();
+    when(tenantRepository.findByIdAndCompanyId(33L, 1L)).thenReturn(Optional.of(tenant));
+    when(connectionRepository.findByIdAndCompanyId(44L, 1L)).thenReturn(Optional.of(connection));
+
+    worker.persistTenantProviderState(
+        1L,
+        33L,
+        new TenantSnapshot("ENABLED", "LOW", 25.0, 50000.0, 100.0, false, true));
+
+    assertThat(connection.isSendingEnabled()).isFalse();
+  }
+
+  @Test
+  void missingProviderQuotaFailsClosed() {
+    ManagedEmailTenant tenant = tenant();
+    tenant.setBroadcastConnectionId(44L);
+    BroadcastSenderConnection connection = managedConnection();
+    when(tenantRepository.findByIdAndCompanyId(33L, 1L)).thenReturn(Optional.of(tenant));
+    when(connectionRepository.findByIdAndCompanyId(44L, 1L)).thenReturn(Optional.of(connection));
+
+    worker.persistTenantProviderState(
+        1L,
+        33L,
+        new TenantSnapshot("ENABLED", "LOW", null, 50000.0, 100.0, true, true));
+
+    assertThat(connection.isSendingEnabled()).isFalse();
+  }
+
+  @Test
+  void quotaRefreshMovesManagedConnectionUpAndDown() {
+    ManagedEmailTenant tenant = tenant();
+    tenant.setBroadcastConnectionId(44L);
+    BroadcastSenderConnection connection = managedConnection();
+    when(tenantRepository.findByIdAndCompanyId(33L, 1L)).thenReturn(Optional.of(tenant));
+    when(connectionRepository.findByIdAndCompanyId(44L, 1L)).thenReturn(Optional.of(connection));
+
+    worker.persistTenantProviderState(
+        1L,
+        33L,
+        new TenantSnapshot("ENABLED", "LOW", 40.0, 80000.0, 1000.0, true, true));
+    assertThat(connection.getMaxSendRate()).isEqualTo(40.0);
+    assertThat(connection.getMax24HourSend()).isEqualTo(80000.0);
+    assertThat(connection.getSentLast24Hours()).isEqualTo(1000.0);
+
+    worker.persistTenantProviderState(
+        1L,
+        33L,
+        new TenantSnapshot("ENABLED", "LOW", 5.0, 10000.0, 9000.0, true, true));
+    assertThat(connection.getMaxSendRate()).isEqualTo(5.0);
+    assertThat(connection.getMax24HourSend()).isEqualTo(10000.0);
+    assertThat(connection.getSentLast24Hours()).isEqualTo(9000.0);
+    assertThat(connection.isSendingEnabled()).isTrue();
+  }
+
+  @Test
+  void customerManagedSesConnectionIsNotChangedByManagedRefresh() {
+    ManagedEmailTenant tenant = tenant();
+    tenant.setBroadcastConnectionId(44L);
+    BroadcastSenderConnection connection = managedConnection();
+    connection.setManagementMode(BroadcastSenderManagementMode.CUSTOMER_MANAGED);
+    connection.setMaxSendRate(7.0);
+    connection.setMax24HourSend(700.0);
+    connection.setSentLast24Hours(70.0);
+    connection.setSendingEnabled(true);
+    when(tenantRepository.findByIdAndCompanyId(33L, 1L)).thenReturn(Optional.of(tenant));
+    when(connectionRepository.findByIdAndCompanyId(44L, 1L)).thenReturn(Optional.of(connection));
+
+    worker.persistTenantProviderState(
+        1L,
+        33L,
+        new TenantSnapshot("ENABLED", "LOW", 50.0, 50000.0, 500.0, true, true));
+
+    assertThat(connection.getMaxSendRate()).isEqualTo(7.0);
+    assertThat(connection.getMax24HourSend()).isEqualTo(700.0);
+    assertThat(connection.getSentLast24Hours()).isEqualTo(70.0);
+    assertThat(connection.isSendingEnabled()).isTrue();
   }
 
   @Test
@@ -227,6 +352,17 @@ class ManagedEmailProvisioningWorkerTests {
     domain.setVerificationStatus(VerificationStatus.PENDING);
     domain.setDkimStatus(DkimStatus.PENDING);
     return domain;
+  }
+
+  private BroadcastSenderConnection managedConnection() {
+    BroadcastSenderConnection connection = new BroadcastSenderConnection();
+    connection.setId(44L);
+    connection.setCompanyId(1L);
+    connection.setChannelConnectionId(44L);
+    connection.setProvider(BroadcastSenderProvider.AMAZON_SES);
+    connection.setManagementMode(BroadcastSenderManagementMode.MESSAGING_MANAGED);
+    connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
+    return connection;
   }
 
   private ManagedEmailTenant tenant() {

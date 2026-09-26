@@ -13,6 +13,8 @@ class ManagedEmailDomainNameServiceTests {
   @Test
   void normalizesUnicodeDomainWithIdna() {
     assertThat(service.normalizeCustomerDomain("BÜCHER.de")).isEqualTo("xn--bcher-kva.de");
+    assertThat(service.normalizeCustomerDomain("bu\u0308cher.de"))
+        .isEqualTo("xn--bcher-kva.de");
   }
 
   @Test
@@ -23,8 +25,15 @@ class ManagedEmailDomainNameServiceTests {
         .isInstanceOf(BadRequestException.class);
     assertThatThrownBy(() -> service.normalizeCustomerDomain("*.example.com"))
         .isInstanceOf(BadRequestException.class);
+    assertThatThrownBy(() -> service.normalizeCustomerDomain("com"))
+        .isInstanceOf(BadRequestException.class);
     assertThatThrownBy(() -> service.normalizeCustomerDomain("co.uk"))
         .isInstanceOf(BadRequestException.class);
+    assertThatThrownBy(() -> service.normalizeCustomerDomain("foo.ck"))
+        .isInstanceOf(BadRequestException.class);
+    assertThat(service.normalizeCustomerDomain("www.ck")).isEqualTo("www.ck");
+    assertThat(service.normalizeCustomerDomain("example.co.uk")).isEqualTo("example.co.uk");
+    assertThat(service.normalizeCustomerDomain("example.com")).isEqualTo("example.com");
   }
 
   @Test

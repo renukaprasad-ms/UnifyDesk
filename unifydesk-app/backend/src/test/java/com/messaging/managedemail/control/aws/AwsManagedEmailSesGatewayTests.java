@@ -17,12 +17,14 @@ import software.amazon.awssdk.services.sesv2.SesV2Client;
 import software.amazon.awssdk.services.sesv2.model.AlreadyExistsException;
 import software.amazon.awssdk.services.sesv2.model.CreateTenantRequest;
 import software.amazon.awssdk.services.sesv2.model.CreateTenantResponse;
+import software.amazon.awssdk.services.sesv2.model.GetAccountResponse;
 import software.amazon.awssdk.services.sesv2.model.GetReputationEntityRequest;
 import software.amazon.awssdk.services.sesv2.model.GetTenantRequest;
 import software.amazon.awssdk.services.sesv2.model.GetTenantResponse;
 import software.amazon.awssdk.services.sesv2.model.NotFoundException;
 import software.amazon.awssdk.services.sesv2.model.PutTenantSuppressionAttributesRequest;
 import software.amazon.awssdk.services.sesv2.model.PutTenantSuppressionAttributesResponse;
+import software.amazon.awssdk.services.sesv2.model.SendQuota;
 import software.amazon.awssdk.services.sesv2.model.SendingStatus;
 import software.amazon.awssdk.services.sesv2.model.SuppressionListReason;
 import software.amazon.awssdk.services.sesv2.model.SuppressionListScope;
@@ -72,6 +74,34 @@ class AwsManagedEmailSesGatewayTests {
         .isEqualTo(SuppressionListScope.TENANT);
     assertThat(suppressionCaptor.getValue().suppressedReasons())
         .containsExactlyInAnyOrder(SuppressionListReason.BOUNCE, SuppressionListReason.COMPLAINT);
+  }
+
+
+  @Test
+  void readsCompleteSesAccountStateAndRollingQuotaSnapshot() {
+    when(ses.getTenant(any(GetTenantRequest.class))).thenReturn(enabledTenant());
+    when(ses.getReputationEntity(any(GetReputationEntityRequest.class)))
+        .thenThrow(NotFoundException.builder().message("not ready").build());
+    when(ses.getAccount())
+        .thenReturn(
+            GetAccountResponse.builder()
+                .sendingEnabled(true)
+                .productionAccessEnabled(true)
+                .sendQuota(
+                    SendQuota.builder()
+                        .maxSendRate(25.0)
+                        .max24HourSend(50000.0)
+                        .sentLast24Hours(1234.0)
+                        .build())
+                .build());
+
+    var snapshot = gateway.getTenant("ud-c-opaque");
+
+    assertThat(snapshot.maxSendRate()).isEqualTo(25.0);
+    assertThat(snapshot.max24HourSend()).isEqualTo(50000.0);
+    assertThat(snapshot.sentLast24Hours()).isEqualTo(1234.0);
+    assertThat(snapshot.accountSendingEnabled()).isTrue();
+    assertThat(snapshot.productionAccessEnabled()).isTrue();
   }
 
   @Test
