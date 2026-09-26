@@ -65,6 +65,9 @@ import type {
   GoogleReusableAssetLink,
   GoogleUrlOptions,
   UpdateGoogleUrlOptionsInput,
+  GooglePerformanceMaxAutomation,
+  UpdateGooglePerformanceMaxAutomationInput,
+  GoogleAssetGroupUrlOptions,
   GoogleAssetGroup,
   GoogleAssetGroupAsset,
   GoogleAssetGroupAssetInput,
@@ -848,6 +851,49 @@ export const adCenterApi = {
   ) {
     const response = await apiClient.post<ApiResponse<GoogleAssetGroupSignal[]>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/signals`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googlePerformanceMaxAutomation(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<GooglePerformanceMaxAutomation>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/automation`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGooglePerformanceMaxAutomation(
+    companyId: string,
+    campaignId: string,
+    input: UpdateGooglePerformanceMaxAutomationInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GooglePerformanceMaxAutomation>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/automation`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleAssetGroupUrlOptions(
+    companyId: string,
+    campaignId: string,
+    assetGroupId: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleAssetGroupUrlOptions>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/url-options`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleAssetGroupUrlOptions(
+    companyId: string,
+    campaignId: string,
+    assetGroupId: string,
+    input: UpdateGoogleUrlOptionsInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GoogleAssetGroupUrlOptions>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/url-options`,
       input,
     )
     return unwrap(response.data)
