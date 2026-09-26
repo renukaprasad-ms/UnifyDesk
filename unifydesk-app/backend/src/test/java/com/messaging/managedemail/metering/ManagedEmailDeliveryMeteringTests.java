@@ -94,9 +94,11 @@ class ManagedEmailDeliveryMeteringTests {
     connection.setId(30L);
     connection.setCompanyId(10L);
     connection.setManagementMode(BroadcastSenderManagementMode.MESSAGING_MANAGED);
+    connection.setProvider(BroadcastSenderProvider.AMAZON_SES);
     BroadcastSender sender = new BroadcastSender();
     sender.setId(20L);
     sender.setCompanyId(10L);
+    sender.setProvider(BroadcastSenderProvider.AMAZON_SES);
     BroadcastRecipient recipient = new BroadcastRecipient();
     recipient.setId(70L);
     recipient.setCompanyId(10L);

@@ -7,6 +7,7 @@ import com.messaging.billing.service.EntitlementService;
 import com.messaging.broadcast.entity.BroadcastSender;
 import com.messaging.broadcast.entity.BroadcastSenderConnection;
 import com.messaging.broadcast.enums.BroadcastSenderManagementMode;
+import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.managedemail.metering.ManagedEmailUsageService;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeProperties;
@@ -69,9 +70,11 @@ class ManagedEmailLaunchGuardTests {
     connection.setId(30L);
     connection.setCompanyId(10L);
     connection.setManagementMode(BroadcastSenderManagementMode.MESSAGING_MANAGED);
+    connection.setProvider(BroadcastSenderProvider.AMAZON_SES);
     BroadcastSender sender = new BroadcastSender();
     sender.setId(20L);
     sender.setCompanyId(10L);
+    sender.setProvider(BroadcastSenderProvider.AMAZON_SES);
     return new Fixture(
         new ManagedEmailLaunchGuard(runtime, properties, entitlement, usage),
         runtime,
