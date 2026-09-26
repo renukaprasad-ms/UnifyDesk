@@ -35,6 +35,7 @@ import { emailTemplateApi } from '../../features/emailTemplate/emailTemplateApi'
 import type { EmailTemplateProviderBinding, EmailTemplateSummary } from '../../features/emailTemplate/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../../components/feedback/SnackbarProvider'
+import BroadcastSenderProviderMeta from '../../components/managed-email/BroadcastSenderProviderMeta'
 import {
   applyBroadcastMutation,
   applyBroadcastProgress,
@@ -100,18 +101,6 @@ const msg91TemplateStatusLabel = (binding?: EmailTemplateProviderBinding | null)
   if (binding.status === 'REJECTED') return 'rejected'
   if (binding.status === 'FAILED') return 'sync failed'
   return 'status not confirmed'
-}
-
-const providerLabel = (sender?: BroadcastSender | null) => {
-  if (sender?.managementMode === 'MESSAGING_MANAGED') return 'UnifyDesk Managed Email'
-  const provider = sender?.provider
-  if (!provider) return 'Legacy mailbox'
-  if (provider === 'AMAZON_SES') return 'Amazon SES'
-  if (provider === 'AZURE_EMAIL') return 'Azure Email'
-  if (provider === 'SENDGRID') return 'SendGrid'
-  if (provider === 'MSG91_EMAIL') return 'MSG91 Email'
-  if (provider === 'MSG91_SMS') return 'MSG91 SMS'
-  return provider.replaceAll('_', ' ')
 }
 
 const senderLabel = (sender?: BroadcastSender | null) => {
@@ -1485,15 +1474,10 @@ export default function BroadcastWorkspace() {
                     {senderLabel(sendersById.get(composeSenderId) ?? null)}
                   </p>
                   <p className="mt-1 text-[11px] text-slate-500">
-                    {providerLabel(sendersById.get(composeSenderId))}
-                    {sendersById.get(composeSenderId)?.provider !== 'MSG91_SMS' &&
-                    sendersById.get(composeSenderId)?.provider !== 'MSG91_EMAIL' &&
-                    sendersById.get(composeSenderId)?.region
-                      ? ` · ${sendersById.get(composeSenderId)?.region}`
-                      : ''}
-                    {sendersById.get(composeSenderId)?.maxSendRate
-                      ? ` · up to ${sendersById.get(composeSenderId)?.maxSendRate}/sec`
-                      : ''}
+                    <BroadcastSenderProviderMeta
+                      sender={sendersById.get(composeSenderId)}
+                      includeConnectionDetails
+                    />
                   </p>
                 </div>
 
@@ -1791,7 +1775,7 @@ function BroadcastHistoryCard({
           </p>
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
             <span>
-              From {senderLabel(sender)} · {providerLabel(sender)}
+              From {senderLabel(sender)} · <BroadcastSenderProviderMeta sender={sender} />
             </span>
             <span>{formatDate(message.scheduledAt || message.createdAt)}</span>
             {message.stats.total > 0 && (
@@ -1937,7 +1921,7 @@ function BroadcastDetail({
               </h1>
               <p className="mt-1 text-xs text-slate-500">
                 From {senderLabel(sender)} ·{' '}
-                {providerLabel(sender)}
+                <BroadcastSenderProviderMeta sender={sender} />
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 Created {formatDate(message.createdAt)}

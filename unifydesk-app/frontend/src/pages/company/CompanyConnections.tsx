@@ -21,6 +21,10 @@ import SendGridConnectModal from '../../components/broadcast/SendGridConnectModa
 import BroadcastTestEmailModal from '../../components/broadcast/BroadcastTestEmailModal'
 import ManagedEmailModal from '../../components/managed-email/ManagedEmailModal'
 import ManagedEmailPanel from '../../components/managed-email/ManagedEmailPanel'
+import {
+  broadcastSenderProviderLabel,
+  managedConnectionDisplayName,
+} from '../../features/managedEmail/privacy'
 import Msg91ConnectModal from '../../components/broadcast/Msg91ConnectModal'
 import Msg91SmsSetupGuideModal from '../../components/broadcast/Msg91SmsSetupGuideModal'
 import Msg91EmailConnectModal from '../../components/broadcast/Msg91EmailConnectModal'
@@ -46,11 +50,9 @@ import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 
 const providerLabel = (
   providerType: ChannelConnection['providerType'],
-  managementMode?: BroadcastSender['managementMode'],
+  broadcastSender?: BroadcastSender | null,
 ) => {
-  if (providerType === 'AMAZON_SES' && managementMode === 'MESSAGING_MANAGED') {
-    return 'UNIFYDESK MANAGED EMAIL'
-  }
+  if (broadcastSender) return broadcastSenderProviderLabel(broadcastSender)
   if (providerType === 'MICROSOFT') return 'MICROSOFT 365'
   if (providerType === 'IMAP_SMTP') return 'IMAP + SMTP'
   if (providerType === 'SMTP') return 'SMTP'
@@ -582,7 +584,12 @@ export default function CompanyConnections() {
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-bold text-slate-950">{connection.name}</p>
+                      <p className="text-sm font-bold text-slate-950">
+                        {managedConnectionDisplayName(
+                          broadcastSenderFor(connection.id),
+                          connection.name,
+                        )}
+                      </p>
                       <span
                         className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
                           statusClass[connection.status]
@@ -593,7 +600,7 @@ export default function CompanyConnections() {
                       <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-700">
                         {providerLabel(
                           connection.providerType,
-                          broadcastSenderFor(connection.id)?.managementMode,
+                          broadcastSenderFor(connection.id),
                         )}
                       </span>
                       {connection.capabilities.map((capability) => (
