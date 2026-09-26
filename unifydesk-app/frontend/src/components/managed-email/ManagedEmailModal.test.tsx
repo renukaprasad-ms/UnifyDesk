@@ -46,9 +46,12 @@ const sender = (overrides: Partial<ManagedEmailSender> = {}): ManagedEmailSender
   displayName: 'Example Offers',
   replyToAddress: null,
   connectionName: 'UnifyDesk Managed Email',
-  region: 'MANAGED',
+  region: 'ap-south-1',
   productionAccessEnabled: true,
   sendingEnabled: true,
+  maxSendRate: 1000,
+  max24HourSend: 50000,
+  sentLast24Hours: 12345,
   managedDomainId: 'domain-1',
   managedDomain: 'example.com',
   ...overrides,
@@ -281,6 +284,30 @@ describe('ManagedEmailModal', () => {
     expect(await screen.findByText('Sending suspended')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Create sender/i })).toBeNull()
     expect(screen.getByText(/sending is not currently ready/i)).toBeTruthy()
+  })
+
+  it('keeps stale managed provider internals out of sender management UI', async () => {
+    const active = domain({ status: 'ACTIVE' })
+    const api = client({
+      domain: vi.fn().mockResolvedValue(active),
+      senders: vi.fn().mockResolvedValue([sender()]),
+    })
+
+    render(
+      <ManagedEmailModal
+        companyId="company-1"
+        initialDomainId="domain-1"
+        client={api}
+        onClose={vi.fn()}
+      />,
+    )
+
+    expect(await screen.findByText('offers@example.com')).toBeTruthy()
+    expect(screen.getByText(/UnifyDesk Managed Email/i)).toBeTruthy()
+    expect(screen.queryByText(/ap-south-1/i)).toBeNull()
+    expect(screen.queryByText(/50,?000/i)).toBeNull()
+    expect(screen.queryByText(/12,?345/i)).toBeNull()
+    expect(screen.queryByText(/1000\/sec/i)).toBeNull()
   })
 
   it('cancels pending polling when the setup view unmounts', async () => {
