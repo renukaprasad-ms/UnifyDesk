@@ -8,6 +8,7 @@ import com.messaging.ads.entity.AdSet;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.google.dto.CreateGoogleAppAdGroupRequest;
 import com.messaging.ads.google.dto.CreateGoogleAppAdRequest;
+import com.messaging.ads.google.dto.GoogleAppCreativeAsset;
 import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.ads.repository.AdSetRepository;
 import com.messaging.ads.service.AdActivityLogService;
@@ -35,6 +36,33 @@ public class GoogleAdsAppAdService {
   private final GoogleAdsAdSyncService adSyncService;
   private final GoogleAdsAdPersistenceService adPersistenceService;
   private final AdActivityLogService activityLogService;
+
+  public List<GoogleAppCreativeAsset> creativeAssets(Long companyId, Long accountId) {
+    var context = contextService.requireManaged(companyId, accountId);
+    return apiClient
+        .searchRows(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            "SELECT asset.resource_name, asset.name, asset.type, "
+                + "asset.image_asset.full_size.url, "
+                + "asset.youtube_video_asset.youtube_video_id "
+                + "FROM asset WHERE asset.type IN ('IMAGE','YOUTUBE_VIDEO') "
+                + "AND asset.source = 'ADVERTISER'")
+        .stream()
+        .map(
+            row -> {
+              JsonNode asset = row.path("asset");
+              return new GoogleAppCreativeAsset(
+                  text(asset, "resourceName"),
+                  text(asset, "name"),
+                  text(asset, "type"),
+                  text(asset.path("imageAsset").path("fullSize"), "url"),
+                  text(asset.path("youtubeVideoAsset"), "youtubeVideoId"));
+            })
+        .filter(item -> item.resourceName() != null)
+        .toList();
+  }
 
   public AdSetResponse createAdGroup(
       Long companyId,
@@ -260,6 +288,14 @@ public class GoogleAdsAppAdService {
         adGroup,
         campaign,
         contextService.requireManaged(companyId, adGroup.getAdAccountId()));
+  }
+
+  private String text(JsonNode node, String field) {
+    if (node == null || node.isNull()) return null;
+    JsonNode value = node.get(field);
+    if (value == null || value.isNull()) return null;
+    String result = value.asText(null);
+    return result == null || result.isBlank() ? null : result.trim();
   }
 
   private String normalizeUserListResource(String customerId, String value) {
