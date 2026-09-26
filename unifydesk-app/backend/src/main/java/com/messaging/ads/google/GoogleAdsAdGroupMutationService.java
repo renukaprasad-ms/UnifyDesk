@@ -38,6 +38,11 @@ public class GoogleAdsAdGroupMutationService {
     AdCampaign campaign = requireCampaign(companyId, campaignId);
     var context = contextService.requireManaged(companyId, campaign.getAdAccountId());
 
+    if ("APP".equalsIgnoreCase(campaign.getObjective())) {
+      throw new BadRequestException(
+          "Google App campaigns require the dedicated App ad-group flow so subtype-specific bidding and audience rules are enforced");
+    }
+
     Map<String, Object> create = new LinkedHashMap<>();
     create.put("name", request.name().trim());
     create.put(
@@ -123,6 +128,10 @@ public class GoogleAdsAdGroupMutationService {
       if ("DEMAND_GEN".equalsIgnoreCase(campaign.getObjective())) {
         throw new BadRequestException(
             "Demand Gen uses campaign-level automated bidding; do not set an ad-group CPC bid");
+      }
+      if ("APP".equalsIgnoreCase(campaign.getObjective())) {
+        throw new BadRequestException(
+            "Google App campaigns use goal-driven bidding; CPC bids are not supported on App ad groups");
       }
       update.put(
           "cpcBidMicros",

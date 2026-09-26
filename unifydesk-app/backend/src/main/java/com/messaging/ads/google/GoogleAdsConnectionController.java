@@ -39,6 +39,12 @@ import com.messaging.ads.google.dto.GoogleAssetGenerationImageResponse;
 import com.messaging.ads.google.dto.GoogleAssetGenerationTextRequest;
 import com.messaging.ads.google.dto.GoogleAssetGenerationTextResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupResponse;
+import com.messaging.ads.google.dto.CreateGoogleAppCampaignRequest;
+import com.messaging.ads.google.dto.CreateGoogleAppAdGroupRequest;
+import com.messaging.ads.google.dto.CreateGoogleAppAdRequest;
+import com.messaging.ads.google.dto.GoogleAppCampaignSettingsResponse;
+import com.messaging.ads.google.dto.GoogleAppCampaignPerformanceResponse;
+import com.messaging.ads.google.dto.GoogleAppCreativeAsset;
 import com.messaging.ads.google.dto.GoogleDemandGenAudienceOption;
 import com.messaging.ads.google.dto.GoogleDemandGenChannelPerformance;
 import com.messaging.ads.google.dto.GoogleDemandGenTargetingRequest;
@@ -111,6 +117,8 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsCampaignSyncService campaignSyncService;
   private final GoogleAdsCampaignMutationService campaignMutationService;
   private final GoogleAdsAdvancedCampaignService advancedCampaignService;
+  private final GoogleAdsAppCampaignService appCampaignService;
+  private final GoogleAdsAppAdService appAdService;
   private final GoogleAdsAdGroupSyncService adGroupSyncService;
   private final GoogleAdsAdGroupMutationService adGroupMutationService;
   private final GoogleAdsKeywordSyncService keywordSyncService;
@@ -550,6 +558,45 @@ public class GoogleAdsConnectionController {
                 "Google advanced campaign created in paused state"));
   }
 
+  @PostMapping("/accounts/{accountId}/app-campaigns")
+  public ResponseEntity<ApiResponse<AdCampaignResponse>> createAppCampaign(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody CreateGoogleAppCampaignRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                appCampaignService.create(companyId, accountId, request, userId),
+                "Google App campaign created in paused state"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/app-settings")
+  public ResponseEntity<ApiResponse<GoogleAppCampaignSettingsResponse>> appCampaignSettings(
+      @PathVariable Long companyId, @PathVariable Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            appCampaignService.settings(companyId, campaignId),
+            "Google App campaign settings fetched"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/app-performance")
+  public ResponseEntity<ApiResponse<GoogleAppCampaignPerformanceResponse>> appCampaignPerformance(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @RequestParam LocalDate from,
+      @RequestParam LocalDate to) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            appCampaignService.performance(companyId, campaignId, from, to),
+            "Google App campaign performance fetched"));
+  }
+
   @PostMapping("/accounts/{accountId}/performance-max-campaigns")
   public ResponseEntity<ApiResponse<AdCampaignResponse>> createPerformanceMaxCampaign(
       @PathVariable Long companyId,
@@ -625,6 +672,31 @@ public class GoogleAdsConnectionController {
             200,
             adGroupSyncService.sync(companyId, campaignId),
             "Google Ads ad groups synchronized"));
+  }
+
+  @GetMapping("/accounts/{accountId}/app-creative-assets")
+  public ResponseEntity<ApiResponse<List<GoogleAppCreativeAsset>>> appCreativeAssets(
+      @PathVariable Long companyId, @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            appAdService.creativeAssets(companyId, accountId),
+            "Google App creative assets fetched"));
+  }
+
+  @PostMapping("/campaigns/{campaignId}/app-ad-groups")
+  public ResponseEntity<ApiResponse<AdSetResponse>> createAppAdGroup(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @Valid @RequestBody CreateGoogleAppAdGroupRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                appAdService.createAdGroup(companyId, campaignId, request, userId),
+                "Google App ad group created in paused state"));
   }
 
   @PostMapping("/campaigns/{campaignId}/ad-groups")
@@ -881,6 +953,20 @@ public class GoogleAdsConnectionController {
             200,
             adSyncService.sync(companyId, adGroupId),
             "Google Ads ads synchronized"));
+  }
+
+  @PostMapping("/ad-groups/{adGroupId}/app-ads")
+  public ResponseEntity<ApiResponse<AdResponse>> createAppAd(
+      @PathVariable Long companyId,
+      @PathVariable Long adGroupId,
+      @Valid @RequestBody CreateGoogleAppAdRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                appAdService.createAd(companyId, adGroupId, request, userId),
+                "Google App ad created in paused state"));
   }
 
   @PostMapping("/ad-groups/{adGroupId}/ads")

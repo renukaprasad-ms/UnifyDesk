@@ -110,8 +110,13 @@ public class GoogleAdsAdGroupPersistenceService {
     adGroup.setStatus(mapStatus(text(snapshot, "status")));
     adGroup.setEffectiveStatus(text(snapshot, "primaryStatus"));
     Long cpcMicros = longValue(snapshot, "cpcBidMicros");
+    Long targetCpaMicros = longValue(snapshot, "targetCpaMicros");
+    Long storedBidMicros = targetCpaMicros != null ? targetCpaMicros : cpcMicros;
     adGroup.setBidAmountMinor(
-        GoogleAdsMoney.microsToMinor(cpcMicros, currency));
+        GoogleAdsMoney.microsToMinor(storedBidMicros, currency));
+    if (targetCpaMicros != null) {
+      adGroup.setBidStrategy("TARGET_CPA");
+    }
     adGroup.setAccessible(true);
     adGroup.setProviderPayloadJson(json(row));
     adGroup.setLastSyncAt(syncedAt);
