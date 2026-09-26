@@ -44,6 +44,7 @@ import com.messaging.ads.google.dto.CreateGoogleAppAdGroupRequest;
 import com.messaging.ads.google.dto.CreateGoogleAppAdRequest;
 import com.messaging.ads.google.dto.GoogleAppCampaignSettingsResponse;
 import com.messaging.ads.google.dto.GoogleAppCampaignPerformanceResponse;
+import com.messaging.ads.google.dto.GoogleAppCreativeAsset;
 import com.messaging.ads.google.dto.GoogleDemandGenAudienceOption;
 import com.messaging.ads.google.dto.GoogleDemandGenChannelPerformance;
 import com.messaging.ads.google.dto.GoogleDemandGenTargetingRequest;
@@ -671,6 +672,17 @@ public class GoogleAdsConnectionController {
             200,
             adGroupSyncService.sync(companyId, campaignId),
             "Google Ads ad groups synchronized"));
+  }
+
+  @GetMapping("/accounts/{accountId}/app-creative-assets")
+  public ResponseEntity<ApiResponse<List<GoogleAppCreativeAsset>>> appCreativeAssets(
+      @PathVariable Long companyId, @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            appAdService.creativeAssets(companyId, accountId),
+            "Google App creative assets fetched"));
   }
 
   @PostMapping("/campaigns/{campaignId}/app-ad-groups")
