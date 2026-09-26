@@ -94,6 +94,8 @@ class MetaAdsAudienceMutationServiceTests {
             "pixel-1",
             null,
             null,
+            null,
+            "USER_PROVIDED_ONLY",
             "1720000000",
             "1720000001");
     when(apiClient.customAudience("token", "audience-external")).thenReturn(snapshot);
@@ -177,6 +179,7 @@ class MetaAdsAudienceMutationServiceTests {
     stored.setExternalAudienceId("audience-custom");
     stored.setName("CRM customers");
     stored.setSubtype("CUSTOM");
+    stored.setCustomerFileSource("USER_PROVIDED_ONLY");
     stored.setAccessible(true);
     when(persistenceService.persistOne(COMPANY_ID, ACCOUNT_ID, snapshot)).thenReturn(stored);
 
@@ -198,6 +201,7 @@ class MetaAdsAudienceMutationServiceTests {
             77L);
 
     assertThat(response.subtype()).isEqualTo("CUSTOM");
+    assertThat(response.customerFileSource()).isEqualTo("USER_PROVIDED_ONLY");
     assertThat(payload.getValue())
         .containsEntry("subtype", "CUSTOM")
         .containsEntry("customer_file_source", "USER_PROVIDED_ONLY");
