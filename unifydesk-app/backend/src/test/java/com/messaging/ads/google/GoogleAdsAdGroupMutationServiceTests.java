@@ -77,7 +77,7 @@ class GoogleAdsAdGroupMutationServiceTests {
     var response =
         new ObjectMapper()
             .readTree(
-                "{"results":[{"resourceName":"customers/1234567890/adGroups/888"}]}");
+                "{\"results\":[{\"resourceName\":\"customers/1234567890/adGroups/888\"}]}");
     when(apiClient.mutate(
             eq("access-token"), eq("1234567890"), eq(null), eq("adGroups"), any()))
         .thenReturn(response);
@@ -87,7 +87,7 @@ class GoogleAdsAdGroupMutationServiceTests {
     var row =
         new ObjectMapper()
             .readTree(
-                "{"adGroup":{"id":"888","name":"Demand Gen group","status":"PAUSED"}}");
+                "{\"adGroup\":{\"id\":\"888\",\"name\":\"Demand Gen group\",\"status\":\"PAUSED\"}}");
     when(syncService.adGroup(context, "777", "888")).thenReturn(row);
 
     AdSet persisted = new AdSet();
