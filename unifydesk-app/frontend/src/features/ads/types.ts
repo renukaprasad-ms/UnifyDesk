@@ -1894,6 +1894,7 @@ export type AdAudience = {
   pixelId?: string | null
   ruleJson?: string | null
   lookalikeSpecJson?: string | null
+  customerFileSource?: string | null
   providerCreatedAt?: string | null
   providerUpdatedAt?: string | null
   accessible: boolean
