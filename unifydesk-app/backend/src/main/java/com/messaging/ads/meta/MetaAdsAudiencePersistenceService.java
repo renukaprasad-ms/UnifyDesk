@@ -86,6 +86,7 @@ public class MetaAdsAudiencePersistenceService {
     value.setPixelId(blank(snapshot.pixelId()));
     value.setRuleJson(jsonNode(snapshot.rule()));
     value.setLookalikeSpecJson(jsonNode(snapshot.lookalikeSpec()));
+    value.setCustomerFileSource(blank(snapshot.customerFileSource()));
     value.setProviderCreatedAt(parseInstant(snapshot.timeCreated()));
     value.setProviderUpdatedAt(parseInstant(snapshot.timeUpdated()));
     value.setAccessible(true);
