@@ -164,6 +164,7 @@ public class ManagedEmailSenderService {
     connection.setManagementMode(BroadcastSenderManagementMode.MESSAGING_MANAGED);
     connection.setAuthMode(BroadcastSenderAuthMode.IAM_ROLE);
     connection.setName("UnifyDesk Managed Email");
+    connection.setCreatedByUserId(userId);
     connection.setRegion(properties.getAwsRegion());
     connection.setRoleArn(null);
     connection.setExternalId(null);
