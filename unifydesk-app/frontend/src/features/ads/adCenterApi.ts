@@ -57,6 +57,12 @@ import type {
   CreateGoogleCampaignInput,
   CreateGoogleAdvancedCampaignInput,
   CreateGooglePerformanceMaxCampaignInput,
+  CreateGoogleAppCampaignInput,
+  GoogleAppCampaignSettings,
+  GoogleAppCampaignPerformance,
+  GoogleAppCreativeAsset,
+  CreateGoogleAppAdGroupInput,
+  CreateGoogleAppAdInput,
   GoogleAsset,
   GoogleAssetGenerationTextInput,
   GoogleAssetGenerationTextResult,
@@ -798,6 +804,69 @@ export const adCenterApi = {
   ) {
     const response = await apiClient.post<ApiResponse<AdCampaign>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/advanced-campaigns`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleAppCampaign(
+    companyId: string,
+    accountId: string,
+    input: CreateGoogleAppCampaignInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<AdCampaign>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/app-campaigns`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleAppCampaignSettings(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleAppCampaignSettings>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/app-settings`,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleAppCampaignPerformance(
+    companyId: string,
+    campaignId: string,
+    from: string,
+    to: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleAppCampaignPerformance>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/app-performance`,
+      { params: { from, to } },
+    )
+    return unwrap(response.data)
+  },
+
+  async googleAppCreativeAssets(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleAppCreativeAsset[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/app-creative-assets`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleAppAdGroup(
+    companyId: string,
+    campaignId: string,
+    input: CreateGoogleAppAdGroupInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<AdSet>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/app-ad-groups`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleAppAd(
+    companyId: string,
+    adGroupId: string,
+    input: CreateGoogleAppAdInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<Ad>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/app-ads`,
       input,
     )
     return unwrap(response.data)
