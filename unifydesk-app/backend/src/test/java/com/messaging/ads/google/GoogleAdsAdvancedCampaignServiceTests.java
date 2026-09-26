@@ -123,8 +123,10 @@ class GoogleAdsAdvancedCampaignServiceTests {
             eq(null),
             operations.capture());
 
+    Map<String, Object> firstOperation =
+        (Map<String, Object>) operations.getValue().getFirst();
     Map<String, Object> budgetOperation =
-        (Map<String, Object>) operations.getValue().getFirst().get("campaignBudgetOperation");
+        (Map<String, Object>) firstOperation.get("campaignBudgetOperation");
     Map<String, Object> budget =
         (Map<String, Object>) budgetOperation.get("create");
 
