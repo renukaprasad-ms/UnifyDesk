@@ -99,6 +99,16 @@ class AdFeatureCapabilityServiceTests {
     assertThat(reusableAssets.supported()).isTrue();
     assertThat(reusableAssets.availability())
         .isEqualTo(AdFeatureAvailability.AVAILABLE);
+
+    var assetGeneration =
+        capabilities.stream()
+            .filter(item -> item.feature() == AdFeatureCapability.GOOGLE_ASSET_GENERATION)
+            .findFirst()
+            .orElseThrow();
+    assertThat(assetGeneration.implemented()).isTrue();
+    assertThat(assetGeneration.supported()).isTrue();
+    assertThat(assetGeneration.availability())
+        .isEqualTo(AdFeatureAvailability.ACCOUNT_ELIGIBILITY_REQUIRED);
   }
 
   @Test
