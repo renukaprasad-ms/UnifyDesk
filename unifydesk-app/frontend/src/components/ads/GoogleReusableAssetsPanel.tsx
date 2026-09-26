@@ -139,7 +139,6 @@ export default function GoogleReusableAssetsPanel(props: Props) {
           props.accountId,
           current.level,
           current.targetId ?? null,
-          fieldType,
         ),
         adCenterApi.googleUrlOptions(
           props.companyId,
