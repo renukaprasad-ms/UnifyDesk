@@ -54,9 +54,6 @@ public class GoogleAdsReusableAssetService {
 
   private static final int MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-  private static final Set<String> ROLE_TYPES =
-      Set.of("BUSINESS_NAME", "AD_IMAGE", "BUSINESS_LOGO");
-
   private static final Set<String> PRICE_TYPES =
       Set.of(
           "BRANDS",
@@ -367,9 +364,17 @@ public class GoogleAdsReusableAssetService {
     String normalizedAssetId = numeric(assetId, "asset");
     LinkTarget target =
         linkTarget(companyId, accountId, context, request.level(), request.targetId());
+    String requestedFieldType =
+        request.fieldType() == null
+            ? null
+            : request.fieldType().trim().toUpperCase(Locale.ROOT);
     GoogleReusableAssetLinkResponse existing =
         links(companyId, accountId, request.level(), request.targetId()).stream()
-            .filter(item -> normalizedAssetId.equals(item.assetId()))
+            .filter(
+                item ->
+                    normalizedAssetId.equals(item.assetId())
+                        && (requestedFieldType == null
+                            || requestedFieldType.equals(item.fieldType())))
             .findFirst()
             .orElseThrow(
                 () ->
