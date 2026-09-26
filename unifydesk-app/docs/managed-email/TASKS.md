@@ -2,7 +2,7 @@
 
 Status: FROZEN  
 Architecture Lead: this chat  
-Worker base SHA: 1f79c27f580dffcccd3c067614cc46d043822dcb  
+Worker base SHA: published in the latest INTEGRATION_STATUS.md after this manifest is frozen  
 Architecture branch parent dev SHA: 471dfe619c7e4ae58f4eaf58f78fed608ec4c553
 Application-code baseline underneath the documentation-only PR #119: 8178d6831140f7bd8cd67d33e66e229c10c5f0b2
 
@@ -21,7 +21,7 @@ This architecture branch must be merged to dev before Round-1 worker PRs are mer
 
 All three implementation branches are created from EXACT worker base SHA:
 
-1f79c27f580dffcccd3c067614cc46d043822dcb
+SEE_LATEST_INTEGRATION_STATUS_AFTER_ARCHITECTURE_MERGE
 
 Do not branch from a later moving dev tip.
 
@@ -115,7 +115,7 @@ Branch:
 feature/managed-email-control-plane
 
 Base:
-1f79c27f580dffcccd3c067614cc46d043822dcb
+SEE_LATEST_INTEGRATION_STATUS_AFTER_ARCHITECTURE_MERGE
 
 ### Mission
 
@@ -343,7 +343,7 @@ Branch:
 feature/managed-email-delivery-events
 
 Base:
-1f79c27f580dffcccd3c067614cc46d043822dcb
+SEE_LATEST_INTEGRATION_STATUS_AFTER_ARCHITECTURE_MERGE
 
 ### Mission
 
@@ -665,7 +665,7 @@ Branch:
 feature/managed-email-ui
 
 Base:
-1f79c27f580dffcccd3c067614cc46d043822dcb
+SEE_LATEST_INTEGRATION_STATUS_AFTER_ARCHITECTURE_MERGE
 
 ### Mission
 
