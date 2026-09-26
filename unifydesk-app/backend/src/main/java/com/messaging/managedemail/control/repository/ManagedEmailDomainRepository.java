@@ -20,6 +20,8 @@ public interface ManagedEmailDomainRepository extends JpaRepository<ManagedEmail
 
   long countByCompanyIdAndStatusNotIn(Long companyId, Collection<DomainStatus> statuses);
 
+  boolean existsByNormalizedDomainIgnoreCase(String normalizedDomain);
+
   @Query(
       """
       select d from ManagedEmailDomain d
