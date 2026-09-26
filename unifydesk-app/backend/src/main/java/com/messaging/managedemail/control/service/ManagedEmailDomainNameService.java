@@ -1,5 +1,6 @@
 package com.messaging.managedemail.control.service;
 
+import com.google.common.net.InternetDomainName;
 import com.messaging.common.exception.BadRequestException;
 import java.net.IDN;
 import java.security.SecureRandom;
@@ -15,32 +16,6 @@ public class ManagedEmailDomainNameService {
       Pattern.compile("^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$");
   private static final Pattern IPV4 =
       Pattern.compile("^(?:\\d{1,3}\\.){3}\\d{1,3}$");
-  private static final Set<String> COMMON_MULTI_LABEL_PUBLIC_SUFFIXES =
-      Set.of(
-          "co.uk",
-          "org.uk",
-          "ac.uk",
-          "gov.uk",
-          "com.au",
-          "net.au",
-          "org.au",
-          "edu.au",
-          "co.in",
-          "firm.in",
-          "net.in",
-          "org.in",
-          "gen.in",
-          "ind.in",
-          "co.jp",
-          "ne.jp",
-          "or.jp",
-          "com.br",
-          "com.cn",
-          "com.sg",
-          "com.my",
-          "co.nz",
-          "co.za",
-          "com.mx");
   private static final Set<String> RESERVED =
       Set.of(
           "www",
@@ -107,7 +82,7 @@ public class ManagedEmailDomainNameService {
     if (raw == null || raw.isBlank()) {
       throw new BadRequestException("Domain is required");
     }
-    String value = raw.trim();
+    String value = Normalizer.normalize(raw.trim(), Normalizer.Form.NFC);
     if (value.contains("://")
         || value.contains("/")
         || value.contains("\\")
@@ -142,8 +117,13 @@ public class ManagedEmailDomainNameService {
         throw new BadRequestException("Domain contains an invalid label");
       }
     }
-    if (isPublicSuffix(ascii, labels)) {
-      throw new BadRequestException("A public suffix cannot be registered");
+    try {
+      InternetDomainName domain = InternetDomainName.from(ascii);
+      if (!domain.hasPublicSuffix() || domain.isPublicSuffix()) {
+        throw new BadRequestException("A registrable domain is required");
+      }
+    } catch (IllegalArgumentException exception) {
+      throw new BadRequestException("Domain is invalid");
     }
     return ascii;
   }
@@ -190,15 +170,6 @@ public class ManagedEmailDomainNameService {
     String[] tokens = prefix.split("-");
     for (String token : tokens) {
       if (PROHIBITED.contains(token)) return true;
-    }
-    return false;
-  }
-
-  private boolean isPublicSuffix(String ascii, String[] labels) {
-    if (COMMON_MULTI_LABEL_PUBLIC_SUFFIXES.contains(ascii)) return true;
-    if (labels.length == 2 && labels[1].length() == 2) {
-      String second = labels[0];
-      return Set.of("co", "com", "net", "org", "gov", "ac", "edu").contains(second);
     }
     return false;
   }

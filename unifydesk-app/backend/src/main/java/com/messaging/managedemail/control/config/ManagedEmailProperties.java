@@ -26,6 +26,19 @@ public class ManagedEmailProperties {
   private long newTenantHourlyCap = 100;
   private long newTenantDailyCap = 500;
   private Duration eventReplayWindow = Duration.ofMinutes(10);
+  private Duration controlRateLimitWindow = Duration.ofMinutes(1);
+  private int customerDomainCreateCompanyLimit = 10;
+  private int customerDomainCreateUserLimit = 5;
+  private int hostedDomainCreateCompanyLimit = 10;
+  private int hostedDomainCreateUserLimit = 5;
+  private int domainRefreshCompanyLimit = 30;
+  private int domainRefreshUserLimit = 15;
+  private int domainDeleteCompanyLimit = 10;
+  private int domainDeleteUserLimit = 5;
+  private int senderCreateCompanyLimit = 30;
+  private int senderCreateUserLimit = 15;
+  private int senderDisableCompanyLimit = 30;
+  private int senderDisableUserLimit = 15;
 
   public boolean hasCloudflareConfiguration() {
     return cloudflareZoneId != null
