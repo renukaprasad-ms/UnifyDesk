@@ -243,6 +243,10 @@ public class GoogleAdsCampaignMutationService {
       masks.add("end_date_time");
     }
     if (request.bidStrategy() != null) {
+      if ("APP".equalsIgnoreCase(stored.getObjective())) {
+        throw new BadRequestException(
+            "Google App campaign bidding is goal-driven. Change App optimization settings in the dedicated App campaign flow instead of using generic bid strategies.");
+      }
       String strategyMask = applyBidStrategy(updates, request.bidStrategy());
       masks.add(strategyMask);
     }
