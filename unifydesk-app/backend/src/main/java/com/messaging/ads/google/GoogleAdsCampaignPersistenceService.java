@@ -107,8 +107,15 @@ public class GoogleAdsCampaignPersistenceService {
     }
 
     campaign.setName(first(text(snapshot, "name"), "Google Campaign " + externalId));
-    campaign.setObjective(text(snapshot, "advertisingChannelType"));
-    campaign.setBuyingType(text(snapshot, "advertisingChannelSubType"));
+    String channelType = text(snapshot, "advertisingChannelType");
+    String channelSubType = text(snapshot, "advertisingChannelSubType");
+    campaign.setObjective(
+        "MULTI_CHANNEL".equalsIgnoreCase(channelType)
+                && channelSubType != null
+                && channelSubType.startsWith("APP_CAMPAIGN")
+            ? "APP"
+            : channelType);
+    campaign.setBuyingType(channelSubType);
     campaign.setBidStrategy(productBidStrategy(text(snapshot, "biddingStrategyType")));
     campaign.setProviderStatus(text(snapshot, "status"));
     campaign.setEffectiveStatus(text(snapshot, "primaryStatus"));
