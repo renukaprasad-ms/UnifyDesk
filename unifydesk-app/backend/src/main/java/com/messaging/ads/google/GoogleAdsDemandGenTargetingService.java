@@ -149,9 +149,11 @@ public class GoogleAdsDemandGenTargetingService {
       masks.add("demand_gen_ad_group_settings.channel_controls");
     }
 
-    if (request.audienceResourceNames() != null) {
-      update.put("audienceSetting", Map.of("useAudienceGrouped", true));
-      masks.add("audience_setting.use_audience_grouped");
+    if (request.audienceResourceNames() != null
+        && !before.useAudienceGrouped()
+        && !request.audienceResourceNames().isEmpty()) {
+      throw new BadRequestException(
+          "This Demand Gen ad group was created without grouped Audience targeting. Google marks that setting immutable; create a new Demand Gen ad group to use reusable Audience resources.");
     }
 
     if (!masks.isEmpty()) {
