@@ -18,7 +18,51 @@ public record GoogleReusableAssetResponse(
     List<String> finalMobileUrls,
     String trackingUrlTemplate,
     String finalUrlSuffix,
-    List<GoogleUrlCustomParameter> customParameters) {
+    List<GoogleUrlCustomParameter> customParameters,
+    String text,
+    String imageUrl,
+    Long imageWidth,
+    Long imageHeight) {
+
+  public GoogleReusableAssetResponse(
+      String id,
+      String resourceName,
+      String name,
+      String type,
+      String source,
+      String linkText,
+      String description1,
+      String description2,
+      String calloutText,
+      String structuredSnippetHeader,
+      List<String> structuredSnippetValues,
+      List<String> finalUrls,
+      List<String> finalMobileUrls,
+      String trackingUrlTemplate,
+      String finalUrlSuffix,
+      List<GoogleUrlCustomParameter> customParameters) {
+    this(
+        id,
+        resourceName,
+        name,
+        type,
+        source,
+        linkText,
+        description1,
+        description2,
+        calloutText,
+        structuredSnippetHeader,
+        structuredSnippetValues,
+        finalUrls,
+        finalMobileUrls,
+        trackingUrlTemplate,
+        finalUrlSuffix,
+        customParameters,
+        null,
+        null,
+        null,
+        null);
+  }
 
   public GoogleReusableAssetResponse {
     structuredSnippetValues =
