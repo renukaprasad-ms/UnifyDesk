@@ -175,13 +175,13 @@ public class MetaAdsCustomerListService {
       for (int index = 0; index < schema.size(); index++) {
         String key = schema.get(index);
         String raw = row.get(index) == null ? "" : row.get(index).trim();
-        if (!raw.isBlank()) anyValue = true;
         if (raw.isBlank()) {
           normalized.add("");
           continue;
         }
         if ("EXTERN_ID".equals(key)) {
           normalized.add(raw);
+          anyValue = true;
           continue;
         }
         if (preHashed) {
@@ -190,9 +190,16 @@ public class MetaAdsCustomerListService {
                 "Pre-hashed Meta customer-list identifiers must be lowercase/uppercase SHA-256 hex");
           }
           normalized.add(raw.toLowerCase(Locale.ROOT));
+          anyValue = true;
           continue;
         }
-        normalized.add(sha256(normalizeKey(key, raw)));
+        String normalizedKey = normalizeKey(key, raw);
+        if (normalizedKey.isBlank()) {
+          normalized.add("");
+          continue;
+        }
+        normalized.add(sha256(normalizedKey));
+        anyValue = true;
       }
       if (anyValue) result.add(List.copyOf(normalized));
     }
@@ -210,7 +217,10 @@ public class MetaAdsCustomerListService {
       }
       case "FN", "LN", "FI", "CT", "ST" -> value.replaceAll("[^a-z]", "");
       case "ZIP" -> value.split("-", 2)[0];
-      case "COUNTRY" -> value.replaceAll("[^a-z]", "").substring(0, Math.min(2, value.replaceAll("[^a-z]", "").length()));
+      case "COUNTRY" -> {
+        String letters = value.replaceAll("[^a-z]", "");
+        yield letters.substring(0, Math.min(2, letters.length()));
+      }
       case "GEN" -> value.isBlank() ? "" : value.substring(0, 1);
       default -> value;
     };
