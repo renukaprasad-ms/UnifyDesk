@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi'
 import { Link } from 'react-router'
 import AdFeedbackAlert from '../../components/ads/AdFeedbackAlert'
+import GoogleProviderReportingPanel from '../../components/ads/GoogleProviderReportingPanel'
 import { showGlobalSnackbar } from '../../components/feedback/SnackbarProvider'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
@@ -914,6 +915,16 @@ export default function AdAnalytics() {
               currency={currency}
               onSelect={(next) => void chooseBreakdown(next)}
             />
+
+            {selectedAccount?.provider === 'GOOGLE_ADS' && (
+              <GoogleProviderReportingPanel
+                companyId={selectedCompany.companyId}
+                accountId={selectedAccount.id}
+                from={from}
+                to={to}
+                currency={currency}
+              />
+            )}
 
             <div className="panel mt-6 overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">

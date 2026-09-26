@@ -1284,23 +1284,42 @@ Reference starting point:
 
 ## G-14 Reporting expansion - P2
 
-Add provider-specific analytical surfaces:
+Status: **substantially implemented for C9 — provider-specific drill-down now complements the normalized analytics layer**.
 
-- search terms
-- keywords
-- assets
-- asset groups
-- landing pages
-- placements
-- auction insights where available
-- change history
-- conversion attribution fields
-- experiment performance
-- recommendation impact
-- lifecycle/customer acquisition reporting
-- AI Max reporting
+Implemented before C9:
 
-Keep the current normalized reporting layer but allow provider-specific drill-down.
+- [x] search-term reporting
+- [x] keyword performance in normalized entity reporting
+- [x] reusable asset reporting
+- [x] Performance Max asset-group / asset reporting
+- [x] AI Max match-source and combination reporting
+- [x] normalized Google + Meta daily/entity analytics
+- [x] normalized demographic, geography, delivery, device and conversion/action breakdowns
+
+Added in C9:
+
+- [x] Google landing-page performance via `landing_page_view`
+- [x] Google actual-delivery placement reporting via `group_placement_view`
+- [x] placement type, network, target URL, campaign/ad-group context and conversion metrics
+- [x] Google Search Auction Insights by competing domain
+- [x] impression share, overlap, position-above, top/absolute-top and outranking metrics
+- [x] Google conversion-attribution drill-down by conversion action, category and external conversion source
+- [x] conversions/all-conversions and corresponding value metrics
+- [x] Google Change Event reporting with actor, client, resource type, operation and changed fields
+- [x] 30-day Change Event API boundary enforced while the main provider report supports up to 90-day performance ranges
+- [x] optional campaign filtering for all provider-reporting surfaces
+- [x] server-side ordering and row caps for large accounts
+- [x] dedicated Google provider drill-down UI inside the existing Analytics workspace
+- [x] RBAC through the existing ADS_READ reporting route
+- [x] backend regression coverage for range validation, campaign filters and provider-native row mapping
+
+Intentionally deferred to their dedicated roadmap slices rather than fabricated inside C9:
+
+- experiment performance depends on E1 Google experiments
+- recommendation-impact measurement builds on B9/native recommendation lifecycle work
+- lifecycle/customer-acquisition reporting requires explicit provider/customer-acquisition implementation rather than generic conversion guesses
+
+Keep the normalized reporting layer for cross-provider comparison, and use the provider drill-down for provider-native concepts that do not map cleanly across Google and Meta.
 
 ## G-15 Billing improvements - P2
 
@@ -2164,7 +2183,7 @@ C5. [x] PMax URL/automation updates — current asset automation settings, Final
 C6. [x] Google AI asset generation where eligible — v25 closed-beta capability gating, text/image generation from landing page/prompt/keywords, review-first editable drafts, temporary image previews, audit/RBAC/UI/tests, no automatic publishing  
 C7. [x] Demand Gen targeting completeness — ad-group geo/language targeting and exclusions, reusable Audience resources with immutable grouped-audience handling, current channel strategy/individual inventory controls, total campaign budget support, channel-performance reporting, RBAC/audit/UI/tests; unsupported device/OS/network controls are not fabricated  
 C8. [x] App campaigns — current App installs/in-app action/value, App Engagement and Android Pre-registration campaign creation; validated goal/bidding matrix, App conversion/Firebase rules, geo/language/exclusions, App-specific ad groups/user lists, App/Engagement/Pre-registration creatives with reusable image/video assets, sync normalization, SKAN + asset reporting, capability/RBAC/audit/UI/tests; App Campaign Legacy remains provider-UI-only  
-C9. richer provider reporting
+C9. [x] richer provider reporting — Google landing pages, actual placements, Auction Insights, conversion-attribution detail and 30-day change history added as provider-native drill-down inside the normalized Analytics workspace; existing search-term/asset/PMax/AI Max and Meta/native breakdown reporting retained; experiment/recommendation-impact/lifecycle analytics remain tied to their dedicated later slices
 
 ## Phase D - Modern Meta / P1
 

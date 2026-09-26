@@ -45,6 +45,7 @@ import com.messaging.ads.google.dto.CreateGoogleAppAdRequest;
 import com.messaging.ads.google.dto.GoogleAppCampaignSettingsResponse;
 import com.messaging.ads.google.dto.GoogleAppCampaignPerformanceResponse;
 import com.messaging.ads.google.dto.GoogleAppCreativeAsset;
+import com.messaging.ads.google.dto.GoogleProviderReportResponse;
 import com.messaging.ads.google.dto.GoogleDemandGenAudienceOption;
 import com.messaging.ads.google.dto.GoogleDemandGenChannelPerformance;
 import com.messaging.ads.google.dto.GoogleDemandGenTargetingRequest;
@@ -119,6 +120,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsAdvancedCampaignService advancedCampaignService;
   private final GoogleAdsAppCampaignService appCampaignService;
   private final GoogleAdsAppAdService appAdService;
+  private final GoogleAdsProviderReportingService providerReportingService;
   private final GoogleAdsAdGroupSyncService adGroupSyncService;
   private final GoogleAdsAdGroupMutationService adGroupMutationService;
   private final GoogleAdsKeywordSyncService keywordSyncService;
@@ -1312,6 +1314,22 @@ public class GoogleAdsConnectionController {
             200,
             searchTermService.report(companyId, campaignId, from, to),
             "Google search-term report fetched"));
+  }
+
+  @GetMapping("/accounts/{accountId}/provider-report")
+  public ResponseEntity<ApiResponse<GoogleProviderReportResponse>> providerReport(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @RequestParam LocalDate from,
+      @RequestParam LocalDate to,
+      @RequestParam(required = false) String campaignExternalId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            providerReportingService.report(
+                companyId, accountId, from, to, campaignExternalId),
+            "Google provider reporting drill-down fetched"));
   }
 
   @PostMapping("/accounts/{accountId}/insights/breakdowns/sync")
