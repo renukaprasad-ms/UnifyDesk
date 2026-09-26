@@ -840,6 +840,124 @@ export type CreateGooglePerformanceMaxCampaignInput = {
   endDate?: string | null
 }
 
+export type GoogleReusableAssetType =
+  | 'SITELINK'
+  | 'CALLOUT'
+  | 'STRUCTURED_SNIPPET'
+  | 'CALL'
+  | 'PRICE'
+  | 'PROMOTION'
+  | 'LEAD_FORM'
+
+export type GoogleUrlCustomParameter = {
+  key: string
+  value: string
+}
+
+export type GoogleReusableAsset = {
+  id: string
+  resourceName: string
+  name?: string | null
+  type: GoogleReusableAssetType | string
+  source?: string | null
+  linkText?: string | null
+  description1?: string | null
+  description2?: string | null
+  calloutText?: string | null
+  structuredSnippetHeader?: string | null
+  structuredSnippetValues: string[]
+  finalUrls: string[]
+  finalMobileUrls: string[]
+  trackingUrlTemplate?: string | null
+  finalUrlSuffix?: string | null
+  customParameters: GoogleUrlCustomParameter[]
+}
+
+export type CreateGoogleReusableAssetInput = {
+  type: GoogleReusableAssetType
+  name?: string | null
+  linkText?: string | null
+  description1?: string | null
+  description2?: string | null
+  calloutText?: string | null
+  structuredSnippetHeader?: string | null
+  structuredSnippetValues?: string[]
+  finalUrl?: string | null
+  finalMobileUrl?: string | null
+  trackingUrlTemplate?: string | null
+  finalUrlSuffix?: string | null
+  customParameters?: GoogleUrlCustomParameter[]
+}
+
+export type GooglePriceOfferingInput = {
+  header: string
+  description: string
+  amount: number
+  currencyCode: string
+  unit?: string | null
+  finalUrl: string
+  finalMobileUrl?: string | null
+}
+
+export type CreateGoogleAdvancedReusableAssetInput = {
+  type: 'CALL' | 'PRICE' | 'PROMOTION' | 'LEAD_FORM'
+  name?: string | null
+  callCountryCode?: string | null
+  callPhoneNumber?: string | null
+  priceType?: string | null
+  priceQualifier?: string | null
+  languageCode?: string | null
+  priceOfferings?: GooglePriceOfferingInput[]
+  promotionTarget?: string | null
+  promotionPercentOff?: number | null
+  promotionMoneyAmountOff?: number | null
+  promotionCurrencyCode?: string | null
+  promotionDiscountModifier?: string | null
+  promotionCode?: string | null
+  promotionOccasion?: string | null
+  promotionLanguageCode?: string | null
+  finalUrl?: string | null
+  leadBusinessName?: string | null
+  leadCallToActionType?: string | null
+  leadCallToActionDescription?: string | null
+  leadHeadline?: string | null
+  leadDescription?: string | null
+  leadPrivacyPolicyUrl?: string | null
+  leadFields?: string[]
+  leadPostSubmitCallToActionType?: string | null
+  leadPostSubmitHeadline?: string | null
+  leadPostSubmitDescription?: string | null
+}
+
+export type GoogleAssetLinkLevel = 'CUSTOMER' | 'CAMPAIGN' | 'AD_GROUP'
+
+export type GoogleReusableAssetLink = {
+  resourceName: string
+  assetResourceName: string
+  assetId: string
+  assetName?: string | null
+  assetType?: string | null
+  fieldType: string
+  level: GoogleAssetLinkLevel
+  targetId?: string | null
+  status?: string | null
+  primaryStatus?: string | null
+}
+
+export type GoogleUrlOptions = {
+  level: GoogleAssetLinkLevel
+  targetId?: string | null
+  trackingUrlTemplate?: string | null
+  finalUrlSuffix?: string | null
+  customParameters: GoogleUrlCustomParameter[]
+}
+
+export type UpdateGoogleUrlOptionsInput = {
+  trackingUrlTemplate?: string | null
+  finalUrlSuffix?: string | null
+  customParameters?: GoogleUrlCustomParameter[] | null
+}
+
 export type GoogleAsset = {
   id?: string | null
   resourceName?: string | null

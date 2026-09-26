@@ -8,6 +8,7 @@ import GooglePerformanceMaxAssets from '../../components/ads/GooglePerformanceMa
 import GoogleNegativeKeywordManagement from '../../components/ads/GoogleNegativeKeywordManagement'
 import GoogleSearchTermReport from '../../components/ads/GoogleSearchTermReport'
 import GoogleAiMaxCombinationReport from '../../components/ads/GoogleAiMaxCombinationReport'
+import GoogleReusableAssetsPanel from '../../components/ads/GoogleReusableAssetsPanel'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -680,6 +681,18 @@ export default function AdCampaignDetails() {
                     canModify={can(PERMISSIONS.ADS_MODIFY)}
                   />
                 </>
+              )}
+
+            {campaign.provider === 'GOOGLE_ADS' &&
+              campaign.objective !== 'VIDEO' &&
+              account && (
+                <GoogleReusableAssetsPanel
+                  companyId={selectedCompany.companyId}
+                  accountId={account.id}
+                  campaignId={campaign.id}
+                  canCreate={can(PERMISSIONS.ADS_CREATE)}
+                  canModify={can(PERMISSIONS.ADS_MODIFY)}
+                />
               )}
 
             <div className="panel mt-5 overflow-hidden">

@@ -265,6 +265,34 @@ public class GoogleAdsApiClient {
         "Google Ads mutation failed for " + resourceCollection);
   }
 
+  public JsonNode mutateCustomer(
+      String accessToken,
+      String customerId,
+      String loginCustomerId,
+      Map<String, Object> operation) {
+    if (operation == null || operation.isEmpty()) {
+      throw new BadRequestException("Google Ads customer mutation requires an operation");
+    }
+    return execute(
+        () -> {
+          RestClient.RequestBodySpec request =
+              adsClient
+                  .post()
+                  .uri(
+                      "/{version}/customers/{customerId}:mutate",
+                      properties.getApiVersion().trim(),
+                      normalizeCustomerId(customerId))
+                  .contentType(MediaType.APPLICATION_JSON);
+          addAdsHeaders(request, accessToken, loginCustomerId);
+          return parseJson(
+              request
+                  .body(Map.of("operation", operation))
+                  .retrieve()
+                  .body(String.class));
+        },
+        "Google Ads customer mutation failed");
+  }
+
   public JsonNode mutateAll(
       String accessToken,
       String customerId,
