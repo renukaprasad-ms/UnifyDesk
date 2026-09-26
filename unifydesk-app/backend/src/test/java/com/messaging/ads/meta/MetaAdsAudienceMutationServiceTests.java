@@ -95,7 +95,6 @@ class MetaAdsAudienceMutationServiceTests {
             null,
             null,
             null,
-            "USER_PROVIDED_ONLY",
             "1720000000",
             "1720000001");
     when(apiClient.customAudience("token", "audience-external")).thenReturn(snapshot);
@@ -167,6 +166,7 @@ class MetaAdsAudienceMutationServiceTests {
             null,
             null,
             null,
+            "USER_PROVIDED_ONLY",
             "1720000000",
             "1720000001");
     when(apiClient.customAudience("token", "audience-custom")).thenReturn(snapshot);
