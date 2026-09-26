@@ -132,7 +132,22 @@ public class GoogleAdsAdPersistenceService {
       creative.setCreativeFormat(adType);
 
       JsonNode formatPayload;
-      if ("RESPONSIVE_DISPLAY_AD".equals(adType)) {
+      if ("APP_AD".equals(adType)) {
+        JsonNode app = snapshot.path("appAd");
+        creative.setHeadline(joinTextAssets(app.path("headlines")));
+        creative.setDescription(joinTextAssets(app.path("descriptions")));
+        formatPayload = app;
+      } else if ("APP_ENGAGEMENT_AD".equals(adType)) {
+        JsonNode app = snapshot.path("appEngagementAd");
+        creative.setHeadline(joinTextAssets(app.path("headlines")));
+        creative.setDescription(joinTextAssets(app.path("descriptions")));
+        formatPayload = app;
+      } else if ("APP_PRE_REGISTRATION_AD".equals(adType)) {
+        JsonNode app = snapshot.path("appPreRegistrationAd");
+        creative.setHeadline(joinTextAssets(app.path("headlines")));
+        creative.setDescription(joinTextAssets(app.path("descriptions")));
+        formatPayload = app;
+      } else if ("RESPONSIVE_DISPLAY_AD".equals(adType)) {
         JsonNode display = snapshot.path("responsiveDisplayAd");
         creative.setHeadline(
             first(
