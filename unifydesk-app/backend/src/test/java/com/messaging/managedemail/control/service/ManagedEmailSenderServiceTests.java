@@ -237,6 +237,7 @@ class ManagedEmailSenderServiceTests {
     assertThat(connection.getEncryptedCredentials()).isNull();
     assertThat(connection.getRoleArn()).isNull();
     assertThat(connection.getProvider()).isEqualTo(BroadcastSenderProvider.AMAZON_SES);
+    assertThat(connection.getCreatedByUserId()).isEqualTo(7L);
   }
 
   private ManagedEmailDomain activeDomain() {
