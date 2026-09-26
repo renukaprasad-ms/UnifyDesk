@@ -5,6 +5,7 @@ import com.messaging.billing.service.EntitlementService;
 import com.messaging.broadcast.entity.BroadcastSender;
 import com.messaging.broadcast.entity.BroadcastSenderConnection;
 import com.messaging.broadcast.enums.BroadcastSenderManagementMode;
+import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.managedemail.metering.ManagedEmailUsageService;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeProperties;
@@ -30,6 +31,10 @@ public class ManagedEmailLaunchGuard {
       long recipientCount) {
     if (connection.getManagementMode() != BroadcastSenderManagementMode.MESSAGING_MANAGED) {
       return;
+    }
+    if (sender.getProvider() != BroadcastSenderProvider.AMAZON_SES
+        || connection.getProvider() != BroadcastSenderProvider.AMAZON_SES) {
+      throw new BadRequestException("MANAGED_EMAIL_PROVIDER_MISMATCH");
     }
     if (!properties.isSendingEnabled()) {
       throw new BadRequestException("MANAGED_EMAIL_PLATFORM_DISABLED");
