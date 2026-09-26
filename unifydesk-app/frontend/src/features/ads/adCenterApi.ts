@@ -97,6 +97,10 @@ import type {
   CreateGoogleResponsiveSearchAdInput,
   CreateGoogleResponsiveDisplayAdInput,
   CreateGoogleDemandGenVideoAdInput,
+  GoogleDemandGenTargeting,
+  GoogleDemandGenTargetingInput,
+  GoogleDemandGenAudienceOption,
+  GoogleDemandGenChannelPerformance,
   CreateGoogleDemandGenMultiAssetAdInput,
   CreateGoogleDemandGenCarouselAdInput,
   CreateGoogleShoppingProductAdInput,
@@ -1864,6 +1868,45 @@ export const adCenterApi = {
     const response = await apiClient.post<ApiResponse<Ad>>(
       `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/display-ads`,
       input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleDemandGenTargeting(companyId: string, adGroupId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleDemandGenTargeting>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/demand-gen-targeting`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleDemandGenTargeting(
+    companyId: string,
+    adGroupId: string,
+    input: GoogleDemandGenTargetingInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GoogleDemandGenTargeting>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/demand-gen-targeting`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleDemandGenAudiences(companyId: string, adGroupId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleDemandGenAudienceOption[]>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/demand-gen-audiences`,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleDemandGenChannelPerformance(
+    companyId: string,
+    adGroupId: string,
+    from: string,
+    to: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleDemandGenChannelPerformance[]>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/demand-gen-channel-performance`,
+      { params: { from, to } },
     )
     return unwrap(response.data)
   },
