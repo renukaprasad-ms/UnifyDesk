@@ -8,7 +8,7 @@ Round: 0 — Architecture frozen, awaiting Lead-doc merge to dev
 Architecture revision: R1-2026-09-26  
 Architecture branch: `docs/managed-email-architecture-r1`  
 Architecture parent dev SHA: `471dfe619c7e4ae58f4eaf58f78fed608ec4c553`  
-Frozen worker base SHA: `1f79c27f580dffcccd3c067614cc46d043822dcb`
+Frozen worker base SHA: published by the Lead in the next status update after this manifest-freeze commit
 
 The worker base is intentionally the last Lead commit before TASKS.md and this status manifest were finalized. Workers must read the latest TASKS.md from the Lead branch, then create their branches from the exact SHA above after the Lead architecture PR is merged.
 
