@@ -56,7 +56,8 @@ public class SecurityConfig {
                         "/api/v1/webhooks/meta/whatsapp",
                         "/api/v1/webhooks/meta/ads",
                         "/api/v1/webhooks/microsoft",
-                        "/api/v1/webhooks/google/gmail"))
+                        "/api/v1/webhooks/google/gmail",
+                        "/api/v1/webhooks/managed-email/ses"))
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
@@ -75,6 +76,7 @@ public class SecurityConfig {
                         "/api/v1/webhooks/meta/ads",
                         "/api/v1/webhooks/microsoft",
                         "/api/v1/webhooks/google/gmail",
+                        "/api/v1/webhooks/managed-email/ses",
                         "/api/v1/oauth/gmail/callback",
                         "/api/v1/oauth/microsoft/callback",
                         "/api/v1/oauth/meta-ads/callback",
