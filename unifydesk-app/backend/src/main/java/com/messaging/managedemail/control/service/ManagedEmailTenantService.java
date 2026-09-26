@@ -53,6 +53,22 @@ public class ManagedEmailTenantService {
             });
   }
 
+  @Transactional
+  public void queueProviderRefreshes() {
+    for (ManagedEmailTenant tenant : tenantRepository.findAll()) {
+      if (tenant.getStatus() == TenantStatus.DELETED
+          || tenant.getStatus() == TenantStatus.DELETING) {
+        continue;
+      }
+      provisioningService.enqueueOrReset(
+          tenant.getCompanyId(),
+          ProvisioningResourceType.TENANT,
+          tenant.getId(),
+          ProvisioningOperationType.ENSURE_TENANT,
+          "tenant:ensure:" + tenant.getCompanyId());
+    }
+  }
+
   private void advisoryLock(long key) {
     jdbcTemplate.queryForObject(
         "select pg_advisory_xact_lock(?)::text", String.class, key);
