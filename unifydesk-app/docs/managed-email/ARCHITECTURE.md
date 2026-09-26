@@ -1,7 +1,7 @@
 # Managed Email Architecture
 
 Status: Round-1 architecture frozen  
-Baseline: dev @ 8178d6831140f7bd8cd67d33e66e229c10c5f0b2  
+Architecture parent: dev @ 471dfe619c7e4ae58f4eaf58f78fed608ec4c553\nApplication-code baseline beneath documentation-only PR #119: 8178d6831140f7bd8cd67d33e66e229c10c5f0b2  
 MVP provider: internal Amazon SES  
 Customer-facing provider name: UnifyDesk Managed Email
 
