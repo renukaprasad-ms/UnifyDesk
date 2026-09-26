@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 @Getter
 @Setter
 @Component
-@ConfigurationProperties(prefix = "managed-email.runtime")
+@ConfigurationProperties(prefix = "app.managed-email.runtime")
 public class ManagedEmailRuntimeProperties {
 
   private boolean sendingEnabled = false;
