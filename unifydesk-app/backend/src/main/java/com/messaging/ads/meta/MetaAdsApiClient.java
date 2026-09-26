@@ -426,7 +426,8 @@ public class MetaAdsApiClient {
   private String customAudienceFields() {
     return "id,name,account_id,subtype,description,retention_days,"
         + "approximate_count_lower_bound,approximate_count_upper_bound,delivery_status,"
-        + "operation_status,pixel_id,rule,lookalike_spec,time_created,time_updated";
+        + "operation_status,pixel_id,rule,lookalike_spec,customer_file_source,"
+        + "time_created,time_updated";
   }
 
   private String customConversionFields() {
@@ -1376,6 +1377,7 @@ public class MetaAdsApiClient {
       @JsonProperty("pixel_id") String pixelId,
       JsonNode rule,
       @JsonProperty("lookalike_spec") JsonNode lookalikeSpec,
+      @JsonProperty("customer_file_source") String customerFileSource,
       @JsonProperty("time_created") String timeCreated,
       @JsonProperty("time_updated") String timeUpdated) {}
 
