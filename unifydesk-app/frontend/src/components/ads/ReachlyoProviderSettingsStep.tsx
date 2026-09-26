@@ -95,6 +95,12 @@ type Props = {
   setMetaMessengerPositions: (value: string[]) => void
   metaAudienceNetworkPositions: string[]
   setMetaAudienceNetworkPositions: (value: string[]) => void
+  metaAdvantageAudience: boolean
+  setMetaAdvantageAudience: (value: boolean) => void
+  metaAdvantageAgeSuggestion: boolean
+  setMetaAdvantageAgeSuggestion: (value: boolean) => void
+  metaAdvantageGenderSuggestion: boolean
+  setMetaAdvantageGenderSuggestion: (value: boolean) => void
   disabled: boolean
   onRefresh: () => void
 }
@@ -890,6 +896,60 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 <option value="ISSUES_ELECTIONS_POLITICS">Issues, elections or politics</option>
               </select>
             </Field>
+            <div className="sm:col-span-2 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={props.metaAdvantageAudience}
+                  disabled={props.disabled}
+                  onChange={(event) =>
+                    props.setMetaAdvantageAudience(event.target.checked)
+                  }
+                />
+                <span>
+                  <span className="block text-sm font-bold text-indigo-950">
+                    Advantage+ audience
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-indigo-700">
+                    Meta may expand beyond audience suggestions. Location and explicit exclusions
+                    remain controls.
+                  </span>
+                </span>
+              </label>
+              {props.metaAdvantageAudience && (
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <label className="rounded-lg bg-white/70 p-3 text-xs text-indigo-900">
+                    <span className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={props.metaAdvantageAgeSuggestion}
+                        disabled={props.disabled}
+                        onChange={(event) =>
+                          props.setMetaAdvantageAgeSuggestion(event.target.checked)
+                        }
+                      />
+                      Treat age as a suggestion.
+                    </span>
+                  </label>
+                  <label className="rounded-lg bg-white/70 p-3 text-xs text-indigo-900">
+                    <span className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={props.metaAdvantageGenderSuggestion}
+                        disabled={props.disabled}
+                        onChange={(event) =>
+                          props.setMetaAdvantageGenderSuggestion(event.target.checked)
+                        }
+                      />
+                      Treat gender as a suggestion.
+                    </span>
+                  </label>
+                </div>
+              )}
+            </div>
             <div className="sm:col-span-2 rounded-xl border border-slate-100 p-4">
               <p className="text-xs font-semibold text-slate-700">Placements</p>
               <select
