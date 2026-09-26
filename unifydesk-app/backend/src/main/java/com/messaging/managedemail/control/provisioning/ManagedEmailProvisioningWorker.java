@@ -80,7 +80,7 @@ public class ManagedEmailProvisioningWorker {
     TenantSnapshot snapshot = sesGateway.ensureTenant(work.providerTenantName());
     sesGateway.ensureConfigurationSet(
         work.providerTenantName(), work.configurationSetName(), properties.getSnsTopicArn());
-    persistTenantProviderState(work.tenantId(), snapshot);
+    persistTenantProviderState(work.companyId(), work.tenantId(), snapshot);
   }
 
   private void ensureDomain(ManagedEmailProvisioningOperation operation) {
@@ -88,7 +88,7 @@ public class ManagedEmailProvisioningWorker {
     TenantSnapshot tenantSnapshot = sesGateway.ensureTenant(work.providerTenantName());
     sesGateway.ensureConfigurationSet(
         work.providerTenantName(), work.configurationSetName(), properties.getSnsTopicArn());
-    persistTenantProviderState(work.tenantId(), tenantSnapshot);
+    persistTenantProviderState(work.companyId(), work.tenantId(), tenantSnapshot);
 
     DomainIdentitySnapshot snapshot =
         sesGateway.ensureDomainIdentity(
@@ -105,7 +105,7 @@ public class ManagedEmailProvisioningWorker {
   private void refreshDomain(ManagedEmailProvisioningOperation operation) {
     DomainWork work = domainWork(operation);
     TenantSnapshot tenantSnapshot = sesGateway.getTenant(work.providerTenantName());
-    persistTenantProviderState(work.tenantId(), tenantSnapshot);
+    persistTenantProviderState(work.companyId(), work.tenantId(), tenantSnapshot);
     if (work.type() == DomainType.UNIFYDESK_HOSTED) {
       ensureHostedDns(work);
     }
@@ -313,12 +313,12 @@ public class ManagedEmailProvisioningWorker {
         });
   }
 
-  private void persistTenantProviderState(Long tenantId, TenantSnapshot snapshot) {
+  private void persistTenantProviderState(Long companyId, Long tenantId, TenantSnapshot snapshot) {
     transactionTemplate.executeWithoutResult(
         status -> {
           ManagedEmailTenant tenant =
               tenantRepository
-                  .findById(tenantId)
+                  .findByIdAndCompanyId(tenantId, companyId)
                   .orElseThrow(() -> new NotFoundException("Managed Email tenant not found"));
           tenant.setStatus(TenantStatus.ACTIVE);
           tenant.setSendingStatus(
@@ -366,6 +366,7 @@ public class ManagedEmailProvisioningWorker {
                   .findByIdAndCompanyId(operation.getResourceId(), operation.getCompanyId())
                   .orElseThrow(() -> new NotFoundException("Managed Email tenant not found"));
           return new TenantWork(
+              tenant.getCompanyId(),
               tenant.getId(),
               tenant.getProviderTenantName(),
               tenant.getProviderConfigurationSetName());
@@ -480,7 +481,7 @@ public class ManagedEmailProvisioningWorker {
   }
 
   private record TenantWork(
-      Long tenantId, String providerTenantName, String configurationSetName) {}
+      Long companyId, Long tenantId, String providerTenantName, String configurationSetName) {}
 
   private record DomainWork(
       Long domainId,
