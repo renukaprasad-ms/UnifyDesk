@@ -169,8 +169,11 @@ public class GoogleAdsDemandGenTargetingService {
     }
 
     if (request.locations() != null
+        || request.locationResourceNames() != null
         || request.excludedLocations() != null
+        || request.excludedLocationResourceNames() != null
         || request.languages() != null
+        || request.languageResourceNames() != null
         || request.audienceResourceNames() != null) {
       replaceCriteria(context, request);
     }
@@ -290,8 +293,15 @@ public class GoogleAdsDemandGenTargetingService {
                 + " AND ad_group_criterion.status != 'REMOVED'");
 
     Set<String> managedTypes = new LinkedHashSet<>();
-    if (request.locations() != null || request.excludedLocations() != null) managedTypes.add("LOCATION");
-    if (request.languages() != null) managedTypes.add("LANGUAGE");
+    if (request.locations() != null
+        || request.locationResourceNames() != null
+        || request.excludedLocations() != null
+        || request.excludedLocationResourceNames() != null) {
+      managedTypes.add("LOCATION");
+    }
+    if (request.languages() != null || request.languageResourceNames() != null) {
+      managedTypes.add("LANGUAGE");
+    }
     if (request.audienceResourceNames() != null) managedTypes.add("AUDIENCE");
 
     List<Map<String, Object>> operations = new ArrayList<>();
@@ -304,6 +314,18 @@ public class GoogleAdsDemandGenTargetingService {
       }
     }
 
+    if (request.locationResourceNames() != null) {
+      for (String resource : request.locationResourceNames()) {
+        operations.add(
+            Map.of(
+                "create",
+                Map.of(
+                    "adGroup", adGroupResource,
+                    "location",
+                    Map.of("geoTargetConstant", normalizeGeoResource(resource)),
+                    "negative", false)));
+      }
+    }
     if (request.locations() != null) {
       for (AudienceLocationInput input : request.locations()) {
         operations.add(
@@ -316,6 +338,18 @@ public class GoogleAdsDemandGenTargetingService {
                     "negative", false)));
       }
     }
+    if (request.excludedLocationResourceNames() != null) {
+      for (String resource : request.excludedLocationResourceNames()) {
+        operations.add(
+            Map.of(
+                "create",
+                Map.of(
+                    "adGroup", adGroupResource,
+                    "location",
+                    Map.of("geoTargetConstant", normalizeGeoResource(resource)),
+                    "negative", true)));
+      }
+    }
     if (request.excludedLocations() != null) {
       for (AudienceLocationInput input : request.excludedLocations()) {
         operations.add(
@@ -326,6 +360,17 @@ public class GoogleAdsDemandGenTargetingService {
                     "location",
                     Map.of("geoTargetConstant", resolveLocation(context.google(), input)),
                     "negative", true)));
+      }
+    }
+    if (request.languageResourceNames() != null) {
+      for (String resource : request.languageResourceNames()) {
+        operations.add(
+            Map.of(
+                "create",
+                Map.of(
+                    "adGroup", adGroupResource,
+                    "language", Map.of("languageConstant", normalizeLanguageResource(resource)),
+                    "negative", false)));
       }
     }
     if (request.languages() != null) {
@@ -507,6 +552,20 @@ public class GoogleAdsDemandGenTargetingService {
       if (hasText(text(language, "name"))) result.put(normalize(text(language, "name")), resource);
     }
     return result;
+  }
+
+  private String normalizeGeoResource(String value) {
+    if (value == null || !value.trim().matches("geoTargetConstants/\\d+")) {
+      throw new BadRequestException("Invalid Google geo target resource name");
+    }
+    return value.trim();
+  }
+
+  private String normalizeLanguageResource(String value) {
+    if (value == null || !value.trim().matches("languageConstants/\\d+")) {
+      throw new BadRequestException("Invalid Google language resource name");
+    }
+    return value.trim();
   }
 
   private String normalizeAudienceResource(String customerId, String value) {
