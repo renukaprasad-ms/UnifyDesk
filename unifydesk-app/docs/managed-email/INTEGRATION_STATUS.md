@@ -4,58 +4,47 @@
 
 ## Current round
 
-Round: 0 — Architecture frozen, awaiting Lead-doc merge to dev  
-Architecture revision: R1-2026-09-26  
-Architecture branch: `docs/managed-email-architecture-r1`  
-Architecture parent dev SHA: `471dfe619c7e4ae58f4eaf58f78fed608ec4c553`  
-Frozen worker base SHA: `516ab22000ffa5c1199d9bb0ea791716181b3044`
+Round: 2 — QA remediation planned  
+Round-1 integrated QA base: `8708a51c53eb53a5cdca89a205deb7ba7a010bc7`  
+Round-1 QA findings merge: `c20b088b6dd9ddd365c0c61f18f3f5144abd0327`  
+Round-2 task source: `ROUND2_TASKS.md`
 
-The worker base is intentionally the last Lead commit before TASKS.md and this status manifest were finalized. Workers must read the latest TASKS.md from the Lead branch, then create their branches from the exact SHA above after the Lead architecture PR is merged.
+Round-1 QA disposition: **NOT RELEASE-READY**
 
-## Workstreams
+Release blockers assigned for Round 2:
+- ME-SEC-001
+- ME-SEC-002
+- ME-SEC-003
+- ME-SEC-004
+- ME-SEC-005
+- ME-SEC-006
+- ME-SEC-008
 
-| Workstream | Branch | PR | Status | Base SHA | Notes |
-|---|---|---|---|---|---|
-| Lead architecture | `docs/managed-email-architecture-r1` | TBD | READY_FOR_REVIEW | `471dfe619c...` | Architecture/contracts/research frozen |
-| Backend A / B1 — Control Plane | `feature/managed-email-control-plane` | TBD | BLOCKED_BY_ARCHITECTURE_MERGE | `1f79c27f...` | May start after Lead docs are merged |
-| Backend B / B2 — Delivery & Events | `feature/managed-email-delivery-events` | TBD | BLOCKED_BY_ARCHITECTURE_MERGE | `1f79c27f...` | May start in parallel with B1 |
-| Frontend / F1 | `feature/managed-email-ui` | TBD | BLOCKED_BY_ARCHITECTURE_MERGE | `1f79c27f...` | Works from frozen HTTP contract |
-| Security & QA | `review/managed-email-security-qa-r1` | TBD | BLOCKED_BY_INTEGRATION | integrated Round-1 SHA | Starts only after Lead integration review |
+Hardening findings also assigned:
+- ME-SEC-007
+- ME-SEC-009
+- ME-SEC-010
 
-## Architecture checks
+## Round-2 workstreams
 
-- [x] Existing Broadcast code inspected
-- [x] Current SES tenant/identity/DKIM/MAIL FROM/DMARC/config-set/event/suppression/quota research completed
-- [x] Architecture frozen
-- [x] ADRs frozen
-- [x] API contracts frozen
-- [x] data model frozen
-- [x] migration ownership frozen
-- [x] shared-file ownership frozen
-- [x] QA/security plan defined
-- [x] shared AWS SDK prerequisite prepared
-- [ ] Lead architecture PR merged to dev
+| Workstream | Branch | Status |
+|---|---|---|
+| B1 Control Plane hardening | `fix/managed-email-control-plane-r2` | READY_AFTER_PLAN_MERGE |
+| B2 Delivery/security remediation | `fix/managed-email-delivery-security-r2` | READY_AFTER_PLAN_MERGE |
+| F1 Managed Email privacy UX | `fix/managed-email-ui-privacy-r2` | READY_AFTER_PLAN_MERGE |
+| QA/SEC retest | `review/managed-email-security-qa-r2` | BLOCKED_BY_R2_INTEGRATION |
 
-## Round-1 integration checks
+All three implementation workers must start from the exact Round-2 base SHA published by the Architecture Lead after this planning PR is merged.
 
-- [ ] Backend A merged into integration candidate
-- [ ] Backend B merged into integration candidate
-- [ ] Frontend merged into integration candidate
-- [ ] Lead-owned V58 cross-module constraints applied
-- [ ] migrations apply cleanly
-- [ ] backend build/tests pass
-- [ ] frontend build/tests pass
-- [ ] architecture docs match implementation
-- [ ] QA/SEC candidate created
+Do not branch from a later moving dev tip.
 
-## Review checks
+## Required completion order
 
-- [ ] Security & QA review complete
-- [ ] Lead triage complete
-- [ ] Round-2 tasks frozen if required
+1. Merge this Round-2 planning documentation.
+2. Start B1, B2 and F1 concurrently from the exact frozen Round-2 base.
+3. Workers open PRs to dev but do not merge them.
+4. Architecture Lead reviews and integrates the three PRs.
+5. Architecture Lead freezes one integrated Round-2 candidate SHA.
+6. QA/SEC retests ME-SEC-001 through ME-SEC-010 on that exact SHA.
 
-## Important merge rule
-
-No implementation worker merges its own PR.
-
-If dev moves after this architecture branch is merged, workers still use the frozen SHA unless the Architecture Lead explicitly publishes a new Round-1 base. Unrelated new dev changes are integrated by the Lead rather than each worker rebasing independently and creating divergent assumptions.
+See `ROUND2_TASKS.md` for exact ownership and forbidden-file rules.
