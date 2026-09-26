@@ -91,7 +91,6 @@ class ManagedEmailProvisioningWorkerTests {
   }
 
 
-
   @Test
   void persistsExactProviderObservationTimestampEvenWhenPersistenceIsLater() {
     Instant providerObservedAt = Instant.parse("2026-09-26T10:00:00Z");
@@ -200,7 +199,15 @@ class ManagedEmailProvisioningWorkerTests {
     worker.persistTenantProviderState(
         1L,
         33L,
-        new TenantSnapshot("ENABLED", "LOW", 25.0, 50000.0, 1234.0, true, true, Instant.parse("2026-09-26T10:00:00Z")));
+        new TenantSnapshot(
+            "ENABLED",
+            "LOW",
+            25.0,
+            50000.0,
+            1234.0,
+            true,
+            true,
+            Instant.parse("2026-09-26T10:00:00Z")));
 
     assertThat(connection.isSendingEnabled()).isTrue();
     assertThat(connection.isProductionAccessEnabled()).isTrue();
@@ -221,7 +228,15 @@ class ManagedEmailProvisioningWorkerTests {
     worker.persistTenantProviderState(
         1L,
         33L,
-        new TenantSnapshot("ENABLED", "LOW", 25.0, 50000.0, 100.0, true, false, Instant.parse("2026-09-26T10:00:00Z")));
+        new TenantSnapshot(
+            "ENABLED",
+            "LOW",
+            25.0,
+            50000.0,
+            100.0,
+            true,
+            false,
+            Instant.parse("2026-09-26T10:00:00Z")));
 
     assertThat(connection.isSendingEnabled()).isFalse();
     assertThat(connection.isProductionAccessEnabled()).isFalse();
@@ -238,7 +253,15 @@ class ManagedEmailProvisioningWorkerTests {
     worker.persistTenantProviderState(
         1L,
         33L,
-        new TenantSnapshot("ENABLED", "LOW", 25.0, 50000.0, 100.0, false, true, Instant.parse("2026-09-26T10:00:00Z")));
+        new TenantSnapshot(
+            "ENABLED",
+            "LOW",
+            25.0,
+            50000.0,
+            100.0,
+            false,
+            true,
+            Instant.parse("2026-09-26T10:00:00Z")));
 
     assertThat(connection.isSendingEnabled()).isFalse();
   }
@@ -254,7 +277,15 @@ class ManagedEmailProvisioningWorkerTests {
     worker.persistTenantProviderState(
         1L,
         33L,
-        new TenantSnapshot("ENABLED", "LOW", null, 50000.0, 100.0, true, true, Instant.parse("2026-09-26T10:00:00Z")));
+        new TenantSnapshot(
+            "ENABLED",
+            "LOW",
+            null,
+            50000.0,
+            100.0,
+            true,
+            true,
+            Instant.parse("2026-09-26T10:00:00Z")));
 
     assertThat(connection.isSendingEnabled()).isFalse();
   }

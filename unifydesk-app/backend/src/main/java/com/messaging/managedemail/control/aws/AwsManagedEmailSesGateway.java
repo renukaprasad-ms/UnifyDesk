@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicReference;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.sesv2.SesV2Client;
@@ -37,6 +38,7 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
   private final Clock clock;
   private final AtomicReference<String> accountId = new AtomicReference<>();
 
+  @Autowired
   public AwsManagedEmailSesGateway(
       SesV2Client ses, StsClient sts, ManagedEmailProperties properties) {
     this(ses, sts, properties, Clock.systemUTC());
