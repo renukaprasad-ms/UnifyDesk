@@ -1381,6 +1381,53 @@ export type CreateGoogleResponsiveDisplayAdInput = {
   squareLogoImageBase64?: string | null
 }
 
+export type GoogleDemandGenSelectedChannels = {
+  youtubeInFeed?: boolean | null
+  youtubeInStream?: boolean | null
+  youtubeShorts?: boolean | null
+  discover?: boolean | null
+  gmail?: boolean | null
+  display?: boolean | null
+  maps?: boolean | null
+}
+
+export type GoogleDemandGenTargetingInput = {
+  channelStrategy?: 'ALL_CHANNELS' | 'ALL_OWNED_AND_OPERATED_CHANNELS' | null
+  selectedChannels?: GoogleDemandGenSelectedChannels | null
+  locations?: ReachlyoAudienceLocationInput[] | null
+  excludedLocations?: ReachlyoAudienceLocationInput[] | null
+  languages?: string[] | null
+  audienceResourceNames?: string[] | null
+}
+
+export type GoogleDemandGenTargeting = {
+  channelConfig?: string | null
+  channelStrategy?: string | null
+  selectedChannels?: GoogleDemandGenSelectedChannels | null
+  useAudienceGrouped: boolean
+  locationResources: string[]
+  excludedLocationResources: string[]
+  languageResources: string[]
+  audienceResources: string[]
+}
+
+export type GoogleDemandGenAudienceOption = {
+  id?: string | null
+  resourceName: string
+  name?: string | null
+  status?: string | null
+  description?: string | null
+}
+
+export type GoogleDemandGenChannelPerformance = {
+  channel: string
+  impressions: number
+  clicks: number
+  costMicros: number
+  conversions: number
+  conversionsValue: number
+}
+
 export type CreateGoogleDemandGenVideoAdInput = {
   name: string
   finalUrl: string
