@@ -109,6 +109,15 @@ class AdFeatureCapabilityServiceTests {
     assertThat(assetGeneration.supported()).isTrue();
     assertThat(assetGeneration.availability())
         .isEqualTo(AdFeatureAvailability.ACCOUNT_ELIGIBILITY_REQUIRED);
+
+    var appCampaign =
+        capabilities.stream()
+            .filter(item -> item.feature() == AdFeatureCapability.GOOGLE_APP_CAMPAIGN)
+            .findFirst()
+            .orElseThrow();
+    assertThat(appCampaign.implemented()).isTrue();
+    assertThat(appCampaign.supported()).isTrue();
+    assertThat(appCampaign.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
   }
 
   @Test
