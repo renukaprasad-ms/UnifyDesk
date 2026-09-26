@@ -19,6 +19,8 @@ import BroadcastEmailProviderPickerModal, {
 } from '../../components/broadcast/BroadcastEmailProviderPickerModal'
 import SendGridConnectModal from '../../components/broadcast/SendGridConnectModal'
 import BroadcastTestEmailModal from '../../components/broadcast/BroadcastTestEmailModal'
+import ManagedEmailModal from '../../components/managed-email/ManagedEmailModal'
+import ManagedEmailPanel from '../../components/managed-email/ManagedEmailPanel'
 import Msg91ConnectModal from '../../components/broadcast/Msg91ConnectModal'
 import Msg91SmsSetupGuideModal from '../../components/broadcast/Msg91SmsSetupGuideModal'
 import Msg91EmailConnectModal from '../../components/broadcast/Msg91EmailConnectModal'
@@ -42,7 +44,13 @@ import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 
-const providerLabel = (providerType: ChannelConnection['providerType']) => {
+const providerLabel = (
+  providerType: ChannelConnection['providerType'],
+  managementMode?: BroadcastSender['managementMode'],
+) => {
+  if (providerType === 'AMAZON_SES' && managementMode === 'MESSAGING_MANAGED') {
+    return 'UNIFYDESK MANAGED EMAIL'
+  }
   if (providerType === 'MICROSOFT') return 'MICROSOFT 365'
   if (providerType === 'IMAP_SMTP') return 'IMAP + SMTP'
   if (providerType === 'SMTP') return 'SMTP'
@@ -73,6 +81,9 @@ export default function CompanyConnections() {
   const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState(false)
   const [broadcastEmailPickerOpen, setBroadcastEmailPickerOpen] = useState(false)
+  const [managedEmailOpen, setManagedEmailOpen] = useState(false)
+  const [managedEmailDomainId, setManagedEmailDomainId] = useState<string | null>(null)
+  const [managedEmailRefreshToken, setManagedEmailRefreshToken] = useState(0)
   const [sesConnectOpen, setSesConnectOpen] = useState(false)
   const [sendGridConnectOpen, setSendGridConnectOpen] = useState(false)
   const [azureEmailConnectOpen, setAzureEmailConnectOpen] = useState(false)
@@ -331,6 +342,13 @@ export default function CompanyConnections() {
   const reconnectBroadcast = (connection: ChannelConnection) => {
     if (workingConnectionId || connection.status !== 'DISCONNECTED') return
 
+    const broadcastSender = broadcastSenderFor(connection.id)
+    if (broadcastSender?.managementMode === 'MESSAGING_MANAGED') {
+      setManagedEmailDomainId(null)
+      setManagedEmailOpen(true)
+      return
+    }
+
     if (connection.providerType === 'AMAZON_SES') {
       setSesConnectOpen(true)
       return
@@ -456,9 +474,9 @@ export default function CompanyConnections() {
             </div>
             <h2 className="mt-4 text-base font-bold text-slate-950">Email</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              Inbox accounts use Gmail, Microsoft 365 or IMAP + SMTP. Broadcast senders use
-              Amazon SES, SendGrid, Azure Email or MSG91 Email. MSG91 Email templates are synced
-              separately from the Templates module.
+              Inbox accounts use Gmail, Microsoft 365 or IMAP + SMTP. Broadcast email can use
+              UnifyDesk Managed Email, or an Amazon SES, SendGrid, Azure Email or MSG91 Email
+              provider that you manage.
             </p>
             <div className="mt-4 grid gap-2">
               {can(PERMISSIONS.EMAIL_CONNECT) && (
@@ -522,6 +540,18 @@ export default function CompanyConnections() {
           </div>
         </div>
 
+        {can(PERMISSIONS.BROADCAST_READ) && (
+          <ManagedEmailPanel
+            companyId={selectedCompany.companyId}
+            canModify={can(PERMISSIONS.BROADCAST_MODIFY)}
+            refreshToken={managedEmailRefreshToken}
+            onOpenSetup={(domainId) => {
+              setManagedEmailDomainId(domainId ?? null)
+              setManagedEmailOpen(true)
+            }}
+          />
+        )}
+
         <div className="panel mt-6 overflow-hidden">
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="text-sm font-bold text-slate-950">Email connections</h2>
@@ -561,7 +591,10 @@ export default function CompanyConnections() {
                         {connection.status}
                       </span>
                       <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-700">
-                        {providerLabel(connection.providerType)}
+                        {providerLabel(
+                          connection.providerType,
+                          broadcastSenderFor(connection.id)?.managementMode,
+                        )}
                       </span>
                       {connection.capabilities.map((capability) => (
                         <span
@@ -594,7 +627,7 @@ export default function CompanyConnections() {
                     {connection.status === 'ACTIVE' &&
                       connection.capabilities.includes('BROADCAST') &&
                       can(PERMISSIONS.BROADCAST_MODIFY) &&
-                      broadcastSenderFor(connection.id) && (
+                      broadcastSenderFor(connection.id)?.sendingEnabled && (
                         <button
                           type="button"
                           className="secondary-button inline-flex w-full items-center gap-2 sm:w-auto"
@@ -606,6 +639,7 @@ export default function CompanyConnections() {
                       )}
 
                     {connection.status !== 'DISCONNECTED' &&
+                      broadcastSenderFor(connection.id)?.managementMode !== 'MESSAGING_MANAGED' &&
                       (connection.capabilities.includes('BROADCAST')
                         ? can(PERMISSIONS.BROADCAST_MODIFY)
                         : can(PERMISSIONS.EMAIL_DISCONNECT)) && (
@@ -628,6 +662,8 @@ export default function CompanyConnections() {
                         connection.providerType === 'MICROSOFT'
                           ? () => void reconnectEmail(connection)
                           : connection.capabilities.includes('BROADCAST') &&
+                              broadcastSenderFor(connection.id)?.managementMode !==
+                                'MESSAGING_MANAGED' &&
                               can(PERMISSIONS.BROADCAST_MODIFY)
                             ? () => reconnectBroadcast(connection)
                             : undefined
@@ -820,6 +856,11 @@ export default function CompanyConnections() {
             setBroadcastEmailPickerOpen(false)
             void loadBroadcastSetup()
           }}
+          onManagedEmail={() => {
+            setBroadcastEmailPickerOpen(false)
+            setManagedEmailDomainId(null)
+            setManagedEmailOpen(true)
+          }}
           onSelect={(provider: BroadcastEmailProviderChoice) => {
             setBroadcastEmailPickerOpen(false)
             if (provider === 'AMAZON_SES') {
@@ -831,6 +872,21 @@ export default function CompanyConnections() {
             } else {
               setMsg91EmailConnectOpen(true)
             }
+          }}
+        />
+      )}
+
+      {managedEmailOpen && selectedCompany && (
+        <ManagedEmailModal
+          companyId={selectedCompany.companyId}
+          initialDomainId={managedEmailDomainId}
+          onClose={() => {
+            setManagedEmailOpen(false)
+            setManagedEmailDomainId(null)
+          }}
+          onChanged={() => {
+            setManagedEmailRefreshToken((current) => current + 1)
+            void loadConnections()
           }}
         />
       )}
