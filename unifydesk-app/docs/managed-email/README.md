@@ -1,46 +1,78 @@
 # UnifyDesk Managed Email
 
-This folder is the coordination and architecture workspace for the UnifyDesk-managed email broadcast initiative.
+This folder is the architecture and coordination workspace for UnifyDesk Managed Email.
 
 ## Product goal
 
-UnifyDesk already supports customer-managed broadcast providers such as Amazon SES, SendGrid, Azure Email and MSG91. Managed Email adds a zero-infrastructure path for customers who do not want to understand or operate those providers.
+UnifyDesk already supports customer-managed Amazon SES, SendGrid, Azure Email and MSG91 Broadcast providers. Managed Email adds a zero-provider-knowledge path where UnifyDesk owns the sending infrastructure.
 
-Two onboarding paths must be supported:
+Two onboarding paths are supported:
 
-1. **Customer-owned domain**
-   - Customer enters a domain they control.
-   - UnifyDesk provisions the required Amazon SES resources in the UnifyDesk AWS account.
-   - UnifyDesk returns the DNS records the customer must add.
-   - UnifyDesk verifies the records and activates one or more sender addresses such as `sales@example.com`.
+1. Customer-owned domain — customer enters a domain, UnifyDesk provisions its managed email resources, returns only the DNS records the customer must publish, verifies them, then allows addresses such as sales@example.com.
+2. UnifyDesk-hosted subdomain — UnifyDesk allocates a safe immutable domain such as abc-technologies-k7m4q2.unifydesk.in, manages DNS and email authentication automatically, then allows approved sender addresses under it.
 
-2. **UnifyDesk-hosted subdomain**
-   - Customer does not own a domain.
-   - UnifyDesk allocates a safe unique subdomain such as `xyz.unifydesk.in`.
-   - UnifyDesk owns the DNS and SES setup.
-   - The customer chooses an approved local-part such as `offers@xyz.unifydesk.in`.
-   - The customer never receives AWS credentials.
+Managed Email reuses the existing Broadcast execution engine and BroadcastSenderManagementMode.MESSAGING_MANAGED. It does not create a second campaign, recipient, outbox, batching, Kafka, retry or statistics engine.
 
-The existing Broadcast engine remains authoritative. Managed Email must extend the current `BroadcastSenderConnection -> BroadcastSender -> BroadcastEmailTransport` model and use `BroadcastSenderManagementMode.MESSAGING_MANAGED`; it must not create a second broadcast engine.
-
-## Team
+## Team and workflow
 
 Five chats work as one team:
 
 - Lead / Architect
-- Backend A — Managed Email Control Plane
-- Backend B — Managed Email Delivery & Events
-- Frontend
+- Backend A / B1 — Control Plane
+- Backend B / B2 — Delivery, Events & Metering
+- Frontend / F1
 - Security & QA
 
-Read `TEAM_WORKFLOW.md` before starting any implementation.
+Read TEAM_WORKFLOW.md before implementation. Role-specific chat prompts remain in this folder and are subordinate to the frozen architecture/contracts in TASKS.md.
 
-## Shared documents
+## Frozen architecture documents
 
-- `ARCHITECTURE.md` — owned by Lead.
-- `TASKS.md` — owned by Lead; source of implementation scope.
-- `DECISIONS.md` — architecture decision log, owned by Lead.
-- `INTEGRATION_STATUS.md` — merge/integration state, owned by Lead.
-- `SECURITY_QA_FEEDBACK.md` — owned by Security & QA during review rounds.
+- ARCHITECTURE.md — complete production architecture and lifecycle.
+- RESEARCH-AWS-SES.md — current official SES research and source links.
+- DECISIONS.md — accepted architecture decisions.
+- DATA-MODEL.md — relational model, states, constraints and migration boundaries.
+- API-CONTRACT.md — frozen customer/backend contract for parallel work.
+- SECURITY.md — threat model, IAM/event trust, tenant isolation and abuse controls.
+- QA-SEC-PLAN.md — post-integration review plan.
+- TASKS.md — exact Round-1 ownership and forbidden-file boundaries.
+- INTEGRATION_STATUS.md — round/branch/PR status.
+- SECURITY_QA_FEEDBACK.md — QA/SEC findings in the review round.
 
-Role-specific prompts are stored in this folder so each chat can be started with the exact same operating rules.
+## Existing architecture reused
+
+The current repo already contains the important seams:
+
+- BroadcastSenderConnection
+- BroadcastSender
+- BroadcastSenderManagementMode.CUSTOMER_MANAGED
+- BroadcastSenderManagementMode.MESSAGING_MANAGED
+- BroadcastEmailTransport / Registry
+- AmazonSesBroadcastEmailTransport
+- BroadcastLaunchService
+- BroadcastDeliveryService
+- Broadcast outbox/Kafka/batches/recipients/retries
+- BroadcastRateLimiter
+- BroadcastSuppression
+- BroadcastStats
+- ChannelConnection / SenderIdentity
+- CompanyAuthorizationService
+- EntitlementService
+
+## Non-negotiable release principles
+
+1. Managed senders require the company, managed tenant, connection, domain and sender to all be eligible.
+2. Every company-scoped lookup includes company ownership. Raw IDs are never authorization.
+3. Customers never receive UnifyDesk AWS credentials or SES tenant/configuration-set internals.
+4. Managed From addresses are constructed server-side under an ACTIVE verified domain.
+5. Provider acceptance is the technical billing boundary; later bounce/complaint does not undo an accepted send.
+6. Application suppression is checked before provider submission; SES tenant suppression is defense-in-depth for bounce/complaint.
+7. One abusive tenant must be containable before it threatens the shared account.
+8. External provisioning is idempotent/retryable and no long DB transaction wraps SES/DNS calls.
+9. Hosted subdomain reservations are immutable and never reused.
+10. Round-1 workers obey exact ownership in TASKS.md.
+
+## Shared prerequisite
+
+SES Tenant Management launched after the repository's former AWS SDK line. The Lead architecture branch updates the AWS SDK dependency before worker branching so B1 tenant APIs and B2 tenant-qualified SendEmail use the same SDK surface.
+
+Implementation starts only after this Lead architecture branch is merged into dev, per TEAM_WORKFLOW.md.

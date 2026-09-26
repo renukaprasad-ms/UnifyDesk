@@ -30,7 +30,7 @@
 		<java.version>25</java.version>
 		<jjwt.version>0.13.0</jjwt.version>
 		<lombok.version>1.18.42</lombok.version>
-		<aws.sdk.version>2.31.77</aws.sdk.version>
+		<aws.sdk.version>2.54.17</aws.sdk.version>
 		<azure.communication.email.version>1.1.4</azure.communication.email.version>
 	</properties>
 	<dependencies>
