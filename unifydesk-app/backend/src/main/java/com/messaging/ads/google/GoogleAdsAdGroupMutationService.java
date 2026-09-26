@@ -50,10 +50,17 @@ public class GoogleAdsAdGroupMutationService {
     if ("SHOPPING".equalsIgnoreCase(campaign.getObjective())) {
       create.put("type", "SHOPPING_PRODUCT_ADS");
     }
-    if ("DEMAND_GEN".equalsIgnoreCase(campaign.getObjective())
-        && request.cpcBidMinor() != null) {
-      throw new BadRequestException(
-          "Demand Gen uses campaign-level automated bidding; do not set an ad-group CPC bid");
+    if ("DEMAND_GEN".equalsIgnoreCase(campaign.getObjective())) {
+      if (request.cpcBidMinor() != null) {
+        throw new BadRequestException(
+            "Demand Gen uses campaign-level automated bidding; do not set an ad-group CPC bid");
+      }
+      create.put("audienceSetting", Map.of("useAudienceGrouped", true));
+      create.put(
+          "demandGenAdGroupSettings",
+          Map.of(
+              "channelControls",
+              Map.of("channelStrategy", "ALL_CHANNELS")));
     }
     if (request.cpcBidMinor() != null) {
       create.put(
