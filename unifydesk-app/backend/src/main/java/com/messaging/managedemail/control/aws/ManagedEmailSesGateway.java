@@ -27,6 +27,25 @@ public interface ManagedEmailSesGateway {
       Boolean accountSendingEnabled,
       Boolean productionAccessEnabled,
       Instant providerObservedAt) {
+    public TenantSnapshot(
+        String sendingStatus,
+        String reputationStatus,
+        Double maxSendRate,
+        Double max24HourSend,
+        Double sentLast24Hours,
+        Boolean accountSendingEnabled,
+        Boolean productionAccessEnabled) {
+      this(
+          sendingStatus,
+          reputationStatus,
+          maxSendRate,
+          max24HourSend,
+          sentLast24Hours,
+          accountSendingEnabled,
+          productionAccessEnabled,
+          null);
+    }
+
     public TenantSnapshot(String sendingStatus, String reputationStatus) {
       this(sendingStatus, reputationStatus, null, null, null, null, null, null);
     }
