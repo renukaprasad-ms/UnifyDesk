@@ -21,7 +21,7 @@ export const broadcastSenderProviderLabel = (
   if (provider === 'SENDGRID') return 'SendGrid'
   if (provider === 'MSG91_EMAIL') return 'MSG91 Email'
   if (provider === 'MSG91_SMS') return 'MSG91 SMS'
-  return provider.replaceAll('_', ' ')
+  return String(provider).replaceAll('_', ' ')
 }
 
 export const broadcastSenderConnectionDetails = (
