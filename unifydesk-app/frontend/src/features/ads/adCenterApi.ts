@@ -195,10 +195,11 @@ export const adCenterApi = {
     assetId: string,
     level: GoogleAssetLinkLevel,
     targetId?: string | null,
+    fieldType?: string | null,
   ) {
     const response = await apiClient.post<ApiResponse<GoogleReusableAssetLink>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/reusable-assets/${assetId}/links`,
-      { level, targetId: targetId ?? null },
+      { level, targetId: targetId ?? null, fieldType: fieldType ?? null },
     )
     return unwrap(response.data)
   },
@@ -209,10 +210,11 @@ export const adCenterApi = {
     assetId: string,
     level: GoogleAssetLinkLevel,
     targetId?: string | null,
+    fieldType?: string | null,
   ) {
     const response = await apiClient.post<ApiResponse<boolean>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/reusable-assets/${assetId}/links:detach`,
-      { level, targetId: targetId ?? null },
+      { level, targetId: targetId ?? null, fieldType: fieldType ?? null },
     )
     return unwrap(response.data)
   },
