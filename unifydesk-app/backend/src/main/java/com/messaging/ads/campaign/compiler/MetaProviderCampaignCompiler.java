@@ -54,6 +54,7 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
 
     validateCreative(context, issues);
     validatePlacements(context, required, issues);
+    validateAdvantageAudience(context, required, issues);
 
     AudienceMappingStatus audienceMappingStatus = null;
     String audienceMappingNote = null;
@@ -158,6 +159,34 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
         List.copyOf(operations));
   }
 
+  private void validateAdvantageAudience(
+      ProviderCampaignCompileContext context,
+      Set<AdFeatureCapability> required,
+      List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    boolean enabled = booleanValue(override, "advantageAudience", false);
+    boolean ageSuggestion = booleanValue(override, "advantageAgeSuggestion", false);
+    boolean genderSuggestion = booleanValue(override, "advantageGenderSuggestion", false);
+
+    if (!enabled && (ageSuggestion || genderSuggestion)) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "META_ADVANTAGE_AUDIENCE_INVALID",
+              "providerOverride.advantageAudience",
+              "Advantage+ age/gender suggestions require Advantage+ audience to be enabled."));
+      return;
+    }
+    if (!enabled) return;
+
+    ProviderCampaignPlanSupport.requireCapability(
+        context, AdFeatureCapability.META_ADVANTAGE_AUDIENCE, required, issues);
+    issues.add(
+        ProviderCampaignPlanSupport.warning(
+            "META_ADVANTAGE_AUDIENCE_EXPANSION",
+            "providerOverride.advantageAudience",
+            "Meta may expand beyond audience suggestions. Location and explicit exclusions remain controls; enabled age/gender settings are suggestions."));
+  }
+
   private void validatePlacements(
       ProviderCampaignCompileContext context,
       Set<AdFeatureCapability> required,
@@ -242,6 +271,19 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
       if (value.isTextual() && !value.asText().isBlank()) result.add(value.asText().trim().toLowerCase());
     });
     return result;
+  }
+
+  private boolean booleanValue(JsonNode node, String field, boolean defaultValue) {
+    JsonNode value = node.get(field);
+    if (value == null || value.isNull()) return defaultValue;
+    if (value.isBoolean()) return value.booleanValue();
+    if (value.isIntegralNumber()) return value.asInt() != 0;
+    if (value.isTextual()) {
+      String normalized = value.asText("").trim().toLowerCase();
+      if ("true".equals(normalized) || "1".equals(normalized)) return true;
+      if ("false".equals(normalized) || "0".equals(normalized)) return false;
+    }
+    return defaultValue;
   }
 
   private boolean containsAny(List<String> values, String... expected) {
