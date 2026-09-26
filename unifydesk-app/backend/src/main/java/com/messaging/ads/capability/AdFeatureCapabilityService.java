@@ -308,7 +308,11 @@ public class AdFeatureCapabilityService {
     add(specs, AdFeatureCapability.META_BILLING_SPEND_CAP_WRITE, true, META_ADS_SCOPE);
 
     planned(specs, AdFeatureCapability.META_DETAILED_TARGETING);
-    planned(specs, AdFeatureCapability.META_CUSTOM_AUDIENCE_CUSTOMER_LIST);
+    add(
+        specs,
+        AdFeatureCapability.META_CUSTOM_AUDIENCE_CUSTOMER_LIST,
+        true,
+        META_ADS_SCOPE);
     planned(specs, AdFeatureCapability.META_ADVANTAGE_AUDIENCE);
     add(specs, AdFeatureCapability.META_PLACEMENT_TREE, true, META_ADS_SCOPE);
     planned(specs, AdFeatureCapability.META_ADVANTAGE_PLACEMENTS);
