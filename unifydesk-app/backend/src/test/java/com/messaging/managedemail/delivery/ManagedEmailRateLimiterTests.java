@@ -8,6 +8,7 @@ import com.messaging.billing.service.EntitlementService;
 import com.messaging.managedemail.reputation.ManagedEmailReputationService;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeProperties;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -76,8 +77,29 @@ class ManagedEmailRateLimiterTests {
 
   private ManagedEmailRuntimeRepository.ManagedSenderRuntime runtime(Long companyId) {
     return new ManagedEmailRuntimeRepository.ManagedSenderRuntime(
-        companyId, 20L, 30L, 50L, 40L, "ACTIVE", "ACTIVE", "MESSAGING_MANAGED", true,
-        "ACTIVE", "ENABLED", "HEALTHY", "ESTABLISHED", "ACTIVE", "example.test",
-        "us-east-1", "tenant", "cfg", 25.0, 10000.0);
+        companyId,
+        20L,
+        30L,
+        50L,
+        40L,
+        "offers@example.test",
+        "ACTIVE",
+        "ACTIVE",
+        "MESSAGING_MANAGED",
+        true,
+        true,
+        "ACTIVE",
+        "ENABLED",
+        "HEALTHY",
+        "ESTABLISHED",
+        "ACTIVE",
+        "example.test",
+        "us-east-1",
+        "tenant",
+        "cfg",
+        25.0,
+        10000.0,
+        100.0,
+        Instant.now());
   }
 }

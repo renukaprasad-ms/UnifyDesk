@@ -16,6 +16,8 @@ public class ManagedEmailDeliveryGuard {
 
   private final ManagedEmailRuntimeRepository runtimeRepository;
   private final ManagedEmailRuntimeProperties properties;
+  private final ManagedEmailAddressPolicy addressPolicy;
+  private final ManagedEmailProviderBudgetService providerBudgetService;
 
   public Optional<ManagedEmailRuntimeRepository.ManagedSenderRuntime> eligible(
       BroadcastRun run,
@@ -34,6 +36,11 @@ public class ManagedEmailDeliveryGuard {
         .filter(runtime -> runtime.connectionId().equals(connection.getId()))
         .filter(runtime -> runtime.senderId().equals(run.getSenderId()))
         .filter(runtime -> runtime.senderId().equals(recipient.getSenderId()))
+        .filter(
+            runtime ->
+                addressPolicy.matchesBoundDomain(
+                    runtime.senderFromAddress(), runtime.normalizedDomain()))
+        .filter(providerBudgetService::hasUsableProviderSnapshot)
         .filter(runtime -> properties.getRegion().equals(runtime.region()));
   }
 }

@@ -28,6 +28,7 @@ public class ManagedEmailRuntimeProperties {
   private long establishedHourlyCap = 0;
   private long establishedDailyCap = 0;
   private long campaignSizeCap = 0;
+  private int providerSnapshotMaxAgeSeconds = 300;
 
   private int snsReplayWindowSeconds = 300;
   private int webhookMaxBytes = 262144;

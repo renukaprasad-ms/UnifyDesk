@@ -2,6 +2,7 @@ package com.messaging.managedemail.runtime;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -20,9 +21,11 @@ public class JdbcManagedEmailRuntimeRepository implements ManagedEmailRuntimeRep
              c.id as connection_id,
              b.tenant_id,
              b.domain_id,
+             s.from_address as sender_from_address,
              s.status as sender_status,
              c.status as connection_status,
              c.management_mode,
+             c.production_access_enabled,
              c.sending_enabled as connection_sending_enabled,
              t.status as tenant_status,
              t.sending_status as tenant_sending_status,
@@ -34,16 +37,20 @@ public class JdbcManagedEmailRuntimeRepository implements ManagedEmailRuntimeRep
              t.provider_tenant_name,
              t.provider_configuration_set_name,
              c.max_send_rate,
-             c.max_24h_send
+             c.max_24h_send,
+             c.sent_last_24h,
+             c.last_validated_at
         from broadcast_senders s
         join broadcast_sender_connections c
           on c.id = s.connection_id
+         and c.company_id = s.company_id
         join managed_email_sender_bindings b
           on b.sender_id = s.id
          and b.company_id = s.company_id
         join managed_email_domains d
           on d.id = b.domain_id
          and d.company_id = b.company_id
+         and d.tenant_id = b.tenant_id
         join managed_email_tenants t
           on t.id = b.tenant_id
          and t.company_id = b.company_id
@@ -65,9 +72,11 @@ public class JdbcManagedEmailRuntimeRepository implements ManagedEmailRuntimeRep
              r.normalized_destination,
              r.provider_message_id,
              r.provider_correlation_id,
+             s.from_address as sender_from_address,
              s.status as sender_status,
              c.status as connection_status,
              c.management_mode,
+             c.production_access_enabled,
              c.sending_enabled as connection_sending_enabled,
              t.status as tenant_status,
              t.sending_status as tenant_sending_status,
@@ -79,7 +88,9 @@ public class JdbcManagedEmailRuntimeRepository implements ManagedEmailRuntimeRep
              t.provider_tenant_name,
              t.provider_configuration_set_name,
              c.max_send_rate,
-             c.max_24h_send
+             c.max_24h_send,
+             c.sent_last_24h,
+             c.last_validated_at
         from broadcast_recipients r
         join broadcast_runs run
           on run.id = r.run_id
@@ -97,6 +108,7 @@ public class JdbcManagedEmailRuntimeRepository implements ManagedEmailRuntimeRep
         join managed_email_domains d
           on d.id = b.domain_id
          and d.company_id = r.company_id
+         and d.tenant_id = b.tenant_id
         join managed_email_tenants t
           on t.id = b.tenant_id
          and t.company_id = r.company_id
@@ -182,62 +194,75 @@ public class JdbcManagedEmailRuntimeRepository implements ManagedEmailRuntimeRep
         companyId);
   }
 
-  private ManagedSenderRuntime senderRuntime(ResultSet resultSet) throws SQLException {
+  private ManagedSenderRuntime senderRuntime(ResultSet rs) throws SQLException {
     return new ManagedSenderRuntime(
-        resultSet.getLong("company_id"),
-        resultSet.getLong("sender_id"),
-        resultSet.getLong("connection_id"),
-        resultSet.getLong("tenant_id"),
-        resultSet.getLong("domain_id"),
-        resultSet.getString("sender_status"),
-        resultSet.getString("connection_status"),
-        resultSet.getString("management_mode"),
-        resultSet.getBoolean("connection_sending_enabled"),
-        resultSet.getString("tenant_status"),
-        resultSet.getString("tenant_sending_status"),
-        resultSet.getString("tenant_reputation_status"),
-        resultSet.getString("ramp_stage"),
-        resultSet.getString("domain_status"),
-        resultSet.getString("normalized_domain"),
-        resultSet.getString("region"),
-        resultSet.getString("provider_tenant_name"),
-        resultSet.getString("provider_configuration_set_name"),
-        nullableDouble(resultSet, "max_send_rate"),
-        nullableDouble(resultSet, "max_24h_send"));
+        rs.getLong("company_id"),
+        rs.getLong("sender_id"),
+        rs.getLong("connection_id"),
+        rs.getLong("tenant_id"),
+        rs.getLong("domain_id"),
+        rs.getString("sender_from_address"),
+        rs.getString("sender_status"),
+        rs.getString("connection_status"),
+        rs.getString("management_mode"),
+        rs.getBoolean("production_access_enabled"),
+        rs.getBoolean("connection_sending_enabled"),
+        rs.getString("tenant_status"),
+        rs.getString("tenant_sending_status"),
+        rs.getString("tenant_reputation_status"),
+        rs.getString("ramp_stage"),
+        rs.getString("domain_status"),
+        rs.getString("normalized_domain"),
+        rs.getString("region"),
+        rs.getString("provider_tenant_name"),
+        rs.getString("provider_configuration_set_name"),
+        nullableDouble(rs, "max_send_rate"),
+        nullableDouble(rs, "max_24h_send"),
+        nullableDouble(rs, "sent_last_24h"),
+        nullableInstant(rs, "last_validated_at"));
   }
 
-  private ManagedRecipientRuntime recipientRuntime(ResultSet resultSet) throws SQLException {
+  private ManagedRecipientRuntime recipientRuntime(ResultSet rs) throws SQLException {
     return new ManagedRecipientRuntime(
-        resultSet.getLong("recipient_id"),
-        resultSet.getLong("company_id"),
-        resultSet.getLong("run_id"),
-        resultSet.getLong("sender_id"),
-        resultSet.getLong("connection_id"),
-        resultSet.getLong("tenant_id"),
-        resultSet.getLong("domain_id"),
-        resultSet.getString("recipient_status"),
-        resultSet.getString("normalized_destination"),
-        resultSet.getString("provider_message_id"),
-        resultSet.getString("provider_correlation_id"),
-        resultSet.getString("sender_status"),
-        resultSet.getString("connection_status"),
-        resultSet.getString("management_mode"),
-        resultSet.getBoolean("connection_sending_enabled"),
-        resultSet.getString("tenant_status"),
-        resultSet.getString("tenant_sending_status"),
-        resultSet.getString("tenant_reputation_status"),
-        resultSet.getString("ramp_stage"),
-        resultSet.getString("domain_status"),
-        resultSet.getString("normalized_domain"),
-        resultSet.getString("region"),
-        resultSet.getString("provider_tenant_name"),
-        resultSet.getString("provider_configuration_set_name"),
-        nullableDouble(resultSet, "max_send_rate"),
-        nullableDouble(resultSet, "max_24h_send"));
+        rs.getLong("recipient_id"),
+        rs.getLong("company_id"),
+        rs.getLong("run_id"),
+        rs.getLong("sender_id"),
+        rs.getLong("connection_id"),
+        rs.getLong("tenant_id"),
+        rs.getLong("domain_id"),
+        rs.getString("recipient_status"),
+        rs.getString("normalized_destination"),
+        rs.getString("provider_message_id"),
+        rs.getString("provider_correlation_id"),
+        rs.getString("sender_from_address"),
+        rs.getString("sender_status"),
+        rs.getString("connection_status"),
+        rs.getString("management_mode"),
+        rs.getBoolean("production_access_enabled"),
+        rs.getBoolean("connection_sending_enabled"),
+        rs.getString("tenant_status"),
+        rs.getString("tenant_sending_status"),
+        rs.getString("tenant_reputation_status"),
+        rs.getString("ramp_stage"),
+        rs.getString("domain_status"),
+        rs.getString("normalized_domain"),
+        rs.getString("region"),
+        rs.getString("provider_tenant_name"),
+        rs.getString("provider_configuration_set_name"),
+        nullableDouble(rs, "max_send_rate"),
+        nullableDouble(rs, "max_24h_send"),
+        nullableDouble(rs, "sent_last_24h"),
+        nullableInstant(rs, "last_validated_at"));
   }
 
   private Double nullableDouble(ResultSet resultSet, String column) throws SQLException {
     double value = resultSet.getDouble(column);
     return resultSet.wasNull() ? null : value;
+  }
+
+  private Instant nullableInstant(ResultSet resultSet, String column) throws SQLException {
+    java.sql.Timestamp value = resultSet.getTimestamp(column);
+    return value == null ? null : value.toInstant();
   }
 }

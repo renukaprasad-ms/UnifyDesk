@@ -29,11 +29,12 @@ public class ManagedEmailProviderSuppressionService {
                   .build());
     } catch (RuntimeException exception) {
       log.warn(
-          "managed_email_provider_suppression_deferred companyId={} tenantId={} recipientId={} reason={}",
+          "managed_email_provider_suppression_retry_required companyId={} tenantId={} recipientId={} reason={}",
           runtime.companyId(),
           runtime.tenantId(),
           runtime.recipientId(),
           reason);
+      throw exception;
     }
   }
 }

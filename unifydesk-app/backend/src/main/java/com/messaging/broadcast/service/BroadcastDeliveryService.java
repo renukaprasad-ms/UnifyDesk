@@ -7,7 +7,9 @@ import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.broadcast.transport.*;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.managedemail.delivery.ManagedEmailDeliveryGuard;
+import com.messaging.managedemail.delivery.ManagedEmailProviderBudgetService;
 import com.messaging.managedemail.delivery.ManagedEmailRateLimiter;
+import com.messaging.managedemail.delivery.ManagedEmailSuppressionGate;
 import com.messaging.managedemail.events.ManagedEmailPostAcceptanceReconciler;
 import com.messaging.managedemail.metering.ManagedEmailUsageService;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
@@ -31,6 +33,8 @@ public class BroadcastDeliveryService {
   private final ManagedEmailRateLimiter managedEmailRateLimiter;
   private final ManagedEmailUsageService managedEmailUsageService;
   private final ManagedEmailPostAcceptanceReconciler managedEmailPostAcceptanceReconciler;
+  private final ManagedEmailSuppressionGate managedEmailSuppressionGate;
+  private final ManagedEmailProviderBudgetService managedEmailProviderBudgetService;
 
   public void deliver(
       BroadcastRun run,
@@ -151,6 +155,11 @@ public class BroadcastDeliveryService {
 
     if (hasValidationError(run, recipient, rendered)) return;
 
+    if (managedEmailSuppressionGate.skipIfSuppressed(
+        run.getCompanyId(), recipient.getId(), recipient.getNormalizedDestination())) {
+      return;
+    }
+
     if (!managedEmailRateLimiter.tryAcquire(runtime, run.getId())) {
       stateService.releaseForRateLimit(recipient.getId(), Instant.now().plusSeconds(1));
       return;
@@ -161,14 +170,22 @@ public class BroadcastDeliveryService {
     boolean usageReserved = false;
     try {
       try {
-        managedEmailUsageService.reserve(
-            run.getCompanyId(), recipient.getId(), run.getId(), attempt.attemptNo());
-        usageReserved = true;
+        usageReserved =
+            managedEmailProviderBudgetService.reserveForSend(
+                runtime, recipient.getId(), run.getId(), attempt.attemptNo());
       } catch (PlanEntitlementException exception) {
         stateService.retry(
             attempt,
             "MANAGED_EMAIL_MONTHLY_LIMIT_REACHED",
             "Managed Email monthly limit reached",
+            Instant.now().plusSeconds(60));
+        return;
+      }
+      if (!usageReserved) {
+        stateService.retry(
+            attempt,
+            "MANAGED_EMAIL_PROVIDER_UNAVAILABLE",
+            "UnifyDesk Managed Email provider capacity is temporarily unavailable",
             Instant.now().plusSeconds(60));
         return;
       }
@@ -193,7 +210,7 @@ public class BroadcastDeliveryService {
                       sender.getId(),
                       recipient.getId()));
       stateService.accepted(attempt, result);
-      if (usageReserved) safeCommit(run, recipient, attempt, result);
+      safeCommit(run, recipient, attempt, result);
       try {
         managedEmailPostAcceptanceReconciler.reconcile(recipient.getId());
       } catch (RuntimeException exception) {

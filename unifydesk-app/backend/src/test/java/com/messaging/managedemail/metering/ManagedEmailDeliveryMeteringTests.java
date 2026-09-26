@@ -12,7 +12,9 @@ import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.broadcast.service.*;
 import com.messaging.broadcast.transport.*;
 import com.messaging.managedemail.delivery.ManagedEmailDeliveryGuard;
+import com.messaging.managedemail.delivery.ManagedEmailProviderBudgetService;
 import com.messaging.managedemail.delivery.ManagedEmailRateLimiter;
+import com.messaging.managedemail.delivery.ManagedEmailSuppressionGate;
 import com.messaging.managedemail.events.ManagedEmailPostAcceptanceReconciler;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
 import java.time.Instant;
@@ -33,7 +35,7 @@ class ManagedEmailDeliveryMeteringTests {
     fixture.service.deliver(
         fixture.run, fixture.connection, fixture.sender, fixture.recipient);
 
-    verify(fixture.usage).reserve(10L, 70L, 60L, 1);
+    verify(fixture.budget).reserveForSend(fixture.runtime, 70L, 60L, 1);
     verify(fixture.usage, never()).release(anyLong(), anyLong(), anyLong(), anyInt());
     verify(fixture.usage, never())
         .commit(anyLong(), anyLong(), anyLong(), anyInt(), any());
@@ -50,7 +52,7 @@ class ManagedEmailDeliveryMeteringTests {
     fixture.service.deliver(
         fixture.run, fixture.connection, fixture.sender, fixture.recipient);
 
-    verify(fixture.usage).reserve(10L, 70L, 60L, 1);
+    verify(fixture.budget).reserveForSend(fixture.runtime, 70L, 60L, 1);
     verify(fixture.usage).release(10L, 70L, 60L, 1);
     verify(fixture.state).failed(any(), eq("REJECTED"), eq("rejected"));
   }
@@ -66,9 +68,23 @@ class ManagedEmailDeliveryMeteringTests {
     fixture.service.deliver(
         fixture.run, fixture.connection, fixture.sender, fixture.recipient);
 
-    verify(fixture.usage).reserve(10L, 70L, 60L, 1);
+    verify(fixture.budget).reserveForSend(fixture.runtime, 70L, 60L, 1);
     verify(fixture.usage).commit(10L, 70L, 60L, 1, "provider-1");
     verify(fixture.usage, never()).release(anyLong(), anyLong(), anyLong(), anyInt());
+  }
+
+  @Test
+  void suppressionAddedAfterSnapshotStopsBeforeRateUsageAndProvider() {
+    Fixture fixture = fixture();
+    when(fixture.suppressionGate.skipIfSuppressed(
+            10L, 70L, "recipient@example.test"))
+        .thenReturn(true);
+
+    fixture.service.deliver(
+        fixture.run, fixture.connection, fixture.sender, fixture.recipient);
+
+    verifyNoInteractions(fixture.managedRate, fixture.budget, fixture.transport, fixture.usage);
+    verify(fixture.state, never()).begin(anyLong(), any());
   }
 
   private Fixture fixture() {
@@ -81,7 +97,10 @@ class ManagedEmailDeliveryMeteringTests {
     ManagedEmailDeliveryGuard guard = mock(ManagedEmailDeliveryGuard.class);
     ManagedEmailRateLimiter managedRate = mock(ManagedEmailRateLimiter.class);
     ManagedEmailUsageService usage = mock(ManagedEmailUsageService.class);
-    ManagedEmailPostAcceptanceReconciler reconciler = mock(ManagedEmailPostAcceptanceReconciler.class);
+    ManagedEmailPostAcceptanceReconciler reconciler =
+        mock(ManagedEmailPostAcceptanceReconciler.class);
+    ManagedEmailSuppressionGate suppressionGate = mock(ManagedEmailSuppressionGate.class);
+    ManagedEmailProviderBudgetService budget = mock(ManagedEmailProviderBudgetService.class);
     BroadcastEmailTransport transport = mock(BroadcastEmailTransport.class);
 
     BroadcastRun run = new BroadcastRun();
@@ -106,15 +125,42 @@ class ManagedEmailDeliveryMeteringTests {
     recipient.setCompanyId(10L);
     recipient.setSenderId(20L);
     recipient.setDestination("recipient@example.test");
+    recipient.setNormalizedDestination("recipient@example.test");
     recipient.setProviderCorrelationId("corr-70");
 
     ManagedEmailRuntimeRepository.ManagedSenderRuntime runtime =
         new ManagedEmailRuntimeRepository.ManagedSenderRuntime(
-            10L, 20L, 30L, 50L, 40L, "ACTIVE", "ACTIVE", "MESSAGING_MANAGED", true,
-            "ACTIVE", "ENABLED", "HEALTHY", "ESTABLISHED", "ACTIVE", "example.test",
-            "us-east-1", "tenant-10", "cfg-10", 20.0, 10000.0);
+            10L,
+            20L,
+            30L,
+            50L,
+            40L,
+            "offers@example.test",
+            "ACTIVE",
+            "ACTIVE",
+            "MESSAGING_MANAGED",
+            true,
+            true,
+            "ACTIVE",
+            "ENABLED",
+            "HEALTHY",
+            "ESTABLISHED",
+            "ACTIVE",
+            "example.test",
+            "us-east-1",
+            "tenant-10",
+            "cfg-10",
+            20.0,
+            10000.0,
+            100.0,
+            Instant.now());
+
     when(guard.eligible(run, connection, sender, recipient)).thenReturn(Optional.of(runtime));
+    when(suppressionGate.skipIfSuppressed(
+            10L, 70L, "recipient@example.test"))
+        .thenReturn(false);
     when(managedRate.tryAcquire(runtime, 60L)).thenReturn(true);
+    when(budget.reserveForSend(runtime, 70L, 60L, 1)).thenReturn(true);
     when(renderer.render(any(), any(), any(), any(), eq(recipient), any()))
         .thenReturn(
             new BroadcastTemplateRenderer.RenderedContent(
@@ -135,15 +181,33 @@ class ManagedEmailDeliveryMeteringTests {
             guard,
             managedRate,
             usage,
-            reconciler);
-    return new Fixture(service, state, usage, transport, run, connection, sender, recipient);
+            reconciler,
+            suppressionGate,
+            budget);
+    return new Fixture(
+        service,
+        state,
+        usage,
+        managedRate,
+        budget,
+        suppressionGate,
+        transport,
+        runtime,
+        run,
+        connection,
+        sender,
+        recipient);
   }
 
   private record Fixture(
       BroadcastDeliveryService service,
       BroadcastDeliveryStateService state,
       ManagedEmailUsageService usage,
+      ManagedEmailRateLimiter managedRate,
+      ManagedEmailProviderBudgetService budget,
+      ManagedEmailSuppressionGate suppressionGate,
       BroadcastEmailTransport transport,
+      ManagedEmailRuntimeRepository.ManagedSenderRuntime runtime,
       BroadcastRun run,
       BroadcastSenderConnection connection,
       BroadcastSender sender,
