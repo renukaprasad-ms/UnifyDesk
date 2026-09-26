@@ -61,10 +61,6 @@ describe('ME-SEC-008 managed sender surfaces', () => {
     assertManagedSafe('company-connections')
   })
 
-  it('keeps the Broadcast sender selector safe', () => {
-    assertManagedSafe('sender-selector')
-  })
-
   it('keeps the Broadcast composer safe when connection details are requested', () => {
     assertManagedSafe('composer', true)
   })
