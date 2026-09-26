@@ -1131,25 +1131,44 @@ Reference:
 
 ## G-09 Demand Gen completeness - P1
 
-Current creative coverage is good, but targeting/control coverage is incomplete.
+Status: **complete for C7 — current API-supported Demand Gen targeting/control coverage implemented**.
 
-Add:
+Implemented in C7:
 
-- location controls
-- languages
-- audience configuration
-- device/OS/network controls where exposed
-- channel/inventory controls where exposed
-- placement/channel reporting
-- conversion goal selection
-- total budget support where API permits
-- exclusions
+- [x] Demand Gen ad-group channel controls using current `demand_gen_ad_group_settings.channel_controls`
+- [x] `ALL_CHANNELS` strategy
+- [x] `ALL_OWNED_AND_OPERATED_CHANNELS` strategy
+- [x] individual YouTube In-Feed / In-Stream / Shorts, Discover, Gmail, Display, and Maps controls
+- [x] new Demand Gen ad groups default to `ALL_CHANNELS`
+- [x] new Demand Gen ad groups are created with immutable `audience_setting.use_audience_grouped = true`
+- [x] legacy ad-group remediation when grouped Audience targeting was not enabled at creation
+- [x] ad-group country / region / city / postal-code location targeting
+- [x] negative location exclusions
+- [x] ad-group language targeting by language code or name
+- [x] reusable Google `Audience` resource discovery and positive Audience criteria
+- [x] provider read-back of channel controls, location/language criteria and Audience criteria
+- [x] preservation of provider-side geo/language resource targets until the user explicitly removes them
+- [x] Demand Gen total-budget creation using `CampaignBudget.period = CUSTOM_PERIOD` and `total_amount_micros`
+- [x] total-budget validation requiring campaign start and end dates
+- [x] existing unified Google conversion-goal mapping from B6 remains the Demand Gen conversion-goal selection path
+- [x] 30-day channel-performance drill-down using `segments.ad_network_type` with impressions, clicks, spend, conversions and conversion value
+- [x] responsive ad-group targeting/channel UI, RBAC, audit logging, loading/empty/error states
+- [x] backend regression coverage for channel controls, immutable Audience behavior, creation defaults and total-budget payloads
 
-Always capability-check against current Google API version.
+Provider boundaries intentionally respected:
+
+- Demand Gen does not expose Search-style network toggles; current channel controls are used instead.
+- Device / OS controls are not exposed as invented standalone C7 settings when the current Demand Gen API does not document an equivalent supported mutation surface.
+- Google Audience criteria are positive-only; audience-level exclusions belong inside the reusable `Audience` dimensions rather than a negative Audience criterion.
+- C7 location editing supports Google geo targets (country/region/city/postal). Proximity/radius targeting is not exposed in this Demand Gen editor because it is not part of the verified C7 flow.
+- Existing creative support (Video, Multi-Asset, Carousel) remains unchanged and is reused by this targeting layer.
 
 Reference:
 
 - https://developers.google.com/google-ads/api/docs/campaigns/demand-gen/overview
+- https://developers.google.com/google-ads/api/docs/campaigns/demand-gen/channel-controls
+- https://developers.google.com/google-ads/api/docs/campaigns/demand-gen/audiences
+- https://developers.google.com/google-ads/api/docs/campaigns/demand-gen/budgets
 
 ## G-10 App campaigns - P1/P2
 
@@ -2095,7 +2114,7 @@ C3. [x] forecasts — v25 planless keyword forecast API, date horizon, match typ
 C4. [x] reusable Google campaign assets/extensions — Sitelink/Callout/Structured Snippet/Call/Price/Promotion/Lead Form plus AD_IMAGE, Business Name and Business Logo; raw TEXT/IMAGE assets use role-aware semantic linkage, correct scope eligibility, URL options, audit/RBAC, responsive UI and regression coverage  
 C5. [x] PMax URL/automation updates — current asset automation settings, Final URL Expansion dependency, enhanced video/image controls, approved automated video crawl sources, URL exclusions, v25.2 Asset Group URL options, RBAC/audit/UI/tests  
 C6. [x] Google AI asset generation where eligible — v25 closed-beta capability gating, text/image generation from landing page/prompt/keywords, review-first editable drafts, temporary image previews, audit/RBAC/UI/tests, no automatic publishing  
-C7. Demand Gen targeting completeness  
+C7. [x] Demand Gen targeting completeness — ad-group geo/language targeting and exclusions, reusable Audience resources with immutable grouped-audience handling, current channel strategy/individual inventory controls, total campaign budget support, channel-performance reporting, RBAC/audit/UI/tests; unsupported device/OS/network controls are not fabricated  
 C8. App campaigns  
 C9. richer provider reporting
 
