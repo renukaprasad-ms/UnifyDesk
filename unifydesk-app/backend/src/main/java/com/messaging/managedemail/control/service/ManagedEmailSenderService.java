@@ -107,9 +107,9 @@ public class ManagedEmailSenderService {
     identity.setExternalId(savedSender.getId().toString());
     identity.setStatus(SenderIdentityStatus.ACTIVE);
     identity.setDefaultIdentity(
-        senderIdentityRepository.countByConnectionCompanyIdAndIdentityType(
-                companyId, SenderIdentityType.EMAIL_ADDRESS)
-            == 0);
+        senderIdentityRepository
+            .findFirstByConnectionIdAndDefaultIdentityTrue(connection.getChannelConnectionId())
+            .isEmpty());
     senderIdentityRepository.save(identity);
 
     ManagedEmailSenderBinding binding = new ManagedEmailSenderBinding();
