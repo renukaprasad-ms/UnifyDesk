@@ -101,7 +101,11 @@ public class ManagedEmailAdminContainmentService {
           connectionRepository
               .findByIdAndCompanyId(tenant.getBroadcastConnectionId(), tenant.getCompanyId())
               .orElse(null);
-      if (connection != null) return connection;
+      if (connection != null
+          && connection.getProvider() == BroadcastSenderProvider.AMAZON_SES
+          && connection.getManagementMode() == BroadcastSenderManagementMode.MESSAGING_MANAGED) {
+        return connection;
+      }
     }
     return connectionRepository
         .findFirstByCompanyIdAndProviderAndManagementModeAndStatusNot(

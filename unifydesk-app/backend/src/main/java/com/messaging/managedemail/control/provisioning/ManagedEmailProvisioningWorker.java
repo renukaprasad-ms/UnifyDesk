@@ -314,7 +314,7 @@ public class ManagedEmailProvisioningWorker {
         });
   }
 
-  private void persistTenantProviderState(Long companyId, Long tenantId, TenantSnapshot snapshot) {
+  void persistTenantProviderState(Long companyId, Long tenantId, TenantSnapshot snapshot) {
     transactionTemplate.executeWithoutResult(
         status -> {
           ManagedEmailTenant tenant =
@@ -351,7 +351,11 @@ public class ManagedEmailProvisioningWorker {
                     .findByIdAndCompanyId(
                         tenant.getBroadcastConnectionId(), tenant.getCompanyId())
                     .orElse(null);
-            if (connection != null) {
+            if (connection != null
+                && connection.getProvider()
+                    == com.messaging.broadcast.enums.BroadcastSenderProvider.AMAZON_SES
+                && connection.getManagementMode()
+                    == com.messaging.broadcast.enums.BroadcastSenderManagementMode.MESSAGING_MANAGED) {
               boolean safeToSend =
                   properties.isEnabled()
                       && properties.isPlatformSendingEnabled()
