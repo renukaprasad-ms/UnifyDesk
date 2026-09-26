@@ -874,6 +874,80 @@ export type GoogleAppAssetPerformance = {
   clicks: number
 }
 
+export type GoogleProviderLandingPageRow = {
+  campaignId?: string | null
+  campaignName?: string | null
+  adGroupId?: string | null
+  adGroupName?: string | null
+  url: string
+  impressions: number
+  clicks: number
+  costMicros: number
+  conversions: number
+  conversionValue: number
+}
+
+export type GoogleProviderPlacementRow = {
+  campaignId?: string | null
+  campaignName?: string | null
+  adGroupId?: string | null
+  adGroupName?: string | null
+  placement: string
+  displayName?: string | null
+  placementType?: string | null
+  targetUrl?: string | null
+  adNetworkType?: string | null
+  impressions: number
+  clicks: number
+  costMicros: number
+  conversions: number
+  conversionValue: number
+}
+
+export type GoogleProviderAuctionInsightRow = {
+  campaignId?: string | null
+  campaignName?: string | null
+  domain: string
+  impressionShare?: number | null
+  overlapRate?: number | null
+  positionAboveRate?: number | null
+  topImpressionPercentage?: number | null
+  absoluteTopImpressionPercentage?: number | null
+  outrankingShare?: number | null
+}
+
+export type GoogleProviderConversionAttributionRow = {
+  campaignId?: string | null
+  campaignName?: string | null
+  conversionActionName: string
+  conversionActionCategory?: string | null
+  externalConversionSource?: string | null
+  conversions: number
+  conversionValue: number
+  allConversions: number
+  allConversionValue: number
+}
+
+export type GoogleProviderChangeEventRow = {
+  changeDateTime?: string | null
+  userEmail?: string | null
+  clientType?: string | null
+  resourceType?: string | null
+  operation?: string | null
+  changeResourceName?: string | null
+  changedFields: string[]
+  campaignResource?: string | null
+  adGroupResource?: string | null
+}
+
+export type GoogleProviderReport = {
+  landingPages: GoogleProviderLandingPageRow[]
+  placements: GoogleProviderPlacementRow[]
+  auctionInsights: GoogleProviderAuctionInsightRow[]
+  conversionAttribution: GoogleProviderConversionAttributionRow[]
+  changeEvents: GoogleProviderChangeEventRow[]
+}
+
 export type GoogleAppCampaignPerformance = {
   impressions: number
   clicks: number
