@@ -4,7 +4,7 @@
 **Review branch:** review/managed-email-security-qa-r1  
 **Frozen integrated base SHA:** 8708a51c53eb53a5cdca89a205deb7ba7a010bc7  
 **Review date:** 2026-09-26  
-**Current status:** ROUND_1_REVIEW_COMPLETE_WITH_RELEASE_BLOCKERS
+**Current status:** ROUND_3_CODE_REVIEW_COMPLETE_DYNAMIC_VALIDATION_PENDING
 
 ## Executive summary
 
@@ -117,9 +117,9 @@ This report does not convert those unexecuted checks into PASS claims.
 - **Suggested remediation direction:** Architecture Lead should approve a minimal syntax correction, then rerun spotless/check/test and clean test from the corrected integration SHA.
 - **Whether release-blocking:** yes
 - **Regression test required:** CI compile plus both requested Maven command lines on the final candidate.
-- **Lead disposition:** pending
-- **Round fixed:** pending
-- **Retest result:** pending
+- **Lead disposition:** accepted
+- **Round fixed:** Round 3
+- **Retest result:** CLOSED — the malformed Java expression is gone. `AmazonSesBroadcastEmailTransport` now sanitizes display-name quotes and all ISO control characters, falls back to a plain mailbox when the sanitized display name is blank/control-only, and formats the From header with `InternetAddress`. Focused tests cover quoted names, CR, LF, CRLF, blank names and valid mailbox parsing. GitHub Actions still executed zero steps, so Maven compilation is not independently proven by a runner; this infrastructure limitation is tracked separately and does not reopen the source defect.
 
 ## ME-SEC-002 — Runtime sender guard does not validate From address against the bound Managed Email domain
 
@@ -143,9 +143,9 @@ This report does not convert those unexecuted checks into PASS claims.
 - **Suggested remediation direction:** Add normalized sender From address to the runtime projection and reject unless a strict parsed email-domain comparison equals the bound normalized domain. Keep this check in the provider-submission path, not only sender creation.
 - **Whether release-blocking:** yes
 - **Regression test required:** Tamper persisted sender.from_address after valid setup and prove no SES SendEmail call occurs.
-- **Lead disposition:** pending
-- **Round fixed:** pending
-- **Retest result:** pending
+- **Lead disposition:** accepted
+- **Round fixed:** Round 3
+- **Retest result:** CLOSED — `ManagedEmailAddressPolicy` now validates the complete persisted plain mailbox, rejects outer whitespace, mailbox wrapper/display-name syntax, controls/whitespace, multiple @, invalid dot placement, repeated dots, invalid IDN/domain labels and quoted local-part syntax, then requires exact normalized bound-domain equality. `SesSendContextResolver` uses that persisted runtime value and focused tests verify all required malformed same-domain/foreign-domain vectors fail before the managed SES client is resolved; no fallback to caller-side `BroadcastSender.fromAddress` remains.
 
 ## ME-SEC-003 — Suppression can be bypassed after recipient snapshot creation
 
@@ -167,9 +167,9 @@ This report does not convert those unexecuted checks into PASS claims.
 - **Suggested remediation direction:** Re-check company + channel + normalized destination immediately before quota reservation/provider submission. Make the transition to SKIPPED idempotent and race-safe.
 - **Whether release-blocking:** yes
 - **Regression test required:** Snapshot recipient, add suppression, then run delivery and assert zero provider invocation and recipient becomes safely skipped/non-sendable.
-- **Lead disposition:** pending
-- **Round fixed:** pending
-- **Retest result:** pending
+- **Lead disposition:** accepted
+- **Round fixed:** Round 2; Round 3 regression retest
+- **Retest result:** CLOSED — no Round-3 regression found. The company-scoped suppression gate remains immediately before Managed Email rate/provider-budget usage and provider submission. Active suppression transitions PROCESSING recipients to SKIPPED, and focused tests cover all suppression reasons plus company isolation and prove no Managed Email rate/budget/provider/usage interaction when the late suppression check matches.
 
 ## ME-SEC-004 — Provider event is deduplicated before required side effects complete
 
@@ -192,9 +192,9 @@ This report does not convert those unexecuted checks into PASS claims.
 - **Suggested remediation direction:** Separate RECEIVED from PROCESSED state and use an atomic transaction for local DB effects where possible, or persist resumable processing checkpoints/outbox work. Only mark processed after required durable local mutations complete.
 - **Whether release-blocking:** yes
 - **Regression test required:** Force failure after ledger insert, retry same SNS MessageId, and prove missing side effects complete once without double billing/suppression.
-- **Lead disposition:** pending
-- **Round fixed:** pending
-- **Retest result:** pending
+- **Lead disposition:** accepted
+- **Round fixed:** Round 3
+- **Retest result:** CLOSED — hard-bounce/complaint local processing now inserts exactly one durable `TENANT_SUPPRESSION` provider-effect row inside the same local-processing transaction before `processed_at` is marked. V60 gives the queue PK/FKs, unique `(event_id,effect_type)`, status/reason checks and claim/stale indexes. The worker uses transactional `FOR UPDATE SKIP LOCKED` claiming, stale PROCESSING recovery, bounded attempts/backoff, durable RETRY/FAILED/SUCCEEDED states and generic stored failure messages. Before PUT, tenant-scoped `GetSuppressedDestination` detects an already-completed suppression, closing the SES-success/DB-update-loss window. `processed_at` now correctly means local effects completed and required external work durably scheduled.
 
 ## ME-SEC-005 — SES 24-hour account quota is modeled as a UTC calendar-day counter instead of a rolling 24-hour quota
 
@@ -216,9 +216,9 @@ This report does not convert those unexecuted checks into PASS claims.
 - **Suggested remediation direction:** Synchronize SentLast24Hours (or equivalent current rolling usage), derive a conservative remaining provider budget, and combine it atomically with UnifyDesk reservations. Do not model provider Max24HourSend as a midnight-reset quota.
 - **Whether release-blocking:** yes
 - **Regression test required:** Simulate sends across UTC midnight and process restart with non-zero provider SentLast24Hours; prove aggregate sends remain within provider remaining quota.
-- **Lead disposition:** pending
-- **Round fixed:** pending
-- **Retest result:** pending
+- **Lead disposition:** accepted
+- **Round fixed:** Round 3
+- **Retest result:** CLOSED — `TenantSnapshot` carries `providerObservedAt`; `AwsManagedEmailSesGateway` captures it immediately before `GetAccount`, and the provisioning worker persists that exact instant unchanged to tenant `lastProviderSyncAt` and connection `lastValidatedAt`. Retrying persistence of the same snapshot cannot refresh the timestamp. The provider-budget query still uses `usage.created_at >= snapshotTime`, so T2 sends at/after T1 are conservatively included even if persistence occurs later at T3. Existing rolling-quota, midnight, restart/Redis, stale/missing and quota-reduction protections remain intact by source review.
 - **External reference:** https://docs.aws.amazon.com/ses/latest/dg/manage-sending-quotas.html
 
 ## ME-SEC-006 — SES account SendingEnabled / sandbox production state is not a complete local eligibility gate
@@ -241,9 +241,9 @@ This report does not convert those unexecuted checks into PASS claims.
 - **Suggested remediation direction:** Persist account SendingEnabled separately from ProductionAccessEnabled and require safe account state in launch and per-recipient runtime guards.
 - **Whether release-blocking:** yes
 - **Regression test required:** Mock sandbox, production, and account-sending-disabled GetAccount responses and prove only allowed state can launch/submit.
-- **Lead disposition:** pending
-- **Round fixed:** pending
-- **Retest result:** pending
+- **Lead disposition:** accepted
+- **Round fixed:** Round 2; Round 3 regression retest
+- **Retest result:** CLOSED — no Round-3 regression found. Managed sendability still requires production access plus derived connection sending-enabled state, and both launch and delivery guards fail closed for sandbox/account-disabled/tenant-disabled state and fresh provider quota requirements.
 - **External reference:** https://docs.aws.amazon.com/ses/latest/APIReference-V2/API_GetAccount.html
 
 ## ME-SEC-007 — Cross-module ownership is not fully enforced by database foreign keys
@@ -266,9 +266,9 @@ This report does not convert those unexecuted checks into PASS claims.
 - **Suggested remediation direction:** Architecture Lead should define the minimal composite unique keys/FKs for tenant-domain, company-domain DNS, sender-binding and usage relationships, then add a migration after V58.
 - **Whether release-blocking:** no by itself, but should be fixed before production hardening; becomes blocking if any path bypasses current fail-closed joins.
 - **Regression test required:** SQL integration tests attempting cross-company domain/tenant/binding/DNS/usage inserts.
-- **Lead disposition:** pending
-- **Round fixed:** pending
-- **Retest result:** pending
+- **Lead disposition:** accepted
+- **Round fixed:** Round 2; Round 3 regression retest
+- **Retest result:** CLOSED — V59 ownership constraints remain intact and V60 adds provider-effect event/company/recipient and `(tenant_id,company_id)` ownership FKs without weakening the earlier graph. Source inspection finds no duplicate migration numbers through V60. Clean V1→V60 and real V59→V60 execution/Hibernate validation are still dynamic-validation items because the runner did not start tests.
 
 ## ME-SEC-008 — Generic Broadcast sender API/UI exposes platform SES region and shared account quota data for Managed Email
 
@@ -288,9 +288,9 @@ This report does not convert those unexecuted checks into PASS claims.
 - **Suggested remediation direction:** Sanitize generic BroadcastSenderResponse for MESSAGING_MANAGED or add a safe projection that returns MANAGED/no shared quota fields, and suppress those details in all frontend surfaces.
 - **Whether release-blocking:** yes for Round-1 contract compliance
 - **Regression test required:** Managed sender response/history/workspace tests proving no AWS region/account quota fields are displayed while CUSTOMER_MANAGED SES still shows its own provider details.
-- **Lead disposition:** pending
-- **Round fixed:** pending
-- **Retest result:** pending
+- **Lead disposition:** accepted
+- **Round fixed:** Round 2; Round 3 regression retest
+- **Retest result:** CLOSED — no Round-3 frontend changes touched the privacy remediation. Backend managed sender responses still replace the platform region with `MANAGED` and null shared quota/usage/validation fields, while customer-managed SES preserves customer-owned details. Frontend managed privacy helpers/sidebar still render `UnifyDesk Managed Email` and suppress stale managed region/rate details.
 
 ## ME-SEC-009 — Managed Email provisioning/control endpoints lack the frozen abuse-rate controls and manual containment surface
 
@@ -311,9 +311,9 @@ This report does not convert those unexecuted checks into PASS claims.
 - **Suggested remediation direction:** Add company/user-scoped control-plane rate limiting and an audited privileged suspension/resume surface that immediately blocks launch and per-recipient submission.
 - **Whether release-blocking:** no for basic functional testing, but recommended before production exposure
 - **Regression test required:** Burst create/refresh/delete tests and admin suspension test proving in-flight workers stop subsequent provider submissions.
-- **Lead disposition:** pending
-- **Round fixed:** pending
-- **Retest result:** pending
+- **Lead disposition:** accepted
+- **Round fixed:** Round 2; Round 3 regression retest
+- **Retest result:** CLOSED — no Round-3 regression found. The dedicated Redis Lua control-plane limiter remains company+user scoped and fails closed on Redis errors; privileged containment still requires platform authorization/company access, disables tenant/connection immediately, audits actor/company/reason/time, and resume remains PROVISIONING/DISABLED until provider reconciliation.
 
 ## ME-SEC-010 — Customer-domain public-suffix validation is an incomplete hard-coded approximation
 
@@ -333,9 +333,9 @@ This report does not convert those unexecuted checks into PASS claims.
 - **Suggested remediation direction:** Use a maintained PSL/eTLD+1 implementation and add IDN/public-suffix regression vectors.
 - **Whether release-blocking:** no
 - **Regression test required:** Comprehensive PSL-based cases including IDN, wildcard/exception suffix rules and ordinary registrable domains.
-- **Lead disposition:** pending
-- **Round fixed:** pending
-- **Retest result:** pending
+- **Lead disposition:** accepted
+- **Round fixed:** Round 2; Round 3 regression retest
+- **Retest result:** CLOSED — no Round-3 regression found. Customer-domain validation remains Guava `InternetDomainName` PSL-backed after NFC/IDNA normalization, including wildcard/exception behavior, with public suffixes rejected and registrable domains accepted.
 
 ---
 
@@ -598,3 +598,198 @@ Release blockers currently tracked:
 ME-SEC-007, ME-SEC-009 and ME-SEC-010 are defense-in-depth/production-hardening findings that should be dispositioned explicitly by the Architecture Lead.
 
 No broad production fix was applied by QA/SEC in this branch. The authoritative output of this round is this findings document. Architecture Lead should approve remediation ownership, integrate fixes on dedicated branches, then return a new frozen candidate SHA for QA/SEC retest.
+
+
+---
+
+# Round-3 Retest Summary
+
+**Exact frozen SHA reviewed:** `4ea705b0349ee82b888c83699b4d55ea1fa174b1`  
+**Review branch:** `review/managed-email-security-qa-r3`  
+**Code-level finding disposition:** all ME-SEC-001 through ME-SEC-010 CLOSED  
+**Final release state:** **CODE_REVIEW_READY_BUT_DYNAMIC_VALIDATION_PENDING**
+
+## Branch/base verification
+
+The review branch was verified to point exactly to the frozen integrated Round-3 SHA above. No later moving `dev` commit was used as the review base.
+
+## Build / CI execution
+
+Required backend commands:
+
+    cd unifydesk-app/backend
+    ./mvnw -B spotless:check test
+    ./mvnw -B clean test
+
+Required frontend commands:
+
+    cd unifydesk-app/frontend
+    npm ci
+    npm test
+    npm run build
+    npm run lint
+    npm run format:check
+
+These commands were **not executed by GitHub Actions**.
+
+Actions run:
+
+    36250522073
+
+was created for the exact review SHA, but backend, frontend, website and email-provider jobs all concluded failure with empty step lists. No job command step ran, and therefore this run is an infrastructure failure rather than product-code test evidence.
+
+The QA environment did not have an authenticated local checkout of the private repository, so the commands could not be substituted locally. No unexecuted command is reported as PASS.
+
+## ME-SEC-001..010 final table
+
+| Finding | Final code result | Dynamic execution state |
+|---|---|---|
+| ME-SEC-001 | CLOSED | Maven compile/test pending due runner zero-step failure |
+| ME-SEC-002 | CLOSED | Focused source/test review complete; runtime execution pending |
+| ME-SEC-003 | CLOSED | Regression source/test review complete; runtime execution pending |
+| ME-SEC-004 | CLOSED | Durable-effect design/source review complete; Postgres/worker execution pending |
+| ME-SEC-005 | CLOSED | Exact timestamp + rolling-budget source/test review complete; Postgres execution pending |
+| ME-SEC-006 | CLOSED | Regression source/test review complete; runtime execution pending |
+| ME-SEC-007 | CLOSED | V59/V60 schema review complete; actual Flyway/Hibernate execution pending |
+| ME-SEC-008 | CLOSED | Backend/frontend privacy regression source review complete; npm/browser execution pending |
+| ME-SEC-009 | CLOSED | Abuse/admin regression source review complete; Redis/auth execution pending |
+| ME-SEC-010 | CLOSED | PSL regression source/test review complete; Maven execution pending |
+
+Totals:
+
+- **CLOSED:** 10
+- **PARTIALLY_FIXED:** 0
+- **STILL_OPEN:** 0
+- **REGRESSION_FOUND:** 0
+
+## Round-3 targeted fixes
+
+### ME-SEC-001 — source compile blocker and display-name safety
+
+The exact invalid `replace(""", "")` expression is gone. Display-name handling now removes quotes and ISO controls and uses Jakarta Mail `InternetAddress` to build a valid encoded From header. Blank/control-only names fall back to the plain persisted mailbox.
+
+### ME-SEC-002 — strict persisted mailbox validation
+
+The full persisted mailbox is now checked, not just its domain. Required malformed same-domain vectors are rejected before the managed client/provider invocation point. Exact normalized bound-domain equality remains required and IDN domains are normalized before comparison.
+
+### ME-SEC-004 — durable provider suppression
+
+V60 adds `managed_email_provider_effects` with:
+
+- primary key;
+- event/company/recipient FKs;
+- tenant+company composite FK;
+- unique `(event_id,effect_type)`;
+- effect type/reason/status/attempt checks;
+- claim index;
+- stale PROCESSING index;
+- company/status operational index.
+
+Local event processing schedules the provider effect transactionally before marking the event locally processed. The webhook no longer invokes SES suppression directly.
+
+Provider-effect worker behavior:
+
+- claim uses `FOR UPDATE SKIP LOCKED`;
+- stale PROCESSING claims are recovered to RETRY;
+- attempts increment under the claim transaction;
+- 429/5xx/SDK-style transient failures retry with bounded exponential backoff;
+- exhausted/permanent failures become durable FAILED rows with generic operator-safe messages;
+- success becomes SUCCEEDED;
+- prior provider completion is reconciled by tenant-scoped `GetSuppressedDestination` before PUT.
+
+The resulting `processed_at` invariant is acceptable: all required local processing is complete and external effects are durably scheduled; provider-effect status separately represents external completion.
+
+### ME-SEC-005 — exact provider observation timestamp
+
+`providerObservedAt` is taken from the injected clock immediately before SES `GetAccount`. The same timestamp travels through `TenantSnapshot` and is persisted unchanged to:
+
+- `ManagedEmailTenant.lastProviderSyncAt`;
+- `BroadcastSenderConnection.lastValidatedAt`.
+
+Persistence does not replace it with a later `Instant.now()`.
+
+The provider-budget query remains inclusive:
+
+    usage.created_at >= snapshotTime
+
+Therefore a local acceptance at T1 or T2 where T1 < T2 < T3 is counted even if provider state is persisted later at T3.
+
+## V60 / migration source verification
+
+Source-level migration review: PASS.
+
+- exactly one V56, V57, V58, V59 and V60 exists;
+- no duplicate migration version was found;
+- V60 references the V59/V56 ownership keys it requires;
+- provider-effect status/reason/type constraints are fail-closed;
+- provider-effect tenant/company cross-ownership is DB constrained;
+- V60 does not remove or weaken V59 ownership constraints.
+
+Dynamic migration verification remains pending:
+
+- clean V1 → V60;
+- real existing V1 → V59 → V60;
+- Flyway checksum/history verification;
+- Hibernate validation;
+- deliberate cross-company V59/V60 invalid inserts against a running PostgreSQL instance.
+
+## Round-2 regression areas
+
+Round 3 changed no frontend files and did not modify the existing provider routing, suppression gate, account/sandbox guard, V59 controls, privacy helpers, control-plane limiter, admin containment or PSL service.
+
+Source review confirms the prior remediations remain present:
+
+- late company-scoped suppression before provider usage/submission;
+- account/sandbox/tenant fail-closed launch and delivery guards;
+- V59 ownership constraints;
+- Managed Email backend/frontend provider privacy;
+- Redis provisioning abuse limits and audited suspend/resume;
+- Guava PSL validation;
+- CUSTOMER_MANAGED SES customer-credential path;
+- SendGrid/Azure/MSG91 existing delivery path;
+- SNS signature/TopicArn/region/URL/replay/correlation checks;
+- UNKNOWN outcome retains reservation and prevents blind resend.
+
+No critical/high Round-3 regression was found.
+
+## Runtime configuration
+
+Integrated defaults are bounded and non-zero:
+
+- provider snapshot max age: 300 seconds;
+- provider-effect batch size: 25;
+- stale claim timeout: 120 seconds;
+- max attempts: 8;
+- initial retry: 2 seconds;
+- max retry: 900 seconds.
+
+The scheduled provider-effect poll has a 1000 ms default delay.
+
+## Logging/privacy review
+
+Provider-effect worker logs only a safe exception class for interrupted polling. Durable retry/failure rows store a sanitized error code plus generic fixed messages, not exception text or provider payloads.
+
+No new path was found that logs AWS credentials, Cloudflare tokens, raw webhook bodies, complete message bodies or recipient lists.
+
+## Dynamic validation still required before production release
+
+The code defects are closed, but the following have not actually executed in this QA environment:
+
+- Maven Spotless/tests/clean test;
+- npm install/tests/build/lint/format;
+- Flyway clean and V59→V60 upgrade;
+- Hibernate validation;
+- PostgreSQL provider-effect crash/concurrency tests;
+- multi-worker `SKIP LOCKED` stress;
+- Redis multi-pod/outage behavior;
+- live/mock SES 429/5xx/network injection through the running application;
+- browser E2E privacy checks;
+- runtime performance and log inspection.
+
+## Final recommendation
+
+**CODE_REVIEW_READY_BUT_DYNAMIC_VALIDATION_PENDING**
+
+No substantive Managed Email implementation/security/reliability blocker remains in the reviewed Round-3 source.
+
+This is intentionally **not** recorded as `READY_FOR_RELEASE_CANDIDATE` because the required build, frontend, migration and integration commands did not actually run. The only observed blocker to that final release-candidate label is the external GitHub Actions zero-step infrastructure failure / lack of another executable private-repository runner, not a newly identified product-code defect.
