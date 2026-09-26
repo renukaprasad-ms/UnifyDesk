@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+} from 'react'
 import { FiPlus, FiTrash2, FiX } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
@@ -195,7 +202,7 @@ export default function GoogleAppCampaignModal({
   if (!open) return null
 
   const changeLocation = (
-    setter: React.Dispatch<React.SetStateAction<LocationRow[]>>,
+    setter: Dispatch<SetStateAction<LocationRow[]>>,
     id: string,
     patch: Partial<LocationRow>,
   ) =>
