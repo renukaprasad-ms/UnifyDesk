@@ -1,6 +1,7 @@
 alter table managed_email_tenants
   add column provider_max_send_rate double precision,
   add column provider_max_24h_send double precision,
+  add column provider_production_access_enabled boolean not null default false,
   add constraint uk_managed_email_tenants_id_company unique (id, company_id);
 
 alter table managed_email_domains
