@@ -16,6 +16,7 @@ import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.ads.repository.AdConversionRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
 import com.messaging.ads.repository.AdSetRepository;
+import com.messaging.ads.service.AdActivityLogService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import java.time.Instant;
@@ -44,9 +45,13 @@ public class MetaAdsAdSetMutationService {
   private final MetaAdsTokenService tokenService;
   private final MetaAdsApiClient apiClient;
   private final MetaAdsAdSetPersistenceService persistenceService;
+  private final AdActivityLogService activityLogService;
 
   public AdSetResponse create(
-      Long companyId, Long campaignId, CreateMetaAdSetRequest request) {
+      Long companyId,
+      Long campaignId,
+      CreateMetaAdSetRequest request,
+      Long actorUserId) {
     AdCampaign campaign = requireCampaign(companyId, campaignId);
     AdAccount account = requireManagedAccount(companyId, campaign.getAdAccountId());
     validateBudgetLocation(campaign, request.dailyBudgetMinor(), request.lifetimeBudgetMinor());
@@ -95,11 +100,29 @@ public class MetaAdsAdSetMutationService {
     String accessToken = accessToken(companyId, account);
     String externalAdSetId =
         apiClient.createAdSet(accessToken, account.getExternalAccountId(), payload);
-    return refresh(companyId, campaign, externalAdSetId, accessToken);
+    AdSetResponse created = refresh(companyId, campaign, externalAdSetId, accessToken);
+    activityLogService.record(
+        companyId,
+        account.getId(),
+        AdProvider.META_ADS,
+        actorUserId,
+        "META_AD_SET_CREATED",
+        "AD_SET",
+        externalAdSetId,
+        null,
+        created,
+        Map.of(
+            "advantageAudience", Boolean.TRUE.equals(request.advantageAudience()),
+            "advantageAgeSuggestion", Boolean.TRUE.equals(request.advantageAgeSuggestion()),
+            "advantageGenderSuggestion", Boolean.TRUE.equals(request.advantageGenderSuggestion())));
+    return created;
   }
 
   public AdSetResponse update(
-      Long companyId, Long adSetId, UpdateMetaAdSetRequest request) {
+      Long companyId,
+      Long adSetId,
+      UpdateMetaAdSetRequest request,
+      Long actorUserId) {
     AdSet adSet = requireAdSet(companyId, adSetId);
     AdCampaign campaign = requireCampaign(companyId, adSet.getCampaignId());
     AdAccount account = requireManagedAccount(companyId, adSet.getAdAccountId());
@@ -163,9 +186,35 @@ public class MetaAdsAdSetMutationService {
         request.dailyBudgetMinor(),
         request.lifetimeBudgetMinor());
 
+    AdSetResponse before = AdSetResponse.from(adSet);
     String accessToken = accessToken(companyId, account);
     apiClient.updateAdSet(accessToken, adSet.getExternalAdSetId(), updates);
-    return refresh(companyId, campaign, adSet.getExternalAdSetId(), accessToken);
+    AdSetResponse after =
+        refresh(companyId, campaign, adSet.getExternalAdSetId(), accessToken);
+    activityLogService.record(
+        companyId,
+        account.getId(),
+        AdProvider.META_ADS,
+        actorUserId,
+        "META_AD_SET_UPDATED",
+        "AD_SET",
+        adSet.getExternalAdSetId(),
+        before,
+        after,
+        Map.of(
+            "advantageAudience",
+                request.advantageAudience() == null
+                    ? "UNCHANGED"
+                    : Boolean.TRUE.equals(request.advantageAudience()),
+            "advantageAgeSuggestion",
+                request.advantageAgeSuggestion() == null
+                    ? "UNCHANGED"
+                    : Boolean.TRUE.equals(request.advantageAgeSuggestion()),
+            "advantageGenderSuggestion",
+                request.advantageGenderSuggestion() == null
+                    ? "UNCHANGED"
+                    : Boolean.TRUE.equals(request.advantageGenderSuggestion())));
+    return after;
   }
 
   public AdSetResponse setStatus(Long companyId, Long adSetId, String requestedStatus) {
@@ -317,6 +366,13 @@ public class MetaAdsAdSetMutationService {
         excludedCustomAudienceIds,
         companyId,
         accountId);
+
+    if (!Boolean.TRUE.equals(advantageAudience)
+        && (Boolean.TRUE.equals(advantageAgeSuggestion)
+            || Boolean.TRUE.equals(advantageGenderSuggestion))) {
+      throw new BadRequestException(
+          "Advantage+ age/gender suggestions require Advantage+ audience to be enabled");
+    }
 
     if (Boolean.TRUE.equals(advantageAudience)) {
       Map<String, Object> automation = new LinkedHashMap<>();
