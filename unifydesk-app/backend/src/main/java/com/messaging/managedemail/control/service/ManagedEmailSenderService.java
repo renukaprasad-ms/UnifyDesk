@@ -172,7 +172,7 @@ public class ManagedEmailSenderService {
     connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
     connection.setProductionAccessEnabled(tenant.isProviderProductionAccessEnabled());
     connection.setMaxSendRate(tenant.getProviderMaxSendRate());
-    connection.setMax24hSend(tenant.getProviderMax24HourSend());
+    connection.setMax24HourSend(tenant.getProviderMax24HourSend());
     connection.setSendingEnabled(
         properties.isEnabled()
             && properties.isPlatformSendingEnabled()
