@@ -3,7 +3,7 @@ package com.messaging.managedemail.events;
 import com.messaging.broadcast.enums.BroadcastRecipientStatus;
 import com.messaging.broadcast.service.BroadcastStatsService;
 import com.messaging.channel.enums.ChannelType;
-import com.messaging.common.id.IdGenerator;
+import com.messaging.managedemail.runtime.ManagedEmailIdGenerator;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -19,6 +19,7 @@ public class ManagedEmailSuppressionFeedbackService {
 
   private final JdbcTemplate jdbcTemplate;
   private final BroadcastStatsService statsService;
+  private final ManagedEmailIdGenerator idGenerator;
 
   @Transactional
   public void hardBounce(
@@ -49,7 +50,7 @@ public class ManagedEmailSuppressionFeedbackService {
               source_recipient_id = excluded.source_recipient_id,
               updated_at = now()
         """,
-        IdGenerator.nextId(),
+        idGenerator.nextId(),
         runtime.companyId(),
         ChannelType.EMAIL.name(),
         runtime.normalizedDestination(),

@@ -40,6 +40,33 @@ class ManagedEmailProviderEventProcessorTests {
   }
 
   @Test
+  void recipientCorrelationMismatchIsRejectedWithoutMutation() {
+    Fixture fixture = fixture();
+    ManagedEmailProviderEvent event =
+        new ManagedEmailProviderEvent(
+            "sns-1",
+            ManagedEmailProviderEventType.DELIVERY,
+            Instant.parse("2026-09-26T07:00:00Z"),
+            "provider-1",
+            10L,
+            60L,
+            20L,
+            40L,
+            70L,
+            "wrong-correlation",
+            null,
+            null,
+            "hash");
+    when(fixture.parser.parse(any())).thenReturn(event);
+    when(fixture.runtime.findRecipientRuntime(70L)).thenReturn(Optional.of(runtime("provider-1")));
+
+    fixture.processor.process(envelope());
+
+    verify(fixture.ledger).recordRejected(event, "RECIPIENT_CORRELATION_MISMATCH");
+    verifyNoInteractions(fixture.projection, fixture.suppression, fixture.usage);
+  }
+
+  @Test
   void duplicateHardBounceOnlyAppliesSuppressionOnce() {
     Fixture fixture = fixture();
     ManagedEmailProviderEvent event =
@@ -132,7 +159,7 @@ class ManagedEmailProviderEventProcessorTests {
   private ManagedEmailRuntimeRepository.ManagedRecipientRuntime runtime(String providerMessageId) {
     return new ManagedEmailRuntimeRepository.ManagedRecipientRuntime(
         70L, 10L, 60L, 20L, 30L, 50L, 40L, "ACCEPTED_BY_PROVIDER", "recipient@example.test",
-        providerMessageId, "ACTIVE", "ACTIVE", "MESSAGING_MANAGED", true, "ACTIVE", "ENABLED",
+        providerMessageId, "corr-70", "ACTIVE", "ACTIVE", "MESSAGING_MANAGED", true, "ACTIVE", "ENABLED",
         "HEALTHY", "ESTABLISHED", "ACTIVE", "example.test", "us-east-1", "tenant-10", "cfg-10",
         20.0, 10000.0);
   }

@@ -71,6 +71,7 @@ public interface ManagedEmailRuntimeRepository {
       String recipientStatus,
       String normalizedDestination,
       String providerMessageId,
+      String providerCorrelationId,
       String senderStatus,
       String connectionStatus,
       String managementMode,

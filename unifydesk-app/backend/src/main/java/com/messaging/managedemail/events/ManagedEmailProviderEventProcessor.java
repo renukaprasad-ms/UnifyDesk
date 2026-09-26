@@ -98,6 +98,11 @@ public class ManagedEmailProviderEventProcessor {
         && !runtime.providerMessageId().equals(event.providerMessageId())) {
       return "PROVIDER_MESSAGE_MISMATCH";
     }
+    if (event.correlation() == null
+        || runtime.providerCorrelationId() == null
+        || !runtime.providerCorrelationId().equals(event.correlation())) {
+      return "RECIPIENT_CORRELATION_MISMATCH";
+    }
     return null;
   }
 }
