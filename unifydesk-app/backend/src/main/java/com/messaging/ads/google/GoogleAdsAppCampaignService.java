@@ -694,7 +694,7 @@ public class GoogleAdsAppCampaignService {
       normalized = normalized.substring(slash + 1);
     }
     normalized = normalized.replace("-", "");
-    if (!normalized.matches("\d+")) {
+    if (!normalized.matches("\\d+")) {
       throw new BadRequestException(label + " is invalid");
     }
     return normalized;
