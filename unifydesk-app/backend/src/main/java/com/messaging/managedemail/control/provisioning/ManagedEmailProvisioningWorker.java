@@ -347,7 +347,7 @@ public class ManagedEmailProvisioningWorker {
               connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
               connection.setProductionAccessEnabled(tenant.isProviderProductionAccessEnabled());
               connection.setMaxSendRate(tenant.getProviderMaxSendRate());
-              connection.setMax24hSend(tenant.getProviderMax24HourSend());
+              connection.setMax24HourSend(tenant.getProviderMax24HourSend());
               connection.setLastValidatedAt(Instant.now());
               connectionRepository.save(connection);
               channelConnectionRepository
