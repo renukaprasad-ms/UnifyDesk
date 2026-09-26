@@ -98,7 +98,7 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
         // Reputation data may not be available immediately after tenant creation.
       }
       Instant providerObservedAt = clock.instant();
-      GetAccountResponse account = ses.getAccount();
+      GetAccountResponse account = ses.getAccount(builder -> {});
       SendQuota quota = account == null ? null : account.sendQuota();
       Double maxSendRate = quota == null ? null : quota.maxSendRate();
       Double max24HourSend = quota == null ? null : quota.max24HourSend();
