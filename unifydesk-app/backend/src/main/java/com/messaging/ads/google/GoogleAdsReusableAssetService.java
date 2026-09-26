@@ -18,17 +18,21 @@ import com.messaging.ads.repository.AdSetRepository;
 import com.messaging.ads.service.AdActivityLogService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import javax.imageio.ImageIO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -44,7 +48,11 @@ public class GoogleAdsReusableAssetService {
           "CALL",
           "PRICE",
           "PROMOTION",
-          "LEAD_FORM");
+          "LEAD_FORM",
+          "TEXT",
+          "IMAGE");
+
+  private static final int MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
   private static final Set<String> PRICE_TYPES =
       Set.of(
@@ -109,10 +117,12 @@ public class GoogleAdsReusableAssetService {
             + "asset.sitelink_asset.link_text, asset.sitelink_asset.description1, "
             + "asset.sitelink_asset.description2, asset.callout_asset.callout_text, "
             + "asset.structured_snippet_asset.header, asset.structured_snippet_asset.values, "
+            + "asset.text_asset.text, asset.image_asset.full_size.url, "
+            + "asset.image_asset.full_size.width_pixels, asset.image_asset.full_size.height_pixels, "
             + "asset.final_urls, asset.final_mobile_urls, asset.tracking_url_template, "
             + "asset.final_url_suffix, asset.url_custom_parameters "
             + "FROM asset WHERE asset.type IN "
-            + "('SITELINK','CALLOUT','STRUCTURED_SNIPPET','CALL','PRICE','PROMOTION','LEAD_FORM') "
+            + "('SITELINK','CALLOUT','STRUCTURED_SNIPPET','CALL','PRICE','PROMOTION','LEAD_FORM','TEXT','IMAGE') "
             + "AND asset.source = 'ADVERTISER'";
     return apiClient
         .searchRows(
@@ -272,9 +282,10 @@ public class GoogleAdsReusableAssetService {
       throw new BadRequestException("Unsupported reusable Google asset type: " + asset.type());
     }
 
+    String fieldType = resolveFieldType(asset, request);
     LinkTarget target =
         linkTarget(companyId, accountId, context, request.level(), request.targetId());
-    if ("LEAD_FORM".equals(asset.type())
+    if ("LEAD_FORM".equals(fieldType)
         && request.level() != GoogleAssetLinkRequest.Level.CAMPAIGN) {
       throw new BadRequestException(
           "Google Lead Form assets can only be attached at campaign level");
@@ -285,7 +296,7 @@ public class GoogleAdsReusableAssetService {
             .filter(
                 item ->
                     normalizedAssetId.equals(item.assetId())
-                        && asset.type().equals(item.fieldType()))
+                        && fieldType.equals(item.fieldType()))
             .findFirst();
     if (existing.isPresent()) return existing.get();
 
@@ -295,7 +306,7 @@ public class GoogleAdsReusableAssetService {
         "asset",
         apiClient.customerResourceName(
             context.account().getExternalAccountId(), "assets", normalizedAssetId));
-    create.put("fieldType", asset.type());
+    create.put("fieldType", fieldType);
 
     JsonNode response =
         apiClient.mutate(
@@ -320,7 +331,7 @@ public class GoogleAdsReusableAssetService {
                     asset.id(),
                     asset.name(),
                     asset.type(),
-                    asset.type(),
+                    fieldType,
                     request.level().name(),
                     request.targetId() == null ? null : request.targetId().toString(),
                     "ENABLED",
@@ -338,7 +349,7 @@ public class GoogleAdsReusableAssetService {
         after,
         Map.of(
             "assetId", normalizedAssetId,
-            "fieldType", asset.type(),
+            "fieldType", fieldType,
             "level", request.level().name()));
     return after;
   }
@@ -353,9 +364,17 @@ public class GoogleAdsReusableAssetService {
     String normalizedAssetId = numeric(assetId, "asset");
     LinkTarget target =
         linkTarget(companyId, accountId, context, request.level(), request.targetId());
+    String requestedFieldType =
+        request.fieldType() == null
+            ? null
+            : request.fieldType().trim().toUpperCase(Locale.ROOT);
     GoogleReusableAssetLinkResponse existing =
         links(companyId, accountId, request.level(), request.targetId()).stream()
-            .filter(item -> normalizedAssetId.equals(item.assetId()))
+            .filter(
+                item ->
+                    normalizedAssetId.equals(item.assetId())
+                        && (requestedFieldType == null
+                            || requestedFieldType.equals(item.fieldType())))
             .findFirst()
             .orElseThrow(
                 () ->
@@ -539,6 +558,20 @@ public class GoogleAdsReusableAssetService {
             Map.of(
                 "header", request.structuredSnippetHeader().trim(),
                 "values", values));
+      }
+      case BUSINESS_NAME -> {
+        validateText(request.text(), 25, "Business name");
+        asset.put("textAsset", Map.of("text", request.text().trim()));
+      }
+      case AD_IMAGE -> {
+        byte[] data = decodeImage(request.imageBase64());
+        validateImage(data, ImageRule.AD_IMAGE);
+        asset.put("imageAsset", Map.of("data", Base64.getEncoder().encodeToString(data)));
+      }
+      case BUSINESS_LOGO -> {
+        byte[] data = decodeImage(request.imageBase64());
+        validateImage(data, ImageRule.BUSINESS_LOGO);
+        asset.put("imageAsset", Map.of("data", Base64.getEncoder().encodeToString(data)));
       }
     }
     return asset;
@@ -885,7 +918,7 @@ public class GoogleAdsReusableAssetService {
     }
     query
         .append(gaqlPrefix)
-        .append(".field_type IN ('SITELINK','CALLOUT','STRUCTURED_SNIPPET','CALL','PRICE','PROMOTION','LEAD_FORM')");
+        .append(".field_type IN ('SITELINK','CALLOUT','STRUCTURED_SNIPPET','CALL','PRICE','PROMOTION','LEAD_FORM','AD_IMAGE','BUSINESS_NAME','BUSINESS_LOGO')");
     return query.toString();
   }
 
@@ -1000,6 +1033,7 @@ public class GoogleAdsReusableAssetService {
     JsonNode sitelink = asset.path("sitelinkAsset");
     JsonNode callout = asset.path("calloutAsset");
     JsonNode snippet = asset.path("structuredSnippetAsset");
+    JsonNode image = asset.path("imageAsset").path("fullSize");
     return new GoogleReusableAssetResponse(
         text(asset, "id"),
         text(asset, "resourceName"),
@@ -1016,7 +1050,110 @@ public class GoogleAdsReusableAssetService {
         strings(asset.path("finalMobileUrls")),
         text(asset, "trackingUrlTemplate"),
         text(asset, "finalUrlSuffix"),
-        customParameters(asset.path("urlCustomParameters")));
+        customParameters(asset.path("urlCustomParameters")),
+        text(asset.path("textAsset"), "text"),
+        text(image, "url"),
+        longOrNull(image, "widthPixels"),
+        longOrNull(image, "heightPixels"));
+  }
+
+  private String resolveFieldType(
+      GoogleReusableAssetResponse asset, GoogleAssetLinkRequest request) {
+    String requested =
+        request.fieldType() == null ? null : request.fieldType().trim().toUpperCase(Locale.ROOT);
+    if ("TEXT".equals(asset.type())) {
+      if (!"BUSINESS_NAME".equals(requested)) {
+        throw new BadRequestException(
+            "Google text identity assets must be linked with fieldType BUSINESS_NAME");
+      }
+      if (request.level() == GoogleAssetLinkRequest.Level.AD_GROUP) {
+        throw new BadRequestException(
+            "Google Business Name identity assets are not supported at ad-group level");
+      }
+      return requested;
+    }
+    if ("IMAGE".equals(asset.type())) {
+      if (!"AD_IMAGE".equals(requested) && !"BUSINESS_LOGO".equals(requested)) {
+        throw new BadRequestException(
+            "Google image assets require fieldType AD_IMAGE or BUSINESS_LOGO");
+      }
+      if ("BUSINESS_LOGO".equals(requested)
+          && request.level() != GoogleAssetLinkRequest.Level.CAMPAIGN) {
+        throw new BadRequestException(
+            "Google Business Logo identity assets can only be attached at campaign level");
+      }
+      if ("AD_IMAGE".equals(requested)
+          && request.level() == GoogleAssetLinkRequest.Level.CUSTOMER) {
+        throw new BadRequestException(
+            "Google AD_IMAGE assets must be linked at campaign or ad-group level");
+      }
+      return requested;
+    }
+    if (requested != null && !requested.equals(asset.type())) {
+      throw new BadRequestException(
+          "Google asset fieldType must match the reusable asset type");
+    }
+    return asset.type();
+  }
+
+  private byte[] decodeImage(String encoded) {
+    if (!hasText(encoded)) {
+      throw new BadRequestException("Google image asset data is required");
+    }
+    String value = encoded.trim();
+    int comma = value.indexOf(',');
+    if (value.startsWith("data:") && comma >= 0) value = value.substring(comma + 1);
+    try {
+      byte[] data = Base64.getDecoder().decode(value);
+      if (data.length == 0 || data.length > MAX_IMAGE_BYTES) {
+        throw new BadRequestException(
+            "Google image assets must be non-empty and at most 5 MB");
+      }
+      return data;
+    } catch (IllegalArgumentException exception) {
+      throw new BadRequestException("Google image asset data is not valid base64");
+    }
+  }
+
+  private void validateImage(byte[] data, ImageRule rule) {
+    try {
+      BufferedImage image = ImageIO.read(new ByteArrayInputStream(data));
+      if (image == null) {
+        throw new BadRequestException("Google image asset must be PNG, JPEG, or GIF");
+      }
+      if (image.getWidth() < rule.minWidth || image.getHeight() < rule.minHeight) {
+        throw new BadRequestException(
+            rule.label + " must be at least " + rule.minWidth + "x" + rule.minHeight + " pixels");
+      }
+      if (rule.ratio > 0) {
+        double ratio = (double) image.getWidth() / (double) image.getHeight();
+        if (Math.abs(ratio - rule.ratio) > rule.tolerance) {
+          throw new BadRequestException(rule.label + " has an invalid aspect ratio");
+        }
+      }
+    } catch (BadRequestException exception) {
+      throw exception;
+    } catch (Exception exception) {
+      throw new BadRequestException("Unable to read Google image asset");
+    }
+  }
+
+  private void validateText(String value, int max, String label) {
+    requireText(value, label);
+    if (value.trim().length() > max) {
+      throw new BadRequestException(label + " must be at most " + max + " characters");
+    }
+  }
+
+  private Long longOrNull(JsonNode node, String field) {
+    JsonNode value = node.get(field);
+    if (value == null || value.isNull()) return null;
+    if (value.isIntegralNumber()) return value.longValue();
+    try {
+      return new BigDecimal(value.asText()).longValue();
+    } catch (NumberFormatException ignored) {
+      return null;
+    }
   }
 
   private List<GoogleUrlCustomParameter> validateCustomParameters(
@@ -1155,6 +1292,25 @@ public class GoogleAdsReusableAssetService {
       }
     }
     return result.toString();
+  }
+
+  private enum ImageRule {
+    AD_IMAGE("Ad image", 300, 300, 0d, 0d),
+    BUSINESS_LOGO("Business logo", 128, 128, 1.0d, 0.08d);
+
+    final String label;
+    final int minWidth;
+    final int minHeight;
+    final double ratio;
+    final double tolerance;
+
+    ImageRule(String label, int minWidth, int minHeight, double ratio, double tolerance) {
+      this.label = label;
+      this.minWidth = minWidth;
+      this.minHeight = minHeight;
+      this.ratio = ratio;
+      this.tolerance = tolerance;
+    }
   }
 
   private record LinkTarget(

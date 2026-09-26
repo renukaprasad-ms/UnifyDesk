@@ -555,6 +555,106 @@ class GoogleAdsReusableAssetServiceTests {
         .hasMessageContaining("unique ignoring case");
   }
 
+
+  @Test
+  void linksRawImageAssetUsingExplicitAdImageRole() throws Exception {
+    AdAccount account = account();
+    when(contextService.requireManaged(1L, 20L)).thenReturn(context(account));
+
+    AdCampaign campaign = new AdCampaign();
+    campaign.setId(30L);
+    campaign.setCompanyId(1L);
+    campaign.setAdAccountId(20L);
+    campaign.setProvider(AdProvider.GOOGLE_ADS);
+    campaign.setExternalCampaignId("555");
+    campaign.setAccessible(true);
+    when(campaignRepository.findByIdAndCompanyId(30L, 1L))
+        .thenReturn(Optional.of(campaign));
+
+    var assetRow =
+        objectMapper.readTree(
+            """
+            {
+              "asset": {
+                "id": "92",
+                "resourceName": "customers/1234567890/assets/92",
+                "name": "Reusable image",
+                "type": "IMAGE",
+                "source": "ADVERTISER",
+                "imageAsset": {
+                  "fullSize": {
+                    "url": "https://example.com/image.png",
+                    "widthPixels": 1200,
+                    "heightPixels": 628
+                  }
+                }
+              }
+            }
+            """);
+    var linkRow =
+        objectMapper.readTree(
+            """
+            {
+              "campaignAsset": {
+                "resourceName": "customers/1234567890/campaignAssets/555~92~AD_IMAGE",
+                "asset": "customers/1234567890/assets/92",
+                "fieldType": "AD_IMAGE",
+                "status": "ENABLED"
+              },
+              "asset": {
+                "id": "92",
+                "resourceName": "customers/1234567890/assets/92",
+                "name": "Reusable image",
+                "type": "IMAGE"
+              }
+            }
+            """);
+    when(apiClient.searchRows(eq("token"), eq("1234567890"), eq(null), anyString()))
+        .thenReturn(List.of(assetRow), List.of(), List.of(linkRow));
+    when(apiClient.customerResourceName("1234567890", "campaigns", "555"))
+        .thenReturn("customers/1234567890/campaigns/555");
+    when(apiClient.customerResourceName("1234567890", "assets", "92"))
+        .thenReturn("customers/1234567890/assets/92");
+
+    var mutateResponse =
+        objectMapper.readTree(
+            """
+            {"results":[{"resourceName":"customers/1234567890/campaignAssets/555~92~AD_IMAGE"}]}
+            """);
+    when(apiClient.mutate(
+            eq("token"), eq("1234567890"), eq(null), eq("campaignAssets"), any()))
+        .thenReturn(mutateResponse);
+    when(apiClient.firstMutatedResourceName(mutateResponse))
+        .thenReturn("customers/1234567890/campaignAssets/555~92~AD_IMAGE");
+
+    var result =
+        service.attach(
+            1L,
+            20L,
+            "92",
+            new GoogleAssetLinkRequest(
+                GoogleAssetLinkRequest.Level.CAMPAIGN, 30L, "AD_IMAGE"),
+            99L);
+
+    assertThat(result.fieldType()).isEqualTo("AD_IMAGE");
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<Map<String, Object>>> operations =
+        ArgumentCaptor.forClass(List.class);
+    verify(apiClient)
+        .mutate(
+            eq("token"),
+            eq("1234567890"),
+            eq(null),
+            eq("campaignAssets"),
+            operations.capture());
+
+    @SuppressWarnings("unchecked")
+    Map<String, Object> create =
+        (Map<String, Object>) operations.getValue().getFirst().get("create");
+    assertThat(create.get("fieldType")).isEqualTo("AD_IMAGE");
+  }
+
   private GoogleAdsAccountContextService.Context context(AdAccount account) {
     return new GoogleAdsAccountContextService.Context(
         account, null, "token", null, false, false);

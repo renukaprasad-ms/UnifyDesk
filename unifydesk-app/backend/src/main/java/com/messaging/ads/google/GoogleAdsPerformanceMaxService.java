@@ -6,6 +6,12 @@ import com.messaging.ads.entity.AdCampaign;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.google.dto.CreateGooglePerformanceMaxCampaignRequest;
 import com.messaging.ads.google.dto.GoogleAssetGroupResponse;
+import com.messaging.ads.google.dto.GoogleAssetGroupUrlOptionsResponse;
+import com.messaging.ads.google.dto.GoogleAutomatedVideoCrawlSource;
+import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationRequest;
+import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationResponse;
+import com.messaging.ads.google.dto.GoogleUrlCustomParameter;
+import com.messaging.ads.google.dto.GoogleUrlOptionsRequest;
 import com.messaging.ads.google.dto.GoogleAssetResponse;
 import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.ads.service.AdActivityLogService;
@@ -22,7 +28,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.Map;
 import javax.imageio.ImageIO;
 import lombok.RequiredArgsConstructor;
@@ -363,6 +372,436 @@ public class GoogleAdsPerformanceMaxService {
         Map.of("requestedStatus", status, "campaignId", campaign.getExternalCampaignId()));
 
     return after;
+  }
+
+
+  public GooglePerformanceMaxAutomationResponse automation(
+      Long companyId, Long campaignId) {
+    AdCampaign campaign = requirePerformanceMaxCampaign(companyId, campaignId);
+    var context = contextService.requireManaged(companyId, campaign.getAdAccountId());
+    String campaignIdExternal = numeric(campaign.getExternalCampaignId());
+
+    List<JsonNode> rows =
+        apiClient.searchRows(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            "SELECT campaign.id, campaign.asset_automation_settings "
+                + "FROM campaign WHERE campaign.id = "
+                + campaignIdExternal);
+
+    Map<String, String> statuses = new LinkedHashMap<>();
+    List<GoogleAutomatedVideoCrawlSource> crawlSources = new ArrayList<>();
+    if (!rows.isEmpty()) {
+      JsonNode settings = rows.getFirst().path("campaign").path("assetAutomationSettings");
+      if (settings.isArray()) {
+        for (JsonNode setting : settings) {
+          String type = text(setting, "assetAutomationType");
+          String status = text(setting, "assetAutomationStatus");
+          if (type != null && status != null) statuses.put(type, status);
+          if ("AUTOMATED_VIDEO_CRAWL".equals(type)) {
+            JsonNode infos =
+                setting.path("automatedVideoCrawlSetting").path("automatedVideoCrawlInfos");
+            if (infos.isArray()) {
+              for (JsonNode info : infos) {
+                String url = text(info, "url");
+                String platform = text(info, "sourcePlatform");
+                if (url != null && platform != null) {
+                  crawlSources.add(
+                      new GoogleAutomatedVideoCrawlSource(
+                          url, platform, info.path("enabled").asBoolean(true)));
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return new GooglePerformanceMaxAutomationResponse(
+        statuses, crawlSources, urlExclusions(context, campaignIdExternal));
+  }
+
+  public GooglePerformanceMaxAutomationResponse updateAutomation(
+      Long companyId,
+      Long campaignId,
+      GooglePerformanceMaxAutomationRequest request,
+      Long actorUserId) {
+    AdCampaign campaign = requirePerformanceMaxCampaign(companyId, campaignId);
+    var context = contextService.requireManaged(companyId, campaign.getAdAccountId());
+    GooglePerformanceMaxAutomationResponse before = automation(companyId, campaignId);
+
+    if (Boolean.TRUE.equals(request.finalUrlExpansion())
+        && Boolean.FALSE.equals(request.textAssetAutomation())) {
+      throw new BadRequestException(
+          "Performance Max text asset automation cannot be opted out while Final URL Expansion is enabled");
+    }
+
+    List<Map<String, Object>> settings = new ArrayList<>();
+    addAutomationSetting(
+        settings,
+        "FINAL_URL_EXPANSION_TEXT_ASSET_AUTOMATION",
+        request.finalUrlExpansion(),
+        null);
+    addAutomationSetting(
+        settings, "TEXT_ASSET_AUTOMATION", request.textAssetAutomation(), null);
+    addAutomationSetting(
+        settings,
+        "GENERATE_ENHANCED_YOUTUBE_VIDEOS",
+        request.enhancedYoutubeVideos(),
+        null);
+    addAutomationSetting(
+        settings, "GENERATE_IMAGE_ENHANCEMENT", request.imageEnhancement(), null);
+
+    Map<String, Object> videoCrawlSetting = null;
+    if (request.automatedVideoCrawl() != null) {
+      if (Boolean.TRUE.equals(request.automatedVideoCrawl())) {
+        List<Map<String, Object>> infos =
+            validateCrawlSources(request.automatedVideoCrawlSources()).stream()
+                .map(
+                    source ->
+                        Map.<String, Object>of(
+                            "url", source.url(),
+                            "sourcePlatform", source.sourcePlatform(),
+                            "enabled", source.enabled() == null || source.enabled()))
+                .toList();
+        videoCrawlSetting = Map.of("automatedVideoCrawlInfos", infos);
+      }
+      addAutomationSetting(
+          settings, "AUTOMATED_VIDEO_CRAWL", request.automatedVideoCrawl(), videoCrawlSetting);
+    }
+
+    if (!settings.isEmpty()) {
+      Map<String, Object> update = new LinkedHashMap<>();
+      update.put(
+          "resourceName",
+          resource(
+              context.account().getExternalAccountId(),
+              "campaigns",
+              numeric(campaign.getExternalCampaignId())));
+      update.put("assetAutomationSettings", settings);
+      apiClient.mutate(
+          context.accessToken(),
+          context.account().getExternalAccountId(),
+          context.loginCustomerId(),
+          "campaigns",
+          List.of(
+              Map.of(
+                  "update", update,
+                  "updateMask", "asset_automation_settings")));
+    }
+
+    if (request.urlExclusions() != null) {
+      replaceUrlExclusions(
+          context,
+          numeric(campaign.getExternalCampaignId()),
+          request.urlExclusions());
+    }
+
+    GooglePerformanceMaxAutomationResponse after = automation(companyId, campaignId);
+    activityLogService.record(
+        companyId,
+        campaign.getAdAccountId(),
+        AdProvider.GOOGLE_ADS,
+        actorUserId,
+        "GOOGLE_PERFORMANCE_MAX_AUTOMATION_UPDATED",
+        "CAMPAIGN",
+        campaign.getExternalCampaignId(),
+        before,
+        after,
+        Map.of("campaignId", campaign.getExternalCampaignId()));
+    return after;
+  }
+
+  public GoogleAssetGroupUrlOptionsResponse assetGroupUrlOptions(
+      Long companyId, Long campaignId, String assetGroupId) {
+    AdCampaign campaign = requirePerformanceMaxCampaign(companyId, campaignId);
+    var context = contextService.requireManaged(companyId, campaign.getAdAccountId());
+    String normalizedAssetGroupId = numeric(assetGroupId);
+    List<JsonNode> rows =
+        apiClient.searchRows(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            "SELECT asset_group.id, asset_group.tracking_url_template, "
+                + "asset_group.final_url_suffix, asset_group.url_custom_parameters "
+                + "FROM asset_group WHERE asset_group.id = "
+                + normalizedAssetGroupId
+                + " AND campaign.id = "
+                + numeric(campaign.getExternalCampaignId()));
+    if (rows.isEmpty()) {
+      throw new NotFoundException("Google Performance Max asset group was not found");
+    }
+    JsonNode group = rows.getFirst().path("assetGroup");
+    return new GoogleAssetGroupUrlOptionsResponse(
+        normalizedAssetGroupId,
+        text(group, "trackingUrlTemplate"),
+        text(group, "finalUrlSuffix"),
+        customParameters(group.path("urlCustomParameters")));
+  }
+
+  public GoogleAssetGroupUrlOptionsResponse updateAssetGroupUrlOptions(
+      Long companyId,
+      Long campaignId,
+      String assetGroupId,
+      GoogleUrlOptionsRequest request,
+      Long actorUserId) {
+    AdCampaign campaign = requirePerformanceMaxCampaign(companyId, campaignId);
+    var context = contextService.requireManaged(companyId, campaign.getAdAccountId());
+    String normalizedAssetGroupId = numeric(assetGroupId);
+    GoogleAssetGroupUrlOptionsResponse before =
+        assetGroupUrlOptions(companyId, campaignId, normalizedAssetGroupId);
+
+    Map<String, Object> update = new LinkedHashMap<>();
+    update.put(
+        "resourceName",
+        resource(
+            context.account().getExternalAccountId(), "assetGroups", normalizedAssetGroupId));
+    List<String> masks = new ArrayList<>();
+
+    if (request.trackingUrlTemplate() != null) {
+      update.put("trackingUrlTemplate", request.trackingUrlTemplate().trim());
+      masks.add("tracking_url_template");
+    }
+    if (request.finalUrlSuffix() != null) {
+      update.put("finalUrlSuffix", request.finalUrlSuffix().trim());
+      masks.add("final_url_suffix");
+    }
+    if (request.customParameters() != null) {
+      List<GoogleUrlCustomParameter> params = validateCustomParameters(request.customParameters());
+      update.put(
+          "urlCustomParameters",
+          params.stream()
+              .map(item -> Map.of("key", item.key(), "value", item.value()))
+              .toList());
+      masks.add("url_custom_parameters");
+    }
+    if (masks.isEmpty()) {
+      throw new BadRequestException("No Performance Max Asset Group URL option changes were supplied");
+    }
+
+    apiClient.mutate(
+        context.accessToken(),
+        context.account().getExternalAccountId(),
+        context.loginCustomerId(),
+        "assetGroups",
+        List.of(
+            Map.of(
+                "update", update,
+                "updateMask", String.join(",", masks))));
+
+    GoogleAssetGroupUrlOptionsResponse after =
+        assetGroupUrlOptions(companyId, campaignId, normalizedAssetGroupId);
+    activityLogService.record(
+        companyId,
+        campaign.getAdAccountId(),
+        AdProvider.GOOGLE_ADS,
+        actorUserId,
+        "GOOGLE_ASSET_GROUP_URL_OPTIONS_UPDATED",
+        "ASSET_GROUP",
+        normalizedAssetGroupId,
+        before,
+        after,
+        Map.of("updatedFields", masks));
+    return after;
+  }
+
+  private void addAutomationSetting(
+      List<Map<String, Object>> settings,
+      String type,
+      Boolean enabled,
+      Map<String, Object> specificSetting) {
+    if (enabled == null) return;
+    Map<String, Object> setting = new LinkedHashMap<>();
+    setting.put("assetAutomationType", type);
+    setting.put("assetAutomationStatus", enabled ? "OPTED_IN" : "OPTED_OUT");
+    if (specificSetting != null) {
+      setting.put("automatedVideoCrawlSetting", specificSetting);
+    }
+    settings.add(setting);
+  }
+
+  private List<GoogleAutomatedVideoCrawlSource> validateCrawlSources(
+      List<GoogleAutomatedVideoCrawlSource> sources) {
+    if (sources == null || sources.isEmpty()) {
+      throw new BadRequestException(
+          "At least one approved source is required when automated video crawl is enabled");
+    }
+    Set<String> allowedPlatforms = Set.of("LANDING_PAGE", "SOCIAL", "YOUTUBE");
+    List<GoogleAutomatedVideoCrawlSource> result = new ArrayList<>();
+    Set<String> dedupe = new LinkedHashSet<>();
+    for (GoogleAutomatedVideoCrawlSource source : sources) {
+      if (source == null) {
+        throw new BadRequestException("Automated video crawl source cannot be empty");
+      }
+      validateUrl(source.url());
+      String platform =
+          source.sourcePlatform() == null
+              ? ""
+              : source.sourcePlatform().trim().toUpperCase(Locale.ROOT);
+      if (!allowedPlatforms.contains(platform)) {
+        throw new BadRequestException(
+            "Automated video crawl source platform must be LANDING_PAGE, SOCIAL, or YOUTUBE");
+      }
+      String url = source.url().trim();
+      String key = platform + "|" + url;
+      if (dedupe.add(key)) {
+        result.add(
+            new GoogleAutomatedVideoCrawlSource(url, platform, source.enabled()));
+      }
+    }
+    return List.copyOf(result);
+  }
+
+  private List<String> urlExclusions(
+      GoogleAdsAccountContextService.Context context, String campaignId) {
+    String query =
+        "SELECT campaign_criterion.resource_name, campaign_criterion.webpage.criterion_name, "
+            + "campaign_criterion.webpage.conditions, campaign_criterion.negative "
+            + "FROM campaign_criterion WHERE campaign.id = "
+            + campaignId
+            + " AND campaign_criterion.type = 'WEBPAGE' "
+            + "AND campaign_criterion.negative = TRUE";
+    List<String> result = new ArrayList<>();
+    for (JsonNode row :
+        apiClient.searchRows(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            query)) {
+      JsonNode conditions = row.path("campaignCriterion").path("webpage").path("conditions");
+      if (!conditions.isArray()) continue;
+      for (JsonNode condition : conditions) {
+        if ("URL".equals(text(condition, "operand"))) {
+          String argument = text(condition, "argument");
+          if (argument != null) result.add(argument);
+        }
+      }
+    }
+    return result.stream().distinct().sorted().toList();
+  }
+
+  private void replaceUrlExclusions(
+      GoogleAdsAccountContextService.Context context,
+      String campaignId,
+      List<String> requested) {
+    LinkedHashSet<String> desired = new LinkedHashSet<>();
+    for (String value : requested) {
+      if (value == null || value.isBlank()) continue;
+      String normalized = value.trim();
+      if (normalized.length() > 2048) {
+        throw new BadRequestException("Performance Max URL exclusion is too long");
+      }
+      desired.add(normalized);
+    }
+
+    String query =
+        "SELECT campaign_criterion.resource_name, campaign_criterion.webpage.conditions, "
+            + "campaign_criterion.negative FROM campaign_criterion WHERE campaign.id = "
+            + campaignId
+            + " AND campaign_criterion.type = 'WEBPAGE' "
+            + "AND campaign_criterion.negative = TRUE";
+    Map<String, String> existing = new LinkedHashMap<>();
+    Map<String, String> managedExisting = new LinkedHashMap<>();
+    for (JsonNode row :
+        apiClient.searchRows(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            query)) {
+      JsonNode criterion = row.path("campaignCriterion");
+      JsonNode conditions = criterion.path("webpage").path("conditions");
+      if (!conditions.isArray() || conditions.size() != 1) continue;
+      JsonNode condition = conditions.get(0);
+      if (!"URL".equals(text(condition, "operand"))) continue;
+      String argument = text(condition, "argument");
+      String resourceName = text(criterion, "resourceName");
+      String criterionName = text(criterion.path("webpage"), "criterionName");
+      if (argument != null && resourceName != null) {
+        existing.put(argument, resourceName);
+        if (criterionName != null
+            && criterionName.startsWith("UnifyDesk URL exclusion ")) {
+          managedExisting.put(argument, resourceName);
+        }
+      }
+    }
+
+    List<Map<String, Object>> operations = new ArrayList<>();
+    for (Map.Entry<String, String> entry : managedExisting.entrySet()) {
+      if (!desired.contains(entry.getKey())) {
+        operations.add(Map.of("remove", entry.getValue()));
+      }
+    }
+    String campaignResource =
+        resource(context.account().getExternalAccountId(), "campaigns", campaignId);
+    int index = 1;
+    for (String value : desired) {
+      if (existing.containsKey(value)) continue;
+      Map<String, Object> webpage =
+          Map.of(
+              "criterionName", "UnifyDesk URL exclusion " + index++,
+              "conditions",
+                  List.of(
+                      Map.of(
+                          "operand", "URL",
+                          "argument", value)));
+      operations.add(
+          Map.of(
+              "create",
+              Map.of(
+                  "campaign", campaignResource,
+                  "negative", true,
+                  "webpage", webpage)));
+    }
+    if (!operations.isEmpty()) {
+      apiClient.mutate(
+          context.accessToken(),
+          context.account().getExternalAccountId(),
+          context.loginCustomerId(),
+          "campaignCriteria",
+          operations);
+    }
+  }
+
+  private List<GoogleUrlCustomParameter> validateCustomParameters(
+      List<GoogleUrlCustomParameter> values) {
+    if (values == null) return List.of();
+    if (values.size() > 8) {
+      throw new BadRequestException("Google URL options support at most 8 custom parameters");
+    }
+    Set<String> keys = new LinkedHashSet<>();
+    List<GoogleUrlCustomParameter> result = new ArrayList<>();
+    for (GoogleUrlCustomParameter item : values) {
+      if (item == null || item.key() == null || item.key().isBlank()
+          || item.value() == null || item.value().isBlank()) {
+        throw new BadRequestException("Google custom parameter key and value are required");
+      }
+      String key = item.key().trim();
+      String value = item.value().trim();
+      if (!key.matches("[A-Za-z0-9]+")) {
+        throw new BadRequestException(
+            "Google custom parameter keys may contain only letters and numbers");
+      }
+      if (!keys.add(key.toLowerCase(Locale.ROOT))) {
+        throw new BadRequestException(
+            "Google custom parameter keys must be unique ignoring case");
+      }
+      result.add(new GoogleUrlCustomParameter(key, value));
+    }
+    return List.copyOf(result);
+  }
+
+  private List<GoogleUrlCustomParameter> customParameters(JsonNode node) {
+    if (node == null || !node.isArray()) return List.of();
+    List<GoogleUrlCustomParameter> result = new ArrayList<>();
+    for (JsonNode item : node) {
+      String key = text(item, "key");
+      String value = text(item, "value");
+      if (key != null && value != null) {
+        result.add(new GoogleUrlCustomParameter(key, value));
+      }
+    }
+    return List.copyOf(result);
   }
 
   private AdCampaign requirePerformanceMaxCampaign(Long companyId, Long campaignId) {

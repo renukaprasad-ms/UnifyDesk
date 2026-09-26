@@ -17,11 +17,48 @@ public record GoogleReusableAssetCreateRequest(
     @Size(max = 2048) String finalMobileUrl,
     @Size(max = 2048) String trackingUrlTemplate,
     @Size(max = 2048) String finalUrlSuffix,
-    @Size(max = 8) List<GoogleUrlCustomParameter> customParameters) {
+    @Size(max = 8) List<GoogleUrlCustomParameter> customParameters,
+    @Size(max = 25) String text,
+    String imageBase64) {
+
+  public GoogleReusableAssetCreateRequest(
+      Type type,
+      String name,
+      String linkText,
+      String description1,
+      String description2,
+      String calloutText,
+      String structuredSnippetHeader,
+      List<String> structuredSnippetValues,
+      String finalUrl,
+      String finalMobileUrl,
+      String trackingUrlTemplate,
+      String finalUrlSuffix,
+      List<GoogleUrlCustomParameter> customParameters) {
+    this(
+        type,
+        name,
+        linkText,
+        description1,
+        description2,
+        calloutText,
+        structuredSnippetHeader,
+        structuredSnippetValues,
+        finalUrl,
+        finalMobileUrl,
+        trackingUrlTemplate,
+        finalUrlSuffix,
+        customParameters,
+        null,
+        null);
+  }
 
   public enum Type {
     SITELINK,
     CALLOUT,
-    STRUCTURED_SNIPPET
+    STRUCTURED_SNIPPET,
+    BUSINESS_NAME,
+    AD_IMAGE,
+    BUSINESS_LOGO
   }
 }

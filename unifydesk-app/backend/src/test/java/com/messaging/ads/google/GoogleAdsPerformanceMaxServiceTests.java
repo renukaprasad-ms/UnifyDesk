@@ -14,6 +14,7 @@ import com.messaging.ads.entity.AdProviderConnection;
 import com.messaging.ads.enums.AdEntityStatus;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.google.dto.CreateGooglePerformanceMaxCampaignRequest;
+import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationRequest;
 import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.ads.service.AdActivityLogService;
 import com.messaging.common.exception.BadRequestException;
@@ -23,6 +24,7 @@ import java.time.LocalDate;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.imageio.ImageIO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -188,6 +190,75 @@ class GoogleAdsPerformanceMaxServiceTests {
                 .filter(operation -> operation.containsKey("assetGroupAssetOperation"))
                 .count())
         .isEqualTo(10L);
+  }
+
+
+  @Test
+  void rejectsDisablingTextAutomationWhileFinalUrlExpansionIsEnabled() {
+    AdCampaign campaign = performanceMaxCampaign();
+    when(campaignRepository.findByIdAndCompanyId(700L, 10L))
+        .thenReturn(Optional.of(campaign));
+    when(contextService.requireManaged(10L, 20L)).thenReturn(context);
+    when(apiClient.searchRows(
+            eq("access-token"), eq("1234567890"), eq("9999999999"), any()))
+        .thenReturn(List.of());
+
+    assertThatThrownBy(
+            () ->
+                service.updateAutomation(
+                    10L,
+                    700L,
+                    new GooglePerformanceMaxAutomationRequest(
+                        true, false, null, null, null, null, null),
+                    40L))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("cannot be opted out");
+  }
+
+  @Test
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  void updatesPerformanceMaxAssetAutomationSettings() {
+    AdCampaign campaign = performanceMaxCampaign();
+    when(campaignRepository.findByIdAndCompanyId(700L, 10L))
+        .thenReturn(Optional.of(campaign));
+    when(contextService.requireManaged(10L, 20L)).thenReturn(context);
+    when(apiClient.searchRows(
+            eq("access-token"), eq("1234567890"), eq("9999999999"), any()))
+        .thenReturn(List.of());
+
+    service.updateAutomation(
+        10L,
+        700L,
+        new GooglePerformanceMaxAutomationRequest(
+            false, false, true, true, false, null, null),
+        40L);
+
+    ArgumentCaptor<List> operationsCaptor = ArgumentCaptor.forClass(List.class);
+    verify(apiClient)
+        .mutate(
+            eq("access-token"),
+            eq("1234567890"),
+            eq("9999999999"),
+            eq("campaigns"),
+            operationsCaptor.capture());
+
+    Map<String, Object> operation =
+        (Map<String, Object>) operationsCaptor.getValue().getFirst();
+    Map<String, Object> update = (Map<String, Object>) operation.get("update");
+    assertThat(update).containsKey("assetAutomationSettings");
+    assertThat(operation.get("updateMask")).isEqualTo("asset_automation_settings");
+  }
+
+  private AdCampaign performanceMaxCampaign() {
+    AdCampaign campaign = new AdCampaign();
+    campaign.setId(700L);
+    campaign.setCompanyId(10L);
+    campaign.setAdAccountId(20L);
+    campaign.setProvider(AdProvider.GOOGLE_ADS);
+    campaign.setExternalCampaignId("777");
+    campaign.setObjective("PERFORMANCE_MAX");
+    campaign.setAccessible(true);
+    return campaign;
   }
 
   private int indexOf(List<Map<String, Object>> operations, String key) {

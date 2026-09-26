@@ -5,6 +5,7 @@ import MetaAdSetModal from '../../components/ads/MetaAdSetModal'
 import GoogleAdGroupModal from '../../components/ads/GoogleAdGroupModal'
 import GooglePerformanceMaxSignals from '../../components/ads/GooglePerformanceMaxSignals'
 import GooglePerformanceMaxAssets from '../../components/ads/GooglePerformanceMaxAssets'
+import GooglePerformanceMaxAutomationPanel from '../../components/ads/GooglePerformanceMaxAutomationPanel'
 import GoogleNegativeKeywordManagement from '../../components/ads/GoogleNegativeKeywordManagement'
 import GoogleSearchTermReport from '../../components/ads/GoogleSearchTermReport'
 import GoogleAiMaxCombinationReport from '../../components/ads/GoogleAiMaxCombinationReport'
@@ -691,6 +692,15 @@ export default function AdCampaignDetails() {
                   accountId={account.id}
                   campaignId={campaign.id}
                   canCreate={can(PERMISSIONS.ADS_CREATE)}
+                  canModify={can(PERMISSIONS.ADS_MODIFY)}
+                />
+              )}
+
+            {campaign.provider === 'GOOGLE_ADS' &&
+              campaign.objective === 'PERFORMANCE_MAX' && (
+                <GooglePerformanceMaxAutomationPanel
+                  companyId={selectedCompany.companyId}
+                  campaignId={campaign.id}
                   canModify={can(PERMISSIONS.ADS_MODIFY)}
                 />
               )}

@@ -987,7 +987,7 @@ Reference:
 
 ## G-06 Google assets/extensions - P1
 
-Status: **in progress — reusable extension core implemented**.
+Status: **complete for C4 — reusable extension, image, and business-identity asset management implemented**.
 
 Implemented reusable Google asset library:
 
@@ -1028,12 +1028,17 @@ UI:
 - [x] advanced Call/Price/Promotion/Lead Form creation
 - [x] URL option inheritance editing at the selected scope
 
-Remaining before C4 can be marked complete:
+C4 visual/identity completion:
 
-- [ ] campaign/ad-group `AD_IMAGE` reusable image assets
-- [ ] Business Name and Business Logo identity assets, whose underlying Asset types (TEXT/IMAGE) differ from their link field types
-- [ ] account/campaign eligibility UX for identity/lead-form restrictions beyond provider validation
-- [ ] final build/provider payload verification after the special image/business-identity path lands
+- [x] campaign/ad-group `AD_IMAGE` reusable image assets with validated image upload
+- [x] Business Name identity assets backed by raw `TEXT` assets and linked with `BUSINESS_NAME`
+- [x] Business Logo identity assets backed by raw `IMAGE` assets and linked with `BUSINESS_LOGO`
+- [x] role-aware attach/detach so raw TEXT/IMAGE assets retain the correct semantic link type after refresh
+- [x] scope eligibility UX and backend enforcement: Lead Form campaign-only, Business Name customer/campaign, Business Logo campaign-only, AD_IMAGE campaign/ad-group
+- [x] reusable visual asset read-back includes text/image URL and dimensions
+- [x] backend regression coverage for raw IMAGE -> AD_IMAGE association semantics
+
+Google remains authoritative for account-specific policy and serving eligibility; Reachlyo blocks structurally invalid linkage scopes before mutation and surfaces provider errors for account-specific restrictions.
 
 Google's current asset model creates an `Asset` once and associates it through `CustomerAsset`, `CampaignAsset`, or `AdGroupAsset` where that asset field type is supported. Lead Forms are campaign-only. Automatically-created assets are deliberately excluded from the reusable management surface because Google marks them as system-generated/non-editable.
 
@@ -1066,7 +1071,23 @@ Availability and eligibility must be capability-checked before UI exposure.
 
 ## G-08 Performance Max completeness - P1
 
-Existing PMax implementation is strong but add missing modern controls.
+Status: **C5 URL/automation slice complete; broader PMax completeness remains in later work**.
+
+Implemented in C5:
+
+- [x] existing campaign URL options remain available through the shared Google URL-options manager
+- [x] Final URL Expansion control using current campaign `asset_automation_settings`
+- [x] independent text asset automation with the provider rule that it cannot be disabled while Final URL Expansion is enabled
+- [x] generated enhanced YouTube video opt-in/out
+- [x] generated image enhancement opt-in/out
+- [x] v25 automated video crawl opt-in/out with explicitly approved LANDING_PAGE / SOCIAL / YOUTUBE sources
+- [x] Final URL Expansion URL exclusions synchronized as negative WEBPAGE campaign criteria
+- [x] v25.2 Asset Group tracking template, final URL suffix, and custom URL parameters
+- [x] read/edit campaign UI with audit logging and RBAC
+- [x] read/edit Asset Group URL-options UI
+- [x] regression coverage for automation dependency and provider mutation payload
+
+Broader PMax items intentionally remain outside C5:
 
 Add/review:
 
@@ -2055,8 +2076,8 @@ B9. [x] campaign-level recommendation improvements — unified deployment/provid
 C1. [x] AI Max for Search — campaign/ad-group AI Max controls, text and URL automation, text restrictions, retry-safe page-feed inclusions and URL exclusions, verified brand lists, match-source + combination reporting, migration read-back, capability/preflight/audit/UI/tests  
 C2. [x] Keyword Planner — v25 idea + historical-metrics service, URL/keyword/site seeds, geo/language/network targeting, competition/bid/monthly metrics, concept themes, Redis caching, selectable Search-intent UI, RBAC/audit/tests  
 C3. [x] forecasts — v25 planless keyword forecast API, date horizon, match types, Manual CPC / Maximize Clicks / Maximize Conversions, geo/language reuse, one-hour cache, estimate-only UI, capability/audit/tests  
-C4. [~] reusable Google campaign assets/extensions — Sitelink/Callout/Structured Snippet/Call/Price/Promotion/Lead Form library, customer/campaign/ad-group association, URL options, audit/RBAC and responsive manager are implemented; AD_IMAGE + business identity assets remain  
-C5. PMax URL/automation updates  
+C4. [x] reusable Google campaign assets/extensions — Sitelink/Callout/Structured Snippet/Call/Price/Promotion/Lead Form plus AD_IMAGE, Business Name and Business Logo; raw TEXT/IMAGE assets use role-aware semantic linkage, correct scope eligibility, URL options, audit/RBAC, responsive UI and regression coverage  
+C5. [x] PMax URL/automation updates — current asset automation settings, Final URL Expansion dependency, enhanced video/image controls, approved automated video crawl sources, URL exclusions, v25.2 Asset Group URL options, RBAC/audit/UI/tests  
 C6. Google AI asset generation where eligible  
 C7. Demand Gen targeting completeness  
 C8. App campaigns  
