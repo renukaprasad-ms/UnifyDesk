@@ -30,6 +30,12 @@ public class ManagedEmailRuntimeProperties {
   private long campaignSizeCap = 0;
   private int providerSnapshotMaxAgeSeconds = 300;
 
+  private int providerEffectPollBatchSize = 25;
+  private int providerEffectStaleAfterSeconds = 120;
+  private int providerEffectMaxAttempts = 8;
+  private long providerEffectRetryInitialSeconds = 2;
+  private long providerEffectRetryMaxSeconds = 900;
+
   private int snsReplayWindowSeconds = 300;
   private int webhookMaxBytes = 262144;
   private int webhookMaxJsonDepth = 32;

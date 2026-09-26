@@ -8,6 +8,7 @@ import com.messaging.broadcast.entity.BroadcastSender;
 import com.messaging.broadcast.entity.BroadcastSenderConnection;
 import com.messaging.broadcast.transport.AmazonSesBroadcastEmailTransport;
 import com.messaging.broadcast.transport.BroadcastEmailCommand;
+import jakarta.mail.internet.InternetAddress;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
@@ -20,23 +21,13 @@ class AmazonSesBroadcastEmailTransportTests {
 
   @Test
   void managedRequestContainsTenantConfigurationSetSafeTagsAndPersistedFrom() {
-    SesSendContextResolver resolver = mock(SesSendContextResolver.class);
-    SesV2Client client = mock(SesV2Client.class);
-    when(resolver.resolve(any(), any()))
-        .thenReturn(
-            new SesSendContext(
-                client, true, "tenant-10", "cfg-10", 40L, "offers@example.test"));
-    when(client.sendEmail(any(SendEmailRequest.class)))
-        .thenReturn(SendEmailResponse.builder().messageId("provider-1").build());
-
+    Fixture fixture = fixture(true);
     BroadcastSender sender = sender();
     sender.setFromAddress("stale-or-tampered@other.test");
-    AmazonSesBroadcastEmailTransport transport = new AmazonSesBroadcastEmailTransport(resolver);
-    transport.send(connection(), sender, command());
 
-    ArgumentCaptor<SendEmailRequest> captor = ArgumentCaptor.forClass(SendEmailRequest.class);
-    verify(client).sendEmail(captor.capture());
-    SendEmailRequest request = captor.getValue();
+    fixture.transport.send(connection(), sender, command());
+
+    SendEmailRequest request = captured(fixture.client);
     assertThat(request.fromEmailAddress()).isEqualTo("offers@example.test");
     assertThat(request.tenantName()).isEqualTo("tenant-10");
     assertThat(request.configurationSetName()).isEqualTo("cfg-10");
@@ -53,22 +44,79 @@ class AmazonSesBroadcastEmailTransportTests {
   }
 
   @Test
+  void quotedDisplayNameIsSanitizedIntoValidFromHeader() throws Exception {
+    Fixture fixture = fixture(true);
+    BroadcastSender sender = sender();
+    sender.setDisplayName("Acme \"Offers\"");
+
+    fixture.transport.send(connection(), sender, command());
+
+    String from = captured(fixture.client).fromEmailAddress();
+    assertThat(from).doesNotContain("\"");
+    InternetAddress[] parsed = InternetAddress.parse(from, true);
+    assertThat(parsed).hasSize(1);
+    assertThat(parsed[0].getAddress()).isEqualTo("offers@example.test");
+  }
+
+  @Test
+  void displayNameControlsCannotInjectHeaders() throws Exception {
+    for (String displayName :
+        new String[] {"Acme\nBcc: victim@example.com", "Acme\rOffers", "Acme\r\nOffers"}) {
+      Fixture fixture = fixture(true);
+      BroadcastSender sender = sender();
+      sender.setDisplayName(displayName);
+
+      fixture.transport.send(connection(), sender, command());
+
+      String from = captured(fixture.client).fromEmailAddress();
+      assertThat(from).doesNotContain("\r", "\n");
+      InternetAddress[] parsed = InternetAddress.parse(from, true);
+      assertThat(parsed).hasSize(1);
+      assertThat(parsed[0].getAddress()).isEqualTo("offers@example.test");
+    }
+  }
+
+  @Test
+  void blankDisplayNameUsesPlainMailbox() {
+    Fixture fixture = fixture(true);
+    BroadcastSender sender = sender();
+    sender.setDisplayName("   ");
+
+    fixture.transport.send(connection(), sender, command());
+
+    assertThat(captured(fixture.client).fromEmailAddress()).isEqualTo("offers@example.test");
+  }
+
+  @Test
   void customerManagedRequestRemainsUnchanged() {
+    Fixture fixture = fixture(false);
+
+    fixture.transport.send(connection(), sender(), command());
+
+    SendEmailRequest request = captured(fixture.client);
+    assertThat(request.fromEmailAddress()).isEqualTo("sender@example.test");
+    assertThat(request.tenantName()).isNull();
+    assertThat(request.configurationSetName()).isNull();
+  }
+
+  private Fixture fixture(boolean managed) {
     SesSendContextResolver resolver = mock(SesSendContextResolver.class);
     SesV2Client client = mock(SesV2Client.class);
     when(resolver.resolve(any(), any()))
-        .thenReturn(new SesSendContext(client, false, null, null, null, null));
+        .thenReturn(
+            managed
+                ? new SesSendContext(
+                    client, true, "tenant-10", "cfg-10", 40L, "offers@example.test")
+                : new SesSendContext(client, false, null, null, null, null));
     when(client.sendEmail(any(SendEmailRequest.class)))
-        .thenReturn(SendEmailResponse.builder().messageId("provider-2").build());
+        .thenReturn(SendEmailResponse.builder().messageId("provider-1").build());
+    return new Fixture(new AmazonSesBroadcastEmailTransport(resolver), client);
+  }
 
-    AmazonSesBroadcastEmailTransport transport = new AmazonSesBroadcastEmailTransport(resolver);
-    transport.send(connection(), sender(), command());
-
+  private SendEmailRequest captured(SesV2Client client) {
     ArgumentCaptor<SendEmailRequest> captor = ArgumentCaptor.forClass(SendEmailRequest.class);
     verify(client).sendEmail(captor.capture());
-    assertThat(captor.getValue().fromEmailAddress()).isEqualTo("sender@example.test");
-    assertThat(captor.getValue().tenantName()).isNull();
-    assertThat(captor.getValue().configurationSetName()).isNull();
+    return captor.getValue();
   }
 
   private BroadcastSenderConnection connection() {
@@ -101,4 +149,6 @@ class AmazonSesBroadcastEmailTransportTests {
         20L,
         70L);
   }
+
+  private record Fixture(AmazonSesBroadcastEmailTransport transport, SesV2Client client) {}
 }

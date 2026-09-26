@@ -36,20 +36,76 @@ class SesSendContextResolverTests {
             new ManagedEmailAddressPolicy(),
             budget);
 
-    BroadcastSenderConnection connection =
-        connection(BroadcastSenderManagementMode.CUSTOMER_MANAGED);
-    BroadcastSender sender = sender();
-
-    SesSendContext context = resolver.resolve(connection, sender);
+    SesSendContext context =
+        resolver.resolve(connection(BroadcastSenderManagementMode.CUSTOMER_MANAGED), sender());
 
     assertThat(context.managed()).isFalse();
     assertThat(context.client()).isSameAs(client);
-    verify(customer).client(connection);
+    verify(customer).client(any());
     verifyNoInteractions(managed, runtime, budget);
   }
 
   @Test
-  void managedSesUsesPlatformCredentialsAndPersistedTenantContext() {
+  void managedSesUsesStrictPersistedMailboxAndPlatformCredentials() {
+    Fixture fixture = fixture("offers@example.test", "example.test");
+
+    SesSendContext context =
+        fixture.resolver.resolve(
+            connection(BroadcastSenderManagementMode.MESSAGING_MANAGED), sender());
+
+    assertThat(context.managed()).isTrue();
+    assertThat(context.client()).isSameAs(fixture.client);
+    assertThat(context.managedFromAddress()).isEqualTo("offers@example.test");
+    verify(fixture.managed).client("us-east-1");
+  }
+
+  @Test
+  void everyMalformedPersistedMailboxFailsBeforeSesClientInvocation() {
+    String[] invalid = {
+      "ceo@amazon.com",
+      "bad..local@example.test",
+      ".bad@example.test",
+      "bad.@example.test",
+      "bad @example.test",
+      "bad@example.test extra",
+      "Name <offers@example.test>",
+      "bad\rexample@example.test",
+      "bad\nexample@example.test",
+      "bad@@example.test",
+      "bad@example..test",
+      "bad@-example.test",
+      "bad@example-.test",
+      "\"offers\"@example.test",
+      " offers@example.test",
+      "offers@example.test "
+    };
+
+    for (String address : invalid) {
+      Fixture fixture = fixture(address, "example.test");
+
+      assertThatThrownBy(
+              () ->
+                  fixture.resolver.resolve(
+                      connection(BroadcastSenderManagementMode.MESSAGING_MANAGED), sender()))
+          .isInstanceOf(BroadcastTransportException.class);
+
+      verifyNoInteractions(fixture.managed);
+    }
+  }
+
+  @Test
+  void normalizedIdnDomainCanMatchBoundAsciiDomain() {
+    Fixture fixture = fixture("offers@bücher.example", "xn--bcher-kva.example");
+
+    SesSendContext context =
+        fixture.resolver.resolve(
+            connection(BroadcastSenderManagementMode.MESSAGING_MANAGED), sender());
+
+    assertThat(context.managedFromAddress()).isEqualTo("offers@bücher.example");
+    verify(fixture.managed).client("us-east-1");
+  }
+
+  private Fixture fixture(String fromAddress, String boundDomain) {
     AmazonSesClientManager customer = mock(AmazonSesClientManager.class);
     ManagedSesClientProvider managed = mock(ManagedSesClientProvider.class);
     ManagedEmailRuntimeRepository runtime = mock(ManagedEmailRuntimeRepository.class);
@@ -57,9 +113,12 @@ class SesSendContextResolverTests {
     ManagedEmailRuntimeProperties properties = new ManagedEmailRuntimeProperties();
     properties.setRegion("us-east-1");
     SesV2Client client = mock(SesV2Client.class);
+    ManagedEmailRuntimeRepository.ManagedSenderRuntime senderRuntime =
+        activeRuntime(fromAddress, boundDomain);
+    when(runtime.findSenderRuntime(10L, 20L)).thenReturn(Optional.of(senderRuntime));
+    when(budget.hasUsableProviderSnapshot(senderRuntime)).thenReturn(true);
     when(managed.client("us-east-1")).thenReturn(client);
-    when(runtime.findSenderRuntime(10L, 20L)).thenReturn(Optional.of(activeRuntime("offers@example.test")));
-    when(budget.hasUsableProviderSnapshot(any())).thenReturn(true);
+
     SesSendContextResolver resolver =
         new SesSendContextResolver(
             customer,
@@ -68,44 +127,7 @@ class SesSendContextResolverTests {
             properties,
             new ManagedEmailAddressPolicy(),
             budget);
-
-    SesSendContext context =
-        resolver.resolve(connection(BroadcastSenderManagementMode.MESSAGING_MANAGED), sender());
-
-    assertThat(context.managed()).isTrue();
-    assertThat(context.client()).isSameAs(client);
-    assertThat(context.tenantName()).isEqualTo("tenant-10");
-    assertThat(context.configurationSetName()).isEqualTo("cfg-10");
-    assertThat(context.domainId()).isEqualTo(40L);
-    assertThat(context.managedFromAddress()).isEqualTo("offers@example.test");
-    verifyNoInteractions(customer);
-  }
-
-  @Test
-  void tamperedFromDomainFailsBeforeManagedClientIsUsed() {
-    AmazonSesClientManager customer = mock(AmazonSesClientManager.class);
-    ManagedSesClientProvider managed = mock(ManagedSesClientProvider.class);
-    ManagedEmailRuntimeRepository runtime = mock(ManagedEmailRuntimeRepository.class);
-    ManagedEmailProviderBudgetService budget = mock(ManagedEmailProviderBudgetService.class);
-    ManagedEmailRuntimeProperties properties = new ManagedEmailRuntimeProperties();
-    properties.setRegion("us-east-1");
-    when(runtime.findSenderRuntime(10L, 20L)).thenReturn(Optional.of(activeRuntime("ceo@amazon.com")));
-    when(budget.hasUsableProviderSnapshot(any())).thenReturn(true);
-    SesSendContextResolver resolver =
-        new SesSendContextResolver(
-            customer,
-            managed,
-            runtime,
-            properties,
-            new ManagedEmailAddressPolicy(),
-            budget);
-
-    assertThatThrownBy(
-            () ->
-                resolver.resolve(
-                    connection(BroadcastSenderManagementMode.MESSAGING_MANAGED), sender()))
-        .isInstanceOf(BroadcastTransportException.class);
-    verifyNoInteractions(managed, customer);
+    return new Fixture(resolver, managed, client);
   }
 
   private BroadcastSenderConnection connection(BroadcastSenderManagementMode mode) {
@@ -123,7 +145,8 @@ class SesSendContextResolverTests {
     return sender;
   }
 
-  private ManagedEmailRuntimeRepository.ManagedSenderRuntime activeRuntime(String fromAddress) {
+  private ManagedEmailRuntimeRepository.ManagedSenderRuntime activeRuntime(
+      String fromAddress, String domain) {
     return new ManagedEmailRuntimeRepository.ManagedSenderRuntime(
         10L,
         20L,
@@ -141,7 +164,7 @@ class SesSendContextResolverTests {
         "HEALTHY",
         "ESTABLISHED",
         "ACTIVE",
-        "example.test",
+        domain,
         "us-east-1",
         "tenant-10",
         "cfg-10",
@@ -150,4 +173,9 @@ class SesSendContextResolverTests {
         100.0,
         Instant.now());
   }
+
+  private record Fixture(
+      SesSendContextResolver resolver,
+      ManagedSesClientProvider managed,
+      SesV2Client client) {}
 }

@@ -8,7 +8,6 @@ import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
-import software.amazon.awssdk.services.sesv2.model.SuppressionListReason;
 
 class ManagedEmailProviderEventProcessorTests {
 
@@ -18,13 +17,12 @@ class ManagedEmailProviderEventProcessorTests {
     ManagedEmailProviderEvent event =
         event(11L, ManagedEmailProviderEventType.DELIVERY, null);
     when(fixture.parser.parse(any())).thenReturn(event);
-    when(fixture.runtime.findRecipientRuntime(70L))
-        .thenReturn(Optional.of(runtime()));
+    when(fixture.runtime.findRecipientRuntime(70L)).thenReturn(Optional.of(runtime()));
 
     fixture.processor.process(envelope());
 
     verify(fixture.ledger).recordRejected(event, "OWNERSHIP_MISMATCH");
-    verifyNoInteractions(fixture.receipt, fixture.local, fixture.providerSuppression);
+    verifyNoInteractions(fixture.receipt, fixture.local);
   }
 
   @Test
@@ -34,8 +32,7 @@ class ManagedEmailProviderEventProcessorTests {
         event(10L, ManagedEmailProviderEventType.DELIVERY, null);
     ManagedEmailRuntimeRepository.ManagedRecipientRuntime runtime = runtime();
     when(fixture.parser.parse(any())).thenReturn(event);
-    when(fixture.runtime.findRecipientRuntime(70L))
-        .thenReturn(Optional.of(runtime));
+    when(fixture.runtime.findRecipientRuntime(70L)).thenReturn(Optional.of(runtime));
     doThrow(new IllegalStateException("projection failed"))
         .doNothing()
         .when(fixture.local)
@@ -49,33 +46,21 @@ class ManagedEmailProviderEventProcessorTests {
 
     verify(fixture.receipt, times(2)).receiveMatched(event, runtime);
     verify(fixture.local, times(2)).process(event, runtime);
-    verifyNoInteractions(fixture.providerSuppression);
   }
 
   @Test
-  void providerSuppressionFailureIsRetriedWithoutBlockingLocalConvergence() {
+  void bounceWebhookDoesNotCallSesDirectly() {
     Fixture fixture = fixture();
     ManagedEmailProviderEvent event =
         event(10L, ManagedEmailProviderEventType.BOUNCE, "Permanent");
     ManagedEmailRuntimeRepository.ManagedRecipientRuntime runtime = runtime();
     when(fixture.parser.parse(any())).thenReturn(event);
-    when(fixture.runtime.findRecipientRuntime(70L))
-        .thenReturn(Optional.of(runtime));
-    doThrow(new IllegalStateException("provider unavailable"))
-        .doNothing()
-        .when(fixture.providerSuppression)
-        .signal(runtime, SuppressionListReason.BOUNCE);
-
-    assertThatThrownBy(() -> fixture.processor.process(envelope()))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage("provider unavailable");
+    when(fixture.runtime.findRecipientRuntime(70L)).thenReturn(Optional.of(runtime));
 
     fixture.processor.process(envelope());
 
-    verify(fixture.receipt, times(2)).receiveMatched(event, runtime);
-    verify(fixture.local, times(2)).process(event, runtime);
-    verify(fixture.providerSuppression, times(2))
-        .signal(runtime, SuppressionListReason.BOUNCE);
+    verify(fixture.receipt).receiveMatched(event, runtime);
+    verify(fixture.local).process(event, runtime);
   }
 
   private Fixture fixture() {
@@ -84,29 +69,13 @@ class ManagedEmailProviderEventProcessorTests {
     ManagedEmailRuntimeRepository runtime = mock(ManagedEmailRuntimeRepository.class);
     ManagedEmailEventReceiptService receipt = mock(ManagedEmailEventReceiptService.class);
     ManagedEmailEventLocalProcessor local = mock(ManagedEmailEventLocalProcessor.class);
-    ManagedEmailProviderSuppressionService providerSuppression =
-        mock(ManagedEmailProviderSuppressionService.class);
     SnsMessageVerifier verifier = mock(SnsMessageVerifier.class);
     SnsSubscriptionConfirmer confirmer = mock(SnsSubscriptionConfirmer.class);
 
     ManagedEmailProviderEventProcessor processor =
         new ManagedEmailProviderEventProcessor(
-            ledger,
-            parser,
-            runtime,
-            receipt,
-            local,
-            providerSuppression,
-            verifier,
-            confirmer);
-    return new Fixture(
-        processor,
-        ledger,
-        parser,
-        runtime,
-        receipt,
-        local,
-        providerSuppression);
+            ledger, parser, runtime, receipt, local, verifier, confirmer);
+    return new Fixture(processor, ledger, parser, runtime, receipt, local);
   }
 
   private ManagedEmailProviderEvent event(
@@ -177,6 +146,5 @@ class ManagedEmailProviderEventProcessorTests {
       ManagedEmailSesEventParser parser,
       ManagedEmailRuntimeRepository runtime,
       ManagedEmailEventReceiptService receipt,
-      ManagedEmailEventLocalProcessor local,
-      ManagedEmailProviderSuppressionService providerSuppression) {}
+      ManagedEmailEventLocalProcessor local) {}
 }

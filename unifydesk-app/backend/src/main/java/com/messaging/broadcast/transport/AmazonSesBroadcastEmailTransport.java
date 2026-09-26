@@ -5,6 +5,8 @@ import com.messaging.broadcast.entity.BroadcastSenderConnection;
 import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.managedemail.delivery.SesSendContext;
 import com.messaging.managedemail.delivery.SesSendContextResolver;
+import jakarta.mail.internet.InternetAddress;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -126,10 +128,31 @@ public class AmazonSesBroadcastEmailTransport implements BroadcastEmailTransport
 
   private String fromAddress(BroadcastSender sender, SesSendContext context) {
     String address = context.managed() ? context.managedFromAddress() : sender.getFromAddress();
-    if (sender.getDisplayName() == null || sender.getDisplayName().isBlank()) {
+    String displayName = safeDisplayName(sender.getDisplayName());
+    if (displayName == null) {
       return address;
     }
-    String safeName = sender.getDisplayName().replace(""", "");
-    return safeName + " <" + address + ">";
+    try {
+      return new InternetAddress(address, displayName, StandardCharsets.UTF_8.name()).toString();
+    } catch (UnsupportedEncodingException exception) {
+      throw BroadcastTransportException.permanent(
+          "INVALID_SENDER_DISPLAY_NAME", "Sender display name is invalid", exception);
+    }
+  }
+
+  private String safeDisplayName(String displayName) {
+    if (displayName == null || displayName.isBlank()) {
+      return null;
+    }
+    StringBuilder safe = new StringBuilder(displayName.length());
+    for (int index = 0; index < displayName.length(); index++) {
+      char character = displayName.charAt(index);
+      if (character == '"' || Character.isISOControl(character)) {
+        continue;
+      }
+      safe.append(character);
+    }
+    String value = safe.toString().trim();
+    return value.isEmpty() ? null : value;
   }
 }
