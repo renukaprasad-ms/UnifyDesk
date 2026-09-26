@@ -35,6 +35,9 @@ import com.messaging.ads.google.dto.GoogleInsightBreakdownsSyncResponse;
 import com.messaging.ads.google.dto.GoogleKeywordSyncResponse;
 import com.messaging.ads.google.dto.GoogleFullSyncResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupResponse;
+import com.messaging.ads.google.dto.GoogleAssetGroupUrlOptionsResponse;
+import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationRequest;
+import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupAssetResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupAssetMutationRequest;
 import com.messaging.ads.google.dto.GoogleAssetGroupAssetRemoveRequest;
@@ -441,6 +444,59 @@ public class GoogleAdsConnectionController {
             performanceMaxService.setAssetGroupStatus(
                 companyId, campaignId, assetGroupId, request.status(), userId),
             "Google Performance Max asset group status updated"));
+  }
+
+
+  @GetMapping("/campaigns/{campaignId}/performance-max/automation")
+  public ResponseEntity<ApiResponse<GooglePerformanceMaxAutomationResponse>> performanceMaxAutomation(
+      @PathVariable Long companyId, @PathVariable Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxService.automation(companyId, campaignId),
+            "Google Performance Max automation settings fetched"));
+  }
+
+  @PutMapping("/campaigns/{campaignId}/performance-max/automation")
+  public ResponseEntity<ApiResponse<GooglePerformanceMaxAutomationResponse>> updatePerformanceMaxAutomation(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @Valid @RequestBody GooglePerformanceMaxAutomationRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxService.updateAutomation(companyId, campaignId, request, userId),
+            "Google Performance Max automation settings updated"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/asset-groups/{assetGroupId}/url-options")
+  public ResponseEntity<ApiResponse<GoogleAssetGroupUrlOptionsResponse>> assetGroupUrlOptions(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @PathVariable String assetGroupId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxService.assetGroupUrlOptions(companyId, campaignId, assetGroupId),
+            "Google Performance Max Asset Group URL options fetched"));
+  }
+
+  @PutMapping("/campaigns/{campaignId}/asset-groups/{assetGroupId}/url-options")
+  public ResponseEntity<ApiResponse<GoogleAssetGroupUrlOptionsResponse>> updateAssetGroupUrlOptions(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @PathVariable String assetGroupId,
+      @Valid @RequestBody GoogleUrlOptionsRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxService.updateAssetGroupUrlOptions(
+                companyId, campaignId, assetGroupId, request, userId),
+            "Google Performance Max Asset Group URL options updated"));
   }
 
   @PostMapping("/accounts/{accountId}/advanced-campaigns")
