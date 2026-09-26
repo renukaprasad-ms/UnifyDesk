@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+} from 'react'
 import { FiPlus, FiRefreshCw, FiSave, FiTrash2 } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
@@ -91,8 +98,11 @@ export default function GoogleDemandGenTargetingPanel({
       maps: true,
     })
   const [locations, setLocations] = useState<LocationRow[]>([])
+  const [locationResources, setLocationResources] = useState<string[]>([])
   const [excludedLocations, setExcludedLocations] = useState<LocationRow[]>([])
-  const [languages, setLanguages] = useState('en')
+  const [excludedLocationResources, setExcludedLocationResources] = useState<string[]>([])
+  const [languages, setLanguages] = useState('')
+  const [languageResources, setLanguageResources] = useState<string[]>([])
   const [audiences, setAudiences] = useState<GoogleDemandGenAudienceOption[]>([])
   const [selectedAudiences, setSelectedAudiences] = useState<string[]>([])
   const [performance, setPerformance] = useState<GoogleDemandGenChannelPerformance[]>([])
@@ -122,6 +132,9 @@ export default function GoogleDemandGenTargetingPanel({
       setAudienceGrouped(targeting.useAudienceGrouped)
       setAudiences(audienceOptions)
       setSelectedAudiences(targeting.audienceResources)
+      setLocationResources(targeting.locationResources)
+      setExcludedLocationResources(targeting.excludedLocationResources)
+      setLanguageResources(targeting.languageResources)
 
       if (targeting.channelConfig === 'SELECTED_CHANNELS') {
         setChannelMode('INDIVIDUAL')
@@ -161,11 +174,14 @@ export default function GoogleDemandGenTargetingPanel({
           selectedChannels:
             channelMode === 'INDIVIDUAL' ? selectedChannels : null,
           locations: locations.map(normalizeLocation),
+          locationResourceNames: locationResources,
           excludedLocations: excludedLocations.map(normalizeLocation),
+          excludedLocationResourceNames: excludedLocationResources,
           languages: languages
             .split(',')
             .map((item) => item.trim())
             .filter(Boolean),
+          languageResourceNames: languageResources,
           audienceResourceNames: selectedAudiences,
         },
       )
@@ -187,7 +203,7 @@ export default function GoogleDemandGenTargetingPanel({
   }
 
   const setLocation = (
-    setter: React.Dispatch<React.SetStateAction<LocationRow[]>>,
+    setter: Dispatch<SetStateAction<LocationRow[]>>,
     id: string,
     patch: Partial<LocationRow>,
   ) =>
@@ -282,8 +298,19 @@ export default function GoogleDemandGenTargetingPanel({
           )}
         </div>
 
+        <ExistingResourceChips
+          title="Existing included location targets"
+          resources={locationResources}
+          disabled={!canModify || saving}
+          onRemove={(resource) =>
+            setLocationResources((current) =>
+              current.filter((item) => item !== resource),
+            )
+          }
+        />
+
         <LocationEditor
-          title="Included locations"
+          title="Add included locations"
           rows={locations}
           disabled={!canModify || saving}
           onAdd={() => setLocations((current) => [...current, newLocation()])}
@@ -293,8 +320,19 @@ export default function GoogleDemandGenTargetingPanel({
           onChange={(id, patch) => setLocation(setLocations, id, patch)}
         />
 
+        <ExistingResourceChips
+          title="Existing excluded location targets"
+          resources={excludedLocationResources}
+          disabled={!canModify || saving}
+          onRemove={(resource) =>
+            setExcludedLocationResources((current) =>
+              current.filter((item) => item !== resource),
+            )
+          }
+        />
+
         <LocationEditor
-          title="Excluded locations"
+          title="Add excluded locations"
           rows={excludedLocations}
           disabled={!canModify || saving}
           onAdd={() =>
@@ -310,8 +348,19 @@ export default function GoogleDemandGenTargetingPanel({
           }
         />
 
+        <ExistingResourceChips
+          title="Existing language targets"
+          resources={languageResources}
+          disabled={!canModify || saving}
+          onRemove={(resource) =>
+            setLanguageResources((current) =>
+              current.filter((item) => item !== resource),
+            )
+          }
+        />
+
         <label className="block text-xs font-semibold text-slate-700">
-          Languages
+          Add languages
           <input
             className="form-input mt-2"
             value={languages}
@@ -431,6 +480,44 @@ export default function GoogleDemandGenTargetingPanel({
         </div>
       </div>
     </section>
+  )
+}
+
+function ExistingResourceChips({
+  title,
+  resources,
+  disabled,
+  onRemove,
+}: {
+  title: string
+  resources: string[]
+  disabled: boolean
+  onRemove: (resource: string) => void
+}) {
+  if (resources.length === 0) return null
+  return (
+    <div>
+      <h3 className="text-sm font-bold text-slate-900">{title}</h3>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {resources.map((resource) => (
+          <span
+            key={resource}
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600"
+          >
+            {resource}
+            <button
+              type="button"
+              className="text-slate-400 hover:text-red-600"
+              disabled={disabled}
+              title="Remove target"
+              onClick={() => onRemove(resource)}
+            >
+              <FiTrash2 aria-hidden="true" />
+            </button>
+          </span>
+        ))}
+      </div>
+    </div>
   )
 }
 
