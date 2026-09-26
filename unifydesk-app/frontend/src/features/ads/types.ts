@@ -1894,6 +1894,7 @@ export type AdAudience = {
   pixelId?: string | null
   ruleJson?: string | null
   lookalikeSpecJson?: string | null
+  customerFileSource?: string | null
   providerCreatedAt?: string | null
   providerUpdatedAt?: string | null
   accessible: boolean
@@ -1902,7 +1903,7 @@ export type AdAudience = {
 
 export type CreateMetaAudienceInput = {
   name: string
-  type: 'WEBSITE' | 'LOOKALIKE'
+  type: 'WEBSITE' | 'LOOKALIKE' | 'CUSTOMER_LIST'
   description?: string | null
   pixelId?: string | null
   ruleJson?: string | null
@@ -1910,6 +1911,44 @@ export type CreateMetaAudienceInput = {
   originAudienceId?: string | null
   country?: string | null
   ratio?: number | null
+  customerFileSource?:
+    | 'USER_PROVIDED_ONLY'
+    | 'PARTNER_PROVIDED_ONLY'
+    | 'BOTH_USER_AND_PARTNER_PROVIDED'
+    | null
+}
+
+export type MetaCustomerListSchema =
+  | 'EMAIL'
+  | 'PHONE'
+  | 'FN'
+  | 'LN'
+  | 'FI'
+  | 'CT'
+  | 'ST'
+  | 'ZIP'
+  | 'COUNTRY'
+  | 'GEN'
+  | 'DOBY'
+  | 'DOBM'
+  | 'DOBD'
+  | 'EXTERN_ID'
+
+export type MetaCustomerListMembersInput = {
+  schema: MetaCustomerListSchema[]
+  rows: string[][]
+  operation: 'ADD' | 'REMOVE'
+  preHashed?: boolean
+  customAudienceTermsAccepted: boolean
+}
+
+export type MetaCustomerListMembersResult = {
+  audienceId: string
+  operation: 'ADD' | 'REMOVE'
+  submittedRows: number
+  batchCount: number
+  providerReceivedRows: number
+  providerInvalidRows: number
 }
 
 export type MetaAudienceSync = {

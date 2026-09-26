@@ -36,7 +36,7 @@ export default function MetaAudienceModal({
   )
 
   const [name, setName] = useState('')
-  const [type, setType] = useState<'WEBSITE' | 'LOOKALIKE'>('WEBSITE')
+  const [type, setType] = useState<'WEBSITE' | 'LOOKALIKE' | 'CUSTOMER_LIST'>('WEBSITE')
   const [description, setDescription] = useState('')
   const [pixelId, setPixelId] = useState('')
   const [ruleJson, setRuleJson] = useState('{"url":{"i_contains":""}}')
@@ -44,6 +44,10 @@ export default function MetaAudienceModal({
   const [originAudienceId, setOriginAudienceId] = useState('')
   const [country, setCountry] = useState('IN')
   const [ratioPercent, setRatioPercent] = useState('1')
+  const [customerFileSource, setCustomerFileSource] =
+    useState<'USER_PROVIDED_ONLY' | 'PARTNER_PROVIDED_ONLY' | 'BOTH_USER_AND_PARTNER_PROVIDED'>(
+      'USER_PROVIDED_ONLY',
+    )
 
   if (!open) return null
 
@@ -61,6 +65,7 @@ export default function MetaAudienceModal({
       country: type === 'LOOKALIKE' ? country.trim().toUpperCase() : null,
       ratio:
         type === 'LOOKALIKE' ? Number(ratioPercent || 1) / 100 : null,
+      customerFileSource: type === 'CUSTOMER_LIST' ? customerFileSource : null,
     })
   }
 
@@ -72,7 +77,7 @@ export default function MetaAudienceModal({
             <p className="eyebrow">Meta Ads</p>
             <h2 className="mt-1 text-xl font-bold text-slate-950">Create audience</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Create a website custom audience or a lookalike.
+              Create a website audience, customer-list Custom Audience, or lookalike.
             </p>
           </div>
           <button
@@ -104,10 +109,16 @@ export default function MetaAudienceModal({
                 className="form-input mt-2"
                 value={type}
                 onChange={(event) =>
-                  setType(event.target.value as 'WEBSITE' | 'LOOKALIKE')
+                  setType(
+                    event.target.value as
+                      | 'WEBSITE'
+                      | 'LOOKALIKE'
+                      | 'CUSTOMER_LIST',
+                  )
                 }
               >
                 <option value="WEBSITE">Website custom audience</option>
+                <option value="CUSTOMER_LIST">Customer-list Custom Audience</option>
                 <option value="LOOKALIKE">Lookalike audience</option>
               </select>
             </label>
@@ -177,6 +188,38 @@ export default function MetaAudienceModal({
                 </div>
               )}
             </>
+          ) : type === 'CUSTOMER_LIST' ? (
+            <div className="space-y-4">
+              <label className="block text-xs font-semibold text-slate-700">
+                Customer file source
+                <select
+                  className="form-input mt-2"
+                  value={customerFileSource}
+                  onChange={(event) =>
+                    setCustomerFileSource(
+                      event.target.value as
+                        | 'USER_PROVIDED_ONLY'
+                        | 'PARTNER_PROVIDED_ONLY'
+                        | 'BOTH_USER_AND_PARTNER_PROVIDED',
+                    )
+                  }
+                >
+                  <option value="USER_PROVIDED_ONLY">
+                    First-party data collected directly by this business
+                  </option>
+                  <option value="PARTNER_PROVIDED_ONLY">
+                    Data provided by an authorized partner
+                  </option>
+                  <option value="BOTH_USER_AND_PARTNER_PROVIDED">
+                    Combination of first-party and authorized partner data
+                  </option>
+                </select>
+              </label>
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs leading-5 text-indigo-800">
+                This creates an empty Meta Custom Audience. Add members after creation using
+                the Upload members action. Customer identifiers are not stored by UnifyDesk.
+              </div>
+            </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-3">
               <label className="block text-xs font-semibold text-slate-700 sm:col-span-3">
@@ -244,7 +287,8 @@ export default function MetaAudienceModal({
                 !name.trim() ||
                 (type === 'WEBSITE' && (!pixelId || !ruleJson.trim())) ||
                 (type === 'LOOKALIKE' &&
-                  (!originAudienceId || !country.trim() || !ratioPercent))
+                  (!originAudienceId || !country.trim() || !ratioPercent)) ||
+                (type === 'CUSTOMER_LIST' && !customerFileSource)
               }
             >
               {saving ? 'Creating…' : 'Create audience'}

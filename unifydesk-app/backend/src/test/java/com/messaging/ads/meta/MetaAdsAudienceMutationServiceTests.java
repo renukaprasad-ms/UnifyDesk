@@ -18,6 +18,7 @@ import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdAccountResourceRepository;
 import com.messaging.ads.repository.AdAudienceRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
+import com.messaging.ads.service.AdActivityLogService;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +42,7 @@ class MetaAdsAudienceMutationServiceTests {
   @Mock private MetaAdsTokenService tokenService;
   @Mock private MetaAdsApiClient apiClient;
   @Mock private MetaAdsAudiencePersistenceService persistenceService;
+  @Mock private AdActivityLogService activityLogService;
 
   private MetaAdsAudienceMutationService service;
 
@@ -55,7 +57,8 @@ class MetaAdsAudienceMutationServiceTests {
             tokenService,
             apiClient,
             persistenceService,
-            new ObjectMapper());
+            new ObjectMapper(),
+            activityLogService);
   }
 
   @Test
@@ -91,6 +94,7 @@ class MetaAdsAudienceMutationServiceTests {
             "pixel-1",
             null,
             null,
+            null,
             "1720000000",
             "1720000001");
     when(apiClient.customAudience("token", "audience-external")).thenReturn(snapshot);
@@ -119,7 +123,9 @@ class MetaAdsAudienceMutationServiceTests {
                 30,
                 null,
                 null,
-                null));
+                null,
+                null),
+            77L);
 
     assertThat(response.externalAudienceId()).isEqualTo("audience-external");
     assertThat(payload.getValue())
@@ -127,6 +133,78 @@ class MetaAdsAudienceMutationServiceTests {
         .containsEntry("pixel_id", "pixel-1")
         .containsEntry("retention_days", 30)
         .containsEntry("rule", "{\"url\":{\"i_contains\":\"/pricing\"}}");
+  }
+
+
+  @Test
+  void createsCustomerListAudienceWithDeclaredFileSource() {
+    when(accountRepository.findByIdAndCompanyId(ACCOUNT_ID, COMPANY_ID))
+        .thenReturn(Optional.of(account()));
+    when(connectionRepository.findByIdAndCompanyId(CONNECTION_ID, COMPANY_ID))
+        .thenReturn(Optional.of(connection()));
+    when(tokenService.read(CONNECTION_ID))
+        .thenReturn(
+            new MetaAdsTokenService.TokenValue(
+                new MetaAdsStoredToken("token", "bearer", "v26.0", "meta-user"), null));
+
+    ArgumentCaptor<Map<String, Object>> payload = ArgumentCaptor.forClass(Map.class);
+    when(apiClient.createCustomAudience(eq("token"), eq("123456"), payload.capture()))
+        .thenReturn("audience-custom");
+
+    CustomAudienceSummary snapshot =
+        new CustomAudienceSummary(
+            "audience-custom",
+            "CRM customers",
+            "123456",
+            "CUSTOM",
+            "First-party customers",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "USER_PROVIDED_ONLY",
+            "1720000000",
+            "1720000001");
+    when(apiClient.customAudience("token", "audience-custom")).thenReturn(snapshot);
+
+    AdAudience stored = new AdAudience();
+    stored.setId(100L);
+    stored.setCompanyId(COMPANY_ID);
+    stored.setAdAccountId(ACCOUNT_ID);
+    stored.setProvider(AdProvider.META_ADS);
+    stored.setExternalAudienceId("audience-custom");
+    stored.setName("CRM customers");
+    stored.setSubtype("CUSTOM");
+    stored.setCustomerFileSource("USER_PROVIDED_ONLY");
+    stored.setAccessible(true);
+    when(persistenceService.persistOne(COMPANY_ID, ACCOUNT_ID, snapshot)).thenReturn(stored);
+
+    var response =
+        service.create(
+            COMPANY_ID,
+            ACCOUNT_ID,
+            new CreateMetaAudienceRequest(
+                "CRM customers",
+                "CUSTOMER_LIST",
+                "First-party customers",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "USER_PROVIDED_ONLY"),
+            77L);
+
+    assertThat(response.subtype()).isEqualTo("CUSTOM");
+    assertThat(response.customerFileSource()).isEqualTo("USER_PROVIDED_ONLY");
+    assertThat(payload.getValue())
+        .containsEntry("subtype", "CUSTOM")
+        .containsEntry("customer_file_source", "USER_PROVIDED_ONLY");
   }
 
   private AdAccount account() {

@@ -4,6 +4,7 @@ import { FiPlus, FiRefreshCw, FiUploadCloud, FiUsers } from 'react-icons/fi'
 import MetaAudienceModal from '../../components/ads/MetaAudienceModal'
 import GoogleAudienceModal from '../../components/ads/GoogleAudienceModal'
 import GoogleCustomerMatchUploadModal from '../../components/ads/GoogleCustomerMatchUploadModal'
+import MetaCustomerListUploadModal from '../../components/ads/MetaCustomerListUploadModal'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -12,6 +13,7 @@ import type {
   CreateMetaAudienceInput,
   CreateGoogleAudienceInput,
   GoogleCustomerMatchUploadInput,
+  MetaCustomerListMembersInput,
 } from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -212,6 +214,32 @@ export default function AdAudiences() {
     }
   }
 
+  const uploadMetaMembers = async (
+    input: MetaCustomerListMembersInput,
+  ) => {
+    if (!selectedCompany || !uploadAudience) return
+    setUploadingMembers(true)
+    setError('')
+    setNotice('')
+    try {
+      const result = await adCenterApi.mutateMetaCustomerListMembers(
+        selectedCompany.companyId,
+        uploadAudience.id,
+        input,
+      )
+      setUploadAudience(null)
+      setNotice(
+        `${result.operation === 'ADD' ? 'Submitted' : 'Removed'} ${result.submittedRows} Meta customer-list member row(s) in ${result.batchCount} batch(es). Meta reported ${result.providerInvalidRows} invalid row(s).`,
+      )
+    } catch (uploadError) {
+      setError(
+        apiErrorMessage(uploadError, 'Unable to update Meta customer-list members'),
+      )
+    } finally {
+      setUploadingMembers(false)
+    }
+  }
+
   if (!selectedCompany) return null
 
   return (
@@ -303,7 +331,7 @@ export default function AdAudiences() {
                     <th className="px-5 py-3">Estimated size</th>
                     <th className="px-5 py-3">Delivery</th>
                     <th className="px-5 py-3">Retention</th>
-                    {selectedAccount?.provider === 'GOOGLE_ADS' && (
+                    {selectedAccount && (
                       <th className="px-5 py-3 text-right">Action</th>
                     )}
                   </tr>
@@ -319,6 +347,11 @@ export default function AdAudiences() {
                       </td>
                       <td className="px-5 py-4 text-slate-600">
                         {formatSubtype(audience.subtype)}
+                        {audience.customerFileSource && (
+                          <div className="mt-1 text-[11px] text-slate-400">
+                            {formatSubtype(audience.customerFileSource)}
+                          </div>
+                        )}
                       </td>
                       <td className="px-5 py-4 text-slate-600">{countLabel(audience)}</td>
                       <td className="px-5 py-4">
@@ -339,18 +372,24 @@ export default function AdAudiences() {
                           ? `${audience.retentionDays} days`
                           : '—'}
                       </td>
-                      {selectedAccount?.provider === 'GOOGLE_ADS' && (
+                      {selectedAccount && (
                         <td className="px-5 py-4 text-right">
-                          {can(PERMISSIONS.ADS_MODIFY) && audience.accessible && (
-                            <button
-                              type="button"
-                              className="secondary-button inline-flex items-center gap-2 text-xs"
-                              onClick={() => setUploadAudience(audience)}
-                            >
-                              <FiUploadCloud aria-hidden="true" />
-                              Upload members
-                            </button>
-                          )}
+                          {can(PERMISSIONS.ADS_MODIFY) &&
+                            audience.accessible &&
+                            (selectedAccount.provider === 'GOOGLE_ADS' ||
+                              (selectedAccount.provider === 'META_ADS' &&
+                                audience.subtype === 'CUSTOM')) && (
+                              <button
+                                type="button"
+                                className="secondary-button inline-flex items-center gap-2 text-xs"
+                                onClick={() => setUploadAudience(audience)}
+                              >
+                                <FiUploadCloud aria-hidden="true" />
+                                {selectedAccount.provider === 'META_ADS'
+                                  ? 'Manage members'
+                                  : 'Upload members'}
+                              </button>
+                            )}
                         </td>
                       )}
                     </tr>
@@ -367,6 +406,9 @@ export default function AdAudiences() {
                       <p className="font-semibold text-slate-950">{audience.name}</p>
                       <p className="mt-1 text-xs text-slate-500">
                         {formatSubtype(audience.subtype)}
+                        {audience.customerFileSource
+                          ? ` · ${formatSubtype(audience.customerFileSource)}`
+                          : ''}
                       </p>
                     </div>
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
@@ -374,16 +416,20 @@ export default function AdAudiences() {
                     </span>
                   </div>
                   <p className="mt-3 text-xs text-slate-500">{countLabel(audience)}</p>
-                  {selectedAccount?.provider === 'GOOGLE_ADS' &&
-                    can(PERMISSIONS.ADS_MODIFY) &&
-                    audience.accessible && (
+                  {can(PERMISSIONS.ADS_MODIFY) &&
+                    audience.accessible &&
+                    (selectedAccount?.provider === 'GOOGLE_ADS' ||
+                      (selectedAccount?.provider === 'META_ADS' &&
+                        audience.subtype === 'CUSTOM')) && (
                       <button
                         type="button"
                         className="secondary-button mt-4 inline-flex items-center gap-2 text-xs"
                         onClick={() => setUploadAudience(audience)}
                       >
                         <FiUploadCloud aria-hidden="true" />
-                        Upload members
+                        {selectedAccount?.provider === 'META_ADS'
+                          ? 'Manage members'
+                          : 'Upload members'}
                       </button>
                     )}
                 </div>
@@ -403,13 +449,24 @@ export default function AdAudiences() {
           onCreate={createMeta}
         />
       )}
-      <GoogleCustomerMatchUploadModal
-        audience={uploadAudience}
-        open={uploadAudience !== null}
-        saving={uploadingMembers}
-        onClose={() => setUploadAudience(null)}
-        onUpload={uploadGoogleMembers}
-      />
+      {selectedAccount?.provider === 'GOOGLE_ADS' && (
+        <GoogleCustomerMatchUploadModal
+          audience={uploadAudience}
+          open={uploadAudience !== null}
+          saving={uploadingMembers}
+          onClose={() => setUploadAudience(null)}
+          onUpload={uploadGoogleMembers}
+        />
+      )}
+      {selectedAccount?.provider === 'META_ADS' && (
+        <MetaCustomerListUploadModal
+          audience={uploadAudience}
+          open={uploadAudience !== null}
+          saving={uploadingMembers}
+          onClose={() => setUploadAudience(null)}
+          onSubmit={uploadMetaMembers}
+        />
+      )}
 
       {selectedAccount?.provider === 'GOOGLE_ADS' && (
         <GoogleAudienceModal

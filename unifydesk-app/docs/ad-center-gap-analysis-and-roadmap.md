@@ -1485,21 +1485,43 @@ UX:
 
 ## M-09 Customer-list Custom Audiences - P1
 
-Current CreateMetaAudienceRequest only handles website/lookalike configuration.
+Status: **complete for D1 — Meta v26 customer-list Custom Audience creation and privacy-safe member management implemented**.
 
-Add:
+Implemented:
 
-- customer list audience
-- hashed identifiers
-- consent handling
-- upload job lifecycle
-- audience status
-- matching/availability status where exposed
-- source labeling
+- [x] create Meta `CUSTOM` customer-list audiences through the existing audience domain
+- [x] explicit `customer_file_source` selection:
+  - USER_PROVIDED_ONLY
+  - PARTNER_PROVIDED_ONLY
+  - BOTH_USER_AND_PARTNER_PROVIDED
+- [x] current Meta multi-key member upload contract through `/{custom-audience-id}/users`
+- [x] ADD and REMOVE member operations
+- [x] backend multi-key schema support for EMAIL, PHONE, FN, LN, FI, CT, ST, ZIP, COUNTRY, GEN, DOBY, DOBM, DOBD and EXTERN_ID
+- [x] Meta-compatible normalization and SHA-256 hashing for customer matching identifiers
+- [x] EXTERN_ID preserved as advertiser-defined ID per Meta multi-key behavior
+- [x] browser-side hashing in the UnifyDesk member UI before sensitive identifiers reach the backend
+- [x] backend normalization/hashing retained as a safe API-client fallback
+- [x] pre-hashed input validation
+- [x] provider batching at 10,000 rows per request
+- [x] explicit first-party data / Custom Audience terms confirmation
+- [x] provider received/invalid row counts returned without echoing customer identifiers
+- [x] customer rows and hashes are not persisted in the UnifyDesk database
+- [x] activity logs store only aggregate counts, operation and schema names; no customer identifiers or hashes
+- [x] desktop/mobile member management from the existing Audiences page
+- [x] sync/read-back remains compatible with existing Meta Custom Audience synchronization
+- [x] META_CUSTOM_AUDIENCE_CUSTOMER_LIST capability changed from PLANNED to AVAILABLE
+- [x] ADS_CREATE for audience creation and ADS_MODIFY for member add/remove
+- [x] regression coverage for creation, hashing, EXTERN_ID behavior, invalid pre-hashed values and capability status
 
-This later allows Reachlyo contacts/customers to become first-party advertising audiences.
+Privacy/provider boundaries:
 
-Privacy/consent requirements must be explicit.
+- Meta remains responsible for matching and eventual audience availability/delivery status.
+- UnifyDesk does not infer match rate from submitted row count.
+- D1 intentionally does not persist customer-upload jobs containing member data. The lifecycle surfaced to users is provider submission count/status plus the existing synchronized audience delivery/operation status.
+- The current UI offers one identifier type per upload for safer manual entry; the backend already supports multi-key rows so a future CSV/contact-segment uploader can use the same API contract.
+- Customer data must only be uploaded when the business has appropriate rights, consent/legal basis and has accepted Meta Custom Audience terms.
+
+This later allows UnifyDesk contacts/customers to become first-party advertising audiences without changing the provider contract.
 
 ## M-10 Engagement/App/Offline audiences - P1/P2
 
@@ -2187,7 +2209,7 @@ C9. [x] richer provider reporting — Google landing pages, actual placements, A
 
 ## Phase D - Modern Meta / P1
 
-D1. customer-list Custom Audiences  
+D1. [x] customer-list Custom Audiences — Meta CUSTOM audience creation, customer-file source labeling, browser/backend SHA-256 normalization, add/remove multi-key member batches, explicit terms/authorization, no PII/hash persistence or logging, provider counts/status, RBAC/capability/UI/tests  
 D2. Advantage+ audience controls  
 D3. Advantage+ placements  
 D4. Advantage+ creative  

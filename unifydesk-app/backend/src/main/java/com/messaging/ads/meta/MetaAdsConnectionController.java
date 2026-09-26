@@ -21,6 +21,8 @@ import com.messaging.ads.meta.dto.MetaAudienceSyncResponse;
 import com.messaging.ads.meta.dto.MetaCampaignStatusRequest;
 import com.messaging.ads.meta.dto.MetaConversionSyncResponse;
 import com.messaging.ads.meta.dto.MetaInsightBreakdownsSyncResponse;
+import com.messaging.ads.meta.dto.MetaCustomerListMembersRequest;
+import com.messaging.ads.meta.dto.MetaCustomerListMembersResponse;
 import com.messaging.ads.meta.dto.MetaInsightsSyncResponse;
 import com.messaging.ads.meta.dto.MetaGeoLocationSuggestion;
 import com.messaging.ads.meta.dto.MetaAdStatusRequest;
@@ -67,6 +69,7 @@ public class MetaAdsConnectionController {
   private final MetaAdsResourceSyncService resourceSyncService;
   private final MetaAdsAudienceSyncService audienceSyncService;
   private final MetaAdsAudienceMutationService audienceMutationService;
+  private final MetaAdsCustomerListService customerListService;
   private final MetaAdsCampaignSyncService campaignSyncService;
   private final MetaAdsConversionSyncService conversionSyncService;
   private final MetaAdsConversionMutationService conversionMutationService;
@@ -217,8 +220,25 @@ public class MetaAdsConnectionController {
         .body(
             ApiResponse.success(
                 HttpStatus.CREATED.value(),
-                audienceMutationService.create(companyId, accountId, request),
+                audienceMutationService.create(companyId, accountId, request, userId),
                 "Meta audience created"));
+  }
+
+  @PostMapping("/audiences/{audienceId}/members")
+  public ResponseEntity<ApiResponse<MetaCustomerListMembersResponse>> mutateCustomerListMembers(
+      @PathVariable Long companyId,
+      @PathVariable Long audienceId,
+      @Valid @RequestBody MetaCustomerListMembersRequest request) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            customerListService.mutateMembers(companyId, audienceId, request, userId),
+            request.operation() == MetaCustomerListMembersRequest.Operation.ADD
+                ? "Meta customer-list members submitted"
+                : "Meta customer-list members removed"));
   }
 
   @PostMapping("/accounts/{accountId}/conversions/sync")

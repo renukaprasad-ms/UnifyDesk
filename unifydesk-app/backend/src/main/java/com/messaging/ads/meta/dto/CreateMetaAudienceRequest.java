@@ -15,7 +15,8 @@ public record CreateMetaAudienceRequest(
     @Min(1) @Max(180) Integer retentionDays,
     String originAudienceId,
     String country,
-    Double ratio) {
+    Double ratio,
+    String customerFileSource) {
   @AssertTrue(message="Audience configuration does not match the selected type")
   public boolean validTypeConfiguration() {
     if (type == null) return false;
@@ -27,6 +28,13 @@ public record CreateMetaAudienceRequest(
       return originAudienceId != null && !originAudienceId.isBlank()
           && country != null && !country.isBlank()
           && ratio != null && ratio >= 0.01d && ratio <= 0.20d;
+    }
+    if ("CUSTOMER_LIST".equals(normalized)) {
+      return customerFileSource != null
+          && ("USER_PROVIDED_ONLY".equals(customerFileSource.trim().toUpperCase())
+              || "PARTNER_PROVIDED_ONLY".equals(customerFileSource.trim().toUpperCase())
+              || "BOTH_USER_AND_PARTNER_PROVIDED".equals(
+                  customerFileSource.trim().toUpperCase()));
     }
     return false;
   }

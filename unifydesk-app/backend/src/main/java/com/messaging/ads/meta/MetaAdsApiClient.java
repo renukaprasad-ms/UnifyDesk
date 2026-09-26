@@ -13,6 +13,7 @@ import java.util.Map;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -324,6 +325,28 @@ public class MetaAdsApiClient {
     return response.id();
   }
 
+  public JsonNode customAudienceUsers(
+      String accessToken,
+      String audienceId,
+      boolean remove,
+      Map<String, Object> payload) {
+    return execute(
+        () ->
+            graphClient
+                .method(remove ? HttpMethod.DELETE : HttpMethod.POST)
+                .uri(
+                    uriBuilder ->
+                        uriBuilder
+                            .path("/{version}/{audienceId}/users")
+                            .queryParam("appsecret_proof", appSecretProof(accessToken))
+                            .build(properties.getGraphApiVersion(), audienceId))
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payload)
+                .retrieve()
+                .body(JsonNode.class));
+  }
+
   public List<CustomConversionSummary> customConversions(
       String accessToken, String accountId) {
     List<CustomConversionSummary> result = new ArrayList<>();
@@ -403,7 +426,8 @@ public class MetaAdsApiClient {
   private String customAudienceFields() {
     return "id,name,account_id,subtype,description,retention_days,"
         + "approximate_count_lower_bound,approximate_count_upper_bound,delivery_status,"
-        + "operation_status,pixel_id,rule,lookalike_spec,time_created,time_updated";
+        + "operation_status,pixel_id,rule,lookalike_spec,customer_file_source,"
+        + "time_created,time_updated";
   }
 
   private String customConversionFields() {
@@ -1353,6 +1377,7 @@ public class MetaAdsApiClient {
       @JsonProperty("pixel_id") String pixelId,
       JsonNode rule,
       @JsonProperty("lookalike_spec") JsonNode lookalikeSpec,
+      @JsonProperty("customer_file_source") String customerFileSource,
       @JsonProperty("time_created") String timeCreated,
       @JsonProperty("time_updated") String timeUpdated) {}
 
