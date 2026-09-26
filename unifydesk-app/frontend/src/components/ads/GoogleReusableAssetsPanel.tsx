@@ -286,7 +286,7 @@ export default function GoogleReusableAssetsPanel(props: Props) {
         current.level,
         current.targetId ?? null,
         {
-          trackingUrlTemplate,
+          trackingUrlTemplate: trackingTemplate,
           finalUrlSuffix,
           ...(current.level === 'CUSTOMER'
             ? {}
