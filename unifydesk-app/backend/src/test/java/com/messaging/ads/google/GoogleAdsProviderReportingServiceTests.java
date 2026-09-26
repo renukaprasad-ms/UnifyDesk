@@ -130,12 +130,16 @@ class GoogleAdsProviderReportingServiceTests {
         .thenAnswer(
             invocation -> {
               String query = invocation.getArgument(3);
+              if (query.contains("FROM change_event")) {
+                assertThat(query)
+                    .contains("change_event.campaign = 'customers/1234567890/campaigns/777'");
+                return List.of(change);
+              }
               assertThat(query).contains("campaign.id = 777");
               if (query.contains("FROM landing_page_view")) return List.of(landing);
               if (query.contains("FROM group_placement_view")) return List.of(placement);
               if (query.contains("auction_insight_domain")) return List.of(auction);
               if (query.contains("conversion_action_name")) return List.of(conversion);
-              if (query.contains("FROM change_event")) return List.of(change);
               return List.of();
             });
 
