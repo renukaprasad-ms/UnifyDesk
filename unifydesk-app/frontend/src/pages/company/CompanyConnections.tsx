@@ -880,6 +880,7 @@ export default function CompanyConnections() {
         <ManagedEmailModal
           companyId={selectedCompany.companyId}
           initialDomainId={managedEmailDomainId}
+          canModify={can(PERMISSIONS.BROADCAST_MODIFY)}
           onClose={() => {
             setManagedEmailOpen(false)
             setManagedEmailDomainId(null)
