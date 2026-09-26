@@ -45,6 +45,25 @@ class CloudflareManagedDnsProviderTests {
     verify(client, never()).update(any(), any(), any(), any(), any(), eq(false));
   }
 
+
+  @Test
+  void missingCnameIsCreatedDnsOnly() {
+    var desired =
+        new ManagedDnsProvider.DnsRecord(
+            DnsRecordType.CNAME, "a._domainkey.example.com", "target.example", null);
+    when(client.find(desired.type(), desired.name())).thenReturn(List.of());
+
+    provider.ensure(desired);
+
+    verify(client)
+        .create(
+            DnsRecordType.CNAME,
+            desired.name(),
+            desired.value(),
+            null,
+            false);
+  }
+
   @Test
   void proxiedCnameIsCorrectedToDnsOnly() {
     var desired =
