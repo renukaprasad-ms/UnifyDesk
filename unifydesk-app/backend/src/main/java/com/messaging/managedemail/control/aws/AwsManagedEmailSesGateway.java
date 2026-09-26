@@ -81,7 +81,20 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
       } catch (software.amazon.awssdk.services.sesv2.model.NotFoundException ignored) {
         // Reputation data may not be available immediately after tenant creation.
       }
-      return new TenantSnapshot(tenant.sendingStatusAsString(), reputation);
+      GetAccountResponse account = ses.getAccount();
+      SendQuota quota = account == null ? null : account.sendQuota();
+      Double maxSendRate = quota == null ? null : quota.maxSendRate();
+      Double max24HourSend = quota == null ? null : quota.max24HourSend();
+      boolean productionAccessEnabled =
+          account != null
+              && Boolean.TRUE.equals(account.productionAccessEnabled())
+              && Boolean.TRUE.equals(account.sendingEnabled());
+      return new TenantSnapshot(
+          tenant.sendingStatusAsString(),
+          reputation,
+          maxSendRate,
+          max24HourSend,
+          productionAccessEnabled);
     } catch (SdkClientException | SesV2Exception exception) {
       throw providerUnavailable("Unable to read Managed Email tenant status", exception);
     }

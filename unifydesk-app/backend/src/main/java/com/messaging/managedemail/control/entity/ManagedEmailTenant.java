@@ -49,6 +49,15 @@ public class ManagedEmailTenant {
   @Column(name = "reputation_status", length = 32)
   private String reputationStatus;
 
+  @Column(name = "provider_max_send_rate")
+  private Double providerMaxSendRate;
+
+  @Column(name = "provider_max_24h_send")
+  private Double providerMax24HourSend;
+
+  @Column(name = "provider_production_access_enabled", nullable = false)
+  private boolean providerProductionAccessEnabled;
+
   @Column(name = "suspension_reason", length = 128)
   private String suspensionReason;
 

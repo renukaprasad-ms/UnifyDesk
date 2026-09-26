@@ -327,6 +327,9 @@ public class ManagedEmailProvisioningWorker {
                   ? SendingStatus.ENABLED
                   : SendingStatus.PROVIDER_DISABLED);
           tenant.setReputationStatus(snapshot.reputationStatus());
+          tenant.setProviderMaxSendRate(snapshot.maxSendRate());
+          tenant.setProviderMax24HourSend(snapshot.max24HourSend());
+          tenant.setProviderProductionAccessEnabled(snapshot.productionAccessEnabled());
           tenant.setLastProviderSyncAt(Instant.now());
           tenantRepository.save(tenant);
 
@@ -342,6 +345,9 @@ public class ManagedEmailProvisioningWorker {
                       && properties.isPlatformSendingEnabled()
                       && tenant.getSendingStatus() == SendingStatus.ENABLED);
               connection.setStatus(BroadcastSenderConnectionStatus.ACTIVE);
+              connection.setProductionAccessEnabled(tenant.isProviderProductionAccessEnabled());
+              connection.setMaxSendRate(tenant.getProviderMaxSendRate());
+              connection.setMax24HourSend(tenant.getProviderMax24HourSend());
               connection.setLastValidatedAt(Instant.now());
               connectionRepository.save(connection);
               channelConnectionRepository
