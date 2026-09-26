@@ -2,7 +2,7 @@ package com.messaging.managedemail.control.security;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 
@@ -39,7 +39,15 @@ class ManagedEmailControlPlaneRateLimiterTests {
   void burstIsDeniedAfterAtomicCompanyAndUserBudgetIsExhausted() {
     doReturn(1L, 1L, 0L)
         .when(redisTemplate)
-        .execute(any(RedisScript.class), anyList(), any(Object[].class));
+        .execute(
+            any(RedisScript.class),
+            eq(
+                java.util.List.of(
+                    "unifydesk:managed-email:control:customer_domain_create:company:1",
+                    "unifydesk:managed-email:control:customer_domain_create:user:7")),
+            eq("2"),
+            eq("2"),
+            eq("60000"));
 
     limiter.requireAllowed(Operation.CUSTOMER_DOMAIN_CREATE, 1L, 7L);
     limiter.requireAllowed(Operation.CUSTOMER_DOMAIN_CREATE, 1L, 7L);
@@ -53,7 +61,15 @@ class ManagedEmailControlPlaneRateLimiterTests {
   void redisFailureFailsClosed() {
     doThrow(new IllegalStateException("redis unavailable"))
         .when(redisTemplate)
-        .execute(any(RedisScript.class), anyList(), any(Object[].class));
+        .execute(
+            any(RedisScript.class),
+            eq(
+                java.util.List.of(
+                    "unifydesk:managed-email:control:customer_domain_create:company:1",
+                    "unifydesk:managed-email:control:customer_domain_create:user:7")),
+            eq("2"),
+            eq("2"),
+            eq("60000"));
 
     assertThatThrownBy(
             () -> limiter.requireAllowed(Operation.CUSTOMER_DOMAIN_CREATE, 1L, 7L))

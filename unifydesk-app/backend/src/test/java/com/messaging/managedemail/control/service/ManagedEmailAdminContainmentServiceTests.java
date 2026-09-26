@@ -79,6 +79,7 @@ class ManagedEmailAdminContainmentServiceTests {
     assertThat(audit.getValue().getCompanyId()).isEqualTo(1L);
     assertThat(audit.getValue().getAction()).isEqualTo(AdminActionType.SUSPEND);
     assertThat(audit.getValue().getReason()).isEqualTo("abuse investigation");
+    assertThat(audit.getValue().getCreatedAt()).isNotNull();
   }
 
   @Test
