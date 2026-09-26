@@ -21,7 +21,10 @@ import SendGridConnectModal from '../../components/broadcast/SendGridConnectModa
 import BroadcastTestEmailModal from '../../components/broadcast/BroadcastTestEmailModal'
 import ManagedEmailModal from '../../components/managed-email/ManagedEmailModal'
 import ManagedEmailPanel from '../../components/managed-email/ManagedEmailPanel'
-import { broadcastSenderProviderLabel } from '../../features/managedEmail/privacy'
+import {
+  broadcastSenderProviderLabel,
+  managedConnectionDisplayName,
+} from '../../features/managedEmail/privacy'
 import Msg91ConnectModal from '../../components/broadcast/Msg91ConnectModal'
 import Msg91SmsSetupGuideModal from '../../components/broadcast/Msg91SmsSetupGuideModal'
 import Msg91EmailConnectModal from '../../components/broadcast/Msg91EmailConnectModal'
@@ -582,10 +585,10 @@ export default function CompanyConnections() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-bold text-slate-950">
-                        {broadcastSenderFor(connection.id)?.managementMode ===
-                        'MESSAGING_MANAGED'
-                          ? 'UnifyDesk Managed Email'
-                          : connection.name}
+                        {managedConnectionDisplayName(
+                          broadcastSenderFor(connection.id),
+                          connection.name,
+                        )}
                       </p>
                       <span
                         className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
