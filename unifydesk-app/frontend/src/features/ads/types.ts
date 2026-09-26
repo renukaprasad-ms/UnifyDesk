@@ -938,6 +938,45 @@ export type CreateGoogleAdvancedReusableAssetInput = {
   leadPostSubmitDescription?: string | null
 }
 
+export type GoogleAssetGenerationTextInput = {
+  advertisingChannelType: 'SEARCH' | 'PERFORMANCE_MAX' | 'DISPLAY' | 'DEMAND_GEN'
+  assetFieldTypes: Array<'HEADLINE' | 'LONG_HEADLINE' | 'DESCRIPTION'>
+  finalUrl: string
+  freeformPrompt?: string | null
+  keywords?: string[]
+}
+
+export type GoogleGeneratedTextAsset = {
+  text: string
+  assetFieldType: string
+}
+
+export type GoogleAssetGenerationTextResult = {
+  suggestions: GoogleGeneratedTextAsset[]
+}
+
+export type GoogleAssetGenerationImageInput = {
+  advertisingChannelType: 'SEARCH' | 'PERFORMANCE_MAX' | 'DISPLAY' | 'DEMAND_GEN'
+  assetFieldTypes?: Array<
+    | 'MARKETING_IMAGE'
+    | 'SQUARE_MARKETING_IMAGE'
+    | 'PORTRAIT_MARKETING_IMAGE'
+    | 'TALL_PORTRAIT_MARKETING_IMAGE'
+  >
+  generationMode: 'FINAL_URL' | 'FREEFORM'
+  finalUrl?: string | null
+  freeformPrompt?: string | null
+}
+
+export type GoogleGeneratedImageAsset = {
+  imageTemporaryUrl: string
+  assetFieldType?: string | null
+}
+
+export type GoogleAssetGenerationImageResult = {
+  suggestions: GoogleGeneratedImageAsset[]
+}
+
 export type GoogleAssetLinkLevel = 'CUSTOMER' | 'CAMPAIGN' | 'AD_GROUP'
 
 export type GooglePerformanceMaxVideoCrawlSource = {
