@@ -8,6 +8,7 @@ import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.emailtemplate.entity.EmailTemplateProviderBinding;
 import com.messaging.emailtemplate.service.EmailTemplateProviderBindingService;
+import com.messaging.managedemail.delivery.ManagedEmailLaunchGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ public class BroadcastLaunchService {
   private final BroadcastStateMachine stateMachine;
   private final BroadcastOutboxService outboxService;
   private final EmailTemplateProviderBindingService templateProviderBindingService;
+  private final ManagedEmailLaunchGuard managedEmailLaunchGuard;
 
   @Transactional
   public BroadcastRun launch(Long companyId, Long broadcastId) {
@@ -36,8 +38,7 @@ public class BroadcastLaunchService {
     return launchInternal(companyId, broadcastId, true);
   }
 
-  private BroadcastRun launchInternal(
-      Long companyId, Long broadcastId, boolean allowClaimed) {
+  private BroadcastRun launchInternal(Long companyId, Long broadcastId, boolean allowClaimed) {
     BroadcastMessage message =
         messageRepository
             .findByIdAndCompanyId(broadcastId, companyId)
@@ -61,8 +62,7 @@ public class BroadcastLaunchService {
       throw new BadRequestException("WhatsApp Broadcast execution is not implemented yet");
     }
     if (message.getSenderId() == null) {
-      throw new BadRequestException(
-          "Choose a Broadcast sender before launching this broadcast");
+      throw new BadRequestException("Choose a Broadcast sender before launching this broadcast");
     }
 
     BroadcastSender sender = senderService.requireActive(companyId, message.getSenderId());
@@ -77,6 +77,8 @@ public class BroadcastLaunchService {
     if (maxMemberId == null) {
       throw new BadRequestException("Broadcast group has no active recipients");
     }
+    managedEmailLaunchGuard.validateLaunch(
+        companyId, sender, senderConnection, memberRepository.countActiveMembers(group.getId()));
 
     BroadcastRun run = new BroadcastRun();
     run.setBroadcastMessageId(message.getId());

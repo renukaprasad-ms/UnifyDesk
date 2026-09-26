@@ -3,9 +3,12 @@ package com.messaging.broadcast.transport;
 import com.messaging.broadcast.entity.BroadcastSender;
 import com.messaging.broadcast.entity.BroadcastSenderConnection;
 import com.messaging.broadcast.enums.BroadcastSenderProvider;
-import com.messaging.broadcast.ses.AmazonSesClientManager;
+import com.messaging.managedemail.delivery.SesSendContext;
+import com.messaging.managedemail.delivery.SesSendContextResolver;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.exception.SdkClientException;
@@ -15,7 +18,7 @@ import software.amazon.awssdk.services.sesv2.model.*;
 @RequiredArgsConstructor
 public class AmazonSesBroadcastEmailTransport implements BroadcastEmailTransport {
 
-  private final AmazonSesClientManager clientManager;
+  private final SesSendContextResolver contextResolver;
 
   @Override
   public BroadcastSenderProvider provider() {
@@ -27,8 +30,8 @@ public class AmazonSesBroadcastEmailTransport implements BroadcastEmailTransport
       BroadcastSenderConnection connection,
       BroadcastSender sender,
       BroadcastEmailCommand command) {
-    Destination destination =
-        Destination.builder().toAddresses(command.recipient()).build();
+    SesSendContext context = contextResolver.resolve(connection, sender);
+    Destination destination = Destination.builder().toAddresses(command.recipient()).build();
     Content subject =
         Content.builder()
             .data(command.subject() == null ? "" : command.subject())
@@ -47,29 +50,25 @@ public class AmazonSesBroadcastEmailTransport implements BroadcastEmailTransport
               .charset(StandardCharsets.UTF_8.name())
               .build());
     }
-    Message message =
-        Message.builder()
-            .subject(subject)
-            .body(body.build())
-            .build();
+    Message message = Message.builder().subject(subject).body(body.build()).build();
 
     SendEmailRequest.Builder request =
         SendEmailRequest.builder()
             .fromEmailAddress(fromAddress(sender))
             .destination(destination)
             .content(EmailContent.builder().simple(message).build())
-            .emailTags(
-                MessageTag.builder()
-                    .name("messaging_recipient")
-                    .value(command.correlationId())
-                    .build());
+            .emailTags(tags(context, command));
     if (sender.getReplyToAddress() != null && !sender.getReplyToAddress().isBlank()) {
       request.replyToAddresses(sender.getReplyToAddress());
     }
+    if (context.managed()) {
+      request
+          .tenantName(context.tenantName())
+          .configurationSetName(context.configurationSetName());
+    }
 
     try {
-      SendEmailResponse response =
-          clientManager.client(connection).sendEmail(request.build());
+      SendEmailResponse response = context.client().sendEmail(request.build());
       return new BroadcastEmailResult(response.messageId(), null, Instant.now());
     } catch (SesV2Exception exception) {
       int status = exception.statusCode();
@@ -91,11 +90,45 @@ public class AmazonSesBroadcastEmailTransport implements BroadcastEmailTransport
     }
   }
 
+  private List<MessageTag> tags(SesSendContext context, BroadcastEmailCommand command) {
+    if (!context.managed()) {
+      return List.of(tag("messaging_recipient", command.correlationId()));
+    }
+    List<MessageTag> tags = new ArrayList<>();
+    tags.add(tag("ud_company_id", required(command.companyId(), "company")));
+    tags.add(tag("ud_run_id", required(command.runId(), "run")));
+    tags.add(tag("ud_sender_id", required(command.senderId(), "sender")));
+    tags.add(tag("ud_domain_id", required(context.domainId(), "domain")));
+    tags.add(tag("ud_recipient_id", required(command.recipientId(), "recipient")));
+    tags.add(tag("ud_correlation", command.correlationId()));
+    return tags;
+  }
+
+  private MessageTag tag(String name, String value) {
+    if (value == null || value.isBlank()) {
+      throw BroadcastTransportException.permanent(
+          "MANAGED_EMAIL_CORRELATION_MISSING",
+          "Managed Email send correlation is incomplete",
+          null);
+    }
+    return MessageTag.builder().name(name).value(value).build();
+  }
+
+  private String required(Long value, String field) {
+    if (value == null) {
+      throw BroadcastTransportException.permanent(
+          "MANAGED_EMAIL_CORRELATION_MISSING",
+          "Managed Email " + field + " correlation is missing",
+          null);
+    }
+    return value.toString();
+  }
+
   private String fromAddress(BroadcastSender sender) {
     if (sender.getDisplayName() == null || sender.getDisplayName().isBlank()) {
       return sender.getFromAddress();
     }
-    String safeName = sender.getDisplayName().replace("\"", "");
+    String safeName = sender.getDisplayName().replace(""", "");
     return safeName + " <" + sender.getFromAddress() + ">";
   }
 }
