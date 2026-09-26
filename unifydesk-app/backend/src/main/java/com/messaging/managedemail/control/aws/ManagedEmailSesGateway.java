@@ -22,9 +22,11 @@ public interface ManagedEmailSesGateway {
       String reputationStatus,
       Double maxSendRate,
       Double max24HourSend,
-      boolean productionAccessEnabled) {
+      Double sentLast24Hours,
+      Boolean accountSendingEnabled,
+      Boolean productionAccessEnabled) {
     public TenantSnapshot(String sendingStatus, String reputationStatus) {
-      this(sendingStatus, reputationStatus, null, null, false);
+      this(sendingStatus, reputationStatus, null, null, null, null, null);
     }
   }
 

@@ -55,6 +55,12 @@ public class ManagedEmailTenant {
   @Column(name = "provider_max_24h_send")
   private Double providerMax24HourSend;
 
+  @Column(name = "provider_sent_last_24h")
+  private Double providerSentLast24Hours;
+
+  @Column(name = "provider_account_sending_enabled", nullable = false)
+  private boolean providerAccountSendingEnabled;
+
   @Column(name = "provider_production_access_enabled", nullable = false)
   private boolean providerProductionAccessEnabled;
 

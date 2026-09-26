@@ -85,15 +85,16 @@ public class AwsManagedEmailSesGateway implements ManagedEmailSesGateway {
       SendQuota quota = account == null ? null : account.sendQuota();
       Double maxSendRate = quota == null ? null : quota.maxSendRate();
       Double max24HourSend = quota == null ? null : quota.max24HourSend();
-      boolean productionAccessEnabled =
-          account != null
-              && Boolean.TRUE.equals(account.productionAccessEnabled())
-              && Boolean.TRUE.equals(account.sendingEnabled());
+      Double sentLast24Hours = quota == null ? null : quota.sentLast24Hours();
+      Boolean accountSendingEnabled = account == null ? null : account.sendingEnabled();
+      Boolean productionAccessEnabled = account == null ? null : account.productionAccessEnabled();
       return new TenantSnapshot(
           tenant.sendingStatusAsString(),
           reputation,
           maxSendRate,
           max24HourSend,
+          sentLast24Hours,
+          accountSendingEnabled,
           productionAccessEnabled);
     } catch (SdkClientException | SesV2Exception exception) {
       throw providerUnavailable("Unable to read Managed Email tenant status", exception);
