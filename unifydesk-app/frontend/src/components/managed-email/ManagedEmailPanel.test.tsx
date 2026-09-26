@@ -45,9 +45,12 @@ const managedSender: ManagedEmailSender = {
   displayName: 'Example Offers',
   replyToAddress: null,
   connectionName: 'UnifyDesk Managed Email',
-  region: 'MANAGED',
+  region: 'ap-south-1',
   productionAccessEnabled: true,
   sendingEnabled: true,
+  maxSendRate: 1000,
+  max24HourSend: 50000,
+  sentLast24Hours: 12345,
   managedDomainId: 'domain-1',
   managedDomain: 'example.com',
 }
@@ -161,6 +164,24 @@ describe('ManagedEmailPanel', () => {
     expect(
       screen.getByText(/Sending is paused while this workspace is reviewed/i),
     ).toBeTruthy()
+  })
+
+  it('never renders stale managed SES topology or shared account capacity', async () => {
+    render(
+      <ManagedEmailPanel
+        companyId="company-1"
+        canModify
+        onOpenSetup={vi.fn()}
+        client={client()}
+      />,
+    )
+
+    expect(await screen.findByText('offers@example.com')).toBeTruthy()
+    expect(screen.getAllByText(/UnifyDesk Managed Email/i).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/ap-south-1/i)).toBeNull()
+    expect(screen.queryByText(/50,?000/i)).toBeNull()
+    expect(screen.queryByText(/12,?345/i)).toBeNull()
+    expect(screen.queryByText(/1000\/sec/i)).toBeNull()
   })
 
   it('labels managed senders as UnifyDesk Managed Email and opens active domains', async () => {
