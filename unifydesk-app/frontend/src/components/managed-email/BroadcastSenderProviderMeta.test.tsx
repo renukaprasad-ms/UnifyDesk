@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { BroadcastSender } from '../../features/broadcast/types'
+import { managedConnectionDisplayName } from '../../features/managedEmail/privacy'
 import BroadcastSenderProviderMeta from './BroadcastSenderProviderMeta'
 
 const managedStaleSender: BroadcastSender = {
@@ -54,6 +55,15 @@ describe('BroadcastSenderProviderMeta privacy', () => {
     expect(text).not.toContain('50000')
     expect(text).not.toContain('12345')
     expect(text).not.toContain('/sec')
+  })
+
+  it('normalizes a stale managed connection name without changing customer-managed SES', () => {
+    expect(managedConnectionDisplayName(managedStaleSender, 'Amazon SES ap-south-1')).toBe(
+      'UnifyDesk Managed Email',
+    )
+    expect(managedConnectionDisplayName(customerManagedSes, 'My Amazon SES')).toBe(
+      'My Amazon SES',
+    )
   })
 
   it('keeps legitimate customer-managed SES provider details visible', () => {
