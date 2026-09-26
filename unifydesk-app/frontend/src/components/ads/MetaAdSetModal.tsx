@@ -121,6 +121,9 @@ export default function MetaAdSetModal({
   const [customConversionId, setCustomConversionId] = useState('')
   const [customAudiences, setCustomAudiences] = useState<string[]>([])
   const [excludedAudiences, setExcludedAudiences] = useState<string[]>([])
+  const [advantageAudience, setAdvantageAudience] = useState(false)
+  const [advantageAgeSuggestion, setAdvantageAgeSuggestion] = useState(false)
+  const [advantageGenderSuggestion, setAdvantageGenderSuggestion] = useState(false)
 
   useEffect(() => {
     setBudgetType(campaignHasBudget ? 'NONE' : 'DAILY')
@@ -167,6 +170,9 @@ export default function MetaAdSetModal({
         placementMode === 'MANUAL' && audienceNetwork ? audienceNetworkPositions : [],
       customAudienceIds: customAudiences,
       excludedCustomAudienceIds: excludedAudiences,
+      advantageAudience,
+      advantageAgeSuggestion: advantageAudience ? advantageAgeSuggestion : false,
+      advantageGenderSuggestion: advantageAudience ? advantageGenderSuggestion : false,
       pixelId: customConversionId ? null : pixelId || null,
       customEventType: customConversionId ? null : customEventType || null,
       customConversionId: customConversionId || null,
@@ -309,6 +315,53 @@ export default function MetaAdSetModal({
                   <option value="WOMEN">Women</option>
                 </select>
               </label>
+
+              <div className="sm:col-span-2 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+                <label className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={advantageAudience}
+                    onChange={(event) => setAdvantageAudience(event.target.checked)}
+                  />
+                  <span>
+                    <span className="block text-sm font-bold text-indigo-950">
+                      Advantage+ audience
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-indigo-700">
+                      Let Meta expand beyond audience suggestions while keeping location and
+                      exclusions as controls.
+                    </span>
+                  </span>
+                </label>
+
+                {advantageAudience && (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <label className="flex items-start gap-2 rounded-lg bg-white/70 p-3 text-xs text-indigo-900">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={advantageAgeSuggestion}
+                        onChange={(event) =>
+                          setAdvantageAgeSuggestion(event.target.checked)
+                        }
+                      />
+                      Treat the selected age range as an audience suggestion.
+                    </label>
+                    <label className="flex items-start gap-2 rounded-lg bg-white/70 p-3 text-xs text-indigo-900">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={advantageGenderSuggestion}
+                        onChange={(event) =>
+                          setAdvantageGenderSuggestion(event.target.checked)
+                        }
+                      />
+                      Treat the selected gender as an audience suggestion.
+                    </label>
+                  </div>
+                )}
+              </div>
 
               <label className="block text-xs font-semibold text-slate-700">
                 Include audiences
