@@ -13,6 +13,7 @@ import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdAccountResourceRepository;
 import com.messaging.ads.repository.AdAudienceRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
+import com.messaging.ads.service.AdActivityLogService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import java.util.LinkedHashMap;
@@ -31,8 +32,13 @@ public class MetaAdsAudienceMutationService {
   private final MetaAdsApiClient apiClient;
   private final MetaAdsAudiencePersistenceService persistenceService;
   private final ObjectMapper objectMapper;
+  private final AdActivityLogService activityLogService;
 
-  public AdAudienceResponse create(Long companyId, Long accountId, CreateMetaAudienceRequest request){
+  public AdAudienceResponse create(
+      Long companyId,
+      Long accountId,
+      CreateMetaAudienceRequest request,
+      Long actorUserId) {
     AdAccount account=requireAccount(companyId,accountId);
     String type=request.type().trim().toUpperCase();
     Map<String,Object> payload=new LinkedHashMap<>();
@@ -54,14 +60,33 @@ public class MetaAdsAudienceMutationService {
       spec.put("ratio",request.ratio());
       payload.put("origin_audience_id",origin.getExternalAudienceId());
       payload.put("lookalike_spec",json(spec));
+    } else if ("CUSTOMER_LIST".equals(type)) {
+      String source = request.customerFileSource().trim().toUpperCase();
+      payload.put("subtype", "CUSTOM");
+      payload.put("customer_file_source", source);
     } else {
-      throw new BadRequestException("Supported audience types are WEBSITE and LOOKALIKE");
+      throw new BadRequestException(
+          "Supported audience types are WEBSITE, LOOKALIKE, and CUSTOMER_LIST");
     }
 
     String token=token(companyId,account);
     String externalId=apiClient.createCustomAudience(token,account.getExternalAccountId(),payload);
-    return AdAudienceResponse.from(
-        persistenceService.persistOne(companyId,accountId,apiClient.customAudience(token,externalId)));
+    AdAudienceResponse created =
+        AdAudienceResponse.from(
+            persistenceService.persistOne(
+                companyId, accountId, apiClient.customAudience(token, externalId)));
+    activityLogService.record(
+        companyId,
+        accountId,
+        AdProvider.META_ADS,
+        actorUserId,
+        "META_AUDIENCE_CREATED",
+        "AUDIENCE",
+        externalId,
+        null,
+        created,
+        Map.of("type", type));
+    return created;
   }
 
   private AdAudience requireOrigin(Long companyId,Long accountId,String value){
