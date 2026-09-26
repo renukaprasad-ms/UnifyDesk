@@ -198,9 +198,11 @@ class ManagedEmailDeliveryProjectionServiceDatabaseTests {
         "recipient@example.test",
         "provider-1",
         "corr-70",
+        "offers@example.test",
         "ACTIVE",
         "ACTIVE",
         "MESSAGING_MANAGED",
+        true,
         true,
         "ACTIVE",
         "ENABLED",
@@ -212,6 +214,8 @@ class ManagedEmailDeliveryProjectionServiceDatabaseTests {
         "tenant-10",
         "cfg-10",
         20.0,
-        10000.0);
+        10000.0,
+        100.0,
+        Instant.now());
   }
 }

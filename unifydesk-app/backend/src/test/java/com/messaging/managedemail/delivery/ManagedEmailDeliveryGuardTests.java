@@ -10,6 +10,7 @@ import com.messaging.broadcast.entity.BroadcastSenderConnection;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeProperties;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -19,24 +20,55 @@ class ManagedEmailDeliveryGuardTests {
   void tenantSuspensionAfterLaunchBlocksDelivery() {
     Fixture fixture = fixture();
     when(fixture.runtime.findSenderRuntime(10L, 20L))
-        .thenReturn(Optional.of(runtime("SUSPENDED", "ACTIVE")));
+        .thenReturn(Optional.of(runtime("offers@example.test", true, true, "SUSPENDED", "ACTIVE")));
 
-    assertThat(
-            fixture.guard.eligible(
-                fixture.run, fixture.connection, fixture.sender, fixture.recipient))
-        .isEmpty();
+    assertThat(fixture.eligible()).isEmpty();
   }
 
   @Test
   void domainSuspensionAfterLaunchBlocksDelivery() {
     Fixture fixture = fixture();
     when(fixture.runtime.findSenderRuntime(10L, 20L))
-        .thenReturn(Optional.of(runtime("ACTIVE", "SUSPENDED_VERIFICATION")));
+        .thenReturn(
+            Optional.of(
+                runtime(
+                    "offers@example.test",
+                    true,
+                    true,
+                    "ACTIVE",
+                    "SUSPENDED_VERIFICATION")));
 
-    assertThat(
-            fixture.guard.eligible(
-                fixture.run, fixture.connection, fixture.sender, fixture.recipient))
-        .isEmpty();
+    assertThat(fixture.eligible()).isEmpty();
+  }
+
+  @Test
+  void sandboxAndAccountSendingDisabledBlockDelivery() {
+    Fixture fixture = fixture();
+    when(fixture.runtime.findSenderRuntime(10L, 20L))
+        .thenReturn(Optional.of(runtime("offers@example.test", false, true, "ACTIVE", "ACTIVE")));
+    assertThat(fixture.eligible()).isEmpty();
+
+    when(fixture.runtime.findSenderRuntime(10L, 20L))
+        .thenReturn(Optional.of(runtime("offers@example.test", true, false, "ACTIVE", "ACTIVE")));
+    assertThat(fixture.eligible()).isEmpty();
+  }
+
+  @Test
+  void tamperedFromDomainBlocksDelivery() {
+    Fixture fixture = fixture();
+    when(fixture.runtime.findSenderRuntime(10L, 20L))
+        .thenReturn(Optional.of(runtime("ceo@amazon.com", true, true, "ACTIVE", "ACTIVE")));
+
+    assertThat(fixture.eligible()).isEmpty();
+  }
+
+  @Test
+  void activeProductionSenderIsEligible() {
+    Fixture fixture = fixture();
+    when(fixture.runtime.findSenderRuntime(10L, 20L))
+        .thenReturn(Optional.of(runtime("offers@example.test", true, true, "ACTIVE", "ACTIVE")));
+
+    assertThat(fixture.eligible()).isPresent();
   }
 
   @Test
@@ -44,26 +76,15 @@ class ManagedEmailDeliveryGuardTests {
     Fixture fixture = fixture();
     fixture.properties.setSendingEnabled(false);
 
-    assertThat(
-            fixture.guard.eligible(
-                fixture.run, fixture.connection, fixture.sender, fixture.recipient))
-        .isEmpty();
+    assertThat(fixture.eligible()).isEmpty();
     verifyNoInteractions(fixture.runtime);
   }
 
   private Fixture fixture() {
     ManagedEmailRuntimeRepository runtime = mock(ManagedEmailRuntimeRepository.class);
-    ManagedEmailRuntimeProperties properties = new ManagedEmailRuntimeProperties();
-    properties.setSendingEnabled(true);
-    properties.setRegion("us-east-1");
-    properties.setMinimumReputationSampleSize(100);
-    properties.setWarningHardBounceRate(new BigDecimal("0.02"));
-    properties.setWarningComplaintRate(new BigDecimal("0.001"));
-    properties.setThrottleHardBounceRate(new BigDecimal("0.04"));
-    properties.setThrottleComplaintRate(new BigDecimal("0.002"));
-    properties.setSuspensionHardBounceRate(new BigDecimal("0.08"));
-    properties.setSuspensionComplaintRate(new BigDecimal("0.005"));
-    properties.setThrottleRateMultiplier(new BigDecimal("0.5"));
+    ManagedEmailProviderBudgetService budget = mock(ManagedEmailProviderBudgetService.class);
+    when(budget.hasUsableProviderSnapshot(any())).thenReturn(true);
+    ManagedEmailRuntimeProperties properties = properties();
 
     BroadcastRun run = new BroadcastRun();
     run.setId(60L);
@@ -77,22 +98,58 @@ class ManagedEmailDeliveryGuardTests {
     recipient.setId(70L);
     recipient.setCompanyId(10L);
     recipient.setSenderId(20L);
-    return new Fixture(
-        new ManagedEmailDeliveryGuard(runtime, properties),
-        runtime,
-        properties,
-        run,
-        connection,
-        sender,
-        recipient);
+    ManagedEmailDeliveryGuard guard =
+        new ManagedEmailDeliveryGuard(
+            runtime, properties, new ManagedEmailAddressPolicy(), budget);
+    return new Fixture(guard, runtime, properties, run, connection, sender, recipient);
+  }
+
+  private ManagedEmailRuntimeProperties properties() {
+    ManagedEmailRuntimeProperties properties = new ManagedEmailRuntimeProperties();
+    properties.setSendingEnabled(true);
+    properties.setRegion("us-east-1");
+    properties.setMinimumReputationSampleSize(100);
+    properties.setWarningHardBounceRate(new BigDecimal("0.02"));
+    properties.setWarningComplaintRate(new BigDecimal("0.001"));
+    properties.setThrottleHardBounceRate(new BigDecimal("0.04"));
+    properties.setThrottleComplaintRate(new BigDecimal("0.002"));
+    properties.setSuspensionHardBounceRate(new BigDecimal("0.08"));
+    properties.setSuspensionComplaintRate(new BigDecimal("0.005"));
+    properties.setThrottleRateMultiplier(new BigDecimal("0.5"));
+    return properties;
   }
 
   private ManagedEmailRuntimeRepository.ManagedSenderRuntime runtime(
-      String tenantStatus, String domainStatus) {
+      String fromAddress,
+      boolean productionAccess,
+      boolean sendingEnabled,
+      String tenantStatus,
+      String domainStatus) {
     return new ManagedEmailRuntimeRepository.ManagedSenderRuntime(
-        10L, 20L, 30L, 50L, 40L, "ACTIVE", "ACTIVE", "MESSAGING_MANAGED", true,
-        tenantStatus, "ENABLED", "HEALTHY", "ESTABLISHED", domainStatus, "example.test",
-        "us-east-1", "tenant-10", "cfg-10", 20.0, 10000.0);
+        10L,
+        20L,
+        30L,
+        50L,
+        40L,
+        fromAddress,
+        "ACTIVE",
+        "ACTIVE",
+        "MESSAGING_MANAGED",
+        productionAccess,
+        sendingEnabled,
+        tenantStatus,
+        "ENABLED",
+        "HEALTHY",
+        "ESTABLISHED",
+        domainStatus,
+        "example.test",
+        "us-east-1",
+        "tenant-10",
+        "cfg-10",
+        20.0,
+        10000.0,
+        50.0,
+        Instant.now());
   }
 
   private record Fixture(
@@ -102,5 +159,9 @@ class ManagedEmailDeliveryGuardTests {
       BroadcastRun run,
       BroadcastSenderConnection connection,
       BroadcastSender sender,
-      BroadcastRecipient recipient) {}
+      BroadcastRecipient recipient) {
+    Optional<ManagedEmailRuntimeRepository.ManagedSenderRuntime> eligible() {
+      return guard.eligible(run, connection, sender, recipient);
+    }
+  }
 }
