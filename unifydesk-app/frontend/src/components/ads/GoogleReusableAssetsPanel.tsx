@@ -49,6 +49,27 @@ const parseParameters = (value: string): GoogleUrlCustomParameter[] => {
 const formatParameters = (values: GoogleUrlCustomParameter[]) =>
   values.map((item) => `${item.key}=${item.value}`).join('\n')
 
+const fileToBase64 = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result ?? ''))
+    reader.onerror = () => reject(new Error('Unable to read image file'))
+    reader.readAsDataURL(file)
+  })
+
+const defaultLinkRole = (asset: GoogleReusableAsset, level: GoogleAssetLinkLevel) => {
+  if (asset.type === 'TEXT') return 'BUSINESS_NAME'
+  if (asset.type === 'IMAGE') return level === 'CUSTOMER' ? 'BUSINESS_LOGO' : 'AD_IMAGE'
+  return asset.type
+}
+
+const roleAllowed = (role: string, level: GoogleAssetLinkLevel) => {
+  if (role === 'LEAD_FORM') return level === 'CAMPAIGN'
+  if (role === 'BUSINESS_NAME' || role === 'BUSINESS_LOGO') return level !== 'AD_GROUP'
+  if (role === 'AD_IMAGE') return level !== 'CUSTOMER'
+  return true
+}
+
 export default function GoogleReusableAssetsPanel(props: Props) {
   const levels = useMemo(() => {
     const values: Array<{ level: GoogleAssetLinkLevel; label: string; targetId?: string }> = [
@@ -95,6 +116,9 @@ export default function GoogleReusableAssetsPanel(props: Props) {
   const [assetTrackingTemplate, setAssetTrackingTemplate] = useState('')
   const [assetFinalUrlSuffix, setAssetFinalUrlSuffix] = useState('')
   const [assetCustomParameters, setAssetCustomParameters] = useState('')
+  const [identityText, setIdentityText] = useState('')
+  const [imageBase64, setImageBase64] = useState('')
+  const [linkRoles, setLinkRoles] = useState<Record<string, string>>({})
 
   const [trackingTemplate, setTrackingTemplate] = useState('')
   const [finalUrlSuffix, setFinalUrlSuffix] = useState('')
@@ -115,6 +139,7 @@ export default function GoogleReusableAssetsPanel(props: Props) {
           props.accountId,
           current.level,
           current.targetId ?? null,
+          fieldType,
         ),
         adCenterApi.googleUrlOptions(
           props.companyId,
@@ -168,6 +193,10 @@ export default function GoogleReusableAssetsPanel(props: Props) {
               structuredSnippetValues: lines(snippetValues),
             }
           : {}),
+        ...(assetType === 'BUSINESS_NAME' ? { text: identityText.trim() } : {}),
+        ...(assetType === 'AD_IMAGE' || assetType === 'BUSINESS_LOGO'
+          ? { imageBase64 }
+          : {}),
       }
       const created = await adCenterApi.createGoogleReusableAsset(
         props.companyId,
@@ -189,7 +218,9 @@ export default function GoogleReusableAssetsPanel(props: Props) {
       setAssetTrackingTemplate('')
       setAssetFinalUrlSuffix('')
       setAssetCustomParameters('')
-      setNotice(`${pretty(created.type)} created in the Google asset library.`)
+      setIdentityText('')
+      setImageBase64('')
+      setNotice(`${pretty(assetType)} created in the Google asset library.`)
     } catch (createError) {
       setError(apiErrorMessage(createError, 'Unable to create Google asset'))
     } finally {
@@ -199,6 +230,11 @@ export default function GoogleReusableAssetsPanel(props: Props) {
 
   const toggleLink = async (asset: GoogleReusableAsset) => {
     if (!current) return
+    const fieldType = linkRoles[asset.id] ?? defaultLinkRole(asset, current.level)
+    if (!roleAllowed(fieldType, current.level)) {
+      setError(`${pretty(fieldType)} is not available at ${current.label.toLowerCase()} scope.`)
+      return
+    }
     setWorkingId(asset.id)
     setError('')
     setNotice('')
@@ -210,6 +246,7 @@ export default function GoogleReusableAssetsPanel(props: Props) {
           asset.id,
           current.level,
           current.targetId ?? null,
+          fieldType,
         )
         setLinkedIds((ids) => {
           const next = new Set(ids)
@@ -328,7 +365,7 @@ export default function GoogleReusableAssetsPanel(props: Props) {
               <h3 className="text-sm font-bold text-slate-900">Reusable asset library</h3>
               <p className="mt-1 text-xs text-slate-500">
                 Advertiser-created sitelinks, callouts, structured snippets, calls,
-                prices, promotions, and lead forms.
+                prices, promotions, lead forms, reusable ad images, and business identity assets.
               </p>
             </div>
             <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
@@ -372,10 +409,32 @@ export default function GoogleReusableAssetsPanel(props: Props) {
                         {assetSecondary(asset)}
                       </p>
                     </div>
+                    {(asset.type === 'TEXT' || asset.type === 'IMAGE') && current && (
+                      <select
+                        className="form-input min-w-36 py-2 text-xs"
+                        value={linkRoles[asset.id] ?? defaultLinkRole(asset, current.level)}
+                        onChange={(event) =>
+                          setLinkRoles((roles) => ({
+                            ...roles,
+                            [asset.id]: event.target.value,
+                          }))
+                        }
+                      >
+                        {asset.type === 'TEXT' && current.level !== 'AD_GROUP' && (
+                          <option value="BUSINESS_NAME">Business name</option>
+                        )}
+                        {asset.type === 'IMAGE' && current.level !== 'CUSTOMER' && (
+                          <option value="AD_IMAGE">Ad image</option>
+                        )}
+                        {asset.type === 'IMAGE' && current.level !== 'AD_GROUP' && (
+                          <option value="BUSINESS_LOGO">Business logo</option>
+                        )}
+                      </select>
+                    )}
                     {props.canModify &&
-                      !(
-                        asset.type === 'LEAD_FORM' &&
-                        current?.level !== 'CAMPAIGN'
+                      roleAllowed(
+                        linkRoles[asset.id] ?? defaultLinkRole(asset, current?.level ?? 'CUSTOMER'),
+                        current?.level ?? 'CUSTOMER',
                       ) && (
                         <button
                           type="button"
@@ -395,10 +454,12 @@ export default function GoogleReusableAssetsPanel(props: Props) {
                               : 'Attach'}
                         </button>
                       )}
-                    {asset.type === 'LEAD_FORM' &&
-                      current?.level !== 'CAMPAIGN' && (
+                    {!roleAllowed(
+                      linkRoles[asset.id] ?? defaultLinkRole(asset, current?.level ?? 'CUSTOMER'),
+                      current?.level ?? 'CUSTOMER',
+                    ) && (
                         <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
-                          Campaign only
+                          Not eligible at this scope
                         </span>
                       )}
                   </div>
@@ -427,6 +488,9 @@ export default function GoogleReusableAssetsPanel(props: Props) {
                     <option value="SITELINK">Sitelink</option>
                     <option value="CALLOUT">Callout</option>
                     <option value="STRUCTURED_SNIPPET">Structured snippet</option>
+                    <option value="BUSINESS_NAME">Business name</option>
+                    <option value="AD_IMAGE">Ad image</option>
+                    <option value="BUSINESS_LOGO">Business logo</option>
                   </select>
                 </label>
                 <label className="text-xs font-semibold text-slate-700">
@@ -508,6 +572,51 @@ export default function GoogleReusableAssetsPanel(props: Props) {
                       />
                     </label>
                   </>
+                )}
+
+                {assetType === 'BUSINESS_NAME' && (
+                  <label className="text-xs font-semibold text-slate-700 sm:col-span-2">
+                    Business name
+                    <input
+                      className="form-input mt-2"
+                      value={identityText}
+                      maxLength={25}
+                      required
+                      onChange={(event) => setIdentityText(event.target.value)}
+                      placeholder="Your advertised business name"
+                    />
+                  </label>
+                )}
+
+                {(assetType === 'AD_IMAGE' || assetType === 'BUSINESS_LOGO') && (
+                  <label className="text-xs font-semibold text-slate-700 sm:col-span-2">
+                    {assetType === 'BUSINESS_LOGO' ? 'Business logo' : 'Ad image'}
+                    <input
+                      className="form-input mt-2"
+                      type="file"
+                      accept="image/png,image/jpeg,image/gif"
+                      required
+                      onChange={(event) => {
+                        const file = event.target.files?.[0]
+                        if (!file) {
+                          setImageBase64('')
+                          return
+                        }
+                        void fileToBase64(file)
+                          .then(setImageBase64)
+                          .catch((fileError) =>
+                            setError(
+                              fileError instanceof Error
+                                ? fileError.message
+                                : 'Unable to read image file',
+                            ),
+                          )
+                      }}
+                    />
+                    <span className="mt-1 block text-[11px] font-normal text-slate-500">
+                      Images are validated before Google mutation. Business logos require a square logo.
+                    </span>
+                  </label>
                 )}
 
                 {assetType === 'CALLOUT' && (
