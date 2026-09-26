@@ -104,7 +104,6 @@ public class MetaAdsCustomerListService {
                   "payload",
                   Map.of(
                       "schema", schema,
-                      "is_raw", false,
                       "data", batch)));
       providerReceivedRows += integer(response, "num_received", batch.size());
       providerInvalidRows += integer(response, "num_invalid_entries", 0);
