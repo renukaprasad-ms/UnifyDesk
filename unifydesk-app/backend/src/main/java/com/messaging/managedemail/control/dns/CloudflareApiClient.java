@@ -9,7 +9,7 @@ import java.util.*;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.RestClientException;
 
 @Component
 public class CloudflareApiClient implements CloudflareDnsClient {
@@ -59,7 +59,7 @@ public class CloudflareApiClient implements CloudflareDnsClient {
                 item.has("proxied") ? item.path("proxied").asBoolean() : null));
       }
       return records;
-    } catch (RestClientResponseException exception) {
+    } catch (RestClientException exception) {
       throw unavailable("Hosted DNS lookup failed", exception);
     }
   }
@@ -94,7 +94,7 @@ public class CloudflareApiClient implements CloudflareDnsClient {
                   id)
               .retrieve()
               .body(String.class));
-    } catch (RestClientResponseException exception) {
+    } catch (RestClientException exception) {
       throw unavailable("Hosted DNS cleanup failed", exception);
     }
   }
@@ -134,7 +134,7 @@ public class CloudflareApiClient implements CloudflareDnsClient {
                   .retrieve()
                   .body(String.class);
       assertSuccess(body);
-    } catch (RestClientResponseException exception) {
+    } catch (RestClientException exception) {
       throw unavailable("Hosted DNS update failed", exception);
     }
   }

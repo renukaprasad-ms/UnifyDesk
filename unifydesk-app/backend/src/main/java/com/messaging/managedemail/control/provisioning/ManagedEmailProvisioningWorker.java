@@ -99,7 +99,7 @@ public class ManagedEmailProvisioningWorker {
       ensureHostedDns(work);
     }
     DomainIdentitySnapshot refreshed = sesGateway.getDomainIdentity(work.domain());
-    applyDomainState(work.domainId(), refreshed);
+    applyDomainState(work.companyId(), work.domainId(), refreshed);
   }
 
   private void refreshDomain(ManagedEmailProvisioningOperation operation) {
@@ -109,7 +109,7 @@ public class ManagedEmailProvisioningWorker {
     if (work.type() == DomainType.UNIFYDESK_HOSTED) {
       ensureHostedDns(work);
     }
-    applyDomainState(work.domainId(), sesGateway.getDomainIdentity(work.domain()));
+    applyDomainState(work.companyId(), work.domainId(), sesGateway.getDomainIdentity(work.domain()));
   }
 
   private void deleteDomain(ManagedEmailProvisioningOperation operation) {
@@ -261,12 +261,12 @@ public class ManagedEmailProvisioningWorker {
         });
   }
 
-  private void applyDomainState(Long domainId, DomainIdentitySnapshot snapshot) {
+  private void applyDomainState(Long companyId, Long domainId, DomainIdentitySnapshot snapshot) {
     transactionTemplate.executeWithoutResult(
         tx -> {
           ManagedEmailDomain domain =
               domainRepository
-                  .findById(domainId)
+                  .findByIdAndCompanyId(domainId, companyId)
                   .orElseThrow(() -> new NotFoundException("Managed Email domain not found"));
           DomainStatus priorStatus = domain.getStatus();
           VerificationStatus verification = mapVerification(snapshot.verificationStatus());

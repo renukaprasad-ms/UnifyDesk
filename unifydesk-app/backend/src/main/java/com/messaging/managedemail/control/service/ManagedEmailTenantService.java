@@ -6,7 +6,8 @@ import com.messaging.managedemail.control.entity.ManagedEmailTenant;
 import com.messaging.managedemail.control.enums.ManagedEmailEnums.*;
 import com.messaging.managedemail.control.provisioning.ManagedEmailProvisioningService;
 import com.messaging.managedemail.control.repository.ManagedEmailTenantRepository;
-import java.security.SecureRandom;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.HexFormat;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -23,7 +24,6 @@ public class ManagedEmailTenantService {
   private final ManagedEmailProvisioningService provisioningService;
   private final ManagedEmailProperties properties;
   private final JdbcTemplate jdbcTemplate;
-  private final SecureRandom secureRandom = new SecureRandom();
 
   @Transactional
   public ManagedEmailTenant ensureDesired(Long companyId) {
@@ -32,7 +32,7 @@ public class ManagedEmailTenantService {
         .findByCompanyId(companyId)
         .orElseGet(
             () -> {
-              String token = opaqueToken();
+              String token = opaqueToken(companyId);
               ManagedEmailTenant tenant = new ManagedEmailTenant();
               tenant.setId(IdGenerator.nextId());
               tenant.setCompanyId(companyId);
@@ -58,9 +58,16 @@ public class ManagedEmailTenantService {
         "select pg_advisory_xact_lock(?)::text", String.class, key);
   }
 
-  private String opaqueToken() {
-    byte[] bytes = new byte[12];
-    secureRandom.nextBytes(bytes);
-    return HexFormat.of().formatHex(bytes);
+  private String opaqueToken(Long companyId) {
+    try {
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      byte[] bytes =
+          digest.digest(
+              ("unifydesk-managed-email-v1:" + companyId)
+                  .getBytes(StandardCharsets.UTF_8));
+      return HexFormat.of().formatHex(bytes, 0, 12);
+    } catch (Exception exception) {
+      throw new IllegalStateException("Unable to derive Managed Email provider name", exception);
+    }
   }
 }
