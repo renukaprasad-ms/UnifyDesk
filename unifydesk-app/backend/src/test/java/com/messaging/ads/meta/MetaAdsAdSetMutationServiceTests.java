@@ -150,9 +150,9 @@ class MetaAdsAdSetMutationServiceTests {
                 List.of(),
                 List.of(),
                 List.of(),
-                null,
-                null,
-                null,
+                true,
+                true,
+                false,
                 null,
                 null,
                 null));
@@ -170,6 +170,12 @@ class MetaAdsAdSetMutationServiceTests {
     assertThat(targeting.get("age_max")).isEqualTo(65);
     assertThat(targeting.get("publisher_platforms")).isEqualTo(List.of("instagram"));
     assertThat(targeting.get("instagram_positions")).isEqualTo(List.of("stream"));
+    @SuppressWarnings("unchecked")
+    Map<String, Object> automation =
+        (Map<String, Object>) targeting.get("targeting_automation");
+    assertThat(automation.get("advantage_audience")).isEqualTo(1);
+    assertThat(automation.get("individual_setting"))
+        .isEqualTo(Map.of("age", 1));
   }
 
   @Test
@@ -340,6 +346,9 @@ class MetaAdsAdSetMutationServiceTests {
                         List.of(),
                         List.of(),
                         List.of(),
+                        null,
+                        null,
+                        null,
                         null,
                         null,
                         null)))
