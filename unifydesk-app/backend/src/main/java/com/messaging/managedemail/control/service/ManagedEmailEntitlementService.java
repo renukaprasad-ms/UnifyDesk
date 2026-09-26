@@ -1,5 +1,6 @@
 package com.messaging.managedemail.control.service;
 
+import com.messaging.broadcast.enums.BroadcastSenderStatus;
 import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.billing.service.EntitlementService;
 import com.messaging.managedemail.control.enums.ManagedEmailEnums.DomainStatus;
@@ -36,7 +37,8 @@ public class ManagedEmailEntitlementService {
 
   public void requireSenderCapacity(Long companyId) {
     entitlementService.assertWithinLimit(
-        companyId, SENDERS, senderBindingRepository.countActiveByCompanyId(companyId));
+        companyId, SENDERS, senderBindingRepository.countByCompanyIdAndSenderStatus(
+            companyId, BroadcastSenderStatus.ACTIVE));
   }
 
   public boolean enabled(Long companyId) {

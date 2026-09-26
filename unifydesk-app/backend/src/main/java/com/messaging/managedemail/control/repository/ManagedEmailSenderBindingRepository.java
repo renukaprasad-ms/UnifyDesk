@@ -1,5 +1,6 @@
 package com.messaging.managedemail.control.repository;
 
+import com.messaging.broadcast.enums.BroadcastSenderStatus;
 import com.messaging.managedemail.control.entity.ManagedEmailSenderBinding;
 import java.util.List;
 import java.util.Optional;
@@ -22,7 +23,8 @@ public interface ManagedEmailSenderBindingRepository
       from ManagedEmailSenderBinding binding, BroadcastSender sender
       where binding.companyId = :companyId
         and sender.id = binding.senderId
-        and sender.status = com.messaging.broadcast.enums.BroadcastSenderStatus.ACTIVE
+        and sender.status = :status
       """)
-  long countActiveByCompanyId(@Param("companyId") Long companyId);
+  long countByCompanyIdAndSenderStatus(
+      @Param("companyId") Long companyId, @Param("status") BroadcastSenderStatus status);
 }
