@@ -152,6 +152,9 @@ class MetaAdsAdSetMutationServiceTests {
                 List.of(),
                 null,
                 null,
+                null,
+                null,
+                null,
                 null));
 
     assertThat(response.status()).isEqualTo(AdEntityStatus.PAUSED);
@@ -270,6 +273,9 @@ class MetaAdsAdSetMutationServiceTests {
             List.of(),
             List.of(),
             List.of(),
+            null,
+            null,
+            null,
             null,
             null,
             null));
