@@ -193,6 +193,21 @@ class AdFeatureCapabilityServiceTests {
   }
 
   @Test
+  void reportsMetaGenerativeTextAsImplemented() {
+    when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
+
+    var capability =
+        service.providerCapabilities(AdProvider.META_ADS).stream()
+            .filter(item -> item.feature() == AdFeatureCapability.META_GENERATIVE_TEXT)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(capability.implemented()).isTrue();
+    assertThat(capability.supported()).isTrue();
+    assertThat(capability.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
+  }
+
+  @Test
   void managedAccountRequirementIsResolvedPerAccount() {
     when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
 
