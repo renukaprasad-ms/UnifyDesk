@@ -55,6 +55,7 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
     validateCreative(context, issues);
     validatePlacements(context, required, issues);
     validateAdvantageAudience(context, required, issues);
+    validateAdvantageCreative(context, required, issues);
 
     AudienceMappingStatus audienceMappingStatus = null;
     String audienceMappingNote = null;
@@ -157,6 +158,22 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
         Set.copyOf(required),
         List.copyOf(issues),
         List.copyOf(operations));
+  }
+
+  private void validateAdvantageCreative(
+      ProviderCampaignCompileContext context,
+      Set<AdFeatureCapability> required,
+      List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    if (!booleanValue(override, "advantagePlusCreative", false)) return;
+
+    ProviderCampaignPlanSupport.requireCapability(
+        context, AdFeatureCapability.META_ADVANTAGE_CREATIVE, required, issues);
+    issues.add(
+        ProviderCampaignPlanSupport.warning(
+            "META_ADVANTAGE_CREATIVE_STANDARD_ENHANCEMENTS",
+            "providerOverride.advantagePlusCreative",
+            "Meta standard creative enhancements are enabled. Meta may adapt eligible creative presentation; text generation, image expansion and background generation remain separate opt-in features."));
   }
 
   private void validateAdvantageAudience(
