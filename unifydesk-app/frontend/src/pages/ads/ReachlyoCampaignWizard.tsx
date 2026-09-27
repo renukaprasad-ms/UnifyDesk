@@ -701,7 +701,11 @@ export default function ReachlyoCampaignWizard() {
       const publisherPlatforms = Array.isArray(override.publisherPlatforms)
         ? override.publisherPlatforms.filter((value): value is string => typeof value === 'string')
         : []
-      setMetaPlacementMode(publisherPlatforms.length ? 'MANUAL' : 'AUTO')
+      const advantagePlacements =
+        typeof override.advantagePlacements === 'boolean'
+          ? override.advantagePlacements
+          : publisherPlatforms.length === 0
+      setMetaPlacementMode(advantagePlacements ? 'AUTO' : 'MANUAL')
       setMetaPublisherPlatforms(publisherPlatforms)
       setMetaFacebookPositions(
         Array.isArray(override.facebookPositions)
@@ -1309,6 +1313,7 @@ export default function ReachlyoCampaignWizard() {
             billingEvent: metaBillingEvent,
             specialAdCategories: [metaSpecialCategory],
             pixelId: metaPixelId || undefined,
+            advantagePlacements: metaPlacementMode === 'AUTO',
             publisherPlatforms:
               metaPlacementMode === 'MANUAL' ? metaPublisherPlatforms : [],
             facebookPositions:
