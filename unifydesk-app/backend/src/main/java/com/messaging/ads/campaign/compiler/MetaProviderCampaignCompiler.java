@@ -184,6 +184,22 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
       return;
     }
 
+    String requestedObjective = text(override, "objective");
+    boolean salesGoal =
+        context.campaign().getBusinessGoal() != null
+            && "PURCHASE".equals(context.campaign().getBusinessGoal().name());
+    if (!salesGoal
+        || (requestedObjective != null
+            && !requestedObjective.isBlank()
+            && !"OUTCOME_SALES".equalsIgnoreCase(requestedObjective.trim()))) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "META_CATALOG_SALES_OBJECTIVE_REQUIRED",
+              "providerOverride.objective",
+              "Meta catalog ads require an OUTCOME_SALES campaign. Use the Purchase business goal and do not override it with another Meta objective."));
+      return;
+    }
+
     ProviderCampaignPlanSupport.requireCapability(
         context, AdFeatureCapability.META_CATALOG, required, issues);
     issues.add(
