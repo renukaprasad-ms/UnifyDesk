@@ -169,7 +169,7 @@ public class NotificationDeliveryWorker {
 
   String pushPayload(DeliveryIntent intent) {
     Map<String, Object> payload = new LinkedHashMap<>();
-    payload.put("version", 1);
+    payload.put("v", 1);
     payload.put(
         "notificationId",
         intent.notificationId() == null ? null : Long.toString(intent.notificationId()));
