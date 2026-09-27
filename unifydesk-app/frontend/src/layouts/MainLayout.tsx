@@ -7,6 +7,8 @@ import AdCenterSidebar from '../components/navigation/AdCenterSidebar'
 import AppSidebar from '../components/navigation/AppSidebar'
 import { authApi } from '../features/auth/authApi'
 import { platformApi } from '../features/platform/platformApi'
+import NotificationProvider from '../features/notifications/NotificationProvider'
+import { revokeCurrentBrowserSubscriptionBestEffort } from '../features/notifications/notificationBrowser'
 import type { PlatformAccess } from '../features/platform/types'
 import { realtimeClient } from '../features/realtime/realtimeClient'
 import { sessionCleared } from '../store/auth/authSlice'
@@ -63,6 +65,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
     if (loggingOut) return
     setLoggingOut(true)
     try {
+      await revokeCurrentBrowserSubscriptionBestEffort()
       await authApi.logout()
     } finally {
       dispatch(sessionCleared())
@@ -97,7 +100,8 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
   }, [contextOpen, menuOpen])
 
   return (
-    <div className={`app-shell ${platform ? 'is-platform-shell' : ''}`}>
+    <NotificationProvider companyIdOverride={platform ? null : undefined}>
+      <div className={`app-shell ${platform ? 'is-platform-shell' : ''}`}>
       {(menuOpen || contextOpen) && (
         <button
           aria-label="Close navigation"
@@ -136,6 +140,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
                 loggingOut={loggingOut}
                 onNavigate={closeNavigation}
                 onLogout={() => void logout()}
+                notificationPath={platform ? '/platform/notifications' : '/notifications'}
               />
             </div>
           </>
@@ -147,6 +152,7 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
               loggingOut={loggingOut}
               onNavigate={closeNavigation}
               onLogout={() => void logout()}
+              notificationPath={platform ? '/platform/notifications' : '/notifications'}
             />
           </>
         )}
@@ -192,11 +198,13 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
             setMenuOpen(false)
             setContextOpen((open) => !open)
           }}
+          notificationPath={platform ? '/platform/notifications' : '/notifications'}
         />
         <main id="main-content">
           <Outlet />
         </main>
       </div>
-    </div>
+      </div>
+    </NotificationProvider>
   )
 }

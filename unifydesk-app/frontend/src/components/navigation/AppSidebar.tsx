@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import {
+  FiBell,
   FiBriefcase,
   FiChevronDown,
   FiCreditCard,
@@ -24,6 +25,8 @@ import { NavLink } from 'react-router'
 import type { PlatformAccess } from '../../features/platform/types'
 import { PERMISSIONS, type PermissionKey } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
+import { useNotifications } from '../../features/notifications/NotificationProvider'
+import { formatUnreadBadge } from '../../features/notifications/notificationUtils'
 import WorkspaceSwitcher from '../WorkspaceSwitcher'
 
 type AppSidebarProps = {
@@ -32,6 +35,7 @@ type AppSidebarProps = {
   loggingOut: boolean
   onNavigate: () => void
   onLogout: () => void
+  notificationPath?: string
 }
 
 type WorkspaceLink = {
@@ -117,8 +121,11 @@ export default function AppSidebar({
   loggingOut,
   onNavigate,
   onLogout,
+  notificationPath = '/notifications',
 }: AppSidebarProps) {
   const { can } = useIam()
+  const { unreadCount } = useNotifications()
+  const notificationBadge = formatUnreadBadge(unreadCount.total)
   const platformWorkspaceAccess = Boolean(platformAccess?.platformAdmin)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     inbox: false,
@@ -196,6 +203,25 @@ export default function AppSidebar({
         >
           <FiHome className="sidebar-icon" aria-hidden="true" />
           <span className="sidebar-copy">Dashboard</span>
+        </NavLink>
+        <NavLink
+          to={notificationPath}
+          className={linkClass}
+          onClick={onNavigate}
+          title={compact ? 'Notifications' : undefined}
+          aria-label={
+            unreadCount.total > 0
+              ? `Notifications, ${unreadCount.total} unread`
+              : 'Notifications'
+          }
+        >
+          <FiBell className="sidebar-icon" aria-hidden="true" />
+          <span className="sidebar-copy min-w-0 flex-1">Notifications</span>
+          {notificationBadge && (
+            <span className="notification-badge sidebar-notification-badge">
+              {notificationBadge}
+            </span>
+          )}
         </NavLink>
         {renderSection('broadcast', 'Broadcast', <FiRadio aria-hidden="true" />, broadcastLinks)}
         {renderSection('inbox', 'Inbox', <FiInbox aria-hidden="true" />, inboxLinks)}

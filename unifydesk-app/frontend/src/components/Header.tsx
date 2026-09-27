@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FiInbox, FiMenu } from 'react-icons/fi'
 import { mediaApi } from '../features/media/mediaApi'
+import NotificationBell from '../features/notifications/NotificationBell'
 import { selectAuthUser } from '../store/auth/authSlice'
 import { useAppSelector } from '../store/hooks'
 
@@ -11,6 +12,7 @@ type HeaderProps = {
   contextOpen?: boolean
   contextLabel?: string
   onToggleContext?: () => void
+  notificationPath?: string
 }
 
 export default function Header({
@@ -20,6 +22,7 @@ export default function Header({
   contextOpen = false,
   contextLabel = 'Channel',
   onToggleContext,
+  notificationPath = '/notifications',
 }: HeaderProps) {
   const user = useAppSelector(selectAuthUser)
   const [profilePictureUrl, setProfilePictureUrl] = useState('')
@@ -83,6 +86,7 @@ export default function Header({
       </div>
 
       <div className="ml-auto flex min-w-0 items-center gap-3">
+        <NotificationBell notificationPath={notificationPath} />
         <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
           {profilePictureUrl ? (
             <img src={profilePictureUrl} alt="" className="h-full w-full object-cover" />
