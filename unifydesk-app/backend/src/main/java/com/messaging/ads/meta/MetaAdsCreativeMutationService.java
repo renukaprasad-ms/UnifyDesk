@@ -62,7 +62,7 @@ public class MetaAdsCreativeMutationService {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("name", request.name().trim());
     payload.put("object_story_spec", story);
-    applyAdvantagePlusCreative(payload, request.advantagePlusCreative());
+    applyCreativeFeatures(payload, request.advantagePlusCreative(), request.generativeText());
     if (hasText(request.urlTags())) payload.put("url_tags", request.urlTags().trim());
 
     String externalId = apiClient.createCreative(token, account.getExternalAccountId(), payload);
@@ -82,6 +82,7 @@ public class MetaAdsCreativeMutationService {
         created,
         Map.of(
             "advantagePlusCreative", Boolean.TRUE.equals(request.advantagePlusCreative()),
+            "generativeText", Boolean.TRUE.equals(request.generativeText()),
             "placementCustomized", false));
     return created;
   }
@@ -240,17 +241,32 @@ public class MetaAdsCreativeMutationService {
         created,
         Map.of(
             "advantagePlusCreative", Boolean.TRUE.equals(request.advantagePlusCreative()),
+            "generativeText", Boolean.TRUE.equals(request.generativeText()),
             "placementCustomized", true));
     return created;
   }
 
-  private void applyAdvantagePlusCreative(
-      Map<String, Object> payload, Boolean advantagePlusCreative) {
-    if (advantagePlusCreative == null) return;
-    Map<String, Object> standardEnhancements =
-        Map.of("enroll_status", Boolean.TRUE.equals(advantagePlusCreative) ? "OPT_IN" : "OPT_OUT");
-    Map<String, Object> creativeFeaturesSpec =
-        Map.of("standard_enhancements", standardEnhancements);
+  private void applyCreativeFeatures(
+      Map<String, Object> payload,
+      Boolean advantagePlusCreative,
+      Boolean generativeText) {
+    if (advantagePlusCreative == null && generativeText == null) return;
+
+    Map<String, Object> creativeFeaturesSpec = new LinkedHashMap<>();
+    if (advantagePlusCreative != null) {
+      creativeFeaturesSpec.put(
+          "standard_enhancements",
+          Map.of(
+              "enroll_status",
+              Boolean.TRUE.equals(advantagePlusCreative) ? "OPT_IN" : "OPT_OUT"));
+    }
+    if (generativeText != null) {
+      creativeFeaturesSpec.put(
+          "text_generation",
+          Map.of(
+              "enroll_status",
+              Boolean.TRUE.equals(generativeText) ? "OPT_IN" : "OPT_OUT"));
+    }
     payload.put(
         "degrees_of_freedom_spec",
         Map.of("creative_features_spec", creativeFeaturesSpec));
