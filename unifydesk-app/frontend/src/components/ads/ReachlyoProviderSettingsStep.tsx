@@ -105,6 +105,8 @@ type Props = {
   setMetaAdvantagePlusCreative: (value: boolean) => void
   metaGenerativeText: boolean
   setMetaGenerativeText: (value: boolean) => void
+  metaImageExpansion: boolean
+  setMetaImageExpansion: (value: boolean) => void
   disabled: boolean
   onRefresh: () => void
 }
@@ -990,6 +992,27 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                   <span className="mt-1 block text-xs leading-5 text-violet-700">
                     Allow Meta to generate eligible text variations from your source copy.
                     Generated copy must be reviewed from provider preview/read-back before activation.
+                  </span>
+                </span>
+              </label>
+            </div>
+            <div className="sm:col-span-2 rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={props.metaImageExpansion}
+                  disabled={props.disabled}
+                  onChange={(event) => props.setMetaImageExpansion(event.target.checked)}
+                />
+                <span>
+                  <span className="block text-sm font-bold text-cyan-950">
+                    Image expansion
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-cyan-700">
+                    Allow Meta to extend image boundaries for eligible placements. The selected
+                    creative pack must include an image and the provider preview should be reviewed
+                    before activation.
                   </span>
                 </span>
               </label>
