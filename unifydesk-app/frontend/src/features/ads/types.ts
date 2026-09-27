@@ -262,6 +262,7 @@ export type CreativeVariantType =
   | 'META_REEL'
   | 'META_CAROUSEL'
   | 'META_WHATSAPP_STATUS'
+  | 'META_EXPERIMENTS'
 
 export type CreativePackAssetInput = {
   mediaId: string
@@ -942,6 +943,225 @@ export type GoogleExperimentAction = {
   action: 'SCHEDULE' | 'PROMOTE' | 'END' | string
   operationName?: string | null
   experiment: GoogleExperiment
+}
+
+export type CreateGoogleCampaignMixExperimentInput = {
+  name: string
+  description?: string | null
+  controlCampaignIds: string[]
+  treatmentCampaignIds: string[]
+  treatmentTrafficPercent?: number | null
+  startDate?: string | null
+  endDate?: string | null
+}
+
+export type GoogleCampaignSimulationPoint = {
+  keyMicros?: number | null
+  keyRatio?: number | null
+  impressions: number
+  clicks: number
+  costMicros: number
+  conversions?: number | null
+  conversionValue?: number | null
+  requiredBudgetMicros?: number | null
+  requiredCpcBidCeilingMicros?: number | null
+}
+
+export type GoogleCampaignSimulation = {
+  resourceName?: string | null
+  campaignId?: string | null
+  type?: string | null
+  modificationMethod?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  points: GoogleCampaignSimulationPoint[]
+}
+
+export type MetaAdStudy = {
+  id?: string | null
+  name?: string | null
+  description?: string | null
+  type?: string | null
+  startTime?: number | null
+  endTime?: number | null
+  observationEndTime?: number | null
+  resultsFirstAvailableDate?: number | null
+  confidenceLevel?: string | null
+  createdTime?: number | null
+  updatedTime?: number | null
+}
+
+export type AdExperimentOverviewItem = {
+  provider: AdProvider
+  adAccountId: string
+  providerExperimentId?: string | null
+  name?: string | null
+  type?: string | null
+  status?: string | null
+  managementMode: 'API_MANAGED' | 'READ_ONLY' | string
+  startAt?: string | null
+  endAt?: string | null
+  impressions: number
+  controlImpressions: number
+  clicks: number
+  controlClicks: number
+  costMicros: number
+  controlCostMicros: number
+  conversions: number
+  controlConversions: number
+  conversionValue: number
+  controlConversionValue: number
+}
+
+export type AdExperimentOverview = {
+  experiments: AdExperimentOverviewItem[]
+  failures: Array<{
+    provider: AdProvider
+    adAccountId: string
+    message: string
+  }>
+}
+
+export type AdOptimizationPolicyMode =
+  | 'RECOMMENDATION_ONLY'
+  | 'APPROVAL_REQUIRED'
+  | 'AUTOMATIC'
+
+export type AdOptimizationPolicyType =
+  | 'AUTOMATION_RULE'
+  | 'LIFECYCLE_RETARGETING'
+
+export type AdOptimizationPolicy = {
+  id: string
+  name: string
+  policyType: AdOptimizationPolicyType
+  enabled: boolean
+  mode: AdOptimizationPolicyMode
+  provider?: AdProvider | null
+  adAccountId?: string | null
+  campaignId?: string | null
+  configJson: string
+  status: string
+  lastEvaluatedAt?: string | null
+  lastTriggeredAt?: string | null
+  lastResultJson?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type AdOptimizationPolicyInput = {
+  name: string
+  policyType: AdOptimizationPolicyType
+  mode: AdOptimizationPolicyMode
+  provider?: AdProvider | null
+  adAccountId?: string | null
+  campaignId?: string | null
+  configJson: string
+  enabled?: boolean | null
+}
+
+export type AdOptimizationPolicyEvaluation = {
+  policyId: string
+  triggered: boolean
+  state: string
+  metric?: string | null
+  observedValue?: number | null
+  threshold?: number | null
+  action?: string | null
+  executed: boolean
+  approvalRequired: boolean
+  message: string
+  evaluatedAt: string
+}
+
+export type FirstPartyAudienceMemberInput = {
+  email?: string | null
+  phone?: string | null
+  externalId?: string | null
+}
+
+export type FirstPartyAudienceBuildInput = {
+  name: string
+  description?: string | null
+  membershipDays?: number | null
+  targets: Array<{ provider: AdProvider; adAccountId: string }>
+  members: FirstPartyAudienceMemberInput[]
+  googleCustomerMatchTermsAccepted: boolean
+  adUserDataConsent: boolean
+  adPersonalizationConsent: boolean
+  metaCustomAudienceTermsAccepted: boolean
+}
+
+export type FirstPartyAudienceBuildResult = {
+  submittedMembers: number
+  targets: Array<{
+    provider: AdProvider
+    adAccountId: string
+    success: boolean
+    localAudienceId?: string | null
+    externalAudienceId?: string | null
+    providerAccepted: number
+    providerRejected: number
+    warnings: string[]
+    error?: string | null
+  }>
+}
+
+export type ReachlyoBudgetRecommendation = {
+  campaignId: string
+  currency: string
+  from: string
+  to: string
+  confidence: string
+  actionable: boolean
+  methodology: string
+  channels: Array<{
+    channelId: string
+    provider: AdProvider
+    channelType?: CampaignChannelType | null
+    currentPlannedPercent?: number | null
+    historicalSpendSharePercent: number
+    recommendedPercent?: number | null
+    recommendedBudgetMinor?: number | null
+    spend: number
+    conversions: number
+    cpa?: number | null
+    roas?: number | null
+    reason: string
+  }>
+}
+
+export type ReachlyoFunnel = {
+  impressions: number
+  clicks: number
+  leads: number
+  conversions: number
+  purchases: number
+  spend: number
+  conversionValue: number
+  clickThroughRate?: number | null
+  clickToLeadRate?: number | null
+  leadToPurchaseRate?: number | null
+  clickToConversionRate?: number | null
+  cpa?: number | null
+  roas?: number | null
+}
+
+export type ReachlyoFunnelAttribution = {
+  campaignId: string
+  currency: string
+  from: string
+  to: string
+  attributionMode: string
+  limitation: string
+  totals: ReachlyoFunnel
+  deployments: Array<{
+    deploymentId: string
+    provider: AdProvider
+    channelType?: CampaignChannelType | null
+    localCampaignId?: string | null
+    funnel: ReachlyoFunnel
+  }>
 }
 
 export type GoogleProviderLandingPageRow = {
