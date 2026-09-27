@@ -352,3 +352,306 @@ Do not move Managed SMS to release-ready until:
 - both clean and representative upgrade Flyway paths succeed through the final migration;
 - real-provider blockers required for production sending are closed with recorded evidence;
 - CUSTOMER_MANAGED MSG91 regression remains green.
+
+
+---
+
+# Round-2 Retest — 2026-09-27
+
+Review branch: `review/managed-sms-security-qa-r2`  
+Exact frozen integrated Round-2 base SHA: `7de50f474c1272efc656f8321052d09dcfa2f397`  
+QA integration-test commit: `5ad1c5f2b7bc373b00613d9b632e117f10767cc2`  
+CTA residual QA-test commit: `4fe329a48674cef155af8282e7faff479a63fdb8`
+
+## Round-2 release recommendation
+
+**NO-GO for production / GA.**
+
+Round 2 closes most of the source-level security defects from Round 1, but release remains blocked by:
+
+1. **MS-SMS-R1-003 — PARTIALLY_FIXED:** B1 and B2 still disagree on `HOST_ALLOWLIST` non-default port handling. B1 preview rejects `https://example.com:8443/...`; B2 runtime accepts it.
+2. **MS-SMS-R1-014 — STILL_OPEN:** required integrated Maven/frontend/Flyway/Redis execution did not run because the GitHub Actions jobs failed before any steps were populated.
+3. **MS-SMS-R1-002 / 007 / 013 — BLOCKED_EXTERNAL:** code now fails closed, but the production MSG91 account contract is still unverified for provider observation/balance, child credential semantics, and account-bound webhook deployment/provider-native signature support.
+
+No real MSG91/DLT environment was available during this retest. No provider-dependent assumption is marked verified.
+
+## Executable gate result
+
+QA added focused integration tests and a review-only workflow without modifying production code:
+
+- `ManagedSmsRound2FlywayMigrationTests`
+  - clean-schema migration through V66;
+  - representative V64 -> V66 upgrade.
+- `ManagedSmsRateLimiterRedisIntegrationTests`
+  - real Redis global/account/company/run scope enforcement.
+- `ManagedSmsRound2CtaParityQaTests`
+  - captures the residual non-default-port CTA policy mismatch.
+- `.github/workflows/managed-sms-r2-qa.yml`
+  - runs the separately required `./mvnw -B clean test`.
+
+Push of QA commit `5ad1c5f2b7bc373b00613d9b632e117f10767cc2` triggered:
+
+- **Managed SMS Round 2 QA** run `36306016589`
+  - job `backend-clean-test` conclusion: FAILURE
+  - job steps: **none / empty**
+  - job log blob: unavailable because execution never started.
+- **Checks** run `36306016676`
+  - jobs `backend`, `frontend`, `email-provider`, `website`: FAILURE
+  - all jobs have **steps = null / empty**
+  - backend/frontend log blobs are unavailable because execution never started.
+
+Therefore the following remain **NOT EXECUTED** and are not PASS:
+
+| Required check | Round-2 result |
+|---|---|
+| `./mvnw -B spotless:check test` | **NOT EXECUTED — runner failed before steps** |
+| `./mvnw -B clean test` | **NOT EXECUTED — runner failed before steps** |
+| `npm ci` | **NOT EXECUTED — runner failed before steps** |
+| `npm test` | **NOT EXECUTED — runner failed before steps** |
+| `npm run build` | **NOT EXECUTED — runner failed before steps** |
+| `npm run lint` | **NOT EXECUTED — runner failed before steps** |
+| `npm run format:check` | **NOT EXECUTED — runner failed before steps** |
+| Clean Flyway through V66 | **NOT EXECUTED — QA test authored, runner did not start** |
+| Representative V64 -> V66 Flyway upgrade | **NOT EXECUTED — QA test authored, runner did not start** |
+| Real Redis scope/concurrency integration | **NOT EXECUTED — QA test authored, runner did not start** |
+| Redis outage fail-closed | **Source + existing focused unit test reviewed; integrated execution NOT EXECUTED** |
+| Real MSG91 / DLT | **NOT AVAILABLE / UNVERIFIED** |
+
+This is an infrastructure/execution blocker, not evidence of application test failure.
+
+## Finding dispositions
+
+### MS-SMS-R1-001 — stale V61 migration resource reference
+
+- **Round-2 status:** **CLOSED**
+- **Evidence:** `ManagedSmsControlContractTests` now loads `/db/migration/V62__managed_sms_control_plane.sql`, matching the integrated migration filename.
+- **Retest note:** focused source/test correction verified. Integrated Maven execution remains separately blocked by R1-014.
+
+### MS-SMS-R1-002 — provider snapshot/bootstrap safety
+
+- **Round-2 status:** **BLOCKED_EXTERNAL**
+- **Code disposition:** **fail-closed / code-safe**
+- **Evidence:**
+  - `ManagedSmsProviderObservationAdapter` + `ManagedSmsProviderObservationService` now provide the only positive snapshot path.
+  - persisted healthy observations are marked `VERIFIED_ADAPTER:<source>`;
+  - manually inserted rows without verified source remain unavailable;
+  - missing, expired, disabled and low-balance snapshots fail closed;
+  - insufficient credit inserts a disabling circuit snapshot;
+  - recovery requires a newer healthy verified observation;
+  - the default `UnverifiedManagedSmsProviderObservationAdapter` returns empty rather than fabricating health.
+- **Still external:** production-contract HTTPS MSG91 balance/observation endpoint, authoritative wallet level and credit/refund semantics are not verified with a real account.
+- **Required external retest:** contracted account observation, low-credit response, recovery, parent/child wallet behavior.
+
+### MS-SMS-R1-003 — CTA URL/callback allowlist enforcement
+
+- **Round-2 status:** **PARTIALLY_FIXED**
+- **Closed portions:**
+  - policyVersion=2 is required for activated CTA templates;
+  - exact values, host allowlist, HTTPS, subdomain boundary, path prefix, IP-literal rejection, user-info rejection and callback exact allowlists are implemented;
+  - B1 preview validates authoritative policy;
+  - B2 draft/launch/delivery rendering validates runtime values;
+  - missing/incomplete CTA rules block activation/runtime.
+- **Residual evidence:**
+  - B1 `ManagedSmsCtaPolicyService.urlAllowed()` calls `safeHostPort()` for `HOST_ALLOWLIST`, permitting only no port or scheme-default 80/443.
+  - B2 `managedsms.runtime.ManagedSmsTemplateService.validateUrlRule()` compares scheme/host/path but does **not** reject a non-default port preserved by `parseUrl()`.
+  - Consequently `https://example.com:8443/orders/123` is rejected by B1 preview but accepted by B2 runtime for an allowlist of host `example.com`.
+  - QA added `ManagedSmsRound2CtaParityQaTests` to capture this mismatch.
+- **Recommended remediation:** use one shared/canonically equivalent CTA parser contract. For HOST_ALLOWLIST, reject non-default ports unless an explicit approved-port contract is introduced.
+- **Required retest:** preview/draft/launch/delivery parity for default port, explicit 443, non-default port, exact-value URLs with an explicitly approved port, host/subdomain/path/callback cases.
+
+### MS-SMS-R1-004 — delivery-time compliance freshness
+
+- **Round-2 status:** **CLOSED**
+- **Evidence:** `DeliveryRuntime` now carries current tenant/profile/Header/template/provider-binding freshness facts and `ManagedSmsDeliveryGuard` checks them against `Instant.now()` for every provider submission. It also verifies recipient company+run+sender+connection ownership.
+- **Retest coverage present:** `ManagedSmsDeliveryGuardRound2Tests` covers ACTIVE statuses with expired profile/Header/template and old tenant/provider-binding observations.
+
+### MS-SMS-R1-005 — webhook replay-window enforcement
+
+- **Round-2 status:** **CLOSED**
+- **Evidence:**
+  - `ts` is mandatory for a new trusted event;
+  - malformed/missing timestamp fails closed;
+  - exact duplicate identity is checked before replay-window rejection, so a provider retry of the exact same event is idempotently accepted even after the time window;
+  - new old/future events outside `eventReplayWindow` are rejected;
+  - no malformed timestamp fallback to `Instant.now()`;
+  - V66 stores `provider_event_at`.
+- **Retest coverage present:** old, future, missing, malformed and exact-duplicate-outside-window cases.
+
+### MS-SMS-R1-006 — tuple ownership and billing-before-ownership
+
+- **Round-2 status:** **CLOSED**
+- **Evidence:**
+  - V66 proves existing consistency before adding composite recipient ownership FKs;
+  - correlation create/reuse/acceptance is scoped to company+run+recipient+attempt;
+  - usage reserve/lock/commit/release/UNKNOWN is scoped to company+run+recipient+attempt;
+  - `ManagedSmsUsageService.commit()` verifies/locks the exact tuple before `UsageBillingService.record()`;
+  - recipient acceptance mutation is scoped by company+run+recipient;
+  - provider event reconciliation validates provider account/request plus correlation tuple.
+- **Retest coverage present:** wrong-company and wrong-run reservation/commit attempts verify no billing interaction; concurrent reservation and idempotent acceptance tests remain present.
+
+### MS-SMS-R1-007 — child-account vs master AuthKey isolation
+
+- **Round-2 status:** **BLOCKED_EXTERNAL**
+- **Code disposition:** **fail-closed / code-safe**
+- **Evidence:**
+  - `CHILD_PER_COMPANY` has no master-key fallback in `DefaultManagedSmsProviderCredentialResolver`;
+  - `SHARED_MASTER` requires `APP_MANAGED_SMS_ALLOW_SHARED_MASTER=true`, exact `master` scope and configured master key;
+  - gateway requires runtime topology to equal configured topology;
+  - resolved credential account key must equal the snapshotted provider account key.
+- **Still external:** no verified production child credential resolver exists because current MSG91 child Send SMS AuthKey semantics for the contracted Flow API have not been proven.
+- **Required external retest:** two child accounts, wrong-child credential/Flow, real send and DLR account correlation, explicit shared-master commercial approval.
+
+### MS-SMS-R1-008 — raw provider diagnostic leakage
+
+- **Round-2 status:** **CLOSED**
+- **Evidence:** gateway and delivery coordinator now persist stable safe messages for 429, credit, reject, 5xx/IO and template/destination errors. Raw provider diagnostic text is not passed into customer-facing recipient failure state by the Managed SMS path.
+- **Retest coverage present:** `ManagedMsg91GatewayRound2Tests` verifies safe fail-closed messages for credential/capacity failure; source mapping reviewed for provider outcome paths.
+
+### MS-SMS-R1-009 — distinct rate scopes and campaign cap
+
+- **Round-2 status:** **CLOSED**
+- **Evidence:**
+  - separate global/account/company/run rates are configured;
+  - one Redis Lua script atomically evaluates and decrements all four;
+  - new-tenant hour/day counters remain atomic in the same script;
+  - Redis exceptions return false;
+  - `ManagedSmsLaunchGuard` enforces an absolute `campaignMaxRecipients` before runtime/provider work.
+- **Retest coverage present:** existing unit tests assert separate rate arguments and fail-closed Redis exception; QA added a real-Redis integration test for all four scopes.
+- **Execution caveat:** the real-Redis QA test did not execute because of R1-014; this does not convert the Redis integration check to PASS.
+
+### MS-SMS-R1-010 — approved-body SHA-256 fingerprint
+
+- **Round-2 status:** **CLOSED**
+- **Evidence:** runtime render recomputes SHA-256 over exact UTF-8 body bytes and constant-time compares with the stored fingerprint before substitution; mismatch fails with `MANAGED_SMS_TEMPLATE_NOT_READY`.
+- **Retest coverage present:** changed fixed body with old fingerprint is rejected.
+
+### MS-SMS-R1-011 — ACTIVE DLT profile mutation
+
+- **Round-2 status:** **CLOSED**
+- **Evidence:**
+  - ACTIVE legal name, DLT platform, evidence or TM-chain-reference edits move the profile out of ACTIVE review state;
+  - verified/checked/stale timestamps are cleared;
+  - TM-reference edits also invalidate TM chain state;
+  - `managed_sms_compliance_actions` stores actor and before/after snapshots;
+  - eligibility recalculates in the same transaction;
+  - ACTIVE PE ID replacement remains forbidden;
+  - company-scoped lookup blocks foreign profile IDs.
+- **Migration:** V65 creates the compliance audit ledger.
+
+### MS-SMS-R1-012 — provider Flow/binding readiness
+
+- **Round-2 status:** **CLOSED**
+- **Evidence:**
+  - control plane delegates binding readiness to `ManagedSmsProviderAdapter.bindingReadiness()`;
+  - MSG91 readiness requires company/tenant/template/Header ownership, current Header/template state and a nonblank runtime Flow reference;
+  - provider-template-ref alone does not activate the binding/template;
+  - runtime compose/launch/delivery also require the snapshotted Flow ref before provider submission.
+
+### MS-SMS-R1-013 — provider-account-bound webhook authentication
+
+- **Round-2 status:** **BLOCKED_EXTERNAL**
+- **Code disposition:** **account-bound / fail-closed**
+- **Evidence:**
+  - one global webhook shared secret is no longer the trust decision;
+  - token is HMAC-SHA256(server token key, providerAccountKey);
+  - minimum 32-byte server key is required;
+  - correlation resolves the account before token verification;
+  - Account-A token cannot authenticate Account-B correlation;
+  - optional previous server key works only until an explicit rotation deadline.
+- **Still external:** contracted MSG91 account must prove that per-account custom webhook headers or dedicated account-bound endpoint tokens can be configured as assumed; provider-native signed/HMAC Webhook support is still unverified.
+- **Required external retest:** actual child/account webhook configuration, rotation and provider-native signature behavior if available.
+
+### MS-SMS-R1-014 — executable integrated verification
+
+- **Round-2 status:** **STILL_OPEN**
+- **Evidence:** QA deliberately triggered both the normal `Checks` workflow and a dedicated review-only `clean test` workflow. Both failed before checkout/commands:
+  - run `36306016589`, job `backend-clean-test`: no steps;
+  - run `36306016676`, backend/frontend/email-provider/website jobs: all no steps;
+  - explicit job-step queries returned empty arrays;
+  - job log downloads have no blobs because execution never started.
+- **Consequence:** backend tests, frontend chain, Flyway clean/upgrade and Redis integration are still unexecuted. They must not be reported as passed.
+- **Required retest:** execute the full Round-2 gate on an operational runner/authorized checkout.
+
+## Round-2 finding summary
+
+| Finding | R1 severity | Round-2 status |
+|---|---|---|
+| MS-SMS-R1-001 | HIGH | **CLOSED** |
+| MS-SMS-R1-002 | HIGH | **BLOCKED_EXTERNAL** |
+| MS-SMS-R1-003 | HIGH | **PARTIALLY_FIXED** |
+| MS-SMS-R1-004 | HIGH | **CLOSED** |
+| MS-SMS-R1-005 | HIGH | **CLOSED** |
+| MS-SMS-R1-006 | HIGH | **CLOSED** |
+| MS-SMS-R1-007 | HIGH | **BLOCKED_EXTERNAL** |
+| MS-SMS-R1-008 | MEDIUM | **CLOSED** |
+| MS-SMS-R1-009 | MEDIUM | **CLOSED** |
+| MS-SMS-R1-010 | MEDIUM | **CLOSED** |
+| MS-SMS-R1-011 | MEDIUM | **CLOSED** |
+| MS-SMS-R1-012 | MEDIUM | **CLOSED** |
+| MS-SMS-R1-013 | MEDIUM | **BLOCKED_EXTERNAL** |
+| MS-SMS-R1-014 | HIGH | **STILL_OPEN** |
+
+Totals:
+
+- **CLOSED:** 9
+- **PARTIALLY_FIXED:** 1
+- **STILL_OPEN:** 1
+- **BLOCKED_EXTERNAL:** 3
+- **REGRESSION_FOUND:** 0
+
+## Frontend regression review
+
+No Round-2 frontend production changes were planned.
+
+Static regression review confirms the R1 protections remain present:
+
+- Managed SMS response sanitizers whitelist customer-safe status/template/usage/health fields and drop stale/mock provider account/client/AuthKey/Flow/route/wallet/capacity fields.
+- Managed SMS setup/status components clear prior company data before loading and discard late responses when the active company changes.
+- Managed sender provider metadata is rendered as **UnifyDesk Managed SMS** without customer-visible MSG91 connection details.
+- Existing frontend privacy and tenant-scope tests remain in the integrated SHA.
+
+**Execution status:** frontend tests/build/lint/format were not executed because the Actions frontend job never obtained steps.
+
+## Clean/upgrade migration review
+
+Static migration review:
+
+- V65 adds the company/user compliance-action audit table with company/user FKs and resource indexes.
+- V66:
+  - adds provider event time and provider-observation source;
+  - checks pre-existing correlation/usage/delivery tuple consistency and raises on inconsistency rather than deleting data;
+  - adds composite `broadcast_recipients` uniqueness required for tuple FKs;
+  - adds correlation/usage composite company+run+recipient FKs;
+  - adds delivery company+recipient FK.
+- QA authored actual clean and V64->V66 Flyway tests.
+
+**Execution status:** NOT EXECUTED because the backend workflow never started.
+
+## External MSG91 / DLT blockers remaining
+
+Production GA still requires evidence for:
+
+1. UnifyDesk's exact TM classification and exact PE-TM chain.
+2. Contracted master/subaccount topology and whether current child/client accounts expose the required Flow Send SMS AuthKey.
+3. Real PE/Header/DLT Template/Flow provisioning and scrubbing behavior.
+4. A production-contract HTTPS provider observation/balance endpoint and the authoritative parent-vs-child wallet model.
+5. Provider charging, rejection, refund and credit-adjustment semantics.
+6. Per-account custom Webhook (New) header/endpoint configuration and whether provider-native signed/HMAC callbacks are available.
+7. Real CRQID/requestId echo, duplicate/retry and late-DLR behavior.
+8. Contracted 429/rate behavior and isolation between children.
+9. CTA/DLT operator scrubbing behavior against the final allowlist implementation.
+10. 2026 Third Amendment staged effective-date behavior as provisions commence.
+
+## Round-3 / final retest gate
+
+Before release recommendation can become GO:
+
+- resolve MS-SMS-R1-003 CTA host/port parity;
+- execute `./mvnw -B spotless:check test`;
+- execute `./mvnw -B clean test`;
+- execute `npm ci`, tests, build, lint and format check;
+- execute clean Flyway through V66;
+- execute representative V64 -> V66 upgrade;
+- execute real Redis scope/concurrency tests and outage fail-closed test;
+- close production-required external MSG91/DLT contract blockers with real evidence.
+
