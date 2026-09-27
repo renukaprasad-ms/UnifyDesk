@@ -127,6 +127,7 @@ import type {
   MetaInsightBreakdownsSync,
   MetaInsightsSync,
   MetaCreativeSync,
+  MetaExistingPost,
   MetaAdSync,
   MetaAdSetSync,
   GoogleCampaignSync,
@@ -1870,6 +1871,17 @@ export const adCenterApi = {
   async creative(companyId: string, creativeId: string) {
     const response = await apiClient.get<ApiResponse<AdCreative>>(
       `/api/v1/companies/${companyId}/ads/creatives/${creativeId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async metaExistingPosts(
+    companyId: string,
+    accountId: string,
+    pageId: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<MetaExistingPost[]>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/pages/${encodeURIComponent(pageId)}/posts`,
     )
     return unwrap(response.data)
   },
