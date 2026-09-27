@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-@Service
+@Service("managedSmsRuntimeTemplateService")
 @RequiredArgsConstructor
 public class ManagedSmsTemplateService {
 
