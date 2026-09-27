@@ -59,6 +59,7 @@ export default function MetaCreativeModal({
   const [urlTags, setUrlTags] = useState('')
   const [advantagePlusCreative, setAdvantagePlusCreative] = useState(false)
   const [generativeText, setGenerativeText] = useState(false)
+  const [imageExpansion, setImageExpansion] = useState(false)
   const [cards, setCards] = useState<MetaCarouselCardInput[]>([emptyCard(), emptyCard()])
 
   if (!open) return null
@@ -82,6 +83,7 @@ export default function MetaCreativeModal({
       urlTags: urlTags || null,
       advantagePlusCreative,
       generativeText,
+      imageExpansion,
       carouselCards: format === 'CAROUSEL' ? cards : [],
     })
   }
@@ -220,6 +222,25 @@ export default function MetaCreativeModal({
                 <span className="mt-1 block text-xs leading-5 text-violet-700">
                   Allow Meta to generate text variations from your original primary text. Review
                   provider previews/read-back before activating ads that use generated copy.
+                </span>
+              </span>
+            </label>
+          </section>
+
+          <section className="rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={imageExpansion}
+                disabled={format !== 'SINGLE_IMAGE'}
+                onChange={(event) => setImageExpansion(event.target.checked)}
+              />
+              <span>
+                <span className="block text-sm font-bold text-cyan-950">Image expansion</span>
+                <span className="mt-1 block text-xs leading-5 text-cyan-700">
+                  Allow Meta to extend image boundaries for eligible placements. Available only
+                  for image creatives; review the provider preview before activation.
                 </span>
               </span>
             </label>
