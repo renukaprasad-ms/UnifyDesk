@@ -84,24 +84,39 @@ public class NotificationFanoutWorker {
   private void process(ClaimedJob claimed) {
     JobRow job = claimed.row();
     try {
+      int batchSize = Math.max(50, Math.min(1000, job.batchSize()));
       List<Long> recipients =
-          jdbcTemplate.query(
-              """
-              select m.user_id
-              from company_members m
-              join users u on u.id=m.user_id
-              where m.company_id=?
-                and m.status='ACTIVE'
-                and u.status='ACTIVE'
-                and (? is null or m.user_id > ?)
-              order by m.user_id
-              limit ?
-              """,
-              (rs, rowNum) -> rs.getLong(1),
-              job.companyId(),
-              job.cursorUserId(),
-              job.cursorUserId(),
-              Math.max(50, Math.min(1000, job.batchSize())));
+          job.cursorUserId() == null
+              ? jdbcTemplate.query(
+                  """
+                  select m.user_id
+                  from company_members m
+                  join users u on u.id=m.user_id
+                  where m.company_id=?
+                    and m.status='ACTIVE'
+                    and u.status='ACTIVE'
+                  order by m.user_id
+                  limit ?
+                  """,
+                  (rs, rowNum) -> rs.getLong(1),
+                  job.companyId(),
+                  batchSize)
+              : jdbcTemplate.query(
+                  """
+                  select m.user_id
+                  from company_members m
+                  join users u on u.id=m.user_id
+                  where m.company_id=?
+                    and m.status='ACTIVE'
+                    and u.status='ACTIVE'
+                    and m.user_id > ?
+                  order by m.user_id
+                  limit ?
+                  """,
+                  (rs, rowNum) -> rs.getLong(1),
+                  job.companyId(),
+                  job.cursorUserId(),
+                  batchSize);
 
       if (recipients.isEmpty()) {
         transactionTemplate.executeWithoutResult(
