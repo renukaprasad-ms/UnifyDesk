@@ -19,7 +19,7 @@ import com.messaging.notification.platform.delivery.model.DeliveryModels.DigestB
 import com.messaging.notification.platform.delivery.model.DeliveryModels.RecipientSnapshot;
 import com.messaging.notification.platform.delivery.policy.DeliveryEligibilityService;
 import com.messaging.notification.platform.delivery.policy.NotificationDeliveryPolicy;
-import com.messaging.notification.platform.delivery.push.PushEncryptionReadiness;
+import com.messaging.notification.platform.push.BrowserPushReadiness;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliveryRuntimeRepository;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliverySupportRepository;
 import com.messaging.notification.platform.delivery.repository.ProviderAttemptLifecycleRepository;
@@ -43,7 +43,7 @@ class NotificationEmailKillSwitchTests {
     NotificationEmailRenderer renderer = mock(NotificationEmailRenderer.class);
     NotificationDeliveryMetrics metrics = mock(NotificationDeliveryMetrics.class);
     CompanyIamPermissionService permissions = mock(CompanyIamPermissionService.class);
-    PushEncryptionReadiness readiness = mock(PushEncryptionReadiness.class);
+    BrowserPushReadiness readiness = mock(BrowserPushReadiness.class);
     NotificationDeliveryProperties properties = new NotificationDeliveryProperties();
     properties.getEmail().setEnabled(false);
     NotificationDeliveryPolicy policy = new NotificationDeliveryPolicy(properties);
