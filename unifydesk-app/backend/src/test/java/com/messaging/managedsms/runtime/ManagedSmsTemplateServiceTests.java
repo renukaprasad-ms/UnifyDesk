@@ -143,6 +143,127 @@ class ManagedSmsTemplateServiceTests {
   }
 
   @Test
+  void hostAllowlistAllowsOnlyDefaultPortsForHttpAndHttps() {
+    String body = "Open {#var#}";
+    String schema = "[{\"key\":\"portal_url\",\"type\":\"URL\",\"maxLength\":200}]";
+    String httpsPolicy =
+        """
+        {"policyVersion":2,"urlRules":[
+          {"key":"portal_url","mode":"HOST_ALLOWLIST","allowedHosts":["example.com"],
+           "allowSubdomains":false,"requireHttps":true,"allowedPathPrefixes":["/orders/"]}
+        ],"callbackRules":[]}
+        """;
+
+    for (String allowed :
+        new String[] {
+          "https://example.com/orders/123",
+          "https://example.com:443/orders/123"
+        }) {
+      service.render(body, sha256(body), schema, httpsPolicy, Map.of("portal_url", allowed));
+    }
+
+    assertThatThrownBy(
+            () ->
+                service.render(
+                    body,
+                    sha256(body),
+                    schema,
+                    httpsPolicy,
+                    Map.of("portal_url", "https://example.com:8443/orders/123")))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("MANAGED_SMS_CTA_NOT_APPROVED");
+
+    String httpPolicy =
+        """
+        {"policyVersion":2,"urlRules":[
+          {"key":"portal_url","mode":"HOST_ALLOWLIST","allowedHosts":["example.com"],
+           "allowSubdomains":false,"requireHttps":false,"allowedPathPrefixes":["/path"]}
+        ],"callbackRules":[]}
+        """;
+
+    for (String allowed :
+        new String[] {
+          "http://example.com/path",
+          "http://example.com:80/path"
+        }) {
+      service.render(body, sha256(body), schema, httpPolicy, Map.of("portal_url", allowed));
+    }
+
+    assertThatThrownBy(
+            () ->
+                service.render(
+                    body,
+                    sha256(body),
+                    schema,
+                    httpPolicy,
+                    Map.of("portal_url", "http://example.com:8080/path")))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("MANAGED_SMS_CTA_NOT_APPROVED");
+  }
+
+  @Test
+  void hostAllowlistAppliesDefaultPortRuleToAllowedSubdomains() {
+    String body = "Open {#var#}";
+    String schema = "[{\"key\":\"portal_url\",\"type\":\"URL\",\"maxLength\":200}]";
+    String policy =
+        """
+        {"policyVersion":2,"urlRules":[
+          {"key":"portal_url","mode":"HOST_ALLOWLIST","allowedHosts":["example.com"],
+           "allowSubdomains":true,"requireHttps":true,"allowedPathPrefixes":["/orders/"]}
+        ],"callbackRules":[]}
+        """;
+
+    service.render(
+        body,
+        sha256(body),
+        schema,
+        policy,
+        Map.of("portal_url", "https://tenant.example.com:443/orders/123"));
+
+    assertThatThrownBy(
+            () ->
+                service.render(
+                    body,
+                    sha256(body),
+                    schema,
+                    policy,
+                    Map.of("portal_url", "https://tenant.example.com:8443/orders/123")))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("MANAGED_SMS_CTA_NOT_APPROVED");
+  }
+
+  @Test
+  void exactValuesKeepsExplicitNonDefaultPortSemantics() {
+    String body = "Track {#var#}";
+    String schema = "[{\"key\":\"tracking_url\",\"type\":\"URL\",\"maxLength\":200}]";
+    String policy =
+        """
+        {"policyVersion":2,"urlRules":[
+          {"key":"tracking_url","mode":"EXACT_VALUES",
+           "allowedValues":["https://example.com:8443/callback"]}
+        ],"callbackRules":[]}
+        """;
+
+    service.render(
+        body,
+        sha256(body),
+        schema,
+        policy,
+        Map.of("tracking_url", "https://example.com:8443/callback"));
+
+    assertThatThrownBy(
+            () ->
+                service.render(
+                    body,
+                    sha256(body),
+                    schema,
+                    policy,
+                    Map.of("tracking_url", "https://example.com:9443/callback")))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("MANAGED_SMS_CTA_NOT_APPROVED");
+  }
+
+  @Test
   void callbackPolicyRequiresExactNormalizedApprovedValue() {
     String body = "Call {#var#}";
     String schema =
