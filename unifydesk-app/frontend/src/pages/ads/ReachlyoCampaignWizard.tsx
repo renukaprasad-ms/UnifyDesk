@@ -1273,6 +1273,18 @@ export default function ReachlyoCampaignWizard() {
           _reachlyoAdAccountId: accountId,
         }
 
+        if (channel.channelType === 'META_ADS') {
+          if (metaCatalogEnabled && !metaProductSetId.trim()) {
+            throw new Error('Choose a synchronized Meta product set for the catalog ad.')
+          }
+          if (metaCatalogEnabled && metaExistingPostId.trim()) {
+            throw new Error('Catalog ads and existing-post creatives cannot be combined.')
+          }
+          if (metaBackgroundGeneration && !metaCatalogEnabled) {
+            throw new Error('Meta background generation requires catalog mode.')
+          }
+        }
+
         if (channel.channelType === 'GOOGLE_SEARCH') {
           if (!googlePolitical) {
             throw new Error(
