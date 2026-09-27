@@ -53,6 +53,10 @@ public class NotificationUnreadCounterReconciler {
             counter.id());
         realtimePublisher.afterCommit(
             counter.userId(), counter.companyId(), null, "COUNTER_RECONCILED");
+      } else {
+        jdbcTemplate.update(
+            "update notification_unread_counters set updated_at=now() where id=?",
+            counter.id());
       }
     }
   }
@@ -89,6 +93,16 @@ public class NotificationUnreadCounterReconciler {
             counter.permissionKey());
         realtimePublisher.afterCommit(
             counter.userId(), counter.companyId(), null, "COUNTER_RECONCILED");
+      } else {
+        jdbcTemplate.update(
+            """
+            update notification_unread_permission_counters
+            set updated_at=now()
+            where user_id=? and company_id=? and permission_key=?
+            """,
+            counter.userId(),
+            counter.companyId(),
+            counter.permissionKey());
       }
     }
   }
