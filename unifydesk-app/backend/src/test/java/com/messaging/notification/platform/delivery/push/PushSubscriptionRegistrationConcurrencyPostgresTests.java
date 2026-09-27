@@ -2,19 +2,32 @@ package com.messaging.notification.platform.delivery.push;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import com.messaging.common.credential.CredentialCipher;
 import com.messaging.common.exception.TooManyRequestsException;
+import com.messaging.notification.platform.delivery.config.NotificationDeliveryProperties;
+import com.messaging.notification.platform.delivery.model.DeliveryModels.PushSubscription;
+import com.messaging.notification.platform.delivery.push.PushSubscriptionService.PushKeys;
+import com.messaging.notification.platform.delivery.push.PushSubscriptionService.RegisterPushSubscription;
+import com.messaging.notification.platform.delivery.push.PushSubscriptionService.RegistrationResult;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliveryRuntimeRepository;
+import com.messaging.notification.platform.push.BrowserPushReadiness;
+import com.messaging.security.service.CurrentUserService;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Base64;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -51,18 +64,62 @@ class PushSubscriptionRegistrationConcurrencyPostgresTests {
       jdbc.update("insert into users(id) values (?)", 7L);
       seedActiveSubscriptions(jdbc, 7L, 9);
 
+      AtomicLong ids = new AtomicLong(10000L);
       NotificationDeliveryRuntimeRepository repository =
-          new NotificationDeliveryRuntimeRepository(jdbc);
+          new NotificationDeliveryRuntimeRepository(jdbc) {
+            @Override
+            public PushSubscription insertSubscription(
+                long userId,
+                String endpointHash,
+                String endpointCiphertext,
+                String p256dhCiphertext,
+                String authCiphertext,
+                Instant expirationTime,
+                String deviceLabel) {
+              long id = ids.incrementAndGet();
+              jdbc.update(
+                  """
+                  insert into notification_push_subscriptions(
+                    id,user_id,endpoint_hash,endpoint_ciphertext,p256dh_ciphertext,auth_ciphertext,
+                    expiration_time,device_label,status,created_at,updated_at
+                  ) values (?,?,?,?,?,?,?,?, 'ACTIVE',now(),now())
+                  """,
+                  id,
+                  userId,
+                  endpointHash,
+                  endpointCiphertext,
+                  p256dhCiphertext,
+                  authCiphertext,
+                  expirationTime == null
+                      ? null
+                      : OffsetDateTime.ofInstant(expirationTime, ZoneOffset.UTC),
+                  deviceLabel);
+              return findSubscriptionForUser(id, userId).orElseThrow();
+            }
+          };
+
+      CurrentUserService currentUser = mock(CurrentUserService.class);
+      when(currentUser.currentUserId()).thenReturn(7L);
+      CredentialCipher cipher = mock(CredentialCipher.class);
+      when(cipher.encrypt(anyString()))
+          .thenAnswer(invocation -> "enc:" + invocation.getArgument(0));
+      BrowserPushReadiness readiness = mock(BrowserPushReadiness.class);
+      when(readiness.ready()).thenReturn(true);
+      NotificationDeliveryProperties properties = new NotificationDeliveryProperties();
+      properties.getPush().setVapidPublicKey("public");
+      properties.getPush().setVapidPrivateKey("private");
+      properties.getPush().setMaxActiveSubscriptions(10);
+
+      PushSubscriptionService service =
+          new PushSubscriptionService(repository, currentUser, cipher, properties, readiness);
       TransactionTemplate tx =
           new TransactionTemplate(new DataSourceTransactionManager(scoped));
 
       CountDownLatch start = new CountDownLatch(1);
       ExecutorService pool = Executors.newFixedThreadPool(2);
       try {
-        Future<Object> first =
-            pool.submit(() -> register(tx, repository, jdbc, 10001L, "endpoint-a", start));
-        Future<Object> second =
-            pool.submit(() -> register(tx, repository, jdbc, 10002L, "endpoint-b", start));
+        Future<Object> first = pool.submit(() -> register(tx, service, request("a"), start));
+        Future<Object> second = pool.submit(() -> register(tx, service, request("b"), start));
         start.countDown();
 
         Object firstResult = first.get();
@@ -70,7 +127,7 @@ class PushSubscriptionRegistrationConcurrencyPostgresTests {
 
         long successes =
             java.util.stream.Stream.of(firstResult, secondResult)
-                .filter(Boolean.TRUE::equals)
+                .filter(RegistrationResult.class::isInstance)
                 .count();
         long rateLimited =
             java.util.stream.Stream.of(firstResult, secondResult)
@@ -100,40 +157,13 @@ class PushSubscriptionRegistrationConcurrencyPostgresTests {
 
   private Object register(
       TransactionTemplate tx,
-      NotificationDeliveryRuntimeRepository repository,
-      JdbcTemplate jdbc,
-      long subscriptionId,
-      String endpointHash,
+      PushSubscriptionService service,
+      RegisterPushSubscription request,
       CountDownLatch start)
       throws InterruptedException {
     start.await();
     try {
-      return tx.execute(
-          status -> {
-            long userId = 7L;
-            int cap = 10;
-            repository.lockUserForPushRegistration(userId);
-            repository.expireSubscriptionsForUser(userId, 20);
-            if (repository.activeSubscriptionCount(userId) >= cap) {
-              throw new TooManyRequestsException(
-                  "Maximum active browser notification subscriptions reached");
-            }
-            jdbc.update(
-                """
-                insert into notification_push_subscriptions(
-                  id,user_id,endpoint_hash,endpoint_ciphertext,p256dh_ciphertext,auth_ciphertext,
-                  device_label,status,created_at,updated_at
-                ) values (?,?,?,?,?,?,?,'ACTIVE',now(),now())
-                """,
-                subscriptionId,
-                userId,
-                endpointHash,
-                "endpoint-ciphertext",
-                "p256dh-ciphertext",
-                "auth-ciphertext",
-                "Chrome");
-            return true;
-          });
+      return tx.execute(status -> service.register(request));
     } catch (RuntimeException exception) {
       return exception;
     }
@@ -206,5 +236,17 @@ class PushSubscriptionRegistrationConcurrencyPostgresTests {
           timestamp,
           timestamp);
     }
+  }
+
+  private RegisterPushSubscription request(String suffix) {
+    String p256dh =
+        Base64.getUrlEncoder().withoutPadding().encodeToString(new byte[65]);
+    String auth =
+        Base64.getUrlEncoder().withoutPadding().encodeToString(new byte[16]);
+    return new RegisterPushSubscription(
+        "https://push.example/subscription-" + suffix,
+        null,
+        new PushKeys(p256dh, auth),
+        "Chrome");
   }
 }
