@@ -6,15 +6,18 @@ import static org.mockito.Mockito.when;
 
 import com.messaging.ads.entity.Ad;
 import com.messaging.ads.entity.AdAccount;
+import com.messaging.ads.entity.AdAccountResource;
 import com.messaging.ads.entity.AdCreative;
 import com.messaging.ads.entity.AdProviderConnection;
 import com.messaging.ads.entity.AdSet;
+import com.messaging.ads.enums.AdAccountResourceType;
 import com.messaging.ads.enums.AdConnectionStatus;
 import com.messaging.ads.enums.AdEntityStatus;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.meta.MetaAdsApiClient.AdSummary;
 import com.messaging.ads.meta.MetaAdsApiClient.CreativeRef;
 import com.messaging.ads.meta.dto.CreateMetaAdRequest;
+import com.messaging.ads.meta.dto.CreateMetaCatalogAdRequest;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdAccountResourceRepository;
 import com.messaging.ads.repository.AdCreativeRepository;
@@ -129,6 +132,86 @@ class MetaAdsAdMutationServiceTests {
         .isEqualTo(Map.of("creative_id", "creative-external"));
   }
 
+  @Test
+  void createCatalogAdUsesInlineProductSetCreativeAndBackgroundGeneration() {
+    when(adSetRepository.findByIdAndCompanyId(AD_SET_ID, COMPANY_ID))
+        .thenReturn(Optional.of(adSet()));
+    when(accountRepository.findByIdAndCompanyId(ACCOUNT_ID, COMPANY_ID))
+        .thenReturn(Optional.of(account()));
+    when(resourceRepository
+            .findByCompanyIdAndAdAccountIdAndResourceTypeAndExternalResourceId(
+                COMPANY_ID, ACCOUNT_ID, AdAccountResourceType.FACEBOOK_PAGE, "page-1"))
+        .thenReturn(Optional.of(resource(AdAccountResourceType.FACEBOOK_PAGE, "page-1")));
+    when(resourceRepository
+            .findByCompanyIdAndAdAccountIdAndResourceTypeAndExternalResourceId(
+                COMPANY_ID, ACCOUNT_ID, AdAccountResourceType.META_PRODUCT_SET, "set-1"))
+        .thenReturn(Optional.of(resource(AdAccountResourceType.META_PRODUCT_SET, "set-1")));
+    when(connectionRepository.findByIdAndCompanyId(CONNECTION_ID, COMPANY_ID))
+        .thenReturn(Optional.of(connection()));
+    when(tokenService.read(CONNECTION_ID))
+        .thenReturn(
+            new MetaAdsTokenService.TokenValue(
+                new MetaAdsStoredToken("token", "bearer", "v26.0", "meta-user"), null));
+
+    ArgumentCaptor<Map<String, Object>> payload = ArgumentCaptor.forClass(Map.class);
+    when(apiClient.createAd(eq("token"), eq("123456"), payload.capture()))
+        .thenReturn("catalog-ad");
+
+    AdSummary snapshot =
+        new AdSummary(
+            "catalog-ad",
+            "Catalog ad",
+            "123456",
+            "adset-external",
+            "campaign-external",
+            null,
+            "PAUSED",
+            "PAUSED",
+            null,
+            null,
+            null,
+            null);
+    when(apiClient.ad("token", "catalog-ad")).thenReturn(snapshot);
+
+    Ad stored = new Ad();
+    stored.setId(78L);
+    stored.setCompanyId(COMPANY_ID);
+    stored.setAdAccountId(ACCOUNT_ID);
+    stored.setCampaignId(99L);
+    stored.setAdSetId(AD_SET_ID);
+    stored.setProvider(AdProvider.META_ADS);
+    stored.setExternalAdId("catalog-ad");
+    stored.setName("Catalog ad");
+    stored.setStatus(AdEntityStatus.PAUSED);
+    when(persistenceService.persistOne(COMPANY_ID, AD_SET_ID, snapshot)).thenReturn(stored);
+
+    var response =
+        service.createCatalog(
+            COMPANY_ID,
+            AD_SET_ID,
+            new CreateMetaCatalogAdRequest(
+                "Catalog ad",
+                "page-1",
+                null,
+                "set-1",
+                "https://example.com",
+                "Featured products",
+                "SHOP_NOW",
+                true),
+            77L);
+
+    assertThat(response.externalAdId()).isEqualTo("catalog-ad");
+    assertThat(payload.getValue().get("status")).isEqualTo("PAUSED");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> creative =
+        (Map<String, Object>) payload.getValue().get("creative");
+    assertThat(creative.get("product_set_id")).isEqualTo("set-1");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> degrees =
+        (Map<String, Object>) creative.get("degrees_of_freedom_spec");
+    assertThat(degrees.toString()).contains("image_background_gen").contains("OPT_IN");
+  }
+
   private AdSet adSet() {
     AdSet adSet = new AdSet();
     adSet.setId(AD_SET_ID);
@@ -150,6 +233,18 @@ class MetaAdsAdMutationServiceTests {
     creative.setExternalCreativeId("creative-external");
     creative.setAccessible(true);
     return creative;
+  }
+
+  private AdAccountResource resource(
+      AdAccountResourceType type, String externalId) {
+    AdAccountResource resource = new AdAccountResource();
+    resource.setCompanyId(COMPANY_ID);
+    resource.setAdAccountId(ACCOUNT_ID);
+    resource.setProvider(AdProvider.META_ADS);
+    resource.setResourceType(type);
+    resource.setExternalResourceId(externalId);
+    resource.setAccessible(true);
+    return resource;
   }
 
   private AdAccount account() {
