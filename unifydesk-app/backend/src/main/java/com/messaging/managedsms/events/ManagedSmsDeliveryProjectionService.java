@@ -1,0 +1,149 @@
+package com.messaging.managedsms.events;
+
+import com.messaging.managedsms.metering.ManagedSmsUsageService;
+import com.messaging.managedsms.runtime.ManagedSmsRuntimeRepository;
+import java.sql.Timestamp;
+import java.time.Instant;
+import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+public class ManagedSmsDeliveryProjectionService {
+
+  private final JdbcTemplate jdbcTemplate;
+  private final ManagedSmsRuntimeRepository runtimeRepository;
+  private final ManagedSmsUsageService usageService;
+  private final ManagedSmsRecipientStateService recipientStateService;
+
+  @Transactional
+  public void apply(ManagedSmsProviderEvent event) {
+    ManagedSmsRuntimeRepository.CorrelationRuntime correlation =
+        runtimeRepository
+            .findCorrelation(event.correlationToken())
+            .orElseThrow(() -> new IllegalStateException("Managed SMS correlation expired"));
+
+    if (!event.providerAccountKey().equals(correlation.providerAccountKey())) {
+      throw new IllegalStateException("Managed SMS provider account mismatch");
+    }
+    if (correlation.providerRequestId() != null
+        && event.providerRequestId() != null
+        && !correlation.providerRequestId().equals(event.providerRequestId())) {
+      throw new IllegalStateException("Managed SMS provider request mismatch");
+    }
+
+    Instant at = event.eventAt() == null ? Instant.now() : event.eventAt();
+    Timestamp timestamp = Timestamp.from(at);
+    jdbcTemplate.update(
+        """
+        insert into managed_sms_recipient_delivery (
+          recipient_id, company_id, accepted_at, delivered_at, failed_at, rejected_at,
+          last_provider_status, last_failure_code, last_failure_reason, last_event_id, updated_at
+        ) values (?, ?, now(), null, null, null, ?, null, null, ?, now())
+        on conflict (recipient_id) do update
+          set accepted_at = coalesce(managed_sms_recipient_delivery.accepted_at, excluded.accepted_at),
+              last_event_id = excluded.last_event_id,
+              updated_at = now()
+        """,
+        correlation.recipientId(),
+        correlation.companyId(),
+        event.type().name(),
+        event.id());
+
+    switch (event.type()) {
+      case DELIVERED ->
+          jdbcTemplate.update(
+              """
+              update managed_sms_recipient_delivery
+                 set delivered_at = coalesce(delivered_at, ?),
+                     last_provider_status = 'DELIVERED',
+                     last_failure_code = null,
+                     last_failure_reason = null,
+                     last_event_id = ?,
+                     updated_at = now()
+               where recipient_id = ?
+              """,
+              timestamp,
+              event.id(),
+              correlation.recipientId());
+      case FAILED ->
+          jdbcTemplate.update(
+              """
+              update managed_sms_recipient_delivery
+                 set failed_at = coalesce(failed_at, ?),
+                     last_provider_status = case when delivered_at is null then 'FAILED' else last_provider_status end,
+                     last_failure_code = case when delivered_at is null then 'PROVIDER_FAILED' else last_failure_code end,
+                     last_failure_reason = case when delivered_at is null then ? else last_failure_reason end,
+                     last_event_id = ?,
+                     updated_at = now()
+               where recipient_id = ?
+              """,
+              timestamp,
+              limit(event.failureReason()),
+              event.id(),
+              correlation.recipientId());
+      case REJECTED ->
+          jdbcTemplate.update(
+              """
+              update managed_sms_recipient_delivery
+                 set rejected_at = coalesce(rejected_at, ?),
+                     last_provider_status = case when delivered_at is null then 'REJECTED' else last_provider_status end,
+                     last_failure_code = case when delivered_at is null then 'PROVIDER_REJECTED' else last_failure_code end,
+                     last_failure_reason = case when delivered_at is null then ? else last_failure_reason end,
+                     last_event_id = ?,
+                     updated_at = now()
+               where recipient_id = ?
+              """,
+              timestamp,
+              limit(event.failureReason()),
+              event.id(),
+              correlation.recipientId());
+      case SENT ->
+          jdbcTemplate.update(
+              """
+              update managed_sms_recipient_delivery
+                 set last_provider_status = case
+                       when delivered_at is null and failed_at is null and rejected_at is null
+                         then 'SENT' else last_provider_status end,
+                     last_event_id = ?,
+                     updated_at = now()
+               where recipient_id = ?
+              """,
+              event.id(),
+              correlation.recipientId());
+      case UNKNOWN -> {
+        return;
+      }
+    }
+
+    recipientStateService.confirmAccepted(
+        correlation.recipientId(), correlation.runId(), event.providerRequestId());
+    String category =
+        jdbcTemplate.queryForObject(
+            """
+            select h.message_category
+              from managed_sms_run_bindings rb
+              join managed_sms_headers h
+                on h.id = rb.header_id and h.company_id = rb.company_id
+             where rb.run_id = ?
+               and rb.company_id = ?
+            """,
+            String.class,
+            correlation.runId(),
+            correlation.companyId());
+    usageService.commitLatest(
+        correlation.companyId(),
+        correlation.runId(),
+        correlation.recipientId(),
+        event.providerRequestId(),
+        category,
+        event.credit());
+  }
+
+  private String limit(String value) {
+    if (value == null || value.length() <= 1000) return value;
+    return value.substring(0, 1000);
+  }
+}

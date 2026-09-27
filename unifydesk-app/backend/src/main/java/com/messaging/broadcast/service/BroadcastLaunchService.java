@@ -9,6 +9,9 @@ import com.messaging.common.exception.NotFoundException;
 import com.messaging.emailtemplate.entity.EmailTemplateProviderBinding;
 import com.messaging.emailtemplate.service.EmailTemplateProviderBindingService;
 import com.messaging.managedemail.delivery.ManagedEmailLaunchGuard;
+import com.messaging.managedsms.delivery.ManagedSmsLaunchGuard;
+import com.messaging.managedsms.runtime.ManagedSmsRunBindingService;
+import com.messaging.managedsms.runtime.ManagedSmsRuntimeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +30,8 @@ public class BroadcastLaunchService {
   private final BroadcastOutboxService outboxService;
   private final EmailTemplateProviderBindingService templateProviderBindingService;
   private final ManagedEmailLaunchGuard managedEmailLaunchGuard;
+  private final ManagedSmsLaunchGuard managedSmsLaunchGuard;
+  private final ManagedSmsRunBindingService managedSmsRunBindingService;
 
   @Transactional
   public BroadcastRun launch(Long companyId, Long broadcastId) {
@@ -77,8 +82,20 @@ public class BroadcastLaunchService {
     if (maxMemberId == null) {
       throw new BadRequestException("Broadcast group has no active recipients");
     }
-    managedEmailLaunchGuard.validateLaunch(
-        companyId, sender, senderConnection, memberRepository.countActiveMembers(group.getId()));
+    long recipientCount = memberRepository.countActiveMembers(group.getId());
+    ManagedSmsRuntimeRepository.ManagedTemplateRuntime managedSmsRuntime = null;
+    if (senderConnection.getManagementMode() == BroadcastSenderManagementMode.MESSAGING_MANAGED) {
+      if (sender.getProvider() == BroadcastSenderProvider.AMAZON_SES) {
+        managedEmailLaunchGuard.validateLaunch(
+            companyId, sender, senderConnection, recipientCount);
+      } else if (sender.getProvider() == BroadcastSenderProvider.MSG91_SMS) {
+        managedSmsRuntime =
+            managedSmsLaunchGuard.validateLaunch(
+                companyId, message, sender, senderConnection, recipientCount);
+      } else {
+        throw new BadRequestException("Managed Broadcast provider is not supported");
+      }
+    }
 
     BroadcastRun run = new BroadcastRun();
     run.setBroadcastMessageId(message.getId());
@@ -109,6 +126,10 @@ public class BroadcastLaunchService {
 
     run.setSnapshotMaxMemberId(maxMemberId);
     run = runRepository.saveAndFlush(run);
+
+    if (managedSmsRuntime != null) {
+      managedSmsRunBindingService.bind(run.getId(), managedSmsRuntime);
+    }
 
     BroadcastStats stats = new BroadcastStats();
     stats.setRunId(run.getId());

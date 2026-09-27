@@ -3,6 +3,7 @@ package com.messaging.broadcast.dto;
 import com.messaging.broadcast.entity.BroadcastMessage;
 import com.messaging.broadcast.entity.BroadcastRun;
 import com.messaging.broadcast.enums.BroadcastMessageStatus;
+import com.messaging.channel.enums.ChannelType;
 import java.time.Instant;
 import java.util.Map;
 
@@ -12,6 +13,8 @@ public record BroadcastMessageResponse(
     String senderId,
     String sourceTemplateId,
     Long sourceTemplateVersion,
+    String managedSmsTemplateId,
+    Long managedSmsTemplateVersion,
     String legacyConnectionId,
     String runId,
     String subject,
@@ -24,17 +27,59 @@ public record BroadcastMessageResponse(
     Instant updatedAt,
     BroadcastStatsResponse stats) {
 
+  public BroadcastMessageResponse(
+      String id,
+      String groupId,
+      String senderId,
+      String sourceTemplateId,
+      Long sourceTemplateVersion,
+      String legacyConnectionId,
+      String runId,
+      String subject,
+      String bodyText,
+      String bodyHtml,
+      Map<String, String> templateVariables,
+      BroadcastMessageStatus status,
+      Instant scheduledAt,
+      Instant createdAt,
+      Instant updatedAt,
+      BroadcastStatsResponse stats) {
+    this(
+        id,
+        groupId,
+        senderId,
+        sourceTemplateId,
+        sourceTemplateVersion,
+        null,
+        null,
+        legacyConnectionId,
+        runId,
+        subject,
+        bodyText,
+        bodyHtml,
+        templateVariables,
+        status,
+        scheduledAt,
+        createdAt,
+        updatedAt,
+        stats);
+  }
+
   public static BroadcastMessageResponse from(
       BroadcastMessage message,
       BroadcastRun run,
       BroadcastStatsResponse stats,
       Map<String, String> templateVariables) {
+    boolean managedSms =
+        message.getChannelType() == ChannelType.SMS && message.getSourceTemplateId() != null;
     return new BroadcastMessageResponse(
         message.getId().toString(),
         message.getGroupId().toString(),
         stringId(message.getSenderId()),
         stringId(message.getSourceTemplateId()),
         message.getSourceTemplateVersion(),
+        managedSms ? stringId(message.getSourceTemplateId()) : null,
+        managedSms ? message.getSourceTemplateVersion() : null,
         stringId(message.getConnectionId()),
         run == null ? null : run.getId().toString(),
         message.getSubject(),

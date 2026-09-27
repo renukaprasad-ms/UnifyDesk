@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.broadcast.dto.*;
 import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.enums.BroadcastMessageStatus;
+import com.messaging.broadcast.enums.BroadcastSenderManagementMode;
 import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.broadcast.repository.*;
 import com.messaging.channel.enums.ChannelType;
@@ -12,6 +13,7 @@ import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.emailtemplate.enums.EmailTemplatePurpose;
 import com.messaging.emailtemplate.service.EmailTemplateService;
+import com.messaging.managedsms.runtime.ManagedSmsTemplateService;
 import java.time.Instant;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -32,16 +34,16 @@ public class BroadcastMessageService {
   private final BroadcastStateMachine stateMachine;
   private final BroadcastLaunchService launchService;
   private final EmailTemplateService emailTemplateService;
+  private final ManagedSmsTemplateService managedSmsTemplateService;
   private final ObjectMapper objectMapper;
 
   @Transactional
   public BroadcastMessageResponse create(
-      Long companyId,
-      Long userId,
-      Long groupId,
-      CreateBroadcastMessageRequest request) {
+      Long companyId, Long userId, Long groupId, CreateBroadcastMessageRequest request) {
     BroadcastGroup group = groupService.require(companyId, groupId);
     BroadcastSender sender = validateSender(companyId, group, request.senderId());
+    BroadcastSenderConnection connection =
+        senderService.requireConnection(companyId, sender.getConnectionId());
 
     BroadcastMessage message = new BroadcastMessage();
     message.setCompanyId(companyId);
@@ -52,11 +54,13 @@ public class BroadcastMessageService {
         companyId,
         group.getChannelType(),
         request.templateId(),
+        request.managedSmsTemplateId(),
         request.subject(),
         request.bodyText(),
         request.bodyHtml(),
         request.templateVariables(),
-        sender.getProvider(),
+        sender,
+        connection,
         message);
     message.setCreatedByUserId(userId);
     message.setStatus(BroadcastMessageStatus.DRAFT);
@@ -70,17 +74,21 @@ public class BroadcastMessageService {
     stateMachine.requireEditable(message.getStatus());
     BroadcastGroup group = groupService.require(companyId, message.getGroupId());
     BroadcastSender sender = validateSender(companyId, group, request.senderId());
+    BroadcastSenderConnection connection =
+        senderService.requireConnection(companyId, sender.getConnectionId());
     message.setSenderId(request.senderId());
     message.setConnectionId(null);
     applyContent(
         companyId,
         group.getChannelType(),
         request.templateId(),
+        request.managedSmsTemplateId(),
         request.subject(),
         request.bodyText(),
         request.bodyHtml(),
         request.templateVariables(),
-        sender.getProvider(),
+        sender,
+        connection,
         message);
     return response(messageRepository.save(message));
   }
@@ -144,19 +152,42 @@ public class BroadcastMessageService {
       Long companyId,
       ChannelType channelType,
       Long templateId,
+      Long managedSmsTemplateId,
       String subject,
       String bodyText,
       String bodyHtml,
       Map<String, String> templateVariables,
-      BroadcastSenderProvider provider,
+      BroadcastSender sender,
+      BroadcastSenderConnection connection,
       BroadcastMessage message) {
+    if (connection.getManagementMode() == BroadcastSenderManagementMode.MESSAGING_MANAGED
+        && sender.getProvider() == BroadcastSenderProvider.MSG91_SMS) {
+      if (channelType != ChannelType.SMS || managedSmsTemplateId == null) {
+        throw new BadRequestException("MANAGED_SMS_TEMPLATE_NOT_READY");
+      }
+      ManagedSmsTemplateService.DraftTemplate template =
+          managedSmsTemplateService.renderForDraft(
+              companyId, sender.getId(), managedSmsTemplateId, templateVariables);
+      message.setSourceTemplateId(template.templateId());
+      message.setSourceTemplateVersion(template.versionNo());
+      message.setSubject(null);
+      message.setBodyText(template.body());
+      message.setBodyHtml(null);
+      message.setTemplateVariablesJson(writeTemplateVariables(template.variables()));
+      return;
+    }
+
+    if (managedSmsTemplateId != null) {
+      throw new BadRequestException("Managed SMS templates require an UnifyDesk Managed SMS sender");
+    }
+
     if (templateId != null) {
       if (channelType != ChannelType.EMAIL) {
         throw new BadRequestException("Reusable templates are Email-only in this phase");
       }
       EmailTemplateService.PublishedEmail template =
           emailTemplateService.requirePublishedForBroadcast(companyId, templateId);
-      if (provider == BroadcastSenderProvider.MSG91_EMAIL
+      if (sender.getProvider() == BroadcastSenderProvider.MSG91_EMAIL
           && template.purpose() != EmailTemplatePurpose.TRANSACTIONAL) {
         throw new BadRequestException(
             "MSG91 Email only supports transactional Email templates");
@@ -171,7 +202,7 @@ public class BroadcastMessageService {
       return;
     }
 
-    if (provider == BroadcastSenderProvider.MSG91_EMAIL) {
+    if (sender.getProvider() == BroadcastSenderProvider.MSG91_EMAIL) {
       throw new BadRequestException(
           "MSG91 Email requires a published Email template; scratch content is not supported");
     }
