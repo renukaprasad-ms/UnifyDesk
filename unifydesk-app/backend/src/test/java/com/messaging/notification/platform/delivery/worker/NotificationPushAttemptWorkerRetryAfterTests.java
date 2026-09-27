@@ -11,9 +11,9 @@ import static org.mockito.Mockito.when;
 
 import com.messaging.notification.platform.delivery.config.NotificationDeliveryProperties;
 import com.messaging.notification.platform.delivery.metrics.NotificationDeliveryMetrics;
+import com.messaging.notification.platform.delivery.model.DeliveryModels.Channel;
 import com.messaging.notification.platform.delivery.model.DeliveryModels.DeliveryIntent;
 import com.messaging.notification.platform.delivery.model.DeliveryModels.DeliveryMode;
-import com.messaging.notification.platform.delivery.model.DeliveryModels.Channel;
 import com.messaging.notification.platform.delivery.model.DeliveryModels.PushAttempt;
 import com.messaging.notification.platform.delivery.model.DeliveryModels.PushAttemptState;
 import com.messaging.notification.platform.delivery.model.DeliveryModels.PushSubscription;
@@ -146,11 +146,12 @@ class NotificationPushAttemptWorkerRetryAfterTests {
 
     worker.process(attempt, now);
 
+    ArgumentCaptor<Instant> completedAt = ArgumentCaptor.forClass(Instant.class);
     ArgumentCaptor<Instant> persistedRetry = ArgumentCaptor.forClass(Instant.class);
     verify(attempts)
         .completeAttempt(
             anyLong(),
-            any(),
+            completedAt.capture(),
             anyString(),
             anyInt(),
             anyString(),
@@ -166,6 +167,6 @@ class NotificationPushAttemptWorkerRetryAfterTests {
             logicalRetry.capture());
 
     assertThat(persistedRetry.getValue()).isEqualTo(logicalRetry.getValue());
-    assertThat(logicalRetry.getValue()).isAfter(Instant.now().plusSeconds(3500));
+    assertThat(logicalRetry.getValue()).isEqualTo(completedAt.getValue().plus(Duration.ofHours(1)));
   }
 }

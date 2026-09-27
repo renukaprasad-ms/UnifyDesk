@@ -8,8 +8,8 @@ import com.messaging.notification.platform.delivery.model.DeliveryModels.Deliver
 import com.messaging.notification.platform.delivery.model.DeliveryModels.EffectivePreference;
 import com.messaging.notification.platform.delivery.model.DeliveryModels.QuietHours;
 import com.messaging.notification.platform.delivery.model.DeliveryModels.RecipientSnapshot;
-import com.messaging.notification.platform.push.BrowserPushReadiness;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliveryRuntimeRepository;
+import com.messaging.notification.platform.push.BrowserPushReadiness;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
