@@ -56,6 +56,7 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
     validatePlacements(context, required, issues);
     validateAdvantageAudience(context, required, issues);
     validateAdvantageCreative(context, required, issues);
+    validateGenerativeText(context, required, issues);
 
     AudienceMappingStatus audienceMappingStatus = null;
     String audienceMappingNote = null;
@@ -158,6 +159,32 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
         Set.copyOf(required),
         List.copyOf(issues),
         List.copyOf(operations));
+  }
+
+  private void validateGenerativeText(
+      ProviderCampaignCompileContext context,
+      Set<AdFeatureCapability> required,
+      List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    if (!booleanValue(override, "generativeText", false)) return;
+
+    ProviderCampaignPlanSupport.requireCapability(
+        context, AdFeatureCapability.META_GENERATIVE_TEXT, required, issues);
+    CreativePack pack = context.creativePack();
+    String primaryText = pack == null ? null : pack.getPrimaryMessage();
+    if (primaryText == null || primaryText.trim().split("\\s+").length < 5) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "META_GENERATIVE_TEXT_PRIMARY_TEXT_TOO_SHORT",
+              "creativePack.primaryMessage",
+              "Meta generative text requires enough source primary text for provider generation. Add a fuller primary message before enabling it."));
+    } else {
+      issues.add(
+          ProviderCampaignPlanSupport.warning(
+              "META_GENERATIVE_TEXT_OPT_IN",
+              "providerOverride.generativeText",
+              "Meta AI text generation is enabled. Generated variations remain provider-generated suggestions and must be reviewed in preview/read-back before activation."));
+    }
   }
 
   private void validateAdvantageCreative(
