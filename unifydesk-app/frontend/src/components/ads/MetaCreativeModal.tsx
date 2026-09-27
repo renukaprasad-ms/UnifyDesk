@@ -58,6 +58,7 @@ export default function MetaCreativeModal({
   const [videoUrl, setVideoUrl] = useState('')
   const [urlTags, setUrlTags] = useState('')
   const [advantagePlusCreative, setAdvantagePlusCreative] = useState(false)
+  const [generativeText, setGenerativeText] = useState(false)
   const [cards, setCards] = useState<MetaCarouselCardInput[]>([emptyCard(), emptyCard()])
 
   if (!open) return null
@@ -80,6 +81,7 @@ export default function MetaCreativeModal({
       videoUrl: format === 'VIDEO' ? videoUrl || null : null,
       urlTags: urlTags || null,
       advantagePlusCreative,
+      generativeText,
       carouselCards: format === 'CAROUSEL' ? cards : [],
     })
   }
@@ -200,6 +202,24 @@ export default function MetaCreativeModal({
                 <span className="mt-1 block text-xs leading-5 text-indigo-700">
                   Opt in to Meta standard creative enhancements for eligible delivery. Generative
                   text, image expansion and background generation are separate controls.
+                </span>
+              </span>
+            </label>
+          </section>
+
+          <section className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={generativeText}
+                onChange={(event) => setGenerativeText(event.target.checked)}
+              />
+              <span>
+                <span className="block text-sm font-bold text-violet-950">AI text generation</span>
+                <span className="mt-1 block text-xs leading-5 text-violet-700">
+                  Allow Meta to generate text variations from your original primary text. Review
+                  provider previews/read-back before activating ads that use generated copy.
                 </span>
               </span>
             </label>
