@@ -327,7 +327,7 @@ public class AdFeatureCapabilityService {
             true,
             "Meta background generation requires an eligible dynamic product or Advantage+ catalog ad and eligible product-set context.",
             META_ADS_SCOPE));
-    planned(specs, AdFeatureCapability.META_CATALOG);
+    add(specs, AdFeatureCapability.META_CATALOG, true, META_BUSINESS_SCOPE);
     planned(specs, AdFeatureCapability.META_EXISTING_POST);
     planned(specs, AdFeatureCapability.META_PARTNERSHIP_ADS);
     specs.add(
