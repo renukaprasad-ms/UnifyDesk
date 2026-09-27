@@ -750,7 +750,7 @@ export default function AdSetDetails() {
                   <label className="block text-xs font-semibold text-slate-700">
                     Placement mode
                     <select className="form-input mt-2" value={placementMode} onChange={(e) => setPlacementMode(e.target.value as 'AUTO' | 'MANUAL')}>
-                      <option value="AUTO">Advantage+ / automatic</option>
+                      <option value="AUTO">Advantage+ placements (recommended)</option>
                       <option value="MANUAL">Manual</option>
                     </select>
                   </label>
