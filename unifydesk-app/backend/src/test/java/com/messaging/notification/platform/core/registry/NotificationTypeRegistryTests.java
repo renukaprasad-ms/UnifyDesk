@@ -42,6 +42,20 @@ class NotificationTypeRegistryTests {
   }
 
   @Test
+  void workspaceInvitationIsARealAccountActionSource() {
+    NotificationTypeRegistry.Definition definition =
+        registry.requireSource("company.invitation.created", 1);
+
+    registry.validateVariables(definition, Map.of("companyName", "Acme"));
+
+    assertThat(definition.notificationType()).isEqualTo("COMPANY_INVITATION");
+    assertThat(definition.mandatoryEmail()).isTrue();
+    assertThat(definition.defaultBrowserEnabled()).isTrue();
+    assertThat(registry.render(definition, Map.of("companyName", "Acme")).actionPath())
+        .isEqualTo("/account/invitations");
+  }
+
+  @Test
   void unknownSourceOrSchemaIsRejected() {
     assertThatThrownBy(() -> registry.requireSource("arbitrary.notification", 1))
         .isInstanceOf(BadRequestException.class);
