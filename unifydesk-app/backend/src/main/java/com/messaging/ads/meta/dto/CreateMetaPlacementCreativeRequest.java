@@ -56,6 +56,27 @@ public record CreateMetaPlacementCreativeRequest(
         placementAssets);
   }
 
+  public CreateMetaPlacementCreativeRequest(
+      String name,
+      String pageId,
+      String instagramActorId,
+      String callToActionType,
+      String urlTags,
+      Boolean advantagePlusCreative,
+      Boolean generativeText,
+      List<PlacementAsset> placementAssets) {
+    this(
+        name,
+        pageId,
+        instagramActorId,
+        callToActionType,
+        urlTags,
+        advantagePlusCreative,
+        generativeText,
+        null,
+        placementAssets);
+  }
+
   public record PlacementAsset(
       @NotEmpty List<String> publisherPlatforms,
       List<String> facebookPositions,
