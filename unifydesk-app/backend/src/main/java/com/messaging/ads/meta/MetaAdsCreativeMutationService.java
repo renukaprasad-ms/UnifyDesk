@@ -32,6 +32,11 @@ public class MetaAdsCreativeMutationService {
   private final AdActivityLogService activityLogService;
 
   public AdCreativeResponse create(
+      Long companyId, Long accountId, CreateMetaCreativeRequest request) {
+    return create(companyId, accountId, request, null);
+  }
+
+  public AdCreativeResponse create(
       Long companyId, Long accountId, CreateMetaCreativeRequest request, Long actorUserId) {
     AdAccount account = requireManagedAccount(companyId, accountId);
     validateIdentity(companyId, accountId, request.pageId(), request.instagramActorId());
@@ -79,6 +84,11 @@ public class MetaAdsCreativeMutationService {
             "advantagePlusCreative", Boolean.TRUE.equals(request.advantagePlusCreative()),
             "placementCustomized", false));
     return created;
+  }
+
+  public AdCreativeResponse createPlacementCustomized(
+      Long companyId, Long accountId, CreateMetaPlacementCreativeRequest request) {
+    return createPlacementCustomized(companyId, accountId, request, null);
   }
 
   public AdCreativeResponse createPlacementCustomized(
