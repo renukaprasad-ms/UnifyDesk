@@ -21,6 +21,7 @@ public record CreateMetaCreativeRequest(
     String videoId,
     String videoUrl,
     String urlTags,
+    Boolean advantagePlusCreative,
     @Valid List<@Valid CarouselCard> carouselCards) {
 
   @AssertTrue(message = "Creative media does not match the selected format")
