@@ -1527,24 +1527,28 @@ Verified against Meta's current Marketing API generative-AI examples, including 
 
 ### D7 implementation note — Meta background generation
 
-Status: **in progress**.
+Status: **complete for the current public Meta catalog/background-generation contract**.
 
-Meta's current official Marketing API examples constrain background generation to eligible dynamic product ads / Advantage+ catalog ads and use `image_background_gen` with an eligible `product_set_id`. Standalone non-catalog image creative creation can be rejected by Meta.
-
-Started:
+Implemented:
 
 - [x] `META_BACKGROUND_GENERATION` modeled as account/product eligibility required
-- [x] unified provider control added
-- [x] product-set ID context persisted in provider override
-- [x] compiler requires an eligible product-set context before launch
-- [x] compiler surfaces provider eligibility/review warning
-- [ ] catalog/product-set discovery and validation
-- [ ] correct catalog ad creation path with inline creative / product set
-- [ ] provider read-back/preview for generated backgrounds
-- [x] capability and compiler preflight regression tests
-- [ ] launch/audit regression tests for the catalog execution path
+- [x] separate catalog-ad and background-generation controls in the unified provider UI
+- [x] synchronized product-set selection; arbitrary product-set IDs are not required from users
+- [x] compiler requires product-set context and background-generation capability
+- [x] launch preflight validates the selected product set belongs to the managed Meta ad account
+- [x] catalog ad execution uses Meta's inline creative contract with `product_set_id`
+- [x] background generation sends `degrees_of_freedom_spec.creative_features_spec.image_background_gen.enroll_status=OPT_IN`
+- [x] ads are created PAUSED
+- [x] creation audit records catalog/background-generation state without tokens
+- [x] generated-background preview endpoint uses `MOBILE_FEED_STANDARD` with `creative_feature=image_background_gen`
+- [x] compiler/capability/catalog-ad payload regression coverage
 
-The remaining execution work intentionally depends on the D9 catalog/product-set infrastructure rather than faking support for arbitrary standalone image creatives.
+Provider boundary:
+
+- Meta remains authoritative for exact product eligibility and generated-background availability.
+- UnifyDesk does not attempt background generation on standalone non-catalog image creatives.
+- Users should review Meta's provider preview before activating an ad.
+
 
 ## M-07 Creative variations - P1
 
@@ -1563,45 +1567,56 @@ Add:
 
 ### D9 implementation note — Meta Catalog / product sets
 
-Status: **in progress**.
+Status: **complete for D9's catalog discovery, product-set selection and paused catalog-ad launch scope**.
 
 Implemented:
 
-- [x] `META_CATALOG` capability moved from PLANNED to AVAILABLE
-- [x] Meta business catalog discovery through `/{business-id}/owned_product_catalogs`
+- [x] `META_CATALOG` capability AVAILABLE
+- [x] business catalog discovery through `/{business-id}/owned_product_catalogs`
 - [x] product-set discovery through `/{catalog-id}/product_sets`
 - [x] catalogs persisted as `META_PRODUCT_CATALOG` account resources
 - [x] product sets persisted as `META_PRODUCT_SET` account resources
-- [x] inaccessible/stale catalog resources follow the existing resource-sync lifecycle
-- [x] resource sync exposes catalog/product-set counts
-- [x] unified campaign UI selects a synchronized product set instead of accepting an arbitrary ID
-- [x] provider refresh populates product-set options
-- [x] capability/resource-sync regression coverage
+- [x] stale/inaccessible catalog resources follow the standard resource-sync lifecycle
+- [x] sync response exposes catalog and product-set counts
+- [x] unified UI has an explicit Catalog / dynamic product ad mode
+- [x] synchronized product-set selector with empty-state guidance
+- [x] compiler requires `META_CATALOG` when a product set is selected
+- [x] launch preflight verifies the selected product set belongs to the managed account
+- [x] catalog and existing-post creative sources are mutually exclusive
+- [x] catalog launch skips unnecessary standalone creative creation
+- [x] paused ad creation uses Meta's product-set-aware inline creative contract
+- [x] catalog/background creation is audited
+- [x] native API surface is available for paused catalog-ad creation
+- [x] resource, capability, compiler and catalog-ad payload tests
 
-Remaining D9 execution work:
-
-- [ ] validate selected product set against synchronized account resources during compiler/launch preflight
-- [ ] add catalog/dynamic-product ad creation path using Meta's product-set-aware inline creative contract
-- [ ] persist/read back catalog ad metadata
-- [ ] launch/audit regression coverage
-- [ ] complete D7 `image_background_gen` execution on top of this catalog path
 
 ## M-08 Existing Facebook/Instagram post ads - P1
 
-Support reusing eligible existing content.
+Status: **complete for D8 — eligible Page posts can be discovered and reused by `object_story_id` without copying post content into UnifyDesk**.
 
-Meta's official Marketing API examples support ad creative creation using an existing object_story_id.
+Implemented:
+
+- [x] `META_EXISTING_POST` capability AVAILABLE
+- [x] Page post discovery using the existing `pages_read_engagement` grant
+- [x] native creative dialog can load eligible posts for the selected Page
+- [x] manual object-story ID fallback for provider edge cases
+- [x] provider creative creation sends `object_story_id` + Page identity
+- [x] provider read-back requests `object_story_id`
+- [x] unified campaign provider setting supports existing-post creative source
+- [x] compiler capability gating and provider-eligibility warning
+- [x] existing-post campaigns do not require Creative Pack media
+- [x] unified paused launch creates the reusable existing-post creative before the ad
+- [x] catalog and existing-post source modes are mutually exclusive
+- [x] ADS_READ for post discovery and ADS_CREATE for creative creation
+- [x] activity audit identifies existing-post creative creation without copying post content
+- [x] provider payload/compiler/capability regression coverage
+
+Meta remains authoritative for Page/post ownership, publishing state, and ad eligibility.
 
 Reference:
 
 - https://www.postman.com/meta/facebook-marketing-api/request/zakdxi8/createusingexistingcreative
 
-UX:
-
-- sync eligible existing posts
-- preview
-- choose existing post as creative source
-- preserve provider restrictions
 
 ## M-09 Customer-list Custom Audiences - P1
 
@@ -1668,42 +1683,37 @@ Add:
 
 ## M-12 Catalog/Product Sets - P1
 
-Reachlyo has strong Google Merchant support but no equivalent Meta catalog product system.
+Status: **complete for D9's current Meta catalog/product-set advertising scope**.
 
-Add:
+The implementation now includes synchronized business catalogs/product sets, account-scoped selection, stale-resource handling, capability gating, launch preflight, product-set-aware inline creative creation, PAUSED catalog ads, audit metadata, and the D7 background-generation integration.
 
-- catalog discovery
-- catalog connection/resources
-- product sets
-- product sync/read
-- catalog issues where API exposes them
-- dynamic/catalog creative
-- catalog sales campaign creation
+References:
 
-Reference:
-
-- Meta official generative/Marketing API collection catalog example:
+- Meta catalog/product-set example:
   https://www.postman.com/meta/facebook-marketing-api/request/0w6p8rh/get-catalog-and-product-set
-- Advantage+ Catalog campaign example:
-  https://www.postman.com/meta/facebook-marketing-api/request/gs1zfe5/advantage-catalog-campaign
+- Meta background-generation catalog ad:
+  https://www.postman.com/meta/facebook-marketing-api/request/5v0d0iw/2-creating-ad-with-image-background-generated-feature
+
 
 ## M-13 WhatsApp Status placement - P1
 
-Reachlyo already includes WhatsApp as a messaging channel, so WhatsApp ad destinations/placements are strategically important.
+Status: **resolved for D10 as provider-hosted until Meta publishes a stable public Marketing API placement contract for this integration**.
 
-Research and implement current Marketing API support for WhatsApp Status advertising.
+Implemented:
 
-Requirements:
+- [x] `META_WHATSAPP_STATUS` represented as `PROVIDER_HOSTED`, not falsely marked API-available
+- [x] capability reason explains the API-documentation/eligibility boundary
+- [x] unified provider UI surfaces the limitation
+- [x] direct link to Meta Ads Manager for eligible accounts
+- [x] UnifyDesk does not invent or send an unverified `whatsapp_status` placement token
+- [x] capability regression coverage
 
-- capability/eligibility check
-- required WhatsApp business identity mapping
-- placement support
-- media requirements
-- CTA/destination validation
-- carousel support if current API permits
-- reporting breakdowns
+Research result:
 
-Do NOT expose this based only on Graph version. Confirm the actual ad account/app eligibility and active Marketing API documentation.
+- Meta has public WhatsApp advertising/product announcements and may expose Status advertising to eligible accounts in provider UI.
+- Current official public Marketing API materials reviewed for this slice did not provide a stable placement creation contract that UnifyDesk can safely implement.
+- Per the roadmap's provider-safety rule, provider-hosted is the completed product behavior until a verified API contract exists.
+
 
 ## M-14 Partnership/creator ads - P2
 
@@ -2362,10 +2372,10 @@ Product/provider semantics:
 - D6 does not enable background generation
 - D7 remains the separate background-generation slice
 
-D7. [~] background generation — started: provider eligibility modeled, product-set preflight + unified controls added; execution awaits catalog/product-set ad creation path (D9 dependency)  
-D8. existing-post ads  
-D9. [~] Meta Catalog/product sets — catalog/product-set discovery, persistence, capability and unified selection implemented; catalog-ad launch execution is next  
-D10. WhatsApp Status ads where eligible
+D7. [x] background generation — eligible catalog/product-set inline ad execution, image_background_gen opt-in, PAUSED launch, audit and provider preview  
+D8. [x] existing-post ads — Page post discovery, object_story_id creative reuse, native/unified flow, read-back, audit and tests  
+D9. [x] Meta Catalog/product sets — discovery, account-scoped persistence, product-set UI, capability/preflight validation and paused catalog-ad creation  
+D10. [x] WhatsApp Status ads where eligible — resolved safely as PROVIDER_HOSTED until a stable public Marketing API placement contract is verified
 
 ## Phase E - Optimization / P2
 
