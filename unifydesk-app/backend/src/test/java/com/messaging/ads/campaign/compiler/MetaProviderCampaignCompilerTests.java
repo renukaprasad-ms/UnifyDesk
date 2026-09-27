@@ -466,6 +466,128 @@ class MetaProviderCampaignCompilerTests {
   }
 
   @Test
+  void requiresBackgroundGenerationCapabilityAndProductSetContext() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(21L);
+    campaign.setName("Meta background generation");
+    campaign.setBusinessGoal(CampaignBusinessGoal.PURCHASE);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(31L);
+    channel.setReachlyoCampaignId(21L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson(
+        "{\"backgroundGeneration\":true,\"productSetId\":\"product-set-123\"}");
+
+    AdAccount account = new AdAccount();
+    account.setId(41L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(51L);
+    pack.setPrimaryMessage("Shop our latest products today");
+    pack.setDestinationUrl("https://example.com");
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities = baseCapabilities();
+    capabilities.put(
+        AdFeatureCapability.META_BACKGROUND_GENERATION,
+        available(AdFeatureCapability.META_BACKGROUND_GENERATION));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.requiredCapabilities())
+        .contains(AdFeatureCapability.META_BACKGROUND_GENERATION);
+    assertThat(plan.issues())
+        .anyMatch(issue -> issue.code().equals("META_BACKGROUND_GENERATION_ELIGIBILITY"));
+  }
+
+  @Test
+  void blocksBackgroundGenerationWithoutProductSetContext() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(22L);
+    campaign.setName("Meta background generation missing catalog");
+    campaign.setBusinessGoal(CampaignBusinessGoal.PURCHASE);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(32L);
+    channel.setReachlyoCampaignId(22L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson("{\"backgroundGeneration\":true}");
+
+    AdAccount account = new AdAccount();
+    account.setId(42L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(52L);
+    pack.setPrimaryMessage("Shop our latest products today");
+    pack.setDestinationUrl("https://example.com");
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities = baseCapabilities();
+    capabilities.put(
+        AdFeatureCapability.META_BACKGROUND_GENERATION,
+        available(AdFeatureCapability.META_BACKGROUND_GENERATION));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isFalse();
+    assertThat(plan.issues())
+        .anyMatch(
+            issue ->
+                issue.code().equals("META_BACKGROUND_GENERATION_PRODUCT_SET_REQUIRED"));
+  }
+
+  @Test
   void requiresImageExpansionCapabilityAndReviewWarning() {
     MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
 
