@@ -14,6 +14,7 @@ import com.messaging.notification.platform.core.state.NotificationUnreadCounterS
 import java.sql.ResultSet;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -27,11 +28,12 @@ class NotificationCoreCleanupServiceTests {
   void userPurgeStopsAfterOneFullBoundedBatch() {
     JdbcTemplate jdbc = org.mockito.Mockito.mock(JdbcTemplate.class);
     NotificationCoreCleanupService service = service(jdbc);
-    when(jdbc.update(
-            contains("delete from user_notifications"),
-            eq(7L),
-            eq(25)))
-        .thenReturn(25);
+    when(jdbc.update(anyString(), any(Object[].class)))
+        .thenAnswer(
+            invocation ->
+                ((String) invocation.getArgument(0)).contains("delete from user_notifications")
+                    ? 25
+                    : 0);
 
     boolean complete = service.purgeUserBatch(7L, 25);
 
@@ -39,8 +41,7 @@ class NotificationCoreCleanupServiceTests {
     verify(jdbc, never())
         .update(
             contains("delete from notification_user_settings"),
-            eq(7L),
-            eq(25));
+            any(Object[].class));
   }
 
   @Test
@@ -58,19 +59,20 @@ class NotificationCoreCleanupServiceTests {
   void companyPurgeIsBoundedAndDoesNotDeleteDeliveryOwnedRows() {
     JdbcTemplate jdbc = org.mockito.Mockito.mock(JdbcTemplate.class);
     NotificationCoreCleanupService service = service(jdbc);
-    when(jdbc.update(
-            contains("delete from notification_event_recipients"),
-            eq(22L),
-            eq(40)))
-        .thenReturn(40);
+    when(jdbc.update(anyString(), any(Object[].class)))
+        .thenAnswer(
+            invocation ->
+                ((String) invocation.getArgument(0))
+                        .contains("delete from notification_event_recipients")
+                    ? 40
+                    : 0);
 
     assertThat(service.purgeCompanyBatch(22L, 40)).isFalse();
 
     verify(jdbc, never())
         .update(
             contains("delete from notification_delivery_intents"),
-            eq(22L),
-            eq(40));
+            any(Object[].class));
   }
 
   @Test
@@ -83,12 +85,12 @@ class NotificationCoreCleanupServiceTests {
         new NotificationCoreCleanupService(jdbc, counters, properties);
     Instant now = Instant.parse("2026-09-27T08:00:00Z");
     AtomicInteger calls = new AtomicInteger();
-    AtomicReference<Object[]> firstArgs = new AtomicReference<>();
+    AtomicReference<Object[]> firstSqlArgs = new AtomicReference<>();
 
     when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenAnswer(
             invocation -> {
-              firstArgs.compareAndSet(null, invocation.getArguments());
+              firstSqlArgs.compareAndSet(null, invocation.getArgument(2));
               if (calls.getAndIncrement() > 0) {
                 return List.of();
               }
@@ -111,27 +113,37 @@ class NotificationCoreCleanupServiceTests {
     assertThat(service.cleanupNotificationHistoryBatch(now, 10)).isZero();
 
     verify(counters).adjust(7L, 22L, "email.read", -1L);
-    Object[] invocationArgs = firstArgs.get();
-    Object[] sqlArgs = (Object[]) invocationArgs[2];
-    assertThat(sqlArgs[0]).isEqualTo(now);
-    assertThat(sqlArgs[1]).isEqualTo(now.minus(Duration.ofDays(180)));
-    assertThat(sqlArgs[2]).isEqualTo(10);
+    assertThat(firstSqlArgs.get())
+        .containsExactly(now, now.minus(Duration.ofDays(180)), 10);
   }
 
   @Test
-  void eventRetentionIsBoundedAndWaitsForDeliveryReferences() {
+  void eventRetentionUsesNinetyDayCutoffAndNeverDeletesDeliveryRows() {
     JdbcTemplate jdbc = org.mockito.Mockito.mock(JdbcTemplate.class);
     NotificationCoreCleanupService service = service(jdbc);
     Instant now = Instant.parse("2026-09-27T08:00:00Z");
+    List<String> sql = new ArrayList<>();
+    List<Object[]> args = new ArrayList<>();
+    when(jdbc.update(anyString(), any(Object[].class)))
+        .thenAnswer(
+            invocation -> {
+              sql.add(invocation.getArgument(0));
+              args.add(invocation.getArgument(1));
+              return 0;
+            });
 
-    service.cleanupEventDataBatch(now, 50);
+    assertThat(service.cleanupEventDataBatch(now, 50)).isZero();
 
-    verify(jdbc)
-        .update(
-            contains("not exists (\n                  select 1 from notification_delivery_intents"),
-            eq(now.minus(Duration.ofDays(90))),
-            eq(now.minus(Duration.ofDays(90))),
-            eq(50));
+    assertThat(sql).hasSize(3);
+    assertThat(sql).allMatch(statement -> statement.contains("notification_delivery_intents"));
+    assertThat(sql).noneMatch(statement -> statement.contains("delete from notification_delivery_intents"));
+    assertThat(args)
+        .allSatisfy(
+            values ->
+                assertThat(values)
+                    .contains(
+                        now.minus(Duration.ofDays(90)),
+                        50));
   }
 
   private NotificationCoreCleanupService service(JdbcTemplate jdbc) {

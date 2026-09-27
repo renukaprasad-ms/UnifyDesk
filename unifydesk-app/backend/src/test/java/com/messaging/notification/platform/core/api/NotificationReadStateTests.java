@@ -41,7 +41,7 @@ class NotificationReadStateTests {
         fixture.service.setReadState("55", new ReadStateRequest(null, true));
 
     assertThat(response.notification().readAt()).isNotNull();
-    verify(fixture.counters).decrement(7L, null);
+    verify(fixture.counters).decrement(7L, null, null);
     verify(fixture.jdbc, atLeastOnce())
         .query(
             contains("for update"),
@@ -61,7 +61,7 @@ class NotificationReadStateTests {
 
     fixture.service.setReadState("55", new ReadStateRequest(null, true));
 
-    verify(fixture.counters, never()).decrement(7L, null);
+    verify(fixture.counters, never()).decrement(7L, null, null);
   }
 
   @Test
@@ -94,7 +94,7 @@ class NotificationReadStateTests {
     assertThat(response.updated()).isEqualTo(1);
     assertThat(response.cutoffAt()).isBeforeOrEqualTo(Instant.now());
     assertThat(response.cutoffAt()).isAfterOrEqualTo(beforeCall);
-    verify(fixture.counters).decrement(7L, null);
+    verify(fixture.counters).decrement(7L, null, null);
     verify(fixture.jdbc, atLeastOnce())
         .query(
             contains("last_event_at <= ?"),
