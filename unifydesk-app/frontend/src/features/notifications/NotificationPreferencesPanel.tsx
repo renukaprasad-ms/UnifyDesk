@@ -36,8 +36,13 @@ const browserStatusCopy = (
   return 'Off. UnifyDesk will only ask for permission after you choose Enable.'
 }
 
-export default function NotificationPreferencesPanel() {
-  const companyId = useAppSelector(selectSelectedCompanyId)
+export default function NotificationPreferencesPanel({
+  companyId: companyIdOverride,
+}: {
+  companyId?: string | null
+} = {}) {
+  const selectedCompanyId = useAppSelector(selectSelectedCompanyId)
+  const companyId = companyIdOverride === undefined ? selectedCompanyId : companyIdOverride
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null)
   const [draft, setDraft] = useState<UpdateNotificationPreferences | null>(null)
   const [subscriptions, setSubscriptions] = useState<PushSubscriptionSummary[]>([])
