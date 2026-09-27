@@ -1581,7 +1581,9 @@ Implemented:
 - [x] unified UI has an explicit Catalog / dynamic product ad mode
 - [x] synchronized product-set selector with empty-state guidance
 - [x] compiler requires `META_CATALOG` when a product set is selected
+- [x] catalog mode requires the Purchase business goal / Meta `OUTCOME_SALES` objective
 - [x] launch preflight verifies the selected product set belongs to the managed account
+- [x] catalog ad sets include `promoted_object.product_set_id`
 - [x] catalog and existing-post creative sources are mutually exclusive
 - [x] catalog launch skips unnecessary standalone creative creation
 - [x] paused ad creation uses Meta's product-set-aware inline creative contract
@@ -1685,7 +1687,7 @@ Add:
 
 Status: **complete for D9's current Meta catalog/product-set advertising scope**.
 
-The implementation now includes synchronized business catalogs/product sets, account-scoped selection, stale-resource handling, capability gating, launch preflight, product-set-aware inline creative creation, PAUSED catalog ads, audit metadata, and the D7 background-generation integration.
+The implementation now includes synchronized business catalogs/product sets, account-scoped selection, stale-resource handling, capability gating, an OUTCOME_SALES guard, launch preflight, `promoted_object.product_set_id` on the ad set, product-set-aware inline creative creation, PAUSED catalog ads, audit metadata, and the D7 background-generation integration.
 
 References:
 
