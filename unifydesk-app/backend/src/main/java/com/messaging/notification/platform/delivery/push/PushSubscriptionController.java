@@ -4,6 +4,7 @@ import com.messaging.common.response.ApiResponse;
 import com.messaging.notification.platform.delivery.push.PushSubscriptionService.Capability;
 import com.messaging.notification.platform.delivery.push.PushSubscriptionService.RegisterPushSubscription;
 import com.messaging.notification.platform.delivery.push.PushSubscriptionService.RegistrationResult;
+import com.messaging.notification.platform.delivery.push.PushSubscriptionService.RevokeResponse;
 import com.messaging.notification.platform.delivery.push.PushSubscriptionService.SubscriptionResponse;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -48,7 +49,7 @@ public class PushSubscriptionController {
   }
 
   @DeleteMapping("/subscriptions/{subscriptionId}")
-  public ResponseEntity<ApiResponse<SubscriptionResponse>> revoke(
+  public ResponseEntity<ApiResponse<RevokeResponse>> revoke(
       @PathVariable long subscriptionId) {
     return ResponseEntity.ok(
         ApiResponse.success(

@@ -4,6 +4,10 @@ import com.messaging.notification.platform.delivery.config.NotificationDeliveryP
 import java.security.GeneralSecurityException;
 import java.security.Security;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.concurrent.ExecutionException;
 import lombok.RequiredArgsConstructor;
 import nl.martijndwars.webpush.Notification;
@@ -108,11 +112,19 @@ public class StandardWebPushGateway implements WebPushGateway {
     if (header == null || header.getValue() == null) {
       return null;
     }
+    String value = header.getValue().trim();
     try {
-      long seconds = Long.parseLong(header.getValue().trim());
+      long seconds = Long.parseLong(value);
       return Duration.ofSeconds(Math.max(1, seconds));
-    } catch (NumberFormatException exception) {
-      return null;
+    } catch (NumberFormatException ignored) {
+      try {
+        Instant retryAt =
+            ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant();
+        Duration delay = Duration.between(Instant.now(), retryAt);
+        return delay.isNegative() || delay.isZero() ? Duration.ofSeconds(1) : delay;
+      } catch (DateTimeParseException invalidDate) {
+        return null;
+      }
     }
   }
 }

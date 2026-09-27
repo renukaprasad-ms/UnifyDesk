@@ -61,9 +61,9 @@ public class PushSubscriptionService {
           repository.refreshSubscription(
               existing.id(),
               userId,
-              credentialCipher.encrypt(request.endpoint()),
-              credentialCipher.encrypt(request.keys().p256dh()),
-              credentialCipher.encrypt(request.keys().auth()),
+              encryptSecret(request.endpoint()),
+              encryptSecret(request.keys().p256dh()),
+              encryptSecret(request.keys().auth()),
               expiration(request.expirationTime()),
               label(request.deviceLabel()));
       return new RegistrationResult(toResponse(refreshed), false);
@@ -77,9 +77,9 @@ public class PushSubscriptionService {
           repository.insertSubscription(
               userId,
               hash,
-              credentialCipher.encrypt(request.endpoint()),
-              credentialCipher.encrypt(request.keys().p256dh()),
-              credentialCipher.encrypt(request.keys().auth()),
+              encryptSecret(request.endpoint()),
+              encryptSecret(request.keys().p256dh()),
+              encryptSecret(request.keys().auth()),
               expiration(request.expirationTime()),
               label(request.deviceLabel()));
       return new RegistrationResult(toResponse(created), true);
@@ -99,18 +99,17 @@ public class PushSubscriptionService {
   }
 
   @Transactional
-  public SubscriptionResponse revoke(long subscriptionId) {
+  public RevokeResponse revoke(long subscriptionId) {
     long userId = currentUserService.currentUserId();
-    PushSubscription existing =
-        repository
-            .findSubscriptionForUser(subscriptionId, userId)
-            .orElseThrow(() -> new NotFoundException("Push subscription not found"));
+    repository
+        .findSubscriptionForUser(subscriptionId, userId)
+        .orElseThrow(() -> new NotFoundException("Push subscription not found"));
     repository.revokeSubscription(subscriptionId, userId);
     PushSubscription updated =
         repository
             .findSubscriptionForUser(subscriptionId, userId)
             .orElseThrow(() -> new NotFoundException("Push subscription not found"));
-    return toResponse(updated);
+    return new RevokeResponse(Long.toString(updated.id()), updated.status());
   }
 
   public DecryptedSubscription decrypt(PushSubscription subscription) {
@@ -118,6 +117,15 @@ public class PushSubscriptionService {
         credentialCipher.decrypt(subscription.endpointCiphertext()),
         credentialCipher.decrypt(subscription.p256dhCiphertext()),
         credentialCipher.decrypt(subscription.authCiphertext()));
+  }
+
+  private String encryptSecret(String value) {
+    try {
+      return credentialCipher.encrypt(value);
+    } catch (IllegalStateException exception) {
+      throw new ServiceUnavailableException(
+          "Browser push encryption is not configured", exception);
+    }
   }
 
   private void validate(RegisterPushSubscription request) {
@@ -198,6 +206,8 @@ public class PushSubscriptionService {
       String id, String status, String deviceLabel, Instant createdAt, Instant lastSuccessAt) {}
 
   public record RegistrationResult(SubscriptionResponse response, boolean created) {}
+
+  public record RevokeResponse(String id, String status) {}
 
   public record DecryptedSubscription(String endpoint, String p256dh, String auth) {}
 }

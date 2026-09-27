@@ -92,7 +92,7 @@ public class NotificationEmailRenderer {
   }
 
   private String plain(String value, int max) {
-    String normalized = value == null ? "" : value.replaceAll("[\\p{Cntrl}&&[^\\t]]", " ").trim();
+    String normalized = value == null ? "" : value.replaceAll("[\\p{Cntrl}]", " ").trim();
     if (normalized.length() > max) {
       return normalized.substring(0, max);
     }
