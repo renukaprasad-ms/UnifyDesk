@@ -60,11 +60,11 @@ public class ManagedSmsController {
       @PathVariable Long companyId,
       @PathVariable Long profileId,
       @Valid @RequestBody DltProfilePatchRequest request) {
-    require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
+    Long userId = require(companyId, CompanyPermissionKeys.BROADCAST_MODIFY);
     return ResponseEntity.ok(
         ApiResponse.success(
             200,
-            profileService.patch(companyId, profileId, request),
+            profileService.patch(companyId, profileId, userId, request),
             "Managed SMS DLT profile updated"));
   }
 

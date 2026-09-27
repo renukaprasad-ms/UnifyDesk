@@ -31,6 +31,7 @@ class ManagedSmsTemplateServiceTests {
   @Mock private ManagedSmsProvisioningService provisioningService;
   @Mock private ManagedSmsJsonSupport jsonSupport;
   @Mock private ManagedSmsEligibilityService eligibilityService;
+  @Mock private ManagedSmsCtaPolicyService ctaPolicyService;
 
   private ManagedSmsTemplateService service;
 
@@ -46,7 +47,8 @@ class ManagedSmsTemplateServiceTests {
             tenantRepository,
             provisioningService,
             jsonSupport,
-            eligibilityService);
+            eligibilityService,
+            ctaPolicyService);
   }
 
   @Test

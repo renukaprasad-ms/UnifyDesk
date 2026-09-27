@@ -22,6 +22,27 @@ public class ManagedSmsJsonSupport {
     }
   }
 
+  public String value(Object value) {
+    try {
+      return objectMapper.writeValueAsString(value);
+    } catch (Exception exception) {
+      throw new IllegalArgumentException("Invalid JSON value", exception);
+    }
+  }
+
+  public boolean sameJson(String storedJson, JsonNode candidate) {
+    try {
+      JsonNode stored =
+          storedJson == null || storedJson.isBlank()
+              ? objectMapper.createObjectNode()
+              : objectMapper.readTree(storedJson);
+      JsonNode requested = candidate == null || candidate.isNull() ? objectMapper.createObjectNode() : candidate;
+      return stored.equals(requested);
+    } catch (Exception exception) {
+      throw new IllegalStateException("Stored Managed SMS JSON is invalid", exception);
+    }
+  }
+
   public String variables(List<VariableDefinition> variables) {
     try {
       return objectMapper.writeValueAsString(variables == null ? List.of() : variables);

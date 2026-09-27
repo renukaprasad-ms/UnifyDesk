@@ -1,10 +1,13 @@
 package com.messaging.managedsms.control.provisioning;
 
+import com.messaging.managedsms.control.entity.*;
 import com.messaging.managedsms.control.enums.ManagedSmsEnums.ProvisioningOperationType;
 
 public interface ManagedSmsProviderAdapter {
 
   ProviderResult execute(ProviderRequest request);
+
+  BindingReadiness bindingReadiness(BindingContext context);
 
   record ProviderRequest(
       ProvisioningOperationType operationType,
@@ -16,6 +19,22 @@ public interface ManagedSmsProviderAdapter {
       String header,
       String dltTemplateId,
       String bodyText) {}
+
+  record BindingContext(
+      ManagedSmsProviderBinding binding,
+      ManagedSmsTenant tenant,
+      ManagedSmsTemplateVersion templateVersion,
+      ManagedSmsHeader header) {}
+
+  record BindingReadiness(boolean ready, String code, String safeMessage) {
+    public static BindingReadiness readyBinding() {
+      return new BindingReadiness(true, null, null);
+    }
+
+    public static BindingReadiness notReady(String code, String safeMessage) {
+      return new BindingReadiness(false, code, safeMessage);
+    }
+  }
 
   enum Outcome {
     SUCCEEDED,

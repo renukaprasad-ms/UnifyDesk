@@ -34,6 +34,7 @@ public class ManagedSmsTemplateService {
   private final ManagedSmsProvisioningService provisioningService;
   private final ManagedSmsJsonSupport jsonSupport;
   private final ManagedSmsEligibilityService eligibilityService;
+  private final ManagedSmsCtaPolicyService ctaPolicyService;
 
   @Transactional(readOnly = true)
   public List<TemplateResponse> list(Long companyId) {
@@ -193,7 +194,11 @@ public class ManagedSmsTemplateService {
           "MANAGED_SMS_TEMPLATE_HEADER_MISMATCH: Header is not approved for this template");
     }
     List<String> errors = new ArrayList<>();
-    String rendered = render(version, request.variables(), errors);
+    List<VariableDefinition> schema = jsonSupport.variables(version.getVariablesSchemaJson());
+    Map<String, String> ctaErrors =
+        ctaPolicyService.validateRuntimeValues(
+            version.getCtaPolicyJson(), schema, request.variables());
+    String rendered = render(version, schema, request.variables(), ctaErrors, errors);
     return new PreviewResponse(rendered, List.copyOf(errors));
   }
 
@@ -364,8 +369,11 @@ public class ManagedSmsTemplateService {
   }
 
   private String render(
-      ManagedSmsTemplateVersion version, Map<String, String> values, List<String> errors) {
-    List<VariableDefinition> schema = jsonSupport.variables(version.getVariablesSchemaJson());
+      ManagedSmsTemplateVersion version,
+      List<VariableDefinition> schema,
+      Map<String, String> values,
+      Map<String, String> ctaErrors,
+      List<String> errors) {
     Set<String> declared = schema.stream().map(VariableDefinition::key).collect(java.util.stream.Collectors.toSet());
     values.keySet().stream()
         .filter(key -> !declared.contains(key))
@@ -378,7 +386,11 @@ public class ManagedSmsTemplateService {
       if (index >= schema.size()) break;
       VariableDefinition definition = schema.get(index++);
       String value = values.get(definition.key());
-      String safe = validateValue(definition, value, errors);
+      String ctaError = ctaErrors.get(definition.key());
+      if (ctaError != null) {
+        errors.add(definition.key() + ": " + ctaError);
+      }
+      String safe = ctaError == null ? validateValue(definition, value, errors) : "";
       matcher.appendReplacement(output, Matcher.quoteReplacement(safe));
     }
     matcher.appendTail(output);
