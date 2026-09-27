@@ -412,6 +412,8 @@ export default function ReachlyoCampaignWizard() {
   const [metaAdvantagePlusCreative, setMetaAdvantagePlusCreative] = useState(false)
   const [metaGenerativeText, setMetaGenerativeText] = useState(false)
   const [metaImageExpansion, setMetaImageExpansion] = useState(false)
+  const [metaBackgroundGeneration, setMetaBackgroundGeneration] = useState(false)
+  const [metaProductSetId, setMetaProductSetId] = useState('')
 
   const managedAccounts = useMemo(
     () =>
@@ -736,6 +738,8 @@ export default function ReachlyoCampaignWizard() {
       setMetaAdvantagePlusCreative(override.advantagePlusCreative === true)
       setMetaGenerativeText(override.generativeText === true)
       setMetaImageExpansion(override.imageExpansion === true)
+      setMetaBackgroundGeneration(override.backgroundGeneration === true)
+      setMetaProductSetId(typeof override.productSetId === 'string' ? override.productSetId : '')
     }
   }
 
@@ -1347,6 +1351,8 @@ export default function ReachlyoCampaignWizard() {
             advantagePlusCreative: metaAdvantagePlusCreative,
             generativeText: metaGenerativeText,
             imageExpansion: metaImageExpansion,
+            backgroundGeneration: metaBackgroundGeneration,
+            productSetId: metaBackgroundGeneration ? metaProductSetId.trim() : undefined,
           }
         }
 
@@ -2656,6 +2662,10 @@ export default function ReachlyoCampaignWizard() {
                   setMetaGenerativeText={setMetaGenerativeText}
                   metaImageExpansion={metaImageExpansion}
                   setMetaImageExpansion={setMetaImageExpansion}
+                  metaBackgroundGeneration={metaBackgroundGeneration}
+                  setMetaBackgroundGeneration={setMetaBackgroundGeneration}
+                  metaProductSetId={metaProductSetId}
+                  setMetaProductSetId={setMetaProductSetId}
                   disabled={!canEdit || !editableDefinition}
                   onRefresh={() => void loadProviderData(true)}
                 />
