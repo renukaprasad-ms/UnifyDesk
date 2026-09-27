@@ -551,7 +551,8 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                     firstText(text(override, "callToActionType"), pack.getCallToAction()),
                     text(override, "urlTags"),
                     booleanValue(override, "advantagePlusCreative", false),
-                    placementAssets));
+                    placementAssets),
+                run.getRequestedByUserId());
         return LaunchStepExecutionResult.succeeded(
             Long.valueOf(customized.id()),
             customized.externalCreativeId(),
@@ -605,7 +606,8 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 selectedMedia.getMediaType() == MediaType.VIDEO ? selectedUrl : null,
                 text(override, "urlTags"),
                 booleanValue(override, "advantagePlusCreative", false),
-                List.of()));
+                List.of()),
+            run.getRequestedByUserId());
 
     Map<String, Object> metadata = new java.util.LinkedHashMap<>();
     metadata.put("reused", false);
