@@ -1465,6 +1465,7 @@ export type AdCreative = {
   advantagePlusCreative?: boolean | null
   generativeText?: boolean | null
   imageExpansion?: boolean | null
+  existingPostId?: string | null
   providerCreatedAt?: string | null
   providerUpdatedAt?: string | null
   accessible: boolean
@@ -1498,6 +1499,7 @@ export type CreateMetaCreativeInput = {
   advantagePlusCreative?: boolean | null
   generativeText?: boolean | null
   imageExpansion?: boolean | null
+  existingPostId?: string | null
   carouselCards?: MetaCarouselCardInput[]
 }
 
