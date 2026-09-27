@@ -1503,6 +1503,14 @@ export type CreateMetaCreativeInput = {
   carouselCards?: MetaCarouselCardInput[]
 }
 
+export type MetaExistingPost = {
+  id: string
+  message?: string | null
+  createdTime?: string | null
+  permalinkUrl?: string | null
+  isPublished?: boolean | null
+}
+
 export type MetaCreativeSync = {
   synchronizedCount: number
 }
