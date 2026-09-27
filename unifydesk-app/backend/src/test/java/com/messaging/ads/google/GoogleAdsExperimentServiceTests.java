@@ -78,7 +78,7 @@ class GoogleAdsExperimentServiceTests {
             """
             {"results":[{"resourceName":"customers/1234567890/experiments/55"}]}
             """);
-    JsonNode campaignMutation = objectMapper.readTree("""{"results":[]}""");
+    JsonNode campaignMutation = objectMapper.readTree("{\"results\":[]}");
     when(apiClient.mutate(
             eq("access-token"),
             eq("1234567890"),
@@ -90,7 +90,7 @@ class GoogleAdsExperimentServiceTests {
               String collection = invocation.getArgument(3);
               if ("experiments".equals(collection)) return experimentMutation;
               if ("campaigns".equals(collection)) return campaignMutation;
-              return objectMapper.readTree("""{"results":[]}""");
+              return objectMapper.readTree("{\"results\":[]}");
             });
     when(apiClient.firstMutatedResourceName(experimentMutation))
         .thenReturn("customers/1234567890/experiments/55");
@@ -243,7 +243,7 @@ class GoogleAdsExperimentServiceTests {
             isNull(),
             eq("experiments/55:scheduleExperiment"),
             eq(Map.of("resourceName", "customers/1234567890/experiments/55"))))
-        .thenReturn(objectMapper.readTree("""{"name":"operations/schedule-55"}"""));
+        .thenReturn(objectMapper.readTree("{\"name\":\"operations/schedule-55\"}"));
 
     var response = service.schedule(10L, 20L, "55", 77L);
 
