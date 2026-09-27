@@ -147,13 +147,18 @@ public class ProviderAttemptRecoveryService {
           runtimeRepository.markSubscriptionSuccess(claim.subscriptionId());
           finalizationCandidates.add(claim.intentId());
         }
-        case RETRY ->
-            runtimeRepository.markPushAttemptRetry(
-                claim.pushAttemptId(),
-                claim.claimToken(),
-                claim.providerStatusCode(),
-                safeCode(claim.errorCode(), "PUSH_RETRY_RECOVERY"),
-                deliveryPolicy.pushRetryAt(now, Math.max(1, claim.attemptNo())));
+        case RETRY -> {
+          Instant retryAt =
+              claim.providerRetryAfterAt() == null
+                  ? deliveryPolicy.pushRetryAt(now, Math.max(1, claim.attemptNo()))
+                  : laterOf(now, claim.providerRetryAfterAt());
+          runtimeRepository.markPushAttemptRetry(
+              claim.pushAttemptId(),
+              claim.claimToken(),
+              claim.providerStatusCode(),
+              safeCode(claim.errorCode(), "PUSH_RETRY_RECOVERY"),
+              retryAt);
+        }
         case PERMANENT_FAILURE, SUPPRESSED -> {
           runtimeRepository.markPushAttemptTerminal(
               claim.pushAttemptId(),
@@ -189,6 +194,10 @@ public class ProviderAttemptRecoveryService {
           summary.accepted() > 0 ? null : "PUSH_ALL_FAILED",
           now);
     }
+  }
+
+  private Instant laterOf(Instant first, Instant second) {
+    return first.isAfter(second) ? first : second;
   }
 
   private Instant completedOrNow(Instant completedAt, Instant now) {

@@ -103,6 +103,8 @@ public class NotificationPushAttemptWorker {
         pushGateway.send(
             decrypted.endpoint(), decrypted.p256dh(), decrypted.auth(), payload, ttl, "normal");
     Instant completed = clock.instant();
+    Instant providerRetryAfterAt =
+        result.retryAfter() == null ? null : completed.plus(result.retryAfter());
     String outcome = outcome(result);
     if (!attemptLifecycleRepository.completeAttempt(
         deliveryAttemptId,
@@ -110,6 +112,7 @@ public class NotificationPushAttemptWorker {
         outcome,
         result.statusCode(),
         result.errorCode(),
+        providerRetryAfterAt,
         completed.toEpochMilli() - started.toEpochMilli())) {
       return;
     }
@@ -146,8 +149,8 @@ public class NotificationPushAttemptWorker {
               result.errorCode());
         } else {
           Instant next =
-              result.retryAfter() != null
-                  ? completed.plus(result.retryAfter())
+              providerRetryAfterAt != null
+                  ? providerRetryAfterAt
                   : policy.pushRetryAt(completed, attempt.attemptNo());
           repository.markPushAttemptRetry(
               attempt.id(), attempt.claimToken(), result.statusCode(), result.errorCode(), next);
