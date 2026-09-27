@@ -343,6 +343,70 @@ class MetaProviderCampaignCompilerTests {
   }
 
   @Test
+  void requiresAdvantageCreativeCapabilityAndWarnsAboutStandardEnhancements() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(16L);
+    campaign.setName("Meta Advantage creative");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(26L);
+    channel.setReachlyoCampaignId(16L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson("{\"advantagePlusCreative\":true}");
+
+    AdAccount account = new AdAccount();
+    account.setId(36L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(46L);
+    pack.setPrimaryMessage("Visit our site");
+    pack.setDestinationUrl("https://example.com");
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities =
+        baseCapabilities();
+    capabilities.put(
+        AdFeatureCapability.META_ADVANTAGE_CREATIVE,
+        available(AdFeatureCapability.META_ADVANTAGE_CREATIVE));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isTrue();
+    assertThat(plan.requiredCapabilities())
+        .contains(AdFeatureCapability.META_ADVANTAGE_CREATIVE);
+    assertThat(plan.issues())
+        .anyMatch(
+            issue ->
+                issue.code().equals("META_ADVANTAGE_CREATIVE_STANDARD_ENHANCEMENTS"));
+  }
+
+  @Test
   void requiresAdvantageAudienceCapabilityAndSurfacesExpansionWarning() {
     MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
 
