@@ -2,6 +2,8 @@ import { Navigate, Route, Routes } from 'react-router'
 import { PERMISSIONS } from '../features/iam/permissions'
 import AuthLayout from '../layouts/AuthLayout'
 import MainLayout from '../layouts/MainLayout'
+import AccountInvitations from '../pages/account/AccountInvitations'
+import AccountNotificationSettings from '../pages/account/AccountNotificationSettings'
 import AccountProfile from '../pages/account/AccountProfile'
 import AdCenterOverview from '../pages/ads/AdCenterOverview'
 import AdCampaigns from '../pages/ads/AdCampaigns'
@@ -81,6 +83,17 @@ const AppRoutes = () => (
         <Route path="/select-plan/:companyId" element={<SelectPlan />} />
         <Route path="/notification-open" element={<NotificationOpenPage />} />
 
+        <Route element={<MainLayout />}>
+          <Route path="/account/profile" element={<AccountProfile />} />
+          <Route path="/account/invitations" element={<AccountInvitations />} />
+          <Route path="/account/settings" element={<AccountSettings />} />
+          <Route path="/account/settings/password" element={<ChangePassword />} />
+          <Route
+            path="/account/settings/notifications"
+            element={<AccountNotificationSettings />}
+          />
+        </Route>
+
         <Route element={<WorkspaceRoute />}>
           <Route element={<MainLayout />}>
             <Route path="/workspace" element={<Home />} />
@@ -153,9 +166,6 @@ const AppRoutes = () => (
               <Route path="company/plan" element={<CompanyPlan />} />
             </Route>
 
-            <Route path="account/profile" element={<AccountProfile />} />
-            <Route path="account/settings" element={<AccountSettings />} />
-            <Route path="account/settings/password" element={<ChangePassword />} />
           </Route>
         </Route>
       </Route>
