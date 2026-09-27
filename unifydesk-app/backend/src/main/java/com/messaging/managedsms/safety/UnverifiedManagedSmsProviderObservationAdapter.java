@@ -1,11 +1,9 @@
 package com.messaging.managedsms.safety;
 
 import java.util.Optional;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.stereotype.Component;
 
 @Component
-@ConditionalOnMissingBean(ManagedSmsProviderObservationAdapter.class)
 public class UnverifiedManagedSmsProviderObservationAdapter
     implements ManagedSmsProviderObservationAdapter {
 
