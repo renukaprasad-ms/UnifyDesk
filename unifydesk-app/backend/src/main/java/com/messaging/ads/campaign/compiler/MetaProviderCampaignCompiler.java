@@ -193,23 +193,60 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
       List<ProviderPlanIssue> issues) {
     JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
     List<String> platforms = stringArray(override, "publisherPlatforms");
+    List<String> facebookPositions = stringArray(override, "facebookPositions");
+    List<String> instagramPositions = stringArray(override, "instagramPositions");
+    List<String> messengerPositions = stringArray(override, "messengerPositions");
+    List<String> audienceNetworkPositions = stringArray(override, "audienceNetworkPositions");
+
+    boolean placementModeExplicit = override.has("advantagePlacements");
+    boolean advantagePlacements = booleanValue(override, "advantagePlacements", false);
+    boolean hasManualSelection =
+        !platforms.isEmpty()
+            || !facebookPositions.isEmpty()
+            || !instagramPositions.isEmpty()
+            || !messengerPositions.isEmpty()
+            || !audienceNetworkPositions.isEmpty();
+
+    if (placementModeExplicit && advantagePlacements) {
+      if (hasManualSelection) {
+        issues.add(
+            ProviderCampaignPlanSupport.error(
+                "META_ADVANTAGE_PLACEMENTS_CONFLICT",
+                "providerOverride.advantagePlacements",
+                "Advantage+ placements cannot be combined with manual publisher-platform or position restrictions."));
+        return;
+      }
+      ProviderCampaignPlanSupport.requireCapability(
+          context, AdFeatureCapability.META_ADVANTAGE_PLACEMENTS, required, issues);
+      return;
+    }
+
+    if (placementModeExplicit && !advantagePlacements && platforms.isEmpty()) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "META_MANUAL_PLACEMENTS_EMPTY",
+              "providerOverride.publisherPlatforms",
+              "Manual Meta placements require at least one publisher platform."));
+      return;
+    }
+
     if (platforms.isEmpty()) return;
 
     ProviderCampaignPlanSupport.requireCapability(
         context, AdFeatureCapability.META_PLACEMENT_TREE, required, issues);
 
     Set<com.messaging.ads.campaign.enums.CreativeVariantType> needed = new LinkedHashSet<>();
-    if (containsAny(stringArray(override, "facebookPositions"), "feed", "marketplace", "video_feeds", "search")
-        || containsAny(stringArray(override, "instagramPositions"), "stream", "explore", "explore_home", "profile_feed")) {
+    if (containsAny(facebookPositions, "feed", "marketplace", "video_feeds", "search")
+        || containsAny(instagramPositions, "stream", "explore", "explore_home", "profile_feed")) {
       needed.add(com.messaging.ads.campaign.enums.CreativeVariantType.META_FEED);
     }
-    if (containsAny(stringArray(override, "facebookPositions"), "story")
-        || containsAny(stringArray(override, "instagramPositions"), "story")
-        || containsAny(stringArray(override, "messengerPositions"), "story")) {
+    if (containsAny(facebookPositions, "story")
+        || containsAny(instagramPositions, "story")
+        || containsAny(messengerPositions, "story")) {
       needed.add(com.messaging.ads.campaign.enums.CreativeVariantType.META_STORY);
     }
-    if (containsAny(stringArray(override, "facebookPositions"), "reels")
-        || containsAny(stringArray(override, "instagramPositions"), "reels")) {
+    if (containsAny(facebookPositions, "reels")
+        || containsAny(instagramPositions, "reels")) {
       needed.add(com.messaging.ads.campaign.enums.CreativeVariantType.META_REEL);
     }
 
