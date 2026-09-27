@@ -1039,14 +1039,31 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                     An eligible product set is required.
                   </span>
                   {props.metaBackgroundGeneration && (
-                    <input
+                    <select
                       className="form-input mt-3"
                       value={props.metaProductSetId}
                       disabled={props.disabled}
                       onChange={(event) => props.setMetaProductSetId(event.target.value)}
-                      placeholder="Meta product set ID"
-                    />
+                    >
+                      <option value="">Select synced Meta product set</option>
+                      {metaResources
+                        .filter((resource) => resource.resourceType === 'META_PRODUCT_SET')
+                        .map((resource) => (
+                          <option key={resource.id} value={resource.externalResourceId}>
+                            {resource.name ?? resource.externalResourceId}
+                          </option>
+                        ))}
+                    </select>
                   )}
+                  {props.metaBackgroundGeneration &&
+                    !metaResources.some(
+                      (resource) => resource.resourceType === 'META_PRODUCT_SET',
+                    ) && (
+                      <span className="mt-2 block text-[11px] leading-5 text-amber-700">
+                        No product sets are synchronized for this Meta ad account. Refresh provider
+                        resources after connecting a business catalog.
+                      </span>
+                    )}
                 </span>
               </label>
             </div>
