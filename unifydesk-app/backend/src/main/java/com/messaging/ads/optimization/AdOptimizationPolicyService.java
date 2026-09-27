@@ -442,6 +442,10 @@ public class AdOptimizationPolicyService {
       throw new BadRequestException(
           "Optimization policy requires an ad account or campaign scope");
     }
+    if (!account.isManaged() || !account.isAccessible()) {
+      throw new BadRequestException(
+          "Optimization policies require a managed, accessible ad account");
+    }
     return new Scope(account, campaign);
   }
 
