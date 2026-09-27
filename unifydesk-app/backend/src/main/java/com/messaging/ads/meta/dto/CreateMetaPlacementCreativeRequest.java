@@ -15,6 +15,23 @@ public record CreateMetaPlacementCreativeRequest(
     Boolean advantagePlusCreative,
     @NotEmpty List<@Valid PlacementAsset> placementAssets) {
 
+  public CreateMetaPlacementCreativeRequest(
+      String name,
+      String pageId,
+      String instagramActorId,
+      String callToActionType,
+      String urlTags,
+      List<PlacementAsset> placementAssets) {
+    this(
+        name,
+        pageId,
+        instagramActorId,
+        callToActionType,
+        urlTags,
+        null,
+        placementAssets);
+  }
+
   public record PlacementAsset(
       @NotEmpty List<String> publisherPlatforms,
       List<String> facebookPositions,
