@@ -477,7 +477,7 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
   private void validateCreative(
       ProviderCampaignCompileContext context, List<ProviderPlanIssue> issues) {
     JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
-    if (hasText(text(override, "existingPostId"))) return;
+    if (!isBlank(text(override, "existingPostId"))) return;
 
     if (context.creativePack() == null) {
       issues.add(
