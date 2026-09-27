@@ -26,6 +26,7 @@ import com.messaging.company.repository.CompanyInvitationRepository;
 import com.messaging.company.repository.CompanyMemberRepository;
 import com.messaging.company.repository.CompanyMemberRoleAssignmentRepository;
 import com.messaging.notification.dto.SendNotificationRequest;
+import com.messaging.notification.platform.core.event.NotificationEventRecorder;
 import com.messaging.notification.service.NotificationService;
 import com.messaging.security.service.CurrentUserService;
 import com.messaging.user.entity.User;
@@ -64,6 +65,7 @@ public class CompanyInvitationService {
   private final CurrentUserService currentUserService;
   private final UserRepository userRepository;
   private final NotificationService notificationService;
+  private final NotificationEventRecorder notificationEventRecorder;
   private final CompanyInvitationProperties properties;
 
   @Transactional
@@ -104,6 +106,7 @@ public class CompanyInvitationService {
     invitation.setRoles(new LinkedHashSet<>(roles));
     invitation = invitationRepository.saveAndFlush(invitation);
 
+    recordInvitationForExistingUser(invitation, actorId);
     sendInvitationEmail(invitation, rawToken);
     return toResponse(invitation, now);
   }
@@ -116,6 +119,25 @@ public class CompanyInvitationService {
     return invitationRepository.findByCompanyIdOrderByCreatedAtDesc(companyId).stream()
         .map(invitation -> toResponse(invitation, now))
         .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<CompanyInvitationResponse> myInvitations() {
+    User user = currentUser();
+    Instant now = Instant.now();
+    return invitationRepository.findByEmailIgnoreCaseOrderByCreatedAtDesc(user.getEmail()).stream()
+        .map(invitation -> toResponse(invitation, now))
+        .toList();
+  }
+
+  @Transactional
+  public AcceptCompanyInvitationResponse acceptCurrentUserInvitation(Long invitationId) {
+    User user = currentUser();
+    CompanyInvitation invitation =
+        invitationRepository
+            .findByIdAndEmailIgnoreCase(invitationId, user.getEmail())
+            .orElseThrow(() -> new NotFoundException("Invitation not found"));
+    return acceptInvitation(invitation, user);
   }
 
   @Transactional
@@ -144,6 +166,7 @@ public class CompanyInvitationService {
     invitation.setExpiresAt(now.plus(properties.getExpiry()));
     invitation = invitationRepository.saveAndFlush(invitation);
 
+    recordInvitationForExistingUser(invitation, actorId);
     sendInvitationEmail(invitation, rawToken);
     return toResponse(invitation, now);
   }
@@ -173,6 +196,11 @@ public class CompanyInvitationService {
             .findByTokenHash(hashToken(rawToken))
             .orElseThrow(() -> new NotFoundException("Invitation not found"));
 
+    return acceptInvitation(invitation, currentUser());
+  }
+
+  private AcceptCompanyInvitationResponse acceptInvitation(
+      CompanyInvitation invitation, User user) {
     if (invitation.getStatus() != CompanyInvitationStatus.PENDING) {
       throw new ConflictException("Invitation is no longer active");
     }
@@ -185,10 +213,7 @@ public class CompanyInvitationService {
     Company company = invitation.getCompany();
     requireActiveCompany(company);
 
-    Long userId = currentUserService.currentUserId();
-    User user =
-        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
-
+    Long userId = user.getId();
     if (!user.isVerified()) {
       throw new ForbiddenException("Verify your email before accepting the invitation");
     }
@@ -222,6 +247,16 @@ public class CompanyInvitationService {
     invitation.setAcceptedAt(now);
     invitation.setAcceptedByUserId(userId);
     invitationRepository.saveAndFlush(invitation);
+
+    if (!invitation.getInvitedByUserId().equals(userId)) {
+      notificationEventRecorder.recordCompanyInvitationAccepted(
+          invitation.getId(),
+          company.getId(),
+          userId,
+          invitation.getInvitedByUserId(),
+          company.getName(),
+          user.getName());
+    }
 
     return new AcceptCompanyInvitationResponse(
         company.getId().toString(), company.getName(), member.getId().toString());
@@ -336,6 +371,29 @@ public class CompanyInvitationService {
     if (company.getStatus() != CompanyStatus.ACTIVE) {
       throw new BadRequestException("Company is not active");
     }
+  }
+
+  private User currentUser() {
+    Long userId = currentUserService.currentUserId();
+    return userRepository
+        .findById(userId)
+        .orElseThrow(() -> new NotFoundException("User not found"));
+  }
+
+  private void recordInvitationForExistingUser(
+      CompanyInvitation invitation, Long actorUserId) {
+    userRepository
+        .findByEmailIgnoreCase(invitation.getEmail())
+        .filter(User::isVerified)
+        .filter(user -> !user.getId().equals(actorUserId))
+        .ifPresent(
+            user ->
+                notificationEventRecorder.recordCompanyInvitation(
+                    invitation.getId(),
+                    invitation.getCompany().getId(),
+                    actorUserId,
+                    user.getId(),
+                    invitation.getCompany().getName()));
   }
 
   private void sendInvitationEmail(CompanyInvitation invitation, String rawToken) {
