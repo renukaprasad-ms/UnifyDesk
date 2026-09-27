@@ -25,6 +25,7 @@ import com.messaging.lifecycle.service.DeletionPurgeService;
 import com.messaging.media.entity.Media;
 import com.messaging.media.enums.MediaPurpose;
 import com.messaging.media.service.MediaService;
+import com.messaging.notification.platform.core.event.NotificationEventRecorder;
 import com.messaging.security.service.CurrentUserService;
 import com.messaging.user.entity.User;
 import com.messaging.user.repository.UserRepository;
@@ -53,6 +54,7 @@ public class CompanyService {
   private final ChannelConnectionService channelConnectionService;
   private final DeletionPurgeService deletionPurgeService;
   private final DeletionLifecycleProperties deletionProperties;
+  private final NotificationEventRecorder notificationEventRecorder;
 
   @Transactional
   public CompanyResponse create(CreateCompanyRequest request) {
@@ -82,6 +84,7 @@ public class CompanyService {
     if (company.getLogoMediaId() != null) {
       mediaService.assignCompanyMedia(company.getLogoMediaId(), company.getId(), userId);
     }
+    notificationEventRecorder.recordCompanyCreated(company.getId(), userId, company.getName());
     return toResponse(company, CompanyRole.OWNER);
   }
 
