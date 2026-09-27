@@ -274,7 +274,7 @@ public class AdFeatureCapabilityService {
             true,
             "Google AssetGenerationService is a closed-beta capability and must be verified for the selected account at use time.",
             GOOGLE_ADS_SCOPE));
-    planned(specs, AdFeatureCapability.GOOGLE_BID_SIMULATION);
+    add(specs, AdFeatureCapability.GOOGLE_BID_SIMULATION, false, GOOGLE_ADS_SCOPE);
     specs.add(
         new CapabilitySpec(
             AdFeatureCapability.GOOGLE_BILLING_WRITE_MONTHLY_INVOICE,
