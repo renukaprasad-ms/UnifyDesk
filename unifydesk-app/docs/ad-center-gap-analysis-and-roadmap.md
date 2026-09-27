@@ -1541,7 +1541,8 @@ Started:
 - [ ] catalog/product-set discovery and validation
 - [ ] correct catalog ad creation path with inline creative / product set
 - [ ] provider read-back/preview for generated backgrounds
-- [ ] launch/audit regression tests
+- [x] capability and compiler preflight regression tests
+- [ ] launch/audit regression tests for the catalog execution path
 
 The remaining execution work intentionally depends on the D9 catalog/product-set infrastructure rather than faking support for arbitrary standalone image creatives.
 
