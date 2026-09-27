@@ -1437,12 +1437,29 @@ Verified against the active project Meta Graph API v26.0 model and current Meta 
 
 ## M-05 Advantage+ placements - P1
 
-Provide:
+Status: **complete for D3 — Advantage+ placements is now an explicit, capability-gated Meta placement mode while preserving B4/B5 manual placement and creative-variant behavior**.
 
-- automatic/Advantage+ placements
-- manual placement tree
-- placement warnings
-- placement-specific creative variant mapping
+Implemented:
+
+- [x] explicit Advantage+ placements selection in the unified Meta provider settings
+- [x] provider override persists `advantagePlacements=true` instead of inferring product intent only from empty arrays
+- [x] backward-compatible read-back: older campaigns with no manual publisher platforms still hydrate as automatic placements
+- [x] unified compiler requires `META_ADVANTAGE_PLACEMENTS` when the explicit automatic mode is selected
+- [x] compiler rejects conflicting automatic + manual publisher-platform/position settings
+- [x] explicit manual mode requires at least one publisher platform
+- [x] native create/edit/read-back continues to represent automatic placement correctly by omitting manual `publisher_platforms` and position restrictions
+- [x] existing B4 placement tree remains available for manual Facebook, Instagram, Messenger and Audience Network selection
+- [x] existing B5 Feed/Story/Reel placement-specific creative mapping remains intact for manual placement selection
+- [x] activity audit records whether an ad-set mutation is using automatic/Advantage+ or manual placement selection without logging provider tokens/payload secrets
+- [x] capability and compiler regression coverage
+- [x] responsive unified/native placement UI wording distinguishes Advantage+ placements from manual placement restrictions
+
+Provider semantics:
+
+- UnifyDesk does not invent a separate Graph API `advantage_placements` targeting field.
+- Advantage+ placements is represented by not constraining the ad set with manual publisher-platform/position targeting; Meta remains authoritative for the eligible inventory available to the account/objective/creative.
+- Manual placement selection is mutually exclusive with the explicit Advantage+ placements mode.
+- Existing account/objective/creative eligibility and provider-side validation still apply.
 
 ## M-06 Advantage+ creative - P1
 
@@ -2229,7 +2246,7 @@ C9. [x] richer provider reporting — Google landing pages, actual placements, A
 
 D1. [x] customer-list Custom Audiences — Meta CUSTOM audience creation, customer-file source labeling, browser/backend SHA-256 normalization, add/remove multi-key member batches, explicit terms/authorization, no PII/hash persistence or logging, provider counts/status, RBAC/capability/UI/tests  
 D2. [x] Advantage+ audience controls — Meta v26 targeting_automation, age/gender individual suggestion settings, explicit control-vs-suggestion UX, native create/edit/read-back, unified wizard/compiler/launch support, capability/RBAC/audit/tests  
-D3. Advantage+ placements  
+D3. [x] Advantage+ placements — explicit capability-gated automatic-placement mode, backward-compatible read-back, manual-placement conflict validation, native/unified UX, audit and compiler/capability tests  
 D4. Advantage+ creative  
 D5. generative text  
 D6. image uncrop/expansion  
