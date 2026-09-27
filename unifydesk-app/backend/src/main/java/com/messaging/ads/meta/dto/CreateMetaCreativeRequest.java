@@ -144,6 +144,47 @@ public record CreateMetaCreativeRequest(
         carouselCards);
   }
 
+  public CreateMetaCreativeRequest(
+      String name,
+      String format,
+      String pageId,
+      String instagramActorId,
+      String primaryText,
+      String headline,
+      String description,
+      String callToActionType,
+      String destinationUrl,
+      String imageHash,
+      String imageUrl,
+      String videoId,
+      String videoUrl,
+      String urlTags,
+      Boolean advantagePlusCreative,
+      Boolean generativeText,
+      Boolean imageExpansion,
+      List<CarouselCard> carouselCards) {
+    this(
+        name,
+        format,
+        pageId,
+        instagramActorId,
+        primaryText,
+        headline,
+        description,
+        callToActionType,
+        destinationUrl,
+        imageHash,
+        imageUrl,
+        videoId,
+        videoUrl,
+        urlTags,
+        advantagePlusCreative,
+        generativeText,
+        imageExpansion,
+        null,
+        carouselCards);
+  }
+
   @AssertTrue(message = "Creative media does not match the selected format")
   public boolean hasValidMedia() {
     if (hasText(existingPostId)) return true;
