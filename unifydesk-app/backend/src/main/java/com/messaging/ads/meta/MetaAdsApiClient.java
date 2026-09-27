@@ -115,6 +115,30 @@ public class MetaAdsApiClient {
     return List.copyOf(result);
   }
 
+  public JsonNode adStudies(String accessToken, String businessId) {
+    if (businessId == null || businessId.isBlank()) {
+      throw new BadRequestException(
+          "Meta Business Portfolio ID is required to read advertising studies");
+    }
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder ->
+                        uriBuilder
+                            .path("/{version}/{businessId}/ad_studies")
+                            .queryParam(
+                                "fields",
+                                "id,name,description,type,start_time,end_time,observation_end_time,results_first_available_date,confidence_level,created_time,updated_time")
+                            .queryParam("limit", 100)
+                            .queryParam("appsecret_proof", appSecretProof(accessToken))
+                            .build(properties.getGraphApiVersion(), businessId.trim()))
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(JsonNode.class));
+  }
+
   public AdAccountHealthSummary accountHealth(
       String accessToken, String accountId) {
     return execute(
