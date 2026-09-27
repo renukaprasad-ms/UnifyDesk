@@ -1406,16 +1406,34 @@ Add placement-level creative requirements and previews.
 
 ## M-04 Advantage+ audience - P1
 
-Add modern Meta audience automation controls.
+Status: **complete for D2 — Meta v26 Advantage+ audience controls implemented across native and unified campaign flows**.
 
-Requirements:
+Implemented:
 
-- expose provider eligibility
-- allow advertiser to provide audience suggestions/constraints where API supports
-- clearly distinguish strict controls from suggestions/expansion
-- never imply Reachlyo has tighter control than Meta actually honors
+- [x] current Meta v26 `targeting_automation.advantage_audience` support
+- [x] `targeting_automation.individual_setting.age` support
+- [x] `targeting_automation.individual_setting.gender` support
+- [x] explicit opt-in; existing/native API callers are not silently broadened
+- [x] native Meta ad-set create UI
+- [x] native Meta ad-set edit/read-back from synchronized `targeting`
+- [x] unified campaign provider-settings UI and persisted provider overrides
+- [x] unified Meta compiler requires `META_ADVANTAGE_AUDIENCE` capability when enabled
+- [x] unified launch preflight rejects age/gender suggestions unless Advantage+ audience is enabled
+- [x] unified launch executor carries the same Advantage+ flags into paused ad-set creation
+- [x] provider capability changed from PLANNED to AVAILABLE
+- [x] create/update RBAC remains ADS_CREATE / ADS_MODIFY
+- [x] activity audit records Advantage+ state changes without duplicating full provider payloads
+- [x] regression coverage for native payload shape, invalid suggestion combinations, capability state, and unified compiler behavior
 
-Verify fields against the current Marketing API version before coding.
+UX/provider semantics:
+
+- location targeting and explicit excluded Custom Audiences are presented as controls
+- included audiences remain audience inputs that Meta may expand beyond when Advantage+ audience is enabled
+- age and gender are explicitly shown as suggestions only when their corresponding `individual_setting` switches are enabled
+- UnifyDesk does not claim Meta will honor a suggestion as a strict constraint
+- provider/account/objective eligibility remains authoritative; Meta errors are surfaced if a selected configuration is unavailable for that ad account or campaign context
+
+Verified against the active project Meta Graph API v26.0 model and current Meta Business SDK targeting fields.
 
 ## M-05 Advantage+ placements - P1
 
@@ -2210,7 +2228,7 @@ C9. [x] richer provider reporting — Google landing pages, actual placements, A
 ## Phase D - Modern Meta / P1
 
 D1. [x] customer-list Custom Audiences — Meta CUSTOM audience creation, customer-file source labeling, browser/backend SHA-256 normalization, add/remove multi-key member batches, explicit terms/authorization, no PII/hash persistence or logging, provider counts/status, RBAC/capability/UI/tests  
-D2. Advantage+ audience controls  
+D2. [x] Advantage+ audience controls — Meta v26 targeting_automation, age/gender individual suggestion settings, explicit control-vs-suggestion UX, native create/edit/read-back, unified wizard/compiler/launch support, capability/RBAC/audit/tests  
 D3. Advantage+ placements  
 D4. Advantage+ creative  
 D5. generative text  
