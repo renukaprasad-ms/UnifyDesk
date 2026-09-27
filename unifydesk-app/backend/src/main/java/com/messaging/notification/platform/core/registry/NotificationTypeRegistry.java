@@ -90,7 +90,17 @@ public class NotificationTypeRegistry {
               "New inbox activity",
               "You have new inbox messages.",
               "/inbox/email?connectionId=" + variables.get("connectionId"));
-      default -> throw new BadRequestException("Notification type has no Round-1 source renderer");
+      case "COMPANY_INVITATION" ->
+          new Rendered(
+              "Workspace invitation",
+              "You have been invited to join " + variables.get("companyName") + ".",
+              "/account/invitations");
+      case "COMPANY_INVITATION_ACCEPTED" ->
+          new Rendered(
+              "Invitation accepted",
+              variables.get("memberName") + " joined " + variables.get("companyName") + ".",
+              "/company/users");
+      default -> throw new BadRequestException("Notification type has no source renderer");
     };
   }
 
@@ -146,14 +156,32 @@ public class NotificationTypeRegistry {
             false));
     add(
         values,
-        type(
+        new Definition(
+            "company.invitation.created",
             "COMPANY_INVITATION",
             "Workspace invitations",
             "COMPANY",
             "NORMAL",
-            List.of(EmailMode.OFF, EmailMode.IMMEDIATE),
+            Set.of("companyName"),
+            false,
+            true,
+            List.of(EmailMode.IMMEDIATE),
             EmailMode.IMMEDIATE,
-            false));
+            true));
+    add(
+        values,
+        new Definition(
+            "company.invitation.accepted",
+            "COMPANY_INVITATION_ACCEPTED",
+            "Invitation accepted",
+            "COMPANY",
+            "NORMAL",
+            Set.of("companyName", "memberName"),
+            false,
+            false,
+            List.of(EmailMode.OFF),
+            EmailMode.OFF,
+            true));
     add(
         values,
         type(
