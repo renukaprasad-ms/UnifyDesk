@@ -76,6 +76,10 @@ export default function GoogleExperimentsPanel({
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [showCampaignMix, setShowCampaignMix] = useState(false)
+  const [mixName, setMixName] = useState('')
+  const [mixControlId, setMixControlId] = useState('')
+  const [mixTreatmentId, setMixTreatmentId] = useState('')
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -110,13 +114,19 @@ export default function GoogleExperimentsPanel({
       ])
       setExperiments(experimentData)
       setCampaigns(campaignPage.content)
-      setBaseCampaignId((current) => current || campaignPage.content.find(
+      const eligibleCampaigns = campaignPage.content.filter(
         (campaign) =>
           campaign.provider === 'GOOGLE_ADS' &&
           campaign.adAccountId === accountId &&
           campaign.accessible &&
-          campaign.objective === 'SEARCH',
+          campaign.status !== 'REMOVED' &&
+          campaign.status !== 'ARCHIVED',
+      )
+      setBaseCampaignId((current) => current || eligibleCampaigns.find(
+        (campaign) => campaign.objective === 'SEARCH',
       )?.id || '')
+      setMixControlId((current) => current || eligibleCampaigns[0]?.id || '')
+      setMixTreatmentId((current) => current || eligibleCampaigns[1]?.id || eligibleCampaigns[0]?.id || '')
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load Google Ads experiments'))
     } finally {
@@ -160,9 +170,36 @@ export default function GoogleExperimentsPanel({
     }
   }
 
+  const createCampaignMix = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!mixControlId || !mixTreatmentId || mixControlId === mixTreatmentId) {
+      setError('Choose two different Google campaigns for the campaign-mix experiment.')
+      return
+    }
+    setBusy('mix')
+    setError('')
+    try {
+      await adCenterApi.createGoogleCampaignMixExperiment(companyId, accountId, {
+        name: mixName.trim(),
+        controlCampaignIds: [mixControlId],
+        treatmentCampaignIds: [mixTreatmentId],
+        treatmentTrafficPercent,
+        startDate: startDate || null,
+        endDate: endDate || null,
+      })
+      setMixName('')
+      setShowCampaignMix(false)
+      await load()
+    } catch (createError) {
+      setError(apiErrorMessage(createError, 'Unable to create Google campaign-mix experiment'))
+    } finally {
+      setBusy('')
+    }
+  }
+
   const action = async (
     experiment: GoogleExperiment,
-    type: 'schedule' | 'promote' | 'end',
+    type: 'schedule' | 'promote' | 'end' | 'graduate',
   ) => {
     if (
       type === 'promote' &&
@@ -178,6 +215,14 @@ export default function GoogleExperimentsPanel({
     ) {
       return
     }
+    if (
+      type === 'graduate' &&
+      !window.confirm(
+        'Graduate the treatment campaign? Google will create a production campaign budget mapping for the treatment campaign.',
+      )
+    ) {
+      return
+    }
 
     setBusy(`${type}:${experiment.id}`)
     setError('')
@@ -186,6 +231,8 @@ export default function GoogleExperimentsPanel({
         await adCenterApi.scheduleGoogleExperiment(companyId, accountId, experiment.id)
       } else if (type === 'promote') {
         await adCenterApi.promoteGoogleExperiment(companyId, accountId, experiment.id)
+      } else if (type === 'graduate') {
+        await adCenterApi.graduateGoogleExperiment(companyId, accountId, experiment.id)
       } else {
         await adCenterApi.endGoogleExperiment(companyId, accountId, experiment.id)
       }
@@ -219,22 +266,32 @@ export default function GoogleExperimentsPanel({
             Refresh
           </button>
           {canCreate && (
-            <button
-              type="button"
-              className="primary-button inline-flex items-center gap-2"
-              onClick={() => setShowCreate((current) => !current)}
-            >
-              <FiPlusCircle aria-hidden="true" />
-              New experiment
-            </button>
+            <>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setShowCampaignMix((current) => !current)}
+              >
+                Campaign mix
+              </button>
+              <button
+                type="button"
+                className="primary-button inline-flex items-center gap-2"
+                onClick={() => setShowCreate((current) => !current)}
+              >
+                <FiPlusCircle aria-hidden="true" />
+                Search experiment
+              </button>
+            </>
           )}
         </div>
       </div>
 
       <div className="border-b border-amber-100 bg-amber-50 px-5 py-3 text-xs leading-5 text-amber-800">
-        E1 creation currently uses Google's system-managed <strong>SEARCH_CUSTOM</strong> workflow
-        and changes only the treatment campaign's bidding strategy. Other Google experiment types
-        created in Google Ads remain visible here for status and reporting.
+        UnifyDesk supports system-managed <strong>SEARCH_CUSTOM</strong> experiments and Google
+        <strong> campaign-mix</strong> experiments. Campaign mix is account/allowlist dependent.
+        Other specialized Google experiment types remain visible for reporting even when their
+        provider-specific setup is completed in Google Ads.
       </div>
 
       {error && (
@@ -361,6 +418,46 @@ export default function GoogleExperimentsPanel({
         </form>
       )}
 
+      {showCampaignMix && canCreate && (
+        <form className="grid gap-4 border-b border-slate-100 bg-indigo-50/40 p-5 md:grid-cols-2" onSubmit={createCampaignMix}>
+          <label className="block text-xs font-semibold text-slate-700 md:col-span-2">
+            Campaign-mix experiment name
+            <input className="form-input mt-2" value={mixName} onChange={(event) => setMixName(event.target.value)} required placeholder="Channel strategy comparison" />
+          </label>
+          <label className="block text-xs font-semibold text-slate-700">
+            Control campaign
+            <select className="form-input mt-2" value={mixControlId} onChange={(event) => setMixControlId(event.target.value)} required>
+              <option value="">Choose campaign</option>
+              {campaigns.filter((campaign) => campaign.accessible && campaign.status !== 'REMOVED').map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>{campaign.name} · {pretty(campaign.objective)}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-xs font-semibold text-slate-700">
+            Treatment campaign
+            <select className="form-input mt-2" value={mixTreatmentId} onChange={(event) => setMixTreatmentId(event.target.value)} required>
+              <option value="">Choose different campaign</option>
+              {campaigns.filter((campaign) => campaign.accessible && campaign.status !== 'REMOVED').map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>{campaign.name} · {pretty(campaign.objective)}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-xs font-semibold text-slate-700 md:col-span-2">
+            Treatment traffic · {treatmentTrafficPercent}%
+            <input className="mt-3 w-full" type="range" min={1} max={99} value={treatmentTrafficPercent} onChange={(event) => setTreatmentTrafficPercent(Number(event.target.value))} />
+          </label>
+          <p className="text-[11px] leading-5 text-slate-500 md:col-span-2">
+            Google campaign-mix experiments compare existing campaigns and are currently allowlist/account dependent. UnifyDesk submits the native COMPARE_CAMPAIGNS contract and surfaces provider rejection rather than substituting another experiment type.
+          </p>
+          <div className="flex justify-end gap-2 md:col-span-2">
+            <button type="button" className="secondary-button" onClick={() => setShowCampaignMix(false)}>Cancel</button>
+            <button type="submit" className="primary-button" disabled={busy === 'mix' || !mixName.trim() || mixControlId === mixTreatmentId}>
+              {busy === 'mix' ? 'Creating…' : 'Create campaign mix'}
+            </button>
+          </div>
+        </form>
+      )}
+
       {loading ? (
         <div className="p-10 text-center text-sm text-slate-500">Loading Google experiments…</div>
       ) : experiments.length === 0 ? (
@@ -430,6 +527,16 @@ export default function GoogleExperimentsPanel({
                           <FiArrowUpCircle aria-hidden="true" />
                           Promote treatment
                         </button>
+                        {experiment.type !== 'COMPARE_CAMPAIGNS' && (
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            disabled={Boolean(busy)}
+                            onClick={() => void action(experiment, 'graduate')}
+                          >
+                            Graduate
+                          </button>
+                        )}
                       </>
                     )}
                   </div>
