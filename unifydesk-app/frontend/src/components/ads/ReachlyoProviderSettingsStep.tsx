@@ -1107,6 +1107,14 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 placeholder="Optional object story ID, e.g. PAGEID_POSTID"
               />
             </div>
+            <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-bold text-slate-900">WhatsApp Status ads</p>
+              <p className="mt-1 text-xs leading-5 text-slate-600">
+                Provider-hosted for now. Meta account eligibility may expose WhatsApp Status in Ads
+                Manager, but UnifyDesk does not send an unverified Marketing API placement field.
+                Configure this placement in Meta until Meta publishes a stable public API contract.
+              </p>
+            </div>
             <div className="sm:col-span-2 rounded-xl border border-slate-100 p-4">
               <p className="text-xs font-semibold text-slate-700">Placements</p>
               <select
