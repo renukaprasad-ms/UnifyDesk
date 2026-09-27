@@ -411,6 +411,7 @@ export default function ReachlyoCampaignWizard() {
   const [metaAdvantageGenderSuggestion, setMetaAdvantageGenderSuggestion] = useState(false)
   const [metaAdvantagePlusCreative, setMetaAdvantagePlusCreative] = useState(false)
   const [metaGenerativeText, setMetaGenerativeText] = useState(false)
+  const [metaImageExpansion, setMetaImageExpansion] = useState(false)
 
   const managedAccounts = useMemo(
     () =>
@@ -734,6 +735,7 @@ export default function ReachlyoCampaignWizard() {
       setMetaAdvantageGenderSuggestion(override.advantageGenderSuggestion === true)
       setMetaAdvantagePlusCreative(override.advantagePlusCreative === true)
       setMetaGenerativeText(override.generativeText === true)
+      setMetaImageExpansion(override.imageExpansion === true)
     }
   }
 
@@ -1344,6 +1346,7 @@ export default function ReachlyoCampaignWizard() {
               metaAdvantageAudience && metaAdvantageGenderSuggestion,
             advantagePlusCreative: metaAdvantagePlusCreative,
             generativeText: metaGenerativeText,
+            imageExpansion: metaImageExpansion,
           }
         }
 
@@ -2651,6 +2654,8 @@ export default function ReachlyoCampaignWizard() {
                   setMetaAdvantagePlusCreative={setMetaAdvantagePlusCreative}
                   metaGenerativeText={metaGenerativeText}
                   setMetaGenerativeText={setMetaGenerativeText}
+                  metaImageExpansion={metaImageExpansion}
+                  setMetaImageExpansion={setMetaImageExpansion}
                   disabled={!canEdit || !editableDefinition}
                   onRefresh={() => void loadProviderData(true)}
                 />
