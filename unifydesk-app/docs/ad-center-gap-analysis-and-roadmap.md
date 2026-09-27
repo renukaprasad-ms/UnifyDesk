@@ -2288,7 +2288,34 @@ D2. [x] Advantage+ audience controls — Meta v26 targeting_automation, age/gend
 D3. [x] Advantage+ placements — explicit capability-gated automatic-placement mode, backward-compatible read-back, manual-placement conflict validation, native/unified UX, audit and compiler/capability tests  
 D4. [x] Advantage+ creative — standard-enhancements opt-in via degrees_of_freedom_spec, native/unified UI, compiler capability gating, launch propagation, provider read-back, audit and tests  
 D5. [x] generative text — explicit Meta text_generation opt-in, native/unified controls, compiler eligibility/review validation, launch propagation, provider read-back, audit metadata and tests  
-D6. image uncrop/expansion  
+D6. [x] image uncrop/expansion — explicit Meta image_uncrop opt-in, image-asset preflight, native/unified controls, launch propagation, provider read-back, audit metadata and tests  
+
+### D6 implementation note — Meta image expansion
+
+Status: **complete for the current Meta v26 image-uncrop/expansion scope**.
+
+Implemented:
+
+- [x] `META_IMAGE_UNCROP` capability moved from PLANNED to AVAILABLE
+- [x] explicit native image-creative opt-in
+- [x] explicit unified campaign opt-in persisted as `imageExpansion`
+- [x] Marketing API payload uses `degrees_of_freedom_spec.creative_features_spec.image_uncrop.enroll_status`
+- [x] explicit opt-in/opt-out while leaving unspecified legacy callers unchanged
+- [x] native UI limits the control to single-image creative creation
+- [x] unified compiler requires at least one image asset before remote mutation
+- [x] compiler requires the image-expansion capability and emits a review warning
+- [x] unified launch propagates the preference through standard and placement-customized Meta creative creation
+- [x] provider creative read-back normalizes `image_uncrop` enrollment
+- [x] activity audit metadata records image-expansion state without provider tokens
+- [x] regression coverage for capability availability, provider payload, image preflight and compiler review behavior
+
+Product/provider semantics:
+
+- image expansion is opt-in and Meta remains authoritative for exact placement/creative eligibility
+- the original image remains the advertiser-provided source; expanded output should be reviewed through provider preview/read-back before activation
+- D6 does not enable background generation
+- D7 remains the separate background-generation slice
+
 D7. background generation  
 D8. existing-post ads  
 D9. Meta Catalog/product sets  
