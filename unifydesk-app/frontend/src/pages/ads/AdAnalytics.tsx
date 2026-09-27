@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi'
 import { Link } from 'react-router'
 import AdFeedbackAlert from '../../components/ads/AdFeedbackAlert'
+import AdOptimizationWorkspace from '../../components/ads/AdOptimizationWorkspace'
 import GoogleExperimentsPanel from '../../components/ads/GoogleExperimentsPanel'
 import GoogleProviderReportingPanel from '../../components/ads/GoogleProviderReportingPanel'
 import { showGlobalSnackbar } from '../../components/feedback/SnackbarProvider'
@@ -922,6 +923,18 @@ export default function AdAnalytics() {
                 companyId={selectedCompany.companyId}
                 accountId={selectedAccount.id}
                 currency={currency}
+                canCreate={can(PERMISSIONS.ADS_CREATE)}
+                canModify={can(PERMISSIONS.ADS_MODIFY)}
+              />
+            )}
+
+            {selectedAccount && (
+              <AdOptimizationWorkspace
+                companyId={selectedCompany.companyId}
+                selectedAccount={selectedAccount}
+                accounts={managedAccounts}
+                from={from}
+                to={to}
                 canCreate={can(PERMISSIONS.ADS_CREATE)}
                 canModify={can(PERMISSIONS.ADS_MODIFY)}
               />
