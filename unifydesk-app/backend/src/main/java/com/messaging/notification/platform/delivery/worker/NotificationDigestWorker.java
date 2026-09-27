@@ -44,6 +44,7 @@ public class NotificationDigestWorker {
     if (!properties.getDigest().isEnabled()) {
       return;
     }
+    supportRepository.recoverAmbiguousDigestClaims();
     aggregate();
     sendDue();
   }
@@ -62,12 +63,15 @@ public class NotificationDigestWorker {
           supportRepository
               .activeDigestBucket(intent.userId(), intent.companyId(), intent.notificationType())
               .orElse(null);
+      if (existing != null && "CLAIMED".equals(existing.state())) {
+        continue;
+      }
       Instant contributionAt = intent.createdAt() == null ? now : intent.createdAt();
       Instant eligibleAt =
           existing == null
               ? policy.digestEligibleAt(contributionAt, contributionAt, 1)
               : policy.recomputeDigestEligibleAt(existing, contributionAt);
-      repository.addDigestContribution(intent, eligibleAt, contributionAt);
+      supportRepository.addDigestContributionSafely(intent, eligibleAt, contributionAt);
     }
   }
 
@@ -137,7 +141,7 @@ public class NotificationDigestWorker {
           bucket.id(),
           bucket.claimToken(),
           "OPTIONAL_EMAIL_ROLLING_CAP",
-          rollingStart.plus(properties.getDigest().getRollingWindow()).plusSeconds(60));
+          now.plusSeconds(60));
       return;
     }
 
@@ -159,22 +163,22 @@ public class NotificationDigestWorker {
     long representativeIntent = itemState.intentIds().getFirst();
     int attemptNo = supportRepository.nextEmailAttemptNo(representativeIntent);
     Instant started = clock.instant();
+    long attemptId =
+        supportRepository.beginProviderAttempt(
+            representativeIntent, null, attemptNo, "EMAIL", started);
     EmailSendResult result =
         emailGateway.send(
             recipient.email(), emailRenderer.inboxDigest(recipient.companyName(), unread));
     Instant completed = clock.instant();
-    repository.recordDeliveryAttempt(
-        representativeIntent,
-        null,
-        attemptNo,
-        "EMAIL",
-        started,
+    String outcome = mapOutcome(result);
+    supportRepository.completeProviderAttempt(
+        attemptId,
         completed,
-        mapOutcome(result),
+        outcome,
         null,
         result.errorCode(),
-        Math.max(0, completed.toEpochMilli() - started.toEpochMilli()));
-    metrics.attempt("EMAIL", mapOutcome(result));
+        completed.toEpochMilli() - started.toEpochMilli());
+    metrics.attempt("EMAIL", outcome);
 
     switch (result.outcome()) {
       case ACCEPTED -> {

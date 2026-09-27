@@ -14,6 +14,7 @@ import com.messaging.notification.platform.delivery.push.WebPushGateway;
 import com.messaging.notification.platform.delivery.push.WebPushGateway.PushSendResult;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliveryRuntimeRepository;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliveryRuntimeRepository.PushIntentSummary;
+import com.messaging.notification.platform.delivery.repository.NotificationDeliverySupportRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Component;
 public class NotificationPushAttemptWorker {
 
   private final NotificationDeliveryRuntimeRepository repository;
+  private final NotificationDeliverySupportRepository supportRepository;
   private final DeliveryEligibilityService eligibilityService;
   private final NotificationDeliveryPolicy policy;
   private final PushSubscriptionService subscriptionService;
@@ -38,6 +40,7 @@ public class NotificationPushAttemptWorker {
 
   @Scheduled(fixedDelayString = "${app.notification-platform.delivery.poll-delay:1s}")
   public void poll() {
+    supportRepository.recoverAmbiguousPushClaims();
     Instant now = clock.instant();
     List<PushAttempt> attempts =
         repository.claimDuePushAttempts(
@@ -89,23 +92,22 @@ public class NotificationPushAttemptWorker {
             ? properties.getPush().getInboxTtl()
             : properties.getPush().getDefaultTtl();
     Instant started = clock.instant();
+    long deliveryAttemptId =
+        supportRepository.beginProviderAttempt(
+            intent.id(), subscription.id(), attempt.attemptNo(), "WEB_PUSH", started);
     PushSendResult result =
         pushGateway.send(
             decrypted.endpoint(), decrypted.p256dh(), decrypted.auth(), payload, ttl, "normal");
     Instant completed = clock.instant();
-
-    repository.recordDeliveryAttempt(
-        intent.id(),
-        subscription.id(),
-        attempt.attemptNo(),
-        "WEB_PUSH",
-        started,
+    String outcome = outcome(result);
+    supportRepository.completeProviderAttempt(
+        deliveryAttemptId,
         completed,
-        outcome(result),
+        outcome,
         result.statusCode(),
         result.errorCode(),
-        Math.max(0, completed.toEpochMilli() - started.toEpochMilli()));
-    metrics.pushAttempt(outcome(result), result.statusCode());
+        completed.toEpochMilli() - started.toEpochMilli());
+    metrics.pushAttempt(outcome, result.statusCode());
 
     switch (result.outcome()) {
       case ACCEPTED -> {

@@ -46,6 +46,7 @@ public class NotificationDeliveryWorker {
     if (!properties.getDelivery().isEnabled()) {
       return;
     }
+    supportRepository.recoverAmbiguousEmailIntentClaims();
     Instant now = clock.instant();
     Instant leaseUntil = now.plus(properties.getDelivery().getClaimLease());
     List<DeliveryIntent> emails =
@@ -85,28 +86,26 @@ public class NotificationDeliveryWorker {
 
     int attemptNo = intent.attemptCount() + 1;
     Instant started = clock.instant();
+    long attemptId =
+        supportRepository.beginProviderAttempt(intent.id(), null, attemptNo, "EMAIL", started);
     EmailSendResult result =
         emailGateway.send(
             decision.recipient().email(),
             emailRenderer.companyWelcome(
                 decision.recipient().userName(), decision.recipient().companyName()));
     Instant completed = clock.instant();
-    repository.recordDeliveryAttempt(
-        intent.id(),
-        null,
-        attemptNo,
-        "EMAIL",
-        started,
+    String outcome = mapEmailOutcome(result);
+    supportRepository.completeProviderAttempt(
+        attemptId,
         completed,
-        mapEmailOutcome(result),
+        outcome,
         null,
         result.errorCode(),
-        Math.max(0, completed.toEpochMilli() - started.toEpochMilli()));
-    metrics.attempt("EMAIL", mapEmailOutcome(result));
+        completed.toEpochMilli() - started.toEpochMilli());
+    metrics.attempt("EMAIL", outcome);
 
     switch (result.outcome()) {
-      case ACCEPTED ->
-          repository.markIntentSent(intent.id(), intent.claimToken(), completed);
+      case ACCEPTED -> repository.markIntentSent(intent.id(), intent.claimToken(), completed);
       case PERMANENT_FAILURE ->
           repository.markIntentTerminal(
               intent.id(),
@@ -164,14 +163,18 @@ public class NotificationDeliveryWorker {
     }
 
     repository.ensurePushAttempts(intent.id(), subscriptions);
-    supportRepository.releasePushIntent(intent.id(), intent.claimToken(), now.plusSeconds(4 * 60 * 60));
+    supportRepository.releasePushIntent(
+        intent.id(), intent.claimToken(), now.plus(properties.getPush().getInboxTtl()));
   }
 
   String pushPayload(DeliveryIntent intent) {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("version", 1);
-    payload.put("notificationId", intent.notificationId() == null ? null : Long.toString(intent.notificationId()));
-    payload.put("companyId", intent.companyId() == null ? null : Long.toString(intent.companyId()));
+    payload.put(
+        "notificationId",
+        intent.notificationId() == null ? null : Long.toString(intent.notificationId()));
+    payload.put(
+        "companyId", intent.companyId() == null ? null : Long.toString(intent.companyId()));
     payload.put("type", intent.notificationType());
     payload.put("title", "New UnifyDesk activity");
     payload.put("body", "You have new unread activity in UnifyDesk.");

@@ -35,7 +35,7 @@
 		<guava.version>33.7.1-jre</guava.version>
 		<webpush.version>5.1.2</webpush.version>
 		<jose4j.version>0.9.6</jose4j.version>
-		<bouncycastle.version>1.83</bouncycastle.version>
+		<bouncycastle.version>1.70</bouncycastle.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -67,7 +67,7 @@
 		</dependency>
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
-			<artifactId>bcprov-jdk18on</artifactId>
+			<artifactId>bcprov-jdk15on</artifactId>
 			<version>${bouncycastle.version}</version>
 		</dependency>
 		<dependency>
