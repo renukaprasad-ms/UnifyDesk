@@ -8,12 +8,15 @@ import com.messaging.ads.entity.AdSet;
 import com.messaging.ads.enums.AdConnectionStatus;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.meta.dto.CreateMetaAdRequest;
+import com.messaging.ads.meta.dto.CreateMetaCatalogAdRequest;
 import com.messaging.ads.meta.dto.UpdateMetaAdRequest;
 import com.messaging.ads.repository.AdAccountRepository;
+import com.messaging.ads.repository.AdAccountResourceRepository;
 import com.messaging.ads.repository.AdCreativeRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
 import com.messaging.ads.repository.AdRepository;
 import com.messaging.ads.repository.AdSetRepository;
+import com.messaging.ads.service.AdActivityLogService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import java.util.LinkedHashMap;
@@ -27,11 +30,13 @@ public class MetaAdsAdMutationService {
   private final AdSetRepository adSetRepository;
   private final AdRepository adRepository;
   private final AdCreativeRepository creativeRepository;
+  private final AdAccountResourceRepository resourceRepository;
   private final AdAccountRepository accountRepository;
   private final AdProviderConnectionRepository connectionRepository;
   private final MetaAdsTokenService tokenService;
   private final MetaAdsApiClient apiClient;
   private final MetaAdsAdPersistenceService persistenceService;
+  private final AdActivityLogService activityLogService;
 
   public AdResponse create(Long companyId, Long adSetId, CreateMetaAdRequest request) {
     AdSet adSet = requireAdSet(companyId, adSetId);
@@ -48,6 +53,94 @@ public class MetaAdsAdMutationService {
     String externalAdId = apiClient.createAd(token, account.getExternalAccountId(), payload);
     return AdResponse.from(
         persistenceService.persistOne(companyId, adSetId, apiClient.ad(token, externalAdId)));
+  }
+
+  public AdResponse createCatalog(
+      Long companyId,
+      Long adSetId,
+      CreateMetaCatalogAdRequest request,
+      Long actorUserId) {
+    AdSet adSet = requireAdSet(companyId, adSetId);
+    AdAccount account = requireManagedAccount(companyId, adSet.getAdAccountId());
+    validateResource(
+        companyId,
+        account.getId(),
+        com.messaging.ads.enums.AdAccountResourceType.FACEBOOK_PAGE,
+        request.pageId(),
+        "Selected Facebook Page is not available for this Meta ad account");
+    if (request.instagramActorId() != null && !request.instagramActorId().isBlank()) {
+      validateResource(
+          companyId,
+          account.getId(),
+          com.messaging.ads.enums.AdAccountResourceType.INSTAGRAM_ACCOUNT,
+          request.instagramActorId(),
+          "Selected Instagram account is not available for this Meta ad account");
+    }
+    validateResource(
+        companyId,
+        account.getId(),
+        com.messaging.ads.enums.AdAccountResourceType.META_PRODUCT_SET,
+        request.productSetId(),
+        "Selected Meta product set is not available for this ad account");
+
+    String token = accessToken(companyId, account);
+    Map<String, Object> templateData = new LinkedHashMap<>();
+    templateData.put(
+        "call_to_action",
+        Map.of("type", normalizeCta(request.callToActionType())));
+    templateData.put("link", requireUrl(request.destinationUrl()));
+    if (request.headline() != null && !request.headline().isBlank()) {
+      templateData.put("name", request.headline().trim());
+    }
+
+    Map<String, Object> story = new LinkedHashMap<>();
+    story.put("page_id", request.pageId().trim());
+    if (request.instagramActorId() != null && !request.instagramActorId().isBlank()) {
+      story.put("instagram_user_id", request.instagramActorId().trim());
+    }
+    story.put("template_data", templateData);
+
+    Map<String, Object> inlineCreative = new LinkedHashMap<>();
+    inlineCreative.put("product_set_id", request.productSetId().trim());
+    inlineCreative.put("object_story_spec", story);
+    if (Boolean.TRUE.equals(request.backgroundGeneration())) {
+      inlineCreative.put(
+          "degrees_of_freedom_spec",
+          Map.of(
+              "creative_features_spec",
+              Map.of(
+                  "image_background_gen",
+                  Map.of("enroll_status", "OPT_IN"))));
+    }
+
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("name", request.name().trim());
+    payload.put("adset_id", adSet.getExternalAdSetId());
+    payload.put("creative", inlineCreative);
+    payload.put("status", "PAUSED");
+
+    String externalAdId =
+        apiClient.createAd(token, account.getExternalAccountId(), payload);
+    AdResponse created =
+        AdResponse.from(
+            persistenceService.persistOne(
+                companyId, adSetId, apiClient.ad(token, externalAdId)));
+
+    activityLogService.record(
+        companyId,
+        account.getId(),
+        AdProvider.META_ADS,
+        actorUserId,
+        "META_CATALOG_AD_CREATED",
+        "AD",
+        externalAdId,
+        null,
+        created,
+        Map.of(
+            "catalogAd", true,
+            "productSetId", request.productSetId().trim(),
+            "backgroundGeneration", Boolean.TRUE.equals(request.backgroundGeneration())));
+    return created;
   }
 
   public AdResponse update(Long companyId, Long adId, UpdateMetaAdRequest request) {
@@ -83,6 +176,41 @@ public class MetaAdsAdMutationService {
     apiClient.updateAd(token, ad.getExternalAdId(), Map.of("status", status));
     return AdResponse.from(
         persistenceService.persistOne(companyId, adSet.getId(), apiClient.ad(token, ad.getExternalAdId())));
+  }
+
+  private void validateResource(
+      Long companyId,
+      Long accountId,
+      com.messaging.ads.enums.AdAccountResourceType type,
+      String externalId,
+      String message) {
+    if (externalId == null || externalId.isBlank()) {
+      throw new BadRequestException(message);
+    }
+    var resource =
+        resourceRepository
+            .findByCompanyIdAndAdAccountIdAndResourceTypeAndExternalResourceId(
+                companyId, accountId, type, externalId.trim())
+            .orElse(null);
+    if (resource == null || !resource.isAccessible()) {
+      throw new BadRequestException(message);
+    }
+  }
+
+  private String requireUrl(String value) {
+    if (value == null || value.isBlank()) {
+      throw new BadRequestException("Destination URL is required");
+    }
+    String normalized = value.trim();
+    if (!normalized.startsWith("https://") && !normalized.startsWith("http://")) {
+      throw new BadRequestException("Destination URL must start with http:// or https://");
+    }
+    return normalized;
+  }
+
+  private String normalizeCta(String value) {
+    if (value == null || value.isBlank()) return "SHOP_NOW";
+    return value.trim().toUpperCase();
   }
 
   private Ad requireAd(Long companyId, Long adId) {
