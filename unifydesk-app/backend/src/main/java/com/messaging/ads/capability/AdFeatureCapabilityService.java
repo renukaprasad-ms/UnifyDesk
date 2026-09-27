@@ -265,7 +265,7 @@ public class AdFeatureCapabilityService {
     add(specs, AdFeatureCapability.GOOGLE_KEYWORD_PLANNER, true, GOOGLE_ADS_SCOPE);
     add(specs, AdFeatureCapability.GOOGLE_FORECAST, true, GOOGLE_ADS_SCOPE);
     add(specs, AdFeatureCapability.GOOGLE_REUSABLE_ASSETS, true, GOOGLE_ADS_SCOPE);
-    planned(specs, AdFeatureCapability.GOOGLE_EXPERIMENTS);
+    add(specs, AdFeatureCapability.GOOGLE_EXPERIMENTS, true, GOOGLE_ADS_SCOPE);
     specs.add(
         new CapabilitySpec(
             AdFeatureCapability.GOOGLE_ASSET_GENERATION,
