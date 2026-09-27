@@ -2,11 +2,9 @@ package com.messaging.managedsms.delivery;
 
 import com.messaging.managedsms.runtime.ManagedSmsRuntimeProperties;
 import java.util.Optional;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.stereotype.Service;
 
 @Service
-@ConditionalOnMissingBean(ManagedSmsProviderCredentialResolver.class)
 public class DefaultManagedSmsProviderCredentialResolver
     implements ManagedSmsProviderCredentialResolver {
 
