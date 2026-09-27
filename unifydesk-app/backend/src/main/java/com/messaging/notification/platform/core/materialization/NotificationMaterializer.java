@@ -240,11 +240,10 @@ public class NotificationMaterializer {
       return;
     }
 
-    if (!"INBOX_ACTIVITY".equals(definition.notificationType())) {
-      return;
-    }
     EffectivePreference preference = preference(userId, event.companyId(), definition);
-    if (preference.emailMode() == EmailMode.DIGEST) {
+
+    if ("INBOX_ACTIVITY".equals(definition.notificationType())
+        && preference.emailMode() == EmailMode.DIGEST) {
       insertIntent(
           event,
           userId,
@@ -253,7 +252,11 @@ public class NotificationMaterializer {
           "DIGEST",
           "digest:inbox:" + notificationId + ":" + userId);
     }
-    if (preference.browserEnabled()) {
+
+    if (("INBOX_ACTIVITY".equals(definition.notificationType())
+            || "COMPANY_INVITATION".equals(definition.notificationType())
+            || "COMPANY_INVITATION_ACCEPTED".equals(definition.notificationType()))
+        && preference.browserEnabled()) {
       insertIntent(
           event,
           userId,
