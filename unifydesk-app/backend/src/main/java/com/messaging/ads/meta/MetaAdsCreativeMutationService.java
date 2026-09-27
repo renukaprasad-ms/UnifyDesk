@@ -55,6 +55,7 @@ public class MetaAdsCreativeMutationService {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("name", request.name().trim());
     payload.put("object_story_spec", story);
+    applyAdvantagePlusCreative(payload, request.advantagePlusCreative());
     if (hasText(request.urlTags())) payload.put("url_tags", request.urlTags().trim());
 
     String externalId = apiClient.createCreative(token, account.getExternalAccountId(), payload);
@@ -187,6 +188,7 @@ public class MetaAdsCreativeMutationService {
     payload.put("name", request.name().trim());
     payload.put("object_story_spec", story);
     payload.put("asset_feed_spec", assetFeed);
+    applyAdvantagePlusCreative(payload, request.advantagePlusCreative());
     if (hasText(request.urlTags())) payload.put("url_tags", request.urlTags().trim());
 
     String externalId =
@@ -194,6 +196,18 @@ public class MetaAdsCreativeMutationService {
     return AdCreativeResponse.from(
         persistenceService.persistOne(
             companyId, accountId, apiClient.creative(token, externalId)));
+  }
+
+  private void applyAdvantagePlusCreative(
+      Map<String, Object> payload, Boolean advantagePlusCreative) {
+    if (advantagePlusCreative == null) return;
+    Map<String, Object> standardEnhancements =
+        Map.of("enroll_status", Boolean.TRUE.equals(advantagePlusCreative) ? "OPT_IN" : "OPT_OUT");
+    Map<String, Object> creativeFeaturesSpec =
+        Map.of("standard_enhancements", standardEnhancements);
+    payload.put(
+        "degrees_of_freedom_spec",
+        Map.of("creative_features_spec", creativeFeaturesSpec));
   }
 
   private void putStringList(
