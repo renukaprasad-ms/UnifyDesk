@@ -28,6 +28,7 @@ public record AdCreativeResponse(
     String objectStorySpecJson,
     String carouselJson,
     Boolean advantagePlusCreative,
+    Boolean generativeText,
     Instant providerCreatedAt,
     Instant providerUpdatedAt,
     boolean accessible,
@@ -55,27 +56,29 @@ public record AdCreativeResponse(
         creative.getUrlTags(),
         creative.getObjectStorySpecJson(),
         creative.getCarouselJson(),
-        advantagePlusCreative(creative.getProviderPayloadJson()),
+        creativeFeatureEnabled(creative.getProviderPayloadJson(), "standard_enhancements"),
+        creativeFeatureEnabled(creative.getProviderPayloadJson(), "text_generation"),
         creative.getProviderCreatedAt(),
         creative.getProviderUpdatedAt(),
         creative.isAccessible(),
         creative.getLastSyncAt());
   }
 
-  private static Boolean advantagePlusCreative(String providerPayloadJson) {
+  private static Boolean creativeFeatureEnabled(
+      String providerPayloadJson, String feature) {
     if (providerPayloadJson == null || providerPayloadJson.isBlank()) return null;
     try {
       JsonNode root = new ObjectMapper().readTree(providerPayloadJson);
       JsonNode status =
           root.path("degreesOfFreedomSpec")
               .path("creative_features_spec")
-              .path("standard_enhancements")
+              .path(feature)
               .path("enroll_status");
       if (status.isMissingNode() || status.isNull() || status.asText("").isBlank()) {
         status =
             root.path("degrees_of_freedom_spec")
                 .path("creative_features_spec")
-                .path("standard_enhancements")
+                .path(feature)
                 .path("enroll_status");
       }
       String value = status.asText("").trim().toUpperCase();
@@ -86,4 +89,5 @@ public record AdCreativeResponse(
       return null;
     }
   }
+
 }
