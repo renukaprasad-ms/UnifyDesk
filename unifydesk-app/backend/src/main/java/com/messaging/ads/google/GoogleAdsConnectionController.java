@@ -11,6 +11,7 @@ import com.messaging.ads.dto.AdSetResponse;
 import com.messaging.ads.google.dto.CreateGoogleAdGroupRequest;
 import com.messaging.ads.google.dto.CreateGoogleAdvancedCampaignRequest;
 import com.messaging.ads.google.dto.CreateGoogleAudienceRequest;
+import com.messaging.ads.google.dto.CreateGoogleCampaignMixExperimentRequest;
 import com.messaging.ads.google.dto.CreateGoogleCampaignRequest;
 import com.messaging.ads.google.dto.CreateGoogleExperimentRequest;
 import com.messaging.ads.google.dto.CreateGoogleConversionRequest;
@@ -1347,6 +1348,21 @@ public class GoogleAdsConnectionController {
                 "Google Search experiment created in setup state"));
   }
 
+  @PostMapping("/accounts/{accountId}/experiments/campaign-mix")
+  public ResponseEntity<ApiResponse<GoogleExperimentResponse>> createCampaignMixExperiment(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody CreateGoogleCampaignMixExperimentRequest request) {
+    Long userId = requireCreate(companyId);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                experimentService.createCampaignMix(
+                    companyId, accountId, request, userId),
+                "Google campaign-mix experiment created in setup state"));
+  }
+
   @PostMapping("/accounts/{accountId}/experiments/{experimentId}:schedule")
   public ResponseEntity<ApiResponse<GoogleExperimentActionResponse>> scheduleExperiment(
       @PathVariable Long companyId,
@@ -1384,6 +1400,19 @@ public class GoogleAdsConnectionController {
             200,
             experimentService.end(companyId, accountId, experimentId, userId),
             "Google Ads experiment end requested"));
+  }
+
+  @PostMapping("/accounts/{accountId}/experiments/{experimentId}:graduate")
+  public ResponseEntity<ApiResponse<GoogleExperimentActionResponse>> graduateExperiment(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String experimentId) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            experimentService.graduate(companyId, accountId, experimentId, userId),
+            "Google Ads experiment graduated"));
   }
 
   @GetMapping("/accounts/{accountId}/provider-report")
