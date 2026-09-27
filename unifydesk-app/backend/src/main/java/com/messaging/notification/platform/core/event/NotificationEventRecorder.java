@@ -6,6 +6,8 @@ import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.id.IdGenerator;
 import com.messaging.notification.platform.core.registry.NotificationTypeRegistry;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -107,10 +109,10 @@ public class NotificationEventRecorder {
             json,
             UUID.randomUUID().toString(),
             null,
-            occurredAt,
-            now,
-            now,
-            now);
+            utc(occurredAt),
+            utc(now),
+            utc(now),
+            utc(now));
     if (inserted == 1) {
       return id;
     }
@@ -121,6 +123,10 @@ public class NotificationEventRecorder {
       throw new IllegalStateException("Notification event conflict without existing row");
     }
     return existing;
+  }
+
+  private OffsetDateTime utc(Instant value) {
+    return OffsetDateTime.ofInstant(value, ZoneOffset.UTC);
   }
 
   private String json(Map<String, String> variables) {
