@@ -10,6 +10,7 @@ import com.messaging.ads.meta.dto.CreateMetaPlacementCreativeRequest;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdAccountResourceRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
+import com.messaging.ads.service.AdActivityLogService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import java.util.ArrayList;
@@ -28,9 +29,10 @@ public class MetaAdsCreativeMutationService {
   private final MetaAdsTokenService tokenService;
   private final MetaAdsApiClient apiClient;
   private final MetaAdsCreativePersistenceService persistenceService;
+  private final AdActivityLogService activityLogService;
 
   public AdCreativeResponse create(
-      Long companyId, Long accountId, CreateMetaCreativeRequest request) {
+      Long companyId, Long accountId, CreateMetaCreativeRequest request, Long actorUserId) {
     AdAccount account = requireManagedAccount(companyId, accountId);
     validateIdentity(companyId, accountId, request.pageId(), request.instagramActorId());
 
@@ -59,12 +61,31 @@ public class MetaAdsCreativeMutationService {
     if (hasText(request.urlTags())) payload.put("url_tags", request.urlTags().trim());
 
     String externalId = apiClient.createCreative(token, account.getExternalAccountId(), payload);
-    return AdCreativeResponse.from(
-        persistenceService.persistOne(companyId, accountId, apiClient.creative(token, externalId)));
+    AdCreativeResponse created =
+        AdCreativeResponse.from(
+            persistenceService.persistOne(
+                companyId, accountId, apiClient.creative(token, externalId)));
+    activityLogService.record(
+        companyId,
+        accountId,
+        AdProvider.META_ADS,
+        actorUserId,
+        "META_CREATIVE_CREATED",
+        "CREATIVE",
+        externalId,
+        null,
+        created,
+        Map.of(
+            "advantagePlusCreative", Boolean.TRUE.equals(request.advantagePlusCreative()),
+            "placementCustomized", false));
+    return created;
   }
 
   public AdCreativeResponse createPlacementCustomized(
-      Long companyId, Long accountId, CreateMetaPlacementCreativeRequest request) {
+      Long companyId,
+      Long accountId,
+      CreateMetaPlacementCreativeRequest request,
+      Long actorUserId) {
     AdAccount account = requireManagedAccount(companyId, accountId);
     validateIdentity(companyId, accountId, request.pageId(), request.instagramActorId());
     if (request.placementAssets() == null || request.placementAssets().size() < 2) {
@@ -193,9 +214,24 @@ public class MetaAdsCreativeMutationService {
 
     String externalId =
         apiClient.createCreative(token, account.getExternalAccountId(), payload);
-    return AdCreativeResponse.from(
-        persistenceService.persistOne(
-            companyId, accountId, apiClient.creative(token, externalId)));
+    AdCreativeResponse created =
+        AdCreativeResponse.from(
+            persistenceService.persistOne(
+                companyId, accountId, apiClient.creative(token, externalId)));
+    activityLogService.record(
+        companyId,
+        accountId,
+        AdProvider.META_ADS,
+        actorUserId,
+        "META_CREATIVE_CREATED",
+        "CREATIVE",
+        externalId,
+        null,
+        created,
+        Map.of(
+            "advantagePlusCreative", Boolean.TRUE.equals(request.advantagePlusCreative()),
+            "placementCustomized", true));
+    return created;
   }
 
   private void applyAdvantagePlusCreative(
