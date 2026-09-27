@@ -228,6 +228,130 @@ class MetaProviderCampaignCompilerTests {
 
 
   @Test
+  void requiresAdvantageAudienceCapabilityAndSurfacesExpansionWarning() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(14L);
+    campaign.setName("Meta Advantage audience");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(24L);
+    channel.setReachlyoCampaignId(14L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson(
+        "{\"advantageAudience\":true,\"advantageAgeSuggestion\":true}");
+
+    AdAccount account = new AdAccount();
+    account.setId(34L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(44L);
+    pack.setPrimaryMessage("Visit our site");
+    pack.setDestinationUrl("https://example.com");
+
+    AudienceDefinition audience = new AudienceDefinition();
+    audience.setId(54L);
+    audience.setLocationsJson("[{\"countryCode\":\"IN\"}]");
+    audience.setAgeMin(21);
+    audience.setAgeMax(45);
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities =
+        baseCapabilities();
+    capabilities.put(
+        AdFeatureCapability.META_ADVANTAGE_AUDIENCE,
+        available(AdFeatureCapability.META_ADVANTAGE_AUDIENCE));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(),
+                List.of(),
+                audience,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isTrue();
+    assertThat(plan.requiredCapabilities())
+        .contains(AdFeatureCapability.META_ADVANTAGE_AUDIENCE);
+    assertThat(plan.issues())
+        .anyMatch(issue -> issue.code().equals("META_ADVANTAGE_AUDIENCE_EXPANSION"));
+  }
+
+  @Test
+  void blocksAdvantageSuggestionWhenAudienceExpansionIsDisabled() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(15L);
+    campaign.setName("Meta invalid Advantage audience");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(25L);
+    channel.setReachlyoCampaignId(15L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson(
+        "{\"advantageAudience\":false,\"advantageGenderSuggestion\":true}");
+
+    AdAccount account = new AdAccount();
+    account.setId(35L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(45L);
+    pack.setPrimaryMessage("Visit");
+    pack.setDestinationUrl("https://example.com");
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(baseCapabilities())));
+
+    assertThat(plan.deployable()).isFalse();
+    assertThat(plan.issues())
+        .anyMatch(issue -> issue.code().equals("META_ADVANTAGE_AUDIENCE_INVALID"));
+  }
+
+  @Test
   void warnsWhenStoryAndReelPlacementsLackMatchingVariants() {
     MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
 
