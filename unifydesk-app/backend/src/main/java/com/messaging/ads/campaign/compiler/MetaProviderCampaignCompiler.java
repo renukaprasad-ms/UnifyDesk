@@ -53,6 +53,7 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
         ProviderCampaignPlanSupport.effectiveBudget(
             context.budgetPlan(), context.channel(), context.allChannels(), issues);
 
+    validateExistingPost(context, required, issues);
     validateCreative(context, issues);
     validatePlacements(context, required, issues);
     validateAdvantageAudience(context, required, issues);
@@ -448,8 +449,36 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
     return values.stream().anyMatch(wanted::contains);
   }
 
+  private void validateExistingPost(
+      ProviderCampaignCompileContext context,
+      Set<AdFeatureCapability> required,
+      List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    String existingPostId = text(override, "existingPostId");
+    if (existingPostId == null || existingPostId.isBlank()) return;
+
+    ProviderCampaignPlanSupport.requireCapability(
+        context, AdFeatureCapability.META_EXISTING_POST, required, issues);
+    if (existingPostId.length() > 255) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "META_EXISTING_POST_ID_INVALID",
+              "providerOverride.existingPostId",
+              "Meta existing post ID is too long."));
+    } else {
+      issues.add(
+          ProviderCampaignPlanSupport.warning(
+              "META_EXISTING_POST_REUSE",
+              "providerOverride.existingPostId",
+              "This campaign will reuse the selected Meta post as the creative source. Provider ownership and ad-eligibility are verified by Meta at creation time."));
+    }
+  }
+
   private void validateCreative(
       ProviderCampaignCompileContext context, List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    if (hasText(text(override, "existingPostId"))) return;
+
     if (context.creativePack() == null) {
       issues.add(
           ProviderCampaignPlanSupport.error(
@@ -547,7 +576,9 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
     }
     JsonNode providerOverride = providerOverride(context.channel().getProviderOverrideJson());
     String productSetId = text(providerOverride, "productSetId");
+    String existingPostId = text(providerOverride, "existingPostId");
     boolean catalogAd = productSetId != null && !productSetId.isBlank();
+    boolean existingPost = existingPostId != null && !existingPostId.isBlank();
     if (!catalogAd) {
       operations.add(
           operation(
@@ -556,9 +587,13 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
               ProviderPlanAction.CREATE,
               ProviderPlanResource.CREATIVE,
               false,
-              Set.of(
-                  AdFeatureCapability.CREATIVE_CREATE,
-                  AdFeatureCapability.META_IMAGE_VIDEO_CAROUSEL),
+              existingPost
+                  ? Set.of(
+                      AdFeatureCapability.CREATIVE_CREATE,
+                      AdFeatureCapability.META_EXISTING_POST)
+                  : Set.of(
+                      AdFeatureCapability.CREATIVE_CREATE,
+                      AdFeatureCapability.META_IMAGE_VIDEO_CAROUSEL),
               ProviderCampaignPlanSupport.config(
                   "creativePackId",
                   context.creativePack() == null
