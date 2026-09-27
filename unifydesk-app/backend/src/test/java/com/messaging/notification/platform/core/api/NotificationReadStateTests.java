@@ -17,6 +17,7 @@ import com.messaging.notification.platform.core.config.NotificationPlatformPrope
 import com.messaging.notification.platform.core.realtime.NotificationRealtimePublisher;
 import com.messaging.notification.platform.core.registry.NotificationTypeRegistry;
 import com.messaging.notification.platform.core.state.NotificationUnreadCounterService;
+import com.messaging.notification.platform.push.BrowserPushReadiness;
 import com.messaging.security.service.CurrentUserService;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
@@ -119,7 +120,8 @@ class NotificationReadStateTests {
             realtime,
             new NotificationTypeRegistry(),
             new NotificationCursorCodec(new ObjectMapper()),
-            new NotificationPlatformProperties());
+            new NotificationPlatformProperties(),
+            org.mockito.Mockito.mock(BrowserPushReadiness.class));
     return new Fixture(jdbc, counters, service);
   }
 
