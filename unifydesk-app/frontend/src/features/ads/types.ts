@@ -878,6 +878,72 @@ export type GoogleAppAssetPerformance = {
   clicks: number
 }
 
+export type GoogleExperimentArm = {
+  resourceName?: string | null
+  name?: string | null
+  control: boolean
+  trafficSplit: number
+  campaigns: string[]
+  inDesignCampaigns: string[]
+}
+
+export type GoogleExperimentMetrics = {
+  impressions: number
+  controlImpressions: number
+  clicks: number
+  controlClicks: number
+  costMicros: number
+  controlCostMicros: number
+  conversions: number
+  controlConversions: number
+  conversionValue: number
+  controlConversionValue: number
+  clicksPointEstimate?: number | null
+  clicksMarginOfError?: number | null
+  clicksPValue?: number | null
+  conversionsAbsoluteChangePointEstimate?: number | null
+  conversionsAbsoluteChangeMarginOfError?: number | null
+  conversionsAbsoluteChangePValue?: number | null
+}
+
+export type GoogleExperiment = {
+  id: string
+  resourceName: string
+  name: string
+  description?: string | null
+  type?: string | null
+  status?: string | null
+  suffix?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  promoteStatus?: string | null
+  longRunningOperation?: string | null
+  arms: GoogleExperimentArm[]
+  metrics: GoogleExperimentMetrics
+}
+
+export type CreateGoogleExperimentInput = {
+  name: string
+  description?: string | null
+  baseCampaignId: string
+  treatmentTrafficPercent?: number | null
+  treatmentBidStrategy:
+    | 'MANUAL_CPC'
+    | 'MAXIMIZE_CLICKS'
+    | 'MAXIMIZE_CONVERSIONS'
+    | 'MAXIMIZE_CONVERSION_VALUE'
+  suffix?: string | null
+  startDate?: string | null
+  endDate?: string | null
+}
+
+export type GoogleExperimentAction = {
+  experimentId: string
+  action: 'SCHEDULE' | 'PROMOTE' | 'END' | string
+  operationName?: string | null
+  experiment: GoogleExperiment
+}
+
 export type GoogleProviderLandingPageRow = {
   campaignId?: string | null
   campaignName?: string | null
