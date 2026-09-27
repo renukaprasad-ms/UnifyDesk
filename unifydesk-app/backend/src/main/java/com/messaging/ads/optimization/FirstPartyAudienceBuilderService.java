@@ -76,6 +76,22 @@ public class FirstPartyAudienceBuilderService {
           "Google Customer Match terms must be accepted for Google targets");
     }
 
+    boolean allContact =
+        request.members().stream()
+            .allMatch(member -> hasText(member.email()) || hasText(member.phone()));
+    boolean allCrmId =
+        request.members().stream()
+            .allMatch(
+                member ->
+                    !hasText(member.email())
+                        && !hasText(member.phone())
+                        && hasText(member.externalId()));
+    if (!allContact && !allCrmId) {
+      throw new BadRequestException(
+          "Google Customer Match requires one identifier mode per audience. Use contact-info members together or CRM-ID-only members together.");
+    }
+    String uploadKeyType = allContact ? "CONTACT_INFO" : "CRM_ID";
+
     AdAudienceResponse audience =
         googleAudienceMutationService.create(
             companyId,
@@ -84,20 +100,24 @@ public class FirstPartyAudienceBuilderService {
                 request.name(),
                 request.description(),
                 membershipDays,
-                "CONTACT_INFO"),
+                uploadKeyType),
             actorUserId);
 
     List<GoogleCustomerMatchMember> members =
         request.members().stream()
             .map(
-                member -> {
-                  boolean hasContact = hasText(member.email()) || hasText(member.phone());
-                  return new GoogleCustomerMatchMember(
-                      hasText(member.email()) ? List.of(member.email()) : List.of(),
-                      hasText(member.phone()) ? List.of(member.phone()) : List.of(),
-                      List.of(),
-                      !hasContact && hasText(member.externalId()) ? member.externalId() : null);
-                })
+                member ->
+                    "CONTACT_INFO".equals(uploadKeyType)
+                        ? new GoogleCustomerMatchMember(
+                            hasText(member.email()) ? List.of(member.email()) : List.of(),
+                            hasText(member.phone()) ? List.of(member.phone()) : List.of(),
+                            List.of(),
+                            null)
+                        : new GoogleCustomerMatchMember(
+                            List.of(),
+                            List.of(),
+                            List.of(),
+                            member.externalId()))
             .toList();
 
     var upload =
