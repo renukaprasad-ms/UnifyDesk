@@ -4,6 +4,8 @@ import com.messaging.company.enums.CompanyStatus;
 import com.messaging.company.repository.CompanyRepository;
 import com.messaging.lifecycle.config.DeletionLifecycleProperties;
 import com.messaging.lifecycle.entity.DeletionPurgeJob;
+import com.messaging.notification.platform.core.cleanup.NotificationCoreCleanupService;
+import com.messaging.notification.platform.delivery.service.NotificationDeliveryCleanupService;
 import com.messaging.user.enums.UserStatus;
 import com.messaging.user.repository.UserRepository;
 import java.time.Instant;
@@ -21,6 +23,8 @@ public class EntityPurgeService {
   private final UserRepository userRepository;
   private final DeletionCleanupService cleanupService;
   private final DeletionLifecycleProperties properties;
+  private final NotificationDeliveryCleanupService notificationDeliveryCleanupService;
+  private final NotificationCoreCleanupService notificationCoreCleanupService;
 
   /**
    * Processes bounded purge work. Returns true only when the root entity reached its final PURGED
@@ -91,6 +95,14 @@ public class EntityPurgeService {
 
     int mediaBatchSize = Math.max(1, properties.getMediaBatchSize());
     if (cleanupService.cleanupCompanyMediaBatch(companyId, mediaBatchSize) >= mediaBatchSize) {
+      return false;
+    }
+
+    int notificationBatchSize = Math.max(1, properties.getRowBatchSize());
+    if (!notificationDeliveryCleanupService.purgeCompanyBatch(companyId, notificationBatchSize)) {
+      return false;
+    }
+    if (!notificationCoreCleanupService.purgeCompanyBatch(companyId, notificationBatchSize)) {
       return false;
     }
 
@@ -258,6 +270,14 @@ public class EntityPurgeService {
 
     int mediaBatchSize = Math.max(1, properties.getMediaBatchSize());
     if (cleanupService.cleanupPersonalMediaBatch(userId, mediaBatchSize) >= mediaBatchSize) {
+      return false;
+    }
+
+    int notificationBatchSize = Math.max(1, properties.getRowBatchSize());
+    if (!notificationDeliveryCleanupService.purgeUserBatch(userId, notificationBatchSize)) {
+      return false;
+    }
+    if (!notificationCoreCleanupService.purgeUserBatch(userId, notificationBatchSize)) {
       return false;
     }
 
