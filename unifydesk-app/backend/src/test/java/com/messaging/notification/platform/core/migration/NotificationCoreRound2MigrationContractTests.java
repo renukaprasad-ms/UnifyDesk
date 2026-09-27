@@ -23,6 +23,7 @@ class NotificationCoreRound2MigrationContractTests {
           .contains("required_permission_key IS NULL")
           .contains("idx_user_notifications_company_permission_unread")
           .contains("idx_user_notifications_retention")
+          .contains("idx_user_notifications_company_cleanup")
           .contains("idx_notification_event_recipients_company")
           .contains("idx_notification_fanout_company");
     }

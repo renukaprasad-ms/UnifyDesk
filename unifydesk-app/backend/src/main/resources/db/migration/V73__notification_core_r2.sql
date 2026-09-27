@@ -63,6 +63,10 @@ CREATE INDEX idx_user_notifications_company_permission_unread
 CREATE INDEX idx_user_notifications_retention
   ON user_notifications(last_event_at, id);
 
+CREATE INDEX idx_user_notifications_company_cleanup
+  ON user_notifications(company_id, id)
+  WHERE company_id IS NOT NULL;
+
 CREATE INDEX idx_notification_events_recipient_user
   ON notification_events(recipient_user_id, id)
   WHERE recipient_user_id IS NOT NULL;
