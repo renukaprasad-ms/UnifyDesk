@@ -1,11 +1,11 @@
 package com.messaging.kafka.config;
 
-import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.config.TopicBuilder;
 
 @Configuration
@@ -15,9 +15,9 @@ public class KafkaTopicConfig {
   private final KafkaProperties kafkaProperties;
 
   @Bean
-  public List<NewTopic> kafkaPriorityTopics() {
+  public KafkaAdmin.NewTopics kafkaPriorityTopics() {
     KafkaProperties.Topics topics = kafkaProperties.getTopics();
-    return List.of(
+    return new KafkaAdmin.NewTopics(
         topic(topics.getCritical()),
         retryTopic(topics.getCritical()),
         dltTopic(topics.getCritical()),
