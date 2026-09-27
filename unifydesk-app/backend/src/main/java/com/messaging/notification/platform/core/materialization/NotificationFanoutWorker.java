@@ -182,7 +182,16 @@ public class NotificationFanoutWorker {
           claimed.row().eventId());
     }
     log.warn(
-        "Notification fanout failed eventId={} attempt={}", claimed.row().eventId(), attempt);
+        "Notification fanout failed jobId={} eventId={} companyId={} cursorUserId={} attempt={} dead={} errorType={} errorMessage={}",
+        claimed.row().id(),
+        claimed.row().eventId(),
+        claimed.row().companyId(),
+        claimed.row().cursorUserId(),
+        attempt,
+        dead,
+        exception.getClass().getName(),
+        exception.getMessage(),
+        exception);
   }
 
   private OffsetDateTime utc(Instant value) {
