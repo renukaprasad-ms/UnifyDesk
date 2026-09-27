@@ -62,7 +62,11 @@ public class MetaAdsCreativeMutationService {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("name", request.name().trim());
     payload.put("object_story_spec", story);
-    applyCreativeFeatures(payload, request.advantagePlusCreative(), request.generativeText());
+    applyCreativeFeatures(
+        payload,
+        request.advantagePlusCreative(),
+        request.generativeText(),
+        request.imageExpansion());
     if (hasText(request.urlTags())) payload.put("url_tags", request.urlTags().trim());
 
     String externalId = apiClient.createCreative(token, account.getExternalAccountId(), payload);
@@ -83,6 +87,7 @@ public class MetaAdsCreativeMutationService {
         Map.of(
             "advantagePlusCreative", Boolean.TRUE.equals(request.advantagePlusCreative()),
             "generativeText", Boolean.TRUE.equals(request.generativeText()),
+            "imageExpansion", Boolean.TRUE.equals(request.imageExpansion()),
             "placementCustomized", false));
     return created;
   }
@@ -242,6 +247,7 @@ public class MetaAdsCreativeMutationService {
         Map.of(
             "advantagePlusCreative", Boolean.TRUE.equals(request.advantagePlusCreative()),
             "generativeText", Boolean.TRUE.equals(request.generativeText()),
+            "imageExpansion", Boolean.TRUE.equals(request.imageExpansion()),
             "placementCustomized", true));
     return created;
   }
@@ -249,8 +255,9 @@ public class MetaAdsCreativeMutationService {
   private void applyCreativeFeatures(
       Map<String, Object> payload,
       Boolean advantagePlusCreative,
-      Boolean generativeText) {
-    if (advantagePlusCreative == null && generativeText == null) return;
+      Boolean generativeText,
+      Boolean imageExpansion) {
+    if (advantagePlusCreative == null && generativeText == null && imageExpansion == null) return;
 
     Map<String, Object> creativeFeaturesSpec = new LinkedHashMap<>();
     if (advantagePlusCreative != null) {
@@ -266,6 +273,13 @@ public class MetaAdsCreativeMutationService {
           Map.of(
               "enroll_status",
               Boolean.TRUE.equals(generativeText) ? "OPT_IN" : "OPT_OUT"));
+    }
+    if (imageExpansion != null) {
+      creativeFeaturesSpec.put(
+          "image_uncrop",
+          Map.of(
+              "enroll_status",
+              Boolean.TRUE.equals(imageExpansion) ? "OPT_IN" : "OPT_OUT"));
     }
     payload.put(
         "degrees_of_freedom_spec",
