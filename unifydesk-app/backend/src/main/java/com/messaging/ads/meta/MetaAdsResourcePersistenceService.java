@@ -9,6 +9,8 @@ import com.messaging.ads.enums.AdAccountResourceType;
 import com.messaging.ads.meta.MetaAdsApiClient.InstagramSummary;
 import com.messaging.ads.meta.MetaAdsApiClient.PageSummary;
 import com.messaging.ads.meta.MetaAdsApiClient.PixelSummary;
+import com.messaging.ads.meta.MetaAdsApiClient.ProductCatalogSummary;
+import com.messaging.ads.meta.MetaAdsApiClient.ProductSetSummary;
 import com.messaging.ads.meta.dto.MetaAdsResourceSyncResponse;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdAccountResourceRepository;
@@ -36,7 +38,9 @@ public class MetaAdsResourcePersistenceService {
       Long adAccountId,
       List<PageSummary> pages,
       List<InstagramSummary> instagramAccounts,
-      List<PixelSummary> pixels) {
+      List<PixelSummary> pixels,
+      List<ProductCatalogSummary> catalogs,
+      List<ProductSetSummary> productSets) {
     AdAccount account =
         accountRepository
             .findByIdAndCompanyIdForUpdate(adAccountId, companyId)
@@ -75,6 +79,24 @@ public class MetaAdsResourcePersistenceService {
                 pixel.name(),
                 pixel,
                 discovered));
+    catalogs.forEach(
+        catalog ->
+            upsert(
+                account,
+                AdAccountResourceType.META_PRODUCT_CATALOG,
+                catalog.id(),
+                catalog.name(),
+                catalog,
+                discovered));
+    productSets.forEach(
+        productSet ->
+            upsert(
+                account,
+                AdAccountResourceType.META_PRODUCT_SET,
+                productSet.id(),
+                productSet.name(),
+                productSet,
+                discovered));
 
     List<AdAccountResource> existing =
         resourceRepository.findByCompanyIdAndAdAccountId(
@@ -96,7 +118,12 @@ public class MetaAdsResourcePersistenceService {
             .toList();
 
     return new MetaAdsResourceSyncResponse(
-        pages.size(), instagramAccounts.size(), pixels.size(), resources);
+        pages.size(),
+        instagramAccounts.size(),
+        pixels.size(),
+        catalogs.size(),
+        productSets.size(),
+        resources);
   }
 
   private void upsert(
