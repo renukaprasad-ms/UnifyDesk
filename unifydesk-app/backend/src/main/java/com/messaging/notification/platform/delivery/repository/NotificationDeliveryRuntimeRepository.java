@@ -226,10 +226,12 @@ public class NotificationDeliveryRuntimeRepository {
                   loadedCompanyId,
                   rs.getString("company_name"),
                   rs.getString("company_timezone"),
-                  loadedCompanyId == null
-                      || "ACTIVE".equals(companyStatus)
-                      || "SUSPENDED".equals(companyStatus),
-                  loadedCompanyId == null || "ACTIVE".equals(memberStatus));
+                  companyId == null
+                      || (loadedCompanyId != null
+                          && ("ACTIVE".equals(companyStatus)
+                              || "SUSPENDED".equals(companyStatus))),
+                  companyId == null
+                      || (loadedCompanyId != null && "ACTIVE".equals(memberStatus)));
             },
             companyId,
             userId);
@@ -656,10 +658,37 @@ public class NotificationDeliveryRuntimeRepository {
   public int activeSubscriptionCount(long userId) {
     Integer count =
         jdbcTemplate.queryForObject(
-            "select count(*) from notification_push_subscriptions where user_id=? and status='ACTIVE'",
+            """
+            select count(*)
+            from notification_push_subscriptions
+            where user_id=?
+              and status='ACTIVE'
+              and (expiration_time is null or expiration_time > now())
+            """,
             Integer.class,
             userId);
     return count == null ? 0 : count;
+  }
+
+  @Transactional
+  public int expireSubscriptionsForUser(long userId, int limit) {
+    return jdbcTemplate.update(
+        """
+        update notification_push_subscriptions
+        set status='EXPIRED',last_failure_at=now(),updated_at=now()
+        where id in (
+          select id
+          from notification_push_subscriptions
+          where user_id=?
+            and status='ACTIVE'
+            and expiration_time is not null
+            and expiration_time <= now()
+          order by expiration_time,id
+          limit ?
+        )
+        """,
+        userId,
+        Math.max(1, limit));
   }
 
   @Transactional
