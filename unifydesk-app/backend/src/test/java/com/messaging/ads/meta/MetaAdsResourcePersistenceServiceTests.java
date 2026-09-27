@@ -11,6 +11,8 @@ import com.messaging.ads.enums.AdAccountResourceType;
 import com.messaging.ads.enums.AdAccountStatus;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.meta.MetaAdsApiClient.PageSummary;
+import com.messaging.ads.meta.MetaAdsApiClient.ProductCatalogSummary;
+import com.messaging.ads.meta.MetaAdsApiClient.ProductSetSummary;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdAccountResourceRepository;
 import java.util.List;
@@ -75,11 +77,19 @@ class MetaAdsResourcePersistenceServiceTests {
             ACCOUNT_ID,
             List.of(new PageSummary("page-1", "Acme")),
             List.of(),
-            List.of());
+            List.of(),
+            List.of(new ProductCatalogSummary("catalog-1", "Catalog", "commerce")),
+            List.of(
+                new ProductSetSummary(
+                    "set-1",
+                    "Featured",
+                    new MetaAdsApiClient.ProductCatalogRef("catalog-1", "Catalog"))));
 
     assertThat(response.pages()).isEqualTo(1);
     assertThat(response.instagramAccounts()).isZero();
     assertThat(response.pixels()).isZero();
+    assertThat(response.catalogs()).isEqualTo(1);
+    assertThat(response.productSets()).isEqualTo(1);
     assertThat(page.isAccessible()).isTrue();
     assertThat(page.getName()).isEqualTo("Acme");
     assertThat(removedPixel.isAccessible()).isFalse();
