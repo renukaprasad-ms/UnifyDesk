@@ -40,6 +40,25 @@ public class CompanyInvitationController {
             "Invitations fetched"));
   }
 
+  @GetMapping("/invitations/me")
+  public ResponseEntity<ApiResponse<List<CompanyInvitationResponse>>> myInvitations() {
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            invitationService.myInvitations(),
+            "Invitations fetched"));
+  }
+
+  @PostMapping("/invitations/me/{invitationId}/accept")
+  public ResponseEntity<ApiResponse<AcceptCompanyInvitationResponse>> acceptCurrentUserInvitation(
+      @PathVariable Long invitationId) {
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            invitationService.acceptCurrentUserInvitation(invitationId),
+            "Invitation accepted"));
+  }
+
   @PostMapping("/companies/{companyId}/invitations/{invitationId}/resend")
   public ResponseEntity<ApiResponse<CompanyInvitationResponse>> resend(
       @PathVariable Long companyId, @PathVariable Long invitationId) {
