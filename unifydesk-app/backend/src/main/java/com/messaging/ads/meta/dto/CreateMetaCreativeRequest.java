@@ -22,6 +22,7 @@ public record CreateMetaCreativeRequest(
     String videoUrl,
     String urlTags,
     Boolean advantagePlusCreative,
+    Boolean generativeText,
     @Valid List<@Valid CarouselCard> carouselCards) {
 
   public CreateMetaCreativeRequest(
@@ -55,6 +56,7 @@ public record CreateMetaCreativeRequest(
         videoId,
         videoUrl,
         urlTags,
+        null,
         null,
         carouselCards);
   }
