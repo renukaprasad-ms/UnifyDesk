@@ -1,11 +1,13 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { FiPlus, FiTrash2, FiX } from 'react-icons/fi'
+import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
   AdAccountResource,
   CreateMetaCreativeInput,
   MetaCarouselCardInput,
   MetaCreativeFormat,
+  MetaExistingPost,
 } from '../../features/ads/types'
 
 type Props = {
@@ -62,7 +64,35 @@ export default function MetaCreativeModal({
   const [imageExpansion, setImageExpansion] = useState(false)
   const [useExistingPost, setUseExistingPost] = useState(false)
   const [existingPostId, setExistingPostId] = useState('')
+  const [existingPosts, setExistingPosts] = useState<MetaExistingPost[]>([])
+  const [postsLoading, setPostsLoading] = useState(false)
+  const [postsError, setPostsError] = useState('')
   const [cards, setCards] = useState<MetaCarouselCardInput[]>([emptyCard(), emptyCard()])
+
+  useEffect(() => {
+    if (!open || !useExistingPost || !pageId) {
+      setExistingPosts([])
+      setPostsError('')
+      return
+    }
+    let cancelled = false
+    setPostsLoading(true)
+    setPostsError('')
+    void adCenterApi
+      .metaExistingPosts(account.companyId, account.id, pageId)
+      .then((posts) => {
+        if (!cancelled) setExistingPosts(posts)
+      })
+      .catch(() => {
+        if (!cancelled) setPostsError('Unable to load eligible posts. You can enter an object story ID manually.')
+      })
+      .finally(() => {
+        if (!cancelled) setPostsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open, useExistingPost, pageId, account.companyId, account.id])
 
   if (!open) return null
 
@@ -127,13 +157,31 @@ export default function MetaCreativeModal({
                   ownership and ad eligibility when the creative is created.
                 </span>
                 {useExistingPost && (
-                  <input
+                  <select
                     className="form-input mt-3"
+                    value={existingPostId}
+                    onChange={(event) => setExistingPostId(event.target.value)}
+                    disabled={postsLoading}
+                  >
+                    <option value="">
+                      {postsLoading ? 'Loading eligible posts…' : 'Choose a synced post or enter ID below'}
+                    </option>
+                    {existingPosts.map((post) => (
+                      <option key={post.id} value={post.id}>
+                        {(post.message || 'Post').slice(0, 80)} · {post.id}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className="form-input mt-2"
                     value={existingPostId}
                     onChange={(event) => setExistingPostId(event.target.value)}
                     placeholder="Object story ID, for example PAGEID_POSTID"
                     required
                   />
+                  {postsError && (
+                    <span className="mt-2 block text-[11px] text-amber-700">{postsError}</span>
+                  )}
                 )}
               </span>
             </label>
