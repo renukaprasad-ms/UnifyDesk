@@ -44,6 +44,20 @@ export const companyApi = {
     return unwrap(response.data)
   },
 
+  async myInvitations() {
+    const response = await apiClient.get<ApiResponse<CompanyInvitation[]>>(
+      '/api/v1/invitations/me',
+    )
+    return unwrap(response.data)
+  },
+
+  async acceptMyInvitation(invitationId: string) {
+    const response = await apiClient.post<ApiResponse<AcceptCompanyInvitationResponse>>(
+      `/api/v1/invitations/me/${invitationId}/accept`,
+    )
+    return unwrap(response.data)
+  },
+
   async invite(companyId: string, payload: CreateCompanyInvitationPayload) {
     const response = await apiClient.post<ApiResponse<CompanyInvitation>>(
       `/api/v1/companies/${companyId}/invitations`,
