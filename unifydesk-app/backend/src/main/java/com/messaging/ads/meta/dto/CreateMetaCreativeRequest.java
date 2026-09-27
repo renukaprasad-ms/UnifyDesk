@@ -24,6 +24,41 @@ public record CreateMetaCreativeRequest(
     Boolean advantagePlusCreative,
     @Valid List<@Valid CarouselCard> carouselCards) {
 
+  public CreateMetaCreativeRequest(
+      String name,
+      String format,
+      String pageId,
+      String instagramActorId,
+      String primaryText,
+      String headline,
+      String description,
+      String callToActionType,
+      String destinationUrl,
+      String imageHash,
+      String imageUrl,
+      String videoId,
+      String videoUrl,
+      String urlTags,
+      List<CarouselCard> carouselCards) {
+    this(
+        name,
+        format,
+        pageId,
+        instagramActorId,
+        primaryText,
+        headline,
+        description,
+        callToActionType,
+        destinationUrl,
+        imageHash,
+        imageUrl,
+        videoId,
+        videoUrl,
+        urlTags,
+        null,
+        carouselCards);
+  }
+
   @AssertTrue(message = "Creative media does not match the selected format")
   public boolean hasValidMedia() {
     if (format == null) return false;
