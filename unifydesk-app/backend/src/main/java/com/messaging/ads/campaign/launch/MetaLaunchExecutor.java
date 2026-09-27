@@ -257,11 +257,13 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
               "Meta lifetime budget requires both campaign start and end times."));
     }
 
+    String existingPostId = text(override, "existingPostId");
     CreativePack pack = creativePack(companyId, campaign.getId(), plan.creativePackId(), false);
     boolean catalogAd = hasText(productSetId);
-    if (pack == null) {
-      issues.add(error("CREATIVE_PACK_MISSING", "creativePack", "Meta launch requires a Creative Pack."));
-    } else {
+    boolean existingPost = hasText(existingPostId);
+    if (!existingPost && pack == null) {
+      issues.add(error("CREATIVE_PACK_MISSING", "creativePack", "Meta launch requires a Creative Pack unless an existing post is selected."));
+    } else if (!existingPost) {
       if (!catalogAd) {
         CreativePackAsset image = imageAsset(companyId, pack.getId());
         if (image == null) {
@@ -540,7 +542,14 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
       LaunchStep step,
       ReachlyoCampaign campaign,
       CampaignChannel channel) {
-    CreativePack pack = creativePack(companyId, campaign.getId(), plan.creativePackId(), true);
+    JsonNode override = override(channel);
+    String existingPostId = text(override, "existingPostId");
+    CreativePack pack =
+        creativePack(
+            companyId,
+            campaign.getId(),
+            plan.creativePackId(),
+            !hasText(existingPostId));
     if (step.getAttemptCount() > 1) {
       creativeSyncService.sync(companyId, step.getAdAccountId());
     }
@@ -555,6 +564,38 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
           existing.getId(), existing.getExternalCreativeId(), Map.of("reused", true));
     }
 
+    if (hasText(existingPostId)) {
+      AdCreativeResponse reusedPost =
+          creativeMutationService.create(
+              companyId,
+              step.getAdAccountId(),
+              new CreateMetaCreativeRequest(
+                  name,
+                  "SINGLE_IMAGE",
+                  text(override, "pageId"),
+                  text(override, "instagramActorId"),
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  false,
+                  false,
+                  false,
+                  existingPostId,
+                  List.of()),
+              run.getRequestedByUserId());
+      return LaunchStepExecutionResult.succeeded(
+          Long.valueOf(reusedPost.id()),
+          reusedPost.externalCreativeId(),
+          Map.of("reused", false, "existingPost", true));
+    }
+
     CreativePackAsset image = imageAsset(companyId, pack.getId());
     if (image == null) throw new BadRequestException("Meta IMAGE creative asset is missing");
     Media baselineMedia = mediaService.requireActiveCompanyMedia(image.getMediaId(), companyId);
@@ -562,8 +603,6 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
       throw new BadRequestException("Meta baseline creative requires image media");
     }
     String baselineImageUrl = mediaService.createTrustedAccessUrl(baselineMedia.getId()).url();
-    JsonNode override = override(channel);
-
     Set<com.messaging.ads.campaign.enums.CreativeVariantType> families =
         MetaPlacementCreativeVariantSelector.selectedFamilies(override);
     if (MetaPlacementCreativeVariantSelector.fullyMapped(override) && families.size() > 1) {
@@ -640,6 +679,7 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 booleanValue(override, "advantagePlusCreative", false),
                 booleanValue(override, "generativeText", false),
                 booleanValue(override, "imageExpansion", false),
+                null,
                 List.of()),
             run.getRequestedByUserId());
 
