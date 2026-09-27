@@ -1460,6 +1460,7 @@ export type AdCreative = {
   carouselJson?: string | null
   advantagePlusCreative?: boolean | null
   generativeText?: boolean | null
+  imageExpansion?: boolean | null
   providerCreatedAt?: string | null
   providerUpdatedAt?: string | null
   accessible: boolean
@@ -1492,6 +1493,7 @@ export type CreateMetaCreativeInput = {
   urlTags?: string | null
   advantagePlusCreative?: boolean | null
   generativeText?: boolean | null
+  imageExpansion?: boolean | null
   carouselCards?: MetaCarouselCardInput[]
 }
 
