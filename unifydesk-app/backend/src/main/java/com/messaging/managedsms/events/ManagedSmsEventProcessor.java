@@ -83,7 +83,7 @@ public class ManagedSmsEventProcessor {
         jdbcTemplate.queryForObject(
             """
             select id, provider_account_key, provider_event_key, event_type,
-                   correlation_token, provider_request_id, payload_json
+                   correlation_token, provider_request_id, provider_event_at, payload_json
               from managed_sms_provider_events
              where id = ?
                and trust_status = 'TRUSTED'
@@ -93,6 +93,7 @@ public class ManagedSmsEventProcessor {
             (rs, rowNum) -> {
               try {
                 JsonNode payload = objectMapper.readTree(rs.getString("payload_json"));
+                java.sql.Timestamp providerEventAt = rs.getTimestamp("provider_event_at");
                 return new ManagedSmsProviderEvent(
                     rs.getLong("id"),
                     rs.getString("provider_account_key"),
@@ -102,7 +103,7 @@ public class ManagedSmsEventProcessor {
                     rs.getString("provider_request_id"),
                     ManagedSmsEventInboxService.text(payload, "failureReason", "failedReason"),
                     ManagedSmsEventInboxService.decimal(payload, "credit"),
-                    ManagedSmsEventInboxService.eventAt(payload),
+                    providerEventAt == null ? null : providerEventAt.toInstant(),
                     rs.getString("payload_json"));
               } catch (Exception exception) {
                 throw new IllegalStateException("Invalid managed SMS provider event", exception);

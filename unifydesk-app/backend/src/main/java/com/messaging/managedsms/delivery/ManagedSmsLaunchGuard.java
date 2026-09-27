@@ -47,6 +47,10 @@ public class ManagedSmsLaunchGuard {
         || !properties.providerConfigured()) {
       throw new BadRequestException("MANAGED_SMS_PROVIDER_CAPACITY_UNAVAILABLE");
     }
+    if (properties.getCampaignMaxRecipients() <= 0
+        || recipientCount > properties.getCampaignMaxRecipients()) {
+      throw new BadRequestException("MANAGED_SMS_LIMIT_REACHED");
+    }
     if (message.getSourceTemplateId() == null || message.getSourceTemplateVersion() == null) {
       throw new BadRequestException("MANAGED_SMS_TEMPLATE_NOT_READY");
     }
@@ -61,6 +65,9 @@ public class ManagedSmsLaunchGuard {
             .filter(ManagedSmsRuntimeRepository.ManagedTemplateRuntime::activeForCompose)
             .orElseThrow(() -> new BadRequestException("MANAGED_SMS_NOT_READY"));
 
+    if (runtime.providerFlowRef() == null || runtime.providerFlowRef().isBlank()) {
+      throw new BadRequestException("MANAGED_SMS_TEMPLATE_NOT_READY");
+    }
     if (!fresh(runtime.profileStaleAfter())
         || !fresh(runtime.headerStaleAfter())
         || !fresh(runtime.templateStaleAfter())

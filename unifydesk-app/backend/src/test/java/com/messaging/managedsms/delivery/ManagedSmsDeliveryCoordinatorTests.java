@@ -26,12 +26,16 @@ class ManagedSmsDeliveryCoordinatorTests {
     when(f.gateway.send(any(), anyString(), anyMap(), anyList(), anyString()))
         .thenThrow(
             BroadcastTransportException.unknown(
-                "MANAGED_SMS_PROVIDER_UNKNOWN", "unknown", null));
+                "MANAGED_SMS_PROVIDER_UNKNOWN", "raw account=secret", null));
 
     f.service.deliver(f.run, f.connection, f.sender, f.recipient);
 
-    verify(f.usage).holdUnknown(10L, 70L, 1);
-    verify(f.state).unknown(f.attempt, "MANAGED_SMS_PROVIDER_UNKNOWN", "unknown");
+    verify(f.usage).holdUnknown(10L, 60L, 70L, 1);
+    verify(f.state)
+        .unknown(
+            f.attempt,
+            "MANAGED_SMS_PROVIDER_UNKNOWN",
+            "Managed SMS send outcome is unknown");
     verify(f.state, never()).retry(eq(f.attempt), anyString(), anyString(), any());
   }
 
@@ -43,43 +47,55 @@ class ManagedSmsDeliveryCoordinatorTests {
 
     f.service.deliver(f.run, f.connection, f.sender, f.recipient);
 
+    verify(f.correlations)
+        .accepted(10L, 60L, 70L, 1, "abc123", "req-1");
     verify(f.state).accepted(eq(f.attempt), eq("req-1"), isNull(), any());
     verify(f.usage)
         .commit(10L, 60L, 70L, 1, "req-1", "SERVICE", null);
-    verify(f.usage, never()).holdUnknown(anyLong(), anyLong(), anyInt());
   }
 
   @Test
-  void definiteRetryableFailureReleasesReservationBeforeRetry() {
+  void rawRateLimitDiagnosticNeverReachesRecipientState() {
     Fixture f = fixture();
     when(f.gateway.send(any(), anyString(), anyMap(), anyList(), anyString()))
         .thenThrow(
             BroadcastTransportException.retryable(
-                "MANAGED_SMS_PROVIDER_RATE_LIMIT", "rate limited", null));
+                "MANAGED_SMS_PROVIDER_RATE_LIMIT",
+                "authkey=secret client=123 flow=456",
+                null));
     when(f.retry.canRetry(1)).thenReturn(true);
     Instant next = Instant.now().plusSeconds(2);
     when(f.retry.nextAttempt(1)).thenReturn(next);
 
     f.service.deliver(f.run, f.connection, f.sender, f.recipient);
 
-    verify(f.usage).release(10L, 70L, 1);
+    verify(f.usage).release(10L, 60L, 70L, 1);
     verify(f.state)
-        .retry(f.attempt, "MANAGED_SMS_PROVIDER_RATE_LIMIT", "rate limited", next);
+        .retry(
+            f.attempt,
+            "MANAGED_SMS_PROVIDER_RATE_LIMIT",
+            "Managed SMS provider is temporarily rate limited",
+            next);
   }
 
-
   @Test
-  void definitePermanentFailureReleasesReservationAndDoesNotRetry() {
+  void definitePermanentFailureReleasesReservationAndUsesSafeMessage() {
     Fixture f = fixture();
     when(f.gateway.send(any(), anyString(), anyMap(), anyList(), anyString()))
         .thenThrow(
             BroadcastTransportException.permanent(
-                "MANAGED_SMS_PROVIDER_REJECTED", "rejected", null));
+                "MANAGED_SMS_PROVIDER_REJECTED",
+                "account=secret diagnostic",
+                null));
 
     f.service.deliver(f.run, f.connection, f.sender, f.recipient);
 
-    verify(f.usage).release(10L, 70L, 1);
-    verify(f.state).failed(f.attempt, "MANAGED_SMS_PROVIDER_REJECTED", "rejected");
+    verify(f.usage).release(10L, 60L, 70L, 1);
+    verify(f.state)
+        .failed(
+            f.attempt,
+            "MANAGED_SMS_PROVIDER_REJECTED",
+            "Managed SMS provider rejected the request");
     verify(f.state, never()).retry(eq(f.attempt), anyString(), anyString(), any());
   }
 
@@ -141,6 +157,7 @@ class ManagedSmsDeliveryCoordinatorTests {
             new ObjectMapper());
     return new Fixture(
         service,
+        correlations,
         gateway,
         usage,
         state,
@@ -153,22 +170,29 @@ class ManagedSmsDeliveryCoordinatorTests {
   }
 
   private ManagedSmsRuntimeRepository.DeliveryRuntime runtime() {
+    Instant now = Instant.now();
     return new ManagedSmsRuntimeRepository.DeliveryRuntime(
         10L,
         60L,
         20L,
         30L,
         40L,
-        Instant.now().minusSeconds(864000),
+        now.minusSeconds(864000),
         "READY",
         true,
+        now,
         41L,
         "pe",
         "ACTIVE",
         "ACTIVE",
+        now,
+        now.plusSeconds(3600),
         42L,
         "ACMEIN",
         "SERVICE",
+        "ACTIVE",
+        now,
+        now.plusSeconds(3600),
         43L,
         44L,
         "dlt",
@@ -176,14 +200,17 @@ class ManagedSmsDeliveryCoordinatorTests {
         "fingerprint",
         "[{\"key\":\"code\",\"type\":\"NUMERIC\",\"maxLength\":10}]",
         "{}",
+        "ACTIVE",
+        now,
+        now.plusSeconds(3600),
         45L,
+        "CHILD_PER_COMPANY",
         "client-a",
         "provider-template",
         "provider-flow",
         "rules",
         "ACTIVE",
-        "ACTIVE",
-        "ACTIVE",
+        now,
         "ACTIVE",
         true,
         "MESSAGING_MANAGED",
@@ -192,6 +219,7 @@ class ManagedSmsDeliveryCoordinatorTests {
 
   private record Fixture(
       ManagedSmsDeliveryCoordinator service,
+      ManagedSmsCorrelationService correlations,
       ManagedMsg91Gateway gateway,
       ManagedSmsUsageService usage,
       BroadcastDeliveryStateService state,

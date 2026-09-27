@@ -15,13 +15,24 @@ public class ManagedSmsRecipientStateService {
   private final BroadcastStatsService statsService;
 
   @Transactional
-  public void confirmAccepted(Long recipientId, Long runId, String providerRequestId) {
+  public void confirmAccepted(
+      Long companyId, Long runId, Long recipientId, String providerRequestId) {
     String previous =
         jdbcTemplate.queryForObject(
-            "select status from broadcast_recipients where id = ? for update",
+            """
+            select status
+              from broadcast_recipients
+             where company_id = ?
+               and run_id = ?
+               and id = ?
+             for update
+            """,
             String.class,
+            companyId,
+            runId,
             recipientId);
     if (!BroadcastRecipientStatus.UNKNOWN.name().equals(previous)) return;
+
     int updated =
         jdbcTemplate.update(
             """
@@ -32,10 +43,14 @@ public class ManagedSmsRecipientStateService {
                    failure_code = null,
                    failure_reason = null,
                    updated_at = now()
-             where id = ?
+             where company_id = ?
+               and run_id = ?
+               and id = ?
                and status = 'UNKNOWN'
             """,
             providerRequestId,
+            companyId,
+            runId,
             recipientId);
     if (updated == 1) {
       statsService.transition(

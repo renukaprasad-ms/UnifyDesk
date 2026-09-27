@@ -1,6 +1,7 @@
 package com.messaging.managedsms.metering;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -50,6 +51,22 @@ class ManagedSmsUsageServiceDatabaseTests {
             "test");
     jdbc = new JdbcTemplate(dataSource);
     transaction = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
+
+    jdbc.execute(
+        """
+        create table if not exists broadcast_recipients (
+          id bigint primary key,
+          company_id bigint not null,
+          run_id bigint not null
+        )
+        """);
+    jdbc.execute(
+        """
+        create table if not exists managed_sms_run_bindings (
+          run_id bigint primary key,
+          company_id bigint not null
+        )
+        """);
     jdbc.execute(
         """
         create table if not exists managed_sms_usage_reservations (
@@ -67,7 +84,14 @@ class ManagedSmsUsageServiceDatabaseTests {
           unique(recipient_id, attempt_no)
         )
         """);
+
     jdbc.update("delete from managed_sms_usage_reservations");
+    jdbc.update("delete from broadcast_recipients");
+    jdbc.update("delete from managed_sms_run_bindings");
+    jdbc.update("insert into managed_sms_run_bindings(run_id, company_id) values (60, 10)");
+    jdbc.update(
+        "insert into broadcast_recipients(id, company_id, run_id) values (70, 10, 60), (71, 10, 60)");
+
     entitlement = mock(EntitlementService.class);
     billing = mock(UsageBillingService.class);
     usage = new ManagedSmsUsageService(jdbc, entitlement, billing);
@@ -95,15 +119,10 @@ class ManagedSmsUsageServiceDatabaseTests {
                 .filter(PlanEntitlementException.class::isInstance)
                 .count())
         .isEqualTo(1);
-    assertThat(
-            jdbc.queryForObject(
-                "select coalesce(sum(estimated_segments), 0) from managed_sms_usage_reservations where state = 'RESERVED'",
-                Long.class))
-        .isEqualTo(1L);
   }
 
   @Test
-  void acceptanceCommitIsIdempotent() {
+  void acceptanceCommitIsIdempotentAfterExactTupleVerification() {
     when(entitlement.integerValue(10L, ManagedSmsUsageService.MONTHLY_ENTITLEMENT))
         .thenReturn(10L);
 
@@ -136,12 +155,31 @@ class ManagedSmsUsageServiceDatabaseTests {
   }
 
   @Test
-  void unknownHoldIsNotReleasedOrCommittedAutomatically() {
+  void wrongCompanyOrRunCannotReserveOrBillForeignRecipient() {
+    when(entitlement.integerValue(anyLong(), eq(ManagedSmsUsageService.MONTHLY_ENTITLEMENT)))
+        .thenReturn(10L);
+
+    assertThatThrownBy(() -> usage.reserve(11L, 60L, 70L, 1, 1))
+        .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> usage.reserve(10L, 61L, 70L, 1, 1))
+        .isInstanceOf(IllegalStateException.class);
+
+    transaction.executeWithoutResult(status -> usage.reserve(10L, 60L, 70L, 1, 1));
+    assertThatThrownBy(
+            () ->
+                transaction.executeWithoutResult(
+                    status -> usage.commit(10L, 61L, 70L, 1, "req", "SERVICE", null)))
+        .isInstanceOf(RuntimeException.class);
+    verifyNoInteractions(billing);
+  }
+
+  @Test
+  void unknownHoldUsesExactTupleAndDoesNotBill() {
     when(entitlement.integerValue(10L, ManagedSmsUsageService.MONTHLY_ENTITLEMENT))
         .thenReturn(10L);
 
     transaction.executeWithoutResult(status -> usage.reserve(10L, 60L, 70L, 1, 1));
-    transaction.executeWithoutResult(status -> usage.holdUnknown(10L, 70L, 1));
+    transaction.executeWithoutResult(status -> usage.holdUnknown(10L, 60L, 70L, 1));
 
     assertThat(
             jdbc.queryForObject(

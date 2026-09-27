@@ -93,7 +93,13 @@ public class ManagedSmsDeliveryCoordinator {
               rendered.variables(),
               rendered.variableSpecs(),
               correlation);
-      correlationService.accepted(correlation, result.providerRequestId());
+      correlationService.accepted(
+          run.getCompanyId(),
+          run.getId(),
+          recipient.getId(),
+          attempt.attemptNo(),
+          correlation,
+          result.providerRequestId());
       stateService.accepted(attempt, result.providerRequestId(), null, result.acceptedAt());
 
       try {
@@ -120,15 +126,18 @@ public class ManagedSmsDeliveryCoordinator {
           Instant.now().plusSeconds(60));
     } catch (BadRequestException exception) {
       if (reserved) {
-        usageService.release(run.getCompanyId(), recipient.getId(), attempt.attemptNo());
+        usageService.release(
+            run.getCompanyId(), run.getId(), recipient.getId(), attempt.attemptNo());
       }
-      stateService.failed(attempt, "MANAGED_SMS_VARIABLE_INVALID", exception.getMessage());
+      stateService.failed(attempt, exceptionCode(exception), safeValidationMessage(exception));
     } catch (BroadcastTransportException exception) {
       if (reserved) {
         if (exception.outcome() == BroadcastTransportOutcome.UNKNOWN) {
-          usageService.holdUnknown(run.getCompanyId(), recipient.getId(), attempt.attemptNo());
+          usageService.holdUnknown(
+              run.getCompanyId(), run.getId(), recipient.getId(), attempt.attemptNo());
         } else {
-          usageService.release(run.getCompanyId(), recipient.getId(), attempt.attemptNo());
+          usageService.release(
+              run.getCompanyId(), run.getId(), recipient.getId(), attempt.attemptNo());
         }
       }
       if ("MANAGED_SMS_PROVIDER_CREDIT".equals(exception.code())) {
@@ -138,9 +147,11 @@ public class ManagedSmsDeliveryCoordinator {
     } catch (RuntimeException exception) {
       if (reserved) {
         if (providerSubmissionStarted) {
-          usageService.holdUnknown(run.getCompanyId(), recipient.getId(), attempt.attemptNo());
+          usageService.holdUnknown(
+              run.getCompanyId(), run.getId(), recipient.getId(), attempt.attemptNo());
         } else {
-          usageService.release(run.getCompanyId(), recipient.getId(), attempt.attemptNo());
+          usageService.release(
+              run.getCompanyId(), run.getId(), recipient.getId(), attempt.attemptNo());
         }
       }
       if (providerSubmissionStarted) {
@@ -168,15 +179,58 @@ public class ManagedSmsDeliveryCoordinator {
           stateService.retry(
               attempt,
               exception.code(),
-              exception.getMessage(),
+              safeProviderMessage(exception.code(), exception.outcome()),
               retryPolicy.nextAttempt(attempt.attemptNo()));
         } else {
-          stateService.failed(attempt, "RETRY_EXHAUSTED", exception.getMessage());
+          stateService.failed(attempt, "RETRY_EXHAUSTED", "Managed SMS retry limit reached");
         }
       }
-      case PERMANENT -> stateService.failed(attempt, exception.code(), exception.getMessage());
-      case UNKNOWN -> stateService.unknown(attempt, exception.code(), exception.getMessage());
+      case PERMANENT ->
+          stateService.failed(
+              attempt, exception.code(), safeProviderMessage(exception.code(), exception.outcome()));
+      case UNKNOWN ->
+          stateService.unknown(
+              attempt, exception.code(), safeProviderMessage(exception.code(), exception.outcome()));
     }
+  }
+
+  private String safeProviderMessage(
+      String code, BroadcastTransportOutcome outcome) {
+    if ("MANAGED_SMS_PROVIDER_RATE_LIMIT".equals(code)) {
+      return "Managed SMS provider is temporarily rate limited";
+    }
+    if ("MANAGED_SMS_PROVIDER_CREDIT".equals(code)
+        || "MANAGED_SMS_PROVIDER_CAPACITY_UNAVAILABLE".equals(code)) {
+      return "Managed SMS provider capacity is unavailable";
+    }
+    if ("MANAGED_SMS_TEMPLATE_NOT_READY".equals(code)) {
+      return "Managed SMS template is not ready";
+    }
+    if ("MANAGED_SMS_DESTINATION_INVALID".equals(code)) {
+      return "SMS destination is invalid";
+    }
+    return outcome == BroadcastTransportOutcome.UNKNOWN
+        ? "Managed SMS send outcome is unknown"
+        : "Managed SMS provider rejected the request";
+  }
+
+  private String exceptionCode(BadRequestException exception) {
+    String message = exception.getMessage();
+    if (message != null && message.startsWith("MANAGED_SMS_CTA_NOT_APPROVED")) {
+      return "MANAGED_SMS_CTA_NOT_APPROVED";
+    }
+    if (message != null && message.startsWith("MANAGED_SMS_TEMPLATE_NOT_READY")) {
+      return "MANAGED_SMS_TEMPLATE_NOT_READY";
+    }
+    return "MANAGED_SMS_VARIABLE_INVALID";
+  }
+
+  private String safeValidationMessage(BadRequestException exception) {
+    return switch (exceptionCode(exception)) {
+      case "MANAGED_SMS_CTA_NOT_APPROVED" -> "Managed SMS CTA value is not approved";
+      case "MANAGED_SMS_TEMPLATE_NOT_READY" -> "Managed SMS template is not ready";
+      default -> "Managed SMS template variables are invalid";
+    };
   }
 
   private Map<String, String> readVariables(String json) {

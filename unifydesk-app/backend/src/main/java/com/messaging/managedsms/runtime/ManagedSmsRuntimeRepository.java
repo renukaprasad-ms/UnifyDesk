@@ -53,6 +53,7 @@ public interface ManagedSmsRuntimeRepository {
       Instant templateCheckedAt,
       Instant templateStaleAfter,
       Long providerBindingId,
+      String providerMode,
       String providerAccountKey,
       String providerTemplateRef,
       String providerFlowRef,
@@ -77,6 +78,10 @@ public interface ManagedSmsRuntimeRepository {
               || "ACTIVE".equals(dltStatus))
           && ("ACTIVE".equals(providerBindingStatus)
               || "READY".equals(providerBindingStatus))
+          && providerFlowRef != null
+          && !providerFlowRef.isBlank()
+          && providerAccountKey != null
+          && !providerAccountKey.isBlank()
           && "ACTIVE".equals(connectionStatus)
           && connectionSendingEnabled
           && "MESSAGING_MANAGED".equals(managementMode)
@@ -93,13 +98,19 @@ public interface ManagedSmsRuntimeRepository {
       Instant tenantCreatedAt,
       String tenantStatus,
       boolean tenantSendingEnabled,
+      Instant tenantLastProviderSyncAt,
       Long dltProfileId,
       String peIdSnapshot,
       String profileStatus,
       String tmChainStatus,
+      Instant profileCheckedAt,
+      Instant profileStaleAfter,
       Long headerId,
       String headerSnapshot,
       String messageCategory,
+      String headerStatus,
+      Instant headerCheckedAt,
+      Instant headerStaleAfter,
       Long templateId,
       Long templateVersionId,
       String dltTemplateIdSnapshot,
@@ -107,14 +118,17 @@ public interface ManagedSmsRuntimeRepository {
       String bodyFingerprintSnapshot,
       String variablesSchemaSnapshot,
       String ctaPolicySnapshot,
+      String templateVersionStatus,
+      Instant templateCheckedAt,
+      Instant templateStaleAfter,
       Long providerBindingId,
+      String providerMode,
       String providerAccountKey,
       String providerTemplateRefSnapshot,
       String providerFlowRefSnapshot,
       String rulesetVersionSnapshot,
-      String headerStatus,
-      String templateVersionStatus,
       String providerBindingStatus,
+      Instant providerBindingLastSyncAt,
       String connectionStatus,
       boolean connectionSendingEnabled,
       String managementMode,
@@ -129,6 +143,10 @@ public interface ManagedSmsRuntimeRepository {
           && ("ACTIVE".equals(templateVersionStatus) || "SUPERSEDED".equals(templateVersionStatus))
           && ("ACTIVE".equals(providerBindingStatus)
               || "READY".equals(providerBindingStatus))
+          && providerFlowRefSnapshot != null
+          && !providerFlowRefSnapshot.isBlank()
+          && providerAccountKey != null
+          && !providerAccountKey.isBlank()
           && "ACTIVE".equals(connectionStatus)
           && connectionSendingEnabled
           && "MESSAGING_MANAGED".equals(managementMode)

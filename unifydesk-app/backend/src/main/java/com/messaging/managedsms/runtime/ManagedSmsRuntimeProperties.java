@@ -17,22 +17,33 @@ public class ManagedSmsRuntimeProperties {
   private String provider = "MSG91_SMS";
   private String providerMode = "";
   private String masterAuthKey = "";
+  private boolean allowSharedMaster = false;
+
+  // Retained only for configuration compatibility. Runtime webhook trust uses account-bound tokens.
   private String webhookSecret = "";
+  private String webhookTokenKey = "";
+  private String webhookPreviousTokenKey = "";
+  private String webhookPreviousTokenValidUntil = "";
+
   private Duration complianceStaleAfter = Duration.ofHours(24);
   private boolean platformSendingEnabled = false;
+
   private double globalMaxPerSecond = 0.0d;
+  private double providerAccountMaxPerSecond = 0.0d;
+  private double companyMaxPerSecond = 0.0d;
+  private double runMaxPerSecond = 0.0d;
+  private long campaignMaxRecipients = 0L;
   private long newTenantHourlyCap = 0L;
   private long newTenantDailyCap = 0L;
+
   private BigDecimal providerBalanceReserve;
-  private Duration eventReplayWindow = Duration.ofMinutes(5);
+  private Duration eventReplayWindow = Duration.ofMinutes(10);
   private int webhookMaxBytes = 262144;
   private int eventPollBatchSize = 50;
 
   public boolean providerConfigured() {
     return enabled
         && platformSendingEnabled
-        && "MSG91_SMS".equalsIgnoreCase(provider)
-        && masterAuthKey != null
-        && !masterAuthKey.isBlank();
+        && "MSG91_SMS".equalsIgnoreCase(provider);
   }
 }

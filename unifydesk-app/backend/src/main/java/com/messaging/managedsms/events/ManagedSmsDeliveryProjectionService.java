@@ -20,6 +20,8 @@ public class ManagedSmsDeliveryProjectionService {
 
   @Transactional
   public void apply(ManagedSmsProviderEvent event) {
+    if (event.type() == ManagedSmsProviderEventType.UNKNOWN || event.eventAt() == null) return;
+
     ManagedSmsRuntimeRepository.CorrelationRuntime correlation =
         runtimeRepository
             .findCorrelation(event.correlationToken())
@@ -29,28 +31,33 @@ public class ManagedSmsDeliveryProjectionService {
       throw new IllegalStateException("Managed SMS provider account mismatch");
     }
     if (correlation.providerRequestId() != null
-        && event.providerRequestId() != null
-        && !correlation.providerRequestId().equals(event.providerRequestId())) {
+        && (event.providerRequestId() == null
+            || !correlation.providerRequestId().equals(event.providerRequestId()))) {
       throw new IllegalStateException("Managed SMS provider request mismatch");
     }
 
-    Instant at = event.eventAt() == null ? Instant.now() : event.eventAt();
-    Timestamp timestamp = Timestamp.from(at);
+    Timestamp timestamp = Timestamp.from(event.eventAt());
     jdbcTemplate.update(
         """
         insert into managed_sms_recipient_delivery (
           recipient_id, company_id, accepted_at, delivered_at, failed_at, rejected_at,
           last_provider_status, last_failure_code, last_failure_reason, last_event_id, updated_at
-        ) values (?, ?, now(), null, null, null, ?, null, null, ?, now())
+        )
+        select r.id, r.company_id, now(), null, null, null, ?, null, null, ?, now()
+          from broadcast_recipients r
+         where r.company_id = ?
+           and r.run_id = ?
+           and r.id = ?
         on conflict (recipient_id) do update
           set accepted_at = coalesce(managed_sms_recipient_delivery.accepted_at, excluded.accepted_at),
               last_event_id = excluded.last_event_id,
               updated_at = now()
         """,
-        correlation.recipientId(),
-        correlation.companyId(),
         event.type().name(),
-        event.id());
+        event.id(),
+        correlation.companyId(),
+        correlation.runId(),
+        correlation.recipientId());
 
     switch (event.type()) {
       case DELIVERED ->
@@ -63,10 +70,12 @@ public class ManagedSmsDeliveryProjectionService {
                      last_failure_reason = null,
                      last_event_id = ?,
                      updated_at = now()
-               where recipient_id = ?
+               where company_id = ?
+                 and recipient_id = ?
               """,
               timestamp,
               event.id(),
+              correlation.companyId(),
               correlation.recipientId());
       case FAILED ->
           jdbcTemplate.update(
@@ -78,11 +87,13 @@ public class ManagedSmsDeliveryProjectionService {
                      last_failure_reason = case when delivered_at is null then ? else last_failure_reason end,
                      last_event_id = ?,
                      updated_at = now()
-               where recipient_id = ?
+               where company_id = ?
+                 and recipient_id = ?
               """,
               timestamp,
               limit(event.failureReason()),
               event.id(),
+              correlation.companyId(),
               correlation.recipientId());
       case REJECTED ->
           jdbcTemplate.update(
@@ -94,11 +105,13 @@ public class ManagedSmsDeliveryProjectionService {
                      last_failure_reason = case when delivered_at is null then ? else last_failure_reason end,
                      last_event_id = ?,
                      updated_at = now()
-               where recipient_id = ?
+               where company_id = ?
+                 and recipient_id = ?
               """,
               timestamp,
               limit(event.failureReason()),
               event.id(),
+              correlation.companyId(),
               correlation.recipientId());
       case SENT ->
           jdbcTemplate.update(
@@ -109,9 +122,11 @@ public class ManagedSmsDeliveryProjectionService {
                          then 'SENT' else last_provider_status end,
                      last_event_id = ?,
                      updated_at = now()
-               where recipient_id = ?
+               where company_id = ?
+                 and recipient_id = ?
               """,
               event.id(),
+              correlation.companyId(),
               correlation.recipientId());
       case UNKNOWN -> {
         return;
@@ -119,7 +134,11 @@ public class ManagedSmsDeliveryProjectionService {
     }
 
     recipientStateService.confirmAccepted(
-        correlation.recipientId(), correlation.runId(), event.providerRequestId());
+        correlation.companyId(),
+        correlation.runId(),
+        correlation.recipientId(),
+        event.providerRequestId());
+
     String category =
         jdbcTemplate.queryForObject(
             """

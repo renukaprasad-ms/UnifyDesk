@@ -21,10 +21,21 @@ public class ManagedSmsCorrelationService {
 
   @Transactional
   public String create(Long companyId, Long runId, Long recipientId, int attemptNo) {
+    requireRecipientTuple(companyId, runId, recipientId);
+
     List<String> existing =
         jdbcTemplate.queryForList(
-            "select correlation_token from managed_sms_correlations where recipient_id = ? and attempt_no = ?",
+            """
+            select correlation_token
+              from managed_sms_correlations
+             where company_id = ?
+               and run_id = ?
+               and recipient_id = ?
+               and attempt_no = ?
+            """,
             String.class,
+            companyId,
+            runId,
             recipientId,
             attemptNo);
     if (!existing.isEmpty()) return existing.getFirst();
@@ -55,18 +66,59 @@ public class ManagedSmsCorrelationService {
   }
 
   @Transactional
-  public void accepted(String token, String providerRequestId) {
+  public void accepted(
+      Long companyId,
+      Long runId,
+      Long recipientId,
+      int attemptNo,
+      String token,
+      String providerRequestId) {
+    requireRecipientTuple(companyId, runId, recipientId);
     String requestId = trim(providerRequestId);
-    jdbcTemplate.update(
-        """
-        update managed_sms_correlations
-           set provider_request_id = coalesce(provider_request_id, ?)
-         where correlation_token = ?
-           and (provider_request_id is null or provider_request_id = ?)
-        """,
-        requestId,
-        token,
-        requestId);
+    int updated =
+        jdbcTemplate.update(
+            """
+            update managed_sms_correlations
+               set provider_request_id = coalesce(provider_request_id, ?)
+             where correlation_token = ?
+               and company_id = ?
+               and run_id = ?
+               and recipient_id = ?
+               and attempt_no = ?
+               and (provider_request_id is null or provider_request_id = ?)
+            """,
+            requestId,
+            token,
+            companyId,
+            runId,
+            recipientId,
+            attemptNo,
+            requestId);
+    if (updated != 1) {
+      throw new IllegalStateException("Managed SMS correlation ownership mismatch");
+    }
+  }
+
+  private void requireRecipientTuple(Long companyId, Long runId, Long recipientId) {
+    Integer count =
+        jdbcTemplate.queryForObject(
+            """
+            select count(*)
+              from broadcast_recipients r
+              join managed_sms_run_bindings rb
+                on rb.run_id = r.run_id
+               and rb.company_id = r.company_id
+             where r.company_id = ?
+               and r.run_id = ?
+               and r.id = ?
+            """,
+            Integer.class,
+            companyId,
+            runId,
+            recipientId);
+    if (count == null || count != 1) {
+      throw new IllegalStateException("Managed SMS recipient ownership mismatch");
+    }
   }
 
   private String trim(String value) {
