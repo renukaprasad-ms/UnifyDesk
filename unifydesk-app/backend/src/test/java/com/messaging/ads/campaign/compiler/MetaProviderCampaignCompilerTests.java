@@ -228,6 +228,121 @@ class MetaProviderCampaignCompilerTests {
 
 
   @Test
+  void requiresAdvantagePlacementsCapabilityForExplicitAutomaticMode() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(12L);
+    campaign.setName("Meta Advantage placements");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(22L);
+    channel.setReachlyoCampaignId(12L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson("{\"advantagePlacements\":true}");
+
+    AdAccount account = new AdAccount();
+    account.setId(32L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(42L);
+    pack.setPrimaryMessage("Visit our site");
+    pack.setDestinationUrl("https://example.com");
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities =
+        baseCapabilities();
+    capabilities.put(
+        AdFeatureCapability.META_ADVANTAGE_PLACEMENTS,
+        available(AdFeatureCapability.META_ADVANTAGE_PLACEMENTS));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isTrue();
+    assertThat(plan.requiredCapabilities())
+        .contains(AdFeatureCapability.META_ADVANTAGE_PLACEMENTS);
+  }
+
+  @Test
+  void rejectsAdvantagePlacementsWithManualPlacementRestrictions() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(13L);
+    campaign.setName("Meta placement conflict");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(23L);
+    channel.setReachlyoCampaignId(13L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson(
+        "{\"advantagePlacements\":true,\"publisherPlatforms\":[\"instagram\"]}");
+
+    AdAccount account = new AdAccount();
+    account.setId(33L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(43L);
+    pack.setPrimaryMessage("Visit");
+    pack.setDestinationUrl("https://example.com");
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(baseCapabilities())));
+
+    assertThat(plan.deployable()).isFalse();
+    assertThat(plan.issues())
+        .anyMatch(issue -> issue.code().equals("META_ADVANTAGE_PLACEMENTS_CONFLICT"));
+  }
+
+  @Test
   void requiresAdvantageAudienceCapabilityAndSurfacesExpansionWarning() {
     MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
 
