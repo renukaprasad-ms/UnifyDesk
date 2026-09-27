@@ -13,9 +13,11 @@ import com.messaging.managedemail.delivery.ManagedEmailSuppressionGate;
 import com.messaging.managedemail.events.ManagedEmailPostAcceptanceReconciler;
 import com.messaging.managedemail.metering.ManagedEmailUsageService;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
+import com.messaging.managedsms.delivery.ManagedSmsDeliveryCoordinator;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -36,12 +38,28 @@ public class BroadcastDeliveryService {
   private final ManagedEmailSuppressionGate managedEmailSuppressionGate;
   private final ManagedEmailProviderBudgetService managedEmailProviderBudgetService;
 
+  private ManagedSmsDeliveryCoordinator managedSmsDeliveryCoordinator;
+
+  @Autowired
+  public void setManagedSmsDeliveryCoordinator(
+      ManagedSmsDeliveryCoordinator managedSmsDeliveryCoordinator) {
+    this.managedSmsDeliveryCoordinator = managedSmsDeliveryCoordinator;
+  }
+
   public void deliver(
       BroadcastRun run,
       BroadcastSenderConnection connection,
       BroadcastSender sender,
       BroadcastRecipient recipient) {
     if (connection.getManagementMode() == BroadcastSenderManagementMode.MESSAGING_MANAGED) {
+      if (run.getProviderType() == BroadcastSenderProvider.MSG91_SMS) {
+        if (managedSmsDeliveryCoordinator == null) {
+          stateService.releaseForRateLimit(recipient.getId(), Instant.now().plusSeconds(60));
+          return;
+        }
+        managedSmsDeliveryCoordinator.deliver(run, connection, sender, recipient);
+        return;
+      }
       deliverManaged(run, connection, sender, recipient);
       return;
     }
