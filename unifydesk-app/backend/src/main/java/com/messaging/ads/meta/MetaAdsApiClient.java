@@ -966,7 +966,7 @@ public class MetaAdsApiClient {
   }
 
   private String creativeFields() {
-    return "id,name,account_id,object_story_spec,thumbnail_url,body,title,call_to_action_type,"
+    return "id,name,account_id,object_story_spec,object_story_id,thumbnail_url,body,title,call_to_action_type,"
         + "url_tags,image_hash,image_url,instagram_actor_id,status,degrees_of_freedom_spec";
   }
 
@@ -1373,6 +1373,7 @@ public class MetaAdsApiClient {
       String name,
       @JsonProperty("account_id") String accountId,
       @JsonProperty("object_story_spec") JsonNode objectStorySpec,
+      @JsonProperty("object_story_id") String objectStoryId,
       @JsonProperty("thumbnail_url") String thumbnailUrl,
       String body,
       String title,
@@ -1403,6 +1404,7 @@ public class MetaAdsApiClient {
           name,
           accountId,
           objectStorySpec,
+          null,
           thumbnailUrl,
           body,
           title,
