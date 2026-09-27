@@ -31,6 +31,14 @@ public class MetaAdsCreativeMutationService {
   private final MetaAdsCreativePersistenceService persistenceService;
   private final AdActivityLogService activityLogService;
 
+  public List<MetaAdsApiClient.ExistingPostSummary> existingPosts(
+      Long companyId, Long accountId, String pageId) {
+    AdAccount account = requireManagedAccount(companyId, accountId);
+    validateIdentity(companyId, accountId, pageId, null);
+    String token = accessToken(companyId, account);
+    return apiClient.pagePosts(token, pageId.trim());
+  }
+
   public AdCreativeResponse create(
       Long companyId, Long accountId, CreateMetaCreativeRequest request) {
     return create(companyId, accountId, request, null);
