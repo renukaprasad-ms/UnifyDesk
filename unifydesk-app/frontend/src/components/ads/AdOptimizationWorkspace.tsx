@@ -39,22 +39,6 @@ const number = (value?: number | null, digits = 2) =>
 const percent = (value?: number | null) =>
   value == null ? '—' : `${number(value, 1)}%`
 
-const moneyMicros = (value?: number | null, currency?: string | null) => {
-  if (value == null) return '—'
-  const amount = value / 1_000_000
-  try {
-    return currency
-      ? new Intl.NumberFormat(undefined, {
-          style: 'currency',
-          currency,
-          maximumFractionDigits: 2,
-        }).format(amount)
-      : number(amount)
-  } catch {
-    return `${number(amount)} ${currency ?? ''}`.trim()
-  }
-}
-
 export default function AdOptimizationWorkspace({
   companyId,
   selectedAccount,
