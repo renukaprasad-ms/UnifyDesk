@@ -1561,6 +1561,31 @@ Add:
 - provider-level generated variants
 - creative performance analytics
 
+### D9 implementation note — Meta Catalog / product sets
+
+Status: **in progress**.
+
+Implemented:
+
+- [x] `META_CATALOG` capability moved from PLANNED to AVAILABLE
+- [x] Meta business catalog discovery through `/{business-id}/owned_product_catalogs`
+- [x] product-set discovery through `/{catalog-id}/product_sets`
+- [x] catalogs persisted as `META_PRODUCT_CATALOG` account resources
+- [x] product sets persisted as `META_PRODUCT_SET` account resources
+- [x] inaccessible/stale catalog resources follow the existing resource-sync lifecycle
+- [x] resource sync exposes catalog/product-set counts
+- [x] unified campaign UI selects a synchronized product set instead of accepting an arbitrary ID
+- [x] provider refresh populates product-set options
+- [x] capability/resource-sync regression coverage
+
+Remaining D9 execution work:
+
+- [ ] validate selected product set against synchronized account resources during compiler/launch preflight
+- [ ] add catalog/dynamic-product ad creation path using Meta's product-set-aware inline creative contract
+- [ ] persist/read back catalog ad metadata
+- [ ] launch/audit regression coverage
+- [ ] complete D7 `image_background_gen` execution on top of this catalog path
+
 ## M-08 Existing Facebook/Instagram post ads - P1
 
 Support reusing eligible existing content.
@@ -2339,7 +2364,7 @@ Product/provider semantics:
 
 D7. [~] background generation — started: provider eligibility modeled, product-set preflight + unified controls added; execution awaits catalog/product-set ad creation path (D9 dependency)  
 D8. existing-post ads  
-D9. Meta Catalog/product sets  
+D9. [~] Meta Catalog/product sets — catalog/product-set discovery, persistence, capability and unified selection implemented; catalog-ad launch execution is next  
 D10. WhatsApp Status ads where eligible
 
 ## Phase E - Optimization / P2
