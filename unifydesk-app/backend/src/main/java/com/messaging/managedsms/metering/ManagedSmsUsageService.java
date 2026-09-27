@@ -46,8 +46,10 @@ public class ManagedSmsUsageService {
     if (estimatedSegments <= 0) {
       throw new IllegalArgumentException("Managed SMS segment reservation must be positive");
     }
+    requireRecipientTuple(companyId, runId, recipientId);
     String key = reserveKey(recipientId, attemptNo);
-    if (exists(key)) return;
+    if (exists(companyId, runId, recipientId, attemptNo, key)) return;
+
     lockCompany(companyId);
     long limit = entitlementService.integerValue(companyId, MONTHLY_ENTITLEMENT);
     if (limit >= 0 && allocated(companyId, periodStart()) + estimatedSegments > limit) {
@@ -79,10 +81,11 @@ public class ManagedSmsUsageService {
       String providerRequestId,
       String messageCategory,
       BigDecimal providerCredit) {
-    Reservation reservation = lockReservation(recipientId, attemptNo);
-    if (reservation == null
-        || "COMMITTED".equals(reservation.state())
-        || "RELEASED".equals(reservation.state())) return;
+    Reservation reservation = lockReservation(companyId, runId, recipientId, attemptNo);
+    if (reservation == null) {
+      throw new IllegalStateException("Managed SMS usage reservation ownership mismatch");
+    }
+    if ("COMMITTED".equals(reservation.state()) || "RELEASED".equals(reservation.state())) return;
 
     String billingKey =
         "managed-sms:recipient:" + recipientId + ":attempt:" + attemptNo + ":accepted";
@@ -101,53 +104,74 @@ public class ManagedSmsUsageService {
         reservation.segments(),
         Instant.now());
 
-    jdbcTemplate.update(
-        """
-        update managed_sms_usage_reservations
-           set state = 'COMMITTED',
-               provider_credit_snapshot = coalesce(?, provider_credit_snapshot),
-               updated_at = now()
-         where recipient_id = ?
-           and attempt_no = ?
-           and company_id = ?
-           and state in ('RESERVED', 'HELD_UNKNOWN')
-        """,
-        providerCredit,
-        recipientId,
-        attemptNo,
-        companyId);
+    int updated =
+        jdbcTemplate.update(
+            """
+            update managed_sms_usage_reservations
+               set state = 'COMMITTED',
+                   provider_credit_snapshot = coalesce(?, provider_credit_snapshot),
+                   updated_at = now()
+             where company_id = ?
+               and run_id = ?
+               and recipient_id = ?
+               and attempt_no = ?
+               and state in ('RESERVED', 'HELD_UNKNOWN')
+            """,
+            providerCredit,
+            companyId,
+            runId,
+            recipientId,
+            attemptNo);
+    if (updated != 1) {
+      throw new IllegalStateException("Managed SMS usage commit lost ownership");
+    }
   }
 
   @Transactional
-  public void holdUnknown(Long companyId, Long recipientId, int attemptNo) {
+  public void holdUnknown(Long companyId, Long runId, Long recipientId, int attemptNo) {
+    Reservation reservation = lockReservation(companyId, runId, recipientId, attemptNo);
+    if (reservation == null) {
+      throw new IllegalStateException("Managed SMS usage reservation ownership mismatch");
+    }
+    if (!"RESERVED".equals(reservation.state())) return;
     jdbcTemplate.update(
         """
         update managed_sms_usage_reservations
            set state = 'HELD_UNKNOWN', updated_at = now()
-         where recipient_id = ?
+         where company_id = ?
+           and run_id = ?
+           and recipient_id = ?
            and attempt_no = ?
-           and company_id = ?
            and state = 'RESERVED'
         """,
+        companyId,
+        runId,
         recipientId,
-        attemptNo,
-        companyId);
+        attemptNo);
   }
 
   @Transactional
-  public void release(Long companyId, Long recipientId, int attemptNo) {
+  public void release(Long companyId, Long runId, Long recipientId, int attemptNo) {
+    Reservation reservation = lockReservation(companyId, runId, recipientId, attemptNo);
+    if (reservation == null) {
+      throw new IllegalStateException("Managed SMS usage reservation ownership mismatch");
+    }
+    if (!"RESERVED".equals(reservation.state())
+        && !"HELD_UNKNOWN".equals(reservation.state())) return;
     jdbcTemplate.update(
         """
         update managed_sms_usage_reservations
            set state = 'RELEASED', updated_at = now()
-         where recipient_id = ?
+         where company_id = ?
+           and run_id = ?
+           and recipient_id = ?
            and attempt_no = ?
-           and company_id = ?
            and state in ('RESERVED', 'HELD_UNKNOWN')
         """,
+        companyId,
+        runId,
         recipientId,
-        attemptNo,
-        companyId);
+        attemptNo);
   }
 
   @Transactional
@@ -158,12 +182,14 @@ public class ManagedSmsUsageService {
       String providerRequestId,
       String messageCategory,
       BigDecimal providerCredit) {
+    requireRecipientTuple(companyId, runId, recipientId);
     List<Integer> attempts =
         jdbcTemplate.queryForList(
             """
             select attempt_no
               from managed_sms_usage_reservations
              where company_id = ?
+               and run_id = ?
                and recipient_id = ?
                and state in ('RESERVED', 'HELD_UNKNOWN')
              order by attempt_no desc
@@ -171,6 +197,7 @@ public class ManagedSmsUsageService {
             """,
             Integer.class,
             companyId,
+            runId,
             recipientId);
     if (!attempts.isEmpty()) {
       commit(
@@ -194,6 +221,28 @@ public class ManagedSmsUsageService {
     long limit = entitlementService.integerValue(companyId, MONTHLY_ENTITLEMENT);
     long remaining = limit < 0 ? -1 : Math.max(0, limit - accepted - reserved - unknown);
     return new UsageSummary(start, end, accepted, reserved, unknown, limit, remaining, sendingEnabled);
+  }
+
+  private void requireRecipientTuple(Long companyId, Long runId, Long recipientId) {
+    Integer count =
+        jdbcTemplate.queryForObject(
+            """
+            select count(*)
+              from broadcast_recipients r
+              join managed_sms_run_bindings rb
+                on rb.run_id = r.run_id
+               and rb.company_id = r.company_id
+             where r.company_id = ?
+               and r.run_id = ?
+               and r.id = ?
+            """,
+            Integer.class,
+            companyId,
+            runId,
+            recipientId);
+    if (count == null || count != 1) {
+      throw new IllegalStateException("Managed SMS recipient ownership mismatch");
+    }
   }
 
   private long allocated(Long companyId, LocalDate period) {
@@ -234,27 +283,52 @@ public class ManagedSmsUsageService {
     return value == null ? 0L : value;
   }
 
-  private Reservation lockReservation(Long recipientId, int attemptNo) {
+  private Reservation lockReservation(
+      Long companyId, Long runId, Long recipientId, int attemptNo) {
     List<Reservation> rows =
         jdbcTemplate.query(
             """
-            select estimated_segments, state
-              from managed_sms_usage_reservations
-             where recipient_id = ?
-               and attempt_no = ?
-             for update
+            select u.estimated_segments, u.state
+              from managed_sms_usage_reservations u
+              join broadcast_recipients r
+                on r.id = u.recipient_id
+               and r.company_id = u.company_id
+               and r.run_id = u.run_id
+              join managed_sms_run_bindings rb
+                on rb.run_id = u.run_id
+               and rb.company_id = u.company_id
+             where u.company_id = ?
+               and u.run_id = ?
+               and u.recipient_id = ?
+               and u.attempt_no = ?
+             for update of u
             """,
             (rs, rowNum) -> new Reservation(rs.getInt("estimated_segments"), rs.getString("state")),
+            companyId,
+            runId,
             recipientId,
             attemptNo);
     return rows.isEmpty() ? null : rows.getFirst();
   }
 
-  private boolean exists(String key) {
+  private boolean exists(
+      Long companyId, Long runId, Long recipientId, int attemptNo, String key) {
     Integer count =
         jdbcTemplate.queryForObject(
-            "select count(*) from managed_sms_usage_reservations where idempotency_key = ?",
+            """
+            select count(*)
+              from managed_sms_usage_reservations
+             where company_id = ?
+               and run_id = ?
+               and recipient_id = ?
+               and attempt_no = ?
+               and idempotency_key = ?
+            """,
             Integer.class,
+            companyId,
+            runId,
+            recipientId,
+            attemptNo,
             key);
     return count != null && count > 0;
   }

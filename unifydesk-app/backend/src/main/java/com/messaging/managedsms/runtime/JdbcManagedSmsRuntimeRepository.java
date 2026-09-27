@@ -51,7 +51,11 @@ public class JdbcManagedSmsRuntimeRepository implements ManagedSmsRuntimeReposit
              v.checked_at as template_checked_at,
              v.stale_after as template_stale_after,
              pb.id as provider_binding_id,
-             coalesce(t.provider_client_ref, t.provider_account_ref, 'master') as provider_account_key,
+             t.provider_mode,
+             case
+               when t.provider_mode = 'SHARED_MASTER' then 'master'
+               else coalesce(t.provider_client_ref, t.provider_account_ref, '')
+             end as provider_account_key,
              pb.provider_template_ref,
              pb.provider_flow_ref,
              pb.status as provider_binding_status,
@@ -150,13 +154,19 @@ public class JdbcManagedSmsRuntimeRepository implements ManagedSmsRuntimeReposit
                    t.created_at as tenant_created_at,
                    t.status as tenant_status,
                    t.sending_enabled as tenant_sending_enabled,
+                   t.last_provider_sync_at as tenant_last_provider_sync_at,
                    rb.dlt_profile_id,
                    rb.pe_id_snapshot,
                    p.status as profile_status,
                    p.tm_chain_status,
+                   p.checked_at as profile_checked_at,
+                   p.stale_after as profile_stale_after,
                    rb.header_id,
                    rb.header_snapshot,
                    h.message_category,
+                   h.status as header_status,
+                   h.checked_at as header_checked_at,
+                   h.stale_after as header_stale_after,
                    rb.template_id,
                    rb.template_version_id,
                    rb.dlt_template_id_snapshot,
@@ -164,14 +174,20 @@ public class JdbcManagedSmsRuntimeRepository implements ManagedSmsRuntimeReposit
                    rb.body_fingerprint_snapshot,
                    rb.variables_schema_snapshot,
                    rb.cta_policy_snapshot,
+                   v.status as template_version_status,
+                   v.checked_at as template_checked_at,
+                   v.stale_after as template_stale_after,
                    rb.provider_binding_id,
-                   coalesce(rb.provider_client_ref_snapshot, 'master') as provider_account_key,
+                   t.provider_mode,
+                   case
+                     when t.provider_mode = 'SHARED_MASTER' then 'master'
+                     else coalesce(rb.provider_client_ref_snapshot, '')
+                   end as provider_account_key,
                    rb.provider_template_ref_snapshot,
                    rb.provider_flow_ref_snapshot,
                    rb.ruleset_version_snapshot,
-                   h.status as header_status,
-                   v.status as template_version_status,
                    pb.status as provider_binding_status,
+                   pb.last_sync_at as provider_binding_last_sync_at,
                    c.status as connection_status,
                    c.sending_enabled as connection_sending_enabled,
                    c.management_mode,
@@ -219,10 +235,14 @@ public class JdbcManagedSmsRuntimeRepository implements ManagedSmsRuntimeReposit
                    c.recipient_id,
                    c.attempt_no,
                    c.provider_request_id,
-                   coalesce(rb.provider_client_ref_snapshot, 'master') as provider_account_key
+                   coalesce(nullif(rb.provider_client_ref_snapshot, ''), '') as provider_account_key
               from managed_sms_correlations c
               join managed_sms_run_bindings rb
                 on rb.run_id = c.run_id and rb.company_id = c.company_id
+              join broadcast_recipients r
+                on r.id = c.recipient_id
+               and r.company_id = c.company_id
+               and r.run_id = c.run_id
              where c.correlation_token = ?
                and c.expires_at > now()
              limit 1
@@ -294,6 +314,7 @@ public class JdbcManagedSmsRuntimeRepository implements ManagedSmsRuntimeReposit
         instant(rs, "template_checked_at"),
         instant(rs, "template_stale_after"),
         rs.getLong("provider_binding_id"),
+        rs.getString("provider_mode"),
         rs.getString("provider_account_key"),
         rs.getString("provider_template_ref"),
         rs.getString("provider_flow_ref"),
@@ -315,13 +336,19 @@ public class JdbcManagedSmsRuntimeRepository implements ManagedSmsRuntimeReposit
         instant(rs, "tenant_created_at"),
         rs.getString("tenant_status"),
         rs.getBoolean("tenant_sending_enabled"),
+        instant(rs, "tenant_last_provider_sync_at"),
         rs.getLong("dlt_profile_id"),
         rs.getString("pe_id_snapshot"),
         rs.getString("profile_status"),
         rs.getString("tm_chain_status"),
+        instant(rs, "profile_checked_at"),
+        instant(rs, "profile_stale_after"),
         rs.getLong("header_id"),
         rs.getString("header_snapshot"),
         rs.getString("message_category"),
+        rs.getString("header_status"),
+        instant(rs, "header_checked_at"),
+        instant(rs, "header_stale_after"),
         rs.getLong("template_id"),
         rs.getLong("template_version_id"),
         rs.getString("dlt_template_id_snapshot"),
@@ -329,14 +356,17 @@ public class JdbcManagedSmsRuntimeRepository implements ManagedSmsRuntimeReposit
         rs.getString("body_fingerprint_snapshot"),
         rs.getString("variables_schema_snapshot"),
         rs.getString("cta_policy_snapshot"),
+        rs.getString("template_version_status"),
+        instant(rs, "template_checked_at"),
+        instant(rs, "template_stale_after"),
         rs.getLong("provider_binding_id"),
+        rs.getString("provider_mode"),
         rs.getString("provider_account_key"),
         rs.getString("provider_template_ref_snapshot"),
         rs.getString("provider_flow_ref_snapshot"),
         rs.getString("ruleset_version_snapshot"),
-        rs.getString("header_status"),
-        rs.getString("template_version_status"),
         rs.getString("provider_binding_status"),
+        instant(rs, "provider_binding_last_sync_at"),
         rs.getString("connection_status"),
         rs.getBoolean("connection_sending_enabled"),
         rs.getString("management_mode"),

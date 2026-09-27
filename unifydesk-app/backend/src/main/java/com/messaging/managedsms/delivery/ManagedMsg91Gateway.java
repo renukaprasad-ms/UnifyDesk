@@ -24,9 +24,18 @@ public class ManagedMsg91Gateway {
 
   private static final URI SEND_URI = URI.create("https://control.msg91.com/api/v5/flow");
   private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+  private static final String SAFE_RATE_MESSAGE =
+      "Managed SMS provider is temporarily rate limited";
+  private static final String SAFE_REJECT_MESSAGE =
+      "Managed SMS provider rejected the request";
+  private static final String SAFE_CAPACITY_MESSAGE =
+      "Managed SMS provider capacity is unavailable";
+  private static final String SAFE_UNKNOWN_MESSAGE =
+      "Managed SMS send outcome is unknown";
 
   private final ObjectMapper objectMapper;
   private final ManagedSmsRuntimeProperties properties;
+  private final ManagedSmsProviderCredentialResolver credentialResolver;
 
   private final HttpClient httpClient =
       HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
@@ -39,15 +48,29 @@ public class ManagedMsg91Gateway {
       String correlationToken) {
     if (!properties.providerConfigured()) {
       throw BroadcastTransportException.retryable(
-          "MANAGED_SMS_PROVIDER_CAPACITY_UNAVAILABLE",
-          "Managed SMS provider is unavailable",
-          null);
+          "MANAGED_SMS_PROVIDER_CAPACITY_UNAVAILABLE", SAFE_CAPACITY_MESSAGE, null);
+    }
+    if (properties.getProviderMode() == null
+        || !properties.getProviderMode().equalsIgnoreCase(runtime.providerMode())) {
+      throw BroadcastTransportException.retryable(
+          "MANAGED_SMS_PROVIDER_CAPACITY_UNAVAILABLE", SAFE_CAPACITY_MESSAGE, null);
     }
     String flowId = trim(runtime.providerFlowRefSnapshot());
     if (flowId == null) {
       throw BroadcastTransportException.permanent(
           "MANAGED_SMS_TEMPLATE_NOT_READY", "Managed SMS template is not ready", null);
     }
+
+    ManagedSmsProviderCredentialResolver.ProviderCredential credential =
+        credentialResolver
+            .resolve(runtime.providerMode(), runtime.providerAccountKey())
+            .filter(item -> item.providerAccountKey().equals(runtime.providerAccountKey()))
+            .orElseThrow(
+                () ->
+                    BroadcastTransportException.retryable(
+                        "MANAGED_SMS_PROVIDER_CAPACITY_UNAVAILABLE",
+                        SAFE_CAPACITY_MESSAGE,
+                        null));
 
     ObjectNode payload = objectMapper.createObjectNode();
     payload.put("flow_id", flowId);
@@ -64,7 +87,7 @@ public class ManagedMsg91Gateway {
         HttpRequest.newBuilder(SEND_URI)
             .timeout(REQUEST_TIMEOUT)
             .header("accept", "application/json")
-            .header("authkey", properties.getMasterAuthKey().trim())
+            .header("authkey", credential.authKey())
             .header("content-type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
             .build();
@@ -76,37 +99,38 @@ public class ManagedMsg91Gateway {
       int status = response.statusCode();
       String type = body.path("type").asText("");
       String code = firstText(body, "code", "statusCode");
-      String message = firstText(body, "message", "description", "error");
+      String diagnostic = firstText(body, "message", "description", "error");
+
       if (status >= 200 && status < 300 && "success".equalsIgnoreCase(type)) {
         String requestId = firstText(body, "requestId", "request_id", "message");
         if (requestId == null) requestId = correlationToken;
         return new ManagedSmsSendResult(requestId, Instant.now());
       }
-      String safeMessage =
-          message == null ? "Managed SMS provider rejected the request" : message;
       if (status == 429) {
         throw BroadcastTransportException.retryable(
-            "MANAGED_SMS_PROVIDER_RATE_LIMIT", safeMessage, null);
+            "MANAGED_SMS_PROVIDER_RATE_LIMIT", SAFE_RATE_MESSAGE, null);
       }
       if (status >= 500) {
         throw BroadcastTransportException.unknown(
-            "MANAGED_SMS_PROVIDER_UNKNOWN", "Managed SMS send outcome is unknown", null);
+            "MANAGED_SMS_PROVIDER_UNKNOWN", SAFE_UNKNOWN_MESSAGE, null);
       }
-      if ("301".equals(code) || safeMessage.toLowerCase().contains("insufficient balance")) {
+      if ("301".equals(code)
+          || (diagnostic != null
+              && diagnostic.toLowerCase(java.util.Locale.ROOT).contains("insufficient balance"))) {
         throw BroadcastTransportException.permanent(
-            "MANAGED_SMS_PROVIDER_CREDIT", "Managed SMS provider capacity is unavailable", null);
+            "MANAGED_SMS_PROVIDER_CREDIT", SAFE_CAPACITY_MESSAGE, null);
       }
       throw BroadcastTransportException.permanent(
-          "MANAGED_SMS_PROVIDER_REJECTED", "Managed SMS provider rejected the request", null);
+          "MANAGED_SMS_PROVIDER_REJECTED", SAFE_REJECT_MESSAGE, null);
     } catch (BroadcastTransportException exception) {
       throw exception;
     } catch (InterruptedException exception) {
       Thread.currentThread().interrupt();
       throw BroadcastTransportException.unknown(
-          "MANAGED_SMS_PROVIDER_UNKNOWN", "Managed SMS send outcome is unknown", exception);
+          "MANAGED_SMS_PROVIDER_UNKNOWN", SAFE_UNKNOWN_MESSAGE, exception);
     } catch (IOException exception) {
       throw BroadcastTransportException.unknown(
-          "MANAGED_SMS_PROVIDER_UNKNOWN", "Managed SMS send outcome is unknown", exception);
+          "MANAGED_SMS_PROVIDER_UNKNOWN", SAFE_UNKNOWN_MESSAGE, exception);
     }
   }
 

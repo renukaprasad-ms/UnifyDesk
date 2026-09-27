@@ -9,6 +9,8 @@ import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.managedsms.runtime.ManagedSmsRuntimeProperties;
 import com.messaging.managedsms.runtime.ManagedSmsRuntimeRepository;
 import com.messaging.managedsms.safety.ManagedSmsProviderSafetyService;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,12 +35,36 @@ public class ManagedSmsDeliveryGuard {
         || connection.getProvider() != BroadcastSenderProvider.MSG91_SMS) {
       return Optional.empty();
     }
+    Instant now = Instant.now();
     return runtimeRepository
         .findDeliveryRuntime(run.getCompanyId(), run.getId(), sender.getId())
         .filter(ManagedSmsRuntimeRepository.DeliveryRuntime::currentlySendable)
         .filter(runtime -> runtime.companyId().equals(recipient.getCompanyId()))
+        .filter(runtime -> runtime.runId().equals(recipient.getRunId()))
         .filter(runtime -> runtime.senderId().equals(recipient.getSenderId()))
         .filter(runtime -> runtime.connectionId().equals(connection.getId()))
+        .filter(runtime -> fresh(runtime, now))
         .filter(runtime -> safetyService.isAvailable(runtime.providerAccountKey()));
+  }
+
+  boolean fresh(ManagedSmsRuntimeRepository.DeliveryRuntime runtime, Instant now) {
+    return freshFact(runtime.profileCheckedAt(), runtime.profileStaleAfter(), now)
+        && freshFact(runtime.headerCheckedAt(), runtime.headerStaleAfter(), now)
+        && freshFact(runtime.templateCheckedAt(), runtime.templateStaleAfter(), now)
+        && freshByAge(runtime.providerBindingLastSyncAt(), now)
+        && freshByAge(runtime.tenantLastProviderSyncAt(), now);
+  }
+
+  private boolean freshFact(Instant checkedAt, Instant staleAfter, Instant now) {
+    return checkedAt != null && staleAfter != null && staleAfter.isAfter(now);
+  }
+
+  private boolean freshByAge(Instant checkedAt, Instant now) {
+    Duration maxAge = properties.getComplianceStaleAfter();
+    return checkedAt != null
+        && maxAge != null
+        && !maxAge.isZero()
+        && !maxAge.isNegative()
+        && checkedAt.plus(maxAge).isAfter(now);
   }
 }

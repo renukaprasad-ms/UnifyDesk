@@ -21,17 +21,12 @@ public class ManagedSmsProviderSafetyService {
   @Transactional(readOnly = true)
   public boolean isAvailable(String providerAccountKey) {
     if (providerAccountKey == null || providerAccountKey.isBlank()) return false;
-    BigDecimal reserve = properties.getProviderBalanceReserve();
-    if (reserve == null || reserve.signum() <= 0) {
-      return true;
-    }
     List<Snapshot> rows =
         jdbcTemplate.query(
             """
-            select balance, sending_enabled, valid_until
+            select balance, sending_enabled, valid_until, observation_source
               from managed_sms_provider_snapshots
              where provider_account_key = ?
-               and valid_until >= now()
              order by observed_at desc
              limit 1
             """,
@@ -39,13 +34,20 @@ public class ManagedSmsProviderSafetyService {
                 new Snapshot(
                     rs.getBigDecimal("balance"),
                     rs.getBoolean("sending_enabled"),
-                    rs.getTimestamp("valid_until").toInstant()),
+                    rs.getTimestamp("valid_until").toInstant(),
+                    rs.getString("observation_source")),
             providerAccountKey);
     if (rows.isEmpty()) return false;
+
     Snapshot snapshot = rows.getFirst();
-    return snapshot.sendingEnabled()
-        && snapshot.balance() != null
-        && snapshot.balance().compareTo(reserve) > 0;
+    if (!snapshot.sendingEnabled()
+        || !snapshot.validUntil().isAfter(Instant.now())
+        || snapshot.observationSource() == null
+        || !snapshot.observationSource().startsWith("VERIFIED_ADAPTER:")) return false;
+
+    BigDecimal reserve = properties.getProviderBalanceReserve();
+    if (reserve == null || reserve.signum() <= 0) return true;
+    return snapshot.balance() != null && snapshot.balance().compareTo(reserve) > 0;
   }
 
   @Transactional
@@ -56,8 +58,8 @@ public class ManagedSmsProviderSafetyService {
         """
         insert into managed_sms_provider_snapshots (
           id, provider_account_key, provider_client_ref, balance, credit_limit,
-          max_send_rate, sending_enabled, observed_at, valid_until
-        ) values (?, ?, null, 0, null, null, false, ?, ?)
+          max_send_rate, sending_enabled, observed_at, valid_until, observation_source
+        ) values (?, ?, null, 0, null, null, false, ?, ?, 'INSUFFICIENT_CREDIT_CIRCUIT')
         """,
         com.messaging.common.id.IdGenerator.nextId(),
         providerAccountKey,
@@ -65,5 +67,9 @@ public class ManagedSmsProviderSafetyService {
         Timestamp.from(now.plus(10, ChronoUnit.MINUTES)));
   }
 
-  private record Snapshot(BigDecimal balance, boolean sendingEnabled, Instant validUntil) {}
+  private record Snapshot(
+      BigDecimal balance,
+      boolean sendingEnabled,
+      Instant validUntil,
+      String observationSource) {}
 }

@@ -15,8 +15,8 @@ public class ManagedSmsWebhookController {
   @PostMapping(path = "/msg91", consumes = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<Void> msg91(
       @RequestBody byte[] body,
-      @RequestHeader(value = "X-UnifyDesk-Managed-Sms-Secret", required = false) String secret) {
-    inboxService.receive(body, secret);
+      @RequestHeader(value = "X-UnifyDesk-Managed-Sms-Secret", required = false) String accountToken) {
+    inboxService.receive(body, accountToken);
     return ResponseEntity.ok().build();
   }
 }
