@@ -13,7 +13,9 @@ public class NotificationDeliveryProperties {
   private String frontendBaseUrl = "https://app.unifydesk.in";
   private Delivery delivery = new Delivery();
   private Digest digest = new Digest();
+  private Email email = new Email();
   private Push push = new Push();
+  private Retention retention = new Retention();
 
   @Getter
   @Setter
@@ -41,6 +43,13 @@ public class NotificationDeliveryProperties {
 
   @Getter
   @Setter
+  public static class Email {
+    private boolean enabled = true;
+    private Duration disabledRetryDelay = Duration.ofMinutes(5);
+  }
+
+  @Getter
+  @Setter
   public static class Push {
     private String vapidPublicKey;
     private String vapidPrivateKey;
@@ -60,5 +69,20 @@ public class NotificationDeliveryProperties {
     private boolean hasText(String value) {
       return value != null && !value.isBlank();
     }
+  }
+
+  @Getter
+  @Setter
+  public static class Retention {
+    private Duration deliveryIntents = Duration.ofDays(90);
+    private Duration deliveryAttempts = Duration.ofDays(30);
+    private Duration exceptionalDeliveryAttempts = Duration.ofDays(90);
+    private Duration pushAttempts = Duration.ofDays(30);
+    private Duration exceptionalPushAttempts = Duration.ofDays(90);
+    private Duration digestBuckets = Duration.ofDays(30);
+    private Duration pushSubscriptions = Duration.ofDays(30);
+    private int cleanupBatchSize = 1000;
+    private long cleanupIntervalMs = Duration.ofDays(1).toMillis();
+    private long cleanupInitialDelayMs = Duration.ofMinutes(5).toMillis();
   }
 }

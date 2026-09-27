@@ -1,8 +1,11 @@
 package com.messaging.notification.platform.core.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +22,7 @@ import com.messaging.notification.platform.core.registry.NotificationTypeRegistr
 import com.messaging.notification.platform.core.state.NotificationUnreadCounterService;
 import com.messaging.security.service.CurrentUserService;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -46,6 +50,23 @@ class NotificationApiServicePolicyTests {
     assertThatThrownBy(() -> fixture.service.get("55", "9"))
         .isInstanceOf(NotFoundException.class)
         .hasMessage("Notification not found");
+  }
+
+  @Test
+  void unreadCountUsesOneCurrentPermissionSnapshot() {
+    Fixture fixture = fixture();
+    when(fixture.jdbc.queryForObject(
+            anyString(), eq(Boolean.class), eq(9L), eq(7L)))
+        .thenReturn(true);
+    when(fixture.permissions.effectivePermissions(7L, 9L))
+        .thenReturn(Set.of("email.read"));
+    when(fixture.counters.counts(7L, 9L, Set.of("email.read")))
+        .thenReturn(new NotificationUnreadCounterService.Counts(2, 4, 6));
+
+    NotificationApiDtos.UnreadCount result = fixture.service.unreadCount("9");
+
+    assertThat(result).isEqualTo(new NotificationApiDtos.UnreadCount(2, 4, 6));
+    verify(fixture.permissions, times(1)).effectivePermissions(7L, 9L);
   }
 
   @Test
@@ -99,8 +120,12 @@ class NotificationApiServicePolicyTests {
             registry,
             new NotificationCursorCodec(new ObjectMapper()),
             new NotificationPlatformProperties());
-    return new Fixture(jdbc, service);
+    return new Fixture(jdbc, permissions, counters, service);
   }
 
-  private record Fixture(JdbcTemplate jdbc, NotificationApiService service) {}
+  private record Fixture(
+      JdbcTemplate jdbc,
+      CompanyIamPermissionService permissions,
+      NotificationUnreadCounterService counters,
+      NotificationApiService service) {}
 }

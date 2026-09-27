@@ -132,11 +132,16 @@ export default function NotificationProvider({
       (event) => {
         const payload = event.payload
         if (payload.companyId !== null && payload.companyId !== companyId) return
-        setUnreadCount({
-          account: payload.accountUnread,
-          company: payload.companyUnread,
-          total: payload.totalUnread,
-        })
+
+        // Account-scope realtime counts are account-only. While a workspace is selected,
+        // keep the rendered company component intact until the authoritative scoped refetch.
+        if (payload.companyId !== null || companyId === null) {
+          setUnreadCount({
+            account: payload.accountUnread,
+            company: payload.companyUnread,
+            total: payload.totalUnread,
+          })
+        }
         void refresh('realtime')
       },
     )

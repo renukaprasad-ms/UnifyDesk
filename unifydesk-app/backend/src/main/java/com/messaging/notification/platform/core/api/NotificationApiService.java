@@ -21,8 +21,10 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -44,7 +46,8 @@ public class NotificationApiService {
   private final NotificationPlatformProperties properties;
 
   @Transactional(readOnly = true)
-  public NotificationPage list(String companyIdValue, Integer requestedLimit, String cursorValue, boolean unreadOnly) {
+  public NotificationPage list(
+      String companyIdValue, Integer requestedLimit, String cursorValue, boolean unreadOnly) {
     long userId = currentUserService.currentUserId();
     Long companyId = parseOptionalId(companyIdValue, "companyId");
     if (companyId != null) {
@@ -54,47 +57,68 @@ public class NotificationApiService {
     if (limit < 1 || limit > 50) {
       throw new BadRequestException("Invalid notification limit");
     }
-    NotificationCursorCodec.Decoded cursor =
+
+    Set<String> effectivePermissions = effectivePermissions(userId, companyId);
+    NotificationCursorCodec.Decoded scanCursor =
         cursorCodec.decode(cursorValue, companyId, unreadOnly);
+    int windowSize = Math.min(51, Math.max(21, limit + 1));
+    List<Row> visibleRows = new ArrayList<>(limit + 1);
+    boolean exhausted = false;
 
-    StringBuilder sql =
-        new StringBuilder(
-            """
-            select id,company_id,notification_type,category,severity,required_permission_key,
-                   title,body,aggregate_count,action_kind,action_path,first_event_at,last_event_at,
-                   seen_at,read_at
-            from user_notifications
-            where user_id=?
-              and (expires_at is null or expires_at > now())
-            """);
-    List<Object> args = new ArrayList<>();
-    args.add(userId);
-    if (companyId == null) {
-      sql.append(" and company_id is null");
-    } else {
-      sql.append(" and (company_id is null or company_id=?)");
-      args.add(companyId);
-    }
-    if (unreadOnly) {
-      sql.append(" and read_at is null");
-    }
-    if (cursor != null) {
-      sql.append(" and (last_event_at < ? or (last_event_at = ? and id < ?))");
-      args.add(Timestamp.from(cursor.lastEventAt()));
-      args.add(Timestamp.from(cursor.lastEventAt()));
-      args.add(cursor.id());
-    }
-    sql.append(" order by last_event_at desc,id desc limit ?");
-    int fetchLimit = Math.min(201, limit * 4 + 1);
-    args.add(fetchLimit);
+    while (visibleRows.size() <= limit && !exhausted) {
+      List<Object> args = new ArrayList<>();
+      args.add(userId);
+      StringBuilder sql =
+          new StringBuilder(
+              """
+              select id,company_id,notification_type,category,severity,required_permission_key,
+                     title,body,aggregate_count,action_kind,action_path,first_event_at,last_event_at,
+                     seen_at,read_at
+              from user_notifications
+              where user_id=?
+                and (expires_at is null or expires_at > now())
+                and
+              """);
+      sql.append(visibilityClause(companyId, effectivePermissions, args));
+      if (unreadOnly) {
+        sql.append(" and read_at is null");
+      }
+      if (scanCursor != null) {
+        sql.append(" and (last_event_at < ? or (last_event_at = ? and id < ?))");
+        args.add(Timestamp.from(scanCursor.lastEventAt()));
+        args.add(Timestamp.from(scanCursor.lastEventAt()));
+        args.add(scanCursor.id());
+      }
+      sql.append(" order by last_event_at desc,id desc limit ?");
+      args.add(windowSize);
 
-    List<Row> rows = jdbcTemplate.query(sql.toString(), this::mapRow, args.toArray());
-    List<Row> visible =
-        rows.stream().filter(row -> visible(userId, companyId, row)).toList();
-    boolean hasMore = visible.size() > limit || rows.size() == fetchLimit;
-    List<Row> pageRows = visible.stream().limit(limit).toList();
+      List<Row> candidates = jdbcTemplate.query(sql.toString(), this::mapRow, args.toArray());
+      for (Row candidate : candidates) {
+        if (visible(companyId, effectivePermissions, candidate)) {
+          visibleRows.add(candidate);
+          if (visibleRows.size() > limit) {
+            break;
+          }
+        }
+      }
+
+      if (visibleRows.size() > limit) {
+        break;
+      }
+      if (candidates.size() < windowSize) {
+        exhausted = true;
+        break;
+      }
+      Row lastCandidate = candidates.getLast();
+      scanCursor =
+          new NotificationCursorCodec.Decoded(
+              lastCandidate.lastEventAt(), lastCandidate.id());
+    }
+
+    boolean hasMore = visibleRows.size() > limit;
+    List<Row> pageRows = visibleRows.stream().limit(limit).toList();
     String nextCursor =
-        hasMore && !pageRows.isEmpty()
+        hasMore
             ? cursorCodec.encode(
                 companyId,
                 unreadOnly,
@@ -112,8 +136,9 @@ public class NotificationApiService {
     if (companyId != null && !hasMember(userId, companyId)) {
       throw new NotFoundException("Notification not found");
     }
+    Set<String> effectivePermissions = effectivePermissions(userId, companyId);
     Row row = findAddressed(userId, notificationId, companyId, false);
-    if (row == null || !visible(userId, companyId, row)) {
+    if (row == null || !visible(companyId, effectivePermissions, row)) {
       throw new NotFoundException("Notification not found");
     }
     return toItem(row);
@@ -126,7 +151,9 @@ public class NotificationApiService {
     if (companyId != null) {
       requireMember(userId, companyId);
     }
-    NotificationUnreadCounterService.Counts counts = counterService.counts(userId, companyId);
+    Set<String> effectivePermissions = effectivePermissions(userId, companyId);
+    NotificationUnreadCounterService.Counts counts =
+        counterService.counts(userId, companyId, effectivePermissions);
     return new UnreadCount(counts.account(), counts.company(), counts.total());
   }
 
@@ -140,6 +167,7 @@ public class NotificationApiService {
     if (companyId != null) {
       requireMember(userId, companyId);
     }
+    Set<String> effectivePermissions = effectivePermissions(userId, companyId);
     LinkedHashSet<Long> ids = new LinkedHashSet<>();
     for (String value : request.notificationIds()) {
       ids.add(parseId(value, "notificationId"));
@@ -151,7 +179,7 @@ public class NotificationApiService {
     int updated = 0;
     for (Long id : ids) {
       Row row = findAddressed(userId, id, companyId, true);
-      if (row == null || !visible(userId, companyId, row)) {
+      if (row == null || !visible(companyId, effectivePermissions, row)) {
         continue;
       }
       int changed =
@@ -178,8 +206,9 @@ public class NotificationApiService {
     if (companyId != null && !hasMember(userId, companyId)) {
       throw new NotFoundException("Notification not found");
     }
+    Set<String> effectivePermissions = effectivePermissions(userId, companyId);
     Row row = findAddressed(userId, notificationId, companyId, true);
-    if (row == null || !visible(userId, companyId, row)) {
+    if (row == null || !visible(companyId, effectivePermissions, row)) {
       throw new NotFoundException("Notification not found");
     }
 
@@ -192,7 +221,8 @@ public class NotificationApiService {
                   userId)
               == 1;
       if (changed) {
-        counterService.decrement(userId, row.companyId());
+        counterService.decrement(
+            userId, row.companyId(), row.requiredPermissionKey());
       }
     } else if (!request.read() && row.readAt() != null) {
       changed =
@@ -202,7 +232,8 @@ public class NotificationApiService {
                   userId)
               == 1;
       if (changed) {
-        counterService.increment(userId, row.companyId());
+        counterService.increment(
+            userId, row.companyId(), row.requiredPermissionKey());
       }
     }
     if (changed) {
@@ -210,7 +241,8 @@ public class NotificationApiService {
     }
 
     Row refreshed = findAddressed(userId, notificationId, companyId, false);
-    NotificationUnreadCounterService.Counts counts = counterService.counts(userId, companyId);
+    NotificationUnreadCounterService.Counts counts =
+        counterService.counts(userId, companyId, effectivePermissions);
     return new ReadStateResponse(
         toItem(refreshed),
         new UnreadCount(counts.account(), counts.company(), counts.total()));
@@ -226,6 +258,7 @@ public class NotificationApiService {
     if (companyId != null) {
       requireMember(userId, companyId);
     }
+    Set<String> effectivePermissions = effectivePermissions(userId, companyId);
     Instant requestStart = Instant.now();
     Instant cutoff =
         request.before() == null || request.before().isAfter(requestStart)
@@ -235,13 +268,9 @@ public class NotificationApiService {
     long afterId = 0L;
     int updated = 0;
     while (true) {
-      String scope =
-          companyId == null ? "company_id is null" : "(company_id is null or company_id=?)";
       List<Object> args = new ArrayList<>();
       args.add(userId);
-      if (companyId != null) {
-        args.add(companyId);
-      }
+      String scope = visibilityClause(companyId, effectivePermissions, args);
       args.add(Timestamp.from(cutoff));
       args.add(afterId);
       String sql =
@@ -264,7 +293,7 @@ public class NotificationApiService {
       }
       for (Row row : batch) {
         afterId = Math.max(afterId, row.id());
-        if (!visible(userId, companyId, row)) {
+        if (!visible(companyId, effectivePermissions, row)) {
           continue;
         }
         if (jdbcTemplate.update(
@@ -273,7 +302,8 @@ public class NotificationApiService {
                 userId)
             == 1) {
           updated++;
-          counterService.decrement(userId, row.companyId());
+          counterService.decrement(
+              userId, row.companyId(), row.requiredPermissionKey());
         }
       }
       if (batch.size() < 500) {
@@ -284,7 +314,8 @@ public class NotificationApiService {
     if (updated > 0) {
       realtimePublisher.afterCommit(userId, companyId, null, "READ_STATE");
     }
-    NotificationUnreadCounterService.Counts counts = counterService.counts(userId, companyId);
+    NotificationUnreadCounterService.Counts counts =
+        counterService.counts(userId, companyId, effectivePermissions);
     return new ReadAllResponse(
         updated,
         cutoff,
@@ -504,7 +535,8 @@ public class NotificationApiService {
         rs.getTimestamp("read_at") == null ? null : rs.getTimestamp("read_at").toInstant());
   }
 
-  private boolean visible(long userId, Long selectedCompanyId, Row row) {
+  private boolean visible(
+      Long selectedCompanyId, Set<String> effectivePermissions, Row row) {
     if (row.companyId() == null) {
       return true;
     }
@@ -512,7 +544,33 @@ public class NotificationApiService {
       return false;
     }
     return row.requiredPermissionKey() == null
-        || permissionService.hasPermission(userId, row.companyId(), row.requiredPermissionKey());
+        || effectivePermissions.contains(row.requiredPermissionKey());
+  }
+
+  private Set<String> effectivePermissions(long userId, Long companyId) {
+    return companyId == null
+        ? Set.of()
+        : permissionService.effectivePermissions(userId, companyId);
+  }
+
+  private String visibilityClause(
+      Long companyId, Set<String> effectivePermissions, List<Object> args) {
+    if (companyId == null) {
+      return "company_id is null";
+    }
+
+    args.add(companyId);
+    if (effectivePermissions == null || effectivePermissions.isEmpty()) {
+      return "(company_id is null or (company_id=? and required_permission_key is null))";
+    }
+
+    List<String> permissions = effectivePermissions.stream().sorted().toList();
+    args.addAll(permissions);
+    String placeholders = String.join(",", Collections.nCopies(permissions.size(), "?"));
+    return "(company_id is null or (company_id=? and (required_permission_key is null"
+        + " or required_permission_key in ("
+        + placeholders
+        + "))))";
   }
 
   private NotificationItem toItem(Row row) {

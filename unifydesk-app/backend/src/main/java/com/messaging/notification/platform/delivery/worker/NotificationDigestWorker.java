@@ -17,6 +17,7 @@ import com.messaging.notification.platform.delivery.policy.DeliveryEligibilitySe
 import com.messaging.notification.platform.delivery.policy.NotificationDeliveryPolicy;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliveryRuntimeRepository;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliverySupportRepository;
+import com.messaging.notification.platform.delivery.repository.ProviderAttemptLifecycleRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -30,6 +31,8 @@ public class NotificationDigestWorker {
 
   private final NotificationDeliveryRuntimeRepository repository;
   private final NotificationDeliverySupportRepository supportRepository;
+  private final ProviderAttemptLifecycleRepository attemptLifecycleRepository;
+  private final ProviderAttemptRecoveryService recoveryService;
   private final DeliveryEligibilityService eligibilityService;
   private final NotificationDeliveryPolicy policy;
   private final NotificationDeliveryProperties properties;
@@ -44,7 +47,7 @@ public class NotificationDigestWorker {
     if (!properties.getDigest().isEnabled()) {
       return;
     }
-    supportRepository.recoverAmbiguousDigestClaims();
+    recoveryService.recoverDigestClaims(clock.instant());
     aggregate();
     sendDue();
   }
@@ -87,6 +90,15 @@ public class NotificationDigestWorker {
   }
 
   void sendBucket(DigestBucket bucket, Instant now) {
+    if (!properties.getEmail().isEnabled()) {
+      repository.deferDigest(
+          bucket.id(),
+          bucket.claimToken(),
+          "EMAIL_CHANNEL_DISABLED",
+          now.plus(properties.getEmail().getDisabledRetryDelay()));
+      return;
+    }
+
     RecipientSnapshot recipient =
         repository.recipientSnapshot(bucket.userId(), bucket.companyId()).orElse(null);
     if (recipient == null || !recipient.active()) {
@@ -161,23 +173,28 @@ public class NotificationDigestWorker {
     }
 
     long representativeIntent = itemState.intentIds().getFirst();
-    int attemptNo = supportRepository.nextEmailAttemptNo(representativeIntent);
+    int attemptNo = attemptLifecycleRepository.nextOrPreparedEmailAttemptNo(representativeIntent);
     Instant started = clock.instant();
     long attemptId =
-        supportRepository.beginProviderAttempt(
-            representativeIntent, null, attemptNo, "EMAIL", started);
+        attemptLifecycleRepository.prepareAttempt(
+            representativeIntent, null, attemptNo, "EMAIL");
+    if (!attemptLifecycleRepository.markInFlight(attemptId, clock.instant())) {
+      return;
+    }
     EmailSendResult result =
         emailGateway.send(
             recipient.email(), emailRenderer.inboxDigest(recipient.companyName(), unread));
     Instant completed = clock.instant();
     String outcome = mapOutcome(result);
-    supportRepository.completeProviderAttempt(
+    if (!attemptLifecycleRepository.completeAttempt(
         attemptId,
         completed,
         outcome,
         null,
         result.errorCode(),
-        completed.toEpochMilli() - started.toEpochMilli());
+        completed.toEpochMilli() - started.toEpochMilli())) {
+      return;
+    }
     metrics.attempt("EMAIL", outcome);
 
     switch (result.outcome()) {

@@ -42,7 +42,7 @@ class NotificationMaterializerTests {
     MaterializationResult result = materializer.materialize(10L, 7L);
 
     assertThat(result).isEqualTo(MaterializationResult.DUPLICATE);
-    verify(counters, never()).increment(any(Long.class), any());
+    verify(counters, never()).increment(anyLong(), any(), any());
     verify(realtime, never()).afterCommit(any(Long.class), any(), any(), anyString());
   }
 
@@ -104,7 +104,7 @@ class NotificationMaterializerTests {
     MaterializationResult result = materializer.materialize(10L, 7L);
 
     assertThat(result).isEqualTo(MaterializationResult.COALESCED);
-    verify(counters).increment(7L, 22L);
+    verify(counters).increment(7L, 22L, "email.read");
     verify(realtime).afterCommit(7L, 22L, 55L, "COALESCED");
   }
 
@@ -142,7 +142,7 @@ class NotificationMaterializerTests {
             .materialize(10L, 7L);
 
     assertThat(result).isEqualTo(MaterializationResult.SUPPRESSED);
-    verify(counters, never()).increment(any(Long.class), any());
+    verify(counters, never()).increment(anyLong(), any(), any());
     verify(realtime, never()).afterCommit(any(Long.class), any(), any(), anyString());
   }
 
