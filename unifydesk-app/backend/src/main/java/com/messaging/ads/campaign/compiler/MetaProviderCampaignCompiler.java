@@ -59,6 +59,7 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
     validateAdvantageCreative(context, required, issues);
     validateGenerativeText(context, required, issues);
     validateImageExpansion(context, required, issues);
+    validateBackgroundGeneration(context, required, issues);
 
     AudienceMappingStatus audienceMappingStatus = null;
     String audienceMappingNote = null;
@@ -161,6 +162,33 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
         Set.copyOf(required),
         List.copyOf(issues),
         List.copyOf(operations));
+  }
+
+  private void validateBackgroundGeneration(
+      ProviderCampaignCompileContext context,
+      Set<AdFeatureCapability> required,
+      List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    if (!booleanValue(override, "backgroundGeneration", false)) return;
+
+    ProviderCampaignPlanSupport.requireCapability(
+        context, AdFeatureCapability.META_BACKGROUND_GENERATION, required, issues);
+
+    String productSetId = text(override, "productSetId");
+    if (productSetId == null || productSetId.isBlank()) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "META_BACKGROUND_GENERATION_PRODUCT_SET_REQUIRED",
+              "providerOverride.productSetId",
+              "Meta background generation requires an eligible product set because the feature is limited to dynamic product or Advantage+ catalog ads."));
+      return;
+    }
+
+    issues.add(
+        ProviderCampaignPlanSupport.warning(
+            "META_BACKGROUND_GENERATION_ELIGIBILITY",
+            "providerOverride.backgroundGeneration",
+            "Meta background generation is account/product eligible only. The selected product set must be eligible and the generated backgrounds should be reviewed in provider preview before activation."));
   }
 
   private void validateImageExpansion(
