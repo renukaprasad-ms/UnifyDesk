@@ -1248,21 +1248,51 @@ Do not expose portfolio options to campaign types that do not support them.
 
 ## G-12 Experiments - P2
 
-Create an experiment domain in Reachlyo.
+Status: **in progress for E1 — Google-native experiment read/reporting and a safe SEARCH_CUSTOM creation lifecycle are implemented.**
 
-Google supports multiple API experiment types including Search, Display, Video/Demand Gen, AI Max adoption, broad match adoption, asset optimization, PMax/Shopping comparison and others depending on version/account eligibility.
+Google v25 currently exposes multiple distinct experiment workflows rather than one interchangeable creation payload:
 
-Lifecycle:
+- system-managed experiments such as SEARCH_CUSTOM, DISPLAY_CUSTOM, HOTEL_CUSTOM, YOUTUBE_CUSTOM and PMAX_REPLACEMENT_SHOPPING
+- intra-campaign adoption experiments such as AI Max, broad match and PMax text customization/final URL expansion
+- asset optimization experiments
+- campaign-mix experiments
 
-- setup
-- schedule
-- run
-- report
-- end/promote/graduate
+E1 implemented:
 
-Reference:
+- [x] `GOOGLE_EXPERIMENTS` capability AVAILABLE for managed Google accounts
+- [x] provider-native experiment list/read-through
+- [x] experiment-arm read-through with draft visibility enabled
+- [x] direct Google experiment performance metrics including control metrics and provider statistical fields
+- [x] Search custom experiment creation from a synchronized Google Search campaign
+- [x] exactly two system-managed arms: one control and one treatment
+- [x] configurable treatment/control traffic split totaling 100%
+- [x] treatment draft campaign is created by Google and then mutated before scheduling
+- [x] current E1 treatment mutation supports a deliberate bidding-strategy difference
+- [x] experiment creation remains in SETUP until the user explicitly schedules it
+- [x] schedule, end and promote lifecycle actions
+- [x] long-running operation/read-back visibility
+- [x] ADS_READ / ADS_CREATE / ADS_MODIFY RBAC
+- [x] activity audit for create/schedule/end/promote without OAuth tokens
+- [x] setup failure cleanup attempts to remove the non-serving experiment
+- [x] Analytics workspace UI with create form, arms, traffic allocation, metrics and lifecycle actions
+- [x] backend regression coverage for Search-only creation, treatment mutation and capability state
+
+Still deferred within E1 rather than faking a universal contract:
+
+- [ ] type-specific creation for DISPLAY_CUSTOM / YOUTUBE_CUSTOM / PMAX_REPLACEMENT_SHOPPING
+- [ ] intra-campaign experiment creation for AI Max / broad match / PMax automation adoption
+- [ ] asset optimization experiment creation
+- [ ] campaign-mix experiment creation
+- [ ] graduate flow, which requires provider-specific campaign budget mappings
+- [ ] richer asynchronous-operation error polling beyond provider experiment read-back
+
+E3 remains the separate Reachlyo cross-provider experiment abstraction. E1 does not introduce a fake provider-neutral experiment model before Meta support is researched.
+
+References:
 
 - https://developers.google.com/google-ads/api/docs/experiments/overview
+- https://developers.google.com/google-ads/api/docs/experiments/system-managed
+- https://developers.google.com/google-ads/api/docs/experiments/reporting
 - https://developers.google.com/google-ads/api/samples/create-experiment
 
 ## G-13 Bid/budget simulations and planning - P2
@@ -2381,7 +2411,7 @@ D10. [x] WhatsApp Status ads where eligible — resolved safely as PROVIDER_HOST
 
 ## Phase E - Optimization / P2
 
-E1. Google experiments  
+E1. [~] Google experiments — native v25 read/reporting plus SEARCH_CUSTOM create, 2-arm traffic split, treatment bidding mutation, schedule/end/promote, RBAC/audit/UI/tests; specialized experiment creation + graduate remain  
 E2. Meta experiments if API-supported  
 E3. Reachlyo experiments abstraction  
 E4. automation rules  
