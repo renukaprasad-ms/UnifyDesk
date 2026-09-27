@@ -9,6 +9,8 @@ import com.messaging.notification.platform.core.registry.NotificationTypeRegistr
 import com.messaging.notification.platform.core.registry.NotificationTypeRegistry.EmailMode;
 import com.messaging.notification.platform.core.state.NotificationUnreadCounterService;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Objects;
@@ -124,11 +126,11 @@ public class NotificationMaterializer {
         rendered.body(),
         event.groupKey(),
         rendered.actionPath(),
-        event.occurredAt(),
-        event.occurredAt(),
-        now.plus(180, ChronoUnit.DAYS),
-        now,
-        now);
+        utc(event.occurredAt()),
+        utc(event.occurredAt()),
+        utc(now.plus(180, ChronoUnit.DAYS)),
+        utc(now),
+        utc(now));
     counterService.increment(userId, event.companyId(), event.requiredPermissionKey());
     return new Materialized(notificationId, false);
   }
@@ -170,7 +172,7 @@ public class NotificationMaterializer {
             userId,
             definition.notificationType(),
             event.groupKey(),
-            bucket);
+            utc(bucket));
 
     if (existing == null) {
       long notificationId = IdGenerator.nextId();
@@ -193,13 +195,13 @@ public class NotificationMaterializer {
           rendered.title(),
           "1 new inbox message",
           event.groupKey(),
-          bucket,
+          utc(bucket),
           rendered.actionPath(),
-          event.occurredAt(),
-          event.occurredAt(),
-          now.plus(180, ChronoUnit.DAYS),
-          now,
-          now);
+          utc(event.occurredAt()),
+          utc(event.occurredAt()),
+          utc(now.plus(180, ChronoUnit.DAYS)),
+          utc(now),
+          utc(now));
       counterService.increment(userId, event.companyId(), event.requiredPermissionKey());
       return new Materialized(notificationId, false);
     }
@@ -214,7 +216,7 @@ public class NotificationMaterializer {
         """,
         nextCount,
         nextCount + " new inbox messages",
-        event.occurredAt(),
+        utc(event.occurredAt()),
         existing.id());
     if (existing.readAt() != null) {
       counterService.increment(userId, event.companyId(), event.requiredPermissionKey());
@@ -289,10 +291,10 @@ public class NotificationMaterializer {
         channel,
         mode,
         idempotencyKey,
-        now,
-        now,
-        now,
-        now);
+        utc(now),
+        utc(now),
+        utc(now),
+        utc(now));
   }
 
   private EffectivePreference preference(
@@ -401,6 +403,10 @@ public class NotificationMaterializer {
     } catch (Exception exception) {
       throw new IllegalArgumentException("Invalid persisted notification variables", exception);
     }
+  }
+
+  private OffsetDateTime utc(Instant value) {
+    return OffsetDateTime.ofInstant(value, ZoneOffset.UTC);
   }
 
   private Instant fiveMinuteBucket(Instant value) {

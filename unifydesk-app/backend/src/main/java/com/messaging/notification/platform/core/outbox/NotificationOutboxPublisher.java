@@ -8,6 +8,8 @@ import com.messaging.notification.platform.core.config.NotificationPlatformPrope
 import com.messaging.notification.platform.core.event.NotificationMaterializeRequested;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -71,8 +73,8 @@ public class NotificationOutboxPublisher {
                           rs.getString("priority"),
                           rs.getTimestamp("occurred_at").toInstant(),
                           rs.getInt("publish_attempts")),
-                  now,
-                  now,
+                  utc(now),
+                  utc(now),
                   properties.getCore().getOutbox().getBatchSize());
           return rows.stream()
               .map(
@@ -86,8 +88,8 @@ public class NotificationOutboxPublisher {
                         where id=?
                         """,
                         token,
-                        now.plus(properties.getCore().getOutbox().getLease()),
-                        now,
+                        utc(now.plus(properties.getCore().getOutbox().getLease())),
+                        utc(now),
                         row.id());
                     return new ClaimedEvent(row, token);
                   })
@@ -121,8 +123,8 @@ public class NotificationOutboxPublisher {
               claim_token=null,claim_expires_at=null,last_error_code=null,updated_at=?
           where id=? and claim_token=?
           """,
-          Instant.now(),
-          Instant.now(),
+          utc(Instant.now()),
+          utc(Instant.now()),
           row.id(),
           claimed.token());
     } catch (Exception exception) {
@@ -137,8 +139,8 @@ public class NotificationOutboxPublisher {
           where id=? and claim_token=?
           """,
           dead ? "DEAD" : "PENDING",
-          next,
-          Instant.now(),
+          utc(next),
+          utc(Instant.now()),
           row.id(),
           claimed.token());
       log.warn("Notification event publish failed eventId={} attempt={}", row.id(), attempt);
@@ -164,8 +166,12 @@ public class NotificationOutboxPublisher {
           limit ?
         )
         """,
-        cutoff,
+        utc(cutoff),
         properties.getCore().getOutbox().getBatchSize());
+  }
+
+  private OffsetDateTime utc(Instant value) {
+    return OffsetDateTime.ofInstant(value, ZoneOffset.UTC);
   }
 
   private Duration backoff(int attempt) {

@@ -3,6 +3,8 @@ package com.messaging.notification.platform.core.cleanup;
 import com.messaging.notification.platform.core.config.NotificationPlatformProperties;
 import com.messaging.notification.platform.core.state.NotificationUnreadCounterService;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -286,8 +288,8 @@ public class NotificationCoreCleanupService {
                     (Long) rs.getObject("company_id"),
                     rs.getString("required_permission_key"),
                     rs.getTimestamp("read_at") != null),
-            now,
-            retentionCutoff,
+            utc(now),
+            utc(retentionCutoff),
             batchSize);
     if (rows.isEmpty()) {
       return 0;
@@ -337,8 +339,8 @@ public class NotificationCoreCleanupService {
               limit ?
             )
             """,
-            cutoff,
-            cutoff,
+            utc(cutoff),
+            utc(cutoff),
             batchSize);
 
     int fanout =
@@ -362,8 +364,8 @@ public class NotificationCoreCleanupService {
               limit ?
             )
             """,
-            cutoff,
-            cutoff,
+            utc(cutoff),
+            utc(cutoff),
             batchSize);
 
     int events =
@@ -393,11 +395,15 @@ public class NotificationCoreCleanupService {
               limit ?
             )
             """,
-            cutoff,
-            cutoff,
+            utc(cutoff),
+            utc(cutoff),
             batchSize);
 
     return Math.addExact(Math.addExact(receipts, fanout), events);
+  }
+
+  private OffsetDateTime utc(Instant value) {
+    return OffsetDateTime.ofInstant(value, ZoneOffset.UTC);
   }
 
   private boolean drain(String sql, long rootId, int batchSize) {

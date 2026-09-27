@@ -14,6 +14,8 @@ import com.messaging.notification.platform.core.state.NotificationUnreadCounterS
 import java.sql.ResultSet;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -114,7 +116,10 @@ class NotificationCoreCleanupServiceTests {
 
     verify(counters).adjust(7L, 22L, "email.read", -1L);
     assertThat(firstSqlArgs.get())
-        .containsExactly(now, now.minus(Duration.ofDays(180)), 10);
+        .containsExactly(
+            OffsetDateTime.ofInstant(now, ZoneOffset.UTC),
+            OffsetDateTime.ofInstant(now.minus(Duration.ofDays(180)), ZoneOffset.UTC),
+            10);
   }
 
   @Test
@@ -142,7 +147,8 @@ class NotificationCoreCleanupServiceTests {
             values ->
                 assertThat(values)
                     .contains(
-                        now.minus(Duration.ofDays(90)),
+                        OffsetDateTime.ofInstant(
+                            now.minus(Duration.ofDays(90)), ZoneOffset.UTC),
                         50));
   }
 

@@ -4,6 +4,8 @@ import com.messaging.notification.platform.core.config.NotificationPlatformPrope
 import com.messaging.notification.platform.core.materialization.NotificationMaterializer.MaterializationResult;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -56,8 +58,8 @@ public class NotificationFanoutWorker {
                           (Long) rs.getObject("cursor_user_id"),
                           rs.getInt("batch_size"),
                           rs.getInt("attempts")),
-                  now,
-                  now,
+                  utc(now),
+                  utc(now),
                   properties.getCore().getFanout().getClaimSize());
           return rows.stream()
               .map(
@@ -70,8 +72,8 @@ public class NotificationFanoutWorker {
                         where id=?
                         """,
                         token,
-                        now.plus(properties.getCore().getFanout().getLease()),
-                        now,
+                        utc(now.plus(properties.getCore().getFanout().getLease())),
+                        utc(now),
                         row.id());
                     return new ClaimedJob(row, token);
                   })
@@ -171,7 +173,7 @@ public class NotificationFanoutWorker {
         where id=? and claim_token=?
         """,
         dead ? "DEAD" : "PENDING",
-        next,
+        utc(next),
         claimed.row().id(),
         claimed.token());
     if (dead) {
@@ -181,6 +183,10 @@ public class NotificationFanoutWorker {
     }
     log.warn(
         "Notification fanout failed eventId={} attempt={}", claimed.row().eventId(), attempt);
+  }
+
+  private OffsetDateTime utc(Instant value) {
+    return OffsetDateTime.ofInstant(value, ZoneOffset.UTC);
   }
 
   private Duration backoff(int attempt) {
