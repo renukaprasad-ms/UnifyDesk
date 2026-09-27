@@ -208,6 +208,21 @@ class AdFeatureCapabilityServiceTests {
   }
 
   @Test
+  void reportsMetaImageExpansionAsImplemented() {
+    when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
+
+    var capability =
+        service.providerCapabilities(AdProvider.META_ADS).stream()
+            .filter(item -> item.feature() == AdFeatureCapability.META_IMAGE_UNCROP)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(capability.implemented()).isTrue();
+    assertThat(capability.supported()).isTrue();
+    assertThat(capability.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
+  }
+
+  @Test
   void managedAccountRequirementIsResolvedPerAccount() {
     when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
 
