@@ -1245,6 +1245,12 @@ export default function ReachlyoCampaignWizard() {
             ?.externalResourceId ?? '',
         )
       }
+      if (!metaProductSetId) {
+        setMetaProductSetId(
+          resources.find((item) => item.resourceType === 'META_PRODUCT_SET')
+            ?.externalResourceId ?? '',
+        )
+      }
     }
   }
 
