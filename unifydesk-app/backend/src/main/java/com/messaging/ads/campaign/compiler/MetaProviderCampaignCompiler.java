@@ -59,6 +59,7 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
     validateAdvantageCreative(context, required, issues);
     validateGenerativeText(context, required, issues);
     validateImageExpansion(context, required, issues);
+    validateCatalog(context, required, issues);
     validateBackgroundGeneration(context, required, issues);
 
     AudienceMappingStatus audienceMappingStatus = null;
@@ -162,6 +163,23 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
         Set.copyOf(required),
         List.copyOf(issues),
         List.copyOf(operations));
+  }
+
+  private void validateCatalog(
+      ProviderCampaignCompileContext context,
+      Set<AdFeatureCapability> required,
+      List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    String productSetId = text(override, "productSetId");
+    if (productSetId == null || productSetId.isBlank()) return;
+
+    ProviderCampaignPlanSupport.requireCapability(
+        context, AdFeatureCapability.META_CATALOG, required, issues);
+    issues.add(
+        ProviderCampaignPlanSupport.warning(
+            "META_CATALOG_PRODUCT_SET_SELECTED",
+            "providerOverride.productSetId",
+            "A Meta product set is selected. Launch will use Meta's catalog/dynamic-product ad path and keep the ad paused for provider review."));
   }
 
   private void validateBackgroundGeneration(
@@ -527,21 +545,26 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
                   "mappingStatus",
                   audienceMappingStatus)));
     }
-    operations.add(
-        operation(
-            sequence++,
-            "create-creative",
-            ProviderPlanAction.CREATE,
-            ProviderPlanResource.CREATIVE,
-            false,
-            Set.of(
-                AdFeatureCapability.CREATIVE_CREATE,
-                AdFeatureCapability.META_IMAGE_VIDEO_CAROUSEL),
-            ProviderCampaignPlanSupport.config(
-                "creativePackId",
-                context.creativePack() == null
-                    ? null
-                    : context.creativePack().getId().toString())));
+    JsonNode providerOverride = providerOverride(context.channel().getProviderOverrideJson());
+    String productSetId = text(providerOverride, "productSetId");
+    boolean catalogAd = productSetId != null && !productSetId.isBlank();
+    if (!catalogAd) {
+      operations.add(
+          operation(
+              sequence++,
+              "create-creative",
+              ProviderPlanAction.CREATE,
+              ProviderPlanResource.CREATIVE,
+              false,
+              Set.of(
+                  AdFeatureCapability.CREATIVE_CREATE,
+                  AdFeatureCapability.META_IMAGE_VIDEO_CAROUSEL),
+              ProviderCampaignPlanSupport.config(
+                  "creativePackId",
+                  context.creativePack() == null
+                      ? null
+                      : context.creativePack().getId().toString())));
+    }
     operations.add(
         operation(
             sequence++,
@@ -549,8 +572,18 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
             ProviderPlanAction.CREATE,
             ProviderPlanResource.AD,
             true,
-            Set.of(AdFeatureCapability.META_CAMPAIGN_HIERARCHY),
-            ProviderCampaignPlanSupport.config("status", "PAUSED")));
+            catalogAd
+                ? Set.of(
+                    AdFeatureCapability.META_CAMPAIGN_HIERARCHY,
+                    AdFeatureCapability.META_CATALOG)
+                : Set.of(AdFeatureCapability.META_CAMPAIGN_HIERARCHY),
+            ProviderCampaignPlanSupport.config(
+                "status",
+                "PAUSED",
+                "catalogAd",
+                catalogAd,
+                "productSetId",
+                productSetId)));
 
     if (context.conversionGoalMapping() != null) {
       operations.add(
