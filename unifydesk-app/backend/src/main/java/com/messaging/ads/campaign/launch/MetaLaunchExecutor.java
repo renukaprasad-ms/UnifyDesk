@@ -551,6 +551,7 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                     firstText(text(override, "callToActionType"), pack.getCallToAction()),
                     text(override, "urlTags"),
                     booleanValue(override, "advantagePlusCreative", false),
+                    booleanValue(override, "generativeText", false),
                     placementAssets),
                 run.getRequestedByUserId());
         return LaunchStepExecutionResult.succeeded(
@@ -606,6 +607,7 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 selectedMedia.getMediaType() == MediaType.VIDEO ? selectedUrl : null,
                 text(override, "urlTags"),
                 booleanValue(override, "advantagePlusCreative", false),
+                booleanValue(override, "generativeText", false),
                 List.of()),
             run.getRequestedByUserId());
 
