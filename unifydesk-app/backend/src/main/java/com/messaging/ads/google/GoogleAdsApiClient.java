@@ -298,7 +298,6 @@ public class GoogleAdsApiClient {
           addAdsHeaders(request, accessToken, loginCustomerId);
           Map<String, Object> body = new LinkedHashMap<>();
           body.put("operations", operations);
-          body.put("partialFailure", false);
           body.put("responseContentType", "MUTABLE_RESOURCE");
           return parseJson(request.body(body).retrieve().body(String.class));
         },
