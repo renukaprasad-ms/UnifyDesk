@@ -129,7 +129,7 @@ public class NotificationMaterializer {
         now.plus(180, ChronoUnit.DAYS),
         now,
         now);
-    counterService.increment(userId, event.companyId());
+    counterService.increment(userId, event.companyId(), event.requiredPermissionKey());
     return new Materialized(notificationId, false);
   }
 
@@ -200,7 +200,7 @@ public class NotificationMaterializer {
           now.plus(180, ChronoUnit.DAYS),
           now,
           now);
-      counterService.increment(userId, event.companyId());
+      counterService.increment(userId, event.companyId(), event.requiredPermissionKey());
       return new Materialized(notificationId, false);
     }
 
@@ -217,7 +217,7 @@ public class NotificationMaterializer {
         event.occurredAt(),
         existing.id());
     if (existing.readAt() != null) {
-      counterService.increment(userId, event.companyId());
+      counterService.increment(userId, event.companyId(), event.requiredPermissionKey());
     }
     return new Materialized(existing.id(), true);
   }

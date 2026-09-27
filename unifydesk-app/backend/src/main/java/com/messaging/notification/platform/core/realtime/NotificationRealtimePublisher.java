@@ -1,7 +1,9 @@
 package com.messaging.notification.platform.core.realtime;
 
+import com.messaging.company.service.CompanyIamPermissionService;
 import com.messaging.notification.platform.core.state.NotificationUnreadCounterService;
 import com.messaging.realtime.service.RealtimeService;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,7 @@ public class NotificationRealtimePublisher {
 
   private final RealtimeService realtimeService;
   private final NotificationUnreadCounterService counterService;
+  private final CompanyIamPermissionService permissionService;
 
   public void afterCommit(long userId, Long companyId, Long notificationId, String reason) {
     Runnable publish = () -> publish(userId, companyId, notificationId, reason);
@@ -33,7 +36,12 @@ public class NotificationRealtimePublisher {
 
   private void publish(long userId, Long companyId, Long notificationId, String reason) {
     try {
-      NotificationUnreadCounterService.Counts counts = counterService.counts(userId, companyId);
+      Set<String> permissions =
+          companyId == null
+              ? Set.of()
+              : permissionService.effectivePermissions(userId, companyId);
+      NotificationUnreadCounterService.Counts counts =
+          counterService.counts(userId, companyId, permissions);
       realtimeService.sendToAllUserSessions(
           userId,
           "notification.changed.v1",
