@@ -272,7 +272,6 @@ export default function NotificationProvider({
       markAllRead,
       openNotification,
       broadcastRefresh,
-      refreshVersion,
     }),
     [
       broadcastRefresh,
@@ -283,6 +282,7 @@ export default function NotificationProvider({
       openNotification,
       recent,
       refresh,
+      refreshVersion,
       setRead,
       unreadCount,
     ],
