@@ -212,6 +212,52 @@ class GoogleAdsExperimentServiceTests {
   }
 
   @Test
+  void schedulesSetupExperimentThroughGoogleLifecycleAction() throws Exception {
+    when(contextService.requireManaged(10L, 20L)).thenReturn(context);
+    when(apiClient.customerResourceName("1234567890", "experiments", "55"))
+        .thenReturn("customers/1234567890/experiments/55");
+
+    JsonNode experimentRow =
+        objectMapper.readTree(
+            """
+            {
+              "experiment":{
+                "resourceName":"customers/1234567890/experiments/55",
+                "experimentId":"55",
+                "name":"Setup experiment",
+                "type":"SEARCH_CUSTOM",
+                "status":"SETUP"
+              }
+            }
+            """);
+    when(apiClient.searchRows(
+            eq("access-token"), eq("1234567890"), isNull(), anyString()))
+        .thenReturn(List.of(experimentRow));
+    when(apiClient.searchRows(
+            eq("access-token"), eq("1234567890"), isNull(), anyString(), eq(true)))
+        .thenReturn(List.of());
+    when(apiClient.customerAction(
+            eq("access-token"),
+            eq("1234567890"),
+            isNull(),
+            eq("experiments/55:scheduleExperiment"),
+            eq(Map.of("resourceName", "customers/1234567890/experiments/55"))))
+        .thenReturn(objectMapper.readTree("""{"name":"operations/schedule-55"}"""));
+
+    var response = service.schedule(10L, 20L, "55", 77L);
+
+    assertThat(response.action()).isEqualTo("SCHEDULE");
+    assertThat(response.operationName()).isEqualTo("operations/schedule-55");
+    verify(apiClient)
+        .customerAction(
+            "access-token",
+            "1234567890",
+            null,
+            "experiments/55:scheduleExperiment",
+            Map.of("resourceName", "customers/1234567890/experiments/55"));
+  }
+
+  @Test
   void rejectsNonSearchBaseCampaign() {
     when(contextService.requireManaged(10L, 20L)).thenReturn(context);
     AdCampaign base = searchCampaign();
