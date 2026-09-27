@@ -33,6 +33,16 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class NotificationDeliveryRuntimeRepository {
 
+  static final String PUSH_SUBSCRIPTION_INSERT_SQL =
+      """
+      insert into notification_push_subscriptions(
+        id,user_id,endpoint_hash,endpoint_ciphertext,p256dh_ciphertext,auth_ciphertext,
+        expiration_time,device_label,status,created_at,updated_at
+      ) values (?,?,?,?,?,?,?,?, 'ACTIVE',now(),now())
+      on conflict (endpoint_hash) do nothing
+      returning *
+      """;
+
   private final JdbcTemplate jdbcTemplate;
 
   @Transactional
@@ -698,14 +708,7 @@ public class NotificationDeliveryRuntimeRepository {
     long id = IdGenerator.nextId();
     List<PushSubscription> inserted =
         jdbcTemplate.query(
-            """
-            insert into notification_push_subscriptions(
-              id,user_id,endpoint_hash,endpoint_ciphertext,p256dh_ciphertext,auth_ciphertext,
-              expiration_time,device_label,status,created_at,updated_at
-            ) values (?,?,?,?,?,?,?,?, 'ACTIVE',now(),now())
-            on conflict (endpoint_hash) do nothing
-            returning *
-            """,
+            PUSH_SUBSCRIPTION_INSERT_SQL,
             this::mapSubscription,
             id,
             userId,
