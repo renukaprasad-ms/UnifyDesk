@@ -960,9 +960,14 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                   props.setMetaPlacementMode(event.target.value as 'AUTO' | 'MANUAL')
                 }
               >
-                <option value="AUTO">Advantage+ / automatic placements</option>
+                <option value="AUTO">Advantage+ placements (recommended)</option>
                 <option value="MANUAL">Manual placements</option>
               </select>
+              <p className="mt-2 text-[11px] leading-5 text-slate-500">
+                Advantage+ placements leaves publisher-platform and position restrictions unset so
+                Meta can distribute delivery across eligible placements. Manual mode limits delivery
+                to the placement tree you choose below.
+              </p>
               {props.metaPlacementMode === 'MANUAL' && (
                 <div className="mt-3 space-y-3">
                   {META_PLACEMENT_GROUPS.map((group) => {
