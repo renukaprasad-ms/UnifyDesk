@@ -9,6 +9,7 @@ import com.messaging.ads.campaign.entity.AudienceDefinition;
 import com.messaging.ads.campaign.entity.BudgetPlan;
 import com.messaging.ads.campaign.entity.CampaignChannel;
 import com.messaging.ads.campaign.entity.CreativePack;
+import com.messaging.ads.campaign.entity.CreativePackAsset;
 import com.messaging.ads.campaign.entity.CreativeVariant;
 import com.messaging.ads.campaign.entity.ReachlyoCampaign;
 import com.messaging.ads.campaign.enums.AudienceMappingStatus;
@@ -17,6 +18,7 @@ import com.messaging.ads.campaign.enums.BudgetPeriod;
 import com.messaging.ads.campaign.enums.CampaignBusinessGoal;
 import com.messaging.ads.campaign.enums.CampaignChannelType;
 import com.messaging.ads.campaign.enums.CreativeVariantType;
+import com.messaging.ads.campaign.enums.CreativeAssetRole;
 import com.messaging.ads.entity.AdAccount;
 import com.messaging.ads.enums.AdProvider;
 import java.util.EnumMap;
@@ -461,6 +463,130 @@ class MetaProviderCampaignCompilerTests {
     assertThat(plan.issues())
         .anyMatch(
             issue -> issue.code().equals("META_GENERATIVE_TEXT_PRIMARY_TEXT_TOO_SHORT"));
+  }
+
+  @Test
+  void requiresImageExpansionCapabilityAndReviewWarning() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(19L);
+    campaign.setName("Meta image expansion");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(29L);
+    channel.setReachlyoCampaignId(19L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson("{\"imageExpansion\":true}");
+
+    AdAccount account = new AdAccount();
+    account.setId(39L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(49L);
+    pack.setPrimaryMessage("Visit our site");
+    pack.setDestinationUrl("https://example.com");
+
+    CreativePackAsset image = new CreativePackAsset();
+    image.setRole(CreativeAssetRole.IMAGE);
+    image.setMediaId(501L);
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities = baseCapabilities();
+    capabilities.put(
+        AdFeatureCapability.META_IMAGE_UNCROP,
+        available(AdFeatureCapability.META_IMAGE_UNCROP));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(image),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isTrue();
+    assertThat(plan.requiredCapabilities())
+        .contains(AdFeatureCapability.META_IMAGE_UNCROP);
+    assertThat(plan.issues())
+        .anyMatch(issue -> issue.code().equals("META_IMAGE_EXPANSION_OPT_IN"));
+  }
+
+  @Test
+  void blocksImageExpansionWithoutImageAsset() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(20L);
+    campaign.setName("Meta missing image");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(30L);
+    channel.setReachlyoCampaignId(20L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson("{\"imageExpansion\":true}");
+
+    AdAccount account = new AdAccount();
+    account.setId(40L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(50L);
+    pack.setPrimaryMessage("Visit our site");
+    pack.setDestinationUrl("https://example.com");
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities = baseCapabilities();
+    capabilities.put(
+        AdFeatureCapability.META_IMAGE_UNCROP,
+        available(AdFeatureCapability.META_IMAGE_UNCROP));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isFalse();
+    assertThat(plan.issues())
+        .anyMatch(issue -> issue.code().equals("META_IMAGE_EXPANSION_IMAGE_REQUIRED"));
   }
 
   @Test
