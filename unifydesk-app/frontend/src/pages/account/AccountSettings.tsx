@@ -3,6 +3,7 @@ import { FiChevronRight, FiKey, FiShield, FiTrash2 } from 'react-icons/fi'
 import { useNavigate } from 'react-router'
 import { authApi } from '../../features/auth/authApi'
 import { userApi } from '../../features/user/userApi'
+import NotificationPreferencesPanel from '../../features/notifications/NotificationPreferencesPanel'
 import type { User } from '../../features/user/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { selectAuthUser, sessionCleared } from '../../store/auth/authSlice'
@@ -165,6 +166,13 @@ export default function AccountSettings() {
                 <span />
               </button>
             </div>
+          </div>
+        </div>
+
+        <div className="mt-10">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Notifications</p>
+          <div className="mt-3">
+            <NotificationPreferencesPanel />
           </div>
         </div>
 

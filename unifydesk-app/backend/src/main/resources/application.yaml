@@ -83,6 +83,68 @@ spring:
         heartbeat.interval.ms: ${KAFKA_HEARTBEAT_INTERVAL_MS:15000}
 
 app:
+  notification-platform:
+    frontend-base-url: ${APP_NOTIFICATION_FRONTEND_BASE_URL:${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}}
+    core:
+      outbox:
+        batch-size: ${APP_NOTIFICATION_OUTBOX_BATCH_SIZE:100}
+        poll-interval-ms: ${APP_NOTIFICATION_OUTBOX_POLL_INTERVAL_MS:750}
+        lease: ${APP_NOTIFICATION_OUTBOX_LEASE:30s}
+        recovery-after: ${APP_NOTIFICATION_OUTBOX_RECOVERY_AFTER:5m}
+        max-attempts: ${APP_NOTIFICATION_OUTBOX_MAX_ATTEMPTS:20}
+        retry-initial-backoff: ${APP_NOTIFICATION_OUTBOX_RETRY_INITIAL_BACKOFF:1s}
+        retry-max-backoff: ${APP_NOTIFICATION_OUTBOX_RETRY_MAX_BACKOFF:1m}
+        publish-timeout: ${APP_NOTIFICATION_OUTBOX_PUBLISH_TIMEOUT:30s}
+      fanout:
+        claim-size: ${APP_NOTIFICATION_FANOUT_CLAIM_SIZE:10}
+        recipient-batch-size: ${APP_NOTIFICATION_FANOUT_RECIPIENT_BATCH_SIZE:500}
+        poll-interval-ms: ${APP_NOTIFICATION_FANOUT_POLL_INTERVAL_MS:750}
+        lease: ${APP_NOTIFICATION_FANOUT_LEASE:1m}
+        max-attempts: ${APP_NOTIFICATION_FANOUT_MAX_ATTEMPTS:20}
+        retry-initial-backoff: ${APP_NOTIFICATION_FANOUT_RETRY_INITIAL_BACKOFF:2s}
+        retry-max-backoff: ${APP_NOTIFICATION_FANOUT_RETRY_MAX_BACKOFF:5m}
+      reconciliation:
+        batch-size: ${APP_NOTIFICATION_RECONCILIATION_BATCH_SIZE:100}
+        interval-ms: ${APP_NOTIFICATION_RECONCILIATION_INTERVAL_MS:900000}
+    delivery:
+      enabled: ${APP_NOTIFICATION_DELIVERY_ENABLED:true}
+      claim-batch-size: ${APP_NOTIFICATION_DELIVERY_CLAIM_BATCH_SIZE:100}
+      claim-lease: ${APP_NOTIFICATION_DELIVERY_CLAIM_LEASE:2m}
+      poll-delay: ${APP_NOTIFICATION_DELIVERY_POLL_DELAY:1s}
+      email-max-attempts: ${APP_NOTIFICATION_EMAIL_MAX_ATTEMPTS:5}
+    retention:
+      events: ${APP_NOTIFICATION_EVENT_RETENTION:90d}
+      notifications: ${APP_NOTIFICATION_HISTORY_RETENTION:180d}
+      delivery-intents: ${APP_NOTIFICATION_DELIVERY_RETENTION:90d}
+      cleanup-batch-size: ${APP_NOTIFICATION_CLEANUP_BATCH_SIZE:1000}
+      cleanup-interval-ms: ${APP_NOTIFICATION_CLEANUP_INTERVAL_MS:86400000}
+      cleanup-initial-delay-ms: ${APP_NOTIFICATION_CLEANUP_INITIAL_DELAY_MS:300000}
+    digest:
+      enabled: ${APP_NOTIFICATION_DIGEST_ENABLED:true}
+      aggregation-batch-size: ${APP_NOTIFICATION_DIGEST_AGGREGATION_BATCH_SIZE:250}
+      threshold: ${APP_NOTIFICATION_DIGEST_THRESHOLD:10}
+      trigger-count: ${APP_NOTIFICATION_DIGEST_THRESHOLD:10}
+      max-wait: ${APP_NOTIFICATION_DIGEST_MAX_WAIT:2h}
+      debounce: ${APP_NOTIFICATION_DIGEST_DEBOUNCE:15m}
+      cooldown: ${APP_NOTIFICATION_DIGEST_COOLDOWN:4h}
+      optional-email-rolling-cap: ${APP_NOTIFICATION_EMAIL_OPTIONAL_ROLLING_24H_CAP:3}
+      rolling-window: ${APP_NOTIFICATION_EMAIL_ROLLING_WINDOW:24h}
+      poll-delay: ${APP_NOTIFICATION_DIGEST_POLL_DELAY:1m}
+    email:
+      enabled: ${APP_NOTIFICATION_EMAIL_ENABLED:true}
+      optional-rolling24h-cap: ${APP_NOTIFICATION_EMAIL_OPTIONAL_ROLLING_24H_CAP:3}
+    push:
+      vapid-public-key: ${APP_NOTIFICATION_PUSH_VAPID_PUBLIC_KEY:}
+      vapid-private-key: ${APP_NOTIFICATION_PUSH_VAPID_PRIVATE_KEY:}
+      vapid-subject: ${APP_NOTIFICATION_PUSH_VAPID_SUBJECT:mailto:support@unifydesk.in}
+      max-subscriptions-per-user: ${APP_NOTIFICATION_PUSH_MAX_SUBSCRIPTIONS_PER_USER:10}
+      max-active-subscriptions: ${APP_NOTIFICATION_PUSH_MAX_SUBSCRIPTIONS_PER_USER:10}
+      target-payload-bytes: ${APP_NOTIFICATION_PUSH_TARGET_PAYLOAD_BYTES:2048}
+      max-payload-bytes: ${APP_NOTIFICATION_PUSH_MAX_PAYLOAD_BYTES:4096}
+      max-attempts: ${APP_NOTIFICATION_PUSH_MAX_ATTEMPTS:4}
+      inbox-ttl: ${APP_NOTIFICATION_PUSH_INBOX_TTL:30m}
+      default-ttl: ${APP_NOTIFICATION_PUSH_DEFAULT_TTL:15m}
+      cleanup-delay: ${APP_NOTIFICATION_PUSH_CLEANUP_DELAY:1h}
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:https://app.unifydesk.in}
   lifecycle:

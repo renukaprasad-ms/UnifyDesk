@@ -33,6 +33,9 @@
 		<aws.sdk.version>2.54.17</aws.sdk.version>
 		<azure.communication.email.version>1.1.4</azure.communication.email.version>
 		<guava.version>33.7.1-jre</guava.version>
+		<webpush.version>5.1.2</webpush.version>
+		<jose4j.version>0.9.6</jose4j.version>
+		<bouncycastle.version>1.70</bouncycastle.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -46,6 +49,26 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>nl.martijndwars</groupId>
+			<artifactId>web-push</artifactId>
+			<version>${webpush.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.bitbucket.b_c</groupId>
+			<artifactId>jose4j</artifactId>
+			<version>${jose4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<version>4.5.14</version>
+		</dependency>
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcprov-jdk15on</artifactId>
+			<version>${bouncycastle.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
