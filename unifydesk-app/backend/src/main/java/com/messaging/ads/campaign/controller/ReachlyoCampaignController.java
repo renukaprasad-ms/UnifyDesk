@@ -4,6 +4,7 @@ import com.messaging.ads.campaign.dto.CreateCampaignChannelRequest;
 import com.messaging.ads.campaign.dto.CreateReachlyoCampaignRequest;
 import com.messaging.ads.campaign.dto.ReachlyoCampaignResponse;
 import com.messaging.ads.campaign.dto.ReachlyoCampaignRecommendationsResponse;
+import com.messaging.ads.campaign.dto.ReachlyoBudgetRecommendationResponse;
 import com.messaging.ads.campaign.dto.ReachlyoCampaignAnalyticsResponse;
 import com.messaging.ads.campaign.dto.ReachlyoCampaignAnalyticsSyncResponse;
 import com.messaging.ads.campaign.dto.ReachlyoCampaignSummaryResponse;
@@ -12,6 +13,7 @@ import com.messaging.ads.campaign.dto.UpdateReachlyoCampaignRequest;
 import com.messaging.ads.campaign.dto.UpsertBudgetPlanRequest;
 import com.messaging.ads.campaign.service.ReachlyoCampaignService;
 import com.messaging.ads.campaign.service.ReachlyoCampaignRecommendationService;
+import com.messaging.ads.campaign.service.ReachlyoBudgetRecommendationService;
 import com.messaging.ads.campaign.service.ReachlyoCampaignAnalyticsService;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
@@ -45,6 +47,7 @@ public class ReachlyoCampaignController {
   private final ReachlyoCampaignService campaignService;
   private final ReachlyoCampaignAnalyticsService campaignAnalyticsService;
   private final ReachlyoCampaignRecommendationService campaignRecommendationService;
+  private final ReachlyoBudgetRecommendationService budgetRecommendationService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -118,6 +121,20 @@ public class ReachlyoCampaignController {
             200,
             campaignRecommendationService.recommendations(companyId, campaignId),
             "Unified campaign recommendations fetched"));
+  }
+
+  @GetMapping("/{campaignId}/budget-recommendations")
+  public ResponseEntity<ApiResponse<ReachlyoBudgetRecommendationResponse>> budgetRecommendations(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId,
+      @RequestParam(required = false) LocalDate from,
+      @RequestParam(required = false) LocalDate to) {
+    require(companyId, CompanyPermissionKeys.ADS_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            budgetRecommendationService.recommend(companyId, campaignId, from, to),
+            "Cross-provider budget recommendations fetched"));
   }
 
   @PostMapping("/{campaignId}/analytics/sync")
