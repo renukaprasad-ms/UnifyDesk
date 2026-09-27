@@ -1437,29 +1437,57 @@ Verified against the active project Meta Graph API v26.0 model and current Meta 
 
 ## M-05 Advantage+ placements - P1
 
-Provide:
+Status: **complete for D3 — Advantage+ placements is now an explicit, capability-gated Meta placement mode while preserving B4/B5 manual placement and creative-variant behavior**.
 
-- automatic/Advantage+ placements
-- manual placement tree
-- placement warnings
-- placement-specific creative variant mapping
+Implemented:
+
+- [x] explicit Advantage+ placements selection in the unified Meta provider settings
+- [x] provider override persists `advantagePlacements=true` instead of inferring product intent only from empty arrays
+- [x] backward-compatible read-back: older campaigns with no manual publisher platforms still hydrate as automatic placements
+- [x] unified compiler requires `META_ADVANTAGE_PLACEMENTS` when the explicit automatic mode is selected
+- [x] compiler rejects conflicting automatic + manual publisher-platform/position settings
+- [x] explicit manual mode requires at least one publisher platform
+- [x] native create/edit/read-back continues to represent automatic placement correctly by omitting manual `publisher_platforms` and position restrictions
+- [x] existing B4 placement tree remains available for manual Facebook, Instagram, Messenger and Audience Network selection
+- [x] existing B5 Feed/Story/Reel placement-specific creative mapping remains intact for manual placement selection
+- [x] activity audit records whether an ad-set mutation is using automatic/Advantage+ or manual placement selection without logging provider tokens/payload secrets
+- [x] capability and compiler regression coverage
+- [x] responsive unified/native placement UI wording distinguishes Advantage+ placements from manual placement restrictions
+
+Provider semantics:
+
+- UnifyDesk does not invent a separate Graph API `advantage_placements` targeting field.
+- Advantage+ placements is represented by not constraining the ad set with manual publisher-platform/position targeting; Meta remains authoritative for the eligible inventory available to the account/objective/creative.
+- Manual placement selection is mutually exclusive with the explicit Advantage+ placements mode.
+- Existing account/objective/creative eligibility and provider-side validation still apply.
 
 ## M-06 Advantage+ creative - P1
 
-Current creative creation is manual.
+Status: **complete for D4 — Meta standard creative enhancements can be explicitly opted into from native and unified creative flows without silently enabling later generative features**.
 
-Add support for eligible creative features exposed by Marketing API.
+Implemented:
 
-Possible capabilities include:
+- [x] `META_ADVANTAGE_CREATIVE` capability moved from PLANNED to AVAILABLE
+- [x] explicit native Meta creative opt-in
+- [x] explicit unified campaign provider setting persisted as `advantagePlusCreative`
+- [x] compiler capability gating and review warning
+- [x] unified launch carries the opt-in through both standard and placement-customized creative creation
+- [x] provider payload uses `degrees_of_freedom_spec.creative_features_spec.standard_enhancements.enroll_status`
+- [x] explicit opt-in sends `OPT_IN`; explicit opt-out can send `OPT_OUT`; unspecified legacy callers remain unchanged
+- [x] provider read-back requests `degrees_of_freedom_spec` and exposes normalized Advantage+ creative state
+- [x] activity audit records Advantage+ creative state without logging provider tokens
+- [x] regression coverage for provider payload, compiler requirements and capability availability
+- [x] existing placement-specific asset customization remains compatible
 
-- text generation/variations
-- image expansion/uncropping
-- background generation
-- other current Advantage+ creative features exposed by the active Marketing API
+Scope boundary:
 
-Always require preview/approval before Reachlyo publishes AI-generated material unless the user explicitly configures automatic creative optimization.
+- D4 covers the generic standard-enhancements enrollment only.
+- Text generation remains D5.
+- Image uncrop/expansion remains D6.
+- Background generation remains D7.
+- UnifyDesk does not treat those generative features as implicitly enabled by D4.
 
-Official Meta Postman collection:
+Official Meta references used for the broader creative automation roadmap:
 
 - https://www.postman.com/meta/facebook-marketing-api/collection/r3touuy/mapi-generative-ai-features
 - Text generation:
@@ -1468,6 +1496,34 @@ Official Meta Postman collection:
   https://www.postman.com/meta/facebook-marketing-api/folder/i5cscav/background-generation
 - Image expansion examples:
   https://www.postman.com/meta/facebook-marketing-api/request/f4q2498/8-creating-single-image-ad-with-image-uncrop
+
+### D5 implementation note — Meta generative text
+
+Status: **complete for the current Meta v26 generative-text scope**.
+
+Implemented:
+
+- [x] `META_GENERATIVE_TEXT` capability moved from PLANNED to AVAILABLE
+- [x] explicit native creative opt-in
+- [x] explicit unified campaign opt-in persisted as `generativeText`
+- [x] Marketing API payload uses `degrees_of_freedom_spec.creative_features_spec.text_generation.enroll_status`
+- [x] explicit opt-in/opt-out semantics without silently enabling the feature for legacy callers
+- [x] unified compiler requires the feature capability when selected
+- [x] compiler blocks obviously insufficient source copy before remote mutation
+- [x] provider remains authoritative for account/creative eligibility and returns the final validation result
+- [x] launch executor carries text-generation state into standard and placement-customized creatives
+- [x] provider creative read-back normalizes text-generation enrollment
+- [x] audit metadata records text-generation state without storing tokens or generated customer data
+- [x] tests cover provider payload, capability state, compiler review warning and short-copy rejection
+
+Safety/product semantics:
+
+- generated text is treated as provider-generated creative output, not as user-authored copy
+- UnifyDesk surfaces review/preview guidance before activation rather than claiming generated variants are automatically approved
+- catalog and other provider-ineligible combinations are left to current Meta validation instead of being faked locally
+- D6 image expansion and D7 background generation remain separate opt-ins
+
+Verified against Meta's current Marketing API generative-AI examples, including standalone creative text generation and preview/read-back through `degrees_of_freedom_spec`.
 
 ## M-07 Creative variations - P1
 
@@ -2229,10 +2285,37 @@ C9. [x] richer provider reporting — Google landing pages, actual placements, A
 
 D1. [x] customer-list Custom Audiences — Meta CUSTOM audience creation, customer-file source labeling, browser/backend SHA-256 normalization, add/remove multi-key member batches, explicit terms/authorization, no PII/hash persistence or logging, provider counts/status, RBAC/capability/UI/tests  
 D2. [x] Advantage+ audience controls — Meta v26 targeting_automation, age/gender individual suggestion settings, explicit control-vs-suggestion UX, native create/edit/read-back, unified wizard/compiler/launch support, capability/RBAC/audit/tests  
-D3. Advantage+ placements  
-D4. Advantage+ creative  
-D5. generative text  
-D6. image uncrop/expansion  
+D3. [x] Advantage+ placements — explicit capability-gated automatic-placement mode, backward-compatible read-back, manual-placement conflict validation, native/unified UX, audit and compiler/capability tests  
+D4. [x] Advantage+ creative — standard-enhancements opt-in via degrees_of_freedom_spec, native/unified UI, compiler capability gating, launch propagation, provider read-back, audit and tests  
+D5. [x] generative text — explicit Meta text_generation opt-in, native/unified controls, compiler eligibility/review validation, launch propagation, provider read-back, audit metadata and tests  
+D6. [x] image uncrop/expansion — explicit Meta image_uncrop opt-in, image-asset preflight, native/unified controls, launch propagation, provider read-back, audit metadata and tests  
+
+### D6 implementation note — Meta image expansion
+
+Status: **complete for the current Meta v26 image-uncrop/expansion scope**.
+
+Implemented:
+
+- [x] `META_IMAGE_UNCROP` capability moved from PLANNED to AVAILABLE
+- [x] explicit native image-creative opt-in
+- [x] explicit unified campaign opt-in persisted as `imageExpansion`
+- [x] Marketing API payload uses `degrees_of_freedom_spec.creative_features_spec.image_uncrop.enroll_status`
+- [x] explicit opt-in/opt-out while leaving unspecified legacy callers unchanged
+- [x] native UI limits the control to single-image creative creation
+- [x] unified compiler requires at least one image asset before remote mutation
+- [x] compiler requires the image-expansion capability and emits a review warning
+- [x] unified launch propagates the preference through standard and placement-customized Meta creative creation
+- [x] provider creative read-back normalizes `image_uncrop` enrollment
+- [x] activity audit metadata records image-expansion state without provider tokens
+- [x] regression coverage for capability availability, provider payload, image preflight and compiler review behavior
+
+Product/provider semantics:
+
+- image expansion is opt-in and Meta remains authoritative for exact placement/creative eligibility
+- the original image remains the advertiser-provided source; expanded output should be reviewed through provider preview/read-back before activation
+- D6 does not enable background generation
+- D7 remains the separate background-generation slice
+
 D7. background generation  
 D8. existing-post ads  
 D9. Meta Catalog/product sets  

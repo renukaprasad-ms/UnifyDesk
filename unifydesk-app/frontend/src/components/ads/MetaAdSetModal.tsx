@@ -414,9 +414,13 @@ export default function MetaAdSetModal({
             <label className="mt-4 block text-xs font-semibold text-slate-700">
               Placement mode
               <select className="form-input mt-2" value={placementMode} onChange={(e) => setPlacementMode(e.target.value as 'AUTO' | 'MANUAL')}>
-                <option value="AUTO">Advantage+ / automatic placements</option>
+                <option value="AUTO">Advantage+ placements (recommended)</option>
                 <option value="MANUAL">Manual placements</option>
               </select>
+              <span className="mt-2 block text-[11px] font-normal leading-5 text-slate-500">
+                Advantage+ placements lets Meta use all eligible placements by leaving manual
+                publisher-platform restrictions unset.
+              </span>
             </label>
 
             {placementMode === 'MANUAL' && (

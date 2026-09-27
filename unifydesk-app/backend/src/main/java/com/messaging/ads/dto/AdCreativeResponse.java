@@ -1,5 +1,7 @@
 package com.messaging.ads.dto;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.ads.entity.AdCreative;
 import com.messaging.ads.enums.AdProvider;
 import java.time.Instant;
@@ -25,6 +27,9 @@ public record AdCreativeResponse(
     String urlTags,
     String objectStorySpecJson,
     String carouselJson,
+    Boolean advantagePlusCreative,
+    Boolean generativeText,
+    Boolean imageExpansion,
     Instant providerCreatedAt,
     Instant providerUpdatedAt,
     boolean accessible,
@@ -52,9 +57,39 @@ public record AdCreativeResponse(
         creative.getUrlTags(),
         creative.getObjectStorySpecJson(),
         creative.getCarouselJson(),
+        creativeFeatureEnabled(creative.getProviderPayloadJson(), "standard_enhancements"),
+        creativeFeatureEnabled(creative.getProviderPayloadJson(), "text_generation"),
+        creativeFeatureEnabled(creative.getProviderPayloadJson(), "image_uncrop"),
         creative.getProviderCreatedAt(),
         creative.getProviderUpdatedAt(),
         creative.isAccessible(),
         creative.getLastSyncAt());
   }
+
+  private static Boolean creativeFeatureEnabled(
+      String providerPayloadJson, String feature) {
+    if (providerPayloadJson == null || providerPayloadJson.isBlank()) return null;
+    try {
+      JsonNode root = new ObjectMapper().readTree(providerPayloadJson);
+      JsonNode status =
+          root.path("degreesOfFreedomSpec")
+              .path("creative_features_spec")
+              .path(feature)
+              .path("enroll_status");
+      if (status.isMissingNode() || status.isNull() || status.asText("").isBlank()) {
+        status =
+            root.path("degrees_of_freedom_spec")
+                .path("creative_features_spec")
+                .path(feature)
+                .path("enroll_status");
+      }
+      String value = status.asText("").trim().toUpperCase();
+      if ("OPT_IN".equals(value)) return true;
+      if ("OPT_OUT".equals(value)) return false;
+      return null;
+    } catch (Exception ignored) {
+      return null;
+    }
+  }
+
 }

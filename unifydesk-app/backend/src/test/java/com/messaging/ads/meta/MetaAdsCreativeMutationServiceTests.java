@@ -18,6 +18,7 @@ import com.messaging.ads.meta.dto.CreateMetaPlacementCreativeRequest;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdAccountResourceRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
+import com.messaging.ads.service.AdActivityLogService;
 import com.messaging.common.exception.BadRequestException;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,7 @@ class MetaAdsCreativeMutationServiceTests {
   @Mock private MetaAdsTokenService tokenService;
   @Mock private MetaAdsApiClient apiClient;
   @Mock private MetaAdsCreativePersistenceService persistenceService;
+  @Mock private AdActivityLogService activityLogService;
 
   private MetaAdsCreativeMutationService service;
 
@@ -53,7 +55,8 @@ class MetaAdsCreativeMutationServiceTests {
             connectionRepository,
             tokenService,
             apiClient,
-            persistenceService);
+            persistenceService,
+            activityLogService);
   }
 
   @Test
@@ -118,7 +121,11 @@ class MetaAdsCreativeMutationServiceTests {
                 null,
                 null,
                 "utm_source=meta",
-                List.of()));
+                true,
+                true,
+                true,
+                List.of()),
+            77L);
 
     assertThat(response.externalCreativeId()).isEqualTo("creative-1");
     @SuppressWarnings("unchecked")
@@ -128,6 +135,21 @@ class MetaAdsCreativeMutationServiceTests {
     Map<String, Object> linkData = (Map<String, Object>) story.get("link_data");
     assertThat(linkData.get("image_hash")).isEqualTo("image-hash");
     assertThat(linkData.get("link")).isEqualTo("https://example.com");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> degrees =
+        (Map<String, Object>) payload.getValue().get("degrees_of_freedom_spec");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> creativeFeatures =
+        (Map<String, Object>) degrees.get("creative_features_spec");
+    assertThat(creativeFeatures)
+        .extracting("standard_enhancements")
+        .isEqualTo(Map.of("enroll_status", "OPT_IN"));
+    assertThat(creativeFeatures)
+        .extracting("text_generation")
+        .isEqualTo(Map.of("enroll_status", "OPT_IN"));
+    assertThat(creativeFeatures)
+        .extracting("image_uncrop")
+        .isEqualTo(Map.of("enroll_status", "OPT_IN"));
   }
 
   @Test
@@ -186,6 +208,7 @@ class MetaAdsCreativeMutationServiceTests {
                 null,
                 "LEARN_MORE",
                 "utm_source=meta",
+                true,
                 List.of(
                     new CreateMetaPlacementCreativeRequest.PlacementAsset(
                         List.of("facebook", "instagram"),
@@ -210,7 +233,8 @@ class MetaAdsCreativeMutationServiceTests {
                         "Story description",
                         "https://example.com/story",
                         "VIDEO",
-                        "https://cdn.example.com/story.mp4"))));
+                        "https://cdn.example.com/story.mp4"))),
+            77L);
 
     assertThat(response.externalCreativeId()).isEqualTo("creative-placement");
 
@@ -265,7 +289,8 @@ class MetaAdsCreativeMutationServiceTests {
                         null,
                         null,
                         null,
-                        List.of())))
+                        List.of()),
+                    77L))
         .isInstanceOf(BadRequestException.class)
         .hasMessageContaining("Facebook Page");
   }

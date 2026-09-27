@@ -12,7 +12,70 @@ public record CreateMetaPlacementCreativeRequest(
     String instagramActorId,
     String callToActionType,
     String urlTags,
+    Boolean advantagePlusCreative,
+    Boolean generativeText,
+    Boolean imageExpansion,
     @NotEmpty List<@Valid PlacementAsset> placementAssets) {
+
+  public CreateMetaPlacementCreativeRequest(
+      String name,
+      String pageId,
+      String instagramActorId,
+      String callToActionType,
+      String urlTags,
+      List<PlacementAsset> placementAssets) {
+    this(
+        name,
+        pageId,
+        instagramActorId,
+        callToActionType,
+        urlTags,
+        null,
+        null,
+        null,
+        placementAssets);
+  }
+
+  public CreateMetaPlacementCreativeRequest(
+      String name,
+      String pageId,
+      String instagramActorId,
+      String callToActionType,
+      String urlTags,
+      Boolean advantagePlusCreative,
+      List<PlacementAsset> placementAssets) {
+    this(
+        name,
+        pageId,
+        instagramActorId,
+        callToActionType,
+        urlTags,
+        advantagePlusCreative,
+        null,
+        null,
+        placementAssets);
+  }
+
+  public CreateMetaPlacementCreativeRequest(
+      String name,
+      String pageId,
+      String instagramActorId,
+      String callToActionType,
+      String urlTags,
+      Boolean advantagePlusCreative,
+      Boolean generativeText,
+      List<PlacementAsset> placementAssets) {
+    this(
+        name,
+        pageId,
+        instagramActorId,
+        callToActionType,
+        urlTags,
+        advantagePlusCreative,
+        generativeText,
+        null,
+        placementAssets);
+  }
 
   public record PlacementAsset(
       @NotEmpty List<String> publisherPlatforms,

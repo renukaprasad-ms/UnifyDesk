@@ -157,6 +157,72 @@ class AdFeatureCapabilityServiceTests {
   }
 
   @Test
+  void reportsMetaAdvantagePlacementsAsImplemented() {
+    when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
+
+    var capability =
+        service.providerCapabilities(AdProvider.META_ADS).stream()
+            .filter(
+                item ->
+                    item.feature()
+                        == AdFeatureCapability.META_ADVANTAGE_PLACEMENTS)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(capability.implemented()).isTrue();
+    assertThat(capability.supported()).isTrue();
+    assertThat(capability.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
+  }
+
+  @Test
+  void reportsMetaAdvantageCreativeAsImplemented() {
+    when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
+
+    var capability =
+        service.providerCapabilities(AdProvider.META_ADS).stream()
+            .filter(
+                item ->
+                    item.feature()
+                        == AdFeatureCapability.META_ADVANTAGE_CREATIVE)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(capability.implemented()).isTrue();
+    assertThat(capability.supported()).isTrue();
+    assertThat(capability.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
+  }
+
+  @Test
+  void reportsMetaGenerativeTextAsImplemented() {
+    when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
+
+    var capability =
+        service.providerCapabilities(AdProvider.META_ADS).stream()
+            .filter(item -> item.feature() == AdFeatureCapability.META_GENERATIVE_TEXT)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(capability.implemented()).isTrue();
+    assertThat(capability.supported()).isTrue();
+    assertThat(capability.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
+  }
+
+  @Test
+  void reportsMetaImageExpansionAsImplemented() {
+    when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
+
+    var capability =
+        service.providerCapabilities(AdProvider.META_ADS).stream()
+            .filter(item -> item.feature() == AdFeatureCapability.META_IMAGE_UNCROP)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(capability.implemented()).isTrue();
+    assertThat(capability.supported()).isTrue();
+    assertThat(capability.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
+  }
+
+  @Test
   void managedAccountRequirementIsResolvedPerAccount() {
     when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
 

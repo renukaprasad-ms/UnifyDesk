@@ -10,6 +10,7 @@ import com.messaging.ads.meta.dto.CreateMetaPlacementCreativeRequest;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdAccountResourceRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
+import com.messaging.ads.service.AdActivityLogService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import java.util.ArrayList;
@@ -28,9 +29,15 @@ public class MetaAdsCreativeMutationService {
   private final MetaAdsTokenService tokenService;
   private final MetaAdsApiClient apiClient;
   private final MetaAdsCreativePersistenceService persistenceService;
+  private final AdActivityLogService activityLogService;
 
   public AdCreativeResponse create(
       Long companyId, Long accountId, CreateMetaCreativeRequest request) {
+    return create(companyId, accountId, request, null);
+  }
+
+  public AdCreativeResponse create(
+      Long companyId, Long accountId, CreateMetaCreativeRequest request, Long actorUserId) {
     AdAccount account = requireManagedAccount(companyId, accountId);
     validateIdentity(companyId, accountId, request.pageId(), request.instagramActorId());
 
@@ -55,15 +62,46 @@ public class MetaAdsCreativeMutationService {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("name", request.name().trim());
     payload.put("object_story_spec", story);
+    applyCreativeFeatures(
+        payload,
+        request.advantagePlusCreative(),
+        request.generativeText(),
+        request.imageExpansion());
     if (hasText(request.urlTags())) payload.put("url_tags", request.urlTags().trim());
 
     String externalId = apiClient.createCreative(token, account.getExternalAccountId(), payload);
-    return AdCreativeResponse.from(
-        persistenceService.persistOne(companyId, accountId, apiClient.creative(token, externalId)));
+    AdCreativeResponse created =
+        AdCreativeResponse.from(
+            persistenceService.persistOne(
+                companyId, accountId, apiClient.creative(token, externalId)));
+    activityLogService.record(
+        companyId,
+        accountId,
+        AdProvider.META_ADS,
+        actorUserId,
+        "META_CREATIVE_CREATED",
+        "CREATIVE",
+        externalId,
+        null,
+        created,
+        Map.of(
+            "advantagePlusCreative", Boolean.TRUE.equals(request.advantagePlusCreative()),
+            "generativeText", Boolean.TRUE.equals(request.generativeText()),
+            "imageExpansion", Boolean.TRUE.equals(request.imageExpansion()),
+            "placementCustomized", false));
+    return created;
   }
 
   public AdCreativeResponse createPlacementCustomized(
       Long companyId, Long accountId, CreateMetaPlacementCreativeRequest request) {
+    return createPlacementCustomized(companyId, accountId, request, null);
+  }
+
+  public AdCreativeResponse createPlacementCustomized(
+      Long companyId,
+      Long accountId,
+      CreateMetaPlacementCreativeRequest request,
+      Long actorUserId) {
     AdAccount account = requireManagedAccount(companyId, accountId);
     validateIdentity(companyId, accountId, request.pageId(), request.instagramActorId());
     if (request.placementAssets() == null || request.placementAssets().size() < 2) {
@@ -187,13 +225,65 @@ public class MetaAdsCreativeMutationService {
     payload.put("name", request.name().trim());
     payload.put("object_story_spec", story);
     payload.put("asset_feed_spec", assetFeed);
+    applyAdvantagePlusCreative(payload, request.advantagePlusCreative());
     if (hasText(request.urlTags())) payload.put("url_tags", request.urlTags().trim());
 
     String externalId =
         apiClient.createCreative(token, account.getExternalAccountId(), payload);
-    return AdCreativeResponse.from(
-        persistenceService.persistOne(
-            companyId, accountId, apiClient.creative(token, externalId)));
+    AdCreativeResponse created =
+        AdCreativeResponse.from(
+            persistenceService.persistOne(
+                companyId, accountId, apiClient.creative(token, externalId)));
+    activityLogService.record(
+        companyId,
+        accountId,
+        AdProvider.META_ADS,
+        actorUserId,
+        "META_CREATIVE_CREATED",
+        "CREATIVE",
+        externalId,
+        null,
+        created,
+        Map.of(
+            "advantagePlusCreative", Boolean.TRUE.equals(request.advantagePlusCreative()),
+            "generativeText", Boolean.TRUE.equals(request.generativeText()),
+            "imageExpansion", Boolean.TRUE.equals(request.imageExpansion()),
+            "placementCustomized", true));
+    return created;
+  }
+
+  private void applyCreativeFeatures(
+      Map<String, Object> payload,
+      Boolean advantagePlusCreative,
+      Boolean generativeText,
+      Boolean imageExpansion) {
+    if (advantagePlusCreative == null && generativeText == null && imageExpansion == null) return;
+
+    Map<String, Object> creativeFeaturesSpec = new LinkedHashMap<>();
+    if (advantagePlusCreative != null) {
+      creativeFeaturesSpec.put(
+          "standard_enhancements",
+          Map.of(
+              "enroll_status",
+              Boolean.TRUE.equals(advantagePlusCreative) ? "OPT_IN" : "OPT_OUT"));
+    }
+    if (generativeText != null) {
+      creativeFeaturesSpec.put(
+          "text_generation",
+          Map.of(
+              "enroll_status",
+              Boolean.TRUE.equals(generativeText) ? "OPT_IN" : "OPT_OUT"));
+    }
+    if (imageExpansion != null) {
+      creativeFeaturesSpec.put(
+          "image_uncrop",
+          Map.of(
+              "enroll_status",
+              Boolean.TRUE.equals(imageExpansion) ? "OPT_IN" : "OPT_OUT"));
+    }
+    payload.put(
+        "degrees_of_freedom_spec",
+        Map.of("creative_features_spec", creativeFeaturesSpec));
   }
 
   private void putStringList(

@@ -112,6 +112,8 @@ public class MetaAdsAdSetMutationService {
         null,
         created,
         Map.of(
+            "advantagePlacements",
+                request.publisherPlatforms() == null || request.publisherPlatforms().isEmpty(),
             "advantageAudience", Boolean.TRUE.equals(request.advantageAudience()),
             "advantageAgeSuggestion", Boolean.TRUE.equals(request.advantageAgeSuggestion()),
             "advantageGenderSuggestion", Boolean.TRUE.equals(request.advantageGenderSuggestion())));
@@ -202,6 +204,10 @@ public class MetaAdsAdSetMutationService {
         before,
         after,
         Map.of(
+            "advantagePlacements",
+                request.publisherPlatforms() == null
+                    ? "UNCHANGED"
+                    : request.publisherPlatforms().isEmpty(),
             "advantageAudience",
                 request.advantageAudience() == null
                     ? "UNCHANGED"

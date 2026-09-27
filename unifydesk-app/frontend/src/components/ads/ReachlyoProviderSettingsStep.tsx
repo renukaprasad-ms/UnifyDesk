@@ -101,6 +101,12 @@ type Props = {
   setMetaAdvantageAgeSuggestion: (value: boolean) => void
   metaAdvantageGenderSuggestion: boolean
   setMetaAdvantageGenderSuggestion: (value: boolean) => void
+  metaAdvantagePlusCreative: boolean
+  setMetaAdvantagePlusCreative: (value: boolean) => void
+  metaGenerativeText: boolean
+  setMetaGenerativeText: (value: boolean) => void
+  metaImageExpansion: boolean
+  setMetaImageExpansion: (value: boolean) => void
   disabled: boolean
   onRefresh: () => void
 }
@@ -950,6 +956,67 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 </div>
               )}
             </div>
+            <div className="sm:col-span-2 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={props.metaAdvantagePlusCreative}
+                  disabled={props.disabled}
+                  onChange={(event) => props.setMetaAdvantagePlusCreative(event.target.checked)}
+                />
+                <span>
+                  <span className="block text-sm font-bold text-indigo-950">
+                    Advantage+ creative
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-indigo-700">
+                    Opt in to Meta standard creative enhancements. Text generation, image
+                    expansion and background generation remain separate features.
+                  </span>
+                </span>
+              </label>
+            </div>
+            <div className="sm:col-span-2 rounded-xl border border-violet-200 bg-violet-50 p-4">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={props.metaGenerativeText}
+                  disabled={props.disabled}
+                  onChange={(event) => props.setMetaGenerativeText(event.target.checked)}
+                />
+                <span>
+                  <span className="block text-sm font-bold text-violet-950">
+                    AI text generation
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-violet-700">
+                    Allow Meta to generate eligible text variations from your source copy.
+                    Generated copy must be reviewed from provider preview/read-back before activation.
+                  </span>
+                </span>
+              </label>
+            </div>
+            <div className="sm:col-span-2 rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={props.metaImageExpansion}
+                  disabled={props.disabled}
+                  onChange={(event) => props.setMetaImageExpansion(event.target.checked)}
+                />
+                <span>
+                  <span className="block text-sm font-bold text-cyan-950">
+                    Image expansion
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-cyan-700">
+                    Allow Meta to extend image boundaries for eligible placements. The selected
+                    creative pack must include an image and the provider preview should be reviewed
+                    before activation.
+                  </span>
+                </span>
+              </label>
+            </div>
             <div className="sm:col-span-2 rounded-xl border border-slate-100 p-4">
               <p className="text-xs font-semibold text-slate-700">Placements</p>
               <select
@@ -960,9 +1027,14 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                   props.setMetaPlacementMode(event.target.value as 'AUTO' | 'MANUAL')
                 }
               >
-                <option value="AUTO">Advantage+ / automatic placements</option>
+                <option value="AUTO">Advantage+ placements (recommended)</option>
                 <option value="MANUAL">Manual placements</option>
               </select>
+              <p className="mt-2 text-[11px] leading-5 text-slate-500">
+                Advantage+ placements leaves publisher-platform and position restrictions unset so
+                Meta can distribute delivery across eligible placements. Manual mode limits delivery
+                to the placement tree you choose below.
+              </p>
               {props.metaPlacementMode === 'MANUAL' && (
                 <div className="mt-3 space-y-3">
                   {META_PLACEMENT_GROUPS.map((group) => {

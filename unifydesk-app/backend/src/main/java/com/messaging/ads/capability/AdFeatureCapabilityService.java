@@ -315,10 +315,10 @@ public class AdFeatureCapabilityService {
         META_ADS_SCOPE);
     add(specs, AdFeatureCapability.META_ADVANTAGE_AUDIENCE, true, META_ADS_SCOPE);
     add(specs, AdFeatureCapability.META_PLACEMENT_TREE, true, META_ADS_SCOPE);
-    planned(specs, AdFeatureCapability.META_ADVANTAGE_PLACEMENTS);
-    planned(specs, AdFeatureCapability.META_ADVANTAGE_CREATIVE);
-    planned(specs, AdFeatureCapability.META_GENERATIVE_TEXT);
-    planned(specs, AdFeatureCapability.META_IMAGE_UNCROP);
+    add(specs, AdFeatureCapability.META_ADVANTAGE_PLACEMENTS, true, META_ADS_SCOPE);
+    add(specs, AdFeatureCapability.META_ADVANTAGE_CREATIVE, true, META_ADS_SCOPE);
+    add(specs, AdFeatureCapability.META_GENERATIVE_TEXT, true, META_ADS_SCOPE);
+    add(specs, AdFeatureCapability.META_IMAGE_UNCROP, true, META_ADS_SCOPE);
     planned(specs, AdFeatureCapability.META_BACKGROUND_GENERATION);
     planned(specs, AdFeatureCapability.META_CATALOG);
     planned(specs, AdFeatureCapability.META_EXISTING_POST);

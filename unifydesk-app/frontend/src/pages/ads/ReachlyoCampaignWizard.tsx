@@ -409,6 +409,9 @@ export default function ReachlyoCampaignWizard() {
   const [metaAdvantageAudience, setMetaAdvantageAudience] = useState(false)
   const [metaAdvantageAgeSuggestion, setMetaAdvantageAgeSuggestion] = useState(false)
   const [metaAdvantageGenderSuggestion, setMetaAdvantageGenderSuggestion] = useState(false)
+  const [metaAdvantagePlusCreative, setMetaAdvantagePlusCreative] = useState(false)
+  const [metaGenerativeText, setMetaGenerativeText] = useState(false)
+  const [metaImageExpansion, setMetaImageExpansion] = useState(false)
 
   const managedAccounts = useMemo(
     () =>
@@ -701,7 +704,11 @@ export default function ReachlyoCampaignWizard() {
       const publisherPlatforms = Array.isArray(override.publisherPlatforms)
         ? override.publisherPlatforms.filter((value): value is string => typeof value === 'string')
         : []
-      setMetaPlacementMode(publisherPlatforms.length ? 'MANUAL' : 'AUTO')
+      const advantagePlacements =
+        typeof override.advantagePlacements === 'boolean'
+          ? override.advantagePlacements
+          : publisherPlatforms.length === 0
+      setMetaPlacementMode(advantagePlacements ? 'AUTO' : 'MANUAL')
       setMetaPublisherPlatforms(publisherPlatforms)
       setMetaFacebookPositions(
         Array.isArray(override.facebookPositions)
@@ -726,6 +733,9 @@ export default function ReachlyoCampaignWizard() {
       setMetaAdvantageAudience(override.advantageAudience === true)
       setMetaAdvantageAgeSuggestion(override.advantageAgeSuggestion === true)
       setMetaAdvantageGenderSuggestion(override.advantageGenderSuggestion === true)
+      setMetaAdvantagePlusCreative(override.advantagePlusCreative === true)
+      setMetaGenerativeText(override.generativeText === true)
+      setMetaImageExpansion(override.imageExpansion === true)
     }
   }
 
@@ -1309,6 +1319,7 @@ export default function ReachlyoCampaignWizard() {
             billingEvent: metaBillingEvent,
             specialAdCategories: [metaSpecialCategory],
             pixelId: metaPixelId || undefined,
+            advantagePlacements: metaPlacementMode === 'AUTO',
             publisherPlatforms:
               metaPlacementMode === 'MANUAL' ? metaPublisherPlatforms : [],
             facebookPositions:
@@ -1333,6 +1344,9 @@ export default function ReachlyoCampaignWizard() {
               metaAdvantageAudience && metaAdvantageAgeSuggestion,
             advantageGenderSuggestion:
               metaAdvantageAudience && metaAdvantageGenderSuggestion,
+            advantagePlusCreative: metaAdvantagePlusCreative,
+            generativeText: metaGenerativeText,
+            imageExpansion: metaImageExpansion,
           }
         }
 
@@ -2636,6 +2650,12 @@ export default function ReachlyoCampaignWizard() {
                   setMetaAdvantageAgeSuggestion={setMetaAdvantageAgeSuggestion}
                   metaAdvantageGenderSuggestion={metaAdvantageGenderSuggestion}
                   setMetaAdvantageGenderSuggestion={setMetaAdvantageGenderSuggestion}
+                  metaAdvantagePlusCreative={metaAdvantagePlusCreative}
+                  setMetaAdvantagePlusCreative={setMetaAdvantagePlusCreative}
+                  metaGenerativeText={metaGenerativeText}
+                  setMetaGenerativeText={setMetaGenerativeText}
+                  metaImageExpansion={metaImageExpansion}
+                  setMetaImageExpansion={setMetaImageExpansion}
                   disabled={!canEdit || !editableDefinition}
                   onRefresh={() => void loadProviderData(true)}
                 />

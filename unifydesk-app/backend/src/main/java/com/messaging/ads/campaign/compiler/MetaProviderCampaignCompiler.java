@@ -7,6 +7,7 @@ import com.messaging.ads.campaign.entity.CreativeVariant;
 import com.messaging.ads.campaign.enums.AudienceMappingStatus;
 import com.messaging.ads.campaign.enums.CampaignChannelType;
 import com.messaging.ads.campaign.enums.ConversionTargetType;
+import com.messaging.ads.campaign.enums.CreativeAssetRole;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -55,6 +56,9 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
     validateCreative(context, issues);
     validatePlacements(context, required, issues);
     validateAdvantageAudience(context, required, issues);
+    validateAdvantageCreative(context, required, issues);
+    validateGenerativeText(context, required, issues);
+    validateImageExpansion(context, required, issues);
 
     AudienceMappingStatus audienceMappingStatus = null;
     String audienceMappingNote = null;
@@ -159,6 +163,76 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
         List.copyOf(operations));
   }
 
+  private void validateImageExpansion(
+      ProviderCampaignCompileContext context,
+      Set<AdFeatureCapability> required,
+      List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    if (!booleanValue(override, "imageExpansion", false)) return;
+
+    ProviderCampaignPlanSupport.requireCapability(
+        context, AdFeatureCapability.META_IMAGE_UNCROP, required, issues);
+    boolean hasImage =
+        context.creativeAssets() != null
+            && context.creativeAssets().stream()
+                .anyMatch(asset -> asset.getRole() == CreativeAssetRole.IMAGE);
+    if (!hasImage) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "META_IMAGE_EXPANSION_IMAGE_REQUIRED",
+              "creativePack.assets",
+              "Meta image expansion requires at least one image creative asset."));
+    } else {
+      issues.add(
+          ProviderCampaignPlanSupport.warning(
+              "META_IMAGE_EXPANSION_OPT_IN",
+              "providerOverride.imageExpansion",
+              "Meta image expansion is enabled. Meta may extend image boundaries for eligible placements; review provider previews before activation."));
+    }
+  }
+
+  private void validateGenerativeText(
+      ProviderCampaignCompileContext context,
+      Set<AdFeatureCapability> required,
+      List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    if (!booleanValue(override, "generativeText", false)) return;
+
+    ProviderCampaignPlanSupport.requireCapability(
+        context, AdFeatureCapability.META_GENERATIVE_TEXT, required, issues);
+    CreativePack pack = context.creativePack();
+    String primaryText = pack == null ? null : pack.getPrimaryMessage();
+    if (primaryText == null || primaryText.trim().split("\\s+").length < 5) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "META_GENERATIVE_TEXT_PRIMARY_TEXT_TOO_SHORT",
+              "creativePack.primaryMessage",
+              "Meta generative text requires enough source primary text for provider generation. Add a fuller primary message before enabling it."));
+    } else {
+      issues.add(
+          ProviderCampaignPlanSupport.warning(
+              "META_GENERATIVE_TEXT_OPT_IN",
+              "providerOverride.generativeText",
+              "Meta AI text generation is enabled. Generated variations remain provider-generated suggestions and must be reviewed in preview/read-back before activation."));
+    }
+  }
+
+  private void validateAdvantageCreative(
+      ProviderCampaignCompileContext context,
+      Set<AdFeatureCapability> required,
+      List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    if (!booleanValue(override, "advantagePlusCreative", false)) return;
+
+    ProviderCampaignPlanSupport.requireCapability(
+        context, AdFeatureCapability.META_ADVANTAGE_CREATIVE, required, issues);
+    issues.add(
+        ProviderCampaignPlanSupport.warning(
+            "META_ADVANTAGE_CREATIVE_STANDARD_ENHANCEMENTS",
+            "providerOverride.advantagePlusCreative",
+            "Meta standard creative enhancements are enabled. Meta may adapt eligible creative presentation; text generation, image expansion and background generation remain separate opt-in features."));
+  }
+
   private void validateAdvantageAudience(
       ProviderCampaignCompileContext context,
       Set<AdFeatureCapability> required,
@@ -193,23 +267,60 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
       List<ProviderPlanIssue> issues) {
     JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
     List<String> platforms = stringArray(override, "publisherPlatforms");
+    List<String> facebookPositions = stringArray(override, "facebookPositions");
+    List<String> instagramPositions = stringArray(override, "instagramPositions");
+    List<String> messengerPositions = stringArray(override, "messengerPositions");
+    List<String> audienceNetworkPositions = stringArray(override, "audienceNetworkPositions");
+
+    boolean placementModeExplicit = override.has("advantagePlacements");
+    boolean advantagePlacements = booleanValue(override, "advantagePlacements", false);
+    boolean hasManualSelection =
+        !platforms.isEmpty()
+            || !facebookPositions.isEmpty()
+            || !instagramPositions.isEmpty()
+            || !messengerPositions.isEmpty()
+            || !audienceNetworkPositions.isEmpty();
+
+    if (placementModeExplicit && advantagePlacements) {
+      if (hasManualSelection) {
+        issues.add(
+            ProviderCampaignPlanSupport.error(
+                "META_ADVANTAGE_PLACEMENTS_CONFLICT",
+                "providerOverride.advantagePlacements",
+                "Advantage+ placements cannot be combined with manual publisher-platform or position restrictions."));
+        return;
+      }
+      ProviderCampaignPlanSupport.requireCapability(
+          context, AdFeatureCapability.META_ADVANTAGE_PLACEMENTS, required, issues);
+      return;
+    }
+
+    if (placementModeExplicit && !advantagePlacements && platforms.isEmpty()) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "META_MANUAL_PLACEMENTS_EMPTY",
+              "providerOverride.publisherPlatforms",
+              "Manual Meta placements require at least one publisher platform."));
+      return;
+    }
+
     if (platforms.isEmpty()) return;
 
     ProviderCampaignPlanSupport.requireCapability(
         context, AdFeatureCapability.META_PLACEMENT_TREE, required, issues);
 
     Set<com.messaging.ads.campaign.enums.CreativeVariantType> needed = new LinkedHashSet<>();
-    if (containsAny(stringArray(override, "facebookPositions"), "feed", "marketplace", "video_feeds", "search")
-        || containsAny(stringArray(override, "instagramPositions"), "stream", "explore", "explore_home", "profile_feed")) {
+    if (containsAny(facebookPositions, "feed", "marketplace", "video_feeds", "search")
+        || containsAny(instagramPositions, "stream", "explore", "explore_home", "profile_feed")) {
       needed.add(com.messaging.ads.campaign.enums.CreativeVariantType.META_FEED);
     }
-    if (containsAny(stringArray(override, "facebookPositions"), "story")
-        || containsAny(stringArray(override, "instagramPositions"), "story")
-        || containsAny(stringArray(override, "messengerPositions"), "story")) {
+    if (containsAny(facebookPositions, "story")
+        || containsAny(instagramPositions, "story")
+        || containsAny(messengerPositions, "story")) {
       needed.add(com.messaging.ads.campaign.enums.CreativeVariantType.META_STORY);
     }
-    if (containsAny(stringArray(override, "facebookPositions"), "reels")
-        || containsAny(stringArray(override, "instagramPositions"), "reels")) {
+    if (containsAny(facebookPositions, "reels")
+        || containsAny(instagramPositions, "reels")) {
       needed.add(com.messaging.ads.campaign.enums.CreativeVariantType.META_REEL);
     }
 

@@ -57,6 +57,9 @@ export default function MetaCreativeModal({
   const [videoId, setVideoId] = useState('')
   const [videoUrl, setVideoUrl] = useState('')
   const [urlTags, setUrlTags] = useState('')
+  const [advantagePlusCreative, setAdvantagePlusCreative] = useState(false)
+  const [generativeText, setGenerativeText] = useState(false)
+  const [imageExpansion, setImageExpansion] = useState(false)
   const [cards, setCards] = useState<MetaCarouselCardInput[]>([emptyCard(), emptyCard()])
 
   if (!open) return null
@@ -78,6 +81,9 @@ export default function MetaCreativeModal({
       videoId: format === 'VIDEO' ? videoId || null : null,
       videoUrl: format === 'VIDEO' ? videoUrl || null : null,
       urlTags: urlTags || null,
+      advantagePlusCreative,
+      generativeText,
+      imageExpansion: format === 'SINGLE_IMAGE' ? imageExpansion : false,
       carouselCards: format === 'CAROUSEL' ? cards : [],
     })
   }
@@ -183,6 +189,61 @@ export default function MetaCreativeModal({
                 <input className="form-input mt-2" value={urlTags} onChange={(e) => setUrlTags(e.target.value)} placeholder="utm_source=meta&utm_campaign=..." />
               </label>
             </div>
+          </section>
+
+          <section className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={advantagePlusCreative}
+                onChange={(event) => setAdvantagePlusCreative(event.target.checked)}
+              />
+              <span>
+                <span className="block text-sm font-bold text-indigo-950">Advantage+ creative</span>
+                <span className="mt-1 block text-xs leading-5 text-indigo-700">
+                  Opt in to Meta standard creative enhancements for eligible delivery. Generative
+                  text, image expansion and background generation are separate controls.
+                </span>
+              </span>
+            </label>
+          </section>
+
+          <section className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={generativeText}
+                onChange={(event) => setGenerativeText(event.target.checked)}
+              />
+              <span>
+                <span className="block text-sm font-bold text-violet-950">AI text generation</span>
+                <span className="mt-1 block text-xs leading-5 text-violet-700">
+                  Allow Meta to generate text variations from your original primary text. Review
+                  provider previews/read-back before activating ads that use generated copy.
+                </span>
+              </span>
+            </label>
+          </section>
+
+          <section className="rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={imageExpansion}
+                disabled={format !== 'SINGLE_IMAGE'}
+                onChange={(event) => setImageExpansion(event.target.checked)}
+              />
+              <span>
+                <span className="block text-sm font-bold text-cyan-950">Image expansion</span>
+                <span className="mt-1 block text-xs leading-5 text-cyan-700">
+                  Allow Meta to extend image boundaries for eligible placements. Available only
+                  for image creatives; review the provider preview before activation.
+                </span>
+              </span>
+            </label>
           </section>
 
           {format === 'SINGLE_IMAGE' && (

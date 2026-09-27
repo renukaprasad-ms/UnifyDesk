@@ -294,7 +294,7 @@ public class MetaAdsConnectionController {
         .body(
             ApiResponse.success(
                 HttpStatus.CREATED.value(),
-                creativeMutationService.create(companyId, accountId, request),
+                creativeMutationService.create(companyId, accountId, request, userId),
                 "Meta creative created"));
   }
 
