@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import com.messaging.common.credential.CredentialCipher;
 import com.messaging.common.exception.ConflictException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.common.exception.ServiceUnavailableException;
 import com.messaging.notification.platform.delivery.config.NotificationDeliveryProperties;
 import com.messaging.notification.platform.delivery.model.DeliveryModels.PushSubscription;
 import com.messaging.notification.platform.delivery.push.PushSubscriptionService.PushKeys;
@@ -29,6 +30,8 @@ class PushSubscriptionServiceTests {
   private NotificationDeliveryRuntimeRepository repository;
   private CurrentUserService currentUserService;
   private CredentialCipher cipher;
+  private PushEncryptionReadiness readiness;
+  private NotificationDeliveryProperties properties;
   private PushSubscriptionService service;
 
   @BeforeEach
@@ -36,11 +39,14 @@ class PushSubscriptionServiceTests {
     repository = mock(NotificationDeliveryRuntimeRepository.class);
     currentUserService = mock(CurrentUserService.class);
     cipher = mock(CredentialCipher.class);
-    NotificationDeliveryProperties properties = new NotificationDeliveryProperties();
+    readiness = mock(PushEncryptionReadiness.class);
+    properties = new NotificationDeliveryProperties();
     properties.getPush().setVapidPublicKey("public");
     properties.getPush().setVapidPrivateKey("private");
+    when(readiness.ready()).thenReturn(true);
     service =
-        new PushSubscriptionService(repository, currentUserService, cipher, properties);
+        new PushSubscriptionService(
+            repository, currentUserService, cipher, properties, readiness);
   }
 
   @Test
@@ -58,6 +64,7 @@ class PushSubscriptionServiceTests {
     assertThat(result.created()).isFalse();
     assertThat(result.response().id()).isEqualTo("42");
     assertThat(result.response().toString()).doesNotContain("https://push.example");
+    verify(repository).expireSubscriptionsForUser(7L, 20);
     verify(cipher).encrypt("https://push.example/subscription");
   }
 
@@ -76,6 +83,44 @@ class PushSubscriptionServiceTests {
     when(repository.findSubscriptionForUser(42L, 8L)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.revoke(42L)).isInstanceOf(NotFoundException.class);
+  }
+
+  @Test
+  void capabilityFailsClosedWhenCipherIsUnavailable() {
+    when(readiness.ready()).thenReturn(false);
+
+    var capability = service.capability();
+
+    assertThat(capability.configured()).isFalse();
+    assertThat(capability.vapidPublicKey()).isNull();
+  }
+
+  @Test
+  void registrationFailsClosedWhenCipherIsUnavailable() {
+    when(readiness.ready()).thenReturn(false);
+
+    assertThatThrownBy(() -> service.register(request()))
+        .isInstanceOf(ServiceUnavailableException.class)
+        .hasMessage("Browser push is not configured");
+  }
+
+  @Test
+  void expiredActiveRowsAreExpiredBeforeCapIsEnforced() {
+    when(currentUserService.currentUserId()).thenReturn(7L);
+    when(repository.findSubscriptionByEndpointHash(anyString())).thenReturn(Optional.empty());
+    when(repository.activeSubscriptionCount(7L)).thenReturn(9);
+    when(cipher.encrypt(anyString())).thenAnswer(invocation -> "enc:" + invocation.getArgument(0));
+    PushSubscription created = subscription(99L, 7L, "ACTIVE");
+    when(repository.insertSubscription(
+            anyLong(), anyString(), anyString(), anyString(), anyString(), any(), any()))
+        .thenReturn(created);
+
+    var result = service.register(request());
+
+    assertThat(result.created()).isTrue();
+    assertThat(result.response().id()).isEqualTo("99");
+    verify(repository).expireSubscriptionsForUser(7L, 20);
+    verify(repository).activeSubscriptionCount(7L);
   }
 
   private RegisterPushSubscription request() {
