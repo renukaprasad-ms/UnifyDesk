@@ -8,6 +8,8 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.notification.platform.core.registry.NotificationTypeRegistry;
+import java.time.Instant;
+import java.time.OffsetDateTime;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -45,5 +47,7 @@ class NotificationEventRecorderTests {
     Object[] args = values.getValue();
     assertThat(args).contains("company.created:99", "company.created", "USER", 7L, "COMPANY", "99");
     assertThat(args).doesNotContain("business@example.com");
+    assertThat(args).noneMatch(Instant.class::isInstance);
+    assertThat(args).filteredOn(OffsetDateTime.class::isInstance).hasSize(4);
   }
 }
