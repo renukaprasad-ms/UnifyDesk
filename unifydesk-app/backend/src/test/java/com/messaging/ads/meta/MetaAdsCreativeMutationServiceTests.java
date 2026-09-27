@@ -122,6 +122,7 @@ class MetaAdsCreativeMutationServiceTests {
                 null,
                 "utm_source=meta",
                 true,
+                true,
                 List.of()),
             77L);
 
@@ -141,6 +142,9 @@ class MetaAdsCreativeMutationServiceTests {
         (Map<String, Object>) degrees.get("creative_features_spec");
     assertThat(creativeFeatures)
         .extracting("standard_enhancements")
+        .isEqualTo(Map.of("enroll_status", "OPT_IN"));
+    assertThat(creativeFeatures)
+        .extracting("text_generation")
         .isEqualTo(Map.of("enroll_status", "OPT_IN"));
   }
 
