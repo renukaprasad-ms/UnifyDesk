@@ -21,7 +21,6 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -83,25 +82,31 @@ public class PushSubscriptionService {
       throw new TooManyRequestsException(
           "Maximum active browser notification subscriptions reached");
     }
-    try {
-      PushSubscription created =
-          repository.insertSubscription(
-              userId,
-              hash,
-              encryptSecret(request.endpoint()),
-              encryptSecret(request.keys().p256dh()),
-              encryptSecret(request.keys().auth()),
-              expiration(request.expirationTime()),
-              label(request.deviceLabel()));
-      return new RegistrationResult(toResponse(created), true);
-    } catch (DuplicateKeyException duplicate) {
-      PushSubscription raced = repository.findSubscriptionByEndpointHash(hash).orElse(null);
-      if (raced == null || raced.userId() != userId) {
-        throw new ConflictException(
-            "Push subscription is already associated with another account");
-      }
-      return new RegistrationResult(toResponse(raced), false);
+    Optional<PushSubscription> inserted =
+        repository.insertSubscriptionIfEndpointAvailable(
+            userId,
+            hash,
+            encryptSecret(request.endpoint()),
+            encryptSecret(request.keys().p256dh()),
+            encryptSecret(request.keys().auth()),
+            expiration(request.expirationTime()),
+            label(request.deviceLabel()));
+    if (inserted.isPresent()) {
+      return new RegistrationResult(toResponse(inserted.get()), true);
     }
+
+    PushSubscription concurrentOwner =
+        repository
+            .findSubscriptionByEndpointHash(hash)
+            .orElseThrow(
+                () ->
+                    new ConflictException(
+                        "Push subscription is already associated with another account"));
+    if (concurrentOwner.userId() != userId) {
+      throw new ConflictException(
+          "Push subscription is already associated with another account");
+    }
+    return new RegistrationResult(toResponse(concurrentOwner), false);
   }
 
   public List<SubscriptionResponse> list() {
