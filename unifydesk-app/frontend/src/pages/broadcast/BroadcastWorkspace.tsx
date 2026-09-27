@@ -36,6 +36,18 @@ import type { EmailTemplateProviderBinding, EmailTemplateSummary } from '../../f
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import BroadcastSenderProviderMeta from '../../components/managed-email/BroadcastSenderProviderMeta'
+import { managedSmsApi } from '../../features/managedSms/managedSmsApi'
+import {
+  isManagedSmsSender,
+  managedSmsTemplateReadyForHeader,
+  managedSmsVariableErrors,
+} from '../../features/managedSms/composePolicy'
+import { managedSmsErrorMessage } from '../../features/managedSms/copy'
+import type {
+  ManagedSmsHeader,
+  ManagedSmsPreview,
+  ManagedSmsTemplate,
+} from '../../features/managedSms/types'
 import {
   applyBroadcastMutation,
   applyBroadcastProgress,
@@ -193,6 +205,10 @@ export default function BroadcastWorkspace() {
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
   const [composeTemplateVariables, setComposeTemplateVariables] = useState<Record<string, string>>({})
+  const [composeManagedHeaders, setComposeManagedHeaders] = useState<ManagedSmsHeader[]>([])
+  const [composeManagedTemplates, setComposeManagedTemplates] = useState<ManagedSmsTemplate[]>([])
+  const [composeManagedPreview, setComposeManagedPreview] = useState<ManagedSmsPreview | null>(null)
+  const [composeManagedLoading, setComposeManagedLoading] = useState(false)
   const [composeScheduleAt, setComposeScheduleAt] = useState('')
   const [composeBusy, setComposeBusy] = useState(false)
   const [actionBusy, setActionBusy] = useState(false)
@@ -239,6 +255,11 @@ export default function BroadcastWorkspace() {
 
   const composeSender = composeSenderId ? sendersById.get(composeSenderId) ?? null : null
   const composeUsesMsg91Email = composeSender?.provider === 'MSG91_EMAIL'
+  const composeUsesManagedSms = isManagedSmsSender(composeSender)
+  const composeManagedHeader =
+    composeUsesManagedSms
+      ? composeManagedHeaders.find((item) => item.header === composeSender?.fromAddress) ?? null
+      : null
 
   const composeBindingByTemplateVersion = useMemo(
     () =>
@@ -280,6 +301,24 @@ export default function BroadcastWorkspace() {
   const selectedComposeTemplate =
     composeTemplates.find((template) => template.id === composeTemplateId) ?? null
 
+  const availableManagedSmsTemplates = useMemo(
+    () =>
+      composeManagedHeader
+        ? composeManagedTemplates.filter((template) =>
+            managedSmsTemplateReadyForHeader(template, composeManagedHeader.id),
+          )
+        : [],
+    [composeManagedHeader, composeManagedTemplates],
+  )
+
+  const selectedManagedSmsTemplate =
+    composeManagedTemplates.find((template) => template.id === composeTemplateId) ?? null
+
+  const managedVariableErrors = useMemo(
+    () => managedSmsVariableErrors(selectedManagedSmsTemplate, composeTemplateVariables),
+    [composeTemplateVariables, selectedManagedSmsTemplate],
+  )
+
   const selectedComposeTemplateReady =
     !composeUsesMsg91Email ||
     availableComposeTemplates.some((template) => template.id === composeTemplateId)
@@ -291,9 +330,14 @@ export default function BroadcastWorkspace() {
 
   const composeContentReady =
     Boolean(composeSenderId) &&
-    (composeUsesMsg91Email
-      ? Boolean(composeTemplateId) && selectedComposeTemplateReady
-      : Boolean(composeTemplateId || composeBody.trim()))
+    (composeUsesManagedSms
+      ? Boolean(composeTemplateId) &&
+        availableManagedSmsTemplates.some((template) => template.id === composeTemplateId) &&
+        Object.keys(managedVariableErrors).length === 0 &&
+        (composeManagedPreview?.validationErrors.length ?? 0) === 0
+      : composeUsesMsg91Email
+        ? Boolean(composeTemplateId) && selectedComposeTemplateReady
+        : Boolean(composeTemplateId || composeBody.trim()))
 
   const updateSearch = useCallback(
     (updates: Record<string, string | null>) => {
@@ -324,6 +368,14 @@ export default function BroadcastWorkspace() {
     },
     [companyId, dispatch, selectedGroupId],
   )
+
+  useEffect(() => {
+    setComposeManagedHeaders([])
+    setComposeManagedTemplates([])
+    setComposeManagedPreview(null)
+    setComposeTemplateVariables({})
+    setComposeTemplateId('')
+  }, [companyId])
 
   useEffect(() => {
     if (!companyId) return
@@ -534,6 +586,82 @@ export default function BroadcastWorkspace() {
   }, [channelType, companyId, composeOpen, snackbar])
 
   useEffect(() => {
+    if (!companyId || !composeOpen || !composeUsesManagedSms) {
+      setComposeManagedHeaders([])
+      setComposeManagedTemplates([])
+      setComposeManagedPreview(null)
+      return
+    }
+
+    let active = true
+    setComposeManagedHeaders([])
+    setComposeManagedTemplates([])
+    setComposeManagedPreview(null)
+    setComposeManagedLoading(true)
+    Promise.all([managedSmsApi.headers(companyId), managedSmsApi.templates(companyId)])
+      .then(([nextHeaders, nextTemplates]) => {
+        if (!active) return
+        setComposeManagedHeaders(nextHeaders)
+        setComposeManagedTemplates(nextTemplates)
+      })
+      .catch((requestError) => {
+        if (active) {
+          snackbar.error(
+            managedSmsErrorMessage(
+              requestError,
+              'Unable to load managed SMS Headers and templates.',
+            ),
+          )
+        }
+      })
+      .finally(() => {
+        if (active) setComposeManagedLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [companyId, composeOpen, composeUsesManagedSms, snackbar])
+
+  useEffect(() => {
+    if (
+      !companyId ||
+      !composeOpen ||
+      !composeUsesManagedSms ||
+      !composeTemplateId ||
+      !composeManagedHeader
+    ) {
+      setComposeManagedPreview(null)
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      void managedSmsApi
+        .previewTemplate(companyId, composeTemplateId, {
+          headerId: composeManagedHeader.id,
+          variables: composeTemplateVariables,
+        })
+        .then(setComposeManagedPreview)
+        .catch((requestError) => {
+          setComposeManagedPreview(null)
+          snackbar.error(
+            managedSmsErrorMessage(requestError, 'Unable to preview this managed SMS template.'),
+          )
+        })
+    }, 250)
+
+    return () => window.clearTimeout(timer)
+  }, [
+    companyId,
+    composeManagedHeader,
+    composeOpen,
+    composeTemplateId,
+    composeTemplateVariables,
+    composeUsesManagedSms,
+    snackbar,
+  ])
+
+  useEffect(() => {
     if (!companyId || !composeOpen || !composeUsesMsg91Email || !composeSender?.connectionId) {
       setComposeProviderBindings([])
       return
@@ -597,6 +725,7 @@ export default function BroadcastWorkspace() {
       setComposeTemplateVariables({})
       setComposeScheduleAt('')
       setComposeTemplateId('')
+      setComposeManagedPreview(null)
       setComposeSenderId(selectedActiveSender?.id ?? '')
     }
 
@@ -611,7 +740,7 @@ export default function BroadcastWorkspace() {
       .then((message) => {
         if (!active) return
         setComposeSenderId(message.senderId ?? '')
-        setComposeTemplateId(message.sourceTemplateId ?? '')
+        setComposeTemplateId(message.managedSmsTemplateId ?? message.sourceTemplateId ?? '')
         setComposeSubject(message.subject ?? '')
         setComposeBody(message.bodyText)
         setComposeTemplateVariables(message.templateVariables ?? {})
@@ -816,22 +945,40 @@ export default function BroadcastWorkspace() {
       throw new Error('Choose a sender')
     }
     if (
+      composeUsesManagedSms &&
+      (!composeTemplateId ||
+        !availableManagedSmsTemplates.some((template) => template.id === composeTemplateId))
+    ) {
+      throw new Error('Choose a ready managed SMS template for this Header')
+    }
+    if (composeUsesManagedSms && Object.keys(managedVariableErrors).length > 0) {
+      throw new Error('Complete all required managed SMS template variables')
+    }
+    if (
       composeUsesMsg91Email &&
       (!composeTemplateId ||
         !availableComposeTemplates.some((template) => template.id === composeTemplateId))
     ) {
       throw new Error('Choose a transactional template synced to this MSG91 connection')
     }
-    if (!composeTemplateId && !composeBody.trim()) {
-      throw new Error('Choose an email template or enter a message')
+    if (!composeUsesManagedSms && !composeTemplateId && !composeBody.trim()) {
+      throw new Error('Choose a template or enter a message')
     }
-    const input = {
-      templateId: composeTemplateId || null,
-      senderId: composeSenderId,
-      subject: channelType === 'EMAIL' ? composeSubject.trim() || null : null,
-      bodyText: composeBody,
-      templateVariables: composeTemplateId ? composeTemplateVariables : undefined,
-    }
+    const input = composeUsesManagedSms
+      ? {
+          senderId: composeSenderId,
+          managedSmsTemplateId: composeTemplateId,
+          bodyText: null,
+          subject: null,
+          templateVariables: composeTemplateVariables,
+        }
+      : {
+          templateId: composeTemplateId || null,
+          senderId: composeSenderId,
+          subject: channelType === 'EMAIL' ? composeSubject.trim() || null : null,
+          bodyText: composeBody,
+          templateVariables: composeTemplateId ? composeTemplateVariables : undefined,
+        }
     const message = editBroadcastId
       ? await broadcastApi.updateMessage(companyId, editBroadcastId, input)
       : await broadcastApi.createMessage(companyId, selectedGroupId, input)
@@ -868,9 +1015,16 @@ export default function BroadcastWorkspace() {
       await refreshHistory(true)
     } catch (requestError) {
       snackbar.error(
-        requestError instanceof Error
-          ? requestError.message
-          : apiErrorMessage(requestError, 'Unable to save broadcast'),
+        composeUsesManagedSms
+          ? managedSmsErrorMessage(
+              requestError,
+              requestError instanceof Error
+                ? requestError.message
+                : 'Unable to save managed SMS broadcast.',
+            )
+          : requestError instanceof Error
+            ? requestError.message
+            : apiErrorMessage(requestError, 'Unable to save broadcast'),
       )
     } finally {
       setComposeBusy(false)
@@ -896,7 +1050,13 @@ export default function BroadcastWorkspace() {
       setSelectedMessage((current) => (current?.id === result.id ? result : current))
       await refreshHistory(true)
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, `Unable to ${action} broadcast`))
+      const actionSender =
+        selectedMessage?.senderId ? sendersById.get(selectedMessage.senderId) ?? null : null
+      snackbar.error(
+        isManagedSmsSender(actionSender)
+          ? managedSmsErrorMessage(requestError, `Unable to ${action} managed SMS broadcast.`)
+          : apiErrorMessage(requestError, `Unable to ${action} broadcast`),
+      )
     } finally {
       setActionBusy(false)
     }
@@ -1481,7 +1641,136 @@ export default function BroadcastWorkspace() {
                   </p>
                 </div>
 
-                <label className="mt-4 block text-xs font-semibold text-slate-700">
+                {composeUsesManagedSms && (
+                  <div className="mt-4 grid gap-4">
+                    <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
+                      <p className="text-xs font-bold text-slate-900">
+                        Approved template required
+                      </p>
+                      <p className="mt-1 text-[11px] leading-5 text-slate-600">
+                        Managed SMS sends the exact DLT-approved template for this Header. The
+                        message body cannot be edited freely.
+                      </p>
+                    </div>
+
+                    {!composeManagedHeader ? (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-800">
+                        This sender is not linked to a ready managed Header. Refresh Managed SMS
+                        setup from Company Connections.
+                      </div>
+                    ) : (
+                      <>
+                        <label className="block text-xs font-semibold text-slate-700">
+                          Managed SMS template
+                          <select
+                            className="form-input mt-2"
+                            value={composeTemplateId}
+                            disabled={composeManagedLoading}
+                            onChange={(event) => {
+                              const templateId = event.target.value
+                              setComposeTemplateId(templateId)
+                              setComposeManagedPreview(null)
+                              const template = composeManagedTemplates.find(
+                                (item) => item.id === templateId,
+                              )
+                              const next: Record<string, string> = {}
+                              for (const variable of template?.activeVersion?.variables ?? []) {
+                                const current = composeTemplateVariables[variable.key]
+                                if (current) next[variable.key] = current
+                              }
+                              setComposeTemplateVariables(next)
+                            }}
+                          >
+                            <option value="">
+                              {composeManagedLoading ? 'Loading templates…' : 'Choose ready template'}
+                            </option>
+                            {availableManagedSmsTemplates.map((template) => (
+                              <option key={template.id} value={template.id}>
+                                {template.name} · {template.messageCategory.toLowerCase()}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        {!composeManagedLoading && availableManagedSmsTemplates.length === 0 && (
+                          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-[11px] leading-5 text-slate-500">
+                            No READY managed templates are approved for Header{' '}
+                            <strong>{composeManagedHeader.header}</strong>. Finish template
+                            verification in Company Connections before sending.
+                          </div>
+                        )}
+
+                        {selectedManagedSmsTemplate?.activeVersion && (
+                          <div className="rounded-xl border border-slate-200 bg-white p-4">
+                            <div>
+                              <p className="text-xs font-bold text-slate-900">Template variables</p>
+                              <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                                Enter only the declared values. Fixed template text stays locked.
+                              </p>
+                            </div>
+                            {selectedManagedSmsTemplate.activeVersion.variables.length === 0 ? (
+                              <p className="mt-3 text-[11px] text-slate-400">
+                                This approved template has no variables.
+                              </p>
+                            ) : (
+                              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                {selectedManagedSmsTemplate.activeVersion.variables.map((variable) => (
+                                  <label
+                                    key={variable.key}
+                                    className="text-[11px] font-semibold text-slate-700"
+                                  >
+                                    {variable.key}
+                                    <input
+                                      className="form-input mt-1.5"
+                                      value={composeTemplateVariables[variable.key] ?? ''}
+                                      maxLength={variable.maxLength}
+                                      onChange={(event) =>
+                                        setComposeTemplateVariables((current) => ({
+                                          ...current,
+                                          [variable.key]: event.target.value,
+                                        }))
+                                      }
+                                      placeholder={`Up to ${variable.maxLength} characters`}
+                                    />
+                                    {managedVariableErrors[variable.key] && (
+                                      <span className="mt-1 block text-[10px] font-medium text-rose-600">
+                                        {managedVariableErrors[variable.key]}
+                                      </span>
+                                    )}
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {selectedManagedSmsTemplate && (
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                              Message preview
+                            </p>
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                              {composeManagedPreview?.renderedBody ||
+                                composeManagedPreview?.bodyText ||
+                                selectedManagedSmsTemplate.activeVersion?.bodyText ||
+                                'Enter the required variables to preview this message.'}
+                            </p>
+                            {(composeManagedPreview?.validationErrors.length ?? 0) > 0 && (
+                              <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
+                                {composeManagedPreview?.validationErrors
+                                  .map((item) => item.message)
+                                  .join(' · ')}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {!composeUsesManagedSms && (
+                  <label className="mt-4 block text-xs font-semibold text-slate-700">
                   Use template
                   <select
                     className="form-input mt-2"
@@ -1556,9 +1845,10 @@ export default function BroadcastWorkspace() {
                       Create another template
                     </Link>
                   )}
-                </label>
+                  </label>
+                )}
 
-                {composeTemplateId ? (
+                {composeUsesManagedSms ? null : composeTemplateId ? (
                   <>
                     <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
                       <p className="text-xs font-bold text-slate-900">
@@ -1849,6 +2139,7 @@ function BroadcastDetail({
   }
 
   const progress = progressFor(message)
+  const managedSms = isManagedSmsSender(sender)
   return (
     <div className="channel-message-scroll min-h-[calc(100dvh-214px)] p-4 sm:p-5">
       <div className="mx-auto max-w-5xl">
@@ -2025,7 +2316,13 @@ function BroadcastDetail({
                             {formatDate(recipient.acceptedAt)}
                           </td>
                           <td className="px-4 py-3 text-slate-500" data-label="Result">
-                            {recipient.failureReason || recipient.failureCode || '—'}
+                            {managedSms
+                              ? recipient.status === 'FAILED'
+                                ? 'Delivery failed'
+                                : recipient.status === 'UNKNOWN'
+                                  ? 'Delivery status pending'
+                                  : '—'
+                              : recipient.failureReason || recipient.failureCode || '—'}
                           </td>
                         </tr>
                       ))

@@ -21,6 +21,8 @@ import SendGridConnectModal from '../../components/broadcast/SendGridConnectModa
 import BroadcastTestEmailModal from '../../components/broadcast/BroadcastTestEmailModal'
 import ManagedEmailModal from '../../components/managed-email/ManagedEmailModal'
 import ManagedEmailPanel from '../../components/managed-email/ManagedEmailPanel'
+import ManagedSmsPanel from '../../components/managed-sms/ManagedSmsPanel'
+import ManagedSmsSetupModal from '../../components/managed-sms/ManagedSmsSetupModal'
 import {
   broadcastSenderProviderLabel,
   managedConnectionDisplayName,
@@ -86,6 +88,8 @@ export default function CompanyConnections() {
   const [managedEmailOpen, setManagedEmailOpen] = useState(false)
   const [managedEmailDomainId, setManagedEmailDomainId] = useState<string | null>(null)
   const [managedEmailRefreshToken, setManagedEmailRefreshToken] = useState(0)
+  const [managedSmsOpen, setManagedSmsOpen] = useState(false)
+  const [managedSmsRefreshToken, setManagedSmsRefreshToken] = useState(0)
   const [sesConnectOpen, setSesConnectOpen] = useState(false)
   const [sendGridConnectOpen, setSendGridConnectOpen] = useState(false)
   const [azureEmailConnectOpen, setAzureEmailConnectOpen] = useState(false)
@@ -527,20 +531,40 @@ export default function CompanyConnections() {
             </div>
             <h2 className="mt-4 text-base font-bold text-slate-950">SMS</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              Connect MSG91 SMS using an approved Flow, Sender ID/Header and template.
+              Use UnifyDesk Managed SMS with your DLT approvals, or connect an MSG91 account that
+              you manage yourself.
             </p>
             {can(PERMISSIONS.BROADCAST_MODIFY) && (
-              <button
-                type="button"
-                className="secondary-button mt-4 inline-flex w-full items-center justify-center gap-2"
-                onClick={() => setMsg91SmsSetupOpen(true)}
-              >
-                <FiLink aria-hidden="true" />
-                {activeSmsSetup ? 'Continue MSG91 SMS setup' : 'Connect MSG91 SMS'}
-              </button>
+              <div className="mt-4 grid gap-2">
+                <button
+                  type="button"
+                  className="primary-button inline-flex w-full items-center justify-center gap-2"
+                  onClick={() => setManagedSmsOpen(true)}
+                >
+                  <FiSmartphone aria-hidden="true" />
+                  Use UnifyDesk Managed SMS
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button inline-flex w-full items-center justify-center gap-2"
+                  onClick={() => setMsg91SmsSetupOpen(true)}
+                >
+                  <FiLink aria-hidden="true" />
+                  {activeSmsSetup ? 'Continue own MSG91 setup' : 'Connect your own MSG91'}
+                </button>
+              </div>
             )}
           </div>
         </div>
+
+        {can(PERMISSIONS.BROADCAST_READ) && (
+          <ManagedSmsPanel
+            companyId={selectedCompany.companyId}
+            canModify={can(PERMISSIONS.BROADCAST_MODIFY)}
+            refreshToken={managedSmsRefreshToken}
+            onOpenSetup={() => setManagedSmsOpen(true)}
+          />
+        )}
 
         {can(PERMISSIONS.BROADCAST_READ) && (
           <ManagedEmailPanel
@@ -688,7 +712,8 @@ export default function CompanyConnections() {
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="text-sm font-bold text-slate-950">SMS connections</h2>
             <p className="mt-1 text-xs text-slate-500">
-              MSG91 SMS Broadcast connections use an approved Flow and SMS Header.
+              Managed SMS uses your approved DLT identity without exposing delivery-provider
+              infrastructure. Customer-managed MSG91 connections remain available separately.
             </p>
           </div>
 
@@ -711,19 +736,27 @@ export default function CompanyConnections() {
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-bold text-slate-950">{connection.name}</p>
+                      <p className="text-sm font-bold text-slate-950">
+                        {broadcastSenderFor(connection.id)?.managementMode === 'MESSAGING_MANAGED'
+                          ? 'UnifyDesk Managed SMS'
+                          : connection.name}
+                      </p>
                       <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${statusClass[connection.status]}`}>
                         {connection.status}
                       </span>
                       <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-700">
-                        {providerLabel(connection.providerType)}
+                        {broadcastSenderFor(connection.id)?.managementMode === 'MESSAGING_MANAGED'
+                          ? 'UnifyDesk Managed SMS'
+                          : providerLabel(connection.providerType)}
                       </span>
                       <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-700">
                         Broadcast
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-slate-500">
-                      Flow {connection.externalAccountId ?? 'Configured'}
+                      {broadcastSenderFor(connection.id)?.managementMode === 'MESSAGING_MANAGED'
+                        ? 'Approved Header managed through UnifyDesk'
+                        : `Flow ${connection.externalAccountId ?? 'Configured'}`}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {(senders[connection.id] ?? []).map((sender) => (
@@ -738,7 +771,9 @@ export default function CompanyConnections() {
                     </div>
                   </div>
                   <div className="w-full shrink-0 lg:w-auto lg:max-w-md">
-                    {connection.status !== 'DISCONNECTED' && can(PERMISSIONS.BROADCAST_MODIFY) && (
+                    {connection.status !== 'DISCONNECTED' &&
+                      broadcastSenderFor(connection.id)?.managementMode !== 'MESSAGING_MANAGED' &&
+                      can(PERMISSIONS.BROADCAST_MODIFY) && (
                       <button
                         type="button"
                         className="secondary-button inline-flex shrink-0 items-center gap-2 text-rose-600"
@@ -755,6 +790,7 @@ export default function CompanyConnections() {
                       working={workingConnectionId === connection.id}
                       onReconnect={
                         connection.providerType === 'MSG91_SMS' &&
+                        broadcastSenderFor(connection.id)?.managementMode !== 'MESSAGING_MANAGED' &&
                         can(PERMISSIONS.BROADCAST_MODIFY)
                           ? () => reconnectBroadcast(connection)
                           : undefined
@@ -894,6 +930,18 @@ export default function CompanyConnections() {
           }}
           onChanged={() => {
             setManagedEmailRefreshToken((current) => current + 1)
+            void loadConnections()
+          }}
+        />
+      )}
+
+      {managedSmsOpen && selectedCompany && (
+        <ManagedSmsSetupModal
+          companyId={selectedCompany.companyId}
+          canModify={can(PERMISSIONS.BROADCAST_MODIFY)}
+          onClose={() => setManagedSmsOpen(false)}
+          onChanged={() => {
+            setManagedSmsRefreshToken((current) => current + 1)
             void loadConnections()
           }}
         />
