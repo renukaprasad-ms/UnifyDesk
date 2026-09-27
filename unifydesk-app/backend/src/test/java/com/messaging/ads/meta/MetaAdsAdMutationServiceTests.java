@@ -16,10 +16,12 @@ import com.messaging.ads.meta.MetaAdsApiClient.AdSummary;
 import com.messaging.ads.meta.MetaAdsApiClient.CreativeRef;
 import com.messaging.ads.meta.dto.CreateMetaAdRequest;
 import com.messaging.ads.repository.AdAccountRepository;
+import com.messaging.ads.repository.AdAccountResourceRepository;
 import com.messaging.ads.repository.AdCreativeRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
 import com.messaging.ads.repository.AdRepository;
 import com.messaging.ads.repository.AdSetRepository;
+import com.messaging.ads.service.AdActivityLogService;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,11 +42,13 @@ class MetaAdsAdMutationServiceTests {
   @Mock private AdSetRepository adSetRepository;
   @Mock private AdRepository adRepository;
   @Mock private AdCreativeRepository creativeRepository;
+  @Mock private AdAccountResourceRepository resourceRepository;
   @Mock private AdAccountRepository accountRepository;
   @Mock private AdProviderConnectionRepository connectionRepository;
   @Mock private MetaAdsTokenService tokenService;
   @Mock private MetaAdsApiClient apiClient;
   @Mock private MetaAdsAdPersistenceService persistenceService;
+  @Mock private AdActivityLogService activityLogService;
 
   private MetaAdsAdMutationService service;
 
@@ -55,11 +59,13 @@ class MetaAdsAdMutationServiceTests {
             adSetRepository,
             adRepository,
             creativeRepository,
+            resourceRepository,
             accountRepository,
             connectionRepository,
             tokenService,
             apiClient,
-            persistenceService);
+            persistenceService,
+            activityLogService);
   }
 
   @Test
