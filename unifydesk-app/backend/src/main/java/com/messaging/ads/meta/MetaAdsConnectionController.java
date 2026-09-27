@@ -381,7 +381,7 @@ public class MetaAdsConnectionController {
         .body(
             ApiResponse.success(
                 HttpStatus.CREATED.value(),
-                adSetMutationService.create(companyId, campaignId, request),
+                adSetMutationService.create(companyId, campaignId, request, userId),
                 "Meta ad set created in paused state"));
   }
 
@@ -396,7 +396,7 @@ public class MetaAdsConnectionController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            adSetMutationService.update(companyId, adSetId, request),
+            adSetMutationService.update(companyId, adSetId, request, userId),
             "Meta ad set updated"));
   }
 

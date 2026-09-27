@@ -53,6 +53,13 @@ type TargetingSnapshot = {
   audience_network_positions?: string[]
   custom_audiences?: Array<{ id?: string }>
   excluded_custom_audiences?: Array<{ id?: string }>
+  targeting_automation?: {
+    advantage_audience?: number | boolean
+    individual_setting?: {
+      age?: number | boolean
+      gender?: number | boolean
+    }
+  }
 }
 
 type PromotedObjectSnapshot = {
@@ -229,6 +236,9 @@ export default function AdSetDetails() {
   const [audienceNetworkPositions, setAudienceNetworkPositions] = useState<string[]>([])
   const [customAudiences, setCustomAudiences] = useState<string[]>([])
   const [excludedAudiences, setExcludedAudiences] = useState<string[]>([])
+  const [advantageAudience, setAdvantageAudience] = useState(false)
+  const [advantageAgeSuggestion, setAdvantageAgeSuggestion] = useState(false)
+  const [advantageGenderSuggestion, setAdvantageGenderSuggestion] = useState(false)
   const [pixelId, setPixelId] = useState('')
   const [customEventType, setCustomEventType] = useState('')
   const [customConversionId, setCustomConversionId] = useState('')
@@ -302,6 +312,19 @@ export default function AdSetDetails() {
       audienceValues
         .filter((audience) => excludedExternalIds.has(audience.externalAudienceId))
         .map((audience) => audience.id),
+    )
+    const targetingAutomation = targeting?.targeting_automation
+    setAdvantageAudience(
+      targetingAutomation?.advantage_audience === 1 ||
+        targetingAutomation?.advantage_audience === true,
+    )
+    setAdvantageAgeSuggestion(
+      targetingAutomation?.individual_setting?.age === 1 ||
+        targetingAutomation?.individual_setting?.age === true,
+    )
+    setAdvantageGenderSuggestion(
+      targetingAutomation?.individual_setting?.gender === 1 ||
+        targetingAutomation?.individual_setting?.gender === true,
     )
     setPixelId(promotedObject?.pixel_id ?? '')
     setCustomEventType(promotedObject?.custom_event_type ?? '')
@@ -400,6 +423,9 @@ export default function AdSetDetails() {
         placementMode === 'MANUAL' && audienceNetwork ? audienceNetworkPositions : [],
       customAudienceIds: customAudiences,
       excludedCustomAudienceIds: excludedAudiences,
+      advantageAudience,
+      advantageAgeSuggestion: advantageAudience ? advantageAgeSuggestion : false,
+      advantageGenderSuggestion: advantageAudience ? advantageGenderSuggestion : false,
       pixelId: customConversionId ? undefined : pixelId || undefined,
       customEventType: customConversionId ? undefined : customEventType || undefined,
       customConversionId: customConversionId || undefined,
@@ -728,6 +754,53 @@ export default function AdSetDetails() {
                       <option value="MANUAL">Manual</option>
                     </select>
                   </label>
+                  <div className="sm:col-span-2 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+                    <label className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={advantageAudience}
+                        onChange={(event) => setAdvantageAudience(event.target.checked)}
+                      />
+                      <span>
+                        <span className="block text-sm font-bold text-indigo-950">
+                          Advantage+ audience
+                        </span>
+                        <span className="mt-1 block text-xs leading-5 text-indigo-700">
+                          Included audiences, age, and gender can be used as suggestions while
+                          location and explicit exclusions remain controls.
+                        </span>
+                      </span>
+                    </label>
+
+                    {advantageAudience && (
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <label className="flex items-start gap-2 rounded-lg bg-white/70 p-3 text-xs text-indigo-900">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={advantageAgeSuggestion}
+                            onChange={(event) =>
+                              setAdvantageAgeSuggestion(event.target.checked)
+                            }
+                          />
+                          Age range is a suggestion.
+                        </label>
+                        <label className="flex items-start gap-2 rounded-lg bg-white/70 p-3 text-xs text-indigo-900">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={advantageGenderSuggestion}
+                            onChange={(event) =>
+                              setAdvantageGenderSuggestion(event.target.checked)
+                            }
+                          />
+                          Gender is a suggestion.
+                        </label>
+                      </div>
+                    )}
+                  </div>
+
                   <label className="block text-xs font-semibold text-slate-700">
                     Include audiences
                     <select

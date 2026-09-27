@@ -171,6 +171,19 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
         "providerOverride.billingEvent",
         "Meta launch requires an explicit billingEvent.");
 
+    boolean advantageAudience = booleanValue(override, "advantageAudience", false);
+    boolean advantageAgeSuggestion =
+        booleanValue(override, "advantageAgeSuggestion", false);
+    boolean advantageGenderSuggestion =
+        booleanValue(override, "advantageGenderSuggestion", false);
+    if (!advantageAudience && (advantageAgeSuggestion || advantageGenderSuggestion)) {
+      issues.add(
+          error(
+              "META_ADVANTAGE_AUDIENCE_INVALID",
+              "providerOverride.advantageAudience",
+              "Advantage+ age/gender suggestions require Advantage+ audience to be enabled."));
+    }
+
     List<String> specialCategories = stringArray(override, "specialAdCategories");
     if (specialCategories.isEmpty()) {
       issues.add(
@@ -478,9 +491,13 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 stringArray(override, "audienceNetworkPositions"),
                 List.of(),
                 List.of(),
+                booleanValue(override, "advantageAudience", false),
+                booleanValue(override, "advantageAgeSuggestion", false),
+                booleanValue(override, "advantageGenderSuggestion", false),
                 pixelId,
                 customEventType,
-                customConversionId));
+                customConversionId),
+            run.getRequestedByUserId());
 
     return LaunchStepExecutionResult.succeeded(
         Long.valueOf(result.id()), result.externalAdSetId(), Map.of("reused", false));
@@ -844,6 +861,19 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
   private String text(JsonNode node, String key) {
     JsonNode value = node.get(key);
     return value == null || value.isNull() ? null : value.asText(null);
+  }
+
+  private boolean booleanValue(JsonNode node, String key, boolean defaultValue) {
+    JsonNode value = node.get(key);
+    if (value == null || value.isNull()) return defaultValue;
+    if (value.isBoolean()) return value.booleanValue();
+    if (value.isInt() || value.isLong()) return value.asInt() != 0;
+    if (value.isTextual()) {
+      String normalized = value.asText("").trim().toLowerCase(Locale.ROOT);
+      if ("true".equals(normalized) || "1".equals(normalized)) return true;
+      if ("false".equals(normalized) || "0".equals(normalized)) return false;
+    }
+    throw new BadRequestException("Meta provider override " + key + " must be boolean");
   }
 
   private Long longValue(JsonNode node, String key) {

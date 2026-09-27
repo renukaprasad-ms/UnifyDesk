@@ -35,6 +35,9 @@ public record CreateMetaAdSetRequest(
     List<String> audienceNetworkPositions,
     List<String> customAudienceIds,
     List<String> excludedCustomAudienceIds,
+    Boolean advantageAudience,
+    Boolean advantageAgeSuggestion,
+    Boolean advantageGenderSuggestion,
     String pixelId,
     String customEventType,
     String customConversionId) {
