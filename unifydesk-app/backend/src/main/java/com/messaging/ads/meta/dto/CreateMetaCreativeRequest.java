@@ -24,6 +24,7 @@ public record CreateMetaCreativeRequest(
     Boolean advantagePlusCreative,
     Boolean generativeText,
     Boolean imageExpansion,
+    String existingPostId,
     @Valid List<@Valid CarouselCard> carouselCards) {
 
   public CreateMetaCreativeRequest(
@@ -57,6 +58,7 @@ public record CreateMetaCreativeRequest(
         videoId,
         videoUrl,
         urlTags,
+        null,
         null,
         null,
         null,
@@ -96,6 +98,7 @@ public record CreateMetaCreativeRequest(
         videoUrl,
         urlTags,
         advantagePlusCreative,
+        null,
         null,
         null,
         carouselCards);
@@ -137,11 +140,13 @@ public record CreateMetaCreativeRequest(
         advantagePlusCreative,
         generativeText,
         null,
+        null,
         carouselCards);
   }
 
   @AssertTrue(message = "Creative media does not match the selected format")
   public boolean hasValidMedia() {
+    if (hasText(existingPostId)) return true;
     if (format == null) return false;
     return switch (format.trim().toUpperCase()) {
       case "SINGLE_IMAGE" -> hasText(imageHash) || hasText(imageUrl);
