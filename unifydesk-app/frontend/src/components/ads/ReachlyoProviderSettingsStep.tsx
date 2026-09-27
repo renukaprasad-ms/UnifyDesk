@@ -101,6 +101,8 @@ type Props = {
   setMetaAdvantageAgeSuggestion: (value: boolean) => void
   metaAdvantageGenderSuggestion: boolean
   setMetaAdvantageGenderSuggestion: (value: boolean) => void
+  metaAdvantagePlusCreative: boolean
+  setMetaAdvantagePlusCreative: (value: boolean) => void
   disabled: boolean
   onRefresh: () => void
 }
@@ -949,6 +951,26 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                   </label>
                 </div>
               )}
+            </div>
+            <div className="sm:col-span-2 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={props.metaAdvantagePlusCreative}
+                  disabled={props.disabled}
+                  onChange={(event) => props.setMetaAdvantagePlusCreative(event.target.checked)}
+                />
+                <span>
+                  <span className="block text-sm font-bold text-indigo-950">
+                    Advantage+ creative
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-indigo-700">
+                    Opt in to Meta standard creative enhancements. Text generation, image
+                    expansion and background generation remain separate features.
+                  </span>
+                </span>
+              </label>
             </div>
             <div className="sm:col-span-2 rounded-xl border border-slate-100 p-4">
               <p className="text-xs font-semibold text-slate-700">Placements</p>
