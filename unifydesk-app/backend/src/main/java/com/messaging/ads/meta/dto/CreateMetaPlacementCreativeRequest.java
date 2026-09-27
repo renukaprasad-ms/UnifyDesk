@@ -12,6 +12,7 @@ public record CreateMetaPlacementCreativeRequest(
     String instagramActorId,
     String callToActionType,
     String urlTags,
+    Boolean advantagePlusCreative,
     @NotEmpty List<@Valid PlacementAsset> placementAssets) {
 
   public record PlacementAsset(
