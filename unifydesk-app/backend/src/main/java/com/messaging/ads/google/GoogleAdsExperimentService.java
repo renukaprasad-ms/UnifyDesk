@@ -3,6 +3,7 @@ package com.messaging.ads.google;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.messaging.ads.entity.AdCampaign;
 import com.messaging.ads.enums.AdProvider;
+import com.messaging.ads.google.dto.CreateGoogleCampaignMixExperimentRequest;
 import com.messaging.ads.google.dto.CreateGoogleExperimentRequest;
 import com.messaging.ads.google.dto.GoogleExperimentActionResponse;
 import com.messaging.ads.google.dto.GoogleExperimentResponse;
@@ -160,6 +161,117 @@ public class GoogleAdsExperimentService {
     }
   }
 
+  public GoogleExperimentResponse createCampaignMix(
+      Long companyId,
+      Long accountId,
+      CreateGoogleCampaignMixExperimentRequest request,
+      Long actorUserId) {
+    var context = contextService.requireManaged(companyId, accountId);
+    if (context.managerAccount()) {
+      throw new BadRequestException(
+          "Google Ads manager accounts cannot directly own experiments");
+    }
+    validateDates(request.startDate(), request.endDate());
+    int treatmentSplit =
+        request.treatmentTrafficPercent() == null ? 50 : request.treatmentTrafficPercent();
+    if (treatmentSplit < 1 || treatmentSplit > 99) {
+      throw new BadRequestException(
+          "Google campaign-mix treatment traffic must be between 1 and 99 percent");
+    }
+
+    List<AdCampaign> control =
+        requireCampaigns(companyId, accountId, request.controlCampaignIds());
+    List<AdCampaign> treatment =
+        requireCampaigns(companyId, accountId, request.treatmentCampaignIds());
+    if (sameCampaignSet(control, treatment)) {
+      throw new BadRequestException(
+          "Google campaign-mix control and treatment arms cannot contain identical campaign sets");
+    }
+
+    String customerId = context.account().getExternalAccountId();
+    Map<String, Object> create = new LinkedHashMap<>();
+    create.put("name", request.name().trim());
+    create.put("type", "COMPARE_CAMPAIGNS");
+    create.put("status", "SETUP");
+    if (request.description() != null && !request.description().isBlank()) {
+      create.put("description", request.description().trim());
+    }
+    if (request.startDate() != null) create.put("startDate", request.startDate().toString());
+    if (request.endDate() != null) create.put("endDate", request.endDate().toString());
+
+    JsonNode mutation =
+        apiClient.mutate(
+            context.accessToken(),
+            customerId,
+            context.loginCustomerId(),
+            "experiments",
+            List.of(Map.of("create", create)));
+    String experimentResource = apiClient.firstMutatedResourceName(mutation);
+    if (experimentResource == null) {
+      throw new BadRequestException(
+          "Google Ads created the campaign-mix experiment without returning its resource name");
+    }
+    String experimentId = idFromResource(experimentResource, "experiment");
+
+    try {
+      Map<String, Object> controlArm = new LinkedHashMap<>();
+      controlArm.put("experiment", experimentResource);
+      controlArm.put("name", "Control");
+      controlArm.put("control", true);
+      controlArm.put("trafficSplit", 100 - treatmentSplit);
+      controlArm.put(
+          "campaigns",
+          control.stream()
+              .map(
+                  campaign ->
+                      apiClient.customerResourceName(
+                          customerId, "campaigns", campaign.getExternalCampaignId()))
+              .toList());
+
+      Map<String, Object> treatmentArm = new LinkedHashMap<>();
+      treatmentArm.put("experiment", experimentResource);
+      treatmentArm.put("name", "Treatment");
+      treatmentArm.put("control", false);
+      treatmentArm.put("trafficSplit", treatmentSplit);
+      treatmentArm.put(
+          "campaigns",
+          treatment.stream()
+              .map(
+                  campaign ->
+                      apiClient.customerResourceName(
+                          customerId, "campaigns", campaign.getExternalCampaignId()))
+              .toList());
+
+      apiClient.mutate(
+          context.accessToken(),
+          customerId,
+          context.loginCustomerId(),
+          "experimentArms",
+          List.of(Map.of("create", controlArm), Map.of("create", treatmentArm)));
+
+      GoogleExperimentResponse experiment = requireExperiment(context, experimentId);
+      activityLogService.record(
+          companyId,
+          accountId,
+          AdProvider.GOOGLE_ADS,
+          actorUserId,
+          "GOOGLE_EXPERIMENT_CREATED",
+          "EXPERIMENT",
+          experimentId,
+          null,
+          experiment,
+          Map.of(
+              "type", "COMPARE_CAMPAIGNS",
+              "controlCampaignCount", control.size(),
+              "treatmentCampaignCount", treatment.size(),
+              "treatmentTrafficPercent", treatmentSplit));
+      return experiment;
+    } catch (RuntimeException exception) {
+      cleanupSetupExperiment(context, customerId, experimentResource);
+      throw exception;
+    }
+  }
+
   public GoogleExperimentActionResponse schedule(
       Long companyId, Long accountId, String experimentId, Long actorUserId) {
     return action(
@@ -195,6 +307,107 @@ public class GoogleAdsExperimentService {
         "experiment",
         actorUserId);
   }
+
+  public GoogleExperimentActionResponse graduate(
+      Long companyId, Long accountId, String rawExperimentId, Long actorUserId) {
+    var context = contextService.requireManaged(companyId, accountId);
+    String experimentId = numeric(rawExperimentId, "experiment");
+    GoogleExperimentResponse before = requireExperiment(context, experimentId);
+    if (!"ENABLED".equals(before.status())) {
+      throw new BadRequestException(
+          "Only running Google experiments can be graduated");
+    }
+    Arm treatment =
+        before.arms().stream()
+            .filter(arm -> !arm.control())
+            .findFirst()
+            .orElseThrow(
+                () -> new BadRequestException("Google experiment treatment arm is unavailable"));
+    String experimentCampaign =
+        treatment.campaigns().stream()
+            .findFirst()
+            .orElseThrow(
+                () ->
+                    new BadRequestException(
+                        "Google experiment treatment campaign is unavailable for graduation"));
+
+    String customerId = context.account().getExternalAccountId();
+    String query =
+        "SELECT campaign.resource_name, campaign.campaign_budget, "
+            + "campaign_budget.amount_micros "
+            + "FROM campaign WHERE campaign.resource_name = '"
+            + experimentCampaign
+            + "' LIMIT 1";
+    List<JsonNode> rows =
+        apiClient.searchRows(
+            context.accessToken(),
+            customerId,
+            context.loginCustomerId(),
+            query,
+            true);
+    if (rows.isEmpty()) {
+      throw new BadRequestException(
+          "Google experiment treatment campaign budget could not be read for graduation");
+    }
+    long amountMicros = rows.getFirst().path("campaignBudget").path("amountMicros").asLong(0L);
+    if (amountMicros <= 0L) {
+      throw new BadRequestException(
+          "Google experiment treatment campaign has no reusable budget amount");
+    }
+
+    Map<String, Object> budgetCreate = new LinkedHashMap<>();
+    budgetCreate.put("name", before.name() + " graduated budget " + System.currentTimeMillis());
+    budgetCreate.put("amountMicros", amountMicros);
+    budgetCreate.put("deliveryMethod", "STANDARD");
+    budgetCreate.put("explicitlyShared", false);
+    JsonNode budgetMutation =
+        apiClient.mutate(
+            context.accessToken(),
+            customerId,
+            context.loginCustomerId(),
+            "campaignBudgets",
+            List.of(Map.of("create", budgetCreate)));
+    String budgetResource = apiClient.firstMutatedResourceName(budgetMutation);
+    if (budgetResource == null) {
+      throw new BadRequestException(
+          "Google Ads did not return the graduation campaign budget");
+    }
+
+    String experimentResource =
+        apiClient.customerResourceName(customerId, "experiments", experimentId);
+    Map<String, Object> body = new LinkedHashMap<>();
+    body.put("experiment", experimentResource);
+    body.put(
+        "campaignBudgetMappings",
+        List.of(
+            Map.of(
+                "experimentCampaign", experimentCampaign,
+                "campaignBudget", budgetResource)));
+    apiClient.customerAction(
+        context.accessToken(),
+        customerId,
+        context.loginCustomerId(),
+        "experiments/" + experimentId + ":graduateExperiment",
+        body);
+
+    GoogleExperimentResponse after = requireExperiment(context, experimentId);
+    activityLogService.record(
+        companyId,
+        accountId,
+        AdProvider.GOOGLE_ADS,
+        actorUserId,
+        "GOOGLE_EXPERIMENT_GRADUATE",
+        "EXPERIMENT",
+        experimentId,
+        before,
+        after,
+        Map.of(
+            "experimentCampaign", experimentCampaign,
+            "newBudgetResource", budgetResource));
+    return new GoogleExperimentActionResponse(
+        experimentId, "GRADUATE", null, after);
+  }
+
 
   private GoogleExperimentActionResponse action(
       Long companyId,
@@ -309,6 +522,38 @@ public class GoogleAdsExperimentService {
         .filter(value -> experimentId.equals(value.id()))
         .findFirst()
         .orElseThrow(() -> new NotFoundException("Google Ads experiment not found"));
+  }
+
+  private List<AdCampaign> requireCampaigns(
+      Long companyId, Long accountId, List<Long> campaignIds) {
+    if (campaignIds == null || campaignIds.isEmpty()) {
+      throw new BadRequestException("Google campaign-mix arm requires at least one campaign");
+    }
+    List<AdCampaign> result = new ArrayList<>();
+    for (Long campaignId : campaignIds.stream().distinct().toList()) {
+      AdCampaign campaign =
+          campaignRepository
+              .findByIdAndCompanyId(campaignId, companyId)
+              .orElseThrow(() -> new NotFoundException("Advertising campaign not found"));
+      if (campaign.getProvider() != AdProvider.GOOGLE_ADS
+          || !accountId.equals(campaign.getAdAccountId())
+          || !campaign.isAccessible()) {
+        throw new BadRequestException(
+            "Campaign-mix campaigns must belong to the selected managed Google Ads account");
+      }
+      if ("HOTEL".equalsIgnoreCase(campaign.getObjective())) {
+        throw new BadRequestException(
+            "Google campaign-mix experiments do not support Hotel campaigns");
+      }
+      result.add(campaign);
+    }
+    return List.copyOf(result);
+  }
+
+  private boolean sameCampaignSet(
+      List<AdCampaign> control, List<AdCampaign> treatment) {
+    return control.stream().map(AdCampaign::getId).sorted().toList()
+        .equals(treatment.stream().map(AdCampaign::getId).sorted().toList());
   }
 
   private AdCampaign requireSearchCampaign(
