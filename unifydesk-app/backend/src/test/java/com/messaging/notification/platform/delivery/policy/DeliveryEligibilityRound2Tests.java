@@ -11,8 +11,8 @@ import com.messaging.notification.platform.delivery.model.DeliveryModels.Deliver
 import com.messaging.notification.platform.delivery.model.DeliveryModels.DeliveryMode;
 import com.messaging.notification.platform.delivery.model.DeliveryModels.EffectivePreference;
 import com.messaging.notification.platform.delivery.model.DeliveryModels.RecipientSnapshot;
-import com.messaging.notification.platform.delivery.push.PushEncryptionReadiness;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliveryRuntimeRepository;
+import com.messaging.notification.platform.push.BrowserPushReadiness;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -26,7 +26,7 @@ class DeliveryEligibilityRound2Tests {
     NotificationDeliveryRuntimeRepository repository =
         mock(NotificationDeliveryRuntimeRepository.class);
     CompanyIamPermissionService permissions = mock(CompanyIamPermissionService.class);
-    PushEncryptionReadiness readiness = mock(PushEncryptionReadiness.class);
+    BrowserPushReadiness readiness = mock(BrowserPushReadiness.class);
     NotificationDeliveryProperties properties = new NotificationDeliveryProperties();
     properties.getEmail().setEnabled(false);
     DeliveryEligibilityService service =
@@ -53,7 +53,7 @@ class DeliveryEligibilityRound2Tests {
     NotificationDeliveryRuntimeRepository repository =
         mock(NotificationDeliveryRuntimeRepository.class);
     CompanyIamPermissionService permissions = mock(CompanyIamPermissionService.class);
-    PushEncryptionReadiness readiness = mock(PushEncryptionReadiness.class);
+    BrowserPushReadiness readiness = mock(BrowserPushReadiness.class);
     NotificationDeliveryProperties properties = new NotificationDeliveryProperties();
     properties.getEmail().setEnabled(false);
     DeliveryEligibilityService service =
@@ -81,7 +81,7 @@ class DeliveryEligibilityRound2Tests {
     NotificationDeliveryRuntimeRepository repository =
         mock(NotificationDeliveryRuntimeRepository.class);
     CompanyIamPermissionService permissions = mock(CompanyIamPermissionService.class);
-    PushEncryptionReadiness readiness = mock(PushEncryptionReadiness.class);
+    BrowserPushReadiness readiness = mock(BrowserPushReadiness.class);
     NotificationDeliveryProperties properties = new NotificationDeliveryProperties();
     DeliveryEligibilityService service =
         new DeliveryEligibilityService(
@@ -105,7 +105,7 @@ class DeliveryEligibilityRound2Tests {
     NotificationDeliveryRuntimeRepository repository =
         mock(NotificationDeliveryRuntimeRepository.class);
     CompanyIamPermissionService permissions = mock(CompanyIamPermissionService.class);
-    PushEncryptionReadiness readiness = mock(PushEncryptionReadiness.class);
+    BrowserPushReadiness readiness = mock(BrowserPushReadiness.class);
     NotificationDeliveryProperties properties = new NotificationDeliveryProperties();
     properties.getPush().setVapidPublicKey("public");
     properties.getPush().setVapidPrivateKey("private");

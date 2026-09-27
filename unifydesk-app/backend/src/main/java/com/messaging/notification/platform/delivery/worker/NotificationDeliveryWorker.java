@@ -107,6 +107,7 @@ public class NotificationDeliveryWorker {
         outcome,
         null,
         result.errorCode(),
+        null,
         completed.toEpochMilli() - started.toEpochMilli())) {
       return;
     }

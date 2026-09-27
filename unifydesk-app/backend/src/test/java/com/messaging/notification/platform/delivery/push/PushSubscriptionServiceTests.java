@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -18,19 +19,21 @@ import com.messaging.notification.platform.delivery.model.DeliveryModels.PushSub
 import com.messaging.notification.platform.delivery.push.PushSubscriptionService.PushKeys;
 import com.messaging.notification.platform.delivery.push.PushSubscriptionService.RegisterPushSubscription;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliveryRuntimeRepository;
+import com.messaging.notification.platform.push.BrowserPushReadiness;
 import com.messaging.security.service.CurrentUserService;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 
 class PushSubscriptionServiceTests {
 
   private NotificationDeliveryRuntimeRepository repository;
   private CurrentUserService currentUserService;
   private CredentialCipher cipher;
-  private PushEncryptionReadiness readiness;
+  private BrowserPushReadiness readiness;
   private NotificationDeliveryProperties properties;
   private PushSubscriptionService service;
 
@@ -39,7 +42,7 @@ class PushSubscriptionServiceTests {
     repository = mock(NotificationDeliveryRuntimeRepository.class);
     currentUserService = mock(CurrentUserService.class);
     cipher = mock(CredentialCipher.class);
-    readiness = mock(PushEncryptionReadiness.class);
+    readiness = mock(BrowserPushReadiness.class);
     properties = new NotificationDeliveryProperties();
     properties.getPush().setVapidPublicKey("public");
     properties.getPush().setVapidPrivateKey("private");
@@ -130,6 +133,28 @@ class PushSubscriptionServiceTests {
         .isInstanceOf(com.messaging.common.exception.TooManyRequestsException.class);
 
     verify(repository).expireSubscriptionsForUser(7L, 20);
+  }
+
+  @Test
+  void registrationLocksUserBeforeExpiryLookupCountAndInsert() {
+    when(currentUserService.currentUserId()).thenReturn(7L);
+    when(repository.findSubscriptionByEndpointHash(anyString())).thenReturn(Optional.empty());
+    when(repository.activeSubscriptionCount(7L)).thenReturn(9);
+    when(cipher.encrypt(anyString())).thenAnswer(invocation -> "enc:" + invocation.getArgument(0));
+    when(repository.insertSubscription(
+            anyLong(), anyString(), anyString(), anyString(), anyString(), any(), any()))
+        .thenReturn(subscription(99L, 7L, "ACTIVE"));
+
+    service.register(request());
+
+    InOrder order = inOrder(repository);
+    order.verify(repository).lockUserForPushRegistration(7L);
+    order.verify(repository).expireSubscriptionsForUser(7L, 20);
+    order.verify(repository).findSubscriptionByEndpointHash(anyString());
+    order.verify(repository).activeSubscriptionCount(7L);
+    order.verify(repository)
+        .insertSubscription(
+            anyLong(), anyString(), anyString(), anyString(), anyString(), any(), any());
   }
 
   @Test

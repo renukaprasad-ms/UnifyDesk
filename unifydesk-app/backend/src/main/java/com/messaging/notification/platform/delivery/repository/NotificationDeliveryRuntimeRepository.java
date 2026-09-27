@@ -645,6 +645,11 @@ public class NotificationDeliveryRuntimeRepository {
         userId);
   }
 
+  public void lockUserForPushRegistration(long userId) {
+    jdbcTemplate.queryForObject(
+        "select id from users where id=? for update", Long.class, userId);
+  }
+
   public int activeSubscriptionCount(long userId) {
     Integer count =
         jdbcTemplate.queryForObject(

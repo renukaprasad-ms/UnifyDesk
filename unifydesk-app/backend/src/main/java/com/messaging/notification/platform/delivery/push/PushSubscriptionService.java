@@ -9,6 +9,7 @@ import com.messaging.common.exception.TooManyRequestsException;
 import com.messaging.notification.platform.delivery.config.NotificationDeliveryProperties;
 import com.messaging.notification.platform.delivery.model.DeliveryModels.PushSubscription;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliveryRuntimeRepository;
+import com.messaging.notification.platform.push.BrowserPushReadiness;
 import com.messaging.security.service.CurrentUserService;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -34,10 +35,10 @@ public class PushSubscriptionService {
   private final CurrentUserService currentUserService;
   private final CredentialCipher credentialCipher;
   private final NotificationDeliveryProperties properties;
-  private final PushEncryptionReadiness encryptionReadiness;
+  private final BrowserPushReadiness pushReadiness;
 
   public Capability capability() {
-    boolean configured = properties.getPush().configured() && encryptionReadiness.ready();
+    boolean configured = pushReadiness.ready();
     return new Capability(
         configured,
         configured ? properties.getPush().getVapidPublicKey() : null,
@@ -46,12 +47,13 @@ public class PushSubscriptionService {
 
   @Transactional
   public RegistrationResult register(RegisterPushSubscription request) {
-    if (!properties.getPush().configured() || !encryptionReadiness.ready()) {
+    if (!pushReadiness.ready()) {
       throw new ServiceUnavailableException("Browser push is not configured");
     }
     validate(request);
     long userId = currentUserService.currentUserId();
     int cap = Math.max(1, properties.getPush().getMaxActiveSubscriptions());
+    repository.lockUserForPushRegistration(userId);
     repository.expireSubscriptionsForUser(userId, Math.max(cap * 2, 20));
     String hash = endpointHash(request.endpoint());
     PushSubscription existing = repository.findSubscriptionByEndpointHash(hash).orElse(null);

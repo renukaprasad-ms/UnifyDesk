@@ -157,7 +157,7 @@ class ProviderAttemptRecoveryServiceTests {
         .thenReturn(
             List.of(
                 new ExpiredPushClaim(
-                    30L, 40L, 50L, "push-a", 1, null, null, null, null, null, null),
+                    30L, 40L, 50L, "push-a", 1, null, null, null, null, null, null, null),
                 new ExpiredPushClaim(
                     31L,
                     41L,
@@ -167,6 +167,7 @@ class ProviderAttemptRecoveryServiceTests {
                     200L,
                     "PREPARED",
                     "UNKNOWN",
+                    null,
                     null,
                     null,
                     null)));
@@ -193,6 +194,7 @@ class ProviderAttemptRecoveryServiceTests {
                     200L,
                     "IN_FLIGHT",
                     "UNKNOWN",
+                    null,
                     null,
                     null,
                     null)));
@@ -222,6 +224,7 @@ class ProviderAttemptRecoveryServiceTests {
                     "ACCEPTED",
                     completed,
                     201,
+                    null,
                     null)));
     when(runtime.pushIntentSummary(40L)).thenReturn(new PushIntentSummary(1, 1, 0));
 
@@ -230,5 +233,67 @@ class ProviderAttemptRecoveryServiceTests {
     verify(runtime).markPushAttemptAccepted(30L, "push", 201);
     verify(runtime).markSubscriptionSuccess(50L);
     verify(runtime).finalizePushIntent(40L, true, null, NOW);
+  }
+
+  @Test
+  void completedRateLimitedCrashHonorsPersistedProviderRetryAfter() {
+    Instant completed = NOW.minusSeconds(30);
+    Instant providerRetryAfterAt = NOW.plusSeconds(3600);
+    when(attempts.expiredPushClaims(anyInt()))
+        .thenReturn(
+            List.of(
+                new ExpiredPushClaim(
+                    30L,
+                    40L,
+                    50L,
+                    "push",
+                    1,
+                    200L,
+                    "COMPLETED",
+                    "RATE_LIMITED",
+                    completed,
+                    429,
+                    "PUSH_RATE_LIMITED",
+                    providerRetryAfterAt)));
+
+    service.recoverPushClaims(NOW);
+
+    verify(runtime)
+        .markPushAttemptRetry(
+            30L,
+            "push",
+            429,
+            "PUSH_RATE_LIMITED",
+            providerRetryAfterAt);
+  }
+
+  @Test
+  void completedRateLimitedCrashWithoutProviderHintUsesLocalBackoff() {
+    when(attempts.expiredPushClaims(anyInt()))
+        .thenReturn(
+            List.of(
+                new ExpiredPushClaim(
+                    30L,
+                    40L,
+                    50L,
+                    "push",
+                    1,
+                    200L,
+                    "COMPLETED",
+                    "RATE_LIMITED",
+                    NOW.minusSeconds(30),
+                    429,
+                    "PUSH_RATE_LIMITED",
+                    null)));
+
+    service.recoverPushClaims(NOW);
+
+    verify(runtime)
+        .markPushAttemptRetry(
+            30L,
+            "push",
+            429,
+            "PUSH_RATE_LIMITED",
+            NOW.plusSeconds(60));
   }
 }

@@ -192,6 +192,7 @@ public class NotificationDigestWorker {
         outcome,
         null,
         result.errorCode(),
+        null,
         completed.toEpochMilli() - started.toEpochMilli())) {
       return;
     }

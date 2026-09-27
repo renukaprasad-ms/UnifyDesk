@@ -20,6 +20,7 @@ import com.messaging.notification.platform.core.config.NotificationPlatformPrope
 import com.messaging.notification.platform.core.realtime.NotificationRealtimePublisher;
 import com.messaging.notification.platform.core.registry.NotificationTypeRegistry;
 import com.messaging.notification.platform.core.state.NotificationUnreadCounterService;
+import com.messaging.notification.platform.push.BrowserPushReadiness;
 import com.messaging.security.service.CurrentUserService;
 import java.util.List;
 import java.util.Set;
@@ -85,6 +86,16 @@ class NotificationApiServicePolicyTests {
   }
 
   @Test
+  void preferencesUseSharedEncryptionAwarePushReadiness() {
+    Fixture fixture = fixture();
+    when(fixture.pushReadiness.ready()).thenReturn(false);
+
+    NotificationApiDtos.PreferencesResponse response = fixture.service.preferences(null);
+
+    assertThat(response.channels().browserPushConfigured()).isFalse();
+  }
+
+  @Test
   void invalidTimezoneIsRejectedBeforePreferenceReplacement() {
     Fixture fixture = fixture();
 
@@ -110,6 +121,9 @@ class NotificationApiServicePolicyTests {
     NotificationRealtimePublisher realtime =
         org.mockito.Mockito.mock(NotificationRealtimePublisher.class);
     NotificationTypeRegistry registry = new NotificationTypeRegistry();
+    BrowserPushReadiness pushReadiness =
+        org.mockito.Mockito.mock(BrowserPushReadiness.class);
+    when(pushReadiness.ready()).thenReturn(true);
     NotificationApiService service =
         new NotificationApiService(
             jdbc,
@@ -119,13 +133,15 @@ class NotificationApiServicePolicyTests {
             realtime,
             registry,
             new NotificationCursorCodec(new ObjectMapper()),
-            new NotificationPlatformProperties());
-    return new Fixture(jdbc, permissions, counters, service);
+            new NotificationPlatformProperties(),
+            pushReadiness);
+    return new Fixture(jdbc, permissions, counters, pushReadiness, service);
   }
 
   private record Fixture(
       JdbcTemplate jdbc,
       CompanyIamPermissionService permissions,
       NotificationUnreadCounterService counters,
+      BrowserPushReadiness pushReadiness,
       NotificationApiService service) {}
 }

@@ -89,18 +89,20 @@ public class ProviderAttemptLifecycleRepository {
       String outcome,
       Integer providerStatusCode,
       String errorCode,
+      Instant providerRetryAfterAt,
       long latencyMs) {
     return jdbcTemplate.update(
             """
             update notification_delivery_attempts
-            set completed_at=?,outcome=?,provider_status_code=?,provider_error_code=?,latency_ms=?,
-                provider_call_state='COMPLETED'
+            set completed_at=?,outcome=?,provider_status_code=?,provider_error_code=?,
+                provider_retry_after_at=?,latency_ms=?,provider_call_state='COMPLETED'
             where id=? and provider_call_state='IN_FLIGHT' and completed_at is null
             """,
             utc(completedAt),
             outcome,
             providerStatusCode,
             errorCode,
+            providerRetryAfterAt == null ? null : utc(providerRetryAfterAt),
             Math.max(0, latencyMs),
             attemptId)
         == 1;
@@ -216,7 +218,7 @@ public class ProviderAttemptLifecycleRepository {
         """
         select p.id as push_attempt_id,p.intent_id,p.subscription_id,p.claim_token,p.attempt_no,
                a.id as attempt_id,a.provider_call_state,a.outcome,a.completed_at,
-               a.provider_status_code,a.provider_error_code
+               a.provider_status_code,a.provider_error_code,a.provider_retry_after_at
         from notification_push_attempts p
         left join notification_delivery_attempts a
           on a.intent_id=p.intent_id
@@ -239,7 +241,8 @@ public class ProviderAttemptLifecycleRepository {
                 rs.getString("outcome"),
                 instant(rs.getObject("completed_at", OffsetDateTime.class)),
                 rs.getObject("provider_status_code", Integer.class),
-                rs.getString("provider_error_code")),
+                rs.getString("provider_error_code"),
+                instant(rs.getObject("provider_retry_after_at", OffsetDateTime.class))),
         limit);
   }
 
@@ -311,5 +314,6 @@ public class ProviderAttemptLifecycleRepository {
       String outcome,
       Instant completedAt,
       Integer providerStatusCode,
-      String errorCode) {}
+      String errorCode,
+      Instant providerRetryAfterAt) {}
 }
