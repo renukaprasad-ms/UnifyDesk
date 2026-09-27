@@ -206,8 +206,9 @@ public class FirstPartyAudienceBuilderService {
   }
 
   private String safeMessage(RuntimeException exception) {
-    String message = exception.getMessage();
-    if (message == null || message.isBlank()) return "Provider audience build failed";
-    return message.length() <= 500 ? message : message.substring(0, 500);
+    // Never reflect provider exception text here: provider validation failures can contain
+    // normalized or submitted identifier fragments. The per-target success/counts are enough
+    // for this privacy-sensitive fan-out response.
+    return "Provider audience build failed. Review the provider connection, eligibility, consent, and audience requirements.";
   }
 }
