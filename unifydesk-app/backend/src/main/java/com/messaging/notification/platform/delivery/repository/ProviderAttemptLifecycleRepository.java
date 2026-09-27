@@ -18,22 +18,35 @@ public class ProviderAttemptLifecycleRepository {
 
   @Transactional
   public long prepareAttempt(
-      long intentId, Long subscriptionId, int attemptNo, String channel, Instant preparedAt) {
+      long intentId, Long subscriptionId, int attemptNo, String channel) {
     long id = IdGenerator.nextId();
     jdbcTemplate.update(
         """
         insert into notification_delivery_attempts(
           id,intent_id,subscription_id,attempt_no,channel,started_at,outcome,
           provider_call_state,provider_call_started_at,created_at
-        ) values (?,?,?,?,?,?,'UNKNOWN','PREPARED',null,now())
+        ) values (?,?,?,?,?,now(),'UNKNOWN','PREPARED',null,now())
         on conflict do nothing
         """,
         id,
         intentId,
         subscriptionId,
         attemptNo,
-        channel,
-        utc(preparedAt));
+        channel);
+
+    jdbcTemplate.update(
+        """
+        update notification_delivery_attempts
+        set started_at=now()
+        where intent_id=?
+          and subscription_id is not distinct from ?
+          and attempt_no=?
+          and provider_call_state='PREPARED'
+          and completed_at is null
+        """,
+        intentId,
+        subscriptionId,
+        attemptNo);
 
     Long stored =
         jdbcTemplate.query(
@@ -134,7 +147,9 @@ public class ProviderAttemptLifecycleRepository {
           select a.id,a.attempt_no,a.provider_call_state,a.outcome,
                  a.completed_at,a.provider_error_code
           from notification_delivery_attempts a
-          where a.intent_id=d.id and a.subscription_id is null
+          where a.intent_id=d.id
+            and a.subscription_id is null
+            and a.started_at >= d.updated_at
           order by a.attempt_no desc,a.id desc
           limit 1
         ) a on true
@@ -173,6 +188,7 @@ public class ProviderAttemptLifecycleRepository {
             on a.intent_id=i.delivery_intent_id
            and a.subscription_id is null
           where i.digest_bucket_id=b.id
+            and a.started_at >= b.updated_at
           order by a.attempt_no desc,a.id desc
           limit 1
         ) a on true

@@ -90,7 +90,7 @@ public class NotificationDeliveryWorker {
     int attemptNo = attemptLifecycleRepository.nextOrPreparedEmailAttemptNo(intent.id());
     Instant started = clock.instant();
     long attemptId =
-        attemptLifecycleRepository.prepareAttempt(intent.id(), null, attemptNo, "EMAIL", started);
+        attemptLifecycleRepository.prepareAttempt(intent.id(), null, attemptNo, "EMAIL");
     if (!attemptLifecycleRepository.markInFlight(attemptId, clock.instant())) {
       return;
     }

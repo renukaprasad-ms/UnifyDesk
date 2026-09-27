@@ -76,8 +76,7 @@ class NotificationEmailKillSwitchTests {
             "EMAIL_CHANNEL_DISABLED",
             NOW.plus(properties.getEmail().getDisabledRetryDelay()));
     verifyNoInteractions(gateway);
-    verify(attempts, never()).prepareAttempt(
-        intent.id(), null, 1, "EMAIL", NOW);
+    verify(attempts, never()).prepareAttempt(intent.id(), null, 1, "EMAIL");
   }
 
   @Test

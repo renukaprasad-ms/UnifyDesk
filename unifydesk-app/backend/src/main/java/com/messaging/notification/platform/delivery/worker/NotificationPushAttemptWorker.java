@@ -95,7 +95,7 @@ public class NotificationPushAttemptWorker {
     Instant started = clock.instant();
     long deliveryAttemptId =
         attemptLifecycleRepository.prepareAttempt(
-            intent.id(), subscription.id(), attempt.attemptNo(), "WEB_PUSH", started);
+            intent.id(), subscription.id(), attempt.attemptNo(), "WEB_PUSH");
     if (!attemptLifecycleRepository.markInFlight(deliveryAttemptId, clock.instant())) {
       return;
     }

@@ -177,7 +177,7 @@ public class NotificationDigestWorker {
     Instant started = clock.instant();
     long attemptId =
         attemptLifecycleRepository.prepareAttempt(
-            representativeIntent, null, attemptNo, "EMAIL", started);
+            representativeIntent, null, attemptNo, "EMAIL");
     if (!attemptLifecycleRepository.markInFlight(attemptId, clock.instant())) {
       return;
     }
