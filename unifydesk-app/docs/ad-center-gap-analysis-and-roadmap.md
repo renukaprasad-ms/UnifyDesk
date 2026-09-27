@@ -1525,6 +1525,26 @@ Safety/product semantics:
 
 Verified against Meta's current Marketing API generative-AI examples, including standalone creative text generation and preview/read-back through `degrees_of_freedom_spec`.
 
+### D7 implementation note — Meta background generation
+
+Status: **in progress**.
+
+Meta's current official Marketing API examples constrain background generation to eligible dynamic product ads / Advantage+ catalog ads and use `image_background_gen` with an eligible `product_set_id`. Standalone non-catalog image creative creation can be rejected by Meta.
+
+Started:
+
+- [x] `META_BACKGROUND_GENERATION` modeled as account/product eligibility required
+- [x] unified provider control added
+- [x] product-set ID context persisted in provider override
+- [x] compiler requires an eligible product-set context before launch
+- [x] compiler surfaces provider eligibility/review warning
+- [ ] catalog/product-set discovery and validation
+- [ ] correct catalog ad creation path with inline creative / product set
+- [ ] provider read-back/preview for generated backgrounds
+- [ ] launch/audit regression tests
+
+The remaining execution work intentionally depends on the D9 catalog/product-set infrastructure rather than faking support for arbitrary standalone image creatives.
+
 ## M-07 Creative variations - P1
 
 Expand the creative model beyond one text/headline combination.
@@ -2316,7 +2336,7 @@ Product/provider semantics:
 - D6 does not enable background generation
 - D7 remains the separate background-generation slice
 
-D7. background generation  
+D7. [~] background generation — started: provider eligibility modeled, product-set preflight + unified controls added; execution awaits catalog/product-set ad creation path (D9 dependency)  
 D8. existing-post ads  
 D9. Meta Catalog/product sets  
 D10. WhatsApp Status ads where eligible
