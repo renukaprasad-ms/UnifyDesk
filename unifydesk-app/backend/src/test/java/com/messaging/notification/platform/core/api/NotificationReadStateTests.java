@@ -21,6 +21,7 @@ import com.messaging.security.service.CurrentUserService;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -33,7 +34,7 @@ class NotificationReadStateTests {
     Fixture fixture = fixture();
     stubAddressedRows(fixture.jdbc, null, Instant.parse("2026-09-27T06:31:00Z"));
     when(fixture.jdbc.update(contains("read_at=now()"), any(Object[].class))).thenReturn(1);
-    when(fixture.counters.counts(7L, null))
+    when(fixture.counters.counts(7L, null, Set.of()))
         .thenReturn(new NotificationUnreadCounterService.Counts(1, 0, 1));
 
     NotificationApiDtos.ReadStateResponse response =
@@ -55,7 +56,7 @@ class NotificationReadStateTests {
         fixture.jdbc,
         Instant.parse("2026-09-27T06:31:00Z"),
         Instant.parse("2026-09-27T06:31:00Z"));
-    when(fixture.counters.counts(7L, null))
+    when(fixture.counters.counts(7L, null, Set.of()))
         .thenReturn(new NotificationUnreadCounterService.Counts(1, 0, 1));
 
     fixture.service.setReadState("55", new ReadStateRequest(null, true));
@@ -83,7 +84,7 @@ class NotificationReadStateTests {
     when(fixture.jdbc.query(anyString(), any(ResultSetExtractor.class), any(Object[].class)))
         .thenAnswer(queryAnswer);
     when(fixture.jdbc.update(contains("read_at=now()"), any(Object[].class))).thenReturn(1);
-    when(fixture.counters.counts(7L, null))
+    when(fixture.counters.counts(7L, null, Set.of()))
         .thenReturn(new NotificationUnreadCounterService.Counts(0, 0, 0));
     Instant beforeCall = Instant.now();
 
