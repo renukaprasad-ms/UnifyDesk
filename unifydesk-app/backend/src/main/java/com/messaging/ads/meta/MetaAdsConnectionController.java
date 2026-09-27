@@ -272,6 +272,21 @@ public class MetaAdsConnectionController {
                 conversionMutationService.create(companyId, accountId, request),
                 "Meta custom conversion created"));
   }
+  @GetMapping("/accounts/{accountId}/pages/{pageId}/posts")
+  public ResponseEntity<ApiResponse<List<MetaAdsApiClient.ExistingPostSummary>>> existingPosts(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String pageId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            creativeMutationService.existingPosts(companyId, accountId, pageId),
+            "Meta existing posts fetched"));
+  }
+
   @PostMapping("/accounts/{accountId}/creatives/sync")
   public ResponseEntity<ApiResponse<MetaCreativeSyncResponse>> syncCreatives(
       @PathVariable Long companyId, @PathVariable Long accountId) {
