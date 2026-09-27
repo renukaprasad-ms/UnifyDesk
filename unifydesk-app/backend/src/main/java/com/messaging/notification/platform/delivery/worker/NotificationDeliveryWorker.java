@@ -16,6 +16,7 @@ import com.messaging.notification.platform.delivery.policy.DeliveryEligibilitySe
 import com.messaging.notification.platform.delivery.policy.NotificationDeliveryPolicy;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliveryRuntimeRepository;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliverySupportRepository;
+import com.messaging.notification.platform.delivery.repository.ProviderAttemptLifecycleRepository;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
@@ -32,6 +33,8 @@ public class NotificationDeliveryWorker {
 
   private final NotificationDeliveryRuntimeRepository repository;
   private final NotificationDeliverySupportRepository supportRepository;
+  private final ProviderAttemptLifecycleRepository attemptLifecycleRepository;
+  private final ProviderAttemptRecoveryService recoveryService;
   private final DeliveryEligibilityService eligibilityService;
   private final NotificationDeliveryPolicy policy;
   private final ProductEmailGateway emailGateway;
@@ -46,8 +49,8 @@ public class NotificationDeliveryWorker {
     if (!properties.getDelivery().isEnabled()) {
       return;
     }
-    supportRepository.recoverAmbiguousEmailIntentClaims();
     Instant now = clock.instant();
+    recoveryService.recoverEmailClaims(now);
     Instant leaseUntil = now.plus(properties.getDelivery().getClaimLease());
     List<DeliveryIntent> emails =
         repository.claimDueIntents(
@@ -84,10 +87,13 @@ public class NotificationDeliveryWorker {
       return;
     }
 
-    int attemptNo = intent.attemptCount() + 1;
+    int attemptNo = attemptLifecycleRepository.nextOrPreparedEmailAttemptNo(intent.id());
     Instant started = clock.instant();
     long attemptId =
-        supportRepository.beginProviderAttempt(intent.id(), null, attemptNo, "EMAIL", started);
+        attemptLifecycleRepository.prepareAttempt(intent.id(), null, attemptNo, "EMAIL", started);
+    if (!attemptLifecycleRepository.markInFlight(attemptId, clock.instant())) {
+      return;
+    }
     EmailSendResult result =
         emailGateway.send(
             decision.recipient().email(),
@@ -95,13 +101,15 @@ public class NotificationDeliveryWorker {
                 decision.recipient().userName(), decision.recipient().companyName()));
     Instant completed = clock.instant();
     String outcome = mapEmailOutcome(result);
-    supportRepository.completeProviderAttempt(
+    if (!attemptLifecycleRepository.completeAttempt(
         attemptId,
         completed,
         outcome,
         null,
         result.errorCode(),
-        completed.toEpochMilli() - started.toEpochMilli());
+        completed.toEpochMilli() - started.toEpochMilli())) {
+      return;
+    }
     metrics.attempt("EMAIL", outcome);
 
     switch (result.outcome()) {
