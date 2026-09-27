@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useNavigate } from 'react-router'
-import { FiPlus } from 'react-icons/fi'
+import { useNavigate } from 'react-router'
+import { FiMail, FiPlus } from 'react-icons/fi'
+import { companyApi } from '../../features/company/companyApi'
 import type { Company } from '../../features/company/types'
 import { platformApi } from '../../features/platform/platformApi'
 import { workspaceApi } from '../../features/workspace/workspaceApi'
@@ -41,6 +42,16 @@ export default function SelectWorkspace() {
         if (items.length === 1) {
           dispatch(selectCompany(items[0].companyId))
           navigate('/workspace', { replace: true })
+          return
+        }
+        if (items.length === 0) {
+          const invitations = await companyApi.myInvitations().catch(() => [])
+          if (!active) return
+          if (invitations.some((invitation) => invitation.status === 'PENDING')) {
+            navigate('/account/invitations', { replace: true })
+          } else {
+            navigate('/create-workspace', { replace: true })
+          }
         }
       } catch (loadError) {
         if (active) setError(apiErrorMessage(loadError, 'Unable to load workspaces'))
@@ -54,10 +65,6 @@ export default function SelectWorkspace() {
       active = false
     }
   }, [dispatch, navigate])
-
-  if (!loading && !error && companies.length === 0) {
-    return <Navigate to="/create-workspace" replace />
-  }
 
   return (
     <div className="min-h-dvh bg-white px-6 py-12">
@@ -94,6 +101,14 @@ export default function SelectWorkspace() {
         <button
           type="button"
           className="mt-5 flex w-full items-center justify-center gap-2 rounded-[8px] border border-slate-200 px-4 py-3 text-sm font-semibold text-indigo-500 hover:bg-indigo-50"
+          onClick={() => navigate('/account/invitations')}
+        >
+          <FiMail aria-hidden="true" />
+          View invitations
+        </button>
+        <button
+          type="button"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-[8px] border border-slate-200 px-4 py-3 text-sm font-semibold text-indigo-500 hover:bg-indigo-50"
           onClick={() => navigate('/create-workspace')}
         >
           <FiPlus aria-hidden="true" />
