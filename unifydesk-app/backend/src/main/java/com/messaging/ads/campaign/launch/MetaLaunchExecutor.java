@@ -528,7 +528,8 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 booleanValue(override, "advantageGenderSuggestion", false),
                 pixelId,
                 customEventType,
-                customConversionId),
+                customConversionId,
+                text(override, "productSetId")),
             run.getRequestedByUserId());
 
     return LaunchStepExecutionResult.succeeded(
