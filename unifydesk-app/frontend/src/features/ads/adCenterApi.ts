@@ -64,6 +64,9 @@ import type {
   GoogleAppCampaignSettings,
   GoogleAppCampaignPerformance,
   GoogleProviderReport,
+  GoogleExperiment,
+  CreateGoogleExperimentInput,
+  GoogleExperimentAction,
   GoogleAppCreativeAsset,
   CreateGoogleAppAdGroupInput,
   CreateGoogleAppAdInput,
@@ -829,6 +832,58 @@ export const adCenterApi = {
   async googleAppCampaignSettings(companyId: string, campaignId: string) {
     const response = await apiClient.get<ApiResponse<GoogleAppCampaignSettings>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/app-settings`,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleExperiments(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleExperiment[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/experiments`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleExperiment(
+    companyId: string,
+    accountId: string,
+    input: CreateGoogleExperimentInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleExperiment>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/experiments`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async scheduleGoogleExperiment(
+    companyId: string,
+    accountId: string,
+    experimentId: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleExperimentAction>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/experiments/${experimentId}:schedule`,
+    )
+    return unwrap(response.data)
+  },
+
+  async promoteGoogleExperiment(
+    companyId: string,
+    accountId: string,
+    experimentId: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleExperimentAction>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/experiments/${experimentId}:promote`,
+    )
+    return unwrap(response.data)
+  },
+
+  async endGoogleExperiment(
+    companyId: string,
+    accountId: string,
+    experimentId: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleExperimentAction>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/experiments/${experimentId}:end`,
     )
     return unwrap(response.data)
   },
