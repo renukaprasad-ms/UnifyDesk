@@ -14,7 +14,7 @@ import com.messaging.notification.platform.delivery.push.WebPushGateway;
 import com.messaging.notification.platform.delivery.push.WebPushGateway.PushSendResult;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliveryRuntimeRepository;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliveryRuntimeRepository.PushIntentSummary;
-import com.messaging.notification.platform.delivery.repository.NotificationDeliverySupportRepository;
+import com.messaging.notification.platform.delivery.repository.ProviderAttemptLifecycleRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -28,7 +28,8 @@ import org.springframework.stereotype.Component;
 public class NotificationPushAttemptWorker {
 
   private final NotificationDeliveryRuntimeRepository repository;
-  private final NotificationDeliverySupportRepository supportRepository;
+  private final ProviderAttemptLifecycleRepository attemptLifecycleRepository;
+  private final ProviderAttemptRecoveryService recoveryService;
   private final DeliveryEligibilityService eligibilityService;
   private final NotificationDeliveryPolicy policy;
   private final PushSubscriptionService subscriptionService;
@@ -40,8 +41,8 @@ public class NotificationPushAttemptWorker {
 
   @Scheduled(fixedDelayString = "${app.notification-platform.delivery.poll-delay:1s}")
   public void poll() {
-    supportRepository.recoverAmbiguousPushClaims();
     Instant now = clock.instant();
+    recoveryService.recoverPushClaims(now);
     List<PushAttempt> attempts =
         repository.claimDuePushAttempts(
             properties.getDelivery().getClaimBatchSize(),
@@ -93,20 +94,25 @@ public class NotificationPushAttemptWorker {
             : properties.getPush().getDefaultTtl();
     Instant started = clock.instant();
     long deliveryAttemptId =
-        supportRepository.beginProviderAttempt(
-            intent.id(), subscription.id(), attempt.attemptNo(), "WEB_PUSH", started);
+        attemptLifecycleRepository.prepareAttempt(
+            intent.id(), subscription.id(), attempt.attemptNo(), "WEB_PUSH");
+    if (!attemptLifecycleRepository.markInFlight(deliveryAttemptId, clock.instant())) {
+      return;
+    }
     PushSendResult result =
         pushGateway.send(
             decrypted.endpoint(), decrypted.p256dh(), decrypted.auth(), payload, ttl, "normal");
     Instant completed = clock.instant();
     String outcome = outcome(result);
-    supportRepository.completeProviderAttempt(
+    if (!attemptLifecycleRepository.completeAttempt(
         deliveryAttemptId,
         completed,
         outcome,
         result.statusCode(),
         result.errorCode(),
-        completed.toEpochMilli() - started.toEpochMilli());
+        completed.toEpochMilli() - started.toEpochMilli())) {
+      return;
+    }
     metrics.pushAttempt(outcome, result.statusCode());
 
     switch (result.outcome()) {

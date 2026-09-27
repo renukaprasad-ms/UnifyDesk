@@ -42,17 +42,28 @@ public class NotificationDeliveryRuntimeRepository {
     String sql =
         """
         with candidate as (
-          select id
-          from notification_delivery_intents
-          where channel = ?
-            and delivery_mode <> ?
-            and not_before <= now()
-            and next_attempt_at <= now()
+          select d0.id
+          from notification_delivery_intents d0
+          where d0.channel = ?
+            and d0.delivery_mode <> ?
+            and d0.not_before <= now()
+            and d0.next_attempt_at <= now()
             and (
-              state in ('PENDING','DEFERRED','FAILED_RETRYABLE')
-              or (state = 'CLAIMED' and claim_expires_at < now())
+              d0.state in ('PENDING','DEFERRED','FAILED_RETRYABLE')
+              or (
+                d0.state = 'CLAIMED'
+                and d0.claim_expires_at < now()
+                and not exists (
+                  select 1
+                  from notification_delivery_attempts a
+                  where a.intent_id=d0.id
+                    and a.subscription_id is null
+                    and a.started_at >= d0.updated_at
+                    and a.provider_call_state in ('IN_FLIGHT','COMPLETED')
+                )
+              )
             )
-          order by next_attempt_at, id
+          order by d0.next_attempt_at, d0.id
           for update skip locked
           limit ?
         )
@@ -175,15 +186,28 @@ public class NotificationDeliveryRuntimeRepository {
     return jdbcTemplate.query(
         """
         with candidate as (
-          select id
-          from notification_digest_buckets
-          where eligible_at <= now()
-            and next_attempt_at <= now()
+          select b0.id
+          from notification_digest_buckets b0
+          where b0.eligible_at <= now()
+            and b0.next_attempt_at <= now()
             and (
-              state in ('OPEN','ELIGIBLE','FAILED_RETRYABLE')
-              or (state='CLAIMED' and claim_expires_at < now())
+              b0.state in ('OPEN','ELIGIBLE','FAILED_RETRYABLE')
+              or (
+                b0.state='CLAIMED'
+                and b0.claim_expires_at < now()
+                and not exists (
+                  select 1
+                  from notification_digest_items i
+                  join notification_delivery_attempts a
+                    on a.intent_id=i.delivery_intent_id
+                   and a.subscription_id is null
+                  where i.digest_bucket_id=b0.id
+                    and a.started_at >= b0.updated_at
+                    and a.provider_call_state in ('IN_FLIGHT','COMPLETED')
+                )
+              )
             )
-          order by next_attempt_at,id
+          order by b0.next_attempt_at,b0.id
           for update skip locked
           limit ?
         )
@@ -226,10 +250,10 @@ public class NotificationDeliveryRuntimeRepository {
                   loadedCompanyId,
                   rs.getString("company_name"),
                   rs.getString("company_timezone"),
-                  loadedCompanyId == null
-                      || "ACTIVE".equals(companyStatus)
-                      || "SUSPENDED".equals(companyStatus),
-                  loadedCompanyId == null || "ACTIVE".equals(memberStatus));
+                  companyId == null
+                      || (loadedCompanyId != null && "ACTIVE".equals(companyStatus)),
+                  companyId == null
+                      || (loadedCompanyId != null && "ACTIVE".equals(memberStatus)));
             },
             companyId,
             userId);
@@ -480,38 +504,6 @@ public class NotificationDeliveryRuntimeRepository {
   }
 
   @Transactional
-  public void recordDeliveryAttempt(
-      long intentId,
-      Long subscriptionId,
-      int attemptNo,
-      String channel,
-      Instant startedAt,
-      Instant completedAt,
-      String outcome,
-      Integer statusCode,
-      String errorCode,
-      Long latencyMs) {
-    jdbcTemplate.update(
-        """
-        insert into notification_delivery_attempts(
-          id,intent_id,subscription_id,attempt_no,channel,started_at,completed_at,outcome,
-          provider_status_code,provider_error_code,latency_ms,created_at
-        ) values (?,?,?,?,?,?,?,?,?,?,?,now())
-        """,
-        IdGenerator.nextId(),
-        intentId,
-        subscriptionId,
-        attemptNo,
-        channel,
-        OffsetDateTime.ofInstant(startedAt, ZoneOffset.UTC),
-        completedAt == null ? null : OffsetDateTime.ofInstant(completedAt, ZoneOffset.UTC),
-        outcome,
-        statusCode,
-        errorCode,
-        latencyMs);
-  }
-
-  @Transactional
   public void markDigestSent(long bucketId, String claimToken, Instant at) {
     jdbcTemplate.update(
         """
@@ -656,10 +648,37 @@ public class NotificationDeliveryRuntimeRepository {
   public int activeSubscriptionCount(long userId) {
     Integer count =
         jdbcTemplate.queryForObject(
-            "select count(*) from notification_push_subscriptions where user_id=? and status='ACTIVE'",
+            """
+            select count(*)
+            from notification_push_subscriptions
+            where user_id=?
+              and status='ACTIVE'
+              and (expiration_time is null or expiration_time > now())
+            """,
             Integer.class,
             userId);
     return count == null ? 0 : count;
+  }
+
+  @Transactional
+  public int expireSubscriptionsForUser(long userId, int limit) {
+    return jdbcTemplate.update(
+        """
+        update notification_push_subscriptions
+        set status='EXPIRED',last_failure_at=now(),updated_at=now()
+        where id in (
+          select id
+          from notification_push_subscriptions
+          where user_id=?
+            and status='ACTIVE'
+            and expiration_time is not null
+            and expiration_time <= now()
+          order by expiration_time,id
+          limit ?
+        )
+        """,
+        userId,
+        Math.max(1, limit));
   }
 
   @Transactional
@@ -791,19 +810,34 @@ public class NotificationDeliveryRuntimeRepository {
     return jdbcTemplate.query(
         """
         with candidate as (
-          select id
-          from notification_push_attempts
-          where next_attempt_at <= now()
+          select p0.id
+          from notification_push_attempts p0
+          where p0.next_attempt_at <= now()
             and (
-              state in ('PENDING','FAILED_RETRYABLE')
-              or (state='CLAIMED' and claim_expires_at < now())
+              p0.state in ('PENDING','FAILED_RETRYABLE')
+              or (
+                p0.state='CLAIMED'
+                and p0.claim_expires_at < now()
+                and not exists (
+                  select 1
+                  from notification_delivery_attempts a
+                  where a.intent_id=p0.intent_id
+                    and a.subscription_id=p0.subscription_id
+                    and a.attempt_no=p0.attempt_no
+                    and a.provider_call_state in ('IN_FLIGHT','COMPLETED')
+                )
+              )
             )
-          order by next_attempt_at,id
+          order by p0.next_attempt_at,p0.id
           for update skip locked
           limit ?
         )
         update notification_push_attempts p
-        set state='CLAIMED',claim_token=?,claim_expires_at=?,attempt_no=attempt_no+1,updated_at=now()
+        set state='CLAIMED',
+            claim_token=?,
+            claim_expires_at=?,
+            attempt_no=case when p.state='CLAIMED' then p.attempt_no else p.attempt_no+1 end,
+            updated_at=now()
         from candidate
         where p.id=candidate.id
         returning p.*

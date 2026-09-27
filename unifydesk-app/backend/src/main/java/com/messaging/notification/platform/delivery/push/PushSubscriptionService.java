@@ -34,9 +34,10 @@ public class PushSubscriptionService {
   private final CurrentUserService currentUserService;
   private final CredentialCipher credentialCipher;
   private final NotificationDeliveryProperties properties;
+  private final PushEncryptionReadiness encryptionReadiness;
 
   public Capability capability() {
-    boolean configured = properties.getPush().configured();
+    boolean configured = properties.getPush().configured() && encryptionReadiness.ready();
     return new Capability(
         configured,
         configured ? properties.getPush().getVapidPublicKey() : null,
@@ -45,17 +46,24 @@ public class PushSubscriptionService {
 
   @Transactional
   public RegistrationResult register(RegisterPushSubscription request) {
-    if (!properties.getPush().configured()) {
+    if (!properties.getPush().configured() || !encryptionReadiness.ready()) {
       throw new ServiceUnavailableException("Browser push is not configured");
     }
     validate(request);
     long userId = currentUserService.currentUserId();
+    int cap = Math.max(1, properties.getPush().getMaxActiveSubscriptions());
+    repository.expireSubscriptionsForUser(userId, Math.max(cap * 2, 20));
     String hash = endpointHash(request.endpoint());
     PushSubscription existing = repository.findSubscriptionByEndpointHash(hash).orElse(null);
     if (existing != null) {
       if (existing.userId() != userId) {
         throw new ConflictException(
             "Push subscription is already associated with another account");
+      }
+      if (!isCurrentlyActive(existing)
+          && repository.activeSubscriptionCount(userId) >= cap) {
+        throw new TooManyRequestsException(
+            "Maximum active browser notification subscriptions reached");
       }
       PushSubscription refreshed =
           repository.refreshSubscription(
@@ -69,8 +77,9 @@ public class PushSubscriptionService {
       return new RegistrationResult(toResponse(refreshed), false);
     }
 
-    if (repository.activeSubscriptionCount(userId) >= properties.getPush().getMaxActiveSubscriptions()) {
-      throw new TooManyRequestsException("Maximum active browser notification subscriptions reached");
+    if (repository.activeSubscriptionCount(userId) >= cap) {
+      throw new TooManyRequestsException(
+          "Maximum active browser notification subscriptions reached");
     }
     try {
       PushSubscription created =
@@ -117,6 +126,14 @@ public class PushSubscriptionService {
         credentialCipher.decrypt(subscription.endpointCiphertext()),
         credentialCipher.decrypt(subscription.p256dhCiphertext()),
         credentialCipher.decrypt(subscription.authCiphertext()));
+  }
+
+  private boolean isCurrentlyActive(PushSubscription subscription) {
+    if (!"ACTIVE".equals(subscription.status())) {
+      return false;
+    }
+    return subscription.expirationTime() == null
+        || subscription.expirationTime().isAfter(Instant.now());
   }
 
   private String encryptSecret(String value) {
