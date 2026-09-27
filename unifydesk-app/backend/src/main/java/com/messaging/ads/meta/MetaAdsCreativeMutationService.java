@@ -43,6 +43,33 @@ public class MetaAdsCreativeMutationService {
 
     String format = request.format().trim().toUpperCase();
     String token = accessToken(companyId, account);
+
+    if (hasText(request.existingPostId())) {
+      Map<String, Object> payload = new LinkedHashMap<>();
+      payload.put("name", request.name().trim());
+      payload.put("object_story_id", request.existingPostId().trim());
+      payload.put("page_id", request.pageId().trim());
+
+      String externalId =
+          apiClient.createCreative(token, account.getExternalAccountId(), payload);
+      AdCreativeResponse created =
+          AdCreativeResponse.from(
+              persistenceService.persistOne(
+                  companyId, accountId, apiClient.creative(token, externalId)));
+      activityLogService.record(
+          companyId,
+          accountId,
+          AdProvider.META_ADS,
+          actorUserId,
+          "META_EXISTING_POST_CREATIVE_CREATED",
+          "CREATIVE",
+          externalId,
+          null,
+          created,
+          Map.of("existingPost", true));
+      return created;
+    }
+
     Map<String, Object> story = new LinkedHashMap<>();
     story.put("page_id", request.pageId().trim());
     if (hasText(request.instagramActorId())) {
@@ -225,7 +252,11 @@ public class MetaAdsCreativeMutationService {
     payload.put("name", request.name().trim());
     payload.put("object_story_spec", story);
     payload.put("asset_feed_spec", assetFeed);
-    applyAdvantagePlusCreative(payload, request.advantagePlusCreative());
+    applyCreativeFeatures(
+        payload,
+        request.advantagePlusCreative(),
+        request.generativeText(),
+        request.imageExpansion());
     if (hasText(request.urlTags())) payload.put("url_tags", request.urlTags().trim());
 
     String externalId =
