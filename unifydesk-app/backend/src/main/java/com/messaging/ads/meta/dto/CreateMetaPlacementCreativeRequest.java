@@ -14,6 +14,7 @@ public record CreateMetaPlacementCreativeRequest(
     String urlTags,
     Boolean advantagePlusCreative,
     Boolean generativeText,
+    Boolean imageExpansion,
     @NotEmpty List<@Valid PlacementAsset> placementAssets) {
 
   public CreateMetaPlacementCreativeRequest(
@@ -29,6 +30,7 @@ public record CreateMetaPlacementCreativeRequest(
         instagramActorId,
         callToActionType,
         urlTags,
+        null,
         null,
         null,
         placementAssets);
@@ -49,6 +51,7 @@ public record CreateMetaPlacementCreativeRequest(
         callToActionType,
         urlTags,
         advantagePlusCreative,
+        null,
         null,
         placementAssets);
   }
