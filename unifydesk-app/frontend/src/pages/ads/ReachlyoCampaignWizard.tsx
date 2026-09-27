@@ -406,6 +406,9 @@ export default function ReachlyoCampaignWizard() {
   const [metaInstagramPositions, setMetaInstagramPositions] = useState<string[]>([])
   const [metaMessengerPositions, setMetaMessengerPositions] = useState<string[]>([])
   const [metaAudienceNetworkPositions, setMetaAudienceNetworkPositions] = useState<string[]>([])
+  const [metaAdvantageAudience, setMetaAdvantageAudience] = useState(false)
+  const [metaAdvantageAgeSuggestion, setMetaAdvantageAgeSuggestion] = useState(false)
+  const [metaAdvantageGenderSuggestion, setMetaAdvantageGenderSuggestion] = useState(false)
 
   const managedAccounts = useMemo(
     () =>
@@ -720,6 +723,9 @@ export default function ReachlyoCampaignWizard() {
           ? override.audienceNetworkPositions.filter((value): value is string => typeof value === 'string')
           : [],
       )
+      setMetaAdvantageAudience(override.advantageAudience === true)
+      setMetaAdvantageAgeSuggestion(override.advantageAgeSuggestion === true)
+      setMetaAdvantageGenderSuggestion(override.advantageGenderSuggestion === true)
     }
   }
 
@@ -1322,6 +1328,11 @@ export default function ReachlyoCampaignWizard() {
               metaPublisherPlatforms.includes('audience_network')
                 ? metaAudienceNetworkPositions
                 : [],
+            advantageAudience: metaAdvantageAudience,
+            advantageAgeSuggestion:
+              metaAdvantageAudience && metaAdvantageAgeSuggestion,
+            advantageGenderSuggestion:
+              metaAdvantageAudience && metaAdvantageGenderSuggestion,
           }
         }
 
@@ -2619,6 +2630,12 @@ export default function ReachlyoCampaignWizard() {
                   setMetaMessengerPositions={setMetaMessengerPositions}
                   metaAudienceNetworkPositions={metaAudienceNetworkPositions}
                   setMetaAudienceNetworkPositions={setMetaAudienceNetworkPositions}
+                  metaAdvantageAudience={metaAdvantageAudience}
+                  setMetaAdvantageAudience={setMetaAdvantageAudience}
+                  metaAdvantageAgeSuggestion={metaAdvantageAgeSuggestion}
+                  setMetaAdvantageAgeSuggestion={setMetaAdvantageAgeSuggestion}
+                  metaAdvantageGenderSuggestion={metaAdvantageGenderSuggestion}
+                  setMetaAdvantageGenderSuggestion={setMetaAdvantageGenderSuggestion}
                   disabled={!canEdit || !editableDefinition}
                   onRefresh={() => void loadProviderData(true)}
                 />
