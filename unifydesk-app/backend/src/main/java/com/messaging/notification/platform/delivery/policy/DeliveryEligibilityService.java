@@ -8,7 +8,7 @@ import com.messaging.notification.platform.delivery.model.DeliveryModels.Deliver
 import com.messaging.notification.platform.delivery.model.DeliveryModels.EffectivePreference;
 import com.messaging.notification.platform.delivery.model.DeliveryModels.QuietHours;
 import com.messaging.notification.platform.delivery.model.DeliveryModels.RecipientSnapshot;
-import com.messaging.notification.platform.delivery.push.PushEncryptionReadiness;
+import com.messaging.notification.platform.push.BrowserPushReadiness;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliveryRuntimeRepository;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,7 @@ public class DeliveryEligibilityService {
   private final NotificationDeliveryPolicy policy;
   private final CompanyIamPermissionService permissionService;
   private final NotificationDeliveryProperties properties;
-  private final PushEncryptionReadiness pushEncryptionReadiness;
+  private final BrowserPushReadiness pushReadiness;
 
   public Decision evaluate(DeliveryIntent intent, Instant now) {
     RecipientSnapshot recipient = repository.recipientSnapshot(intent.userId(), intent.companyId()).orElse(null);
@@ -71,8 +71,7 @@ public class DeliveryEligibilityService {
       }
     }
 
-    if (intent.channel() == Channel.WEB_PUSH
-        && (!properties.getPush().configured() || !pushEncryptionReadiness.ready())) {
+    if (intent.channel() == Channel.WEB_PUSH && !pushReadiness.ready()) {
       return Decision.suppress("PUSH_NOT_CONFIGURED");
     }
 

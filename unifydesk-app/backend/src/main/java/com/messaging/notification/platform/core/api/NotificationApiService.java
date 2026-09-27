@@ -12,6 +12,7 @@ import com.messaging.notification.platform.core.realtime.NotificationRealtimePub
 import com.messaging.notification.platform.core.registry.NotificationTypeRegistry;
 import com.messaging.notification.platform.core.registry.NotificationTypeRegistry.EmailMode;
 import com.messaging.notification.platform.core.state.NotificationUnreadCounterService;
+import com.messaging.notification.platform.push.BrowserPushReadiness;
 import com.messaging.security.service.CurrentUserService;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -44,6 +45,7 @@ public class NotificationApiService {
   private final NotificationTypeRegistry registry;
   private final NotificationCursorCodec cursorCodec;
   private final NotificationPlatformProperties properties;
+  private final BrowserPushReadiness pushReadiness;
 
   @Transactional(readOnly = true)
   public NotificationPage list(
@@ -450,7 +452,7 @@ public class NotificationApiService {
             settings.quietStart().format(TIME_FORMAT),
             settings.quietEnd().format(TIME_FORMAT)),
         new ChannelAvailability(
-            properties.getEmail().isEnabled(), properties.getPush().configured()),
+            properties.getEmail().isEnabled(), pushReadiness.ready()),
         types);
   }
 
