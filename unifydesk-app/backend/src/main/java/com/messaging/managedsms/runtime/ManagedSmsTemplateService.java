@@ -218,6 +218,7 @@ public class ManagedSmsTemplateService {
             && !"https".equals(actual.scheme())) {
           throw ctaRejected();
         }
+        if (!safeHostPort(actual)) throw ctaRejected();
         JsonNode allowedHosts = rule.path("allowedHosts");
         if (!allowedHosts.isArray() || allowedHosts.isEmpty()) throw ctaRejected();
         boolean allowSubdomains = rule.path("allowSubdomains").asBoolean(false);
@@ -305,12 +306,18 @@ public class ManagedSmsTemplateService {
       canonical.append(path);
       if (uri.getRawQuery() != null) canonical.append('?').append(uri.getRawQuery());
       if (uri.getRawFragment() != null) canonical.append('#').append(uri.getRawFragment());
-      return new ParsedUrl(scheme, host, path, canonical.toString());
+      return new ParsedUrl(scheme, host, path, port, canonical.toString());
     } catch (BadRequestException exception) {
       throw exception;
     } catch (RuntimeException exception) {
       throw ctaRejected();
     }
+  }
+
+  private boolean safeHostPort(ParsedUrl url) {
+    return url.port() < 0
+        || ("https".equals(url.scheme()) && url.port() == 443)
+        || ("http".equals(url.scheme()) && url.port() == 80);
   }
 
   private String normalizeHost(String raw) {
@@ -397,7 +404,8 @@ public class ManagedSmsTemplateService {
     return value == null ? null : value.toLowerCase(Locale.ROOT);
   }
 
-  private record ParsedUrl(String scheme, String host, String path, String canonical) {}
+  private record ParsedUrl(
+      String scheme, String host, String path, int port, String canonical) {}
 
   public record VariableSpec(String key, String type, int maxLength, String providerKey) {}
 
