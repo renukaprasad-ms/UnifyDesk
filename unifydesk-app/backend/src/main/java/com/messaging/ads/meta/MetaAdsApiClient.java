@@ -283,6 +283,24 @@ public class MetaAdsApiClient {
   }
 
 
+  public List<ExistingPostSummary> pagePosts(
+      String accessToken, String pageId) {
+    if (pageId == null || pageId.isBlank()) return List.of();
+    List<ExistingPostSummary> result = new ArrayList<>();
+    String after = null;
+    for (int page = 0; page < MAX_PAGES; page++) {
+      ExistingPostPage response = existingPostPage(accessToken, pageId.trim(), after);
+      if (response.data() != null) {
+        response.data().stream()
+            .filter(post -> !Boolean.FALSE.equals(post.isPublished()))
+            .forEach(result::add);
+      }
+      after = nextCursor(response.paging());
+      if (after == null) break;
+    }
+    return List.copyOf(result);
+  }
+
   public List<ProductCatalogSummary> productCatalogs(
       String accessToken, String businessId) {
     if (businessId == null || businessId.isBlank()) return List.of();
@@ -1132,6 +1150,32 @@ public class MetaAdsApiClient {
                 .body(InstagramPage.class));
   }
 
+  private ExistingPostPage existingPostPage(
+      String accessToken, String pageId, String after) {
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder -> {
+                      var builder =
+                          uriBuilder
+                              .path("/{version}/{pageId}/feed")
+                              .queryParam(
+                                  "fields",
+                                  "id,message,created_time,permalink_url,is_published")
+                              .queryParam("limit", PAGE_LIMIT)
+                              .queryParam("appsecret_proof", appSecretProof(accessToken));
+                      if (after != null && !after.isBlank()) {
+                        builder.queryParam("after", after);
+                      }
+                      return builder.build(properties.getGraphApiVersion(), pageId);
+                    })
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(ExistingPostPage.class));
+  }
+
   private ProductCatalogPage productCatalogPage(
       String accessToken, String businessId, String after) {
     return execute(
@@ -1591,6 +1635,13 @@ public class MetaAdsApiClient {
       @JsonProperty("last_fired_time") String lastFiredTime) {}
 
 
+  public record ExistingPostSummary(
+      String id,
+      String message,
+      @JsonProperty("created_time") String createdTime,
+      @JsonProperty("permalink_url") String permalinkUrl,
+      @JsonProperty("is_published") Boolean isPublished) {}
+
   public record ProductCatalogSummary(
       String id,
       String name,
@@ -1613,6 +1664,8 @@ public class MetaAdsApiClient {
   public record InstagramPage(List<InstagramSummary> data, Paging paging) {}
 
   public record PixelPage(List<PixelSummary> data, Paging paging) {}
+
+  public record ExistingPostPage(List<ExistingPostSummary> data, Paging paging) {}
 
   public record ProductCatalogPage(List<ProductCatalogSummary> data, Paging paging) {}
 
