@@ -143,6 +143,18 @@ public class MetaAdsAdMutationService {
     return created;
   }
 
+  public com.fasterxml.jackson.databind.JsonNode backgroundPreview(
+      Long companyId, Long adId) {
+    Ad ad = requireAd(companyId, adId);
+    AdAccount account = requireManagedAccount(companyId, ad.getAdAccountId());
+    String token = accessToken(companyId, account);
+    return apiClient.adPreview(
+        token,
+        ad.getExternalAdId(),
+        "MOBILE_FEED_STANDARD",
+        "image_background_gen");
+  }
+
   public AdResponse update(Long companyId, Long adId, UpdateMetaAdRequest request) {
     Ad ad = requireAd(companyId, adId);
     AdSet adSet = requireAdSet(companyId, ad.getAdSetId());
