@@ -107,10 +107,14 @@ type Props = {
   setMetaGenerativeText: (value: boolean) => void
   metaImageExpansion: boolean
   setMetaImageExpansion: (value: boolean) => void
+  metaCatalogEnabled: boolean
+  setMetaCatalogEnabled: (value: boolean) => void
   metaBackgroundGeneration: boolean
   setMetaBackgroundGeneration: (value: boolean) => void
   metaProductSetId: string
   setMetaProductSetId: (value: string) => void
+  metaExistingPostId: string
+  setMetaExistingPostId: (value: string) => void
   disabled: boolean
   onRefresh: () => void
 }
@@ -1021,24 +1025,26 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 </span>
               </label>
             </div>
-            <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <div className="sm:col-span-2 rounded-xl border border-orange-200 bg-orange-50 p-4">
               <label className="flex items-start gap-3">
                 <input
                   type="checkbox"
                   className="mt-1"
-                  checked={props.metaBackgroundGeneration}
-                  disabled={props.disabled}
-                  onChange={(event) => props.setMetaBackgroundGeneration(event.target.checked)}
+                  checked={props.metaCatalogEnabled}
+                  disabled={props.disabled || Boolean(props.metaExistingPostId)}
+                  onChange={(event) => {
+                    props.setMetaCatalogEnabled(event.target.checked)
+                    if (!event.target.checked) props.setMetaBackgroundGeneration(false)
+                  }}
                 />
                 <span className="flex-1">
-                  <span className="block text-sm font-bold text-amber-950">
-                    AI background generation
+                  <span className="block text-sm font-bold text-orange-950">
+                    Catalog / dynamic product ad
                   </span>
-                  <span className="mt-1 block text-xs leading-5 text-amber-700">
-                    Meta currently limits this to eligible dynamic product / Advantage+ catalog ads.
-                    An eligible product set is required.
+                  <span className="mt-1 block text-xs leading-5 text-orange-700">
+                    Use a synchronized Meta product set and Meta's catalog-ad creative path.
                   </span>
-                  {props.metaBackgroundGeneration && (
+                  {props.metaCatalogEnabled && (
                     <select
                       className="form-input mt-3"
                       value={props.metaProductSetId}
@@ -1055,17 +1061,51 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                         ))}
                     </select>
                   )}
-                  {props.metaBackgroundGeneration &&
+                  {props.metaCatalogEnabled &&
                     !metaResources.some(
                       (resource) => resource.resourceType === 'META_PRODUCT_SET',
                     ) && (
-                      <span className="mt-2 block text-[11px] leading-5 text-amber-700">
-                        No product sets are synchronized for this Meta ad account. Refresh provider
-                        resources after connecting a business catalog.
+                      <span className="mt-2 block text-[11px] leading-5 text-orange-700">
+                        No product sets are synchronized. Refresh provider resources after connecting
+                        a Meta business catalog.
                       </span>
                     )}
                 </span>
               </label>
+            </div>
+            <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={props.metaBackgroundGeneration}
+                  disabled={props.disabled || !props.metaCatalogEnabled}
+                  onChange={(event) => props.setMetaBackgroundGeneration(event.target.checked)}
+                />
+                <span>
+                  <span className="block text-sm font-bold text-amber-950">
+                    AI background generation
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-amber-700">
+                    Optional catalog enhancement. Meta generates eligible product-image backgrounds;
+                    review provider previews before activation.
+                  </span>
+                </span>
+              </label>
+            </div>
+            <div className="sm:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+              <p className="text-xs font-semibold text-emerald-950">Existing post creative</p>
+              <p className="mt-1 text-xs leading-5 text-emerald-700">
+                Reuse an eligible Facebook or Instagram post by object story ID. This is mutually
+                exclusive with catalog ads.
+              </p>
+              <input
+                className="form-input mt-3"
+                value={props.metaExistingPostId}
+                disabled={props.disabled || props.metaCatalogEnabled}
+                onChange={(event) => props.setMetaExistingPostId(event.target.value)}
+                placeholder="Optional object story ID, e.g. PAGEID_POSTID"
+              />
             </div>
             <div className="sm:col-span-2 rounded-xl border border-slate-100 p-4">
               <p className="text-xs font-semibold text-slate-700">Placements</p>
