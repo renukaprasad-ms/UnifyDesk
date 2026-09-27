@@ -552,6 +552,7 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                     text(override, "urlTags"),
                     booleanValue(override, "advantagePlusCreative", false),
                     booleanValue(override, "generativeText", false),
+                    booleanValue(override, "imageExpansion", false),
                     placementAssets),
                 run.getRequestedByUserId());
         return LaunchStepExecutionResult.succeeded(
@@ -608,6 +609,7 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 text(override, "urlTags"),
                 booleanValue(override, "advantagePlusCreative", false),
                 booleanValue(override, "generativeText", false),
+                booleanValue(override, "imageExpansion", false),
                 List.of()),
             run.getRequestedByUserId());
 
