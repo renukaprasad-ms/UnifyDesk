@@ -40,6 +40,16 @@ class NotificationDeliveryMigrationTests {
         .contains("idx_notification_push_subscriptions_retention");
   }
 
+  @Test
+  void v75PersistsProviderRetryAfterWithoutRewritingExistingRows() throws IOException {
+    String sql = migration("V75__notification_delivery_r3.sql");
+
+    assertThat(sql)
+        .contains("add column provider_retry_after_at timestamptz null")
+        .contains("provider_retry_after_at is null or provider_call_state = 'completed'");
+    assertThat(sql).doesNotContain("update notification_delivery_attempts");
+  }
+
   private String migration(String file) throws IOException {
     try (var input = getClass().getClassLoader().getResourceAsStream("db/migration/" + file)) {
       assertThat(input).isNotNull();
