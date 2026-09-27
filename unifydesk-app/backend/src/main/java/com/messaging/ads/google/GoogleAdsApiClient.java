@@ -225,7 +225,17 @@ public class GoogleAdsApiClient {
       String customerId,
       String loginCustomerId,
       String query) {
-    JsonNode response = searchStream(accessToken, customerId, loginCustomerId, query);
+    return searchRows(accessToken, customerId, loginCustomerId, query, false);
+  }
+
+  public List<JsonNode> searchRows(
+      String accessToken,
+      String customerId,
+      String loginCustomerId,
+      String query,
+      boolean includeDrafts) {
+    JsonNode response =
+        searchStream(accessToken, customerId, loginCustomerId, query, includeDrafts);
     List<JsonNode> rows = new ArrayList<>();
     for (JsonNode batch : iterable(response)) {
       for (JsonNode row : iterable(batch.path("results"))) {
@@ -261,6 +271,36 @@ public class GoogleAdsApiClient {
                   .body(Map.of("operations", operations, "partialFailure", false))
                   .retrieve()
                   .body(String.class));
+        },
+        "Google Ads mutation failed for " + resourceCollection);
+  }
+
+  public JsonNode mutateReturningMutableResource(
+      String accessToken,
+      String customerId,
+      String loginCustomerId,
+      String resourceCollection,
+      List<Map<String, Object>> operations) {
+    if (operations == null || operations.isEmpty()) {
+      throw new BadRequestException("Google Ads mutation requires at least one operation");
+    }
+    return execute(
+        () -> {
+          RestClient.RequestBodySpec request =
+              adsClient
+                  .post()
+                  .uri(
+                      "/{version}/customers/{customerId}/{resourceCollection}:mutate",
+                      properties.getApiVersion().trim(),
+                      normalizeCustomerId(customerId),
+                      resourceCollection)
+                  .contentType(MediaType.APPLICATION_JSON);
+          addAdsHeaders(request, accessToken, loginCustomerId);
+          Map<String, Object> body = new LinkedHashMap<>();
+          body.put("operations", operations);
+          body.put("partialFailure", false);
+          body.put("responseContentType", "MUTABLE_RESOURCE");
+          return parseJson(request.body(body).retrieve().body(String.class));
         },
         "Google Ads mutation failed for " + resourceCollection);
   }
@@ -476,6 +516,15 @@ public class GoogleAdsApiClient {
 
   private JsonNode searchStream(
       String accessToken, String customerId, String loginCustomerId, String query) {
+    return searchStream(accessToken, customerId, loginCustomerId, query, false);
+  }
+
+  private JsonNode searchStream(
+      String accessToken,
+      String customerId,
+      String loginCustomerId,
+      String query,
+      boolean includeDrafts) {
     return execute(
         () -> {
           RestClient.RequestBodySpec request =
@@ -487,8 +536,10 @@ public class GoogleAdsApiClient {
                       normalizeCustomerId(customerId))
                   .contentType(MediaType.APPLICATION_JSON);
           addAdsHeaders(request, accessToken, loginCustomerId);
-          return parseJson(
-              request.body(Map.of("query", query)).retrieve().body(String.class));
+          Map<String, Object> body = new LinkedHashMap<>();
+          body.put("query", query);
+          if (includeDrafts) body.put("includeDrafts", true);
+          return parseJson(request.body(body).retrieve().body(String.class));
         },
         "Unable to query Google Ads customer " + normalizeCustomerId(customerId));
   }
