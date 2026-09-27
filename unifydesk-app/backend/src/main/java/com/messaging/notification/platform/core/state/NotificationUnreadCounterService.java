@@ -1,6 +1,7 @@
 package com.messaging.notification.platform.core.state;
 
 import com.messaging.common.id.IdGenerator;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -85,7 +86,7 @@ public class NotificationUnreadCounterService {
           IdGenerator.nextId(),
           userId,
           Math.max(0, delta),
-          now,
+          Timestamp.from(now),
           delta);
     } else {
       jdbcTemplate.update(
@@ -100,7 +101,7 @@ public class NotificationUnreadCounterService {
           userId,
           companyId,
           Math.max(0, delta),
-          now,
+          Timestamp.from(now),
           delta);
     }
   }
@@ -121,7 +122,7 @@ public class NotificationUnreadCounterService {
         companyId,
         requiredPermissionKey,
         Math.max(0, delta),
-        Instant.now(),
+        Timestamp.from(Instant.now()),
         delta);
   }
 
