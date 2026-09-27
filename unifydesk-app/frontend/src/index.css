@@ -1288,3 +1288,10 @@
     }
   }
 }
+
+
+@layer components {
+  .app-sidebar.is-compact:not(.is-hover-expanded) .sidebar-link {
+    position: relative;
+  }
+}
