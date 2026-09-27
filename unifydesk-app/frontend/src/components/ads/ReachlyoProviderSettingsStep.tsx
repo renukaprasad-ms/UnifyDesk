@@ -103,6 +103,8 @@ type Props = {
   setMetaAdvantageGenderSuggestion: (value: boolean) => void
   metaAdvantagePlusCreative: boolean
   setMetaAdvantagePlusCreative: (value: boolean) => void
+  metaGenerativeText: boolean
+  setMetaGenerativeText: (value: boolean) => void
   disabled: boolean
   onRefresh: () => void
 }
@@ -968,6 +970,26 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                   <span className="mt-1 block text-xs leading-5 text-indigo-700">
                     Opt in to Meta standard creative enhancements. Text generation, image
                     expansion and background generation remain separate features.
+                  </span>
+                </span>
+              </label>
+            </div>
+            <div className="sm:col-span-2 rounded-xl border border-violet-200 bg-violet-50 p-4">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={props.metaGenerativeText}
+                  disabled={props.disabled}
+                  onChange={(event) => props.setMetaGenerativeText(event.target.checked)}
+                />
+                <span>
+                  <span className="block text-sm font-bold text-violet-950">
+                    AI text generation
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-violet-700">
+                    Allow Meta to generate eligible text variations from your source copy.
+                    Generated copy must be reviewed from provider preview/read-back before activation.
                   </span>
                 </span>
               </label>
