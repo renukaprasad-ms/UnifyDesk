@@ -1,5 +1,7 @@
 package com.messaging.ads.meta;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import com.messaging.ads.dto.AdAccountBillingResponse;
 import com.messaging.ads.dto.AdAccountHealthResponse;
 import com.messaging.ads.dto.AdAudienceResponse;
@@ -342,6 +344,20 @@ public class MetaAdsConnectionController {
                 HttpStatus.CREATED.value(),
                 adMutationService.createCatalog(companyId, adSetId, request, userId),
                 "Meta catalog ad created in paused state"));
+  }
+
+  @GetMapping("/ads/{adId}/background-preview")
+  public ResponseEntity<ApiResponse<JsonNode>> backgroundPreview(
+      @PathVariable Long companyId,
+      @PathVariable Long adId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            adMutationService.backgroundPreview(companyId, adId),
+            "Meta background generation preview fetched"));
   }
 
   @PatchMapping("/ads/{adId}")
