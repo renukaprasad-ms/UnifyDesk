@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -82,6 +83,6 @@ class NotificationUnreadCounterReconcilerTests {
             eq(7L),
             eq(22L),
             eq("email.read"));
-    verify(realtime).afterCommit(7L, 22L, null, "COUNTER_RECONCILED");
+    verify(realtime, times(2)).afterCommit(7L, 22L, null, "COUNTER_RECONCILED");
   }
 }
