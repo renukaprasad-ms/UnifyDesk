@@ -291,6 +291,10 @@ export default function AppSidebar({
               <FiShield className="sidebar-icon" aria-hidden="true" />
               <span className="sidebar-copy">Profile</span>
             </NavLink>
+            <NavLink to="/account/invitations" className={nestedLinkClass} onClick={onNavigate}>
+              <FiMail className="sidebar-icon" aria-hidden="true" />
+              <span className="sidebar-copy">Invitations</span>
+            </NavLink>
             <NavLink to="/account/settings" className={nestedLinkClass} onClick={onNavigate}>
               <FiSettings className="sidebar-icon" aria-hidden="true" />
               <span className="sidebar-copy">Settings</span>
