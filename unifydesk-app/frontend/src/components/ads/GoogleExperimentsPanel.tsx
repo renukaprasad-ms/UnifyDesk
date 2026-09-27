@@ -527,16 +527,14 @@ export default function GoogleExperimentsPanel({
                           <FiArrowUpCircle aria-hidden="true" />
                           Promote treatment
                         </button>
-                        {experiment.type !== 'COMPARE_CAMPAIGNS' && (
-                          <button
-                            type="button"
-                            className="secondary-button"
-                            disabled={Boolean(busy)}
-                            onClick={() => void action(experiment, 'graduate')}
-                          >
-                            Graduate
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          disabled={Boolean(busy)}
+                          onClick={() => void action(experiment, 'graduate')}
+                        >
+                          Graduate
+                        </button>
                       </>
                     )}
                   </div>
