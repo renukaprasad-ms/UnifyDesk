@@ -7,6 +7,7 @@ import com.messaging.ads.campaign.entity.CreativeVariant;
 import com.messaging.ads.campaign.enums.AudienceMappingStatus;
 import com.messaging.ads.campaign.enums.CampaignChannelType;
 import com.messaging.ads.campaign.enums.ConversionTargetType;
+import com.messaging.ads.campaign.enums.CreativeAssetRole;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -171,10 +172,9 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
 
     ProviderCampaignPlanSupport.requireCapability(
         context, AdFeatureCapability.META_IMAGE_UNCROP, required, issues);
-    CreativePack pack = context.creativePack();
     boolean hasImage =
-        pack != null
-            && pack.getAssets().stream()
+        context.creativeAssets() != null
+            && context.creativeAssets().stream()
                 .anyMatch(asset -> asset.getRole() == CreativeAssetRole.IMAGE);
     if (!hasImage) {
       issues.add(
