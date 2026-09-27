@@ -1114,6 +1114,14 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 Manager, but UnifyDesk does not send an unverified Marketing API placement field.
                 Configure this placement in Meta until Meta publishes a stable public API contract.
               </p>
+              <a
+                className="mt-2 inline-flex text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                href="https://www.facebook.com/adsmanager/manage/campaigns"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Meta Ads Manager
+              </a>
             </div>
             <div className="sm:col-span-2 rounded-xl border border-slate-100 p-4">
               <p className="text-xs font-semibold text-slate-700">Placements</p>
