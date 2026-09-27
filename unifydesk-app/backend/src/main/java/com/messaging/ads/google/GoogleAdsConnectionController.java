@@ -31,6 +31,7 @@ import com.messaging.ads.google.dto.GoogleAdsAuthorizationResponse;
 import com.messaging.ads.google.dto.GoogleAudienceSyncResponse;
 import com.messaging.ads.google.dto.GoogleCampaignStatusRequest;
 import com.messaging.ads.google.dto.GoogleCampaignSyncResponse;
+import com.messaging.ads.google.dto.GoogleCampaignSimulationResponse;
 import com.messaging.ads.google.dto.GoogleConversionSyncResponse;
 import com.messaging.ads.google.dto.GoogleInsightsSyncResponse;
 import com.messaging.ads.google.dto.GoogleInsightBreakdownsSyncResponse;
@@ -125,6 +126,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsAppCampaignService appCampaignService;
   private final GoogleAdsAppAdService appAdService;
   private final GoogleAdsProviderReportingService providerReportingService;
+  private final GoogleAdsSimulationService simulationService;
   private final GoogleAdsExperimentService experimentService;
   private final GoogleAdsAdGroupSyncService adGroupSyncService;
   private final GoogleAdsAdGroupMutationService adGroupMutationService;
@@ -1413,6 +1415,18 @@ public class GoogleAdsConnectionController {
             200,
             experimentService.graduate(companyId, accountId, experimentId, userId),
             "Google Ads experiment graduated"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/simulations")
+  public ResponseEntity<ApiResponse<List<GoogleCampaignSimulationResponse>>> campaignSimulations(
+      @PathVariable Long companyId,
+      @PathVariable Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            simulationService.campaignSimulations(companyId, campaignId),
+            "Google campaign simulations fetched"));
   }
 
   @GetMapping("/accounts/{accountId}/provider-report")
