@@ -1459,6 +1459,7 @@ export type AdCreative = {
   objectStorySpecJson?: string | null
   carouselJson?: string | null
   advantagePlusCreative?: boolean | null
+  generativeText?: boolean | null
   providerCreatedAt?: string | null
   providerUpdatedAt?: string | null
   accessible: boolean
@@ -1490,6 +1491,7 @@ export type CreateMetaCreativeInput = {
   videoUrl?: string | null
   urlTags?: string | null
   advantagePlusCreative?: boolean | null
+  generativeText?: boolean | null
   carouselCards?: MetaCarouselCardInput[]
 }
 
