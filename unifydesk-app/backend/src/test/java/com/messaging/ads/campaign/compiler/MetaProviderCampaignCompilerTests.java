@@ -343,6 +343,127 @@ class MetaProviderCampaignCompilerTests {
   }
 
   @Test
+  void requiresGenerativeTextCapabilityAndReviewWarning() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(17L);
+    campaign.setName("Meta generative text");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(27L);
+    channel.setReachlyoCampaignId(17L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson("{\"generativeText\":true}");
+
+    AdAccount account = new AdAccount();
+    account.setId(37L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(47L);
+    pack.setPrimaryMessage("Discover a better way to manage customer conversations today");
+    pack.setDestinationUrl("https://example.com");
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities = baseCapabilities();
+    capabilities.put(
+        AdFeatureCapability.META_GENERATIVE_TEXT,
+        available(AdFeatureCapability.META_GENERATIVE_TEXT));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isTrue();
+    assertThat(plan.requiredCapabilities())
+        .contains(AdFeatureCapability.META_GENERATIVE_TEXT);
+    assertThat(plan.issues())
+        .anyMatch(issue -> issue.code().equals("META_GENERATIVE_TEXT_OPT_IN"));
+  }
+
+  @Test
+  void blocksGenerativeTextWhenPrimaryTextIsTooShort() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(18L);
+    campaign.setName("Meta short text");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(28L);
+    channel.setReachlyoCampaignId(18L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson("{\"generativeText\":true}");
+
+    AdAccount account = new AdAccount();
+    account.setId(38L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(48L);
+    pack.setPrimaryMessage("Buy now");
+    pack.setDestinationUrl("https://example.com");
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities = baseCapabilities();
+    capabilities.put(
+        AdFeatureCapability.META_GENERATIVE_TEXT,
+        available(AdFeatureCapability.META_GENERATIVE_TEXT));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isFalse();
+    assertThat(plan.issues())
+        .anyMatch(
+            issue -> issue.code().equals("META_GENERATIVE_TEXT_PRIMARY_TEXT_TOO_SHORT"));
+  }
+
+  @Test
   void requiresAdvantageCreativeCapabilityAndWarnsAboutStandardEnhancements() {
     MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
 
