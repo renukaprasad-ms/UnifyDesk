@@ -279,6 +279,22 @@ class AdFeatureCapabilityServiceTests {
   }
 
   @Test
+  void reportsMetaExperimentsAsReadOnlyDiscovery() {
+    when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
+
+    var capability =
+        service.providerCapabilities(AdProvider.META_ADS).stream()
+            .filter(item -> item.feature() == AdFeatureCapability.META_EXPERIMENTS)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(capability.implemented()).isTrue();
+    assertThat(capability.supported()).isTrue();
+    assertThat(capability.availability()).isEqualTo(AdFeatureAvailability.READ_ONLY);
+    assertThat(capability.reason()).contains("Ad Study");
+  }
+
+  @Test
   void reportsWhatsAppStatusAsProviderHosted() {
     when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
 
