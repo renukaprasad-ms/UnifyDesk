@@ -15,6 +15,7 @@ import com.messaging.ads.meta.dto.CreateMetaConversionRequest;
 import com.messaging.ads.meta.dto.CreateMetaPixelRequest;
 import com.messaging.ads.meta.dto.CreateMetaCreativeRequest;
 import com.messaging.ads.meta.dto.CreateMetaAdRequest;
+import com.messaging.ads.meta.dto.CreateMetaCatalogAdRequest;
 import com.messaging.ads.meta.dto.CreateMetaAdSetRequest;
 import com.messaging.ads.meta.dto.MetaAdsAuthorizationResponse;
 import com.messaging.ads.meta.dto.MetaAudienceSyncResponse;
@@ -325,6 +326,22 @@ public class MetaAdsConnectionController {
                 HttpStatus.CREATED.value(),
                 adMutationService.create(companyId, adSetId, request),
                 "Meta ad created in paused state"));
+  }
+
+  @PostMapping("/ad-sets/{adSetId}/catalog-ads")
+  public ResponseEntity<ApiResponse<AdResponse>> createCatalogAd(
+      @PathVariable Long companyId,
+      @PathVariable Long adSetId,
+      @Valid @RequestBody CreateMetaCatalogAdRequest request) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_CREATE);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                HttpStatus.CREATED.value(),
+                adMutationService.createCatalog(companyId, adSetId, request, userId),
+                "Meta catalog ad created in paused state"));
   }
 
   @PatchMapping("/ads/{adId}")
