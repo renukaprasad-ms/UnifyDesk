@@ -109,6 +109,15 @@ class AdFeatureCapabilityServiceTests {
     assertThat(experiments.supported()).isTrue();
     assertThat(experiments.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
 
+    var bidSimulation =
+        capabilities.stream()
+            .filter(item -> item.feature() == AdFeatureCapability.GOOGLE_BID_SIMULATION)
+            .findFirst()
+            .orElseThrow();
+    assertThat(bidSimulation.implemented()).isTrue();
+    assertThat(bidSimulation.supported()).isTrue();
+    assertThat(bidSimulation.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
+
     var assetGeneration =
         capabilities.stream()
             .filter(item -> item.feature() == AdFeatureCapability.GOOGLE_ASSET_GENERATION)
