@@ -897,6 +897,25 @@ public class MetaAdsApiClient {
     return response.id();
   }
 
+  public JsonNode adPreview(
+      String accessToken, String adId, String adFormat, String creativeFeature) {
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder ->
+                        uriBuilder
+                            .path("/{version}/{adId}/previews")
+                            .queryParam("ad_format", adFormat)
+                            .queryParam("creative_feature", creativeFeature)
+                            .queryParam("appsecret_proof", appSecretProof(accessToken))
+                            .build(properties.getGraphApiVersion(), adId))
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(JsonNode.class));
+  }
+
   public void updateAd(
       String accessToken, String adId, Map<String, Object> updates) {
     if (updates.isEmpty()) return;
