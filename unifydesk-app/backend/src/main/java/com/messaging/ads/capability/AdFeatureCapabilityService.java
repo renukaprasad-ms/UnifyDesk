@@ -319,7 +319,14 @@ public class AdFeatureCapabilityService {
     add(specs, AdFeatureCapability.META_ADVANTAGE_CREATIVE, true, META_ADS_SCOPE);
     add(specs, AdFeatureCapability.META_GENERATIVE_TEXT, true, META_ADS_SCOPE);
     add(specs, AdFeatureCapability.META_IMAGE_UNCROP, true, META_ADS_SCOPE);
-    planned(specs, AdFeatureCapability.META_BACKGROUND_GENERATION);
+    specs.add(
+        new CapabilitySpec(
+            AdFeatureCapability.META_BACKGROUND_GENERATION,
+            AdFeatureAvailability.ACCOUNT_ELIGIBILITY_REQUIRED,
+            true,
+            true,
+            "Meta background generation requires an eligible dynamic product or Advantage+ catalog ad and eligible product-set context.",
+            META_ADS_SCOPE));
     planned(specs, AdFeatureCapability.META_CATALOG);
     planned(specs, AdFeatureCapability.META_EXISTING_POST);
     planned(specs, AdFeatureCapability.META_PARTNERSHIP_ADS);
