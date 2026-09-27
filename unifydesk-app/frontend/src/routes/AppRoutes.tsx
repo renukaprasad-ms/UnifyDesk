@@ -36,6 +36,8 @@ import InviteAccept from '../pages/invitations/InviteAccept'
 import BroadcastWorkspace from '../pages/broadcast/BroadcastWorkspace'
 import EmailInbox from '../pages/inbox/EmailInbox'
 import PlaceholderPage from '../pages/placeholder/PlaceholderPage'
+import NotificationsPage from '../pages/notifications/NotificationsPage'
+import NotificationOpenPage from '../pages/notifications/NotificationOpenPage'
 import TemplateLibrary from '../pages/templates/TemplateLibrary'
 import PlatformAdmins from '../pages/platform/PlatformAdmins'
 import PlatformBilling from '../pages/platform/PlatformBilling'
@@ -77,10 +79,12 @@ const AppRoutes = () => (
         <Route path="/select-workspace" element={<SelectWorkspace />} />
         <Route path="/create-workspace" element={<CreateWorkspace />} />
         <Route path="/select-plan/:companyId" element={<SelectPlan />} />
+        <Route path="/notification-open" element={<NotificationOpenPage />} />
 
         <Route element={<WorkspaceRoute />}>
           <Route element={<MainLayout />}>
             <Route path="/workspace" element={<Home />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
 
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.WHATSAPP_READ]} />}>
               <Route path="inbox/social-media" element={<PlaceholderPage />} />
@@ -161,6 +165,7 @@ const AppRoutes = () => (
       <Route element={<PlatformRoute />}>
         <Route element={<MainLayout platform />}>
           <Route path="/platform" element={<PlatformDashboard />} />
+          <Route path="/platform/notifications" element={<NotificationsPage />} />
           <Route path="/platform/companies" element={<PlatformCompanies />} />
           <Route path="/platform/users" element={<PlatformUsers />} />
           <Route path="/platform/plans" element={<PlatformPlans />} />
