@@ -255,6 +255,36 @@ class AdFeatureCapabilityServiceTests {
   }
 
   @Test
+  void reportsMetaExistingPostAsImplemented() {
+    when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
+
+    var capability =
+        service.providerCapabilities(AdProvider.META_ADS).stream()
+            .filter(item -> item.feature() == AdFeatureCapability.META_EXISTING_POST)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(capability.implemented()).isTrue();
+    assertThat(capability.supported()).isTrue();
+    assertThat(capability.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
+  }
+
+  @Test
+  void reportsWhatsAppStatusAsProviderHosted() {
+    when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
+
+    var capability =
+        service.providerCapabilities(AdProvider.META_ADS).stream()
+            .filter(item -> item.feature() == AdFeatureCapability.META_WHATSAPP_STATUS)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(capability.implemented()).isTrue();
+    assertThat(capability.availability()).isEqualTo(AdFeatureAvailability.PROVIDER_HOSTED);
+    assertThat(capability.reason()).contains("Ads Manager");
+  }
+
+  @Test
   void managedAccountRequirementIsResolvedPerAccount() {
     when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
 
