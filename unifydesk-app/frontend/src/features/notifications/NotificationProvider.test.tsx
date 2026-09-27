@@ -55,11 +55,13 @@ vi.mock('./notificationBrowser', () => ({
 class FakeBroadcastChannel {
   static instances: FakeBroadcastChannel[] = []
 
+  readonly name: string
   onmessage: ((event: MessageEvent) => void) | null = null
   postMessage = vi.fn()
   close = vi.fn()
 
-  constructor(readonly name: string) {
+  constructor(name: string) {
+    this.name = name
     FakeBroadcastChannel.instances.push(this)
   }
 }
