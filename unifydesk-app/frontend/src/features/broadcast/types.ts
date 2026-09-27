@@ -192,6 +192,8 @@ export type BroadcastMessageSummary = {
   senderId?: string | null
   sourceTemplateId?: string | null
   sourceTemplateVersion?: number | null
+  managedSmsTemplateId?: string | null
+  managedSmsTemplateVersion?: number | null
   legacyConnectionId?: string | null
   runId?: string | null
   subject?: string | null
@@ -253,6 +255,7 @@ export type CreateBroadcastMessageInput = {
   templateId?: string | null
   senderId: string
   subject?: string | null
-  bodyText: string
+  bodyText?: string | null
+  managedSmsTemplateId?: string | null
   templateVariables?: Record<string, string>
 }
