@@ -223,6 +223,23 @@ class AdFeatureCapabilityServiceTests {
   }
 
   @Test
+  void reportsMetaBackgroundGenerationAsEligibilityGated() {
+    when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
+
+    var capability =
+        service.providerCapabilities(AdProvider.META_ADS).stream()
+            .filter(item -> item.feature() == AdFeatureCapability.META_BACKGROUND_GENERATION)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(capability.implemented()).isTrue();
+    assertThat(capability.supported()).isTrue();
+    assertThat(capability.availability())
+        .isEqualTo(AdFeatureAvailability.ACCOUNT_ELIGIBILITY_REQUIRED);
+    assertThat(capability.reason()).contains("dynamic product");
+  }
+
+  @Test
   void managedAccountRequirementIsResolvedPerAccount() {
     when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
 
