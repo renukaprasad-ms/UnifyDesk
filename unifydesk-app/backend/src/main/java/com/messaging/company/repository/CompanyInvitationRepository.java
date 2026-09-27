@@ -23,6 +23,12 @@ public interface CompanyInvitationRepository extends JpaRepository<CompanyInvita
   @EntityGraph(attributePaths = {"company", "roles"})
   List<CompanyInvitation> findByCompanyIdOrderByCreatedAtDesc(Long companyId);
 
+  @EntityGraph(attributePaths = {"company", "roles"})
+  List<CompanyInvitation> findByEmailIgnoreCaseOrderByCreatedAtDesc(String email);
+
+  @EntityGraph(attributePaths = {"company", "roles"})
+  Optional<CompanyInvitation> findByIdAndEmailIgnoreCase(Long id, String email);
+
   long countByCompanyIdAndStatusAndExpiresAtAfter(
       Long companyId, CompanyInvitationStatus status, Instant now);
 }
