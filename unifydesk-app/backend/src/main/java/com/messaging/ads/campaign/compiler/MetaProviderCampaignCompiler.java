@@ -57,6 +57,7 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
     validateAdvantageAudience(context, required, issues);
     validateAdvantageCreative(context, required, issues);
     validateGenerativeText(context, required, issues);
+    validateImageExpansion(context, required, issues);
 
     AudienceMappingStatus audienceMappingStatus = null;
     String audienceMappingNote = null;
@@ -159,6 +160,35 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
         Set.copyOf(required),
         List.copyOf(issues),
         List.copyOf(operations));
+  }
+
+  private void validateImageExpansion(
+      ProviderCampaignCompileContext context,
+      Set<AdFeatureCapability> required,
+      List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    if (!booleanValue(override, "imageExpansion", false)) return;
+
+    ProviderCampaignPlanSupport.requireCapability(
+        context, AdFeatureCapability.META_IMAGE_UNCROP, required, issues);
+    CreativePack pack = context.creativePack();
+    boolean hasImage =
+        pack != null
+            && pack.getAssets().stream()
+                .anyMatch(asset -> asset.getRole() == CreativeAssetRole.IMAGE);
+    if (!hasImage) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "META_IMAGE_EXPANSION_IMAGE_REQUIRED",
+              "creativePack.assets",
+              "Meta image expansion requires at least one image creative asset."));
+    } else {
+      issues.add(
+          ProviderCampaignPlanSupport.warning(
+              "META_IMAGE_EXPANSION_OPT_IN",
+              "providerOverride.imageExpansion",
+              "Meta image expansion is enabled. Meta may extend image boundaries for eligible placements; review provider previews before activation."));
+    }
   }
 
   private void validateGenerativeText(
