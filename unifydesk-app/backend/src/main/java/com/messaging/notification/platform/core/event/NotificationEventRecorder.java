@@ -43,6 +43,51 @@ public class NotificationEventRecorder {
   }
 
   @Transactional(propagation = Propagation.MANDATORY)
+  public long recordCompanyInvitation(
+      long invitationId,
+      long companyId,
+      long actorUserId,
+      long recipientUserId,
+      String companyName) {
+    return record(
+        "company.invitation.created:" + invitationId,
+        "company.invitation.created",
+        companyId,
+        actorUserId,
+        "USER",
+        recipientUserId,
+        null,
+        "COMPANY_INVITATION",
+        Long.toString(invitationId),
+        null,
+        Map.of("companyName", companyName),
+        Instant.now());
+  }
+
+  @Transactional(propagation = Propagation.MANDATORY)
+  public long recordCompanyInvitationAccepted(
+      long invitationId,
+      long companyId,
+      long actorUserId,
+      long recipientUserId,
+      String companyName,
+      String memberName) {
+    return record(
+        "company.invitation.accepted:" + invitationId,
+        "company.invitation.accepted",
+        companyId,
+        actorUserId,
+        "USER",
+        recipientUserId,
+        null,
+        "COMPANY_INVITATION",
+        Long.toString(invitationId),
+        null,
+        Map.of("companyName", companyName, "memberName", memberName),
+        Instant.now());
+  }
+
+  @Transactional(propagation = Propagation.MANDATORY)
   public long recordInboxActivity(
       long messageId, long companyId, long connectionId, Instant occurredAt) {
     return record(
