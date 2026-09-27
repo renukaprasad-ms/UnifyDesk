@@ -207,6 +207,15 @@ public class GoogleAdsExperimentService {
     var context = contextService.requireManaged(companyId, accountId);
     String experimentId = numeric(rawExperimentId, "experiment");
     GoogleExperimentResponse before = requireExperiment(context, experimentId);
+    if ("SCHEDULE".equals(action) && !"SETUP".equals(before.status())) {
+      throw new BadRequestException(
+          "Only Google experiments in SETUP can be scheduled");
+    }
+    if (("PROMOTE".equals(action) || "END".equals(action))
+        && !"ENABLED".equals(before.status())) {
+      throw new BadRequestException(
+          "Only running Google experiments can be " + action.toLowerCase(Locale.ROOT) + "d");
+    }
     String customerId = context.account().getExternalAccountId();
     String resourceName =
         apiClient.customerResourceName(customerId, "experiments", experimentId);
