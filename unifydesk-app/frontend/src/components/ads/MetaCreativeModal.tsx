@@ -157,31 +157,35 @@ export default function MetaCreativeModal({
                   ownership and ad eligibility when the creative is created.
                 </span>
                 {useExistingPost && (
-                  <select
-                    className="form-input mt-3"
-                    value={existingPostId}
-                    onChange={(event) => setExistingPostId(event.target.value)}
-                    disabled={postsLoading}
-                  >
-                    <option value="">
-                      {postsLoading ? 'Loading eligible posts…' : 'Choose a synced post or enter ID below'}
-                    </option>
-                    {existingPosts.map((post) => (
-                      <option key={post.id} value={post.id}>
-                        {(post.message || 'Post').slice(0, 80)} · {post.id}
+                  <>
+                    <select
+                      className="form-input mt-3"
+                      value={existingPostId}
+                      onChange={(event) => setExistingPostId(event.target.value)}
+                      disabled={postsLoading}
+                    >
+                      <option value="">
+                        {postsLoading
+                          ? 'Loading eligible posts…'
+                          : 'Choose a synced post or enter ID below'}
                       </option>
-                    ))}
-                  </select>
-                  <input
-                    className="form-input mt-2"
-                    value={existingPostId}
-                    onChange={(event) => setExistingPostId(event.target.value)}
-                    placeholder="Object story ID, for example PAGEID_POSTID"
-                    required
-                  />
-                  {postsError && (
-                    <span className="mt-2 block text-[11px] text-amber-700">{postsError}</span>
-                  )}
+                      {existingPosts.map((post) => (
+                        <option key={post.id} value={post.id}>
+                          {(post.message || 'Post').slice(0, 80)} · {post.id}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      className="form-input mt-2"
+                      value={existingPostId}
+                      onChange={(event) => setExistingPostId(event.target.value)}
+                      placeholder="Object story ID, for example PAGEID_POSTID"
+                      required
+                    />
+                    {postsError && (
+                      <span className="mt-2 block text-[11px] text-amber-700">{postsError}</span>
+                    )}
+                  </>
                 )}
               </span>
             </label>
