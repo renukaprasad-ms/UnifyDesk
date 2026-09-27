@@ -1497,6 +1497,34 @@ Official Meta references used for the broader creative automation roadmap:
 - Image expansion examples:
   https://www.postman.com/meta/facebook-marketing-api/request/f4q2498/8-creating-single-image-ad-with-image-uncrop
 
+### D5 implementation note — Meta generative text
+
+Status: **complete for the current Meta v26 generative-text scope**.
+
+Implemented:
+
+- [x] `META_GENERATIVE_TEXT` capability moved from PLANNED to AVAILABLE
+- [x] explicit native creative opt-in
+- [x] explicit unified campaign opt-in persisted as `generativeText`
+- [x] Marketing API payload uses `degrees_of_freedom_spec.creative_features_spec.text_generation.enroll_status`
+- [x] explicit opt-in/opt-out semantics without silently enabling the feature for legacy callers
+- [x] unified compiler requires the feature capability when selected
+- [x] compiler blocks obviously insufficient source copy before remote mutation
+- [x] provider remains authoritative for account/creative eligibility and returns the final validation result
+- [x] launch executor carries text-generation state into standard and placement-customized creatives
+- [x] provider creative read-back normalizes text-generation enrollment
+- [x] audit metadata records text-generation state without storing tokens or generated customer data
+- [x] tests cover provider payload, capability state, compiler review warning and short-copy rejection
+
+Safety/product semantics:
+
+- generated text is treated as provider-generated creative output, not as user-authored copy
+- UnifyDesk surfaces review/preview guidance before activation rather than claiming generated variants are automatically approved
+- catalog and other provider-ineligible combinations are left to current Meta validation instead of being faked locally
+- D6 image expansion and D7 background generation remain separate opt-ins
+
+Verified against Meta's current Marketing API generative-AI examples, including standalone creative text generation and preview/read-back through `degrees_of_freedom_spec`.
+
 ## M-07 Creative variations - P1
 
 Expand the creative model beyond one text/headline combination.
@@ -2259,7 +2287,7 @@ D1. [x] customer-list Custom Audiences — Meta CUSTOM audience creation, custom
 D2. [x] Advantage+ audience controls — Meta v26 targeting_automation, age/gender individual suggestion settings, explicit control-vs-suggestion UX, native create/edit/read-back, unified wizard/compiler/launch support, capability/RBAC/audit/tests  
 D3. [x] Advantage+ placements — explicit capability-gated automatic-placement mode, backward-compatible read-back, manual-placement conflict validation, native/unified UX, audit and compiler/capability tests  
 D4. [x] Advantage+ creative — standard-enhancements opt-in via degrees_of_freedom_spec, native/unified UI, compiler capability gating, launch propagation, provider read-back, audit and tests  
-D5. generative text  
+D5. [x] generative text — explicit Meta text_generation opt-in, native/unified controls, compiler eligibility/review validation, launch propagation, provider read-back, audit metadata and tests  
 D6. image uncrop/expansion  
 D7. background generation  
 D8. existing-post ads  
