@@ -158,7 +158,8 @@ class MetaAdsAdSetMutationServiceTests {
                 false,
                 null,
                 null,
-                null),
+                null,
+                "set-1"),
             77L);
 
     assertThat(response.status()).isEqualTo(AdEntityStatus.PAUSED);
@@ -167,6 +168,10 @@ class MetaAdsAdSetMutationServiceTests {
     assertThat(payload.get("status")).isEqualTo("PAUSED");
     assertThat(payload.get("daily_budget")).isEqualTo(2100L);
     assertThat(payload.get("campaign_id")).isEqualTo("meta-campaign");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> promotedObject =
+        (Map<String, Object>) payload.get("promoted_object");
+    assertThat(promotedObject.get("product_set_id")).isEqualTo("set-1");
 
     @SuppressWarnings("unchecked")
     Map<String, Object> targeting = (Map<String, Object>) payload.get("targeting");
