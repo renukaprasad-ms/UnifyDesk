@@ -49,6 +49,34 @@ class DeliveryEligibilityRound2Tests {
   }
 
   @Test
+  void reenabledEmailMakesDeferredWelcomeSendableAgain() {
+    NotificationDeliveryRuntimeRepository repository =
+        mock(NotificationDeliveryRuntimeRepository.class);
+    CompanyIamPermissionService permissions = mock(CompanyIamPermissionService.class);
+    PushEncryptionReadiness readiness = mock(PushEncryptionReadiness.class);
+    NotificationDeliveryProperties properties = new NotificationDeliveryProperties();
+    properties.getEmail().setEnabled(false);
+    DeliveryEligibilityService service =
+        new DeliveryEligibilityService(
+            repository,
+            new NotificationDeliveryPolicy(properties),
+            permissions,
+            properties,
+            readiness);
+
+    when(repository.recipientSnapshot(7L, 9L))
+        .thenReturn(Optional.of(activeRecipient(7L, 9L, true, true)));
+
+    assertThat(service.evaluate(welcomeIntent(), NOW).action())
+        .isEqualTo(DeliveryEligibilityService.Decision.Action.DEFER);
+
+    properties.getEmail().setEnabled(true);
+
+    assertThat(service.evaluate(welcomeIntent(), NOW.plusSeconds(300)).action())
+        .isEqualTo(DeliveryEligibilityService.Decision.Action.SEND);
+  }
+
+  @Test
   void missingCompanyScopeFailsClosed() {
     NotificationDeliveryRuntimeRepository repository =
         mock(NotificationDeliveryRuntimeRepository.class);

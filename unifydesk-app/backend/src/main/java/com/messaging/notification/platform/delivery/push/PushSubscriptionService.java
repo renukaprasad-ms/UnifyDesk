@@ -60,7 +60,7 @@ public class PushSubscriptionService {
         throw new ConflictException(
             "Push subscription is already associated with another account");
       }
-      if (!"ACTIVE".equals(existing.status())
+      if (!isCurrentlyActive(existing)
           && repository.activeSubscriptionCount(userId) >= cap) {
         throw new TooManyRequestsException(
             "Maximum active browser notification subscriptions reached");
@@ -126,6 +126,14 @@ public class PushSubscriptionService {
         credentialCipher.decrypt(subscription.endpointCiphertext()),
         credentialCipher.decrypt(subscription.p256dhCiphertext()),
         credentialCipher.decrypt(subscription.authCiphertext()));
+  }
+
+  private boolean isCurrentlyActive(PushSubscription subscription) {
+    if (!"ACTIVE".equals(subscription.status())) {
+      return false;
+    }
+    return subscription.expirationTime() == null
+        || subscription.expirationTime().isAfter(Instant.now());
   }
 
   private String encryptSecret(String value) {

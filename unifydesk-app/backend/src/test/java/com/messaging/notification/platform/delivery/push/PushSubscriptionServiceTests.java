@@ -105,6 +105,34 @@ class PushSubscriptionServiceTests {
   }
 
   @Test
+  void expiredExistingEndpointCannotReactivatePastValidActiveCap() {
+    when(currentUserService.currentUserId()).thenReturn(7L);
+    PushSubscription expired =
+        new PushSubscription(
+            42L,
+            7L,
+            "hash",
+            "endpoint-ciphertext",
+            "p256dh-ciphertext",
+            "auth-ciphertext",
+            Instant.parse("2026-09-26T00:00:00Z"),
+            "Chrome",
+            "ACTIVE",
+            Instant.parse("2026-09-25T00:00:00Z"),
+            null,
+            null,
+            null,
+            Instant.parse("2026-09-25T00:00:00Z"));
+    when(repository.findSubscriptionByEndpointHash(anyString())).thenReturn(Optional.of(expired));
+    when(repository.activeSubscriptionCount(7L)).thenReturn(10);
+
+    assertThatThrownBy(() -> service.register(request()))
+        .isInstanceOf(com.messaging.common.exception.TooManyRequestsException.class);
+
+    verify(repository).expireSubscriptionsForUser(7L, 20);
+  }
+
+  @Test
   void expiredActiveRowsAreExpiredBeforeCapIsEnforced() {
     when(currentUserService.currentUserId()).thenReturn(7L);
     when(repository.findSubscriptionByEndpointHash(anyString())).thenReturn(Optional.empty());
