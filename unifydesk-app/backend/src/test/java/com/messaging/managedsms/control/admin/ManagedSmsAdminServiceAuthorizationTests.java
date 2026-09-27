@@ -11,8 +11,10 @@ import com.messaging.managedsms.control.config.ManagedSmsProperties;
 import com.messaging.managedsms.control.dto.ManagedSmsAdminDtos.DecisionRequest;
 import com.messaging.managedsms.control.entity.ManagedSmsDltProfile;
 import com.messaging.managedsms.control.enums.ManagedSmsEnums.AdminDecision;
+import com.messaging.managedsms.control.provisioning.ManagedSmsProviderAdapter;
 import com.messaging.managedsms.control.provisioning.ManagedSmsProvisioningService;
 import com.messaging.managedsms.control.repository.*;
+import com.messaging.managedsms.control.service.ManagedSmsCtaPolicyService;
 import com.messaging.managedsms.control.service.ManagedSmsEligibilityService;
 import com.messaging.security.service.CurrentUserService;
 import java.util.Optional;
@@ -36,6 +38,8 @@ class ManagedSmsAdminServiceAuthorizationTests {
     BroadcastSenderConnectionRepository connectionRepository =
         mock(BroadcastSenderConnectionRepository.class);
     ManagedSmsProvisioningService provisioningService = mock(ManagedSmsProvisioningService.class);
+    ManagedSmsProviderAdapter providerAdapter = mock(ManagedSmsProviderAdapter.class);
+    ManagedSmsCtaPolicyService ctaPolicyService = mock(ManagedSmsCtaPolicyService.class);
     ManagedSmsEligibilityService eligibilityService = mock(ManagedSmsEligibilityService.class);
     CurrentUserService currentUserService = mock(CurrentUserService.class);
     PlatformAdminAuthorizationService authorizationService =
@@ -63,6 +67,8 @@ class ManagedSmsAdminServiceAuthorizationTests {
             auditRepository,
             connectionRepository,
             provisioningService,
+            providerAdapter,
+            ctaPolicyService,
             eligibilityService,
             new ManagedSmsProperties(),
             currentUserService,
@@ -70,7 +76,7 @@ class ManagedSmsAdminServiceAuthorizationTests {
             new ObjectMapper());
 
     DecisionRequest request =
-        new DecisionRequest(AdminDecision.APPROVE, "verified", 0, null, null, null, null, null);
+        new DecisionRequest(AdminDecision.APPROVE, "verified", 0, null, null, null, null, null, null);
 
     assertThatThrownBy(() -> service.decideProfile(10L, request))
         .isInstanceOf(SecurityException.class);

@@ -24,6 +24,8 @@ class ManagedSmsDuplicateValidationTests {
     ManagedSmsTenantService tenantService = mock(ManagedSmsTenantService.class);
     ManagedSmsTenantRepository tenantRepository = mock(ManagedSmsTenantRepository.class);
     ManagedSmsDltProfileRepository profileRepository = mock(ManagedSmsDltProfileRepository.class);
+    ManagedSmsComplianceActionRepository complianceActionRepository =
+        mock(ManagedSmsComplianceActionRepository.class);
     ManagedSmsProvisioningService provisioningService = mock(ManagedSmsProvisioningService.class);
     ManagedSmsJsonSupport jsonSupport = mock(ManagedSmsJsonSupport.class);
     ManagedSmsEligibilityService eligibilityService = mock(ManagedSmsEligibilityService.class);
@@ -42,6 +44,7 @@ class ManagedSmsDuplicateValidationTests {
             tenantService,
             tenantRepository,
             profileRepository,
+            complianceActionRepository,
             provisioningService,
             jsonSupport,
             eligibilityService);

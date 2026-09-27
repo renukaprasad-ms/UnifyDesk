@@ -10,8 +10,10 @@ import com.messaging.managedsms.control.config.ManagedSmsProperties;
 import com.messaging.managedsms.control.dto.ManagedSmsAdminDtos.*;
 import com.messaging.managedsms.control.entity.*;
 import com.messaging.managedsms.control.enums.ManagedSmsEnums.*;
+import com.messaging.managedsms.control.provisioning.ManagedSmsProviderAdapter;
 import com.messaging.managedsms.control.provisioning.ManagedSmsProvisioningService;
 import com.messaging.managedsms.control.repository.*;
+import com.messaging.managedsms.control.service.ManagedSmsCtaPolicyService;
 import com.messaging.managedsms.control.service.ManagedSmsEligibilityService;
 import com.messaging.security.service.CurrentUserService;
 import java.time.Instant;
@@ -34,6 +36,8 @@ public class ManagedSmsAdminService {
   private final ManagedSmsAdminActionRepository auditRepository;
   private final BroadcastSenderConnectionRepository connectionRepository;
   private final ManagedSmsProvisioningService provisioningService;
+  private final ManagedSmsProviderAdapter providerAdapter;
+  private final ManagedSmsCtaPolicyService ctaPolicyService;
   private final ManagedSmsEligibilityService eligibilityService;
   private final ManagedSmsProperties properties;
   private final CurrentUserService currentUserService;
@@ -187,7 +191,9 @@ public class ManagedSmsAdminService {
   @Transactional
   public DecisionResponse decideTemplate(Long versionId, DecisionRequest request) {
     ManagedSmsTemplateVersion version =
-        versionRepository.findById(versionId).orElseThrow(() -> new NotFoundException("Template version not found"));
+        versionRepository
+            .findById(versionId)
+            .orElseThrow(() -> new NotFoundException("Template version not found"));
     Long actor = requireAdmin(version.getCompanyId(), PlatformPermission.COMPANY_UPDATE);
     requireVersion(version.getLockVersion(), request.version());
     String before = auditJson(version);
@@ -207,23 +213,38 @@ public class ManagedSmsAdminService {
       template.setStatus(TemplateStatus.DRAFT);
       templateRepository.save(template);
     } else {
+      String authoritativeCtaPolicy =
+          ctaPolicyService.finalizeForActivation(
+              version.getVariablesSchemaJson(), request.ctaPolicy());
+
+      version.setCtaPolicyJson(authoritativeCtaPolicy);
       version.setDltStatus(DltTemplateStatus.APPROVED_DLT);
+      version.setStatus(TemplateVersionStatus.APPROVED_DLT);
       version.setApprovedAt(now);
       version.setCheckedAt(now);
       version.setStaleAfter(now.plus(properties.getComplianceStaleAfter()));
-      ManagedSmsTenant tenant = tenantRepository.findByCompanyId(version.getCompanyId()).orElseThrow();
+
+      ManagedSmsTenant tenant =
+          tenantRepository
+              .findByCompanyId(version.getCompanyId())
+              .orElseThrow(() -> new NotFoundException("Managed SMS tenant not found"));
       List<ManagedSmsTemplateHeader> links =
-          templateHeaderRepository.findByCompanyIdAndIdTemplateVersionId(version.getCompanyId(), version.getId());
-      boolean refsProvided =
-          (request.providerTemplateRef() != null && !request.providerTemplateRef().isBlank())
-              || (request.providerFlowRef() != null && !request.providerFlowRef().isBlank());
+          templateHeaderRepository.findByCompanyIdAndIdTemplateVersionId(
+              version.getCompanyId(), version.getId());
+
+      boolean allReady = !links.isEmpty();
       for (ManagedSmsTemplateHeader link : links) {
+        Long headerId = link.getId().getHeaderId();
+        ManagedSmsHeader header =
+            headerRepository
+                .findByIdAndCompanyId(headerId, version.getCompanyId())
+                .orElseThrow(() -> new NotFoundException("Managed SMS Header not found"));
         ManagedSmsProviderBinding binding =
             bindingRepository
                 .findByCompanyIdAndTemplateVersionIdAndHeaderIdAndProvider(
                     version.getCompanyId(),
                     version.getId(),
-                    link.getId().getHeaderId(),
+                    headerId,
                     com.messaging.broadcast.enums.BroadcastSenderProvider.MSG91_SMS)
                 .orElseGet(
                     () -> {
@@ -231,22 +252,41 @@ public class ManagedSmsAdminService {
                       item.setCompanyId(version.getCompanyId());
                       item.setTenantId(tenant.getId());
                       item.setTemplateVersionId(version.getId());
-                      item.setHeaderId(link.getId().getHeaderId());
+                      item.setHeaderId(headerId);
+                      item.setProvider(
+                          com.messaging.broadcast.enums.BroadcastSenderProvider.MSG91_SMS);
                       return item;
                     });
-        if (refsProvided) {
-          binding.setProviderTemplateRef(trimToNull(request.providerTemplateRef()));
-          binding.setProviderFlowRef(trimToNull(request.providerFlowRef()));
-          binding.setProviderMappingRef(trimToNull(request.providerMappingRef()));
+
+        binding.setProvider(
+            com.messaging.broadcast.enums.BroadcastSenderProvider.MSG91_SMS);
+        if (trimToNull(request.providerTemplateRef()) != null) {
+          binding.setProviderTemplateRef(request.providerTemplateRef().trim());
+        }
+        if (trimToNull(request.providerFlowRef()) != null) {
+          binding.setProviderFlowRef(request.providerFlowRef().trim());
+        }
+        if (trimToNull(request.providerMappingRef()) != null) {
+          binding.setProviderMappingRef(request.providerMappingRef().trim());
+        }
+
+        ManagedSmsProviderAdapter.BindingReadiness readiness =
+            providerAdapter.bindingReadiness(
+                new ManagedSmsProviderAdapter.BindingContext(
+                    binding, tenant, version, header));
+        if (readiness.ready()) {
           binding.setStatus(ProviderBindingStatus.ACTIVE);
           binding.setLastSyncAt(now);
           binding.setRejectionReason(null);
         } else {
+          allReady = false;
           binding.setStatus(ProviderBindingStatus.ACTION_REQUIRED);
-          binding.setRejectionReason("UnifyDesk provider template mapping review required");
+          binding.setLastSyncAt(null);
+          binding.setRejectionReason(readiness.safeMessage());
         }
+
         ManagedSmsProviderBinding saved = bindingRepository.save(binding);
-        if (!refsProvided) {
+        if (!readiness.ready()) {
           provisioningService.enqueueOrReset(
               version.getCompanyId(),
               tenant.getId(),
@@ -256,7 +296,8 @@ public class ManagedSmsAdminService {
               "managed-sms:template-binding:ensure:" + saved.getId());
         }
       }
-      if (refsProvided && !links.isEmpty()) {
+
+      if (allReady) {
         versionRepository
             .findFirstByTemplateIdAndCompanyIdAndStatusOrderByVersionNoDesc(
                 template.getId(), version.getCompanyId(), TemplateVersionStatus.ACTIVE)
@@ -275,10 +316,24 @@ public class ManagedSmsAdminService {
       versionRepository.saveAndFlush(version);
       templateRepository.save(template);
     }
+
     versionRepository.flush();
-    audit(actor, version.getCompanyId(), ProvisioningResourceType.TEMPLATE_BINDING, version.getId(), AdminActionType.TEMPLATE_DECISION, request.reason(), before, auditJson(version));
+    audit(
+        actor,
+        version.getCompanyId(),
+        ProvisioningResourceType.TEMPLATE_BINDING,
+        version.getId(),
+        AdminActionType.TEMPLATE_DECISION,
+        request.reason(),
+        before,
+        auditJson(version));
     eligibilityService.recalculate(version.getCompanyId());
-    return new DecisionResponse("TEMPLATE_VERSION", version.getId().toString(), version.getStatus().name(), version.getLockVersion(), now);
+    return new DecisionResponse(
+        "TEMPLATE_VERSION",
+        version.getId().toString(),
+        version.getStatus().name(),
+        version.getLockVersion(),
+        now);
   }
 
   @Transactional

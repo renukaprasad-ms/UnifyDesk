@@ -25,6 +25,7 @@ public class ManagedSmsProvisioningWorker {
   private final ManagedSmsProviderBindingRepository bindingRepository;
   private final ManagedSmsProviderAdapter providerAdapter;
   private final ManagedSmsProperties properties;
+  private final com.messaging.managedsms.control.service.ManagedSmsCtaPolicyService ctaPolicyService;
   private final com.messaging.managedsms.control.service.ManagedSmsEligibilityService eligibilityService;
   private final TransactionTemplate transactionTemplate;
 
@@ -186,6 +187,7 @@ public class ManagedSmsProvisioningWorker {
               header -> {
                 header.setProviderMappingStatus(ProviderMappingStatus.READY);
                 header.setCheckedAt(now);
+                header.setStaleAfter(now.plus(properties.getComplianceStaleAfter()));
                 headerRepository.save(header);
               });
     } else if (operation.getResourceType() == ProvisioningResourceType.TEMPLATE_BINDING) {
@@ -196,11 +198,22 @@ public class ManagedSmsProvisioningWorker {
                 binding.setProviderTemplateRef(result.providerTemplateRef());
                 binding.setProviderFlowRef(result.providerFlowRef());
                 binding.setProviderMappingRef(result.providerMappingRef());
-                binding.setStatus(ProviderBindingStatus.ACTIVE);
-                binding.setLastSyncAt(now);
-                binding.setRejectionReason(null);
+                ManagedSmsProviderAdapter.BindingReadiness readiness =
+                    bindingReadiness(operation.getCompanyId(), binding);
+                if (readiness.ready()) {
+                  binding.setStatus(ProviderBindingStatus.ACTIVE);
+                  binding.setLastSyncAt(now);
+                  binding.setRejectionReason(null);
+                } else {
+                  binding.setStatus(ProviderBindingStatus.ACTION_REQUIRED);
+                  binding.setLastSyncAt(null);
+                  binding.setRejectionReason(readiness.safeMessage());
+                }
                 bindingRepository.save(binding);
-                promoteTemplateIfReady(operation.getCompanyId(), binding.getTemplateVersionId());
+                if (readiness.ready()) {
+                  promoteTemplateIfReady(
+                      operation.getCompanyId(), binding.getTemplateVersionId());
+                }
               });
     }
   }
@@ -208,13 +221,27 @@ public class ManagedSmsProvisioningWorker {
   private void promoteTemplateIfReady(Long companyId, Long versionId) {
     var bindings = bindingRepository.findByCompanyIdAndTemplateVersionId(companyId, versionId);
     if (bindings.isEmpty()
-        || bindings.stream().anyMatch(item -> item.getStatus() != ProviderBindingStatus.ACTIVE)) {
+        || bindings.stream()
+            .anyMatch(
+                item ->
+                    item.getStatus() != ProviderBindingStatus.ACTIVE
+                        || !bindingReadiness(companyId, item).ready())) {
       return;
     }
     ManagedSmsTemplateVersion version =
         versionRepository.findByIdAndCompanyId(versionId, companyId).orElseThrow();
     ManagedSmsTemplate template =
         templateRepository.findByIdAndCompanyId(version.getTemplateId(), companyId).orElseThrow();
+    try {
+      ctaPolicyService.requireReadyForActivation(
+          version.getVariablesSchemaJson(), version.getCtaPolicyJson());
+    } catch (com.messaging.common.exception.BadRequestException exception) {
+      version.setStatus(TemplateVersionStatus.APPROVED_DLT);
+      versionRepository.save(version);
+      template.setStatus(TemplateStatus.DRAFT);
+      templateRepository.save(template);
+      return;
+    }
     versionRepository
         .findFirstByTemplateIdAndCompanyIdAndStatusOrderByVersionNoDesc(
             template.getId(), companyId, TemplateVersionStatus.ACTIVE)
@@ -230,6 +257,22 @@ public class ManagedSmsProvisioningWorker {
     versionRepository.save(version);
     template.setStatus(TemplateStatus.ACTIVE);
     templateRepository.save(template);
+  }
+
+  private ManagedSmsProviderAdapter.BindingReadiness bindingReadiness(
+      Long companyId, ManagedSmsProviderBinding binding) {
+    ManagedSmsTenant tenant =
+        tenantRepository
+            .findByIdAndCompanyId(binding.getTenantId(), companyId)
+            .orElseThrow();
+    ManagedSmsTemplateVersion version =
+        versionRepository
+            .findByIdAndCompanyId(binding.getTemplateVersionId(), companyId)
+            .orElseThrow();
+    ManagedSmsHeader header =
+        headerRepository.findByIdAndCompanyId(binding.getHeaderId(), companyId).orElseThrow();
+    return providerAdapter.bindingReadiness(
+        new ManagedSmsProviderAdapter.BindingContext(binding, tenant, version, header));
   }
 
   private void applyActionRequired(ManagedSmsProvisioningOperation operation) {
