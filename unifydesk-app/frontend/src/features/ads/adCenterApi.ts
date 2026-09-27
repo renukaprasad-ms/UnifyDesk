@@ -55,6 +55,7 @@ import type {
   CreateMetaConversionInput,
   CreateMetaCreativeInput,
   CreateMetaAdInput,
+  CreateMetaCatalogAdInput,
   CreateMetaAdSetInput,
   CreateGoogleCampaignInput,
   CreateGoogleAdvancedCampaignInput,
@@ -126,6 +127,7 @@ import type {
   MetaInsightBreakdownsSync,
   MetaInsightsSync,
   MetaCreativeSync,
+  MetaExistingPost,
   MetaAdSync,
   MetaAdSetSync,
   GoogleCampaignSync,
@@ -1873,6 +1875,17 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+  async metaExistingPosts(
+    companyId: string,
+    accountId: string,
+    pageId: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<MetaExistingPost[]>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/pages/${encodeURIComponent(pageId)}/posts`,
+    )
+    return unwrap(response.data)
+  },
+
   async syncMetaCreatives(companyId: string, accountId: string) {
     const response = await apiClient.post<ApiResponse<MetaCreativeSync>>(
       `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/creatives/sync`,
@@ -1928,6 +1941,25 @@ export const adCenterApi = {
     const response = await apiClient.post<ApiResponse<Ad>>(
       `/api/v1/companies/${companyId}/ads/meta/ad-sets/${adSetId}/ads`,
       input,
+    )
+    return unwrap(response.data)
+  },
+
+  async createMetaCatalogAd(
+    companyId: string,
+    adSetId: string,
+    input: CreateMetaCatalogAdInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<Ad>>(
+      `/api/v1/companies/${companyId}/ads/meta/ad-sets/${adSetId}/catalog-ads`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async metaBackgroundPreview(companyId: string, adId: string) {
+    const response = await apiClient.get<ApiResponse<unknown>>(
+      `/api/v1/companies/${companyId}/ads/meta/ads/${adId}/background-preview`,
     )
     return unwrap(response.data)
   },

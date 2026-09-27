@@ -262,6 +262,53 @@ class MetaAdsCreativeMutationServiceTests {
   }
 
   @Test
+  void existingPostCreativeUsesObjectStoryId() {
+    when(accountRepository.findByIdAndCompanyId(ACCOUNT_ID, COMPANY_ID))
+        .thenReturn(Optional.of(account()));
+    when(resourceRepository.findByCompanyIdAndAdAccountIdAndResourceTypeAndExternalResourceId(
+            COMPANY_ID, ACCOUNT_ID, AdAccountResourceType.FACEBOOK_PAGE, "page-1"))
+        .thenReturn(Optional.of(resource(AdAccountResourceType.FACEBOOK_PAGE, "page-1")));
+    when(connectionRepository.findByIdAndCompanyId(CONNECTION_ID, COMPANY_ID))
+        .thenReturn(Optional.of(connection()));
+    when(tokenService.read(CONNECTION_ID))
+        .thenReturn(
+            new MetaAdsTokenService.TokenValue(
+                new MetaAdsStoredToken("token", "bearer", "v26.0", "meta-user"), null));
+
+    ArgumentCaptor<Map<String, Object>> requestPayload = ArgumentCaptor.forClass(Map.class);
+    when(apiClient.createCreative(eq("token"), eq("123456"), requestPayload.capture()))
+        .thenReturn("creative-post");
+
+    CreativeSummary snapshot =
+        new CreativeSummary(
+            "creative-post", "Existing post", "123456", null, null, null, null,
+            null, null, null, null, null, null);
+    when(apiClient.creative("token", "creative-post")).thenReturn(snapshot);
+
+    AdCreative stored = new AdCreative();
+    stored.setId(100L);
+    stored.setCompanyId(COMPANY_ID);
+    stored.setAdAccountId(ACCOUNT_ID);
+    stored.setProvider(AdProvider.META_ADS);
+    stored.setExternalCreativeId("creative-post");
+    stored.setName("Existing post");
+    when(persistenceService.persistOne(COMPANY_ID, ACCOUNT_ID, snapshot)).thenReturn(stored);
+
+    service.create(
+        COMPANY_ID,
+        ACCOUNT_ID,
+        new CreateMetaCreativeRequest(
+            "Existing post", "SINGLE_IMAGE", "page-1", null, null, null, null, null,
+            null, null, null, null, null, null, false, false, false,
+            "page-1_post-9", List.of()),
+        77L);
+
+    assertThat(requestPayload.getValue().get("object_story_id")).isEqualTo("page-1_post-9");
+    assertThat(requestPayload.getValue().get("page_id")).isEqualTo("page-1");
+    assertThat(requestPayload.getValue()).doesNotContainKey("object_story_spec");
+  }
+
+  @Test
   void rejectsPageThatDoesNotBelongToAdAccount() {
     when(accountRepository.findByIdAndCompanyId(ACCOUNT_ID, COMPANY_ID))
         .thenReturn(Optional.of(account()));

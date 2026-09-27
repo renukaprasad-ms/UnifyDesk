@@ -53,12 +53,15 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
         ProviderCampaignPlanSupport.effectiveBudget(
             context.budgetPlan(), context.channel(), context.allChannels(), issues);
 
+    validateExistingPost(context, required, issues);
     validateCreative(context, issues);
     validatePlacements(context, required, issues);
     validateAdvantageAudience(context, required, issues);
     validateAdvantageCreative(context, required, issues);
     validateGenerativeText(context, required, issues);
     validateImageExpansion(context, required, issues);
+    validateCatalog(context, required, issues);
+    validateBackgroundGeneration(context, required, issues);
 
     AudienceMappingStatus audienceMappingStatus = null;
     String audienceMappingNote = null;
@@ -161,6 +164,76 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
         Set.copyOf(required),
         List.copyOf(issues),
         List.copyOf(operations));
+  }
+
+  private void validateCatalog(
+      ProviderCampaignCompileContext context,
+      Set<AdFeatureCapability> required,
+      List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    String productSetId = text(override, "productSetId");
+    if (productSetId == null || productSetId.isBlank()) return;
+
+    String existingPostId = text(override, "existingPostId");
+    if (existingPostId != null && !existingPostId.isBlank()) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "META_CREATIVE_SOURCE_CONFLICT",
+              "providerOverride",
+              "Meta catalog ads and existing-post ads are mutually exclusive."));
+      return;
+    }
+
+    String requestedObjective = text(override, "objective");
+    boolean salesGoal =
+        context.campaign().getBusinessGoal() != null
+            && "PURCHASE".equals(context.campaign().getBusinessGoal().name());
+    if (!salesGoal
+        || (requestedObjective != null
+            && !requestedObjective.isBlank()
+            && !"OUTCOME_SALES".equalsIgnoreCase(requestedObjective.trim()))) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "META_CATALOG_SALES_OBJECTIVE_REQUIRED",
+              "providerOverride.objective",
+              "Meta catalog ads require an OUTCOME_SALES campaign. Use the Purchase business goal and do not override it with another Meta objective."));
+      return;
+    }
+
+    ProviderCampaignPlanSupport.requireCapability(
+        context, AdFeatureCapability.META_CATALOG, required, issues);
+    issues.add(
+        ProviderCampaignPlanSupport.warning(
+            "META_CATALOG_PRODUCT_SET_SELECTED",
+            "providerOverride.productSetId",
+            "A Meta product set is selected. Launch will use Meta's catalog/dynamic-product ad path and keep the ad paused for provider review."));
+  }
+
+  private void validateBackgroundGeneration(
+      ProviderCampaignCompileContext context,
+      Set<AdFeatureCapability> required,
+      List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    if (!booleanValue(override, "backgroundGeneration", false)) return;
+
+    ProviderCampaignPlanSupport.requireCapability(
+        context, AdFeatureCapability.META_BACKGROUND_GENERATION, required, issues);
+
+    String productSetId = text(override, "productSetId");
+    if (productSetId == null || productSetId.isBlank()) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "META_BACKGROUND_GENERATION_PRODUCT_SET_REQUIRED",
+              "providerOverride.productSetId",
+              "Meta background generation requires an eligible product set because the feature is limited to dynamic product or Advantage+ catalog ads."));
+      return;
+    }
+
+    issues.add(
+        ProviderCampaignPlanSupport.warning(
+            "META_BACKGROUND_GENERATION_ELIGIBILITY",
+            "providerOverride.backgroundGeneration",
+            "Meta background generation is account/product eligible only. The selected product set must be eligible and the generated backgrounds should be reviewed in provider preview before activation."));
   }
 
   private void validateImageExpansion(
@@ -402,8 +475,36 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
     return values.stream().anyMatch(wanted::contains);
   }
 
+  private void validateExistingPost(
+      ProviderCampaignCompileContext context,
+      Set<AdFeatureCapability> required,
+      List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    String existingPostId = text(override, "existingPostId");
+    if (existingPostId == null || existingPostId.isBlank()) return;
+
+    ProviderCampaignPlanSupport.requireCapability(
+        context, AdFeatureCapability.META_EXISTING_POST, required, issues);
+    if (existingPostId.length() > 255) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "META_EXISTING_POST_ID_INVALID",
+              "providerOverride.existingPostId",
+              "Meta existing post ID is too long."));
+    } else {
+      issues.add(
+          ProviderCampaignPlanSupport.warning(
+              "META_EXISTING_POST_REUSE",
+              "providerOverride.existingPostId",
+              "This campaign will reuse the selected Meta post as the creative source. Provider ownership and ad-eligibility are verified by Meta at creation time."));
+    }
+  }
+
   private void validateCreative(
       ProviderCampaignCompileContext context, List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+    if (!isBlank(text(override, "existingPostId"))) return;
+
     if (context.creativePack() == null) {
       issues.add(
           ProviderCampaignPlanSupport.error(
@@ -499,21 +600,32 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
                   "mappingStatus",
                   audienceMappingStatus)));
     }
-    operations.add(
-        operation(
-            sequence++,
-            "create-creative",
-            ProviderPlanAction.CREATE,
-            ProviderPlanResource.CREATIVE,
-            false,
-            Set.of(
-                AdFeatureCapability.CREATIVE_CREATE,
-                AdFeatureCapability.META_IMAGE_VIDEO_CAROUSEL),
-            ProviderCampaignPlanSupport.config(
-                "creativePackId",
-                context.creativePack() == null
-                    ? null
-                    : context.creativePack().getId().toString())));
+    JsonNode providerOverride = providerOverride(context.channel().getProviderOverrideJson());
+    String productSetId = text(providerOverride, "productSetId");
+    String existingPostId = text(providerOverride, "existingPostId");
+    boolean catalogAd = productSetId != null && !productSetId.isBlank();
+    boolean existingPost = existingPostId != null && !existingPostId.isBlank();
+    if (!catalogAd) {
+      operations.add(
+          operation(
+              sequence++,
+              "create-creative",
+              ProviderPlanAction.CREATE,
+              ProviderPlanResource.CREATIVE,
+              false,
+              existingPost
+                  ? Set.of(
+                      AdFeatureCapability.CREATIVE_CREATE,
+                      AdFeatureCapability.META_EXISTING_POST)
+                  : Set.of(
+                      AdFeatureCapability.CREATIVE_CREATE,
+                      AdFeatureCapability.META_IMAGE_VIDEO_CAROUSEL),
+              ProviderCampaignPlanSupport.config(
+                  "creativePackId",
+                  context.creativePack() == null
+                      ? null
+                      : context.creativePack().getId().toString())));
+    }
     operations.add(
         operation(
             sequence++,
@@ -521,8 +633,18 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
             ProviderPlanAction.CREATE,
             ProviderPlanResource.AD,
             true,
-            Set.of(AdFeatureCapability.META_CAMPAIGN_HIERARCHY),
-            ProviderCampaignPlanSupport.config("status", "PAUSED")));
+            catalogAd
+                ? Set.of(
+                    AdFeatureCapability.META_CAMPAIGN_HIERARCHY,
+                    AdFeatureCapability.META_CATALOG)
+                : Set.of(AdFeatureCapability.META_CAMPAIGN_HIERARCHY),
+            ProviderCampaignPlanSupport.config(
+                "status",
+                "PAUSED",
+                "catalogAd",
+                catalogAd,
+                "productSetId",
+                productSetId)));
 
     if (context.conversionGoalMapping() != null) {
       operations.add(

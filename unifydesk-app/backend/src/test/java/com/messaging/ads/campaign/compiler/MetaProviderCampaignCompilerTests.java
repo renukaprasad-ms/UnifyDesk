@@ -466,6 +466,306 @@ class MetaProviderCampaignCompilerTests {
   }
 
   @Test
+  void requiresBackgroundGenerationCapabilityAndProductSetContext() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(21L);
+    campaign.setName("Meta background generation");
+    campaign.setBusinessGoal(CampaignBusinessGoal.PURCHASE);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(31L);
+    channel.setReachlyoCampaignId(21L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson(
+        "{\"backgroundGeneration\":true,\"productSetId\":\"product-set-123\"}");
+
+    AdAccount account = new AdAccount();
+    account.setId(41L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(51L);
+    pack.setPrimaryMessage("Shop our latest products today");
+    pack.setDestinationUrl("https://example.com");
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities = baseCapabilities();
+    capabilities.put(
+        AdFeatureCapability.META_BACKGROUND_GENERATION,
+        available(AdFeatureCapability.META_BACKGROUND_GENERATION));
+    capabilities.put(
+        AdFeatureCapability.META_CATALOG,
+        available(AdFeatureCapability.META_CATALOG));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.requiredCapabilities())
+        .contains(
+            AdFeatureCapability.META_BACKGROUND_GENERATION,
+            AdFeatureCapability.META_CATALOG);
+    assertThat(plan.issues())
+        .anyMatch(issue -> issue.code().equals("META_BACKGROUND_GENERATION_ELIGIBILITY"));
+  }
+
+  @Test
+  void blocksBackgroundGenerationWithoutProductSetContext() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(22L);
+    campaign.setName("Meta background generation missing catalog");
+    campaign.setBusinessGoal(CampaignBusinessGoal.PURCHASE);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(32L);
+    channel.setReachlyoCampaignId(22L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson("{\"backgroundGeneration\":true}");
+
+    AdAccount account = new AdAccount();
+    account.setId(42L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(52L);
+    pack.setPrimaryMessage("Shop our latest products today");
+    pack.setDestinationUrl("https://example.com");
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities = baseCapabilities();
+    capabilities.put(
+        AdFeatureCapability.META_BACKGROUND_GENERATION,
+        available(AdFeatureCapability.META_BACKGROUND_GENERATION));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isFalse();
+    assertThat(plan.issues())
+        .anyMatch(
+            issue ->
+                issue.code().equals("META_BACKGROUND_GENERATION_PRODUCT_SET_REQUIRED"));
+  }
+
+  @Test
+  void rejectsCatalogModeForNonSalesBusinessGoal() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(25L);
+    campaign.setName("Meta catalog traffic");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(35L);
+    channel.setReachlyoCampaignId(25L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson("{\"productSetId\":\"set-1\"}");
+
+    AdAccount account = new AdAccount();
+    account.setId(45L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(55L);
+    pack.setPrimaryMessage("Shop our latest products today");
+    pack.setDestinationUrl("https://example.com");
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities = baseCapabilities();
+    capabilities.put(
+        AdFeatureCapability.META_CATALOG,
+        available(AdFeatureCapability.META_CATALOG));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isFalse();
+    assertThat(plan.issues())
+        .anyMatch(issue -> issue.code().equals("META_CATALOG_SALES_OBJECTIVE_REQUIRED"));
+  }
+
+  @Test
+  void requiresExistingPostCapabilityWithoutCreativePack() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(23L);
+    campaign.setName("Meta existing post");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(33L);
+    channel.setReachlyoCampaignId(23L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson("{\"existingPostId\":\"page-1_post-1\"}");
+
+    AdAccount account = new AdAccount();
+    account.setId(43L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities = baseCapabilities();
+    capabilities.put(
+        AdFeatureCapability.META_EXISTING_POST,
+        available(AdFeatureCapability.META_EXISTING_POST));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                null,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isTrue();
+    assertThat(plan.requiredCapabilities())
+        .contains(AdFeatureCapability.META_EXISTING_POST);
+    assertThat(plan.issues())
+        .anyMatch(issue -> issue.code().equals("META_EXISTING_POST_REUSE"));
+  }
+
+  @Test
+  void rejectsCatalogAndExistingPostTogether() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(24L);
+    campaign.setName("Meta conflicting creative source");
+    campaign.setBusinessGoal(CampaignBusinessGoal.PURCHASE);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(34L);
+    channel.setReachlyoCampaignId(24L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson(
+        "{\"existingPostId\":\"page_post\",\"productSetId\":\"set-1\"}");
+
+    AdAccount account = new AdAccount();
+    account.setId(44L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities = baseCapabilities();
+    capabilities.put(
+        AdFeatureCapability.META_EXISTING_POST,
+        available(AdFeatureCapability.META_EXISTING_POST));
+    capabilities.put(
+        AdFeatureCapability.META_CATALOG,
+        available(AdFeatureCapability.META_CATALOG));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                null,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isFalse();
+    assertThat(plan.issues())
+        .anyMatch(issue -> issue.code().equals("META_CREATIVE_SOURCE_CONFLICT"));
+  }
+
+  @Test
   void requiresImageExpansionCapabilityAndReviewWarning() {
     MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
 

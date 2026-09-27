@@ -706,6 +706,8 @@ export type AdAccountResourceType =
   | 'FACEBOOK_PAGE'
   | 'INSTAGRAM_ACCOUNT'
   | 'META_PIXEL'
+  | 'META_PRODUCT_CATALOG'
+  | 'META_PRODUCT_SET'
 
 export type AdAccountResource = {
   id: string
@@ -723,6 +725,8 @@ export type MetaAdsResourceSync = {
   pages: number
   instagramAccounts: number
   pixels: number
+  catalogs: number
+  productSets: number
   resources: AdAccountResource[]
 }
 
@@ -1461,6 +1465,7 @@ export type AdCreative = {
   advantagePlusCreative?: boolean | null
   generativeText?: boolean | null
   imageExpansion?: boolean | null
+  existingPostId?: string | null
   providerCreatedAt?: string | null
   providerUpdatedAt?: string | null
   accessible: boolean
@@ -1494,7 +1499,16 @@ export type CreateMetaCreativeInput = {
   advantagePlusCreative?: boolean | null
   generativeText?: boolean | null
   imageExpansion?: boolean | null
+  existingPostId?: string | null
   carouselCards?: MetaCarouselCardInput[]
+}
+
+export type MetaExistingPost = {
+  id: string
+  message?: string | null
+  createdTime?: string | null
+  permalinkUrl?: string | null
+  isPublished?: boolean | null
 }
 
 export type MetaCreativeSync = {
@@ -1526,6 +1540,17 @@ export type Ad = {
 export type CreateMetaAdInput = {
   name: string
   creativeId: string
+}
+
+export type CreateMetaCatalogAdInput = {
+  name: string
+  pageId: string
+  instagramActorId?: string | null
+  productSetId: string
+  destinationUrl: string
+  headline?: string | null
+  callToActionType?: string | null
+  backgroundGeneration?: boolean | null
 }
 
 export type UpdateMetaAdInput = {

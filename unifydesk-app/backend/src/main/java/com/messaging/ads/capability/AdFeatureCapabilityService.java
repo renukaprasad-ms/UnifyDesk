@@ -319,17 +319,24 @@ public class AdFeatureCapabilityService {
     add(specs, AdFeatureCapability.META_ADVANTAGE_CREATIVE, true, META_ADS_SCOPE);
     add(specs, AdFeatureCapability.META_GENERATIVE_TEXT, true, META_ADS_SCOPE);
     add(specs, AdFeatureCapability.META_IMAGE_UNCROP, true, META_ADS_SCOPE);
-    planned(specs, AdFeatureCapability.META_BACKGROUND_GENERATION);
-    planned(specs, AdFeatureCapability.META_CATALOG);
-    planned(specs, AdFeatureCapability.META_EXISTING_POST);
+    specs.add(
+        new CapabilitySpec(
+            AdFeatureCapability.META_BACKGROUND_GENERATION,
+            AdFeatureAvailability.ACCOUNT_ELIGIBILITY_REQUIRED,
+            true,
+            true,
+            "Meta background generation requires an eligible dynamic product or Advantage+ catalog ad and eligible product-set context.",
+            META_ADS_SCOPE));
+    add(specs, AdFeatureCapability.META_CATALOG, true, META_BUSINESS_SCOPE);
+    add(specs, AdFeatureCapability.META_EXISTING_POST, true, META_IDENTITY_SCOPES);
     planned(specs, AdFeatureCapability.META_PARTNERSHIP_ADS);
     specs.add(
         new CapabilitySpec(
             AdFeatureCapability.META_WHATSAPP_STATUS,
-            AdFeatureAvailability.PLANNED,
+            AdFeatureAvailability.PROVIDER_HOSTED,
             true,
             true,
-            "Reachlyo has not implemented WhatsApp Status ad placement yet; provider account eligibility also applies.",
+            "Meta has announced WhatsApp Status advertising, but a stable public Marketing API placement contract is not verified in the current official API materials. Use Meta Ads Manager for eligible accounts; UnifyDesk will not invent an unsupported placement value.",
             META_ADS_SCOPE));
     return specs;
   }

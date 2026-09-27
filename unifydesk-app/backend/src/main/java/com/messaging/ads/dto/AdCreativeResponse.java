@@ -30,6 +30,7 @@ public record AdCreativeResponse(
     Boolean advantagePlusCreative,
     Boolean generativeText,
     Boolean imageExpansion,
+    String existingPostId,
     Instant providerCreatedAt,
     Instant providerUpdatedAt,
     boolean accessible,
@@ -60,10 +61,28 @@ public record AdCreativeResponse(
         creativeFeatureEnabled(creative.getProviderPayloadJson(), "standard_enhancements"),
         creativeFeatureEnabled(creative.getProviderPayloadJson(), "text_generation"),
         creativeFeatureEnabled(creative.getProviderPayloadJson(), "image_uncrop"),
+        providerText(creative.getProviderPayloadJson(), "objectStoryId", "object_story_id"),
         creative.getProviderCreatedAt(),
         creative.getProviderUpdatedAt(),
         creative.isAccessible(),
         creative.getLastSyncAt());
+  }
+
+  private static String providerText(
+      String providerPayloadJson, String camelCaseField, String snakeCaseField) {
+    if (providerPayloadJson == null || providerPayloadJson.isBlank()) return null;
+    try {
+      JsonNode root = new ObjectMapper().readTree(providerPayloadJson);
+      JsonNode value = root.get(camelCaseField);
+      if (value == null || value.isNull() || value.asText("").isBlank()) {
+        value = root.get(snakeCaseField);
+      }
+      return value == null || value.isNull() || value.asText("").isBlank()
+          ? null
+          : value.asText();
+    } catch (Exception ignored) {
+      return null;
+    }
   }
 
   private static Boolean creativeFeatureEnabled(

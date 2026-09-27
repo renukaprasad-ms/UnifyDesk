@@ -1,5 +1,7 @@
 package com.messaging.ads.meta;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import com.messaging.ads.dto.AdAccountBillingResponse;
 import com.messaging.ads.dto.AdAccountHealthResponse;
 import com.messaging.ads.dto.AdAudienceResponse;
@@ -15,6 +17,7 @@ import com.messaging.ads.meta.dto.CreateMetaConversionRequest;
 import com.messaging.ads.meta.dto.CreateMetaPixelRequest;
 import com.messaging.ads.meta.dto.CreateMetaCreativeRequest;
 import com.messaging.ads.meta.dto.CreateMetaAdRequest;
+import com.messaging.ads.meta.dto.CreateMetaCatalogAdRequest;
 import com.messaging.ads.meta.dto.CreateMetaAdSetRequest;
 import com.messaging.ads.meta.dto.MetaAdsAuthorizationResponse;
 import com.messaging.ads.meta.dto.MetaAudienceSyncResponse;
@@ -269,6 +272,21 @@ public class MetaAdsConnectionController {
                 conversionMutationService.create(companyId, accountId, request),
                 "Meta custom conversion created"));
   }
+  @GetMapping("/accounts/{accountId}/pages/{pageId}/posts")
+  public ResponseEntity<ApiResponse<List<MetaAdsApiClient.ExistingPostSummary>>> existingPosts(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String pageId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            creativeMutationService.existingPosts(companyId, accountId, pageId),
+            "Meta existing posts fetched"));
+  }
+
   @PostMapping("/accounts/{accountId}/creatives/sync")
   public ResponseEntity<ApiResponse<MetaCreativeSyncResponse>> syncCreatives(
       @PathVariable Long companyId, @PathVariable Long accountId) {
@@ -325,6 +343,36 @@ public class MetaAdsConnectionController {
                 HttpStatus.CREATED.value(),
                 adMutationService.create(companyId, adSetId, request),
                 "Meta ad created in paused state"));
+  }
+
+  @PostMapping("/ad-sets/{adSetId}/catalog-ads")
+  public ResponseEntity<ApiResponse<AdResponse>> createCatalogAd(
+      @PathVariable Long companyId,
+      @PathVariable Long adSetId,
+      @Valid @RequestBody CreateMetaCatalogAdRequest request) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_CREATE);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                HttpStatus.CREATED.value(),
+                adMutationService.createCatalog(companyId, adSetId, request, userId),
+                "Meta catalog ad created in paused state"));
+  }
+
+  @GetMapping("/ads/{adId}/background-preview")
+  public ResponseEntity<ApiResponse<JsonNode>> backgroundPreview(
+      @PathVariable Long companyId,
+      @PathVariable Long adId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            adMutationService.backgroundPreview(companyId, adId),
+            "Meta background generation preview fetched"));
   }
 
   @PatchMapping("/ads/{adId}")

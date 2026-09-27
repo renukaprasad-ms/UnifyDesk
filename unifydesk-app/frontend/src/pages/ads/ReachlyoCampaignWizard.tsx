@@ -412,6 +412,10 @@ export default function ReachlyoCampaignWizard() {
   const [metaAdvantagePlusCreative, setMetaAdvantagePlusCreative] = useState(false)
   const [metaGenerativeText, setMetaGenerativeText] = useState(false)
   const [metaImageExpansion, setMetaImageExpansion] = useState(false)
+  const [metaCatalogEnabled, setMetaCatalogEnabled] = useState(false)
+  const [metaBackgroundGeneration, setMetaBackgroundGeneration] = useState(false)
+  const [metaProductSetId, setMetaProductSetId] = useState('')
+  const [metaExistingPostId, setMetaExistingPostId] = useState('')
 
   const managedAccounts = useMemo(
     () =>
@@ -736,6 +740,10 @@ export default function ReachlyoCampaignWizard() {
       setMetaAdvantagePlusCreative(override.advantagePlusCreative === true)
       setMetaGenerativeText(override.generativeText === true)
       setMetaImageExpansion(override.imageExpansion === true)
+      setMetaCatalogEnabled(typeof override.productSetId === 'string' && override.productSetId.length > 0)
+      setMetaBackgroundGeneration(override.backgroundGeneration === true)
+      setMetaProductSetId(typeof override.productSetId === 'string' ? override.productSetId : '')
+      setMetaExistingPostId(typeof override.existingPostId === 'string' ? override.existingPostId : '')
     }
   }
 
@@ -1241,6 +1249,12 @@ export default function ReachlyoCampaignWizard() {
             ?.externalResourceId ?? '',
         )
       }
+      if (!metaProductSetId) {
+        setMetaProductSetId(
+          resources.find((item) => item.resourceType === 'META_PRODUCT_SET')
+            ?.externalResourceId ?? '',
+        )
+      }
     }
   }
 
@@ -1257,6 +1271,18 @@ export default function ReachlyoCampaignWizard() {
         let override: Record<string, unknown> = {
           ...parseObject(channel.providerOverrideJson),
           _reachlyoAdAccountId: accountId,
+        }
+
+        if (channel.channelType === 'META_ADS') {
+          if (metaCatalogEnabled && !metaProductSetId.trim()) {
+            throw new Error('Choose a synchronized Meta product set for the catalog ad.')
+          }
+          if (metaCatalogEnabled && metaExistingPostId.trim()) {
+            throw new Error('Catalog ads and existing-post creatives cannot be combined.')
+          }
+          if (metaBackgroundGeneration && !metaCatalogEnabled) {
+            throw new Error('Meta background generation requires catalog mode.')
+          }
         }
 
         if (channel.channelType === 'GOOGLE_SEARCH') {
@@ -1347,6 +1373,9 @@ export default function ReachlyoCampaignWizard() {
             advantagePlusCreative: metaAdvantagePlusCreative,
             generativeText: metaGenerativeText,
             imageExpansion: metaImageExpansion,
+            productSetId: metaCatalogEnabled ? metaProductSetId.trim() : undefined,
+            backgroundGeneration: metaCatalogEnabled && metaBackgroundGeneration,
+            existingPostId: metaCatalogEnabled ? undefined : metaExistingPostId.trim() || undefined,
           }
         }
 
@@ -2656,6 +2685,14 @@ export default function ReachlyoCampaignWizard() {
                   setMetaGenerativeText={setMetaGenerativeText}
                   metaImageExpansion={metaImageExpansion}
                   setMetaImageExpansion={setMetaImageExpansion}
+                  metaCatalogEnabled={metaCatalogEnabled}
+                  setMetaCatalogEnabled={setMetaCatalogEnabled}
+                  metaBackgroundGeneration={metaBackgroundGeneration}
+                  setMetaBackgroundGeneration={setMetaBackgroundGeneration}
+                  metaProductSetId={metaProductSetId}
+                  setMetaProductSetId={setMetaProductSetId}
+                  metaExistingPostId={metaExistingPostId}
+                  setMetaExistingPostId={setMetaExistingPostId}
                   disabled={!canEdit || !editableDefinition}
                   onRefresh={() => void loadProviderData(true)}
                 />

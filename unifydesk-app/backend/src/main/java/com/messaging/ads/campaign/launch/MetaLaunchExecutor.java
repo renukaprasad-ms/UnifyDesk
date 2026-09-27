@@ -46,6 +46,7 @@ import com.messaging.ads.meta.MetaAdsCreativeSyncService;
 import com.messaging.ads.meta.MetaAdsGeoTargetingService;
 import com.messaging.ads.meta.MetaStandardConversionEvent;
 import com.messaging.ads.meta.dto.CreateMetaAdRequest;
+import com.messaging.ads.meta.dto.CreateMetaCatalogAdRequest;
 import com.messaging.ads.meta.dto.CreateMetaAdSetRequest;
 import com.messaging.ads.meta.dto.CreateMetaCampaignRequest;
 import com.messaging.ads.meta.dto.CreateMetaCreativeRequest;
@@ -156,6 +157,32 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 "Selected Instagram account is not available for this Meta ad account."));
       }
     }
+    String productSetId = text(override, "productSetId");
+    if (hasText(productSetId)) {
+      var productSet =
+          accountResourceRepository
+              .findByCompanyIdAndAdAccountIdAndResourceTypeAndExternalResourceId(
+                  companyId,
+                  Long.valueOf(plan.adAccountId()),
+                  AdAccountResourceType.META_PRODUCT_SET,
+                  productSetId.trim())
+              .orElse(null);
+      if (productSet == null || !productSet.isAccessible()) {
+        issues.add(
+            error(
+                "META_PRODUCT_SET_UNAVAILABLE",
+                "providerOverride.productSetId",
+                "Selected Meta product set is not synchronized or accessible for this ad account."));
+      }
+    }
+    if (booleanValue(override, "backgroundGeneration", false) && !hasText(productSetId)) {
+      issues.add(
+          error(
+              "META_BACKGROUND_GENERATION_PRODUCT_SET_REQUIRED",
+              "providerOverride.productSetId",
+              "Meta background generation requires a synchronized product set."));
+    }
+
     requireTextIssue(
         issues,
         override,
@@ -230,27 +257,32 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
               "Meta lifetime budget requires both campaign start and end times."));
     }
 
+    String existingPostId = text(override, "existingPostId");
     CreativePack pack = creativePack(companyId, campaign.getId(), plan.creativePackId(), false);
-    if (pack == null) {
-      issues.add(error("CREATIVE_PACK_MISSING", "creativePack", "Meta launch requires a Creative Pack."));
-    } else {
-      CreativePackAsset image = imageAsset(companyId, pack.getId());
-      if (image == null) {
-        issues.add(
-            error(
-                "META_IMAGE_MISSING",
-                "creativePack.assets",
-                "The baseline Meta executor requires at least one IMAGE creative asset."));
-      } else {
-        Media media = mediaService.requireActiveCompanyMedia(image.getMediaId(), companyId);
-        if (media.getStatus() != MediaStatus.ACTIVE
-            || media.getPurpose() != MediaPurpose.AD_CREATIVE
-            || media.getMediaType() != MediaType.IMAGE) {
+    boolean catalogAd = hasText(productSetId);
+    boolean existingPost = hasText(existingPostId);
+    if (!existingPost && pack == null) {
+      issues.add(error("CREATIVE_PACK_MISSING", "creativePack", "Meta launch requires a Creative Pack unless an existing post is selected."));
+    } else if (!existingPost) {
+      if (!catalogAd) {
+        CreativePackAsset image = imageAsset(companyId, pack.getId());
+        if (image == null) {
           issues.add(
               error(
-                  "META_IMAGE_INVALID",
+                  "META_IMAGE_MISSING",
                   "creativePack.assets",
-                  "Meta launch image must be active AD_CREATIVE image media."));
+                  "The baseline Meta executor requires at least one IMAGE creative asset."));
+        } else {
+          Media media = mediaService.requireActiveCompanyMedia(image.getMediaId(), companyId);
+          if (media.getStatus() != MediaStatus.ACTIVE
+              || media.getPurpose() != MediaPurpose.AD_CREATIVE
+              || media.getMediaType() != MediaType.IMAGE) {
+            issues.add(
+                error(
+                    "META_IMAGE_INVALID",
+                    "creativePack.assets",
+                    "Meta launch image must be active AD_CREATIVE image media."));
+          }
         }
       }
       if (!hasText(destination(pack, campaign))) {
@@ -369,7 +401,7 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
       case "create-creative" ->
           createCreative(companyId, run, plan, step, campaign, channel);
       case "create-ad-paused" ->
-          createAd(companyId, run, plan, step, campaign);
+          createAd(companyId, run, plan, step, campaign, channel);
       case "configure-conversion-goal" ->
           LaunchStepExecutionResult.skipped(
               "Meta promoted-object conversion configuration was applied while creating the paused ad set.");
@@ -496,7 +528,8 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 booleanValue(override, "advantageGenderSuggestion", false),
                 pixelId,
                 customEventType,
-                customConversionId),
+                customConversionId,
+                text(override, "productSetId")),
             run.getRequestedByUserId());
 
     return LaunchStepExecutionResult.succeeded(
@@ -510,7 +543,14 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
       LaunchStep step,
       ReachlyoCampaign campaign,
       CampaignChannel channel) {
-    CreativePack pack = creativePack(companyId, campaign.getId(), plan.creativePackId(), true);
+    JsonNode override = override(channel);
+    String existingPostId = text(override, "existingPostId");
+    CreativePack pack =
+        creativePack(
+            companyId,
+            campaign.getId(),
+            plan.creativePackId(),
+            !hasText(existingPostId));
     if (step.getAttemptCount() > 1) {
       creativeSyncService.sync(companyId, step.getAdAccountId());
     }
@@ -525,6 +565,38 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
           existing.getId(), existing.getExternalCreativeId(), Map.of("reused", true));
     }
 
+    if (hasText(existingPostId)) {
+      AdCreativeResponse reusedPost =
+          creativeMutationService.create(
+              companyId,
+              step.getAdAccountId(),
+              new CreateMetaCreativeRequest(
+                  name,
+                  "SINGLE_IMAGE",
+                  text(override, "pageId"),
+                  text(override, "instagramActorId"),
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null,
+                  false,
+                  false,
+                  false,
+                  existingPostId,
+                  List.of()),
+              run.getRequestedByUserId());
+      return LaunchStepExecutionResult.succeeded(
+          Long.valueOf(reusedPost.id()),
+          reusedPost.externalCreativeId(),
+          Map.of("reused", false, "existingPost", true));
+    }
+
     CreativePackAsset image = imageAsset(companyId, pack.getId());
     if (image == null) throw new BadRequestException("Meta IMAGE creative asset is missing");
     Media baselineMedia = mediaService.requireActiveCompanyMedia(image.getMediaId(), companyId);
@@ -532,8 +604,6 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
       throw new BadRequestException("Meta baseline creative requires image media");
     }
     String baselineImageUrl = mediaService.createTrustedAccessUrl(baselineMedia.getId()).url();
-    JsonNode override = override(channel);
-
     Set<com.messaging.ads.campaign.enums.CreativeVariantType> families =
         MetaPlacementCreativeVariantSelector.selectedFamilies(override);
     if (MetaPlacementCreativeVariantSelector.fullyMapped(override) && families.size() > 1) {
@@ -610,6 +680,7 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 booleanValue(override, "advantagePlusCreative", false),
                 booleanValue(override, "generativeText", false),
                 booleanValue(override, "imageExpansion", false),
+                null,
                 List.of()),
             run.getRequestedByUserId());
 
@@ -626,7 +697,8 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
       LaunchRun run,
       ProviderCampaignPlan plan,
       LaunchStep step,
-      ReachlyoCampaign campaign) {
+      ReachlyoCampaign campaign,
+      CampaignChannel channel) {
     AdCampaign providerCampaign = providerCampaign(companyId, step.getProviderDeploymentId());
     AdSet adSet =
         adSetRepository
@@ -638,27 +710,60 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
     if (step.getAttemptCount() > 1) {
       adSyncService.sync(companyId, adSet.getId());
     }
-    AdCreative creative =
-        adCreativeRepository
-            .findByCompanyIdAndAdAccountIdOrderByProviderUpdatedAtDesc(
-                companyId, step.getAdAccountId())
-            .stream()
-            .filter(value -> value.getName().equals(launchName(campaign.getName() + " Creative", run.getId(), plan.channelId())))
-            .findFirst()
-            .orElseThrow(() -> new BadRequestException("Meta creative has not been created yet"));
+    JsonNode override = override(channel);
+    String productSetId = text(override, "productSetId");
 
     String name = launchName(campaign.getName() + " Ad", run.getId(), plan.channelId());
     var existing =
         adRepository
             .findFirstByCompanyIdAndAdSetIdAndNameOrderByIdAsc(companyId, adSet.getId(), name)
             .orElse(null);
-    AdResponse result =
-        existing != null
-            ? AdResponse.from(existing)
-            : adMutationService.create(
-                companyId,
-                adSet.getId(),
-                new CreateMetaAdRequest(name, creative.getId().toString()));
+
+    AdResponse result;
+    if (existing != null) {
+      result = AdResponse.from(existing);
+    } else if (hasText(productSetId)) {
+      CreativePack pack =
+          creativePack(companyId, campaign.getId(), plan.creativePackId(), true);
+      List<String> headlines = strings(pack.getHeadlinesJson());
+      result =
+          adMutationService.createCatalog(
+              companyId,
+              adSet.getId(),
+              new CreateMetaCatalogAdRequest(
+                  name,
+                  text(override, "pageId"),
+                  text(override, "instagramActorId"),
+                  productSetId,
+                  destination(pack, campaign),
+                  headlines.isEmpty() ? pack.getOfferText() : headlines.get(0),
+                  firstText(text(override, "callToActionType"), pack.getCallToAction()),
+                  booleanValue(override, "backgroundGeneration", false)),
+              run.getRequestedByUserId());
+    } else {
+      AdCreative creative =
+          adCreativeRepository
+              .findByCompanyIdAndAdAccountIdOrderByProviderUpdatedAtDesc(
+                  companyId, step.getAdAccountId())
+              .stream()
+              .filter(
+                  value ->
+                      value
+                          .getName()
+                          .equals(
+                              launchName(
+                                  campaign.getName() + " Creative",
+                                  run.getId(),
+                                  plan.channelId())))
+              .findFirst()
+              .orElseThrow(
+                  () -> new BadRequestException("Meta creative has not been created yet"));
+      result =
+          adMutationService.create(
+              companyId,
+              adSet.getId(),
+              new CreateMetaAdRequest(name, creative.getId().toString()));
+    }
 
     return LaunchStepExecutionResult.succeeded(
         Long.valueOf(result.id()), result.externalAdId(), Map.of("reused", existing != null));
