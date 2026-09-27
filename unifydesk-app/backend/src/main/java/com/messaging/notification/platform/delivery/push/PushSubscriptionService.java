@@ -60,7 +60,8 @@ public class PushSubscriptionService {
         throw new ConflictException(
             "Push subscription is already associated with another account");
       }
-      if (!"ACTIVE".equals(existing.status()) && repository.activeSubscriptionCount(userId) >= cap) {
+      if (!"ACTIVE".equals(existing.status())
+          && repository.activeSubscriptionCount(userId) >= cap) {
         throw new TooManyRequestsException(
             "Maximum active browser notification subscriptions reached");
       }
@@ -77,7 +78,8 @@ public class PushSubscriptionService {
     }
 
     if (repository.activeSubscriptionCount(userId) >= cap) {
-      throw new TooManyRequestsException("Maximum active browser notification subscriptions reached");
+      throw new TooManyRequestsException(
+          "Maximum active browser notification subscriptions reached");
     }
     try {
       PushSubscription created =
