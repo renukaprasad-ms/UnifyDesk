@@ -550,6 +550,7 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                     text(override, "instagramActorId"),
                     firstText(text(override, "callToActionType"), pack.getCallToAction()),
                     text(override, "urlTags"),
+                    booleanValue(override, "advantagePlusCreative", false),
                     placementAssets));
         return LaunchStepExecutionResult.succeeded(
             Long.valueOf(customized.id()),
@@ -603,6 +604,7 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 null,
                 selectedMedia.getMediaType() == MediaType.VIDEO ? selectedUrl : null,
                 text(override, "urlTags"),
+                booleanValue(override, "advantagePlusCreative", false),
                 List.of()));
 
     Map<String, Object> metadata = new java.util.LinkedHashMap<>();
