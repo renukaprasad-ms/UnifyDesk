@@ -171,11 +171,6 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
       Set<AdFeatureCapability> required,
       List<ProviderPlanIssue> issues) {
     JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
-  private void validateCatalog(
-      ProviderCampaignCompileContext context,
-      Set<AdFeatureCapability> required,
-      List<ProviderPlanIssue> issues) {
-    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
     String productSetId = text(override, "productSetId");
     if (productSetId == null || productSetId.isBlank()) return;
 
