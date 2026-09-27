@@ -45,30 +45,7 @@ public class StandardWebPushGateway implements WebPushGateway {
               .build();
       HttpResponse response = pushService.send(notification);
       int status = response.getStatusLine().getStatusCode();
-      if (status >= 200 && status < 300) {
-        return new PushSendResult(PushSendResult.Outcome.ACCEPTED, status, null, null);
-      }
-      if (status == 404 || status == 410) {
-        return new PushSendResult(
-            PushSendResult.Outcome.EXPIRED, status, null, "PUSH_SUBSCRIPTION_EXPIRED");
-      }
-      if (status == 429) {
-        return new PushSendResult(
-            PushSendResult.Outcome.RATE_LIMITED,
-            status,
-            parseRetryAfter(response.getFirstHeader("Retry-After")),
-            "PUSH_RATE_LIMITED");
-      }
-      if (status == 401 || status == 403) {
-        return new PushSendResult(
-            PushSendResult.Outcome.PERMANENT_FAILURE, status, null, "PUSH_VAPID_REJECTED");
-      }
-      if (status >= 500) {
-        return new PushSendResult(
-            PushSendResult.Outcome.TRANSIENT_FAILURE, status, null, "PUSH_SERVICE_UNAVAILABLE");
-      }
-      return new PushSendResult(
-          PushSendResult.Outcome.PERMANENT_FAILURE, status, null, "PUSH_PROVIDER_REJECTED");
+      return classifyStatus(status, parseRetryAfter(response.getFirstHeader("Retry-After")));
     } catch (InterruptedException exception) {
       Thread.currentThread().interrupt();
       return new PushSendResult(
@@ -83,6 +60,30 @@ public class StandardWebPushGateway implements WebPushGateway {
       return new PushSendResult(
           PushSendResult.Outcome.PERMANENT_FAILURE, null, null, "PUSH_VAPID_SIGNING_FAILED");
     }
+  }
+
+  PushSendResult classifyStatus(int status, Duration retryAfter) {
+    if (status >= 200 && status < 300) {
+      return new PushSendResult(PushSendResult.Outcome.ACCEPTED, status, null, null);
+    }
+    if (status == 404 || status == 410) {
+      return new PushSendResult(
+          PushSendResult.Outcome.EXPIRED, status, null, "PUSH_SUBSCRIPTION_EXPIRED");
+    }
+    if (status == 429) {
+      return new PushSendResult(
+          PushSendResult.Outcome.RATE_LIMITED, status, retryAfter, "PUSH_RATE_LIMITED");
+    }
+    if (status == 401 || status == 403) {
+      return new PushSendResult(
+          PushSendResult.Outcome.PERMANENT_FAILURE, status, null, "PUSH_VAPID_REJECTED");
+    }
+    if (status >= 500) {
+      return new PushSendResult(
+          PushSendResult.Outcome.TRANSIENT_FAILURE, status, null, "PUSH_SERVICE_UNAVAILABLE");
+    }
+    return new PushSendResult(
+        PushSendResult.Outcome.PERMANENT_FAILURE, status, null, "PUSH_PROVIDER_REJECTED");
   }
 
   private void ensureProvider() {
