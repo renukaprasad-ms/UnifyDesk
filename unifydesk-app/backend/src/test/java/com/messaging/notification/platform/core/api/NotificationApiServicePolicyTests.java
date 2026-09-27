@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ForbiddenException;
+import com.messaging.common.exception.NotFoundException;
 import com.messaging.company.service.CompanyIamPermissionService;
 import com.messaging.notification.platform.core.api.NotificationApiDtos.PreferencesRequest;
 import com.messaging.notification.platform.core.api.NotificationApiDtos.QuietHoursRequest;
@@ -33,6 +34,18 @@ class NotificationApiServicePolicyTests {
     assertThatThrownBy(() -> fixture.service.list("9", 20, null, false))
         .isInstanceOf(ForbiddenException.class)
         .hasMessage("Company access denied");
+  }
+
+  @Test
+  void revokedMembershipHidesDirectNotificationLookupAsNotFound() {
+    Fixture fixture = fixture();
+    when(fixture.jdbc.queryForObject(
+            anyString(), eq(Boolean.class), eq(9L), eq(7L)))
+        .thenReturn(false);
+
+    assertThatThrownBy(() -> fixture.service.get("55", "9"))
+        .isInstanceOf(NotFoundException.class)
+        .hasMessage("Notification not found");
   }
 
   @Test

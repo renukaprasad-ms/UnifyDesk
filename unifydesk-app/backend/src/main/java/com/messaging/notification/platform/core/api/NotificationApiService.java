@@ -109,8 +109,8 @@ public class NotificationApiService {
     long userId = currentUserService.currentUserId();
     long notificationId = parseId(notificationIdValue, "notificationId");
     Long companyId = parseOptionalId(companyIdValue, "companyId");
-    if (companyId != null) {
-      requireMember(userId, companyId);
+    if (companyId != null && !hasMember(userId, companyId)) {
+      throw new NotFoundException("Notification not found");
     }
     Row row = findAddressed(userId, notificationId, companyId, false);
     if (row == null || !visible(userId, companyId, row)) {
@@ -175,8 +175,8 @@ public class NotificationApiService {
     long userId = currentUserService.currentUserId();
     long notificationId = parseId(notificationIdValue, "notificationId");
     Long companyId = parseOptionalId(request.companyId(), "companyId");
-    if (companyId != null) {
-      requireMember(userId, companyId);
+    if (companyId != null && !hasMember(userId, companyId)) {
+      throw new NotFoundException("Notification not found");
     }
     Row row = findAddressed(userId, notificationId, companyId, true);
     if (row == null || !visible(userId, companyId, row)) {
@@ -536,6 +536,12 @@ public class NotificationApiService {
   }
 
   private void requireMember(long userId, long companyId) {
+    if (!hasMember(userId, companyId)) {
+      throw new ForbiddenException("Company access denied");
+    }
+  }
+
+  private boolean hasMember(long userId, long companyId) {
     Boolean allowed =
         jdbcTemplate.queryForObject(
             """
@@ -549,9 +555,7 @@ public class NotificationApiService {
             Boolean.class,
             companyId,
             userId);
-    if (!Boolean.TRUE.equals(allowed)) {
-      throw new ForbiddenException("Company access denied");
-    }
+    return Boolean.TRUE.equals(allowed);
   }
 
   private long parseId(String value, String field) {

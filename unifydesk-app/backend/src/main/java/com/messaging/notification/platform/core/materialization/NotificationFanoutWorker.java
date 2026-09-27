@@ -66,8 +66,7 @@ public class NotificationFanoutWorker {
                     jdbcTemplate.update(
                         """
                         update notification_fanout_jobs
-                        set state='CLAIMED',claim_token=?,claim_expires_at=?,attempts=attempts+1,
-                            updated_at=?
+                        set state='CLAIMED',claim_token=?,claim_expires_at=?,updated_at=?
                         where id=?
                         """,
                         token,
@@ -167,7 +166,7 @@ public class NotificationFanoutWorker {
     jdbcTemplate.update(
         """
         update notification_fanout_jobs
-        set state=?,next_attempt_at=?,claim_token=null,claim_expires_at=null,
+        set state=?,attempts=attempts+1,next_attempt_at=?,claim_token=null,claim_expires_at=null,
             last_error_code='FANOUT_FAILED',updated_at=now()
         where id=? and claim_token=?
         """,

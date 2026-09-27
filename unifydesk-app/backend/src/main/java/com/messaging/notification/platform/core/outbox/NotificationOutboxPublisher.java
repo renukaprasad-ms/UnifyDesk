@@ -152,12 +152,15 @@ public class NotificationOutboxPublisher {
         update notification_events
         set publish_state='PENDING',next_publish_at=now(),updated_at=now()
         where id in (
-          select id
-          from notification_events
-          where publish_state='PUBLISHED'
-            and materialized_at is null
-            and published_at < ?
-          order by published_at,id
+          select e.id
+          from notification_events e
+          where e.publish_state='PUBLISHED'
+            and e.materialized_at is null
+            and e.published_at < ?
+            and not exists (
+              select 1 from notification_fanout_jobs j where j.event_id=e.id
+            )
+          order by e.published_at,e.id
           limit ?
         )
         """,
