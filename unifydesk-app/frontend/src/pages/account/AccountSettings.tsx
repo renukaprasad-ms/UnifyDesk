@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import { FiChevronRight, FiKey, FiShield, FiTrash2 } from 'react-icons/fi'
+import { FiBell, FiChevronRight, FiKey, FiShield, FiTrash2 } from 'react-icons/fi'
 import { useNavigate } from 'react-router'
 import { authApi } from '../../features/auth/authApi'
 import { userApi } from '../../features/user/userApi'
-import NotificationPreferencesPanel from '../../features/notifications/NotificationPreferencesPanel'
 import type { User } from '../../features/user/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { selectAuthUser, sessionCleared } from '../../store/auth/authSlice'
@@ -167,13 +166,24 @@ export default function AccountSettings() {
               </button>
             </div>
           </div>
-        </div>
 
-        <div className="mt-10">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Notifications</p>
-          <div className="mt-3">
-            <NotificationPreferencesPanel />
-          </div>
+          <button
+            type="button"
+            className="panel flex w-full items-center gap-4 p-5 text-left transition hover:border-indigo-200 hover:shadow-sm"
+            onClick={() => navigate('/account/settings/notifications')}
+          >
+            <span className="security-icon shrink-0">
+              <FiBell aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-base font-bold text-slate-950">Notifications</span>
+              <span className="mt-1 block text-sm leading-6 text-slate-500">
+                Manage email, browser notifications, quiet hours, and delivery preferences.
+              </span>
+            </span>
+            <span className="hidden text-sm font-semibold text-indigo-600 sm:block">Manage</span>
+            <FiChevronRight className="shrink-0 text-slate-400" aria-hidden="true" />
+          </button>
         </div>
 
         <div className="mt-10">
