@@ -81,6 +81,46 @@ class PushSubscriptionServiceTests {
   }
 
   @Test
+  void conflictSafeInsertMapsConcurrentDifferentOwnerToConflict() {
+    when(currentUserService.currentUserId()).thenReturn(8L);
+    PushSubscription winner = subscription(42L, 7L, "ACTIVE");
+    when(repository.findSubscriptionByEndpointHash(anyString()))
+        .thenReturn(Optional.empty(), Optional.of(winner));
+    when(repository.activeSubscriptionCount(8L)).thenReturn(0);
+    when(cipher.encrypt(anyString())).thenAnswer(invocation -> "enc:" + invocation.getArgument(0));
+    when(repository.insertSubscriptionIfEndpointAvailable(
+            anyLong(), anyString(), anyString(), anyString(), anyString(), any(), any()))
+        .thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.register(request()))
+        .isInstanceOf(ConflictException.class)
+        .hasMessage("Push subscription is already associated with another account");
+
+    verify(repository).lockUserForPushRegistration(8L);
+    verify(repository)
+        .insertSubscriptionIfEndpointAvailable(
+            anyLong(), anyString(), anyString(), anyString(), anyString(), any(), any());
+  }
+
+  @Test
+  void conflictSafeInsertPreservesSameUserIdempotency() {
+    when(currentUserService.currentUserId()).thenReturn(7L);
+    PushSubscription existing = subscription(42L, 7L, "ACTIVE");
+    when(repository.findSubscriptionByEndpointHash(anyString()))
+        .thenReturn(Optional.empty(), Optional.of(existing));
+    when(repository.activeSubscriptionCount(7L)).thenReturn(0);
+    when(cipher.encrypt(anyString())).thenAnswer(invocation -> "enc:" + invocation.getArgument(0));
+    when(repository.insertSubscriptionIfEndpointAvailable(
+            anyLong(), anyString(), anyString(), anyString(), anyString(), any(), any()))
+        .thenReturn(Optional.empty());
+
+    var result = service.register(request());
+
+    assertThat(result.created()).isFalse();
+    assertThat(result.response().id()).isEqualTo("42");
+  }
+
+  @Test
   void foreignSubscriptionDeleteFailsClosed() {
     when(currentUserService.currentUserId()).thenReturn(8L);
     when(repository.findSubscriptionForUser(42L, 8L)).thenReturn(Optional.empty());
@@ -141,9 +181,9 @@ class PushSubscriptionServiceTests {
     when(repository.findSubscriptionByEndpointHash(anyString())).thenReturn(Optional.empty());
     when(repository.activeSubscriptionCount(7L)).thenReturn(9);
     when(cipher.encrypt(anyString())).thenAnswer(invocation -> "enc:" + invocation.getArgument(0));
-    when(repository.insertSubscription(
+    when(repository.insertSubscriptionIfEndpointAvailable(
             anyLong(), anyString(), anyString(), anyString(), anyString(), any(), any()))
-        .thenReturn(subscription(99L, 7L, "ACTIVE"));
+        .thenReturn(Optional.of(subscription(99L, 7L, "ACTIVE")));
 
     service.register(request());
 
@@ -153,7 +193,7 @@ class PushSubscriptionServiceTests {
     order.verify(repository).findSubscriptionByEndpointHash(anyString());
     order.verify(repository).activeSubscriptionCount(7L);
     order.verify(repository)
-        .insertSubscription(
+        .insertSubscriptionIfEndpointAvailable(
             anyLong(), anyString(), anyString(), anyString(), anyString(), any(), any());
   }
 
@@ -164,9 +204,9 @@ class PushSubscriptionServiceTests {
     when(repository.activeSubscriptionCount(7L)).thenReturn(9);
     when(cipher.encrypt(anyString())).thenAnswer(invocation -> "enc:" + invocation.getArgument(0));
     PushSubscription created = subscription(99L, 7L, "ACTIVE");
-    when(repository.insertSubscription(
+    when(repository.insertSubscriptionIfEndpointAvailable(
             anyLong(), anyString(), anyString(), anyString(), anyString(), any(), any()))
-        .thenReturn(created);
+        .thenReturn(Optional.of(created));
 
     var result = service.register(request());
 

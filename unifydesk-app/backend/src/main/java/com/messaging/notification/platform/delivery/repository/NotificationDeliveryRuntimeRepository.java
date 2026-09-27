@@ -33,6 +33,16 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class NotificationDeliveryRuntimeRepository {
 
+  static final String PUSH_SUBSCRIPTION_INSERT_SQL =
+      """
+      insert into notification_push_subscriptions(
+        id,user_id,endpoint_hash,endpoint_ciphertext,p256dh_ciphertext,auth_ciphertext,
+        expiration_time,device_label,status,created_at,updated_at
+      ) values (?,?,?,?,?,?,?,?, 'ACTIVE',now(),now())
+      on conflict (endpoint_hash) do nothing
+      returning *
+      """;
+
   private final JdbcTemplate jdbcTemplate;
 
   @Transactional
@@ -687,7 +697,7 @@ public class NotificationDeliveryRuntimeRepository {
   }
 
   @Transactional
-  public PushSubscription insertSubscription(
+  public Optional<PushSubscription> insertSubscriptionIfEndpointAvailable(
       long userId,
       String endpointHash,
       String endpointCiphertext,
@@ -696,22 +706,21 @@ public class NotificationDeliveryRuntimeRepository {
       Instant expirationTime,
       String deviceLabel) {
     long id = IdGenerator.nextId();
-    jdbcTemplate.update(
-        """
-        insert into notification_push_subscriptions(
-          id,user_id,endpoint_hash,endpoint_ciphertext,p256dh_ciphertext,auth_ciphertext,
-          expiration_time,device_label,status,created_at,updated_at
-        ) values (?,?,?,?,?,?,?,?, 'ACTIVE',now(),now())
-        """,
-        id,
-        userId,
-        endpointHash,
-        endpointCiphertext,
-        p256dhCiphertext,
-        authCiphertext,
-        expirationTime == null ? null : OffsetDateTime.ofInstant(expirationTime, ZoneOffset.UTC),
-        deviceLabel);
-    return findSubscriptionForUser(id, userId).orElseThrow();
+    List<PushSubscription> inserted =
+        jdbcTemplate.query(
+            PUSH_SUBSCRIPTION_INSERT_SQL,
+            this::mapSubscription,
+            id,
+            userId,
+            endpointHash,
+            endpointCiphertext,
+            p256dhCiphertext,
+            authCiphertext,
+            expirationTime == null
+                ? null
+                : OffsetDateTime.ofInstant(expirationTime, ZoneOffset.UTC),
+            deviceLabel);
+    return inserted.stream().findFirst();
   }
 
   @Transactional
