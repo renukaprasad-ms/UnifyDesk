@@ -83,7 +83,7 @@ export default function MetaCreativeModal({
       urlTags: urlTags || null,
       advantagePlusCreative,
       generativeText,
-      imageExpansion,
+      imageExpansion: format === 'SINGLE_IMAGE' ? imageExpansion : false,
       carouselCards: format === 'CAROUSEL' ? cards : [],
     })
   }
