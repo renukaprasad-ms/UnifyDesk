@@ -6,6 +6,8 @@ import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.meta.MetaAdsApiClient.InstagramSummary;
 import com.messaging.ads.meta.MetaAdsApiClient.PageSummary;
 import com.messaging.ads.meta.MetaAdsApiClient.PixelSummary;
+import com.messaging.ads.meta.MetaAdsApiClient.ProductCatalogSummary;
+import com.messaging.ads.meta.MetaAdsApiClient.ProductSetSummary;
 import com.messaging.ads.meta.dto.MetaAdsResourceSyncResponse;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
@@ -54,8 +56,20 @@ public class MetaAdsResourceSyncService {
     List<InstagramSummary> instagramAccounts =
         apiClient.instagramAccounts(accessToken, account.getExternalAccountId());
     List<PixelSummary> pixels = apiClient.pixels(accessToken, account.getExternalAccountId());
+    List<ProductCatalogSummary> catalogs =
+        apiClient.productCatalogs(accessToken, account.getExternalBusinessId());
+    List<ProductSetSummary> productSets =
+        catalogs.stream()
+            .flatMap(catalog -> apiClient.productSets(accessToken, catalog.id()).stream())
+            .toList();
 
     return persistenceService.persist(
-        companyId, adAccountId, pages, instagramAccounts, pixels);
+        companyId,
+        adAccountId,
+        pages,
+        instagramAccounts,
+        pixels,
+        catalogs,
+        productSets);
   }
 }
