@@ -410,6 +410,7 @@ export default function ReachlyoCampaignWizard() {
   const [metaAdvantageAgeSuggestion, setMetaAdvantageAgeSuggestion] = useState(false)
   const [metaAdvantageGenderSuggestion, setMetaAdvantageGenderSuggestion] = useState(false)
   const [metaAdvantagePlusCreative, setMetaAdvantagePlusCreative] = useState(false)
+  const [metaGenerativeText, setMetaGenerativeText] = useState(false)
 
   const managedAccounts = useMemo(
     () =>
@@ -732,6 +733,7 @@ export default function ReachlyoCampaignWizard() {
       setMetaAdvantageAgeSuggestion(override.advantageAgeSuggestion === true)
       setMetaAdvantageGenderSuggestion(override.advantageGenderSuggestion === true)
       setMetaAdvantagePlusCreative(override.advantagePlusCreative === true)
+      setMetaGenerativeText(override.generativeText === true)
     }
   }
 
@@ -1341,6 +1343,7 @@ export default function ReachlyoCampaignWizard() {
             advantageGenderSuggestion:
               metaAdvantageAudience && metaAdvantageGenderSuggestion,
             advantagePlusCreative: metaAdvantagePlusCreative,
+            generativeText: metaGenerativeText,
           }
         }
 
@@ -2646,6 +2649,8 @@ export default function ReachlyoCampaignWizard() {
                   setMetaAdvantageGenderSuggestion={setMetaAdvantageGenderSuggestion}
                   metaAdvantagePlusCreative={metaAdvantagePlusCreative}
                   setMetaAdvantagePlusCreative={setMetaAdvantagePlusCreative}
+                  metaGenerativeText={metaGenerativeText}
+                  setMetaGenerativeText={setMetaGenerativeText}
                   disabled={!canEdit || !editableDefinition}
                   onRefresh={() => void loadProviderData(true)}
                 />
