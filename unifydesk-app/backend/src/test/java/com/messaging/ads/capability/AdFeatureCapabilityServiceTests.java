@@ -279,7 +279,8 @@ class AdFeatureCapabilityServiceTests {
             .findFirst()
             .orElseThrow();
 
-    assertThat(capability.implemented()).isTrue();
+    assertThat(capability.implemented()).isFalse();
+    assertThat(capability.supported()).isFalse();
     assertThat(capability.availability()).isEqualTo(AdFeatureAvailability.PROVIDER_HOSTED);
     assertThat(capability.reason()).contains("Ads Manager");
   }
