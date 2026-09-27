@@ -1463,20 +1463,31 @@ Provider semantics:
 
 ## M-06 Advantage+ creative - P1
 
-Current creative creation is manual.
+Status: **complete for D4 — Meta standard creative enhancements can be explicitly opted into from native and unified creative flows without silently enabling later generative features**.
 
-Add support for eligible creative features exposed by Marketing API.
+Implemented:
 
-Possible capabilities include:
+- [x] `META_ADVANTAGE_CREATIVE` capability moved from PLANNED to AVAILABLE
+- [x] explicit native Meta creative opt-in
+- [x] explicit unified campaign provider setting persisted as `advantagePlusCreative`
+- [x] compiler capability gating and review warning
+- [x] unified launch carries the opt-in through both standard and placement-customized creative creation
+- [x] provider payload uses `degrees_of_freedom_spec.creative_features_spec.standard_enhancements.enroll_status`
+- [x] explicit opt-in sends `OPT_IN`; explicit opt-out can send `OPT_OUT`; unspecified legacy callers remain unchanged
+- [x] provider read-back requests `degrees_of_freedom_spec` and exposes normalized Advantage+ creative state
+- [x] activity audit records Advantage+ creative state without logging provider tokens
+- [x] regression coverage for provider payload, compiler requirements and capability availability
+- [x] existing placement-specific asset customization remains compatible
 
-- text generation/variations
-- image expansion/uncropping
-- background generation
-- other current Advantage+ creative features exposed by the active Marketing API
+Scope boundary:
 
-Always require preview/approval before Reachlyo publishes AI-generated material unless the user explicitly configures automatic creative optimization.
+- D4 covers the generic standard-enhancements enrollment only.
+- Text generation remains D5.
+- Image uncrop/expansion remains D6.
+- Background generation remains D7.
+- UnifyDesk does not treat those generative features as implicitly enabled by D4.
 
-Official Meta Postman collection:
+Official Meta references used for the broader creative automation roadmap:
 
 - https://www.postman.com/meta/facebook-marketing-api/collection/r3touuy/mapi-generative-ai-features
 - Text generation:
@@ -2247,7 +2258,7 @@ C9. [x] richer provider reporting — Google landing pages, actual placements, A
 D1. [x] customer-list Custom Audiences — Meta CUSTOM audience creation, customer-file source labeling, browser/backend SHA-256 normalization, add/remove multi-key member batches, explicit terms/authorization, no PII/hash persistence or logging, provider counts/status, RBAC/capability/UI/tests  
 D2. [x] Advantage+ audience controls — Meta v26 targeting_automation, age/gender individual suggestion settings, explicit control-vs-suggestion UX, native create/edit/read-back, unified wizard/compiler/launch support, capability/RBAC/audit/tests  
 D3. [x] Advantage+ placements — explicit capability-gated automatic-placement mode, backward-compatible read-back, manual-placement conflict validation, native/unified UX, audit and compiler/capability tests  
-D4. Advantage+ creative  
+D4. [x] Advantage+ creative — standard-enhancements opt-in via degrees_of_freedom_spec, native/unified UI, compiler capability gating, launch propagation, provider read-back, audit and tests  
 D5. generative text  
 D6. image uncrop/expansion  
 D7. background generation  
