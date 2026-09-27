@@ -2,11 +2,13 @@ package com.messaging.kafka.consumer;
 
 import com.messaging.kafka.event.KafkaEvent;
 import com.messaging.kafka.idempotency.KafkaEventIdempotencyService;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class PriorityKafkaListeners {
 
@@ -65,13 +67,29 @@ public class PriorityKafkaListeners {
       return;
     }
 
-    if (idempotencyService.isProcessed(event)) {
-      acknowledgment.acknowledge();
-      return;
-    }
+    try {
+      if (idempotencyService.isProcessed(event)) {
+        acknowledgment.acknowledge();
+        return;
+      }
 
-    dispatcher.dispatch(event);
-    idempotencyService.markProcessed(event);
-    acknowledgment.acknowledge();
+      dispatcher.dispatch(event);
+      idempotencyService.markProcessed(event);
+      acknowledgment.acknowledge();
+    } catch (RuntimeException exception) {
+      log.warn(
+          "kafka_event_processing_failed topic={} partition={} offset={} key={} eventId={} eventType={} priority={} errorType={} errorMessage={}",
+          record.topic(),
+          record.partition(),
+          record.offset(),
+          record.key(),
+          event.eventId(),
+          event.eventType(),
+          event.priority(),
+          exception.getClass().getName(),
+          exception.getMessage(),
+          exception);
+      throw exception;
+    }
   }
 }
