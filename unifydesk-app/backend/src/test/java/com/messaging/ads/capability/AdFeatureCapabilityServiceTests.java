@@ -100,6 +100,24 @@ class AdFeatureCapabilityServiceTests {
     assertThat(reusableAssets.availability())
         .isEqualTo(AdFeatureAvailability.AVAILABLE);
 
+    var experiments =
+        capabilities.stream()
+            .filter(item -> item.feature() == AdFeatureCapability.GOOGLE_EXPERIMENTS)
+            .findFirst()
+            .orElseThrow();
+    assertThat(experiments.implemented()).isTrue();
+    assertThat(experiments.supported()).isTrue();
+    assertThat(experiments.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
+
+    var bidSimulation =
+        capabilities.stream()
+            .filter(item -> item.feature() == AdFeatureCapability.GOOGLE_BID_SIMULATION)
+            .findFirst()
+            .orElseThrow();
+    assertThat(bidSimulation.implemented()).isTrue();
+    assertThat(bidSimulation.supported()).isTrue();
+    assertThat(bidSimulation.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
+
     var assetGeneration =
         capabilities.stream()
             .filter(item -> item.feature() == AdFeatureCapability.GOOGLE_ASSET_GENERATION)
@@ -267,6 +285,22 @@ class AdFeatureCapabilityServiceTests {
     assertThat(capability.implemented()).isTrue();
     assertThat(capability.supported()).isTrue();
     assertThat(capability.availability()).isEqualTo(AdFeatureAvailability.AVAILABLE);
+  }
+
+  @Test
+  void reportsMetaExperimentsAsReadOnlyDiscovery() {
+    when(providerRegistry.isConfigured(AdProvider.META_ADS)).thenReturn(true);
+
+    var capability =
+        service.providerCapabilities(AdProvider.META_ADS).stream()
+            .filter(item -> item.feature() == AdFeatureCapability.META_EXPERIMENTS)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(capability.implemented()).isTrue();
+    assertThat(capability.supported()).isTrue();
+    assertThat(capability.availability()).isEqualTo(AdFeatureAvailability.READ_ONLY);
+    assertThat(capability.reason()).contains("Ad Study");
   }
 
   @Test

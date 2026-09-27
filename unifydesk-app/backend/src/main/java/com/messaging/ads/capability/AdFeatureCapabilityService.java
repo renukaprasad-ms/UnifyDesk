@@ -265,7 +265,7 @@ public class AdFeatureCapabilityService {
     add(specs, AdFeatureCapability.GOOGLE_KEYWORD_PLANNER, true, GOOGLE_ADS_SCOPE);
     add(specs, AdFeatureCapability.GOOGLE_FORECAST, true, GOOGLE_ADS_SCOPE);
     add(specs, AdFeatureCapability.GOOGLE_REUSABLE_ASSETS, true, GOOGLE_ADS_SCOPE);
-    planned(specs, AdFeatureCapability.GOOGLE_EXPERIMENTS);
+    add(specs, AdFeatureCapability.GOOGLE_EXPERIMENTS, true, GOOGLE_ADS_SCOPE);
     specs.add(
         new CapabilitySpec(
             AdFeatureCapability.GOOGLE_ASSET_GENERATION,
@@ -274,7 +274,7 @@ public class AdFeatureCapabilityService {
             true,
             "Google AssetGenerationService is a closed-beta capability and must be verified for the selected account at use time.",
             GOOGLE_ADS_SCOPE));
-    planned(specs, AdFeatureCapability.GOOGLE_BID_SIMULATION);
+    add(specs, AdFeatureCapability.GOOGLE_BID_SIMULATION, false, GOOGLE_ADS_SCOPE);
     specs.add(
         new CapabilitySpec(
             AdFeatureCapability.GOOGLE_BILLING_WRITE_MONTHLY_INVOICE,
@@ -328,6 +328,14 @@ public class AdFeatureCapabilityService {
             "Meta background generation requires an eligible dynamic product or Advantage+ catalog ad and eligible product-set context.",
             META_ADS_SCOPE));
     add(specs, AdFeatureCapability.META_CATALOG, true, META_BUSINESS_SCOPE);
+    specs.add(
+        new CapabilitySpec(
+            AdFeatureCapability.META_EXPERIMENTS,
+            AdFeatureAvailability.READ_ONLY,
+            true,
+            true,
+            "Meta Business SDK exposes Ad Study / split-test discovery, but UnifyDesk does not submit low-level ad_studies cell payloads until the active Marketing API documents a stable customer-facing creation contract.",
+            META_BUSINESS_SCOPE));
     add(specs, AdFeatureCapability.META_EXISTING_POST, true, META_IDENTITY_SCOPES);
     planned(specs, AdFeatureCapability.META_PARTNERSHIP_ADS);
     specs.add(

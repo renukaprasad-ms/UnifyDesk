@@ -1248,22 +1248,44 @@ Do not expose portfolio options to campaign types that do not support them.
 
 ## G-12 Experiments - P2
 
-Create an experiment domain in Reachlyo.
+Status: **complete for E1's verified Google v25 product scope**.
 
-Google supports multiple API experiment types including Search, Display, Video/Demand Gen, AI Max adoption, broad match adoption, asset optimization, PMax/Shopping comparison and others depending on version/account eligibility.
+Implemented:
 
-Lifecycle:
+- [x] `GOOGLE_EXPERIMENTS` capability AVAILABLE for managed Google accounts
+- [x] provider-native experiment and arm read-through, including draft visibility
+- [x] direct experiment metrics with control metrics and Google statistical fields
+- [x] system-managed `SEARCH_CUSTOM` creation from a synchronized Search campaign
+- [x] exactly one control arm plus one treatment arm with configurable integer traffic split totaling 100%
+- [x] Google-created treatment draft campaign is mutated before scheduling
+- [x] current UnifyDesk Search treatment supports deliberate bidding-strategy variation
+- [x] `COMPARE_CAMPAIGNS` campaign-mix creation using existing campaigns
+- [x] campaign-mix account/allowlist failures are surfaced rather than replaced with another experiment type
+- [x] SETUP-first workflow; no experiment is scheduled automatically
+- [x] schedule, end, promote and graduate lifecycle actions where the provider permits them
+- [x] graduation creates a new non-shared budget mapping for the selected treatment campaign
+- [x] long-running operation/read-back visibility
+- [x] ADS_READ / ADS_CREATE / ADS_MODIFY RBAC
+- [x] activity audit for create/schedule/end/promote/graduate
+- [x] setup failure cleanup attempts to remove the non-serving experiment
+- [x] Analytics UI with creation, arms, metrics/statistical fields and lifecycle actions
+- [x] backend capability/lifecycle regression coverage
 
-- setup
-- schedule
-- run
-- report
-- end/promote/graduate
+Provider boundary:
 
-Reference:
+- Google v25 has four distinct experiment workflows: system-managed, intra-campaign, asset optimization and campaign mix.
+- UnifyDesk creates the two workflows for which it has a safe general-purpose UX today: Search custom and campaign mix.
+- Provider-created intra-campaign, asset-optimization and other specialized experiment types are still discovered and reported through the shared read model. Their setup remains provider-hosted until UnifyDesk has a type-specific UX that can collect every required provider field instead of fabricating a generic payload.
+- Campaign mix is allowlist/account dependent.
+
+References:
 
 - https://developers.google.com/google-ads/api/docs/experiments/overview
-- https://developers.google.com/google-ads/api/samples/create-experiment
+- https://developers.google.com/google-ads/api/docs/experiments/system-managed
+- https://developers.google.com/google-ads/api/docs/experiments/intra-campaign
+- https://developers.google.com/google-ads/api/docs/experiments/campaign-mix
+- https://developers.google.com/google-ads/api/docs/experiments/reporting
+- https://developers.google.com/google-ads/api/reference/rpc/v25/GraduateExperimentRequest
 
 ## G-13 Bid/budget simulations and planning - P2
 
@@ -1905,82 +1927,69 @@ Automatic changes must require explicit configuration.
 
 ## X-10 Automation Rules - P2
 
-Create a Reachlyo rule engine.
+Status: **complete for E4's guarded rule-engine scope**.
 
-Example rules:
+Implemented:
 
-~~~
-IF Search term spend > INR 1000
-AND conversions = 0
-THEN suggest negative keyword
+- [x] persisted company-scoped optimization policies
+- [x] recommendation-only, approval-required and automatic modes
+- [x] account or campaign scope with managed-account validation
+- [x] spend, CPA, ROAS, conversions and CTR conditions
+- [x] GT/GTE/LT/LTE/EQ operators
+- [x] lookback window, minimum-conversion threshold and cooldown guardrails
+- [x] daily budget-movement guardrail validation for advisory budget rules
+- [x] recommendation actions for budget, negative-keyword and creative review
+- [x] approval workflow and persisted pending state
+- [x] automatic execution restricted to reversible campaign PAUSE/ENABLE actions
+- [x] hourly scheduled evaluation with configurable cron
+- [x] activity/audit metadata for triggered rules
+- [x] provider errors are isolated per scheduled policy
+- [x] Optimization lab UI for creation, enable/disable, manual evaluation and approval
 
-IF Meta CPA > INR 800 for 3 days
-AND conversions >= 10
-THEN recommend reducing Meta budget
+Safety boundary:
 
-IF Google ROAS > 3
-AND Meta ROAS < 1.5
-THEN recommend reallocating budget
-
-IF Meta frequency rises
-AND CTR falls materially
-THEN recommend a fresh creative variant
-~~~
-
-Rule types:
-
-- recommendation only
-- approval required
-- automatic within configured guardrails
-
-Guardrails:
-
-- daily budget movement limit
-- min/max campaign budget
-- cooldown
-- minimum sample/conversion threshold
-- rollback support where possible
-- activity/audit record
+- UnifyDesk does not automatically move provider budgets in E4.
+- Budget changes remain recommendation/approval-based because cross-provider money movement cannot be rolled back atomically across Google and Meta.
+- Automatic actions are deliberately limited to reversible provider campaign status operations.
 
 ## X-11 Unified first-party audience system - P1/P2
 
-Long-term strategic feature.
+Status: **complete for E7's consented provider-audience builder scope**.
 
-Potential Reachlyo segments:
+Implemented:
 
-- clicked an ad but did not convert
-- opened WhatsApp conversation but did not purchase
-- purchased product A
-- inactive customer for 90 days
-- email/SMS responder
-- high-value customer
-- qualified lead
+- [x] one first-party member input can target multiple managed Google/Meta accounts
+- [x] Google Customer Match audience creation + Data Manager upload
+- [x] Meta customer-list Custom Audience creation + members upload
+- [x] per-provider terms/authorization gates
+- [x] Google ad-user-data and ad-personalization consent flags
+- [x] email, phone and external-ID input
+- [x] provider-specific normalization/hashing delegated to the hardened existing provider services
+- [x] per-target partial success/failure result
+- [x] no raw member rows persisted by the optimization workspace
+- [x] no raw provider exception reflection in privacy-sensitive fan-out responses
+- [x] Optimization lab UI with multi-account targets and explicit consent controls
 
-Compile eligible segments to:
-
-- Google Customer Match
-- Meta Custom Audiences
-
-Consent/privacy controls are mandatory.
+Lifecycle segments such as inactive customers, high-value customers and messaging responders require actual CRM/messaging identities and consent evidence. E7 does not synthesize identity from aggregate ad metrics.
 
 ## X-12 Full-funnel attribution - P2
 
-Long-term target:
+Status: **complete for E8's normalized provider-attributed funnel; deterministic person-level cross-provider attribution is explicitly not claimed**.
 
-~~~
-Ad
- -> Click
- -> Landing page
- -> Lead
- -> WhatsApp / Email / SMS
- -> Inbox conversation
- -> Sales action
- -> Purchase
- -> Offline conversion feedback
- -> Provider optimization
-~~~
+Implemented:
 
-This is a key Reachlyo differentiator because Reachlyo can observe channels that Google or Meta do not individually own.
+- [x] unified campaign funnel from impressions -> clicks -> leads -> conversions -> purchases
+- [x] total and per-provider-deployment funnel
+- [x] spend and conversion value
+- [x] CTR, click-to-lead, click-to-conversion and lead-to-purchase rates
+- [x] CPA and ROAS
+- [x] same normalized provider-attributed analytics source used by existing campaign reporting
+- [x] explicit attribution-mode and limitation fields
+- [x] Optimization lab presentation alongside budget evidence
+
+Current attribution mode is `PROVIDER_ATTRIBUTED_NORMALIZED`. Google and Meta identity is not de-duplicated and UnifyDesk does not claim person-level cross-device attribution from provider aggregate data alone.
+
+A later event-level CRM/messaging identity graph can enrich this surface when the user has lawful first-party identity, consent and conversion-event data.
 
 ---
 
@@ -2381,15 +2390,22 @@ D10. [x] WhatsApp Status ads where eligible — resolved safely as PROVIDER_HOST
 
 ## Phase E - Optimization / P2
 
-E1. Google experiments  
-E2. Meta experiments if API-supported  
-E3. Reachlyo experiments abstraction  
-E4. automation rules  
-E5. bid/budget simulation  
-E6. cross-provider budget recommendations  
-E7. first-party audience builder  
-E8. full-funnel attribution  
-E9. lifecycle/retargeting automations
+E1. [x] Google experiments — v25 Search custom + campaign mix creation, direct reporting/statistics, schedule/end/promote/graduate, provider-created specialized experiments remain readable/provider-hosted  
+E2. [x] Meta experiments — current Business SDK Ad Study / split-test discovery exposed READ_ONLY; low-level ad_studies creation intentionally provider-hosted until a stable customer-facing Marketing API contract is documented  
+E3. [x] UnifyDesk experiments abstraction — one cross-provider read model with per-account partial failures while provider-specific mutation semantics remain separate  
+E4. [x] automation rules — persisted scheduled rules, recommendation/approval/automatic modes, cooldown/sample guardrails, audit, automatic execution restricted to reversible status actions  
+E5. [x] bid/budget simulation — Google campaign_simulation read-through for provider-supported budget/bid/CPA/ROAS/impression-share curves, explicitly labeled historical counterfactual rather than forecast  
+E6. [x] cross-provider budget recommendations — advisory normalized Google/Meta allocation using trailing ROAS/conversion efficiency, confidence/data threshold and 10% exploration floor; no automatic money movement  
+E7. [x] first-party audience builder — consented multi-provider Google Customer Match + Meta Custom Audience fan-out without raw identifier persistence/log reflection  
+E8. [x] full-funnel attribution — normalized provider-attributed impression/click/lead/conversion/purchase funnel with explicit cross-device/person-level limitation  
+E9. [x] lifecycle/retargeting automations — persisted scheduled lifecycle policies, aggregate clicked-not-converted and lead-not-purchased signals, first-party audience handoff, and explicit NEEDS_FIRST_PARTY_DATA state for identity-dependent segments
+
+Phase E completion boundary:
+
+- The optimization layer is operational and provider-safe.
+- Features that require unavailable/allowlisted/provider-hosted contracts remain explicitly capability-gated instead of being simulated.
+- Automatic cross-provider budget movement is not enabled; E6 is advisory and E4 automatic execution is limited to reversible campaign status actions.
+- Person-level retargeting membership is never inferred from aggregate advertising metrics.
 
 ---
 

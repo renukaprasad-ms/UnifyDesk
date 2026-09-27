@@ -64,6 +64,19 @@ import type {
   GoogleAppCampaignSettings,
   GoogleAppCampaignPerformance,
   GoogleProviderReport,
+  GoogleExperiment,
+  CreateGoogleExperimentInput,
+  GoogleExperimentAction,
+  CreateGoogleCampaignMixExperimentInput,
+  GoogleCampaignSimulation,
+  AdExperimentOverview,
+  AdOptimizationPolicy,
+  AdOptimizationPolicyInput,
+  AdOptimizationPolicyEvaluation,
+  FirstPartyAudienceBuildInput,
+  FirstPartyAudienceBuildResult,
+  ReachlyoBudgetRecommendation,
+  ReachlyoFunnelAttribution,
   GoogleAppCreativeAsset,
   CreateGoogleAppAdGroupInput,
   CreateGoogleAppAdInput,
@@ -833,6 +846,88 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+  async googleExperiments(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleExperiment[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/experiments`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleExperiment(
+    companyId: string,
+    accountId: string,
+    input: CreateGoogleExperimentInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleExperiment>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/experiments`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async scheduleGoogleExperiment(
+    companyId: string,
+    accountId: string,
+    experimentId: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleExperimentAction>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/experiments/${experimentId}:schedule`,
+    )
+    return unwrap(response.data)
+  },
+
+  async promoteGoogleExperiment(
+    companyId: string,
+    accountId: string,
+    experimentId: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleExperimentAction>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/experiments/${experimentId}:promote`,
+    )
+    return unwrap(response.data)
+  },
+
+  async endGoogleExperiment(
+    companyId: string,
+    accountId: string,
+    experimentId: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleExperimentAction>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/experiments/${experimentId}:end`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleCampaignMixExperiment(
+    companyId: string,
+    accountId: string,
+    input: CreateGoogleCampaignMixExperimentInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleExperiment>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/experiments/campaign-mix`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async graduateGoogleExperiment(
+    companyId: string,
+    accountId: string,
+    experimentId: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleExperimentAction>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/experiments/${experimentId}:graduate`,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleCampaignSimulations(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleCampaignSimulation[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/simulations`,
+    )
+    return unwrap(response.data)
+  },
+
   async googleProviderReport(
     companyId: string,
     accountId: string,
@@ -1409,6 +1504,95 @@ export const adCenterApi = {
   async removeGoogleKeyword(companyId: string, keywordId: string) {
     const response = await apiClient.delete<ApiResponse<boolean>>(
       `/api/v1/companies/${companyId}/ads/google/keywords/${keywordId}`,
+    )
+    return unwrap(response.data)
+  },
+
+  async optimizationExperiments(companyId: string) {
+    const response = await apiClient.get<ApiResponse<AdExperimentOverview>>(
+      `/api/v1/companies/${companyId}/ads/optimization/experiments`,
+    )
+    return unwrap(response.data)
+  },
+
+  async optimizationPolicies(companyId: string) {
+    const response = await apiClient.get<ApiResponse<AdOptimizationPolicy[]>>(
+      `/api/v1/companies/${companyId}/ads/optimization/policies`,
+    )
+    return unwrap(response.data)
+  },
+
+  async createOptimizationPolicy(
+    companyId: string,
+    input: AdOptimizationPolicyInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<AdOptimizationPolicy>>(
+      `/api/v1/companies/${companyId}/ads/optimization/policies`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async setOptimizationPolicyEnabled(
+    companyId: string,
+    policyId: string,
+    enabled: boolean,
+  ) {
+    const response = await apiClient.patch<ApiResponse<AdOptimizationPolicy>>(
+      `/api/v1/companies/${companyId}/ads/optimization/policies/${policyId}/enabled`,
+      undefined,
+      { params: { enabled } },
+    )
+    return unwrap(response.data)
+  },
+
+  async evaluateOptimizationPolicy(companyId: string, policyId: string) {
+    const response = await apiClient.post<ApiResponse<AdOptimizationPolicyEvaluation>>(
+      `/api/v1/companies/${companyId}/ads/optimization/policies/${policyId}:evaluate`,
+    )
+    return unwrap(response.data)
+  },
+
+  async approveOptimizationPolicy(companyId: string, policyId: string) {
+    const response = await apiClient.post<ApiResponse<AdOptimizationPolicyEvaluation>>(
+      `/api/v1/companies/${companyId}/ads/optimization/policies/${policyId}:approve`,
+    )
+    return unwrap(response.data)
+  },
+
+  async buildFirstPartyAudience(
+    companyId: string,
+    input: FirstPartyAudienceBuildInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<FirstPartyAudienceBuildResult>>(
+      `/api/v1/companies/${companyId}/ads/optimization/first-party-audiences`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async reachlyoBudgetRecommendations(
+    companyId: string,
+    campaignId: string,
+    from?: string,
+    to?: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<ReachlyoBudgetRecommendation>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/budget-recommendations`,
+      { params: { ...(from ? { from } : {}), ...(to ? { to } : {}) } },
+    )
+    return unwrap(response.data)
+  },
+
+  async reachlyoFunnelAttribution(
+    companyId: string,
+    campaignId: string,
+    from: string,
+    to: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<ReachlyoFunnelAttribution>>(
+      `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/funnel-attribution`,
+      { params: { from, to } },
     )
     return unwrap(response.data)
   },
