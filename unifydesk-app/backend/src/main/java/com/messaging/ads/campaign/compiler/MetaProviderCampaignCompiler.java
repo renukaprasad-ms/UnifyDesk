@@ -171,8 +171,23 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
       Set<AdFeatureCapability> required,
       List<ProviderPlanIssue> issues) {
     JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
+  private void validateCatalog(
+      ProviderCampaignCompileContext context,
+      Set<AdFeatureCapability> required,
+      List<ProviderPlanIssue> issues) {
+    JsonNode override = providerOverride(context.channel().getProviderOverrideJson());
     String productSetId = text(override, "productSetId");
     if (productSetId == null || productSetId.isBlank()) return;
+
+    String existingPostId = text(override, "existingPostId");
+    if (existingPostId != null && !existingPostId.isBlank()) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "META_CREATIVE_SOURCE_CONFLICT",
+              "providerOverride",
+              "Meta catalog ads and existing-post ads are mutually exclusive."));
+      return;
+    }
 
     ProviderCampaignPlanSupport.requireCapability(
         context, AdFeatureCapability.META_CATALOG, required, issues);
