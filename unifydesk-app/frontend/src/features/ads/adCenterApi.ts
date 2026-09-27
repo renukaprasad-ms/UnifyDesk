@@ -55,6 +55,7 @@ import type {
   CreateMetaConversionInput,
   CreateMetaCreativeInput,
   CreateMetaAdInput,
+  CreateMetaCatalogAdInput,
   CreateMetaAdSetInput,
   CreateGoogleCampaignInput,
   CreateGoogleAdvancedCampaignInput,
@@ -1928,6 +1929,25 @@ export const adCenterApi = {
     const response = await apiClient.post<ApiResponse<Ad>>(
       `/api/v1/companies/${companyId}/ads/meta/ad-sets/${adSetId}/ads`,
       input,
+    )
+    return unwrap(response.data)
+  },
+
+  async createMetaCatalogAd(
+    companyId: string,
+    adSetId: string,
+    input: CreateMetaCatalogAdInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<Ad>>(
+      `/api/v1/companies/${companyId}/ads/meta/ad-sets/${adSetId}/catalog-ads`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async metaBackgroundPreview(companyId: string, adId: string) {
+    const response = await apiClient.get<ApiResponse<unknown>>(
+      `/api/v1/companies/${companyId}/ads/meta/ads/${adId}/background-preview`,
     )
     return unwrap(response.data)
   },
