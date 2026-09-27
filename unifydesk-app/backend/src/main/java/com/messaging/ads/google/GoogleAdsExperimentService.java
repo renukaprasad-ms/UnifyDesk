@@ -214,7 +214,7 @@ public class GoogleAdsExperimentService {
     if (("PROMOTE".equals(action) || "END".equals(action))
         && !"ENABLED".equals(before.status())) {
       throw new BadRequestException(
-          "Only running Google experiments can be " + action.toLowerCase(Locale.ROOT) + "d");
+          "Only running Google experiments can use " + action.toLowerCase(Locale.ROOT));
     }
     String customerId = context.account().getExternalAccountId();
     String resourceName =
