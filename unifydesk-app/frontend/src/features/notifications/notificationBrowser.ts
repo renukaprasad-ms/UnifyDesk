@@ -210,11 +210,13 @@ export const installNotificationServiceWorkerNavigationBridge = () => {
 
   const listener = (event: MessageEvent) => {
     const data = event.data as { type?: string; openPath?: string } | null
+    const openPath = data?.openPath
     if (
       data?.type === 'UNIFYDESK_NOTIFICATION_OPEN' &&
-      isSafeNotificationOpenPath(data.openPath)
+      openPath &&
+      isSafeNotificationOpenPath(openPath)
     ) {
-      window.location.assign(data.openPath)
+      window.location.assign(openPath)
     }
   }
 
