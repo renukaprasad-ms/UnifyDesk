@@ -194,6 +194,9 @@ spec:
           envFrom:
             - secretRef:
                 name: messaging-env
+          env:
+            - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+              value: "false"
           resources:
             requests:
               cpu: "500m"
