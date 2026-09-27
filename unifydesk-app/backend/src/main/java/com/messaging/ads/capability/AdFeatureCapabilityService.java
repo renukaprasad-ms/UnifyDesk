@@ -333,10 +333,10 @@ public class AdFeatureCapabilityService {
     specs.add(
         new CapabilitySpec(
             AdFeatureCapability.META_WHATSAPP_STATUS,
-            AdFeatureAvailability.PLANNED,
+            AdFeatureAvailability.PROVIDER_HOSTED,
             true,
             true,
-            "Reachlyo has not implemented WhatsApp Status ad placement yet; provider account eligibility also applies.",
+            "Meta has announced WhatsApp Status advertising, but a stable public Marketing API placement contract is not verified in the current official API materials. Use Meta Ads Manager for eligible accounts; UnifyDesk will not invent an unsupported placement value.",
             META_ADS_SCOPE));
     return specs;
   }
