@@ -283,6 +283,35 @@ public class MetaAdsApiClient {
   }
 
 
+  public List<ProductCatalogSummary> productCatalogs(
+      String accessToken, String businessId) {
+    if (businessId == null || businessId.isBlank()) return List.of();
+    List<ProductCatalogSummary> result = new ArrayList<>();
+    String after = null;
+    for (int page = 0; page < MAX_PAGES; page++) {
+      ProductCatalogPage response = productCatalogPage(accessToken, businessId.trim(), after);
+      if (response.data() != null) result.addAll(response.data());
+      after = nextCursor(response.paging());
+      if (after == null) break;
+    }
+    return List.copyOf(result);
+  }
+
+  public List<ProductSetSummary> productSets(
+      String accessToken, String catalogId) {
+    if (catalogId == null || catalogId.isBlank()) return List.of();
+    List<ProductSetSummary> result = new ArrayList<>();
+    String after = null;
+    for (int page = 0; page < MAX_PAGES; page++) {
+      ProductSetPage response = productSetPage(accessToken, catalogId.trim(), after);
+      if (response.data() != null) result.addAll(response.data());
+      after = nextCursor(response.paging());
+      if (after == null) break;
+    }
+    return List.copyOf(result);
+  }
+
+
   public List<CustomAudienceSummary> customAudiences(String accessToken, String accountId) {
     List<CustomAudienceSummary> result = new ArrayList<>();
     String after = null;
@@ -1084,6 +1113,54 @@ public class MetaAdsApiClient {
                 .body(InstagramPage.class));
   }
 
+  private ProductCatalogPage productCatalogPage(
+      String accessToken, String businessId, String after) {
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder -> {
+                      var builder =
+                          uriBuilder
+                              .path("/{version}/{businessId}/owned_product_catalogs")
+                              .queryParam("fields", "id,name,vertical")
+                              .queryParam("limit", PAGE_LIMIT)
+                              .queryParam("appsecret_proof", appSecretProof(accessToken));
+                      if (after != null && !after.isBlank()) {
+                        builder.queryParam("after", after);
+                      }
+                      return builder.build(properties.getGraphApiVersion(), businessId);
+                    })
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(ProductCatalogPage.class));
+  }
+
+  private ProductSetPage productSetPage(
+      String accessToken, String catalogId, String after) {
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder -> {
+                      var builder =
+                          uriBuilder
+                              .path("/{version}/{catalogId}/product_sets")
+                              .queryParam("fields", "id,name,product_catalog{id,name}")
+                              .queryParam("limit", PAGE_LIMIT)
+                              .queryParam("appsecret_proof", appSecretProof(accessToken));
+                      if (after != null && !after.isBlank()) {
+                        builder.queryParam("after", after);
+                      }
+                      return builder.build(properties.getGraphApiVersion(), catalogId);
+                    })
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(ProductSetPage.class));
+  }
+
   private PixelPage pixelPage(String accessToken, String accountId, String after) {
     return execute(
         () ->
@@ -1492,6 +1569,21 @@ public class MetaAdsApiClient {
       String name,
       @JsonProperty("last_fired_time") String lastFiredTime) {}
 
+
+  public record ProductCatalogSummary(
+      String id,
+      String name,
+      String vertical) {}
+
+  public record ProductCatalogRef(
+      String id,
+      String name) {}
+
+  public record ProductSetSummary(
+      String id,
+      String name,
+      @JsonProperty("product_catalog") ProductCatalogRef productCatalog) {}
+
   public record PageConnection(List<PageSummary> data, Paging paging) {}
 
   public record PromotePagesResponse(
@@ -1500,6 +1592,11 @@ public class MetaAdsApiClient {
   public record InstagramPage(List<InstagramSummary> data, Paging paging) {}
 
   public record PixelPage(List<PixelSummary> data, Paging paging) {}
+
+  public record ProductCatalogPage(List<ProductCatalogSummary> data, Paging paging) {}
+
+  public record ProductSetPage(List<ProductSetSummary> data, Paging paging) {}
+
 
   public record BusinessPage(List<BusinessSummary> data, Paging paging) {}
 
