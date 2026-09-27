@@ -94,7 +94,8 @@ public class MetaAdsAdSetMutationService {
             account.getId(),
             request.pixelId(),
             request.customEventType(),
-            request.customConversionId());
+            request.customConversionId(),
+            request.productSetId());
     if (!promotedObject.isEmpty()) payload.put("promoted_object", promotedObject);
 
     String accessToken = accessToken(companyId, account);
@@ -521,7 +522,8 @@ public class MetaAdsAdSetMutationService {
       Long accountId,
       String pixelId,
       String customEventType,
-      String customConversionId) {
+      String customConversionId,
+      String productSetId) {
     Map<String, Object> promotedObject = new LinkedHashMap<>();
 
     if (customConversionId != null && !customConversionId.isBlank()) {
@@ -533,12 +535,18 @@ public class MetaAdsAdSetMutationService {
       if (conversion.getCustomEventType() != null && !conversion.getCustomEventType().isBlank()) {
         promotedObject.put("custom_event_type", conversion.getCustomEventType());
       }
+    } else if (pixelId != null && !pixelId.isBlank()) {
+      promotedObject.put("pixel_id", pixelId.trim());
+    }
+
+    if (productSetId != null && !productSetId.isBlank()) {
+      promotedObject.put("product_set_id", productSetId.trim());
+    }
+
+    if (customConversionId != null && !customConversionId.isBlank()) {
       return promotedObject;
     }
 
-    if (pixelId != null && !pixelId.isBlank()) {
-      promotedObject.put("pixel_id", pixelId.trim());
-    }
     if (customEventType != null && !customEventType.isBlank()) {
       if (!promotedObject.containsKey("pixel_id")) {
         throw new BadRequestException("A Meta pixel is required for a custom conversion event");
