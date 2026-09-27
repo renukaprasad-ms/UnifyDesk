@@ -15,6 +15,7 @@ import com.messaging.ads.entity.AdAccount;
 import com.messaging.ads.entity.AdCampaign;
 import com.messaging.ads.entity.AdProviderConnection;
 import com.messaging.ads.enums.AdProvider;
+import com.messaging.ads.google.dto.CreateGoogleCampaignMixExperimentRequest;
 import com.messaging.ads.google.dto.CreateGoogleExperimentRequest;
 import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.ads.service.AdActivityLogService;
@@ -255,6 +256,31 @@ class GoogleAdsExperimentServiceTests {
             null,
             "experiments/55:scheduleExperiment",
             Map.of("resourceName", "customers/1234567890/experiments/55"));
+  }
+
+  @Test
+  void rejectsCampaignMixWithIdenticalArmCampaigns() {
+    when(contextService.requireManaged(10L, 20L)).thenReturn(context);
+    AdCampaign campaign = searchCampaign();
+    when(campaignRepository.findByIdAndCompanyId(30L, 10L))
+        .thenReturn(Optional.of(campaign));
+
+    assertThatThrownBy(
+            () ->
+                service.createCampaignMix(
+                    10L,
+                    20L,
+                    new CreateGoogleCampaignMixExperimentRequest(
+                        "Invalid mix",
+                        null,
+                        List.of(30L),
+                        List.of(30L),
+                        50,
+                        null,
+                        null),
+                    77L))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("identical");
   }
 
   @Test
