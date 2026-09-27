@@ -71,7 +71,7 @@ class MetaAdsPixelMutationServiceTests {
             true,
             null);
     when(resourceSyncService.sync(COMPANY_ID, ACCOUNT_ID))
-        .thenReturn(new MetaAdsResourceSyncResponse(0, 0, 1, List.of(resource)));
+        .thenReturn(new MetaAdsResourceSyncResponse(0, 0, 1, 0, 0, List.of(resource)));
 
     var response =
         service.create(
