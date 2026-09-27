@@ -1534,6 +1534,17 @@ export type CreateMetaAdInput = {
   creativeId: string
 }
 
+export type CreateMetaCatalogAdInput = {
+  name: string
+  pageId: string
+  instagramActorId?: string | null
+  productSetId: string
+  destinationUrl: string
+  headline?: string | null
+  callToActionType?: string | null
+  backgroundGeneration?: boolean | null
+}
+
 export type UpdateMetaAdInput = {
   name?: string
   creativeId?: string
