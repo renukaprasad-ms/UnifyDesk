@@ -317,10 +317,6 @@ public class GoogleAdsExperimentService {
       throw new BadRequestException(
           "Only running Google experiments can be graduated");
     }
-    if ("COMPARE_CAMPAIGNS".equals(before.type())) {
-      throw new BadRequestException(
-          "Google campaign-mix experiments compare existing campaigns and are not graduated through the treatment-draft budget mapping flow");
-    }
     Arm treatment =
         before.arms().stream()
             .filter(arm -> !arm.control())
