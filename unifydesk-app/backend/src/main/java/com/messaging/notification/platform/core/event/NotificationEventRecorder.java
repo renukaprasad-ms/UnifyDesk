@@ -52,7 +52,7 @@ public class NotificationEventRecorder {
     return record(
         "company.invitation.created:" + invitationId,
         "company.invitation.created",
-        companyId,
+        null,
         actorUserId,
         "USER",
         recipientUserId,
