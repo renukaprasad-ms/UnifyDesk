@@ -706,6 +706,8 @@ export type AdAccountResourceType =
   | 'FACEBOOK_PAGE'
   | 'INSTAGRAM_ACCOUNT'
   | 'META_PIXEL'
+  | 'META_PRODUCT_CATALOG'
+  | 'META_PRODUCT_SET'
 
 export type AdAccountResource = {
   id: string
@@ -723,6 +725,8 @@ export type MetaAdsResourceSync = {
   pages: number
   instagramAccounts: number
   pixels: number
+  catalogs: number
+  productSets: number
   resources: AdAccountResource[]
 }
 
