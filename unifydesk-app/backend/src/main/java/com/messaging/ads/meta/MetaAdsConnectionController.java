@@ -39,6 +39,7 @@ import com.messaging.ads.meta.dto.UpdateMetaAdRequest;
 import com.messaging.ads.meta.dto.UpdateMetaAdSetRequest;
 import com.messaging.ads.meta.dto.MetaAdsCampaignSyncResponse;
 import com.messaging.ads.meta.dto.MetaAdsResourceSyncResponse;
+import com.messaging.ads.meta.dto.MetaAdStudyResponse;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
@@ -84,8 +85,23 @@ public class MetaAdsConnectionController {
   private final MetaAdsAdSetSyncService adSetSyncService;
   private final MetaAdsAdSetMutationService adSetMutationService;
   private final MetaAdsGeoTargetingService geoTargetingService;
+  private final MetaAdsExperimentService experimentService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
+
+  @GetMapping("/accounts/{accountId}/experiments")
+  public ResponseEntity<ApiResponse<List<MetaAdStudyResponse>>> experiments(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            experimentService.studies(companyId, accountId),
+            "Meta advertising studies fetched"));
+  }
 
   @GetMapping("/accounts/{accountId}/geo-targeting/search")
   public ResponseEntity<ApiResponse<List<MetaGeoLocationSuggestion>>> searchGeoTargeting(
