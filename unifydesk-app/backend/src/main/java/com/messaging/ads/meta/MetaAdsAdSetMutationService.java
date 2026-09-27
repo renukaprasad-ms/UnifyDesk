@@ -178,7 +178,8 @@ public class MetaAdsAdSetMutationService {
               account.getId(),
               request.pixelId(),
               request.customEventType(),
-              request.customConversionId());
+              request.customConversionId(),
+              null);
       if (!promotedObject.isEmpty()) updates.put("promoted_object", promotedObject);
     }
 
