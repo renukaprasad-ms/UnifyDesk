@@ -107,6 +107,10 @@ type Props = {
   setMetaGenerativeText: (value: boolean) => void
   metaImageExpansion: boolean
   setMetaImageExpansion: (value: boolean) => void
+  metaBackgroundGeneration: boolean
+  setMetaBackgroundGeneration: (value: boolean) => void
+  metaProductSetId: string
+  setMetaProductSetId: (value: string) => void
   disabled: boolean
   onRefresh: () => void
 }
@@ -1014,6 +1018,35 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                     creative pack must include an image and the provider preview should be reviewed
                     before activation.
                   </span>
+                </span>
+              </label>
+            </div>
+            <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={props.metaBackgroundGeneration}
+                  disabled={props.disabled}
+                  onChange={(event) => props.setMetaBackgroundGeneration(event.target.checked)}
+                />
+                <span className="flex-1">
+                  <span className="block text-sm font-bold text-amber-950">
+                    AI background generation
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-amber-700">
+                    Meta currently limits this to eligible dynamic product / Advantage+ catalog ads.
+                    An eligible product set is required.
+                  </span>
+                  {props.metaBackgroundGeneration && (
+                    <input
+                      className="form-input mt-3"
+                      value={props.metaProductSetId}
+                      disabled={props.disabled}
+                      onChange={(event) => props.setMetaProductSetId(event.target.value)}
+                      placeholder="Meta product set ID"
+                    />
+                  )}
                 </span>
               </label>
             </div>
