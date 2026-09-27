@@ -482,38 +482,6 @@ public class NotificationDeliveryRuntimeRepository {
   }
 
   @Transactional
-  public void recordDeliveryAttempt(
-      long intentId,
-      Long subscriptionId,
-      int attemptNo,
-      String channel,
-      Instant startedAt,
-      Instant completedAt,
-      String outcome,
-      Integer statusCode,
-      String errorCode,
-      Long latencyMs) {
-    jdbcTemplate.update(
-        """
-        insert into notification_delivery_attempts(
-          id,intent_id,subscription_id,attempt_no,channel,started_at,completed_at,outcome,
-          provider_status_code,provider_error_code,latency_ms,created_at
-        ) values (?,?,?,?,?,?,?,?,?,?,?,now())
-        """,
-        IdGenerator.nextId(),
-        intentId,
-        subscriptionId,
-        attemptNo,
-        channel,
-        OffsetDateTime.ofInstant(startedAt, ZoneOffset.UTC),
-        completedAt == null ? null : OffsetDateTime.ofInstant(completedAt, ZoneOffset.UTC),
-        outcome,
-        statusCode,
-        errorCode,
-        latencyMs);
-  }
-
-  @Transactional
   public void markDigestSent(long bucketId, String claimToken, Instant at) {
     jdbcTemplate.update(
         """

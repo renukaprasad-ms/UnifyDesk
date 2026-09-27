@@ -14,7 +14,6 @@ import com.messaging.notification.platform.delivery.push.WebPushGateway;
 import com.messaging.notification.platform.delivery.push.WebPushGateway.PushSendResult;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliveryRuntimeRepository;
 import com.messaging.notification.platform.delivery.repository.NotificationDeliveryRuntimeRepository.PushIntentSummary;
-import com.messaging.notification.platform.delivery.repository.NotificationDeliverySupportRepository;
 import com.messaging.notification.platform.delivery.repository.ProviderAttemptLifecycleRepository;
 import java.time.Clock;
 import java.time.Duration;
@@ -29,7 +28,6 @@ import org.springframework.stereotype.Component;
 public class NotificationPushAttemptWorker {
 
   private final NotificationDeliveryRuntimeRepository repository;
-  private final NotificationDeliverySupportRepository supportRepository;
   private final ProviderAttemptLifecycleRepository attemptLifecycleRepository;
   private final ProviderAttemptRecoveryService recoveryService;
   private final DeliveryEligibilityService eligibilityService;
