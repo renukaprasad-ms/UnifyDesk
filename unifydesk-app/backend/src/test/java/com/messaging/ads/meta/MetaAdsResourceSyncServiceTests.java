@@ -10,6 +10,8 @@ import com.messaging.ads.enums.AdAccountStatus;
 import com.messaging.ads.enums.AdConnectionStatus;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.meta.MetaAdsApiClient.PageSummary;
+import com.messaging.ads.meta.MetaAdsApiClient.ProductCatalogSummary;
+import com.messaging.ads.meta.MetaAdsApiClient.ProductSetSummary;
 import com.messaging.ads.meta.dto.MetaAdsResourceSyncResponse;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdProviderConnectionRepository;
@@ -68,7 +70,7 @@ class MetaAdsResourceSyncServiceTests {
 
     List<PageSummary> pages = List.of(new PageSummary("page-1", "Acme"));
     MetaAdsResourceSyncResponse expected =
-        new MetaAdsResourceSyncResponse(1, 0, 0, List.of());
+        new MetaAdsResourceSyncResponse(1, 0, 0, 1, 1, List.of());
 
     when(accountRepository.findByIdAndCompanyId(ACCOUNT_ID, COMPANY_ID))
         .thenReturn(Optional.of(account));
@@ -81,13 +83,38 @@ class MetaAdsResourceSyncServiceTests {
     when(apiClient.promotePages("access-token", "123")).thenReturn(pages);
     when(apiClient.instagramAccounts("access-token", "123")).thenReturn(List.of());
     when(apiClient.pixels("access-token", "123")).thenReturn(List.of());
-    when(persistenceService.persist(COMPANY_ID, ACCOUNT_ID, pages, List.of(), List.of()))
+    account.setExternalBusinessId("business-1");
+    List<ProductCatalogSummary> catalogs =
+        List.of(new ProductCatalogSummary("catalog-1", "Acme Catalog", "commerce"));
+    List<ProductSetSummary> productSets =
+        List.of(
+            new ProductSetSummary(
+                "set-1",
+                "Featured",
+                new MetaAdsApiClient.ProductCatalogRef("catalog-1", "Acme Catalog")));
+    when(apiClient.productCatalogs("access-token", "business-1")).thenReturn(catalogs);
+    when(apiClient.productSets("access-token", "catalog-1")).thenReturn(productSets);
+    when(persistenceService.persist(
+            COMPANY_ID,
+            ACCOUNT_ID,
+            pages,
+            List.of(),
+            List.of(),
+            catalogs,
+            productSets))
         .thenReturn(expected);
 
     MetaAdsResourceSyncResponse actual = service.sync(COMPANY_ID, ACCOUNT_ID);
 
     assertThat(actual).isSameAs(expected);
     verify(persistenceService)
-        .persist(COMPANY_ID, ACCOUNT_ID, pages, List.of(), List.of());
+        .persist(
+            COMPANY_ID,
+            ACCOUNT_ID,
+            pages,
+            List.of(),
+            List.of(),
+            catalogs,
+            productSets);
   }
 }
