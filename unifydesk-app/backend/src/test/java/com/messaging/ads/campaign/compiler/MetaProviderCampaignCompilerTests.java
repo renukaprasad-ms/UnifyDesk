@@ -593,6 +593,65 @@ class MetaProviderCampaignCompilerTests {
   }
 
   @Test
+  void rejectsCatalogModeForNonSalesBusinessGoal() {
+    MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(25L);
+    campaign.setName("Meta catalog traffic");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(35L);
+    channel.setReachlyoCampaignId(25L);
+    channel.setProvider(AdProvider.META_ADS);
+    channel.setChannelType(CampaignChannelType.META_ADS);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(4_000L);
+    channel.setProviderOverrideJson("{\"productSetId\":\"set-1\"}");
+
+    AdAccount account = new AdAccount();
+    account.setId(45L);
+    account.setProvider(AdProvider.META_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(4_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(55L);
+    pack.setPrimaryMessage("Shop our latest products today");
+    pack.setDestinationUrl("https://example.com");
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities = baseCapabilities();
+    capabilities.put(
+        AdFeatureCapability.META_CATALOG,
+        available(AdFeatureCapability.META_CATALOG));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isFalse();
+    assertThat(plan.issues())
+        .anyMatch(issue -> issue.code().equals("META_CATALOG_SALES_OBJECTIVE_REQUIRED"));
+  }
+
+  @Test
   void requiresExistingPostCapabilityWithoutCreativePack() {
     MetaProviderCampaignCompiler compiler = new MetaProviderCampaignCompiler();
 
