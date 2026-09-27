@@ -3,6 +3,7 @@ package com.messaging.ads.campaign.compiler;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.ads.capability.AdFeatureCapability;
+import com.messaging.ads.campaign.entity.CreativePack;
 import com.messaging.ads.campaign.entity.CreativeVariant;
 import com.messaging.ads.campaign.enums.AudienceMappingStatus;
 import com.messaging.ads.campaign.enums.CampaignChannelType;
@@ -675,6 +676,14 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
       java.util.Map<String, Object> configuration) {
     return new ProviderPlanOperation(
         sequence, key, action, resource, createPaused, capabilities, configuration);
+  }
+
+  private String text(JsonNode node, String field) {
+    if (node == null) return null;
+    JsonNode value = node.get(field);
+    if (value == null || value.isNull()) return null;
+    String result = value.asText(null);
+    return result == null || result.isBlank() ? null : result.trim();
   }
 
   private boolean isBlank(String value) {
