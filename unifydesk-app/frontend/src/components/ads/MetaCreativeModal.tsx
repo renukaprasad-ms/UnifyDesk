@@ -60,6 +60,8 @@ export default function MetaCreativeModal({
   const [advantagePlusCreative, setAdvantagePlusCreative] = useState(false)
   const [generativeText, setGenerativeText] = useState(false)
   const [imageExpansion, setImageExpansion] = useState(false)
+  const [useExistingPost, setUseExistingPost] = useState(false)
+  const [existingPostId, setExistingPostId] = useState('')
   const [cards, setCards] = useState<MetaCarouselCardInput[]>([emptyCard(), emptyCard()])
 
   if (!open) return null
@@ -83,7 +85,8 @@ export default function MetaCreativeModal({
       urlTags: urlTags || null,
       advantagePlusCreative,
       generativeText,
-      imageExpansion: format === 'SINGLE_IMAGE' ? imageExpansion : false,
+      imageExpansion: !useExistingPost && format === 'SINGLE_IMAGE' ? imageExpansion : false,
+      existingPostId: useExistingPost ? existingPostId.trim() || null : null,
       carouselCards: format === 'CAROUSEL' ? cards : [],
     })
   }
@@ -109,6 +112,33 @@ export default function MetaCreativeModal({
         </div>
 
         <form className="space-y-6 p-6" onSubmit={submit}>
+          <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={useExistingPost}
+                onChange={(event) => setUseExistingPost(event.target.checked)}
+              />
+              <span className="flex-1">
+                <span className="block text-sm font-bold text-emerald-950">Use existing Meta post</span>
+                <span className="mt-1 block text-xs leading-5 text-emerald-700">
+                  Reuse an eligible Facebook or Instagram post by object story ID. Meta verifies
+                  ownership and ad eligibility when the creative is created.
+                </span>
+                {useExistingPost && (
+                  <input
+                    className="form-input mt-3"
+                    value={existingPostId}
+                    onChange={(event) => setExistingPostId(event.target.value)}
+                    placeholder="Object story ID, for example PAGEID_POSTID"
+                    required
+                  />
+                )}
+              </span>
+            </label>
+          </section>
+
           <section className="grid gap-4 sm:grid-cols-2">
             <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
               Creative name
@@ -117,7 +147,7 @@ export default function MetaCreativeModal({
 
             <label className="block text-xs font-semibold text-slate-700">
               Format
-              <select className="form-input mt-2" value={format} onChange={(e) => setFormat(e.target.value as MetaCreativeFormat)}>
+              <select className="form-input mt-2" value={format} disabled={useExistingPost} onChange={(e) => setFormat(e.target.value as MetaCreativeFormat)}>
                 <option value="SINGLE_IMAGE">Single image</option>
                 <option value="VIDEO">Video</option>
                 <option value="CAROUSEL">Carousel</option>
@@ -182,7 +212,7 @@ export default function MetaCreativeModal({
               </div>
               <label className="block text-xs font-semibold text-slate-700">
                 Destination URL
-                <input className="form-input mt-2" type="url" value={destinationUrl} required onChange={(e) => setDestinationUrl(e.target.value)} placeholder="https://example.com" />
+                <input className="form-input mt-2" type="url" value={destinationUrl} required={!useExistingPost} disabled={useExistingPost} onChange={(e) => setDestinationUrl(e.target.value)} placeholder="https://example.com" />
               </label>
               <label className="block text-xs font-semibold text-slate-700">
                 URL tags
@@ -332,9 +362,9 @@ export default function MetaCreativeModal({
                 saving ||
                 !name.trim() ||
                 !pageId ||
-                !destinationUrl.trim() ||
-                (format === 'SINGLE_IMAGE' && !imageHash.trim() && !imageUrl.trim()) ||
-                (format === 'VIDEO' && !videoId.trim() && !videoUrl.trim())
+                (useExistingPost ? !existingPostId.trim() : !destinationUrl.trim()) ||
+                (!useExistingPost && format === 'SINGLE_IMAGE' && !imageHash.trim() && !imageUrl.trim()) ||
+                (!useExistingPost && format === 'VIDEO' && !videoId.trim() && !videoUrl.trim())
               }
             >
               {saving ? 'Creating…' : 'Create creative'}
