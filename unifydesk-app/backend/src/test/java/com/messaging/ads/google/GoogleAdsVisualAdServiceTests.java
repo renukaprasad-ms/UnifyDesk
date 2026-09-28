@@ -116,7 +116,7 @@ class GoogleAdsVisualAdServiceTests {
         .thenReturn("customers/1234567890/adGroups/902");
     when(apiClient.mutateAll(
             eq("access-token"), eq("1234567890"), eq(null), any()))
-        .thenReturn(objectMapper.readTree("{"mutateOperationResponses":[]}"));
+        .thenReturn(objectMapper.readTree("{\"mutateOperationResponses\":[]}"));
     when(apiClient.firstBulkResourceName(any(), eq("adGroupAdResult")))
         .thenReturn("customers/1234567890/adGroupAds/902~903");
 
