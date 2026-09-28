@@ -796,7 +796,7 @@ This section is the Google backlog.
 
 ## G-01 Search targeting completeness - P0
 
-Status: **in progress**. B1 now covers geo/language/network/daypart creation in the unified Reachlyo flow. Devices, deeper audience/demographic criteria, observation-vs-targeting controls, exclusions, provider-native read/edit surfaces, and campaign-specific conversion-goal mutation remain.
+Status: **in progress**. B1 covers geo/language/network/daypart creation in the unified Reachlyo flow, and the business-experience pass now maps canonical Google Search age/gender criteria using exact provider demographic buckets. Devices, deeper audience criteria, observation-vs-targeting controls, exclusions, provider-native read/edit surfaces, and campaign-specific conversion-goal mutation remain.
 
 Current Search campaign creation is too minimal.
 
@@ -1372,9 +1372,9 @@ The repo currently targets Meta Graph API v26.0.
 
 ## M-01 Detailed targeting - P0/P1
 
-Current audience setup is too basic.
+Status: **partially implemented**. The business-experience pass adds provider-backed Meta interest search/selection and carries verified interest IDs through the unified paused-launch ad-set targeting payload. Canonical free-text interests are no longer treated as provider-executable unless mapped to real Meta targeting IDs.
 
-Add support for provider targeting search and selection:
+Still add/research support for:
 
 - interests
 - behaviors
@@ -2053,6 +2053,29 @@ Rules:
 
 # 12. UI/UX Changes
 
+## Business-experience implementation note — 2026-09-28
+
+Implemented on `feature/ad-center-business-experience`:
+
+- business-outcome goal cards instead of leading with provider enums
+- goal-aware Google/Meta optimization defaults
+- rule-based recommended channel selection with user override
+- provider settings collapsed behind an Advanced surface
+- business-readable review summary before provider plan details
+- age presets aligned with Google demographic buckets plus safe custom validation
+- raw radius coordinates moved behind an advanced control
+- Google Search canonical age/gender execution instead of approximate-only storage
+- Meta provider-backed interest search/selection and paused-launch execution
+
+Remaining major product slices:
+
+- provider-backed canonical location autocomplete shared across selected channels
+- Google deeper audiences, observation/targeting modes, exclusions and retargeting mappings
+- Meta behaviors/additional detailed-targeting categories and exclusions as supported by the active API
+- unified paused-first executors for Google Performance Max, Demand Gen, Display and Shopping
+- richer business-level creative generation/preview experience across those additional executors
+
+
 ## Keep current Ad Center sections
 
 The existing sections are useful for management and expert workflows.
@@ -2326,7 +2349,7 @@ A user can create one Reachlyo Campaign and deploy a simple valid campaign to Go
 
 ## Phase B - Core parity gaps / P0-P1
 
-B1. [x] Google geo/language/network/daypart targeting — canonical country/region/city/postal/proximity + language mapping, Search Partners/Display expansion, presence mode, quarter-hour dayparting, provider preflight and idempotent campaign-criterion execution  
+B1. [x] Google geo/language/network/daypart + core demographic targeting — canonical country/region/city/postal/proximity + language mapping, Search Partners/Display expansion, presence mode, quarter-hour dayparting, exact age buckets and gender criteria, provider preflight and idempotent campaign-criterion execution  
 B2. [x] Google negative keywords/shared negatives — ad-group negative create/remove + sync, campaign negatives with bulk add/remove, live reusable shared-list discovery/member management/attach-detach, unified campaign selection, preflight validation and idempotent launch execution  
 B3. [x] Meta detailed geo targeting — provider geo search, regions/cities/postal codes, coordinate radius targeting, home/recent location types, native create/edit UI, canonical mapping, and launch preflight resolution  
 B4. [x] Meta proper placement tree — structured Facebook/Instagram/Messenger/Audience Network positions, native create/edit/read-back, unified launch mapping, capability exposure, and compiler placement warnings  
