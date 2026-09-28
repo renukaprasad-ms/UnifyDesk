@@ -341,6 +341,70 @@ class GoogleAdsPerformanceMaxServiceTests {
         .doesNotContain("BUSINESS_NAME", "LOGO", "LANDSCAPE_LOGO");
   }
 
+
+  @Test
+  void rejectsUnpairedPerformanceMaxBrandColors() {
+    assertThatThrownBy(
+            () ->
+                service.validateBrandGuidelines(
+                    true, "#3366FF", null, "Roboto"))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("provided together");
+  }
+
+  @Test
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  void migratesExistingPmaxBrandGuidelinesWithProviderEnableAction() throws Exception {
+    AdCampaign campaign = performanceMaxCampaign();
+    when(campaignRepository.findByIdAndCompanyId(700L, 10L))
+        .thenReturn(Optional.of(campaign));
+    when(contextService.requireManaged(10L, 20L)).thenReturn(context);
+
+    JsonNode disabled =
+        new ObjectMapper()
+            .readTree(
+                "{\"campaign\":{\"id\":\"777\",\"brandGuidelinesEnabled\":false}}");
+    JsonNode enabled =
+        new ObjectMapper()
+            .readTree(
+                "{\"campaign\":{\"id\":\"777\",\"brandGuidelinesEnabled\":true,"
+                    + "\"brandGuidelines\":{\"mainColor\":\"#3366FF\","
+                    + "\"accentColor\":\"#FFCC00\","
+                    + "\"predefinedFontFamily\":\"Roboto\"}}}");
+
+    when(apiClient.searchRows(
+            eq("access-token"), eq("1234567890"), eq("9999999999"), any()))
+        .thenReturn(List.of(disabled), List.of(enabled), List.of());
+
+    service.updateBrandGuidelines(
+        10L,
+        700L,
+        new GooglePerformanceMaxBrandGuidelinesRequest(
+            true, true, "#3366FF", "#FFCC00", "Roboto"),
+        40L);
+
+    ArgumentCaptor<Map> bodyCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(apiClient)
+        .customerAction(
+            eq("access-token"),
+            eq("1234567890"),
+            eq("9999999999"),
+            eq("campaigns:enablePMaxBrandGuidelines"),
+            bodyCaptor.capture());
+
+    Map<String, Object> body = (Map<String, Object>) bodyCaptor.getValue();
+    List<Map<String, Object>> operations =
+        (List<Map<String, Object>>) body.get("operations");
+
+    assertThat(operations).hasSize(1);
+    assertThat(operations.getFirst())
+        .containsEntry("campaign", "customers/1234567890/campaigns/777")
+        .containsEntry("autoPopulateBrandAssets", true)
+        .containsEntry("mainColor", "#3366FF")
+        .containsEntry("accentColor", "#FFCC00")
+        .containsEntry("fontFamily", "Roboto");
+  }
+
   private AdCampaign performanceMaxCampaign() {
     AdCampaign campaign = new AdCampaign();
     campaign.setId(700L);
