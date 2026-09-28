@@ -134,6 +134,10 @@ public class GoogleAdsVisualAudienceService {
           "Google reusable audience requires at least one included audience list");
     }
 
+    String fingerprint =
+        audienceFingerprint(includedIds, excludedIds);
+    String resolvedName = withFingerprint(name, fingerprint);
+
     var context = contextService.requireManaged(companyId, accountId);
     String customerId = context.account().getExternalAccountId();
 
@@ -146,7 +150,7 @@ public class GoogleAdsVisualAudienceService {
                 + "FROM audience WHERE audience.status != 'REMOVED'");
     for (JsonNode row : existing) {
       JsonNode audience = row.path("audience");
-      if (name.equals(audience.path("name").asText(null))) {
+      if (resolvedName.equals(audience.path("name").asText(null))) {
         String resourceName = audience.path("resourceName").asText(null);
         if (resourceName != null && !resourceName.isBlank()) return resourceName;
       }
@@ -166,7 +170,7 @@ public class GoogleAdsVisualAudienceService {
     }
 
     Map<String, Object> create = new LinkedHashMap<>();
-    create.put("name", name);
+    create.put("name", resolvedName);
     create.put("scope", "CUSTOMER");
     create.put(
         "dimensions",
@@ -271,6 +275,31 @@ public class GoogleAdsVisualAudienceService {
               + userList);
     }
     return Set.copyOf(result);
+  }
+
+  private String audienceFingerprint(
+      List<Long> includedIds, List<Long> excludedIds) {
+    List<Long> included =
+        includedIds == null
+            ? List.of()
+            : includedIds.stream().filter(java.util.Objects::nonNull).sorted().toList();
+    List<Long> excluded =
+        excludedIds == null
+            ? List.of()
+            : excludedIds.stream().filter(java.util.Objects::nonNull).sorted().toList();
+    int hash = java.util.Objects.hash(included, excluded);
+    return Integer.toUnsignedString(hash, 36).toLowerCase(Locale.ROOT);
+  }
+
+  private String withFingerprint(String base, String fingerprint) {
+    String suffix = " [" + fingerprint + "]";
+    String normalized =
+        base == null || base.isBlank() ? "UnifyDesk Audience" : base.trim();
+    int maxBase = Math.max(1, 255 - suffix.length());
+    if (normalized.length() > maxBase) {
+      normalized = normalized.substring(0, maxBase);
+    }
+    return normalized + suffix;
   }
 
   private String numeric(String value, String label) {
