@@ -1087,7 +1087,7 @@ Reference:
 
 ## G-08 Performance Max completeness - P1
 
-Status: **C5 URL/automation slice complete; broader PMax completeness remains in later work**.
+Status: **in progress — C5 URL/automation and the G-08 Brand Guidelines slice are complete; lifecycle/acquisition goals, deeper diagnostics/performance, and listing-group work remain**.
 
 Implemented in C5:
 
@@ -1103,9 +1103,20 @@ Implemented in C5:
 - [x] read/edit Asset Group URL-options UI
 - [x] regression coverage for automation dependency and provider mutation payload
 
-Broader PMax items intentionally remain outside C5:
+Broader PMax work after C5:
 
-Add/review:
+Implemented in the Ads completion branch:
+
+- [x] Brand Guidelines are enabled by default in UnifyDesk's new standard Performance Max product flows
+- [x] `BUSINESS_NAME`, `LOGO`, and optional `LANDSCAPE_LOGO` are linked as campaign assets when Brand Guidelines are enabled
+- [x] brand main/accent colors with paired-color validation
+- [x] Google-supported predefined brand fonts
+- [x] provider read-back of Brand Guidelines and campaign-level brand asset serving status/reasons
+- [x] migration of older eligible Performance Max campaigns using `EnablePMaxBrandGuidelines` with Google's top-performing brand-asset auto-population
+- [x] immutable enablement is handled safely: enabled Brand Guidelines cannot be disabled
+- [x] unified campaign wizard, native creation UI, native campaign editor, RBAC/audit flow, launch preflight, plan review metadata, and regression coverage
+
+Still add/review:
 
 - campaign URL options
 - tracking template
