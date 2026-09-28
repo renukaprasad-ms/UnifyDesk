@@ -26,8 +26,15 @@ const notificationIcon = (notification: NotificationItem) => {
 
 export default function NotificationBell({ notificationPath = '/notifications' }: { notificationPath?: string }) {
   const navigate = useNavigate()
-  const { companyId, unreadCount, recent, loadingRecent, markAllRead, openNotification } =
-    useNotifications()
+  const {
+    companyId,
+    unreadCount,
+    recent,
+    loadingRecent,
+    markAllRead,
+    openNotification,
+    refresh,
+  } = useNotifications()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState('')
   const rootRef = useRef<HTMLDivElement | null>(null)
@@ -90,7 +97,11 @@ export default function NotificationBell({ notificationPath = '/notifications' }
             navigate(notificationPath)
             return
           }
-          setOpen((current) => !current)
+          setOpen((current) => {
+            const next = !current
+            if (next) void refresh('realtime')
+            return next
+          })
         }}
       >
         <FiBell aria-hidden="true" />
