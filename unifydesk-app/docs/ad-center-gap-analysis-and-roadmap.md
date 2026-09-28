@@ -2072,8 +2072,24 @@ Remaining major product slices:
 - provider-backed canonical location autocomplete shared across selected channels
 - Google deeper audiences, observation/targeting modes, exclusions and retargeting mappings
 - Meta behaviors/additional detailed-targeting categories and exclusions as supported by the active API
-- unified paused-first executors for Google Performance Max, Demand Gen, Display and Shopping
+- unified paused-first executors for Google Demand Gen, Display and Shopping
 - richer business-level creative generation/preview experience across those additional executors
+
+## Unified Performance Max execution note — 2026-09-28
+
+Implemented on `feature/ad-center-unified-pmax`:
+
+- Performance Max is selectable and executable from the unified campaign wizard
+- the shared Creative Pack supports dedicated landscape, square, portrait, square-logo and landscape-logo roles instead of stretching one generic image
+- preflight enforces Google Performance Max text counts/limits, business name, final URL and required media roles before provider mutation
+- launch uses the existing Google native atomic mutation path to create budget + paused campaign + assets + first paused asset group
+- retry uses deterministic launch naming plus Google sync/reuse to avoid duplicate campaigns
+- canonical geo/language are applied as campaign targeting controls after creation
+- canonical search intent is mapped to Performance Max asset-group search-theme signals
+- age/gender/interests are not incorrectly converted into Search-style hard criteria; review explains that the current PMax mapping treats these separately from geo/language targeting
+- selected Google conversion mapping is applied to the created Performance Max campaign
+- company media is read server-side from configured S3/Supabase storage for Google asset upload without exposing public media URLs
+- successful orchestration still stops at `PAUSED_READY`; no automatic spend activation is introduced
 
 
 ## Keep current Ad Center sections

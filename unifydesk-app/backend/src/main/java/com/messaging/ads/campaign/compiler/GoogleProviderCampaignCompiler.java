@@ -8,6 +8,7 @@ import com.messaging.ads.campaign.enums.AudienceMappingStatus;
 import com.messaging.ads.campaign.enums.BudgetPeriod;
 import com.messaging.ads.campaign.enums.CampaignChannelType;
 import com.messaging.ads.campaign.enums.ConversionTargetType;
+import com.messaging.ads.campaign.enums.CreativeAssetRole;
 import com.messaging.ads.campaign.enums.CreativeVariantType;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -73,6 +74,9 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
       ProviderCampaignPlanSupport.requireCapability(
           context, AdFeatureCapability.CREATIVE_CREATE, required, issues);
       validateCreative(context, issues);
+      if (context.channel().getChannelType() == CampaignChannelType.GOOGLE_PERFORMANCE_MAX) {
+        validatePerformanceMaxCreative(context, issues);
+      }
     } else {
       ProviderCampaignPlanSupport.requireCapability(
           context, AdFeatureCapability.GOOGLE_MERCHANT, required, issues);
@@ -264,12 +268,173 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
     }
   }
 
+  private void validatePerformanceMaxCreative(
+      ProviderCampaignCompileContext context, List<ProviderPlanIssue> issues) {
+    if (context.creativePack() == null) return;
+
+    List<String> headlines = jsonStrings(context.creativePack().getHeadlinesJson());
+    List<String> descriptions = jsonStrings(context.creativePack().getDescriptionsJson());
+    if (headlines.size() < 3 || headlines.size() > 15) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "PMAX_HEADLINES_INVALID",
+              "creativePack.headlines",
+              "Performance Max requires 3 to 15 headlines."));
+    } else if (headlines.stream().anyMatch(value -> value.length() > 30)) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "PMAX_HEADLINE_TOO_LONG",
+              "creativePack.headlines",
+              "Performance Max headlines must be at most 30 characters."));
+    }
+    if (descriptions.size() < 2 || descriptions.size() > 5) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "PMAX_DESCRIPTIONS_INVALID",
+              "creativePack.descriptions",
+              "Performance Max requires 2 to 5 descriptions."));
+    } else {
+      if (descriptions.stream().anyMatch(value -> value.length() > 90)) {
+        issues.add(
+            ProviderCampaignPlanSupport.error(
+                "PMAX_DESCRIPTION_TOO_LONG",
+                "creativePack.descriptions",
+                "Performance Max descriptions must be at most 90 characters."));
+      }
+      if (descriptions.stream().noneMatch(value -> value.length() <= 60)) {
+        issues.add(
+            ProviderCampaignPlanSupport.error(
+                "PMAX_SHORT_DESCRIPTION_REQUIRED",
+                "creativePack.descriptions",
+                "Performance Max requires at least one description of 60 characters or fewer."));
+      }
+    }
+    String businessName = context.creativePack().getBusinessName();
+    if (isBlank(businessName)) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "PMAX_BUSINESS_NAME_MISSING",
+              "creativePack.businessName",
+              "Performance Max requires a business name."));
+    } else if (businessName.trim().length() > 25) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "PMAX_BUSINESS_NAME_TOO_LONG",
+              "creativePack.businessName",
+              "Performance Max business name must be at most 25 characters."));
+    }
+
+    String finalUrl =
+        !isBlank(context.creativePack().getDestinationUrl())
+            ? context.creativePack().getDestinationUrl()
+            : context.campaign().getLandingPageUrl();
+    if (isBlank(finalUrl) || !isHttpUrl(finalUrl)) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "PMAX_FINAL_URL_INVALID",
+              "creativePack.destinationUrl",
+              "Performance Max requires a valid HTTP or HTTPS destination URL."));
+    }
+
+    Set<CreativeAssetRole> roles =
+        context.creativeAssets().stream()
+            .map(asset -> asset.getRole())
+            .collect(java.util.stream.Collectors.toSet());
+    for (CreativeAssetRole required :
+        List.of(
+            CreativeAssetRole.MARKETING_IMAGE,
+            CreativeAssetRole.SQUARE_MARKETING_IMAGE,
+            CreativeAssetRole.LOGO)) {
+      if (!roles.contains(required)) {
+        issues.add(
+            ProviderCampaignPlanSupport.error(
+                "PMAX_REQUIRED_ASSET_MISSING",
+                "creativePack.assets",
+                "Performance Max requires a " + required.name() + " asset."));
+      }
+    }
+  }
+
+  private List<String> jsonStrings(String value) {
+    if (isBlank(value)) return List.of();
+    try {
+      JsonNode node = JSON.readTree(value);
+      if (!node.isArray()) return List.of();
+      List<String> result = new ArrayList<>();
+      for (JsonNode item : node) {
+        if (item.isTextual() && !item.asText().isBlank()) result.add(item.asText().trim());
+      }
+      return List.copyOf(result);
+    } catch (Exception exception) {
+      return List.of();
+    }
+  }
+
   private void addOperations(
       ProviderCampaignCompileContext context,
       Long effectiveBudget,
       AudienceMappingStatus audienceMappingStatus,
       List<ProviderPlanOperation> operations) {
     int sequence = 1;
+    if (context.channel().getChannelType() == CampaignChannelType.GOOGLE_PERFORMANCE_MAX) {
+      operations.add(
+          operation(
+              sequence++,
+              "create-performance-max-paused",
+              ProviderPlanAction.CREATE,
+              ProviderPlanResource.CAMPAIGN,
+              true,
+              Set.of(
+                  AdFeatureCapability.CAMPAIGN_CREATE,
+                  AdFeatureCapability.GOOGLE_PERFORMANCE_MAX,
+                  AdFeatureCapability.CREATIVE_CREATE),
+              ProviderCampaignPlanSupport.config(
+                  "budgetMinor",
+                  effectiveBudget,
+                  "budgetPeriod",
+                  context.budgetPlan() == null ? null : context.budgetPlan().getBudgetPeriod(),
+                  "creativePackId",
+                  context.creativePack() == null ? null : context.creativePack().getId().toString(),
+                  "providerOverrideJson",
+                  context.channel().getProviderOverrideJson())));
+      if (context.audienceDefinition() != null) {
+        operations.add(
+            operation(
+                sequence++,
+                "configure-pmax-targeting",
+                ProviderPlanAction.CONFIGURE,
+                ProviderPlanResource.CAMPAIGN_TARGETING,
+                false,
+                Set.of(),
+                ProviderCampaignPlanSupport.config(
+                    "audienceDefinitionId", context.audienceDefinition().getId().toString())));
+        operations.add(
+            operation(
+                sequence++,
+                "configure-audience-signals",
+                ProviderPlanAction.CONFIGURE,
+                ProviderPlanResource.AUDIENCE_SIGNALS,
+                false,
+                Set.of(),
+                ProviderCampaignPlanSupport.config(
+                    "audienceDefinitionId", context.audienceDefinition().getId().toString(),
+                    "mappingStatus", AudienceMappingStatus.APPROXIMATE)));
+      }
+      if (context.conversionGoalMapping() != null) {
+        operations.add(
+            operation(
+                sequence,
+                "configure-conversion-goal",
+                ProviderPlanAction.CONFIGURE,
+                ProviderPlanResource.CONVERSION_GOAL,
+                false,
+                Set.of(AdFeatureCapability.CONVERSION_CREATE),
+                ProviderCampaignPlanSupport.config(
+                    "mappingId", context.conversionGoalMapping().getId().toString(),
+                    "targetType", context.conversionGoalMapping().getTargetType())));
+      }
+      return;
+    }
     operations.add(
         operation(
             sequence++,
@@ -423,45 +588,8 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                     context.channel().getProviderOverrideJson())));
         operations.add(creativeOperation(sequence++, context, ProviderPlanResource.CREATIVE));
       }
-      case GOOGLE_PERFORMANCE_MAX -> {
-        operations.add(
-            operation(
-                sequence++,
-                "create-asset-group",
-                ProviderPlanAction.CREATE,
-                ProviderPlanResource.ASSET_GROUP,
-                true,
-                Set.of(),
-                ProviderCampaignPlanSupport.config("status", "PAUSED")));
-        operations.add(
-            operation(
-                sequence++,
-                "attach-asset-group-assets",
-                ProviderPlanAction.ATTACH,
-                ProviderPlanResource.ASSET_GROUP_ASSETS,
-                false,
-                Set.of(AdFeatureCapability.CREATIVE_CREATE),
-                ProviderCampaignPlanSupport.config(
-                    "creativePackId",
-                    context.creativePack() == null
-                        ? null
-                        : context.creativePack().getId().toString())));
-        if (context.audienceDefinition() != null) {
-          operations.add(
-              operation(
-                  sequence++,
-                  "configure-audience-signals",
-                  ProviderPlanAction.CONFIGURE,
-                  ProviderPlanResource.AUDIENCE_SIGNALS,
-                  false,
-                  Set.of(),
-                  ProviderCampaignPlanSupport.config(
-                      "audienceDefinitionId",
-                      context.audienceDefinition().getId().toString(),
-                      "mappingStatus",
-                      AudienceMappingStatus.APPROXIMATE)));
-        }
-      }
+      case GOOGLE_PERFORMANCE_MAX ->
+          throw new IllegalStateException("Performance Max operations must be emitted atomically");
       case GOOGLE_DISPLAY, GOOGLE_DEMAND_GEN -> {
         operations.add(
             operation(
@@ -638,6 +766,16 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
       return JSON.readTree(json);
     } catch (Exception exception) {
       return JSON.createObjectNode();
+    }
+  }
+
+  private boolean isHttpUrl(String value) {
+    try {
+      java.net.URI uri = java.net.URI.create(value.trim());
+      return "http".equalsIgnoreCase(uri.getScheme())
+          || "https".equalsIgnoreCase(uri.getScheme());
+    } catch (RuntimeException exception) {
+      return false;
     }
   }
 

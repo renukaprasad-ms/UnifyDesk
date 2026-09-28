@@ -92,8 +92,8 @@ const CHANNELS: Array<{
     type: 'GOOGLE_PERFORMANCE_MAX',
     title: 'Google Performance Max',
     provider: 'GOOGLE_ADS',
-    description: 'Plan preview is available; paused execution is not enabled yet.',
-    executable: false,
+    description: 'Launch a paused Google Performance Max campaign from the shared brief and creative pack.',
+    executable: true,
   },
   {
     type: 'GOOGLE_DEMAND_GEN',
@@ -400,6 +400,11 @@ export default function ReachlyoCampaignWizard() {
   const [headlines, setHeadlines] = useState('')
   const [descriptions, setDescriptions] = useState('')
   const [creativeFile, setCreativeFile] = useState<File | null>(null)
+  const [pmaxLandscapeFile, setPmaxLandscapeFile] = useState<File | null>(null)
+  const [pmaxSquareFile, setPmaxSquareFile] = useState<File | null>(null)
+  const [pmaxLogoFile, setPmaxLogoFile] = useState<File | null>(null)
+  const [pmaxPortraitFile, setPmaxPortraitFile] = useState<File | null>(null)
+  const [pmaxLandscapeLogoFile, setPmaxLandscapeLogoFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
 
   const [audienceName, setAudienceName] = useState('Primary audience')
@@ -415,6 +420,10 @@ export default function ReachlyoCampaignWizard() {
 
   const [googlePolitical, setGooglePolitical] = useState<'true' | 'false' | ''>('false')
   const [googleBidStrategy, setGoogleBidStrategy] = useState('MAXIMIZE_CONVERSIONS')
+  const [pmaxBidStrategy, setPmaxBidStrategy] = useState<
+    'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
+  >('MAXIMIZE_CONVERSIONS')
+  const [pmaxYoutubeVideoIds, setPmaxYoutubeVideoIds] = useState('')
   const [keywordMatchType, setKeywordMatchType] = useState('BROAD')
   const [googleConversionId, setGoogleConversionId] = useState('')
   const [googleSearchPartners, setGoogleSearchPartners] = useState(true)
@@ -744,6 +753,31 @@ export default function ReachlyoCampaignWizard() {
           ? override.negativeKeywordSharedSetIds
               .filter((value): value is string => typeof value === 'string')
           : [],
+      )
+    }
+
+    const pmax = enabled.find(
+      (channel) => channel.channelType === 'GOOGLE_PERFORMANCE_MAX',
+    )
+    if (pmax) {
+      const override = parseObject(pmax.providerOverrideJson)
+      if (typeof override.containsEuPoliticalAdvertising === 'boolean') {
+        setGooglePolitical(
+          String(override.containsEuPoliticalAdvertising) as 'true' | 'false',
+        )
+      }
+      if (
+        override.bidStrategy === 'MAXIMIZE_CONVERSIONS' ||
+        override.bidStrategy === 'MAXIMIZE_CONVERSION_VALUE'
+      ) {
+        setPmaxBidStrategy(override.bidStrategy)
+      }
+      setPmaxYoutubeVideoIds(
+        Array.isArray(override.pmaxYoutubeVideoIds)
+          ? override.pmaxYoutubeVideoIds
+              .filter((value): value is string => typeof value === 'string')
+              .join('\n')
+          : '',
       )
     }
 
@@ -1092,6 +1126,41 @@ export default function ReachlyoCampaignWizard() {
         ]
       }
 
+      const uploadRole = async (
+        file: File | null,
+        role:
+          | 'MARKETING_IMAGE'
+          | 'SQUARE_MARKETING_IMAGE'
+          | 'PORTRAIT_MARKETING_IMAGE'
+          | 'LOGO'
+          | 'LANDSCAPE_LOGO',
+        label: string,
+        sortOrder: number,
+      ) => {
+        if (!file) return
+        setUploadProgress(1)
+        const uploaded = await mediaApi.uploadAdCreative(
+          file,
+          selectedCompany.companyId,
+          setUploadProgress,
+        )
+        assets = [
+          ...(assets ?? []).filter((asset) => asset.role !== role),
+          {
+            mediaId: uploaded.mediaId,
+            role,
+            label,
+            sortOrder,
+          },
+        ]
+      }
+
+      await uploadRole(pmaxLandscapeFile, 'MARKETING_IMAGE', 'PMax landscape image', 10)
+      await uploadRole(pmaxSquareFile, 'SQUARE_MARKETING_IMAGE', 'PMax square image', 11)
+      await uploadRole(pmaxLogoFile, 'LOGO', 'PMax square logo', 12)
+      await uploadRole(pmaxPortraitFile, 'PORTRAIT_MARKETING_IMAGE', 'PMax portrait image', 13)
+      await uploadRole(pmaxLandscapeLogoFile, 'LANDSCAPE_LOGO', 'PMax landscape logo', 14)
+
       const input = {
         name: creativeName.trim(),
         businessName: brandName.trim() || null,
@@ -1119,6 +1188,11 @@ export default function ReachlyoCampaignWizard() {
 
       setCreativePacks([pack])
       setCreativeFile(null)
+      setPmaxLandscapeFile(null)
+      setPmaxSquareFile(null)
+      setPmaxLogoFile(null)
+      setPmaxPortraitFile(null)
+      setPmaxLandscapeLogoFile(null)
       setUploadProgress(0)
       setNotice('Canonical creative pack saved.')
       setStep(4)
@@ -1276,7 +1350,9 @@ export default function ReachlyoCampaignWizard() {
     setConversionsByAccount(nextConversions)
     setGoogleNegativeKeywordLists(nextGoogleNegativeKeywordLists)
 
-    const googleAccount = accountByChannel.GOOGLE_SEARCH
+    const googleAccount =
+      accountByChannel.GOOGLE_SEARCH ??
+      accountByChannel.GOOGLE_PERFORMANCE_MAX
     if (
       googleAccount &&
       !googleConversionId &&
@@ -1344,6 +1420,20 @@ export default function ReachlyoCampaignWizard() {
         let override: Record<string, unknown> = {
           ...parseObject(channel.providerOverrideJson),
           _reachlyoAdAccountId: accountId,
+        }
+
+        if (channel.channelType === 'GOOGLE_PERFORMANCE_MAX') {
+          if (!googlePolitical) {
+            throw new Error(
+              'Choose the Google EU political advertising declaration.',
+            )
+          }
+          override = {
+            ...override,
+            containsEuPoliticalAdvertising: googlePolitical === 'true',
+            bidStrategy: pmaxBidStrategy,
+            pmaxYoutubeVideoIds: listValues(pmaxYoutubeVideoIds),
+          }
         }
 
         if (channel.channelType === 'META_ADS') {
@@ -1466,7 +1556,8 @@ export default function ReachlyoCampaignWizard() {
               throw new Error('Choose a Google conversion action.')
             }
             const conversionId =
-              channel.channelType === 'GOOGLE_SEARCH'
+              channel.channelType === 'GOOGLE_SEARCH' ||
+              channel.channelType === 'GOOGLE_PERFORMANCE_MAX'
                 ? googleConversionId
                 : conversionsByAccount[accountId]?.[0]?.id ?? ''
             if (!conversionId) {
@@ -1739,15 +1830,18 @@ export default function ReachlyoCampaignWizard() {
 
     if (nextGoal === 'TRAFFIC') {
       setGoogleBidStrategy('MAXIMIZE_CLICKS')
+      setPmaxBidStrategy('MAXIMIZE_CONVERSIONS')
       setMetaOptimizationGoal('LANDING_PAGE_VIEWS')
     } else if (nextGoal === 'AWARENESS') {
       setGoogleBidStrategy('MAXIMIZE_CLICKS')
       setMetaOptimizationGoal('REACH')
     } else if (nextGoal === 'PURCHASE') {
       setGoogleBidStrategy('MAXIMIZE_CONVERSION_VALUE')
+      setPmaxBidStrategy('MAXIMIZE_CONVERSION_VALUE')
       setMetaOptimizationGoal('VALUE')
     } else {
       setGoogleBidStrategy('MAXIMIZE_CONVERSIONS')
+      setPmaxBidStrategy('MAXIMIZE_CONVERSIONS')
       setMetaOptimizationGoal(
         nextGoal === 'LEAD' || nextGoal === 'QUALIFIED_LEAD' || nextGoal === 'SIGN_UP'
           ? 'LEAD_GENERATION'
@@ -2433,6 +2527,52 @@ export default function ReachlyoCampaignWizard() {
                   </Field>
                 </div>
 
+                {selectedChannels.includes('GOOGLE_PERFORMANCE_MAX') && (
+                  <div className="mt-5 rounded-2xl border border-indigo-100 bg-indigo-50/30 p-4">
+                    <p className="text-sm font-bold text-slate-900">
+                      Performance Max asset bundle
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      Google requires separate aspect ratios. Existing saved assets stay in the
+                      Creative Pack when you do not replace them.
+                    </p>
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                      {[
+                        ['Landscape 1.91:1', pmaxLandscapeFile, setPmaxLandscapeFile, 'MARKETING_IMAGE'],
+                        ['Square 1:1', pmaxSquareFile, setPmaxSquareFile, 'SQUARE_MARKETING_IMAGE'],
+                        ['Square logo 1:1', pmaxLogoFile, setPmaxLogoFile, 'LOGO'],
+                        ['Portrait 4:5 · optional', pmaxPortraitFile, setPmaxPortraitFile, 'PORTRAIT_MARKETING_IMAGE'],
+                        ['Landscape logo 4:1 · optional', pmaxLandscapeLogoFile, setPmaxLandscapeLogoFile, 'LANDSCAPE_LOGO'],
+                      ].map(([label, file, setter, role]) => (
+                        <label
+                          key={role as string}
+                          className="rounded-xl border border-dashed border-slate-300 bg-white p-3 text-xs font-semibold text-slate-700"
+                        >
+                          {label as string}
+                          <input
+                            className="mt-2 block w-full text-xs"
+                            type="file"
+                            accept="image/png,image/jpeg,image/gif"
+                            disabled={!canEdit || !editableDefinition}
+                            onChange={(event) =>
+                              (setter as (value: File | null) => void)(
+                                event.target.files?.[0] ?? null,
+                              )
+                            }
+                          />
+                          {creativePacks[0]?.assets.some(
+                            (asset) => asset.role === role,
+                          ) && !(file as File | null) && (
+                            <span className="mt-1 block font-normal text-emerald-600">
+                              Existing asset saved
+                            </span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <StepActions
                   busy={busy}
                   disabled={!canEdit || !editableDefinition}
@@ -2855,6 +2995,9 @@ export default function ReachlyoCampaignWizard() {
                     {selectedChannels.includes('GOOGLE_SEARCH') && (
                       <p>Google Search: {pretty(googleBidStrategy)}</p>
                     )}
+                    {selectedChannels.includes('GOOGLE_PERFORMANCE_MAX') && (
+                      <p>Performance Max: {pretty(pmaxBidStrategy)}</p>
+                    )}
                     {selectedChannels.includes('META_ADS') && (
                       <p>Meta: {pretty(metaOptimizationGoal)}</p>
                     )}
@@ -2873,6 +3016,10 @@ export default function ReachlyoCampaignWizard() {
                   setGooglePolitical={setGooglePolitical}
                   googleBidStrategy={googleBidStrategy}
                   setGoogleBidStrategy={setGoogleBidStrategy}
+                  pmaxBidStrategy={pmaxBidStrategy}
+                  setPmaxBidStrategy={setPmaxBidStrategy}
+                  pmaxYoutubeVideoIds={pmaxYoutubeVideoIds}
+                  setPmaxYoutubeVideoIds={setPmaxYoutubeVideoIds}
                   keywordMatchType={keywordMatchType}
                   setKeywordMatchType={setKeywordMatchType}
                   googleConversionId={googleConversionId}

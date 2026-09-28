@@ -384,6 +384,14 @@ public class MediaService {
   }
 
   @Transactional(readOnly = true)
+  public byte[] readTrustedObject(long mediaId, long companyId) {
+    Media media = requireActiveCompanyMedia(mediaId, companyId);
+    return storageProviderResolver
+        .resolve(media.getStorageProvider())
+        .readObject(media.getBucket(), media.getObjectKey());
+  }
+
+  @Transactional(readOnly = true)
   public MediaAccessResponse createTrustedAccessUrl(long mediaId) {
     Media media =
         mediaRepository

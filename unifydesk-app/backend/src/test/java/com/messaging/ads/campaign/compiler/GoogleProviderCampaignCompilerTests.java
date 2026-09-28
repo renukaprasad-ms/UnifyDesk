@@ -9,12 +9,14 @@ import com.messaging.ads.campaign.entity.AudienceDefinition;
 import com.messaging.ads.campaign.entity.BudgetPlan;
 import com.messaging.ads.campaign.entity.CampaignChannel;
 import com.messaging.ads.campaign.entity.CreativePack;
+import com.messaging.ads.campaign.entity.CreativePackAsset;
 import com.messaging.ads.campaign.entity.ReachlyoCampaign;
 import com.messaging.ads.campaign.enums.AudienceMappingStatus;
 import com.messaging.ads.campaign.enums.BudgetAllocationMode;
 import com.messaging.ads.campaign.enums.BudgetPeriod;
 import com.messaging.ads.campaign.enums.CampaignBusinessGoal;
 import com.messaging.ads.campaign.enums.CampaignChannelType;
+import com.messaging.ads.campaign.enums.CreativeAssetRole;
 import com.messaging.ads.entity.AdAccount;
 import com.messaging.ads.enums.AdProvider;
 import java.util.EnumMap;
@@ -174,6 +176,88 @@ class GoogleProviderCampaignCompilerTests {
   }
 
   @Test
+  void compilesAtomicPausedPerformanceMaxPlanWhenRequiredAssetsExist() {
+    GoogleProviderCampaignCompiler compiler = new GoogleProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(15L);
+    campaign.setName("PMax leads");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(25L);
+    channel.setReachlyoCampaignId(15L);
+    channel.setProvider(AdProvider.GOOGLE_ADS);
+    channel.setChannelType(CampaignChannelType.GOOGLE_PERFORMANCE_MAX);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(8_000L);
+
+    AdAccount account = new AdAccount();
+    account.setId(35L);
+    account.setProvider(AdProvider.GOOGLE_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(8_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(45L);
+    pack.setBusinessName("Acme");
+    pack.setHeadlinesJson("[\"One\",\"Two\",\"Three\"]");
+    pack.setDescriptionsJson("[\"Description one\",\"Description two\"]");
+    pack.setDestinationUrl("https://example.com");
+
+    CreativePackAsset landscape = asset(451L, 45L, CreativeAssetRole.MARKETING_IMAGE);
+    CreativePackAsset square = asset(452L, 45L, CreativeAssetRole.SQUARE_MARKETING_IMAGE);
+    CreativePackAsset logo = asset(453L, 45L, CreativeAssetRole.LOGO);
+
+    AudienceDefinition audience = new AudienceDefinition();
+    audience.setId(55L);
+    audience.setLocationsJson("[{\"countryCode\":\"IN\"}]");
+    audience.setLanguagesJson("[\"en\"]");
+    audience.setSearchIntentJson("[\"crm software\",\"customer messaging\"]");
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities =
+        new EnumMap<>(AdFeatureCapability.class);
+    capabilities.put(
+        AdFeatureCapability.CAMPAIGN_CREATE, available(AdFeatureCapability.CAMPAIGN_CREATE));
+    capabilities.put(
+        AdFeatureCapability.GOOGLE_PERFORMANCE_MAX,
+        available(AdFeatureCapability.GOOGLE_PERFORMANCE_MAX));
+    capabilities.put(
+        AdFeatureCapability.CREATIVE_CREATE, available(AdFeatureCapability.CREATIVE_CREATE));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(landscape, square, logo),
+                List.of(),
+                audience,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isTrue();
+    assertThat(plan.operations())
+        .extracting(ProviderPlanOperation::operationKey)
+        .containsExactly(
+            "create-performance-max-paused",
+            "configure-pmax-targeting",
+            "configure-audience-signals");
+    assertThat(plan.operations().getFirst().createPaused()).isTrue();
+    assertThat(plan.operations())
+        .noneMatch(operation -> "create-asset-group".equals(operation.operationKey()));
+  }
+
+  @Test
   void requiresAiMaxCapabilityAndWarnsWhenKeywordMatchTypesWillBeOverridden() {
     GoogleProviderCampaignCompiler compiler = new GoogleProviderCampaignCompiler();
 
@@ -258,6 +342,17 @@ class GoogleProviderCampaignCompilerTests {
             "configure-ai-max-url-exclusions",
             "configure-ai-max-url-inclusions",
             "configure-ai-max-brands");
+  }
+
+  private CreativePackAsset asset(
+      Long id, Long packId, CreativeAssetRole role) {
+    CreativePackAsset asset = new CreativePackAsset();
+    asset.setId(id);
+    asset.setCompanyId(1L);
+    asset.setCreativePackId(packId);
+    asset.setMediaId(id + 1000);
+    asset.setRole(role);
+    return asset;
   }
 
   private AdFeatureCapabilityResponse available(AdFeatureCapability feature) {
