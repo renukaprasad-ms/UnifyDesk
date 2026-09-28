@@ -202,15 +202,14 @@ describe('NotificationProvider recovery and realtime flow', () => {
   })
 
   it(
-    'preserves selected-company unread state for account-scope realtime until refetch wins',
+    'merges account-scope realtime counts without refetching the selected workspace',
     async () => {
       store.dispatch(selectCompany(COMPANY_ID))
-      const refetch = deferred<NotificationUnreadCount>()
-
-      vi.mocked(notificationApi.unreadCount)
-        .mockReset()
-        .mockResolvedValueOnce({ account: 1, company: 7, total: 8 })
-        .mockImplementationOnce(() => refetch.promise)
+      vi.mocked(notificationApi.unreadCount).mockResolvedValue({
+        account: 1,
+        company: 7,
+        total: 8,
+      })
 
       renderProvider()
 
@@ -224,31 +223,23 @@ describe('NotificationProvider recovery and realtime flow', () => {
         totalUnread: 2,
       })
 
-      await waitFor(() => expect(notificationApi.unreadCount).toHaveBeenCalledTimes(2))
-      expect(screen.getByTestId('account-count').textContent).toBe('1')
-      expect(screen.getByTestId('company-count').textContent).toBe('7')
-      expect(screen.getByTestId('count').textContent).toBe('8')
-
-      act(() => {
-        refetch.resolve({ account: 2, company: 7, total: 9 })
-      })
-
       await waitFor(() => expect(screen.getByTestId('count').textContent).toBe('9'))
       expect(screen.getByTestId('account-count').textContent).toBe('2')
       expect(screen.getByTestId('company-count').textContent).toBe('7')
+      expect(notificationApi.unreadCount).toHaveBeenCalledTimes(1)
+      expect(notificationApi.list).toHaveBeenCalledTimes(1)
     },
   )
 
   it(
-    'still applies matching company-scope realtime counts before authoritative refetch',
+    'applies matching company-scope realtime counts without notification API polling',
     async () => {
       store.dispatch(selectCompany(COMPANY_ID))
-      const refetch = deferred<NotificationUnreadCount>()
-
-      vi.mocked(notificationApi.unreadCount)
-        .mockReset()
-        .mockResolvedValueOnce({ account: 1, company: 7, total: 8 })
-        .mockImplementationOnce(() => refetch.promise)
+      vi.mocked(notificationApi.unreadCount).mockResolvedValue({
+        account: 1,
+        company: 7,
+        total: 8,
+      })
 
       renderProvider()
 
@@ -261,15 +252,10 @@ describe('NotificationProvider recovery and realtime flow', () => {
         totalUnread: 9,
       })
 
+      await waitFor(() => expect(screen.getByTestId('count').textContent).toBe('9'))
       expect(screen.getByTestId('company-count').textContent).toBe('8')
-      expect(screen.getByTestId('count').textContent).toBe('9')
-
-      act(() => {
-        refetch.resolve({ account: 1, company: 9, total: 10 })
-      })
-
-      await waitFor(() => expect(screen.getByTestId('count').textContent).toBe('10'))
-      expect(screen.getByTestId('company-count').textContent).toBe('9')
+      expect(notificationApi.unreadCount).toHaveBeenCalledTimes(1)
+      expect(notificationApi.list).toHaveBeenCalledTimes(1)
     },
   )
 
