@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { FiClock, FiPlus, FiRefreshCw, FiTrash2 } from 'react-icons/fi'
 import GoogleAiMaxBrandSelector from './GoogleAiMaxBrandSelector'
 import GoogleSearchInterestSelector from './GoogleSearchInterestSelector'
+import GoogleSearchDemographicSelector from './GoogleSearchDemographicSelector'
 import type {
   AdAccountResource,
   AdConversion,
@@ -78,6 +79,18 @@ type Props = {
   setGoogleSearchInterestResources: (value: string[]) => void
   googleSearchExcludedInterestResources: string[]
   setGoogleSearchExcludedInterestResources: (value: string[]) => void
+  googleParentalStatusIncludes: string[]
+  setGoogleParentalStatusIncludes: (value: string[]) => void
+  googleParentalStatusExcludes: string[]
+  setGoogleParentalStatusExcludes: (value: string[]) => void
+  googleIncomeRangeIncludes: string[]
+  setGoogleIncomeRangeIncludes: (value: string[]) => void
+  googleIncomeRangeExcludes: string[]
+  setGoogleIncomeRangeExcludes: (value: string[]) => void
+  googleDetailedDemographicIds: string[]
+  setGoogleDetailedDemographicIds: (value: string[]) => void
+  googleExcludedDetailedDemographicIds: string[]
+  setGoogleExcludedDetailedDemographicIds: (value: string[]) => void
   googleContentNetwork: boolean
   setGoogleContentNetwork: (value: boolean) => void
   googleGeoMode: 'PRESENCE' | 'PRESENCE_OR_INTEREST'
@@ -882,6 +895,30 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 <option value="PRESENCE">Presence only</option>
               </select>
             </Field>
+            <div className="sm:col-span-2">
+              <GoogleSearchDemographicSelector
+                companyId={props.companyId}
+                accountId={googleAccount}
+                parentalStatusIncludes={props.googleParentalStatusIncludes}
+                parentalStatusExcludes={props.googleParentalStatusExcludes}
+                incomeRangeIncludes={props.googleIncomeRangeIncludes}
+                incomeRangeExcludes={props.googleIncomeRangeExcludes}
+                detailedDemographicIds={props.googleDetailedDemographicIds}
+                excludedDetailedDemographicIds={
+                  props.googleExcludedDetailedDemographicIds
+                }
+                setParentalStatusIncludes={props.setGoogleParentalStatusIncludes}
+                setParentalStatusExcludes={props.setGoogleParentalStatusExcludes}
+                setIncomeRangeIncludes={props.setGoogleIncomeRangeIncludes}
+                setIncomeRangeExcludes={props.setGoogleIncomeRangeExcludes}
+                setDetailedDemographicIds={props.setGoogleDetailedDemographicIds}
+                setExcludedDetailedDemographicIds={
+                  props.setGoogleExcludedDetailedDemographicIds
+                }
+                disabled={props.disabled}
+              />
+            </div>
+
             <div className="sm:col-span-2">
               <GoogleSearchInterestSelector
                 companyId={props.companyId}
