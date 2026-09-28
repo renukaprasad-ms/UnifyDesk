@@ -48,6 +48,7 @@ import type {
   GoogleBrandSuggestion,
   GoogleNegativeKeywordList,
   MetaTargetingInterest,
+  GoogleMerchantAccount,
 } from '../../features/ads/types'
 import { mediaApi } from '../../features/media/mediaApi'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -113,8 +114,8 @@ const CHANNELS: Array<{
     type: 'GOOGLE_SHOPPING',
     title: 'Google Shopping',
     provider: 'GOOGLE_ADS',
-    description: 'Plan preview is available; Merchant launch execution comes later.',
-    executable: false,
+    description: 'Launch a paused Standard Shopping campaign from a connected Merchant Center catalog.',
+    executable: true,
   },
 ]
 
@@ -430,6 +431,12 @@ export default function ReachlyoCampaignWizard() {
   const [demandGenChannelStrategy, setDemandGenChannelStrategy] = useState<
     'ALL_CHANNELS' | 'ALL_OWNED_AND_OPERATED_CHANNELS'
   >('ALL_CHANNELS')
+  const [shoppingMerchantAccounts, setShoppingMerchantAccounts] = useState<
+    GoogleMerchantAccount[]
+  >([])
+  const [shoppingMerchantId, setShoppingMerchantId] = useState('')
+  const [shoppingPriority, setShoppingPriority] = useState<'0' | '1' | '2'>('0')
+  const [shoppingEnableLocal, setShoppingEnableLocal] = useState(false)
   const [keywordMatchType, setKeywordMatchType] = useState('BROAD')
   const [googleConversionId, setGoogleConversionId] = useState('')
   const [googleSearchPartners, setGoogleSearchPartners] = useState(true)
@@ -811,6 +818,29 @@ export default function ReachlyoCampaignWizard() {
       ) {
         setDemandGenChannelStrategy(override.demandGenChannelStrategy)
       }
+    }
+
+    const shopping = enabled.find(
+      (channel) => channel.channelType === 'GOOGLE_SHOPPING',
+    )
+    if (shopping) {
+      const override = parseObject(shopping.providerOverrideJson)
+      if (typeof override.containsEuPoliticalAdvertising === 'boolean') {
+        setGooglePolitical(
+          String(override.containsEuPoliticalAdvertising) as 'true' | 'false',
+        )
+      }
+      if (typeof override.merchantId === 'string') {
+        setShoppingMerchantId(override.merchantId)
+      }
+      if (
+        override.campaignPriority === 0 ||
+        override.campaignPriority === 1 ||
+        override.campaignPriority === 2
+      ) {
+        setShoppingPriority(String(override.campaignPriority) as '0' | '1' | '2')
+      }
+      setShoppingEnableLocal(override.enableLocal === true)
     }
 
     const meta = enabled.find((channel) => channel.channelType === 'META_ADS')
@@ -1385,7 +1415,8 @@ export default function ReachlyoCampaignWizard() {
     const googleAccount =
       accountByChannel.GOOGLE_SEARCH ??
       accountByChannel.GOOGLE_PERFORMANCE_MAX ??
-      accountByChannel.GOOGLE_DEMAND_GEN
+      accountByChannel.GOOGLE_DEMAND_GEN ??
+      accountByChannel.GOOGLE_SHOPPING
     if (
       googleAccount &&
       !googleConversionId &&
@@ -1398,6 +1429,24 @@ export default function ReachlyoCampaignWizard() {
           'GOOGLE_ADS',
         )?.id ?? '',
       )
+    }
+
+    const shoppingAccount = accountByChannel.GOOGLE_SHOPPING
+    if (shoppingAccount) {
+      try {
+        const merchants = await adCenterApi.googleMerchantAccounts(
+          selectedCompany.companyId,
+          shoppingAccount,
+        )
+        setShoppingMerchantAccounts(merchants)
+        setShoppingMerchantId((current) =>
+          current || merchants[0]?.accountId || '',
+        )
+      } catch {
+        setShoppingMerchantAccounts([])
+      }
+    } else {
+      setShoppingMerchantAccounts([])
     }
 
     const metaAccount = accountByChannel.META_ADS
@@ -1453,6 +1502,24 @@ export default function ReachlyoCampaignWizard() {
         let override: Record<string, unknown> = {
           ...parseObject(channel.providerOverrideJson),
           _reachlyoAdAccountId: accountId,
+        }
+
+        if (channel.channelType === 'GOOGLE_SHOPPING') {
+          if (!googlePolitical) {
+            throw new Error(
+              'Choose the Google EU political advertising declaration.',
+            )
+          }
+          if (!shoppingMerchantId) {
+            throw new Error('Choose a Merchant Center account for Google Shopping.')
+          }
+          override = {
+            ...override,
+            containsEuPoliticalAdvertising: googlePolitical === 'true',
+            merchantId: shoppingMerchantId,
+            campaignPriority: Number(shoppingPriority),
+            enableLocal: shoppingEnableLocal,
+          }
         }
 
         if (channel.channelType === 'GOOGLE_PERFORMANCE_MAX') {
@@ -1605,7 +1672,8 @@ export default function ReachlyoCampaignWizard() {
             const conversionId =
               channel.channelType === 'GOOGLE_SEARCH' ||
               channel.channelType === 'GOOGLE_PERFORMANCE_MAX' ||
-              channel.channelType === 'GOOGLE_DEMAND_GEN'
+              channel.channelType === 'GOOGLE_DEMAND_GEN' ||
+              channel.channelType === 'GOOGLE_SHOPPING'
                 ? googleConversionId
                 : conversionsByAccount[accountId]?.[0]?.id ?? ''
             if (!conversionId) {
@@ -3054,6 +3122,9 @@ export default function ReachlyoCampaignWizard() {
                     {selectedChannels.includes('GOOGLE_DEMAND_GEN') && (
                       <p>Demand Gen: {pretty(demandGenBidStrategy)}</p>
                     )}
+                    {selectedChannels.includes('GOOGLE_SHOPPING') && (
+                      <p>Shopping: Merchant catalog · priority {shoppingPriority}</p>
+                    )}
                     {selectedChannels.includes('META_ADS') && (
                       <p>Meta: {pretty(metaOptimizationGoal)}</p>
                     )}
@@ -3080,6 +3151,13 @@ export default function ReachlyoCampaignWizard() {
                   setDemandGenBidStrategy={setDemandGenBidStrategy}
                   demandGenChannelStrategy={demandGenChannelStrategy}
                   setDemandGenChannelStrategy={setDemandGenChannelStrategy}
+                  shoppingMerchantAccounts={shoppingMerchantAccounts}
+                  shoppingMerchantId={shoppingMerchantId}
+                  setShoppingMerchantId={setShoppingMerchantId}
+                  shoppingPriority={shoppingPriority}
+                  setShoppingPriority={setShoppingPriority}
+                  shoppingEnableLocal={shoppingEnableLocal}
+                  setShoppingEnableLocal={setShoppingEnableLocal}
                   keywordMatchType={keywordMatchType}
                   setKeywordMatchType={setKeywordMatchType}
                   googleConversionId={googleConversionId}
