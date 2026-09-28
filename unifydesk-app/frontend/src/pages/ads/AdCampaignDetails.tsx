@@ -13,6 +13,7 @@ import GoogleNegativeKeywordManagement from '../../components/ads/GoogleNegative
 import GoogleSearchTermReport from '../../components/ads/GoogleSearchTermReport'
 import GoogleAiMaxCombinationReport from '../../components/ads/GoogleAiMaxCombinationReport'
 import GoogleReusableAssetsPanel from '../../components/ads/GoogleReusableAssetsPanel'
+import GoogleSearchDemographicTargetingPanel from '../../components/ads/GoogleSearchDemographicTargetingPanel'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdAccount,
@@ -748,6 +749,17 @@ export default function AdCampaignDetails() {
                       | 'DEMAND_GEN'
                   }
                   canCreate={can(PERMISSIONS.ADS_CREATE)}
+                />
+              )}
+
+            {campaign.provider === 'GOOGLE_ADS' &&
+              campaign.objective === 'SEARCH' &&
+              account && (
+                <GoogleSearchDemographicTargetingPanel
+                  companyId={selectedCompany.companyId}
+                  accountId={account.id}
+                  campaignId={campaign.id}
+                  canModify={can(PERMISSIONS.ADS_MODIFY)}
                 />
               )}
 
