@@ -2,6 +2,8 @@ package com.messaging.ads.controller;
 
 import com.messaging.ads.capability.AdFeatureCapabilityResponse;
 import com.messaging.ads.capability.AdFeatureCapabilityService;
+import com.messaging.ads.campaign.dto.CanonicalLocationSuggestion;
+import com.messaging.ads.campaign.service.CanonicalLocationSuggestionService;
 import com.messaging.ads.dto.AdAccountBillingResponse;
 import com.messaging.ads.dto.AdAccountHealthResponse;
 import com.messaging.ads.dto.AdActivityLogResponse;
@@ -66,6 +68,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdCenterController {
 
   private final AdCenterService adCenterService;
+  private final CanonicalLocationSuggestionService locationSuggestionService;
   private final AdFeatureCapabilityService featureCapabilityService;
   private final AdAccountBillingService billingService;
   private final AdAccountHealthService healthService;
@@ -90,6 +93,28 @@ public class AdCenterController {
     requireRead(companyId);
     return ResponseEntity.ok(
         ApiResponse.success(200, adCenterService.providers(), "Advertising providers fetched"));
+  }
+
+  @GetMapping("/location-suggestions")
+  public ResponseEntity<ApiResponse<List<CanonicalLocationSuggestion>>> locationSuggestions(
+      @PathVariable Long companyId,
+      @RequestParam String q,
+      @RequestParam String countryCode,
+      @RequestParam(required = false) Long googleAccountId,
+      @RequestParam(required = false) Long metaAccountId,
+      @RequestParam(defaultValue = "12") Integer limit) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            locationSuggestionService.search(
+                companyId,
+                q,
+                countryCode,
+                googleAccountId,
+                metaAccountId,
+                limit),
+            "Canonical advertising location suggestions fetched"));
   }
 
   @GetMapping("/accounts/{accountId}/capabilities")

@@ -362,6 +362,17 @@ export type AudienceMappingStatus =
   | 'PROVIDER_ONLY'
   | 'UNSUPPORTED'
 
+export type CanonicalLocationSuggestion = {
+  key: string
+  displayName: string
+  type: 'COUNTRY' | 'REGION' | 'CITY' | 'ZIP' | string
+  countryCode: string
+  region?: string | null
+  city?: string | null
+  postalCode?: string | null
+  supportedProviders: AdProvider[]
+}
+
 export type ReachlyoAudienceLocationInput = {
   countryCode: string
   region?: string | null

@@ -2127,6 +2127,20 @@ Implemented on `feature/ad-center-unified-shopping`:
 - successful orchestration still stops at `PAUSED_READY`; no automatic spend activation is introduced
 
 
+## Provider-backed canonical location autocomplete — 2026-09-28
+
+Implemented on `feature/ad-center-location-autocomplete`:
+
+- the unified audience step can search provider-backed country/region/city/postal targets instead of relying only on manually typed geo names
+- Google suggestions are resolved through the managed Google Ads account using GeoTargetConstant suggestions
+- Meta suggestions reuse the existing account-authenticated geo targeting search
+- provider-specific terms are normalized to one canonical `COUNTRY / REGION / CITY / ZIP` vocabulary
+- identical Google and Meta places merge into one canonical suggestion with provider-support badges
+- when multiple providers are selected, suggestions unsupported by every selected provider remain visible but cannot be selected
+- selecting a suggestion fills the existing canonical audience fields, so no database migration or provider-specific audience storage is introduced
+- radius targeting remains an explicit coordinate-based advanced option and is not guessed from autocomplete results
+- autocomplete failures are surfaced before campaign compilation rather than allowing false provider compatibility
+
 ## Unified Display execution note — 2026-09-28
 
 Implemented on `feature/ad-center-unified-display`:
