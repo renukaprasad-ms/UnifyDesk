@@ -40,6 +40,7 @@ import type {
   CreateReachlyoCreativeVariantInput,
   UpdateReachlyoCreativeVariantInput,
   ReachlyoAudienceDefinition,
+  CanonicalLocationSuggestion,
   CreateReachlyoAudienceDefinitionInput,
   UpdateReachlyoAudienceDefinitionInput,
   ReachlyoConversionGoalMapping,
@@ -338,6 +339,29 @@ export const adCenterApi = {
   async accounts(companyId: string) {
     const response = await apiClient.get<ApiResponse<AdAccount[]>>(
       `/api/v1/companies/${companyId}/ads/accounts`,
+    )
+    return unwrap(response.data)
+  },
+
+  async locationSuggestions(
+    companyId: string,
+    query: string,
+    countryCode: string,
+    googleAccountId?: string,
+    metaAccountId?: string,
+    limit = 12,
+  ) {
+    const response = await apiClient.get<ApiResponse<CanonicalLocationSuggestion[]>>(
+      `/api/v1/companies/${companyId}/ads/location-suggestions`,
+      {
+        params: {
+          q: query,
+          countryCode,
+          ...(googleAccountId ? { googleAccountId } : {}),
+          ...(metaAccountId ? { metaAccountId } : {}),
+          limit,
+        },
+      },
     )
     return unwrap(response.data)
   },
