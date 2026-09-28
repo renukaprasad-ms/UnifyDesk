@@ -102,7 +102,6 @@ public class GoogleAdsDisplayCampaignService {
     adGroup.put("resourceName", adGroupResource);
     adGroup.put("campaign", campaignResource);
     adGroup.put("name", request.adGroupName().trim());
-    adGroup.put("type", "DISPLAY_STANDARD");
     adGroup.put("status", "PAUSED");
     if ("MANUAL_CPC".equalsIgnoreCase(request.bidStrategy())) {
       Long cpc = request.adGroupCpcBidMinor();
