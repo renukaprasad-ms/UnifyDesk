@@ -75,6 +75,10 @@ type Props = {
   setGoogleContentNetwork: (value: boolean) => void
   googleGeoMode: 'PRESENCE' | 'PRESENCE_OR_INTEREST'
   setGoogleGeoMode: (value: 'PRESENCE' | 'PRESENCE_OR_INTEREST') => void
+  googleDeviceBidModifiers: Record<'DESKTOP' | 'MOBILE' | 'TABLET', string>
+  setGoogleDeviceBidModifiers: (
+    value: Record<'DESKTOP' | 'MOBILE' | 'TABLET', string>,
+  ) => void
   googleAiMaxEnabled: boolean
   setGoogleAiMaxEnabled: (value: boolean) => void
   googleAiMaxTextCustomization: boolean
@@ -853,6 +857,34 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 <option value="PRESENCE">Presence only</option>
               </select>
             </Field>
+            <div className="rounded-xl border border-slate-100 p-4 sm:col-span-2">
+              <p className="text-xs font-semibold text-slate-700">Device bid adjustments</p>
+              <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                Leave 1.0 for normal bidding, use 0 to exclude a device, or set 0.1–10.0 as a bid multiplier.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                {(['DESKTOP', 'MOBILE', 'TABLET'] as const).map((device) => (
+                  <Field key={device} label={pretty(device)}>
+                    <input
+                      className="form-input mt-2"
+                      type="number"
+                      min="0"
+                      max="10"
+                      step="0.1"
+                      value={props.googleDeviceBidModifiers[device]}
+                      disabled={props.disabled}
+                      onChange={(event) =>
+                        props.setGoogleDeviceBidModifiers({
+                          ...props.googleDeviceBidModifiers,
+                          [device]: event.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                ))}
+              </div>
+            </div>
+
             <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4 sm:col-span-2">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
