@@ -516,6 +516,20 @@ export default function ReachlyoCampaignWizard() {
     googleSearchExcludedInterestResources,
     setGoogleSearchExcludedInterestResources,
   ] = useState<string[]>([])
+  const [googleParentalStatusIncludes, setGoogleParentalStatusIncludes] =
+    useState<string[]>([])
+  const [googleParentalStatusExcludes, setGoogleParentalStatusExcludes] =
+    useState<string[]>([])
+  const [googleIncomeRangeIncludes, setGoogleIncomeRangeIncludes] =
+    useState<string[]>([])
+  const [googleIncomeRangeExcludes, setGoogleIncomeRangeExcludes] =
+    useState<string[]>([])
+  const [googleDetailedDemographicIds, setGoogleDetailedDemographicIds] =
+    useState<string[]>([])
+  const [
+    googleExcludedDetailedDemographicIds,
+    setGoogleExcludedDetailedDemographicIds,
+  ] = useState<string[]>([])
   const [googleContentNetwork, setGoogleContentNetwork] = useState(false)
   const [googleGeoMode, setGoogleGeoMode] = useState<
     'PRESENCE' | 'PRESENCE_OR_INTEREST'
@@ -769,6 +783,40 @@ export default function ReachlyoCampaignWizard() {
           ? override.googleSearchExcludedInterestResources
               .map((value) => String(value))
               .filter((value) => /^customers\/\d+\/userInterests\/\d+$/.test(value))
+          : [],
+      )
+      setGoogleParentalStatusIncludes(
+        Array.isArray(override.googleParentalStatusIncludes)
+          ? override.googleParentalStatusIncludes.map(String)
+          : [],
+      )
+      setGoogleParentalStatusExcludes(
+        Array.isArray(override.googleParentalStatusExcludes)
+          ? override.googleParentalStatusExcludes.map(String)
+          : [],
+      )
+      setGoogleIncomeRangeIncludes(
+        Array.isArray(override.googleIncomeRangeIncludes)
+          ? override.googleIncomeRangeIncludes.map(String)
+          : [],
+      )
+      setGoogleIncomeRangeExcludes(
+        Array.isArray(override.googleIncomeRangeExcludes)
+          ? override.googleIncomeRangeExcludes.map(String)
+          : [],
+      )
+      setGoogleDetailedDemographicIds(
+        Array.isArray(override.googleDetailedDemographicIds)
+          ? override.googleDetailedDemographicIds
+              .map((value) => String(value))
+              .filter((value) => /^\d+$/.test(value))
+          : [],
+      )
+      setGoogleExcludedDetailedDemographicIds(
+        Array.isArray(override.googleExcludedDetailedDemographicIds)
+          ? override.googleExcludedDetailedDemographicIds
+              .map((value) => String(value))
+              .filter((value) => /^\d+$/.test(value))
           : [],
       )
       if (typeof override.targetContentNetwork === 'boolean') {
@@ -1819,6 +1867,12 @@ export default function ReachlyoCampaignWizard() {
             googleSearchAudienceMode,
             googleSearchInterestResources,
             googleSearchExcludedInterestResources,
+            googleParentalStatusIncludes,
+            googleParentalStatusExcludes,
+            googleIncomeRangeIncludes,
+            googleIncomeRangeExcludes,
+            googleDetailedDemographicIds,
+            googleExcludedDetailedDemographicIds,
             deviceBidModifiers: Object.fromEntries(
               Object.entries(googleDeviceBidModifiers).map(([device, value]) => [
                 device,
@@ -3868,6 +3922,22 @@ export default function ReachlyoCampaignWizard() {
                   }
                   setGoogleSearchExcludedInterestResources={
                     setGoogleSearchExcludedInterestResources
+                  }
+                  googleParentalStatusIncludes={googleParentalStatusIncludes}
+                  setGoogleParentalStatusIncludes={setGoogleParentalStatusIncludes}
+                  googleParentalStatusExcludes={googleParentalStatusExcludes}
+                  setGoogleParentalStatusExcludes={setGoogleParentalStatusExcludes}
+                  googleIncomeRangeIncludes={googleIncomeRangeIncludes}
+                  setGoogleIncomeRangeIncludes={setGoogleIncomeRangeIncludes}
+                  googleIncomeRangeExcludes={googleIncomeRangeExcludes}
+                  setGoogleIncomeRangeExcludes={setGoogleIncomeRangeExcludes}
+                  googleDetailedDemographicIds={googleDetailedDemographicIds}
+                  setGoogleDetailedDemographicIds={setGoogleDetailedDemographicIds}
+                  googleExcludedDetailedDemographicIds={
+                    googleExcludedDetailedDemographicIds
+                  }
+                  setGoogleExcludedDetailedDemographicIds={
+                    setGoogleExcludedDetailedDemographicIds
                   }
                   googleContentNetwork={googleContentNetwork}
                   setGoogleContentNetwork={setGoogleContentNetwork}
