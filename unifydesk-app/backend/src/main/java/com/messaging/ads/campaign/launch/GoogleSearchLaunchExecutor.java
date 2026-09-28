@@ -42,6 +42,7 @@ import com.messaging.ads.google.GoogleAdsCampaignTargetingService;
 import com.messaging.ads.google.GoogleAdsCampaignSyncService;
 import com.messaging.ads.google.GoogleAdsKeywordMutationService;
 import com.messaging.ads.google.GoogleAdsNegativeKeywordService;
+import com.messaging.ads.google.GoogleAdsSearchAudienceService;
 import com.messaging.ads.google.GoogleAdsKeywordSyncService;
 import com.messaging.ads.google.dto.CreateGoogleAdGroupRequest;
 import com.messaging.ads.google.dto.CreateGoogleCampaignRequest;
@@ -92,6 +93,7 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
   private final GoogleAdsKeywordMutationService keywordMutationService;
   private final GoogleAdsKeywordSyncService keywordSyncService;
   private final GoogleAdsNegativeKeywordService negativeKeywordService;
+  private final GoogleAdsSearchAudienceService searchAudienceService;
   private final GoogleAdsAdMutationService adMutationService;
   private final GoogleAdsAdSyncService adSyncService;
   private final ProviderDeploymentService deploymentService;
@@ -254,6 +256,21 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
     }
 
     try {
+      searchAudienceService.validateSelection(
+          companyId,
+          account.getId(),
+          longIdsFromOverrideArray(override, "googleAudienceIds"),
+          longIdsFromOverrideArray(override, "googleExcludedAudienceIds"),
+          text(override, "googleSearchAudienceMode"));
+    } catch (BadRequestException exception) {
+      issues.add(
+          error(
+              "GOOGLE_SEARCH_AUDIENCE_INVALID",
+              "providerOverride.googleAudienceIds",
+              exception.getMessage()));
+    }
+
+    try {
       negativeKeywordService.validateLaunchConfiguration(
           companyId, account.getId(), override);
     } catch (BadRequestException exception) {
@@ -323,6 +340,8 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
           configureTargeting(companyId, run, plan, step, campaign, channel);
       case "create-ad-group" ->
           createAdGroup(companyId, run, plan, step, campaign, channel);
+      case "configure-search-audiences" ->
+          configureSearchAudiences(companyId, run, step, channel);
       case "configure-ai-max-ad-group" ->
           configureAiMaxAdGroup(companyId, run, step, channel);
       case "configure-ai-max-url-exclusions" ->
@@ -495,6 +514,33 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
         Long.valueOf(result.id()),
         result.externalAdSetId(),
         Map.of("reused", existing != null));
+  }
+
+  private LaunchStepExecutionResult configureSearchAudiences(
+      Long companyId,
+      LaunchRun run,
+      LaunchStep step,
+      CampaignChannel channel) {
+    AdSet adGroup = providerAdGroup(companyId, step.getProviderDeploymentId());
+    JsonNode override = override(channel);
+    var result =
+        searchAudienceService.apply(
+            companyId,
+            adGroup.getId(),
+            longIdsFromOverrideArray(override, "googleAudienceIds"),
+            longIdsFromOverrideArray(override, "googleExcludedAudienceIds"),
+            text(override, "googleSearchAudienceMode"),
+            run.getRequestedByUserId());
+    return LaunchStepExecutionResult.succeeded(
+        adGroup.getId(),
+        adGroup.getExternalAdSetId(),
+        Map.of(
+            "mode", result.mode(),
+            "includedCount", result.includedCount(),
+            "excludedCount", result.excludedCount(),
+            "createdCriteria", result.createdCriteria(),
+            "reusedCriteria", result.reusedCriteria(),
+            "targetingModeChanged", result.targetingModeChanged()));
   }
 
   private LaunchStepExecutionResult configureAiMaxAdGroup(
@@ -869,6 +915,20 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
     for (JsonNode item : value) {
       String id = item.isObject() ? item.path("id").asText(null) : null;
       if (id != null && !id.isBlank()) result.add(id.trim());
+    }
+    return List.copyOf(result);
+  }
+
+  private List<Long> longIdsFromOverrideArray(JsonNode node, String key) {
+    JsonNode value = node.get(key);
+    if (value == null || value.isNull() || !value.isArray()) return List.of();
+    List<Long> result = new java.util.ArrayList<>();
+    for (JsonNode item : value) {
+      String raw = item.isTextual() || item.isNumber() ? item.asText() : null;
+      if (raw == null || !raw.matches("\\d+")) {
+        throw new BadRequestException("Google audience IDs must be numeric");
+      }
+      result.add(Long.valueOf(raw));
     }
     return List.copyOf(result);
   }
