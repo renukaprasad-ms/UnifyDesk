@@ -202,6 +202,59 @@ class GoogleAdsCampaignTargetingServiceTests {
   }
 
   @Test
+  void acceptsCanonicalGoogleAgeBucketsAndGenderDuringPreflight() throws Exception {
+    AdAccount account = new AdAccount();
+    account.setId(2L);
+    account.setExternalAccountId("1234567890");
+
+    when(contextService.requireManaged(1L, 2L))
+        .thenReturn(
+            new GoogleAdsAccountContextService.Context(
+                account, null, "access-token", null, false, false));
+
+    AudienceDefinition audience = new AudienceDefinition();
+    audience.setAgeMin(25);
+    audience.setAgeMax(44);
+    audience.setGendersJson("[\"FEMALE\"]");
+
+    var result =
+        service.resolve(
+            1L,
+            2L,
+            audience,
+            objectMapper.readTree("{}"));
+
+    assertThat(result.locationCount()).isZero();
+    assertThat(result.languageCount()).isZero();
+  }
+
+  @Test
+  void rejectsGoogleAgeRangeThatCannotBeRepresentedExactly() throws Exception {
+    AdAccount account = new AdAccount();
+    account.setId(2L);
+    account.setExternalAccountId("1234567890");
+
+    when(contextService.requireManaged(1L, 2L))
+        .thenReturn(
+            new GoogleAdsAccountContextService.Context(
+                account, null, "access-token", null, false, false));
+
+    AudienceDefinition audience = new AudienceDefinition();
+    audience.setAgeMin(20);
+    audience.setAgeMax(30);
+
+    assertThatThrownBy(
+            () ->
+                service.resolve(
+                    1L,
+                    2L,
+                    audience,
+                    objectMapper.readTree("{}")))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("fixed buckets");
+  }
+
+  @Test
   void rejectsNonQuarterHourDaypartDuringPreflight() throws Exception {
     AdAccount account = new AdAccount();
     account.setId(2L);
