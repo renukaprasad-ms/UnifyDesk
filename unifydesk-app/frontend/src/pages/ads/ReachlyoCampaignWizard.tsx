@@ -40,6 +40,7 @@ import type {
   ProviderCampaignPlan,
   ReachlyoAudienceDefinition,
   ReachlyoAudienceLocationInput,
+  CanonicalLocationSuggestion,
   ReachlyoCampaign,
   ReachlyoCampaignObjective,
   ReachlyoCreativePack,
@@ -420,6 +421,14 @@ export default function ReachlyoCampaignWizard() {
   const [audienceLocations, setAudienceLocations] = useState<ReachlyoAudienceLocationInput[]>([
     { countryCode: 'IN' },
   ])
+  const [locationSearchByIndex, setLocationSearchByIndex] = useState<Record<number, string>>({})
+  const [locationSuggestionsByIndex, setLocationSuggestionsByIndex] = useState<
+    Record<number, CanonicalLocationSuggestion[]>
+  >({})
+  const [locationSearchErrorByIndex, setLocationSearchErrorByIndex] = useState<
+    Record<number, string>
+  >({})
+  const [locationSearchBusyIndex, setLocationSearchBusyIndex] = useState<number | null>(null)
   const [languages, setLanguages] = useState('')
   const [ageMin, setAgeMin] = useState('')
   const [ageMax, setAgeMax] = useState('')
@@ -2112,6 +2121,116 @@ export default function ReachlyoCampaignWizard() {
     )
   }
 
+  const googleLocationAccountId = selectedChannels
+    .filter((type) => providerForChannel(type) === 'GOOGLE_ADS')
+    .map((type) => accountByChannel[type])
+    .find(Boolean)
+
+  const metaLocationAccountId = selectedChannels.includes('META_ADS')
+    ? accountByChannel.META_ADS
+    : undefined
+
+  const requiredLocationProviders = [
+    ...(googleLocationAccountId ? (['GOOGLE_ADS'] as const) : []),
+    ...(metaLocationAccountId ? (['META_ADS'] as const) : []),
+  ]
+
+  const searchAudienceLocation = async (index: number) => {
+    if (!selectedCompany) return
+    const location = audienceLocations[index]
+    const query = locationSearchByIndex[index]?.trim() ?? ''
+    if (!query) {
+      setLocationSearchErrorByIndex((current) => ({
+        ...current,
+        [index]: 'Enter a city, region or postal code.',
+      }))
+      return
+    }
+    if (!/^[A-Za-z]{2}$/.test(location.countryCode.trim())) {
+      setLocationSearchErrorByIndex((current) => ({
+        ...current,
+        [index]: 'Enter a two-letter country code before searching.',
+      }))
+      return
+    }
+    if (!googleLocationAccountId && !metaLocationAccountId) {
+      setLocationSearchErrorByIndex((current) => ({
+        ...current,
+        [index]: 'Choose a Google or Meta account in the Channels step first.',
+      }))
+      return
+    }
+
+    setLocationSearchBusyIndex(index)
+    setLocationSearchErrorByIndex((current) => ({ ...current, [index]: '' }))
+    try {
+      const suggestions = await adCenterApi.locationSuggestions(
+        selectedCompany.companyId,
+        query,
+        location.countryCode.trim().toUpperCase(),
+        googleLocationAccountId,
+        metaLocationAccountId,
+      )
+      setLocationSuggestionsByIndex((current) => ({
+        ...current,
+        [index]: suggestions,
+      }))
+      if (suggestions.length === 0) {
+        setLocationSearchErrorByIndex((current) => ({
+          ...current,
+          [index]: 'No provider-backed location matched this search.',
+        }))
+      }
+    } catch (searchError) {
+      setLocationSearchErrorByIndex((current) => ({
+        ...current,
+        [index]: apiErrorMessage(
+          searchError,
+          'Unable to search provider locations',
+        ),
+      }))
+    } finally {
+      setLocationSearchBusyIndex((current) =>
+        current === index ? null : current,
+      )
+    }
+  }
+
+  const suggestionSupportsSelectedProviders = (
+    suggestion: CanonicalLocationSuggestion,
+  ) =>
+    requiredLocationProviders.every((provider) =>
+      suggestion.supportedProviders.includes(provider),
+    )
+
+  const applyLocationSuggestion = (
+    index: number,
+    suggestion: CanonicalLocationSuggestion,
+  ) => {
+    if (!suggestionSupportsSelectedProviders(suggestion)) return
+    updateAudienceLocation(index, {
+      countryCode: suggestion.countryCode,
+      region: suggestion.region ?? null,
+      city: suggestion.city ?? null,
+      postalCode: suggestion.postalCode ?? null,
+      latitude: null,
+      longitude: null,
+      radiusKm: null,
+    })
+    setLocationSearchByIndex((current) => ({
+      ...current,
+      [index]: suggestion.displayName,
+    }))
+    setLocationSuggestionsByIndex((current) => ({
+      ...current,
+      [index]: [],
+    }))
+    setLocationSearchErrorByIndex((current) => ({
+      ...current,
+      [index]: '',
+    }))
+  }
+
   if (!selectedCompany) return null
 
   if (loading) {
@@ -2845,6 +2964,105 @@ export default function ReachlyoCampaignWizard() {
                           className="rounded-2xl border border-slate-200 p-4"
                         >
                           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                            <div className="sm:col-span-2 lg:col-span-4 rounded-xl border border-indigo-100 bg-indigo-50/30 p-3">
+                              <div className="flex flex-wrap items-end gap-2">
+                                <div className="min-w-[220px] flex-1">
+                                  <label className="text-xs font-semibold text-slate-700">
+                                    Search provider locations
+                                  </label>
+                                  <input
+                                    className="form-input mt-2"
+                                    value={locationSearchByIndex[index] ?? ''}
+                                    disabled={!canEdit || !editableDefinition}
+                                    onChange={(event) =>
+                                      setLocationSearchByIndex((current) => ({
+                                        ...current,
+                                        [index]: event.target.value,
+                                      }))
+                                    }
+                                    onKeyDown={(event) => {
+                                      if (event.key === 'Enter') {
+                                        event.preventDefault()
+                                        void searchAudienceLocation(index)
+                                      }
+                                    }}
+                                    placeholder="Bengaluru, Karnataka, 560001..."
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  className="secondary-button"
+                                  disabled={
+                                    !canEdit ||
+                                    !editableDefinition ||
+                                    locationSearchBusyIndex === index ||
+                                    (!googleLocationAccountId && !metaLocationAccountId)
+                                  }
+                                  onClick={() => void searchAudienceLocation(index)}
+                                >
+                                  {locationSearchBusyIndex === index ? 'Searching…' : 'Search'}
+                                </button>
+                              </div>
+                              <p className="mt-2 text-[11px] leading-4 text-slate-500">
+                                Results are verified against the ad providers selected for this campaign.
+                                A result must support every selected provider before you can use it.
+                              </p>
+                              {locationSearchErrorByIndex[index] && (
+                                <p className="mt-2 text-xs font-medium text-red-600">
+                                  {locationSearchErrorByIndex[index]}
+                                </p>
+                              )}
+                              {(locationSuggestionsByIndex[index]?.length ?? 0) > 0 && (
+                                <div className="mt-3 grid gap-2">
+                                  {locationSuggestionsByIndex[index].map((suggestion) => {
+                                    const supported =
+                                      suggestionSupportsSelectedProviders(suggestion)
+                                    return (
+                                      <button
+                                        key={suggestion.key}
+                                        type="button"
+                                        disabled={!supported || !canEdit || !editableDefinition}
+                                        onClick={() =>
+                                          applyLocationSuggestion(index, suggestion)
+                                        }
+                                        className={
+                                          'flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-xs transition ' +
+                                          (supported
+                                            ? 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50'
+                                            : 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-400')
+                                        }
+                                      >
+                                        <span>
+                                          <span className="font-semibold">
+                                            {suggestion.displayName}
+                                          </span>
+                                          <span className="ml-2 text-[10px] uppercase tracking-wide text-slate-400">
+                                            {suggestion.type}
+                                          </span>
+                                        </span>
+                                        <span className="flex gap-1">
+                                          {suggestion.supportedProviders.includes('GOOGLE_ADS') && (
+                                            <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+                                              Google
+                                            </span>
+                                          )}
+                                          {suggestion.supportedProviders.includes('META_ADS') && (
+                                            <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                                              Meta
+                                            </span>
+                                          )}
+                                          {!supported && (
+                                            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                                              Not supported by all selected channels
+                                            </span>
+                                          )}
+                                        </span>
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
                             <Field label="Country code">
                               <input
                                 className="form-input mt-2 uppercase"
