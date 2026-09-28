@@ -42,7 +42,7 @@ public class GmailSyncBatchCommitService {
             .orElseThrow(() -> new NotFoundException("Gmail connection not found"));
 
     if (!successfulMessages.isEmpty()) {
-      persistenceService.persistBatch(connection, successfulMessages);
+      persistenceService.persistBatch(connection, successfulMessages, null, false);
     }
 
     int terminalDelta = successfulMessages.size() + Math.max(0, permanentFailures);
