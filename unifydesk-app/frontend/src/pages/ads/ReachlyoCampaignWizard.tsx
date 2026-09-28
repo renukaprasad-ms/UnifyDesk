@@ -194,7 +194,7 @@ const GOAL_OPTIONS: Array<{
 const recommendedChannelsForGoal = (
   goal: CampaignBusinessGoal,
 ): CampaignChannelType[] => {
-  if (goal === 'AWARENESS') return ['META_ADS', 'GOOGLE_SEARCH']
+  if (goal === 'AWARENESS') return ['META_ADS', 'GOOGLE_DEMAND_GEN']
   if (goal === 'APP_INSTALL') return ['META_ADS']
   return ['GOOGLE_SEARCH', 'META_ADS']
 }
@@ -1879,17 +1879,21 @@ export default function ReachlyoCampaignWizard() {
     if (nextGoal === 'TRAFFIC') {
       setGoogleBidStrategy('MAXIMIZE_CLICKS')
       setPmaxBidStrategy('MAXIMIZE_CONVERSIONS')
+      setDemandGenBidStrategy('MAXIMIZE_CLICKS')
       setMetaOptimizationGoal('LANDING_PAGE_VIEWS')
     } else if (nextGoal === 'AWARENESS') {
       setGoogleBidStrategy('MAXIMIZE_CLICKS')
+      setDemandGenBidStrategy('MAXIMIZE_CLICKS')
       setMetaOptimizationGoal('REACH')
     } else if (nextGoal === 'PURCHASE') {
       setGoogleBidStrategy('MAXIMIZE_CONVERSION_VALUE')
       setPmaxBidStrategy('MAXIMIZE_CONVERSION_VALUE')
+      setDemandGenBidStrategy('MAXIMIZE_CONVERSION_VALUE')
       setMetaOptimizationGoal('VALUE')
     } else {
       setGoogleBidStrategy('MAXIMIZE_CONVERSIONS')
       setPmaxBidStrategy('MAXIMIZE_CONVERSIONS')
+      setDemandGenBidStrategy('MAXIMIZE_CONVERSIONS')
       setMetaOptimizationGoal(
         nextGoal === 'LEAD' || nextGoal === 'QUALIFIED_LEAD' || nextGoal === 'SIGN_UP'
           ? 'LEAD_GENERATION'
