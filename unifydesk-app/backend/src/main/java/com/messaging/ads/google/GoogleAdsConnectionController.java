@@ -754,6 +754,50 @@ public class GoogleAdsConnectionController {
             "Google Ads ad group status updated"));
   }
 
+  @GetMapping("/accounts/{accountId}/detailed-demographics")
+  public ResponseEntity<ApiResponse<GoogleDetailedDemographicCatalogResponse>>
+      detailedDemographics(
+          @PathVariable Long companyId,
+          @PathVariable Long accountId,
+          @RequestParam(required = false) String q,
+          @RequestParam(defaultValue = "40") int limit) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            campaignTargetingService.detailedDemographics(
+                companyId, accountId, q, limit),
+            "Google detailed demographics fetched"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/search-demographics")
+  public ResponseEntity<ApiResponse<GoogleAdsCampaignTargetingService.SearchDemographicSnapshot>>
+      searchDemographics(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            campaignTargetingService.searchDemographics(companyId, campaignId),
+            "Google Search demographics fetched"));
+  }
+
+  @PutMapping("/campaigns/{campaignId}/search-demographics")
+  public ResponseEntity<ApiResponse<GoogleAdsCampaignTargetingService.SearchDemographicSnapshot>>
+      updateSearchDemographics(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId,
+          @Valid @RequestBody GoogleSearchDemographicTargetingRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            campaignTargetingService.replaceSearchDemographics(
+                companyId, campaignId, request, userId),
+            "Google Search demographics updated"));
+  }
+
   @GetMapping("/accounts/{accountId}/search-interest-catalog")
   public ResponseEntity<ApiResponse<GoogleSearchInterestCatalogResponse>>
       searchInterestCatalog(
