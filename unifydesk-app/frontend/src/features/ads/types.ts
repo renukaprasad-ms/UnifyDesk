@@ -1685,6 +1685,33 @@ export type GoogleSearchAudienceTargetingInput = {
   excludedAudienceIds: string[]
 }
 
+export type GoogleSearchInterestOption = {
+  id: string
+  resourceName: string
+  name?: string | null
+  taxonomyType?: 'AFFINITY' | 'IN_MARKET' | string | null
+  parentResourceName?: string | null
+  launchedToAll: boolean
+  searchAvailable: boolean
+}
+
+export type GoogleSearchInterestCatalog = {
+  interests: GoogleSearchInterestOption[]
+  customSegmentsSupported: boolean
+  customSegmentsNote?: string | null
+}
+
+export type GoogleSearchInterestTargeting = {
+  includedResourceNames: string[]
+  excludedResourceNames: string[]
+  preservedUnsupportedResourceNames: string[]
+}
+
+export type GoogleSearchInterestTargetingInput = {
+  includedResourceNames: string[]
+  excludedResourceNames: string[]
+}
+
 export type MetaGeoTargetType = 'COUNTRY' | 'REGION' | 'CITY' | 'ZIP' | 'CUSTOM'
 
 export type MetaTargetingLocation = {
