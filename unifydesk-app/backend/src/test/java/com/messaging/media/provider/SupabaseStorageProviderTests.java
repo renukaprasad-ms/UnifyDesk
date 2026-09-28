@@ -114,6 +114,22 @@ class SupabaseStorageProviderTests {
   }
 
   @Test
+  void readsObjectBytesForTrustedInternalUse() {
+    server
+        .expect(
+            once(),
+            requestTo(
+                "https://project.supabase.co/storage/v1/object/authenticated/private-media/users/1/profile/2.jpg"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(header("apikey", "service-role"))
+        .andRespond(withSuccess(new byte[] {1, 2, 3}, MediaType.IMAGE_JPEG));
+
+    assertThat(provider.readObject("private-media", "users/1/profile/2.jpg"))
+        .containsExactly(1, 2, 3);
+    server.verify();
+  }
+
+  @Test
   void deletesObject() {
     server
         .expect(
