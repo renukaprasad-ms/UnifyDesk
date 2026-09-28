@@ -1668,6 +1668,23 @@ export type AdSet = {
   lastSyncAt?: string | null
 }
 
+export type GoogleSearchAudienceMode = 'OBSERVATION' | 'TARGETING'
+
+export type GoogleSearchAudienceTargeting = {
+  mode: GoogleSearchAudienceMode
+  includedAudienceIds: string[]
+  excludedAudienceIds: string[]
+  providerOnlyIncludedExternalIds: string[]
+  providerOnlyExcludedExternalIds: string[]
+  preservedTargetingDimensions: string[]
+}
+
+export type GoogleSearchAudienceTargetingInput = {
+  mode: GoogleSearchAudienceMode
+  includedAudienceIds: string[]
+  excludedAudienceIds: string[]
+}
+
 export type MetaGeoTargetType = 'COUNTRY' | 'REGION' | 'CITY' | 'ZIP' | 'CUSTOM'
 
 export type MetaTargetingLocation = {
