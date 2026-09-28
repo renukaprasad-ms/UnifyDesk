@@ -63,12 +63,21 @@ public class GmailInboxPersistenceService {
 
   @Transactional
   public GmailSyncResult persistBatch(ChannelConnection connection, List<GmailMessage> messages) {
-    return persistBatch(connection, messages, null);
+    return persistBatch(connection, messages, null, false);
   }
 
   @Transactional
   public GmailSyncResult persistBatch(
       ChannelConnection connection, List<GmailMessage> messages, Long providerSyncMarker) {
+    return persistBatch(connection, messages, providerSyncMarker, false);
+  }
+
+  @Transactional
+  public GmailSyncResult persistBatch(
+      ChannelConnection connection,
+      List<GmailMessage> messages,
+      Long providerSyncMarker,
+      boolean emitNewMessageNotifications) {
     Instant syncedAt = Instant.now();
     int createdMessages = 0;
     Set<Long> touchedConversationIds = new HashSet<>();
@@ -211,7 +220,9 @@ public class GmailInboxPersistenceService {
       }
 
       message = messageRepository.save(message);
-      if (message.getDirection() == InboxMessageDirection.INBOUND) {
+      if (created
+          && emitNewMessageNotifications
+          && message.getDirection() == InboxMessageDirection.INBOUND) {
         for (InboxMessagePostProcessor processor : messagePostProcessors) {
           processor.afterPersist(message);
         }
