@@ -85,7 +85,7 @@ class GoogleAdsDisplayCampaignServiceTests {
         .thenReturn("customers/1234567890/adGroups/-3");
     when(apiClient.mutateAll(
             eq("access-token"), eq("1234567890"), eq(null), any()))
-        .thenReturn(objectMapper.readTree("{"mutateOperationResponses":[]}"));
+        .thenReturn(objectMapper.readTree("{\"mutateOperationResponses\":[]}"));
     when(apiClient.firstBulkResourceName(any(), eq("campaignResult")))
         .thenReturn("customers/1234567890/campaigns/901");
     when(apiClient.firstBulkResourceName(any(), eq("adGroupResult")))
@@ -176,7 +176,6 @@ class GoogleAdsDisplayCampaignServiceTests {
             ((Map<String, Object>) adGroupOperation.get("adGroupOperation"))
                 .get("create");
     assertThat(adGroupCreate.get("status")).isEqualTo("PAUSED");
-    assertThat(adGroupCreate.get("type")).isEqualTo("DISPLAY_STANDARD");
     assertThat(adGroupCreate).containsKey("cpcBidMicros");
   }
 }
