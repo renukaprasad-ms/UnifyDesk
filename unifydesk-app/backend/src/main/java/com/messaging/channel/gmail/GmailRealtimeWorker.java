@@ -325,7 +325,7 @@ public class GmailRealtimeWorker {
       }
 
       if (!successful.isEmpty()) {
-        var persisted = persistenceService.persistBatch(connection, successful);
+        var persisted = persistenceService.persistBatch(connection, successful, null, true);
         changed += successful.size();
         conversationIds.addAll(longIds(persisted.conversationIds()));
         changedMessageIds.addAll(longIds(persisted.messageIds()));
