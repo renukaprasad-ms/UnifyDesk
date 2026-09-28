@@ -41,7 +41,8 @@ public record CreateMetaAdSetRequest(
     String pixelId,
     String customEventType,
     String customConversionId,
-    String productSetId) {
+    String productSetId,
+    List<@Valid TargetingInterest> interests) {
 
   public CreateMetaAdSetRequest(
       String name,
@@ -99,6 +100,68 @@ public record CreateMetaAdSetRequest(
         pixelId,
         customEventType,
         customConversionId,
+        null,
+        null);
+  }
+
+  public CreateMetaAdSetRequest(
+      String name,
+      String optimizationGoal,
+      String billingEvent,
+      String bidStrategy,
+      Long bidAmountMinor,
+      Long dailyBudgetMinor,
+      Long lifetimeBudgetMinor,
+      Instant startAt,
+      Instant endAt,
+      String destinationType,
+      List<TargetingLocation> locations,
+      Integer ageMin,
+      Integer ageMax,
+      List<Integer> genders,
+      List<String> publisherPlatforms,
+      List<String> facebookPositions,
+      List<String> instagramPositions,
+      List<String> messengerPositions,
+      List<String> audienceNetworkPositions,
+      List<String> customAudienceIds,
+      List<String> excludedCustomAudienceIds,
+      Boolean advantageAudience,
+      Boolean advantageAgeSuggestion,
+      Boolean advantageGenderSuggestion,
+      String pixelId,
+      String customEventType,
+      String customConversionId,
+      String productSetId) {
+    this(
+        name,
+        optimizationGoal,
+        billingEvent,
+        bidStrategy,
+        bidAmountMinor,
+        dailyBudgetMinor,
+        lifetimeBudgetMinor,
+        startAt,
+        endAt,
+        destinationType,
+        locations,
+        ageMin,
+        ageMax,
+        genders,
+        publisherPlatforms,
+        facebookPositions,
+        instagramPositions,
+        messengerPositions,
+        audienceNetworkPositions,
+        customAudienceIds,
+        excludedCustomAudienceIds,
+        advantageAudience,
+        advantageAgeSuggestion,
+        advantageGenderSuggestion,
+        pixelId,
+        customEventType,
+        customConversionId,
+        productSetId,
         null);
   }
 
@@ -116,6 +179,10 @@ public record CreateMetaAdSetRequest(
   public boolean hasValidSchedule() {
     return startAt == null || endAt == null || endAt.isAfter(startAt);
   }
+
+  public record TargetingInterest(
+      @NotBlank String id,
+      @NotBlank @Size(max = 255) String name) {}
 
   public record TargetingLocation(
       String countryCode,
