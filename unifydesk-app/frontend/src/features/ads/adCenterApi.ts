@@ -118,6 +118,9 @@ import type {
   UpdateGoogleAdGroupInput,
   GoogleSearchAudienceTargeting,
   GoogleSearchAudienceTargetingInput,
+  GoogleSearchInterestCatalog,
+  GoogleSearchInterestTargeting,
+  GoogleSearchInterestTargetingInput,
   CreateGoogleKeywordInput,
   UpdateGoogleKeywordInput,
   CreateGoogleResponsiveSearchAdInput,
@@ -1296,6 +1299,38 @@ export const adCenterApi = {
     const response = await apiClient.post<ApiResponse<AdSet>>(
       `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/status`,
       { status },
+    )
+    return unwrap(response.data)
+  },
+
+  async googleSearchInterestCatalog(
+    companyId: string,
+    accountId: string,
+    query = '',
+    limit = 40,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleSearchInterestCatalog>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/search-interest-catalog`,
+      { params: { q: query || undefined, limit } },
+    )
+    return unwrap(response.data)
+  },
+
+  async googleSearchInterestTargeting(companyId: string, adGroupId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleSearchInterestTargeting>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/search-interest-targeting`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleSearchInterestTargeting(
+    companyId: string,
+    adGroupId: string,
+    input: GoogleSearchInterestTargetingInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GoogleSearchInterestTargeting>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/search-interest-targeting`,
+      input,
     )
     return unwrap(response.data)
   },
