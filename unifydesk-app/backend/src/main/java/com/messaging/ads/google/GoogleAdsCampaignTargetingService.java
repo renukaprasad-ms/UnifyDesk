@@ -7,6 +7,7 @@ import com.messaging.ads.campaign.dto.AudienceLocationInput;
 import com.messaging.ads.campaign.entity.AudienceDefinition;
 import com.messaging.ads.entity.AdCampaign;
 import com.messaging.ads.enums.AdProvider;
+import com.messaging.ads.google.dto.GoogleGeoLocationSuggestion;
 import com.messaging.ads.google.dto.GoogleSearchCampaignSettings;
 import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.common.exception.BadRequestException;
@@ -85,6 +86,52 @@ public class GoogleAdsCampaignTargetingService {
         finalUrlExpansionEnabled,
         termExclusions,
         messagingRestrictions);
+  }
+
+  public List<GoogleGeoLocationSuggestion> searchLocations(
+      Long companyId,
+      Long accountId,
+      String query,
+      String countryCode,
+      int limit) {
+    if (query == null || query.isBlank()) {
+      throw new BadRequestException("Google geo search query is required");
+    }
+    if (limit < 1 || limit > 50) {
+      throw new BadRequestException("Google geo search limit must be between 1 and 50");
+    }
+
+    String normalizedCountry = normalizeCountryCode(countryCode);
+    var context = contextService.requireManaged(companyId, accountId);
+    JsonNode response =
+        apiClient.suggestGeoTargets(
+            context.accessToken(),
+            context.loginCustomerId(),
+            normalizedCountry,
+            List.of(query.trim()));
+
+    JsonNode suggestions = response.path("geoTargetConstantSuggestions");
+    if (!suggestions.isArray()) return List.of();
+
+    List<GoogleGeoLocationSuggestion> result = new ArrayList<>();
+    for (JsonNode suggestion : suggestions) {
+      JsonNode geo = suggestion.path("geoTargetConstant");
+      if (!normalizedCountry.equalsIgnoreCase(geo.path("countryCode").asText())) continue;
+      if (!"ENABLED".equalsIgnoreCase(geo.path("status").asText())) continue;
+      String resourceName = geo.path("resourceName").asText(null);
+      String name = geo.path("name").asText(null);
+      String targetType = geo.path("targetType").asText(null);
+      if (!hasText(resourceName) || !hasText(name) || !hasText(targetType)) continue;
+      result.add(
+          new GoogleGeoLocationSuggestion(
+              resourceName,
+              name,
+              geo.path("canonicalName").asText(name),
+              targetType,
+              normalizedCountry));
+      if (result.size() >= limit) break;
+    }
+    return List.copyOf(result);
   }
 
   public ValidationResult resolve(
