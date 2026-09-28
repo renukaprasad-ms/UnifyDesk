@@ -133,20 +133,28 @@ export default function NotificationProvider({
         const payload = event.payload
         if (payload.companyId !== null && payload.companyId !== companyId) return
 
-        // Account-scope realtime counts are account-only. While a workspace is selected,
-        // keep the rendered company component intact until the authoritative scoped refetch.
-        if (payload.companyId !== null || companyId === null) {
-          setUnreadCount({
+        // Realtime is the live transport. Do not turn every WebSocket event into two XHR
+        // requests. Company-scoped payloads already contain authoritative scoped counts.
+        // Account-scoped payloads only know the account component, so preserve the selected
+        // workspace component locally until a normal recovery refresh (focus/reconnect/open).
+        if (payload.companyId === null && companyId !== null) {
+          setUnreadCount((current) => ({
             account: payload.accountUnread,
-            company: payload.companyUnread,
-            total: payload.totalUnread,
-          })
+            company: current.company,
+            total: payload.accountUnread + current.company,
+          }))
+          return
         }
-        void refresh('realtime')
+
+        setUnreadCount({
+          account: payload.accountUnread,
+          company: payload.companyUnread,
+          total: payload.totalUnread,
+        })
       },
     )
     return unsubscribe
-  }, [companyId, refresh])
+  }, [companyId])
 
   useEffect(() => {
     let wasConnected = realtimeClient.isConnected()
