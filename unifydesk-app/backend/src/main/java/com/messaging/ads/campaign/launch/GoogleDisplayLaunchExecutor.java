@@ -696,10 +696,11 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
       CreativePack pack,
       List<String> headlines,
       boolean required) {
+    String primary = pack.getPrimaryMessage();
     String value =
-        firstText(
-            pack.getPrimaryMessage(),
-            headlines.isEmpty() ? null : headlines.getFirst());
+        hasText(primary) && primary.trim().length() <= 90
+            ? primary.trim()
+            : headlines.isEmpty() ? null : headlines.getFirst();
     if (!hasText(value)) {
       if (required) {
         throw new BadRequestException(
