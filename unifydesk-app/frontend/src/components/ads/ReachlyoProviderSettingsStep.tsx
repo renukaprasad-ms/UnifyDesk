@@ -71,6 +71,8 @@ type Props = {
   setGoogleConversionId: (value: string) => void
   googleSearchPartners: boolean
   setGoogleSearchPartners: (value: boolean) => void
+  googleSearchAudienceMode: 'OBSERVATION' | 'TARGETING'
+  setGoogleSearchAudienceMode: (value: 'OBSERVATION' | 'TARGETING') => void
   googleContentNetwork: boolean
   setGoogleContentNetwork: (value: boolean) => void
   googleGeoMode: 'PRESENCE' | 'PRESENCE_OR_INTEREST'
@@ -842,6 +844,24 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 </select>
               </Field>
             )}
+            <Field
+              label="Audience mode"
+              hint="Observation keeps normal Search reach while measuring selected audiences. Targeting restricts delivery to included audience lists."
+            >
+              <select
+                className="form-input mt-2"
+                value={props.googleSearchAudienceMode}
+                disabled={props.disabled}
+                onChange={(event) =>
+                  props.setGoogleSearchAudienceMode(
+                    event.target.value as 'OBSERVATION' | 'TARGETING',
+                  )
+                }
+              >
+                <option value="OBSERVATION">Observation (recommended)</option>
+                <option value="TARGETING">Targeting (restrict reach)</option>
+              </select>
+            </Field>
             <Field label="Location matching">
               <select
                 className="form-input mt-2"
