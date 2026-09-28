@@ -686,6 +686,29 @@ public class MetaAdsApiClient {
                 .body(JsonNode.class));
   }
 
+  public JsonNode searchAdInterests(String accessToken, String query, int limit) {
+    if (query == null || query.isBlank()) {
+      throw new IllegalArgumentException("Meta interest search query is required");
+    }
+    int safeLimit = Math.max(1, Math.min(limit, 50));
+    return execute(
+        () ->
+            graphClient
+                .get()
+                .uri(
+                    uriBuilder ->
+                        uriBuilder
+                            .path("/{version}/search")
+                            .queryParam("type", "adinterest")
+                            .queryParam("q", query.trim())
+                            .queryParam("limit", safeLimit)
+                            .queryParam("appsecret_proof", appSecretProof(accessToken))
+                            .build(properties.getGraphApiVersion()))
+                .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                .retrieve()
+                .body(JsonNode.class));
+  }
+
   public List<CampaignSummary> campaigns(String accessToken, String accountId) {
     List<CampaignSummary> result = new ArrayList<>();
     String after = null;

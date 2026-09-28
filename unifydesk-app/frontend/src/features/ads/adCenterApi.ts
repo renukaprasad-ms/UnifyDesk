@@ -134,6 +134,7 @@ import type {
   GoogleAdsAuthorization,
   MetaAdsResourceSync,
   MetaGeoLocationSuggestion,
+  MetaDetailedTargetingSuggestion,
   MetaAudienceSync,
   MetaCampaignSync,
   MetaConversionSync,
@@ -726,6 +727,19 @@ export const adCenterApi = {
           limit,
         },
       },
+    )
+    return unwrap(response.data)
+  },
+
+  async metaInterestSuggestions(
+    companyId: string,
+    accountId: string,
+    query: string,
+    limit = 20,
+  ) {
+    const response = await apiClient.get<ApiResponse<MetaDetailedTargetingSuggestion[]>>(
+      `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/detailed-targeting/interests`,
+      { params: { q: query, limit } },
     )
     return unwrap(response.data)
   },

@@ -73,9 +73,14 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
               "audience",
               "No canonical audience is selected; broad Meta targeting will be used."));
     } else {
+      JsonNode providerOverride =
+          providerOverride(context.channel().getProviderOverrideJson());
+      boolean interestsMapped =
+          isBlank(context.audienceDefinition().getInterestsJson())
+              || hasObjectArray(providerOverride, "detailedInterests");
       boolean hasUnmappedAudienceDetails =
           !isBlank(context.audienceDefinition().getLanguagesJson())
-              || !isBlank(context.audienceDefinition().getInterestsJson())
+              || !interestsMapped
               || !isBlank(context.audienceDefinition().getSearchIntentJson())
               || !isBlank(context.audienceDefinition().getRetargetingJson())
               || !isBlank(context.audienceDefinition().getCustomerSegmentsJson());
@@ -85,8 +90,8 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
               : AudienceMappingStatus.EXACT;
       audienceMappingNote =
           hasUnmappedAudienceDetails
-              ? "Meta geo, age, and gender map directly; language, interest, search-intent, retargeting, or customer-segment controls still require later provider mapping."
-              : "Canonical geo, age, and gender targeting maps directly to Meta.";
+              ? "Meta geo, age, gender, and selected provider interests map directly; language, search-intent, retargeting, or customer-segment controls may still require provider mapping."
+              : "Canonical geo, age, gender, and selected provider interest targeting maps directly to Meta.";
       if (hasUnmappedAudienceDetails) {
         issues.add(
             ProviderCampaignPlanSupport.warning(
@@ -676,6 +681,16 @@ public class MetaProviderCampaignCompiler implements ProviderCampaignCompiler {
       java.util.Map<String, Object> configuration) {
     return new ProviderPlanOperation(
         sequence, key, action, resource, createPaused, capabilities, configuration);
+  }
+
+  private boolean hasObjectArray(JsonNode node, String field) {
+    if (node == null) return false;
+    JsonNode value = node.get(field);
+    if (value == null || !value.isArray() || value.isEmpty()) return false;
+    for (JsonNode item : value) {
+      if (item != null && item.isObject()) return true;
+    }
+    return false;
   }
 
   private String text(JsonNode node, String field) {

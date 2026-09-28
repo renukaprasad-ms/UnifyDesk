@@ -335,14 +335,18 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 "audience.locations",
                 exception.getMessage()));
       }
-      if (hasText(audience.getInterestsJson())
+      boolean interestsUnmapped =
+          hasText(audience.getInterestsJson()) && metaInterests(override).isEmpty();
+      if (interestsUnmapped
           || hasText(audience.getRetargetingJson())
           || hasText(audience.getCustomerSegmentsJson())) {
         issues.add(
             warning(
                 "META_AUDIENCE_DETAIL_NOT_EXECUTED",
                 "audience",
-                "Detailed targeting, retargeting, and customer-segment mappings are not yet executed in the baseline Meta launcher."));
+                interestsUnmapped
+                    ? "Canonical interests need provider-backed Meta interest selections before launch; retargeting/customer-segment mappings remain separate provider controls."
+                    : "Retargeting and customer-segment mappings are not yet executed in the baseline Meta launcher."));
       }
     }
 
@@ -529,7 +533,8 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
                 pixelId,
                 customEventType,
                 customConversionId,
-                text(override, "productSetId")),
+                text(override, "productSetId"),
+                metaInterests(override)),
             run.getRequestedByUserId());
 
     return LaunchStepExecutionResult.succeeded(
@@ -950,6 +955,21 @@ public class MetaLaunchExecutor implements LaunchProviderExecutor {
     } catch (Exception exception) {
       throw new BadRequestException("Campaign channel provider override is invalid JSON");
     }
+  }
+
+  private List<CreateMetaAdSetRequest.TargetingInterest> metaInterests(JsonNode override) {
+    JsonNode value = override == null ? null : override.get("detailedInterests");
+    if (value == null || value.isNull() || !value.isArray()) return List.of();
+
+    List<CreateMetaAdSetRequest.TargetingInterest> result = new ArrayList<>();
+    for (JsonNode item : value) {
+      if (item == null || !item.isObject()) continue;
+      String id = item.path("id").asText(null);
+      String name = item.path("name").asText(null);
+      if (!hasText(id) || !hasText(name)) continue;
+      result.add(new CreateMetaAdSetRequest.TargetingInterest(id.trim(), name.trim()));
+    }
+    return List.copyOf(result);
   }
 
   private List<String> stringArray(JsonNode node, String key) {

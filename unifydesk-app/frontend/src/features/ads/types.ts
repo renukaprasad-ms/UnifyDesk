@@ -1675,6 +1675,19 @@ export type MetaGeoLocationSuggestion = {
   supportsCity?: boolean | null
 }
 
+export type MetaDetailedTargetingSuggestion = {
+  id: string
+  name: string
+  type: 'INTEREST' | string
+  audienceSizeLowerBound?: number | null
+  audienceSizeUpperBound?: number | null
+}
+
+export type MetaTargetingInterest = {
+  id: string
+  name: string
+}
+
 export type CreateMetaAdSetInput = {
   name: string
   optimizationGoal: string
@@ -1703,6 +1716,7 @@ export type CreateMetaAdSetInput = {
   pixelId?: string | null
   customEventType?: string | null
   customConversionId?: string | null
+  interests?: MetaTargetingInterest[]
 }
 
 export type UpdateMetaAdSetInput = Partial<CreateMetaAdSetInput>

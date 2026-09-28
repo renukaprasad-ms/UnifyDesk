@@ -78,7 +78,8 @@ public class MetaAdsAdSetMutationService {
         request.excludedCustomAudienceIds(),
         request.advantageAudience(),
         request.advantageAgeSuggestion(),
-        request.advantageGenderSuggestion()));
+        request.advantageGenderSuggestion(),
+        request.interests()));
 
     putNormalized(payload, "bid_strategy", request.bidStrategy());
     putNormalized(payload, "destination_type", request.destinationType());
@@ -166,7 +167,8 @@ public class MetaAdsAdSetMutationService {
           request.excludedCustomAudienceIds(),
           request.advantageAudience(),
           request.advantageAgeSuggestion(),
-          request.advantageGenderSuggestion()));
+          request.advantageGenderSuggestion(),
+          null));
     }
 
     if (request.pixelId() != null
@@ -261,7 +263,8 @@ public class MetaAdsAdSetMutationService {
       List<String> excludedCustomAudienceIds,
       Boolean advantageAudience,
       Boolean advantageAgeSuggestion,
-      Boolean advantageGenderSuggestion) {
+      Boolean advantageGenderSuggestion,
+      List<CreateMetaAdSetRequest.TargetingInterest> interests) {
     if (locations == null || locations.isEmpty()) {
       throw new BadRequestException("At least one targeting location is required");
     }
@@ -374,6 +377,22 @@ public class MetaAdsAdSetMutationService {
         excludedCustomAudienceIds,
         companyId,
         accountId);
+
+    if (interests != null && !interests.isEmpty()) {
+      List<Map<String, String>> providerInterests = new ArrayList<>();
+      for (CreateMetaAdSetRequest.TargetingInterest interest : interests) {
+        if (interest == null
+            || interest.id() == null
+            || interest.id().isBlank()
+            || interest.name() == null
+            || interest.name().isBlank()) {
+          throw new BadRequestException("Meta interest targeting requires provider id and name");
+        }
+        providerInterests.add(
+            Map.of("id", interest.id().trim(), "name", interest.name().trim()));
+      }
+      targeting.put("interests", providerInterests.stream().distinct().toList());
+    }
 
     if (!Boolean.TRUE.equals(advantageAudience)
         && (Boolean.TRUE.equals(advantageAgeSuggestion)
