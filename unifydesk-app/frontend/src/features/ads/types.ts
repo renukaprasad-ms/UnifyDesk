@@ -824,6 +824,10 @@ export type CreateGoogleCampaignInput = {
   containsEuPoliticalAdvertising: boolean
   startDate?: string | null
   endDate?: string | null
+  brandGuidelinesEnabled?: boolean
+  brandMainColor?: string | null
+  brandAccentColor?: string | null
+  brandFontFamily?: string | null
 }
 
 export type UpdateGoogleCampaignInput = Partial<CreateGoogleCampaignInput>
@@ -1447,6 +1451,38 @@ export type GoogleAssetGenerationImageResult = {
 }
 
 export type GoogleAssetLinkLevel = 'CUSTOMER' | 'CAMPAIGN' | 'AD_GROUP'
+
+export type GooglePerformanceMaxBrandAsset = {
+  resourceName?: string | null
+  assetResourceName?: string | null
+  fieldType?: string | null
+  status?: string | null
+  primaryStatus?: string | null
+  primaryStatusReasons: string[]
+  assetId?: string | null
+  assetName?: string | null
+  assetType?: string | null
+  text?: string | null
+  imageUrl?: string | null
+}
+
+export type GooglePerformanceMaxBrandGuidelines = {
+  enabled: boolean
+  mainColor?: string | null
+  accentColor?: string | null
+  fontFamily?: string | null
+  brandAssets: GooglePerformanceMaxBrandAsset[]
+  canEnable: boolean
+  canDisable: boolean
+}
+
+export type UpdateGooglePerformanceMaxBrandGuidelinesInput = {
+  enableBrandGuidelines?: boolean | null
+  autoPopulateBrandAssets?: boolean | null
+  mainColor?: string | null
+  accentColor?: string | null
+  fontFamily?: string | null
+}
 
 export type GooglePerformanceMaxVideoCrawlSource = {
   url: string
