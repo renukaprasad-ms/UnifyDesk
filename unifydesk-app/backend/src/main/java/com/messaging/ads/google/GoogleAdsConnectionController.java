@@ -84,6 +84,8 @@ import com.messaging.ads.google.dto.GoogleRecommendationActionRequest;
 import com.messaging.ads.google.dto.GoogleRecommendationActionResponse;
 import com.messaging.ads.google.dto.GoogleSearchTermReportResponse;
 import com.messaging.ads.google.dto.GoogleSearchAudienceTargetingRequest;
+import com.messaging.ads.google.dto.GoogleSearchInterestCatalogResponse;
+import com.messaging.ads.google.dto.GoogleSearchInterestTargetingRequest;
 import com.messaging.ads.google.dto.GoogleAiMaxCombinationReportResponse;
 import com.messaging.ads.google.dto.GoogleBrandSuggestionResponse;
 import com.messaging.ads.google.dto.GoogleKeywordForecastRequest;
@@ -132,6 +134,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsAdGroupSyncService adGroupSyncService;
   private final GoogleAdsAdGroupMutationService adGroupMutationService;
   private final GoogleAdsSearchAudienceService searchAudienceService;
+  private final GoogleAdsSearchInterestService searchInterestService;
   private final GoogleAdsKeywordSyncService keywordSyncService;
   private final GoogleAdsKeywordMutationService keywordMutationService;
   private final GoogleAdsNegativeKeywordService negativeKeywordService;
@@ -749,6 +752,53 @@ public class GoogleAdsConnectionController {
             adGroupMutationService.setStatus(
                 companyId, adGroupId, request.status(), userId),
             "Google Ads ad group status updated"));
+  }
+
+  @GetMapping("/accounts/{accountId}/search-interest-catalog")
+  public ResponseEntity<ApiResponse<GoogleSearchInterestCatalogResponse>>
+      searchInterestCatalog(
+          @PathVariable Long companyId,
+          @PathVariable Long accountId,
+          @RequestParam(required = false) String q,
+          @RequestParam(defaultValue = "40") Integer limit) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            searchInterestService.catalog(companyId, accountId, q, limit),
+            "Google Search interest segments fetched"));
+  }
+
+  @GetMapping("/ad-groups/{adGroupId}/search-interest-targeting")
+  public ResponseEntity<ApiResponse<GoogleAdsSearchInterestService.TargetingSnapshot>>
+      searchInterestTargeting(
+          @PathVariable Long companyId,
+          @PathVariable Long adGroupId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            searchInterestService.targeting(companyId, adGroupId),
+            "Google Search interest targeting fetched"));
+  }
+
+  @PutMapping("/ad-groups/{adGroupId}/search-interest-targeting")
+  public ResponseEntity<ApiResponse<GoogleAdsSearchInterestService.TargetingSnapshot>>
+      updateSearchInterestTargeting(
+          @PathVariable Long companyId,
+          @PathVariable Long adGroupId,
+          @Valid @RequestBody GoogleSearchInterestTargetingRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            searchInterestService.replace(
+                companyId,
+                adGroupId,
+                request.includedResourceNames(),
+                request.excludedResourceNames(),
+                userId),
+            "Google Search interest targeting updated"));
   }
 
   @GetMapping("/ad-groups/{adGroupId}/search-audience-targeting")
