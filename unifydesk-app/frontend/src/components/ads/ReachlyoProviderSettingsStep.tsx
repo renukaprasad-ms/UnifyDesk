@@ -307,6 +307,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
     props.accountByChannel.GOOGLE_PERFORMANCE_MAX ??
     props.accountByChannel.GOOGLE_DEMAND_GEN ??
     props.accountByChannel.GOOGLE_SHOPPING ??
+    props.accountByChannel.GOOGLE_DISPLAY ??
     ''
   const metaAccount = props.accountByChannel.META_ADS ?? ''
   const googleConversions = props.conversionsByAccount[googleAccount] ?? []
@@ -379,7 +380,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
             {props.displayBidStrategy === 'MANUAL_CPC' && (
               <Field
                 label={'Ad-group CPC bid (' + props.currency + ')'}
-                hint="Maximum CPC bid used by the paused Display ad group."
+                hint="Optional. If blank, UnifyDesk derives a conservative CPC from the daily budget."
               >
                 <input
                   className="form-input mt-2"
