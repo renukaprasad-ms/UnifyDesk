@@ -276,7 +276,7 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
             warning(
                 "DISPLAY_AUDIENCE_PARTIAL",
                 "audience",
-                "Unified Display currently maps geo/language targeting. Demographics, interests, retargeting and customer segments are not guessed into Display ad-group audience criteria."));
+                "Unified Display maps geo/language plus selected provider-backed Google user lists. Canonical demographics, free-text interests, search intent and unbound canonical retargeting/customer-segment fields remain approximate."));
       }
     }
 
