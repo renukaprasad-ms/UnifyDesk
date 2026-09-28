@@ -258,6 +258,86 @@ class GoogleProviderCampaignCompilerTests {
   }
 
   @Test
+  void compilesDedicatedPausedDemandGenPlanWithVisualAssets() {
+    GoogleProviderCampaignCompiler compiler = new GoogleProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(16L);
+    campaign.setName("Demand Gen awareness");
+    campaign.setBusinessGoal(CampaignBusinessGoal.AWARENESS);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(26L);
+    channel.setReachlyoCampaignId(16L);
+    channel.setProvider(AdProvider.GOOGLE_ADS);
+    channel.setChannelType(CampaignChannelType.GOOGLE_DEMAND_GEN);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(7_000L);
+
+    AdAccount account = new AdAccount();
+    account.setId(36L);
+    account.setProvider(AdProvider.GOOGLE_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(7_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(46L);
+    pack.setBusinessName("Acme");
+    pack.setHeadlinesJson("[\"Discover Acme\"]");
+    pack.setDescriptionsJson("[\"Explore products built for modern teams\"]");
+    pack.setDestinationUrl("https://example.com");
+
+    CreativePackAsset landscape = asset(461L, 46L, CreativeAssetRole.MARKETING_IMAGE);
+    CreativePackAsset logo = asset(462L, 46L, CreativeAssetRole.LOGO);
+
+    AudienceDefinition audience = new AudienceDefinition();
+    audience.setId(56L);
+    audience.setLocationsJson("[{\"countryCode\":\"IN\"}]");
+    audience.setLanguagesJson("[\"en\"]");
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities =
+        new EnumMap<>(AdFeatureCapability.class);
+    capabilities.put(
+        AdFeatureCapability.CAMPAIGN_CREATE, available(AdFeatureCapability.CAMPAIGN_CREATE));
+    capabilities.put(
+        AdFeatureCapability.GOOGLE_DEMAND_GEN,
+        available(AdFeatureCapability.GOOGLE_DEMAND_GEN));
+    capabilities.put(
+        AdFeatureCapability.CREATIVE_CREATE, available(AdFeatureCapability.CREATIVE_CREATE));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(landscape, logo),
+                List.of(),
+                audience,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isTrue();
+    assertThat(plan.operations())
+        .extracting(ProviderPlanOperation::operationKey)
+        .containsExactly(
+            "create-demand-gen-paused",
+            "configure-demand-gen-targeting",
+            "create-demand-gen-multi-asset-ad");
+    assertThat(plan.operations().getFirst().createPaused()).isTrue();
+    assertThat(plan.operations())
+        .noneMatch(operation -> "create-campaign-paused".equals(operation.operationKey()));
+  }
+
+  @Test
   void requiresAiMaxCapabilityAndWarnsWhenKeywordMatchTypesWillBeOverridden() {
     GoogleProviderCampaignCompiler compiler = new GoogleProviderCampaignCompiler();
 
