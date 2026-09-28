@@ -269,7 +269,13 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
                   firstText(text(override, "bidStrategy"), defaultBidStrategy(campaign.getBusinessGoal())),
                   override.path("containsEuPoliticalAdvertising").booleanValue(),
                   localDate(campaign.getStartAt(), account),
-                  localDate(campaign.getEndAt(), account)),
+                  localDate(campaign.getEndAt(), account),
+                  override.path("pmaxBrandGuidelinesEnabled").isBoolean()
+                      ? override.path("pmaxBrandGuidelinesEnabled").booleanValue()
+                      : true,
+                  text(override, "pmaxBrandMainColor"),
+                  text(override, "pmaxBrandAccentColor"),
+                  text(override, "pmaxBrandFontFamily")),
               run.getRequestedByUserId());
     }
 
