@@ -193,7 +193,7 @@ public class NotificationMaterializer {
           definition.severity(),
           event.requiredPermissionKey(),
           rendered.title(),
-          "1 new inbox message",
+          rendered.body(),
           event.groupKey(),
           utc(bucket),
           rendered.actionPath(),
@@ -210,18 +210,29 @@ public class NotificationMaterializer {
     jdbcTemplate.update(
         """
         update user_notifications
-        set aggregate_count=?,body=?,last_event_at=greatest(last_event_at,?),
+        set aggregate_count=?,title=?,body=?,last_event_at=greatest(last_event_at,?),
             read_at=null,updated_at=now()
         where id=?
         """,
         nextCount,
-        nextCount + " new inbox messages",
+        coalescedTitle(definition, rendered, nextCount),
+        rendered.body(),
         utc(event.occurredAt()),
         existing.id());
     if (existing.readAt() != null) {
       counterService.increment(userId, event.companyId(), event.requiredPermissionKey());
     }
     return new Materialized(existing.id(), true);
+  }
+
+  private String coalescedTitle(
+      NotificationTypeRegistry.Definition definition,
+      NotificationTypeRegistry.Rendered rendered,
+      int aggregateCount) {
+    if ("INBOX_ACTIVITY".equals(definition.notificationType())) {
+      return aggregateCount + " new emails";
+    }
+    return rendered.title();
   }
 
   private void createDeliveryIntents(
