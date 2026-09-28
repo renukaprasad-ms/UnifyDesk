@@ -513,7 +513,11 @@ class GoogleProviderCampaignCompilerTests {
     channel.setEnabled(true);
     channel.setBudgetAllocationMinor(5_000L);
     channel.setProviderOverrideJson(
-        "{\"googleAudienceIds\":[\"101\"],\"googleExcludedAudienceIds\":[\"102\"],\"googleSearchAudienceMode\":\"OBSERVATION\"}");
+        "{\"googleAudienceIds\":[\"101\"],"
+            + "\"googleExcludedAudienceIds\":[\"102\"],"
+            + "\"googleSearchAudienceMode\":\"OBSERVATION\","
+            + "\"googleSearchInterestResources\":[\"customers/123/userInterests/501\"],"
+            + "\"googleSearchExcludedInterestResources\":[\"customers/123/userInterests/502\"]}");
 
     AdAccount account = new AdAccount();
     account.setId(38L);
@@ -568,6 +572,7 @@ class GoogleProviderCampaignCompilerTests {
         .containsSubsequence(
             "create-ad-group",
             "configure-search-audiences",
+            "configure-search-interests",
             "configure-keywords");
     assertThat(plan.issues())
         .noneMatch(issue -> "AUDIENCE_NOT_SELECTED".equals(issue.code()));
