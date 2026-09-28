@@ -1575,7 +1575,8 @@ export default function ReachlyoCampaignWizard() {
                 ? toMinor(displayTargetCpa, campaign.currency)
                 : undefined,
             adGroupCpcBidMinor:
-              displayBidStrategy === 'MANUAL_CPC'
+              displayBidStrategy === 'MANUAL_CPC' &&
+              Number(displayCpcBid) > 0
                 ? toMinor(displayCpcBid, campaign.currency)
                 : undefined,
           }
