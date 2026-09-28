@@ -95,11 +95,11 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
       audienceMappingStatus = googleAudienceMappingStatus(context);
       if (audienceMappingStatus == AudienceMappingStatus.EXACT) {
         audienceMappingNote =
-            "Canonical geo, language, and Search intent targeting can be represented directly for Google Search.";
+            "Canonical geo, language, demographic, and Search intent targeting can be represented directly for Google Search.";
       } else {
         audienceMappingNote =
             context.channel().getChannelType() == CampaignChannelType.GOOGLE_SEARCH
-                ? "Geo and language targeting are mapped, but this audience also contains controls not yet applied to Google Search."
+                ? "Geo, language, and demographic targeting are mapped, but this audience also contains audience controls not yet applied to Google Search."
                 : "Canonical audience mapping remains partial for this Google campaign type.";
         issues.add(
             ProviderCampaignPlanSupport.warning(
@@ -569,10 +569,7 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
     }
     var audience = context.audienceDefinition();
     boolean unsupported =
-        audience.getAgeMin() != null
-            || audience.getAgeMax() != null
-            || !isBlank(audience.getGendersJson())
-            || !isBlank(audience.getCustomerSegmentsJson())
+        !isBlank(audience.getCustomerSegmentsJson())
             || !isBlank(audience.getRetargetingJson())
             || !isBlank(audience.getExclusionsJson())
             || !isBlank(audience.getInterestsJson());
