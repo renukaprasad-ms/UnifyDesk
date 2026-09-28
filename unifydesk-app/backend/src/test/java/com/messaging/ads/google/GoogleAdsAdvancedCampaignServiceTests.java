@@ -64,6 +64,107 @@ class GoogleAdsAdvancedCampaignServiceTests {
 
   @Test
   @SuppressWarnings({"rawtypes", "unchecked"})
+  void createsShoppingCoreAtomicallyAndPaused() throws Exception {
+    when(contextService.requireManaged(10L, 20L)).thenReturn(context);
+    when(apiClient.customerResourceName("1234567890", "campaignBudgets", "-1"))
+        .thenReturn("customers/1234567890/campaignBudgets/-1");
+    when(apiClient.customerResourceName("1234567890", "campaigns", "-2"))
+        .thenReturn("customers/1234567890/campaigns/-2");
+    when(apiClient.customerResourceName("1234567890", "adGroups", "-3"))
+        .thenReturn("customers/1234567890/adGroups/-3");
+    when(apiClient.mutateAll(eq("access-token"), eq("1234567890"), eq(null), any()))
+        .thenReturn(objectMapper.readTree("{\"mutateOperationResponses\":[]}"));
+    when(apiClient.firstBulkResourceName(any(), eq("campaignResult")))
+        .thenReturn("customers/1234567890/campaigns/888");
+
+    var campaignRow =
+        objectMapper.readTree(
+            """
+            {"campaign":{"id":"888","name":"Shopping sales","status":"PAUSED","advertisingChannelType":"SHOPPING"}}
+            """);
+    when(campaignSyncService.campaign(context, "888")).thenReturn(campaignRow);
+
+    AdCampaign persisted = new AdCampaign();
+    persisted.setId(800L);
+    persisted.setCompanyId(10L);
+    persisted.setAdAccountId(20L);
+    persisted.setProvider(AdProvider.GOOGLE_ADS);
+    persisted.setExternalCampaignId("888");
+    persisted.setName("Shopping sales");
+    persisted.setObjective("SHOPPING");
+    persisted.setStatus(AdEntityStatus.PAUSED);
+    persisted.setAccessible(true);
+    when(campaignPersistenceService.persistOne(10L, 20L, campaignRow))
+        .thenReturn(persisted);
+
+    service.create(
+        10L,
+        20L,
+        new CreateGoogleAdvancedCampaignRequest(
+            "Shopping sales",
+            "SHOPPING",
+            20_000L,
+            null,
+            "MANUAL_CPC",
+            null,
+            null,
+            "123456",
+            1,
+            false,
+            false,
+            LocalDate.of(2026, 10, 1),
+            LocalDate.of(2026, 10, 31)),
+        99L);
+
+    ArgumentCaptor<List> operations = ArgumentCaptor.forClass(List.class);
+    verify(apiClient)
+        .mutateAll(
+            eq("access-token"),
+            eq("1234567890"),
+            eq(null),
+            operations.capture());
+
+    assertThat(operations.getValue()).hasSize(5);
+
+    Map<String, Object> campaignOperation =
+        (Map<String, Object>) operations.getValue().get(1);
+    Map<String, Object> campaignCreate =
+        (Map<String, Object>)
+            ((Map<String, Object>) campaignOperation.get("campaignOperation"))
+                .get("create");
+    assertThat(campaignCreate.get("status")).isEqualTo("PAUSED");
+    assertThat(campaignCreate.get("advertisingChannelType")).isEqualTo("SHOPPING");
+
+    Map<String, Object> adGroupOperation =
+        (Map<String, Object>) operations.getValue().get(2);
+    Map<String, Object> adGroupCreate =
+        (Map<String, Object>)
+            ((Map<String, Object>) adGroupOperation.get("adGroupOperation"))
+                .get("create");
+    assertThat(adGroupCreate.get("status")).isEqualTo("PAUSED");
+    assertThat(adGroupCreate.get("type")).isEqualTo("SHOPPING_PRODUCT_ADS");
+
+    Map<String, Object> adOperation =
+        (Map<String, Object>) operations.getValue().get(3);
+    Map<String, Object> adCreate =
+        (Map<String, Object>)
+            ((Map<String, Object>) adOperation.get("adGroupAdOperation"))
+                .get("create");
+    assertThat(adCreate.get("status")).isEqualTo("PAUSED");
+
+    Map<String, Object> criterionOperation =
+        (Map<String, Object>) operations.getValue().get(4);
+    Map<String, Object> criterionCreate =
+        (Map<String, Object>)
+            ((Map<String, Object>) criterionOperation.get("adGroupCriterionOperation"))
+                .get("create");
+    assertThat(criterionCreate.get("status")).isEqualTo("PAUSED");
+    assertThat(criterionCreate.get("listingGroup"))
+        .isEqualTo(Map.of("type", "UNIT"));
+  }
+
+  @Test
+  @SuppressWarnings({"rawtypes", "unchecked"})
   void createsDemandGenCampaignWithCustomPeriodTotalBudget() throws Exception {
     when(contextService.requireManaged(10L, 20L)).thenReturn(context);
     when(apiClient.customerResourceName("1234567890", "campaignBudgets", "-1"))
