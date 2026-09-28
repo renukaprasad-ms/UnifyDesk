@@ -183,7 +183,7 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
         issues.add(warning(
             "PMAX_DEMOGRAPHICS_ARE_SIGNALS",
             "audience",
-            "Performance Max does not apply the shared age/gender/interests as hard Search-style criteria. Geo/language are targeting controls; search intent is mapped as asset-group search-theme signals."));
+            "Performance Max does not apply shared age/gender/free-text interests as hard criteria. Geo/language remain targeting controls; search intent becomes search-theme signals, and selected Google user lists become audience signals."));
       }
     }
 
