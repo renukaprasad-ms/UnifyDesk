@@ -95,6 +95,8 @@ import type {
   UpdateGoogleUrlOptionsInput,
   GooglePerformanceMaxAutomation,
   UpdateGooglePerformanceMaxAutomationInput,
+  GooglePerformanceMaxBrandGuidelines,
+  UpdateGooglePerformanceMaxBrandGuidelinesInput,
   GoogleAssetGroupUrlOptions,
   GoogleAssetGroup,
   GoogleAssetGroupAsset,
@@ -1120,6 +1122,28 @@ export const adCenterApi = {
   ) {
     const response = await apiClient.post<ApiResponse<GoogleAssetGroupSignal[]>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/signals`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googlePerformanceMaxBrandGuidelines(
+    companyId: string,
+    campaignId: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GooglePerformanceMaxBrandGuidelines>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/brand-guidelines`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGooglePerformanceMaxBrandGuidelines(
+    companyId: string,
+    campaignId: string,
+    input: UpdateGooglePerformanceMaxBrandGuidelinesInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GooglePerformanceMaxBrandGuidelines>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/brand-guidelines`,
       input,
     )
     return unwrap(response.data)
