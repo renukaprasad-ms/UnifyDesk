@@ -274,26 +274,66 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
 
     List<String> headlines = jsonStrings(context.creativePack().getHeadlinesJson());
     List<String> descriptions = jsonStrings(context.creativePack().getDescriptionsJson());
-    if (headlines.size() < 3) {
+    if (headlines.size() < 3 || headlines.size() > 15) {
       issues.add(
           ProviderCampaignPlanSupport.error(
-              "PMAX_HEADLINES_INSUFFICIENT",
+              "PMAX_HEADLINES_INVALID",
               "creativePack.headlines",
-              "Performance Max requires at least 3 headlines."));
-    }
-    if (descriptions.size() < 2) {
+              "Performance Max requires 3 to 15 headlines."));
+    } else if (headlines.stream().anyMatch(value -> value.length() > 30)) {
       issues.add(
           ProviderCampaignPlanSupport.error(
-              "PMAX_DESCRIPTIONS_INSUFFICIENT",
-              "creativePack.descriptions",
-              "Performance Max requires at least 2 descriptions."));
+              "PMAX_HEADLINE_TOO_LONG",
+              "creativePack.headlines",
+              "Performance Max headlines must be at most 30 characters."));
     }
-    if (isBlank(context.creativePack().getBusinessName())) {
+    if (descriptions.size() < 2 || descriptions.size() > 5) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "PMAX_DESCRIPTIONS_INVALID",
+              "creativePack.descriptions",
+              "Performance Max requires 2 to 5 descriptions."));
+    } else {
+      if (descriptions.stream().anyMatch(value -> value.length() > 90)) {
+        issues.add(
+            ProviderCampaignPlanSupport.error(
+                "PMAX_DESCRIPTION_TOO_LONG",
+                "creativePack.descriptions",
+                "Performance Max descriptions must be at most 90 characters."));
+      }
+      if (descriptions.stream().noneMatch(value -> value.length() <= 60)) {
+        issues.add(
+            ProviderCampaignPlanSupport.error(
+                "PMAX_SHORT_DESCRIPTION_REQUIRED",
+                "creativePack.descriptions",
+                "Performance Max requires at least one description of 60 characters or fewer."));
+      }
+    }
+    String businessName = context.creativePack().getBusinessName();
+    if (isBlank(businessName)) {
       issues.add(
           ProviderCampaignPlanSupport.error(
               "PMAX_BUSINESS_NAME_MISSING",
               "creativePack.businessName",
               "Performance Max requires a business name."));
+    } else if (businessName.trim().length() > 25) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "PMAX_BUSINESS_NAME_TOO_LONG",
+              "creativePack.businessName",
+              "Performance Max business name must be at most 25 characters."));
+    }
+
+    String finalUrl =
+        !isBlank(context.creativePack().getDestinationUrl())
+            ? context.creativePack().getDestinationUrl()
+            : context.campaign().getLandingPageUrl();
+    if (isBlank(finalUrl) || !isHttpUrl(finalUrl)) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "PMAX_FINAL_URL_INVALID",
+              "creativePack.destinationUrl",
+              "Performance Max requires a valid HTTP or HTTPS destination URL."));
     }
 
     Set<CreativeAssetRole> roles =
@@ -726,6 +766,16 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
       return JSON.readTree(json);
     } catch (Exception exception) {
       return JSON.createObjectNode();
+    }
+  }
+
+  private boolean isHttpUrl(String value) {
+    try {
+      java.net.URI uri = java.net.URI.create(value.trim());
+      return "http".equalsIgnoreCase(uri.getScheme())
+          || "https".equalsIgnoreCase(uri.getScheme());
+    } catch (RuntimeException exception) {
+      return false;
     }
   }
 
