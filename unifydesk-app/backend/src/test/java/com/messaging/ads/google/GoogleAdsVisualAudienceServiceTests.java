@@ -120,7 +120,7 @@ class GoogleAdsVisualAudienceServiceTests {
             eq(null),
             eq("adGroupCriteria"),
             any()))
-        .thenReturn(objectMapper.readTree("{"results":[]}"));
+        .thenReturn(objectMapper.readTree("{\"results\":[]}"));
 
     var result =
         service.applyDisplayUserLists(
@@ -178,7 +178,7 @@ class GoogleAdsVisualAudienceServiceTests {
             any()))
         .thenReturn(
             objectMapper.readTree(
-                "{"results":[{"resourceName":"customers/1234567890/audiences/900"}]}"));
+                "{\"results\":[{\"resourceName\":\"customers/1234567890/audiences/900\"}]}"));
     when(apiClient.firstMutatedResourceName(any()))
         .thenReturn("customers/1234567890/audiences/900");
 
@@ -225,7 +225,7 @@ class GoogleAdsVisualAudienceServiceTests {
     audience.setName(name);
     audience.setAccessible(true);
     audience.setDeliveryStatusJson(
-        "{"eligibleForDisplay":true,"accountStatus":"ENABLED"}");
+        "{\"eligibleForDisplay\":true,\"accountStatus\":\"ENABLED\"}");
     return audience;
   }
 }
