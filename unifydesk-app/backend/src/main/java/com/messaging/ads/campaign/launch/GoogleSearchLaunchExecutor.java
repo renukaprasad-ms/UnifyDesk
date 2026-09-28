@@ -460,7 +460,8 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
             "reusedCount", result.reusedCount(),
             "locationCount", result.locationCount(),
             "languageCount", result.languageCount(),
-            "scheduleCount", result.scheduleCount()));
+            "scheduleCount", result.scheduleCount(),
+            "deviceCount", result.deviceCount()));
   }
 
   private LaunchStepExecutionResult createAdGroup(
