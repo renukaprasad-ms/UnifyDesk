@@ -96,7 +96,7 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
     AudienceMappingStatus audienceMappingStatus = null;
     String audienceMappingNote = null;
     if (context.audienceDefinition() == null) {
-      if (!hasProviderAudienceLists(context)) {
+      if (!hasProviderAudienceSelection(context)) {
         issues.add(
             ProviderCampaignPlanSupport.warning(
                 "AUDIENCE_NOT_SELECTED",
@@ -848,7 +848,7 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                 true,
                 Set.of(),
                 ProviderCampaignPlanSupport.config("status", "PAUSED")));
-        if (hasProviderAudienceLists(context)) {
+        if (hasSearchAudienceCriteria(context)) {
           operations.add(
               operation(
                   sequence++,
@@ -866,6 +866,22 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                       providerStrings(context, "googleAudienceIds").size(),
                       "excludedCount",
                       providerStrings(context, "googleExcludedAudienceIds").size())));
+        }
+        if (!providerStrings(context, "googleSearchInterestResources").isEmpty()
+            || !providerStrings(context, "googleSearchExcludedInterestResources").isEmpty()) {
+          operations.add(
+              operation(
+                  sequence++,
+                  "configure-search-interests",
+                  ProviderPlanAction.CONFIGURE,
+                  ProviderPlanResource.AD_GROUP,
+                  false,
+                  Set.of(),
+                  ProviderCampaignPlanSupport.config(
+                      "includedCount",
+                      providerStrings(context, "googleSearchInterestResources").size(),
+                      "excludedCount",
+                      providerStrings(context, "googleSearchExcludedInterestResources").size())));
         }
         if (aiMaxEnabled(context)) {
           operations.add(
@@ -1049,6 +1065,20 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
       ProviderCampaignCompileContext context) {
     return !providerStrings(context, "googleAudienceIds").isEmpty()
         || !providerStrings(context, "googleExcludedAudienceIds").isEmpty();
+  }
+
+  private boolean hasSearchAudienceCriteria(
+      ProviderCampaignCompileContext context) {
+    return hasProviderAudienceLists(context)
+        || !providerStrings(context, "googleSearchInterestResources").isEmpty()
+        || !providerStrings(context, "googleSearchExcludedInterestResources").isEmpty();
+  }
+
+  private boolean hasProviderAudienceSelection(
+      ProviderCampaignCompileContext context) {
+    return context.channel().getChannelType() == CampaignChannelType.GOOGLE_SEARCH
+        ? hasSearchAudienceCriteria(context)
+        : hasProviderAudienceLists(context);
   }
 
   private boolean aiMaxEnabled(ProviderCampaignCompileContext context) {
