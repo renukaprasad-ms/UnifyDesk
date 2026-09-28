@@ -55,7 +55,10 @@ describe('NotificationBell', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Notifications, 120 unread/i }))
 
-    expect(await screen.findByText('New inbox activity')).toBeTruthy()
+    expect(await screen.findByText('3 new emails')).toBeTruthy()
+    expect(screen.getByText('Quarterly update')).toBeTruthy()
+    expect(screen.getByText('Here is the latest update')).toBeTruthy()
+    expect(screen.getByText('Sales Inbox')).toBeTruthy()
     await waitFor(() =>
       expect(notificationApi.markSeen).toHaveBeenCalledWith('922337203685470100', [
         companyNotification.id,
