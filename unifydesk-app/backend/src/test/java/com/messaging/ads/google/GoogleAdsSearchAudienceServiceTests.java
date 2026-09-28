@@ -147,7 +147,9 @@ class GoogleAdsSearchAudienceServiceTests {
                 return List.of(
                     objectMapper.readTree(
                         """
-                        {"adGroup":{"targetingSetting":{"targetRestrictions":[]}}}
+                        {"adGroup":{"targetingSetting":{"targetRestrictions":[
+                          {"targetingDimension":"CONTENT","bidOnly":false}
+                        ]}}}
                         """));
               }
               return List.of();
@@ -197,9 +199,182 @@ class GoogleAdsSearchAudienceServiceTests {
         (Map<String, Object>) update.get("targetingSetting");
     List<Map<String, Object>> restrictions =
         (List<Map<String, Object>>) targetingSetting.get("targetRestrictions");
-    assertThat(restrictions.getFirst().get("targetingDimension"))
-        .isEqualTo("AUDIENCE");
-    assertThat(restrictions.getFirst().get("bidOnly")).isEqualTo(true);
+    assertThat(restrictions)
+        .anySatisfy(
+            restriction -> {
+              assertThat(restriction.get("targetingDimension")).isEqualTo("CONTENT");
+              assertThat(restriction.get("bidOnly")).isEqualTo(false);
+            });
+    assertThat(restrictions)
+        .anySatisfy(
+            restriction -> {
+              assertThat(restriction.get("targetingDimension")).isEqualTo("AUDIENCE");
+              assertThat(restriction.get("bidOnly")).isEqualTo(true);
+            });
+  }
+
+  @Test
+  void targetingSnapshotMapsKnownListsAndPreservesProviderOnlyCriteria() throws Exception {
+    AdSet adGroup = new AdSet();
+    adGroup.setId(40L);
+    adGroup.setCompanyId(10L);
+    adGroup.setAdAccountId(20L);
+    adGroup.setCampaignId(30L);
+    adGroup.setProvider(AdProvider.GOOGLE_ADS);
+    adGroup.setExternalAdSetId("888");
+    adGroup.setAccessible(true);
+    when(adSetRepository.findByIdAndCompanyId(40L, 10L))
+        .thenReturn(Optional.of(adGroup));
+
+    AdCampaign campaign = new AdCampaign();
+    campaign.setId(30L);
+    campaign.setCompanyId(10L);
+    campaign.setAdAccountId(20L);
+    campaign.setProvider(AdProvider.GOOGLE_ADS);
+    campaign.setObjective("SEARCH");
+    campaign.setExternalCampaignId("777");
+    campaign.setAccessible(true);
+    when(campaignRepository.findByIdAndCompanyId(30L, 10L))
+        .thenReturn(Optional.of(campaign));
+
+    AdAudience known = searchEligibleAudience(101L, "501", 20L);
+    when(audienceRepository.findByCompanyIdAndAdAccountIdOrderByProviderUpdatedAtDesc(
+            10L, 20L))
+        .thenReturn(List.of(known));
+
+    AdAccount account = new AdAccount();
+    account.setId(20L);
+    account.setExternalAccountId("1234567890");
+    var context =
+        new GoogleAdsAccountContextService.Context(
+            account, new AdProviderConnection(), "access-token", null, false, false);
+    when(contextService.requireManaged(10L, 20L)).thenReturn(context);
+
+    when(apiClient.searchRows(
+            eq("access-token"), eq("1234567890"), eq(null), anyString()))
+        .thenAnswer(
+            invocation -> {
+              String query = invocation.getArgument(3);
+              if (query.contains("targeting_setting")) {
+                return List.of(
+                    objectMapper.readTree(
+                        """
+                        {"adGroup":{"targetingSetting":{"targetRestrictions":[
+                          {"targetingDimension":"AUDIENCE","bidOnly":true},
+                          {"targetingDimension":"CONTENT","bidOnly":false}
+                        ]}}}
+                        """));
+              }
+              return List.of(
+                  objectMapper.readTree(
+                      """
+                      {"adGroupCriterion":{
+                        "resourceName":"customers/1234567890/adGroupCriteria/888~1",
+                        "negative":false,
+                        "userList":{"userList":"customers/1234567890/userLists/501"}
+                      }}
+                      """),
+                  objectMapper.readTree(
+                      """
+                      {"adGroupCriterion":{
+                        "resourceName":"customers/1234567890/adGroupCriteria/888~2",
+                        "negative":true,
+                        "userList":{"userList":"customers/1234567890/userLists/999"}
+                      }}
+                      """));
+            });
+
+    var result = service.targeting(10L, 40L);
+
+    assertThat(result.mode()).isEqualTo("OBSERVATION");
+    assertThat(result.includedAudienceIds()).containsExactly(101L);
+    assertThat(result.providerOnlyExcludedExternalIds()).containsExactly("999");
+    assertThat(result.preservedTargetingDimensions()).containsExactly("CONTENT");
+  }
+
+  @Test
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  void nativeReplaceRemovesOnlyMappedDeselectedCriteria() throws Exception {
+    AdSet adGroup = new AdSet();
+    adGroup.setId(40L);
+    adGroup.setCompanyId(10L);
+    adGroup.setAdAccountId(20L);
+    adGroup.setCampaignId(30L);
+    adGroup.setProvider(AdProvider.GOOGLE_ADS);
+    adGroup.setExternalAdSetId("888");
+    adGroup.setAccessible(true);
+    when(adSetRepository.findByIdAndCompanyId(40L, 10L))
+        .thenReturn(Optional.of(adGroup));
+
+    AdCampaign campaign = new AdCampaign();
+    campaign.setId(30L);
+    campaign.setCompanyId(10L);
+    campaign.setAdAccountId(20L);
+    campaign.setProvider(AdProvider.GOOGLE_ADS);
+    campaign.setObjective("SEARCH");
+    campaign.setAccessible(true);
+    when(campaignRepository.findByIdAndCompanyId(30L, 10L))
+        .thenReturn(Optional.of(campaign));
+
+    AdAudience known = searchEligibleAudience(101L, "501", 20L);
+    when(audienceRepository.findByCompanyIdAndAdAccountIdOrderByProviderUpdatedAtDesc(
+            10L, 20L))
+        .thenReturn(List.of(known));
+
+    AdAccount account = new AdAccount();
+    account.setId(20L);
+    account.setExternalAccountId("1234567890");
+    var context =
+        new GoogleAdsAccountContextService.Context(
+            account, new AdProviderConnection(), "access-token", null, false, false);
+    when(contextService.requireManaged(10L, 20L)).thenReturn(context);
+    when(apiClient.customerResourceName("1234567890", "adGroups", "888"))
+        .thenReturn("customers/1234567890/adGroups/888");
+
+    when(apiClient.searchRows(
+            eq("access-token"), eq("1234567890"), eq(null), anyString()))
+        .thenAnswer(
+            invocation -> {
+              String query = invocation.getArgument(3);
+              if (query.contains("targeting_setting")) {
+                return List.of(
+                    objectMapper.readTree(
+                        """
+                        {"adGroup":{"targetingSetting":{"targetRestrictions":[]}}}
+                        """));
+              }
+              return List.of(
+                  objectMapper.readTree(
+                      """
+                      {"adGroupCriterion":{
+                        "resourceName":"customers/1234567890/adGroupCriteria/888~1",
+                        "negative":false,
+                        "userList":{"userList":"customers/1234567890/userLists/501"}
+                      }}
+                      """),
+                  objectMapper.readTree(
+                      """
+                      {"adGroupCriterion":{
+                        "resourceName":"customers/1234567890/adGroupCriteria/888~2",
+                        "negative":false,
+                        "userList":{"userList":"customers/1234567890/userLists/999"}
+                      }}
+                      """));
+            });
+
+    service.replace(10L, 40L, List.of(), List.of(), "OBSERVATION", 99L);
+
+    ArgumentCaptor<List> operations = ArgumentCaptor.forClass(List.class);
+    verify(apiClient)
+        .mutate(
+            eq("access-token"),
+            eq("1234567890"),
+            eq(null),
+            eq("adGroupCriteria"),
+            operations.capture());
+
+    assertThat(operations.getValue()).containsExactly(
+        Map.of("remove", "customers/1234567890/adGroupCriteria/888~1"));
   }
 
   private AdAudience searchEligibleAudience(
