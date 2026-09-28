@@ -139,6 +139,64 @@ const BUSINESS_GOALS: CampaignBusinessGoal[] = [
   'AWARENESS',
 ]
 
+const GOAL_OPTIONS: Array<{
+  objective: ReachlyoCampaignObjective
+  goal: CampaignBusinessGoal
+  title: string
+  description: string
+}> = [
+  {
+    objective: 'SALES',
+    goal: 'PURCHASE',
+    title: 'Get more sales',
+    description: 'Optimize campaigns for purchases and revenue.',
+  },
+  {
+    objective: 'LEADS',
+    goal: 'LEAD',
+    title: 'Get more leads',
+    description: 'Collect enquiries and qualified prospects.',
+  },
+  {
+    objective: 'LEADS',
+    goal: 'WHATSAPP_CONVERSATION',
+    title: 'Get WhatsApp conversations',
+    description: 'Bring interested customers into a WhatsApp conversation.',
+  },
+  {
+    objective: 'LEADS',
+    goal: 'PHONE_CALL',
+    title: 'Get more phone calls',
+    description: 'Optimize campaigns for customers who want to call you.',
+  },
+  {
+    objective: 'TRAFFIC',
+    goal: 'TRAFFIC',
+    title: 'Get more website visitors',
+    description: 'Drive relevant people to your website or landing page.',
+  },
+  {
+    objective: 'APP_PROMOTION',
+    goal: 'APP_INSTALL',
+    title: 'Get app installs',
+    description: 'Promote your app and optimize for installs.',
+  },
+  {
+    objective: 'AWARENESS',
+    goal: 'AWARENESS',
+    title: 'Build awareness',
+    description: 'Reach more relevant people and grow brand visibility.',
+  },
+]
+
+const recommendedChannelsForGoal = (
+  goal: CampaignBusinessGoal,
+): CampaignChannelType[] => {
+  if (goal === 'AWARENESS') return ['META_ADS', 'GOOGLE_SEARCH']
+  if (goal === 'APP_INSTALL') return ['META_ADS']
+  return ['GOOGLE_SEARCH', 'META_ADS']
+}
+
 const pretty = (value: string) =>
   value
     .replaceAll('_', ' ')
@@ -416,6 +474,7 @@ export default function ReachlyoCampaignWizard() {
   const [metaBackgroundGeneration, setMetaBackgroundGeneration] = useState(false)
   const [metaProductSetId, setMetaProductSetId] = useState('')
   const [metaExistingPostId, setMetaExistingPostId] = useState('')
+  const [showAdvancedProviderSettings, setShowAdvancedProviderSettings] = useState(false)
 
   const managedAccounts = useMemo(
     () =>
@@ -1656,6 +1715,52 @@ export default function ReachlyoCampaignWizard() {
     }
   }
 
+  const selectBusinessGoal = (
+    nextObjective: ReachlyoCampaignObjective,
+    nextGoal: CampaignBusinessGoal,
+  ) => {
+    setObjective(nextObjective)
+    setBusinessGoal(nextGoal)
+
+    if (nextGoal === 'TRAFFIC') {
+      setGoogleBidStrategy('MAXIMIZE_CLICKS')
+      setMetaOptimizationGoal('LANDING_PAGE_VIEWS')
+    } else if (nextGoal === 'AWARENESS') {
+      setGoogleBidStrategy('MAXIMIZE_CLICKS')
+      setMetaOptimizationGoal('REACH')
+    } else if (nextGoal === 'PURCHASE') {
+      setGoogleBidStrategy('MAXIMIZE_CONVERSION_VALUE')
+      setMetaOptimizationGoal('VALUE')
+    } else {
+      setGoogleBidStrategy('MAXIMIZE_CONVERSIONS')
+      setMetaOptimizationGoal(
+        nextGoal === 'LEAD' || nextGoal === 'QUALIFIED_LEAD' || nextGoal === 'SIGN_UP'
+          ? 'LEAD_GENERATION'
+          : 'OFFSITE_CONVERSIONS',
+      )
+    }
+    setMetaStandardEvent(defaultMetaStandardEvent(nextGoal))
+  }
+
+  const applyRecommendedChannels = () => {
+    const recommendations = recommendedChannelsForGoal(businessGoal)
+    setSelectedChannels(recommendations)
+    recommendations.forEach((type) => {
+      if (accountByChannel[type]) return
+      const provider = providerForChannel(type)
+      const account =
+        managedAccounts.find(
+          (item) => item.provider === provider && item.primaryAccount,
+        ) ?? managedAccounts.find((item) => item.provider === provider)
+      if (account) {
+        setAccountByChannel((current) => ({
+          ...current,
+          [type]: account.id,
+        }))
+      }
+    })
+  }
+
   const toggleChannel = (type: CampaignChannelType, checked: boolean) => {
     setSelectedChannels((current) =>
       checked
@@ -1840,43 +1945,89 @@ export default function ReachlyoCampaignWizard() {
                       }
                     />
                   </Field>
-                  <Field label="Objective">
-                    <select
-                      className="form-input mt-2"
-                      value={objective}
-                      disabled={!canEdit || !editableDefinition}
-                      onChange={(event) => {
-                        const next =
-                          event.target.value as ReachlyoCampaignObjective
-                        setObjective(next)
-                        setBusinessGoal(defaultGoal(next))
-                      }}
-                    >
-                      {OBJECTIVES.map((value) => (
-                        <option key={value} value={value}>
-                          {pretty(value)}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Business goal">
-                    <select
-                      className="form-input mt-2"
-                      value={businessGoal}
-                      disabled={!canEdit || !editableDefinition}
-                      onChange={(event) =>
-                        setBusinessGoal(
-                          event.target.value as CampaignBusinessGoal,
+                  <div className="sm:col-span-2">
+                    <p className="text-xs font-semibold text-slate-700">
+                      What do you want to achieve?
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      Choose the business outcome. UnifyDesk will use sensible Google and Meta
+                      optimization defaults; provider terminology stays available under advanced
+                      settings.
+                    </p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      {GOAL_OPTIONS.map((option) => {
+                        const selected =
+                          option.objective === objective && option.goal === businessGoal
+                        return (
+                          <button
+                            key={option.objective + '-' + option.goal}
+                            type="button"
+                            disabled={!canEdit || !editableDefinition}
+                            onClick={() =>
+                              selectBusinessGoal(option.objective, option.goal)
+                            }
+                            className={
+                              'rounded-2xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ' +
+                              (selected
+                                ? 'border-indigo-300 bg-indigo-50 shadow-sm'
+                                : 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-indigo-50/30')
+                            }
+                          >
+                            <span className="block text-sm font-bold text-slate-900">
+                              {option.title}
+                            </span>
+                            <span className="mt-1 block text-xs leading-5 text-slate-500">
+                              {option.description}
+                            </span>
+                          </button>
                         )
-                      }
-                    >
-                      {BUSINESS_GOALS.map((value) => (
-                        <option key={value} value={value}>
-                          {pretty(value)}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
+                      })}
+                    </div>
+                    <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <summary className="cursor-pointer text-xs font-semibold text-slate-700">
+                        Advanced goal mapping
+                      </summary>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <Field label="Provider-neutral objective">
+                          <select
+                            className="form-input mt-2"
+                            value={objective}
+                            disabled={!canEdit || !editableDefinition}
+                            onChange={(event) => {
+                              const next =
+                                event.target.value as ReachlyoCampaignObjective
+                              selectBusinessGoal(next, defaultGoal(next))
+                            }}
+                          >
+                            {OBJECTIVES.map((value) => (
+                              <option key={value} value={value}>
+                                {pretty(value)}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                        <Field label="Business conversion goal">
+                          <select
+                            className="form-input mt-2"
+                            value={businessGoal}
+                            disabled={!canEdit || !editableDefinition}
+                            onChange={(event) =>
+                              selectBusinessGoal(
+                                objective,
+                                event.target.value as CampaignBusinessGoal,
+                              )
+                            }
+                          >
+                            {BUSINESS_GOALS.map((value) => (
+                              <option key={value} value={value}>
+                                {pretty(value)}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                      </div>
+                    </details>
+                  </div>
                   <Field label="Landing page">
                     <input
                       className="form-input mt-2"
@@ -1923,6 +2074,26 @@ export default function ReachlyoCampaignWizard() {
                 title="2. Channels & accounts"
                 description="Choose delivery channels and the managed account Reachlyo should use for each one."
               >
+                <div className="mb-4 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">Recommended for {pretty(businessGoal)}</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Start with {recommendedChannelsForGoal(businessGoal).map(pretty).join(' + ')}.
+                        You stay in control and can change the channel mix before launch.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={!canEdit || !editableDefinition}
+                      onClick={applyRecommendedChannels}
+                    >
+                      Use recommended channels
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid gap-3">
                   {CHANNELS.map((option) => {
                     const selected = selectedChannels.includes(option.type)
@@ -1951,6 +2122,11 @@ export default function ReachlyoCampaignWizard() {
                               <p className="text-sm font-bold text-slate-900">
                                 {option.title}
                               </p>
+                              {recommendedChannelsForGoal(businessGoal).includes(option.type) && (
+                                <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+                                  Recommended
+                                </span>
+                              )}
                               <span
                                 className={
                                   'rounded-full px-2 py-0.5 text-[10px] font-bold ' +
@@ -2368,44 +2544,57 @@ export default function ReachlyoCampaignWizard() {
                                 placeholder="Optional"
                               />
                             </Field>
-                            <Field label="Latitude">
-                              <input
-                                className="form-input mt-2"
-                                type="number"
-                                min="-90"
-                                max="90"
-                                step="0.000001"
-                                value={location.latitude ?? ''}
-                                disabled={!canEdit || !editableDefinition}
-                                onChange={(event) =>
-                                  updateAudienceLocation(index, {
-                                    latitude: event.target.value
-                                      ? Number(event.target.value)
-                                      : null,
-                                  })
-                                }
-                                placeholder="Optional"
-                              />
-                            </Field>
-                            <Field label="Longitude">
-                              <input
-                                className="form-input mt-2"
-                                type="number"
-                                min="-180"
-                                max="180"
-                                step="0.000001"
-                                value={location.longitude ?? ''}
-                                disabled={!canEdit || !editableDefinition}
-                                onChange={(event) =>
-                                  updateAudienceLocation(index, {
-                                    longitude: event.target.value
-                                      ? Number(event.target.value)
-                                      : null,
-                                  })
-                                }
-                                placeholder="Optional"
-                              />
-                            </Field>
+                            <div className="lg:col-span-2">
+                              <details className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                                <summary className="cursor-pointer text-[11px] font-semibold text-slate-600">
+                                  Advanced radius coordinates
+                                </summary>
+                                <p className="mt-2 text-[11px] leading-4 text-slate-400">
+                                  Only needed when you use radius targeting and a provider cannot
+                                  resolve the place safely from the city/region fields.
+                                </p>
+                                <div className="mt-2 grid grid-cols-2 gap-3">
+                                  <Field label="Latitude">
+                                    <input
+                                      className="form-input mt-2"
+                                      type="number"
+                                      min="-90"
+                                      max="90"
+                                      step="0.000001"
+                                      value={location.latitude ?? ''}
+                                      disabled={!canEdit || !editableDefinition}
+                                      onChange={(event) =>
+                                        updateAudienceLocation(index, {
+                                          latitude: event.target.value
+                                            ? Number(event.target.value)
+                                            : null,
+                                        })
+                                      }
+                                      placeholder="Optional"
+                                    />
+                                  </Field>
+                                  <Field label="Longitude">
+                                    <input
+                                      className="form-input mt-2"
+                                      type="number"
+                                      min="-180"
+                                      max="180"
+                                      step="0.000001"
+                                      value={location.longitude ?? ''}
+                                      disabled={!canEdit || !editableDefinition}
+                                      onChange={(event) =>
+                                        updateAudienceLocation(index, {
+                                          longitude: event.target.value
+                                            ? Number(event.target.value)
+                                            : null,
+                                        })
+                                      }
+                                      placeholder="Optional"
+                                    />
+                                  </Field>
+                                </div>
+                              </details>
+                            </div>
                             <div className="flex items-end">
                               <button
                                 type="button"
@@ -2444,27 +2633,66 @@ export default function ReachlyoCampaignWizard() {
                       placeholder="en, hi"
                     />
                   </Field>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Age min">
-                      <input
-                        className="form-input mt-2"
-                        type="number"
-                        min="13"
-                        value={ageMin}
-                        disabled={!canEdit || !editableDefinition}
-                        onChange={(event) => setAgeMin(event.target.value)}
-                      />
-                    </Field>
-                    <Field label="Age max">
-                      <input
-                        className="form-input mt-2"
-                        type="number"
-                        min="13"
-                        value={ageMax}
-                        disabled={!canEdit || !editableDefinition}
-                        onChange={(event) => setAgeMax(event.target.value)}
-                      />
-                    </Field>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">Age</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {[
+                        ['All ages', '', ''],
+                        ['18–24', '18', '24'],
+                        ['25–34', '25', '34'],
+                        ['35–44', '35', '44'],
+                        ['45–54', '45', '54'],
+                        ['55+', '55', ''],
+                      ].map(([label, min, max]) => {
+                        const selected = ageMin === min && ageMax === max
+                        return (
+                          <button
+                            key={label}
+                            type="button"
+                            disabled={!canEdit || !editableDefinition}
+                            onClick={() => {
+                              setAgeMin(min)
+                              setAgeMax(max)
+                            }}
+                            className={
+                              'rounded-full border px-3 py-1.5 text-xs font-semibold transition ' +
+                              (selected
+                                ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                                : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200')
+                            }
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <details className="mt-3">
+                      <summary className="cursor-pointer text-[11px] font-semibold text-slate-500">
+                        Custom age range
+                      </summary>
+                      <div className="mt-2 grid grid-cols-2 gap-3">
+                        <Field label="Minimum age">
+                          <input
+                            className="form-input mt-2"
+                            type="number"
+                            min="13"
+                            value={ageMin}
+                            disabled={!canEdit || !editableDefinition}
+                            onChange={(event) => setAgeMin(event.target.value)}
+                          />
+                        </Field>
+                        <Field label="Maximum age">
+                          <input
+                            className="form-input mt-2"
+                            type="number"
+                            min="13"
+                            value={ageMax}
+                            disabled={!canEdit || !editableDefinition}
+                            onChange={(event) => setAgeMax(event.target.value)}
+                          />
+                        </Field>
+                      </div>
+                    </details>
                   </div>
                   <Field label="Gender">
                     <div className="mt-3 flex gap-4">
@@ -2579,6 +2807,35 @@ export default function ReachlyoCampaignWizard() {
                     />
                   )}
 
+                <div className="mb-4 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">Smart provider defaults</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        UnifyDesk selected goal-aware optimization defaults. Open advanced controls
+                        only when you need provider-specific bidding, conversion, placement, AI Max,
+                        identity, catalog, or creative automation settings.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => setShowAdvancedProviderSettings((value) => !value)}
+                    >
+                      {showAdvancedProviderSettings ? 'Hide advanced settings' : 'Advanced settings'}
+                    </button>
+                  </div>
+                  <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
+                    {selectedChannels.includes('GOOGLE_SEARCH') && (
+                      <p>Google Search: {pretty(googleBidStrategy)}</p>
+                    )}
+                    {selectedChannels.includes('META_ADS') && (
+                      <p>Meta: {pretty(metaOptimizationGoal)}</p>
+                    )}
+                  </div>
+                </div>
+
+                {showAdvancedProviderSettings && (
                 <ReachlyoProviderSettingsStep
                   companyId={selectedCompany.companyId}
                   businessGoal={campaign?.businessGoal ?? businessGoal}
@@ -2696,6 +2953,15 @@ export default function ReachlyoCampaignWizard() {
                   disabled={!canEdit || !editableDefinition}
                   onRefresh={() => void loadProviderData(true)}
                 />
+                )}
+
+                {!showAdvancedProviderSettings && (
+                  <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-500">
+                    Review will still validate required provider identities, conversion resources,
+                    targeting compatibility and capabilities. If anything is missing, open Advanced
+                    settings here before launch.
+                  </p>
+                )}
 
                 <StepActions
                   busy={busy}
@@ -2727,6 +2993,43 @@ export default function ReachlyoCampaignWizard() {
                     <FiRefreshCw aria-hidden="true" />
                     Recompile
                   </button>
+                </div>
+
+                <div className="panel p-5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Business campaign summary
+                  </p>
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                      <p className="text-xs text-slate-400">Goal</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">{pretty(businessGoal)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400">Budget</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">
+                        {budgetAmount || '—'} {campaign?.currency ?? currency}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400">Channels</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">
+                        {enabledChannels.map((channel) => pretty(channel.channelType)).join(', ') || '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400">Audience</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">
+                        {audienceLocations
+                          .map((location) =>
+                            [location.city, location.region, location.countryCode]
+                              .filter(Boolean)
+                              .join(', '),
+                          )
+                          .filter(Boolean)
+                          .join(' · ') || 'Broad'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <ReachlyoProviderPlanReview
