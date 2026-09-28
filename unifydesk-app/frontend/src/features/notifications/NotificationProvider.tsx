@@ -257,9 +257,15 @@ export default function NotificationProvider({
 
   const openNotification = useCallback(
     async (notification: NotificationItem) => {
-      if (notification.unread) await setRead(notification, true)
-      const path = notification.action?.path
-      return path ?? null
+      const path = notification.action?.path ?? null
+
+      // Navigation should never wait on the read-state round trip. setRead() already
+      // applies the unread/count change optimistically and reconciles on failure.
+      if (notification.unread) {
+        void setRead(notification, true).catch(() => undefined)
+      }
+
+      return path
     },
     [setRead],
   )
