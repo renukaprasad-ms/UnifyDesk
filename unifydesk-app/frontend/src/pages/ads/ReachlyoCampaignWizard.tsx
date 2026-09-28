@@ -190,11 +190,19 @@ const GOAL_OPTIONS: Array<{
     title: 'Build awareness',
     description: 'Reach more relevant people and grow brand visibility.',
   },
+  {
+    objective: 'PRODUCT_SALES',
+    goal: 'PURCHASE',
+    title: 'Sell products from a catalog',
+    description: 'Promote products from Merchant Center with Google Shopping.',
+  },
 ]
 
 const recommendedChannelsForGoal = (
   goal: CampaignBusinessGoal,
+  objective: ReachlyoCampaignObjective,
 ): CampaignChannelType[] => {
+  if (objective === 'PRODUCT_SALES') return ['GOOGLE_SHOPPING', 'META_ADS']
   if (goal === 'AWARENESS') return ['META_ADS', 'GOOGLE_DEMAND_GEN']
   if (goal === 'APP_INSTALL') return ['META_ADS']
   return ['GOOGLE_SEARCH', 'META_ADS']
@@ -1972,7 +1980,7 @@ export default function ReachlyoCampaignWizard() {
   }
 
   const applyRecommendedChannels = () => {
-    const recommendations = recommendedChannelsForGoal(businessGoal)
+    const recommendations = recommendedChannelsForGoal(businessGoal, objective)
     setSelectedChannels(recommendations)
     recommendations.forEach((type) => {
       if (accountByChannel[type]) return
@@ -2308,7 +2316,7 @@ export default function ReachlyoCampaignWizard() {
                     <div>
                       <p className="text-sm font-bold text-slate-900">Recommended for {pretty(businessGoal)}</p>
                       <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Start with {recommendedChannelsForGoal(businessGoal).map(pretty).join(' + ')}.
+                        Start with {recommendedChannelsForGoal(businessGoal, objective).map(pretty).join(' + ')}.
                         You stay in control and can change the channel mix before launch.
                       </p>
                     </div>
@@ -2351,7 +2359,7 @@ export default function ReachlyoCampaignWizard() {
                               <p className="text-sm font-bold text-slate-900">
                                 {option.title}
                               </p>
-                              {recommendedChannelsForGoal(businessGoal).includes(option.type) && (
+                              {recommendedChannelsForGoal(businessGoal, objective).includes(option.type) && (
                                 <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
                                   Recommended
                                 </span>
