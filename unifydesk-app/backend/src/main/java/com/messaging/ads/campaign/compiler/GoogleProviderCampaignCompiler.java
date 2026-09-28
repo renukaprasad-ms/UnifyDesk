@@ -323,9 +323,10 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
               "Responsive Display business name must be at most 25 characters."));
     }
 
+    String primaryMessage = context.creativePack().getPrimaryMessage();
     String longHeadline =
-        !isBlank(context.creativePack().getPrimaryMessage())
-            ? context.creativePack().getPrimaryMessage().trim()
+        !isBlank(primaryMessage) && primaryMessage.trim().length() <= 90
+            ? primaryMessage.trim()
             : headlines.isEmpty() ? null : headlines.getFirst();
     if (isBlank(longHeadline) || longHeadline.length() > 90) {
       issues.add(
