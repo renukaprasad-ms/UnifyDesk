@@ -126,11 +126,8 @@ public class GoogleAdsSearchAudienceService {
     String adGroupResource =
         apiClient.customerResourceName(customerId, "adGroups", externalAdGroupId);
 
-    boolean targetingModeChanged = false;
-    if (!included.isEmpty()) {
-      targetingModeChanged =
-          applyAudienceMode(context, adGroupResource, externalAdGroupId, mode);
-    }
+    boolean targetingModeChanged =
+        applyAudienceMode(context, adGroupResource, externalAdGroupId, mode);
 
     Map<String, AdAudience> localByExternal = new java.util.HashMap<>();
     for (AdAudience audience :
@@ -281,11 +278,8 @@ public class GoogleAdsSearchAudienceService {
     String adGroupResource =
         apiClient.customerResourceName(customerId, "adGroups", externalAdGroupId);
 
-    boolean targetingModeChanged = false;
-    if (!included.isEmpty()) {
-      targetingModeChanged =
-          applyAudienceMode(context, adGroupResource, externalAdGroupId, mode);
-    }
+    boolean targetingModeChanged =
+        applyAudienceMode(context, adGroupResource, externalAdGroupId, mode);
 
     Set<String> existing = existingFingerprints(context, externalAdGroupId);
     List<Map<String, Object>> operations = new ArrayList<>();
