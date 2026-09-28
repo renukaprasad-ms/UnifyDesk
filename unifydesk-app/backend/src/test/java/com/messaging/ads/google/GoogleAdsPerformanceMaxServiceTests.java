@@ -15,6 +15,7 @@ import com.messaging.ads.enums.AdEntityStatus;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.google.dto.CreateGooglePerformanceMaxCampaignRequest;
 import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationRequest;
+import com.messaging.ads.google.dto.GooglePerformanceMaxBrandGuidelinesRequest;
 import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.ads.service.AdActivityLogService;
 import com.messaging.common.exception.BadRequestException;
@@ -247,6 +248,97 @@ class GoogleAdsPerformanceMaxServiceTests {
     Map<String, Object> update = (Map<String, Object>) operation.get("update");
     assertThat(update).containsKey("assetAutomationSettings");
     assertThat(operation.get("updateMask")).isEqualTo("asset_automation_settings");
+  }
+
+
+  @Test
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  void createsBrandEnabledPmaxWithCampaignLevelBrandAssets() throws Exception {
+    when(contextService.requireManaged(10L, 20L)).thenReturn(context);
+    when(apiClient.mutateAll(
+            eq("access-token"), eq("1234567890"), eq("9999999999"), any()))
+        .thenReturn(new ObjectMapper().readTree("{\"mutateOperationResponses\":[]}"));
+    when(apiClient.firstBulkResourceName(any(), eq("campaignResult")))
+        .thenReturn("customers/1234567890/campaigns/777");
+
+    var campaignRow =
+        new ObjectMapper()
+            .readTree(
+                "{\"campaign\":{\"id\":\"777\",\"name\":\"PMax Brand\","
+                    + "\"status\":\"PAUSED\",\"advertisingChannelType\":\"PERFORMANCE_MAX\"}}");
+    when(campaignSyncService.campaign(context, "777")).thenReturn(campaignRow);
+
+    AdCampaign persisted = performanceMaxCampaign();
+    persisted.setId(701L);
+    persisted.setName("PMax Brand");
+    when(campaignPersistenceService.persistOne(10L, 20L, campaignRow))
+        .thenReturn(persisted);
+
+    var request =
+        new CreateGooglePerformanceMaxCampaignRequest(
+            "PMax Brand",
+            50000L,
+            "https://example.com",
+            "Reachlyo",
+            List.of("Headline One", "Headline Two", "Headline Three"),
+            "A long headline for Reachlyo",
+            List.of("Short description", "Second description for Reachlyo"),
+            image(600, 314),
+            image(300, 300),
+            image(128, 128),
+            null,
+            image(512, 128),
+            List.of(),
+            "MAXIMIZE_CONVERSIONS",
+            false,
+            null,
+            null,
+            true,
+            "#3366FF",
+            "#FFCC00",
+            "Roboto");
+
+    service.create(10L, 20L, request, 40L);
+
+    ArgumentCaptor<List> captor = ArgumentCaptor.forClass(List.class);
+    verify(apiClient)
+        .mutateAll(
+            eq("access-token"), eq("1234567890"), eq("9999999999"), captor.capture());
+
+    List<Map<String, Object>> operations =
+        (List<Map<String, Object>>) captor.getValue();
+
+    Map<String, Object> campaignOperation =
+        (Map<String, Object>)
+            operations.stream()
+                .filter(operation -> operation.containsKey("campaignOperation"))
+                .findFirst()
+                .orElseThrow()
+                .get("campaignOperation");
+    Map<String, Object> create =
+        (Map<String, Object>) campaignOperation.get("create");
+
+    assertThat(create.get("brandGuidelinesEnabled")).isEqualTo(true);
+    assertThat((Map<String, Object>) create.get("brandGuidelines"))
+        .containsEntry("mainColor", "#3366FF")
+        .containsEntry("accentColor", "#FFCC00")
+        .containsEntry("predefinedFontFamily", "Roboto");
+
+    assertThat(
+            operations.stream()
+                .filter(operation -> operation.containsKey("campaignAssetOperation"))
+                .count())
+        .isEqualTo(3L);
+
+    List<String> assetGroupFieldTypes =
+        operations.stream()
+            .filter(operation -> operation.containsKey("assetGroupAssetOperation"))
+            .map(operation -> (Map<String, Object>) operation.get("assetGroupAssetOperation"))
+            .map(operation -> (Map<String, Object>) operation.get("create"))
+            .map(item -> String.valueOf(item.get("fieldType")))
+            .toList();
+    assertThat(assetGroupFieldTypes)
+        .doesNotContain("BUSINESS_NAME", "LOGO", "LANDSCAPE_LOGO");
   }
 
   private AdCampaign performanceMaxCampaign() {
