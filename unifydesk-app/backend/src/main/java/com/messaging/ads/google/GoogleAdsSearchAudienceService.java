@@ -177,25 +177,37 @@ public class GoogleAdsSearchAudienceService {
       String adGroupResource,
       String externalAdGroupId,
       String mode) {
-    Boolean currentBidOnly = currentAudienceBidOnly(context, externalAdGroupId);
+    List<TargetRestriction> current =
+        currentTargetRestrictions(context, externalAdGroupId);
     boolean requestedBidOnly = "OBSERVATION".equals(mode);
-    if (currentBidOnly != null && currentBidOnly == requestedBidOnly) {
+    TargetRestriction currentAudience =
+        current.stream()
+            .filter(value -> "AUDIENCE".equals(value.dimension()))
+            .findFirst()
+            .orElse(null);
+    if (currentAudience != null && currentAudience.bidOnly() == requestedBidOnly) {
       return false;
     }
+
+    List<Map<String, Object>> targetRestrictions = new ArrayList<>();
+    for (TargetRestriction restriction : current) {
+      if ("AUDIENCE".equals(restriction.dimension())) continue;
+      targetRestrictions.add(
+          Map.of(
+              "targetingDimension", restriction.dimension(),
+              "bidOnly", restriction.bidOnly()));
+    }
+    targetRestrictions.add(
+        Map.of(
+            "targetingDimension", "AUDIENCE",
+            "bidOnly", requestedBidOnly));
 
     Map<String, Object> update =
         Map.of(
             "resourceName",
             adGroupResource,
             "targetingSetting",
-            Map.of(
-                "targetRestrictions",
-                List.of(
-                    Map.of(
-                        "targetingDimension",
-                        "AUDIENCE",
-                        "bidOnly",
-                        requestedBidOnly))));
+            Map.of("targetRestrictions", targetRestrictions));
 
     apiClient.mutate(
         context.accessToken(),
@@ -211,7 +223,7 @@ public class GoogleAdsSearchAudienceService {
     return true;
   }
 
-  private Boolean currentAudienceBidOnly(
+  private List<TargetRestriction> currentTargetRestrictions(
       GoogleAdsAccountContextService.Context context,
       String externalAdGroupId) {
     String query =
@@ -225,18 +237,23 @@ public class GoogleAdsSearchAudienceService {
             context.account().getExternalAccountId(),
             context.loginCustomerId(),
             query);
-    if (rows.isEmpty()) return null;
+    if (rows.isEmpty()) return List.of();
 
     JsonNode restrictions =
         rows.getFirst().path("adGroup").path("targetingSetting").path("targetRestrictions");
-    if (!restrictions.isArray()) return null;
+    if (!restrictions.isArray()) return List.of();
+
+    List<TargetRestriction> result = new ArrayList<>();
     for (JsonNode restriction : restrictions) {
-      if ("AUDIENCE".equalsIgnoreCase(
-          restriction.path("targetingDimension").asText())) {
-        return restriction.path("bidOnly").asBoolean(false);
-      }
+      String dimension =
+          restriction.path("targetingDimension").asText("").trim().toUpperCase(Locale.ROOT);
+      if (dimension.isBlank()) continue;
+      result.add(
+          new TargetRestriction(
+              dimension,
+              restriction.path("bidOnly").asBoolean(false)));
     }
-    return null;
+    return List.copyOf(result);
   }
 
   private Set<String> existingFingerprints(
@@ -337,6 +354,8 @@ public class GoogleAdsSearchAudienceService {
     }
     return value;
   }
+
+  private record TargetRestriction(String dimension, boolean bidOnly) {}
 
   public record ValidationResult(
       String mode,
