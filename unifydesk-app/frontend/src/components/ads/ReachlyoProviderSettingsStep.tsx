@@ -38,6 +38,14 @@ type Props = {
   ) => void
   pmaxYoutubeVideoIds: string
   setPmaxYoutubeVideoIds: (value: string) => void
+  pmaxBrandGuidelinesEnabled: boolean
+  setPmaxBrandGuidelinesEnabled: (value: boolean) => void
+  pmaxBrandMainColor: string
+  setPmaxBrandMainColor: (value: string) => void
+  pmaxBrandAccentColor: string
+  setPmaxBrandAccentColor: (value: string) => void
+  pmaxBrandFontFamily: string
+  setPmaxBrandFontFamily: (value: string) => void
   demandGenBidStrategy:
     | 'MAXIMIZE_CLICKS'
     | 'MAXIMIZE_CONVERSIONS'
@@ -744,6 +752,68 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 </option>
               </select>
             </Field>
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4 sm:col-span-2">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-slate-700">Brand guidelines</p>
+                  <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                    Recommended. Brand name and logos are linked at campaign level when enabled.
+                  </p>
+                </div>
+                <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={props.pmaxBrandGuidelinesEnabled}
+                    disabled={props.disabled}
+                    onChange={(event) =>
+                      props.setPmaxBrandGuidelinesEnabled(event.target.checked)
+                    }
+                  />
+                  Enabled
+                </label>
+              </div>
+              {props.pmaxBrandGuidelinesEnabled && (
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <Field label="Main color">
+                    <input
+                      className="form-input mt-2"
+                      value={props.pmaxBrandMainColor}
+                      disabled={props.disabled}
+                      placeholder="#3366FF"
+                      onChange={(event) => props.setPmaxBrandMainColor(event.target.value)}
+                    />
+                  </Field>
+                  <Field label="Accent color">
+                    <input
+                      className="form-input mt-2"
+                      value={props.pmaxBrandAccentColor}
+                      disabled={props.disabled}
+                      placeholder="#FFCC00"
+                      onChange={(event) => props.setPmaxBrandAccentColor(event.target.value)}
+                    />
+                  </Field>
+                  <Field label="Brand font">
+                    <select
+                      className="form-input mt-2"
+                      value={props.pmaxBrandFontFamily}
+                      disabled={props.disabled}
+                      onChange={(event) => props.setPmaxBrandFontFamily(event.target.value)}
+                    >
+                      <option value="">Google default</option>
+                      <option value="Open Sans">Open Sans</option>
+                      <option value="Roboto">Roboto</option>
+                      <option value="Montserrat">Montserrat</option>
+                      <option value="Poppins">Poppins</option>
+                      <option value="Lato">Lato</option>
+                      <option value="Oswald">Oswald</option>
+                      <option value="Playfair Display">Playfair Display</option>
+                      <option value="Roboto Slab">Roboto Slab</option>
+                    </select>
+                  </Field>
+                </div>
+              )}
+            </div>
+
             {conversionRequired && (
               <Field label="Conversion action">
                 <select
