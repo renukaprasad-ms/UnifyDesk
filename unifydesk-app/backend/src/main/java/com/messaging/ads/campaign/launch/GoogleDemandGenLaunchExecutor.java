@@ -177,7 +177,7 @@ public class GoogleDemandGenLaunchExecutor implements LaunchProviderExecutor {
         issues.add(warning(
             "DEMAND_GEN_AUDIENCE_MAPPING_APPROXIMATE",
             "audience",
-            "Canonical interests/search intent are not guessed into Google Audience resources. Add provider-backed Demand Gen Audience resources in advanced settings when needed."));
+            "Selected provider-backed Google user lists are composed into a reusable Demand Gen Audience. Canonical free-text interests/search intent are still not guessed into Google audience segments."));
       }
     }
 
