@@ -736,6 +736,14 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                   context.budgetPlan() == null ? null : context.budgetPlan().getBudgetPeriod(),
                   "creativePackId",
                   context.creativePack() == null ? null : context.creativePack().getId().toString(),
+                  "brandGuidelinesEnabled",
+                  providerBoolean(context, "pmaxBrandGuidelinesEnabled", true),
+                  "brandMainColor",
+                  providerText(context, "pmaxBrandMainColor"),
+                  "brandAccentColor",
+                  providerText(context, "pmaxBrandAccentColor"),
+                  "brandFontFamily",
+                  providerText(context, "pmaxBrandFontFamily"),
                   "providerOverrideJson",
                   context.channel().getProviderOverrideJson())));
       if (context.audienceDefinition() != null) {
