@@ -37,6 +37,7 @@ import com.messaging.ads.google.GoogleAdsCampaignSyncService;
 import com.messaging.ads.google.GoogleAdsCampaignTargetingService;
 import com.messaging.ads.google.GoogleAdsDisplayCampaignService;
 import com.messaging.ads.google.GoogleAdsVisualAdService;
+import com.messaging.ads.google.GoogleAdsVisualAudienceService;
 import com.messaging.ads.google.dto.CreateGoogleDisplayCampaignRequest;
 import com.messaging.ads.google.dto.CreateGoogleResponsiveDisplayAdRequest;
 import com.messaging.ads.repository.AdAccountRepository;
@@ -83,6 +84,7 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
   private final GoogleAdsAdSyncService adSyncService;
   private final GoogleAdsDisplayCampaignService displayCampaignService;
   private final GoogleAdsVisualAdService visualAdService;
+  private final GoogleAdsVisualAudienceService visualAudienceService;
   private final GoogleAdsCampaignTargetingService campaignTargetingService;
   private final GoogleAdsCampaignConversionGoalService conversionGoalService;
   private final ProviderDeploymentService deploymentService;
@@ -233,6 +235,20 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
           issues);
     }
 
+    try {
+      visualAudienceService.validateUserLists(
+          companyId,
+          account.getId(),
+          longsFromOverride(override, "googleAudienceIds"),
+          longsFromOverride(override, "googleExcludedAudienceIds"));
+    } catch (RuntimeException exception) {
+      issues.add(
+          error(
+              "DISPLAY_PROVIDER_AUDIENCE_INVALID",
+              "providerOverride.googleAudienceIds",
+              exception.getMessage()));
+    }
+
     AudienceDefinition audience =
         audience(companyId, campaign.getId(), plan.audienceDefinitionId(), false);
     if (audience != null) {
@@ -299,7 +315,7 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
       case "create-display-paused" ->
           createDisplay(companyId, run, plan, step, campaign, channel);
       case "configure-display-targeting" ->
-          configureTargeting(companyId, plan, step, campaign);
+          configureTargeting(companyId, plan, step, campaign, channel);
       case "create-responsive-display-ad" ->
           createCreative(companyId, run, plan, step, campaign);
       case "configure-conversion-goal" ->
@@ -414,39 +430,66 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
       Long companyId,
       ProviderCampaignPlan plan,
       LaunchStep step,
-      ReachlyoCampaign campaign) {
+      ReachlyoCampaign campaign,
+      CampaignChannel channel) {
     AudienceDefinition audience =
         audience(
             companyId,
             campaign.getId(),
             plan.audienceDefinitionId(),
             false);
-    if (audience == null) {
+    JsonNode override = override(channel);
+    List<Long> includedAudienceIds =
+        longsFromOverride(override, "googleAudienceIds");
+    List<Long> excludedAudienceIds =
+        longsFromOverride(override, "googleExcludedAudienceIds");
+
+    if (audience == null
+        && includedAudienceIds.isEmpty()
+        && excludedAudienceIds.isEmpty()) {
       return LaunchStepExecutionResult.skipped(
-          "No canonical audience was selected.");
+          "No canonical or provider-backed Display audience was selected.");
     }
 
     AdCampaign providerCampaign =
         providerCampaign(companyId, step.getProviderDeploymentId());
-    var result =
-        campaignTargetingService.apply(
+
+    var geoResult =
+        audience == null
+            ? null
+            : campaignTargetingService.apply(
+                companyId,
+                providerCampaign.getId(),
+                geoLanguageOnly(audience),
+                objectMapper.createObjectNode());
+
+    AdSet adGroup =
+        providerAdGroup(
             companyId,
-            providerCampaign.getId(),
-            geoLanguageOnly(audience),
-            objectMapper.createObjectNode());
+            step.getProviderDeploymentId(),
+            launchName(
+                campaign.getName() + " Display Audience",
+                step.getLaunchRunId(),
+                plan.channelId()));
+
+    var audienceResult =
+        visualAudienceService.applyDisplayUserLists(
+            companyId,
+            adGroup.getId(),
+            includedAudienceIds,
+            excludedAudienceIds);
 
     return LaunchStepExecutionResult.succeeded(
-        null,
-        result.firstExternalResource(),
+        adGroup.getId(),
+        adGroup.getExternalAdSetId(),
         Map.of(
-            "createdCount",
-            result.createdCount(),
-            "reusedCount",
-            result.reusedCount(),
-            "locationCount",
-            result.locationCount(),
-            "languageCount",
-            result.languageCount()));
+            "geoCreatedCount", geoResult == null ? 0 : geoResult.createdCount(),
+            "geoReusedCount", geoResult == null ? 0 : geoResult.reusedCount(),
+            "locationCount", geoResult == null ? 0 : geoResult.locationCount(),
+            "languageCount", geoResult == null ? 0 : geoResult.languageCount(),
+            "audienceCriteriaCreated", audienceResult.createdCount(),
+            "audienceCriteriaReused", audienceResult.reusedCount(),
+            "audienceCriteriaRequested", audienceResult.requestedCount()));
   }
 
   private LaunchStepExecutionResult createCreative(
@@ -870,6 +913,20 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
       }
     }
     return instant.atZone(zone).toLocalDate();
+  }
+
+  private List<Long> longsFromOverride(JsonNode node, String key) {
+    JsonNode value = node.get(key);
+    if (value == null || value.isNull() || !value.isArray()) return List.of();
+    List<Long> result = new ArrayList<>();
+    for (JsonNode item : value) {
+      if (item.canConvertToLong()) {
+        result.add(item.longValue());
+      } else if (item.isTextual() && item.asText().matches("\\d+")) {
+        result.add(Long.valueOf(item.asText()));
+      }
+    }
+    return result.stream().distinct().toList();
   }
 
   private List<String> strings(String json) {
