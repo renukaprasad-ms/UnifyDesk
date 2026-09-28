@@ -460,6 +460,51 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
       AudienceMappingStatus audienceMappingStatus,
       List<ProviderPlanOperation> operations) {
     int sequence = 1;
+    if (context.channel().getChannelType() == CampaignChannelType.GOOGLE_SHOPPING) {
+      operations.add(
+          operation(
+              sequence++,
+              "create-shopping-paused",
+              ProviderPlanAction.CREATE,
+              ProviderPlanResource.CAMPAIGN,
+              true,
+              Set.of(
+                  AdFeatureCapability.CAMPAIGN_CREATE,
+                  AdFeatureCapability.GOOGLE_SHOPPING,
+                  AdFeatureCapability.GOOGLE_MERCHANT),
+              ProviderCampaignPlanSupport.config(
+                  "budgetMinor", effectiveBudget,
+                  "budgetPeriod",
+                  context.budgetPlan() == null ? null : context.budgetPlan().getBudgetPeriod(),
+                  "providerOverrideJson", context.channel().getProviderOverrideJson())));
+      if (context.audienceDefinition() != null) {
+        operations.add(
+            operation(
+                sequence++,
+                "configure-shopping-targeting",
+                ProviderPlanAction.CONFIGURE,
+                ProviderPlanResource.CAMPAIGN_TARGETING,
+                false,
+                Set.of(),
+                ProviderCampaignPlanSupport.config(
+                    "audienceDefinitionId", context.audienceDefinition().getId().toString(),
+                    "mappingStatus", AudienceMappingStatus.APPROXIMATE)));
+      }
+      if (context.conversionGoalMapping() != null) {
+        operations.add(
+            operation(
+                sequence,
+                "configure-conversion-goal",
+                ProviderPlanAction.CONFIGURE,
+                ProviderPlanResource.CONVERSION_GOAL,
+                false,
+                Set.of(AdFeatureCapability.CONVERSION_CREATE),
+                ProviderCampaignPlanSupport.config(
+                    "mappingId", context.conversionGoalMapping().getId().toString(),
+                    "targetType", context.conversionGoalMapping().getTargetType())));
+      }
+      return;
+    }
     if (context.channel().getChannelType() == CampaignChannelType.GOOGLE_DEMAND_GEN) {
       operations.add(
           operation(
@@ -746,35 +791,8 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
       }
       case GOOGLE_DEMAND_GEN ->
           throw new IllegalStateException("Demand Gen operations must use the dedicated plan");
-      case GOOGLE_SHOPPING -> {
-        operations.add(
-            operation(
-                sequence++,
-                "create-shopping-ad-group",
-                ProviderPlanAction.CREATE,
-                ProviderPlanResource.AD_GROUP,
-                true,
-                Set.of(AdFeatureCapability.GOOGLE_SHOPPING),
-                ProviderCampaignPlanSupport.config("status", "PAUSED")));
-        operations.add(
-            operation(
-                sequence++,
-                "configure-listing-group",
-                ProviderPlanAction.CONFIGURE,
-                ProviderPlanResource.LISTING_GROUP,
-                false,
-                Set.of(AdFeatureCapability.GOOGLE_MERCHANT),
-                ProviderCampaignPlanSupport.config("source", "MERCHANT_CENTER")));
-        operations.add(
-            operation(
-                sequence++,
-                "create-product-ad",
-                ProviderPlanAction.CREATE,
-                ProviderPlanResource.PRODUCT_AD,
-                true,
-                Set.of(AdFeatureCapability.GOOGLE_SHOPPING),
-                ProviderCampaignPlanSupport.config("status", "PAUSED")));
-      }
+      case GOOGLE_SHOPPING ->
+          throw new IllegalStateException("Shopping operations must use the dedicated plan");
       default -> throw new IllegalStateException("Unsupported Google channel");
     }
 

@@ -338,6 +338,80 @@ class GoogleProviderCampaignCompilerTests {
   }
 
   @Test
+  void compilesAtomicShoppingPlanWithoutCreativePack() {
+    GoogleProviderCampaignCompiler compiler = new GoogleProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(17L);
+    campaign.setName("Catalog sales");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(27L);
+    channel.setReachlyoCampaignId(17L);
+    channel.setProvider(AdProvider.GOOGLE_ADS);
+    channel.setChannelType(CampaignChannelType.GOOGLE_SHOPPING);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(9_000L);
+    channel.setProviderOverrideJson(
+        "{\"merchantId\":\"123456\",\"campaignPriority\":1}");
+
+    AdAccount account = new AdAccount();
+    account.setId(37L);
+    account.setProvider(AdProvider.GOOGLE_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(9_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    AudienceDefinition audience = new AudienceDefinition();
+    audience.setId(57L);
+    audience.setLocationsJson("[{\"countryCode\":\"IN\"}]");
+    audience.setLanguagesJson("[\"en\"]");
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities =
+        new EnumMap<>(AdFeatureCapability.class);
+    capabilities.put(
+        AdFeatureCapability.CAMPAIGN_CREATE,
+        available(AdFeatureCapability.CAMPAIGN_CREATE));
+    capabilities.put(
+        AdFeatureCapability.GOOGLE_SHOPPING,
+        available(AdFeatureCapability.GOOGLE_SHOPPING));
+    capabilities.put(
+        AdFeatureCapability.GOOGLE_MERCHANT,
+        available(AdFeatureCapability.GOOGLE_MERCHANT));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                null,
+                List.of(),
+                List.of(),
+                audience,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isTrue();
+    assertThat(plan.creativePackId()).isNull();
+    assertThat(plan.operations())
+        .extracting(ProviderPlanOperation::operationKey)
+        .containsExactly(
+            "create-shopping-paused",
+            "configure-shopping-targeting");
+    assertThat(plan.operations().getFirst().createPaused()).isTrue();
+    assertThat(plan.operations())
+        .noneMatch(operation -> "create-product-ad".equals(operation.operationKey()));
+  }
+
+  @Test
   void requiresAiMaxCapabilityAndWarnsWhenKeywordMatchTypesWillBeOverridden() {
     GoogleProviderCampaignCompiler compiler = new GoogleProviderCampaignCompiler();
 

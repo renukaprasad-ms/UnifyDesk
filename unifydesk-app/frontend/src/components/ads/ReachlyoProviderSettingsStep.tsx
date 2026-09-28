@@ -9,6 +9,7 @@ import type {
   GoogleBrandSuggestion,
   CampaignBusinessGoal,
   CampaignChannelType,
+  GoogleMerchantAccount,
 } from '../../features/ads/types'
 
 export type GoogleAdScheduleDraft = {
@@ -48,6 +49,13 @@ type Props = {
   setDemandGenChannelStrategy: (
     value: 'ALL_CHANNELS' | 'ALL_OWNED_AND_OPERATED_CHANNELS',
   ) => void
+  shoppingMerchantAccounts: GoogleMerchantAccount[]
+  shoppingMerchantId: string
+  setShoppingMerchantId: (value: string) => void
+  shoppingPriority: '0' | '1' | '2'
+  setShoppingPriority: (value: '0' | '1' | '2') => void
+  shoppingEnableLocal: boolean
+  setShoppingEnableLocal: (value: boolean) => void
   keywordMatchType: string
   setKeywordMatchType: (value: string) => void
   googleConversionId: string
@@ -289,6 +297,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
     props.accountByChannel.GOOGLE_SEARCH ??
     props.accountByChannel.GOOGLE_PERFORMANCE_MAX ??
     props.accountByChannel.GOOGLE_DEMAND_GEN ??
+    props.accountByChannel.GOOGLE_SHOPPING ??
     ''
   const metaAccount = props.accountByChannel.META_ADS ?? ''
   const googleConversions = props.conversionsByAccount[googleAccount] ?? []
@@ -308,6 +317,133 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
           Refresh provider resources
         </button>
       </div>
+
+      {props.selectedChannels.includes('GOOGLE_SHOPPING') && (
+        <section className="rounded-2xl border border-slate-200 p-5">
+          <h3 className="text-base font-bold text-slate-950">Google Shopping</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Shopping uses your Merchant Center catalog instead of a Creative Pack.
+            UnifyDesk creates the budget, paused Shopping campaign, paused product
+            ad group, paused product ad, and root listing group together.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label="Merchant Center account">
+              <select
+                className="form-input mt-2"
+                value={props.shoppingMerchantId}
+                disabled={props.disabled}
+                onChange={(event) =>
+                  props.setShoppingMerchantId(event.target.value)
+                }
+              >
+                <option value="">Choose Merchant Center</option>
+                {props.shoppingMerchantAccounts.map((merchant) => (
+                  <option key={merchant.accountId} value={merchant.accountId}>
+                    {(merchant.accountName || 'Merchant Center') +
+                      ' · ' +
+                      merchant.accountId}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field
+              label="Campaign priority"
+              hint="0 = low, 1 = medium, 2 = high. Google uses this when the same product can serve from multiple Standard Shopping campaigns."
+            >
+              <select
+                className="form-input mt-2"
+                value={props.shoppingPriority}
+                disabled={props.disabled}
+                onChange={(event) =>
+                  props.setShoppingPriority(
+                    event.target.value as '0' | '1' | '2',
+                  )
+                }
+              >
+                <option value="0">Low · 0</option>
+                <option value="1">Medium · 1</option>
+                <option value="2">High · 2</option>
+              </select>
+            </Field>
+            <Field label="EU political advertising">
+              <select
+                className="form-input mt-2"
+                value={props.googlePolitical}
+                disabled={props.disabled}
+                onChange={(event) =>
+                  props.setGooglePolitical(
+                    event.target.value as 'true' | 'false' | '',
+                  )
+                }
+              >
+                <option value="">Choose</option>
+                <option value="false">
+                  Does not contain EU political advertising
+                </option>
+                <option value="true">
+                  Contains EU political advertising
+                </option>
+              </select>
+            </Field>
+            {conversionRequired && (
+              <Field label="Purchase conversion">
+                <select
+                  className="form-input mt-2"
+                  value={props.googleConversionId}
+                  disabled={props.disabled}
+                  onChange={(event) =>
+                    props.setGoogleConversionId(event.target.value)
+                  }
+                >
+                  <option value="">Select conversion</option>
+                  {googleConversions.map((conversion) => (
+                    <option key={conversion.id} value={conversion.id}>
+                      {conversion.name}
+                      {conversion.customEventType
+                        ? ' · ' + pretty(conversion.customEventType)
+                        : ''}
+                      {isRecommendedConversion(
+                        conversion,
+                        props.businessGoal,
+                        'GOOGLE_ADS',
+                      )
+                        ? ' · Recommended'
+                        : ''}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+            <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-4 sm:col-span-2">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={props.shoppingEnableLocal}
+                disabled={props.disabled}
+                onChange={(event) =>
+                  props.setShoppingEnableLocal(event.target.checked)
+                }
+              />
+              <span>
+                <span className="block text-xs font-semibold text-slate-800">
+                  Enable local inventory
+                </span>
+                <span className="mt-1 block text-[11px] leading-5 text-slate-500">
+                  Enable only when this Merchant Center account is configured for
+                  eligible local inventory products.
+                </span>
+              </span>
+            </label>
+          </div>
+          {props.shoppingMerchantAccounts.length === 0 && (
+            <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
+              No accessible Merchant Center account was returned for the selected
+              Google Ads connection. Open Merchant Center in Ad Center or reconnect
+              Google if Merchant API permission was added after the connection.
+            </p>
+          )}
+        </section>
+      )}
 
       {props.selectedChannels.includes('GOOGLE_DEMAND_GEN') && (
         <section className="rounded-2xl border border-slate-200 p-5">

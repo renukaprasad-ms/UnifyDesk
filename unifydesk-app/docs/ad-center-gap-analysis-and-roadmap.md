@@ -2072,7 +2072,7 @@ Remaining major product slices:
 - provider-backed canonical location autocomplete shared across selected channels
 - Google deeper audiences, observation/targeting modes, exclusions and retargeting mappings
 - Meta behaviors/additional detailed-targeting categories and exclusions as supported by the active API
-- unified paused-first executors for Google Display and Shopping
+- unified paused-first executor for Google Display
 - richer business-level creative generation/preview experience across those additional executors
 
 ## Unified Performance Max execution note — 2026-09-28
@@ -2107,6 +2107,24 @@ Implemented on `feature/ad-center-unified-demand-gen`:
 - selected Google conversion mapping is applied to the created Demand Gen campaign
 - awareness goals now recommend Demand Gen alongside Meta instead of defaulting to Search
 - successful launch still stops at `PAUSED_READY`
+
+
+## Unified Shopping execution note — 2026-09-28
+
+Implemented on `feature/ad-center-unified-shopping`:
+
+- Standard Shopping is selectable and executable from the unified campaign wizard
+- a first-class "Sell products from a catalog" business goal recommends Google Shopping alongside Meta
+- Shopping-only campaigns skip the Creative Pack because Merchant Center product data supplies titles, images, prices and landing URLs
+- provider settings use an accessible Merchant Center account selector rather than raw merchant-ID entry
+- campaign priority (0/1/2), local-inventory enablement and EU political-ad declaration are captured explicitly
+- preflight verifies Merchant accessibility and requires processed Merchant products before provider mutation
+- budget + paused Shopping campaign + paused `SHOPPING_PRODUCT_ADS` ad group + paused product ad + root UNIT listing group are created in one Google bulk mutation
+- retry uses deterministic launch naming plus Google campaign sync/reuse to avoid duplicate Shopping campaigns
+- canonical geo/language targeting is applied after the atomic Shopping core is created
+- demographics, interests and search intent are not silently converted into Shopping product filters
+- selected Google conversion mapping is applied to the created Shopping campaign
+- successful orchestration still stops at `PAUSED_READY`; no automatic spend activation is introduced
 
 
 ## Keep current Ad Center sections
