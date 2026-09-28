@@ -1556,7 +1556,8 @@ export default function ReachlyoCampaignWizard() {
               throw new Error('Choose a Google conversion action.')
             }
             const conversionId =
-              channel.channelType === 'GOOGLE_SEARCH'
+              channel.channelType === 'GOOGLE_SEARCH' ||
+              channel.channelType === 'GOOGLE_PERFORMANCE_MAX'
                 ? googleConversionId
                 : conversionsByAccount[accountId]?.[0]?.id ?? ''
             if (!conversionId) {
@@ -1829,15 +1830,18 @@ export default function ReachlyoCampaignWizard() {
 
     if (nextGoal === 'TRAFFIC') {
       setGoogleBidStrategy('MAXIMIZE_CLICKS')
+      setPmaxBidStrategy('MAXIMIZE_CONVERSIONS')
       setMetaOptimizationGoal('LANDING_PAGE_VIEWS')
     } else if (nextGoal === 'AWARENESS') {
       setGoogleBidStrategy('MAXIMIZE_CLICKS')
       setMetaOptimizationGoal('REACH')
     } else if (nextGoal === 'PURCHASE') {
       setGoogleBidStrategy('MAXIMIZE_CONVERSION_VALUE')
+      setPmaxBidStrategy('MAXIMIZE_CONVERSION_VALUE')
       setMetaOptimizationGoal('VALUE')
     } else {
       setGoogleBidStrategy('MAXIMIZE_CONVERSIONS')
+      setPmaxBidStrategy('MAXIMIZE_CONVERSIONS')
       setMetaOptimizationGoal(
         nextGoal === 'LEAD' || nextGoal === 'QUALIFIED_LEAD' || nextGoal === 'SIGN_UP'
           ? 'LEAD_GENERATION'
