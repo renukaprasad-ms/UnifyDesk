@@ -1685,6 +1685,37 @@ export type GoogleSearchAudienceTargetingInput = {
   excludedAudienceIds: string[]
 }
 
+export type GoogleDetailedDemographicOption = {
+  id: string
+  resourceName: string
+  name?: string | null
+  parentResourceName?: string | null
+  launchedToAll: boolean
+  searchAvailable: boolean
+}
+
+export type GoogleDetailedDemographicCatalog = {
+  demographics: GoogleDetailedDemographicOption[]
+}
+
+export type GoogleSearchDemographicTargeting = {
+  parentalStatusIncludes: string[]
+  parentalStatusExcludes: string[]
+  incomeRangeIncludes: string[]
+  incomeRangeExcludes: string[]
+  detailedDemographicIds: string[]
+  excludedDetailedDemographicIds: string[]
+}
+
+export type GoogleSearchDemographicTargetingInput = {
+  parentalStatusIncludes: string[]
+  parentalStatusExcludes: string[]
+  incomeRangeIncludes: string[]
+  incomeRangeExcludes: string[]
+  detailedDemographicIds: string[]
+  excludedDetailedDemographicIds: string[]
+}
+
 export type GoogleSearchInterestOption = {
   id: string
   resourceName: string
