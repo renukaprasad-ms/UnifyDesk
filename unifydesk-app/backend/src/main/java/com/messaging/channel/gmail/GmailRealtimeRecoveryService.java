@@ -82,7 +82,7 @@ public class GmailRealtimeRecoveryService {
         }
 
         if (!successful.isEmpty()) {
-          persistenceService.persistBatch(connection, successful);
+          persistenceService.persistBatch(connection, successful, null, false);
         }
         if (!deleted.isEmpty()) {
           persistenceService.markDeleted(connection, deleted);
