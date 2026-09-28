@@ -58,6 +58,8 @@ import com.messaging.ads.google.dto.GoogleDemandGenTargetingResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupUrlOptionsResponse;
 import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationRequest;
 import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationResponse;
+import com.messaging.ads.google.dto.GooglePerformanceMaxBrandGuidelinesRequest;
+import com.messaging.ads.google.dto.GooglePerformanceMaxBrandGuidelinesResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupAssetResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupAssetMutationRequest;
 import com.messaging.ads.google.dto.GoogleAssetGroupAssetRemoveRequest;
@@ -507,6 +509,34 @@ public class GoogleAdsConnectionController {
             "Google Performance Max asset group status updated"));
   }
 
+
+  @GetMapping("/campaigns/{campaignId}/performance-max/brand-guidelines")
+  public ResponseEntity<ApiResponse<GooglePerformanceMaxBrandGuidelinesResponse>>
+      performanceMaxBrandGuidelines(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxService.brandGuidelines(companyId, campaignId),
+            "Google Performance Max brand guidelines fetched"));
+  }
+
+  @PutMapping("/campaigns/{campaignId}/performance-max/brand-guidelines")
+  public ResponseEntity<ApiResponse<GooglePerformanceMaxBrandGuidelinesResponse>>
+      updatePerformanceMaxBrandGuidelines(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId,
+          @Valid @RequestBody GooglePerformanceMaxBrandGuidelinesRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxService.updateBrandGuidelines(
+                companyId, campaignId, request, userId),
+            "Google Performance Max brand guidelines updated"));
+  }
 
   @GetMapping("/campaigns/{campaignId}/performance-max/automation")
   public ResponseEntity<ApiResponse<GooglePerformanceMaxAutomationResponse>> performanceMaxAutomation(
