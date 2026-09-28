@@ -496,6 +496,168 @@ class GoogleProviderCampaignCompilerTests {
   }
 
   @Test
+  void compilesPmaxAudienceSignalWhenOnlyProviderAudienceListsAreSelected() {
+    GoogleProviderCampaignCompiler compiler = new GoogleProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(19L);
+    campaign.setName("PMax remarketing");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(29L);
+    channel.setReachlyoCampaignId(19L);
+    channel.setProvider(AdProvider.GOOGLE_ADS);
+    channel.setChannelType(CampaignChannelType.GOOGLE_PERFORMANCE_MAX);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(8_000L);
+    channel.setProviderOverrideJson(
+        "{\"googleAudienceIds\":[\"101\"],\"googleExcludedAudienceIds\":[]}");
+
+    AdAccount account = new AdAccount();
+    account.setId(39L);
+    account.setProvider(AdProvider.GOOGLE_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(8_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(49L);
+    pack.setBusinessName("Acme");
+    pack.setHeadlinesJson("[\"One\",\"Two\",\"Three\"]");
+    pack.setDescriptionsJson("[\"Description one\",\"Description two\"]");
+    pack.setDestinationUrl("https://example.com");
+
+    CreativePackAsset landscape =
+        asset(491L, 49L, CreativeAssetRole.MARKETING_IMAGE);
+    CreativePackAsset square =
+        asset(492L, 49L, CreativeAssetRole.SQUARE_MARKETING_IMAGE);
+    CreativePackAsset logo = asset(493L, 49L, CreativeAssetRole.LOGO);
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities =
+        new EnumMap<>(AdFeatureCapability.class);
+    capabilities.put(
+        AdFeatureCapability.CAMPAIGN_CREATE,
+        available(AdFeatureCapability.CAMPAIGN_CREATE));
+    capabilities.put(
+        AdFeatureCapability.GOOGLE_PERFORMANCE_MAX,
+        available(AdFeatureCapability.GOOGLE_PERFORMANCE_MAX));
+    capabilities.put(
+        AdFeatureCapability.CREATIVE_CREATE,
+        available(AdFeatureCapability.CREATIVE_CREATE));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(landscape, square, logo),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isTrue();
+    assertThat(plan.operations())
+        .extracting(ProviderPlanOperation::operationKey)
+        .containsExactly(
+            "create-performance-max-paused",
+            "configure-audience-signals");
+    assertThat(plan.issues())
+        .noneMatch(issue -> "AUDIENCE_NOT_SELECTED".equals(issue.code()));
+  }
+
+  @Test
+  void compilesDisplayTargetingWhenOnlyProviderAudienceListsAreSelected() {
+    GoogleProviderCampaignCompiler compiler = new GoogleProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(20L);
+    campaign.setName("Display remarketing");
+    campaign.setBusinessGoal(CampaignBusinessGoal.TRAFFIC);
+    campaign.setCurrency("INR");
+    campaign.setLandingPageUrl("https://example.com");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(30L);
+    channel.setReachlyoCampaignId(20L);
+    channel.setProvider(AdProvider.GOOGLE_ADS);
+    channel.setChannelType(CampaignChannelType.GOOGLE_DISPLAY);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(6_000L);
+    channel.setProviderOverrideJson(
+        "{\"googleAudienceIds\":[\"101\"],\"googleExcludedAudienceIds\":[\"102\"]}");
+
+    AdAccount account = new AdAccount();
+    account.setId(40L);
+    account.setProvider(AdProvider.GOOGLE_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(6_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(50L);
+    pack.setBusinessName("Acme");
+    pack.setPrimaryMessage("Discover a better way to work");
+    pack.setHeadlinesJson("[\"Discover Acme\"]");
+    pack.setDescriptionsJson("[\"Built for modern teams\"]");
+    pack.setDestinationUrl("https://example.com");
+
+    CreativePackAsset landscape =
+        asset(501L, 50L, CreativeAssetRole.MARKETING_IMAGE);
+    CreativePackAsset square =
+        asset(502L, 50L, CreativeAssetRole.SQUARE_MARKETING_IMAGE);
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities =
+        new EnumMap<>(AdFeatureCapability.class);
+    capabilities.put(
+        AdFeatureCapability.CAMPAIGN_CREATE,
+        available(AdFeatureCapability.CAMPAIGN_CREATE));
+    capabilities.put(
+        AdFeatureCapability.GOOGLE_DISPLAY,
+        available(AdFeatureCapability.GOOGLE_DISPLAY));
+    capabilities.put(
+        AdFeatureCapability.CREATIVE_CREATE,
+        available(AdFeatureCapability.CREATIVE_CREATE));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(landscape, square),
+                List.of(),
+                null,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isTrue();
+    assertThat(plan.operations())
+        .extracting(ProviderPlanOperation::operationKey)
+        .containsExactly(
+            "create-display-paused",
+            "configure-display-targeting",
+            "create-responsive-display-ad");
+    assertThat(plan.issues())
+        .noneMatch(issue -> "AUDIENCE_NOT_SELECTED".equals(issue.code()));
+  }
+
+  @Test
   void requiresAiMaxCapabilityAndWarnsWhenKeywordMatchTypesWillBeOverridden() {
     GoogleProviderCampaignCompiler compiler = new GoogleProviderCampaignCompiler();
 

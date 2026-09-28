@@ -32,6 +32,7 @@ import type {
   AdAccount,
   AdAccountResource,
   AdConversion,
+  AdAudience,
   BudgetAllocationMode,
   BudgetPeriod,
   CampaignBusinessGoal,
@@ -236,6 +237,19 @@ const parseArray = <T,>(value?: string | null): T[] => {
     return []
   }
 }
+const googleAudienceDisplayEligible = (audience: AdAudience) => {
+  if (!audience.accessible || !audience.deliveryStatusJson) return false
+  try {
+    const status = JSON.parse(audience.deliveryStatusJson) as Record<string, unknown>
+    return (
+      status.eligibleForDisplay === true &&
+      String(status.accountStatus ?? '').toUpperCase() !== 'DISABLED'
+    )
+  } catch {
+    return false
+  }
+}
+
 
 const listValues = (value: string) =>
   value
@@ -302,6 +316,12 @@ const defaultGoal = (objective: ReachlyoCampaignObjective): CampaignBusinessGoal
 
 const providerForChannel = (type: CampaignChannelType) =>
   type === 'META_ADS' ? 'META_ADS' : 'GOOGLE_ADS'
+
+const GOOGLE_VISUAL_AUDIENCE_CHANNELS: CampaignChannelType[] = [
+  'GOOGLE_DISPLAY',
+  'GOOGLE_DEMAND_GEN',
+  'GOOGLE_PERFORMANCE_MAX',
+]
 
 const currencyDigits = (currency: string) => {
   try {
@@ -379,6 +399,13 @@ export default function ReachlyoCampaignWizard() {
   const [currentRun, setCurrentRun] = useState<LaunchRun | null>(null)
   const [resourcesByAccount, setResourcesByAccount] = useState<Record<string, AdAccountResource[]>>({})
   const [conversionsByAccount, setConversionsByAccount] = useState<Record<string, AdConversion[]>>({})
+  const [audiencesByAccount, setAudiencesByAccount] = useState<Record<string, AdAudience[]>>({})
+  const [googleAudienceIdsByChannel, setGoogleAudienceIdsByChannel] = useState<
+    Partial<Record<CampaignChannelType, string[]>>
+  >({})
+  const [googleExcludedAudienceIdsByChannel, setGoogleExcludedAudienceIdsByChannel] = useState<
+    Partial<Record<CampaignChannelType, string[]>>
+  >({})
 
   const [loading, setLoading] = useState(Boolean(campaignId))
   const [busy, setBusy] = useState(false)
@@ -642,6 +669,34 @@ export default function ReachlyoCampaignWizard() {
     })
     setAccountByChannel(accountSelections)
     setAllocationByChannel(allocations)
+    const nextGoogleAudienceIds: Partial<Record<CampaignChannelType, string[]>> = {}
+    const nextGoogleExcludedAudienceIds: Partial<Record<CampaignChannelType, string[]>> = {}
+    enabled.forEach((channel) => {
+      if (
+        ![
+          'GOOGLE_DISPLAY',
+          'GOOGLE_DEMAND_GEN',
+          'GOOGLE_PERFORMANCE_MAX',
+        ].includes(channel.channelType)
+      ) {
+        return
+      }
+      const override = parseObject(channel.providerOverrideJson)
+      nextGoogleAudienceIds[channel.channelType] = Array.isArray(override.googleAudienceIds)
+        ? override.googleAudienceIds
+            .map((value) => String(value))
+            .filter((value) => /^\d+$/.test(value))
+        : []
+      nextGoogleExcludedAudienceIds[channel.channelType] = Array.isArray(
+        override.googleExcludedAudienceIds,
+      )
+        ? override.googleExcludedAudienceIds
+            .map((value) => String(value))
+            .filter((value) => /^\d+$/.test(value))
+        : []
+    })
+    setGoogleAudienceIdsByChannel(nextGoogleAudienceIds)
+    setGoogleExcludedAudienceIdsByChannel(nextGoogleExcludedAudienceIds)
 
     if (value.budgetPlan) {
       setBudgetAmount(fromMinor(value.budgetPlan.totalBudgetMinor, value.currency))
@@ -1419,16 +1474,25 @@ export default function ReachlyoCampaignWizard() {
     const nextConversions: Record<string, AdConversion[]> = {
       ...conversionsByAccount,
     }
+    const nextAudiences: Record<string, AdAudience[]> = {
+      ...audiencesByAccount,
+    }
     let nextGoogleNegativeKeywordLists = googleNegativeKeywordLists
 
     await Promise.all(
       accountIds.map(async (accountId) => {
         const account = managedAccounts.find((item) => item.id === accountId)
         if (syncProvider && account?.provider === 'GOOGLE_ADS') {
-          await adCenterApi.syncGoogleConversions(
-            selectedCompany.companyId,
-            accountId,
-          )
+          await Promise.all([
+            adCenterApi.syncGoogleConversions(
+              selectedCompany.companyId,
+              accountId,
+            ),
+            adCenterApi.syncGoogleAudiences(
+              selectedCompany.companyId,
+              accountId,
+            ),
+          ])
         }
         if (syncProvider && account?.provider === 'META_ADS') {
           await Promise.all([
@@ -1447,11 +1511,20 @@ export default function ReachlyoCampaignWizard() {
         )
 
         if (account?.provider === 'GOOGLE_ADS') {
-          nextGoogleNegativeKeywordLists =
-            await adCenterApi.googleNegativeKeywordLists(
+          const [negativeKeywordLists, audienceLists] = await Promise.all([
+            adCenterApi.googleNegativeKeywordLists(
               selectedCompany.companyId,
               accountId,
-            )
+            ),
+            adCenterApi.audiences(
+              selectedCompany.companyId,
+              accountId,
+            ),
+          ])
+          nextGoogleNegativeKeywordLists = negativeKeywordLists
+          nextAudiences[accountId] = audienceLists.filter(
+            (item) => item.accessible,
+          )
         }
 
         if (account?.provider === 'META_ADS') {
@@ -1468,6 +1541,7 @@ export default function ReachlyoCampaignWizard() {
 
     setResourcesByAccount(nextResources)
     setConversionsByAccount(nextConversions)
+    setAudiencesByAccount(nextAudiences)
     setGoogleNegativeKeywordLists(nextGoogleNegativeKeywordLists)
 
     const googleAccount =
@@ -1561,6 +1635,22 @@ export default function ReachlyoCampaignWizard() {
         let override: Record<string, unknown> = {
           ...parseObject(channel.providerOverrideJson),
           _reachlyoAdAccountId: accountId,
+        }
+
+        if (
+          channel.channelType === 'GOOGLE_DISPLAY' ||
+          channel.channelType === 'GOOGLE_DEMAND_GEN' ||
+          channel.channelType === 'GOOGLE_PERFORMANCE_MAX'
+        ) {
+          override = {
+            ...override,
+            googleAudienceIds:
+              googleAudienceIdsByChannel[channel.channelType] ?? [],
+            googleExcludedAudienceIds:
+              channel.channelType === 'GOOGLE_PERFORMANCE_MAX'
+                ? []
+                : googleExcludedAudienceIdsByChannel[channel.channelType] ?? [],
+          }
         }
 
         if (channel.channelType === 'GOOGLE_DISPLAY') {
@@ -2109,6 +2199,26 @@ export default function ReachlyoCampaignWizard() {
     managedAccounts.filter(
       (account) => account.provider === providerForChannel(type),
     )
+  const selectChannelAccount = (
+    channelType: CampaignChannelType,
+    accountId: string,
+  ) => {
+    setAccountByChannel((current) => ({
+      ...current,
+      [channelType]: accountId,
+    }))
+    if (GOOGLE_VISUAL_AUDIENCE_CHANNELS.includes(channelType)) {
+      setGoogleAudienceIdsByChannel((current) => ({
+        ...current,
+        [channelType]: [],
+      }))
+      setGoogleExcludedAudienceIdsByChannel((current) => ({
+        ...current,
+        [channelType]: [],
+      }))
+    }
+  }
+
 
   const updateAudienceLocation = (
     index: number,
@@ -2238,6 +2348,50 @@ export default function ReachlyoCampaignWizard() {
       ...current,
       [index]: '',
     }))
+  }
+
+  const toggleGoogleAudienceForChannel = (
+    channelType: CampaignChannelType,
+    audienceId: string,
+    checked: boolean,
+  ) => {
+    setGoogleAudienceIdsByChannel((current) => {
+      const existing = current[channelType] ?? []
+      const next = checked
+        ? [...new Set([...existing, audienceId])]
+        : existing.filter((id) => id !== audienceId)
+      return { ...current, [channelType]: next }
+    })
+    if (checked) {
+      setGoogleExcludedAudienceIdsByChannel((current) => ({
+        ...current,
+        [channelType]: (current[channelType] ?? []).filter(
+          (id) => id !== audienceId,
+        ),
+      }))
+    }
+  }
+
+  const toggleGoogleExcludedAudienceForChannel = (
+    channelType: CampaignChannelType,
+    audienceId: string,
+    checked: boolean,
+  ) => {
+    setGoogleExcludedAudienceIdsByChannel((current) => {
+      const existing = current[channelType] ?? []
+      const next = checked
+        ? [...new Set([...existing, audienceId])]
+        : existing.filter((id) => id !== audienceId)
+      return { ...current, [channelType]: next }
+    })
+    if (checked) {
+      setGoogleAudienceIdsByChannel((current) => ({
+        ...current,
+        [channelType]: (current[channelType] ?? []).filter(
+          (id) => id !== audienceId,
+        ),
+      }))
+    }
   }
 
   if (!selectedCompany) return null
@@ -2592,10 +2746,10 @@ export default function ReachlyoCampaignWizard() {
                                   value={accountByChannel[option.type] ?? ''}
                                   disabled={!canEdit || !editableDefinition}
                                   onChange={(event) =>
-                                    setAccountByChannel((current) => ({
-                                      ...current,
-                                      [option.type]: event.target.value,
-                                    }))
+                                    selectChannelAccount(
+                                      option.type,
+                                      event.target.value,
+                                    )
                                   }
                                 >
                                   <option value="">Select account</option>
@@ -3387,6 +3541,125 @@ export default function ReachlyoCampaignWizard() {
                 title="6. Provider-only settings"
                 description="Only settings that cannot be safely inferred belong here."
               >
+                {GOOGLE_VISUAL_AUDIENCE_CHANNELS.filter((channelType) =>
+                  selectedChannels.includes(channelType),
+                ).map((channelType) => {
+                  const accountId = accountByChannel[channelType]
+                  const options = (audiencesByAccount[accountId] ?? []).filter(
+                    googleAudienceDisplayEligible,
+                  )
+                  const selected = googleAudienceIdsByChannel[channelType] ?? []
+                  const excluded =
+                    googleExcludedAudienceIdsByChannel[channelType] ?? []
+                  const pmax = channelType === 'GOOGLE_PERFORMANCE_MAX'
+
+                  return (
+                    <section
+                      key={channelType}
+                      className="mb-4 rounded-2xl border border-slate-200 bg-white p-5"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-sm font-bold text-slate-900">
+                            {pretty(channelType)} audiences
+                          </h3>
+                          <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
+                            {pmax
+                              ? 'Google treats these lists as audience signals. They guide optimization but do not hard-restrict delivery.'
+                              : channelType === 'GOOGLE_DEMAND_GEN'
+                                ? 'Selected lists are composed into a reusable Google Audience for grouped Demand Gen targeting.'
+                                : 'Selected lists become real Display ad-group USER_LIST criteria. Exclusions become negative USER_LIST criteria.'}
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                          {options.length} eligible list{options.length === 1 ? '' : 's'}
+                        </span>
+                      </div>
+
+                      {!accountId ? (
+                        <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                          Choose the Google Ads account for this channel first.
+                        </p>
+                      ) : options.length === 0 ? (
+                        <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                          No Display-eligible Google audience lists are available for this account.
+                          Use Refresh provider resources after creating or updating Customer Match /
+                          remarketing lists in Google Ads.
+                        </p>
+                      ) : (
+                        <div className="mt-4 grid gap-2">
+                          {options.map((audience) => {
+                            const includeChecked = selected.includes(audience.id)
+                            const excludeChecked = excluded.includes(audience.id)
+                            return (
+                              <div
+                                key={audience.id}
+                                className="rounded-xl border border-slate-200 px-3 py-3"
+                              >
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-xs font-semibold text-slate-800">
+                                      {audience.name}
+                                    </p>
+                                    <p className="mt-1 text-[11px] text-slate-400">
+                                      {audience.subtype ? pretty(audience.subtype) : 'Google audience'}
+                                      {audience.approximateCountUpperBound != null
+                                        ? ' · Display size ' +
+                                          audience.approximateCountUpperBound.toLocaleString()
+                                        : ''}
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-wrap gap-3">
+                                    <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-600">
+                                      <input
+                                        type="checkbox"
+                                        checked={includeChecked}
+                                        disabled={!canEdit || !editableDefinition}
+                                        onChange={(event) =>
+                                          toggleGoogleAudienceForChannel(
+                                            channelType,
+                                            audience.id,
+                                            event.target.checked,
+                                          )
+                                        }
+                                      />
+                                      {pmax ? 'Use as signal' : 'Include'}
+                                    </label>
+                                    {!pmax && (
+                                      <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-600">
+                                        <input
+                                          type="checkbox"
+                                          checked={excludeChecked}
+                                          disabled={!canEdit || !editableDefinition}
+                                          onChange={(event) =>
+                                            toggleGoogleExcludedAudienceForChannel(
+                                              channelType,
+                                              audience.id,
+                                              event.target.checked,
+                                            )
+                                          }
+                                        />
+                                        Exclude
+                                      </label>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {pmax && (
+                        <p className="mt-3 text-[11px] leading-5 text-slate-400">
+                          PMax exclusions are intentionally not offered here because audience
+                          signals are not hard targeting controls.
+                        </p>
+                      )}
+                    </section>
+                  )
+                })}
+
                 {selectedChannels.includes('META_ADS') &&
                   campaign &&
                   creativePacks[0] &&

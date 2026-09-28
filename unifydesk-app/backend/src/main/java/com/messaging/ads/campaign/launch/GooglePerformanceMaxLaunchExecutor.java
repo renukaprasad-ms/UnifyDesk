@@ -31,6 +31,7 @@ import com.messaging.ads.google.GoogleAdsCampaignConversionGoalService;
 import com.messaging.ads.google.GoogleAdsCampaignSyncService;
 import com.messaging.ads.google.GoogleAdsCampaignTargetingService;
 import com.messaging.ads.google.GoogleAdsPerformanceMaxService;
+import com.messaging.ads.google.GoogleAdsVisualAudienceService;
 import com.messaging.ads.google.dto.CreateGooglePerformanceMaxCampaignRequest;
 import com.messaging.ads.google.dto.GoogleAssetGroupSignalsRequest;
 import com.messaging.ads.repository.AdAccountRepository;
@@ -67,6 +68,7 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
   private final GoogleAdsPerformanceMaxService performanceMaxService;
   private final GoogleAdsCampaignTargetingService campaignTargetingService;
   private final GoogleAdsAssetGroupSignalService signalService;
+  private final GoogleAdsVisualAudienceService visualAudienceService;
   private final GoogleAdsCampaignConversionGoalService conversionGoalService;
   private final ProviderDeploymentService deploymentService;
   private final MediaService mediaService;
@@ -135,6 +137,31 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
       }
     }
 
+    List<Long> providerAudienceIds =
+        longsFromOverride(override, "googleAudienceIds");
+    List<Long> providerExcludedAudienceIds =
+        longsFromOverride(override, "googleExcludedAudienceIds");
+    try {
+      visualAudienceService.validateUserLists(
+          companyId,
+          account.getId(),
+          providerAudienceIds,
+          providerExcludedAudienceIds);
+      if (!providerExcludedAudienceIds.isEmpty()) {
+        issues.add(
+            warning(
+                "PMAX_AUDIENCE_EXCLUSIONS_NOT_APPLIED",
+                "providerOverride.googleExcludedAudienceIds",
+                "Performance Max audience lists are signals rather than hard targeting. Selected audience exclusions are not applied to the PMax signal."));
+      }
+    } catch (RuntimeException exception) {
+      issues.add(
+          error(
+              "PMAX_PROVIDER_AUDIENCE_INVALID",
+              "providerOverride.googleAudienceIds",
+              exception.getMessage()));
+    }
+
     AudienceDefinition audience = audience(companyId, campaign.getId(), plan.audienceDefinitionId(), false);
     if (audience != null) {
       try {
@@ -156,7 +183,7 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
         issues.add(warning(
             "PMAX_DEMOGRAPHICS_ARE_SIGNALS",
             "audience",
-            "Performance Max does not apply the shared age/gender/interests as hard Search-style criteria. Geo/language are targeting controls; search intent is mapped as asset-group search-theme signals."));
+            "Performance Max does not apply shared age/gender/free-text interests as hard criteria. Geo/language remain targeting controls; search intent becomes search-theme signals, and selected Google user lists become audience signals."));
       }
     }
 
@@ -183,7 +210,7 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
       case "configure-pmax-targeting" ->
           configureTargeting(companyId, plan, step, campaign);
       case "configure-audience-signals" ->
-          configureSignals(companyId, run, plan, step, campaign);
+          configureSignals(companyId, run, plan, step, campaign, channel);
       case "configure-conversion-goal" ->
           configureConversionGoal(companyId, run, plan, step, campaign);
       default -> throw new BadRequestException(
@@ -287,15 +314,19 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
       LaunchRun run,
       ProviderCampaignPlan plan,
       LaunchStep step,
-      ReachlyoCampaign campaign) {
+      ReachlyoCampaign campaign,
+      CampaignChannel channel) {
     AudienceDefinition audience =
         audience(companyId, campaign.getId(), plan.audienceDefinitionId(), false);
-    if (audience == null) {
-      return LaunchStepExecutionResult.skipped("No canonical audience signals were selected.");
-    }
-    List<String> themes = strings(audience.getSearchIntentJson());
-    if (themes.isEmpty()) {
-      return LaunchStepExecutionResult.skipped("No search-intent terms were supplied for Performance Max search themes.");
+    List<String> themes =
+        audience == null ? List.of() : strings(audience.getSearchIntentJson());
+    JsonNode override = override(channel);
+    List<Long> providerAudienceIds =
+        longsFromOverride(override, "googleAudienceIds");
+
+    if (themes.isEmpty() && providerAudienceIds.isEmpty()) {
+      return LaunchStepExecutionResult.skipped(
+          "No Performance Max search-theme or audience-list signals were selected.");
     }
 
     AdCampaign providerCampaign = providerCampaign(companyId, step.getProviderDeploymentId());
@@ -309,13 +340,15 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
             companyId,
             providerCampaign.getId(),
             groups.getFirst().id(),
-            new GoogleAssetGroupSignalsRequest(themes, List.of()),
+            new GoogleAssetGroupSignalsRequest(themes, providerAudienceIds),
             run.getRequestedByUserId());
 
     return LaunchStepExecutionResult.succeeded(
         null,
         after.isEmpty() ? null : after.getFirst().resourceName(),
-        Map.of("searchThemeCount", themes.size()));
+        Map.of(
+            "searchThemeCount", themes.size(),
+            "audienceSignalCount", providerAudienceIds.size()));
   }
 
   private LaunchStepExecutionResult configureConversionGoal(
@@ -495,6 +528,20 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
     } catch (Exception exception) {
       throw new BadRequestException("Creative/audience text list is invalid JSON");
     }
+  }
+
+  private List<Long> longsFromOverride(JsonNode node, String key) {
+    JsonNode value = node.get(key);
+    if (value == null || value.isNull() || !value.isArray()) return List.of();
+    List<Long> result = new ArrayList<>();
+    for (JsonNode item : value) {
+      if (item.canConvertToLong()) {
+        result.add(item.longValue());
+      } else if (item.isTextual() && item.asText().matches("\\d+")) {
+        result.add(Long.valueOf(item.asText()));
+      }
+    }
+    return result.stream().distinct().toList();
   }
 
   private List<String> stringsFromOverride(JsonNode node, String key) {

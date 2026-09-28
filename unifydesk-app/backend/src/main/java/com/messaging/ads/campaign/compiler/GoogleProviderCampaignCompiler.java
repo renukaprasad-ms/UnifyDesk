@@ -96,11 +96,13 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
     AudienceMappingStatus audienceMappingStatus = null;
     String audienceMappingNote = null;
     if (context.audienceDefinition() == null) {
-      issues.add(
-          ProviderCampaignPlanSupport.warning(
-              "AUDIENCE_NOT_SELECTED",
-              "audience",
-              "No canonical audience is selected; provider defaults/broad targeting will be used where valid."));
+      if (!hasProviderAudienceLists(context)) {
+        issues.add(
+            ProviderCampaignPlanSupport.warning(
+                "AUDIENCE_NOT_SELECTED",
+                "audience",
+                "No canonical or provider-backed audience is selected; provider defaults/broad targeting will be used where valid."));
+      }
     } else {
       audienceMappingStatus = googleAudienceMappingStatus(context);
       if (audienceMappingStatus == AudienceMappingStatus.EXACT) {
@@ -571,7 +573,7 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                   "budgetPeriod",
                   context.budgetPlan() == null ? null : context.budgetPlan().getBudgetPeriod(),
                   "providerOverrideJson", context.channel().getProviderOverrideJson())));
-      if (context.audienceDefinition() != null) {
+      if (context.audienceDefinition() != null || hasProviderAudienceLists(context)) {
         operations.add(
             operation(
                 sequence++,
@@ -747,6 +749,8 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                 Set.of(),
                 ProviderCampaignPlanSupport.config(
                     "audienceDefinitionId", context.audienceDefinition().getId().toString())));
+      }
+      if (context.audienceDefinition() != null || hasProviderAudienceLists(context)) {
         operations.add(
             operation(
                 sequence++,
@@ -756,7 +760,10 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                 false,
                 Set.of(),
                 ProviderCampaignPlanSupport.config(
-                    "audienceDefinitionId", context.audienceDefinition().getId().toString(),
+                    "audienceDefinitionId",
+                    context.audienceDefinition() == null
+                        ? null
+                        : context.audienceDefinition().getId().toString(),
                     "mappingStatus", AudienceMappingStatus.APPROXIMATE)));
       }
       if (context.conversionGoalMapping() != null) {
@@ -1017,6 +1024,12 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
       default -> throw new IllegalArgumentException(
           "Channel has no Google creative variant: " + type);
     };
+  }
+
+  private boolean hasProviderAudienceLists(
+      ProviderCampaignCompileContext context) {
+    return !providerStrings(context, "googleAudienceIds").isEmpty()
+        || !providerStrings(context, "googleExcludedAudienceIds").isEmpty();
   }
 
   private boolean aiMaxEnabled(ProviderCampaignCompileContext context) {

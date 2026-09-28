@@ -2127,6 +2127,23 @@ Implemented on `feature/ad-center-unified-shopping`:
 - successful orchestration still stops at `PAUSED_READY`; no automatic spend activation is introduced
 
 
+## Google visual-channel provider audiences — 2026-09-28
+
+Implemented on `feature/ad-center-google-visual-audiences`:
+
+- unified provider settings now load synced Google audience/user-list resources for each selected Google Ads account
+- only accessible Google lists marked provider-eligible for Display can be selected
+- selections are isolated per visual channel and are cleared when that channel changes Google Ads accounts
+- Google Display maps included lists to positive ad-group `USER_LIST` criteria and exclusions to negative `USER_LIST` criteria
+- Display ad groups explicitly use AUDIENCE Targeting mode rather than Observation so selected lists narrow delivery
+- Google Demand Gen composes selected lists and exclusions into a deterministic reusable CUSTOMER-scoped Google Audience, then applies it as grouped audience targeting
+- reusable Demand Gen audience names include a stable selection fingerprint so retries reuse the same composition while changed selections do not accidentally reuse stale provider state
+- Performance Max maps selected lists to asset-group audience signals; the UI does not present PMax audience exclusions because signals do not hard-restrict delivery
+- PMax retry handling avoids creating a duplicate audience signal when the asset group already has one
+- compiler plans now schedule Display targeting and PMax audience-signal steps even when provider-backed lists are the only audience input and no canonical audience definition exists
+- canonical free-text interests/demographics remain separate from provider-backed Google lists and are not silently converted into unsupported hard targeting
+- all launch paths remain paused-first and still stop at `PAUSED_READY`
+
 ## Provider-backed canonical location autocomplete — 2026-09-28
 
 Implemented on `feature/ad-center-location-autocomplete`:

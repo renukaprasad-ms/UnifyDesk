@@ -81,6 +81,8 @@ public class GoogleAdsAssetGroupSignalService {
         .filter(value -> value != null && !value.isBlank())
         .map(value -> value.trim().toLowerCase())
         .forEach(existingThemes::add);
+    boolean hasAudienceSignal =
+        existing.stream().anyMatch(signal -> "AUDIENCE".equals(signal.type()));
 
     List<String> requestedThemes =
         request.searchThemes() == null
@@ -114,7 +116,9 @@ public class GoogleAdsAssetGroupSignalService {
                   "searchTheme", Map.of("text", theme))));
     }
 
-    if (request.audienceIds() != null && !request.audienceIds().isEmpty()) {
+    if (request.audienceIds() != null
+        && !request.audienceIds().isEmpty()
+        && !hasAudienceSignal) {
       String audienceResource =
           createScopedAudience(
               companyId,

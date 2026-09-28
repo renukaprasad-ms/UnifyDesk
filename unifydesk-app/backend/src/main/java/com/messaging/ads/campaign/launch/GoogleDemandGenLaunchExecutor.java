@@ -37,6 +37,7 @@ import com.messaging.ads.google.GoogleAdsCampaignSyncService;
 import com.messaging.ads.google.GoogleAdsDemandGenCampaignService;
 import com.messaging.ads.google.GoogleAdsDemandGenCreativeService;
 import com.messaging.ads.google.GoogleAdsDemandGenTargetingService;
+import com.messaging.ads.google.GoogleAdsVisualAudienceService;
 import com.messaging.ads.google.dto.CreateGoogleDemandGenCampaignRequest;
 import com.messaging.ads.google.dto.CreateGoogleDemandGenMultiAssetAdRequest;
 import com.messaging.ads.google.dto.GoogleDemandGenTargetingRequest;
@@ -78,6 +79,7 @@ public class GoogleDemandGenLaunchExecutor implements LaunchProviderExecutor {
   private final GoogleAdsAdSyncService adSyncService;
   private final GoogleAdsDemandGenCampaignService demandGenCampaignService;
   private final GoogleAdsDemandGenTargetingService targetingService;
+  private final GoogleAdsVisualAudienceService visualAudienceService;
   private final GoogleAdsDemandGenCreativeService creativeService;
   private final GoogleAdsCampaignConversionGoalService conversionGoalService;
   private final ProviderDeploymentService deploymentService;
@@ -135,6 +137,32 @@ public class GoogleDemandGenLaunchExecutor implements LaunchProviderExecutor {
       }
     }
 
+    List<Long> providerAudienceIds =
+        longsFromOverride(override, "googleAudienceIds");
+    List<Long> providerExcludedAudienceIds =
+        longsFromOverride(override, "googleExcludedAudienceIds");
+    try {
+      visualAudienceService.validateUserLists(
+          companyId,
+          account.getId(),
+          providerAudienceIds,
+          providerExcludedAudienceIds);
+      if (providerAudienceIds.isEmpty()
+          && !providerExcludedAudienceIds.isEmpty()) {
+        issues.add(
+            error(
+                "DEMAND_GEN_AUDIENCE_INCLUDE_REQUIRED",
+                "providerOverride.googleAudienceIds",
+                "Demand Gen audience exclusions require at least one included Google audience list."));
+      }
+    } catch (RuntimeException exception) {
+      issues.add(
+          error(
+              "DEMAND_GEN_PROVIDER_AUDIENCE_INVALID",
+              "providerOverride.googleAudienceIds",
+              exception.getMessage()));
+    }
+
     AudienceDefinition audience = audience(companyId, campaign.getId(), plan.audienceDefinitionId(), false);
     if (audience != null) {
       List<AudienceLocationInput> locations = locations(audience.getLocationsJson());
@@ -149,7 +177,7 @@ public class GoogleDemandGenLaunchExecutor implements LaunchProviderExecutor {
         issues.add(warning(
             "DEMAND_GEN_AUDIENCE_MAPPING_APPROXIMATE",
             "audience",
-            "Canonical interests/search intent are not guessed into Google Audience resources. Add provider-backed Demand Gen Audience resources in advanced settings when needed."));
+            "Selected provider-backed Google user lists are composed into a reusable Demand Gen Audience. Canonical free-text interests/search intent are still not guessed into Google audience segments."));
       }
     }
 
@@ -268,6 +296,26 @@ public class GoogleDemandGenLaunchExecutor implements LaunchProviderExecutor {
         audience(companyId, campaign.getId(), plan.audienceDefinitionId(), false);
     JsonNode override = override(channel);
 
+    List<String> audienceResources =
+        new ArrayList<>(
+            stringsFromOverride(override, "demandGenAudienceResourceNames"));
+    List<Long> providerAudienceIds =
+        longsFromOverride(override, "googleAudienceIds");
+    List<Long> providerExcludedAudienceIds =
+        longsFromOverride(override, "googleExcludedAudienceIds");
+    if (!providerAudienceIds.isEmpty()) {
+      audienceResources.add(
+          visualAudienceService.ensureCustomerAudience(
+              companyId,
+              step.getAdAccountId(),
+              launchName(
+                  campaign.getName() + " Demand Gen Audience",
+                  run.getId(),
+                  plan.channelId()),
+              providerAudienceIds,
+              providerExcludedAudienceIds));
+    }
+
     var response =
         targetingService.update(
             companyId,
@@ -281,7 +329,7 @@ public class GoogleDemandGenLaunchExecutor implements LaunchProviderExecutor {
                 List.of(),
                 audience == null ? List.of() : strings(audience.getLanguagesJson()),
                 List.of(),
-                stringsFromOverride(override, "demandGenAudienceResourceNames")),
+                audienceResources.stream().distinct().toList()),
             run.getRequestedByUserId());
 
     return LaunchStepExecutionResult.succeeded(
@@ -513,6 +561,20 @@ public class GoogleDemandGenLaunchExecutor implements LaunchProviderExecutor {
     } catch (Exception exception) {
       throw new BadRequestException("Audience locations are invalid JSON");
     }
+  }
+
+  private List<Long> longsFromOverride(JsonNode node, String key) {
+    JsonNode value = node.get(key);
+    if (value == null || value.isNull() || !value.isArray()) return List.of();
+    List<Long> result = new ArrayList<>();
+    for (JsonNode item : value) {
+      if (item.canConvertToLong()) {
+        result.add(item.longValue());
+      } else if (item.isTextual() && item.asText().matches("\\d+")) {
+        result.add(Long.valueOf(item.asText()));
+      }
+    }
+    return result.stream().distinct().toList();
   }
 
   private List<String> stringsFromOverride(JsonNode node, String key) {

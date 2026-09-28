@@ -176,6 +176,14 @@ class GoogleAdsDisplayCampaignServiceTests {
             ((Map<String, Object>) adGroupOperation.get("adGroupOperation"))
                 .get("create");
     assertThat(adGroupCreate.get("status")).isEqualTo("PAUSED");
+    assertThat(adGroupCreate.get("targetingSetting"))
+        .isEqualTo(
+            Map.of(
+                "targetRestrictions",
+                List.of(
+                    Map.of(
+                        "targetingDimension", "AUDIENCE",
+                        "bidOnly", false))));
     assertThat(adGroupCreate).containsKey("cpcBidMicros");
   }
 }
