@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { FiClock, FiPlus, FiRefreshCw, FiTrash2 } from 'react-icons/fi'
 import GoogleAiMaxBrandSelector from './GoogleAiMaxBrandSelector'
+import GoogleSearchInterestSelector from './GoogleSearchInterestSelector'
 import type {
   AdAccountResource,
   AdConversion,
@@ -73,6 +74,10 @@ type Props = {
   setGoogleSearchPartners: (value: boolean) => void
   googleSearchAudienceMode: 'OBSERVATION' | 'TARGETING'
   setGoogleSearchAudienceMode: (value: 'OBSERVATION' | 'TARGETING') => void
+  googleSearchInterestResources: string[]
+  setGoogleSearchInterestResources: (value: string[]) => void
+  googleSearchExcludedInterestResources: string[]
+  setGoogleSearchExcludedInterestResources: (value: string[]) => void
   googleContentNetwork: boolean
   setGoogleContentNetwork: (value: boolean) => void
   googleGeoMode: 'PRESENCE' | 'PRESENCE_OR_INTEREST'
@@ -877,6 +882,18 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 <option value="PRESENCE">Presence only</option>
               </select>
             </Field>
+            <div className="sm:col-span-2">
+              <GoogleSearchInterestSelector
+                companyId={props.companyId}
+                accountId={googleAccount}
+                includedResourceNames={props.googleSearchInterestResources}
+                excludedResourceNames={props.googleSearchExcludedInterestResources}
+                setIncludedResourceNames={props.setGoogleSearchInterestResources}
+                setExcludedResourceNames={props.setGoogleSearchExcludedInterestResources}
+                disabled={props.disabled}
+              />
+            </div>
+
             <div className="rounded-xl border border-slate-100 p-4 sm:col-span-2">
               <p className="text-xs font-semibold text-slate-700">Device bid adjustments</p>
               <p className="mt-1 text-[11px] leading-5 text-slate-500">
