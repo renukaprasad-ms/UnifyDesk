@@ -96,6 +96,19 @@ public class S3StorageProvider implements StorageProvider {
   }
 
   @Override
+  public byte[] readObject(String bucket, String objectKey) {
+    ensureConfigured();
+    try {
+      return client()
+          .getObjectAsBytes(
+              GetObjectRequest.builder().bucket(bucket).key(objectKey).build())
+          .asByteArray();
+    } catch (S3Exception exception) {
+      throw storageException(exception);
+    }
+  }
+
+  @Override
   public void move(String bucket, String sourceObjectKey, String destinationObjectKey) {
     ensureConfigured();
     try {
