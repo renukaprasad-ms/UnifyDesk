@@ -25,6 +25,7 @@ import ReachlyoProviderSettingsStep, {
   type GoogleAdScheduleDraft,
 } from '../../components/ads/ReachlyoProviderSettingsStep'
 import MetaCreativeVariantsEditor from '../../components/ads/MetaCreativeVariantsEditor'
+import MetaDetailedTargetingEditor from '../../components/ads/MetaDetailedTargetingEditor'
 import GoogleKeywordPlannerPanel from '../../components/ads/GoogleKeywordPlannerPanel'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
@@ -46,6 +47,7 @@ import type {
   GoogleNegativeKeywordInput,
   GoogleBrandSuggestion,
   GoogleNegativeKeywordList,
+  MetaTargetingInterest,
 } from '../../features/ads/types'
 import { mediaApi } from '../../features/media/mediaApi'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -474,6 +476,7 @@ export default function ReachlyoCampaignWizard() {
   const [metaBackgroundGeneration, setMetaBackgroundGeneration] = useState(false)
   const [metaProductSetId, setMetaProductSetId] = useState('')
   const [metaExistingPostId, setMetaExistingPostId] = useState('')
+  const [metaDetailedInterests, setMetaDetailedInterests] = useState<MetaTargetingInterest[]>([])
   const [showAdvancedProviderSettings, setShowAdvancedProviderSettings] = useState(false)
 
   const managedAccounts = useMemo(
@@ -803,6 +806,17 @@ export default function ReachlyoCampaignWizard() {
       setMetaBackgroundGeneration(override.backgroundGeneration === true)
       setMetaProductSetId(typeof override.productSetId === 'string' ? override.productSetId : '')
       setMetaExistingPostId(typeof override.existingPostId === 'string' ? override.existingPostId : '')
+      setMetaDetailedInterests(
+        Array.isArray(override.detailedInterests)
+          ? override.detailedInterests.flatMap((value) => {
+              if (!value || typeof value !== 'object' || Array.isArray(value)) return []
+              const interest = value as Record<string, unknown>
+              return typeof interest.id === 'string' && typeof interest.name === 'string'
+                ? [{ id: interest.id, name: interest.name }]
+                : []
+            })
+          : [],
+      )
     }
   }
 
@@ -1435,6 +1449,7 @@ export default function ReachlyoCampaignWizard() {
             productSetId: metaCatalogEnabled ? metaProductSetId.trim() : undefined,
             backgroundGeneration: metaCatalogEnabled && metaBackgroundGeneration,
             existingPostId: metaCatalogEnabled ? undefined : metaExistingPostId.trim() || undefined,
+            detailedInterests: metaDetailedInterests,
           }
         }
 
@@ -2721,8 +2736,8 @@ export default function ReachlyoCampaignWizard() {
                     </div>
                   </Field>
                   <Field
-                    label="Interests"
-                    hint="Comma separated. Detailed provider mapping remains explicit in review."
+                    label="Audience interests"
+                    hint="Describe the audience in business terms. For Meta, choose verified provider interests in the next step so nothing is silently guessed."
                   >
                     <textarea
                       className="form-input mt-2 min-h-28"
@@ -2804,6 +2819,17 @@ export default function ReachlyoCampaignWizard() {
                       disabled={!canEdit || !editableDefinition}
                       onSaved={(pack) => setCreativePacks([pack])}
                       onError={setError}
+                    />
+                  )}
+
+                {selectedChannels.includes('META_ADS') &&
+                  accountByChannel.META_ADS && (
+                    <MetaDetailedTargetingEditor
+                      companyId={selectedCompany.companyId}
+                      accountId={accountByChannel.META_ADS}
+                      selected={metaDetailedInterests}
+                      disabled={!canEdit || !editableDefinition}
+                      onChange={setMetaDetailedInterests}
                     />
                   )}
 
