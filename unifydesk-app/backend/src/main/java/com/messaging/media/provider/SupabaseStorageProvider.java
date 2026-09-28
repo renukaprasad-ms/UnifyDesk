@@ -80,6 +80,25 @@ public class SupabaseStorageProvider implements StorageProvider {
   }
 
   @Override
+  public byte[] readObject(String bucket, String objectKey) {
+    try {
+      byte[] body =
+          restClient
+              .get()
+              .uri(storageUri("/object/authenticated/%s/%s", bucket, objectKey))
+              .headers(this::addAuthHeaders)
+              .retrieve()
+              .body(byte[].class);
+      if (body == null) {
+        throw new MediaException(HttpStatus.SERVICE_UNAVAILABLE, "MEDIA_STORAGE_ERROR");
+      }
+      return body;
+    } catch (RestClientException exception) {
+      throw storageException("read", exception);
+    }
+  }
+
+  @Override
   public void move(String bucket, String sourceObjectKey, String destinationObjectKey) {
     postJson(
         storageUri("/object/move"),
