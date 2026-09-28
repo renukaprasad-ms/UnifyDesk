@@ -2199,6 +2199,26 @@ export default function ReachlyoCampaignWizard() {
     managedAccounts.filter(
       (account) => account.provider === providerForChannel(type),
     )
+  const selectChannelAccount = (
+    channelType: CampaignChannelType,
+    accountId: string,
+  ) => {
+    setAccountByChannel((current) => ({
+      ...current,
+      [channelType]: accountId,
+    }))
+    if (GOOGLE_VISUAL_AUDIENCE_CHANNELS.includes(channelType)) {
+      setGoogleAudienceIdsByChannel((current) => ({
+        ...current,
+        [channelType]: [],
+      }))
+      setGoogleExcludedAudienceIdsByChannel((current) => ({
+        ...current,
+        [channelType]: [],
+      }))
+    }
+  }
+
 
   const updateAudienceLocation = (
     index: number,
@@ -2726,10 +2746,10 @@ export default function ReachlyoCampaignWizard() {
                                   value={accountByChannel[option.type] ?? ''}
                                   disabled={!canEdit || !editableDefinition}
                                   onChange={(event) =>
-                                    setAccountByChannel((current) => ({
-                                      ...current,
-                                      [option.type]: event.target.value,
-                                    }))
+                                    selectChannelAccount(
+                                      option.type,
+                                      event.target.value,
+                                    )
                                   }
                                 >
                                   <option value="">Select account</option>
