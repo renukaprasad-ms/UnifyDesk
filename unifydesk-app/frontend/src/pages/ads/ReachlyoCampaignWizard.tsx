@@ -32,6 +32,7 @@ import type {
   AdAccount,
   AdAccountResource,
   AdConversion,
+  AdAudience,
   BudgetAllocationMode,
   BudgetPeriod,
   CampaignBusinessGoal,
@@ -379,6 +380,13 @@ export default function ReachlyoCampaignWizard() {
   const [currentRun, setCurrentRun] = useState<LaunchRun | null>(null)
   const [resourcesByAccount, setResourcesByAccount] = useState<Record<string, AdAccountResource[]>>({})
   const [conversionsByAccount, setConversionsByAccount] = useState<Record<string, AdConversion[]>>({})
+  const [audiencesByAccount, setAudiencesByAccount] = useState<Record<string, AdAudience[]>>({})
+  const [googleAudienceIdsByChannel, setGoogleAudienceIdsByChannel] = useState<
+    Partial<Record<CampaignChannelType, string[]>>
+  >({})
+  const [googleExcludedAudienceIdsByChannel, setGoogleExcludedAudienceIdsByChannel] = useState<
+    Partial<Record<CampaignChannelType, string[]>>
+  >({})
 
   const [loading, setLoading] = useState(Boolean(campaignId))
   const [busy, setBusy] = useState(false)
@@ -642,6 +650,34 @@ export default function ReachlyoCampaignWizard() {
     })
     setAccountByChannel(accountSelections)
     setAllocationByChannel(allocations)
+    const nextGoogleAudienceIds: Partial<Record<CampaignChannelType, string[]>> = {}
+    const nextGoogleExcludedAudienceIds: Partial<Record<CampaignChannelType, string[]>> = {}
+    enabled.forEach((channel) => {
+      if (
+        ![
+          'GOOGLE_DISPLAY',
+          'GOOGLE_DEMAND_GEN',
+          'GOOGLE_PERFORMANCE_MAX',
+        ].includes(channel.channelType)
+      ) {
+        return
+      }
+      const override = parseObject(channel.providerOverrideJson)
+      nextGoogleAudienceIds[channel.channelType] = Array.isArray(override.googleAudienceIds)
+        ? override.googleAudienceIds
+            .map((value) => String(value))
+            .filter((value) => /^\d+$/.test(value))
+        : []
+      nextGoogleExcludedAudienceIds[channel.channelType] = Array.isArray(
+        override.googleExcludedAudienceIds,
+      )
+        ? override.googleExcludedAudienceIds
+            .map((value) => String(value))
+            .filter((value) => /^\d+$/.test(value))
+        : []
+    })
+    setGoogleAudienceIdsByChannel(nextGoogleAudienceIds)
+    setGoogleExcludedAudienceIdsByChannel(nextGoogleExcludedAudienceIds)
 
     if (value.budgetPlan) {
       setBudgetAmount(fromMinor(value.budgetPlan.totalBudgetMinor, value.currency))
@@ -1419,16 +1455,25 @@ export default function ReachlyoCampaignWizard() {
     const nextConversions: Record<string, AdConversion[]> = {
       ...conversionsByAccount,
     }
+    const nextAudiences: Record<string, AdAudience[]> = {
+      ...audiencesByAccount,
+    }
     let nextGoogleNegativeKeywordLists = googleNegativeKeywordLists
 
     await Promise.all(
       accountIds.map(async (accountId) => {
         const account = managedAccounts.find((item) => item.id === accountId)
         if (syncProvider && account?.provider === 'GOOGLE_ADS') {
-          await adCenterApi.syncGoogleConversions(
-            selectedCompany.companyId,
-            accountId,
-          )
+          await Promise.all([
+            adCenterApi.syncGoogleConversions(
+              selectedCompany.companyId,
+              accountId,
+            ),
+            adCenterApi.syncGoogleAudiences(
+              selectedCompany.companyId,
+              accountId,
+            ),
+          ])
         }
         if (syncProvider && account?.provider === 'META_ADS') {
           await Promise.all([
@@ -1447,11 +1492,20 @@ export default function ReachlyoCampaignWizard() {
         )
 
         if (account?.provider === 'GOOGLE_ADS') {
-          nextGoogleNegativeKeywordLists =
-            await adCenterApi.googleNegativeKeywordLists(
+          const [negativeKeywordLists, audienceLists] = await Promise.all([
+            adCenterApi.googleNegativeKeywordLists(
               selectedCompany.companyId,
               accountId,
-            )
+            ),
+            adCenterApi.audiences(
+              selectedCompany.companyId,
+              accountId,
+            ),
+          ])
+          nextGoogleNegativeKeywordLists = negativeKeywordLists
+          nextAudiences[accountId] = audienceLists.filter(
+            (item) => item.accessible,
+          )
         }
 
         if (account?.provider === 'META_ADS') {
@@ -1468,6 +1522,7 @@ export default function ReachlyoCampaignWizard() {
 
     setResourcesByAccount(nextResources)
     setConversionsByAccount(nextConversions)
+    setAudiencesByAccount(nextAudiences)
     setGoogleNegativeKeywordLists(nextGoogleNegativeKeywordLists)
 
     const googleAccount =
@@ -1561,6 +1616,22 @@ export default function ReachlyoCampaignWizard() {
         let override: Record<string, unknown> = {
           ...parseObject(channel.providerOverrideJson),
           _reachlyoAdAccountId: accountId,
+        }
+
+        if (
+          channel.channelType === 'GOOGLE_DISPLAY' ||
+          channel.channelType === 'GOOGLE_DEMAND_GEN' ||
+          channel.channelType === 'GOOGLE_PERFORMANCE_MAX'
+        ) {
+          override = {
+            ...override,
+            googleAudienceIds:
+              googleAudienceIdsByChannel[channel.channelType] ?? [],
+            googleExcludedAudienceIds:
+              channel.channelType === 'GOOGLE_PERFORMANCE_MAX'
+                ? []
+                : googleExcludedAudienceIdsByChannel[channel.channelType] ?? [],
+          }
         }
 
         if (channel.channelType === 'GOOGLE_DISPLAY') {
