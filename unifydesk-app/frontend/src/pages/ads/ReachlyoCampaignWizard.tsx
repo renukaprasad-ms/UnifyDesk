@@ -487,6 +487,10 @@ export default function ReachlyoCampaignWizard() {
     'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
   >('MAXIMIZE_CONVERSIONS')
   const [pmaxYoutubeVideoIds, setPmaxYoutubeVideoIds] = useState('')
+  const [pmaxBrandGuidelinesEnabled, setPmaxBrandGuidelinesEnabled] = useState(true)
+  const [pmaxBrandMainColor, setPmaxBrandMainColor] = useState('')
+  const [pmaxBrandAccentColor, setPmaxBrandAccentColor] = useState('')
+  const [pmaxBrandFontFamily, setPmaxBrandFontFamily] = useState('')
   const [demandGenBidStrategy, setDemandGenBidStrategy] = useState<
     'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
   >('MAXIMIZE_CONVERSIONS')
@@ -983,6 +987,26 @@ export default function ReachlyoCampaignWizard() {
           ? override.pmaxYoutubeVideoIds
               .filter((value): value is string => typeof value === 'string')
               .join('\n')
+          : '',
+      )
+      setPmaxBrandGuidelinesEnabled(
+        typeof override.pmaxBrandGuidelinesEnabled === 'boolean'
+          ? override.pmaxBrandGuidelinesEnabled
+          : true,
+      )
+      setPmaxBrandMainColor(
+        typeof override.pmaxBrandMainColor === 'string'
+          ? override.pmaxBrandMainColor
+          : '',
+      )
+      setPmaxBrandAccentColor(
+        typeof override.pmaxBrandAccentColor === 'string'
+          ? override.pmaxBrandAccentColor
+          : '',
+      )
+      setPmaxBrandFontFamily(
+        typeof override.pmaxBrandFontFamily === 'string'
+          ? override.pmaxBrandFontFamily
           : '',
       )
     }
@@ -1821,6 +1845,19 @@ export default function ReachlyoCampaignWizard() {
             containsEuPoliticalAdvertising: googlePolitical === 'true',
             bidStrategy: pmaxBidStrategy,
             pmaxYoutubeVideoIds: listValues(pmaxYoutubeVideoIds),
+            pmaxBrandGuidelinesEnabled,
+            pmaxBrandMainColor:
+              pmaxBrandGuidelinesEnabled && pmaxBrandMainColor.trim()
+                ? pmaxBrandMainColor.trim()
+                : undefined,
+            pmaxBrandAccentColor:
+              pmaxBrandGuidelinesEnabled && pmaxBrandAccentColor.trim()
+                ? pmaxBrandAccentColor.trim()
+                : undefined,
+            pmaxBrandFontFamily:
+              pmaxBrandGuidelinesEnabled && pmaxBrandFontFamily
+                ? pmaxBrandFontFamily
+                : undefined,
           }
         }
 
@@ -3890,6 +3927,14 @@ export default function ReachlyoCampaignWizard() {
                   setPmaxBidStrategy={setPmaxBidStrategy}
                   pmaxYoutubeVideoIds={pmaxYoutubeVideoIds}
                   setPmaxYoutubeVideoIds={setPmaxYoutubeVideoIds}
+                  pmaxBrandGuidelinesEnabled={pmaxBrandGuidelinesEnabled}
+                  setPmaxBrandGuidelinesEnabled={setPmaxBrandGuidelinesEnabled}
+                  pmaxBrandMainColor={pmaxBrandMainColor}
+                  setPmaxBrandMainColor={setPmaxBrandMainColor}
+                  pmaxBrandAccentColor={pmaxBrandAccentColor}
+                  setPmaxBrandAccentColor={setPmaxBrandAccentColor}
+                  pmaxBrandFontFamily={pmaxBrandFontFamily}
+                  setPmaxBrandFontFamily={setPmaxBrandFontFamily}
                   demandGenBidStrategy={demandGenBidStrategy}
                   setDemandGenBidStrategy={setDemandGenBidStrategy}
                   demandGenChannelStrategy={demandGenChannelStrategy}
