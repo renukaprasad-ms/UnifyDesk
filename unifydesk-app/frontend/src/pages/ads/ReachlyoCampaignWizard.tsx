@@ -1466,7 +1466,6 @@ export default function ReachlyoCampaignWizard() {
       accountByChannel.GOOGLE_PERFORMANCE_MAX ??
       accountByChannel.GOOGLE_DEMAND_GEN ??
       accountByChannel.GOOGLE_SHOPPING ??
-      accountByChannel.GOOGLE_DISPLAY ??
       accountByChannel.GOOGLE_DISPLAY
     if (
       googleAccount &&
