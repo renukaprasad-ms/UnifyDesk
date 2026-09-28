@@ -94,6 +94,22 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
           "providerOverride.containsEuPoliticalAdvertising",
           "Performance Max requires an explicit EU political advertising declaration."));
     }
+    try {
+      performanceMaxService.validateBrandGuidelines(
+          override.path("pmaxBrandGuidelinesEnabled").isBoolean()
+              ? override.path("pmaxBrandGuidelinesEnabled").booleanValue()
+              : true,
+          text(override, "pmaxBrandMainColor"),
+          text(override, "pmaxBrandAccentColor"),
+          text(override, "pmaxBrandFontFamily"));
+    } catch (RuntimeException exception) {
+      issues.add(
+          error(
+              "PMAX_BRAND_GUIDELINES_INVALID",
+              "providerOverride.pmaxBrandGuidelinesEnabled",
+              exception.getMessage()));
+    }
+
     if (dailyBudget(plan, campaign, account, false) == null) {
       issues.add(error(
           "GOOGLE_DAILY_BUDGET_UNRESOLVED",
