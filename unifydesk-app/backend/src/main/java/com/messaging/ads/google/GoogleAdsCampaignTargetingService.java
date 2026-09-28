@@ -46,6 +46,17 @@ public class GoogleAdsCampaignTargetingService {
       Set.of("PRESENCE", "PRESENCE_OR_INTEREST");
   private static final Set<String> SEARCH_DEVICE_TYPES =
       Set.of("DESKTOP", "MOBILE", "TABLET");
+  private static final Set<String> PARENTAL_STATUS_TYPES =
+      Set.of("PARENT", "NOT_A_PARENT", "UNDETERMINED");
+  private static final Set<String> INCOME_RANGE_TYPES =
+      Set.of(
+          "INCOME_RANGE_0_50",
+          "INCOME_RANGE_50_60",
+          "INCOME_RANGE_60_70",
+          "INCOME_RANGE_70_80",
+          "INCOME_RANGE_80_90",
+          "INCOME_RANGE_90_UP",
+          "INCOME_RANGE_UNDETERMINED");
 
   private final GoogleAdsAccountContextService contextService;
   private final GoogleAdsApiClient apiClient;
@@ -255,6 +266,69 @@ public class GoogleAdsCampaignTargetingService {
                 "GENDER|" + genderType,
                 Map.of("gender", Map.of("type", genderType))));
       }
+    }
+
+    for (String type :
+        enumArray(override, "googleParentalStatusIncludes", PARENTAL_STATUS_TYPES)) {
+      criteria.add(
+          new Criterion(
+              "PARENTAL_STATUS|INCLUDE|" + type,
+              Map.of(
+                  "parentalStatus", Map.of("type", type),
+                  "negative", false)));
+    }
+    for (String type :
+        enumArray(override, "googleParentalStatusExcludes", PARENTAL_STATUS_TYPES)) {
+      criteria.add(
+          new Criterion(
+              "PARENTAL_STATUS|EXCLUDE|" + type,
+              Map.of(
+                  "parentalStatus", Map.of("type", type),
+                  "negative", true)));
+    }
+
+    for (String type :
+        enumArray(override, "googleIncomeRangeIncludes", INCOME_RANGE_TYPES)) {
+      criteria.add(
+          new Criterion(
+              "INCOME_RANGE|INCLUDE|" + type,
+              Map.of(
+                  "incomeRange", Map.of("type", type),
+                  "negative", false)));
+    }
+    for (String type :
+        enumArray(override, "googleIncomeRangeExcludes", INCOME_RANGE_TYPES)) {
+      criteria.add(
+          new Criterion(
+              "INCOME_RANGE|EXCLUDE|" + type,
+              Map.of(
+                  "incomeRange", Map.of("type", type),
+                  "negative", true)));
+    }
+
+    for (Long id :
+        detailedDemographicIds(
+            context, override, "googleDetailedDemographicIds")) {
+      criteria.add(
+          new Criterion(
+              "EXTENDED_DEMOGRAPHIC|INCLUDE|" + id,
+              Map.of(
+                  "extendedDemographic",
+                  Map.of("extendedDemographicId", id),
+                  "negative",
+                  false)));
+    }
+    for (Long id :
+        detailedDemographicIds(
+            context, override, "googleExcludedDetailedDemographicIds")) {
+      criteria.add(
+          new Criterion(
+              "EXTENDED_DEMOGRAPHIC|EXCLUDE|" + id,
+              Map.of(
+                  "extendedDemographic",
+                  Map.of("extendedDemographicId", id),
+                  "negative",
+                  true)));
     }
 
     for (DeviceBidModifier device : deviceBidModifiers(override)) {
@@ -498,6 +572,10 @@ public class GoogleAdsCampaignTargetingService {
             + "campaign_criterion.ad_schedule.end_minute, "
             + "campaign_criterion.age_range.type, "
             + "campaign_criterion.gender.type, "
+            + "campaign_criterion.parental_status.type, "
+            + "campaign_criterion.income_range.type, "
+            + "campaign_criterion.extended_demographic.extended_demographic_id, "
+            + "campaign_criterion.negative, "
             + "campaign_criterion.device.type, "
             + "campaign_criterion.bid_modifier "
             + "FROM campaign_criterion WHERE campaign.id = "
@@ -539,6 +617,31 @@ public class GoogleAdsCampaignTargetingService {
       } else if ("GENDER".equals(type)) {
         String genderType = criterion.path("gender").path("type").asText(null);
         if (hasText(genderType)) result.add("GENDER|" + genderType);
+      } else if ("PARENTAL_STATUS".equals(type)) {
+        String value = criterion.path("parentalStatus").path("type").asText(null);
+        if (hasText(value)) {
+          result.add(
+              "PARENTAL_STATUS|"
+                  + (criterion.path("negative").asBoolean(false) ? "EXCLUDE|" : "INCLUDE|")
+                  + value);
+        }
+      } else if ("INCOME_RANGE".equals(type)) {
+        String value = criterion.path("incomeRange").path("type").asText(null);
+        if (hasText(value)) {
+          result.add(
+              "INCOME_RANGE|"
+                  + (criterion.path("negative").asBoolean(false) ? "EXCLUDE|" : "INCLUDE|")
+                  + value);
+        }
+      } else if ("EXTENDED_DEMOGRAPHIC".equals(type)) {
+        String value =
+            criterion.path("extendedDemographic").path("extendedDemographicId").asText(null);
+        if (hasText(value)) {
+          result.add(
+              "EXTENDED_DEMOGRAPHIC|"
+                  + (criterion.path("negative").asBoolean(false) ? "EXCLUDE|" : "INCLUDE|")
+                  + value);
+        }
       } else if ("DEVICE".equals(type)) {
         String deviceType = criterion.path("device").path("type").asText(null);
         if (hasText(deviceType)) {
@@ -620,6 +723,93 @@ public class GoogleAdsCampaignTargetingService {
     } catch (Exception exception) {
       throw new BadRequestException("Canonical audience language list is invalid JSON");
     }
+  }
+
+  private List<String> enumArray(
+      JsonNode node, String field, Set<String> allowed) {
+    List<String> values = stringArray(node, field, 20, 64);
+    if (values.isEmpty()) return List.of();
+
+    List<String> result = new ArrayList<>();
+    for (String value : values) {
+      String normalized = value.trim().toUpperCase(Locale.ROOT);
+      if (!allowed.contains(normalized)) {
+        throw new BadRequestException(
+            "Google " + field + " contains unsupported value: " + value);
+      }
+      if (!result.contains(normalized)) result.add(normalized);
+    }
+    return List.copyOf(result);
+  }
+
+  private List<Long> detailedDemographicIds(
+      GoogleAdsAccountContextService.Context context,
+      JsonNode override,
+      String field) {
+    if (override == null || override.isNull() || !override.has(field) || override.get(field).isNull()) {
+      return List.of();
+    }
+    JsonNode value = override.get(field);
+    if (!value.isArray()) {
+      throw new BadRequestException("Google " + field + " must be an array");
+    }
+    if (value.size() > 100) {
+      throw new BadRequestException("Google " + field + " supports at most 100 values");
+    }
+
+    List<Long> requested = new ArrayList<>();
+    for (JsonNode item : value) {
+      String raw = item.isNumber() || item.isTextual() ? item.asText() : null;
+      if (raw == null || !raw.matches("\\d+")) {
+        throw new BadRequestException(
+            "Google detailed demographic IDs must be numeric");
+      }
+      Long id = Long.valueOf(raw);
+      if (!requested.contains(id)) requested.add(id);
+    }
+    if (requested.isEmpty()) return List.of();
+
+    String query =
+        "SELECT detailed_demographic.id, detailed_demographic.resource_name, "
+            + "detailed_demographic.name, detailed_demographic.launched_to_all, "
+            + "detailed_demographic.availabilities "
+            + "FROM detailed_demographic WHERE detailed_demographic.id IN ("
+            + requested.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","))
+            + ")";
+
+    Set<Long> available = new HashSet<>();
+    for (JsonNode row :
+        apiClient.searchRows(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            query)) {
+      JsonNode demographic = row.path("detailedDemographic");
+      long id = demographic.path("id").asLong(-1);
+      if (id > 0 && searchAvailable(demographic)) available.add(id);
+    }
+
+    for (Long id : requested) {
+      if (!available.contains(id)) {
+        throw new BadRequestException(
+            "Google detailed demographic is unavailable for Search: " + id);
+      }
+    }
+    return List.copyOf(requested);
+  }
+
+  private boolean searchAvailable(JsonNode category) {
+    if (category.path("launchedToAll").asBoolean(false)) return true;
+    JsonNode availabilities = category.path("availabilities");
+    if (!availabilities.isArray()) return false;
+    for (JsonNode availability : availabilities) {
+      JsonNode channel = availability.path("channel");
+      String mode = channel.path("availabilityMode").asText("");
+      if ("ALL_CHANNELS".equalsIgnoreCase(mode)) return true;
+      String channelType = channel.path("advertisingChannelType").asText("");
+      if ("SEARCH".equalsIgnoreCase(channelType)) return true;
+    }
+    return false;
   }
 
   private List<DeviceBidModifier> deviceBidModifiers(JsonNode override) {
