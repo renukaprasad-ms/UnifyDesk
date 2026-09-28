@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { FiBell, FiCheckCircle } from 'react-icons/fi'
+import { FiBell, FiCheckCircle, FiMail, FiUsers } from 'react-icons/fi'
 import { useNavigate } from 'react-router'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { notificationApi } from './notificationApi'
 import { useNotifications } from './NotificationProvider'
+import { notificationPresentation } from './notificationPresentation'
 import { formatUnreadBadge, isSafeAppRoute } from './notificationUtils'
 import type { NotificationItem } from './types'
 
@@ -11,10 +12,16 @@ const relativeTime = (value: string) => {
   const elapsed = Date.now() - new Date(value).getTime()
   const minutes = Math.max(0, Math.floor(elapsed / 60_000))
   if (minutes < 1) return 'Now'
-  if (minutes < 60) return `${minutes}m`
+  if (minutes < 60) return `${minutes}m ago`
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h`
-  return `${Math.floor(hours / 24)}d`
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
+
+const notificationIcon = (notification: NotificationItem) => {
+  if (notification.type === 'INBOX_ACTIVITY') return <FiMail aria-hidden="true" />
+  if (notification.type.startsWith('COMPANY_INVITATION')) return <FiUsers aria-hidden="true" />
+  return <FiBell aria-hidden="true" />
 }
 
 export default function NotificationBell({ notificationPath = '/notifications' }: { notificationPath?: string }) {
@@ -124,30 +131,45 @@ export default function NotificationBell({ notificationPath = '/notifications' }
               <p className="notification-state">No notifications yet.</p>
             )}
             {!loadingRecent &&
-              recent.map((notification) => (
-                <button
-                  key={notification.id}
-                  type="button"
-                  className={`notification-row notification-row-button ${notification.unread ? 'is-unread' : ''}`}
-                  onClick={() => void visit(notification)}
-                >
-                  <span
-                    className={`notification-unread-marker ${notification.unread ? 'is-visible' : ''}`}
-                    aria-hidden="true"
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="notification-row-title">{notification.title}</span>
-                    <span className="notification-row-body">{notification.body}</span>
-                    <span className="notification-row-meta">
-                      {relativeTime(notification.lastEventAt)}
-                      {notification.aggregateCount > 1
-                        ? ` · ${notification.aggregateCount} updates`
-                        : ''}
+              recent.map((notification) => {
+                const presentation = notificationPresentation(notification)
+                return (
+                  <button
+                    key={notification.id}
+                    type="button"
+                    className={`notification-row notification-row-button ${notification.unread ? 'is-unread' : ''}`}
+                    onClick={() => void visit(notification)}
+                  >
+                    <span className="notification-row-icon">
+                      {notificationIcon(notification)}
                     </span>
-                  </span>
-                  {notification.unread && <span className="sr-only">Unread</span>}
-                </button>
-              ))}
+                    <span className="min-w-0 flex-1">
+                      <span className="notification-row-topline">
+                        <span className="notification-row-headline">{presentation.headline}</span>
+                        <span className="notification-row-status">
+                          <span className="notification-row-time">
+                            {relativeTime(notification.lastEventAt)}
+                          </span>
+                          <span
+                            className={`notification-unread-marker ${notification.unread ? 'is-visible' : ''}`}
+                            aria-hidden="true"
+                          />
+                        </span>
+                      </span>
+                      {presentation.subject && (
+                        <span className="notification-row-subject">{presentation.subject}</span>
+                      )}
+                      {presentation.preview && (
+                        <span className="notification-row-preview">{presentation.preview}</span>
+                      )}
+                      {presentation.source && (
+                        <span className="notification-row-source">{presentation.source}</span>
+                      )}
+                    </span>
+                    {notification.unread && <span className="sr-only">Unread</span>}
+                  </button>
+                )
+              })}
           </div>
           <button
             type="button"
