@@ -44,6 +44,8 @@ public class GoogleAdsCampaignTargetingService {
   private static final Set<Integer> ALLOWED_MINUTES = Set.of(0, 15, 30, 45);
   private static final Set<String> POSITIVE_GEO_TYPES =
       Set.of("PRESENCE", "PRESENCE_OR_INTEREST");
+  private static final Set<String> SEARCH_DEVICE_TYPES =
+      Set.of("DESKTOP", "MOBILE", "TABLET");
 
   private final GoogleAdsAccountContextService contextService;
   private final GoogleAdsApiClient apiClient;
@@ -142,7 +144,10 @@ public class GoogleAdsCampaignTargetingService {
     var context = contextService.requireManaged(companyId, accountId);
     TargetingPlan plan = resolvePlan(context, audience, override);
     return new ValidationResult(
-        plan.locationCount(), plan.languageCount(), plan.scheduleCount());
+        plan.locationCount(),
+        plan.languageCount(),
+        plan.scheduleCount(),
+        plan.deviceCount());
   }
 
   public ApplyResult apply(
@@ -161,7 +166,7 @@ public class GoogleAdsCampaignTargetingService {
     var context = contextService.requireManaged(companyId, campaign.getAdAccountId());
     TargetingPlan targeting = resolvePlan(context, audience, override);
     if (targeting.criteria().isEmpty()) {
-      return new ApplyResult(0, 0, 0, 0, 0, null);
+      return new ApplyResult(0, 0, 0, 0, 0, 0, null);
     }
 
     String customerId = context.account().getExternalAccountId();
@@ -196,6 +201,7 @@ public class GoogleAdsCampaignTargetingService {
         targeting.locationCount(),
         targeting.languageCount(),
         targeting.scheduleCount(),
+        targeting.deviceCount(),
         targeting.criteria().size() - operations.size(),
         firstResourceName);
   }
@@ -210,6 +216,7 @@ public class GoogleAdsCampaignTargetingService {
     int locationCount = 0;
     int languageCount = 0;
     int scheduleCount = 0;
+    int deviceCount = 0;
 
     if (audience != null) {
       for (AudienceLocationInput location : locations(audience.getLocationsJson())) {
@@ -250,6 +257,16 @@ public class GoogleAdsCampaignTargetingService {
       }
     }
 
+    for (DeviceBidModifier device : deviceBidModifiers(override)) {
+      criteria.add(
+          new Criterion(
+              device.fingerprint(),
+              Map.of(
+                  "device", Map.of("type", device.type()),
+                  "bidModifier", device.bidModifier())));
+      deviceCount++;
+    }
+
     for (AdSchedule schedule : schedules(override)) {
       Map<String, Object> payload = new LinkedHashMap<>();
       payload.put(
@@ -282,7 +299,7 @@ public class GoogleAdsCampaignTargetingService {
             .toList();
 
     return new TargetingPlan(
-        distinct, locationCount, languageCount, scheduleCount);
+        distinct, locationCount, languageCount, scheduleCount, deviceCount);
   }
 
   private Criterion resolveLocation(
@@ -480,7 +497,9 @@ public class GoogleAdsCampaignTargetingService {
             + "campaign_criterion.ad_schedule.end_hour, "
             + "campaign_criterion.ad_schedule.end_minute, "
             + "campaign_criterion.age_range.type, "
-            + "campaign_criterion.gender.type "
+            + "campaign_criterion.gender.type, "
+            + "campaign_criterion.device.type, "
+            + "campaign_criterion.bid_modifier "
             + "FROM campaign_criterion WHERE campaign.id = "
             + externalCampaignId;
 
@@ -520,6 +539,15 @@ public class GoogleAdsCampaignTargetingService {
       } else if ("GENDER".equals(type)) {
         String genderType = criterion.path("gender").path("type").asText(null);
         if (hasText(genderType)) result.add("GENDER|" + genderType);
+      } else if ("DEVICE".equals(type)) {
+        String deviceType = criterion.path("device").path("type").asText(null);
+        if (hasText(deviceType)) {
+          result.add(
+              "DEVICE|"
+                  + deviceType.toUpperCase(Locale.ROOT)
+                  + "|"
+                  + normalizedBidModifier(criterion.path("bidModifier").asDouble(1.0d)));
+        }
       }
     }
     return result;
@@ -592,6 +620,43 @@ public class GoogleAdsCampaignTargetingService {
     } catch (Exception exception) {
       throw new BadRequestException("Canonical audience language list is invalid JSON");
     }
+  }
+
+  private List<DeviceBidModifier> deviceBidModifiers(JsonNode override) {
+    JsonNode value = override == null ? null : override.get("deviceBidModifiers");
+    if (value == null || value.isNull()) return List.of();
+    if (!value.isObject()) {
+      throw new BadRequestException("Google deviceBidModifiers must be an object");
+    }
+
+    List<DeviceBidModifier> result = new ArrayList<>();
+    var fields = value.fields();
+    while (fields.hasNext()) {
+      var entry = fields.next();
+      String type = entry.getKey().trim().toUpperCase(Locale.ROOT);
+      if (!SEARCH_DEVICE_TYPES.contains(type)) {
+        throw new BadRequestException(
+            "Google Search device targeting supports DESKTOP, MOBILE, and TABLET");
+      }
+      JsonNode modifierNode = entry.getValue();
+      if (!modifierNode.isNumber()) {
+        throw new BadRequestException(
+            "Google device bid modifier for " + type + " must be numeric");
+      }
+      double modifier = modifierNode.doubleValue();
+      if (modifier != 0.0d && (modifier < 0.1d || modifier > 10.0d)) {
+        throw new BadRequestException(
+            "Google device bid modifier for "
+                + type
+                + " must be 0 (exclude) or between 0.1 and 10.0");
+      }
+      result.add(new DeviceBidModifier(type, normalizedBidModifier(modifier)));
+    }
+    return List.copyOf(result);
+  }
+
+  private double normalizedBidModifier(double value) {
+    return Math.round(value * 10000d) / 10000d;
   }
 
   private List<AdSchedule> schedules(JsonNode override) {
@@ -849,24 +914,33 @@ public class GoogleAdsCampaignTargetingService {
 
   private record AgeBucket(int min, int max, String type) {}
 
+  private record DeviceBidModifier(String type, double bidModifier) {
+    String fingerprint() {
+      return "DEVICE|" + type + "|" + bidModifier;
+    }
+  }
+
   private record EndTime(int hour, int minute, int minutesSinceMidnight) {}
 
   private record TargetingPlan(
       List<Criterion> criteria,
       int locationCount,
       int languageCount,
-      int scheduleCount) {}
+      int scheduleCount,
+      int deviceCount) {}
 
   public record ValidationResult(
       int locationCount,
       int languageCount,
-      int scheduleCount) {}
+      int scheduleCount,
+      int deviceCount) {}
 
   public record ApplyResult(
       int createdCount,
       int locationCount,
       int languageCount,
       int scheduleCount,
+      int deviceCount,
       int reusedCount,
       String firstExternalResource) {}
 }
