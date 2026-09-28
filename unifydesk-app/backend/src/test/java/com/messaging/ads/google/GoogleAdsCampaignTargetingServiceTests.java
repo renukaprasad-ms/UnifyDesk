@@ -129,6 +129,48 @@ class GoogleAdsCampaignTargetingServiceTests {
   }
 
   @Test
+  void searchesGoogleGeoTargetsForCanonicalAutocomplete() throws Exception {
+    AdAccount account = new AdAccount();
+    account.setId(2L);
+    account.setExternalAccountId("1234567890");
+
+    when(contextService.requireManaged(1L, 2L))
+        .thenReturn(
+            new GoogleAdsAccountContextService.Context(
+                account, null, "access-token", null, false, false));
+
+    when(apiClient.suggestGeoTargets(
+            "access-token", null, "IN", List.of("Bengaluru")))
+        .thenReturn(
+            objectMapper.readTree(
+                """
+                {
+                  "geoTargetConstantSuggestions": [
+                    {
+                      "geoTargetConstant": {
+                        "resourceName": "geoTargetConstants/100",
+                        "name": "Bengaluru",
+                        "canonicalName": "Bengaluru,Karnataka,India",
+                        "countryCode": "IN",
+                        "targetType": "City",
+                        "status": "ENABLED"
+                      }
+                    }
+                  ]
+                }
+                """));
+
+    var result =
+        service.searchLocations(1L, 2L, "Bengaluru", "IN", 10);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().name()).isEqualTo("Bengaluru");
+    assertThat(result.getFirst().canonicalName())
+        .isEqualTo("Bengaluru,Karnataka,India");
+    assertThat(result.getFirst().targetType()).isEqualTo("City");
+  }
+
+  @Test
   void resolvesCountryLanguageAndDaypartDuringPreflight() throws Exception {
     AdAccount account = new AdAccount();
     account.setId(2L);
