@@ -84,6 +84,8 @@ import com.messaging.ads.google.dto.GoogleRecommendationActionRequest;
 import com.messaging.ads.google.dto.GoogleRecommendationActionResponse;
 import com.messaging.ads.google.dto.GoogleSearchTermReportResponse;
 import com.messaging.ads.google.dto.GoogleSearchAudienceTargetingRequest;
+import com.messaging.ads.google.dto.GoogleDetailedDemographicCatalogResponse;
+import com.messaging.ads.google.dto.GoogleSearchDemographicTargetingRequest;
 import com.messaging.ads.google.dto.GoogleSearchInterestCatalogResponse;
 import com.messaging.ads.google.dto.GoogleSearchInterestTargetingRequest;
 import com.messaging.ads.google.dto.GoogleAiMaxCombinationReportResponse;
@@ -135,6 +137,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsAdGroupMutationService adGroupMutationService;
   private final GoogleAdsSearchAudienceService searchAudienceService;
   private final GoogleAdsSearchInterestService searchInterestService;
+  private final GoogleAdsCampaignTargetingService campaignTargetingService;
   private final GoogleAdsKeywordSyncService keywordSyncService;
   private final GoogleAdsKeywordMutationService keywordMutationService;
   private final GoogleAdsNegativeKeywordService negativeKeywordService;
