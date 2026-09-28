@@ -65,7 +65,10 @@ public class NotificationTypeRegistry {
   }
 
   public void validateVariables(Definition definition, Map<String, String> variables) {
-    if (!definition.allowedVariables().equals(variables.keySet())) {
+    boolean legacyInboxActivity =
+        "INBOX_ACTIVITY".equals(definition.notificationType())
+            && variables.keySet().equals(Set.of("connectionId"));
+    if (!definition.allowedVariables().equals(variables.keySet()) && !legacyInboxActivity) {
       throw new BadRequestException("Invalid notification variables");
     }
     variables.values().forEach(
@@ -87,8 +90,10 @@ public class NotificationTypeRegistry {
               "/workspace");
       case "INBOX_ACTIVITY" ->
           new Rendered(
-              "New inbox activity",
-              "You have new inbox messages.",
+              variables.containsKey("sender")
+                  ? "New email from " + variables.get("sender")
+                  : "New inbox activity",
+              inboxBody(variables),
               "/inbox/email?connectionId=" + variables.get("connectionId"));
       case "COMPANY_INVITATION" ->
           new Rendered(
@@ -102,6 +107,17 @@ public class NotificationTypeRegistry {
               "/company/users");
       default -> throw new BadRequestException("Notification type has no source renderer");
     };
+  }
+
+  private String inboxBody(Map<String, String> variables) {
+    if (!variables.containsKey("subject")) {
+      return "You have a new inbox message.";
+    }
+    return String.join(
+        "\n",
+        variables.get("subject"),
+        variables.getOrDefault("snippet", ""),
+        variables.getOrDefault("inboxName", "Inbox"));
   }
 
   private Map<String, Definition> definitionsByNotification() {
@@ -240,7 +256,7 @@ public class NotificationTypeRegistry {
             "Inbox activity",
             "INBOX",
             "NORMAL",
-            Set.of("connectionId"),
+            Set.of("connectionId", "sender", "subject", "snippet", "inboxName"),
             true,
             false,
             List.of(EmailMode.OFF, EmailMode.DIGEST),
