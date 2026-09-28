@@ -43,6 +43,7 @@ import com.messaging.ads.google.GoogleAdsCampaignSyncService;
 import com.messaging.ads.google.GoogleAdsKeywordMutationService;
 import com.messaging.ads.google.GoogleAdsNegativeKeywordService;
 import com.messaging.ads.google.GoogleAdsSearchAudienceService;
+import com.messaging.ads.google.GoogleAdsSearchInterestService;
 import com.messaging.ads.google.GoogleAdsKeywordSyncService;
 import com.messaging.ads.google.dto.CreateGoogleAdGroupRequest;
 import com.messaging.ads.google.dto.CreateGoogleCampaignRequest;
@@ -94,6 +95,7 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
   private final GoogleAdsKeywordSyncService keywordSyncService;
   private final GoogleAdsNegativeKeywordService negativeKeywordService;
   private final GoogleAdsSearchAudienceService searchAudienceService;
+  private final GoogleAdsSearchInterestService searchInterestService;
   private final GoogleAdsAdMutationService adMutationService;
   private final GoogleAdsAdSyncService adSyncService;
   private final ProviderDeploymentService deploymentService;
@@ -271,6 +273,20 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
     }
 
     try {
+      searchInterestService.validateSelection(
+          companyId,
+          account.getId(),
+          stringsFromOverrideArray(override, "googleSearchInterestResources"),
+          stringsFromOverrideArray(override, "googleSearchExcludedInterestResources"));
+    } catch (BadRequestException exception) {
+      issues.add(
+          error(
+              "GOOGLE_SEARCH_INTEREST_INVALID",
+              "providerOverride.googleSearchInterestResources",
+              exception.getMessage()));
+    }
+
+    try {
       negativeKeywordService.validateLaunchConfiguration(
           companyId, account.getId(), override);
     } catch (BadRequestException exception) {
@@ -342,6 +358,8 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
           createAdGroup(companyId, run, plan, step, campaign, channel);
       case "configure-search-audiences" ->
           configureSearchAudiences(companyId, run, step, channel);
+      case "configure-search-interests" ->
+          configureSearchInterests(companyId, run, step, channel);
       case "configure-ai-max-ad-group" ->
           configureAiMaxAdGroup(companyId, run, step, channel);
       case "configure-ai-max-url-exclusions" ->
@@ -541,6 +559,30 @@ public class GoogleSearchLaunchExecutor implements LaunchProviderExecutor {
             "createdCriteria", result.createdCriteria(),
             "reusedCriteria", result.reusedCriteria(),
             "targetingModeChanged", result.targetingModeChanged()));
+  }
+
+  private LaunchStepExecutionResult configureSearchInterests(
+      Long companyId,
+      LaunchRun run,
+      LaunchStep step,
+      CampaignChannel channel) {
+    AdSet adGroup = providerAdGroup(companyId, step.getProviderDeploymentId());
+    JsonNode override = override(channel);
+    var result =
+        searchInterestService.replace(
+            companyId,
+            adGroup.getId(),
+            stringsFromOverrideArray(override, "googleSearchInterestResources"),
+            stringsFromOverrideArray(override, "googleSearchExcludedInterestResources"),
+            run.getRequestedByUserId());
+    return LaunchStepExecutionResult.succeeded(
+        adGroup.getId(),
+        adGroup.getExternalAdSetId(),
+        Map.of(
+            "includedCount", result.includedResourceNames().size(),
+            "excludedCount", result.excludedResourceNames().size(),
+            "preservedUnsupportedCount",
+            result.preservedUnsupportedResourceNames().size()));
   }
 
   private LaunchStepExecutionResult configureAiMaxAdGroup(
