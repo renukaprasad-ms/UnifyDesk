@@ -118,6 +118,9 @@ import type {
   UpdateGoogleAdGroupInput,
   GoogleSearchAudienceTargeting,
   GoogleSearchAudienceTargetingInput,
+  GoogleDetailedDemographicCatalog,
+  GoogleSearchDemographicTargeting,
+  GoogleSearchDemographicTargetingInput,
   GoogleSearchInterestCatalog,
   GoogleSearchInterestTargeting,
   GoogleSearchInterestTargetingInput,
@@ -1299,6 +1302,38 @@ export const adCenterApi = {
     const response = await apiClient.post<ApiResponse<AdSet>>(
       `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/status`,
       { status },
+    )
+    return unwrap(response.data)
+  },
+
+  async googleDetailedDemographics(
+    companyId: string,
+    accountId: string,
+    query = '',
+    limit = 40,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleDetailedDemographicCatalog>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/detailed-demographics`,
+      { params: { q: query || undefined, limit } },
+    )
+    return unwrap(response.data)
+  },
+
+  async googleSearchDemographics(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleSearchDemographicTargeting>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/search-demographics`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleSearchDemographics(
+    companyId: string,
+    campaignId: string,
+    input: GoogleSearchDemographicTargetingInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GoogleSearchDemographicTargeting>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/search-demographics`,
+      input,
     )
     return unwrap(response.data)
   },
