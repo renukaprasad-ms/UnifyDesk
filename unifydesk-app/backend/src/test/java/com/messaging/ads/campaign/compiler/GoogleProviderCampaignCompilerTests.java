@@ -412,6 +412,90 @@ class GoogleProviderCampaignCompilerTests {
   }
 
   @Test
+  void compilesDedicatedPausedDisplayPlanWithResponsiveAssets() {
+    GoogleProviderCampaignCompiler compiler = new GoogleProviderCampaignCompiler();
+
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(18L);
+    campaign.setName("Display awareness");
+    campaign.setBusinessGoal(CampaignBusinessGoal.AWARENESS);
+    campaign.setCurrency("INR");
+    campaign.setLandingPageUrl("https://example.com");
+
+    CampaignChannel channel = new CampaignChannel();
+    channel.setId(28L);
+    channel.setReachlyoCampaignId(18L);
+    channel.setProvider(AdProvider.GOOGLE_ADS);
+    channel.setChannelType(CampaignChannelType.GOOGLE_DISPLAY);
+    channel.setEnabled(true);
+    channel.setBudgetAllocationMinor(6_000L);
+
+    AdAccount account = new AdAccount();
+    account.setId(38L);
+    account.setProvider(AdProvider.GOOGLE_ADS);
+    account.setCurrency("INR");
+
+    BudgetPlan budget = new BudgetPlan();
+    budget.setTotalBudgetMinor(6_000L);
+    budget.setBudgetPeriod(BudgetPeriod.DAILY);
+    budget.setAllocationMode(BudgetAllocationMode.FIXED);
+
+    CreativePack pack = new CreativePack();
+    pack.setId(48L);
+    pack.setBusinessName("Acme");
+    pack.setPrimaryMessage("Discover a better way to work");
+    pack.setHeadlinesJson("[\"Discover Acme\"]");
+    pack.setDescriptionsJson("[\"Built for modern teams\"]");
+    pack.setDestinationUrl("https://example.com");
+
+    CreativePackAsset landscape = asset(481L, 48L, CreativeAssetRole.MARKETING_IMAGE);
+    CreativePackAsset square = asset(482L, 48L, CreativeAssetRole.SQUARE_MARKETING_IMAGE);
+
+    AudienceDefinition audience = new AudienceDefinition();
+    audience.setId(58L);
+    audience.setLocationsJson("[{\"countryCode\":\"IN\"}]");
+    audience.setLanguagesJson("[\"en\"]");
+
+    Map<AdFeatureCapability, AdFeatureCapabilityResponse> capabilities =
+        new EnumMap<>(AdFeatureCapability.class);
+    capabilities.put(
+        AdFeatureCapability.CAMPAIGN_CREATE,
+        available(AdFeatureCapability.CAMPAIGN_CREATE));
+    capabilities.put(
+        AdFeatureCapability.GOOGLE_DISPLAY,
+        available(AdFeatureCapability.GOOGLE_DISPLAY));
+    capabilities.put(
+        AdFeatureCapability.CREATIVE_CREATE,
+        available(AdFeatureCapability.CREATIVE_CREATE));
+
+    ProviderCampaignPlan plan =
+        compiler.compile(
+            new ProviderCampaignCompileContext(
+                campaign,
+                channel,
+                List.of(channel),
+                account,
+                budget,
+                pack,
+                List.of(landscape, square),
+                List.of(),
+                audience,
+                null,
+                Map.copyOf(capabilities)));
+
+    assertThat(plan.deployable()).isTrue();
+    assertThat(plan.operations())
+        .extracting(ProviderPlanOperation::operationKey)
+        .containsExactly(
+            "create-display-paused",
+            "configure-display-targeting",
+            "create-responsive-display-ad");
+    assertThat(plan.operations().getFirst().createPaused()).isTrue();
+    assertThat(plan.operations())
+        .noneMatch(operation -> "create-campaign-paused".equals(operation.operationKey()));
+  }
+
+  @Test
   void requiresAiMaxCapabilityAndWarnsWhenKeywordMatchTypesWillBeOverridden() {
     GoogleProviderCampaignCompiler compiler = new GoogleProviderCampaignCompiler();
 

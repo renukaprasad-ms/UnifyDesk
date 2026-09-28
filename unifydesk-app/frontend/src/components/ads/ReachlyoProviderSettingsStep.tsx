@@ -21,6 +21,7 @@ export type GoogleAdScheduleDraft = {
 type Props = {
   companyId: string
   businessGoal: CampaignBusinessGoal
+  currency: string
   selectedChannels: CampaignChannelType[]
   accountByChannel: Record<string, string>
   resourcesByAccount: Record<string, AdAccountResource[]>
@@ -56,6 +57,14 @@ type Props = {
   setShoppingPriority: (value: '0' | '1' | '2') => void
   shoppingEnableLocal: boolean
   setShoppingEnableLocal: (value: boolean) => void
+  displayBidStrategy: 'MANUAL_CPC' | 'MAXIMIZE_CONVERSIONS' | 'TARGET_CPA'
+  setDisplayBidStrategy: (
+    value: 'MANUAL_CPC' | 'MAXIMIZE_CONVERSIONS' | 'TARGET_CPA',
+  ) => void
+  displayTargetCpa: string
+  setDisplayTargetCpa: (value: string) => void
+  displayCpcBid: string
+  setDisplayCpcBid: (value: string) => void
   keywordMatchType: string
   setKeywordMatchType: (value: string) => void
   googleConversionId: string
@@ -298,6 +307,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
     props.accountByChannel.GOOGLE_PERFORMANCE_MAX ??
     props.accountByChannel.GOOGLE_DEMAND_GEN ??
     props.accountByChannel.GOOGLE_SHOPPING ??
+    props.accountByChannel.GOOGLE_DISPLAY ??
     ''
   const metaAccount = props.accountByChannel.META_ADS ?? ''
   const googleConversions = props.conversionsByAccount[googleAccount] ?? []
@@ -317,6 +327,121 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
           Refresh provider resources
         </button>
       </div>
+
+      {props.selectedChannels.includes('GOOGLE_DISPLAY') && (
+        <section className="rounded-2xl border border-slate-200 p-5">
+          <h3 className="text-base font-bold text-slate-950">Google Display</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            UnifyDesk creates a paused Display campaign, paused Display ad group,
+            and responsive display ad from the shared visual Creative Pack.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label="EU political advertising">
+              <select
+                className="form-input mt-2"
+                value={props.googlePolitical}
+                disabled={props.disabled}
+                onChange={(event) =>
+                  props.setGooglePolitical(
+                    event.target.value as 'true' | 'false' | '',
+                  )
+                }
+              >
+                <option value="">Choose</option>
+                <option value="false">
+                  Does not contain EU political advertising
+                </option>
+                <option value="true">
+                  Contains EU political advertising
+                </option>
+              </select>
+            </Field>
+            <Field label="Bid strategy">
+              <select
+                className="form-input mt-2"
+                value={props.displayBidStrategy}
+                disabled={props.disabled}
+                onChange={(event) =>
+                  props.setDisplayBidStrategy(
+                    event.target.value as
+                      | 'MANUAL_CPC'
+                      | 'MAXIMIZE_CONVERSIONS'
+                      | 'TARGET_CPA',
+                  )
+                }
+              >
+                <option value="MANUAL_CPC">Manual CPC</option>
+                <option value="MAXIMIZE_CONVERSIONS">
+                  Maximize conversions
+                </option>
+                <option value="TARGET_CPA">Target CPA</option>
+              </select>
+            </Field>
+            {props.displayBidStrategy === 'MANUAL_CPC' && (
+              <Field
+                label={'Ad-group CPC bid (' + props.currency + ')'}
+                hint="Optional. If blank, UnifyDesk derives a conservative CPC from the daily budget."
+              >
+                <input
+                  className="form-input mt-2"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={props.displayCpcBid}
+                  disabled={props.disabled}
+                  onChange={(event) =>
+                    props.setDisplayCpcBid(event.target.value)
+                  }
+                />
+              </Field>
+            )}
+            {props.displayBidStrategy === 'TARGET_CPA' && (
+              <Field label={'Target CPA (' + props.currency + ')'}>
+                <input
+                  className="form-input mt-2"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={props.displayTargetCpa}
+                  disabled={props.disabled}
+                  onChange={(event) =>
+                    props.setDisplayTargetCpa(event.target.value)
+                  }
+                />
+              </Field>
+            )}
+            {conversionRequired && (
+              <Field label="Conversion action">
+                <select
+                  className="form-input mt-2"
+                  value={props.googleConversionId}
+                  disabled={props.disabled}
+                  onChange={(event) =>
+                    props.setGoogleConversionId(event.target.value)
+                  }
+                >
+                  <option value="">Select conversion</option>
+                  {googleConversions.map((conversion) => (
+                    <option key={conversion.id} value={conversion.id}>
+                      {conversion.name}
+                      {conversion.customEventType
+                        ? ' · ' + pretty(conversion.customEventType)
+                        : ''}
+                      {isRecommendedConversion(
+                        conversion,
+                        props.businessGoal,
+                        'GOOGLE_ADS',
+                      )
+                        ? ' · Recommended'
+                        : ''}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+          </div>
+        </section>
+      )}
 
       {props.selectedChannels.includes('GOOGLE_SHOPPING') && (
         <section className="rounded-2xl border border-slate-200 p-5">

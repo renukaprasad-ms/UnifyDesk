@@ -80,6 +80,9 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
       if (context.channel().getChannelType() == CampaignChannelType.GOOGLE_DEMAND_GEN) {
         validateDemandGenCreative(context, issues);
       }
+      if (context.channel().getChannelType() == CampaignChannelType.GOOGLE_DISPLAY) {
+        validateDisplayCreative(context, issues);
+      }
     } else {
       ProviderCampaignPlanSupport.requireCapability(
           context, AdFeatureCapability.GOOGLE_MERCHANT, required, issues);
@@ -268,6 +271,98 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
               "CREATIVE_MEDIA_MISSING",
               "creativePack.assets",
               "This visual Google channel has no media assets in the selected Creative Pack."));
+    }
+  }
+
+  private void validateDisplayCreative(
+      ProviderCampaignCompileContext context, List<ProviderPlanIssue> issues) {
+    if (context.creativePack() == null) return;
+
+    List<String> headlines = jsonStrings(context.creativePack().getHeadlinesJson());
+    List<String> descriptions = jsonStrings(context.creativePack().getDescriptionsJson());
+    if (headlines.isEmpty() || headlines.size() > 5) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DISPLAY_HEADLINES_INVALID",
+              "creativePack.headlines",
+              "Responsive Display ads require 1 to 5 headlines."));
+    } else if (headlines.stream().anyMatch(value -> value.length() > 30)) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DISPLAY_HEADLINE_TOO_LONG",
+              "creativePack.headlines",
+              "Responsive Display headlines must be at most 30 characters."));
+    }
+
+    if (descriptions.isEmpty() || descriptions.size() > 5) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DISPLAY_DESCRIPTIONS_INVALID",
+              "creativePack.descriptions",
+              "Responsive Display ads require 1 to 5 descriptions."));
+    } else if (descriptions.stream().anyMatch(value -> value.length() > 90)) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DISPLAY_DESCRIPTION_TOO_LONG",
+              "creativePack.descriptions",
+              "Responsive Display descriptions must be at most 90 characters."));
+    }
+
+    String businessName = context.creativePack().getBusinessName();
+    if (isBlank(businessName)) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DISPLAY_BUSINESS_NAME_MISSING",
+              "creativePack.businessName",
+              "Responsive Display ads require a business name."));
+    } else if (businessName.trim().length() > 25) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DISPLAY_BUSINESS_NAME_TOO_LONG",
+              "creativePack.businessName",
+              "Responsive Display business name must be at most 25 characters."));
+    }
+
+    String primaryMessage = context.creativePack().getPrimaryMessage();
+    String longHeadline =
+        !isBlank(primaryMessage) && primaryMessage.trim().length() <= 90
+            ? primaryMessage.trim()
+            : headlines.isEmpty() ? null : headlines.getFirst();
+    if (isBlank(longHeadline) || longHeadline.length() > 90) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DISPLAY_LONG_HEADLINE_INVALID",
+              "creativePack.primaryMessage",
+              "Responsive Display requires a long headline of at most 90 characters. Use Primary message or a headline."));
+    }
+
+    String finalUrl =
+        !isBlank(context.creativePack().getDestinationUrl())
+            ? context.creativePack().getDestinationUrl()
+            : context.campaign().getLandingPageUrl();
+    if (isBlank(finalUrl) || !isHttpUrl(finalUrl)) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DISPLAY_FINAL_URL_INVALID",
+              "creativePack.destinationUrl",
+              "Responsive Display requires a valid HTTP or HTTPS destination URL."));
+    }
+
+    Set<CreativeAssetRole> roles =
+        context.creativeAssets().stream()
+            .map(asset -> asset.getRole())
+            .collect(java.util.stream.Collectors.toSet());
+    for (CreativeAssetRole required :
+        List.of(
+            CreativeAssetRole.MARKETING_IMAGE,
+            CreativeAssetRole.SQUARE_MARKETING_IMAGE)) {
+      if (!roles.contains(required)) {
+        issues.add(
+            ProviderCampaignPlanSupport.error(
+                "DISPLAY_REQUIRED_ASSET_MISSING",
+                "creativePack.assets",
+                "Responsive Display requires a " + required.name() + " asset."));
+      }
     }
   }
 
@@ -460,6 +555,63 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
       AudienceMappingStatus audienceMappingStatus,
       List<ProviderPlanOperation> operations) {
     int sequence = 1;
+    if (context.channel().getChannelType() == CampaignChannelType.GOOGLE_DISPLAY) {
+      operations.add(
+          operation(
+              sequence++,
+              "create-display-paused",
+              ProviderPlanAction.CREATE,
+              ProviderPlanResource.CAMPAIGN,
+              true,
+              Set.of(
+                  AdFeatureCapability.CAMPAIGN_CREATE,
+                  AdFeatureCapability.GOOGLE_DISPLAY),
+              ProviderCampaignPlanSupport.config(
+                  "budgetMinor", effectiveBudget,
+                  "budgetPeriod",
+                  context.budgetPlan() == null ? null : context.budgetPlan().getBudgetPeriod(),
+                  "providerOverrideJson", context.channel().getProviderOverrideJson())));
+      if (context.audienceDefinition() != null) {
+        operations.add(
+            operation(
+                sequence++,
+                "configure-display-targeting",
+                ProviderPlanAction.CONFIGURE,
+                ProviderPlanResource.CAMPAIGN_TARGETING,
+                false,
+                Set.of(),
+                ProviderCampaignPlanSupport.config(
+                    "audienceDefinitionId", context.audienceDefinition().getId().toString(),
+                    "mappingStatus", AudienceMappingStatus.APPROXIMATE)));
+      }
+      operations.add(
+          operation(
+              sequence++,
+              "create-responsive-display-ad",
+              ProviderPlanAction.CREATE,
+              ProviderPlanResource.CREATIVE,
+              true,
+              Set.of(AdFeatureCapability.CREATIVE_CREATE),
+              ProviderCampaignPlanSupport.config(
+                  "creativePackId",
+                  context.creativePack() == null
+                      ? null
+                      : context.creativePack().getId().toString())));
+      if (context.conversionGoalMapping() != null) {
+        operations.add(
+            operation(
+                sequence,
+                "configure-conversion-goal",
+                ProviderPlanAction.CONFIGURE,
+                ProviderPlanResource.CONVERSION_GOAL,
+                false,
+                Set.of(AdFeatureCapability.CONVERSION_CREATE),
+                ProviderCampaignPlanSupport.config(
+                    "mappingId", context.conversionGoalMapping().getId().toString(),
+                    "targetType", context.conversionGoalMapping().getTargetType())));
+      }
+      return;
+    }
     if (context.channel().getChannelType() == CampaignChannelType.GOOGLE_SHOPPING) {
       operations.add(
           operation(
@@ -777,18 +929,8 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
       }
       case GOOGLE_PERFORMANCE_MAX ->
           throw new IllegalStateException("Performance Max operations must be emitted atomically");
-      case GOOGLE_DISPLAY -> {
-        operations.add(
-            operation(
-                sequence++,
-                "create-ad-group",
-                ProviderPlanAction.CREATE,
-                ProviderPlanResource.AD_GROUP,
-                true,
-                Set.of(),
-                ProviderCampaignPlanSupport.config("status", "PAUSED")));
-        operations.add(creativeOperation(sequence++, context, ProviderPlanResource.CREATIVE));
-      }
+      case GOOGLE_DISPLAY ->
+          throw new IllegalStateException("Display operations must use the dedicated plan");
       case GOOGLE_DEMAND_GEN ->
           throw new IllegalStateException("Demand Gen operations must use the dedicated plan");
       case GOOGLE_SHOPPING ->

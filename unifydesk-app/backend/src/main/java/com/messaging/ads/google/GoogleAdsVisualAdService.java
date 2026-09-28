@@ -51,37 +51,71 @@ public class GoogleAdsVisualAdService {
     validateTextList(request.headlines(), 1, 5, 30, "headline");
     validateTextList(request.descriptions(), 1, 5, 90, "description");
 
-    String marketing =
-        createImageAsset(
-            ctx,
-            request.name() + " landscape",
-            request.marketingImageBase64(),
-            ImageRule.LANDSCAPE_MARKETING);
-    String square =
-        createImageAsset(
-            ctx,
-            request.name() + " square",
-            request.squareMarketingImageBase64(),
-            ImageRule.SQUARE_MARKETING);
-    String logo =
-        request.squareLogoImageBase64() == null
-                || request.squareLogoImageBase64().isBlank()
-            ? null
-            : createImageAsset(
-                ctx,
-                request.name() + " square logo",
-                request.squareLogoImageBase64(),
-                ImageRule.SQUARE_LOGO);
+    byte[] marketingData = decodeImage(request.marketingImageBase64());
+    validateImage(marketingData, ImageRule.LANDSCAPE_MARKETING);
+    byte[] squareData = decodeImage(request.squareMarketingImageBase64());
+    validateImage(squareData, ImageRule.SQUARE_MARKETING);
+
+    String customerId = ctx.context().account().getExternalAccountId();
+    String marketingResource =
+        apiClient.customerResourceName(customerId, "assets", "-1");
+    String squareResource =
+        apiClient.customerResourceName(customerId, "assets", "-2");
+    String logoResource =
+        apiClient.customerResourceName(customerId, "assets", "-3");
+
+    List<Map<String, Object>> operations = new ArrayList<>();
+    operations.add(
+        Map.of(
+            "assetOperation",
+            Map.of(
+                "create",
+                imageAssetCreate(
+                    marketingResource,
+                    request.name() + " landscape",
+                    marketingData))));
+    operations.add(
+        Map.of(
+            "assetOperation",
+            Map.of(
+                "create",
+                imageAssetCreate(
+                    squareResource,
+                    request.name() + " square",
+                    squareData))));
+
+    boolean hasLogo =
+        request.squareLogoImageBase64() != null
+            && !request.squareLogoImageBase64().isBlank();
+    if (hasLogo) {
+      byte[] logoData = decodeImage(request.squareLogoImageBase64());
+      validateImage(logoData, ImageRule.SQUARE_LOGO);
+      operations.add(
+          Map.of(
+              "assetOperation",
+              Map.of(
+                  "create",
+                  imageAssetCreate(
+                      logoResource,
+                      request.name() + " square logo",
+                      logoData))));
+    }
 
     Map<String, Object> responsive = new LinkedHashMap<>();
-    responsive.put("marketingImages", List.of(Map.of("asset", marketing)));
-    responsive.put("squareMarketingImages", List.of(Map.of("asset", square)));
+    responsive.put(
+        "marketingImages",
+        List.of(Map.of("asset", marketingResource)));
+    responsive.put(
+        "squareMarketingImages",
+        List.of(Map.of("asset", squareResource)));
     responsive.put(
         "headlines",
         request.headlines().stream()
             .map(value -> Map.<String, Object>of("text", value.trim()))
             .toList());
-    responsive.put("longHeadline", Map.of("text", request.longHeadline().trim()));
+    responsive.put(
+        "longHeadline",
+        Map.of("text", request.longHeadline().trim()));
     responsive.put(
         "descriptions",
         request.descriptions().stream()
@@ -89,8 +123,10 @@ public class GoogleAdsVisualAdService {
             .toList());
     responsive.put("businessName", request.businessName().trim());
     responsive.put("allowFlexibleColor", true);
-    if (logo != null) {
-      responsive.put("squareLogoImages", List.of(Map.of("asset", logo)));
+    if (hasLogo) {
+      responsive.put(
+          "squareLogoImages",
+          List.of(Map.of("asset", logoResource)));
     }
 
     Map<String, Object> ad = new LinkedHashMap<>();
@@ -98,11 +134,72 @@ public class GoogleAdsVisualAdService {
     ad.put("finalUrls", List.of(request.finalUrl().trim()));
     ad.put("responsiveDisplayAd", responsive);
 
-    return createAd(
-        ctx,
-        ad,
+    Map<String, Object> adGroupAd = new LinkedHashMap<>();
+    adGroupAd.put(
+        "adGroup",
+        apiClient.customerResourceName(
+            customerId,
+            "adGroups",
+            ctx.adGroup().getExternalAdSetId()));
+    adGroupAd.put("status", "PAUSED");
+    adGroupAd.put("ad", ad);
+    operations.add(
+        Map.of(
+            "adGroupAdOperation",
+            Map.of("create", adGroupAd)));
+
+    JsonNode response =
+        apiClient.mutateAll(
+            ctx.context().accessToken(),
+            customerId,
+            ctx.context().loginCustomerId(),
+            operations);
+
+    String resourceName =
+        apiClient.firstBulkResourceName(response, "adGroupAdResult");
+    String externalAdId = suffix(resourceName);
+    JsonNode row =
+        adSyncService.ad(
+            ctx.context(),
+            ctx.adGroup().getExternalAdSetId(),
+            externalAdId);
+    AdResponse created =
+        AdResponse.from(
+            adPersistenceService.persistOne(
+                ctx.campaign().getCompanyId(),
+                ctx.adGroup().getId(),
+                row));
+
+    activityLogService.record(
+        ctx.campaign().getCompanyId(),
+        ctx.adGroup().getAdAccountId(),
+        AdProvider.GOOGLE_ADS,
         actorUserId,
-        "GOOGLE_RESPONSIVE_DISPLAY_AD_CREATED");
+        "GOOGLE_RESPONSIVE_DISPLAY_AD_CREATED",
+        "AD",
+        externalAdId,
+        null,
+        created,
+        Map.of(
+            "campaignChannel",
+            ctx.campaign().getObjective(),
+            "assetCount",
+            hasLogo ? 3 : 2,
+            "initialStatus",
+            "PAUSED"));
+
+    return created;
+  }
+
+  private Map<String, Object> imageAssetCreate(
+      String resourceName, String name, byte[] data) {
+    Map<String, Object> asset = new LinkedHashMap<>();
+    asset.put("resourceName", resourceName);
+    asset.put("name", truncate(name, 128));
+    asset.put(
+        "imageAsset",
+        Map.of("data", Base64.getEncoder().encodeToString(data)));
+    return asset;
   }
 
   public AdResponse createDemandGenVideo(
