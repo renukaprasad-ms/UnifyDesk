@@ -131,10 +131,10 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
     if ("MANUAL_CPC".equals(bidStrategy)
         && positiveLong(override, "adGroupCpcBidMinor") == null) {
       issues.add(
-          error(
-              "DISPLAY_CPC_BID_REQUIRED",
+          warning(
+              "DISPLAY_CPC_BID_DERIVED",
               "providerOverride.adGroupCpcBidMinor",
-              "Display Manual CPC requires a positive ad-group CPC bid."));
+              "No Display CPC bid was supplied. UnifyDesk will derive a conservative ad-group CPC from the daily budget."));
     }
 
     if (dailyBudget(plan, campaign, account, false) == null) {
@@ -368,7 +368,13 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
                   adGroupName,
                   bidStrategy,
                   positiveLong(override, "targetCpaMinor"),
-                  positiveLong(override, "adGroupCpcBidMinor"),
+                  "MANUAL_CPC".equals(bidStrategy)
+                      ? firstPositive(
+                          positiveLong(override, "adGroupCpcBidMinor"),
+                          Math.max(
+                              1L,
+                              dailyBudget(plan, campaign, account, true) / 20L))
+                      : null,
                   override
                       .path("containsEuPoliticalAdvertising")
                       .booleanValue(),
@@ -874,6 +880,10 @@ public class GoogleDisplayLaunchExecutor implements LaunchProviderExecutor {
       throw new BadRequestException(
           "Creative/audience text list is invalid JSON");
     }
+  }
+
+  private Long firstPositive(Long preferred, Long fallback) {
+    return preferred != null && preferred > 0 ? preferred : fallback;
   }
 
   private Long positiveLong(JsonNode node, String key) {
