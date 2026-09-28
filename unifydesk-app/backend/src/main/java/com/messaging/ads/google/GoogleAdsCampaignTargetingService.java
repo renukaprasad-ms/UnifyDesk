@@ -187,6 +187,20 @@ public class GoogleAdsCampaignTargetingService {
           languageCount++;
         }
       }
+
+      for (String ageType : ageRangeTypes(audience.getAgeMin(), audience.getAgeMax())) {
+        criteria.add(
+            new Criterion(
+                "AGE_RANGE|" + ageType,
+                Map.of("ageRange", Map.of("type", ageType))));
+      }
+
+      for (String genderType : genderTypes(audience.getGendersJson())) {
+        criteria.add(
+            new Criterion(
+                "GENDER|" + genderType,
+                Map.of("gender", Map.of("type", genderType))));
+      }
     }
 
     for (AdSchedule schedule : schedules(override)) {
@@ -417,7 +431,9 @@ public class GoogleAdsCampaignTargetingService {
             + "campaign_criterion.ad_schedule.start_hour, "
             + "campaign_criterion.ad_schedule.start_minute, "
             + "campaign_criterion.ad_schedule.end_hour, "
-            + "campaign_criterion.ad_schedule.end_minute "
+            + "campaign_criterion.ad_schedule.end_minute, "
+            + "campaign_criterion.age_range.type, "
+            + "campaign_criterion.gender.type "
             + "FROM campaign_criterion WHERE campaign.id = "
             + externalCampaignId;
 
@@ -451,6 +467,12 @@ public class GoogleAdsCampaignTargetingService {
                 + schedule.path("endHour").asInt()
                 + "|"
                 + minuteValue(schedule.path("endMinute").asText()));
+      } else if ("AGE_RANGE".equals(type)) {
+        String ageType = criterion.path("ageRange").path("type").asText(null);
+        if (hasText(ageType)) result.add("AGE_RANGE|" + ageType);
+      } else if ("GENDER".equals(type)) {
+        String genderType = criterion.path("gender").path("type").asText(null);
+        if (hasText(genderType)) result.add("GENDER|" + genderType);
       }
     }
     return result;
@@ -464,6 +486,56 @@ public class GoogleAdsCampaignTargetingService {
     } catch (Exception exception) {
       throw new BadRequestException("Canonical audience locations are invalid JSON");
     }
+  }
+
+  private List<String> ageRangeTypes(Integer minAge, Integer maxAge) {
+    if (minAge == null && maxAge == null) return List.of();
+
+    int effectiveMin = minAge == null ? 18 : minAge;
+    int effectiveMax = maxAge == null ? Integer.MAX_VALUE : maxAge;
+    if (effectiveMin < 18 || effectiveMax < effectiveMin) {
+      throw new BadRequestException(
+          "Google demographic age targeting requires a valid range starting at age 18 or above");
+    }
+
+    List<AgeBucket> buckets =
+        List.of(
+            new AgeBucket(18, 24, "AGE_RANGE_18_24"),
+            new AgeBucket(25, 34, "AGE_RANGE_25_34"),
+            new AgeBucket(35, 44, "AGE_RANGE_35_44"),
+            new AgeBucket(45, 54, "AGE_RANGE_45_54"),
+            new AgeBucket(55, 64, "AGE_RANGE_55_64"),
+            new AgeBucket(65, Integer.MAX_VALUE, "AGE_RANGE_65_UP"));
+
+    boolean minAligned = buckets.stream().anyMatch(bucket -> bucket.min() == effectiveMin);
+    boolean maxAligned =
+        effectiveMax == Integer.MAX_VALUE
+            || buckets.stream().anyMatch(bucket -> bucket.max() == effectiveMax);
+    if (!minAligned || !maxAligned) {
+      throw new BadRequestException(
+          "Google age targeting uses fixed buckets: 18-24, 25-34, 35-44, 45-54, 55-64, and 65+. Choose boundaries that match those ranges.");
+    }
+
+    return buckets.stream()
+        .filter(bucket -> bucket.min() >= effectiveMin && bucket.max() <= effectiveMax)
+        .map(AgeBucket::type)
+        .toList();
+  }
+
+  private List<String> genderTypes(String json) {
+    List<String> requested = strings(json);
+    if (requested.isEmpty()) return List.of();
+
+    List<String> result = new ArrayList<>();
+    for (String value : requested) {
+      String normalized = value.trim().toUpperCase(Locale.ROOT);
+      if (!Set.of("MALE", "FEMALE").contains(normalized)) {
+        throw new BadRequestException(
+            "Google gender targeting supports MALE and FEMALE in the canonical audience");
+      }
+      if (!result.contains(normalized)) result.add(normalized);
+    }
+    return List.copyOf(result);
   }
 
   private List<String> strings(String json) {
@@ -727,6 +799,8 @@ public class GoogleAdsCampaignTargetingService {
           + endMinute;
     }
   }
+
+  private record AgeBucket(int min, int max, String type) {}
 
   private record EndTime(int hour, int minute, int minutesSinceMidnight) {}
 
