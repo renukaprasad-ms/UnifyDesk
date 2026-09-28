@@ -70,7 +70,7 @@ class GoogleAdsVisualAudienceServiceTests {
   void rejectsGoogleListThatIsNotDisplayEligible() {
     AdAudience audience = googleAudience(101L, 20L, "501", "Search-only");
     audience.setDeliveryStatusJson(
-        "{"eligibleForDisplay":false,"accountStatus":"ENABLED"}");
+        "{\"eligibleForDisplay\":false,\"accountStatus\":\"ENABLED\"}");
     when(audienceRepository.findByIdAndCompanyId(101L, 10L))
         .thenReturn(Optional.of(audience));
 
