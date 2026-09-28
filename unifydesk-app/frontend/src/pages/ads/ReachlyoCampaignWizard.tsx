@@ -107,8 +107,8 @@ const CHANNELS: Array<{
     type: 'GOOGLE_DISPLAY',
     title: 'Google Display',
     provider: 'GOOGLE_ADS',
-    description: 'Plan preview is available; paused execution is not enabled yet.',
-    executable: false,
+    description: 'Launch a paused Google Display campaign and responsive display ad from the shared visual creative pack.',
+    executable: true,
   },
   {
     type: 'GOOGLE_SHOPPING',
@@ -445,6 +445,11 @@ export default function ReachlyoCampaignWizard() {
   const [shoppingMerchantId, setShoppingMerchantId] = useState('')
   const [shoppingPriority, setShoppingPriority] = useState<'0' | '1' | '2'>('0')
   const [shoppingEnableLocal, setShoppingEnableLocal] = useState(false)
+  const [displayBidStrategy, setDisplayBidStrategy] = useState<
+    'MANUAL_CPC' | 'MAXIMIZE_CONVERSIONS' | 'TARGET_CPA'
+  >('MAXIMIZE_CONVERSIONS')
+  const [displayTargetCpa, setDisplayTargetCpa] = useState('')
+  const [displayCpcBid, setDisplayCpcBid] = useState('')
   const [keywordMatchType, setKeywordMatchType] = useState('BROAD')
   const [googleConversionId, setGoogleConversionId] = useState('')
   const [googleSearchPartners, setGoogleSearchPartners] = useState(true)
@@ -852,6 +857,31 @@ export default function ReachlyoCampaignWizard() {
         setShoppingPriority(String(override.campaignPriority) as '0' | '1' | '2')
       }
       setShoppingEnableLocal(override.enableLocal === true)
+    }
+
+    const display = enabled.find(
+      (channel) => channel.channelType === 'GOOGLE_DISPLAY',
+    )
+    if (display) {
+      const override = parseObject(display.providerOverrideJson)
+      if (typeof override.containsEuPoliticalAdvertising === 'boolean') {
+        setGooglePolitical(
+          String(override.containsEuPoliticalAdvertising) as 'true' | 'false',
+        )
+      }
+      if (
+        override.bidStrategy === 'MANUAL_CPC' ||
+        override.bidStrategy === 'MAXIMIZE_CONVERSIONS' ||
+        override.bidStrategy === 'TARGET_CPA'
+      ) {
+        setDisplayBidStrategy(override.bidStrategy)
+      }
+      if (typeof override.targetCpaMinor === 'number') {
+        setDisplayTargetCpa(fromMinor(override.targetCpaMinor, value.currency))
+      }
+      if (typeof override.adGroupCpcBidMinor === 'number') {
+        setDisplayCpcBid(fromMinor(override.adGroupCpcBidMinor, value.currency))
+      }
     }
 
     const meta = enabled.find((channel) => channel.channelType === 'META_ADS')
@@ -1435,7 +1465,8 @@ export default function ReachlyoCampaignWizard() {
       accountByChannel.GOOGLE_SEARCH ??
       accountByChannel.GOOGLE_PERFORMANCE_MAX ??
       accountByChannel.GOOGLE_DEMAND_GEN ??
-      accountByChannel.GOOGLE_SHOPPING
+      accountByChannel.GOOGLE_SHOPPING ??
+      accountByChannel.GOOGLE_DISPLAY
     if (
       googleAccount &&
       !googleConversionId &&
@@ -1521,6 +1552,39 @@ export default function ReachlyoCampaignWizard() {
         let override: Record<string, unknown> = {
           ...parseObject(channel.providerOverrideJson),
           _reachlyoAdAccountId: accountId,
+        }
+
+        if (channel.channelType === 'GOOGLE_DISPLAY') {
+          if (!googlePolitical) {
+            throw new Error(
+              'Choose the Google EU political advertising declaration.',
+            )
+          }
+          if (
+            displayBidStrategy === 'TARGET_CPA' &&
+            !(Number(displayTargetCpa) > 0)
+          ) {
+            throw new Error('Enter a positive Display target CPA.')
+          }
+          if (
+            displayBidStrategy === 'MANUAL_CPC' &&
+            !(Number(displayCpcBid) > 0)
+          ) {
+            throw new Error('Enter a positive Display CPC bid.')
+          }
+          override = {
+            ...override,
+            containsEuPoliticalAdvertising: googlePolitical === 'true',
+            bidStrategy: displayBidStrategy,
+            targetCpaMinor:
+              displayBidStrategy === 'TARGET_CPA'
+                ? toMinor(displayTargetCpa, campaign.currency)
+                : undefined,
+            adGroupCpcBidMinor:
+              displayBidStrategy === 'MANUAL_CPC'
+                ? toMinor(displayCpcBid, campaign.currency)
+                : undefined,
+          }
         }
 
         if (channel.channelType === 'GOOGLE_SHOPPING') {
@@ -1692,7 +1756,8 @@ export default function ReachlyoCampaignWizard() {
               channel.channelType === 'GOOGLE_SEARCH' ||
               channel.channelType === 'GOOGLE_PERFORMANCE_MAX' ||
               channel.channelType === 'GOOGLE_DEMAND_GEN' ||
-              channel.channelType === 'GOOGLE_SHOPPING'
+              channel.channelType === 'GOOGLE_SHOPPING' ||
+              channel.channelType === 'GOOGLE_DISPLAY'
                 ? googleConversionId
                 : conversionsByAccount[accountId]?.[0]?.id ?? ''
             if (!conversionId) {
@@ -1967,20 +2032,24 @@ export default function ReachlyoCampaignWizard() {
       setGoogleBidStrategy('MAXIMIZE_CLICKS')
       setPmaxBidStrategy('MAXIMIZE_CONVERSIONS')
       setDemandGenBidStrategy('MAXIMIZE_CLICKS')
+      setDisplayBidStrategy('MANUAL_CPC')
       setMetaOptimizationGoal('LANDING_PAGE_VIEWS')
     } else if (nextGoal === 'AWARENESS') {
       setGoogleBidStrategy('MAXIMIZE_CLICKS')
       setDemandGenBidStrategy('MAXIMIZE_CLICKS')
+      setDisplayBidStrategy('MANUAL_CPC')
       setMetaOptimizationGoal('REACH')
     } else if (nextGoal === 'PURCHASE') {
       setGoogleBidStrategy('MAXIMIZE_CONVERSION_VALUE')
       setPmaxBidStrategy('MAXIMIZE_CONVERSION_VALUE')
       setDemandGenBidStrategy('MAXIMIZE_CONVERSION_VALUE')
+      setDisplayBidStrategy('MAXIMIZE_CONVERSIONS')
       setMetaOptimizationGoal('VALUE')
     } else {
       setGoogleBidStrategy('MAXIMIZE_CONVERSIONS')
       setPmaxBidStrategy('MAXIMIZE_CONVERSIONS')
       setDemandGenBidStrategy('MAXIMIZE_CONVERSIONS')
+      setDisplayBidStrategy('MAXIMIZE_CONVERSIONS')
       setMetaOptimizationGoal(
         nextGoal === 'LEAD' || nextGoal === 'QUALIFIED_LEAD' || nextGoal === 'SIGN_UP'
           ? 'LEAD_GENERATION'
@@ -2678,13 +2747,14 @@ export default function ReachlyoCampaignWizard() {
                 </div>
 
                 {(selectedChannels.includes('GOOGLE_PERFORMANCE_MAX') ||
-                  selectedChannels.includes('GOOGLE_DEMAND_GEN')) && (
+                  selectedChannels.includes('GOOGLE_DEMAND_GEN') ||
+                  selectedChannels.includes('GOOGLE_DISPLAY')) && (
                   <div className="mt-5 rounded-2xl border border-indigo-100 bg-indigo-50/30 p-4">
                     <p className="text-sm font-bold text-slate-900">
                       Google visual asset bundle
                     </p>
                     <p className="mt-1 text-xs leading-5 text-slate-500">
-                      Performance Max and Demand Gen use provider-valid visual aspect ratios.
+                      Performance Max, Demand Gen and Display use provider-valid visual aspect ratios.
                       Existing saved assets stay in the Creative Pack when you do not replace them.
                     </p>
                     <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -3155,6 +3225,9 @@ export default function ReachlyoCampaignWizard() {
                     {selectedChannels.includes('GOOGLE_SHOPPING') && (
                       <p>Shopping: Merchant catalog · priority {shoppingPriority}</p>
                     )}
+                    {selectedChannels.includes('GOOGLE_DISPLAY') && (
+                      <p>Display: {pretty(displayBidStrategy)}</p>
+                    )}
                     {selectedChannels.includes('META_ADS') && (
                       <p>Meta: {pretty(metaOptimizationGoal)}</p>
                     )}
@@ -3165,6 +3238,7 @@ export default function ReachlyoCampaignWizard() {
                 <ReachlyoProviderSettingsStep
                   companyId={selectedCompany.companyId}
                   businessGoal={campaign?.businessGoal ?? businessGoal}
+                  currency={campaign?.currency ?? currency}
                   selectedChannels={selectedChannels}
                   accountByChannel={accountByChannel}
                   resourcesByAccount={resourcesByAccount}
@@ -3188,6 +3262,12 @@ export default function ReachlyoCampaignWizard() {
                   setShoppingPriority={setShoppingPriority}
                   shoppingEnableLocal={shoppingEnableLocal}
                   setShoppingEnableLocal={setShoppingEnableLocal}
+                  displayBidStrategy={displayBidStrategy}
+                  setDisplayBidStrategy={setDisplayBidStrategy}
+                  displayTargetCpa={displayTargetCpa}
+                  setDisplayTargetCpa={setDisplayTargetCpa}
+                  displayCpcBid={displayCpcBid}
+                  setDisplayCpcBid={setDisplayCpcBid}
                   keywordMatchType={keywordMatchType}
                   setKeywordMatchType={setKeywordMatchType}
                   googleConversionId={googleConversionId}
