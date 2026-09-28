@@ -66,6 +66,10 @@ export default function GooglePerformanceMaxCampaignModal({
   const [portraitImage, setPortraitImage] = useState('')
   const [landscapeLogoImage, setLandscapeLogoImage] = useState('')
   const [youtubeVideoIds, setYoutubeVideoIds] = useState('')
+  const [brandGuidelinesEnabled, setBrandGuidelinesEnabled] = useState(true)
+  const [brandMainColor, setBrandMainColor] = useState('')
+  const [brandAccentColor, setBrandAccentColor] = useState('')
+  const [brandFontFamily, setBrandFontFamily] = useState('')
   const [imageError, setImageError] = useState('')
 
   const canSubmit = useMemo(
@@ -151,6 +155,10 @@ export default function GooglePerformanceMaxCampaignModal({
       containsEuPoliticalAdvertising: containsEuPoliticalAdvertising === 'YES',
       startDate: startDate || null,
       endDate: endDate || null,
+      brandGuidelinesEnabled,
+      brandMainColor: brandGuidelinesEnabled ? brandMainColor || null : null,
+      brandAccentColor: brandGuidelinesEnabled ? brandAccentColor || null : null,
+      brandFontFamily: brandGuidelinesEnabled ? brandFontFamily || null : null,
     })
   }
 
@@ -256,6 +264,73 @@ export default function GooglePerformanceMaxCampaignModal({
                 </option>
               </select>
             </label>
+          </div>
+
+          <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-950">Brand guidelines</h3>
+                <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">
+                  Recommended for new Performance Max campaigns. Google will use the
+                  business name and logos at campaign level instead of asset-group level.
+                </p>
+              </div>
+              <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={brandGuidelinesEnabled}
+                  onChange={(event) => setBrandGuidelinesEnabled(event.target.checked)}
+                />
+                Enabled
+              </label>
+            </div>
+
+            {brandGuidelinesEnabled && (
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Main color
+                  <input
+                    className="form-input mt-2"
+                    type="text"
+                    placeholder="#3366FF"
+                    value={brandMainColor}
+                    onChange={(event) => setBrandMainColor(event.target.value)}
+                  />
+                </label>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Accent color
+                  <input
+                    className="form-input mt-2"
+                    type="text"
+                    placeholder="#FFCC00"
+                    value={brandAccentColor}
+                    onChange={(event) => setBrandAccentColor(event.target.value)}
+                  />
+                </label>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Brand font
+                  <select
+                    className="form-input mt-2"
+                    value={brandFontFamily}
+                    onChange={(event) => setBrandFontFamily(event.target.value)}
+                  >
+                    <option value="">Google default</option>
+                    <option value="Open Sans">Open Sans</option>
+                    <option value="Roboto">Roboto</option>
+                    <option value="Montserrat">Montserrat</option>
+                    <option value="Poppins">Poppins</option>
+                    <option value="Lato">Lato</option>
+                    <option value="Oswald">Oswald</option>
+                    <option value="Playfair Display">Playfair Display</option>
+                    <option value="Roboto Slab">Roboto Slab</option>
+                  </select>
+                </label>
+                <p className="text-[11px] leading-5 text-slate-500 sm:col-span-3">
+                  Main and accent colors are optional, but Google requires both when either is set.
+                  Brand Guidelines cannot be disabled later after Google enables them.
+                </p>
+              </div>
+            )}
           </div>
 
           <div>
