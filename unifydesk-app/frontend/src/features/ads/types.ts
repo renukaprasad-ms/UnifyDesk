@@ -249,7 +249,14 @@ export type UpsertReachlyoBudgetPlanInput = {
 
 
 
-export type CreativeAssetRole = 'IMAGE' | 'LOGO' | 'VIDEO'
+export type CreativeAssetRole =
+  | 'IMAGE'
+  | 'MARKETING_IMAGE'
+  | 'SQUARE_MARKETING_IMAGE'
+  | 'PORTRAIT_MARKETING_IMAGE'
+  | 'LOGO'
+  | 'LANDSCAPE_LOGO'
+  | 'VIDEO'
 export type CreativeVariantOrigin = 'USER' | 'ADAPTED' | 'GENERATED'
 export type CreativeVariantStatus = 'DRAFT' | 'READY' | 'INVALID'
 export type CreativeVariantType =
