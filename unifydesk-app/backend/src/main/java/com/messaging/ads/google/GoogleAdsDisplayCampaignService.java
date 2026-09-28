@@ -103,6 +103,14 @@ public class GoogleAdsDisplayCampaignService {
     adGroup.put("campaign", campaignResource);
     adGroup.put("name", request.adGroupName().trim());
     adGroup.put("status", "PAUSED");
+    adGroup.put(
+        "targetingSetting",
+        Map.of(
+            "targetRestrictions",
+            List.of(
+                Map.of(
+                    "targetingDimension", "AUDIENCE",
+                    "bidOnly", false))));
     if ("MANUAL_CPC".equalsIgnoreCase(request.bidStrategy())) {
       Long cpc = request.adGroupCpcBidMinor();
       if (cpc == null || cpc <= 0) {
