@@ -3069,11 +3069,19 @@ export default function ReachlyoCampaignWizard() {
                                 value={location.countryCode}
                                 maxLength={2}
                                 disabled={!canEdit || !editableDefinition}
-                                onChange={(event) =>
+                                onChange={(event) => {
                                   updateAudienceLocation(index, {
                                     countryCode: event.target.value.toUpperCase(),
                                   })
-                                }
+                                  setLocationSuggestionsByIndex((current) => ({
+                                    ...current,
+                                    [index]: [],
+                                  }))
+                                  setLocationSearchErrorByIndex((current) => ({
+                                    ...current,
+                                    [index]: '',
+                                  }))
+                                }}
                                 placeholder="IN"
                               />
                             </Field>
