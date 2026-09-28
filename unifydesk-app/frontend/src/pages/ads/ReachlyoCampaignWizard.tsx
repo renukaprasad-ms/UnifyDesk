@@ -237,6 +237,19 @@ const parseArray = <T,>(value?: string | null): T[] => {
     return []
   }
 }
+const googleAudienceSearchEligible = (audience: AdAudience) => {
+  if (!audience.accessible || !audience.deliveryStatusJson) return false
+  try {
+    const status = JSON.parse(audience.deliveryStatusJson) as Record<string, unknown>
+    return (
+      status.eligibleForSearch === true &&
+      String(status.accountStatus ?? '').toUpperCase() !== 'DISABLED'
+    )
+  } catch {
+    return false
+  }
+}
+
 const googleAudienceDisplayEligible = (audience: AdAudience) => {
   if (!audience.accessible || !audience.deliveryStatusJson) return false
   try {
@@ -321,6 +334,11 @@ const GOOGLE_VISUAL_AUDIENCE_CHANNELS: CampaignChannelType[] = [
   'GOOGLE_DISPLAY',
   'GOOGLE_DEMAND_GEN',
   'GOOGLE_PERFORMANCE_MAX',
+]
+
+const GOOGLE_PROVIDER_AUDIENCE_CHANNELS: CampaignChannelType[] = [
+  'GOOGLE_SEARCH',
+  ...GOOGLE_VISUAL_AUDIENCE_CHANNELS,
 ]
 
 const currencyDigits = (currency: string) => {
@@ -489,6 +507,9 @@ export default function ReachlyoCampaignWizard() {
   const [keywordMatchType, setKeywordMatchType] = useState('BROAD')
   const [googleConversionId, setGoogleConversionId] = useState('')
   const [googleSearchPartners, setGoogleSearchPartners] = useState(true)
+  const [googleSearchAudienceMode, setGoogleSearchAudienceMode] = useState<
+    'OBSERVATION' | 'TARGETING'
+  >('OBSERVATION')
   const [googleContentNetwork, setGoogleContentNetwork] = useState(false)
   const [googleGeoMode, setGoogleGeoMode] = useState<
     'PRESENCE' | 'PRESENCE_OR_INTEREST'
@@ -680,11 +701,7 @@ export default function ReachlyoCampaignWizard() {
     const nextGoogleExcludedAudienceIds: Partial<Record<CampaignChannelType, string[]>> = {}
     enabled.forEach((channel) => {
       if (
-        ![
-          'GOOGLE_DISPLAY',
-          'GOOGLE_DEMAND_GEN',
-          'GOOGLE_PERFORMANCE_MAX',
-        ].includes(channel.channelType)
+        !GOOGLE_PROVIDER_AUDIENCE_CHANNELS.includes(channel.channelType)
       ) {
         return
       }
@@ -727,6 +744,12 @@ export default function ReachlyoCampaignWizard() {
       }
       if (typeof override.targetSearchNetwork === 'boolean') {
         setGoogleSearchPartners(override.targetSearchNetwork)
+      }
+      if (
+        override.googleSearchAudienceMode === 'OBSERVATION' ||
+        override.googleSearchAudienceMode === 'TARGETING'
+      ) {
+        setGoogleSearchAudienceMode(override.googleSearchAudienceMode)
       }
       if (typeof override.targetContentNetwork === 'boolean') {
         setGoogleContentNetwork(override.targetContentNetwork)
@@ -1660,9 +1683,7 @@ export default function ReachlyoCampaignWizard() {
         }
 
         if (
-          channel.channelType === 'GOOGLE_DISPLAY' ||
-          channel.channelType === 'GOOGLE_DEMAND_GEN' ||
-          channel.channelType === 'GOOGLE_PERFORMANCE_MAX'
+          GOOGLE_PROVIDER_AUDIENCE_CHANNELS.includes(channel.channelType)
         ) {
           override = {
             ...override,
@@ -1775,6 +1796,7 @@ export default function ReachlyoCampaignWizard() {
             targetSearchNetwork: googleSearchPartners,
             targetContentNetwork: googleContentNetwork,
             positiveGeoTargetType: googleGeoMode,
+            googleSearchAudienceMode,
             deviceBidModifiers: Object.fromEntries(
               Object.entries(googleDeviceBidModifiers).map(([device, value]) => [
                 device,
@@ -2235,7 +2257,7 @@ export default function ReachlyoCampaignWizard() {
       ...current,
       [channelType]: accountId,
     }))
-    if (GOOGLE_VISUAL_AUDIENCE_CHANNELS.includes(channelType)) {
+    if (GOOGLE_PROVIDER_AUDIENCE_CHANNELS.includes(channelType)) {
       setGoogleAudienceIdsByChannel((current) => ({
         ...current,
         [channelType]: [],
@@ -3569,12 +3591,14 @@ export default function ReachlyoCampaignWizard() {
                 title="6. Provider-only settings"
                 description="Only settings that cannot be safely inferred belong here."
               >
-                {GOOGLE_VISUAL_AUDIENCE_CHANNELS.filter((channelType) =>
+                {GOOGLE_PROVIDER_AUDIENCE_CHANNELS.filter((channelType) =>
                   selectedChannels.includes(channelType),
                 ).map((channelType) => {
                   const accountId = accountByChannel[channelType]
                   const options = (audiencesByAccount[accountId] ?? []).filter(
-                    googleAudienceDisplayEligible,
+                    channelType === 'GOOGLE_SEARCH'
+                      ? googleAudienceSearchEligible
+                      : googleAudienceDisplayEligible,
                   )
                   const selected = googleAudienceIdsByChannel[channelType] ?? []
                   const excluded =
@@ -3594,9 +3618,11 @@ export default function ReachlyoCampaignWizard() {
                           <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
                             {pmax
                               ? 'Google treats these lists as audience signals. They guide optimization but do not hard-restrict delivery.'
-                              : channelType === 'GOOGLE_DEMAND_GEN'
-                                ? 'Selected lists are composed into a reusable Google Audience for grouped Demand Gen targeting.'
-                                : 'Selected lists become real Display ad-group USER_LIST criteria. Exclusions become negative USER_LIST criteria.'}
+                              : channelType === 'GOOGLE_SEARCH'
+                                ? 'Selected Search-eligible lists become real USER_LIST criteria. Observation measures/bids without narrowing reach; Targeting restricts delivery to included lists. Exclusions always remain hard exclusions.'
+                                : channelType === 'GOOGLE_DEMAND_GEN'
+                                  ? 'Selected lists are composed into a reusable Google Audience for grouped Demand Gen targeting.'
+                                  : 'Selected lists become real Display ad-group USER_LIST criteria. Exclusions become negative USER_LIST criteria.'}
                           </p>
                         </div>
                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
@@ -3610,7 +3636,7 @@ export default function ReachlyoCampaignWizard() {
                         </p>
                       ) : options.length === 0 ? (
                         <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-                          No Display-eligible Google audience lists are available for this account.
+                          No {channelType === 'GOOGLE_SEARCH' ? 'Search' : 'Display'}-eligible Google audience lists are available for this account.
                           Use Refresh provider resources after creating or updating Customer Match /
                           remarketing lists in Google Ads.
                         </p>
@@ -3631,10 +3657,15 @@ export default function ReachlyoCampaignWizard() {
                                     </p>
                                     <p className="mt-1 text-[11px] text-slate-400">
                                       {audience.subtype ? pretty(audience.subtype) : 'Google audience'}
-                                      {audience.approximateCountUpperBound != null
-                                        ? ' · Display size ' +
-                                          audience.approximateCountUpperBound.toLocaleString()
-                                        : ''}
+                                      {channelType === 'GOOGLE_SEARCH'
+                                        ? audience.approximateCountLowerBound != null
+                                          ? ' · Search size ' +
+                                            audience.approximateCountLowerBound.toLocaleString()
+                                          : ''
+                                        : audience.approximateCountUpperBound != null
+                                          ? ' · Display size ' +
+                                            audience.approximateCountUpperBound.toLocaleString()
+                                          : ''}
                                     </p>
                                   </div>
                                   <div className="flex flex-wrap gap-3">
@@ -3806,6 +3837,8 @@ export default function ReachlyoCampaignWizard() {
                   setGoogleConversionId={setGoogleConversionId}
                   googleSearchPartners={googleSearchPartners}
                   setGoogleSearchPartners={setGoogleSearchPartners}
+                  googleSearchAudienceMode={googleSearchAudienceMode}
+                  setGoogleSearchAudienceMode={setGoogleSearchAudienceMode}
                   googleContentNetwork={googleContentNetwork}
                   setGoogleContentNetwork={setGoogleContentNetwork}
                   googleGeoMode={googleGeoMode}
