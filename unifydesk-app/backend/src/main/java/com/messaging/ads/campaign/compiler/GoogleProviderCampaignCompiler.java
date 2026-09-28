@@ -848,6 +848,25 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                 true,
                 Set.of(),
                 ProviderCampaignPlanSupport.config("status", "PAUSED")));
+        if (hasProviderAudienceLists(context)) {
+          operations.add(
+              operation(
+                  sequence++,
+                  "configure-search-audiences",
+                  ProviderPlanAction.CONFIGURE,
+                  ProviderPlanResource.AD_GROUP,
+                  false,
+                  Set.of(),
+                  ProviderCampaignPlanSupport.config(
+                      "mode",
+                      providerText(context, "googleSearchAudienceMode") == null
+                          ? "OBSERVATION"
+                          : providerText(context, "googleSearchAudienceMode"),
+                      "includedCount",
+                      providerStrings(context, "googleAudienceIds").size(),
+                      "excludedCount",
+                      providerStrings(context, "googleExcludedAudienceIds").size())));
+        }
         if (aiMaxEnabled(context)) {
           operations.add(
               operation(
