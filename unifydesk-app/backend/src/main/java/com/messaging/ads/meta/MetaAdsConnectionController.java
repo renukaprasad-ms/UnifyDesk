@@ -28,6 +28,7 @@ import com.messaging.ads.meta.dto.MetaCustomerListMembersRequest;
 import com.messaging.ads.meta.dto.MetaCustomerListMembersResponse;
 import com.messaging.ads.meta.dto.MetaInsightsSyncResponse;
 import com.messaging.ads.meta.dto.MetaGeoLocationSuggestion;
+import com.messaging.ads.meta.dto.MetaDetailedTargetingSuggestion;
 import com.messaging.ads.meta.dto.MetaAdStatusRequest;
 import com.messaging.ads.meta.dto.MetaAdSyncResponse;
 import com.messaging.ads.meta.dto.MetaCreativeSyncResponse;
@@ -85,6 +86,7 @@ public class MetaAdsConnectionController {
   private final MetaAdsAdSetSyncService adSetSyncService;
   private final MetaAdsAdSetMutationService adSetMutationService;
   private final MetaAdsGeoTargetingService geoTargetingService;
+  private final MetaAdsDetailedTargetingService detailedTargetingService;
   private final MetaAdsExperimentService experimentService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
@@ -120,6 +122,22 @@ public class MetaAdsConnectionController {
             geoTargetingService.search(
                 companyId, accountId, q, types, countryCode, limit),
             "Meta geo targeting suggestions fetched"));
+  }
+
+  @GetMapping("/accounts/{accountId}/detailed-targeting/interests")
+  public ResponseEntity<ApiResponse<List<MetaDetailedTargetingSuggestion>>> searchInterests(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @RequestParam String q,
+      @RequestParam(defaultValue = "20") Integer limit) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.ADS_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            detailedTargetingService.searchInterests(companyId, accountId, q, limit),
+            "Meta detailed targeting interests fetched"));
   }
 
   @PostMapping("/accounts/{accountId}/health/sync")
