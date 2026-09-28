@@ -530,6 +530,9 @@ export default function ReachlyoCampaignWizard() {
     () => campaign?.channels.filter((channel) => channel.enabled) ?? [],
     [campaign],
   )
+  const shoppingOnly =
+    selectedChannels.length > 0 &&
+    selectedChannels.every((type) => type === 'GOOGLE_SHOPPING')
 
   useEffect(() => {
     if (!selectedCompany) return
@@ -1162,6 +1165,14 @@ export default function ReachlyoCampaignWizard() {
 
   const saveCreative = async () => {
     if (!selectedCompany || !campaign || !canEdit) return
+    if (shoppingOnly) {
+      setError('')
+      setNotice(
+        'Google Shopping uses Merchant Center product data as creative; no Creative Pack is required.',
+      )
+      setStep(4)
+      return
+    }
     if (!creativeName.trim()) {
       setError('Creative pack name is required.')
       return
@@ -2542,7 +2553,18 @@ export default function ReachlyoCampaignWizard() {
                 title="4. Canonical creative"
                 description="Write the message once. Reachlyo adapts it into provider-specific creative structures."
               >
-                <div className="grid gap-5 sm:grid-cols-2">
+                {shoppingOnly && (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                    <p className="font-bold">Merchant Center provides the Shopping creative.</p>
+                    <p className="mt-1 text-xs leading-5">
+                      Product title, image, price and landing page come from your Merchant catalog,
+                      so a separate Creative Pack is not required for this Shopping-only campaign.
+                    </p>
+                  </div>
+                )}
+                <div className={
+                  shoppingOnly ? 'hidden' : 'grid gap-5 sm:grid-cols-2'
+                }>
                   <Field label="Creative pack name">
                     <input
                       className="form-input mt-2"
