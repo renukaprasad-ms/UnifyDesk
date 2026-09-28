@@ -2121,18 +2121,23 @@ export default function ReachlyoCampaignWizard() {
     )
   }
 
+  const requiresGoogleLocationSupport = selectedChannels.some(
+    (type) => providerForChannel(type) === 'GOOGLE_ADS',
+  )
+  const requiresMetaLocationSupport = selectedChannels.includes('META_ADS')
+
   const googleLocationAccountId = selectedChannels
     .filter((type) => providerForChannel(type) === 'GOOGLE_ADS')
     .map((type) => accountByChannel[type])
     .find(Boolean)
 
-  const metaLocationAccountId = selectedChannels.includes('META_ADS')
+  const metaLocationAccountId = requiresMetaLocationSupport
     ? accountByChannel.META_ADS
     : undefined
 
   const requiredLocationProviders = [
-    ...(googleLocationAccountId ? (['GOOGLE_ADS'] as const) : []),
-    ...(metaLocationAccountId ? (['META_ADS'] as const) : []),
+    ...(requiresGoogleLocationSupport ? (['GOOGLE_ADS'] as const) : []),
+    ...(requiresMetaLocationSupport ? (['META_ADS'] as const) : []),
   ]
 
   const searchAudienceLocation = async (index: number) => {
@@ -2153,10 +2158,14 @@ export default function ReachlyoCampaignWizard() {
       }))
       return
     }
-    if (!googleLocationAccountId && !metaLocationAccountId) {
+    if (
+      (requiresGoogleLocationSupport && !googleLocationAccountId) ||
+      (requiresMetaLocationSupport && !metaLocationAccountId)
+    ) {
       setLocationSearchErrorByIndex((current) => ({
         ...current,
-        [index]: 'Choose a Google or Meta account in the Channels step first.',
+        [index]:
+          'Choose an advertising account for every selected provider in the Channels step first.',
       }))
       return
     }
@@ -2996,7 +3005,8 @@ export default function ReachlyoCampaignWizard() {
                                     !canEdit ||
                                     !editableDefinition ||
                                     locationSearchBusyIndex === index ||
-                                    (!googleLocationAccountId && !metaLocationAccountId)
+                                    (requiresGoogleLocationSupport && !googleLocationAccountId) ||
+                                    (requiresMetaLocationSupport && !metaLocationAccountId)
                                   }
                                   onClick={() => void searchAudienceLocation(index)}
                                 >
