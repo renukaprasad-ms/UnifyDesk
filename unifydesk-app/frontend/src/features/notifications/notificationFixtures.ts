@@ -10,8 +10,8 @@ export const companyNotification: NotificationItem = {
   category: 'INBOX',
   severity: 'NORMAL',
   scope: { kind: 'COMPANY', companyId: '922337203685470100' },
-  title: 'New inbox activity',
-  body: '3 new inbox messages',
+  title: '3 new emails',
+  body: 'Quarterly update\\nHere is the latest update\\nSales Inbox',
   aggregateCount: 3,
   action: {
     kind: 'ROUTE',
