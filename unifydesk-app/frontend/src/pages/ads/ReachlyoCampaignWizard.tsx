@@ -99,8 +99,8 @@ const CHANNELS: Array<{
     type: 'GOOGLE_DEMAND_GEN',
     title: 'Google Demand Gen',
     provider: 'GOOGLE_ADS',
-    description: 'Plan preview is available; paused execution is not enabled yet.',
-    executable: false,
+    description: 'Launch a paused Google Demand Gen campaign and visual multi-asset ad from the shared brief.',
+    executable: true,
   },
   {
     type: 'GOOGLE_DISPLAY',
@@ -194,7 +194,7 @@ const GOAL_OPTIONS: Array<{
 const recommendedChannelsForGoal = (
   goal: CampaignBusinessGoal,
 ): CampaignChannelType[] => {
-  if (goal === 'AWARENESS') return ['META_ADS', 'GOOGLE_SEARCH']
+  if (goal === 'AWARENESS') return ['META_ADS', 'GOOGLE_DEMAND_GEN']
   if (goal === 'APP_INSTALL') return ['META_ADS']
   return ['GOOGLE_SEARCH', 'META_ADS']
 }
@@ -424,6 +424,12 @@ export default function ReachlyoCampaignWizard() {
     'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
   >('MAXIMIZE_CONVERSIONS')
   const [pmaxYoutubeVideoIds, setPmaxYoutubeVideoIds] = useState('')
+  const [demandGenBidStrategy, setDemandGenBidStrategy] = useState<
+    'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
+  >('MAXIMIZE_CONVERSIONS')
+  const [demandGenChannelStrategy, setDemandGenChannelStrategy] = useState<
+    'ALL_CHANNELS' | 'ALL_OWNED_AND_OPERATED_CHANNELS'
+  >('ALL_CHANNELS')
   const [keywordMatchType, setKeywordMatchType] = useState('BROAD')
   const [googleConversionId, setGoogleConversionId] = useState('')
   const [googleSearchPartners, setGoogleSearchPartners] = useState(true)
@@ -779,6 +785,32 @@ export default function ReachlyoCampaignWizard() {
               .join('\n')
           : '',
       )
+    }
+
+    const demandGen = enabled.find(
+      (channel) => channel.channelType === 'GOOGLE_DEMAND_GEN',
+    )
+    if (demandGen) {
+      const override = parseObject(demandGen.providerOverrideJson)
+      if (typeof override.containsEuPoliticalAdvertising === 'boolean') {
+        setGooglePolitical(
+          String(override.containsEuPoliticalAdvertising) as 'true' | 'false',
+        )
+      }
+      if (
+        override.bidStrategy === 'MAXIMIZE_CLICKS' ||
+        override.bidStrategy === 'MAXIMIZE_CONVERSIONS' ||
+        override.bidStrategy === 'MAXIMIZE_CONVERSION_VALUE'
+      ) {
+        setDemandGenBidStrategy(override.bidStrategy)
+      }
+      if (
+        override.demandGenChannelStrategy === 'ALL_CHANNELS' ||
+        override.demandGenChannelStrategy ===
+          'ALL_OWNED_AND_OPERATED_CHANNELS'
+      ) {
+        setDemandGenChannelStrategy(override.demandGenChannelStrategy)
+      }
     }
 
     const meta = enabled.find((channel) => channel.channelType === 'META_ADS')
@@ -1352,7 +1384,8 @@ export default function ReachlyoCampaignWizard() {
 
     const googleAccount =
       accountByChannel.GOOGLE_SEARCH ??
-      accountByChannel.GOOGLE_PERFORMANCE_MAX
+      accountByChannel.GOOGLE_PERFORMANCE_MAX ??
+      accountByChannel.GOOGLE_DEMAND_GEN
     if (
       googleAccount &&
       !googleConversionId &&
@@ -1433,6 +1466,20 @@ export default function ReachlyoCampaignWizard() {
             containsEuPoliticalAdvertising: googlePolitical === 'true',
             bidStrategy: pmaxBidStrategy,
             pmaxYoutubeVideoIds: listValues(pmaxYoutubeVideoIds),
+          }
+        }
+
+        if (channel.channelType === 'GOOGLE_DEMAND_GEN') {
+          if (!googlePolitical) {
+            throw new Error(
+              'Choose the Google EU political advertising declaration.',
+            )
+          }
+          override = {
+            ...override,
+            containsEuPoliticalAdvertising: googlePolitical === 'true',
+            bidStrategy: demandGenBidStrategy,
+            demandGenChannelStrategy,
           }
         }
 
@@ -1557,7 +1604,8 @@ export default function ReachlyoCampaignWizard() {
             }
             const conversionId =
               channel.channelType === 'GOOGLE_SEARCH' ||
-              channel.channelType === 'GOOGLE_PERFORMANCE_MAX'
+              channel.channelType === 'GOOGLE_PERFORMANCE_MAX' ||
+              channel.channelType === 'GOOGLE_DEMAND_GEN'
                 ? googleConversionId
                 : conversionsByAccount[accountId]?.[0]?.id ?? ''
             if (!conversionId) {
@@ -1831,17 +1879,21 @@ export default function ReachlyoCampaignWizard() {
     if (nextGoal === 'TRAFFIC') {
       setGoogleBidStrategy('MAXIMIZE_CLICKS')
       setPmaxBidStrategy('MAXIMIZE_CONVERSIONS')
+      setDemandGenBidStrategy('MAXIMIZE_CLICKS')
       setMetaOptimizationGoal('LANDING_PAGE_VIEWS')
     } else if (nextGoal === 'AWARENESS') {
       setGoogleBidStrategy('MAXIMIZE_CLICKS')
+      setDemandGenBidStrategy('MAXIMIZE_CLICKS')
       setMetaOptimizationGoal('REACH')
     } else if (nextGoal === 'PURCHASE') {
       setGoogleBidStrategy('MAXIMIZE_CONVERSION_VALUE')
       setPmaxBidStrategy('MAXIMIZE_CONVERSION_VALUE')
+      setDemandGenBidStrategy('MAXIMIZE_CONVERSION_VALUE')
       setMetaOptimizationGoal('VALUE')
     } else {
       setGoogleBidStrategy('MAXIMIZE_CONVERSIONS')
       setPmaxBidStrategy('MAXIMIZE_CONVERSIONS')
+      setDemandGenBidStrategy('MAXIMIZE_CONVERSIONS')
       setMetaOptimizationGoal(
         nextGoal === 'LEAD' || nextGoal === 'QUALIFIED_LEAD' || nextGoal === 'SIGN_UP'
           ? 'LEAD_GENERATION'
@@ -2527,14 +2579,15 @@ export default function ReachlyoCampaignWizard() {
                   </Field>
                 </div>
 
-                {selectedChannels.includes('GOOGLE_PERFORMANCE_MAX') && (
+                {(selectedChannels.includes('GOOGLE_PERFORMANCE_MAX') ||
+                  selectedChannels.includes('GOOGLE_DEMAND_GEN')) && (
                   <div className="mt-5 rounded-2xl border border-indigo-100 bg-indigo-50/30 p-4">
                     <p className="text-sm font-bold text-slate-900">
-                      Performance Max asset bundle
+                      Google visual asset bundle
                     </p>
                     <p className="mt-1 text-xs leading-5 text-slate-500">
-                      Google requires separate aspect ratios. Existing saved assets stay in the
-                      Creative Pack when you do not replace them.
+                      Performance Max and Demand Gen use provider-valid visual aspect ratios.
+                      Existing saved assets stay in the Creative Pack when you do not replace them.
                     </p>
                     <div className="mt-4 grid gap-3 md:grid-cols-3">
                       {[
@@ -2998,6 +3051,9 @@ export default function ReachlyoCampaignWizard() {
                     {selectedChannels.includes('GOOGLE_PERFORMANCE_MAX') && (
                       <p>Performance Max: {pretty(pmaxBidStrategy)}</p>
                     )}
+                    {selectedChannels.includes('GOOGLE_DEMAND_GEN') && (
+                      <p>Demand Gen: {pretty(demandGenBidStrategy)}</p>
+                    )}
                     {selectedChannels.includes('META_ADS') && (
                       <p>Meta: {pretty(metaOptimizationGoal)}</p>
                     )}
@@ -3020,6 +3076,10 @@ export default function ReachlyoCampaignWizard() {
                   setPmaxBidStrategy={setPmaxBidStrategy}
                   pmaxYoutubeVideoIds={pmaxYoutubeVideoIds}
                   setPmaxYoutubeVideoIds={setPmaxYoutubeVideoIds}
+                  demandGenBidStrategy={demandGenBidStrategy}
+                  setDemandGenBidStrategy={setDemandGenBidStrategy}
+                  demandGenChannelStrategy={demandGenChannelStrategy}
+                  setDemandGenChannelStrategy={setDemandGenChannelStrategy}
                   keywordMatchType={keywordMatchType}
                   setKeywordMatchType={setKeywordMatchType}
                   googleConversionId={googleConversionId}

@@ -2072,7 +2072,7 @@ Remaining major product slices:
 - provider-backed canonical location autocomplete shared across selected channels
 - Google deeper audiences, observation/targeting modes, exclusions and retargeting mappings
 - Meta behaviors/additional detailed-targeting categories and exclusions as supported by the active API
-- unified paused-first executors for Google Demand Gen, Display and Shopping
+- unified paused-first executors for Google Display and Shopping
 - richer business-level creative generation/preview experience across those additional executors
 
 ## Unified Performance Max execution note — 2026-09-28
@@ -2090,6 +2090,23 @@ Implemented on `feature/ad-center-unified-pmax`:
 - selected Google conversion mapping is applied to the created Performance Max campaign
 - company media is read server-side from configured S3/Supabase storage for Google asset upload without exposing public media URLs
 - successful orchestration still stops at `PAUSED_READY`; no automatic spend activation is introduced
+
+## Unified Demand Gen execution note — 2026-09-28
+
+Implemented on `feature/ad-center-unified-demand-gen`:
+
+- Demand Gen is selectable and executable from the unified campaign wizard
+- budget + paused Demand Gen campaign + paused grouped-audience ad group are created in one Google bulk mutation to reduce orphaned provider resources
+- the shared Google visual Creative Pack roles are reused for Demand Gen landscape/square/portrait images and square logo
+- compiler/preflight enforce Demand Gen headline, description, business-name, final-URL and required-media constraints before provider mutation
+- canonical country/region/city/postal locations and languages map to Demand Gen ad-group criteria
+- proximity/radius locations are blocked for the current unified Demand Gen path rather than being silently dropped
+- channel coverage supports all Demand Gen channels or Google-owned channels through provider settings
+- the unified path creates a paused Demand Gen multi-asset ad and reuses it by deterministic launch name on retry
+- canonical interests/search intent remain approximate unless backed by real Google Audience resources; no provider audience is guessed from free text
+- selected Google conversion mapping is applied to the created Demand Gen campaign
+- awareness goals now recommend Demand Gen alongside Meta instead of defaulting to Search
+- successful launch still stops at `PAUSED_READY`
 
 
 ## Keep current Ad Center sections

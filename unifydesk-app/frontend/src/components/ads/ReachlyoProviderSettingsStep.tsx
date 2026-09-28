@@ -34,6 +34,20 @@ type Props = {
   ) => void
   pmaxYoutubeVideoIds: string
   setPmaxYoutubeVideoIds: (value: string) => void
+  demandGenBidStrategy:
+    | 'MAXIMIZE_CLICKS'
+    | 'MAXIMIZE_CONVERSIONS'
+    | 'MAXIMIZE_CONVERSION_VALUE'
+  setDemandGenBidStrategy: (
+    value:
+      | 'MAXIMIZE_CLICKS'
+      | 'MAXIMIZE_CONVERSIONS'
+      | 'MAXIMIZE_CONVERSION_VALUE',
+  ) => void
+  demandGenChannelStrategy: 'ALL_CHANNELS' | 'ALL_OWNED_AND_OPERATED_CHANNELS'
+  setDemandGenChannelStrategy: (
+    value: 'ALL_CHANNELS' | 'ALL_OWNED_AND_OPERATED_CHANNELS',
+  ) => void
   keywordMatchType: string
   setKeywordMatchType: (value: string) => void
   googleConversionId: string
@@ -274,6 +288,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
   const googleAccount =
     props.accountByChannel.GOOGLE_SEARCH ??
     props.accountByChannel.GOOGLE_PERFORMANCE_MAX ??
+    props.accountByChannel.GOOGLE_DEMAND_GEN ??
     ''
   const metaAccount = props.accountByChannel.META_ADS ?? ''
   const googleConversions = props.conversionsByAccount[googleAccount] ?? []
@@ -293,6 +308,108 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
           Refresh provider resources
         </button>
       </div>
+
+      {props.selectedChannels.includes('GOOGLE_DEMAND_GEN') && (
+        <section className="rounded-2xl border border-slate-200 p-5">
+          <h3 className="text-base font-bold text-slate-950">Google Demand Gen</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Demand Gen uses a paused campaign and paused ad group. Shared locations and
+            languages map to ad-group targeting; the creative step supplies the visual
+            multi-asset ad.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label="EU political advertising">
+              <select
+                className="form-input mt-2"
+                value={props.googlePolitical}
+                disabled={props.disabled}
+                onChange={(event) =>
+                  props.setGooglePolitical(
+                    event.target.value as 'true' | 'false' | '',
+                  )
+                }
+              >
+                <option value="">Choose</option>
+                <option value="false">
+                  Does not contain EU political advertising
+                </option>
+                <option value="true">
+                  Contains EU political advertising
+                </option>
+              </select>
+            </Field>
+            <Field label="Bid strategy">
+              <select
+                className="form-input mt-2"
+                value={props.demandGenBidStrategy}
+                disabled={props.disabled}
+                onChange={(event) =>
+                  props.setDemandGenBidStrategy(
+                    event.target.value as
+                      | 'MAXIMIZE_CLICKS'
+                      | 'MAXIMIZE_CONVERSIONS'
+                      | 'MAXIMIZE_CONVERSION_VALUE',
+                  )
+                }
+              >
+                <option value="MAXIMIZE_CLICKS">Maximize clicks</option>
+                <option value="MAXIMIZE_CONVERSIONS">Maximize conversions</option>
+                <option value="MAXIMIZE_CONVERSION_VALUE">
+                  Maximize conversion value
+                </option>
+              </select>
+            </Field>
+            <Field label="Channel coverage">
+              <select
+                className="form-input mt-2"
+                value={props.demandGenChannelStrategy}
+                disabled={props.disabled}
+                onChange={(event) =>
+                  props.setDemandGenChannelStrategy(
+                    event.target.value as
+                      | 'ALL_CHANNELS'
+                      | 'ALL_OWNED_AND_OPERATED_CHANNELS',
+                  )
+                }
+              >
+                <option value="ALL_CHANNELS">All Demand Gen channels</option>
+                <option value="ALL_OWNED_AND_OPERATED_CHANNELS">
+                  Google-owned channels only
+                </option>
+              </select>
+            </Field>
+            {conversionRequired && (
+              <Field label="Conversion action">
+                <select
+                  className="form-input mt-2"
+                  value={props.googleConversionId}
+                  disabled={props.disabled}
+                  onChange={(event) =>
+                    props.setGoogleConversionId(event.target.value)
+                  }
+                >
+                  <option value="">Select conversion</option>
+                  {googleConversions.map((conversion) => (
+                    <option key={conversion.id} value={conversion.id}>
+                      {conversion.name}
+                      {conversion.customEventType
+                        ? ' · ' + pretty(conversion.customEventType)
+                        : ''}
+                      {isRecommendedConversion(
+                        conversion,
+                        props.businessGoal,
+                        'GOOGLE_ADS',
+                      )
+                        ? ' · Recommended'
+                        : ''}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+          </div>
+        </section>
+      )}
 
       {props.selectedChannels.includes('GOOGLE_PERFORMANCE_MAX') && (
         <section className="rounded-2xl border border-slate-200 p-5">

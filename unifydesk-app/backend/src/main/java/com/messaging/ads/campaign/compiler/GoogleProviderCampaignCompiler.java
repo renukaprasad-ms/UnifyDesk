@@ -77,6 +77,9 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
       if (context.channel().getChannelType() == CampaignChannelType.GOOGLE_PERFORMANCE_MAX) {
         validatePerformanceMaxCreative(context, issues);
       }
+      if (context.channel().getChannelType() == CampaignChannelType.GOOGLE_DEMAND_GEN) {
+        validateDemandGenCreative(context, issues);
+      }
     } else {
       ProviderCampaignPlanSupport.requireCapability(
           context, AdFeatureCapability.GOOGLE_MERCHANT, required, issues);
@@ -268,6 +271,87 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
     }
   }
 
+  private void validateDemandGenCreative(
+      ProviderCampaignCompileContext context, List<ProviderPlanIssue> issues) {
+    if (context.creativePack() == null) return;
+
+    List<String> headlines = jsonStrings(context.creativePack().getHeadlinesJson());
+    List<String> descriptions = jsonStrings(context.creativePack().getDescriptionsJson());
+    if (headlines.isEmpty() || headlines.size() > 5) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DEMAND_GEN_HEADLINES_INVALID",
+              "creativePack.headlines",
+              "Demand Gen multi-asset ads require 1 to 5 headlines."));
+    } else if (headlines.stream().anyMatch(value -> value.length() > 30)) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DEMAND_GEN_HEADLINE_TOO_LONG",
+              "creativePack.headlines",
+              "Demand Gen headlines must be at most 30 characters."));
+    }
+    if (descriptions.isEmpty() || descriptions.size() > 5) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DEMAND_GEN_DESCRIPTIONS_INVALID",
+              "creativePack.descriptions",
+              "Demand Gen multi-asset ads require 1 to 5 descriptions."));
+    } else if (descriptions.stream().anyMatch(value -> value.length() > 90)) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DEMAND_GEN_DESCRIPTION_TOO_LONG",
+              "creativePack.descriptions",
+              "Demand Gen descriptions must be at most 90 characters."));
+    }
+
+    String businessName = context.creativePack().getBusinessName();
+    if (isBlank(businessName)) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DEMAND_GEN_BUSINESS_NAME_MISSING",
+              "creativePack.businessName",
+              "Demand Gen requires a business name."));
+    } else if (businessName.trim().length() > 25) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DEMAND_GEN_BUSINESS_NAME_TOO_LONG",
+              "creativePack.businessName",
+              "Demand Gen business name must be at most 25 characters."));
+    }
+
+    String finalUrl =
+        !isBlank(context.creativePack().getDestinationUrl())
+            ? context.creativePack().getDestinationUrl()
+            : context.campaign().getLandingPageUrl();
+    if (isBlank(finalUrl) || !isHttpUrl(finalUrl)) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DEMAND_GEN_FINAL_URL_INVALID",
+              "creativePack.destinationUrl",
+              "Demand Gen requires a valid HTTP or HTTPS destination URL."));
+    }
+
+    Set<CreativeAssetRole> roles =
+        context.creativeAssets().stream()
+            .map(asset -> asset.getRole())
+            .collect(java.util.stream.Collectors.toSet());
+    if (!roles.contains(CreativeAssetRole.LOGO)) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DEMAND_GEN_LOGO_MISSING",
+              "creativePack.assets",
+              "Demand Gen requires a square logo asset."));
+    }
+    if (!roles.contains(CreativeAssetRole.MARKETING_IMAGE)
+        && !roles.contains(CreativeAssetRole.SQUARE_MARKETING_IMAGE)) {
+      issues.add(
+          ProviderCampaignPlanSupport.error(
+              "DEMAND_GEN_IMAGE_MISSING",
+              "creativePack.assets",
+              "Demand Gen requires at least a landscape or square marketing image."));
+    }
+  }
+
   private void validatePerformanceMaxCreative(
       ProviderCampaignCompileContext context, List<ProviderPlanIssue> issues) {
     if (context.creativePack() == null) return;
@@ -376,6 +460,64 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
       AudienceMappingStatus audienceMappingStatus,
       List<ProviderPlanOperation> operations) {
     int sequence = 1;
+    if (context.channel().getChannelType() == CampaignChannelType.GOOGLE_DEMAND_GEN) {
+      operations.add(
+          operation(
+              sequence++,
+              "create-demand-gen-paused",
+              ProviderPlanAction.CREATE,
+              ProviderPlanResource.CAMPAIGN,
+              true,
+              Set.of(
+                  AdFeatureCapability.CAMPAIGN_CREATE,
+                  AdFeatureCapability.GOOGLE_DEMAND_GEN),
+              ProviderCampaignPlanSupport.config(
+                  "budgetMinor", effectiveBudget,
+                  "budgetPeriod",
+                  context.budgetPlan() == null ? null : context.budgetPlan().getBudgetPeriod(),
+                  "providerOverrideJson", context.channel().getProviderOverrideJson())));
+      operations.add(
+          operation(
+              sequence++,
+              "configure-demand-gen-targeting",
+              ProviderPlanAction.CONFIGURE,
+              ProviderPlanResource.CAMPAIGN_TARGETING,
+              false,
+              Set.of(),
+              ProviderCampaignPlanSupport.config(
+                  "audienceDefinitionId",
+                  context.audienceDefinition() == null
+                      ? null
+                      : context.audienceDefinition().getId().toString(),
+                  "mappingStatus", AudienceMappingStatus.APPROXIMATE)));
+      operations.add(
+          operation(
+              sequence++,
+              "create-demand-gen-multi-asset-ad",
+              ProviderPlanAction.CREATE,
+              ProviderPlanResource.CREATIVE,
+              true,
+              Set.of(AdFeatureCapability.CREATIVE_CREATE),
+              ProviderCampaignPlanSupport.config(
+                  "creativePackId",
+                  context.creativePack() == null
+                      ? null
+                      : context.creativePack().getId().toString())));
+      if (context.conversionGoalMapping() != null) {
+        operations.add(
+            operation(
+                sequence,
+                "configure-conversion-goal",
+                ProviderPlanAction.CONFIGURE,
+                ProviderPlanResource.CONVERSION_GOAL,
+                false,
+                Set.of(AdFeatureCapability.CONVERSION_CREATE),
+                ProviderCampaignPlanSupport.config(
+                    "mappingId", context.conversionGoalMapping().getId().toString(),
+                    "targetType", context.conversionGoalMapping().getTargetType())));
+      }
+      return;
+    }
     if (context.channel().getChannelType() == CampaignChannelType.GOOGLE_PERFORMANCE_MAX) {
       operations.add(
           operation(
@@ -590,7 +732,7 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
       }
       case GOOGLE_PERFORMANCE_MAX ->
           throw new IllegalStateException("Performance Max operations must be emitted atomically");
-      case GOOGLE_DISPLAY, GOOGLE_DEMAND_GEN -> {
+      case GOOGLE_DISPLAY -> {
         operations.add(
             operation(
                 sequence++,
@@ -602,6 +744,8 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                 ProviderCampaignPlanSupport.config("status", "PAUSED")));
         operations.add(creativeOperation(sequence++, context, ProviderPlanResource.CREATIVE));
       }
+      case GOOGLE_DEMAND_GEN ->
+          throw new IllegalStateException("Demand Gen operations must use the dedicated plan");
       case GOOGLE_SHOPPING -> {
         operations.add(
             operation(
