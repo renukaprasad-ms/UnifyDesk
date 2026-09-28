@@ -1118,19 +1118,12 @@ Implemented in the Ads completion branch:
 
 Still add/review:
 
-- campaign URL options
-- tracking template
-- custom URL parameters
-- final URL suffix
-- Final URL Expansion controls
-- URL exclusions/inclusions when supported
-- brand guidelines
 - lifecycle/customer acquisition goals
-- value multipliers where supported
-- automated video crawl setting
+- value multipliers where currently supported by the Google v25 Goal / CampaignGoalConfig contract
 - deeper asset strength/diagnostics
 - asset group performance
 - listing groups where relevant
+- any remaining URL-inclusion behavior that becomes directly writable for this PMax subtype
 
 Google v25.2 adds AssetGroup URL options and automated video crawl settings.
 
