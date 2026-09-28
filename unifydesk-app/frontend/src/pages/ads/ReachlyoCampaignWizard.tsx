@@ -493,6 +493,13 @@ export default function ReachlyoCampaignWizard() {
   const [googleGeoMode, setGoogleGeoMode] = useState<
     'PRESENCE' | 'PRESENCE_OR_INTEREST'
   >('PRESENCE_OR_INTEREST')
+  const [googleDeviceBidModifiers, setGoogleDeviceBidModifiers] = useState<
+    Record<'DESKTOP' | 'MOBILE' | 'TABLET', string>
+  >({
+    DESKTOP: '1',
+    MOBILE: '1',
+    TABLET: '1',
+  })
   const [googleAiMaxEnabled, setGoogleAiMaxEnabled] = useState(false)
   const [googleAiMaxTextCustomization, setGoogleAiMaxTextCustomization] =
     useState(false)
@@ -729,6 +736,21 @@ export default function ReachlyoCampaignWizard() {
         override.positiveGeoTargetType === 'PRESENCE_OR_INTEREST'
       ) {
         setGoogleGeoMode(override.positiveGeoTargetType)
+      }
+      if (
+        override.deviceBidModifiers &&
+        typeof override.deviceBidModifiers === 'object' &&
+        !Array.isArray(override.deviceBidModifiers)
+      ) {
+        const devices = override.deviceBidModifiers as Record<string, unknown>
+        setGoogleDeviceBidModifiers({
+          DESKTOP:
+            typeof devices.DESKTOP === 'number' ? String(devices.DESKTOP) : '1',
+          MOBILE:
+            typeof devices.MOBILE === 'number' ? String(devices.MOBILE) : '1',
+          TABLET:
+            typeof devices.TABLET === 'number' ? String(devices.TABLET) : '1',
+        })
       }
       setGoogleAiMaxEnabled(override.aiMaxEnabled === true)
       setGoogleAiMaxTextCustomization(
@@ -1753,6 +1775,12 @@ export default function ReachlyoCampaignWizard() {
             targetSearchNetwork: googleSearchPartners,
             targetContentNetwork: googleContentNetwork,
             positiveGeoTargetType: googleGeoMode,
+            deviceBidModifiers: Object.fromEntries(
+              Object.entries(googleDeviceBidModifiers).map(([device, value]) => [
+                device,
+                Number(value),
+              ]),
+            ),
             aiMaxEnabled: googleAiMaxEnabled,
             aiMaxTextCustomizationEnabled:
               googleAiMaxEnabled && googleAiMaxTextCustomization,
@@ -3782,6 +3810,8 @@ export default function ReachlyoCampaignWizard() {
                   setGoogleContentNetwork={setGoogleContentNetwork}
                   googleGeoMode={googleGeoMode}
                   setGoogleGeoMode={setGoogleGeoMode}
+                  googleDeviceBidModifiers={googleDeviceBidModifiers}
+                  setGoogleDeviceBidModifiers={setGoogleDeviceBidModifiers}
                   googleAiMaxEnabled={googleAiMaxEnabled}
                   setGoogleAiMaxEnabled={setGoogleAiMaxEnabled}
                   googleAiMaxTextCustomization={googleAiMaxTextCustomization}
