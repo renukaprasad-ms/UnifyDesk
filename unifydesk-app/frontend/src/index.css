@@ -1082,7 +1082,7 @@
     top: calc(100% + 10px);
     right: 0;
     z-index: 80;
-    width: min(390px, calc(100vw - 28px));
+    width: min(420px, calc(100vw - 28px));
     overflow: hidden;
     border: 1px solid #e0e5f0;
     border-radius: 14px;
@@ -1105,7 +1105,7 @@
   }
 
   .notification-popover-list {
-    max-height: min(520px, calc(100dvh - 190px));
+    max-height: min(470px, calc(100dvh - 190px));
     overflow-y: auto;
   }
 
@@ -1114,8 +1114,8 @@
     width: 100%;
     min-width: 0;
     align-items: flex-start;
-    gap: 10px;
-    padding: 14px 16px;
+    gap: 12px;
+    padding: 13px 14px;
     border-bottom: 1px solid #f0f2f6;
     background: #ffffff;
     text-align: left;
@@ -1142,6 +1142,88 @@
   .notification-unread-marker.is-visible {
     background: #6366f1;
     box-shadow: 0 0 0 3px #eeeeff;
+  }
+
+  .notification-row-icon {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: #f1f5f9;
+    color: #64748b;
+    font-size: 16px;
+  }
+
+  .notification-row.is-unread .notification-row-icon {
+    background: #eeeeff;
+    color: #4f46e5;
+  }
+
+  .notification-row-topline {
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .notification-row-headline {
+    min-width: 0;
+    overflow: hidden;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 750;
+    line-height: 1.4;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .notification-row-status {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .notification-row-time {
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 650;
+    white-space: nowrap;
+  }
+
+  .notification-row-subject {
+    display: block;
+    margin-top: 4px;
+    overflow: hidden;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.45;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .notification-row-preview {
+    display: -webkit-box;
+    margin-top: 2px;
+    overflow: hidden;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.45;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .notification-row-source {
+    display: block;
+    margin-top: 5px;
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 650;
   }
 
   .notification-row-title {
