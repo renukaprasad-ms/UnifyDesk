@@ -159,7 +159,10 @@ class MetaAdsAdSetMutationServiceTests {
                 null,
                 null,
                 null,
-                "set-1"),
+                "set-1",
+                List.of(
+                    new CreateMetaAdSetRequest.TargetingInterest(
+                        "6003139266461", "Fitness and wellness"))),
             77L);
 
     assertThat(response.status()).isEqualTo(AdEntityStatus.PAUSED);
@@ -179,6 +182,12 @@ class MetaAdsAdSetMutationServiceTests {
     assertThat(targeting.get("age_max")).isEqualTo(65);
     assertThat(targeting.get("publisher_platforms")).isEqualTo(List.of("instagram"));
     assertThat(targeting.get("instagram_positions")).isEqualTo(List.of("stream"));
+    assertThat(targeting.get("interests"))
+        .isEqualTo(
+            List.of(
+                Map.of(
+                    "id", "6003139266461",
+                    "name", "Fitness and wellness")));
     @SuppressWarnings("unchecked")
     Map<String, Object> automation =
         (Map<String, Object>) targeting.get("targeting_automation");
