@@ -4,6 +4,7 @@ import { FiBell, FiCheckCircle, FiRefreshCw } from 'react-icons/fi'
 import { useNavigate } from 'react-router'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { notificationApi } from '../../features/notifications/notificationApi'
+import { notificationPresentation } from '../../features/notifications/notificationPresentation'
 import { useNotifications } from '../../features/notifications/NotificationProvider'
 import { isSafeAppRoute } from '../../features/notifications/notificationUtils'
 import type { NotificationItem } from '../../features/notifications/types'
@@ -256,47 +257,55 @@ export default function NotificationsPage() {
 
             {!loading && items.length > 0 && (
               <div className="divide-y divide-slate-100">
-                {items.map((notification) => (
-                  <article
-                    key={notification.id}
-                    className={`notification-page-row ${notification.unread ? 'is-unread' : ''}`}
-                  >
-                    <span
-                      className={`notification-unread-marker mt-1.5 ${notification.unread ? 'is-visible' : ''}`}
-                      aria-hidden="true"
-                    />
-                    <div className="min-w-0 flex-1">
+                {items.map((notification) => {
+                  const presentation = notificationPresentation(notification)
+                  return (
+                    <article
+                      key={notification.id}
+                      className={`notification-page-row ${notification.unread ? 'is-unread' : ''}`}
+                    >
+                      <span
+                        className={`notification-unread-marker mt-1.5 ${notification.unread ? 'is-visible' : ''}`}
+                        aria-hidden="true"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <button
+                          type="button"
+                          className="block w-full text-left"
+                          onClick={() => void visit(notification)}
+                        >
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span className="font-bold text-slate-950">{presentation.headline}</span>
+                            {notification.unread && (
+                              <span className="notification-unread-label">Unread</span>
+                            )}
+                          </span>
+                          {presentation.subject && (
+                            <span className="mt-1 block text-sm font-semibold text-slate-700">
+                              {presentation.subject}
+                            </span>
+                          )}
+                          {presentation.preview && (
+                            <span className="mt-1 block text-sm leading-6 text-slate-600">
+                              {presentation.preview}
+                            </span>
+                          )}
+                          <span className="mt-2 block text-xs font-medium text-slate-400">
+                            {formatWhen(notification.lastEventAt)}
+                            {presentation.source ? ` · ${presentation.source}` : ''}
+                          </span>
+                        </button>
+                      </div>
                       <button
                         type="button"
-                        className="block w-full text-left"
-                        onClick={() => void visit(notification)}
+                        className="notification-text-button shrink-0 self-start"
+                        onClick={() => void changeReadState(notification, !notification.unread)}
                       >
-                        <span className="flex flex-wrap items-center gap-2">
-                          <span className="font-bold text-slate-950">{notification.title}</span>
-                          {notification.unread && (
-                            <span className="notification-unread-label">Unread</span>
-                          )}
-                        </span>
-                        <span className="mt-1 block text-sm leading-6 text-slate-600">
-                          {notification.body}
-                        </span>
-                        <span className="mt-2 block text-xs font-medium text-slate-400">
-                          {formatWhen(notification.lastEventAt)}
-                          {notification.aggregateCount > 1
-                            ? ` · ${notification.aggregateCount} updates`
-                            : ''}
-                        </span>
+                        {notification.unread ? 'Mark read' : 'Mark unread'}
                       </button>
-                    </div>
-                    <button
-                      type="button"
-                      className="notification-text-button shrink-0 self-start"
-                      onClick={() => void changeReadState(notification, !notification.unread)}
-                    >
-                      {notification.unread ? 'Mark read' : 'Mark unread'}
-                    </button>
-                  </article>
-                ))}
+                    </article>
+                  )
+                })}
               </div>
             )}
 
