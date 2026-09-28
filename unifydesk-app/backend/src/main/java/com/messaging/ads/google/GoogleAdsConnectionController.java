@@ -83,6 +83,7 @@ import com.messaging.ads.google.dto.DeleteGoogleMerchantProductRequest;
 import com.messaging.ads.google.dto.GoogleRecommendationActionRequest;
 import com.messaging.ads.google.dto.GoogleRecommendationActionResponse;
 import com.messaging.ads.google.dto.GoogleSearchTermReportResponse;
+import com.messaging.ads.google.dto.GoogleSearchAudienceTargetingRequest;
 import com.messaging.ads.google.dto.GoogleAiMaxCombinationReportResponse;
 import com.messaging.ads.google.dto.GoogleBrandSuggestionResponse;
 import com.messaging.ads.google.dto.GoogleKeywordForecastRequest;
@@ -130,6 +131,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsExperimentService experimentService;
   private final GoogleAdsAdGroupSyncService adGroupSyncService;
   private final GoogleAdsAdGroupMutationService adGroupMutationService;
+  private final GoogleAdsSearchAudienceService searchAudienceService;
   private final GoogleAdsKeywordSyncService keywordSyncService;
   private final GoogleAdsKeywordMutationService keywordMutationService;
   private final GoogleAdsNegativeKeywordService negativeKeywordService;
@@ -747,6 +749,39 @@ public class GoogleAdsConnectionController {
             adGroupMutationService.setStatus(
                 companyId, adGroupId, request.status(), userId),
             "Google Ads ad group status updated"));
+  }
+
+  @GetMapping("/ad-groups/{adGroupId}/search-audience-targeting")
+  public ResponseEntity<ApiResponse<GoogleAdsSearchAudienceService.TargetingSnapshot>>
+      searchAudienceTargeting(
+          @PathVariable Long companyId,
+          @PathVariable Long adGroupId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            searchAudienceService.targeting(companyId, adGroupId),
+            "Google Search audience targeting fetched"));
+  }
+
+  @PutMapping("/ad-groups/{adGroupId}/search-audience-targeting")
+  public ResponseEntity<ApiResponse<GoogleAdsSearchAudienceService.TargetingSnapshot>>
+      updateSearchAudienceTargeting(
+          @PathVariable Long companyId,
+          @PathVariable Long adGroupId,
+          @Valid @RequestBody GoogleSearchAudienceTargetingRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            searchAudienceService.replace(
+                companyId,
+                adGroupId,
+                request.includedAudienceIds(),
+                request.excludedAudienceIds(),
+                request.mode(),
+                userId),
+            "Google Search audience targeting updated"));
   }
 
   @PostMapping("/ad-groups/{adGroupId}/keywords/sync")
