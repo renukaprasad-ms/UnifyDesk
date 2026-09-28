@@ -2131,6 +2131,25 @@ Implemented on `feature/ad-center-unified-shopping`:
 
 Implemented on `feature/ad-center-unified-display`:
 
+- Google Display is selectable and executable from the unified campaign wizard
+- budget + paused Display campaign + paused `DISPLAY_STANDARD` ad group are created in one Google bulk mutation
+- the shared visual Creative Pack supplies landscape marketing image, square marketing image and optional square logo
+- compiler/preflight enforce Display headline, long-headline, description, business-name, destination URL and required visual roles before provider mutation
+- Display preflight reads private company media server-side and validates image type, size, minimum dimensions and aspect ratio before Google asset creation
+- responsive Display image assets + paused responsive display ad are created in one Google bulk mutation to reduce orphaned assets on partial provider failure
+- Manual CPC, Maximize Conversions and Target CPA are supported through business-readable provider settings
+- Manual CPC can use an explicit CPC bid or a conservative derived fallback from the daily budget
+- canonical geo/language are mapped at campaign level
+- demographics, interests, retargeting and customer segments are not silently converted into incorrect campaign criteria; review reports current Display audience mapping as partial
+- selected Google conversion mapping is applied when configured
+- deterministic campaign/ad-group/ad naming plus provider sync/reuse protects launch retries from duplicate core resources
+- successful orchestration still stops at `PAUSED_READY`; no automatic spend activation is introduced
+
+
+## Unified Display execution note — 2026-09-28
+
+Implemented on `feature/ad-center-unified-display`:
+
 - Standard Display is selectable and executable from the unified campaign wizard
 - the shared Google visual Creative Pack is reused for responsive display assets instead of adding a separate upload model
 - compiler/preflight enforce Display headline, description, long-headline, business-name, destination-URL and required landscape/square-image constraints before provider mutation
