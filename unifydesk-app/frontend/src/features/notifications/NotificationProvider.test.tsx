@@ -74,8 +74,12 @@ const deferred = <T,>() => {
   return { promise, resolve }
 }
 
+let exposedNotifications: ReturnType<typeof useNotifications> | null = null
+
 function CountProbe() {
-  const { unreadCount, companyId } = useNotifications()
+  const notifications = useNotifications()
+  exposedNotifications = notifications
+  const { unreadCount, companyId } = notifications
   return (
     <div>
       <span data-testid="scope">{companyId ?? 'account'}</span>
@@ -123,6 +127,7 @@ describe('NotificationProvider recovery and realtime flow', () => {
     realtimeHarness.listeners.clear()
     realtimeHarness.connectionListener = null
     FakeBroadcastChannel.instances = []
+    exposedNotifications = null
     Object.defineProperty(window, 'BroadcastChannel', {
       configurable: true,
       value: FakeBroadcastChannel,
@@ -141,6 +146,43 @@ describe('NotificationProvider recovery and realtime flow', () => {
       items: [companyNotification],
       nextCursor: null,
       hasMore: false,
+    })
+  })
+
+  it('returns the notification route without waiting for read-state persistence', async () => {
+    store.dispatch(selectCompany(COMPANY_ID))
+    const readState = deferred<{
+      notification: typeof companyNotification
+      unreadCount: NotificationUnreadCount
+    }>()
+
+    vi.mocked(notificationApi.setReadState).mockReturnValue(readState.promise)
+
+    renderProvider()
+
+    await waitFor(() => expect(exposedNotifications).not.toBeNull())
+
+    let resolvedPath: string | null | undefined
+    void exposedNotifications?.openNotification(companyNotification).then((path) => {
+      resolvedPath = path
+    })
+
+    await new Promise((resolve) => window.setTimeout(resolve, 0))
+
+    expect(resolvedPath).toBe(companyNotification.action?.path)
+    expect(notificationApi.setReadState).toHaveBeenCalledWith(
+      companyNotification.id,
+      COMPANY_ID,
+      true,
+    )
+
+    readState.resolve({
+      notification: {
+        ...companyNotification,
+        unread: false,
+        readAt: '2026-09-28T10:30:00Z',
+      },
+      unreadCount: { account: 1, company: 0, total: 1 },
     })
   })
 
