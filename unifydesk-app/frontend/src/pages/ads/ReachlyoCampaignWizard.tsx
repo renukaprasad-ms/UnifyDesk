@@ -510,6 +510,12 @@ export default function ReachlyoCampaignWizard() {
   const [googleSearchAudienceMode, setGoogleSearchAudienceMode] = useState<
     'OBSERVATION' | 'TARGETING'
   >('OBSERVATION')
+  const [googleSearchInterestResources, setGoogleSearchInterestResources] =
+    useState<string[]>([])
+  const [
+    googleSearchExcludedInterestResources,
+    setGoogleSearchExcludedInterestResources,
+  ] = useState<string[]>([])
   const [googleContentNetwork, setGoogleContentNetwork] = useState(false)
   const [googleGeoMode, setGoogleGeoMode] = useState<
     'PRESENCE' | 'PRESENCE_OR_INTEREST'
@@ -751,6 +757,20 @@ export default function ReachlyoCampaignWizard() {
       ) {
         setGoogleSearchAudienceMode(override.googleSearchAudienceMode)
       }
+      setGoogleSearchInterestResources(
+        Array.isArray(override.googleSearchInterestResources)
+          ? override.googleSearchInterestResources
+              .map((value) => String(value))
+              .filter((value) => /^customers\/\d+\/userInterests\/\d+$/.test(value))
+          : [],
+      )
+      setGoogleSearchExcludedInterestResources(
+        Array.isArray(override.googleSearchExcludedInterestResources)
+          ? override.googleSearchExcludedInterestResources
+              .map((value) => String(value))
+              .filter((value) => /^customers\/\d+\/userInterests\/\d+$/.test(value))
+          : [],
+      )
       if (typeof override.targetContentNetwork === 'boolean') {
         setGoogleContentNetwork(override.targetContentNetwork)
       }
@@ -1797,6 +1817,8 @@ export default function ReachlyoCampaignWizard() {
             targetContentNetwork: googleContentNetwork,
             positiveGeoTargetType: googleGeoMode,
             googleSearchAudienceMode,
+            googleSearchInterestResources,
+            googleSearchExcludedInterestResources,
             deviceBidModifiers: Object.fromEntries(
               Object.entries(googleDeviceBidModifiers).map(([device, value]) => [
                 device,
@@ -3839,6 +3861,14 @@ export default function ReachlyoCampaignWizard() {
                   setGoogleSearchPartners={setGoogleSearchPartners}
                   googleSearchAudienceMode={googleSearchAudienceMode}
                   setGoogleSearchAudienceMode={setGoogleSearchAudienceMode}
+                  googleSearchInterestResources={googleSearchInterestResources}
+                  setGoogleSearchInterestResources={setGoogleSearchInterestResources}
+                  googleSearchExcludedInterestResources={
+                    googleSearchExcludedInterestResources
+                  }
+                  setGoogleSearchExcludedInterestResources={
+                    setGoogleSearchExcludedInterestResources
+                  }
                   googleContentNetwork={googleContentNetwork}
                   setGoogleContentNetwork={setGoogleContentNetwork}
                   googleGeoMode={googleGeoMode}
