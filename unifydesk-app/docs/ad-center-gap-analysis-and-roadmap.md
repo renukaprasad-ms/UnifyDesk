@@ -796,7 +796,7 @@ This section is the Google backlog.
 
 ## G-01 Search targeting completeness - P0
 
-Status: **in progress**. B1 covers geo/language/network/daypart creation in the unified Reachlyo flow, and the business-experience pass maps canonical Google Search age/gender criteria using exact provider demographic buckets. The Ads completion branch now adds DESKTOP/MOBILE/TABLET device bid modifiers/exclusions plus provider-backed Search-eligible User List inclusion/exclusion with explicit OBSERVATION vs TARGETING semantics and retry-safe launch application. Deeper non-User-List audience criteria and a dedicated provider-native Search targeting read/edit surface remain; campaign-specific conversion-goal mutation is already handled by the unified conversion mapping launch path.
+Status: **in progress**. B1 covers geo/language/network/daypart creation in the unified Reachlyo flow, and the business-experience pass maps canonical Google Search age/gender criteria using exact provider demographic buckets. The Ads completion branch now adds DESKTOP/MOBILE/TABLET device bid modifiers/exclusions, provider-backed Search-eligible User List inclusion/exclusion with explicit OBSERVATION vs TARGETING semantics, retry-safe launch application, and a provider-native ad-group read/edit surface that reads Google criteria back, safely replaces mapped lists, preserves unmapped/provider-only lists, and preserves non-audience target restrictions when changing audience mode. Deeper non-User-List audience criteria remain; campaign-specific conversion-goal mutation is already handled by the unified conversion mapping launch path.
 
 Current Search campaign creation is too minimal.
 
