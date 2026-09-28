@@ -2072,8 +2072,8 @@ Remaining major product slices:
 - provider-backed canonical location autocomplete shared across selected channels
 - Google deeper audiences, observation/targeting modes, exclusions and retargeting mappings
 - Meta behaviors/additional detailed-targeting categories and exclusions as supported by the active API
-- unified paused-first executor for Google Display
-- richer business-level creative generation/preview experience across those additional executors
+- deeper provider-backed audience/exclusion mapping for the unified visual channels
+- richer business-level creative generation/preview experience across channels
 
 ## Unified Performance Max execution note — 2026-09-28
 
@@ -2124,6 +2124,25 @@ Implemented on `feature/ad-center-unified-shopping`:
 - canonical geo/language targeting is applied after the atomic Shopping core is created
 - demographics, interests and search intent are not silently converted into Shopping product filters
 - selected Google conversion mapping is applied to the created Shopping campaign
+- successful orchestration still stops at `PAUSED_READY`; no automatic spend activation is introduced
+
+
+## Unified Display execution note — 2026-09-28
+
+Implemented on `feature/ad-center-unified-display`:
+
+- Standard Display is selectable and executable from the unified campaign wizard
+- the shared Google visual Creative Pack is reused for responsive display assets instead of adding a separate upload model
+- compiler/preflight enforce Display headline, description, long-headline, business-name, destination-URL and required landscape/square-image constraints before provider mutation
+- budget + paused Display campaign + paused Display ad group are created atomically in one Google bulk mutation
+- the responsive display ad is created as a separate paused, retry-safe saga step from the shared Creative Pack
+- optional square logo is reused when available; landscape and square marketing images are required and image bytes/dimensions/aspect ratios are validated
+- Traffic/Awareness default to Manual CPC; when no advanced CPC is supplied, UnifyDesk derives a conservative ad-group CPC from the daily budget and surfaces that behavior during review
+- conversion-oriented goals default to Maximize Conversions, with optional Target CPA available in advanced provider settings
+- canonical geo/language are applied to the Display campaign after creation
+- demographics, interests, retargeting, search intent and customer segments are not guessed into Display ad-group criteria; review marks that mapping partial until provider-backed audience criteria are available
+- selected Google conversion mapping is applied when the business goal requires it
+- deterministic campaign/ad-group/ad names plus provider sync/reuse protect retries from duplicate Display resources
 - successful orchestration still stops at `PAUSED_READY`; no automatic spend activation is introduced
 
 
