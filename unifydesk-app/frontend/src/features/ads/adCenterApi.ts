@@ -116,6 +116,8 @@ import type {
   UpdateGoogleCampaignInput,
   CreateGoogleAdGroupInput,
   UpdateGoogleAdGroupInput,
+  GoogleSearchAudienceTargeting,
+  GoogleSearchAudienceTargetingInput,
   CreateGoogleKeywordInput,
   UpdateGoogleKeywordInput,
   CreateGoogleResponsiveSearchAdInput,
@@ -1294,6 +1296,25 @@ export const adCenterApi = {
     const response = await apiClient.post<ApiResponse<AdSet>>(
       `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/status`,
       { status },
+    )
+    return unwrap(response.data)
+  },
+
+  async googleSearchAudienceTargeting(companyId: string, adGroupId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleSearchAudienceTargeting>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/search-audience-targeting`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleSearchAudienceTargeting(
+    companyId: string,
+    adGroupId: string,
+    input: GoogleSearchAudienceTargetingInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GoogleSearchAudienceTargeting>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/search-audience-targeting`,
+      input,
     )
     return unwrap(response.data)
   },
