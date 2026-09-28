@@ -65,7 +65,7 @@ public record CreateGooglePerformanceMaxCampaignRequest(
         containsEuPoliticalAdvertising,
         startDate,
         endDate,
-        null,
+        false,
         null,
         null,
         null);
