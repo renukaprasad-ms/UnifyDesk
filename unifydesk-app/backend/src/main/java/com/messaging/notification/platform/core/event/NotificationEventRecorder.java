@@ -11,7 +11,6 @@ import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -89,7 +88,14 @@ public class NotificationEventRecorder {
 
   @Transactional(propagation = Propagation.MANDATORY)
   public long recordInboxActivity(
-      long messageId, long companyId, long connectionId, Instant occurredAt) {
+      long messageId,
+      long companyId,
+      long connectionId,
+      String sender,
+      String subject,
+      String snippet,
+      String inboxName,
+      Instant occurredAt) {
     return record(
         "inbox.message.received:" + messageId,
         "inbox.activity",
@@ -101,7 +107,12 @@ public class NotificationEventRecorder {
         "INBOX_MESSAGE",
         Long.toString(messageId),
         "inbox:" + connectionId,
-        Map.of("connectionId", Long.toString(connectionId)),
+        Map.of(
+            "connectionId", Long.toString(connectionId),
+            "sender", sender,
+            "subject", subject,
+            "snippet", snippet,
+            "inboxName", inboxName),
         occurredAt == null ? Instant.now() : occurredAt);
   }
 
