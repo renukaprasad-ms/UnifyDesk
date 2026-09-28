@@ -23,4 +23,51 @@ public record CreateGooglePerformanceMaxCampaignRequest(
     String bidStrategy,
     @NotNull(message = "Choose whether this campaign contains EU political advertising") Boolean containsEuPoliticalAdvertising,
     LocalDate startDate,
-    LocalDate endDate) {}
+    LocalDate endDate,
+    Boolean brandGuidelinesEnabled,
+    String brandMainColor,
+    String brandAccentColor,
+    String brandFontFamily) {
+
+  public CreateGooglePerformanceMaxCampaignRequest(
+      String name,
+      Long dailyBudgetMinor,
+      String finalUrl,
+      String businessName,
+      List<String> headlines,
+      String longHeadline,
+      List<String> descriptions,
+      String marketingImageBase64,
+      String squareMarketingImageBase64,
+      String logoImageBase64,
+      String portraitMarketingImageBase64,
+      String landscapeLogoImageBase64,
+      List<String> youtubeVideoIds,
+      String bidStrategy,
+      Boolean containsEuPoliticalAdvertising,
+      LocalDate startDate,
+      LocalDate endDate) {
+    this(
+        name,
+        dailyBudgetMinor,
+        finalUrl,
+        businessName,
+        headlines,
+        longHeadline,
+        descriptions,
+        marketingImageBase64,
+        squareMarketingImageBase64,
+        logoImageBase64,
+        portraitMarketingImageBase64,
+        landscapeLogoImageBase64,
+        youtubeVideoIds,
+        bidStrategy,
+        containsEuPoliticalAdvertising,
+        startDate,
+        endDate,
+        null,
+        null,
+        null,
+        null);
+  }
+}
