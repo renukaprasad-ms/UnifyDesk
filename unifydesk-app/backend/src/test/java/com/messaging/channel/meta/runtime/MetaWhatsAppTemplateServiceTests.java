@@ -87,6 +87,39 @@ class MetaWhatsAppTemplateServiceTests {
         .isInstanceOf(NotFoundException.class);
   }
 
+
+  @Test
+  void unsupportedTemplateMediaHeaderFailsClosed() {
+    MetaWhatsAppTemplateService service =
+        service(
+            template(
+                "APPROVED",
+                Instant.now(),
+                """
+                [
+                  {
+                    "type":"HEADER",
+                    "format":"IMAGE"
+                  },
+                  {
+                    "type":"BODY",
+                    "text":"Hello {{1}}"
+                  }
+                ]
+                """));
+
+    assertThatThrownBy(
+            () ->
+                service.prepare(
+                    10L,
+                    20L,
+                    "30",
+                    new MetaWhatsAppSendRequest.Parameters(
+                        List.of(), List.of("Customer"), List.of())))
+        .isInstanceOf(com.messaging.common.exception.BadRequestException.class)
+        .hasMessageContaining("WHATSAPP_TEMPLATE_PARAMETERS_INVALID");
+  }
+
   @Test
   void wrongVariableCountIsRejected() {
     MetaWhatsAppTemplateService service =
