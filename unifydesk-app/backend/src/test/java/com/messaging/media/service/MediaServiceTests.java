@@ -269,7 +269,9 @@ class MediaServiceTests {
     when(mediaRepository.saveAndFlush(any(Media.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
     when(storageProvider.getObjectMetadata("private-media", "users/7/whatsapp/778.jpg"))
-        .thenReturn(new StorageObjectMetadata(true, "image/jpeg", 3L, "etag"));
+        .thenReturn(
+            StorageObjectMetadata.missing(),
+            new StorageObjectMetadata(true, "image/jpeg", 3L, "etag"));
 
     byte[] content = new byte[] {1, 2, 3};
     Media result =
@@ -282,6 +284,24 @@ class MediaServiceTests {
     verify(storageProvider)
         .writeObject(
             "private-media", "users/7/whatsapp/778.jpg", content, "image/jpeg");
+  }
+
+  @Test
+  void trustedReservedMediaReusesObjectWrittenBeforeCrash() {
+    when(mediaRepository.findById(779L)).thenReturn(Optional.empty());
+    when(mediaRepository.saveAndFlush(any(Media.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(storageProvider.getObjectMetadata("private-media", "users/7/whatsapp/779.jpg"))
+        .thenReturn(new StorageObjectMetadata(true, "image/jpeg", 3L, "etag"));
+
+    Media result =
+        service.ingestTrustedCompanyMediaWithId(
+            779L, 10L, 7L, "photo.jpg", "image/jpeg", new byte[] {1, 2, 3});
+
+    assertThat(result.getId()).isEqualTo(779L);
+    assertThat(result.getStatus()).isEqualTo(MediaStatus.ACTIVE);
+    assertThat(result.getObjectKey()).isEqualTo("users/7/whatsapp/779.jpg");
+    verify(storageProvider, never()).writeObject(any(), any(), any(), any());
   }
 
   private Media pendingMedia(long mediaId, long ownerUserId) {
