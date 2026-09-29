@@ -176,13 +176,6 @@ public class InboxQueryService {
             : missing(requestedMessageIds, foundMessageIds));
   }
 
-  public ProviderType providerForConversation(Long companyId, Long conversationId) {
-    return conversationRepository
-        .findByIdAndCompanyId(conversationId, companyId)
-        .map(InboxConversation::getProviderType)
-        .orElseThrow(() -> new NotFoundException("Inbox conversation not found"));
-  }
-
   private String folderKey(Long companyId, Long connectionId, EmailFolder folder) {
     var connection =
         connectionRepository
