@@ -59,7 +59,7 @@ class MetaWhatsAppWebhookControllerTests {
   @Test
   void acceptsPayloadWithValidMetaSignature() throws Exception {
     byte[] body = "{\"object\":\"whatsapp_business_account\"}".getBytes(StandardCharsets.UTF_8);
-    var response = controller.receive(body, "sha256=" + signature(body), (long) body.length);
+    var response = controller.receiveExactBytes(body, "sha256=" + signature(body), (long) body.length);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isEqualTo("EVENT_RECEIVED");
@@ -70,7 +70,7 @@ class MetaWhatsAppWebhookControllerTests {
   void rejectsPayloadWithInvalidMetaSignatureWithoutStoring() {
     byte[] body = "{\"object\":\"whatsapp_business_account\"}".getBytes(StandardCharsets.UTF_8);
     var response =
-        controller.receive(
+        controller.receiveExactBytes(
             body,
             "sha256=0000000000000000000000000000000000000000000000000000000000000000",
             (long) body.length);
@@ -82,7 +82,7 @@ class MetaWhatsAppWebhookControllerTests {
   @Test
   void rejectsUnsignedPayloadWithoutStoring() {
     byte[] body = "{}".getBytes(StandardCharsets.UTF_8);
-    var response = controller.receive(body, null, (long) body.length);
+    var response = controller.receiveExactBytes(body, null, (long) body.length);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     verify(eventStore, never()).persist(anyList());
@@ -91,7 +91,7 @@ class MetaWhatsAppWebhookControllerTests {
   @Test
   void rejectsSignedMalformedPayloadWithoutStoring() throws Exception {
     byte[] body = "{bad-json".getBytes(StandardCharsets.UTF_8);
-    var response = controller.receive(body, "sha256=" + signature(body), (long) body.length);
+    var response = controller.receiveExactBytes(body, "sha256=" + signature(body), (long) body.length);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     verify(eventStore, never()).persist(anyList());
@@ -101,7 +101,7 @@ class MetaWhatsAppWebhookControllerTests {
   void rejectsOversizedSignedPayloadBeforeStorage() throws Exception {
     runtimeProperties.setWebhookMaxBody(DataSize.ofBytes(4));
     byte[] body = "{\"a\":1}".getBytes(StandardCharsets.UTF_8);
-    var response = controller.receive(body, "sha256=" + signature(body), (long) body.length);
+    var response = controller.receiveExactBytes(body, "sha256=" + signature(body), (long) body.length);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.PAYLOAD_TOO_LARGE);
     verify(eventStore, never()).persist(anyList());
@@ -110,7 +110,7 @@ class MetaWhatsAppWebhookControllerTests {
   @Test
   void malformedOrUppercasePrefixSignatureIsRejected() throws Exception {
     byte[] body = "{}".getBytes(StandardCharsets.UTF_8);
-    var response = controller.receive(body, "SHA256=" + signature(body), (long) body.length);
+    var response = controller.receiveExactBytes(body, "SHA256=" + signature(body), (long) body.length);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     verify(eventStore, never()).persist(anyList());
