@@ -304,6 +304,28 @@ class MediaServiceTests {
     verify(storageProvider, never()).writeObject(any(), any(), any(), any());
   }
 
+  @Test
+  void trustedReservedMediaRepairsIncompatibleCrashObjectAtSameKey() {
+    when(mediaRepository.findById(780L)).thenReturn(Optional.empty());
+    when(mediaRepository.saveAndFlush(any(Media.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(storageProvider.getObjectMetadata("private-media", "users/7/whatsapp/780.jpg"))
+        .thenReturn(
+            new StorageObjectMetadata(true, "image/jpeg", 2L, "stale-etag"),
+            new StorageObjectMetadata(true, "image/jpeg", 3L, "fresh-etag"));
+
+    byte[] content = new byte[] {1, 2, 3};
+    Media result =
+        service.ingestTrustedCompanyMediaWithId(
+            780L, 10L, 7L, "photo.jpg", "image/jpeg", content);
+
+    assertThat(result.getId()).isEqualTo(780L);
+    assertThat(result.getChecksum()).isEqualTo("fresh-etag");
+    verify(storageProvider)
+        .writeObject(
+            "private-media", "users/7/whatsapp/780.jpg", content, "image/jpeg");
+  }
+
   private Media pendingMedia(long mediaId, long ownerUserId) {
     Media media = new Media();
     media.setId(mediaId);
