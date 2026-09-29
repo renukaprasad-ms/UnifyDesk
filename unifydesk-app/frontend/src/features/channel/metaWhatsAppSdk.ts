@@ -45,10 +45,18 @@ declare global {
 const SDK_SCRIPT_ID = 'facebook-jssdk'
 const SDK_LOAD_TIMEOUT_MS = 15_000
 export const META_WHATSAPP_SIGNUP_TIMEOUT_MS = 5 * 60_000
-const ALLOWED_MESSAGE_ORIGINS = new Set([
-  'https://www.facebook.com',
-  'https://web.facebook.com',
-])
+const isAllowedFacebookOrigin = (origin: string) => {
+  try {
+    const url = new URL(origin)
+    const hostname = url.hostname.toLowerCase()
+    return (
+      url.protocol === 'https:' &&
+      (hostname === 'facebook.com' || hostname.endsWith('.facebook.com'))
+    )
+  } catch {
+    return false
+  }
+}
 
 let sdkPromise: Promise<void> | null = null
 let sdkInitializedKey: string | null = null
@@ -217,7 +225,7 @@ export const launchMetaWhatsAppSignup = (
     }
 
     const onMessage = (event: MessageEvent) => {
-      if (!ALLOWED_MESSAGE_ORIGINS.has(event.origin)) return
+      if (!isAllowedFacebookOrigin(event.origin)) return
 
       const message = parseEmbeddedSignupMessage(event.data)
       if (!message || message.type !== 'WA_EMBEDDED_SIGNUP' || typeof message.event !== 'string') {
