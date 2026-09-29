@@ -2,141 +2,118 @@
 
 Updated: 2026-09-29
 
-## Round 1
+## Round 1 QA
 
 Integrated QA base:
 `cd41f5b4dc3389e2b6213ee176558d70010827d7`
 
-Round-1 QA branch:
+QA branch:
 `review/whatsapp-security-qa-r1`
 
-Round-1 QA final SHA:
+QA final SHA:
 `abc42d95cacd98d904ea338c6fd7aff0f9652777`
 
-QA report:
-`SECURITY_QA_FEEDBACK.md`
-
 Disposition:
-**NOT RELEASE-READY**
+NOT RELEASE-READY
 
-Round-1 QA report/tests were merged into dev by PR #182.
+Round-1 findings:
+- WA-R1-001 — High — B2
+- WA-R1-002 — High — B2 + F1
+- WA-R1-003 — Medium — B2
+- WA-R1-004 — Medium — B2
+- WA-R1-005 — Medium — B2
+- WA-R1-006 — High — B1
+- WA-R1-007 — Medium — B2
+- WA-R1-008 — Medium — F1
 
-## Open Round-1 findings
+## Round 2 workers
 
-High:
-- WA-R1-001 — B2 — unsupported signed webhook envelope accepted
-- WA-R1-002 — B2 + F1 — durable detailed delivery state not recoverable/rendered after reload
-- WA-R1-006 — B1 — required granular-scope target sets incorrectly unioned
-
-Medium:
-- WA-R1-003 — B2 — no distributed per-phone limiter / Retry-After cooldown
-- WA-R1-004 — B2 — inbound media duplicate window across crash
-- WA-R1-005 — B2 — provider-accepted send can remain permanently PENDING
-- WA-R1-007 — B2 — older FAILED can overwrite newer ACCEPTED
-- WA-R1-008 — F1 — URL-button template variables not derived
-
-## Round 2
-
-Exact immutable worker base:
+Frozen worker base:
 `fac085504dce38ac4c8f6f04e2f454773bdb811e`
 
-This base includes:
-- full Round-1 integrated implementation;
-- L1 V78/config integration;
-- Round-1 QA findings;
-- Round-1 QA contract/regression tests.
+B1:
+- branch: `fix/whatsapp-control-plane-r2`
+- final SHA: `d9f8ed69bea832bd742a157405ad5caa687fb48a`
+- finding: WA-R1-006
+- integration PR: #184
 
-Round-2 docs are committed later on dev and therefore are not part of the worker base. Workers must read the current dev copies before branching/coding.
+B2:
+- branch: `fix/whatsapp-runtime-r2`
+- final SHA: `30ef6ab7e2c3bc9438c19ec10e68b54f10f6d32e`
+- findings: WA-R1-001, WA-R1-002 backend, WA-R1-003, WA-R1-004, WA-R1-005, WA-R1-007
+- migration: V79
+- integration PR: #185
 
-### B1
+F1:
+- branch: `fix/whatsapp-ui-r2`
+- final SHA: `79ba79038b050425acb3668c4ac8aef0a5a7ddf1`
+- findings: WA-R1-002 frontend, WA-R1-008
+- integration PR: #186
 
-Branch:
-`fix/whatsapp-control-plane-r2`
+## L1 Round-2 integration
 
-Prompt:
-`BACKEND_B1_R2_CHAT_PROMPT.md`
+Temporary integration branch:
+`integration/whatsapp-r2`
 
-Finding:
-- WA-R1-006
+Final integration PR:
+#187
 
-Status:
-READY TO START
+Exact integrated Round-2 QA base:
+`87e43bbf598a5ea897cabc2a7e96a9acbb6cdf89`
 
-### B2
+L1 additions:
+- wired META_WHATSAPP_OUTBOUND_MAX_PER_SECOND
+- wired META_WHATSAPP_OUTBOUND_RATE_WINDOW
+- wired META_WHATSAPP_PROVIDER_RETRY_AFTER_FALLBACK
+- wired META_WHATSAPP_PENDING_OUTCOME_TIMEOUT
+- no V80 was required
 
-Branch:
-`fix/whatsapp-runtime-r2`
+Integrated migrations:
+- V76 control plane
+- V77 runtime
+- V78 cross-module constraints
+- V79 Round-2 runtime hardening
 
-Prompt:
-`BACKEND_B2_R2_CHAT_PROMPT.md`
+## Source-review status
 
-Findings:
-- WA-R1-001
-- WA-R1-002 backend
-- WA-R1-003
-- WA-R1-004
-- WA-R1-005
-- WA-R1-007
+L1 source review confirmed intended remediation exists for:
+- granular-scope intersection;
+- webhook structural validation;
+- durable Inbox whatsappStatus projection;
+- WhatsApp status realtime consumption;
+- Redis per-phone limiter/cooldown;
+- Retry-After parsing;
+- provider-media reservation + fixed media ID ingest;
+- stale PENDING -> UNKNOWN recovery;
+- provider timestamp monotonicity;
+- Meta URL-button template variable extraction.
 
-Migration:
-`V79__meta_whatsapp_round2_runtime_hardening.sql`
+This is NOT a replacement for executable QA.
 
-Status:
-READY TO START
-
-### F1
-
-Branch:
-`fix/whatsapp-ui-r2`
-
-Prompt:
-`FRONTEND_R2_CHAT_PROMPT.md`
-
-Findings:
-- WA-R1-002 frontend
-- WA-R1-008
-
-Status:
-READY TO START
-
-## Frozen Round-2 seams
-
-See:
-- `ROUND2_CONTRACT.md`
-- `ROUND2_TASKS.md`
-
-Important:
-- Inbox message JSON gets nullable `whatsappStatus`;
-- B2 returns it in HTTP detail/messages/realtime snapshot;
-- F1 consumes it and subscribes to `inbox.whatsapp.status.changed`;
-- B1 granular target authorization uses required-scope intersection;
-- B2 owns V79 media reservation + stale-PENDING recovery;
-- B2 owns distributed Redis per-phone limiter;
-- no Broadcast/Ads scope expansion.
-
-## L1 after workers complete
-
-- [ ] review B1 final SHA/diff
-- [ ] review B2 final SHA/diff
-- [ ] review F1 final SHA/diff
-- [ ] integrate B1
-- [ ] integrate B2
-- [ ] wire B2 runtime config if required
-- [ ] integrate F1
-- [ ] V80 only if an integration-only constraint is required
-- [ ] freeze exact Round-2 QA SHA
-- [ ] activate SECURITY_QA_R2_CHAT_PROMPT.md
-- [ ] run Round-2 QA
+Observed GitHub Actions on the B2 head again failed at runner allocation with `runner_id=0` and no steps, so no automated PASS is claimed by L1.
 
 ## Round-2 QA
 
-Future branch:
+Branch:
 `review/whatsapp-security-qa-r2`
+
+Exact base:
+`87e43bbf598a5ea897cabc2a7e96a9acbb6cdf89`
 
 Prompt:
 `SECURITY_QA_R2_CHAT_PROMPT.md`
 
 Status:
-BLOCKED UNTIL L1 INTEGRATION
+READY TO START
 
-Round-2 QA must execute the previously unavailable backend/frontend/Flyway suites and distinguish real Meta provider verification from mocks.
+QA must retest WA-R1-001 through WA-R1-008, execute backend/frontend/Flyway/Redis/fault-injection checks, and separate real Meta provider verification from mocks.
+
+## Branch cleanup
+
+Once the exact QA base above is confirmed in dev, the following Round-2 implementation branches are no longer needed for active development:
+- `fix/whatsapp-control-plane-r2`
+- `fix/whatsapp-runtime-r2`
+- `fix/whatsapp-ui-r2`
+- `integration/whatsapp-r2`
+
+Keep `review/whatsapp-security-qa-r2` until QA/remediation is complete.
