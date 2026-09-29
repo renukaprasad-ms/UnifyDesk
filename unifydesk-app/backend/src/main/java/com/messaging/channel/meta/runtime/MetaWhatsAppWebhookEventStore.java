@@ -106,7 +106,7 @@ public class MetaWhatsAppWebhookEventStore {
         where id=? and claim_token=?
         """,
         Timestamp.from(Instant.now().plus(delay)),
-        bounded(code, 120),
+        bounded(code, 80),
         event.id(),
         event.claimToken());
   }
@@ -134,7 +134,7 @@ public class MetaWhatsAppWebhookEventStore {
         where id=? and claim_token=?
         """,
         state,
-        bounded(code, 120),
+        bounded(code, 80),
         event.id(),
         event.claimToken());
   }
