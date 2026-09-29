@@ -145,12 +145,10 @@ public class MetaWhatsAppConnectionService {
 
   public MetaWhatsAppConnectionHealthResponse reconcile(Long companyId) {
     MetaWhatsAppConnectionControl control = currentControl(companyId);
-    if (control.getLastValidatedAt() != null
-        && control
-            .getLastValidatedAt()
-            .plus(properties.safeManualReconcileMinInterval())
-            .isAfter(Instant.now())
-        && control.getProductState() == ProductState.ACTIVE) {
+    Instant lastAttempt =
+        control.getLastValidatedAt() != null ? control.getLastValidatedAt() : control.getUpdatedAt();
+    if (lastAttempt != null
+        && lastAttempt.plus(properties.safeManualReconcileMinInterval()).isAfter(Instant.now())) {
       return healthResponse(companyId, control.getConnectionId());
     }
     provision(companyId, control.getConnectionId());
