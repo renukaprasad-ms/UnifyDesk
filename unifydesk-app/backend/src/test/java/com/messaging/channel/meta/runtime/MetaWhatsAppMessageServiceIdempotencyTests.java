@@ -64,6 +64,8 @@ class MetaWhatsAppMessageServiceIdempotencyTests {
             templates,
             new MetaWhatsAppSendFailurePolicy(),
             mock(MetaWhatsAppOutboundReservationStore.class),
+            mock(MetaWhatsAppOutboundRateLimiter.class),
+            mock(MetaWhatsAppPendingOutcomeRecovery.class),
             mock(MetaWhatsAppRealtimePublisher.class),
             mediaService,
             mock(MessageStorageMeter.class),
