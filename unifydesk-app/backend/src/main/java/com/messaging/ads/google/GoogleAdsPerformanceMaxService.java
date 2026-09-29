@@ -6,6 +6,7 @@ import com.messaging.ads.entity.AdCampaign;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.google.dto.CreateGooglePerformanceMaxCampaignRequest;
 import com.messaging.ads.google.dto.GoogleAssetGroupResponse;
+import com.messaging.ads.google.dto.GoogleAssetGroupPerformanceResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupUrlOptionsResponse;
 import com.messaging.ads.google.dto.GoogleAutomatedVideoCrawlSource;
 import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationRequest;
@@ -353,6 +354,63 @@ public class GoogleAdsPerformanceMaxService {
         .stream()
         .map(this::assetGroup)
         .toList();
+  }
+
+  public List<GoogleAssetGroupPerformanceResponse> assetGroupPerformance(
+      Long companyId, Long campaignId, Integer requestedDays) {
+    AdCampaign campaign = requirePerformanceMaxCampaign(companyId, campaignId);
+    var context = contextService.requireManaged(companyId, campaign.getAdAccountId());
+    int days = requestedDays == null ? 30 : Math.max(1, Math.min(requestedDays, 90));
+    LocalDate end = LocalDate.now();
+    LocalDate start = end.minusDays(days - 1L);
+
+    String query =
+        "SELECT asset_group.id, asset_group.resource_name, asset_group.name, "
+            + "asset_group.status, asset_group.primary_status, "
+            + "asset_group.primary_status_reasons, asset_group.ad_strength, "
+            + "asset_group.asset_coverage, metrics.impressions, metrics.clicks, "
+            + "metrics.conversions, metrics.conversions_value, metrics.cost_micros "
+            + "FROM asset_group WHERE campaign.id = "
+            + numeric(campaign.getExternalCampaignId())
+            + " AND segments.date BETWEEN '"
+            + start
+            + "' AND '"
+            + end
+            + "'";
+
+    List<GoogleAssetGroupPerformanceResponse> result = new ArrayList<>();
+    for (JsonNode row :
+        apiClient.searchRows(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            query)) {
+      JsonNode group = row.path("assetGroup");
+      JsonNode metrics = row.path("metrics");
+      List<String> reasons = new ArrayList<>();
+      JsonNode reasonValues = group.path("primaryStatusReasons");
+      if (reasonValues.isArray()) {
+        reasonValues.forEach(value -> reasons.add(value.asText()));
+      }
+      result.add(
+          new GoogleAssetGroupPerformanceResponse(
+              text(group, "id"),
+              text(group, "resourceName"),
+              text(group, "name"),
+              text(group, "status"),
+              text(group, "primaryStatus"),
+              List.copyOf(reasons),
+              text(group, "adStrength"),
+              group.path("assetCoverage").isMissingNode()
+                  ? null
+                  : group.path("assetCoverage"),
+              longOrNull(metrics, "impressions"),
+              longOrNull(metrics, "clicks"),
+              doubleOrNull(metrics, "conversions"),
+              doubleOrNull(metrics, "conversionsValue"),
+              longOrNull(metrics, "costMicros")));
+    }
+    return List.copyOf(result);
   }
 
   public GoogleAssetGroupResponse setAssetGroupStatus(
@@ -1369,6 +1427,17 @@ public class GoogleAdsPerformanceMaxService {
         text(group, "primaryStatus"),
         text(group, "adStrength"),
         List.copyOf(finalUrls));
+  }
+
+  private Double doubleOrNull(JsonNode node, String field) {
+    JsonNode value = node.get(field);
+    if (value == null || value.isNull()) return null;
+    if (value.isNumber()) return value.doubleValue();
+    try {
+      return new BigDecimal(value.asText()).doubleValue();
+    } catch (NumberFormatException ignored) {
+      return null;
+    }
   }
 
   private Long longOrNull(JsonNode node, String field) {
