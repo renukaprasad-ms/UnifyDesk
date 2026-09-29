@@ -1,5 +1,6 @@
 package com.messaging.channel.meta;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -7,12 +8,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.messaging.channel.entity.ChannelConnection;
+import com.messaging.channel.entity.SenderIdentity;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.meta.MetaGraphClient.GranularScope;
 import com.messaging.channel.meta.MetaGraphClient.PhoneNumber;
 import com.messaging.channel.meta.MetaGraphClient.TokenInspection;
 import com.messaging.channel.meta.MetaGraphClient.TokenResponse;
 import com.messaging.channel.meta.MetaGraphClient.WabaDetails;
+import com.messaging.channel.meta.MetaWhatsAppPersistenceService.PendingProvisioning;
 import com.messaging.channel.meta.MetaWhatsAppPersistenceService.StoredMetaToken;
 import com.messaging.channel.meta.MetaWhatsAppSignupStateService.ConsumedSignupState;
 import com.messaging.channel.meta.MetaWhatsAppSignupStateService.SignupMode;
@@ -198,6 +201,143 @@ class MetaWhatsAppConnectionServiceTests {
   }
 
   @Test
+  void multipleGrantedAccountsRequireExplicitSelection() {
+    CompleteMetaWhatsAppSignupRequest request = request(null, "phone-1");
+    when(stateService.consume("state", COMPANY_ID, USER_ID))
+        .thenReturn(new ConsumedSignupState(SignupMode.CONNECT, null, null));
+    when(graphClient.exchangeCode("code"))
+        .thenReturn(new TokenResponse("access-token", "bearer", 3600L));
+    when(graphClient.inspectToken("access-token"))
+        .thenReturn(
+            new TokenInspection(
+                true,
+                Set.of("whatsapp_business_management", "whatsapp_business_messaging"),
+                List.of(
+                    new GranularScope(
+                        "whatsapp_business_management", List.of("waba-1", "waba-2")),
+                    new GranularScope(
+                        "whatsapp_business_messaging", List.of("waba-1", "waba-2"))),
+                null));
+
+    assertThatThrownBy(() -> service.complete(COMPANY_ID, USER_ID, request))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("multiple WhatsApp accounts");
+  }
+
+  @Test
+  void reauthorizeSessionBindsExistingConnectionAndPhone() {
+    MetaWhatsAppConnectionControl existing = activeControl(COMPANY_ID, 600L, "phone-1");
+    when(controlRepository.findByCompanyIdOrderByUpdatedAtDesc(COMPANY_ID))
+        .thenReturn(List.of(existing));
+    var session =
+        new MetaWhatsAppSignupStateService.SignupSession(
+            "fresh-state", java.time.Instant.now().plusSeconds(600));
+    when(stateService.createReauthorize(COMPANY_ID, USER_ID, 600L, "phone-1"))
+        .thenReturn(session);
+
+    var response = service.reauthorizeSession(COMPANY_ID, USER_ID);
+
+    assertThat(response.state()).isEqualTo("fresh-state");
+    assertThat(response.embeddedSignupVersion()).isEqualTo("4");
+    verify(stateService).createReauthorize(COMPANY_ID, USER_ID, 600L, "phone-1");
+  }
+
+  @Test
+  void reconnectSameAssetConvergesWithoutTransfer() {
+    CompleteMetaWhatsAppSignupRequest request = request("waba-1", "phone-1");
+    MetaWhatsAppConnectionControl existing = activeControl(COMPANY_ID, 500L, "phone-1");
+    ChannelConnection connection = new ChannelConnection();
+    connection.setId(500L);
+    connection.setCompanyId(COMPANY_ID);
+    connection.setProviderType(ProviderType.META_WHATSAPP);
+    SenderIdentity sender = new SenderIdentity();
+    sender.setId(700L);
+    sender.setConnection(connection);
+    sender.setExternalId("phone-1");
+    sender.setValue("+919000000000");
+
+    when(stateService.consume("state", COMPANY_ID, USER_ID))
+        .thenReturn(new ConsumedSignupState(SignupMode.REAUTHORIZE, 500L, "phone-1"));
+    when(graphClient.exchangeCode("code"))
+        .thenReturn(new TokenResponse("new-token", "bearer", 3600L));
+    when(graphClient.inspectToken("new-token")).thenReturn(validInspection("waba-1"));
+    when(graphClient.getWaba("waba-1", "new-token"))
+        .thenReturn(new WabaDetails("waba-1", "Acme", "INR", "5"));
+    when(graphClient.getPhoneNumbers("waba-1", "new-token"))
+        .thenReturn(List.of(new PhoneNumber("phone-1", "+919000000000", "Acme", "GREEN")));
+    when(controlRepository.findFirstBySelectedPhoneNumberIdAndProductStateNot(
+            "phone-1", ProductState.DISCONNECTED))
+        .thenReturn(Optional.of(existing));
+    when(connectionRepository.findByIdAndCompanyId(500L, COMPANY_ID))
+        .thenReturn(Optional.of(connection));
+    when(senderIdentityRepository.findByConnectionIdAndIdentityTypeAndExternalId(
+            500L, com.messaging.channel.enums.SenderIdentityType.PHONE_NUMBER, "phone-1"))
+        .thenReturn(Optional.of(sender));
+    when(persistenceService.requireControl(COMPANY_ID, 500L)).thenReturn(existing);
+    when(persistenceService.persistPending(
+            org.mockito.ArgumentMatchers.eq(COMPANY_ID),
+            org.mockito.ArgumentMatchers.eq(USER_ID),
+            org.mockito.ArgumentMatchers.eq(500L),
+            org.mockito.ArgumentMatchers.eq("waba-1"),
+            org.mockito.ArgumentMatchers.isNull(),
+            org.mockito.ArgumentMatchers.isNull(),
+            org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.any()))
+        .thenReturn(
+            new PendingProvisioning(
+                500L, 700L, "123456", "waba-1", "phone-1", "+919000000000", "Acme", "GREEN"));
+    when(persistenceService.readToken(500L))
+        .thenReturn(new StoredMetaToken("new-token", "waba-1", "phone-1", "v26.0", null, null));
+    when(graphClient.isAppSubscribed("waba-1", "new-token")).thenReturn(true);
+
+    var response = service.complete(COMPANY_ID, USER_ID, request);
+
+    assertThat(response.connectionId()).isEqualTo("500");
+    assertThat(response.wabaId()).isEqualTo("waba-1");
+    assertThat(response.phone().phoneNumberId()).isEqualTo("phone-1");
+    verify(persistenceService).markHealthy(500L);
+  }
+
+  @Test
+  void registrationRetryReusesStableStoredPin() {
+    MetaWhatsAppConnectionControl pending =
+        control(COMPANY_ID, 600L, "phone-1", RegistrationState.PENDING, SubscriptionState.PENDING);
+    MetaWhatsAppConnectionControl registered =
+        control(
+            COMPANY_ID,
+            600L,
+            "phone-1",
+            RegistrationState.REGISTERED,
+            SubscriptionState.PENDING);
+    when(persistenceService.requireControl(COMPANY_ID, 600L))
+        .thenReturn(pending, pending, registered);
+    when(persistenceService.readToken(600L))
+        .thenReturn(new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null));
+    when(persistenceService.readPin(600L)).thenReturn("123456");
+    org.mockito.Mockito.doThrow(
+            new MetaGraphException(
+                "register_phone", 503, null, null, null, null, SafeCategory.TRANSIENT, true))
+        .doNothing()
+        .when(graphClient)
+        .registerPhoneNumber("phone-1", "token", "123456");
+    when(graphClient.inspectToken("token")).thenReturn(validInspection("waba-1"));
+    when(graphClient.getWaba("waba-1", "token"))
+        .thenReturn(new WabaDetails("waba-1", "Acme", "INR", "5"));
+    when(graphClient.getPhoneNumbers("waba-1", "token"))
+        .thenReturn(List.of(new PhoneNumber("phone-1", "+919000000000", "Acme", "GREEN")));
+    when(graphClient.isAppSubscribed("waba-1", "token")).thenReturn(true);
+
+    service.reconcileDue(COMPANY_ID, 600L);
+    service.reconcileDue(COMPANY_ID, 600L);
+
+    verify(graphClient, times(2)).registerPhoneNumber("phone-1", "token", "123456");
+    verify(persistenceService).markRegistrationSucceeded(600L);
+  }
+
+  @Test
   void subscriptionRetryDoesNotRepeatSuccessfulRegistration() {
     MetaWhatsAppConnectionControl pending =
         control(COMPANY_ID, 600L, "phone-1", RegistrationState.PENDING, SubscriptionState.PENDING);
@@ -208,15 +348,8 @@ class MetaWhatsAppConnectionServiceTests {
             "phone-1",
             RegistrationState.REGISTERED,
             SubscriptionState.PENDING);
-    MetaWhatsAppConnectionControl subscribed =
-        control(
-            COMPANY_ID,
-            600L,
-            "phone-1",
-            RegistrationState.REGISTERED,
-            SubscriptionState.SUBSCRIBED);
     when(persistenceService.requireControl(COMPANY_ID, 600L))
-        .thenReturn(pending, registered, registered, subscribed);
+        .thenReturn(pending, registered, registered, registered);
     when(persistenceService.readToken(600L))
         .thenReturn(new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null));
     when(persistenceService.readPin(600L)).thenReturn("123456");
