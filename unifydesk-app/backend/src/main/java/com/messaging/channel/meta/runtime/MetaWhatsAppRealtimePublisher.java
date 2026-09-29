@@ -35,6 +35,26 @@ public class MetaWhatsAppRealtimePublisher {
     }
   }
 
+  public void readStateChanged(
+      long companyId,
+      long connectionId,
+      Collection<Long> conversationIds,
+      Collection<Long> messageIds) {
+    try {
+      realtimeService.sendToCompany(
+          companyId,
+          "inbox.email.changed",
+          InboxEmailChangedEvent.boundedDelta(
+              connectionId,
+              ProviderType.META_WHATSAPP,
+              conversationIds == null ? List.of() : List.copyOf(conversationIds),
+              messageIds == null ? List.of() : List.copyOf(messageIds),
+              java.util.Set.of()));
+    } catch (RuntimeException ignored) {
+      // Realtime is advisory; read-state persistence remains authoritative.
+    }
+  }
+
   public void statusChanged(
       long companyId, long connectionId, long conversationId, long messageId) {
     try {
