@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { channelApi } from '../../features/channel/channelApi'
@@ -35,7 +36,7 @@ vi.mock('../../features/iam/useIam', () => ({
 vi.mock('../../components/feedback/SnackbarProvider', () => ({
   useSnackbar: () => snackbar,
   showGlobalSnackbar: vi.fn(),
-  SnackbarProvider: ({ children }: { children: unknown }) => children,
+  SnackbarProvider: ({ children }: { children: ReactNode }) => children,
 }))
 
 vi.mock('../../features/channel/channelApi', () => ({
@@ -103,7 +104,7 @@ describe('CompanyConnections WhatsApp onboarding', () => {
     vi.mocked(channelApi.senders).mockResolvedValue([])
     vi.mocked(metaWhatsAppApi.connection).mockRejectedValue(new Error('not connected'))
     vi.mocked(metaWhatsAppApi.signupSession).mockResolvedValue(signupSession)
-    vi.mocked(loadMetaSdk).mockResolvedValue()
+    vi.mocked(loadMetaSdk).mockResolvedValue(undefined)
     vi.mocked(launchMetaWhatsAppSignup).mockResolvedValue({
       code: 'code-1',
       wabaId: 'waba-1',
