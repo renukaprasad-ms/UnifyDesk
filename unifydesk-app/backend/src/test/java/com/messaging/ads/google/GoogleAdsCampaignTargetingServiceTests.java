@@ -328,4 +328,206 @@ class GoogleAdsCampaignTargetingServiceTests {
         .isInstanceOf(BadRequestException.class)
         .hasMessageContaining("00, 15, 30, or 45");
   }
+
+  @Test
+  void acceptsSearchDeviceBidModifiersDuringPreflight() throws Exception {
+    AdAccount account = new AdAccount();
+    account.setId(2L);
+    account.setExternalAccountId("1234567890");
+
+    when(contextService.requireManaged(1L, 2L))
+        .thenReturn(
+            new GoogleAdsAccountContextService.Context(
+                account, null, "access-token", null, false, false));
+
+    var result =
+        service.resolve(
+            1L,
+            2L,
+            null,
+            objectMapper.readTree(
+                """
+                {
+                  "deviceBidModifiers": {
+                    "DESKTOP": 1.0,
+                    "MOBILE": 1.25,
+                    "TABLET": 0
+                  }
+                }
+                """));
+
+    assertThat(result.deviceCount()).isEqualTo(3);
+  }
+
+  @Test
+  void rejectsUnsupportedSearchDeviceType() throws Exception {
+    AdAccount account = new AdAccount();
+    account.setId(2L);
+    account.setExternalAccountId("1234567890");
+
+    when(contextService.requireManaged(1L, 2L))
+        .thenReturn(
+            new GoogleAdsAccountContextService.Context(
+                account, null, "access-token", null, false, false));
+
+    assertThatThrownBy(
+            () ->
+                service.resolve(
+                    1L,
+                    2L,
+                    null,
+                    objectMapper.readTree(
+                        """
+                        {"deviceBidModifiers":{"CONNECTED_TV":1.2}}
+                        """)))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("DESKTOP, MOBILE, and TABLET");
+  }
+
+  @Test
+  void rejectsOutOfRangeSearchDeviceBidModifier() throws Exception {
+    AdAccount account = new AdAccount();
+    account.setId(2L);
+    account.setExternalAccountId("1234567890");
+
+    when(contextService.requireManaged(1L, 2L))
+        .thenReturn(
+            new GoogleAdsAccountContextService.Context(
+                account, null, "access-token", null, false, false));
+
+    assertThatThrownBy(
+            () ->
+                service.resolve(
+                    1L,
+                    2L,
+                    null,
+                    objectMapper.readTree(
+                        """
+                        {"deviceBidModifiers":{"MOBILE":0.05}}
+                        """)))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("0 (exclude) or between 0.1 and 10.0");
+  }
+
+
+  @Test
+  void acceptsSearchParentalIncomeAndDetailedDemographicsDuringPreflight() throws Exception {
+    AdAccount account = new AdAccount();
+    account.setId(2L);
+    account.setExternalAccountId("1234567890");
+
+    when(contextService.requireManaged(1L, 2L))
+        .thenReturn(
+            new GoogleAdsAccountContextService.Context(
+                account, null, "access-token", null, false, false));
+
+    when(apiClient.searchRows(
+            eq("access-token"), eq("1234567890"), eq(null), anyString()))
+        .thenReturn(
+            List.of(
+                objectMapper.readTree(
+                    """
+                    {
+                      "detailedDemographic": {
+                        "id": "7001",
+                        "resourceName": "customers/1234567890/detailedDemographics/7001",
+                        "name": "Homeowners",
+                        "launchedToAll": true
+                      }
+                    }
+                    """)));
+
+    var result =
+        service.resolve(
+            1L,
+            2L,
+            null,
+            objectMapper.readTree(
+                """
+                {
+                  "googleParentalStatusIncludes": ["PARENT"],
+                  "googleParentalStatusExcludes": ["UNDETERMINED"],
+                  "googleIncomeRangeIncludes": ["INCOME_RANGE_90_UP"],
+                  "googleIncomeRangeExcludes": ["INCOME_RANGE_UNDETERMINED"],
+                  "googleDetailedDemographicIds": ["7001"]
+                }
+                """));
+
+    assertThat(result.locationCount()).isZero();
+    assertThat(result.languageCount()).isZero();
+  }
+
+  @Test
+  void rejectsInvalidSearchIncomeRangeDuringPreflight() throws Exception {
+    AdAccount account = new AdAccount();
+    account.setId(2L);
+    account.setExternalAccountId("1234567890");
+
+    when(contextService.requireManaged(1L, 2L))
+        .thenReturn(
+            new GoogleAdsAccountContextService.Context(
+                account, null, "access-token", null, false, false));
+
+    assertThatThrownBy(
+            () ->
+                service.resolve(
+                    1L,
+                    2L,
+                    null,
+                    objectMapper.readTree(
+                        """
+                        {"googleIncomeRangeIncludes":["TOP_5_PERCENT"]}
+                        """)))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("googleIncomeRangeIncludes");
+  }
+
+  @Test
+  void rejectsDetailedDemographicUnavailableForSearch() throws Exception {
+    AdAccount account = new AdAccount();
+    account.setId(2L);
+    account.setExternalAccountId("1234567890");
+
+    when(contextService.requireManaged(1L, 2L))
+        .thenReturn(
+            new GoogleAdsAccountContextService.Context(
+                account, null, "access-token", null, false, false));
+
+    when(apiClient.searchRows(
+            eq("access-token"), eq("1234567890"), eq(null), anyString()))
+        .thenReturn(
+            List.of(
+                objectMapper.readTree(
+                    """
+                    {
+                      "detailedDemographic": {
+                        "id": "7001",
+                        "name": "Display only",
+                        "launchedToAll": false,
+                        "availabilities": [
+                          {
+                            "channel": {
+                              "availabilityMode": "CHANNEL_TYPE",
+                              "advertisingChannelType": "DISPLAY"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                    """)));
+
+    assertThatThrownBy(
+            () ->
+                service.resolve(
+                    1L,
+                    2L,
+                    null,
+                    objectMapper.readTree(
+                        """
+                        {"googleDetailedDemographicIds":["7001"]}
+                        """)))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("unavailable for Search");
+  }
+
 }

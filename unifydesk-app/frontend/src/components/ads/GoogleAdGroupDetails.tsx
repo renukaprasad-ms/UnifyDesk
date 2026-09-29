@@ -8,6 +8,8 @@ import GoogleDemandGenCreativeModal from './GoogleDemandGenCreativeModal'
 import GoogleDemandGenTargetingPanel from './GoogleDemandGenTargetingPanel'
 import GoogleAppAdModal from './GoogleAppAdModal'
 import GoogleReusableAssetsPanel from './GoogleReusableAssetsPanel'
+import GoogleSearchAudienceTargetingPanel from './GoogleSearchAudienceTargetingPanel'
+import GoogleSearchInterestTargetingPanel from './GoogleSearchInterestTargetingPanel'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   Ad,
@@ -474,6 +476,24 @@ export default function GoogleAdGroupDetails({
             accountId={account.id}
             adGroupId={adGroup.id}
             canCreate={can(PERMISSIONS.ADS_CREATE)}
+            canModify={can(PERMISSIONS.ADS_MODIFY)}
+          />
+        )}
+
+        {account && (
+          <GoogleSearchAudienceTargetingPanel
+            companyId={companyId}
+            accountId={account.id}
+            adGroupId={adGroup.id}
+            canModify={can(PERMISSIONS.ADS_MODIFY)}
+          />
+        )}
+
+        {account && (
+          <GoogleSearchInterestTargetingPanel
+            companyId={companyId}
+            accountId={account.id}
+            adGroupId={adGroup.id}
             canModify={can(PERMISSIONS.ADS_MODIFY)}
           />
         )}

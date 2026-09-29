@@ -237,6 +237,19 @@ const parseArray = <T,>(value?: string | null): T[] => {
     return []
   }
 }
+const googleAudienceSearchEligible = (audience: AdAudience) => {
+  if (!audience.accessible || !audience.deliveryStatusJson) return false
+  try {
+    const status = JSON.parse(audience.deliveryStatusJson) as Record<string, unknown>
+    return (
+      status.eligibleForSearch === true &&
+      String(status.accountStatus ?? '').toUpperCase() !== 'DISABLED'
+    )
+  } catch {
+    return false
+  }
+}
+
 const googleAudienceDisplayEligible = (audience: AdAudience) => {
   if (!audience.accessible || !audience.deliveryStatusJson) return false
   try {
@@ -321,6 +334,11 @@ const GOOGLE_VISUAL_AUDIENCE_CHANNELS: CampaignChannelType[] = [
   'GOOGLE_DISPLAY',
   'GOOGLE_DEMAND_GEN',
   'GOOGLE_PERFORMANCE_MAX',
+]
+
+const GOOGLE_PROVIDER_AUDIENCE_CHANNELS: CampaignChannelType[] = [
+  'GOOGLE_SEARCH',
+  ...GOOGLE_VISUAL_AUDIENCE_CHANNELS,
 ]
 
 const currencyDigits = (currency: string) => {
@@ -469,6 +487,10 @@ export default function ReachlyoCampaignWizard() {
     'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
   >('MAXIMIZE_CONVERSIONS')
   const [pmaxYoutubeVideoIds, setPmaxYoutubeVideoIds] = useState('')
+  const [pmaxBrandGuidelinesEnabled, setPmaxBrandGuidelinesEnabled] = useState(true)
+  const [pmaxBrandMainColor, setPmaxBrandMainColor] = useState('')
+  const [pmaxBrandAccentColor, setPmaxBrandAccentColor] = useState('')
+  const [pmaxBrandFontFamily, setPmaxBrandFontFamily] = useState('')
   const [demandGenBidStrategy, setDemandGenBidStrategy] = useState<
     'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
   >('MAXIMIZE_CONVERSIONS')
@@ -489,10 +511,40 @@ export default function ReachlyoCampaignWizard() {
   const [keywordMatchType, setKeywordMatchType] = useState('BROAD')
   const [googleConversionId, setGoogleConversionId] = useState('')
   const [googleSearchPartners, setGoogleSearchPartners] = useState(true)
+  const [googleSearchAudienceMode, setGoogleSearchAudienceMode] = useState<
+    'OBSERVATION' | 'TARGETING'
+  >('OBSERVATION')
+  const [googleSearchInterestResources, setGoogleSearchInterestResources] =
+    useState<string[]>([])
+  const [
+    googleSearchExcludedInterestResources,
+    setGoogleSearchExcludedInterestResources,
+  ] = useState<string[]>([])
+  const [googleParentalStatusIncludes, setGoogleParentalStatusIncludes] =
+    useState<string[]>([])
+  const [googleParentalStatusExcludes, setGoogleParentalStatusExcludes] =
+    useState<string[]>([])
+  const [googleIncomeRangeIncludes, setGoogleIncomeRangeIncludes] =
+    useState<string[]>([])
+  const [googleIncomeRangeExcludes, setGoogleIncomeRangeExcludes] =
+    useState<string[]>([])
+  const [googleDetailedDemographicIds, setGoogleDetailedDemographicIds] =
+    useState<string[]>([])
+  const [
+    googleExcludedDetailedDemographicIds,
+    setGoogleExcludedDetailedDemographicIds,
+  ] = useState<string[]>([])
   const [googleContentNetwork, setGoogleContentNetwork] = useState(false)
   const [googleGeoMode, setGoogleGeoMode] = useState<
     'PRESENCE' | 'PRESENCE_OR_INTEREST'
   >('PRESENCE_OR_INTEREST')
+  const [googleDeviceBidModifiers, setGoogleDeviceBidModifiers] = useState<
+    Record<'DESKTOP' | 'MOBILE' | 'TABLET', string>
+  >({
+    DESKTOP: '1',
+    MOBILE: '1',
+    TABLET: '1',
+  })
   const [googleAiMaxEnabled, setGoogleAiMaxEnabled] = useState(false)
   const [googleAiMaxTextCustomization, setGoogleAiMaxTextCustomization] =
     useState(false)
@@ -673,11 +725,7 @@ export default function ReachlyoCampaignWizard() {
     const nextGoogleExcludedAudienceIds: Partial<Record<CampaignChannelType, string[]>> = {}
     enabled.forEach((channel) => {
       if (
-        ![
-          'GOOGLE_DISPLAY',
-          'GOOGLE_DEMAND_GEN',
-          'GOOGLE_PERFORMANCE_MAX',
-        ].includes(channel.channelType)
+        !GOOGLE_PROVIDER_AUDIENCE_CHANNELS.includes(channel.channelType)
       ) {
         return
       }
@@ -721,6 +769,60 @@ export default function ReachlyoCampaignWizard() {
       if (typeof override.targetSearchNetwork === 'boolean') {
         setGoogleSearchPartners(override.targetSearchNetwork)
       }
+      if (
+        override.googleSearchAudienceMode === 'OBSERVATION' ||
+        override.googleSearchAudienceMode === 'TARGETING'
+      ) {
+        setGoogleSearchAudienceMode(override.googleSearchAudienceMode)
+      }
+      setGoogleSearchInterestResources(
+        Array.isArray(override.googleSearchInterestResources)
+          ? override.googleSearchInterestResources
+              .map((value) => String(value))
+              .filter((value) => /^customers\/\d+\/userInterests\/\d+$/.test(value))
+          : [],
+      )
+      setGoogleSearchExcludedInterestResources(
+        Array.isArray(override.googleSearchExcludedInterestResources)
+          ? override.googleSearchExcludedInterestResources
+              .map((value) => String(value))
+              .filter((value) => /^customers\/\d+\/userInterests\/\d+$/.test(value))
+          : [],
+      )
+      setGoogleParentalStatusIncludes(
+        Array.isArray(override.googleParentalStatusIncludes)
+          ? override.googleParentalStatusIncludes.map(String)
+          : [],
+      )
+      setGoogleParentalStatusExcludes(
+        Array.isArray(override.googleParentalStatusExcludes)
+          ? override.googleParentalStatusExcludes.map(String)
+          : [],
+      )
+      setGoogleIncomeRangeIncludes(
+        Array.isArray(override.googleIncomeRangeIncludes)
+          ? override.googleIncomeRangeIncludes.map(String)
+          : [],
+      )
+      setGoogleIncomeRangeExcludes(
+        Array.isArray(override.googleIncomeRangeExcludes)
+          ? override.googleIncomeRangeExcludes.map(String)
+          : [],
+      )
+      setGoogleDetailedDemographicIds(
+        Array.isArray(override.googleDetailedDemographicIds)
+          ? override.googleDetailedDemographicIds
+              .map((value) => String(value))
+              .filter((value) => /^\d+$/.test(value))
+          : [],
+      )
+      setGoogleExcludedDetailedDemographicIds(
+        Array.isArray(override.googleExcludedDetailedDemographicIds)
+          ? override.googleExcludedDetailedDemographicIds
+              .map((value) => String(value))
+              .filter((value) => /^\d+$/.test(value))
+          : [],
+      )
       if (typeof override.targetContentNetwork === 'boolean') {
         setGoogleContentNetwork(override.targetContentNetwork)
       }
@@ -729,6 +831,21 @@ export default function ReachlyoCampaignWizard() {
         override.positiveGeoTargetType === 'PRESENCE_OR_INTEREST'
       ) {
         setGoogleGeoMode(override.positiveGeoTargetType)
+      }
+      if (
+        override.deviceBidModifiers &&
+        typeof override.deviceBidModifiers === 'object' &&
+        !Array.isArray(override.deviceBidModifiers)
+      ) {
+        const devices = override.deviceBidModifiers as Record<string, unknown>
+        setGoogleDeviceBidModifiers({
+          DESKTOP:
+            typeof devices.DESKTOP === 'number' ? String(devices.DESKTOP) : '1',
+          MOBILE:
+            typeof devices.MOBILE === 'number' ? String(devices.MOBILE) : '1',
+          TABLET:
+            typeof devices.TABLET === 'number' ? String(devices.TABLET) : '1',
+        })
       }
       setGoogleAiMaxEnabled(override.aiMaxEnabled === true)
       setGoogleAiMaxTextCustomization(
@@ -870,6 +987,26 @@ export default function ReachlyoCampaignWizard() {
           ? override.pmaxYoutubeVideoIds
               .filter((value): value is string => typeof value === 'string')
               .join('\n')
+          : '',
+      )
+      setPmaxBrandGuidelinesEnabled(
+        typeof override.pmaxBrandGuidelinesEnabled === 'boolean'
+          ? override.pmaxBrandGuidelinesEnabled
+          : true,
+      )
+      setPmaxBrandMainColor(
+        typeof override.pmaxBrandMainColor === 'string'
+          ? override.pmaxBrandMainColor
+          : '',
+      )
+      setPmaxBrandAccentColor(
+        typeof override.pmaxBrandAccentColor === 'string'
+          ? override.pmaxBrandAccentColor
+          : '',
+      )
+      setPmaxBrandFontFamily(
+        typeof override.pmaxBrandFontFamily === 'string'
+          ? override.pmaxBrandFontFamily
           : '',
       )
     }
@@ -1638,9 +1775,7 @@ export default function ReachlyoCampaignWizard() {
         }
 
         if (
-          channel.channelType === 'GOOGLE_DISPLAY' ||
-          channel.channelType === 'GOOGLE_DEMAND_GEN' ||
-          channel.channelType === 'GOOGLE_PERFORMANCE_MAX'
+          GOOGLE_PROVIDER_AUDIENCE_CHANNELS.includes(channel.channelType)
         ) {
           override = {
             ...override,
@@ -1710,6 +1845,19 @@ export default function ReachlyoCampaignWizard() {
             containsEuPoliticalAdvertising: googlePolitical === 'true',
             bidStrategy: pmaxBidStrategy,
             pmaxYoutubeVideoIds: listValues(pmaxYoutubeVideoIds),
+            pmaxBrandGuidelinesEnabled,
+            pmaxBrandMainColor:
+              pmaxBrandGuidelinesEnabled && pmaxBrandMainColor.trim()
+                ? pmaxBrandMainColor.trim()
+                : undefined,
+            pmaxBrandAccentColor:
+              pmaxBrandGuidelinesEnabled && pmaxBrandAccentColor.trim()
+                ? pmaxBrandAccentColor.trim()
+                : undefined,
+            pmaxBrandFontFamily:
+              pmaxBrandGuidelinesEnabled && pmaxBrandFontFamily
+                ? pmaxBrandFontFamily
+                : undefined,
           }
         }
 
@@ -1753,6 +1901,21 @@ export default function ReachlyoCampaignWizard() {
             targetSearchNetwork: googleSearchPartners,
             targetContentNetwork: googleContentNetwork,
             positiveGeoTargetType: googleGeoMode,
+            googleSearchAudienceMode,
+            googleSearchInterestResources,
+            googleSearchExcludedInterestResources,
+            googleParentalStatusIncludes,
+            googleParentalStatusExcludes,
+            googleIncomeRangeIncludes,
+            googleIncomeRangeExcludes,
+            googleDetailedDemographicIds,
+            googleExcludedDetailedDemographicIds,
+            deviceBidModifiers: Object.fromEntries(
+              Object.entries(googleDeviceBidModifiers).map(([device, value]) => [
+                device,
+                Number(value),
+              ]),
+            ),
             aiMaxEnabled: googleAiMaxEnabled,
             aiMaxTextCustomizationEnabled:
               googleAiMaxEnabled && googleAiMaxTextCustomization,
@@ -2207,7 +2370,7 @@ export default function ReachlyoCampaignWizard() {
       ...current,
       [channelType]: accountId,
     }))
-    if (GOOGLE_VISUAL_AUDIENCE_CHANNELS.includes(channelType)) {
+    if (GOOGLE_PROVIDER_AUDIENCE_CHANNELS.includes(channelType)) {
       setGoogleAudienceIdsByChannel((current) => ({
         ...current,
         [channelType]: [],
@@ -3541,12 +3704,14 @@ export default function ReachlyoCampaignWizard() {
                 title="6. Provider-only settings"
                 description="Only settings that cannot be safely inferred belong here."
               >
-                {GOOGLE_VISUAL_AUDIENCE_CHANNELS.filter((channelType) =>
+                {GOOGLE_PROVIDER_AUDIENCE_CHANNELS.filter((channelType) =>
                   selectedChannels.includes(channelType),
                 ).map((channelType) => {
                   const accountId = accountByChannel[channelType]
                   const options = (audiencesByAccount[accountId] ?? []).filter(
-                    googleAudienceDisplayEligible,
+                    channelType === 'GOOGLE_SEARCH'
+                      ? googleAudienceSearchEligible
+                      : googleAudienceDisplayEligible,
                   )
                   const selected = googleAudienceIdsByChannel[channelType] ?? []
                   const excluded =
@@ -3566,9 +3731,11 @@ export default function ReachlyoCampaignWizard() {
                           <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
                             {pmax
                               ? 'Google treats these lists as audience signals. They guide optimization but do not hard-restrict delivery.'
-                              : channelType === 'GOOGLE_DEMAND_GEN'
-                                ? 'Selected lists are composed into a reusable Google Audience for grouped Demand Gen targeting.'
-                                : 'Selected lists become real Display ad-group USER_LIST criteria. Exclusions become negative USER_LIST criteria.'}
+                              : channelType === 'GOOGLE_SEARCH'
+                                ? 'Selected Search-eligible lists become real USER_LIST criteria. Observation measures/bids without narrowing reach; Targeting restricts delivery to included lists. Exclusions always remain hard exclusions.'
+                                : channelType === 'GOOGLE_DEMAND_GEN'
+                                  ? 'Selected lists are composed into a reusable Google Audience for grouped Demand Gen targeting.'
+                                  : 'Selected lists become real Display ad-group USER_LIST criteria. Exclusions become negative USER_LIST criteria.'}
                           </p>
                         </div>
                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
@@ -3582,7 +3749,7 @@ export default function ReachlyoCampaignWizard() {
                         </p>
                       ) : options.length === 0 ? (
                         <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-                          No Display-eligible Google audience lists are available for this account.
+                          No {channelType === 'GOOGLE_SEARCH' ? 'Search' : 'Display'}-eligible Google audience lists are available for this account.
                           Use Refresh provider resources after creating or updating Customer Match /
                           remarketing lists in Google Ads.
                         </p>
@@ -3603,10 +3770,15 @@ export default function ReachlyoCampaignWizard() {
                                     </p>
                                     <p className="mt-1 text-[11px] text-slate-400">
                                       {audience.subtype ? pretty(audience.subtype) : 'Google audience'}
-                                      {audience.approximateCountUpperBound != null
-                                        ? ' · Display size ' +
-                                          audience.approximateCountUpperBound.toLocaleString()
-                                        : ''}
+                                      {channelType === 'GOOGLE_SEARCH'
+                                        ? audience.approximateCountLowerBound != null
+                                          ? ' · Search size ' +
+                                            audience.approximateCountLowerBound.toLocaleString()
+                                          : ''
+                                        : audience.approximateCountUpperBound != null
+                                          ? ' · Display size ' +
+                                            audience.approximateCountUpperBound.toLocaleString()
+                                          : ''}
                                     </p>
                                   </div>
                                   <div className="flex flex-wrap gap-3">
@@ -3755,6 +3927,14 @@ export default function ReachlyoCampaignWizard() {
                   setPmaxBidStrategy={setPmaxBidStrategy}
                   pmaxYoutubeVideoIds={pmaxYoutubeVideoIds}
                   setPmaxYoutubeVideoIds={setPmaxYoutubeVideoIds}
+                  pmaxBrandGuidelinesEnabled={pmaxBrandGuidelinesEnabled}
+                  setPmaxBrandGuidelinesEnabled={setPmaxBrandGuidelinesEnabled}
+                  pmaxBrandMainColor={pmaxBrandMainColor}
+                  setPmaxBrandMainColor={setPmaxBrandMainColor}
+                  pmaxBrandAccentColor={pmaxBrandAccentColor}
+                  setPmaxBrandAccentColor={setPmaxBrandAccentColor}
+                  pmaxBrandFontFamily={pmaxBrandFontFamily}
+                  setPmaxBrandFontFamily={setPmaxBrandFontFamily}
                   demandGenBidStrategy={demandGenBidStrategy}
                   setDemandGenBidStrategy={setDemandGenBidStrategy}
                   demandGenChannelStrategy={demandGenChannelStrategy}
@@ -3778,10 +3958,38 @@ export default function ReachlyoCampaignWizard() {
                   setGoogleConversionId={setGoogleConversionId}
                   googleSearchPartners={googleSearchPartners}
                   setGoogleSearchPartners={setGoogleSearchPartners}
+                  googleSearchAudienceMode={googleSearchAudienceMode}
+                  setGoogleSearchAudienceMode={setGoogleSearchAudienceMode}
+                  googleSearchInterestResources={googleSearchInterestResources}
+                  setGoogleSearchInterestResources={setGoogleSearchInterestResources}
+                  googleSearchExcludedInterestResources={
+                    googleSearchExcludedInterestResources
+                  }
+                  setGoogleSearchExcludedInterestResources={
+                    setGoogleSearchExcludedInterestResources
+                  }
+                  googleParentalStatusIncludes={googleParentalStatusIncludes}
+                  setGoogleParentalStatusIncludes={setGoogleParentalStatusIncludes}
+                  googleParentalStatusExcludes={googleParentalStatusExcludes}
+                  setGoogleParentalStatusExcludes={setGoogleParentalStatusExcludes}
+                  googleIncomeRangeIncludes={googleIncomeRangeIncludes}
+                  setGoogleIncomeRangeIncludes={setGoogleIncomeRangeIncludes}
+                  googleIncomeRangeExcludes={googleIncomeRangeExcludes}
+                  setGoogleIncomeRangeExcludes={setGoogleIncomeRangeExcludes}
+                  googleDetailedDemographicIds={googleDetailedDemographicIds}
+                  setGoogleDetailedDemographicIds={setGoogleDetailedDemographicIds}
+                  googleExcludedDetailedDemographicIds={
+                    googleExcludedDetailedDemographicIds
+                  }
+                  setGoogleExcludedDetailedDemographicIds={
+                    setGoogleExcludedDetailedDemographicIds
+                  }
                   googleContentNetwork={googleContentNetwork}
                   setGoogleContentNetwork={setGoogleContentNetwork}
                   googleGeoMode={googleGeoMode}
                   setGoogleGeoMode={setGoogleGeoMode}
+                  googleDeviceBidModifiers={googleDeviceBidModifiers}
+                  setGoogleDeviceBidModifiers={setGoogleDeviceBidModifiers}
                   googleAiMaxEnabled={googleAiMaxEnabled}
                   setGoogleAiMaxEnabled={setGoogleAiMaxEnabled}
                   googleAiMaxTextCustomization={googleAiMaxTextCustomization}

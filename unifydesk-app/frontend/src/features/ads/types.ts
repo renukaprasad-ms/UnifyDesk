@@ -824,6 +824,10 @@ export type CreateGoogleCampaignInput = {
   containsEuPoliticalAdvertising: boolean
   startDate?: string | null
   endDate?: string | null
+  brandGuidelinesEnabled?: boolean
+  brandMainColor?: string | null
+  brandAccentColor?: string | null
+  brandFontFamily?: string | null
 }
 
 export type UpdateGoogleCampaignInput = Partial<CreateGoogleCampaignInput>
@@ -1448,6 +1452,38 @@ export type GoogleAssetGenerationImageResult = {
 
 export type GoogleAssetLinkLevel = 'CUSTOMER' | 'CAMPAIGN' | 'AD_GROUP'
 
+export type GooglePerformanceMaxBrandAsset = {
+  resourceName?: string | null
+  assetResourceName?: string | null
+  fieldType?: string | null
+  status?: string | null
+  primaryStatus?: string | null
+  primaryStatusReasons: string[]
+  assetId?: string | null
+  assetName?: string | null
+  assetType?: string | null
+  text?: string | null
+  imageUrl?: string | null
+}
+
+export type GooglePerformanceMaxBrandGuidelines = {
+  enabled: boolean
+  mainColor?: string | null
+  accentColor?: string | null
+  fontFamily?: string | null
+  brandAssets: GooglePerformanceMaxBrandAsset[]
+  canEnable: boolean
+  canDisable: boolean
+}
+
+export type UpdateGooglePerformanceMaxBrandGuidelinesInput = {
+  enableBrandGuidelines?: boolean | null
+  autoPopulateBrandAssets?: boolean | null
+  mainColor?: string | null
+  accentColor?: string | null
+  fontFamily?: string | null
+}
+
 export type GooglePerformanceMaxVideoCrawlSource = {
   url: string
   sourcePlatform: 'LANDING_PAGE' | 'SOCIAL' | 'YOUTUBE'
@@ -1666,6 +1702,81 @@ export type AdSet = {
   providerUpdatedAt?: string | null
   accessible: boolean
   lastSyncAt?: string | null
+}
+
+export type GoogleSearchAudienceMode = 'OBSERVATION' | 'TARGETING'
+
+export type GoogleSearchAudienceTargeting = {
+  mode: GoogleSearchAudienceMode
+  includedAudienceIds: string[]
+  excludedAudienceIds: string[]
+  providerOnlyIncludedExternalIds: string[]
+  providerOnlyExcludedExternalIds: string[]
+  preservedTargetingDimensions: string[]
+}
+
+export type GoogleSearchAudienceTargetingInput = {
+  mode: GoogleSearchAudienceMode
+  includedAudienceIds: string[]
+  excludedAudienceIds: string[]
+}
+
+export type GoogleDetailedDemographicOption = {
+  id: string
+  resourceName: string
+  name?: string | null
+  parentResourceName?: string | null
+  launchedToAll: boolean
+  searchAvailable: boolean
+}
+
+export type GoogleDetailedDemographicCatalog = {
+  demographics: GoogleDetailedDemographicOption[]
+}
+
+export type GoogleSearchDemographicTargeting = {
+  parentalStatusIncludes: string[]
+  parentalStatusExcludes: string[]
+  incomeRangeIncludes: string[]
+  incomeRangeExcludes: string[]
+  detailedDemographicIds: string[]
+  excludedDetailedDemographicIds: string[]
+}
+
+export type GoogleSearchDemographicTargetingInput = {
+  parentalStatusIncludes: string[]
+  parentalStatusExcludes: string[]
+  incomeRangeIncludes: string[]
+  incomeRangeExcludes: string[]
+  detailedDemographicIds: string[]
+  excludedDetailedDemographicIds: string[]
+}
+
+export type GoogleSearchInterestOption = {
+  id: string
+  resourceName: string
+  name?: string | null
+  taxonomyType?: 'AFFINITY' | 'IN_MARKET' | string | null
+  parentResourceName?: string | null
+  launchedToAll: boolean
+  searchAvailable: boolean
+}
+
+export type GoogleSearchInterestCatalog = {
+  interests: GoogleSearchInterestOption[]
+  customSegmentsSupported: boolean
+  customSegmentsNote?: string | null
+}
+
+export type GoogleSearchInterestTargeting = {
+  includedResourceNames: string[]
+  excludedResourceNames: string[]
+  preservedUnsupportedResourceNames: string[]
+}
+
+export type GoogleSearchInterestTargetingInput = {
+  includedResourceNames: string[]
+  excludedResourceNames: string[]
 }
 
 export type MetaGeoTargetType = 'COUNTRY' | 'REGION' | 'CITY' | 'ZIP' | 'CUSTOM'

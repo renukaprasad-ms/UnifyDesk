@@ -796,7 +796,7 @@ This section is the Google backlog.
 
 ## G-01 Search targeting completeness - P0
 
-Status: **in progress**. B1 covers geo/language/network/daypart creation in the unified Reachlyo flow, and the business-experience pass now maps canonical Google Search age/gender criteria using exact provider demographic buckets. Devices, deeper audience criteria, observation-vs-targeting controls, exclusions, provider-native read/edit surfaces, and campaign-specific conversion-goal mutation remain.
+Status: **complete for the current verified Google Search API scope**. B1 covers geo/language/network/daypart creation in the unified Reachlyo flow, while the Ads completion branch adds exact age/gender buckets; parental-status and household-income include/exclude criteria; provider-backed Search-compatible detailed/extended demographics; DESKTOP/MOBILE/TABLET bid modifiers/exclusions; provider-backed Search-eligible User List include/exclude; explicit OBSERVATION vs TARGETING semantics; provider-backed Affinity and In-market USER_INTEREST discovery, validation, launch, exclusions, and native read/edit; retry-safe provider mutations; and native campaign/ad-group read/edit surfaces that preserve unmapped/provider-only criteria and unrelated target restrictions. Google Custom segments are deliberately not exposed for Search because Google currently marks Custom segments unavailable for Search campaigns. Campaign-specific conversion-goal mutation is already handled by the unified conversion mapping launch path.
 
 Current Search campaign creation is too minimal.
 
@@ -1087,7 +1087,7 @@ Reference:
 
 ## G-08 Performance Max completeness - P1
 
-Status: **C5 URL/automation slice complete; broader PMax completeness remains in later work**.
+Status: **in progress — C5 URL/automation and the G-08 Brand Guidelines slice are complete; lifecycle/acquisition goals, deeper diagnostics/performance, and listing-group work remain**.
 
 Implemented in C5:
 
@@ -1103,23 +1103,27 @@ Implemented in C5:
 - [x] read/edit Asset Group URL-options UI
 - [x] regression coverage for automation dependency and provider mutation payload
 
-Broader PMax items intentionally remain outside C5:
+Broader PMax work after C5:
 
-Add/review:
+Implemented in the Ads completion branch:
 
-- campaign URL options
-- tracking template
-- custom URL parameters
-- final URL suffix
-- Final URL Expansion controls
-- URL exclusions/inclusions when supported
-- brand guidelines
+- [x] Brand Guidelines are enabled by default in UnifyDesk's new standard Performance Max product flows
+- [x] `BUSINESS_NAME`, `LOGO`, and optional `LANDSCAPE_LOGO` are linked as campaign assets when Brand Guidelines are enabled
+- [x] brand main/accent colors with paired-color validation
+- [x] Google-supported predefined brand fonts
+- [x] provider read-back of Brand Guidelines and campaign-level brand asset serving status/reasons
+- [x] migration of older eligible Performance Max campaigns using `EnablePMaxBrandGuidelines` with Google's top-performing brand-asset auto-population
+- [x] immutable enablement is handled safely: enabled Brand Guidelines cannot be disabled
+- [x] unified campaign wizard, native creation UI, native campaign editor, RBAC/audit flow, launch preflight, plan review metadata, and regression coverage
+
+Still add/review:
+
 - lifecycle/customer acquisition goals
-- value multipliers where supported
-- automated video crawl setting
+- value multipliers where currently supported by the Google v25 Goal / CampaignGoalConfig contract
 - deeper asset strength/diagnostics
 - asset group performance
 - listing groups where relevant
+- any remaining URL-inclusion behavior that becomes directly writable for this PMax subtype
 
 Google v25.2 adds AssetGroup URL options and automated video crawl settings.
 

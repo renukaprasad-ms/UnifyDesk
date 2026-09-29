@@ -10,6 +10,9 @@ import com.messaging.ads.google.dto.GoogleAssetGroupUrlOptionsResponse;
 import com.messaging.ads.google.dto.GoogleAutomatedVideoCrawlSource;
 import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationRequest;
 import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationResponse;
+import com.messaging.ads.google.dto.GooglePerformanceMaxBrandAssetResponse;
+import com.messaging.ads.google.dto.GooglePerformanceMaxBrandGuidelinesRequest;
+import com.messaging.ads.google.dto.GooglePerformanceMaxBrandGuidelinesResponse;
 import com.messaging.ads.google.dto.GoogleUrlCustomParameter;
 import com.messaging.ads.google.dto.GoogleUrlOptionsRequest;
 import com.messaging.ads.google.dto.GoogleAssetResponse;
@@ -45,6 +48,16 @@ public class GoogleAdsPerformanceMaxService {
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
   private static final int MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+  private static final Set<String> BRAND_FONTS =
+      Set.of(
+          "Open Sans",
+          "Roboto",
+          "Montserrat",
+          "Poppins",
+          "Lato",
+          "Oswald",
+          "Playfair Display",
+          "Roboto Slab");
 
   private final GoogleAdsAccountContextService contextService;
   private final GoogleAdsApiClient apiClient;
@@ -85,13 +98,20 @@ public class GoogleAdsPerformanceMaxService {
     budget.put("explicitlyShared", false);
     operations.add(operation("campaignBudgetOperation", budget));
 
+    boolean brandGuidelinesEnabled =
+        request.brandGuidelinesEnabled() == null || request.brandGuidelinesEnabled();
+    Map<String, Object> brandGuidelines = brandGuidelines(request, brandGuidelinesEnabled);
+
     Map<String, Object> campaign = new LinkedHashMap<>();
     campaign.put("resourceName", campaignResource);
     campaign.put("name", request.name().trim());
     campaign.put("status", "PAUSED");
     campaign.put("advertisingChannelType", "PERFORMANCE_MAX");
     campaign.put("campaignBudget", budgetResource);
-    campaign.put("brandGuidelinesEnabled", false);
+    campaign.put("brandGuidelinesEnabled", brandGuidelinesEnabled);
+    if (!brandGuidelines.isEmpty()) {
+      campaign.put("brandGuidelines", brandGuidelines);
+    }
     applyBidStrategy(campaign, request.bidStrategy());
     campaign.put(
         "containsEuPoliticalAdvertising",
@@ -138,14 +158,17 @@ public class GoogleAdsPerformanceMaxService {
               "DESCRIPTION"));
     }
 
-    assets.add(
+    AssetLink businessNameAsset =
         textAsset(
             operations,
             customerId,
             assetId--,
             request.name() + " business name",
             request.businessName(),
-            "BUSINESS_NAME"));
+            "BUSINESS_NAME");
+    if (!brandGuidelinesEnabled) {
+      assets.add(businessNameAsset);
+    }
 
     assets.add(
         imageAsset(
@@ -167,7 +190,7 @@ public class GoogleAdsPerformanceMaxService {
             "SQUARE_MARKETING_IMAGE",
             ImageRule.SQUARE_MARKETING));
 
-    assets.add(
+    AssetLink logoAsset =
         imageAsset(
             operations,
             customerId,
@@ -175,7 +198,10 @@ public class GoogleAdsPerformanceMaxService {
             request.name() + " logo",
             request.logoImageBase64(),
             "LOGO",
-            ImageRule.LOGO));
+            ImageRule.LOGO);
+    if (!brandGuidelinesEnabled) {
+      assets.add(logoAsset);
+    }
 
     if (request.portraitMarketingImageBase64() != null
         && !request.portraitMarketingImageBase64().isBlank()) {
@@ -190,9 +216,10 @@ public class GoogleAdsPerformanceMaxService {
               ImageRule.PORTRAIT_MARKETING));
     }
 
+    AssetLink landscapeLogoAsset = null;
     if (request.landscapeLogoImageBase64() != null
         && !request.landscapeLogoImageBase64().isBlank()) {
-      assets.add(
+      landscapeLogoAsset =
           imageAsset(
               operations,
               customerId,
@@ -200,7 +227,18 @@ public class GoogleAdsPerformanceMaxService {
               request.name() + " landscape logo",
               request.landscapeLogoImageBase64(),
               "LANDSCAPE_LOGO",
-              ImageRule.LANDSCAPE_LOGO));
+              ImageRule.LANDSCAPE_LOGO);
+      if (!brandGuidelinesEnabled) {
+        assets.add(landscapeLogoAsset);
+      }
+    }
+
+    if (brandGuidelinesEnabled) {
+      addCampaignAsset(operations, campaignResource, businessNameAsset);
+      addCampaignAsset(operations, campaignResource, logoAsset);
+      if (landscapeLogoAsset != null) {
+        addCampaignAsset(operations, campaignResource, landscapeLogoAsset);
+      }
     }
 
     if (request.youtubeVideoIds() != null) {
@@ -272,7 +310,7 @@ public class GoogleAdsPerformanceMaxService {
         Map.of(
             "channel", "PERFORMANCE_MAX",
             "assetCount", assets.size(),
-            "brandGuidelinesEnabled", false,
+            "brandGuidelinesEnabled", brandGuidelinesEnabled,
             "initialStatus", "PAUSED"));
 
     return created;
@@ -374,6 +412,235 @@ public class GoogleAdsPerformanceMaxService {
     return after;
   }
 
+
+  public GooglePerformanceMaxBrandGuidelinesResponse brandGuidelines(
+      Long companyId, Long campaignId) {
+    AdCampaign campaign = requirePerformanceMaxCampaign(companyId, campaignId);
+    var context = contextService.requireManaged(companyId, campaign.getAdAccountId());
+    String externalCampaignId = numeric(campaign.getExternalCampaignId());
+
+    List<JsonNode> rows =
+        apiClient.searchRows(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            "SELECT campaign.id, campaign.brand_guidelines_enabled, "
+                + "campaign.brand_guidelines.main_color, "
+                + "campaign.brand_guidelines.accent_color, "
+                + "campaign.brand_guidelines.predefined_font_family "
+                + "FROM campaign WHERE campaign.id = "
+                + externalCampaignId
+                + " LIMIT 1");
+
+    if (rows.isEmpty()) {
+      throw new NotFoundException("Google Performance Max campaign could not be reloaded");
+    }
+
+    JsonNode providerCampaign = rows.getFirst().path("campaign");
+    boolean enabled = providerCampaign.path("brandGuidelinesEnabled").asBoolean(false);
+    JsonNode guidelines = providerCampaign.path("brandGuidelines");
+
+    List<GooglePerformanceMaxBrandAssetResponse> brandAssets =
+        enabled ? brandAssets(context, externalCampaignId) : List.of();
+
+    return new GooglePerformanceMaxBrandGuidelinesResponse(
+        enabled,
+        text(guidelines, "mainColor"),
+        text(guidelines, "accentColor"),
+        text(guidelines, "predefinedFontFamily"),
+        brandAssets,
+        !enabled,
+        false);
+  }
+
+  public GooglePerformanceMaxBrandGuidelinesResponse updateBrandGuidelines(
+      Long companyId,
+      Long campaignId,
+      GooglePerformanceMaxBrandGuidelinesRequest request,
+      Long actorUserId) {
+    AdCampaign campaign = requirePerformanceMaxCampaign(companyId, campaignId);
+    var context = contextService.requireManaged(companyId, campaign.getAdAccountId());
+    GooglePerformanceMaxBrandGuidelinesResponse before =
+        brandGuidelines(companyId, campaignId);
+
+    String mainColor = normalizeBrandColor(request.mainColor());
+    String accentColor = normalizeBrandColor(request.accentColor());
+    String font = normalizeBrandFont(request.fontFamily());
+    if ((mainColor == null) != (accentColor == null)) {
+      throw new BadRequestException(
+          "Performance Max main and accent brand colors must be provided together");
+    }
+
+    if (!before.enabled()) {
+      if (!Boolean.TRUE.equals(request.enableBrandGuidelines())) {
+        if (mainColor != null || accentColor != null || font != null) {
+          throw new BadRequestException(
+              "Enable Performance Max Brand Guidelines before setting colors or font");
+        }
+        return before;
+      }
+
+      boolean autoPopulate = request.autoPopulateBrandAssets() == null
+          || request.autoPopulateBrandAssets();
+      if (!autoPopulate) {
+        throw new BadRequestException(
+            "UnifyDesk currently enables existing Performance Max Brand Guidelines using Google's top-performing brand assets");
+      }
+
+      Map<String, Object> operation = new LinkedHashMap<>();
+      operation.put(
+          "campaign",
+          resource(
+              context.account().getExternalAccountId(),
+              "campaigns",
+              numeric(campaign.getExternalCampaignId())));
+      operation.put("autoPopulateBrandAssets", true);
+      if (mainColor != null) {
+        operation.put("mainColor", mainColor);
+        operation.put("accentColor", accentColor);
+      }
+      if (font != null) operation.put("fontFamily", font);
+
+      apiClient.customerAction(
+          context.accessToken(),
+          context.account().getExternalAccountId(),
+          context.loginCustomerId(),
+          "campaigns:enablePMaxBrandGuidelines",
+          Map.of("operations", List.of(operation)));
+    } else {
+      if (Boolean.FALSE.equals(request.enableBrandGuidelines())) {
+        throw new BadRequestException(
+            "Google does not allow disabling Brand Guidelines after they are enabled");
+      }
+
+      Map<String, Object> guidelineUpdate = new LinkedHashMap<>();
+      List<String> masks = new ArrayList<>();
+      if (mainColor != null) {
+        guidelineUpdate.put("mainColor", mainColor);
+        guidelineUpdate.put("accentColor", accentColor);
+        masks.add("brand_guidelines.main_color");
+        masks.add("brand_guidelines.accent_color");
+      }
+      if (font != null) {
+        guidelineUpdate.put("predefinedFontFamily", font);
+        masks.add("brand_guidelines.predefined_font_family");
+      }
+
+      if (!masks.isEmpty()) {
+        Map<String, Object> update = new LinkedHashMap<>();
+        update.put(
+            "resourceName",
+            resource(
+                context.account().getExternalAccountId(),
+                "campaigns",
+                numeric(campaign.getExternalCampaignId())));
+        update.put("brandGuidelines", guidelineUpdate);
+        apiClient.mutate(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            "campaigns",
+            List.of(
+                Map.of(
+                    "update", update,
+                    "updateMask", String.join(",", masks))));
+      }
+    }
+
+    GooglePerformanceMaxBrandGuidelinesResponse after =
+        brandGuidelines(companyId, campaignId);
+    activityLogService.record(
+        companyId,
+        campaign.getAdAccountId(),
+        AdProvider.GOOGLE_ADS,
+        actorUserId,
+        "GOOGLE_PERFORMANCE_MAX_BRAND_GUIDELINES_UPDATED",
+        "CAMPAIGN",
+        campaign.getExternalCampaignId(),
+        before,
+        after,
+        Map.of(
+            "enabled", after.enabled(),
+            "brandAssetCount", after.brandAssets().size()));
+    return after;
+  }
+
+  public void validateBrandGuidelines(
+      Boolean enabled,
+      String mainColor,
+      String accentColor,
+      String fontFamily) {
+    boolean effectiveEnabled = enabled == null || enabled;
+    CreateGooglePerformanceMaxCampaignRequest probe =
+        new CreateGooglePerformanceMaxCampaignRequest(
+            "Brand validation",
+            1L,
+            "https://example.com",
+            "Brand",
+            List.of("One", "Two", "Three"),
+            "Long headline",
+            List.of("Short", "Second"),
+            "placeholder",
+            "placeholder",
+            "placeholder",
+            null,
+            null,
+            List.of(),
+            "MAXIMIZE_CONVERSIONS",
+            false,
+            null,
+            null,
+            effectiveEnabled,
+            mainColor,
+            accentColor,
+            fontFamily);
+    brandGuidelines(probe, effectiveEnabled);
+  }
+
+  private List<GooglePerformanceMaxBrandAssetResponse> brandAssets(
+      GoogleAdsAccountContextService.Context context,
+      String externalCampaignId) {
+    String query =
+        "SELECT campaign_asset.resource_name, campaign_asset.asset, "
+            + "campaign_asset.field_type, campaign_asset.status, "
+            + "campaign_asset.primary_status, campaign_asset.primary_status_reasons, "
+            + "asset.id, asset.name, asset.type, asset.text_asset.text, "
+            + "asset.image_asset.full_size.url "
+            + "FROM campaign_asset WHERE campaign.id = "
+            + externalCampaignId
+            + " AND campaign_asset.field_type IN ('BUSINESS_NAME','LOGO','LANDSCAPE_LOGO') "
+            + "AND campaign_asset.status != 'REMOVED'";
+
+    List<GooglePerformanceMaxBrandAssetResponse> result = new ArrayList<>();
+    for (JsonNode row :
+        apiClient.searchRows(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            query)) {
+      JsonNode link = row.path("campaignAsset");
+      JsonNode asset = row.path("asset");
+      List<String> reasons = new ArrayList<>();
+      JsonNode reasonValues = link.path("primaryStatusReasons");
+      if (reasonValues.isArray()) {
+        reasonValues.forEach(value -> reasons.add(value.asText()));
+      }
+      result.add(
+          new GooglePerformanceMaxBrandAssetResponse(
+              text(link, "resourceName"),
+              text(link, "asset"),
+              text(link, "fieldType"),
+              text(link, "status"),
+              text(link, "primaryStatus"),
+              reasons,
+              text(asset, "id"),
+              text(asset, "name"),
+              text(asset, "type"),
+              text(asset.path("textAsset"), "text"),
+              text(asset.path("imageAsset").path("fullSize"), "url")));
+    }
+    return List.copyOf(result);
+  }
 
   public GooglePerformanceMaxAutomationResponse automation(
       Long companyId, Long campaignId) {
@@ -816,6 +1083,65 @@ public class GoogleAdsPerformanceMaxService {
       throw new BadRequestException("Campaign is not a Google Performance Max campaign");
     }
     return campaign;
+  }
+
+  private Map<String, Object> brandGuidelines(
+      CreateGooglePerformanceMaxCampaignRequest request,
+      boolean enabled) {
+    String mainColor = normalizeBrandColor(request.brandMainColor());
+    String accentColor = normalizeBrandColor(request.brandAccentColor());
+    String font = normalizeBrandFont(request.brandFontFamily());
+
+    if (!enabled && (mainColor != null || accentColor != null || font != null)) {
+      throw new BadRequestException(
+          "Performance Max brand colors and font require Brand Guidelines to be enabled");
+    }
+    if ((mainColor == null) != (accentColor == null)) {
+      throw new BadRequestException(
+          "Performance Max main and accent brand colors must be provided together");
+    }
+
+    Map<String, Object> result = new LinkedHashMap<>();
+    if (mainColor != null) {
+      result.put("mainColor", mainColor);
+      result.put("accentColor", accentColor);
+    }
+    if (font != null) result.put("predefinedFontFamily", font);
+    return result;
+  }
+
+  private String normalizeBrandColor(String value) {
+    if (value == null || value.isBlank()) return null;
+    String normalized = value.trim();
+    if (!normalized.matches("#[0-9A-Fa-f]{6}")) {
+      throw new BadRequestException(
+          "Performance Max brand colors must use 6-digit hex format such as #3366FF");
+    }
+    return normalized;
+  }
+
+  private String normalizeBrandFont(String value) {
+    if (value == null || value.isBlank()) return null;
+    String normalized = value.trim();
+    if (!BRAND_FONTS.contains(normalized)) {
+      throw new BadRequestException(
+          "Performance Max brand font must be one of: "
+              + String.join(", ", BRAND_FONTS));
+    }
+    return normalized;
+  }
+
+  private void addCampaignAsset(
+      List<Map<String, Object>> operations,
+      String campaignResource,
+      AssetLink asset) {
+    operations.add(
+        operation(
+            "campaignAssetOperation",
+            Map.of(
+                "campaign", campaignResource,
+                "asset", asset.resourceName(),
+                "fieldType", asset.fieldType())));
   }
 
   private Map<String, Object> operation(String operationName, Map<String, Object> create) {

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { FiClock, FiPlus, FiRefreshCw, FiTrash2 } from 'react-icons/fi'
 import GoogleAiMaxBrandSelector from './GoogleAiMaxBrandSelector'
+import GoogleSearchInterestSelector from './GoogleSearchInterestSelector'
+import GoogleSearchDemographicSelector from './GoogleSearchDemographicSelector'
 import type {
   AdAccountResource,
   AdConversion,
@@ -36,6 +38,14 @@ type Props = {
   ) => void
   pmaxYoutubeVideoIds: string
   setPmaxYoutubeVideoIds: (value: string) => void
+  pmaxBrandGuidelinesEnabled: boolean
+  setPmaxBrandGuidelinesEnabled: (value: boolean) => void
+  pmaxBrandMainColor: string
+  setPmaxBrandMainColor: (value: string) => void
+  pmaxBrandAccentColor: string
+  setPmaxBrandAccentColor: (value: string) => void
+  pmaxBrandFontFamily: string
+  setPmaxBrandFontFamily: (value: string) => void
   demandGenBidStrategy:
     | 'MAXIMIZE_CLICKS'
     | 'MAXIMIZE_CONVERSIONS'
@@ -71,10 +81,32 @@ type Props = {
   setGoogleConversionId: (value: string) => void
   googleSearchPartners: boolean
   setGoogleSearchPartners: (value: boolean) => void
+  googleSearchAudienceMode: 'OBSERVATION' | 'TARGETING'
+  setGoogleSearchAudienceMode: (value: 'OBSERVATION' | 'TARGETING') => void
+  googleSearchInterestResources: string[]
+  setGoogleSearchInterestResources: (value: string[]) => void
+  googleSearchExcludedInterestResources: string[]
+  setGoogleSearchExcludedInterestResources: (value: string[]) => void
+  googleParentalStatusIncludes: string[]
+  setGoogleParentalStatusIncludes: (value: string[]) => void
+  googleParentalStatusExcludes: string[]
+  setGoogleParentalStatusExcludes: (value: string[]) => void
+  googleIncomeRangeIncludes: string[]
+  setGoogleIncomeRangeIncludes: (value: string[]) => void
+  googleIncomeRangeExcludes: string[]
+  setGoogleIncomeRangeExcludes: (value: string[]) => void
+  googleDetailedDemographicIds: string[]
+  setGoogleDetailedDemographicIds: (value: string[]) => void
+  googleExcludedDetailedDemographicIds: string[]
+  setGoogleExcludedDetailedDemographicIds: (value: string[]) => void
   googleContentNetwork: boolean
   setGoogleContentNetwork: (value: boolean) => void
   googleGeoMode: 'PRESENCE' | 'PRESENCE_OR_INTEREST'
   setGoogleGeoMode: (value: 'PRESENCE' | 'PRESENCE_OR_INTEREST') => void
+  googleDeviceBidModifiers: Record<'DESKTOP' | 'MOBILE' | 'TABLET', string>
+  setGoogleDeviceBidModifiers: (
+    value: Record<'DESKTOP' | 'MOBILE' | 'TABLET', string>,
+  ) => void
   googleAiMaxEnabled: boolean
   setGoogleAiMaxEnabled: (value: boolean) => void
   googleAiMaxTextCustomization: boolean
@@ -720,6 +752,68 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 </option>
               </select>
             </Field>
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4 sm:col-span-2">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-slate-700">Brand guidelines</p>
+                  <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                    Recommended. Brand name and logos are linked at campaign level when enabled.
+                  </p>
+                </div>
+                <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={props.pmaxBrandGuidelinesEnabled}
+                    disabled={props.disabled}
+                    onChange={(event) =>
+                      props.setPmaxBrandGuidelinesEnabled(event.target.checked)
+                    }
+                  />
+                  Enabled
+                </label>
+              </div>
+              {props.pmaxBrandGuidelinesEnabled && (
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <Field label="Main color">
+                    <input
+                      className="form-input mt-2"
+                      value={props.pmaxBrandMainColor}
+                      disabled={props.disabled}
+                      placeholder="#3366FF"
+                      onChange={(event) => props.setPmaxBrandMainColor(event.target.value)}
+                    />
+                  </Field>
+                  <Field label="Accent color">
+                    <input
+                      className="form-input mt-2"
+                      value={props.pmaxBrandAccentColor}
+                      disabled={props.disabled}
+                      placeholder="#FFCC00"
+                      onChange={(event) => props.setPmaxBrandAccentColor(event.target.value)}
+                    />
+                  </Field>
+                  <Field label="Brand font">
+                    <select
+                      className="form-input mt-2"
+                      value={props.pmaxBrandFontFamily}
+                      disabled={props.disabled}
+                      onChange={(event) => props.setPmaxBrandFontFamily(event.target.value)}
+                    >
+                      <option value="">Google default</option>
+                      <option value="Open Sans">Open Sans</option>
+                      <option value="Roboto">Roboto</option>
+                      <option value="Montserrat">Montserrat</option>
+                      <option value="Poppins">Poppins</option>
+                      <option value="Lato">Lato</option>
+                      <option value="Oswald">Oswald</option>
+                      <option value="Playfair Display">Playfair Display</option>
+                      <option value="Roboto Slab">Roboto Slab</option>
+                    </select>
+                  </Field>
+                </div>
+              )}
+            </div>
+
             {conversionRequired && (
               <Field label="Conversion action">
                 <select
@@ -838,6 +932,24 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 </select>
               </Field>
             )}
+            <Field
+              label="Audience mode"
+              hint="Observation keeps normal Search reach while measuring selected audiences. Targeting restricts delivery to included audience lists."
+            >
+              <select
+                className="form-input mt-2"
+                value={props.googleSearchAudienceMode}
+                disabled={props.disabled}
+                onChange={(event) =>
+                  props.setGoogleSearchAudienceMode(
+                    event.target.value as 'OBSERVATION' | 'TARGETING',
+                  )
+                }
+              >
+                <option value="OBSERVATION">Observation (recommended)</option>
+                <option value="TARGETING">Targeting (restrict reach)</option>
+              </select>
+            </Field>
             <Field label="Location matching">
               <select
                 className="form-input mt-2"
@@ -853,6 +965,70 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 <option value="PRESENCE">Presence only</option>
               </select>
             </Field>
+            <div className="sm:col-span-2">
+              <GoogleSearchDemographicSelector
+                companyId={props.companyId}
+                accountId={googleAccount}
+                parentalStatusIncludes={props.googleParentalStatusIncludes}
+                parentalStatusExcludes={props.googleParentalStatusExcludes}
+                incomeRangeIncludes={props.googleIncomeRangeIncludes}
+                incomeRangeExcludes={props.googleIncomeRangeExcludes}
+                detailedDemographicIds={props.googleDetailedDemographicIds}
+                excludedDetailedDemographicIds={
+                  props.googleExcludedDetailedDemographicIds
+                }
+                setParentalStatusIncludes={props.setGoogleParentalStatusIncludes}
+                setParentalStatusExcludes={props.setGoogleParentalStatusExcludes}
+                setIncomeRangeIncludes={props.setGoogleIncomeRangeIncludes}
+                setIncomeRangeExcludes={props.setGoogleIncomeRangeExcludes}
+                setDetailedDemographicIds={props.setGoogleDetailedDemographicIds}
+                setExcludedDetailedDemographicIds={
+                  props.setGoogleExcludedDetailedDemographicIds
+                }
+                disabled={props.disabled}
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <GoogleSearchInterestSelector
+                companyId={props.companyId}
+                accountId={googleAccount}
+                includedResourceNames={props.googleSearchInterestResources}
+                excludedResourceNames={props.googleSearchExcludedInterestResources}
+                setIncludedResourceNames={props.setGoogleSearchInterestResources}
+                setExcludedResourceNames={props.setGoogleSearchExcludedInterestResources}
+                disabled={props.disabled}
+              />
+            </div>
+
+            <div className="rounded-xl border border-slate-100 p-4 sm:col-span-2">
+              <p className="text-xs font-semibold text-slate-700">Device bid adjustments</p>
+              <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                Leave 1.0 for normal bidding, use 0 to exclude a device, or set 0.1–10.0 as a bid multiplier.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                {(['DESKTOP', 'MOBILE', 'TABLET'] as const).map((device) => (
+                  <Field key={device} label={pretty(device)}>
+                    <input
+                      className="form-input mt-2"
+                      type="number"
+                      min="0"
+                      max="10"
+                      step="0.1"
+                      value={props.googleDeviceBidModifiers[device]}
+                      disabled={props.disabled}
+                      onChange={(event) =>
+                        props.setGoogleDeviceBidModifiers({
+                          ...props.googleDeviceBidModifiers,
+                          [device]: event.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                ))}
+              </div>
+            </div>
+
             <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4 sm:col-span-2">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>

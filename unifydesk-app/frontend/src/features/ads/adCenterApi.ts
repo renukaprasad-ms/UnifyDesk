@@ -95,6 +95,8 @@ import type {
   UpdateGoogleUrlOptionsInput,
   GooglePerformanceMaxAutomation,
   UpdateGooglePerformanceMaxAutomationInput,
+  GooglePerformanceMaxBrandGuidelines,
+  UpdateGooglePerformanceMaxBrandGuidelinesInput,
   GoogleAssetGroupUrlOptions,
   GoogleAssetGroup,
   GoogleAssetGroupAsset,
@@ -116,6 +118,14 @@ import type {
   UpdateGoogleCampaignInput,
   CreateGoogleAdGroupInput,
   UpdateGoogleAdGroupInput,
+  GoogleSearchAudienceTargeting,
+  GoogleSearchAudienceTargetingInput,
+  GoogleDetailedDemographicCatalog,
+  GoogleSearchDemographicTargeting,
+  GoogleSearchDemographicTargetingInput,
+  GoogleSearchInterestCatalog,
+  GoogleSearchInterestTargeting,
+  GoogleSearchInterestTargetingInput,
   CreateGoogleKeywordInput,
   UpdateGoogleKeywordInput,
   CreateGoogleResponsiveSearchAdInput,
@@ -1117,6 +1127,28 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+  async googlePerformanceMaxBrandGuidelines(
+    companyId: string,
+    campaignId: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GooglePerformanceMaxBrandGuidelines>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/brand-guidelines`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGooglePerformanceMaxBrandGuidelines(
+    companyId: string,
+    campaignId: string,
+    input: UpdateGooglePerformanceMaxBrandGuidelinesInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GooglePerformanceMaxBrandGuidelines>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/brand-guidelines`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
   async googlePerformanceMaxAutomation(companyId: string, campaignId: string) {
     const response = await apiClient.get<ApiResponse<GooglePerformanceMaxAutomation>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/automation`,
@@ -1294,6 +1326,89 @@ export const adCenterApi = {
     const response = await apiClient.post<ApiResponse<AdSet>>(
       `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/status`,
       { status },
+    )
+    return unwrap(response.data)
+  },
+
+  async googleDetailedDemographics(
+    companyId: string,
+    accountId: string,
+    query = '',
+    limit = 40,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleDetailedDemographicCatalog>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/detailed-demographics`,
+      { params: { q: query || undefined, limit } },
+    )
+    return unwrap(response.data)
+  },
+
+  async googleSearchDemographics(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleSearchDemographicTargeting>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/search-demographics`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleSearchDemographics(
+    companyId: string,
+    campaignId: string,
+    input: GoogleSearchDemographicTargetingInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GoogleSearchDemographicTargeting>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/search-demographics`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleSearchInterestCatalog(
+    companyId: string,
+    accountId: string,
+    query = '',
+    limit = 40,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleSearchInterestCatalog>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/search-interest-catalog`,
+      { params: { q: query || undefined, limit } },
+    )
+    return unwrap(response.data)
+  },
+
+  async googleSearchInterestTargeting(companyId: string, adGroupId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleSearchInterestTargeting>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/search-interest-targeting`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleSearchInterestTargeting(
+    companyId: string,
+    adGroupId: string,
+    input: GoogleSearchInterestTargetingInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GoogleSearchInterestTargeting>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/search-interest-targeting`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleSearchAudienceTargeting(companyId: string, adGroupId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleSearchAudienceTargeting>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/search-audience-targeting`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleSearchAudienceTargeting(
+    companyId: string,
+    adGroupId: string,
+    input: GoogleSearchAudienceTargetingInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GoogleSearchAudienceTargeting>>(
+      `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/search-audience-targeting`,
+      input,
     )
     return unwrap(response.data)
   },

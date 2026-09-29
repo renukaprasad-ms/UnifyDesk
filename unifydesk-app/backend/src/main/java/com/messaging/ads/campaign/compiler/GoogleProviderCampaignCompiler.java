@@ -96,7 +96,7 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
     AudienceMappingStatus audienceMappingStatus = null;
     String audienceMappingNote = null;
     if (context.audienceDefinition() == null) {
-      if (!hasProviderAudienceLists(context)) {
+      if (!hasProviderAudienceSelection(context)) {
         issues.add(
             ProviderCampaignPlanSupport.warning(
                 "AUDIENCE_NOT_SELECTED",
@@ -736,6 +736,14 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                   context.budgetPlan() == null ? null : context.budgetPlan().getBudgetPeriod(),
                   "creativePackId",
                   context.creativePack() == null ? null : context.creativePack().getId().toString(),
+                  "brandGuidelinesEnabled",
+                  providerBoolean(context, "pmaxBrandGuidelinesEnabled", true),
+                  "brandMainColor",
+                  providerText(context, "pmaxBrandMainColor"),
+                  "brandAccentColor",
+                  providerText(context, "pmaxBrandAccentColor"),
+                  "brandFontFamily",
+                  providerText(context, "pmaxBrandFontFamily"),
                   "providerOverrideJson",
                   context.channel().getProviderOverrideJson())));
       if (context.audienceDefinition() != null) {
@@ -848,6 +856,41 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                 true,
                 Set.of(),
                 ProviderCampaignPlanSupport.config("status", "PAUSED")));
+        if (hasSearchAudienceCriteria(context)) {
+          operations.add(
+              operation(
+                  sequence++,
+                  "configure-search-audiences",
+                  ProviderPlanAction.CONFIGURE,
+                  ProviderPlanResource.AD_GROUP,
+                  false,
+                  Set.of(),
+                  ProviderCampaignPlanSupport.config(
+                      "mode",
+                      providerText(context, "googleSearchAudienceMode") == null
+                          ? "OBSERVATION"
+                          : providerText(context, "googleSearchAudienceMode"),
+                      "includedCount",
+                      providerStrings(context, "googleAudienceIds").size(),
+                      "excludedCount",
+                      providerStrings(context, "googleExcludedAudienceIds").size())));
+        }
+        if (!providerStrings(context, "googleSearchInterestResources").isEmpty()
+            || !providerStrings(context, "googleSearchExcludedInterestResources").isEmpty()) {
+          operations.add(
+              operation(
+                  sequence++,
+                  "configure-search-interests",
+                  ProviderPlanAction.CONFIGURE,
+                  ProviderPlanResource.AD_GROUP,
+                  false,
+                  Set.of(),
+                  ProviderCampaignPlanSupport.config(
+                      "includedCount",
+                      providerStrings(context, "googleSearchInterestResources").size(),
+                      "excludedCount",
+                      providerStrings(context, "googleSearchExcludedInterestResources").size())));
+        }
         if (aiMaxEnabled(context)) {
           operations.add(
               operation(
@@ -1030,6 +1073,20 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
       ProviderCampaignCompileContext context) {
     return !providerStrings(context, "googleAudienceIds").isEmpty()
         || !providerStrings(context, "googleExcludedAudienceIds").isEmpty();
+  }
+
+  private boolean hasSearchAudienceCriteria(
+      ProviderCampaignCompileContext context) {
+    return hasProviderAudienceLists(context)
+        || !providerStrings(context, "googleSearchInterestResources").isEmpty()
+        || !providerStrings(context, "googleSearchExcludedInterestResources").isEmpty();
+  }
+
+  private boolean hasProviderAudienceSelection(
+      ProviderCampaignCompileContext context) {
+    return context.channel().getChannelType() == CampaignChannelType.GOOGLE_SEARCH
+        ? hasSearchAudienceCriteria(context)
+        : hasProviderAudienceLists(context);
   }
 
   private boolean aiMaxEnabled(ProviderCampaignCompileContext context) {
