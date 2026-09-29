@@ -360,7 +360,11 @@ export default function CompanyConnections() {
     if (!selectedCompany || connection.status !== 'DISCONNECTED') return
     setWorkingConnectionId(connection.id)
     try {
-      await channelApi.disconnect(selectedCompany.companyId, connection.id, 'DELETE_NOW')
+      if (connection.providerType === 'META_WHATSAPP') {
+        await metaWhatsAppApi.disconnect(selectedCompany.companyId, 'DELETE_NOW')
+      } else {
+        await channelApi.disconnect(selectedCompany.companyId, connection.id, 'DELETE_NOW')
+      }
       snackbar.success('Permanent deletion of the disconnected channel data is queued.')
       setDeleteTarget(null)
       await loadConnections()
@@ -967,7 +971,7 @@ export default function CompanyConnections() {
                           type="button"
                           className="secondary-button inline-flex items-center gap-2"
                           disabled={connecting}
-                          onClick={() => void connectWhatsApp(metaConnection.status !== 'DISCONNECTED')}
+                          onClick={() => void connectWhatsApp(false)}
                         >
                           <FiRefreshCw aria-hidden="true" />
                           Retry
@@ -1003,7 +1007,7 @@ export default function CompanyConnections() {
                       working={workingConnectionId === connection.id}
                       onReconnect={
                         connection.providerType === 'META_WHATSAPP'
-                          ? () => void connectWhatsApp(true)
+                          ? () => void connectWhatsApp(false)
                           : undefined
                       }
                       onDeleteNow={() => setDeleteTarget(connection)}
