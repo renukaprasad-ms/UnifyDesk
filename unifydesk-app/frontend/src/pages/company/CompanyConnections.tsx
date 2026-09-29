@@ -85,6 +85,24 @@ const whatsAppStatusLabel: Record<MetaWhatsAppConnection['status'], string> = {
   ERROR: 'Error',
 }
 
+const whatsAppStatusClass: Record<MetaWhatsAppConnection['status'], string> = {
+  CONNECTING: 'bg-amber-50 text-amber-700',
+  VALIDATING: 'bg-amber-50 text-amber-700',
+  ACTIVE: 'bg-emerald-50 text-emerald-700',
+  DEGRADED: 'bg-amber-50 text-amber-700',
+  ACTION_REQUIRED: 'bg-rose-50 text-rose-700',
+  REAUTH_REQUIRED: 'bg-rose-50 text-rose-700',
+  DISCONNECTED: 'bg-slate-100 text-slate-600',
+  ERROR: 'bg-rose-50 text-rose-700',
+}
+
+const whatsAppGenericStatusLabel: Record<ChannelConnection['status'], string> = {
+  ACTIVE: 'Connected',
+  PENDING: 'Connecting',
+  ERROR: 'Error',
+  DISCONNECTED: 'Disconnected',
+}
+
 export default function CompanyConnections() {
   const selectedCompany = useAppSelector(selectSelectedCompany)
   const { can } = useIam()
@@ -644,10 +662,14 @@ export default function CompanyConnections() {
                       </p>
                       <span
                         className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                          statusClass[connection.status]
+                          metaConnection?.connectionId === connection.id
+                            ? whatsAppStatusClass[metaConnection.status]
+                            : statusClass[connection.status]
                         }`}
                       >
-                        {connection.status}
+                        {metaConnection?.connectionId === connection.id
+                          ? whatsAppStatusLabel[metaConnection.status]
+                          : whatsAppGenericStatusLabel[connection.status]}
                       </span>
                       <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-700">
                         {providerLabel(
@@ -886,9 +908,6 @@ export default function CompanyConnections() {
                     </p>
                     {metaConnection?.connectionId === connection.id && (
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1 font-bold text-slate-700">
-                          {whatsAppStatusLabel[metaConnection.status]}
-                        </span>
                         {metaConnection.authState && (
                           <span className="text-slate-500">
                             Authorization: {metaConnection.authState.replaceAll('_', ' ')}
