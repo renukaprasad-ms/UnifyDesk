@@ -1087,7 +1087,7 @@ Reference:
 
 ## G-08 Performance Max completeness - P1
 
-Status: **in progress — C5 URL/automation and the G-08 Brand Guidelines slice are complete; lifecycle/acquisition goals, deeper diagnostics/performance, and listing-group work remain**.
+Status: **in progress — C5 URL/automation, Brand Guidelines, and lifecycle/customer-acquisition controls are complete; deeper diagnostics/performance and listing-group work remain**.
 
 Implemented in C5:
 
@@ -1115,11 +1115,19 @@ Implemented in the Ads completion branch:
 - [x] migration of older eligible Performance Max campaigns using `EnablePMaxBrandGuidelines` with Google's top-performing brand-asset auto-population
 - [x] immutable enablement is handled safely: enabled Brand Guidelines cannot be disabled
 - [x] unified campaign wizard, native creation UI, native campaign editor, RBAC/audit flow, launch preflight, plan review metadata, and regression coverage
+- [x] Google v25 account lifecycle goals through the current `Goal` resource for New Customer Acquisition, Customer Retention, and Loyalty Retention
+- [x] Google `UserListCustomerType` classification management with provider conflict validation
+- [x] Performance Max campaign-specific `CampaignGoalConfig` read/create/update/remove
+- [x] New-customer `TARGET_ALL` / `TARGET_SPECIFIC` modes with Google value-override constraints
+- [x] retention campaign controls with explicit allowlist warning for `TARGET_SPECIFIC`
+- [x] loyalty value multiplier, loyalty-member bid adjustments, and eligible PLA benefit controls
+- [x] lifecycle readiness validation in unified preflight so launches cannot silently create account-wide lifecycle state
+- [x] unified Performance Max launch operation `configure-pmax-lifecycle`
+- [x] native Performance Max lifecycle editor, RBAC/audit flow, provider read-back, and regression coverage
 
 Still add/review:
 
-- lifecycle/customer acquisition goals
-- value multipliers where currently supported by the Google v25 Goal / CampaignGoalConfig contract
+- value multipliers beyond the currently productized lifecycle subset when Google makes them broadly supported/stable for the relevant PMax goal types
 - deeper asset strength/diagnostics
 - asset group performance
 - listing groups where relevant
