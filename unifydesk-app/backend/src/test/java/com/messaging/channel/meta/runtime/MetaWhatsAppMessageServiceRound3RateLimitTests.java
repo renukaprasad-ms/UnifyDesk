@@ -125,7 +125,7 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
     doAnswer(
             invocation -> {
               permitAt.set(Instant.now());
-              assertThat(uploadComplete).hasValue(true);
+              assertThat(uploadComplete.get()).isTrue();
               assertThat(fixture.jdbc.mediaLinkPersisted).isTrue();
               assertThat(Duration.between(uploadStartedAt.get(), permitAt.get()))
                   .isGreaterThan(syntheticOutboundWindow);
