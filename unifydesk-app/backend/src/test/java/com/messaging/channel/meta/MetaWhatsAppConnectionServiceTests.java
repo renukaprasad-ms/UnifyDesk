@@ -16,6 +16,7 @@ import com.messaging.channel.meta.MetaGraphClient.TokenInspection;
 import com.messaging.channel.meta.MetaGraphClient.TokenResponse;
 import com.messaging.channel.meta.MetaGraphClient.WabaDetails;
 import com.messaging.channel.meta.MetaWhatsAppPersistenceService.PendingProvisioning;
+import com.messaging.channel.meta.MetaWhatsAppPersistenceService.StoredMetaCredential;
 import com.messaging.channel.meta.MetaWhatsAppPersistenceService.StoredMetaToken;
 import com.messaging.channel.meta.MetaWhatsAppSignupStateService.ConsumedSignupState;
 import com.messaging.channel.meta.MetaWhatsAppSignupStateService.SignupMode;
@@ -325,8 +326,11 @@ class MetaWhatsAppConnectionServiceTests {
             org.mockito.ArgumentMatchers.any()))
         .thenReturn(
             new PendingProvisioning(500L));
-    when(persistenceService.readToken(500L))
-        .thenReturn(new StoredMetaToken("new-token", "waba-1", "phone-1", "v26.0", null, null));
+    when(persistenceService.readTokenCredential(500L))
+        .thenReturn(
+            new StoredMetaCredential(
+                new StoredMetaToken("new-token", "waba-1", "phone-1", "v26.0", null, null),
+                null));
     when(graphClient.isAppSubscribed("waba-1", "new-token")).thenReturn(true);
 
     var response = service.complete(COMPANY_ID, USER_ID, request);
@@ -350,8 +354,10 @@ class MetaWhatsAppConnectionServiceTests {
             SubscriptionState.PENDING);
     when(persistenceService.requireControl(COMPANY_ID, 600L))
         .thenReturn(pending, pending, pending, pending, registered);
-    when(persistenceService.readToken(600L))
-        .thenReturn(new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null));
+    when(persistenceService.readTokenCredential(600L))
+        .thenReturn(
+            new StoredMetaCredential(
+                new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null), null));
     when(persistenceService.readPin(600L)).thenReturn("123456");
     org.mockito.Mockito.doThrow(
             new MetaGraphException(
@@ -386,8 +392,10 @@ class MetaWhatsAppConnectionServiceTests {
             SubscriptionState.PENDING);
     when(persistenceService.requireControl(COMPANY_ID, 600L))
         .thenReturn(pending, pending, pending, pending, registered);
-    when(persistenceService.readToken(600L))
-        .thenReturn(new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null));
+    when(persistenceService.readTokenCredential(600L))
+        .thenReturn(
+            new StoredMetaCredential(
+                new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null), null));
     when(persistenceService.readPin(600L)).thenReturn("123456");
     org.mockito.Mockito.doThrow(new IllegalStateException("local write failed"))
         .doNothing()
@@ -424,8 +432,10 @@ class MetaWhatsAppConnectionServiceTests {
             SubscriptionState.PENDING);
     when(persistenceService.requireControl(COMPANY_ID, 600L))
         .thenReturn(pending, pending, registered, registered, registered, registered);
-    when(persistenceService.readToken(600L))
-        .thenReturn(new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null));
+    when(persistenceService.readTokenCredential(600L))
+        .thenReturn(
+            new StoredMetaCredential(
+                new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null), null));
     when(persistenceService.readPin(600L)).thenReturn("123456");
     org.mockito.Mockito.doThrow(
             new MetaGraphException(
@@ -459,8 +469,10 @@ class MetaWhatsAppConnectionServiceTests {
             RegistrationState.REGISTERED,
             SubscriptionState.SUBSCRIBED);
     when(persistenceService.requireControl(COMPANY_ID, 600L)).thenReturn(active);
-    when(persistenceService.readToken(600L))
-        .thenReturn(new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null));
+    when(persistenceService.readTokenCredential(600L))
+        .thenReturn(
+            new StoredMetaCredential(
+                new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null), null));
     MetaGraphException failure =
         new MetaGraphException(
             "debug_token", 503, null, null, null, null, SafeCategory.TRANSIENT, true);
