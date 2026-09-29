@@ -61,7 +61,10 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
         new MetaWhatsAppSendRequest(
             "request-text", "TEXT", "hello", null, null, null, null, null));
 
-    InOrder textOrder = inOrder(text.limiter, text.graphClient);
+    InOrder textOrder = inOrder(text.reservations, text.limiter, text.graphClient);
+    textOrder
+        .verify(text.reservations)
+        .tryReserve(10L, 20L, "request-text", "TEXT", any(Instant.class));
     textOrder.verify(text.limiter).requirePermit("phone-1");
     textOrder.verify(text.graphClient).sendText(any(), any(), any(), any());
 
@@ -86,7 +89,11 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
             null,
             null));
 
-    InOrder templateOrder = inOrder(template.limiter, template.graphClient);
+    InOrder templateOrder =
+        inOrder(template.reservations, template.limiter, template.graphClient);
+    templateOrder
+        .verify(template.reservations)
+        .tryReserve(10L, 20L, "request-template", "TEMPLATE", any(Instant.class));
     templateOrder.verify(template.limiter).requirePermit("phone-1");
     templateOrder.verify(template.graphClient).sendTemplate(any(), any(), any(), any(), any());
   }
@@ -96,19 +103,26 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
     Fixture fixture = fixture();
     Media media = media();
     AtomicBoolean uploadComplete = new AtomicBoolean();
+    AtomicReference<Instant> uploadStartedAt = new AtomicReference<>();
+    AtomicReference<Instant> permitAt = new AtomicReference<>();
+    Duration syntheticOutboundWindow = Duration.ofMillis(5);
 
     when(fixture.mediaService.requireActiveCompanyMedia(90L, 10L)).thenReturn(media);
     when(fixture.mediaService.readTrustedObject(90L, 10L)).thenReturn(new byte[] {1, 2, 3});
     when(fixture.graphClient.uploadMedia(any(), any(), any(), any()))
         .thenAnswer(
             invocation -> {
-              Thread.sleep(Duration.ofMillis(20));
+              uploadStartedAt.set(Instant.now());
+              Thread.sleep(20L);
               uploadComplete.set(true);
               return "provider-media-1";
             });
     doAnswer(
             invocation -> {
+              permitAt.set(Instant.now());
               assertThat(uploadComplete).hasValue(true);
+              assertThat(Duration.between(uploadStartedAt.get(), permitAt.get()))
+                  .isGreaterThan(syntheticOutboundWindow);
               return null;
             })
         .when(fixture.limiter)
@@ -122,7 +136,11 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
         new MetaWhatsAppSendRequest(
             "request-media-delay", "MEDIA", null, null, null, null, "90", "caption"));
 
-    InOrder order = inOrder(fixture.graphClient, fixture.limiter);
+    InOrder order =
+        inOrder(fixture.reservations, fixture.graphClient, fixture.limiter);
+    order
+        .verify(fixture.reservations)
+        .tryReserve(10L, 20L, "request-media-delay", "MEDIA", any(Instant.class));
     order.verify(fixture.graphClient).uploadMedia(any(), any(), any(), any());
     order.verify(fixture.limiter).requirePermit("phone-1");
     order.verify(fixture.graphClient).sendMedia(any(), any(), any(), any(), any(), any());
@@ -227,7 +245,8 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
     order.verify(fixture.graphClient).uploadMedia(any(), any(), any(), any());
     order.verify(fixture.limiter).requirePermit("phone-1");
     order.verify(fixture.graphClient).sendMedia(any(), any(), any(), any(), any(), any());
-    verify(fixture.limiter)
+    order
+        .verify(fixture.limiter)
         .imposeProviderCooldown("phone-1", Duration.ofSeconds(12));
   }
 
@@ -316,7 +335,8 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
             });
     when(messages.findById(50L))
         .thenAnswer(invocation -> Optional.ofNullable(savedMessage.get()));
-    when(messages.save(any(InboxMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(messages.save(any(InboxMessage.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
 
     MetaWhatsAppMessageService service =
         new MetaWhatsAppMessageService(
@@ -342,6 +362,7 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
         service,
         graphClient,
         limiter,
+        reservations,
         templates,
         realtimePublisher,
         mediaService,
@@ -353,6 +374,7 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
       MetaWhatsAppMessageService service,
       MetaWhatsAppRuntimeGraphClient graphClient,
       MetaWhatsAppOutboundRateLimiter limiter,
+      MetaWhatsAppOutboundReservationStore reservations,
       MetaWhatsAppTemplateService templates,
       MetaWhatsAppRealtimePublisher realtimePublisher,
       MediaService mediaService,
