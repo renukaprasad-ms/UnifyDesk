@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     template: "%s | UnifyDesk",
   },
   description:
-    "Bring customer conversations, broadcasts, advertising and team workflows into one connected workspace.",
+    "UnifyDesk is an upcoming connected workspace for customer conversations, broadcasts, advertising and team workflows. Public access is coming soon.",
   metadataBase: new URL("https://unifydesk.in"),
   icons: {
     icon: [
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     ],
     title: "UnifyDesk — One workspace for customer communication and growth",
     description:
-      "Bring customer conversations, broadcasts, advertising and team workflows into one connected workspace.",
+      "UnifyDesk is under active development. Public access is coming soon.",
     url: "https://unifydesk.in",
     siteName: "UnifyDesk",
     type: "website",
