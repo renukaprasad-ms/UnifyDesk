@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.http.HttpClient;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -11,7 +12,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.ResourceAccessException;
@@ -30,8 +31,12 @@ public class MetaWhatsAppRuntimeGraphClient {
       MetaWhatsAppProviderFailureClassifier failureClassifier) {
     this.objectMapper = objectMapper;
     this.failureClassifier = failureClassifier;
-    SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-    factory.setConnectTimeout(properties.getProviderConnectTimeout());
+    HttpClient httpClient =
+        HttpClient.newBuilder()
+            .connectTimeout(properties.getProviderConnectTimeout())
+            .followRedirects(HttpClient.Redirect.NEVER)
+            .build();
+    JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
     factory.setReadTimeout(properties.getProviderReadTimeout());
     this.restClient =
         RestClient.builder().baseUrl(properties.getGraphBaseUrl()).requestFactory(factory).build();
