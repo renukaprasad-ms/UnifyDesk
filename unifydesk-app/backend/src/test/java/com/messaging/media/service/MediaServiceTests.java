@@ -235,6 +235,54 @@ class MediaServiceTests {
     verify(storageProvider).delete("private-media", "users/10/profile/100.jpg");
   }
 
+  @Test
+  void trustedReservedMediaReusesActiveRowWithoutAnotherStorageWrite() {
+    Media media = new Media();
+    media.setId(777L);
+    media.setOwnerUserId(7L);
+    media.setCompanyId(10L);
+    media.setStorageProvider(StorageProviderType.SUPABASE);
+    media.setBucket("private-media");
+    media.setObjectKey("users/7/whatsapp/777.jpg");
+    media.setOriginalFileName("photo.jpg");
+    media.setContentType("image/jpeg");
+    media.setSizeBytes(3L);
+    media.setMediaType(MediaType.IMAGE);
+    media.setPurpose(MediaPurpose.WHATSAPP_MEDIA);
+    media.setStatus(MediaStatus.ACTIVE);
+    media.setCompletedAt(Instant.now());
+
+    when(mediaRepository.findById(777L)).thenReturn(Optional.of(media));
+
+    Media result =
+        service.ingestTrustedCompanyMediaWithId(
+            777L, 10L, 7L, "photo.jpg", "image/jpeg", new byte[] {1, 2, 3});
+
+    assertThat(result).isSameAs(media);
+    assertThat(result.getObjectKey()).isEqualTo("users/7/whatsapp/777.jpg");
+    verify(storageProvider, never()).writeObject(any(), any(), any(), any());
+  }
+
+  @Test
+  void trustedReservedMediaUsesDeterministicObjectKey() {
+    when(mediaRepository.findById(778L)).thenReturn(Optional.empty());
+    when(mediaRepository.saveAndFlush(any(Media.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(storageProvider.getObjectMetadata("private-media", "users/7/whatsapp/778.jpg"))
+        .thenReturn(new StorageObjectMetadata(true, "image/jpeg", 3L, "etag"));
+
+    Media result =
+        service.ingestTrustedCompanyMediaWithId(
+            778L, 10L, 7L, "photo.jpg", "image/jpeg", new byte[] {1, 2, 3});
+
+    assertThat(result.getId()).isEqualTo(778L);
+    assertThat(result.getObjectKey()).isEqualTo("users/7/whatsapp/778.jpg");
+    assertThat(result.getStatus()).isEqualTo(MediaStatus.ACTIVE);
+    verify(storageProvider)
+        .writeObject(
+            "private-media", "users/7/whatsapp/778.jpg", new byte[] {1, 2, 3}, "image/jpeg");
+  }
+
   private Media pendingMedia(long mediaId, long ownerUserId) {
     Media media = new Media();
     media.setId(mediaId);
