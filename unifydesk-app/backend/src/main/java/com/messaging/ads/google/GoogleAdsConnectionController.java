@@ -65,6 +65,9 @@ import com.messaging.ads.google.dto.GoogleLifecycleGoalResponse;
 import com.messaging.ads.google.dto.GoogleLifecycleGoalUpsertRequest;
 import com.messaging.ads.google.dto.GooglePerformanceMaxLifecycleRequest;
 import com.messaging.ads.google.dto.GooglePerformanceMaxLifecycleResponse;
+import com.messaging.ads.google.dto.GooglePerformanceMaxListingGroupReplaceRequest;
+import com.messaging.ads.google.dto.GooglePerformanceMaxListingGroupResponse;
+import com.messaging.ads.google.dto.GooglePerformanceMaxRetailSettingsResponse;
 import com.messaging.ads.google.dto.GoogleUserListCustomerTypeRequest;
 import com.messaging.ads.google.dto.GoogleUserListCustomerTypeResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupAssetResponse;
@@ -148,6 +151,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsSearchInterestService searchInterestService;
   private final GoogleAdsCampaignTargetingService campaignTargetingService;
   private final GoogleAdsPerformanceMaxLifecycleService performanceMaxLifecycleService;
+  private final GoogleAdsPerformanceMaxListingGroupService performanceMaxListingGroupService;
   private final GoogleAdsKeywordSyncService keywordSyncService;
   private final GoogleAdsKeywordMutationService keywordMutationService;
   private final GoogleAdsNegativeKeywordService negativeKeywordService;
@@ -429,6 +433,51 @@ public class GoogleAdsConnectionController {
             200,
             performanceMaxService.assetGroups(companyId, campaignId),
             "Google Performance Max asset groups fetched"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/performance-max/retail-settings")
+  public ResponseEntity<ApiResponse<GooglePerformanceMaxRetailSettingsResponse>>
+      performanceMaxRetailSettings(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxListingGroupService.retailSettings(companyId, campaignId),
+            "Performance Max retail settings fetched"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/asset-groups/{assetGroupId}/listing-groups")
+  public ResponseEntity<ApiResponse<java.util.List<GooglePerformanceMaxListingGroupResponse>>>
+      performanceMaxListingGroups(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId,
+          @PathVariable String assetGroupId,
+          @RequestParam(defaultValue = "30") Integer days) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxListingGroupService.list(
+                companyId, campaignId, assetGroupId, days),
+            "Performance Max product groups fetched"));
+  }
+
+  @PutMapping("/campaigns/{campaignId}/asset-groups/{assetGroupId}/listing-groups")
+  public ResponseEntity<ApiResponse<java.util.List<GooglePerformanceMaxListingGroupResponse>>>
+      replacePerformanceMaxListingGroups(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId,
+          @PathVariable String assetGroupId,
+          @Valid @RequestBody GooglePerformanceMaxListingGroupReplaceRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxListingGroupService.replace(
+                companyId, campaignId, assetGroupId, request, userId),
+            "Performance Max product groups replaced"));
   }
 
   @GetMapping("/campaigns/{campaignId}/asset-groups/performance")
