@@ -126,6 +126,7 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
             invocation -> {
               permitAt.set(Instant.now());
               assertThat(uploadComplete).hasValue(true);
+              assertThat(fixture.jdbc.mediaLinkPersisted).isTrue();
               assertThat(Duration.between(uploadStartedAt.get(), permitAt.get()))
                   .isGreaterThan(syntheticOutboundWindow);
               return null;
@@ -142,7 +143,11 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
             "request-media-delay", "MEDIA", null, null, null, null, "90", "caption"));
 
     InOrder order =
-        inOrder(fixture.reservations, fixture.graphClient, fixture.limiter);
+        inOrder(
+            fixture.reservations,
+            fixture.mediaService,
+            fixture.graphClient,
+            fixture.limiter);
     order
         .verify(fixture.reservations)
         .tryReserve(
@@ -151,6 +156,7 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
             eq("request-media-delay"),
             eq("MEDIA"),
             any(Instant.class));
+    order.verify(fixture.mediaService).readTrustedObject(90L, 10L);
     order.verify(fixture.graphClient).uploadMedia(any(), any(), any(), any());
     order.verify(fixture.limiter).requirePermit("phone-1");
     order.verify(fixture.graphClient).sendMedia(any(), any(), any(), any(), any(), any());
@@ -173,6 +179,7 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
         .hasMessage("WHATSAPP_RATE_LIMITED");
 
     assertThat(fixture.jdbc.status).isEqualTo("FAILED");
+    assertThat(fixture.jdbc.mediaLinkPersisted).isTrue();
     assertThat(fixture.savedMessage.get().getStatus()).isEqualTo(InboxMessageStatus.FAILED);
     verify(fixture.graphClient, times(1)).uploadMedia(any(), any(), any(), any());
     verify(fixture.graphClient, never()).sendMedia(any(), any(), any(), any(), any(), any());
@@ -398,6 +405,7 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
     private String providerMessageId;
     private Integer errorCode;
     private Timestamp providerStatusAt;
+    private boolean mediaLinkPersisted;
 
     void reserve(String requestId) {
       clientRequestId = requestId;
@@ -444,6 +452,10 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
     public int update(String sql, Object... args) {
       if (sql.contains("set inbox_message_id=?")) {
         inboxMessageId = ((Number) args[0]).longValue();
+        return 1;
+      }
+      if (sql.contains("insert into meta_whatsapp_message_media")) {
+        mediaLinkPersisted = true;
         return 1;
       }
       if (sql.contains("detailed_status='FAILED'")) {
