@@ -211,9 +211,27 @@ public class MetaWhatsAppConnectionService {
   private void reconcileProviderState(
       Long companyId, Long connectionId, StoredMetaToken stored) {
     TokenInspection inspection = graphClient.inspectToken(stored.accessToken());
-    try {
-      validateTokenInspection(inspection);
-    } catch (BadRequestException exception) {
+    if (inspection == null
+        || !inspection.valid()
+        || (inspection.expiresAt() != null && !inspection.expiresAt().isAfter(Instant.now()))) {
+      persistenceService.markFailure(
+          connectionId,
+          new MetaGraphException(
+              "reconcile_token",
+              401,
+              "OAuthException",
+              190,
+              inspection != null
+                      && inspection.expiresAt() != null
+                      && !inspection.expiresAt().isAfter(Instant.now())
+                  ? 463
+                  : null,
+              null,
+              SafeCategory.AUTH,
+              false));
+      return;
+    }
+    if (!inspection.scopes().containsAll(REQUIRED_SCOPES)) {
       persistenceService.markFailure(
           connectionId,
           new MetaGraphException(
@@ -309,8 +327,10 @@ public class MetaWhatsAppConnectionService {
   }
 
   private void validateTokenInspection(TokenInspection inspection) {
-    if (inspection == null || !inspection.valid()) {
-      throw new BadRequestException("WHATSAPP_PROVIDER_AUTH_FAILED: Meta token is invalid");
+    if (inspection == null
+        || !inspection.valid()
+        || (inspection.expiresAt() != null && !inspection.expiresAt().isAfter(Instant.now()))) {
+      throw new BadRequestException("WHATSAPP_PROVIDER_AUTH_FAILED: Meta token is invalid or expired");
     }
     if (!inspection.scopes().containsAll(REQUIRED_SCOPES)) {
       throw new BadRequestException(
