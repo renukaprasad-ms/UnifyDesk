@@ -1622,6 +1622,21 @@ export type GoogleAssetGroup = {
   finalUrls: string[]
 }
 
+export type GoogleAssetGroupPerformance = {
+  id?: string | null
+  resourceName?: string | null
+  name?: string | null
+  status?: string | null
+  primaryStatus?: string | null
+  primaryStatusReasons: string[]
+  adStrength?: string | null
+  assetCoverage?: Record<string, unknown> | null
+  impressions?: number | null
+  clicks?: number | null
+  conversions?: number | null
+  conversionsValue?: number | null
+  costMicros?: number | null
+}
 
 export type GoogleAssetGroupAsset = {
   resourceName: string
@@ -1632,7 +1647,10 @@ export type GoogleAssetGroupAsset = {
   fieldType: string
   status?: string | null
   primaryStatus?: string | null
+  primaryStatusReasons: string[]
+  source?: string | null
   policyApprovalStatus?: string | null
+  policyReviewStatus?: string | null
   text?: string | null
   imageUrl?: string | null
   imageWidth?: number | null
