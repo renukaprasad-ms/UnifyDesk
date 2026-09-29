@@ -160,6 +160,7 @@ class MetaWhatsAppMessageServiceSecurityTests {
             mock(MetaWhatsAppRuntimeGraphClient.class),
             new MetaWhatsAppCustomerServicePolicy(properties),
             templateService,
+            new MetaWhatsAppSendFailurePolicy(),
             mock(MetaWhatsAppOutboundReservationStore.class),
             mock(MetaWhatsAppRealtimePublisher.class),
             mediaService,
