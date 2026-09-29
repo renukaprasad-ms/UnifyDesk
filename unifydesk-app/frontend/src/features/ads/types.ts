@@ -1622,6 +1622,41 @@ export type GoogleAssetGroup = {
   finalUrls: string[]
 }
 
+export type GooglePerformanceMaxRetailSettings = {
+  retail: boolean
+  merchantId?: string | null
+  feedLabel?: string | null
+}
+
+export type GooglePerformanceMaxListingGroup = {
+  id?: string | null
+  resourceName?: string | null
+  parentResourceName?: string | null
+  type?: string | null
+  listingSource?: string | null
+  dimensionType?: string | null
+  dimensionValue?: string | null
+  dimensionLevel?: string | null
+  customAttributeIndex?: string | null
+  impressions?: number | null
+  clicks?: number | null
+  conversions?: number | null
+  costMicros?: number | null
+}
+
+export type GooglePerformanceMaxListingGroupValueInput = {
+  value: string
+  level?: string | null
+  customAttributeIndex?: string | null
+  included: boolean
+}
+
+export type ReplaceGooglePerformanceMaxListingGroupsInput = {
+  dimensionType?: string | null
+  values: GooglePerformanceMaxListingGroupValueInput[]
+  includeOtherProducts: boolean
+}
+
 export type GoogleAssetGroupPerformance = {
   id?: string | null
   resourceName?: string | null
