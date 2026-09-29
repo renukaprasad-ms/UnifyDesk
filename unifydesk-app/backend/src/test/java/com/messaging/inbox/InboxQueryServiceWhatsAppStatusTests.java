@@ -100,6 +100,12 @@ class InboxQueryServiceWhatsAppStatusTests {
     assertThat(detail.messages().getFirst().status()).isEqualTo(InboxMessageStatus.SENT);
     assertThat(detail.messages().getFirst().whatsappStatus()).isEqualTo("READ");
 
+    var listed = service.listMessages(10L, 40L);
+
+    assertThat(listed).hasSize(1);
+    assertThat(listed.getFirst().status()).isEqualTo(InboxMessageStatus.SENT);
+    assertThat(listed.getFirst().whatsappStatus()).isEqualTo("READ");
+
     var snapshot =
         service.realtimeSnapshot(
             10L,
