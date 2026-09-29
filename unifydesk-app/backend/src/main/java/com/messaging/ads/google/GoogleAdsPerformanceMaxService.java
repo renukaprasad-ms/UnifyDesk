@@ -83,15 +83,7 @@ public class GoogleAdsPerformanceMaxService {
 
     String merchantId = normalizeMerchantId(request.merchantId());
     String feedLabel = normalizeFeedLabel(request.feedLabel(), merchantId);
-    if (merchantId != null) {
-      boolean accessible =
-          merchantService.accounts(companyId, accountId).stream()
-              .anyMatch(account -> merchantId.equals(account.accountId()));
-      if (!accessible) {
-        throw new BadRequestException(
-            "Selected Merchant Center account is not accessible to the connected Google user");
-      }
-    }
+    validateRetailSettings(companyId, accountId, merchantId, feedLabel);
 
     String customerId = context.account().getExternalAccountId();
     long budgetMicros =
@@ -351,6 +343,24 @@ public class GoogleAdsPerformanceMaxService {
             "initialStatus", "PAUSED"));
 
     return created;
+  }
+
+  public void validateRetailSettings(
+      Long companyId,
+      Long accountId,
+      String merchantId,
+      String feedLabel) {
+    String normalizedMerchant = normalizeMerchantId(merchantId);
+    normalizeFeedLabel(feedLabel, normalizedMerchant);
+    if (normalizedMerchant == null) return;
+
+    boolean accessible =
+        merchantService.accounts(companyId, accountId).stream()
+            .anyMatch(account -> normalizedMerchant.equals(account.accountId()));
+    if (!accessible) {
+      throw new BadRequestException(
+          "Selected Merchant Center account is not accessible to the connected Google user");
+    }
   }
 
   public List<GoogleAssetResponse> assets(Long companyId, Long accountId) {
