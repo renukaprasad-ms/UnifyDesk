@@ -29,12 +29,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.transaction.TransactionCallback;
-import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -225,9 +223,5 @@ class MetaWhatsAppMessageServiceRateLimitTests {
       return action.doInTransaction(new SimpleTransactionStatus());
     }
 
-    @Override
-    public void executeWithoutResult(Consumer<TransactionStatus> action) {
-      action.accept(new SimpleTransactionStatus());
-    }
   }
 }
