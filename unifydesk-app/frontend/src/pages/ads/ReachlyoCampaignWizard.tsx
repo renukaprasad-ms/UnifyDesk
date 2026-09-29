@@ -491,6 +491,11 @@ export default function ReachlyoCampaignWizard() {
   const [pmaxBrandMainColor, setPmaxBrandMainColor] = useState('')
   const [pmaxBrandAccentColor, setPmaxBrandAccentColor] = useState('')
   const [pmaxBrandFontFamily, setPmaxBrandFontFamily] = useState('')
+  const [pmaxMerchantAccounts, setPmaxMerchantAccounts] = useState<
+    GoogleMerchantAccount[]
+  >([])
+  const [pmaxMerchantId, setPmaxMerchantId] = useState('')
+  const [pmaxFeedLabel, setPmaxFeedLabel] = useState('')
   const [pmaxLifecycleGoalType, setPmaxLifecycleGoalType] = useState<
     'NEW_CUSTOMER_ACQUISITION' | 'CUSTOMER_RETENTION' | 'LOYALTY_RETENTION' | ''
   >('')
@@ -1026,6 +1031,16 @@ export default function ReachlyoCampaignWizard() {
       setPmaxBrandFontFamily(
         typeof override.pmaxBrandFontFamily === 'string'
           ? override.pmaxBrandFontFamily
+          : '',
+      )
+      setPmaxMerchantId(
+        typeof override.pmaxMerchantId === 'string'
+          ? override.pmaxMerchantId
+          : '',
+      )
+      setPmaxFeedLabel(
+        typeof override.pmaxFeedLabel === 'string'
+          ? override.pmaxFeedLabel
           : '',
       )
       setPmaxLifecycleGoalType(
@@ -1753,6 +1768,30 @@ export default function ReachlyoCampaignWizard() {
       )
     }
 
+    const pmaxAccount = accountByChannel.GOOGLE_PERFORMANCE_MAX
+    if (pmaxAccount) {
+      try {
+        const merchants = await adCenterApi.googleMerchantAccounts(
+          selectedCompany.companyId,
+          pmaxAccount,
+        )
+        setPmaxMerchantAccounts(merchants)
+        setPmaxMerchantId((current) =>
+          current && merchants.some((merchant) => merchant.accountId === current)
+            ? current
+            : '',
+        )
+      } catch {
+        setPmaxMerchantAccounts([])
+        setPmaxMerchantId('')
+        setPmaxFeedLabel('')
+      }
+    } else {
+      setPmaxMerchantAccounts([])
+      setPmaxMerchantId('')
+      setPmaxFeedLabel('')
+    }
+
     const shoppingAccount = accountByChannel.GOOGLE_SHOPPING
     if (shoppingAccount) {
       try {
@@ -1909,6 +1948,11 @@ export default function ReachlyoCampaignWizard() {
             pmaxBrandFontFamily:
               pmaxBrandGuidelinesEnabled && pmaxBrandFontFamily
                 ? pmaxBrandFontFamily
+                : undefined,
+            pmaxMerchantId: pmaxMerchantId || undefined,
+            pmaxFeedLabel:
+              pmaxMerchantId && pmaxFeedLabel.trim()
+                ? pmaxFeedLabel.trim().toUpperCase()
                 : undefined,
             pmaxLifecycleGoalType: pmaxLifecycleGoalType || undefined,
             pmaxLifecycleTargetOption:
@@ -4019,6 +4063,11 @@ export default function ReachlyoCampaignWizard() {
                   setPmaxBrandAccentColor={setPmaxBrandAccentColor}
                   pmaxBrandFontFamily={pmaxBrandFontFamily}
                   setPmaxBrandFontFamily={setPmaxBrandFontFamily}
+                  pmaxMerchantAccounts={pmaxMerchantAccounts}
+                  pmaxMerchantId={pmaxMerchantId}
+                  setPmaxMerchantId={setPmaxMerchantId}
+                  pmaxFeedLabel={pmaxFeedLabel}
+                  setPmaxFeedLabel={setPmaxFeedLabel}
                   pmaxLifecycleGoalType={pmaxLifecycleGoalType}
                   setPmaxLifecycleGoalType={setPmaxLifecycleGoalType}
                   pmaxLifecycleTargetOption={pmaxLifecycleTargetOption}
