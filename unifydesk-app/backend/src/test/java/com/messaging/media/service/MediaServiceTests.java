@@ -271,16 +271,17 @@ class MediaServiceTests {
     when(storageProvider.getObjectMetadata("private-media", "users/7/whatsapp/778.jpg"))
         .thenReturn(new StorageObjectMetadata(true, "image/jpeg", 3L, "etag"));
 
+    byte[] content = new byte[] {1, 2, 3};
     Media result =
         service.ingestTrustedCompanyMediaWithId(
-            778L, 10L, 7L, "photo.jpg", "image/jpeg", new byte[] {1, 2, 3});
+            778L, 10L, 7L, "photo.jpg", "image/jpeg", content);
 
     assertThat(result.getId()).isEqualTo(778L);
     assertThat(result.getObjectKey()).isEqualTo("users/7/whatsapp/778.jpg");
     assertThat(result.getStatus()).isEqualTo(MediaStatus.ACTIVE);
     verify(storageProvider)
         .writeObject(
-            "private-media", "users/7/whatsapp/778.jpg", new byte[] {1, 2, 3}, "image/jpeg");
+            "private-media", "users/7/whatsapp/778.jpg", content, "image/jpeg");
   }
 
   private Media pendingMedia(long mediaId, long ownerUserId) {
