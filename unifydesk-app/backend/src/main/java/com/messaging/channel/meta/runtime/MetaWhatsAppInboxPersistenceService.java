@@ -18,7 +18,6 @@ import com.messaging.inbox.repository.InboxMessageAttachmentRepository;
 import com.messaging.inbox.repository.InboxMessageRepository;
 import com.messaging.inbox.service.InboxMessagePostProcessor;
 import com.messaging.media.entity.Media;
-import com.messaging.realtime.service.RealtimeService;
 import com.messaging.storage.enums.StorageUsageType;
 import com.messaging.storage.service.MessageStorageMeter;
 import com.messaging.storage.service.StorageQuotaService;
@@ -45,7 +44,7 @@ public class MetaWhatsAppInboxPersistenceService {
   private final MessageStorageMeter messageStorageMeter;
   private final StorageQuotaService storageQuotaService;
   private final List<InboxMessagePostProcessor> messagePostProcessors;
-  private final RealtimeService realtimeService;
+  private final MetaWhatsAppRealtimePublisher realtimePublisher;
   private final JdbcTemplate jdbcTemplate;
 
   @Transactional
@@ -298,19 +297,11 @@ public class MetaWhatsAppInboxPersistenceService {
         new TransactionSynchronization() {
           @Override
           public void afterCommit() {
-            try {
-              realtimeService.sendToCompany(
-                  connection.getCompanyId(),
-                  "inbox.email.changed",
-                  InboxEmailChangedEvent.delta(
-                      connection.getId(),
-                      ProviderType.META_WHATSAPP,
-                      List.of(conversationId),
-                      List.of(messageId),
-                      List.of()));
-            } catch (RuntimeException ignored) {
-              // Realtime is advisory; durable Inbox state remains authoritative.
-            }
+            realtimePublisher.inboxChanged(
+                connection.getCompanyId(),
+                connection.getId(),
+                List.of(conversationId),
+                List.of(messageId));
           }
         });
   }
