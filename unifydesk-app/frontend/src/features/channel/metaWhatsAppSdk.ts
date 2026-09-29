@@ -45,6 +45,7 @@ declare global {
 const SDK_SCRIPT_ID = 'facebook-jssdk'
 const SDK_LOAD_TIMEOUT_MS = 15_000
 export const META_WHATSAPP_SIGNUP_TIMEOUT_MS = 5 * 60_000
+export const META_WHATSAPP_SESSION_INFO_GRACE_MS = 3_000
 const isAllowedFacebookOrigin = (origin: string) => {
   try {
     const url = new URL(origin)
@@ -191,10 +192,14 @@ export const launchMetaWhatsAppSignup = (
     let code: string | undefined
     let finishData: EmbeddedSignupData | undefined
     let settled = false
+    let sessionInfoGraceTimeout: number | undefined
 
     const cleanup = () => {
       window.removeEventListener('message', onMessage)
       window.clearTimeout(timeout)
+      if (sessionInfoGraceTimeout !== undefined) {
+        window.clearTimeout(sessionInfoGraceTimeout)
+      }
     }
 
     const settleError = (message: string) => {
@@ -204,11 +209,13 @@ export const launchMetaWhatsAppSignup = (
       reject(new Error(message))
     }
 
-    const settleSuccess = () => {
-      if (settled || !code || !finishData) return
-      const wabaId = stringValue(finishData.waba_id)
-      const phoneNumberId = stringValue(finishData.phone_number_id)
-      if (!wabaId && !phoneNumberId) {
+    const settleSuccess = (allowCodeOnly = false) => {
+      if (settled || !code) return
+      if (!finishData && !allowCodeOnly) return
+
+      const wabaId = stringValue(finishData?.waba_id)
+      const phoneNumberId = stringValue(finishData?.phone_number_id)
+      if (finishData && !wabaId && !phoneNumberId) {
         settleError('Meta did not return a WhatsApp account or phone number reference.')
         return
       }
@@ -219,9 +226,17 @@ export const launchMetaWhatsAppSignup = (
         code,
         wabaId,
         phoneNumberId,
-        whatsappAccountId: stringValue(finishData.whatsapp_account_id),
-        messagingAccountId: stringValue(finishData.messaging_account_id),
+        whatsappAccountId: stringValue(finishData?.whatsapp_account_id),
+        messagingAccountId: stringValue(finishData?.messaging_account_id),
       })
+    }
+
+    const scheduleCodeOnlyFallback = () => {
+      if (settled || !code || finishData || sessionInfoGraceTimeout !== undefined) return
+      sessionInfoGraceTimeout = window.setTimeout(
+        () => settleSuccess(true),
+        META_WHATSAPP_SESSION_INFO_GRACE_MS,
+      )
     }
 
     const onMessage = (event: MessageEvent) => {
@@ -279,6 +294,7 @@ export const launchMetaWhatsAppSignup = (
 
           code = returnedCode
           settleSuccess()
+          scheduleCodeOnlyFallback()
         },
         {
           config_id: config.configurationId.trim(),
