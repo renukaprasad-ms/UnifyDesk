@@ -41,10 +41,13 @@ import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MetaWhatsAppConnectionService {
@@ -182,8 +185,18 @@ public class MetaWhatsAppConnectionService {
       return;
     }
 
-    StoredMetaToken stored = persistenceService.readToken(connectionId);
+    String claimToken = UUID.randomUUID().toString();
+    if (!persistenceService.tryClaimProvisioning(connectionId, claimToken)) {
+      return;
+    }
+
     try {
+      control = persistenceService.requireControl(companyId, connectionId);
+      if (control.getProductState() == ProductState.DISCONNECTED) {
+        return;
+      }
+
+      StoredMetaToken stored = persistenceService.readToken(connectionId);
       if (control.getRegistrationState() != RegistrationState.REGISTERED) {
         graphClient.registerPhoneNumber(
             control.getSelectedPhoneNumberId(),
@@ -201,6 +214,27 @@ public class MetaWhatsAppConnectionService {
       reconcileProviderState(companyId, connectionId, stored);
     } catch (MetaGraphException failure) {
       persistenceService.markFailure(connectionId, failure);
+    } catch (RuntimeException failure) {
+      try {
+        persistenceService.markProvisioningRetry(connectionId, "WHATSAPP_LOCAL_RETRY");
+      } catch (RuntimeException retryStateFailure) {
+        log.warn(
+            "meta_whatsapp_retry_state_failed companyId={} connectionId={} errorType={}",
+            companyId,
+            connectionId,
+            retryStateFailure.getClass().getSimpleName());
+      }
+      throw failure;
+    } finally {
+      try {
+        persistenceService.releaseProvisioningClaim(connectionId, claimToken);
+      } catch (RuntimeException releaseFailure) {
+        log.warn(
+            "meta_whatsapp_claim_release_failed companyId={} connectionId={} errorType={}",
+            companyId,
+            connectionId,
+            releaseFailure.getClass().getSimpleName());
+      }
     }
   }
 
