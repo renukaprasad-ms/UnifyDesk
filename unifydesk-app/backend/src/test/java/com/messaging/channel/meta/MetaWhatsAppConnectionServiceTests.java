@@ -2,6 +2,7 @@ package com.messaging.channel.meta;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -12,6 +13,7 @@ import com.messaging.channel.meta.MetaGraphClient.PhoneNumber;
 import com.messaging.channel.meta.MetaGraphClient.TokenInspection;
 import com.messaging.channel.meta.MetaGraphClient.TokenResponse;
 import com.messaging.channel.meta.MetaGraphClient.WabaDetails;
+import com.messaging.channel.meta.MetaWhatsAppPersistenceService.StoredMetaToken;
 import com.messaging.channel.meta.MetaWhatsAppSignupStateService.ConsumedSignupState;
 import com.messaging.channel.meta.MetaWhatsAppSignupStateService.SignupMode;
 import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl;
@@ -21,6 +23,8 @@ import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl.ProductS
 import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl.RegistrationState;
 import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl.SubscriptionState;
 import com.messaging.channel.meta.control.MetaWhatsAppConnectionControlRepository;
+import com.messaging.channel.meta.control.MetaGraphException;
+import com.messaging.channel.meta.control.MetaGraphException.SafeCategory;
 import com.messaging.channel.meta.dto.CompleteMetaWhatsAppSignupRequest;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.channel.repository.SenderIdentityRepository;
@@ -193,6 +197,73 @@ class MetaWhatsAppConnectionServiceTests {
         .hasMessageContaining("WHATSAPP_PHONE_OWNED_BY_OTHER_COMPANY");
   }
 
+  @Test
+  void subscriptionRetryDoesNotRepeatSuccessfulRegistration() {
+    MetaWhatsAppConnectionControl pending =
+        control(COMPANY_ID, 600L, "phone-1", RegistrationState.PENDING, SubscriptionState.PENDING);
+    MetaWhatsAppConnectionControl registered =
+        control(
+            COMPANY_ID,
+            600L,
+            "phone-1",
+            RegistrationState.REGISTERED,
+            SubscriptionState.PENDING);
+    MetaWhatsAppConnectionControl subscribed =
+        control(
+            COMPANY_ID,
+            600L,
+            "phone-1",
+            RegistrationState.REGISTERED,
+            SubscriptionState.SUBSCRIBED);
+    when(persistenceService.requireControl(COMPANY_ID, 600L))
+        .thenReturn(pending, registered, registered, subscribed);
+    when(persistenceService.readToken(600L))
+        .thenReturn(new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null));
+    when(persistenceService.readPin(600L)).thenReturn("123456");
+    org.mockito.Mockito.doThrow(
+            new MetaGraphException(
+                "subscribe_app", 503, null, null, null, null, SafeCategory.TRANSIENT, true))
+        .doNothing()
+        .when(graphClient)
+        .subscribeApp("waba-1", "token");
+    when(graphClient.inspectToken("token")).thenReturn(validInspection("waba-1"));
+    when(graphClient.getWaba("waba-1", "token"))
+        .thenReturn(new WabaDetails("waba-1", "Acme", "INR", "5"));
+    when(graphClient.getPhoneNumbers("waba-1", "token"))
+        .thenReturn(List.of(new PhoneNumber("phone-1", "+919000000000", "Acme", "GREEN")));
+    when(graphClient.isAppSubscribed("waba-1", "token")).thenReturn(true);
+
+    service.reconcileDue(COMPANY_ID, 600L);
+    service.reconcileDue(COMPANY_ID, 600L);
+
+    verify(graphClient, times(1)).registerPhoneNumber("phone-1", "token", "123456");
+    verify(graphClient, times(2)).subscribeApp("waba-1", "token");
+    verify(persistenceService).markRegistrationSucceeded(600L);
+    verify(persistenceService).markHealthy(600L);
+  }
+
+  @Test
+  void transientProviderFailureIsRecordedForDegradedReconciliation() {
+    MetaWhatsAppConnectionControl active =
+        control(
+            COMPANY_ID,
+            600L,
+            "phone-1",
+            RegistrationState.REGISTERED,
+            SubscriptionState.SUBSCRIBED);
+    when(persistenceService.requireControl(COMPANY_ID, 600L)).thenReturn(active);
+    when(persistenceService.readToken(600L))
+        .thenReturn(new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null));
+    MetaGraphException failure =
+        new MetaGraphException(
+            "debug_token", 503, null, null, null, null, SafeCategory.TRANSIENT, true);
+    when(graphClient.inspectToken("token")).thenThrow(failure);
+
+    service.reconcileDue(COMPANY_ID, 600L);
+
+    verify(persistenceService).markFailure(600L, failure);
+  }
+
   private CompleteMetaWhatsAppSignupRequest request(String wabaId, String phoneNumberId) {
     return new CompleteMetaWhatsAppSignupRequest(
         "state", "code", wabaId, phoneNumberId, null, null);
@@ -206,6 +277,19 @@ class MetaWhatsAppConnectionServiceTests {
             new GranularScope("whatsapp_business_management", List.of(wabaId)),
             new GranularScope("whatsapp_business_messaging", List.of(wabaId))),
         null);
+  }
+
+  private MetaWhatsAppConnectionControl control(
+      Long companyId,
+      Long connectionId,
+      String phoneNumberId,
+      RegistrationState registrationState,
+      SubscriptionState subscriptionState) {
+    MetaWhatsAppConnectionControl control = activeControl(companyId, connectionId, phoneNumberId);
+    control.setProductState(ProductState.VALIDATING);
+    control.setRegistrationState(registrationState);
+    control.setSubscriptionState(subscriptionState);
+    return control;
   }
 
   private MetaWhatsAppConnectionControl activeControl(
