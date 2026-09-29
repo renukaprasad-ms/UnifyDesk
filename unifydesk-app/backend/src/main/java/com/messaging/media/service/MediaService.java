@@ -445,7 +445,20 @@ public class MediaService {
     try {
       StorageObjectMetadata metadata =
           provider.getObjectMetadata(media.getBucket(), media.getObjectKey());
-      if (!metadata.exists()) {
+      if (metadata.exists()) {
+        try {
+          validationService.validateUploadedObject(
+              media.getContentType(),
+              media.getSizeBytes(),
+              metadata.contentType(),
+              metadata.sizeBytes());
+        } catch (MediaException staleObject) {
+          provider.writeObject(
+              media.getBucket(), media.getObjectKey(), content, media.getContentType());
+          wroteObject = true;
+          metadata = provider.getObjectMetadata(media.getBucket(), media.getObjectKey());
+        }
+      } else {
         provider.writeObject(
             media.getBucket(), media.getObjectKey(), content, media.getContentType());
         wroteObject = true;
