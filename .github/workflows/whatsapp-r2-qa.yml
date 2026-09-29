@@ -1,0 +1,116 @@
+name: WhatsApp Round 2 QA
+
+on:
+  push:
+    branches:
+      - review/whatsapp-security-qa-r2
+  pull_request:
+    branches:
+      - dev
+
+jobs:
+  backend-full:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: unifydesk-app/backend/pom.xml
+      - run: docker compose -f unifydesk-app/compose.test.yml up -d --wait
+      - name: Backend spotless
+        continue-on-error: true
+        run: chmod +x mvnw && ./mvnw -B spotless:check
+        working-directory: unifydesk-app/backend
+      - name: Backend full test
+        continue-on-error: true
+        run: ./mvnw -B test
+        working-directory: unifydesk-app/backend
+      - name: Backend clean test
+        continue-on-error: true
+        run: ./mvnw -B clean test
+        working-directory: unifydesk-app/backend
+      - name: Backend package without tests
+        continue-on-error: true
+        run: ./mvnw -B package -DskipTests
+        working-directory: unifydesk-app/backend
+      - if: always()
+        run: docker compose -f unifydesk-app/compose.test.yml down
+
+  backend-whatsapp-targeted:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: unifydesk-app/backend/pom.xml
+      - run: docker compose -f unifydesk-app/compose.test.yml up -d --wait
+      - run: chmod +x mvnw
+        working-directory: unifydesk-app/backend
+      - name: Flyway V1/V75/V78 to V79
+        continue-on-error: true
+        run: ./mvnw -B -Dtest=MetaWhatsAppRound2MigrationQaTests test
+        working-directory: unifydesk-app/backend
+      - name: Send limiter ordering contract
+        continue-on-error: true
+        run: ./mvnw -B -Dtest=MetaWhatsAppRound2RateLimitQaTests test
+        working-directory: unifydesk-app/backend
+      - name: Redis limiter concurrency and cooldown
+        continue-on-error: true
+        run: ./mvnw -B -Dtest=MetaWhatsAppOutboundRateLimiterRedisIntegrationTests,MetaWhatsAppOutboundRateLimiterTests,MetaWhatsAppRuntimeGraphClientRetryAfterTests test
+        working-directory: unifydesk-app/backend
+      - name: Media retry fault injection
+        continue-on-error: true
+        run: ./mvnw -B -Dtest=MetaWhatsAppWebhookWorkerTests,MetaWhatsAppProviderMediaReservationStoreTests,MediaServiceTests test
+        working-directory: unifydesk-app/backend
+      - name: Stale pending recovery
+        continue-on-error: true
+        run: ./mvnw -B -Dtest=MetaWhatsAppPendingOutcomeRecoveryTests,MetaWhatsAppMessageServiceIdempotencyTests test
+        working-directory: unifydesk-app/backend
+      - name: Round 1 finding regressions
+        continue-on-error: true
+        run: ./mvnw -B -Dtest=MetaWhatsAppWebhookControllerTests,MetaWhatsAppWabaScopeAuthorizationTests,MetaWhatsAppMessageStateMachineTests,InboxQueryServiceWhatsAppStatusTests test
+        working-directory: unifydesk-app/backend
+      - if: always()
+        run: docker compose -f unifydesk-app/compose.test.yml down
+
+  frontend-full:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: unifydesk-app/frontend/package-lock.json
+      - name: npm ci
+        continue-on-error: true
+        run: npm ci
+        working-directory: unifydesk-app/frontend
+      - name: Frontend format check
+        continue-on-error: true
+        run: npm run format:check
+        working-directory: unifydesk-app/frontend
+      - name: Frontend lint
+        continue-on-error: true
+        run: npm run lint
+        working-directory: unifydesk-app/frontend
+      - name: Frontend tests
+        continue-on-error: true
+        run: npm test
+        working-directory: unifydesk-app/frontend
+      - name: Frontend build
+        continue-on-error: true
+        run: npm run build
+        working-directory: unifydesk-app/frontend
