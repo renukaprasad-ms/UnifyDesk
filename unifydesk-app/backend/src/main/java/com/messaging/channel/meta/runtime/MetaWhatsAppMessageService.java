@@ -98,11 +98,16 @@ public class MetaWhatsAppMessageService {
         throw new BadRequestException("WhatsApp mediaId is required");
       }
       requireFreeForm(context);
-      media = mediaService.requireActiveCompanyMedia(parseId(request.mediaId(), "mediaId"), companyId);
+      media =
+          mediaService.requireActiveCompanyMedia(
+              parseId(request.mediaId(), "mediaId"), companyId);
       if (!supportedMime(media.getContentType())) {
         throw new BadRequestException("WHATSAPP_MEDIA_UNSUPPORTED");
       }
-      body = StringUtils.hasText(request.caption()) ? request.caption().trim() : media.getOriginalFileName();
+      body =
+          StringUtils.hasText(request.caption())
+              ? request.caption().trim()
+              : media.getOriginalFileName();
     } else {
       throw new BadRequestException("Unsupported WhatsApp message type");
     }
@@ -260,7 +265,13 @@ public class MetaWhatsAppMessageService {
           message.setRead(true);
           message.setStorageBytes(
               messageStorageMeter.measure(
-                  message.getExternalMessageId(), null, null, null, message.getSnippet(), body, null));
+                  message.getExternalMessageId(),
+                  null,
+                  null,
+                  null,
+                  message.getSnippet(),
+                  body,
+                  null));
           message = messageRepository.saveAndFlush(message);
           storageQuotaService.consume(
               companyId,
@@ -462,7 +473,8 @@ public class MetaWhatsAppMessageService {
               """
               update meta_whatsapp_message_runtime
               set detailed_status=?,status_rank=?,provider_status_at=?,
-                  last_provider_error_code=?,last_provider_error_subcode=?,last_provider_fbtrace_id=?,
+                  last_provider_error_code=?,last_provider_error_subcode=?,
+                  last_provider_fbtrace_id=?,
                   updated_at=?
               where company_id=? and connection_id=? and client_request_id=?
               """,
