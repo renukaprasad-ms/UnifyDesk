@@ -446,7 +446,8 @@ public class MetaWhatsAppMessageService {
       throw new ServiceUnavailableException("WHATSAPP_CONNECTION_NOT_READY");
     }
     var credential = credentialResolver.require(connection.getId());
-    if (!credential.phoneNumberId().equals(projection.selectedPhoneNumberId())) {
+    if (!credential.phoneNumberId().equals(projection.selectedPhoneNumberId())
+        || !senderActive(connection.getId(), credential.phoneNumberId())) {
       throw new ServiceUnavailableException("WHATSAPP_CONNECTION_NOT_READY");
     }
     String external = conversation.getExternalConversationId();
@@ -454,6 +455,20 @@ public class MetaWhatsAppMessageService {
       throw new NotFoundException("WhatsApp conversation not found");
     }
     return new SendContext(connection, credential, external.substring(3));
+  }
+
+  private boolean senderActive(long connectionId, String phoneNumberId) {
+    Integer count =
+        jdbcTemplate.queryForObject(
+            """
+            select count(*)
+            from sender_identities
+            where connection_id=? and external_id=? and status='ACTIVE'
+            """,
+            Integer.class,
+            connectionId,
+            phoneNumberId);
+    return count != null && count == 1;
   }
 
   private InboxConversation requireConversation(long companyId, long conversationId) {
