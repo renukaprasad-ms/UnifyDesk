@@ -77,7 +77,10 @@ export const loadMetaSdk = (appId: string, graphApiVersion: string) => {
   const normalizedVersion = graphApiVersion.trim()
   const initKey = `${normalizedAppId}:${normalizedVersion}`
 
-  if (sdkInitializedKey === initKey && window.FB) return Promise.resolve()
+  if (window.FB) {
+    initializeSdk(normalizedAppId, normalizedVersion)
+    return Promise.resolve()
+  }
   if (sdkPromise) return sdkPromise
 
   sdkPromise = new Promise<void>((resolve, reject) => {
