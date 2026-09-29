@@ -5,6 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -269,11 +273,21 @@ public class MetaWhatsAppRuntimeGraphClient {
     } catch (MetaWhatsAppProviderException | MetaWhatsAppRuntimeException exception) {
       throw exception;
     } catch (RestClientResponseException exception) {
+      int status = exception.getStatusCode().value();
+      Duration retryAfter =
+          status == 429
+              ? parseRetryAfter(
+                  exception.getResponseHeaders() == null
+                      ? null
+                      : exception.getResponseHeaders().getFirst(HttpHeaders.RETRY_AFTER),
+                  Instant.now())
+              : null;
       throw providerError(
-          exception.getStatusCode().value(),
-          exception.getStatusCode().value() == 429 || exception.getStatusCode().is5xxServerError(),
+          status,
+          status == 429 || exception.getStatusCode().is5xxServerError(),
           false,
-          exception);
+          exception,
+          retryAfter);
     } catch (ResourceAccessException exception) {
       throw providerError(null, true, ambiguousOnIo, exception);
     }
@@ -281,6 +295,15 @@ public class MetaWhatsAppRuntimeGraphClient {
 
   private MetaWhatsAppProviderException providerError(
       Integer status, boolean retryable, boolean ambiguous, Throwable cause) {
+    return providerError(status, retryable, ambiguous, cause, null);
+  }
+
+  private MetaWhatsAppProviderException providerError(
+      Integer status,
+      boolean retryable,
+      boolean ambiguous,
+      Throwable cause,
+      Duration retryAfter) {
     Integer code = null;
     Integer subcode = null;
     String trace = null;
@@ -304,7 +327,28 @@ public class MetaWhatsAppRuntimeGraphClient {
         classified.safeCategory(),
         retryable && classified.retryable(),
         ambiguous && classified.ambiguousOutcome(),
+        retryAfter,
         cause);
+  }
+
+  static Duration parseRetryAfter(String value, Instant now) {
+    if (!StringUtils.hasText(value) || now == null) return null;
+    String normalized = value.trim();
+    try {
+      long seconds = Long.parseLong(normalized);
+      if (seconds < 0) return null;
+      return Duration.ofSeconds(seconds);
+    } catch (NumberFormatException ignored) {
+      // Retry-After also permits an RFC 1123 HTTP date.
+    }
+    try {
+      Instant retryAt =
+          ZonedDateTime.parse(normalized, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant();
+      Duration wait = Duration.between(now, retryAt);
+      return wait.isNegative() ? Duration.ZERO : wait;
+    } catch (RuntimeException ignored) {
+      return null;
+    }
   }
 
   private String bearer(String token) {

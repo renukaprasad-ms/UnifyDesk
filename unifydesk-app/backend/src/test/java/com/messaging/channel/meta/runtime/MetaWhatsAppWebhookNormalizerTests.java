@@ -53,6 +53,7 @@ class MetaWhatsAppWebhookNormalizerTests {
     String payload =
         """
         {
+          "object":"whatsapp_business_account",
           "entry":[{
             "id":"waba-1",
             "changes":[{
@@ -81,6 +82,7 @@ class MetaWhatsAppWebhookNormalizerTests {
     String payload =
         """
         {
+          "object":"whatsapp_business_account",
           "entry":[{
             "id":"waba-1",
             "changes":[{
@@ -139,7 +141,6 @@ class MetaWhatsAppWebhookNormalizerTests {
     assertThat(events).hasSize(1);
     assertThat(events.getFirst().eventKind()).isEqualTo("MESSAGE");
   }
-
 
   @Test
   void unknownSignedChangeIsNormalizedAsUnknownForSafeIgnore() {

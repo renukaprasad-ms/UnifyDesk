@@ -23,11 +23,10 @@ public class MetaWhatsAppMessageStateMachine {
       Instant currentProviderAt,
       State next,
       Instant incomingProviderAt) {
-    if (next.rank() < currentRank) return false;
     if (currentProviderAt != null
         && incomingProviderAt != null
-        && incomingProviderAt.isBefore(currentProviderAt)
-        && currentRank >= 20) return false;
+        && incomingProviderAt.isBefore(currentProviderAt)) return false;
+    if (next.rank() < currentRank) return false;
     if (next.rank() == currentRank
         && currentProviderAt != null
         && incomingProviderAt != null
