@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record MetaWhatsAppSendRequest(
-    @NotBlank @Size(max = 160) String clientRequestId,
+    @NotBlank @Size(max = 120) String clientRequestId,
     @NotBlank String type,
     @Size(max = 4096) String text,
     String replyToMessageId,
