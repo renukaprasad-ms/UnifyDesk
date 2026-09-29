@@ -26,6 +26,9 @@ public class MetaWhatsAppProperties {
   private Duration degradedReconcileInterval = Duration.ofMinutes(5);
   private Duration manualReconcileMinInterval = Duration.ofSeconds(15);
   private Duration reconcilePollInterval = Duration.ofMinutes(1);
+  private Duration provisioningClaimLease = Duration.ofMinutes(2);
+  private Duration retryInitialBackoff = Duration.ofSeconds(2);
+  private Duration retryMaxBackoff = Duration.ofMinutes(5);
 
   public void setAppId(String appId) {
     this.appId = trimToNull(appId);
@@ -67,6 +70,20 @@ public class MetaWhatsAppProperties {
 
   public Duration safeManualReconcileMinInterval() {
     return positiveOrDefault(manualReconcileMinInterval, Duration.ofSeconds(15));
+  }
+
+  public Duration safeProvisioningClaimLease() {
+    return positiveOrDefault(provisioningClaimLease, Duration.ofMinutes(2));
+  }
+
+  public Duration safeRetryInitialBackoff() {
+    return positiveOrDefault(retryInitialBackoff, Duration.ofSeconds(2));
+  }
+
+  public Duration safeRetryMaxBackoff() {
+    Duration initial = safeRetryInitialBackoff();
+    Duration maximum = positiveOrDefault(retryMaxBackoff, Duration.ofMinutes(5));
+    return maximum.compareTo(initial) < 0 ? initial : maximum;
   }
 
   public boolean configured() {
