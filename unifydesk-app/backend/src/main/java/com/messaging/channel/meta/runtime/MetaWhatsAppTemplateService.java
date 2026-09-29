@@ -96,6 +96,42 @@ public class MetaWhatsAppTemplateService {
         templates.size(), approved, rejected, syncedAt);
   }
 
+  public boolean applyWebhookStatus(String payloadJson) {
+    JsonNode root = readJson(payloadJson);
+    JsonNode value = root.path("value");
+    String providerTemplateId = text(value, "message_template_id");
+    String name = text(value, "message_template_name");
+    String language = text(value, "message_template_language");
+    String status = normalize(text(value, "event"));
+    if ("UNKNOWN".equals(status)) return false;
+
+    int updated = 0;
+    if (providerTemplateId != null) {
+      updated =
+          jdbcTemplate.update(
+              """
+              update meta_whatsapp_template_cache
+              set status=?,updated_at=now()
+              where provider_template_id=?
+              """,
+              status,
+              providerTemplateId);
+    }
+    if (updated == 0 && name != null && language != null) {
+      updated =
+          jdbcTemplate.update(
+              """
+              update meta_whatsapp_template_cache
+              set status=?,updated_at=now()
+              where name=? and language=?
+              """,
+              status,
+              name,
+              language);
+    }
+    return updated > 0;
+  }
+
   public PreparedTemplate prepare(
       long companyId,
       long connectionId,
@@ -228,6 +264,14 @@ public class MetaWhatsAppTemplateService {
     } catch (Exception exception) {
       throw new BadRequestException("Invalid " + field);
     }
+  }
+
+  private String text(JsonNode node, String field) {
+    if (node == null) return null;
+    JsonNode value = node.get(field);
+    return value == null || !value.isValueNode() || value.asText().isBlank()
+        ? null
+        : value.asText().trim();
   }
 
   private JsonNode readJson(String value) {
