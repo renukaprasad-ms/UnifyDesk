@@ -444,7 +444,12 @@ public class MetaWhatsAppPersistenceService {
               operation.setState(state);
               operation.setLastSafeErrorCode(errorCode);
               operation.setNextAttemptAt(nextAttemptAt);
-              operation.setCompletedAt(state == OperationState.SUCCEEDED ? Instant.now() : null);
+              if (state == OperationState.SUCCEEDED) {
+                operation.setAttemptCount(0);
+                operation.setCompletedAt(Instant.now());
+              } else {
+                operation.setCompletedAt(null);
+              }
               operationRepository.save(operation);
             });
   }
