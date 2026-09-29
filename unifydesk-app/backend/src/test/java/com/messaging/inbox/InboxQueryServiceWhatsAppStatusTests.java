@@ -4,11 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.messaging.channel.email.EmailFolder;
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.repository.ChannelConnectionRepository;
+import com.messaging.inbox.dto.InboxRealtimeSnapshotRequest;
 import com.messaging.inbox.entity.InboxConversation;
 import com.messaging.inbox.entity.InboxMessage;
 import com.messaging.inbox.enums.ConversationStatus;
@@ -23,6 +25,7 @@ import java.sql.ResultSet;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -35,6 +38,7 @@ class InboxQueryServiceWhatsAppStatusTests {
     InboxParticipantRepository participants = mock(InboxParticipantRepository.class);
     InboxMessageRepository messages = mock(InboxMessageRepository.class);
     InboxMessageAttachmentRepository attachments = mock(InboxMessageAttachmentRepository.class);
+    ChannelConnectionRepository connections = mock(ChannelConnectionRepository.class);
 
     ChannelConnection connection = new ChannelConnection();
     connection.setId(20L);
@@ -71,6 +75,15 @@ class InboxQueryServiceWhatsAppStatusTests {
         .thenReturn(List.of());
     when(attachments.findByMessageIdInOrderByFilenameAsc(List.of(50L)))
         .thenReturn(List.of());
+    when(connections.findByIdAndCompanyId(20L, 10L)).thenReturn(Optional.of(connection));
+    when(messages.findVisibleByIds(
+            10L,
+            20L,
+            ChannelConnectionStatus.ACTIVE,
+            Set.of(50L),
+            40L,
+            InboxMessageStatus.DELETED))
+        .thenReturn(List.of(message));
 
     InboxQueryService service =
         new InboxQueryService(
@@ -78,7 +91,7 @@ class InboxQueryServiceWhatsAppStatusTests {
             participants,
             messages,
             attachments,
-            mock(ChannelConnectionRepository.class),
+            connections,
             new ReadStatusJdbcTemplate());
 
     var detail = service.getConversationDetail(10L, 40L);
@@ -86,6 +99,16 @@ class InboxQueryServiceWhatsAppStatusTests {
     assertThat(detail.messages()).hasSize(1);
     assertThat(detail.messages().getFirst().status()).isEqualTo(InboxMessageStatus.SENT);
     assertThat(detail.messages().getFirst().whatsappStatus()).isEqualTo("READ");
+
+    var snapshot =
+        service.realtimeSnapshot(
+            10L,
+            new InboxRealtimeSnapshotRequest(
+                "20", EmailFolder.INBOX, "40", List.of(), List.of("50")));
+
+    assertThat(snapshot.messages()).hasSize(1);
+    assertThat(snapshot.messages().getFirst().status()).isEqualTo(InboxMessageStatus.SENT);
+    assertThat(snapshot.messages().getFirst().whatsappStatus()).isEqualTo("READ");
   }
 
   private static final class ReadStatusJdbcTemplate extends JdbcTemplate {
