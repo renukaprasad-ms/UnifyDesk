@@ -1,6 +1,7 @@
 package com.messaging.inbox.repository;
 
 import com.messaging.channel.enums.ChannelConnectionStatus;
+import com.messaging.channel.enums.ProviderType;
 import com.messaging.inbox.entity.InboxConversation;
 import java.util.Collection;
 import java.util.List;
@@ -21,6 +22,12 @@ public interface InboxConversationRepository extends JpaRepository<InboxConversa
       Long connectionId, Collection<String> externalConversationIds);
 
   Optional<InboxConversation> findByIdAndCompanyId(Long id, Long companyId);
+
+  @Query(
+      "select c.connection.providerType from InboxConversation c "
+          + "where c.id = :conversationId and c.companyId = :companyId")
+  Optional<ProviderType> findProviderTypeByIdAndCompanyId(
+      @Param("conversationId") Long conversationId, @Param("companyId") Long companyId);
 
   @Query(
       """
