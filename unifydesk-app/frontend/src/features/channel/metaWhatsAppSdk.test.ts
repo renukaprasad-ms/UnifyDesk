@@ -5,6 +5,7 @@ import {
   launchMetaWhatsAppSignup,
   loadMetaSdk,
   META_WHATSAPP_SIGNUP_TIMEOUT_MS,
+  META_WHATSAPP_SESSION_INFO_GRACE_MS,
 } from './metaWhatsAppSdk'
 
 const config: MetaWhatsAppSignupConfig = {
@@ -170,6 +171,42 @@ describe('Meta WhatsApp Embedded Signup v4', () => {
     )
 
     await expect(promise).resolves.toMatchObject({
+      wabaId: 'waba-1',
+      phoneNumberId: 'phone-1',
+    })
+  })
+
+  it('falls back to code-only completion when session info is not posted', async () => {
+    vi.useFakeTimers()
+    const facebook = installFacebook()
+    const promise = launchMetaWhatsAppSignup(config)
+
+    facebook.callback()({ status: 'connected', authResponse: { code: 'auth-code' } })
+
+    await vi.advanceTimersByTimeAsync(META_WHATSAPP_SESSION_INFO_GRACE_MS)
+
+    await expect(promise).resolves.toEqual({
+      code: 'auth-code',
+      wabaId: undefined,
+      phoneNumberId: undefined,
+      whatsappAccountId: undefined,
+      messagingAccountId: undefined,
+    })
+  })
+
+  it('prefers session info received during the code-only grace period', async () => {
+    vi.useFakeTimers()
+    const facebook = installFacebook()
+    const promise = launchMetaWhatsAppSignup(config)
+
+    facebook.callback()({ status: 'connected', authResponse: { code: 'auth-code' } })
+    await vi.advanceTimersByTimeAsync(META_WHATSAPP_SESSION_INFO_GRACE_MS - 1)
+    window.dispatchEvent(
+      embeddedEvent('FINISH', { waba_id: 'waba-1', phone_number_id: 'phone-1' }),
+    )
+
+    await expect(promise).resolves.toMatchObject({
+      code: 'auth-code',
       wabaId: 'waba-1',
       phoneNumberId: 'phone-1',
     })
