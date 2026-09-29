@@ -763,6 +763,10 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                   providerText(context, "pmaxBrandAccentColor"),
                   "brandFontFamily",
                   providerText(context, "pmaxBrandFontFamily"),
+                  "merchantId",
+                  providerText(context, "pmaxMerchantId"),
+                  "feedLabel",
+                  providerText(context, "pmaxFeedLabel"),
                   "providerOverrideJson",
                   context.channel().getProviderOverrideJson())));
       if (context.audienceDefinition() != null) {
