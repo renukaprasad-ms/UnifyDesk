@@ -58,12 +58,57 @@ class MetaWhatsAppWebhookControllerTests {
 
   @Test
   void acceptsPayloadWithValidMetaSignature() throws Exception {
-    byte[] body = "{\"object\":\"whatsapp_business_account\"}".getBytes(StandardCharsets.UTF_8);
+    byte[] body =
+        """
+        {
+          "object":"whatsapp_business_account",
+          "entry":[{
+            "id":"waba-1",
+            "changes":[{"field":"future_field","value":{"foo":"bar"}}]
+          }]
+        }
+        """.getBytes(StandardCharsets.UTF_8);
     var response = controller.receiveExactBytes(body, "sha256=" + signature(body), (long) body.length);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isEqualTo("EVENT_RECEIVED");
     verify(eventStore).persist(anyList());
+  }
+
+  @Test
+  void rejectsSignedUnsupportedEnvelopesWithoutStoring() throws Exception {
+    String[] payloads = {
+      """
+      {"object":"instagram","entry":[{"changes":[{"field":"messages","value":{}}]}]}
+      """,
+      """
+      {"object":"whatsapp_business_account"}
+      """,
+      """
+      {"object":"whatsapp_business_account","entry":[]}
+      """,
+      """
+      {"object":"whatsapp_business_account","entry":["bad-entry"]}
+      """,
+      """
+      {"object":"whatsapp_business_account","entry":[{"id":"waba-1","changes":[]}]}
+      """,
+      """
+      {"object":"whatsapp_business_account","entry":[{"changes":[{"value":{}}]}]}
+      """,
+      """
+      {"object":"whatsapp_business_account","entry":[{"changes":[{"field":"messages"}]}]}
+      """
+    };
+
+    for (String payload : payloads) {
+      byte[] body = payload.getBytes(StandardCharsets.UTF_8);
+      var response =
+          controller.receiveExactBytes(body, "sha256=" + signature(body), (long) body.length);
+      assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    verify(eventStore, never()).persist(anyList());
   }
 
   @Test
