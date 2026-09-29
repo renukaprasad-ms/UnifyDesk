@@ -64,6 +64,7 @@ public class GoogleAdsPerformanceMaxService {
   private final GoogleAdsApiClient apiClient;
   private final GoogleAdsCampaignSyncService campaignSyncService;
   private final GoogleAdsCampaignPersistenceService campaignPersistenceService;
+  private final GoogleMerchantService merchantService;
   private final AdCampaignRepository campaignRepository;
   private final AdActivityLogService activityLogService;
 
@@ -79,6 +80,18 @@ public class GoogleAdsPerformanceMaxService {
     }
 
     validate(request);
+
+    String merchantId = normalizeMerchantId(request.merchantId());
+    String feedLabel = normalizeFeedLabel(request.feedLabel(), merchantId);
+    if (merchantId != null) {
+      boolean accessible =
+          merchantService.accounts(companyId, accountId).stream()
+              .anyMatch(account -> merchantId.equals(account.accountId()));
+      if (!accessible) {
+        throw new BadRequestException(
+            "Selected Merchant Center account is not accessible to the connected Google user");
+      }
+    }
 
     String customerId = context.account().getExternalAccountId();
     long budgetMicros =
@@ -112,6 +125,12 @@ public class GoogleAdsPerformanceMaxService {
     campaign.put("brandGuidelinesEnabled", brandGuidelinesEnabled);
     if (!brandGuidelines.isEmpty()) {
       campaign.put("brandGuidelines", brandGuidelines);
+    }
+    if (merchantId != null) {
+      Map<String, Object> shoppingSettings = new LinkedHashMap<>();
+      shoppingSettings.put("merchantId", merchantId);
+      if (feedLabel != null) shoppingSettings.put("feedLabel", feedLabel);
+      campaign.put("shoppingSettings", shoppingSettings);
     }
     applyBidStrategy(campaign, request.bidStrategy());
     campaign.put(
@@ -282,6 +301,20 @@ public class GoogleAdsPerformanceMaxService {
       operations.add(operation("assetGroupAssetOperation", link));
     }
 
+    if (merchantId != null) {
+      Map<String, Object> rootListingGroup = new LinkedHashMap<>();
+      rootListingGroup.put(
+          "resourceName",
+          resource(customerId, "assetGroupListingGroupFilters", "-3~-4"));
+      rootListingGroup.put("assetGroup", assetGroupResource);
+      rootListingGroup.put("type", "UNIT_INCLUDED");
+      rootListingGroup.put("listingSource", "SHOPPING");
+      operations.add(
+          operation(
+              "assetGroupListingGroupFilterOperation",
+              rootListingGroup));
+    }
+
     JsonNode response =
         apiClient.mutateAll(
             context.accessToken(),
@@ -312,6 +345,9 @@ public class GoogleAdsPerformanceMaxService {
             "channel", "PERFORMANCE_MAX",
             "assetCount", assets.size(),
             "brandGuidelinesEnabled", brandGuidelinesEnabled,
+            "retail", merchantId != null,
+            "merchantId", merchantId == null ? "" : merchantId,
+            "feedLabel", feedLabel == null ? "" : feedLabel,
             "initialStatus", "PAUSED"));
 
     return created;
@@ -1141,6 +1177,30 @@ public class GoogleAdsPerformanceMaxService {
       throw new BadRequestException("Campaign is not a Google Performance Max campaign");
     }
     return campaign;
+  }
+
+  private String normalizeMerchantId(String value) {
+    if (value == null || value.isBlank()) return null;
+    String normalized = value.trim();
+    if (!normalized.matches("\\d+")) {
+      throw new BadRequestException(
+          "Performance Max Merchant Center account ID must contain digits only");
+    }
+    return normalized;
+  }
+
+  private String normalizeFeedLabel(String value, String merchantId) {
+    if (value == null || value.isBlank()) return null;
+    if (merchantId == null) {
+      throw new BadRequestException(
+          "Performance Max feed label requires a Merchant Center account");
+    }
+    String normalized = value.trim().toUpperCase(Locale.ROOT);
+    if (!normalized.matches("[A-Z0-9-]{1,20}")) {
+      throw new BadRequestException(
+          "Performance Max feed label must use up to 20 uppercase letters, numbers, or dashes");
+    }
+    return normalized;
   }
 
   private Map<String, Object> brandGuidelines(
