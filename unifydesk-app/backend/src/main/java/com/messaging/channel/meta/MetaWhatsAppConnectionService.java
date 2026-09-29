@@ -38,10 +38,12 @@ import com.messaging.channel.service.ChannelEntitlementService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ConflictException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.common.exception.ServiceUnavailableException;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -82,21 +84,22 @@ public class MetaWhatsAppConnectionService {
     requireConfigured();
     ConsumedSignupState signupState = stateService.consume(request.state(), companyId, userId);
 
-    TokenResponse token = graphClient.exchangeCode(request.code());
+    TokenResponse token = publicProviderCall(() -> graphClient.exchangeCode(request.code()));
     if (token == null || token.accessToken() == null || token.accessToken().isBlank()) {
       throw new BadRequestException("WHATSAPP_PROVIDER_AUTH_FAILED: Meta did not return a token");
     }
 
-    TokenInspection inspection = graphClient.inspectToken(token.accessToken());
+    TokenInspection inspection = publicProviderCall(() -> graphClient.inspectToken(token.accessToken()));
     validateTokenInspection(inspection);
 
     String wabaId = resolveWabaId(request.wabaId(), inspection);
-    WabaDetails waba = graphClient.getWaba(wabaId, token.accessToken());
+    WabaDetails waba = publicProviderCall(() -> graphClient.getWaba(wabaId, token.accessToken()));
     if (waba == null || waba.id() == null || !wabaId.equals(waba.id())) {
       throw new BadRequestException("WHATSAPP_ASSET_NOT_GRANTED: selected account was not validated");
     }
 
-    List<PhoneNumber> phones = graphClient.getPhoneNumbers(wabaId, token.accessToken());
+    List<PhoneNumber> phones =
+        publicProviderCall(() -> graphClient.getPhoneNumbers(wabaId, token.accessToken()));
     PhoneNumber phone = resolvePhoneNumber(request.phoneNumberId(), phones);
     validateReauthorizationBinding(companyId, signupState, wabaId, phone.id());
     rejectForeignPhone(companyId, phone.id());
@@ -455,6 +458,27 @@ public class MetaWhatsAppConnectionService {
       case ERROR -> NextAction.RETRY;
       case DISCONNECTED -> NextAction.NONE;
     };
+  }
+
+  private <T> T publicProviderCall(Supplier<T> call) {
+    try {
+      return call.get();
+    } catch (MetaGraphException failure) {
+      throw switch (failure.safeCategory()) {
+        case AUTH ->
+            new BadRequestException(
+                "WHATSAPP_PROVIDER_AUTH_FAILED: Meta authorization is no longer valid");
+        case PERMISSION ->
+            new BadRequestException(
+                "WHATSAPP_PERMISSION_MISSING: required Meta permissions were not granted");
+        case ASSET, INVALID_REQUEST ->
+            new BadRequestException(
+                "WHATSAPP_ASSET_NOT_GRANTED: Meta rejected the selected WhatsApp asset");
+        case RATE_LIMIT, TRANSIENT, PROVIDER_ERROR ->
+            new ServiceUnavailableException(
+                "WHATSAPP_PROVIDER_TEMPORARY: Meta is temporarily unavailable");
+      };
+    }
   }
 
   private void requireConfigured() {
