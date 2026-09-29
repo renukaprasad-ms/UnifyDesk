@@ -161,7 +161,6 @@ public class MetaWhatsAppConnectionService {
 
   public void reconcileDue(Long companyId, Long connectionId) {
     try {
-      persistenceService.requireControl(companyId, connectionId);
       provision(companyId, connectionId);
     } catch (NotFoundException ignored) {
       // Connection was removed or disconnected after the scheduler selected it.
