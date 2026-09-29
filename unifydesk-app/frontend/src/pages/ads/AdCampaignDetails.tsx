@@ -9,6 +9,7 @@ import GooglePerformanceMaxSignals from '../../components/ads/GooglePerformanceM
 import GooglePerformanceMaxAssets from '../../components/ads/GooglePerformanceMaxAssets'
 import GooglePerformanceMaxAutomationPanel from '../../components/ads/GooglePerformanceMaxAutomationPanel'
 import GooglePerformanceMaxBrandGuidelinesPanel from '../../components/ads/GooglePerformanceMaxBrandGuidelinesPanel'
+import GooglePerformanceMaxLifecyclePanel from '../../components/ads/GooglePerformanceMaxLifecyclePanel'
 import GoogleAiAssetStudio from '../../components/ads/GoogleAiAssetStudio'
 import GoogleNegativeKeywordManagement from '../../components/ads/GoogleNegativeKeywordManagement'
 import GoogleSearchTermReport from '../../components/ads/GoogleSearchTermReport'
@@ -781,6 +782,17 @@ export default function AdCampaignDetails() {
               campaign.objective === 'PERFORMANCE_MAX' && (
                 <GooglePerformanceMaxBrandGuidelinesPanel
                   companyId={selectedCompany.companyId}
+                  campaignId={campaign.id}
+                  canModify={can(PERMISSIONS.ADS_MODIFY)}
+                />
+              )}
+
+            {campaign.provider === 'GOOGLE_ADS' &&
+              campaign.objective === 'PERFORMANCE_MAX' &&
+              account && (
+                <GooglePerformanceMaxLifecyclePanel
+                  companyId={selectedCompany.companyId}
+                  accountId={account.id}
                   campaignId={campaign.id}
                   canModify={can(PERMISSIONS.ADS_MODIFY)}
                 />
