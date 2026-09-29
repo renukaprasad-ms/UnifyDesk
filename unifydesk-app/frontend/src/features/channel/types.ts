@@ -40,29 +40,76 @@ export type MetaWhatsAppSignupConfig = {
   appId: string
   configurationId: string
   graphApiVersion: string
+  embeddedSignupVersion: '4'
   state: string
-  coexistenceEnabled: boolean
+  expiresAt: string
+  coexistenceAvailable: boolean
 }
 
 export type MetaWhatsAppSignupResult = {
   code: string
   wabaId?: string
   phoneNumberId?: string
+  whatsappAccountId?: string
+  messagingAccountId?: string
+}
+
+export type MetaWhatsAppProductStatus =
+  | 'CONNECTING'
+  | 'VALIDATING'
+  | 'ACTIVE'
+  | 'DEGRADED'
+  | 'ACTION_REQUIRED'
+  | 'REAUTH_REQUIRED'
+  | 'DISCONNECTED'
+  | 'ERROR'
+
+export type MetaWhatsAppAuthState =
+  | 'VALID'
+  | 'EXPIRING'
+  | 'EXPIRED'
+  | 'REVOKED'
+  | 'MISSING_PERMISSION'
+  | 'UNKNOWN'
+
+export type MetaWhatsAppRegistrationState =
+  | 'PENDING'
+  | 'REGISTERED'
+  | 'ACTION_REQUIRED'
+  | 'ERROR'
+
+export type MetaWhatsAppSubscriptionState = 'PENDING' | 'SUBSCRIBED' | 'ERROR'
+export type MetaWhatsAppCoexistenceState =
+  | 'DISABLED'
+  | 'ELIGIBLE_UNVERIFIED'
+  | 'ENABLED'
+  | 'ERROR'
+
+export type MetaWhatsAppNextAction = 'NONE' | 'WAIT' | 'REAUTHORIZE' | 'OPEN_META' | 'RETRY'
+
+export type MetaWhatsAppPhone = {
+  senderIdentityId?: string
+  phoneNumberId: string
+  displayPhoneNumber: string
+  verifiedName?: string | null
+  qualityRating?: string | null
 }
 
 export type MetaWhatsAppConnection = {
   connectionId: string
-  wabaId: string
-  wabaName: string
-  status: ChannelConnectionStatus
-  phoneNumber: {
-    senderIdentityId: string
-    phoneNumberId: string
-    displayPhoneNumber: string
-    verifiedName?: string | null
-    qualityRating?: string | null
-    status: SenderIdentityStatus
-  }
+  genericStatus?: ChannelConnectionStatus
+  status: MetaWhatsAppProductStatus
+  authState?: MetaWhatsAppAuthState
+  registrationState?: MetaWhatsAppRegistrationState
+  subscriptionState?: MetaWhatsAppSubscriptionState
+  coexistenceState?: MetaWhatsAppCoexistenceState
+  lastValidatedAt?: string | null
+  wabaId?: string | null
+  whatsappAccountId?: string | null
+  messagingAccountId?: string | null
+  phone?: MetaWhatsAppPhone | null
+  safeErrorCode?: string | null
+  nextAction: MetaWhatsAppNextAction
 }
 
 export type GmailAuthorization = {
