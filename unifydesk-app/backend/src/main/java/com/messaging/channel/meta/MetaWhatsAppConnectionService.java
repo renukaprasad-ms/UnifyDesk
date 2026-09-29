@@ -103,6 +103,7 @@ public class MetaWhatsAppConnectionService {
     rejectForeignPhone(companyId, phone.id());
 
     ChannelConnection existing = existingConnection(companyId, signupState, wabaId);
+    validateExistingConnectionBinding(existing, phone.id());
     if (existing == null) {
       entitlementService.assertCanCreateConnection(companyId, ChannelType.WHATSAPP);
       entitlementService.assertCanCreateSender(companyId, SenderIdentityType.PHONE_NUMBER);
@@ -419,6 +420,24 @@ public class MetaWhatsAppConnectionService {
             control -> {
               throw new ConflictException(
                   "WHATSAPP_PHONE_OWNED_BY_OTHER_COMPANY: selected phone is already connected");
+            });
+  }
+
+  private void validateExistingConnectionBinding(
+      ChannelConnection existing, String selectedPhoneNumberId) {
+    if (existing == null) {
+      return;
+    }
+    controlRepository
+        .findById(existing.getId())
+        .filter(
+            control ->
+                control.getSelectedPhoneNumberId() != null
+                    && !selectedPhoneNumberId.equals(control.getSelectedPhoneNumberId()))
+        .ifPresent(
+            control -> {
+              throw new ConflictException(
+                  "WHATSAPP_ASSET_NOT_GRANTED: existing connection is bound to another phone");
             });
   }
 
