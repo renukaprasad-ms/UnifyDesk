@@ -587,9 +587,15 @@ public class MetaWhatsAppConnectionService {
         case PERMISSION ->
             new BadRequestException(
                 "WHATSAPP_PERMISSION_MISSING: required Meta permissions were not granted");
-        case ASSET, INVALID_REQUEST ->
+        case ASSET ->
             new BadRequestException(
                 "WHATSAPP_ASSET_NOT_GRANTED: Meta rejected the selected WhatsApp asset");
+        case INVALID_REQUEST ->
+            "exchange_code".equals(failure.operation())
+                ? new BadRequestException(
+                    "WHATSAPP_PROVIDER_AUTH_FAILED: Meta rejected the authorization code exchange")
+                : new BadRequestException(
+                    "WHATSAPP_ASSET_NOT_GRANTED: Meta rejected the selected WhatsApp asset");
         case RATE_LIMIT, TRANSIENT, PROVIDER_ERROR ->
             new ServiceUnavailableException(
                 "WHATSAPP_PROVIDER_TEMPORARY: Meta is temporarily unavailable");
