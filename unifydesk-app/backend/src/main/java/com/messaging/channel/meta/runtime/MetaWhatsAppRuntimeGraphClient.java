@@ -22,10 +22,14 @@ import org.springframework.web.client.RestClientResponseException;
 public class MetaWhatsAppRuntimeGraphClient {
   private final RestClient restClient;
   private final ObjectMapper objectMapper;
+  private final MetaWhatsAppProviderFailureClassifier failureClassifier;
 
   public MetaWhatsAppRuntimeGraphClient(
-      MetaWhatsAppRuntimeProperties properties, ObjectMapper objectMapper) {
+      MetaWhatsAppRuntimeProperties properties,
+      ObjectMapper objectMapper,
+      MetaWhatsAppProviderFailureClassifier failureClassifier) {
     this.objectMapper = objectMapper;
+    this.failureClassifier = failureClassifier;
     SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
     factory.setConnectTimeout(properties.getProviderConnectTimeout());
     factory.setReadTimeout(properties.getProviderReadTimeout());
@@ -282,16 +286,17 @@ public class MetaWhatsAppRuntimeGraphClient {
         // Deliberately do not retain raw provider response.
       }
     }
-    String category =
-        status == null
-            ? "WHATSAPP_PROVIDER_TEMPORARY"
-            : status == 401 || status == 403
-                ? "WHATSAPP_REAUTH_REQUIRED"
-                : status == 429 || status >= 500
-                    ? "WHATSAPP_PROVIDER_TEMPORARY"
-                    : "WHATSAPP_PROVIDER_REJECTED";
+    MetaWhatsAppProviderFailureClassifier.Failure classified =
+        failureClassifier.classify(status, status == null, ambiguous);
     return new MetaWhatsAppProviderException(
-        status, code, subcode, trace, category, retryable, ambiguous, cause);
+        status,
+        code,
+        subcode,
+        trace,
+        classified.safeCategory(),
+        retryable && classified.retryable(),
+        ambiguous && classified.ambiguousOutcome(),
+        cause);
   }
 
   private void validateProviderMediaUri(URI uri) {
