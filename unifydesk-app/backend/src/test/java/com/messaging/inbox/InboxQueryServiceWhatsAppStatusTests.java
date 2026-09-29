@@ -117,6 +117,65 @@ class InboxQueryServiceWhatsAppStatusTests {
     assertThat(snapshot.messages().getFirst().whatsappStatus()).isEqualTo("READ");
   }
 
+  @Test
+  void nonWhatsAppMessagesKeepWhatsappStatusNull() {
+    InboxConversationRepository conversations = mock(InboxConversationRepository.class);
+    InboxParticipantRepository participants = mock(InboxParticipantRepository.class);
+    InboxMessageRepository messages = mock(InboxMessageRepository.class);
+    InboxMessageAttachmentRepository attachments = mock(InboxMessageAttachmentRepository.class);
+
+    ChannelConnection connection = new ChannelConnection();
+    connection.setId(21L);
+    connection.setCompanyId(10L);
+    connection.setChannelType(ChannelType.EMAIL);
+    connection.setProviderType(ProviderType.GMAIL);
+    connection.setStatus(ChannelConnectionStatus.ACTIVE);
+
+    InboxConversation conversation = new InboxConversation();
+    conversation.setId(41L);
+    conversation.setCompanyId(10L);
+    conversation.setConnection(connection);
+    conversation.setProviderType(ProviderType.GMAIL);
+    conversation.setStatus(ConversationStatus.OPEN);
+
+    InboxMessage message = new InboxMessage();
+    message.setId(51L);
+    message.setConversation(conversation);
+    message.setConnection(connection);
+    message.setDirection(InboxMessageDirection.OUTBOUND);
+    message.setStatus(InboxMessageStatus.SENT);
+    message.setSentAt(Instant.parse("2026-09-29T00:00:00Z"));
+    message.setRead(true);
+
+    when(conversations.findByIdAndCompanyId(41L, 10L)).thenReturn(Optional.of(conversation));
+    when(messages.findByConversationIdAndStatusNotOrderBySentAtAscCreatedAtAsc(
+            41L, InboxMessageStatus.DELETED))
+        .thenReturn(List.of(message));
+    when(attachments.findByMessageIdInOrderByFilenameAsc(List.of(51L)))
+        .thenReturn(List.of());
+
+    InboxQueryService service =
+        new InboxQueryService(
+            conversations,
+            participants,
+            messages,
+            attachments,
+            mock(ChannelConnectionRepository.class),
+            new EmptyStatusJdbcTemplate());
+
+    var listed = service.listMessages(10L, 41L);
+
+    assertThat(listed).hasSize(1);
+    assertThat(listed.getFirst().whatsappStatus()).isNull();
+  }
+
+  private static final class EmptyStatusJdbcTemplate extends JdbcTemplate {
+    @Override
+    public <T> List<T> query(String sql, RowMapper<T> rowMapper, Object... args) {
+      return List.of();
+    }
+  }
+
   private static final class ReadStatusJdbcTemplate extends JdbcTemplate {
     @Override
     public <T> List<T> query(String sql, RowMapper<T> rowMapper, Object... args) {
