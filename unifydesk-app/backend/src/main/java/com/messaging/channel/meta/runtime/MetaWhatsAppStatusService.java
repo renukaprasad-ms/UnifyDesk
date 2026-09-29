@@ -58,7 +58,13 @@ public class MetaWhatsAppStatusService {
     Row current = rows.getFirst();
     MetaWhatsAppMessageStateMachine.State next = stateMachine.providerState(providerStatus);
     if (!stateMachine.shouldApply(
-        current.status(), current.rank(), current.providerStatusAt(), next, event.providerEventAt())) return true;
+        current.status(),
+        current.rank(),
+        current.providerStatusAt(),
+        next,
+        event.providerEventAt())) {
+      return true;
+    }
 
     Integer code = firstInt(status.path("errors"), "code");
     Integer subcode = firstInt(status.path("errors"), "error_subcode");
