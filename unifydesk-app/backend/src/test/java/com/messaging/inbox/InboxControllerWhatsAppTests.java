@@ -10,9 +10,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.messaging.channel.email.EmailFolder;
-import com.messaging.channel.entity.ChannelConnection;
-import com.messaging.channel.enums.ChannelConnectionStatus;
-import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.meta.runtime.MetaWhatsAppInboxReadStateService;
 import com.messaging.channel.repository.ChannelConnectionRepository;
@@ -21,7 +18,6 @@ import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
 import com.messaging.inbox.controller.InboxController;
 import com.messaging.inbox.dto.InboxPageResponse;
-import com.messaging.inbox.entity.InboxConversation;
 import com.messaging.inbox.repository.InboxConversationRepository;
 import com.messaging.inbox.repository.InboxMessageRepository;
 import com.messaging.inbox.service.InboxQueryService;
@@ -37,9 +33,8 @@ class InboxControllerWhatsAppTests {
   @Test
   void whatsappConversationCannotFallBackToEmailReadPermission() {
     Fixture fixture = fixture();
-    InboxConversation conversation = whatsappConversation();
-    when(fixture.conversationRepository.findByIdAndCompanyId(100L, 10L))
-        .thenReturn(Optional.of(conversation));
+    when(fixture.conversationRepository.findProviderTypeByIdAndCompanyId(100L, 10L))
+        .thenReturn(Optional.of(ProviderType.META_WHATSAPP));
     when(fixture.authorization.hasPermission(7L, 10L, CompanyPermissionKeys.WHATSAPP_READ))
         .thenReturn(false);
     when(fixture.authorization.hasPermission(7L, 10L, CompanyPermissionKeys.EMAIL_READ))
@@ -53,6 +48,22 @@ class InboxControllerWhatsAppTests {
     verify(fixture.authorization, never())
         .hasPermission(7L, 10L, CompanyPermissionKeys.EMAIL_READ);
     verify(fixture.queryService, never()).getConversation(any(), any());
+  }
+
+  @Test
+  void conversationDetailAuthorizesWithoutLoadingLazyConnection() {
+    Fixture fixture = fixture();
+    when(fixture.conversationRepository.findProviderTypeByIdAndCompanyId(100L, 10L))
+        .thenReturn(Optional.of(ProviderType.GMAIL));
+    when(fixture.authorization.hasPermission(7L, 10L, CompanyPermissionKeys.EMAIL_READ))
+        .thenReturn(true);
+
+    fixture.controller.conversationDetail(10L, 100L);
+
+    verify(fixture.conversationRepository).findProviderTypeByIdAndCompanyId(100L, 10L);
+    verify(fixture.conversationRepository, never()).findByIdAndCompanyId(100L, 10L);
+    verify(fixture.authorization).hasPermission(7L, 10L, CompanyPermissionKeys.EMAIL_READ);
+    verify(fixture.queryService).getConversationDetail(10L, 100L);
   }
 
   @Test
@@ -97,22 +108,6 @@ class InboxControllerWhatsAppTests {
             conversationRepository,
             mock(InboxMessageRepository.class));
     return new Fixture(controller, queryService, authorization, conversationRepository);
-  }
-
-  private InboxConversation whatsappConversation() {
-    ChannelConnection connection = new ChannelConnection();
-    connection.setId(20L);
-    connection.setCompanyId(10L);
-    connection.setChannelType(ChannelType.WHATSAPP);
-    connection.setProviderType(ProviderType.META_WHATSAPP);
-    connection.setStatus(ChannelConnectionStatus.ACTIVE);
-
-    InboxConversation conversation = new InboxConversation();
-    conversation.setId(100L);
-    conversation.setCompanyId(10L);
-    conversation.setConnection(connection);
-    conversation.setProviderType(ProviderType.META_WHATSAPP);
-    return conversation;
   }
 
   private record Fixture(
