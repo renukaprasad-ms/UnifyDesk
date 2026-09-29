@@ -11,6 +11,7 @@ import {
 import ConnectionRetentionNotice from '../../components/channel/ConnectionRetentionNotice'
 import DeleteChannelDataModal from '../../components/channel/DeleteChannelDataModal'
 import DisconnectChannelModal from '../../components/channel/DisconnectChannelModal'
+import WhatsAppDisconnectModal from '../../components/whatsapp/WhatsAppDisconnectModal'
 import EmailProviderPicker from '../../components/email/EmailProviderPicker'
 import AmazonSesConnectModal from '../../components/broadcast/AmazonSesConnectModal'
 import AzureEmailConnectModal from '../../components/broadcast/AzureEmailConnectModal'
@@ -40,7 +41,7 @@ import { launchMetaWhatsAppSignup, loadMetaSdk } from '../../features/channel/me
 import type {
   ChannelConnection,
   DisconnectDataPolicy,
-  MetaWhatsAppSignupConfig,
+  MetaWhatsAppConnection,
   SenderIdentity,
 } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -80,8 +81,8 @@ export default function CompanyConnections() {
   const [connections, setConnections] = useState<ChannelConnection[]>([])
   const [senders, setSenders] = useState<Record<string, SenderIdentity[]>>({})
   const [broadcastSenders, setBroadcastSenders] = useState<BroadcastSender[]>([])
-  const [signupConfig, setSignupConfig] = useState<MetaWhatsAppSignupConfig | null>(null)
-  const [metaReady, setMetaReady] = useState(false)
+  const [metaConnection, setMetaConnection] = useState<MetaWhatsAppConnection | null>(null)
+  const [metaHealthLoading, setMetaHealthLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState(false)
   const [broadcastEmailPickerOpen, setBroadcastEmailPickerOpen] = useState(false)
@@ -179,26 +180,26 @@ export default function CompanyConnections() {
     }
   }
 
-  const prepareMeta = async () => {
-    if (!selectedCompany || !can(PERMISSIONS.WHATSAPP_CONNECT)) return
+  const loadMetaConnection = async () => {
+    if (!selectedCompany || !can(PERMISSIONS.WHATSAPP_READ)) {
+      setMetaConnection(null)
+      return
+    }
 
+    setMetaHealthLoading(true)
     try {
-      const config = await metaWhatsAppApi.signupConfig(selectedCompany.companyId)
-
-      await loadMetaSdk(config.appId, config.graphApiVersion)
-
-      setSignupConfig(config)
-      setMetaReady(true)
-    } catch (prepareError) {
-      setSignupConfig(null)
-      setMetaReady(false)
+      setMetaConnection(await metaWhatsAppApi.connection(selectedCompany.companyId))
+    } catch {
+      setMetaConnection(null)
+    } finally {
+      setMetaHealthLoading(false)
     }
   }
 
   useEffect(() => {
     void loadConnections()
     void loadBroadcastSetup()
-    void prepareMeta()
+    void loadMetaConnection()
   }, [selectedCompany?.companyId])
 
   useEffect(() => {
@@ -266,34 +267,49 @@ export default function CompanyConnections() {
     }
   }, [])
 
-  const connectWhatsApp = () => {
-    if (!selectedCompany || !signupConfig || !metaReady || connecting) return
+  const connectWhatsApp = async (reauthorize = false) => {
+    if (!selectedCompany || connecting || !can(PERMISSIONS.WHATSAPP_CONNECT)) return
 
     setConnecting(true)
+    try {
+      const session = reauthorize
+        ? await metaWhatsAppApi.reauthorizeSession(selectedCompany.companyId)
+        : await metaWhatsAppApi.signupSession(selectedCompany.companyId)
 
-    launchMetaWhatsAppSignup(signupConfig)
-      .then((result) =>
-        metaWhatsAppApi.complete(selectedCompany.companyId, signupConfig.state, result),
+      await loadMetaSdk(session.appId, session.graphApiVersion)
+      const result = await launchMetaWhatsAppSignup(session)
+      const connection = await metaWhatsAppApi.complete(
+        selectedCompany.companyId,
+        session.state,
+        result,
       )
-      .then(async (connection) => {
-        snackbar.success(
-          `Connected ${connection.phoneNumber.displayPhoneNumber} to ${connection.wabaName}`,
-        )
-        await loadConnections()
-        await prepareMeta()
-      })
-      .catch((connectError) => {
-        const message =
-          connectError instanceof Error
-            ? connectError.message
-            : apiErrorMessage(connectError, 'Unable to connect WhatsApp')
 
-        snackbar.error(message)
-        void prepareMeta()
-      })
-      .finally(() => {
-        setConnecting(false)
-      })
+      setMetaConnection(connection)
+      if (connection.status === 'ACTIVE') {
+        snackbar.success(
+          connection.phone?.displayPhoneNumber
+            ? `WhatsApp ${connection.phone.displayPhoneNumber} is connected.`
+            : 'WhatsApp is connected.',
+        )
+      } else if (connection.status === 'ACTION_REQUIRED') {
+        snackbar.warning('WhatsApp is connected, but Meta requires an additional action.')
+      } else if (connection.status === 'REAUTH_REQUIRED') {
+        snackbar.warning('WhatsApp authorization still needs to be renewed.')
+      } else {
+        snackbar.info('WhatsApp setup is continuing. Refresh status to check progress.')
+      }
+
+      await loadConnections()
+      await loadMetaConnection()
+    } catch (connectError) {
+      const message =
+        connectError instanceof Error
+          ? connectError.message
+          : apiErrorMessage(connectError, 'Unable to connect WhatsApp')
+      snackbar.error(message)
+    } finally {
+      setConnecting(false)
+    }
   }
 
   const disconnect = async (
@@ -308,6 +324,8 @@ export default function CompanyConnections() {
         await gmailApi.disconnect(selectedCompany.companyId, connection.id, dataPolicy)
       } else if (connection.providerType === 'MICROSOFT') {
         await microsoftApi.disconnect(selectedCompany.companyId, connection.id, dataPolicy)
+      } else if (connection.providerType === 'META_WHATSAPP') {
+        await metaWhatsAppApi.disconnect(selectedCompany.companyId, dataPolicy)
       } else {
         await channelApi.disconnect(selectedCompany.companyId, connection.id, dataPolicy)
       }
@@ -319,7 +337,7 @@ export default function CompanyConnections() {
       )
       setDisconnectTarget(null)
       await loadConnections()
-      if (connection.providerType === 'META_WHATSAPP') await prepareMeta()
+      if (connection.providerType === 'META_WHATSAPP') await loadMetaConnection()
     } catch (disconnectError) {
       snackbar.error(apiErrorMessage(disconnectError, 'Unable to disconnect channel'))
     } finally {
@@ -451,8 +469,8 @@ export default function CompanyConnections() {
               <button
                 type="button"
                 className="primary-button mt-4 inline-flex w-full items-center justify-center gap-2"
-                onClick={connectWhatsApp}
-                disabled={!metaReady || connecting}
+                onClick={() => void connectWhatsApp(false)}
+                disabled={connecting}
               >
                 <FiLink aria-hidden="true" />
                 {connecting
@@ -461,11 +479,6 @@ export default function CompanyConnections() {
                     ? 'Connect another'
                     : 'Connect WhatsApp'}
               </button>
-            )}
-            {can(PERMISSIONS.WHATSAPP_CONNECT) && !metaReady && (
-              <p className="mt-2 text-[11px] leading-4 text-slate-400">
-                Meta configuration must be available before the signup popup can open.
-              </p>
             )}
           </div>
 
@@ -844,8 +857,44 @@ export default function CompanyConnections() {
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-slate-500">
-                      WABA {connection.externalAccountId ?? 'Pending'}
+                      {metaConnection?.connectionId === connection.id
+                        ? [
+                            metaConnection.phone?.displayPhoneNumber,
+                            metaConnection.phone?.verifiedName,
+                            metaConnection.phone?.qualityRating
+                              ? `Quality ${metaConnection.phone.qualityRating}`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ') || 'WhatsApp Business connection'
+                        : `WABA ${connection.externalAccountId ?? 'Pending'}`}
                     </p>
+                    {metaConnection?.connectionId === connection.id && (
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 font-bold text-slate-700">
+                          {metaConnection.status.replaceAll('_', ' ')}
+                        </span>
+                        {metaConnection.authState && (
+                          <span className="text-slate-500">
+                            Authorization: {metaConnection.authState.replaceAll('_', ' ')}
+                          </span>
+                        )}
+                        {metaConnection.lastValidatedAt && (
+                          <span className="text-slate-400">
+                            Checked {new Date(metaConnection.lastValidatedAt).toLocaleString()}
+                          </span>
+                        )}
+                        {metaConnection.status === 'DEGRADED' && (
+                          <span className="font-semibold text-amber-700">Temporarily degraded</span>
+                        )}
+                        {metaConnection.status === 'ACTION_REQUIRED' && (
+                          <span className="font-semibold text-rose-700">Action required</span>
+                        )}
+                        {metaConnection.status === 'REAUTH_REQUIRED' && (
+                          <span className="font-semibold text-rose-700">Authorization expired</span>
+                        )}
+                      </div>
+                    )}
                     <div className="mt-2 flex flex-wrap gap-2">
                       {(senders[connection.id] ?? []).map((sender) => (
                         <span
@@ -860,7 +909,71 @@ export default function CompanyConnections() {
                     </div>
                   </div>
 
-                  <div className="w-full shrink-0 lg:w-auto lg:max-w-md">
+                  <div className="flex w-full shrink-0 flex-wrap gap-2 lg:w-auto lg:max-w-md">
+                    {metaConnection?.connectionId === connection.id &&
+                      can(PERMISSIONS.WHATSAPP_MODIFY) && (
+                        <button
+                          type="button"
+                          className="secondary-button inline-flex items-center gap-2"
+                          disabled={metaHealthLoading || workingConnectionId === connection.id}
+                          onClick={async () => {
+                            if (!selectedCompany) return
+                            setMetaHealthLoading(true)
+                            try {
+                              setMetaConnection(
+                                await metaWhatsAppApi.reconcile(selectedCompany.companyId),
+                              )
+                            } catch (requestError) {
+                              snackbar.error(
+                                apiErrorMessage(requestError, 'Unable to refresh WhatsApp status'),
+                              )
+                            } finally {
+                              setMetaHealthLoading(false)
+                            }
+                          }}
+                        >
+                          <FiRefreshCw aria-hidden="true" />
+                          {metaHealthLoading ? 'Refreshing…' : 'Refresh status'}
+                        </button>
+                      )}
+                    {metaConnection?.connectionId === connection.id &&
+                      metaConnection.nextAction === 'REAUTHORIZE' &&
+                      can(PERMISSIONS.WHATSAPP_CONNECT) && (
+                        <button
+                          type="button"
+                          className="primary-button inline-flex items-center gap-2"
+                          disabled={connecting}
+                          onClick={() => void connectWhatsApp(true)}
+                        >
+                          <FiLink aria-hidden="true" />
+                          Reauthorize
+                        </button>
+                      )}
+                    {metaConnection?.connectionId === connection.id &&
+                      metaConnection.nextAction === 'RETRY' &&
+                      can(PERMISSIONS.WHATSAPP_CONNECT) && (
+                        <button
+                          type="button"
+                          className="secondary-button inline-flex items-center gap-2"
+                          disabled={connecting}
+                          onClick={() => void connectWhatsApp(metaConnection.status !== 'DISCONNECTED')}
+                        >
+                          <FiRefreshCw aria-hidden="true" />
+                          Retry
+                        </button>
+                      )}
+                    {metaConnection?.connectionId === connection.id &&
+                      metaConnection.nextAction === 'OPEN_META' && (
+                        <a
+                          className="secondary-button inline-flex items-center gap-2"
+                          href="https://business.facebook.com/settings/whatsapp-business-accounts"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <FiLink aria-hidden="true" />
+                          Open Meta instructions
+                        </a>
+                      )}
                     {connection.status !== 'DISCONNECTED' &&
                       can(PERMISSIONS.WHATSAPP_DISCONNECT) && (
                         <button
@@ -879,7 +992,7 @@ export default function CompanyConnections() {
                       working={workingConnectionId === connection.id}
                       onReconnect={
                         connection.providerType === 'META_WHATSAPP'
-                          ? () => connectWhatsApp()
+                          ? () => void connectWhatsApp(true)
                           : undefined
                       }
                       onDeleteNow={() => setDeleteTarget(connection)}
@@ -1044,7 +1157,24 @@ export default function CompanyConnections() {
       )}
 
       <DisconnectChannelModal
-        connection={disconnectTarget}
+        connection={
+          disconnectTarget?.providerType === 'META_WHATSAPP' ? null : disconnectTarget
+        }
+        working={
+          disconnectTarget !== null && workingConnectionId === disconnectTarget.id
+        }
+        onClose={() => {
+          if (!workingConnectionId) setDisconnectTarget(null)
+        }}
+        onConfirm={(policy) => {
+          if (disconnectTarget) void disconnect(disconnectTarget, policy)
+        }}
+      />
+
+      <WhatsAppDisconnectModal
+        connection={
+          disconnectTarget?.providerType === 'META_WHATSAPP' ? disconnectTarget : null
+        }
         working={
           disconnectTarget !== null && workingConnectionId === disconnectTarget.id
         }
