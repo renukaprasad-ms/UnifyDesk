@@ -49,7 +49,6 @@ class MetaWhatsAppMessageStateMachineTests {
     assertThat(apply).isFalse();
   }
 
-
   @Test
   void olderFailureCannotOverwriteNewerAcceptedState() {
     boolean apply =
