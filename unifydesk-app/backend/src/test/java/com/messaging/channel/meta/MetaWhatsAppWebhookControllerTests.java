@@ -1,44 +1,49 @@
 package com.messaging.channel.meta;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.messaging.observability.webhook.WebhookCallbackAuditService;
+import com.messaging.channel.meta.runtime.MetaWhatsAppRuntimeProperties;
+import com.messaging.channel.meta.runtime.MetaWhatsAppWebhookEventStore;
+import com.messaging.channel.meta.runtime.MetaWhatsAppWebhookNormalizer;
+import com.messaging.channel.meta.runtime.MetaWhatsAppWebhookSecrets;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.util.unit.DataSize;
 
 class MetaWhatsAppWebhookControllerTests {
 
   private static final String APP_SECRET = "meta-app-secret";
   private MetaWhatsAppWebhookController controller;
+  private MetaWhatsAppWebhookEventStore eventStore;
+  private MetaWhatsAppRuntimeProperties runtimeProperties;
 
   @BeforeEach
   void setUp() {
-    MetaWhatsAppProperties properties = new MetaWhatsAppProperties();
-    properties.setAppSecret(APP_SECRET);
-    properties.setWebhookVerifyToken("verify-me");
+    runtimeProperties = new MetaWhatsAppRuntimeProperties();
+    eventStore = mock(MetaWhatsAppWebhookEventStore.class);
+    MetaWhatsAppWebhookNormalizer normalizer =
+        new MetaWhatsAppWebhookNormalizer(new ObjectMapper(), runtimeProperties);
     controller =
         new MetaWhatsAppWebhookController(
-            properties, mock(WebhookCallbackAuditService.class), new ObjectMapper());
+            new MetaWhatsAppWebhookSecrets(APP_SECRET, "verify-me"),
+            runtimeProperties,
+            normalizer,
+            eventStore);
   }
 
   @Test
   void returnsChallengeWhenVerifyTokenMatches() {
-    var response =
-        controller.verify(
-            "subscribe",
-            "verify-me",
-            "challenge-value",
-            new HttpHeaders(),
-            request("GET"));
+    var response = controller.verify("subscribe", "verify-me", "challenge-value");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isEqualTo("challenge-value");
@@ -46,51 +51,74 @@ class MetaWhatsAppWebhookControllerTests {
 
   @Test
   void rejectsWebhookVerificationWhenTokenDoesNotMatch() {
-    var response =
-        controller.verify(
-            "subscribe",
-            "wrong-token",
-            "challenge-value",
-            new HttpHeaders(),
-            request("GET"));
+    var response = controller.verify("subscribe", "wrong-token", "challenge-value");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
   }
 
   @Test
   void acceptsPayloadWithValidMetaSignature() throws Exception {
-    String body = "{\"object\":\"whatsapp_business_account\"}";
-    String signature = "sha256=" + signature(body);
-
-    HttpHeaders headers = new HttpHeaders();
-    headers.add("X-Hub-Signature-256", signature);
-    var response = controller.receive(body, signature, headers, request("POST"));
+    byte[] body = "{\"object\":\"whatsapp_business_account\"}".getBytes(StandardCharsets.UTF_8);
+    var response = controller.receiveExactBytes(body, "sha256=" + signature(body), (long) body.length);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isEqualTo("EVENT_RECEIVED");
+    verify(eventStore).persist(anyList());
   }
 
   @Test
-  void rejectsPayloadWithInvalidMetaSignature() {
+  void rejectsPayloadWithInvalidMetaSignatureWithoutStoring() {
+    byte[] body = "{\"object\":\"whatsapp_business_account\"}".getBytes(StandardCharsets.UTF_8);
     var response =
-        controller.receive(
-            "{\"object\":\"whatsapp_business_account\"}",
+        controller.receiveExactBytes(
+            body,
             "sha256=0000000000000000000000000000000000000000000000000000000000000000",
-            new HttpHeaders(),
-            request("POST"));
+            (long) body.length);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    verify(eventStore, never()).persist(anyList());
   }
 
-  private MockHttpServletRequest request(String method) {
-    MockHttpServletRequest request = new MockHttpServletRequest(method, "/api/v1/webhooks/meta/whatsapp");
-    request.setRemoteAddr("127.0.0.1");
-    return request;
+  @Test
+  void rejectsUnsignedPayloadWithoutStoring() {
+    byte[] body = "{}".getBytes(StandardCharsets.UTF_8);
+    var response = controller.receiveExactBytes(body, null, (long) body.length);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    verify(eventStore, never()).persist(anyList());
   }
 
-  private String signature(String body) throws Exception {
+  @Test
+  void rejectsSignedMalformedPayloadWithoutStoring() throws Exception {
+    byte[] body = "{bad-json".getBytes(StandardCharsets.UTF_8);
+    var response = controller.receiveExactBytes(body, "sha256=" + signature(body), (long) body.length);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    verify(eventStore, never()).persist(anyList());
+  }
+
+  @Test
+  void rejectsOversizedSignedPayloadBeforeStorage() throws Exception {
+    runtimeProperties.setWebhookMaxBody(DataSize.ofBytes(4));
+    byte[] body = "{\"a\":1}".getBytes(StandardCharsets.UTF_8);
+    var response = controller.receiveExactBytes(body, "sha256=" + signature(body), (long) body.length);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.PAYLOAD_TOO_LARGE);
+    verify(eventStore, never()).persist(anyList());
+  }
+
+  @Test
+  void malformedOrUppercasePrefixSignatureIsRejected() throws Exception {
+    byte[] body = "{}".getBytes(StandardCharsets.UTF_8);
+    var response = controller.receiveExactBytes(body, "SHA256=" + signature(body), (long) body.length);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    verify(eventStore, never()).persist(anyList());
+  }
+
+  private String signature(byte[] body) throws Exception {
     Mac mac = Mac.getInstance("HmacSHA256");
     mac.init(new SecretKeySpec(APP_SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-    return HexFormat.of().formatHex(mac.doFinal(body.getBytes(StandardCharsets.UTF_8)));
+    return HexFormat.of().formatHex(mac.doFinal(body));
   }
 }

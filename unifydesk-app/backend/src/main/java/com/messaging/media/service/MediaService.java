@@ -368,6 +368,71 @@ public class MediaService {
         .toList();
   }
 
+  @Transactional
+  public Media ingestTrustedCompanyMedia(
+      long companyId,
+      long ownerUserId,
+      String fileName,
+      String contentType,
+      byte[] content) {
+    if (content == null || content.length == 0) {
+      throw new MediaException(HttpStatus.BAD_REQUEST, "MEDIA_INVALID_SIZE");
+    }
+    MediaValidationService.ValidatedMedia validated =
+        validationService.validateForUpload(fileName, contentType, content.length);
+
+    long mediaId = IdGenerator.nextId();
+    Media media = new Media();
+    media.setId(mediaId);
+    media.setOwnerUserId(ownerUserId);
+    media.setCompanyId(companyId);
+    media.setStorageProvider(storageProperties.getDefaultProvider());
+    media.setBucket(configuredBucket());
+    media.setObjectKey(
+        objectKeyFactory.createUserObjectKey(
+            ownerUserId, MediaPurpose.WHATSAPP_MEDIA, mediaId, validated.extension()));
+    media.setOriginalFileName(validated.fileName());
+    media.setContentType(validated.contentType());
+    media.setSizeBytes(validated.sizeBytes());
+    media.setMediaType(validated.mediaType());
+    media.setPurpose(MediaPurpose.WHATSAPP_MEDIA);
+    media.setStatus(MediaStatus.PENDING);
+    media = mediaRepository.saveAndFlush(media);
+    storageAccounting.reserve(media);
+
+    StorageProvider provider = storageProviderResolver.resolve(media.getStorageProvider());
+    try {
+      provider.writeObject(
+          media.getBucket(), media.getObjectKey(), content, media.getContentType());
+      StorageObjectMetadata metadata =
+          provider.getObjectMetadata(media.getBucket(), media.getObjectKey());
+      if (!metadata.exists()) {
+        throw new MediaException(HttpStatus.SERVICE_UNAVAILABLE, "MEDIA_STORAGE_ERROR");
+      }
+      validationService.validateUploadedObject(
+          media.getContentType(),
+          media.getSizeBytes(),
+          metadata.contentType(),
+          metadata.sizeBytes());
+      media.setStatus(MediaStatus.ACTIVE);
+      media.setCompletedAt(Instant.now());
+      media.setChecksum(metadata.checksum());
+      media = mediaRepository.saveAndFlush(media);
+      storageAccounting.commit(media);
+      return media;
+    } catch (RuntimeException exception) {
+      try {
+        provider.delete(media.getBucket(), media.getObjectKey());
+      } catch (RuntimeException ignored) {
+        // Cleanup is best effort; DB rollback keeps this object unreferenced.
+      }
+      storageAccounting.release(media);
+      media.setStatus(MediaStatus.FAILED);
+      mediaRepository.saveAndFlush(media);
+      throw exception;
+    }
+  }
+
   @Transactional(readOnly = true)
   public Media requireActiveCompanyMedia(long mediaId, long companyId) {
     Media media =

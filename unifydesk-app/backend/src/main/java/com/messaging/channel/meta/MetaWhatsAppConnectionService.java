@@ -1,22 +1,50 @@
 package com.messaging.channel.meta;
 
 import com.messaging.channel.entity.ChannelConnection;
+import com.messaging.channel.entity.SenderIdentity;
 import com.messaging.channel.enums.ChannelType;
+import com.messaging.channel.enums.DisconnectDataPolicy;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.enums.SenderIdentityType;
+import com.messaging.channel.meta.MetaGraphClient.GranularScope;
 import com.messaging.channel.meta.MetaGraphClient.PhoneNumber;
+import com.messaging.channel.meta.MetaGraphClient.TokenInspection;
 import com.messaging.channel.meta.MetaGraphClient.TokenResponse;
 import com.messaging.channel.meta.MetaGraphClient.WabaDetails;
+import com.messaging.channel.meta.MetaWhatsAppPersistenceService.PendingProvisioning;
+import com.messaging.channel.meta.MetaWhatsAppPersistenceService.StoredMetaCredential;
+import com.messaging.channel.meta.MetaWhatsAppPersistenceService.StoredMetaToken;
+import com.messaging.channel.meta.MetaWhatsAppSignupStateService.ConsumedSignupState;
+import com.messaging.channel.meta.MetaWhatsAppSignupStateService.SignupMode;
+import com.messaging.channel.meta.MetaWhatsAppSignupStateService.SignupSession;
+import com.messaging.channel.meta.control.MetaGraphException;
+import com.messaging.channel.meta.control.MetaGraphException.SafeCategory;
+import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl;
+import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl.AuthState;
+import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl.ProductState;
+import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl.RegistrationState;
+import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl.SubscriptionState;
+import com.messaging.channel.meta.control.MetaWhatsAppConnectionControlRepository;
+import com.messaging.channel.meta.control.MetaWhatsAppProvisioningOperation.OperationType;
 import com.messaging.channel.meta.dto.CompleteMetaWhatsAppSignupRequest;
+import com.messaging.channel.meta.dto.MetaWhatsAppConnectionHealthResponse;
 import com.messaging.channel.meta.dto.MetaWhatsAppConnectionResponse;
+import com.messaging.channel.meta.dto.MetaWhatsAppConnectionResponse.NextAction;
 import com.messaging.channel.meta.dto.MetaWhatsAppSignupConfigResponse;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.channel.repository.SenderIdentityRepository;
 import com.messaging.channel.service.ChannelConnectionService;
 import com.messaging.channel.service.ChannelEntitlementService;
 import com.messaging.common.exception.BadRequestException;
-import java.security.SecureRandom;
+import com.messaging.common.exception.ConflictException;
+import com.messaging.common.exception.NotFoundException;
+import com.messaging.common.exception.ServiceUnavailableException;
+import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,174 +54,520 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class MetaWhatsAppConnectionService {
 
-  private static final SecureRandom RANDOM = new SecureRandom();
+  private static final Set<String> REQUIRED_SCOPES =
+      Set.of("whatsapp_business_management", "whatsapp_business_messaging");
 
   private final MetaWhatsAppProperties properties;
   private final MetaWhatsAppSignupStateService stateService;
   private final MetaGraphClient graphClient;
   private final ChannelConnectionRepository connectionRepository;
   private final SenderIdentityRepository senderIdentityRepository;
+  private final MetaWhatsAppConnectionControlRepository controlRepository;
   private final ChannelEntitlementService entitlementService;
   private final ChannelConnectionService channelConnectionService;
   private final MetaWhatsAppPersistenceService persistenceService;
 
-  public MetaWhatsAppSignupConfigResponse signupConfig(Long companyId, Long userId) {
+  public MetaWhatsAppSignupConfigResponse signupSession(Long companyId, Long userId) {
     requireConfigured();
-    log.info(
-        "meta_whatsapp_signup_config_start companyId={} userId={} appId={} configurationId={} graphApiVersion={}",
-        companyId,
-        userId,
-        properties.getAppId(),
-        properties.getConfigurationId(),
-        properties.getGraphApiVersion());
+    SignupSession session = stateService.create(companyId, userId);
+    return signupResponse(session);
+  }
 
-    String state = stateService.create(companyId, userId);
-
-    log.info(
-        "meta_whatsapp_signup_config_ready companyId={} userId={} stateCreated=true",
-        companyId,
-        userId);
-
-    return new MetaWhatsAppSignupConfigResponse(
-        properties.getAppId(),
-        properties.getConfigurationId(),
-        properties.getGraphApiVersion(),
-        state,
-        false);
+  public MetaWhatsAppSignupConfigResponse reauthorizeSession(Long companyId, Long userId) {
+    requireConfigured();
+    MetaWhatsAppConnectionControl control = currentControl(companyId);
+    SignupSession session =
+        stateService.createReauthorize(
+            companyId, userId, control.getConnectionId(), control.getSelectedPhoneNumberId());
+    return signupResponse(session);
   }
 
   public MetaWhatsAppConnectionResponse complete(
       Long companyId, Long userId, CompleteMetaWhatsAppSignupRequest request) {
     requireConfigured();
-    log.info(
-        "meta_whatsapp_complete_start companyId={} userId={} wabaId={} phoneNumberId={} hasCode={} hasState={}",
-        companyId,
-        userId,
-        request.wabaId(),
-        request.phoneNumberId(),
-        request.code() != null && !request.code().isBlank(),
-        request.state() != null && !request.state().isBlank());
+    ConsumedSignupState signupState = stateService.consume(request.state(), companyId, userId);
 
-    stateService.consume(request.state(), companyId, userId);
-    log.info("meta_whatsapp_state_validated companyId={} userId={}", companyId, userId);
-
-    log.info("meta_whatsapp_exchange_code_start companyId={}", companyId);
-    TokenResponse token = graphClient.exchangeCode(request.code());
+    TokenResponse token = publicProviderCall(() -> graphClient.exchangeCode(request.code()));
     if (token == null || token.accessToken() == null || token.accessToken().isBlank()) {
-      log.warn("meta_whatsapp_exchange_code_missing_token companyId={}", companyId);
-      throw new BadRequestException("Meta did not return an access token");
+      throw new BadRequestException("WHATSAPP_PROVIDER_AUTH_FAILED: Meta did not return a token");
     }
-    log.info("meta_whatsapp_exchange_code_success companyId={}", companyId);
 
-    String wabaId = resolveWabaId(request.wabaId(), token.accessToken());
-    List<PhoneNumber> phoneNumbers = graphClient.getPhoneNumbers(wabaId, token.accessToken());
-    PhoneNumber phone = resolvePhoneNumber(request.phoneNumberId(), phoneNumbers);
+    TokenInspection inspection = publicProviderCall(() -> graphClient.inspectToken(token.accessToken()));
+    validateTokenInspection(inspection);
 
-    ChannelConnection existing =
-        connectionRepository
-            .findByCompanyIdAndProviderTypeAndExternalAccountId(
-                companyId, ProviderType.META_WHATSAPP, wabaId)
-            .orElse(null);
+    String wabaId = resolveWabaId(request.wabaId(), inspection);
+    WabaDetails waba = publicProviderCall(() -> graphClient.getWaba(wabaId, token.accessToken()));
+    if (waba == null || waba.id() == null || !wabaId.equals(waba.id())) {
+      throw new BadRequestException("WHATSAPP_ASSET_NOT_GRANTED: selected account was not validated");
+    }
 
+    List<PhoneNumber> phones =
+        publicProviderCall(() -> graphClient.getPhoneNumbers(wabaId, token.accessToken()));
+    PhoneNumber phone = resolvePhoneNumber(request.phoneNumberId(), phones);
+    validateReauthorizationBinding(companyId, signupState, wabaId, phone.id());
+    rejectForeignPhone(companyId, phone.id());
+
+    ChannelConnection existing = existingConnection(companyId, signupState, wabaId);
+    validateExistingConnectionBinding(existing, phone.id());
     if (existing == null) {
       entitlementService.assertCanCreateConnection(companyId, ChannelType.WHATSAPP);
       entitlementService.assertCanCreateSender(companyId, SenderIdentityType.PHONE_NUMBER);
-    } else {
-      boolean senderExists =
-          senderIdentityRepository
-              .findByConnectionIdAndIdentityTypeAndExternalId(
-                  existing.getId(), SenderIdentityType.PHONE_NUMBER, phone.id())
-              .isPresent();
-      if (!senderExists) {
-        entitlementService.assertCanCreateSender(companyId, SenderIdentityType.PHONE_NUMBER);
+    } else if (senderIdentityRepository
+        .findByConnectionIdAndIdentityTypeAndExternalId(
+            existing.getId(), SenderIdentityType.PHONE_NUMBER, phone.id())
+        .isEmpty()) {
+      entitlementService.assertCanCreateSender(companyId, SenderIdentityType.PHONE_NUMBER);
+    }
+
+    Instant tokenExpiresAt = resolveTokenExpiry(token, inspection);
+    OperationType operationType =
+        signupState.mode() == SignupMode.REAUTHORIZE
+            ? OperationType.REAUTHORIZE
+            : OperationType.CONNECT;
+
+    PendingProvisioning pending =
+        persistenceService.persistPending(
+            companyId,
+            userId,
+            signupState.expectedConnectionId(),
+            wabaId,
+            null,
+            null,
+            waba,
+            phone,
+            token,
+            tokenExpiresAt,
+            operationType);
+    channelConnectionService.cancelPendingPurge(companyId, pending.connectionId());
+
+    provision(companyId, pending.connectionId());
+    return connectionResponse(companyId, pending.connectionId());
+  }
+
+  public MetaWhatsAppConnectionHealthResponse getConnection(Long companyId) {
+    MetaWhatsAppConnectionControl control = currentControl(companyId);
+    return healthResponse(companyId, control.getConnectionId());
+  }
+
+  public MetaWhatsAppConnectionHealthResponse reconcile(Long companyId) {
+    MetaWhatsAppConnectionControl control = currentControl(companyId);
+    Instant lastAttempt =
+        control.getLastValidatedAt() != null ? control.getLastValidatedAt() : control.getUpdatedAt();
+    if (lastAttempt != null
+        && lastAttempt.plus(properties.safeManualReconcileMinInterval()).isAfter(Instant.now())) {
+      return healthResponse(companyId, control.getConnectionId());
+    }
+    provision(companyId, control.getConnectionId());
+    return healthResponse(companyId, control.getConnectionId());
+  }
+
+  public void reconcileDue(Long companyId, Long connectionId) {
+    try {
+      provision(companyId, connectionId);
+    } catch (NotFoundException ignored) {
+      // Connection was removed or disconnected after the scheduler selected it.
+    }
+  }
+
+  public MetaWhatsAppConnectionHealthResponse disconnect(
+      Long companyId, Long userId, DisconnectDataPolicy dataPolicy) {
+    MetaWhatsAppConnectionControl control = currentControl(companyId);
+    channelConnectionService.disconnect(
+        companyId,
+        control.getConnectionId(),
+        userId,
+        dataPolicy == null ? DisconnectDataPolicy.KEEP_7_DAYS : dataPolicy);
+    return healthResponse(companyId, control.getConnectionId());
+  }
+
+  private void provision(Long companyId, Long connectionId) {
+    MetaWhatsAppConnectionControl control =
+        persistenceService.requireControl(companyId, connectionId);
+    if (control.getProductState() == ProductState.DISCONNECTED) {
+      return;
+    }
+
+    String claimToken = UUID.randomUUID().toString();
+    if (!persistenceService.tryClaimProvisioning(connectionId, claimToken)) {
+      return;
+    }
+
+    try {
+      control = persistenceService.requireControl(companyId, connectionId);
+      if (control.getProductState() == ProductState.DISCONNECTED) {
+        return;
+      }
+
+      StoredMetaCredential credential;
+      try {
+        credential = persistenceService.readTokenCredential(connectionId);
+      } catch (NotFoundException missingCredential) {
+        persistenceService.markCredentialReauthorizationRequired(
+            connectionId, AuthState.UNKNOWN, "WHATSAPP_REAUTH_REQUIRED");
+        return;
+      }
+      if (credential.expiresAt() != null && !credential.expiresAt().isAfter(Instant.now())) {
+        persistenceService.markCredentialReauthorizationRequired(
+            connectionId, AuthState.EXPIRED, "WHATSAPP_REAUTH_REQUIRED");
+        return;
+      }
+      StoredMetaToken stored = credential.token();
+      if (control.getRegistrationState() != RegistrationState.REGISTERED) {
+        graphClient.registerPhoneNumber(
+            control.getSelectedPhoneNumberId(),
+            stored.accessToken(),
+            persistenceService.readPin(connectionId));
+        persistenceService.markRegistrationSucceeded(connectionId);
+      }
+
+      control = persistenceService.requireControl(companyId, connectionId);
+      if (control.getSubscriptionState() != SubscriptionState.SUBSCRIBED) {
+        graphClient.subscribeApp(control.getLegacyWabaId(), stored.accessToken());
+        persistenceService.markSubscriptionSucceeded(connectionId);
+      }
+
+      reconcileProviderState(companyId, connectionId, stored);
+    } catch (MetaGraphException failure) {
+      persistenceService.markFailure(connectionId, failure);
+    } catch (RuntimeException failure) {
+      try {
+        persistenceService.markProvisioningRetry(connectionId, "WHATSAPP_LOCAL_RETRY");
+      } catch (RuntimeException retryStateFailure) {
+        log.warn(
+            "meta_whatsapp_retry_state_failed companyId={} connectionId={} errorType={}",
+            companyId,
+            connectionId,
+            retryStateFailure.getClass().getSimpleName());
+      }
+      throw failure;
+    } finally {
+      try {
+        persistenceService.releaseProvisioningClaim(connectionId, claimToken);
+      } catch (RuntimeException releaseFailure) {
+        log.warn(
+            "meta_whatsapp_claim_release_failed companyId={} connectionId={} errorType={}",
+            companyId,
+            connectionId,
+            releaseFailure.getClass().getSimpleName());
       }
     }
-
-    WabaDetails waba = graphClient.getWaba(wabaId, token.accessToken());
-
-    log.info(
-        "meta_whatsapp_assets_resolved companyId={} wabaId={} phoneNumberId={}",
-        companyId,
-        wabaId,
-        phone.id());
-
-    String pin = sixDigitPin();
-    graphClient.registerPhoneNumber(phone.id(), token.accessToken(), pin);
-    log.info(
-        "meta_whatsapp_phone_registered companyId={} wabaId={} phoneNumberId={}",
-        companyId,
-        wabaId,
-        phone.id());
-
-    graphClient.subscribeApp(wabaId, token.accessToken());
-    log.info("meta_whatsapp_app_subscribed companyId={} wabaId={}", companyId, wabaId);
-
-    MetaWhatsAppConnectionResponse response =
-        persistenceService.persist(companyId, userId, wabaId, waba, phone, token, pin);
-    channelConnectionService.cancelPendingPurge(
-        companyId, Long.valueOf(response.connectionId()));
-
-    log.info(
-        "meta_whatsapp_complete_success companyId={} connectionId={} wabaId={} phoneNumberId={}",
-        companyId,
-        response.connectionId(),
-        wabaId,
-        phone.id());
-
-    return response;
   }
 
-  private String resolveWabaId(String requestedWabaId, String accessToken) {
+  private void reconcileProviderState(
+      Long companyId, Long connectionId, StoredMetaToken stored) {
+    TokenInspection inspection = graphClient.inspectToken(stored.accessToken());
+    if (inspection == null
+        || !inspection.valid()
+        || (inspection.expiresAt() != null && !inspection.expiresAt().isAfter(Instant.now()))) {
+      persistenceService.markFailure(
+          connectionId,
+          new MetaGraphException(
+              "reconcile_token",
+              401,
+              "OAuthException",
+              190,
+              inspection != null
+                      && inspection.expiresAt() != null
+                      && !inspection.expiresAt().isAfter(Instant.now())
+                  ? 463
+                  : null,
+              null,
+              SafeCategory.AUTH,
+              false));
+      return;
+    }
+    if (!inspection.scopes().containsAll(REQUIRED_SCOPES)) {
+      persistenceService.markFailure(
+          connectionId,
+          new MetaGraphException(
+              "reconcile_token",
+              403,
+              null,
+              null,
+              null,
+              null,
+              SafeCategory.PERMISSION,
+              false));
+      return;
+    }
+
+    WabaDetails waba = graphClient.getWaba(stored.wabaId(), stored.accessToken());
+    if (waba == null || !stored.wabaId().equals(waba.id())) {
+      persistenceService.markAssetFailure(connectionId, "WHATSAPP_ASSET_NOT_GRANTED");
+      return;
+    }
+
+    boolean phoneStillGranted =
+        graphClient.getPhoneNumbers(stored.wabaId(), stored.accessToken()).stream()
+            .anyMatch(phone -> stored.phoneNumberId().equals(phone.id()));
+    if (!phoneStillGranted) {
+      persistenceService.markAssetFailure(connectionId, "WHATSAPP_ASSET_NOT_GRANTED");
+      return;
+    }
+
+    if (!graphClient.isAppSubscribed(stored.wabaId(), stored.accessToken())) {
+      graphClient.subscribeApp(stored.wabaId(), stored.accessToken());
+      persistenceService.markSubscriptionSucceeded(connectionId);
+    }
+
+    persistenceService.markHealthy(connectionId);
+  }
+
+  private MetaWhatsAppSignupConfigResponse signupResponse(SignupSession session) {
+    return new MetaWhatsAppSignupConfigResponse(
+        properties.getAppId(),
+        properties.getConfigurationId(),
+        properties.getGraphApiVersion(),
+        "4",
+        session.state(),
+        session.expiresAt(),
+        properties.isCoexistenceEnabled());
+  }
+
+  private MetaWhatsAppConnectionResponse connectionResponse(Long companyId, Long connectionId) {
+    MetaWhatsAppConnectionControl control =
+        persistenceService.requireControl(companyId, connectionId);
+    SenderIdentity sender = sender(connectionId, control.getSelectedPhoneNumberId());
+    return new MetaWhatsAppConnectionResponse(
+        connectionId.toString(),
+        control.getProductState(),
+        control.getLegacyWabaId(),
+        control.getWhatsappAccountId(),
+        control.getMessagingAccountId(),
+        new MetaWhatsAppConnectionResponse.Phone(
+            sender.getId().toString(),
+            control.getSelectedPhoneNumberId(),
+            sender.getValue(),
+            null,
+            null),
+        nextAction(control));
+  }
+
+  private MetaWhatsAppConnectionHealthResponse healthResponse(
+      Long companyId, Long connectionId) {
+    MetaWhatsAppConnectionControl control =
+        persistenceService.requireControl(companyId, connectionId);
+    ChannelConnection connection =
+        connectionRepository
+            .findByIdAndCompanyId(connectionId, companyId)
+            .orElseThrow(() -> new NotFoundException("Meta WhatsApp connection not found"));
+    SenderIdentity sender = sender(connectionId, control.getSelectedPhoneNumberId());
+    return new MetaWhatsAppConnectionHealthResponse(
+        connectionId.toString(),
+        connection.getStatus(),
+        control.getProductState(),
+        control.getAuthState(),
+        control.getRegistrationState(),
+        control.getSubscriptionState(),
+        control.getCoexistenceState(),
+        control.getLastValidatedAt(),
+        new MetaWhatsAppConnectionResponse.Phone(
+            sender.getId().toString(),
+            control.getSelectedPhoneNumberId(),
+            sender.getValue(),
+            null,
+            null),
+        control.getLastSafeErrorCode(),
+        nextAction(control));
+  }
+
+  private void validateTokenInspection(TokenInspection inspection) {
+    if (inspection == null
+        || !inspection.valid()
+        || (inspection.expiresAt() != null && !inspection.expiresAt().isAfter(Instant.now()))) {
+      throw new BadRequestException("WHATSAPP_PROVIDER_AUTH_FAILED: Meta token is invalid or expired");
+    }
+    if (!inspection.scopes().containsAll(REQUIRED_SCOPES)) {
+      throw new BadRequestException(
+          "WHATSAPP_PERMISSION_MISSING: required WhatsApp permissions were not granted");
+    }
+  }
+
+  private String resolveWabaId(String requestedWabaId, TokenInspection inspection) {
+    Set<String> granted = grantedTargetIds(inspection.granularScopes());
     if (requestedWabaId != null && !requestedWabaId.isBlank()) {
-      return requestedWabaId.trim();
+      String requested = requestedWabaId.trim();
+      if (!granted.isEmpty() && !granted.contains(requested)) {
+        throw new BadRequestException(
+            "WHATSAPP_ASSET_NOT_GRANTED: selected WhatsApp account was not granted");
+      }
+      return requested;
     }
-
-    List<String> grantedWabaIds = graphClient.getGrantedWabaIds(accessToken);
-    if (grantedWabaIds.isEmpty()) {
+    if (granted.isEmpty()) {
       throw new BadRequestException(
-          "Meta login succeeded, but no WhatsApp Business Account was granted to this connection");
+          "WHATSAPP_ASSET_NOT_GRANTED: no WhatsApp account was granted");
     }
-    if (grantedWabaIds.size() > 1) {
+    if (granted.size() != 1) {
       throw new BadRequestException(
-          "Meta granted multiple WhatsApp Business Accounts. Complete Embedded Signup again and select one account");
+          "WHATSAPP_ASSET_NOT_GRANTED: multiple WhatsApp accounts were granted; select one");
     }
-
-    log.info("meta_whatsapp_waba_discovered_from_token wabaId={}", grantedWabaIds.getFirst());
-    return grantedWabaIds.getFirst();
+    return granted.iterator().next();
   }
 
-  private PhoneNumber resolvePhoneNumber(
-      String requestedPhoneNumberId, List<PhoneNumber> phoneNumbers) {
+  private Set<String> grantedTargetIds(List<GranularScope> scopes) {
+    Set<String> granted = new LinkedHashSet<>();
+    if (scopes == null) {
+      return granted;
+    }
+    scopes.stream()
+        .filter(scope -> scope != null && REQUIRED_SCOPES.contains(scope.scope()))
+        .filter(scope -> scope.targetIds() != null)
+        .flatMap(scope -> scope.targetIds().stream())
+        .filter(value -> value != null && !value.isBlank())
+        .forEach(granted::add);
+    return granted;
+  }
+
+  private PhoneNumber resolvePhoneNumber(String requestedPhoneNumberId, List<PhoneNumber> phones) {
     if (requestedPhoneNumberId != null && !requestedPhoneNumberId.isBlank()) {
-      return phoneNumbers.stream()
-          .filter(phone -> requestedPhoneNumberId.trim().equals(phone.id()))
+      String requested = requestedPhoneNumberId.trim();
+      return phones.stream()
+          .filter(phone -> requested.equals(phone.id()))
           .findFirst()
           .orElseThrow(
               () ->
                   new BadRequestException(
-                      "Selected WhatsApp phone number does not belong to this WABA"));
+                      "WHATSAPP_ASSET_NOT_GRANTED: selected phone is not granted"));
     }
-
-    if (phoneNumbers.isEmpty()) {
-      throw new BadRequestException("The selected WhatsApp Business Account has no phone number");
+    if (phones.isEmpty()) {
+      throw new BadRequestException("WHATSAPP_ASSET_NOT_GRANTED: account has no phone number");
     }
-    if (phoneNumbers.size() > 1) {
+    if (phones.size() != 1) {
       throw new BadRequestException(
-          "The selected WhatsApp Business Account has multiple phone numbers. Complete Embedded Signup again and select one phone number");
+          "WHATSAPP_ASSET_NOT_GRANTED: account has multiple phones; select one");
     }
-
-    log.info("meta_whatsapp_phone_discovered_from_waba phoneNumberId={}", phoneNumbers.getFirst().id());
-    return phoneNumbers.getFirst();
+    return phones.getFirst();
   }
 
-  private String sixDigitPin() {
-    return String.format("%06d", RANDOM.nextInt(1_000_000));
+  private void validateReauthorizationBinding(
+      Long companyId, ConsumedSignupState signupState, String wabaId, String phoneNumberId) {
+    if (signupState.mode() != SignupMode.REAUTHORIZE) {
+      return;
+    }
+    if (signupState.expectedConnectionId() == null || signupState.expectedPhoneNumberId() == null) {
+      throw new BadRequestException("WHATSAPP_REAUTH_REQUIRED: reauthorization binding is invalid");
+    }
+    if (!signupState.expectedPhoneNumberId().equals(phoneNumberId)) {
+      throw new ConflictException(
+          "WHATSAPP_ASSET_NOT_GRANTED: reauthorization cannot transfer to another phone");
+    }
+    MetaWhatsAppConnectionControl expected =
+        persistenceService.requireControl(companyId, signupState.expectedConnectionId());
+    if (!phoneNumberId.equals(expected.getSelectedPhoneNumberId())
+        || (expected.getLegacyWabaId() != null && !wabaId.equals(expected.getLegacyWabaId()))) {
+      throw new ConflictException(
+          "WHATSAPP_ASSET_NOT_GRANTED: reauthorization must use the existing Meta asset");
+    }
+  }
+
+  private void rejectForeignPhone(Long companyId, String phoneNumberId) {
+    controlRepository
+        .findFirstBySelectedPhoneNumberIdAndProductStateNot(
+            phoneNumberId, ProductState.DISCONNECTED)
+        .filter(control -> !companyId.equals(control.getCompanyId()))
+        .ifPresent(
+            control -> {
+              throw new ConflictException(
+                  "WHATSAPP_PHONE_OWNED_BY_OTHER_COMPANY: selected phone is already connected");
+            });
+  }
+
+  private void validateExistingConnectionBinding(
+      ChannelConnection existing, String selectedPhoneNumberId) {
+    if (existing == null) {
+      return;
+    }
+    controlRepository
+        .findById(existing.getId())
+        .filter(
+            control ->
+                control.getSelectedPhoneNumberId() != null
+                    && !selectedPhoneNumberId.equals(control.getSelectedPhoneNumberId()))
+        .ifPresent(
+            control -> {
+              throw new ConflictException(
+                  "WHATSAPP_ASSET_NOT_GRANTED: existing connection is bound to another phone");
+            });
+  }
+
+  private ChannelConnection existingConnection(
+      Long companyId, ConsumedSignupState signupState, String wabaId) {
+    if (signupState.expectedConnectionId() != null) {
+      return connectionRepository
+          .findByIdAndCompanyId(signupState.expectedConnectionId(), companyId)
+          .orElseThrow(() -> new NotFoundException("Meta WhatsApp connection not found"));
+    }
+    return connectionRepository
+        .findByCompanyIdAndProviderTypeAndExternalAccountId(
+            companyId, ProviderType.META_WHATSAPP, wabaId)
+        .orElse(null);
+  }
+
+  private Instant resolveTokenExpiry(TokenResponse token, TokenInspection inspection) {
+    if (inspection.expiresAt() != null) {
+      return inspection.expiresAt();
+    }
+    return token.expiresIn() == null || token.expiresIn() <= 0
+        ? null
+        : Instant.now().plusSeconds(token.expiresIn());
+  }
+
+  private MetaWhatsAppConnectionControl currentControl(Long companyId) {
+    return controlRepository.findByCompanyIdOrderByUpdatedAtDesc(companyId).stream()
+        .filter(control -> control.getProductState() != ProductState.DISCONNECTED)
+        .findFirst()
+        .orElseGet(
+            () ->
+                controlRepository.findByCompanyIdOrderByUpdatedAtDesc(companyId).stream()
+                    .findFirst()
+                    .orElseThrow(
+                        () -> new NotFoundException("Meta WhatsApp connection not found")));
+  }
+
+  private SenderIdentity sender(Long connectionId, String phoneNumberId) {
+    return senderIdentityRepository
+        .findByConnectionIdAndIdentityTypeAndExternalId(
+            connectionId, SenderIdentityType.PHONE_NUMBER, phoneNumberId)
+        .orElseThrow(() -> new NotFoundException("Meta WhatsApp sender not found"));
+  }
+
+  private NextAction nextAction(MetaWhatsAppConnectionControl control) {
+    return switch (control.getProductState()) {
+      case ACTIVE -> NextAction.NONE;
+      case CONNECTING, VALIDATING -> NextAction.WAIT;
+      case DEGRADED -> NextAction.RETRY;
+      case REAUTH_REQUIRED -> NextAction.REAUTHORIZE;
+      case ACTION_REQUIRED -> NextAction.OPEN_META;
+      case ERROR -> NextAction.RETRY;
+      case DISCONNECTED -> NextAction.NONE;
+    };
+  }
+
+  private <T> T publicProviderCall(Supplier<T> call) {
+    try {
+      return call.get();
+    } catch (MetaGraphException failure) {
+      throw switch (failure.safeCategory()) {
+        case AUTH ->
+            new BadRequestException(
+                "WHATSAPP_PROVIDER_AUTH_FAILED: Meta authorization is no longer valid");
+        case PERMISSION ->
+            new BadRequestException(
+                "WHATSAPP_PERMISSION_MISSING: required Meta permissions were not granted");
+        case ASSET, INVALID_REQUEST ->
+            new BadRequestException(
+                "WHATSAPP_ASSET_NOT_GRANTED: Meta rejected the selected WhatsApp asset");
+        case RATE_LIMIT, TRANSIENT, PROVIDER_ERROR ->
+            new ServiceUnavailableException(
+                "WHATSAPP_PROVIDER_TEMPORARY: Meta is temporarily unavailable");
+      };
+    }
   }
 
   private void requireConfigured() {
     if (!properties.configured()) {
       throw new BadRequestException(
-          "Meta WhatsApp is not configured. Configure the Meta app before connecting WhatsApp");
+          "WHATSAPP_NOT_CONFIGURED: configure the Meta app before connecting WhatsApp");
     }
   }
 }
