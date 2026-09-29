@@ -42,6 +42,7 @@ class GoogleAdsPerformanceMaxServiceTests {
   @Mock private GoogleAdsApiClient apiClient;
   @Mock private GoogleAdsCampaignSyncService campaignSyncService;
   @Mock private GoogleAdsCampaignPersistenceService campaignPersistenceService;
+  @Mock private GoogleMerchantService merchantService;
   @Mock private AdCampaignRepository campaignRepository;
   @Mock private AdActivityLogService activityLogService;
 
@@ -56,6 +57,7 @@ class GoogleAdsPerformanceMaxServiceTests {
             apiClient,
             campaignSyncService,
             campaignPersistenceService,
+            merchantService,
             campaignRepository,
             activityLogService);
 
