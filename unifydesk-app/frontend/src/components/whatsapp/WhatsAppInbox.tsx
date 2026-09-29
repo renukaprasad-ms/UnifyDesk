@@ -411,7 +411,7 @@ export default function WhatsAppInbox() {
       const message = apiErrorMessage(requestError, 'Unable to send WhatsApp message')
       const templateRequired =
         axios.isAxiosError<ApiResponse<never>>(requestError) &&
-        requestError.response?.data?.error_code === 'WHATSAPP_TEMPLATE_REQUIRED'
+        requestError.response?.data?.error_message === 'WHATSAPP_TEMPLATE_REQUIRED'
 
       if (templateRequired || message.toUpperCase().includes('TEMPLATE')) {
         setTemplateMode(true)
