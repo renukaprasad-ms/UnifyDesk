@@ -117,18 +117,8 @@ public class MetaWhatsAppTemplateService {
               status,
               providerTemplateId);
     }
-    if (updated == 0 && name != null && language != null) {
-      updated =
-          jdbcTemplate.update(
-              """
-              update meta_whatsapp_template_cache
-              set status=?,updated_at=now()
-              where name=? and language=?
-              """,
-              status,
-              name,
-              language);
-    }
+    // Do not fall back to a global name/language update: different tenants can legitimately
+    // own templates with the same name. Provider template id is the trusted mutation key here.
     return updated > 0;
   }
 
