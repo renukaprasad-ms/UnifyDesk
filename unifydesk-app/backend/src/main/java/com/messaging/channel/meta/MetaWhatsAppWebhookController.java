@@ -5,6 +5,7 @@ import com.messaging.channel.meta.runtime.MetaWhatsAppWebhookEventStore;
 import com.messaging.channel.meta.runtime.MetaWhatsAppWebhookNormalizer;
 import com.messaging.channel.meta.runtime.MetaWhatsAppWebhookNormalizer.InvalidPayloadException;
 import com.messaging.channel.meta.runtime.MetaWhatsAppWebhookSecrets;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
@@ -15,11 +16,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/v1/webhooks/meta/whatsapp")
@@ -55,9 +56,25 @@ public class MetaWhatsAppWebhookController {
 
   @PostMapping
   public ResponseEntity<String> receive(
-      @RequestBody(required = false) byte[] body,
-      @RequestHeader(name = "X-Hub-Signature-256", required = false) String signature,
-      @RequestHeader(name = "Content-Length", required = false) Long contentLength) {
+      HttpServletRequest request,
+      @RequestHeader(name = "X-Hub-Signature-256", required = false) String signature) {
+    long maxBytes = runtimeProperties.getWebhookMaxBody().toBytes();
+    long contentLength = request.getContentLengthLong();
+    if (contentLength > maxBytes) {
+      return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body("Payload too large");
+    }
+    try {
+      int boundedRead = Math.toIntExact(Math.min((long) Integer.MAX_VALUE - 1, maxBytes + 1));
+      byte[] exactBody = request.getInputStream().readNBytes(boundedRead);
+      return receiveExactBytes(
+          exactBody, signature, contentLength < 0 ? null : contentLength);
+    } catch (IOException exception) {
+      return ResponseEntity.badRequest().body("Invalid webhook payload");
+    }
+  }
+
+  ResponseEntity<String> receiveExactBytes(
+      byte[] body, String signature, Long contentLength) {
     byte[] exactBody = body == null ? new byte[0] : body;
     long maxBytes = runtimeProperties.getWebhookMaxBody().toBytes();
     if ((contentLength != null && contentLength > maxBytes) || exactBody.length > maxBytes) {
