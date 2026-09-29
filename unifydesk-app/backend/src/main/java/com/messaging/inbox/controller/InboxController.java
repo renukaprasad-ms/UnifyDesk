@@ -116,17 +116,16 @@ public class InboxController {
     if (request == null || request.read() == null) {
       throw new BadRequestException("Read state is required");
     }
-    ChannelConnection connection =
+    ProviderType providerType =
         messageRepository
-            .findByIdAndCompanyId(messageId, companyId)
-            .map(message -> message.getConnection())
+            .findProviderTypeByIdAndCompanyId(messageId, companyId)
             .orElseThrow(() -> new NotFoundException("Inbox message not found"));
     InboxReadStateResponse response;
-    if (isWhatsApp(connection)) {
+    if (isWhatsApp(providerType)) {
       requirePermissionOrNotFound(
           userId, companyId, CompanyPermissionKeys.WHATSAPP_MODIFY, "Inbox message not found");
       response = whatsappReadStateService.setMessage(companyId, messageId, request.read());
-    } else if (connection.getChannelType() == ChannelType.EMAIL) {
+    } else if (providerType.channelType() == ChannelType.EMAIL) {
       requirePermissionOrNotFound(
           userId, companyId, CompanyPermissionKeys.EMAIL_MODIFY, "Inbox message not found");
       response = readStateService.setMessageReadState(companyId, messageId, request.read());
@@ -149,18 +148,17 @@ public class InboxController {
     if (request == null || request.read() == null) {
       throw new BadRequestException("Read state is required");
     }
-    ChannelConnection connection =
+    ProviderType providerType =
         conversationRepository
-            .findByIdAndCompanyId(conversationId, companyId)
-            .map(conversation -> conversation.getConnection())
+            .findProviderTypeByIdAndCompanyId(conversationId, companyId)
             .orElseThrow(() -> new NotFoundException("Inbox conversation not found"));
     InboxReadStateResponse response;
-    if (isWhatsApp(connection)) {
+    if (isWhatsApp(providerType)) {
       requirePermissionOrNotFound(
           userId, companyId, CompanyPermissionKeys.WHATSAPP_MODIFY, "Inbox conversation not found");
       response =
           whatsappReadStateService.setConversation(companyId, conversationId, request.read());
-    } else if (connection.getChannelType() == ChannelType.EMAIL) {
+    } else if (providerType.channelType() == ChannelType.EMAIL) {
       requirePermissionOrNotFound(
           userId, companyId, CompanyPermissionKeys.EMAIL_MODIFY, "Inbox conversation not found");
       response = readStateService.setConversationReadState(companyId, conversationId, request.read());
@@ -239,19 +237,22 @@ public class InboxController {
   }
 
   private void requireConversationRead(Long userId, Long companyId, Long conversationId) {
-    ChannelConnection connection =
+    ProviderType providerType =
         conversationRepository
-            .findByIdAndCompanyId(conversationId, companyId)
-            .map(conversation -> conversation.getConnection())
+            .findProviderTypeByIdAndCompanyId(conversationId, companyId)
             .orElseThrow(() -> new NotFoundException("Inbox conversation not found"));
-    requireRead(userId, companyId, connection);
+    requireRead(userId, companyId, providerType);
   }
 
   private void requireRead(Long userId, Long companyId, ChannelConnection connection) {
-    if (isWhatsApp(connection)) {
+    requireRead(userId, companyId, connection.getProviderType());
+  }
+
+  private void requireRead(Long userId, Long companyId, ProviderType providerType) {
+    if (isWhatsApp(providerType)) {
       requirePermissionOrNotFound(
           userId, companyId, CompanyPermissionKeys.WHATSAPP_READ, "Inbox connection not found");
-    } else if (connection.getChannelType() == ChannelType.EMAIL) {
+    } else if (providerType.channelType() == ChannelType.EMAIL) {
       requirePermissionOrNotFound(
           userId, companyId, CompanyPermissionKeys.EMAIL_READ, "Inbox connection not found");
     } else {
@@ -274,8 +275,12 @@ public class InboxController {
   }
 
   private boolean isWhatsApp(ChannelConnection connection) {
-    return connection.getProviderType() == ProviderType.META_WHATSAPP
-        && connection.getChannelType() == ChannelType.WHATSAPP;
+    return isWhatsApp(connection.getProviderType());
+  }
+
+  private boolean isWhatsApp(ProviderType providerType) {
+    return providerType == ProviderType.META_WHATSAPP
+        && providerType.channelType() == ChannelType.WHATSAPP;
   }
 
   private long parseId(String value, String field) {
