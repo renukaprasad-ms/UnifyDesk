@@ -15,7 +15,7 @@ Integrated inputs reviewed:
 
 **NOT RELEASE-READY**
 
-The control plane is materially strong in source review, but the integrated runtime still has release-blocking contract gaps around webhook structural validation and durable/user-visible delivery-state truth. Additional medium reliability/performance defects are also present.
+The integrated candidate has release-blocking contract gaps in both control-plane asset authorization and runtime webhook/delivery-state handling. Additional medium reliability, ordering, performance and frontend-template defects are also present.
 
 Real Meta provider behavior was **NOT VERIFIED** in this QA environment.
 
@@ -209,6 +209,51 @@ Integrated backend/frontend regression:
 
 ---
 
+
+### WA-R1-006 — WABA authorization uses the union of granular-scope targets instead of requiring the selected asset in every required scope
+
+- **Severity:** High
+- **Affected invariant:** WA-SEC-01, WA-SEC-02; API-CONTRACT asset validation; control-plane ownership validation.
+- **Owner:** B1
+- **Status:** OPEN
+
+#### Reproduction
+
+Use a valid inspected token whose top-level scopes include both required permissions, but whose granular targets are split:
+
+- `whatsapp_business_management` -> `waba-management-only`
+- `whatsapp_business_messaging` -> `waba-messaging-only`
+
+Then complete signup selecting `waba-management-only`.
+
+#### Expected
+
+The selected WABA must be authorized for every required granular permission relevant to the operation. An asset granted only to one required scope must be rejected before any WABA/phone provider lookup or persistence.
+
+#### Actual
+
+`MetaWhatsAppConnectionService.grantedTargetIds()` unions target IDs from both required scopes into one set. `resolveWabaId()` then checks only whether the selected WABA exists in that union.
+
+As a result, a WABA present in the management target list but absent from the messaging target list can pass the local asset-authorization check.
+
+#### Evidence
+
+QA contract test already present on this branch:
+
+`MetaWhatsAppRound1ControlPlaneQaTests.selectedWabaMustBeGrantedByEveryRequiredGranularScope`
+
+The test expects `WHATSAPP_ASSET_NOT_GRANTED` before `getWaba()`, but the current union-based implementation does not enforce that condition.
+
+#### Required regression test
+
+Keep the QA test above and add production-facing coverage for:
+1. WABA present in both required granular target lists -> allowed;
+2. present only in management -> rejected;
+3. present only in messaging -> rejected;
+4. multiple targets with one true intersection -> only the intersection is selectable.
+
+---
+
 ## Medium
 
 ### WA-R1-003 — No distributed per-phone outbound limiter / Retry-After control
@@ -335,6 +380,84 @@ Fault-injection integration test that terminates/fails immediately after a mocke
 
 ---
 
+
+### WA-R1-007 — Older provider FAILED event can overwrite a newer ACCEPTED state
+
+- **Severity:** Medium
+- **Affected invariant:** MESSAGE-STATE provider timestamp monotonicity; out-of-order status safety.
+- **Owner:** B2
+- **Status:** OPEN
+
+#### Reproduction
+
+Current runtime state:
+- status = ACCEPTED
+- rank = 10
+- provider_status_at = 10:00:00
+
+Then process a FAILED provider event timestamped 09:59:59.
+
+#### Expected
+
+The older provider event must be ignored. Provider timestamps are part of the ordering contract and an older failure must not replace newer known truth.
+
+#### Actual
+
+`MetaWhatsAppMessageStateMachine.shouldApply()` only applies the “incoming timestamp is older” rejection when `currentRank >= 20`. Because ACCEPTED rank is 10 and FAILED rank is 25, the older FAILED state is accepted.
+
+#### Evidence
+
+QA contract test already present:
+
+`MetaWhatsAppRound1QaContractTests.olderFailureCannotOverwriteNewerAcceptedState`
+
+#### Required regression test
+
+Cover:
+- ACCEPTED newer than FAILED -> keep ACCEPTED;
+- SENT newer than FAILED -> keep SENT;
+- DELIVERED/READ newer than FAILED -> keep successful state;
+- genuinely newer FAILED after ACCEPTED -> apply according to frozen failure semantics.
+
+---
+
+### WA-R1-008 — Frontend cannot derive URL-button template variables from Meta BUTTONS components
+
+- **Severity:** Medium
+- **Affected invariant:** TEMPLATE-POLICY variable rendering/validation; frontend template-required flow.
+- **Owner:** F1
+- **Status:** OPEN
+
+#### Reproduction
+
+Use an approved template with:
+- BODY text containing `{{1}}`;
+- BUTTONS component containing a URL button such as `https://example.test/orders/{{1}}`.
+
+Open the WhatsApp template composer.
+
+#### Expected
+
+The frontend must render one body variable input and one URL-button variable input, matching the backend/provider component structure.
+
+#### Actual
+
+`templateVariableCounts()` reads only `component.text`. Meta BUTTONS components store URL variable placeholders inside `component.buttons[*].url`, so the frontend derives zero button variables.
+
+The backend `MetaWhatsAppTemplateService` does inspect the serialized buttons and expects a button parameter, so the frontend-generated request cannot satisfy backend variable-count validation for these templates.
+
+#### Evidence
+
+QA contract test already present:
+
+`WhatsAppRound1QaContract.test.ts` -> `derives URL button variables from the provider BUTTONS structure`.
+
+#### Required regression test
+
+Keep the QA contract test and add an integration test that selects an approved URL-button template, fills body + button variables, sends, and asserts the exact `parameters.buttons` payload expected by the backend.
+
+---
+
 # Areas reviewed with no release-blocking source finding
 
 The following controls looked consistent with the frozen contracts in source review:
@@ -344,7 +467,7 @@ The following controls looked consistent with the frozen contracts in source rev
 - Redis GETDEL one-time consume;
 - state company/user binding;
 - parallel consume allows one winner;
-- token scope checks;
+- top-level token scope presence checks;
 - browser WABA/phone hints revalidated with Meta token;
 - reauthorization bound to existing phone/account;
 - partial unique active-phone constraint;
@@ -366,7 +489,7 @@ The following controls looked consistent with the frozen contracts in source rev
 - arbitrary inbound media URLs are not accepted from the browser/webhook;
 - Meta media URL policy requires HTTPS and Meta-owned host suffixes;
 - outbound media is company-scoped and ACTIVE;
-- successful status rank ordering prevents READ/DELIVERED regression from late SENT/FAILED events;
+- successful high-rank status ordering prevents READ/DELIVERED regression from late SENT events;
 - frontend Embedded Signup uses v4 options and no `sessionInfoVersion: 3`;
 - untrusted Embedded Signup message origins are ignored;
 - frontend UNKNOWN result warns against blind resend;
@@ -388,8 +511,9 @@ No migration PASS is claimed because PostgreSQL/Flyway execution was unavailable
 
 1. WA-R1-001 — webhook structural acceptance.
 2. WA-R1-002 — detailed durable delivery state is not recoverable/rendered after reload.
-3. Required backend/frontend/migration suites have not been executed in an executable checkout.
-4. Real Meta provider verification has not been performed.
+3. WA-R1-006 — granular-scope asset authorization does not require the selected WABA in every required permission target set.
+4. Required backend/frontend/migration suites have not been executed in an executable checkout.
+5. Real Meta provider verification has not been performed.
 
 # Required next step
 
