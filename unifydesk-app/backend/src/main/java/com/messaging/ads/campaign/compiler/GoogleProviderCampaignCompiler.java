@@ -612,11 +612,11 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                     "goalType", providerText(context, "pmaxLifecycleGoalType"),
                     "targetOption", providerText(context, "pmaxLifecycleTargetOption"),
                     "additionalValue",
-                    providerValue(context, "pmaxLifecycleAdditionalValue"),
+                    providerText(context, "pmaxLifecycleAdditionalValue"),
                     "highLifetimeValue",
-                    providerValue(context, "pmaxLifecycleHighLifetimeValue"),
+                    providerText(context, "pmaxLifecycleHighLifetimeValue"),
                     "valueMultiplier",
-                    providerValue(context, "pmaxLifecycleValueMultiplier"))));
+                    providerText(context, "pmaxLifecycleValueMultiplier"))));
       }
       if (context.conversionGoalMapping() != null) {
         operations.add(
