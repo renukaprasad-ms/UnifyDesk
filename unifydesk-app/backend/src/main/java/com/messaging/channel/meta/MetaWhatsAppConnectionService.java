@@ -2,7 +2,6 @@ package com.messaging.channel.meta;
 
 import com.messaging.channel.entity.ChannelConnection;
 import com.messaging.channel.entity.SenderIdentity;
-import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.DisconnectDataPolicy;
 import com.messaging.channel.enums.ProviderType;
@@ -20,7 +19,6 @@ import com.messaging.channel.meta.MetaWhatsAppSignupStateService.SignupSession;
 import com.messaging.channel.meta.control.MetaGraphException;
 import com.messaging.channel.meta.control.MetaGraphException.SafeCategory;
 import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl;
-import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl.AuthState;
 import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl.ProductState;
 import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl.RegistrationState;
 import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl.SubscriptionState;
