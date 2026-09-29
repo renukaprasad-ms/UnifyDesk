@@ -97,6 +97,12 @@ import type {
   UpdateGooglePerformanceMaxAutomationInput,
   GooglePerformanceMaxBrandGuidelines,
   UpdateGooglePerformanceMaxBrandGuidelinesInput,
+  GoogleLifecycleGoal,
+  UpsertGoogleLifecycleGoalInput,
+  GoogleUserListCustomerType,
+  UpdateGoogleUserListCustomerTypesInput,
+  GooglePerformanceMaxLifecycle,
+  UpdateGooglePerformanceMaxLifecycleInput,
   GoogleAssetGroupUrlOptions,
   GoogleAssetGroup,
   GoogleAssetGroupAsset,
@@ -1123,6 +1129,74 @@ export const adCenterApi = {
     const response = await apiClient.post<ApiResponse<GoogleAssetGroupSignal[]>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/signals`,
       input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleLifecycleGoals(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleLifecycleGoal[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/lifecycle-goals`,
+    )
+    return unwrap(response.data)
+  },
+
+  async upsertGoogleLifecycleGoal(
+    companyId: string,
+    accountId: string,
+    input: UpsertGoogleLifecycleGoalInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GoogleLifecycleGoal>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/lifecycle-goals/${input.goalType}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleUserListCustomerTypes(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleUserListCustomerType[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/user-list-customer-types`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleUserListCustomerTypes(
+    companyId: string,
+    accountId: string,
+    input: UpdateGoogleUserListCustomerTypesInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GoogleUserListCustomerType[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/user-list-customer-types`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googlePerformanceMaxLifecycle(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<GooglePerformanceMaxLifecycle[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/lifecycle-goals`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGooglePerformanceMaxLifecycle(
+    companyId: string,
+    campaignId: string,
+    input: UpdateGooglePerformanceMaxLifecycleInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GooglePerformanceMaxLifecycle>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/lifecycle-goals/${input.goalType}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async removeGooglePerformanceMaxLifecycle(
+    companyId: string,
+    campaignId: string,
+    goalType: string,
+  ) {
+    const response = await apiClient.delete<ApiResponse<GooglePerformanceMaxLifecycle[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/lifecycle-goals/${goalType}`,
     )
     return unwrap(response.data)
   },
