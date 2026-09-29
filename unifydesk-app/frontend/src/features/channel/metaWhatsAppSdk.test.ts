@@ -3,6 +3,7 @@ import type { MetaWhatsAppSignupConfig } from './types'
 import {
   __resetMetaWhatsAppSdkForTests,
   launchMetaWhatsAppSignup,
+  loadMetaSdk,
   META_WHATSAPP_SIGNUP_TIMEOUT_MS,
 } from './metaWhatsAppSdk'
 
@@ -48,11 +49,44 @@ const embeddedEvent = (event: string, data: Record<string, unknown> = {}) =>
 describe('Meta WhatsApp Embedded Signup v4', () => {
   beforeEach(() => {
     __resetMetaWhatsAppSdkForTests()
+    document.getElementById('facebook-jssdk')?.remove()
   })
 
   afterEach(() => {
     vi.useRealTimers()
+    document.getElementById('facebook-jssdk')?.remove()
     delete window.FB
+  })
+
+  it('surfaces SDK load failures and allows a clean retry', async () => {
+    const firstLoad = loadMetaSdk('app-id', 'v25.0')
+    const script = document.getElementById('facebook-jssdk')
+
+    expect(script).toBeInstanceOf(HTMLScriptElement)
+    script?.dispatchEvent(new Event('error'))
+    await expect(firstLoad).rejects.toThrow('Unable to load the Meta SDK')
+  })
+
+  it('reinitializes an already loaded SDK when app/version metadata changes', async () => {
+    installFacebook()
+
+    await loadMetaSdk('app-id', 'v25.0')
+    await loadMetaSdk('app-id-2', 'v26.0')
+
+    expect(window.FB?.init).toHaveBeenNthCalledWith(1, {
+      appId: 'app-id',
+      cookie: true,
+      xfbml: false,
+      version: 'v25.0',
+      fedCM: false,
+    })
+    expect(window.FB?.init).toHaveBeenNthCalledWith(2, {
+      appId: 'app-id-2',
+      cookie: true,
+      xfbml: false,
+      version: 'v26.0',
+      fedCM: false,
+    })
   })
 
   it('uses v4 login options without legacy sessionInfoVersion 3', async () => {
