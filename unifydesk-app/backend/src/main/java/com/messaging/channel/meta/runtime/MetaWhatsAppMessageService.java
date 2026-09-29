@@ -44,12 +44,13 @@ public class MetaWhatsAppMessageService {
   private final MetaWhatsAppRuntimeProperties properties;
   private final MetaWhatsAppCustomerServicePolicy customerServicePolicy;
   private final MetaWhatsAppTemplateService templateService;
+  private final MetaWhatsAppOutboundReservationStore reservationStore;
+  private final MetaWhatsAppRealtimePublisher realtimePublisher;
   private final MediaService mediaService;
   private final MessageStorageMeter messageStorageMeter;
   private final StorageQuotaService storageQuotaService;
   private final JdbcTemplate jdbcTemplate;
   private final TransactionTemplate transactionTemplate;
-  private final RealtimeService realtimeService;
 
   public MetaWhatsAppSendResponse send(
       long companyId, long conversationId, MetaWhatsAppSendRequest request) {
@@ -189,27 +190,16 @@ public class MetaWhatsAppMessageService {
       String body) {
     return transactionTemplate.execute(
         ignored -> {
-          long runtimeId = IdGenerator.nextId();
           Instant now = Instant.now();
-          int inserted =
-              jdbcTemplate.update(
-                  """
-                  insert into meta_whatsapp_message_runtime
-                    (id,company_id,connection_id,client_request_id,direction,message_kind,
-                     detailed_status,status_rank,created_at,updated_at)
-                  values (?,?,?,?,'OUTBOUND',?,'PENDING',0,?,?)
-                  on conflict (company_id,connection_id,client_request_id)
-                    where client_request_id is not null
-                  do nothing
-                  """,
-                  runtimeId,
+          var runtimeReservation =
+              reservationStore.tryReserve(
                   companyId,
                   context.connection().getId(),
                   clientRequestId,
                   type,
-                  Timestamp.from(now),
-                  Timestamp.from(now));
-          if (inserted == 0) return new Reservation(0, false);
+                  now);
+          if (!runtimeReservation.created()) return new Reservation(0, false);
+          long runtimeId = runtimeReservation.runtimeId();
 
           InboxMessage message = new InboxMessage();
           message.setConversation(conversation);
@@ -517,23 +507,15 @@ public class MetaWhatsAppMessageService {
   }
 
   private void publishMessageChanged(long companyId, long connectionId, long messageId) {
-    try {
-      messageRepository
-          .findById(messageId)
-          .ifPresent(
-              message ->
-                  realtimeService.sendToCompany(
-                      companyId,
-                      "inbox.email.changed",
-                      com.messaging.inbox.dto.InboxEmailChangedEvent.delta(
-                          connectionId,
-                          ProviderType.META_WHATSAPP,
-                          List.of(message.getConversation().getId()),
-                          List.of(messageId),
-                          List.of())));
-    } catch (RuntimeException ignored) {
-      // Durable state is authoritative if realtime fanout is unavailable.
-    }
+    messageRepository
+        .findById(messageId)
+        .ifPresent(
+            message ->
+                realtimePublisher.inboxChanged(
+                    companyId,
+                    connectionId,
+                    List.of(message.getConversation().getId()),
+                    List.of(messageId)));
   }
 
   private record Reservation(long messageId, boolean created) {}
