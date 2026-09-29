@@ -846,6 +846,12 @@ export type CreateGoogleAdvancedCampaignInput = {
   containsEuPoliticalAdvertising: boolean
   startDate?: string | null
   endDate?: string | null
+  brandGuidelinesEnabled?: boolean
+  brandMainColor?: string | null
+  brandAccentColor?: string | null
+  brandFontFamily?: string | null
+  merchantId?: string | null
+  feedLabel?: string | null
 }
 
 export type GoogleAppCampaignSubtype =
