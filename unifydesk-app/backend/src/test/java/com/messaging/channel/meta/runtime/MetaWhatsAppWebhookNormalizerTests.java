@@ -142,7 +142,6 @@ class MetaWhatsAppWebhookNormalizerTests {
     assertThat(events.getFirst().eventKind()).isEqualTo("MESSAGE");
   }
 
-
   @Test
   void unknownSignedChangeIsNormalizedAsUnknownForSafeIgnore() {
     String payload =
