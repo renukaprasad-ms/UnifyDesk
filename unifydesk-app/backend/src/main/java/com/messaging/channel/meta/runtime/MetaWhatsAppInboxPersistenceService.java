@@ -134,6 +134,7 @@ public class MetaWhatsAppInboxPersistenceService {
     inboxMessage.setStatus(InboxMessageStatus.RECEIVED);
     inboxMessage.setSnippet(shape.preview());
     inboxMessage.setBodyText(shape.bodyText());
+    inboxMessage.setInReplyTo(text(message.path("context"), "id"));
     inboxMessage.setSentAt(event.providerEventAt());
     inboxMessage.setRead(false);
     inboxMessage.setStorageBytes(
