@@ -243,8 +243,16 @@ public class InboxQueryService {
     if (messages.isEmpty()) return List.of();
 
     List<Long> messageIds = messages.stream().map(InboxMessage::getId).toList();
+    List<Long> whatsappMessageIds =
+        messages.stream()
+            .filter(
+                message ->
+                    message.getConnection() != null
+                        && message.getConnection().getProviderType() == ProviderType.META_WHATSAPP)
+            .map(InboxMessage::getId)
+            .toList();
     Map<Long, List<InboxAttachmentResponse>> attachments = new HashMap<>();
-    Map<Long, String> whatsappStatuses = whatsappStatuses(messageIds);
+    Map<Long, String> whatsappStatuses = whatsappStatuses(whatsappMessageIds);
 
     attachmentRepository
         .findByMessageIdInOrderByFilenameAsc(messageIds)
