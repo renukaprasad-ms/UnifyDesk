@@ -18,94 +18,77 @@ NOT RELEASE-READY
 Integrated QA base:
 `87e43bbf598a5ea897cabc2a7e96a9acbb6cdf89`
 
-Round-2 QA branch:
-`review/whatsapp-security-qa-r2`
-
 Round-2 QA final SHA:
 `59ddb043012ba55f498f48d0ab8fa10d0de05dd9`
 
-QA report:
-`SECURITY_QA_FEEDBACK_R2.md`
-
-QA evidence merged into dev by PR #189.
-
-Round-2 disposition:
-NOT RELEASE-READY
-
-### Round-2 finding results
-
-PASS:
-- WA-R1-001
-- WA-R1-002
-- WA-R1-004
-- WA-R1-005
-- WA-R1-006
-- WA-R1-007
-- WA-R1-008
-
-FAIL:
-- WA-R1-003 — MEDIA permit consumed before potentially slow media upload instead of immediately before actual Meta message submission.
-
-No new WA-R2 finding was opened.
+Round-2 result:
+- PASS: WA-R1-001
+- PASS: WA-R1-002
+- FAIL: WA-R1-003
+- PASS: WA-R1-004
+- PASS: WA-R1-005
+- PASS: WA-R1-006
+- PASS: WA-R1-007
+- PASS: WA-R1-008
 
 ## Round 3
 
-Targeted owner:
-B2 only
-
-Exact frozen worker base:
+Frozen worker base:
 `6963caf049822a0133095ae2ae481848a257ad80`
 
-Branch:
+B2 branch:
 `fix/whatsapp-runtime-r3`
 
-Prompt:
-`BACKEND_B2_R3_CHAT_PROMPT.md`
+B2 final SHA:
+`3a7f3f094289d8adf9c68ada3d9be49905d6779f`
 
-Tasks:
-`ROUND3_TASKS.md`
-
-Only residual finding:
+Only finding:
 `WA-R1-003`
 
-Required MEDIA order:
-`uploadMedia -> requirePermit -> sendMedia`
+L1 source review:
+PASS for intended remediation.
 
-If limiter rejects/fails after upload:
-- zero sendMedia;
-- durable FAILED;
-- stable safe limiter code;
-- no automatic replay;
-- same clientRequestId returns existing FAILED with zero second upload/send.
+Verified source behavior:
+- TEXT: permit immediately before sendText;
+- TEMPLATE: permit immediately before sendTemplate;
+- MEDIA: uploadMedia -> persist outbound provider-media link -> permit -> sendMedia;
+- post-upload limiter rejection -> durable FAILED;
+- post-upload Redis failure -> durable FAILED;
+- zero sendMedia on local limiter failure;
+- duplicate clientRequestId returns existing FAILED and does not re-upload/re-send;
+- provider 429 cooldown path preserved.
 
-No migration is expected.
+Integration PR:
+#191
 
-Status:
-READY TO START
+Exact FINAL QA base:
+`8738d9f7daafb878552eef70f1730ed6d8332a6c`
 
-## Final QA after Round 3
+No migration was required in Round 3.
 
-Future branch:
+## Final QA
+
+Branch:
 `review/whatsapp-security-qa-r3`
 
 Prompt:
 `SECURITY_QA_R3_FINAL_CHAT_PROMPT.md`
 
 Status:
-BLOCKED UNTIL B2 R3 INTEGRATION
+READY TO START
 
-L1 will:
-- review B2 R3;
-- merge targeted fix;
-- freeze exact final QA SHA;
-- activate final QA prompt.
+QA must verify WA-R1-003, execute the full backend/frontend/Flyway/Redis matrix where infrastructure permits, rerun targeted regressions, and clearly separate real Meta provider verification.
 
-## Execution caveat
+## CI caveat
 
-Round-2 QA could not execute Maven/npm/Flyway/Redis suites because GitHub Actions repeatedly failed before assigning a runner:
+Round-3 branch GitHub Actions again failed before any step started:
 - runner_id=0
 - steps=[]
 
-This is neither PASS nor application FAIL.
+No automated PASS is claimed by L1.
 
-Final QA must execute these suites when infrastructure permits and clearly separate local/mocked verification from real Meta provider verification.
+## Cleanup
+
+After confirming final QA branch is created from the exact base above:
+- `fix/whatsapp-runtime-r3` can be deleted;
+- keep `review/whatsapp-security-qa-r3` until final QA is complete.
