@@ -233,14 +233,12 @@ public class InboxController {
   }
 
   private void requireConversationRead(Long userId, Long companyId, Long conversationId) {
-    ProviderType provider = inboxQueryService.providerForConversation(companyId, conversationId);
-    if (provider == ProviderType.META_WHATSAPP) {
-      requirePermissionOrNotFound(
-          userId, companyId, CompanyPermissionKeys.WHATSAPP_READ, "Inbox conversation not found");
-    } else {
-      requirePermissionOrNotFound(
-          userId, companyId, CompanyPermissionKeys.EMAIL_READ, "Inbox conversation not found");
-    }
+    ChannelConnection connection =
+        conversationRepository
+            .findByIdAndCompanyId(conversationId, companyId)
+            .map(conversation -> conversation.getConnection())
+            .orElseThrow(() -> new NotFoundException("Inbox conversation not found"));
+    requireRead(userId, companyId, connection);
   }
 
   private void requireRead(Long userId, Long companyId, ChannelConnection connection) {
