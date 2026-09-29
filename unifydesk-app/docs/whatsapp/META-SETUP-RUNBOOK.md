@@ -78,11 +78,14 @@ Exact dashboard labels can change; QA records screenshots/config IDs without com
 
 ## Embedded Signup v4 migration
 
-Production release MUST NOT depend on sessionInfoVersion 3.
+The Embedded Signup configuration version and the browser session-info payload schema are separate version concepts.
+
+For the current v4 configuration, the frontend requests `sessionInfoVersion: 3` in the `FB.login` extras so Meta posts the `WA_EMBEDDED_SIGNUP` session payload containing the WABA/phone identifiers. This does not downgrade the Embedded Signup configuration from v4.
 
 Before 2026-10-15:
 - v4 config created
 - frontend launch tested with v4
+- session-info payload received and validated
 - fresh customer onboarding tested
 - reconnect tested
 
