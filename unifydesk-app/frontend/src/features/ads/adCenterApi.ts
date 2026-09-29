@@ -105,6 +105,7 @@ import type {
   UpdateGooglePerformanceMaxLifecycleInput,
   GoogleAssetGroupUrlOptions,
   GoogleAssetGroup,
+  GoogleAssetGroupPerformance,
   GoogleAssetGroupAsset,
   GoogleAssetGroupAssetInput,
   GoogleAssetGroupSignal,
@@ -1068,6 +1069,18 @@ export const adCenterApi = {
   async googleAssetGroups(companyId: string, campaignId: string) {
     const response = await apiClient.get<ApiResponse<GoogleAssetGroup[]>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups`,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleAssetGroupPerformance(
+    companyId: string,
+    campaignId: string,
+    days = 30,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleAssetGroupPerformance[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/performance`,
+      { params: { days } },
     )
     return unwrap(response.data)
   },
