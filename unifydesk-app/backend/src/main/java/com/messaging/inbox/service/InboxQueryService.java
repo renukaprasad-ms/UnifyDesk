@@ -31,6 +31,7 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +44,7 @@ public class InboxQueryService {
   private final InboxMessageRepository messageRepository;
   private final InboxMessageAttachmentRepository attachmentRepository;
   private final ChannelConnectionRepository connectionRepository;
+  private final JdbcTemplate jdbcTemplate;
 
   @Transactional(readOnly = true)
   public InboxPageResponse<InboxConversationResponse> listConversations(
@@ -241,7 +243,16 @@ public class InboxQueryService {
     if (messages.isEmpty()) return List.of();
 
     List<Long> messageIds = messages.stream().map(InboxMessage::getId).toList();
+    List<Long> whatsappMessageIds =
+        messages.stream()
+            .filter(
+                message ->
+                    message.getConnection() != null
+                        && message.getConnection().getProviderType() == ProviderType.META_WHATSAPP)
+            .map(InboxMessage::getId)
+            .toList();
     Map<Long, List<InboxAttachmentResponse>> attachments = new HashMap<>();
+    Map<Long, String> whatsappStatuses = whatsappStatuses(whatsappMessageIds);
 
     attachmentRepository
         .findByMessageIdInOrderByFilenameAsc(messageIds)
@@ -281,9 +292,36 @@ public class InboxQueryService {
                     message.getReferencesHeader(),
                     message.getSentAt(),
                     message.isRead(),
+                    whatsappStatuses.get(message.getId()),
                     List.copyOf(attachments.getOrDefault(message.getId(), List.of()))))
         .toList();
   }
+
+  private Map<Long, String> whatsappStatuses(List<Long> messageIds) {
+    if (messageIds.isEmpty()) return Map.of();
+    String placeholders =
+        String.join(",", java.util.Collections.nCopies(messageIds.size(), "?"));
+    List<WhatsAppStatusRow> rows =
+        jdbcTemplate.query(
+            """
+            select inbox_message_id,detailed_status
+            from meta_whatsapp_message_runtime
+            where direction='OUTBOUND'
+              and inbox_message_id in (%s)
+            """
+                .formatted(placeholders),
+            (rs, rowNum) ->
+                new WhatsAppStatusRow(
+                    rs.getLong("inbox_message_id"), rs.getString("detailed_status")),
+            messageIds.toArray());
+    Map<Long, String> result = new HashMap<>();
+    for (WhatsAppStatusRow row : rows) {
+      result.put(row.messageId(), row.status());
+    }
+    return result;
+  }
+
+  private record WhatsAppStatusRow(long messageId, String status) {}
 
   private LinkedHashSet<Long> parseIds(List<String> values, String field) {
     LinkedHashSet<Long> ids = new LinkedHashSet<>();

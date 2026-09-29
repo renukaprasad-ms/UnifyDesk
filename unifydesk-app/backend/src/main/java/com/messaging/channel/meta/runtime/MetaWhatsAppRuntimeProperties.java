@@ -24,5 +24,9 @@ public class MetaWhatsAppRuntimeProperties {
   private Duration providerConnectTimeout = Duration.ofSeconds(3);
   private Duration providerReadTimeout = Duration.ofSeconds(10);
   private DataSize inboundMediaHardLimit = DataSize.ofMegabytes(20);
+  private int outboundMaxPerSecond = 10;
+  private Duration outboundRateWindow = Duration.ofSeconds(1);
+  private Duration providerRetryAfterFallback = Duration.ofSeconds(5);
+  private Duration pendingOutcomeTimeout = Duration.ofMinutes(2);
   private String graphBaseUrl = "https://graph.facebook.com";
 }

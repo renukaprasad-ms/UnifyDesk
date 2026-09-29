@@ -350,6 +350,10 @@ app:
         provider-connect-timeout: ${META_WHATSAPP_PROVIDER_CONNECT_TIMEOUT:3s}
         provider-read-timeout: ${META_WHATSAPP_PROVIDER_READ_TIMEOUT:10s}
         inbound-media-hard-limit: ${META_WHATSAPP_INBOUND_MEDIA_HARD_LIMIT:20MB}
+        outbound-max-per-second: ${META_WHATSAPP_OUTBOUND_MAX_PER_SECOND:10}
+        outbound-rate-window: ${META_WHATSAPP_OUTBOUND_RATE_WINDOW:1s}
+        provider-retry-after-fallback: ${META_WHATSAPP_PROVIDER_RETRY_AFTER_FALLBACK:5s}
+        pending-outcome-timeout: ${META_WHATSAPP_PENDING_OUTCOME_TIMEOUT:2m}
         graph-base-url: ${META_WHATSAPP_GRAPH_BASE_URL:https://graph.facebook.com}
     gmail:
       enabled: ${GMAIL_OAUTH_ENABLED:false}

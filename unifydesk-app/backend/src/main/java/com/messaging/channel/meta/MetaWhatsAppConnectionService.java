@@ -40,8 +40,10 @@ import com.messaging.common.exception.ConflictException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.common.exception.ServiceUnavailableException;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -291,6 +293,11 @@ public class MetaWhatsAppConnectionService {
       return;
     }
 
+    if (!grantedTargetIds(inspection.granularScopes()).contains(stored.wabaId())) {
+      persistenceService.markAssetFailure(connectionId, "WHATSAPP_ASSET_NOT_GRANTED");
+      return;
+    }
+
     WabaDetails waba = graphClient.getWaba(stored.wabaId(), stored.accessToken());
     if (waba == null || !stored.wabaId().equals(waba.id())) {
       persistenceService.markAssetFailure(connectionId, "WHATSAPP_ASSET_NOT_GRANTED");
@@ -387,7 +394,7 @@ public class MetaWhatsAppConnectionService {
     Set<String> granted = grantedTargetIds(inspection.granularScopes());
     if (requestedWabaId != null && !requestedWabaId.isBlank()) {
       String requested = requestedWabaId.trim();
-      if (!granted.isEmpty() && !granted.contains(requested)) {
+      if (!granted.contains(requested)) {
         throw new BadRequestException(
             "WHATSAPP_ASSET_NOT_GRANTED: selected WhatsApp account was not granted");
       }
@@ -404,18 +411,44 @@ public class MetaWhatsAppConnectionService {
     return granted.iterator().next();
   }
 
-  private Set<String> grantedTargetIds(List<GranularScope> scopes) {
-    Set<String> granted = new LinkedHashSet<>();
+  Set<String> grantedTargetIds(List<GranularScope> scopes) {
     if (scopes == null) {
-      return granted;
+      return Set.of();
     }
-    scopes.stream()
-        .filter(scope -> scope != null && REQUIRED_SCOPES.contains(scope.scope()))
-        .filter(scope -> scope.targetIds() != null)
-        .flatMap(scope -> scope.targetIds().stream())
-        .filter(value -> value != null && !value.isBlank())
-        .forEach(granted::add);
-    return granted;
+
+    Map<String, Set<String>> targetsByScope = new LinkedHashMap<>();
+    for (GranularScope scope : scopes) {
+      if (scope == null || !REQUIRED_SCOPES.contains(scope.scope())) {
+        continue;
+      }
+
+      Set<String> targets =
+          targetsByScope.computeIfAbsent(scope.scope(), ignored -> new LinkedHashSet<>());
+      if (scope.targetIds() == null) {
+        continue;
+      }
+      scope.targetIds().stream()
+          .filter(value -> value != null && !value.isBlank())
+          .forEach(targets::add);
+    }
+
+    if (!targetsByScope.keySet().containsAll(REQUIRED_SCOPES)) {
+      return Set.of();
+    }
+
+    Set<String> granted = null;
+    for (String requiredScope : REQUIRED_SCOPES) {
+      Set<String> scopeTargets = targetsByScope.get(requiredScope);
+      if (scopeTargets == null) {
+        return Set.of();
+      }
+      if (granted == null) {
+        granted = new LinkedHashSet<>(scopeTargets);
+      } else {
+        granted.retainAll(scopeTargets);
+      }
+    }
+    return granted == null ? Set.of() : granted;
   }
 
   private PhoneNumber resolvePhoneNumber(String requestedPhoneNumberId, List<PhoneNumber> phones) {

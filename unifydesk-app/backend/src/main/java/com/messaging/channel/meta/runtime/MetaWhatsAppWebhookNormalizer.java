@@ -32,22 +32,49 @@ public class MetaWhatsAppWebhookNormalizer {
     if (root == null || !root.isObject()) {
       throw new InvalidPayloadException("Invalid WhatsApp webhook JSON", null);
     }
+    if (!"whatsapp_business_account".equals(text(root, "object"))) {
+      throw new InvalidPayloadException("Unsupported WhatsApp webhook object", null);
+    }
 
     List<NormalizedEvent> events = new ArrayList<>();
-    JsonNode entries = root.path("entry");
-    if (!entries.isArray()) return events;
+    JsonNode entries = root.get("entry");
+    if (entries == null || !entries.isArray() || entries.isEmpty()) {
+      throw new InvalidPayloadException("WhatsApp webhook entry is required", null);
+    }
 
     for (JsonNode entry : entries) {
+      if (!entry.isObject()) {
+        throw new InvalidPayloadException("Invalid WhatsApp webhook entry", null);
+      }
       String entryId = text(entry, "id");
-      JsonNode changes = entry.path("changes");
-      if (!changes.isArray()) continue;
+      JsonNode changes = entry.get("changes");
+      if (changes == null || !changes.isArray() || changes.isEmpty()) {
+        throw new InvalidPayloadException("WhatsApp webhook changes are required", null);
+      }
       for (JsonNode change : changes) {
+        if (!change.isObject()) {
+          throw new InvalidPayloadException("Invalid WhatsApp webhook change", null);
+        }
         String field = text(change, "field");
-        JsonNode value = change.path("value");
+        JsonNode value = change.get("value");
+        if (field == null || value == null || !value.isObject()) {
+          throw new InvalidPayloadException("Invalid WhatsApp webhook change envelope", null);
+        }
+        JsonNode messages = value.get("messages");
+        JsonNode statuses = value.get("statuses");
+        if ((messages != null && !messages.isArray())
+            || (statuses != null && !statuses.isArray())) {
+          throw new InvalidPayloadException("Invalid WhatsApp webhook effect shape", null);
+        }
+        boolean hasMessageEffects =
+            (messages != null && !messages.isEmpty()) || (statuses != null && !statuses.isEmpty());
+        if (hasMessageEffects && !"messages".equals(field)) {
+          throw new InvalidPayloadException("Unsupported WhatsApp webhook effect field", null);
+        }
         String phoneNumberId = text(value.path("metadata"), "phone_number_id");
         JsonNode contacts = value.path("contacts");
 
-        JsonNode messages = value.path("messages");
+        messages = value.path("messages");
         if (messages.isArray()) {
           for (JsonNode message : messages) {
             String providerMessageId = text(message, "id");
@@ -66,7 +93,7 @@ public class MetaWhatsAppWebhookNormalizer {
           }
         }
 
-        JsonNode statuses = value.path("statuses");
+        statuses = value.path("statuses");
         if (statuses.isArray()) {
           for (JsonNode status : statuses) {
             String providerMessageId = text(status, "id");

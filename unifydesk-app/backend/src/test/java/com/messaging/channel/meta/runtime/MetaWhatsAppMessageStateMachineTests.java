@@ -49,6 +49,18 @@ class MetaWhatsAppMessageStateMachineTests {
     assertThat(apply).isFalse();
   }
 
+  @Test
+  void olderFailureCannotOverwriteNewerAcceptedState() {
+    boolean apply =
+        stateMachine.shouldApply(
+            "ACCEPTED",
+            10,
+            Instant.parse("2026-01-01T10:02:00Z"),
+            stateMachine.providerState("failed"),
+            Instant.parse("2026-01-01T10:01:00Z"));
+
+    assertThat(apply).isFalse();
+  }
 
   @Test
   void olderFailureCannotOverwriteNewerSentState() {
