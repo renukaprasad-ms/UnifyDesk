@@ -54,6 +54,15 @@ public class MetaWhatsAppMessageService {
   public MetaWhatsAppSendResponse send(
       long companyId, long conversationId, MetaWhatsAppSendRequest request) {
     InboxConversation conversation = requireConversation(companyId, conversationId);
+    requireWhatsAppConversation(conversation);
+    MetaWhatsAppSendResponse duplicate =
+        existingResponse(
+            companyId,
+            conversation.getConnection().getId(),
+            conversationId,
+            request.clientRequestId());
+    if (duplicate != null) return duplicate;
+
     SendContext context = requireSendContext(companyId, conversation);
     String type = request.type().trim().toUpperCase(Locale.ROOT);
     String replyTo = resolveReply(companyId, conversationId, request.replyToMessageId());
@@ -89,10 +98,6 @@ public class MetaWhatsAppMessageService {
       throw new BadRequestException("Unsupported WhatsApp message type");
     }
 
-    MetaWhatsAppSendResponse duplicate =
-        existingResponse(companyId, context.connection().getId(), request.clientRequestId());
-    if (duplicate != null) return duplicate;
-
     Reservation reservation =
         reserve(
             companyId,
@@ -102,7 +107,14 @@ public class MetaWhatsAppMessageService {
             type,
             body);
     if (!reservation.created()) {
-      return existingResponse(companyId, context.connection().getId(), request.clientRequestId());
+      MetaWhatsAppSendResponse existing =
+          existingResponse(
+              companyId,
+              context.connection().getId(),
+              conversationId,
+              request.clientRequestId());
+      if (existing != null) return existing;
+      throw new ConflictException("WHATSAPP_CLIENT_REQUEST_ID_REUSED");
     }
 
     try {
@@ -380,14 +392,16 @@ public class MetaWhatsAppMessageService {
   }
 
   private MetaWhatsAppSendResponse existingResponse(
-      long companyId, long connectionId, String clientRequestId) {
+      long companyId, long connectionId, long conversationId, String clientRequestId) {
     List<MetaWhatsAppSendResponse> rows =
         jdbcTemplate.query(
             """
-            select inbox_message_id,client_request_id,provider_message_id,detailed_status,
-                   provider_status_at
-            from meta_whatsapp_message_runtime
-            where company_id=? and connection_id=? and client_request_id=?
+            select r.inbox_message_id,r.client_request_id,r.provider_message_id,r.detailed_status,
+                   r.provider_status_at
+            from meta_whatsapp_message_runtime r
+            join inbox_messages m on m.id = r.inbox_message_id
+            where r.company_id=? and r.connection_id=? and m.conversation_id=?
+              and r.client_request_id=?
             """,
             (rs, rowNum) ->
                 new MetaWhatsAppSendResponse(
@@ -401,14 +415,21 @@ public class MetaWhatsAppMessageService {
                     safeErrorForStatus(rs.getString("detailed_status"))),
             companyId,
             connectionId,
+            conversationId,
             clientRequestId);
     return rows.stream().findFirst().orElse(null);
   }
 
   private String safeErrorForStatus(String status) {
     if ("UNKNOWN".equals(status)) return "WHATSAPP_SEND_AMBIGUOUS";
-    if ("FAILED".equals(status)) return "PROVIDER_REJECTED";
     return null;
+  }
+
+  private void requireWhatsAppConversation(InboxConversation conversation) {
+    ChannelConnection connection = conversation.getConnection();
+    if (connection == null || connection.getProviderType() != ProviderType.META_WHATSAPP) {
+      throw new NotFoundException("WhatsApp conversation not found");
+    }
   }
 
   private SendContext requireSendContext(long companyId, InboxConversation conversation) {
