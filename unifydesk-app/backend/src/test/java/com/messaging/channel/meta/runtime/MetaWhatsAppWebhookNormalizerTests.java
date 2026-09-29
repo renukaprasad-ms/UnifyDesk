@@ -53,6 +53,7 @@ class MetaWhatsAppWebhookNormalizerTests {
     String payload =
         """
         {
+          "object":"whatsapp_business_account",
           "entry":[{
             "id":"waba-1",
             "changes":[{
