@@ -113,6 +113,23 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
               exception.getMessage()));
     }
 
+    if (hasText(text(override, "pmaxMerchantId"))
+        || hasText(text(override, "pmaxFeedLabel"))) {
+      try {
+        performanceMaxService.validateRetailSettings(
+            companyId,
+            account.getId(),
+            text(override, "pmaxMerchantId"),
+            text(override, "pmaxFeedLabel"));
+      } catch (RuntimeException exception) {
+        issues.add(
+            error(
+                "PMAX_RETAIL_SETTINGS_INVALID",
+                "providerOverride.pmaxMerchantId",
+                exception.getMessage()));
+      }
+    }
+
     if (hasText(text(override, "pmaxLifecycleGoalType"))) {
       try {
         performanceMaxLifecycleService.validateCampaignConfiguration(
@@ -311,7 +328,9 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
                       : true,
                   text(override, "pmaxBrandMainColor"),
                   text(override, "pmaxBrandAccentColor"),
-                  text(override, "pmaxBrandFontFamily")),
+                  text(override, "pmaxBrandFontFamily"),
+                  text(override, "pmaxMerchantId"),
+                  text(override, "pmaxFeedLabel")),
               run.getRequestedByUserId());
     }
 
