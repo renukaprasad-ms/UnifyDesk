@@ -24,13 +24,16 @@ public class MetaWhatsAppRuntimeGraphClient {
   private final RestClient restClient;
   private final ObjectMapper objectMapper;
   private final MetaWhatsAppProviderFailureClassifier failureClassifier;
+  private final MetaWhatsAppProviderMediaUrlPolicy mediaUrlPolicy;
 
   public MetaWhatsAppRuntimeGraphClient(
       MetaWhatsAppRuntimeProperties properties,
       ObjectMapper objectMapper,
-      MetaWhatsAppProviderFailureClassifier failureClassifier) {
+      MetaWhatsAppProviderFailureClassifier failureClassifier,
+      MetaWhatsAppProviderMediaUrlPolicy mediaUrlPolicy) {
     this.objectMapper = objectMapper;
     this.failureClassifier = failureClassifier;
+    this.mediaUrlPolicy = mediaUrlPolicy;
     HttpClient httpClient =
         HttpClient.newBuilder()
             .connectTimeout(properties.getProviderConnectTimeout())
@@ -202,8 +205,8 @@ public class MetaWhatsAppRuntimeGraphClient {
 
   public byte[] downloadAuthenticated(
       String url, String accessToken, long hardLimitBytes) {
+    mediaUrlPolicy.requireTrusted(url);
     URI uri = URI.create(url);
-    validateProviderMediaUri(uri);
     return execute(
         false,
         () ->
@@ -302,24 +305,6 @@ public class MetaWhatsAppRuntimeGraphClient {
         retryable && classified.retryable(),
         ambiguous && classified.ambiguousOutcome(),
         cause);
-  }
-
-  private void validateProviderMediaUri(URI uri) {
-    String host = uri.getHost();
-    if (!"https".equalsIgnoreCase(uri.getScheme())
-        || host == null
-        || !(ownedHost(host, "facebook.com")
-            || ownedHost(host, "fbcdn.net")
-            || ownedHost(host, "whatsapp.net")
-            || ownedHost(host, "fbsbx.com"))) {
-      throw new MetaWhatsAppRuntimeException(
-          "WHATSAPP_MEDIA_INVALID", false, "Provider media URL is not trusted");
-    }
-  }
-
-  private boolean ownedHost(String host, String suffix) {
-    String normalized = host.toLowerCase(java.util.Locale.ROOT);
-    return normalized.equals(suffix) || normalized.endsWith("." + suffix);
   }
 
   private String bearer(String token) {
