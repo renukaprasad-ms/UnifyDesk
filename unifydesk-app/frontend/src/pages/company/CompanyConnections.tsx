@@ -74,6 +74,17 @@ const statusClass: Record<ChannelConnection['status'], string> = {
   DISCONNECTED: 'bg-slate-100 text-slate-600',
 }
 
+const whatsAppStatusLabel: Record<MetaWhatsAppConnection['status'], string> = {
+  CONNECTING: 'Connecting',
+  VALIDATING: 'Validating',
+  ACTIVE: 'Connected',
+  DEGRADED: 'Temporarily degraded',
+  ACTION_REQUIRED: 'Action required',
+  REAUTH_REQUIRED: 'Authorization expired',
+  DISCONNECTED: 'Disconnected',
+  ERROR: 'Error',
+}
+
 export default function CompanyConnections() {
   const selectedCompany = useAppSelector(selectSelectedCompany)
   const { can } = useIam()
@@ -872,7 +883,7 @@ export default function CompanyConnections() {
                     {metaConnection?.connectionId === connection.id && (
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
                         <span className="rounded-full bg-slate-100 px-2.5 py-1 font-bold text-slate-700">
-                          {metaConnection.status.replaceAll('_', ' ')}
+                          {whatsAppStatusLabel[metaConnection.status]}
                         </span>
                         {metaConnection.authState && (
                           <span className="text-slate-500">
