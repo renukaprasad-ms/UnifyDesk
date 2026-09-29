@@ -304,6 +304,28 @@ public class MetaWhatsAppPersistenceService {
   }
 
   @Transactional
+  public void markCredentialReauthorizationRequired(
+      Long connectionId, AuthState authState, String safeCode) {
+    MetaWhatsAppConnectionControl control = requireControl(connectionId);
+    control.setAuthState(authState);
+    control.setProductState(ProductState.REAUTH_REQUIRED);
+    control.setLastSafeErrorCode(safeCode);
+    control.setNextReconcileAt(null);
+    controlRepository.save(control);
+
+    ChannelConnection connection = requireConnection(connectionId);
+    connection.setStatus(ChannelConnectionStatus.ERROR);
+    connectionRepository.save(connection);
+
+    updateOperation(
+        connectionId,
+        ProvisioningStep.TOKEN_VALIDATED,
+        OperationState.FAILED_PERMANENT,
+        safeCode,
+        null);
+  }
+
+  @Transactional
   public void markProvisioningRetry(Long connectionId, String safeCode) {
     MetaWhatsAppConnectionControl control = requireControl(connectionId);
     ProductState currentState = control.getProductState();
@@ -350,10 +372,17 @@ public class MetaWhatsAppPersistenceService {
 
   @Transactional(readOnly = true)
   public StoredMetaToken readToken(Long connectionId) {
+    return readTokenCredential(connectionId).token();
+  }
+
+  @Transactional(readOnly = true)
+  public StoredMetaCredential readTokenCredential(Long connectionId) {
+    var credential =
+        credentialService.readWithMetadata(connectionId, CredentialType.OAUTH_TOKEN_SET);
     try {
-      return objectMapper.readValue(
-          credentialService.read(connectionId, CredentialType.OAUTH_TOKEN_SET),
-          StoredMetaToken.class);
+      return new StoredMetaCredential(
+          objectMapper.readValue(credential.plaintextPayload(), StoredMetaToken.class),
+          credential.expiresAt());
     } catch (JsonProcessingException exception) {
       throw new IllegalStateException("Stored Meta credential is invalid", exception);
     }
@@ -508,6 +537,8 @@ public class MetaWhatsAppPersistenceService {
       String graphApiVersion,
       String whatsappAccountId,
       String messagingAccountId) {}
+
+  public record StoredMetaCredential(StoredMetaToken token, Instant expiresAt) {}
 
   private record StoredMetaSecret(String twoStepPin) {}
 }
