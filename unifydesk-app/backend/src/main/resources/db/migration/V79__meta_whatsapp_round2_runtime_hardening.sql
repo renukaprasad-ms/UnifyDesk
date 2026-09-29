@@ -11,6 +11,7 @@ create table if not exists meta_whatsapp_provider_media_reservations (
   updated_at timestamp(6) with time zone not null,
   completed_at timestamp(6) with time zone,
   constraint uk_meta_whatsapp_provider_media_reservation unique (connection_id, provider_media_id),
+  constraint uk_meta_whatsapp_provider_media_reserved_id unique (reserved_media_id),
   constraint ck_meta_whatsapp_provider_media_reservation_state check (
     state in ('RESERVED','INGESTED','LINKED','FAILED')
   ),
