@@ -292,12 +292,6 @@ public class MetaWhatsAppInboxPersistenceService {
         : value.asText().trim();
   }
 
-  private String compact(String value, int max) {
-    if (value == null) return null;
-    String normalized = value.replaceAll("\\s+", " ").trim();
-    return normalized.length() <= max ? normalized : normalized.substring(0, max);
-  }
-
   private void scheduleRealtime(ChannelConnection connection, long conversationId, long messageId) {
     if (!TransactionSynchronizationManager.isSynchronizationActive()) return;
     TransactionSynchronizationManager.registerSynchronization(
