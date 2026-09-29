@@ -127,6 +127,7 @@ public class MetaWhatsAppMessageService {
                 content,
                 media.getOriginalFileName(),
                 media.getContentType());
+        linkOutboundMedia(reservation.messageId(), providerMediaId, media.getId());
         result =
             graphClient.sendMedia(
                 context.credential(),
@@ -242,6 +243,21 @@ public class MetaWhatsAppMessageService {
           conversationRepository.save(conversation);
           return new Reservation(message.getId(), true);
         });
+  }
+
+  private void linkOutboundMedia(
+      long messageId, String providerMediaId, long mediaId) {
+    jdbcTemplate.update(
+        """
+        insert into meta_whatsapp_message_media
+          (id,message_id,provider_media_id,media_id,direction,created_at)
+        values (?,?,?,?,'OUTBOUND',now())
+        on conflict (message_id,provider_media_id) do nothing
+        """,
+        IdGenerator.nextId(),
+        messageId,
+        providerMediaId,
+        mediaId);
   }
 
   private MetaWhatsAppSendResponse markAccepted(
