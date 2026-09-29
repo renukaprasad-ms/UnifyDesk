@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import {
   FiAlertTriangle,
@@ -30,6 +31,7 @@ import type {
   WhatsAppTemplateParameters,
 } from '../../features/whatsapp/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import type { ApiResponse } from '../../lib/api/types'
 import { useSnackbar } from '../feedback/SnackbarProvider'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
@@ -295,7 +297,13 @@ export default function WhatsAppInbox() {
       await refresh()
     } catch (requestError) {
       const message = apiErrorMessage(requestError, 'Unable to send WhatsApp message')
-      if (message.toUpperCase().includes('TEMPLATE')) setTemplateMode(true)
+      const templateRequired =
+        axios.isAxiosError<ApiResponse<never>>(requestError) &&
+        requestError.response?.data?.error_code === 'WHATSAPP_TEMPLATE_REQUIRED'
+
+      if (templateRequired || message.toUpperCase().includes('TEMPLATE')) {
+        setTemplateMode(true)
+      }
       snackbar.error(message)
     } finally {
       setSending(false)
