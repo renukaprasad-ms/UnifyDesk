@@ -3,6 +3,7 @@ import { FiClock, FiPlus, FiRefreshCw, FiTrash2 } from 'react-icons/fi'
 import GoogleAiMaxBrandSelector from './GoogleAiMaxBrandSelector'
 import GoogleSearchInterestSelector from './GoogleSearchInterestSelector'
 import GoogleSearchDemographicSelector from './GoogleSearchDemographicSelector'
+import GooglePerformanceMaxLifecycleLaunchSettings from './GooglePerformanceMaxLifecycleLaunchSettings'
 import type {
   AdAccountResource,
   AdConversion,
@@ -12,6 +13,7 @@ import type {
   CampaignBusinessGoal,
   CampaignChannelType,
   GoogleMerchantAccount,
+  GoogleLifecycleGoalType,
 } from '../../features/ads/types'
 
 export type GoogleAdScheduleDraft = {
@@ -46,6 +48,20 @@ type Props = {
   setPmaxBrandAccentColor: (value: string) => void
   pmaxBrandFontFamily: string
   setPmaxBrandFontFamily: (value: string) => void
+  pmaxLifecycleGoalType: GoogleLifecycleGoalType | ''
+  setPmaxLifecycleGoalType: (value: GoogleLifecycleGoalType | '') => void
+  pmaxLifecycleTargetOption: 'TARGET_ALL' | 'TARGET_SPECIFIC'
+  setPmaxLifecycleTargetOption: (value: 'TARGET_ALL' | 'TARGET_SPECIFIC') => void
+  pmaxLifecycleAdditionalValue: string
+  setPmaxLifecycleAdditionalValue: (value: string) => void
+  pmaxLifecycleHighLifetimeValue: string
+  setPmaxLifecycleHighLifetimeValue: (value: string) => void
+  pmaxLifecycleValueMultiplier: string
+  setPmaxLifecycleValueMultiplier: (value: string) => void
+  pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers: boolean
+  setPmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers: (value: boolean) => void
+  pmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla: boolean
+  setPmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla: (value: boolean) => void
   demandGenBidStrategy:
     | 'MAXIMIZE_CLICKS'
     | 'MAXIMIZE_CONVERSIONS'
@@ -813,6 +829,34 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 </div>
               )}
             </div>
+
+            <GooglePerformanceMaxLifecycleLaunchSettings
+              companyId={props.companyId}
+              accountId={googleAccount}
+              goalType={props.pmaxLifecycleGoalType}
+              setGoalType={props.setPmaxLifecycleGoalType}
+              targetOption={props.pmaxLifecycleTargetOption}
+              setTargetOption={props.setPmaxLifecycleTargetOption}
+              additionalValue={props.pmaxLifecycleAdditionalValue}
+              setAdditionalValue={props.setPmaxLifecycleAdditionalValue}
+              highLifetimeValue={props.pmaxLifecycleHighLifetimeValue}
+              setHighLifetimeValue={props.setPmaxLifecycleHighLifetimeValue}
+              valueMultiplier={props.pmaxLifecycleValueMultiplier}
+              setValueMultiplier={props.setPmaxLifecycleValueMultiplier}
+              enableBidAdjustmentsForLoyaltyMembers={
+                props.pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers
+              }
+              setEnableBidAdjustmentsForLoyaltyMembers={
+                props.setPmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers
+              }
+              showTargetedLoyaltyMemberBenefitsInPla={
+                props.pmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla
+              }
+              setShowTargetedLoyaltyMemberBenefitsInPla={
+                props.setPmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla
+              }
+              disabled={props.disabled}
+            />
 
             {conversionRequired && (
               <Field label="Conversion action">
