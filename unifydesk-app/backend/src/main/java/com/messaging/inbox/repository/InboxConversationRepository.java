@@ -4,8 +4,8 @@ import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.inbox.entity.InboxConversation;
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -88,6 +88,7 @@ public interface InboxConversationRepository extends JpaRepository<InboxConversa
       @Param("connectionStatus") ChannelConnectionStatus connectionStatus,
       @Param("folderKey") String folderKey,
       Pageable pageable);
+
   @Query(
       value =
           """
@@ -143,5 +144,4 @@ public interface InboxConversationRepository extends JpaRepository<InboxConversa
       @Param("whatsappAllowed") boolean whatsappAllowed,
       @Param("whatsappProvider") com.messaging.channel.enums.ProviderType whatsappProvider,
       Pageable pageable);
-
 }
