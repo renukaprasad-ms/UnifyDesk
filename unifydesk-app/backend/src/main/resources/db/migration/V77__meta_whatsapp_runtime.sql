@@ -51,7 +51,6 @@ create table if not exists meta_whatsapp_message_runtime (
   last_provider_error_code integer,
   last_provider_error_subcode integer,
   last_provider_fbtrace_id varchar(255),
-  safe_error_code varchar(120),
   created_at timestamp(6) with time zone not null,
   updated_at timestamp(6) with time zone not null,
   constraint ck_meta_whatsapp_message_direction check (direction in ('INBOUND','OUTBOUND')),
