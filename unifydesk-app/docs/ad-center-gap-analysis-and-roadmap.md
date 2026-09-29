@@ -1087,7 +1087,7 @@ Reference:
 
 ## G-08 Performance Max completeness - P1
 
-Status: **in progress — C5 URL/automation, Brand Guidelines, lifecycle/customer-acquisition controls, and asset diagnostics/performance are complete; listing-group work remains**.
+Status: **complete for the current verified Google Performance Max API scope**.
 
 Implemented in C5:
 
@@ -1129,11 +1129,19 @@ Implemented in the Ads completion branch:
 - [x] Asset Group 30-day performance metrics for impressions, clicks, conversions, conversion value, and spend
 - [x] linked Asset Group Asset source, policy review/approval status, primary serving status, and serving reasons
 - [x] diagnostics integrated into the existing native PMax asset manager with regression coverage
+- [x] retail Performance Max creation using Merchant Center `shopping_settings.merchant_id` and optional `feed_label`
+- [x] required all-products `AssetGroupListingGroupFilter` root created atomically for new retail PMax campaigns
+- [x] native retail detection and product-group tree read-back per Asset Group
+- [x] product-group performance metrics from `asset_group_product_group_view`
+- [x] safe full-tree replacement with child-before-parent removal and temporary-ID parent/child creation
+- [x] one-level grouping by brand, condition, product type, Google product category, custom label, channel, or item ID
+- [x] explicit include/exclude product-group leaves plus required other-products catch-all behavior
+- [x] native PMax product-group editor, unified Merchant/feed-label selector, launch preflight, plan review, audit logging, and regression coverage
 
-Still add/review:
+Future provider/API follow-up rather than current G-08 blocker:
 
 - value multipliers beyond the currently productized lifecycle subset when Google makes them broadly supported/stable for the relevant PMax goal types
-- listing groups where relevant
+- deeper multi-level product partition trees if customer demand requires them; the current product supports a safe one-level replace model
 - any remaining URL-inclusion behavior that becomes directly writable for this PMax subtype
 
 Google v25.2 adds AssetGroup URL options and automated video crawl settings.
