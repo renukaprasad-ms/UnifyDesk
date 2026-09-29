@@ -75,7 +75,6 @@ const initializeSdk = (appId: string, graphApiVersion: string) => {
 export const loadMetaSdk = (appId: string, graphApiVersion: string) => {
   const normalizedAppId = appId.trim()
   const normalizedVersion = graphApiVersion.trim()
-  const initKey = `${normalizedAppId}:${normalizedVersion}`
 
   if (window.FB) {
     initializeSdk(normalizedAppId, normalizedVersion)
