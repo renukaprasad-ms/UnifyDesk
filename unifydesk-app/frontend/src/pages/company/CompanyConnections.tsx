@@ -662,14 +662,10 @@ export default function CompanyConnections() {
                       </p>
                       <span
                         className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                          metaConnection?.connectionId === connection.id
-                            ? whatsAppStatusClass[metaConnection.status]
-                            : statusClass[connection.status]
+                          statusClass[connection.status]
                         }`}
                       >
-                        {metaConnection?.connectionId === connection.id
-                          ? whatsAppStatusLabel[metaConnection.status]
-                          : whatsAppGenericStatusLabel[connection.status]}
+                        {connection.status}
                       </span>
                       <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-700">
                         {providerLabel(
@@ -887,10 +883,14 @@ export default function CompanyConnections() {
                       <p className="text-sm font-bold text-slate-950">{connection.name}</p>
                       <span
                         className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                          statusClass[connection.status]
+                          metaConnection?.connectionId === connection.id
+                            ? whatsAppStatusClass[metaConnection.status]
+                            : statusClass[connection.status]
                         }`}
                       >
-                        {connection.status}
+                        {metaConnection?.connectionId === connection.id
+                          ? whatsAppStatusLabel[metaConnection.status]
+                          : whatsAppGenericStatusLabel[connection.status]}
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-slate-500">
