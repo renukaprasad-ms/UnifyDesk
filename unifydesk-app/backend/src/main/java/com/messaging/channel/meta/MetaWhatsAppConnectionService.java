@@ -12,6 +12,7 @@ import com.messaging.channel.meta.MetaGraphClient.TokenInspection;
 import com.messaging.channel.meta.MetaGraphClient.TokenResponse;
 import com.messaging.channel.meta.MetaGraphClient.WabaDetails;
 import com.messaging.channel.meta.MetaWhatsAppPersistenceService.PendingProvisioning;
+import com.messaging.channel.meta.MetaWhatsAppPersistenceService.StoredMetaCredential;
 import com.messaging.channel.meta.MetaWhatsAppPersistenceService.StoredMetaToken;
 import com.messaging.channel.meta.MetaWhatsAppSignupStateService.ConsumedSignupState;
 import com.messaging.channel.meta.MetaWhatsAppSignupStateService.SignupMode;
@@ -19,6 +20,7 @@ import com.messaging.channel.meta.MetaWhatsAppSignupStateService.SignupSession;
 import com.messaging.channel.meta.control.MetaGraphException;
 import com.messaging.channel.meta.control.MetaGraphException.SafeCategory;
 import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl;
+import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl.AuthState;
 import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl.ProductState;
 import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl.RegistrationState;
 import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl.SubscriptionState;
@@ -196,7 +198,20 @@ public class MetaWhatsAppConnectionService {
         return;
       }
 
-      StoredMetaToken stored = persistenceService.readToken(connectionId);
+      StoredMetaCredential credential;
+      try {
+        credential = persistenceService.readTokenCredential(connectionId);
+      } catch (NotFoundException missingCredential) {
+        persistenceService.markCredentialReauthorizationRequired(
+            connectionId, AuthState.UNKNOWN, "WHATSAPP_REAUTH_REQUIRED");
+        return;
+      }
+      if (credential.expiresAt() != null && !credential.expiresAt().isAfter(Instant.now())) {
+        persistenceService.markCredentialReauthorizationRequired(
+            connectionId, AuthState.EXPIRED, "WHATSAPP_REAUTH_REQUIRED");
+        return;
+      }
+      StoredMetaToken stored = credential.token();
       if (control.getRegistrationState() != RegistrationState.REGISTERED) {
         graphClient.registerPhoneNumber(
             control.getSelectedPhoneNumberId(),
