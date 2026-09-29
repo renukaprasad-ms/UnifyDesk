@@ -51,16 +51,18 @@ public class MetaWhatsAppWebhookNormalizer {
         if (messages.isArray()) {
           for (JsonNode message : messages) {
             String providerMessageId = text(message, "id");
+            JsonNode payload =
+                effect(entryId, field, phoneNumberId, contacts, "message", message);
             add(
                 events,
                 event(
+                    canonicalMessageKey(phoneNumberId, providerMessageId, payload),
                     "MESSAGE",
                     entryId,
-                    field,
                     phoneNumberId,
                     providerMessageId,
                     providerInstant(message.path("timestamp")),
-                    effect(entryId, field, phoneNumberId, contacts, "message", message)));
+                    payload));
           }
         }
 
@@ -68,16 +70,25 @@ public class MetaWhatsAppWebhookNormalizer {
         if (statuses.isArray()) {
           for (JsonNode status : statuses) {
             String providerMessageId = text(status, "id");
+            String providerStatus = text(status, "status");
+            String providerTimestamp = text(status, "timestamp");
+            JsonNode payload =
+                effect(entryId, field, phoneNumberId, contacts, "status", status);
             add(
                 events,
                 event(
+                    canonicalStatusKey(
+                        phoneNumberId,
+                        providerMessageId,
+                        providerStatus,
+                        providerTimestamp,
+                        payload),
                     "STATUS",
                     entryId,
-                    field,
                     phoneNumberId,
                     providerMessageId,
                     providerInstant(status.path("timestamp")),
-                    effect(entryId, field, phoneNumberId, contacts, "status", status)));
+                    payload));
           }
         }
 
@@ -90,9 +101,18 @@ public class MetaWhatsAppWebhookNormalizer {
           add(
               events,
               event(
+                  hashedKey(
+                      kind
+                          + "|"
+                          + value(entryId)
+                          + "|"
+                          + value(field)
+                          + "|"
+                          + value(phoneNumberId)
+                          + "|"
+                          + value),
                   kind,
                   entryId,
-                  field,
                   phoneNumberId,
                   null,
                   Instant.now(),
@@ -111,33 +131,70 @@ public class MetaWhatsAppWebhookNormalizer {
   }
 
   private NormalizedEvent event(
+      String eventKey,
       String kind,
       String entryId,
-      String field,
       String phoneNumberId,
       String providerMessageId,
       Instant providerEventAt,
       JsonNode payload) {
-    String material =
-        kind
-            + "|"
-            + value(phoneNumberId)
-            + "|"
-            + value(providerMessageId)
-            + "|"
-            + value(field)
-            + "|"
-            + providerEventAt
-            + "|"
-            + payload;
     return new NormalizedEvent(
-        "sha256:" + sha256(material),
+        eventKey,
         entryId,
         phoneNumberId,
         providerMessageId,
         kind,
         providerEventAt,
         payload.toString());
+  }
+
+  private String canonicalMessageKey(
+      String phoneNumberId, String providerMessageId, JsonNode payload) {
+    if (phoneNumberId != null && providerMessageId != null) {
+      return boundedKey("msg:" + phoneNumberId + ":" + providerMessageId);
+    }
+    return hashedKey("msg|" + value(phoneNumberId) + "|" + value(providerMessageId) + "|" + payload);
+  }
+
+  private String canonicalStatusKey(
+      String phoneNumberId,
+      String providerMessageId,
+      String status,
+      String providerTimestamp,
+      JsonNode payload) {
+    if (phoneNumberId != null
+        && providerMessageId != null
+        && status != null
+        && providerTimestamp != null) {
+      return boundedKey(
+          "status:"
+              + phoneNumberId
+              + ":"
+              + providerMessageId
+              + ":"
+              + status
+              + ":"
+              + providerTimestamp);
+    }
+    return hashedKey(
+        "status|"
+            + value(phoneNumberId)
+            + "|"
+            + value(providerMessageId)
+            + "|"
+            + value(status)
+            + "|"
+            + value(providerTimestamp)
+            + "|"
+            + payload);
+  }
+
+  private String boundedKey(String key) {
+    return key.length() <= 255 ? key : hashedKey(key);
+  }
+
+  private String hashedKey(String material) {
+    return "sha256:" + sha256(material);
   }
 
   private ObjectNode effect(
