@@ -1,4 +1,5 @@
 import type { ProviderType } from '../channel/types'
+import type { WhatsAppSendStatus } from '../whatsapp/types'
 
 export type ConversationStatus = 'OPEN' | 'ARCHIVED'
 export type InboxMessageDirection = 'INBOUND' | 'OUTBOUND'
@@ -40,6 +41,7 @@ export type InboxMessage = {
   internetMessageId?: string | null
   direction: InboxMessageDirection
   status: InboxMessageStatus
+  whatsappStatus?: WhatsAppSendStatus | null
   subject?: string | null
   snippet?: string | null
   bodyText?: string | null
@@ -74,6 +76,12 @@ export type InboxReadStateResponse = {
 export type InboxConversationDetail = {
   conversation: InboxConversation
   messages: InboxMessage[]
+}
+
+export type InboxWhatsAppStatusChangedEvent = {
+  connectionId: string
+  conversationId: string
+  messageId: string
 }
 
 export type InboxEmailChangedEvent = {
