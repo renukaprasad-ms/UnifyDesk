@@ -24,7 +24,8 @@ class MetaWhatsAppWebhookWorkerTests {
             mock(MetaWhatsAppRuntimeGraphClient.class),
             new MetaWhatsAppRuntimeProperties(),
             mock(MediaService.class),
-            mock(MetaWhatsAppTemplateService.class));
+            mock(MetaWhatsAppTemplateService.class),
+            mock(MetaWhatsAppProviderMediaReservationStore.class));
     var event =
         new MetaWhatsAppWebhookEventStore.ClaimedEvent(
             1L,
