@@ -36,6 +36,7 @@ import com.messaging.common.exception.NotFoundException;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -166,7 +167,10 @@ public class MetaWhatsAppPersistenceService {
     operation.setOperationType(operationType);
     operation.setState(OperationState.PENDING);
     operation.setStep(ProvisioningStep.LOCAL_PERSISTED);
+    operation.setAttemptCount(0);
     operation.setNextAttemptAt(Instant.now());
+    operation.setClaimToken(null);
+    operation.setClaimExpiresAt(null);
     operation.setCompletedAt(null);
     operation.setLastSafeErrorCode(null);
     operationRepository.save(operation);
@@ -175,12 +179,30 @@ public class MetaWhatsAppPersistenceService {
   }
 
   @Transactional
+  public boolean tryClaimProvisioning(Long connectionId, String claimToken) {
+    Instant now = Instant.now();
+    return operationRepository.tryClaim(
+            connectionId,
+            claimToken,
+            now.plus(properties.safeProvisioningClaimLease()),
+            OperationState.CLAIMED,
+            now)
+        == 1;
+  }
+
+  @Transactional
+  public void releaseProvisioningClaim(Long connectionId, String claimToken) {
+    operationRepository.releaseClaim(connectionId, claimToken, Instant.now());
+  }
+
+  @Transactional
   public void markRegistrationSucceeded(Long connectionId) {
     MetaWhatsAppConnectionControl control = requireControl(connectionId);
     control.setRegistrationState(RegistrationState.REGISTERED);
     control.setLastSafeErrorCode(null);
     controlRepository.save(control);
-    updateOperation(connectionId, ProvisioningStep.PHONE_REGISTERED, OperationState.RUNNING, null);
+    updateOperation(
+        connectionId, ProvisioningStep.PHONE_REGISTERED, OperationState.RUNNING, null, null);
   }
 
   @Transactional
@@ -189,7 +211,8 @@ public class MetaWhatsAppPersistenceService {
     control.setSubscriptionState(SubscriptionState.SUBSCRIBED);
     control.setLastSafeErrorCode(null);
     controlRepository.save(control);
-    updateOperation(connectionId, ProvisioningStep.APP_SUBSCRIBED, OperationState.RUNNING, null);
+    updateOperation(
+        connectionId, ProvisioningStep.APP_SUBSCRIBED, OperationState.RUNNING, null, null);
   }
 
   @Transactional
@@ -216,7 +239,8 @@ public class MetaWhatsAppPersistenceService {
         .forEach(sender -> sender.setStatus(SenderIdentityStatus.ACTIVE));
     senderIdentityRepository.saveAll(senders);
 
-    updateOperation(connectionId, ProvisioningStep.HEALTH_VALIDATED, OperationState.SUCCEEDED, null);
+    updateOperation(
+        connectionId, ProvisioningStep.HEALTH_VALIDATED, OperationState.SUCCEEDED, null, null);
   }
 
   @Transactional
@@ -245,7 +269,8 @@ public class MetaWhatsAppPersistenceService {
       case ASSET, INVALID_REQUEST -> control.setProductState(ProductState.ACTION_REQUIRED);
     }
 
-    control.setNextReconcileAt(Instant.now().plus(properties.safeDegradedReconcileInterval()));
+    Instant nextAttemptAt = failure.retryable() ? retryAt(connectionId) : null;
+    control.setNextReconcileAt(nextAttemptAt);
     controlRepository.save(control);
 
     ChannelConnection connection = requireConnection(connectionId);
@@ -256,7 +281,8 @@ public class MetaWhatsAppPersistenceService {
         connectionId,
         currentFailureStep(control),
         failure.retryable() ? OperationState.FAILED_RETRYABLE : OperationState.FAILED_PERMANENT,
-        failure.safeCode());
+        failure.safeCode(),
+        nextAttemptAt);
   }
 
   @Transactional
@@ -264,7 +290,7 @@ public class MetaWhatsAppPersistenceService {
     MetaWhatsAppConnectionControl control = requireControl(connectionId);
     control.setProductState(ProductState.ACTION_REQUIRED);
     control.setLastSafeErrorCode(safeCode);
-    control.setNextReconcileAt(Instant.now().plus(properties.safeDegradedReconcileInterval()));
+    control.setNextReconcileAt(null);
     controlRepository.save(control);
     ChannelConnection connection = requireConnection(connectionId);
     connection.setStatus(ChannelConnectionStatus.ERROR);
@@ -273,7 +299,33 @@ public class MetaWhatsAppPersistenceService {
         connectionId,
         ProvisioningStep.ASSETS_VALIDATED,
         OperationState.FAILED_PERMANENT,
-        safeCode);
+        safeCode,
+        null);
+  }
+
+  @Transactional
+  public void markProvisioningRetry(Long connectionId, String safeCode) {
+    MetaWhatsAppConnectionControl control = requireControl(connectionId);
+    ProductState currentState = control.getProductState();
+    control.setProductState(
+        currentState == ProductState.ACTIVE || currentState == ProductState.DEGRADED
+            ? ProductState.DEGRADED
+            : ProductState.VALIDATING);
+    control.setLastSafeErrorCode(safeCode);
+    Instant nextAttemptAt = retryAt(connectionId);
+    control.setNextReconcileAt(nextAttemptAt);
+    controlRepository.save(control);
+
+    ChannelConnection connection = requireConnection(connectionId);
+    connection.setStatus(genericStatus(control.getProductState()));
+    connectionRepository.save(connection);
+
+    updateOperation(
+        connectionId,
+        currentFailureStep(control),
+        OperationState.FAILED_RETRYABLE,
+        safeCode,
+        nextAttemptAt);
   }
 
   @Transactional
@@ -350,7 +402,11 @@ public class MetaWhatsAppPersistenceService {
   }
 
   private void updateOperation(
-      Long connectionId, ProvisioningStep step, OperationState state, String errorCode) {
+      Long connectionId,
+      ProvisioningStep step,
+      OperationState state,
+      String errorCode,
+      Instant nextAttemptAt) {
     operationRepository
         .findFirstByConnectionIdOrderByUpdatedAtDesc(connectionId)
         .ifPresent(
@@ -358,14 +414,31 @@ public class MetaWhatsAppPersistenceService {
               operation.setStep(step);
               operation.setState(state);
               operation.setLastSafeErrorCode(errorCode);
-              operation.setAttemptCount(operation.getAttemptCount() + 1);
-              operation.setNextAttemptAt(
-                  state == OperationState.FAILED_RETRYABLE
-                      ? Instant.now().plus(properties.safeDegradedReconcileInterval())
-                      : null);
+              operation.setNextAttemptAt(nextAttemptAt);
               operation.setCompletedAt(state == OperationState.SUCCEEDED ? Instant.now() : null);
               operationRepository.save(operation);
             });
+  }
+
+  private Instant retryAt(Long connectionId) {
+    int attempt =
+        operationRepository
+            .findFirstByConnectionIdOrderByUpdatedAtDesc(connectionId)
+            .map(MetaWhatsAppProvisioningOperation::getAttemptCount)
+            .orElse(1);
+    long initialMillis = properties.safeRetryInitialBackoff().toMillis();
+    long maxMillis = properties.safeRetryMaxBackoff().toMillis();
+    int shift = Math.min(Math.max(attempt - 1, 0), 20);
+    long multiplied;
+    try {
+      multiplied = Math.multiplyExact(initialMillis, 1L << shift);
+    } catch (ArithmeticException exception) {
+      multiplied = maxMillis;
+    }
+    long baseMillis = Math.min(maxMillis, multiplied);
+    long jitterBound = Math.max(1L, baseMillis / 5L);
+    long jitterMillis = ThreadLocalRandom.current().nextLong(jitterBound + 1L);
+    return Instant.now().plusMillis(Math.min(maxMillis, baseMillis + jitterMillis));
   }
 
   private ProvisioningStep currentFailureStep(MetaWhatsAppConnectionControl control) {
