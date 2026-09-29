@@ -273,7 +273,7 @@ public class MetaWhatsAppMessageService {
               """
               update meta_whatsapp_message_runtime
               set provider_message_id=?,detailed_status='ACCEPTED',status_rank=10,
-                  provider_status_at=?,safe_error_code=null,updated_at=?
+                  provider_status_at=?,updated_at=?
               where company_id=? and connection_id=? and client_request_id=?
               """,
               providerMessageId,
@@ -325,7 +325,7 @@ public class MetaWhatsAppMessageService {
         null,
         "UNKNOWN",
         null,
-        exception.safeCategory());
+        "SEND_AMBIGUOUS");
   }
 
   private void markFailed(
@@ -363,7 +363,7 @@ public class MetaWhatsAppMessageService {
               update meta_whatsapp_message_runtime
               set detailed_status=?,status_rank=?,provider_status_at=?,
                   last_provider_error_code=?,last_provider_error_subcode=?,last_provider_fbtrace_id=?,
-                  safe_error_code=?,updated_at=?
+                  updated_at=?
               where company_id=? and connection_id=? and client_request_id=?
               """,
               status,
@@ -372,7 +372,6 @@ public class MetaWhatsAppMessageService {
               exception.metaCode(),
               exception.metaSubcode(),
               exception.fbtraceId(),
-              exception.safeCategory(),
               Timestamp.from(at),
               companyId,
               connectionId,
@@ -396,7 +395,7 @@ public class MetaWhatsAppMessageService {
         jdbcTemplate.query(
             """
             select inbox_message_id,client_request_id,provider_message_id,detailed_status,
-                   provider_status_at,safe_error_code
+                   provider_status_at
             from meta_whatsapp_message_runtime
             where company_id=? and connection_id=? and client_request_id=?
             """,
@@ -409,11 +408,17 @@ public class MetaWhatsAppMessageService {
                     rs.getTimestamp("provider_status_at") == null
                         ? null
                         : rs.getTimestamp("provider_status_at").toInstant(),
-                    rs.getString("safe_error_code")),
+                    safeErrorForStatus(rs.getString("detailed_status"))),
             companyId,
             connectionId,
             clientRequestId);
     return rows.stream().findFirst().orElse(null);
+  }
+
+  private String safeErrorForStatus(String status) {
+    if ("UNKNOWN".equals(status)) return "SEND_AMBIGUOUS";
+    if ("FAILED".equals(status)) return "PROVIDER_REJECTED";
+    return null;
   }
 
   private SendContext requireSendContext(long companyId, InboxConversation conversation) {
