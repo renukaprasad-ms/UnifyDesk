@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FiRefreshCw, FiSave } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
@@ -59,44 +59,6 @@ export default function GooglePerformanceMaxListingGroups({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-
-  const root = useMemo(
-    () => nodes.find((node) => !node.parentResourceName) ?? null,
-    [nodes],
-  )
-
-  const hydrate = (values: GooglePerformanceMaxListingGroup[]) => {
-    setNodes(values)
-    const children = values.filter((node) => node.parentResourceName)
-    const explicit = children.filter((node) => node.dimensionType)
-    const other = children.find((node) => !node.dimensionType)
-    if (!root && explicit.length === 0 && values.length === 1) {
-      setDimension('ALL_PRODUCTS')
-      setIncludedValues('')
-      setExcludedValues('')
-      setIncludeOther(true)
-      return
-    }
-    const inferred = explicit[0]?.dimensionType ?? 'ALL_PRODUCTS'
-    setDimension(inferred)
-    setIncludedValues(
-      explicit
-        .filter((node) => node.type === 'UNIT_INCLUDED')
-        .map((node) => node.dimensionValue)
-        .filter((value): value is string => Boolean(value))
-        .join('\n'),
-    )
-    setExcludedValues(
-      explicit
-        .filter((node) => node.type === 'UNIT_EXCLUDED')
-        .map((node) => node.dimensionValue)
-        .filter((value): value is string => Boolean(value))
-        .join('\n'),
-    )
-    setLevel(explicit[0]?.dimensionLevel ?? 'LEVEL1')
-    setCustomIndex(explicit[0]?.customAttributeIndex ?? 'INDEX0')
-    setIncludeOther(other ? other.type === 'UNIT_INCLUDED' : true)
-  }
 
   const load = async () => {
     if (!assetGroup.id) return
