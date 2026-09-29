@@ -1026,7 +1026,7 @@ export default function CompanyConnections() {
                       working={workingConnectionId === connection.id}
                       onReconnect={
                         connection.providerType === 'META_WHATSAPP'
-                          ? () => void connectWhatsApp(false)
+                          ? () => void connectWhatsApp(true)
                           : undefined
                       }
                       onDeleteNow={() => setDeleteTarget(connection)}
