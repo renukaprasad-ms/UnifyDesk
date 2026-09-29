@@ -64,7 +64,7 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
     InOrder textOrder = inOrder(text.reservations, text.limiter, text.graphClient);
     textOrder
         .verify(text.reservations)
-        .tryReserve(10L, 20L, "request-text", "TEXT", any(Instant.class));
+        .tryReserve(eq(10L), eq(20L), eq("request-text"), eq("TEXT"), any(Instant.class));
     textOrder.verify(text.limiter).requirePermit("phone-1");
     textOrder.verify(text.graphClient).sendText(any(), any(), any(), any());
 
@@ -93,7 +93,12 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
         inOrder(template.reservations, template.limiter, template.graphClient);
     templateOrder
         .verify(template.reservations)
-        .tryReserve(10L, 20L, "request-template", "TEMPLATE", any(Instant.class));
+        .tryReserve(
+            eq(10L),
+            eq(20L),
+            eq("request-template"),
+            eq("TEMPLATE"),
+            any(Instant.class));
     templateOrder.verify(template.limiter).requirePermit("phone-1");
     templateOrder.verify(template.graphClient).sendTemplate(any(), any(), any(), any(), any());
   }
@@ -140,7 +145,12 @@ class MetaWhatsAppMessageServiceRound3RateLimitTests {
         inOrder(fixture.reservations, fixture.graphClient, fixture.limiter);
     order
         .verify(fixture.reservations)
-        .tryReserve(10L, 20L, "request-media-delay", "MEDIA", any(Instant.class));
+        .tryReserve(
+            eq(10L),
+            eq(20L),
+            eq("request-media-delay"),
+            eq("MEDIA"),
+            any(Instant.class));
     order.verify(fixture.graphClient).uploadMedia(any(), any(), any(), any());
     order.verify(fixture.limiter).requirePermit("phone-1");
     order.verify(fixture.graphClient).sendMedia(any(), any(), any(), any(), any(), any());
