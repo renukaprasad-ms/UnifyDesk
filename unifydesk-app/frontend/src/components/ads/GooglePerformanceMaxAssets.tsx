@@ -10,6 +10,7 @@ import type {
   GoogleUrlCustomParameter,
 } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import GooglePerformanceMaxListingGroups from './GooglePerformanceMaxListingGroups'
 
 type FieldType = GoogleAssetGroupAssetInput['fieldType']
 type SourceMode = 'NEW' | 'EXISTING'
@@ -564,6 +565,13 @@ export default function GooglePerformanceMaxAssets({
           ))}
         </div>
       )}
+
+      <GooglePerformanceMaxListingGroups
+        companyId={companyId}
+        campaignId={campaignId}
+        assetGroup={assetGroup}
+        canModify={canModify}
+      />
 
       {canModify && (
         <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
