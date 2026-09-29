@@ -252,6 +252,44 @@ public class GoogleAdsPerformanceMaxLifecycleService {
     return after;
   }
 
+  public void validateCampaignConfiguration(
+      Long companyId,
+      Long accountId,
+      GooglePerformanceMaxLifecycleRequest request) {
+    String type = goalType(request.goalType());
+    String target = targetOption(request.targetOption(), type);
+    validateCampaignValues(
+        type,
+        target,
+        request.additionalValue(),
+        request.additionalHighLifetimeValue(),
+        request.valueMultiplier());
+
+    boolean goalExists =
+        goals(companyId, accountId).stream()
+            .anyMatch(goal -> type.equals(goal.goalType()));
+    if (!goalExists) {
+      throw new BadRequestException(
+          "Configure the Google "
+              + type
+              + " account lifecycle goal before launching this Performance Max campaign");
+    }
+
+    List<GoogleUserListCustomerTypeResponse> classifications =
+        customerTypes(companyId, accountId);
+    if (classifications.isEmpty()) {
+      throw new BadRequestException(
+          "Classify at least one Google customer list before using lifecycle optimization");
+    }
+    if ("LOYALTY_RETENTION".equals(type)
+        && classifications.stream()
+            .noneMatch(value -> value.customerTypeCategory() != null
+                && value.customerTypeCategory().startsWith("LOYALTY_TIER_"))) {
+      throw new BadRequestException(
+          "Loyalty Retention requires at least one Google customer list classified into a loyalty tier");
+    }
+  }
+
   public List<GooglePerformanceMaxLifecycleResponse> campaignLifecycle(
       Long companyId, Long campaignId) {
     AdCampaign campaign = requirePerformanceMaxCampaign(companyId, campaignId);
