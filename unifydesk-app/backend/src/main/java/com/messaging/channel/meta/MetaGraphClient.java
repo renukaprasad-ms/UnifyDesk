@@ -232,12 +232,17 @@ public class MetaGraphClient {
 
   private MetaGraphException safeGraphException(
       String operation, RestClientResponseException exception) {
+    return parseGraphFailure(
+        operation, exception.getStatusCode().value(), exception.getResponseBodyAsByteArray());
+  }
+
+  MetaGraphException parseGraphFailure(String operation, int status, byte[] responseBody) {
     String type = null;
     Integer code = null;
     Integer subcode = null;
     String fbtraceId = null;
     try {
-      JsonNode root = objectMapper.readTree(exception.getResponseBodyAsByteArray());
+      JsonNode root = objectMapper.readTree(responseBody);
       JsonNode error = root == null ? null : root.path("error");
       if (error != null && !error.isMissingNode()) {
         type = text(error, "type");
@@ -249,7 +254,6 @@ public class MetaGraphClient {
       // Raw provider payload is intentionally discarded.
     }
 
-    int status = exception.getStatusCode().value();
     SafeCategory category = category(status, code);
     boolean retryable =
         category == SafeCategory.RATE_LIMIT
