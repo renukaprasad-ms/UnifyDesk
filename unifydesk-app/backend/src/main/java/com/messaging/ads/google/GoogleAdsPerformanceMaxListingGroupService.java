@@ -240,30 +240,18 @@ public class GoogleAdsPerformanceMaxListingGroupService {
 
   private Map<String, Metrics> performance(Context context, Integer requestedDays) {
     int days = requestedDays == null ? 30 : Math.max(1, Math.min(requestedDays, 90));
+    java.time.LocalDate endDate = java.time.LocalDate.now();
+    java.time.LocalDate startDate = endDate.minusDays(days - 1L);
     String query =
         "SELECT asset_group_listing_group_filter.id, metrics.impressions, metrics.clicks, "
             + "metrics.conversions, metrics.cost_micros "
             + "FROM asset_group_product_group_view WHERE asset_group.id = "
             + context.assetGroupId()
-            + " AND segments.date DURING LAST_"
-            + days
-            + "_DAYS";
-    // Google predefined LAST_N_DAYS accepts only selected constants, so use explicit dates
-    // whenever the caller requests a non-standard window.
-    if (days != 7 && days != 14 && days != 30 && days != 90) {
-      java.time.LocalDate end = java.time.LocalDate.now();
-      java.time.LocalDate start = end.minusDays(days - 1L);
-      query =
-          "SELECT asset_group_listing_group_filter.id, metrics.impressions, metrics.clicks, "
-              + "metrics.conversions, metrics.cost_micros "
-              + "FROM asset_group_product_group_view WHERE asset_group.id = "
-              + context.assetGroupId()
-              + " AND segments.date BETWEEN '"
-              + start
-              + "' AND '"
-              + end
-              + "'";
-    }
+            + " AND segments.date BETWEEN '"
+            + startDate
+            + "' AND '"
+            + endDate
+            + "'";
 
     Map<String, Metrics> result = new HashMap<>();
     for (JsonNode row :
