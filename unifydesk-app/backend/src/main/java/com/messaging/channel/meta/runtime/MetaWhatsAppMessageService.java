@@ -315,7 +315,7 @@ public class MetaWhatsAppMessageService {
         null,
         "UNKNOWN",
         null,
-        "SEND_AMBIGUOUS");
+        "WHATSAPP_SEND_AMBIGUOUS");
   }
 
   private void markFailed(
@@ -406,7 +406,7 @@ public class MetaWhatsAppMessageService {
   }
 
   private String safeErrorForStatus(String status) {
-    if ("UNKNOWN".equals(status)) return "SEND_AMBIGUOUS";
+    if ("UNKNOWN".equals(status)) return "WHATSAPP_SEND_AMBIGUOUS";
     if ("FAILED".equals(status)) return "PROVIDER_REJECTED";
     return null;
   }
