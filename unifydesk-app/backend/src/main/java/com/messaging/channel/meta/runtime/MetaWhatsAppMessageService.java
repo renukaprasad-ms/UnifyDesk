@@ -19,7 +19,6 @@ import com.messaging.inbox.repository.InboxConversationRepository;
 import com.messaging.inbox.repository.InboxMessageRepository;
 import com.messaging.media.entity.Media;
 import com.messaging.media.service.MediaService;
-import com.messaging.realtime.service.RealtimeService;
 import com.messaging.storage.enums.StorageUsageType;
 import com.messaging.storage.service.MessageStorageMeter;
 import com.messaging.storage.service.StorageQuotaService;
@@ -41,7 +40,6 @@ public class MetaWhatsAppMessageService {
   private final MetaWhatsAppControlPlaneProjectionRepository controlPlane;
   private final MetaWhatsAppCredentialResolver credentialResolver;
   private final MetaWhatsAppRuntimeGraphClient graphClient;
-  private final MetaWhatsAppRuntimeProperties properties;
   private final MetaWhatsAppCustomerServicePolicy customerServicePolicy;
   private final MetaWhatsAppTemplateService templateService;
   private final MetaWhatsAppOutboundReservationStore reservationStore;
