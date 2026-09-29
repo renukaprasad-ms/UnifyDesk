@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.inbox.enums.InboxMessageStatus;
 import com.messaging.inbox.repository.InboxMessageRepository;
-import com.messaging.realtime.service.RealtimeService;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -22,7 +21,7 @@ public class MetaWhatsAppStatusService {
   private final MetaWhatsAppTenantResolver tenantResolver;
   private final JdbcTemplate jdbcTemplate;
   private final InboxMessageRepository messageRepository;
-  private final RealtimeService realtimeService;
+  private final MetaWhatsAppRealtimePublisher realtimePublisher;
   private final MetaWhatsAppMessageStateMachine stateMachine;
 
   @Transactional
@@ -132,17 +131,8 @@ public class MetaWhatsAppStatusService {
         new TransactionSynchronization() {
           @Override
           public void afterCommit() {
-            try {
-              realtimeService.sendToCompany(
-                  companyId,
-                  "inbox.whatsapp.status.changed",
-                  java.util.Map.of(
-                      "connectionId", String.valueOf(connectionId),
-                      "conversationId", String.valueOf(conversationId),
-                      "messageId", String.valueOf(messageId)));
-            } catch (RuntimeException ignored) {
-              // Realtime is advisory.
-            }
+            realtimePublisher.statusChanged(
+                companyId, connectionId, conversationId, messageId);
           }
         });
   }
