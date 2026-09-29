@@ -99,6 +99,23 @@ public class SupabaseStorageProvider implements StorageProvider {
   }
 
   @Override
+  public void writeObject(String bucket, String objectKey, byte[] content, String contentType) {
+    try {
+      restClient
+          .post()
+          .uri(storageUri("/object/%s/%s", bucket, objectKey))
+          .headers(this::addAuthHeaders)
+          .header("x-upsert", "false")
+          .contentType(MediaType.parseMediaType(contentType))
+          .body(content)
+          .retrieve()
+          .toBodilessEntity();
+    } catch (RestClientException exception) {
+      throw storageException("write", exception);
+    }
+  }
+
+  @Override
   public void move(String bucket, String sourceObjectKey, String destinationObjectKey) {
     postJson(
         storageUri("/object/move"),

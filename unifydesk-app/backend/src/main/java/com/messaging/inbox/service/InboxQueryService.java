@@ -2,6 +2,9 @@ package com.messaging.inbox.service;
 
 import com.messaging.channel.email.EmailFolder;
 import com.messaging.channel.enums.ChannelConnectionStatus;
+import com.messaging.channel.enums.ChannelType;
+import com.messaging.channel.enums.ProviderType;
+import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.inbox.dto.InboxAttachmentResponse;
@@ -39,22 +42,51 @@ public class InboxQueryService {
   private final InboxParticipantRepository participantRepository;
   private final InboxMessageRepository messageRepository;
   private final InboxMessageAttachmentRepository attachmentRepository;
+  private final ChannelConnectionRepository connectionRepository;
 
   @Transactional(readOnly = true)
   public InboxPageResponse<InboxConversationResponse> listConversations(
       Long companyId, Long connectionId, EmailFolder folder, int page, int size) {
+    return listConversations(companyId, connectionId, folder, page, size, true, true);
+  }
+
+  @Transactional(readOnly = true)
+  public InboxPageResponse<InboxConversationResponse> listConversations(
+      Long companyId,
+      Long connectionId,
+      EmailFolder folder,
+      int page,
+      int size,
+      boolean emailAllowed,
+      boolean whatsappAllowed) {
     PageRequest pageable = PageRequest.of(page, size);
     EmailFolder resolvedFolder = folder == null ? EmailFolder.INBOX : folder;
-    Page<InboxConversation> result =
-        conversationRepository.findByFolder(
-            companyId,
-            connectionId,
-            ChannelConnectionStatus.ACTIVE,
-            resolvedFolder.providerKey(),
-            pageable);
+    Page<InboxConversation> result;
+    if (connectionId != null) {
+      String providerFolder = folderKey(companyId, connectionId, resolvedFolder);
+      result =
+          conversationRepository.findByFolder(
+              companyId,
+              connectionId,
+              ChannelConnectionStatus.ACTIVE,
+              providerFolder,
+              pageable);
+    } else if (!emailAllowed && !whatsappAllowed) {
+      result = Page.empty(pageable);
+    } else {
+      result =
+          conversationRepository.findByPermittedChannels(
+              companyId,
+              ChannelConnectionStatus.ACTIVE,
+              emailAllowed,
+              ChannelType.EMAIL,
+              resolvedFolder.providerKey(),
+              whatsappAllowed,
+              ProviderType.META_WHATSAPP,
+              pageable);
+    }
 
     List<InboxConversationResponse> items = conversations(result.getContent());
-
     return new InboxPageResponse<>(
         items,
         result.getNumber(),
@@ -95,6 +127,7 @@ public class InboxQueryService {
       Long companyId, InboxRealtimeSnapshotRequest request) {
     Long connectionId = parseId(request.connectionId(), "connectionId");
     EmailFolder folder = request.folder() == null ? EmailFolder.INBOX : request.folder();
+    String providerFolderKey = folderKey(companyId, connectionId, folder);
     LinkedHashSet<Long> requestedConversationIds =
         parseIds(request.conversationIds(), "conversationIds");
     LinkedHashSet<Long> requestedMessageIds = parseIds(request.messageIds(), "messageIds");
@@ -111,7 +144,7 @@ public class InboxQueryService {
                 connectionId,
                 ChannelConnectionStatus.ACTIVE,
                 requestedConversationIds,
-                folder.providerKey(),
+                providerFolderKey,
                 InboxMessageStatus.DELETED);
 
     List<InboxMessage> foundMessages =
@@ -141,6 +174,23 @@ public class InboxQueryService {
         detailConversationId == null
             ? List.of()
             : missing(requestedMessageIds, foundMessageIds));
+  }
+
+  private String folderKey(Long companyId, Long connectionId, EmailFolder folder) {
+    var connection =
+        connectionRepository
+            .findByIdAndCompanyId(connectionId, companyId)
+            .orElseThrow(() -> new NotFoundException("Inbox connection not found"));
+    if (connection.getStatus() != ChannelConnectionStatus.ACTIVE) {
+      throw new NotFoundException("Inbox connection not found");
+    }
+    if (connection.getProviderType() == ProviderType.META_WHATSAPP) {
+      return "WHATSAPP";
+    }
+    if (connection.getChannelType() != ChannelType.EMAIL) {
+      throw new NotFoundException("Inbox connection not found");
+    }
+    return (folder == null ? EmailFolder.INBOX : folder).providerKey();
   }
 
   private InboxConversation requireVisibleConversation(Long companyId, Long conversationId) {

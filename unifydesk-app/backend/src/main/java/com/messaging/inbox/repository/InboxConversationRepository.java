@@ -4,8 +4,8 @@ import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.inbox.entity.InboxConversation;
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -87,5 +87,61 @@ public interface InboxConversationRepository extends JpaRepository<InboxConversa
       @Param("connectionId") Long connectionId,
       @Param("connectionStatus") ChannelConnectionStatus connectionStatus,
       @Param("folderKey") String folderKey,
+      Pageable pageable);
+
+  @Query(
+      value =
+          """
+          select c
+          from InboxConversation c
+          where c.companyId = :companyId
+            and c.connection.status = :connectionStatus
+            and (
+              (:emailAllowed = true
+                and c.connection.channelType = :emailChannel
+                and exists (
+                  select em.id from InboxMessage em
+                  where em.conversation.id = c.id and em.providerFolderKey = :emailFolderKey
+                ))
+              or
+              (:whatsappAllowed = true
+                and c.providerType = :whatsappProvider
+                and exists (
+                  select wm.id from InboxMessage wm
+                  where wm.conversation.id = c.id and wm.providerFolderKey = 'WHATSAPP'
+                ))
+            )
+          order by c.lastMessageAt desc, c.createdAt desc
+          """,
+      countQuery =
+          """
+          select count(c)
+          from InboxConversation c
+          where c.companyId = :companyId
+            and c.connection.status = :connectionStatus
+            and (
+              (:emailAllowed = true
+                and c.connection.channelType = :emailChannel
+                and exists (
+                  select em.id from InboxMessage em
+                  where em.conversation.id = c.id and em.providerFolderKey = :emailFolderKey
+                ))
+              or
+              (:whatsappAllowed = true
+                and c.providerType = :whatsappProvider
+                and exists (
+                  select wm.id from InboxMessage wm
+                  where wm.conversation.id = c.id and wm.providerFolderKey = 'WHATSAPP'
+                ))
+            )
+          """)
+  Page<InboxConversation> findByPermittedChannels(
+      @Param("companyId") Long companyId,
+      @Param("connectionStatus") ChannelConnectionStatus connectionStatus,
+      @Param("emailAllowed") boolean emailAllowed,
+      @Param("emailChannel") com.messaging.channel.enums.ChannelType emailChannel,
+      @Param("emailFolderKey") String emailFolderKey,
+      @Param("whatsappAllowed") boolean whatsappAllowed,
+      @Param("whatsappProvider") com.messaging.channel.enums.ProviderType whatsappProvider,
       Pageable pageable);
 }

@@ -13,6 +13,8 @@ public interface StorageProvider {
 
   byte[] readObject(String bucket, String objectKey);
 
+  void writeObject(String bucket, String objectKey, byte[] content, String contentType);
+
   void move(String bucket, String sourceObjectKey, String destinationObjectKey);
 
   SignedDownloadResult createSignedDownloadUrl(
