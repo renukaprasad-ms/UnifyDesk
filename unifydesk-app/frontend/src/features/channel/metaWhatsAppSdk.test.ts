@@ -120,10 +120,20 @@ describe('Meta WhatsApp Embedded Signup v4', () => {
     removeSpy.mockRestore()
   })
 
-  it.each([
-    ['CANCEL', {}, 'cancelled'],
-    ['ERROR', { error_message: 'Provider rejected signup' }, 'Provider rejected signup'],
-  ])('handles %s and removes its listener', async (event, data, expected) => {
+  const terminalCases: Array<{
+    event: string
+    data: Record<string, unknown>
+    expected: string
+  }> = [
+    { event: 'CANCEL', data: {}, expected: 'cancelled' },
+    {
+      event: 'ERROR',
+      data: { error_message: 'Provider rejected signup' },
+      expected: 'Provider rejected signup',
+    },
+  ]
+
+  it.each(terminalCases)('handles $event and removes its listener', async ({ event, data, expected }) => {
     const facebook = installFacebook()
     const removeSpy = vi.spyOn(window, 'removeEventListener')
     const promise = launchMetaWhatsAppSignup(config)
