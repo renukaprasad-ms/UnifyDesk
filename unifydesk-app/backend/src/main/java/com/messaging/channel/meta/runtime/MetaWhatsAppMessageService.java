@@ -42,6 +42,7 @@ public class MetaWhatsAppMessageService {
   private final MetaWhatsAppRuntimeGraphClient graphClient;
   private final MetaWhatsAppCustomerServicePolicy customerServicePolicy;
   private final MetaWhatsAppTemplateService templateService;
+  private final MetaWhatsAppSendFailurePolicy sendFailurePolicy;
   private final MetaWhatsAppOutboundReservationStore reservationStore;
   private final MetaWhatsAppRealtimePublisher realtimePublisher;
   private final MediaService mediaService;
@@ -143,7 +144,8 @@ public class MetaWhatsAppMessageService {
           reservation.messageId(),
           result.providerMessageId());
     } catch (MetaWhatsAppProviderException exception) {
-      if (exception.ambiguousOutcome()) {
+      MetaWhatsAppSendFailurePolicy.Outcome outcome = sendFailurePolicy.outcome(exception);
+      if (outcome == MetaWhatsAppSendFailurePolicy.Outcome.UNKNOWN) {
         return markUnknown(
             companyId,
             context.connection().getId(),
@@ -157,7 +159,7 @@ public class MetaWhatsAppMessageService {
           request.clientRequestId(),
           reservation.messageId(),
           exception);
-      if (exception.retryable()) {
+      if (outcome == MetaWhatsAppSendFailurePolicy.Outcome.RETRYABLE_FAILURE) {
         throw new ServiceUnavailableException(exception.safeCategory(), exception);
       }
       throw new BadRequestException(exception.safeCategory());
