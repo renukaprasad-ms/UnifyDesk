@@ -131,7 +131,7 @@ describe('CompanyConnections WhatsApp onboarding', () => {
     expect(metaWhatsAppApi.signupSession).toHaveBeenNthCalledWith(2, 'company-1')
   })
 
-  it('uses a fresh normal signup session when reconnecting a disconnected connection', async () => {
+  it('uses a fresh reauthorization session when reconnecting a disconnected connection', async () => {
     vi.mocked(channelApi.list).mockResolvedValue([
       {
         id: 'connection-1',
@@ -162,12 +162,17 @@ describe('CompanyConnections WhatsApp onboarding', () => {
 
     render(<CompanyConnections />)
 
+    vi.mocked(metaWhatsAppApi.reauthorizeSession).mockResolvedValue({
+      ...signupSession,
+      state: 'reconnect-state',
+    })
+
     fireEvent.click(await screen.findByRole('button', { name: /^reconnect$/i }))
 
     await waitFor(() =>
-      expect(metaWhatsAppApi.signupSession).toHaveBeenCalledWith('company-1'),
+      expect(metaWhatsAppApi.reauthorizeSession).toHaveBeenCalledWith('company-1'),
     )
-    expect(metaWhatsAppApi.reauthorizeSession).not.toHaveBeenCalled()
+    expect(metaWhatsAppApi.signupSession).not.toHaveBeenCalled()
   })
 
   it('uses the reauthorization session only when nextAction requires reauthorization', async () => {
