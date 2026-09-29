@@ -42,6 +42,7 @@ public class MetaWhatsAppMessageService {
   private final MetaWhatsAppCredentialResolver credentialResolver;
   private final MetaWhatsAppRuntimeGraphClient graphClient;
   private final MetaWhatsAppRuntimeProperties properties;
+  private final MetaWhatsAppCustomerServicePolicy customerServicePolicy;
   private final MetaWhatsAppTemplateService templateService;
   private final MediaService mediaService;
   private final MessageStorageMeter messageStorageMeter;
@@ -166,8 +167,10 @@ public class MetaWhatsAppMessageService {
   public MetaWhatsAppComposerResponse composer(long companyId, long conversationId) {
     InboxConversation conversation = requireConversation(companyId, conversationId);
     SendContext context = requireSendContext(companyId, conversation);
-    Instant expiresAt = customerServiceExpiresAt(context.connection().getId(), context.customerKey());
-    boolean freeForm = expiresAt != null && Instant.now().isBefore(expiresAt);
+    Instant lastCustomerMessageAt =
+        lastCustomerMessageAt(context.connection().getId(), context.customerKey());
+    Instant expiresAt = customerServicePolicy.expiresAt(lastCustomerMessageAt);
+    boolean freeForm = customerServicePolicy.freeFormAllowed(lastCustomerMessageAt, Instant.now());
     return new MetaWhatsAppComposerResponse(
         freeForm,
         expiresAt,
@@ -428,14 +431,14 @@ public class MetaWhatsAppMessageService {
   }
 
   private void requireFreeForm(SendContext context) {
-    Instant expiresAt =
-        customerServiceExpiresAt(context.connection().getId(), context.customerKey());
-    if (expiresAt == null || !Instant.now().isBefore(expiresAt)) {
+    Instant lastCustomerMessageAt =
+        lastCustomerMessageAt(context.connection().getId(), context.customerKey());
+    if (!customerServicePolicy.freeFormAllowed(lastCustomerMessageAt, Instant.now())) {
       throw new ConflictException("WHATSAPP_TEMPLATE_REQUIRED");
     }
   }
 
-  private Instant customerServiceExpiresAt(long connectionId, String customerKey) {
+  private Instant lastCustomerMessageAt(long connectionId, String customerKey) {
     List<Instant> rows =
         jdbcTemplate.query(
             """
@@ -446,9 +449,7 @@ public class MetaWhatsAppMessageService {
             (rs, rowNum) -> rs.getTimestamp(1).toInstant(),
             connectionId,
             customerKey);
-    return rows.isEmpty()
-        ? null
-        : rows.getFirst().plus(properties.getCustomerServiceWindow());
+    return rows.isEmpty() ? null : rows.getFirst();
   }
 
   private String resolveReply(
