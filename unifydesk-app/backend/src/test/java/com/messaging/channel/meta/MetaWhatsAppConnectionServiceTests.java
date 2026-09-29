@@ -201,6 +201,37 @@ class MetaWhatsAppConnectionServiceTests {
   }
 
   @Test
+  void freshConnectCannotSilentlySwitchExistingConnectionPhone() {
+    CompleteMetaWhatsAppSignupRequest request = request("waba-1", "phone-2");
+    ChannelConnection existingConnection = new ChannelConnection();
+    existingConnection.setId(500L);
+    existingConnection.setCompanyId(COMPANY_ID);
+    existingConnection.setProviderType(ProviderType.META_WHATSAPP);
+    MetaWhatsAppConnectionControl existingControl = activeControl(COMPANY_ID, 500L, "phone-1");
+
+    when(stateService.consume("state", COMPANY_ID, USER_ID))
+        .thenReturn(new ConsumedSignupState(SignupMode.CONNECT, null, null));
+    when(graphClient.exchangeCode("code"))
+        .thenReturn(new TokenResponse("access-token", "bearer", 3600L));
+    when(graphClient.inspectToken("access-token")).thenReturn(validInspection("waba-1"));
+    when(graphClient.getWaba("waba-1", "access-token"))
+        .thenReturn(new WabaDetails("waba-1", "Acme", "INR", "5"));
+    when(graphClient.getPhoneNumbers("waba-1", "access-token"))
+        .thenReturn(List.of(new PhoneNumber("phone-2", "+919111111111", "Acme", "GREEN")));
+    when(controlRepository.findFirstBySelectedPhoneNumberIdAndProductStateNot(
+            "phone-2", ProductState.DISCONNECTED))
+        .thenReturn(Optional.empty());
+    when(connectionRepository.findByCompanyIdAndProviderTypeAndExternalAccountId(
+            COMPANY_ID, ProviderType.META_WHATSAPP, "waba-1"))
+        .thenReturn(Optional.of(existingConnection));
+    when(controlRepository.findById(500L)).thenReturn(Optional.of(existingControl));
+
+    assertThatThrownBy(() -> service.complete(COMPANY_ID, USER_ID, request))
+        .isInstanceOf(ConflictException.class)
+        .hasMessageContaining("bound to another phone");
+  }
+
+  @Test
   void multipleGrantedAccountsRequireExplicitSelection() {
     CompleteMetaWhatsAppSignupRequest request = request(null, "phone-1");
     when(stateService.consume("state", COMPANY_ID, USER_ID))
