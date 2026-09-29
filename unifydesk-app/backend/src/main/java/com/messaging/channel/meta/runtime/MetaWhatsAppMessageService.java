@@ -362,7 +362,7 @@ public class MetaWhatsAppMessageService {
               """
               update meta_whatsapp_message_runtime
               set detailed_status=?,status_rank=?,provider_status_at=?,
-                  provider_error_code=?,provider_error_subcode=?,provider_fbtrace_id=?,
+                  last_provider_error_code=?,last_provider_error_subcode=?,last_provider_fbtrace_id=?,
                   safe_error_code=?,updated_at=?
               where company_id=? and connection_id=? and client_request_id=?
               """,
