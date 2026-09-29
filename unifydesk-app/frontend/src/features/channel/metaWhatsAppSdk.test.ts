@@ -89,7 +89,7 @@ describe('Meta WhatsApp Embedded Signup v4', () => {
     })
   })
 
-  it('uses v4 login options without legacy sessionInfoVersion 3', async () => {
+  it('uses v4 configuration with session info schema version 3', async () => {
     const facebook = installFacebook()
     const promise = launchMetaWhatsAppSignup(config)
 
@@ -98,9 +98,9 @@ describe('Meta WhatsApp Embedded Signup v4', () => {
       auth_type: 'rerequest',
       response_type: 'code',
       override_default_response_type: true,
-      extras: { setup: {} },
+      extras: { setup: {}, sessionInfoVersion: 3 },
     })
-    expect(JSON.stringify(facebook.options())).not.toContain('sessionInfoVersion')
+    expect(JSON.stringify(facebook.options())).toContain('"sessionInfoVersion":3')
 
     facebook.callback()({ authResponse: { code: 'auth-code' } })
     window.dispatchEvent(
