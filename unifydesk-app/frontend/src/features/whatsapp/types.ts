@@ -10,6 +10,11 @@ export type WhatsAppTemplateComponent = {
   type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS' | string
   text?: string | null
   format?: string | null
+  buttons?: Array<{
+    type?: string
+    text?: string
+    url?: string
+  }>
   example?: {
     header_text?: string[]
     body_text?: string[][]

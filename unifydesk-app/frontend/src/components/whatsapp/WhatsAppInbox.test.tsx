@@ -14,14 +14,22 @@ describe('WhatsApp Inbox template variables', () => {
       components: [
         { type: 'HEADER', text: 'Order {{1}}' },
         { type: 'BODY', text: 'Hello {{1}}, order {{2}} is {{3}}.' },
-        { type: 'BUTTONS', text: 'Track {{1}}' },
+        {
+          type: 'BUTTONS',
+          buttons: [
+            { type: 'URL', text: 'Track', url: 'https://example.test/orders/{{1}}' },
+            { type: 'URL', text: 'Help', url: 'https://example.test/help' },
+            { type: 'QUICK_REPLY', text: 'Done' },
+            { type: 'URL', text: 'Invoice', url: 'https://example.test/invoices/{{1}}' },
+          ],
+        },
       ],
     }
 
     expect(templateVariableCounts(template)).toEqual({
       header: 1,
       body: 3,
-      buttons: 1,
+      buttons: 2,
     })
   })
 

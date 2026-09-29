@@ -20,8 +20,13 @@ import type { ChannelConnection } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { inboxApi } from '../../features/inbox/inboxApi'
-import type { InboxConversation, InboxMessage } from '../../features/inbox/types'
+import type {
+  InboxConversation,
+  InboxMessage,
+  InboxWhatsAppStatusChangedEvent,
+} from '../../features/inbox/types'
 import { mediaApi } from '../../features/media/mediaApi'
+import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { whatsappApi } from '../../features/whatsapp/whatsappApi'
 import type {
   WhatsAppComposerState,
@@ -63,9 +68,17 @@ export const templateVariableCounts = (template: WhatsAppTemplate) => {
 
   template.components.forEach((component) => {
     const count = variableIndexes(component.text).at(-1) ?? 0
-    if (component.type === 'HEADER') header = Math.max(header, count)
-    else if (component.type === 'BODY') body = Math.max(body, count)
-    else if (component.type === 'BUTTONS') buttons = Math.max(buttons, count)
+    if (component.type === 'HEADER') {
+      header = Math.max(header, count)
+    } else if (component.type === 'BODY') {
+      body = Math.max(body, count)
+    } else if (component.type === 'BUTTONS') {
+      buttons +=
+        component.buttons?.filter(
+          (button) =>
+            button.type?.toUpperCase() === 'URL' && variableIndexes(button.url).length > 0,
+        ).length ?? 0
+    }
   })
 
   return { header, body, buttons }
@@ -107,6 +120,7 @@ const messageStatus = (
 ): WhatsAppSendStatus | null => {
   if (message.direction !== 'OUTBOUND') return null
   return (
+    message.whatsappStatus ??
     localResults[message.id]?.status ??
     (message.status === 'FAILED' ? 'FAILED' : message.status === 'SENT' ? 'SENT' : null)
   )
@@ -141,6 +155,7 @@ export default function WhatsAppInbox() {
   const [uploading, setUploading] = useState(false)
   const [sendResults, setSendResults] = useState<Record<string, WhatsAppSendResult>>({})
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const realtimeConnectedRef = useRef(realtimeClient.isConnected())
 
   const selectedConnection = useMemo(
     () => connections.find((connection) => connection.id === selectedConnectionId) ?? null,
@@ -201,7 +216,26 @@ export default function WhatsAppInbox() {
           ? whatsappApi.composer(companyId, selectedConversationId)
           : Promise.resolve(null),
       ])
-      setMessages(detail.messages as WhatsAppInboxMessage[])
+      const nextMessages = detail.messages as WhatsAppInboxMessage[]
+      setMessages(nextMessages)
+      const durableMessageIds = new Set(
+        nextMessages
+          .filter((message) => message.whatsappStatus != null)
+          .map((message) => message.id),
+      )
+      if (durableMessageIds.size > 0) {
+        setSendResults((current) => {
+          const next = { ...current }
+          let changed = false
+          durableMessageIds.forEach((messageId) => {
+            if (messageId in next) {
+              delete next[messageId]
+              changed = true
+            }
+          })
+          return changed ? next : current
+        })
+      }
       setComposer(state)
       setTemplateMode(Boolean(state?.templateRequired))
     } catch (requestError) {
@@ -250,6 +284,84 @@ export default function WhatsAppInbox() {
   useEffect(() => {
     if (templateMode || composer?.templateRequired) void loadTemplates()
   }, [composer?.templateRequired, loadTemplates, templateMode])
+
+  useEffect(() => {
+    if (!companyId || !selectedConnectionId || !selectedConversationId) return
+
+    return realtimeClient.subscribe<InboxWhatsAppStatusChangedEvent>(
+      'inbox.whatsapp.status.changed',
+      (event) => {
+        const change = event.payload
+        if (
+          !change ||
+          change.connectionId !== selectedConnectionId ||
+          change.conversationId !== selectedConversationId
+        ) {
+          return
+        }
+
+        void inboxApi
+          .realtimeSnapshot(companyId, {
+            connectionId: selectedConnectionId,
+            folder: 'INBOX',
+            detailConversationId: selectedConversationId,
+            conversationIds: [selectedConversationId],
+            messageIds: [change.messageId],
+          })
+          .then((snapshot) => {
+            const refreshedMessage = snapshot.messages.find(
+              (message) => message.id === change.messageId,
+            )
+            if (!refreshedMessage) {
+              void loadDetail()
+              return
+            }
+
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === refreshedMessage.id
+                  ? (refreshedMessage as WhatsAppInboxMessage)
+                  : message,
+              ),
+            )
+
+            if (refreshedMessage.whatsappStatus != null) {
+              setSendResults((current) => {
+                if (!(refreshedMessage.id in current)) return current
+                const next = { ...current }
+                delete next[refreshedMessage.id]
+                return next
+              })
+            }
+          })
+          .catch(() => {
+            void loadDetail()
+          })
+      },
+    )
+  }, [companyId, loadDetail, selectedConnectionId, selectedConversationId])
+
+  useEffect(() => {
+    if (!selectedConversationId) return
+
+    const onFocus = () => {
+      void loadDetail()
+    }
+
+    window.addEventListener('focus', onFocus)
+    const unsubscribeConnection = realtimeClient.subscribeConnection((connected) => {
+      const wasConnected = realtimeConnectedRef.current
+      realtimeConnectedRef.current = connected
+      if (connected && !wasConnected) {
+        void loadDetail()
+      }
+    })
+
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      unsubscribeConnection()
+    }
+  }, [loadDetail, selectedConversationId])
 
   const selectConversation = (conversation: InboxConversation) => {
     const params = new URLSearchParams(searchParams)
