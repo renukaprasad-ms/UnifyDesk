@@ -1,5 +1,6 @@
 package com.messaging.channel.meta.runtime;
 
+import com.messaging.common.exception.NotFoundException;
 import com.messaging.media.entity.Media;
 import com.messaging.media.service.MediaService;
 import java.util.Locale;
@@ -19,6 +20,7 @@ public class MetaWhatsAppWebhookWorker {
   private final MetaWhatsAppRuntimeGraphClient graphClient;
   private final MetaWhatsAppRuntimeProperties properties;
   private final MediaService mediaService;
+  private final MetaWhatsAppTemplateService templateService;
 
   @Scheduled(fixedDelayString = "${app.channel.meta-whatsapp.runtime.worker-delay-ms:1000}")
   public void processDue() {
@@ -40,10 +42,19 @@ public class MetaWhatsAppWebhookWorker {
           if (statusService.apply(event)) eventStore.markProcessed(event);
           else eventStore.markIgnored(event, "WHATSAPP_STATUS_UNKNOWN_MESSAGE");
         }
-        case "TEMPLATE_STATUS", "ACCOUNT_UPDATE" ->
-            eventStore.markIgnored(event, "WHATSAPP_NON_MESSAGE_EVENT_RECORDED");
+        case "TEMPLATE_STATUS" -> {
+          if (templateService.applyWebhookStatus(event.payloadJson())) {
+            eventStore.markProcessed(event);
+          } else {
+            eventStore.markIgnored(event, "WHATSAPP_TEMPLATE_STATUS_UNKNOWN");
+          }
+        }
+        case "ACCOUNT_UPDATE" ->
+            eventStore.markIgnored(event, "WHATSAPP_ACCOUNT_UPDATE_RECORDED");
         default -> eventStore.markIgnored(event, "WHATSAPP_UNKNOWN_EVENT");
       }
+    } catch (NotFoundException exception) {
+      eventStore.markIgnored(event, "WHATSAPP_UNKNOWN_PHONE");
     } catch (MetaWhatsAppProviderException exception) {
       eventStore.fail(event, exception.safeCategory(), exception.retryable());
     } catch (MetaWhatsAppRuntimeException exception) {
