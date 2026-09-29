@@ -196,12 +196,14 @@ public class MetaWhatsAppTemplateService {
         JsonNode button = buttons.get(index);
         String source = button.toString();
         if (countVariables(source) == 0) continue;
-        String subtype =
-            "QUICK_REPLY".equalsIgnoreCase(button.path("type").asText()) ? "quick_reply" : "url";
+        String buttonType = button.path("type").asText("");
+        if (!"URL".equalsIgnoreCase(buttonType)) {
+          throw new BadRequestException("WHATSAPP_TEMPLATE_PARAMETERS_INVALID");
+        }
         output.add(
             Map.of(
                 "type", "button",
-                "sub_type", subtype,
+                "sub_type", "url",
                 "index", String.valueOf(index),
                 "parameters",
                     List.of(Map.of("type", "text", "text", values.get(valueIndex++)))));
@@ -216,9 +218,15 @@ public class MetaWhatsAppTemplateService {
     if (components.isArray()) {
       for (JsonNode component : components) {
         String type = component.path("type").asText("");
-        if ("HEADER".equalsIgnoreCase(type)) header += countVariables(component.toString());
-        else if ("BODY".equalsIgnoreCase(type)) body += countVariables(component.toString());
-        else if ("BUTTONS".equalsIgnoreCase(type)) {
+        if ("HEADER".equalsIgnoreCase(type)) {
+          String format = component.path("format").asText("TEXT");
+          if (!"TEXT".equalsIgnoreCase(format)) {
+            throw new BadRequestException("WHATSAPP_TEMPLATE_PARAMETERS_INVALID");
+          }
+          header += countVariables(component.path("text").asText(""));
+        } else if ("BODY".equalsIgnoreCase(type)) {
+          body += countVariables(component.path("text").asText(""));
+        } else if ("BUTTONS".equalsIgnoreCase(type)) {
           JsonNode list = component.path("buttons");
           if (list.isArray()) {
             for (JsonNode button : list) {
