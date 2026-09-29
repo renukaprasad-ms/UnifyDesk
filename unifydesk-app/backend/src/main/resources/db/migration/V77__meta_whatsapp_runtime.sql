@@ -2,7 +2,7 @@
 
 create table if not exists meta_whatsapp_webhook_events (
   id bigint primary key,
-  event_key varchar(512) not null,
+  event_key varchar(255) not null,
   provider_object_id varchar(255),
   phone_number_id varchar(255),
   provider_message_id varchar(255),
@@ -48,8 +48,8 @@ create table if not exists meta_whatsapp_message_runtime (
   detailed_status varchar(24) not null,
   status_rank integer not null default 0,
   provider_status_at timestamp(6) with time zone,
-  provider_error_code varchar(64),
-  provider_error_subcode varchar(64),
+  provider_error_code integer,
+  provider_error_subcode integer,
   provider_fbtrace_id varchar(255),
   safe_error_code varchar(120),
   created_at timestamp(6) with time zone not null,
