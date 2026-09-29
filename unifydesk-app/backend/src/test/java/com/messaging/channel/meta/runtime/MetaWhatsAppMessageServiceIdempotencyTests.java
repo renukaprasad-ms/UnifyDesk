@@ -11,7 +11,6 @@ import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.meta.runtime.dto.MetaWhatsAppSendRequest;
-import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.inbox.entity.InboxConversation;
 import com.messaging.inbox.repository.InboxConversationRepository;
 import com.messaging.inbox.repository.InboxMessageRepository;
