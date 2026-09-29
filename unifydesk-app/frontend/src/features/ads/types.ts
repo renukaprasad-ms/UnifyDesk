@@ -1311,6 +1311,10 @@ export type CreateGooglePerformanceMaxCampaignInput = {
   containsEuPoliticalAdvertising: boolean
   startDate?: string | null
   endDate?: string | null
+  brandGuidelinesEnabled?: boolean
+  brandMainColor?: string | null
+  brandAccentColor?: string | null
+  brandFontFamily?: string | null
 }
 
 export type GoogleReusableAssetType =
