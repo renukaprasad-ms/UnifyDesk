@@ -140,6 +140,29 @@ class MetaWhatsAppWebhookNormalizerTests {
     assertThat(events.getFirst().eventKind()).isEqualTo("MESSAGE");
   }
 
+
+  @Test
+  void unknownSignedChangeIsNormalizedAsUnknownForSafeIgnore() {
+    String payload =
+        """
+        {
+          "object":"whatsapp_business_account",
+          "entry":[{
+            "id":"waba-1",
+            "changes":[{
+              "field":"future_unknown_field",
+              "value":{"metadata":{"phone_number_id":"phone-1"},"foo":"bar"}
+            }]
+          }]
+        }
+        """;
+
+    var events = normalizer.normalize(payload.getBytes(StandardCharsets.UTF_8));
+
+    assertThat(events).hasSize(1);
+    assertThat(events.getFirst().eventKind()).isEqualTo("UNKNOWN");
+  }
+
   private String inboundText(String id) {
     return """
         {
