@@ -338,6 +338,44 @@ class MetaWhatsAppConnectionServiceTests {
   }
 
   @Test
+  void providerRegistrationSuccessFollowedByLocalWriteFailureConvergesOnRetry() {
+    MetaWhatsAppConnectionControl pending =
+        control(COMPANY_ID, 600L, "phone-1", RegistrationState.PENDING, SubscriptionState.PENDING);
+    MetaWhatsAppConnectionControl registered =
+        control(
+            COMPANY_ID,
+            600L,
+            "phone-1",
+            RegistrationState.REGISTERED,
+            SubscriptionState.PENDING);
+    when(persistenceService.requireControl(COMPANY_ID, 600L))
+        .thenReturn(pending, pending, registered);
+    when(persistenceService.readToken(600L))
+        .thenReturn(new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null));
+    when(persistenceService.readPin(600L)).thenReturn("123456");
+    org.mockito.Mockito.doThrow(new IllegalStateException("local write failed"))
+        .doNothing()
+        .when(persistenceService)
+        .markRegistrationSucceeded(600L);
+    when(graphClient.inspectToken("token")).thenReturn(validInspection("waba-1"));
+    when(graphClient.getWaba("waba-1", "token"))
+        .thenReturn(new WabaDetails("waba-1", "Acme", "INR", "5"));
+    when(graphClient.getPhoneNumbers("waba-1", "token"))
+        .thenReturn(List.of(new PhoneNumber("phone-1", "+919000000000", "Acme", "GREEN")));
+    when(graphClient.isAppSubscribed("waba-1", "token")).thenReturn(true);
+
+    assertThatThrownBy(() -> service.reconcileDue(COMPANY_ID, 600L))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("local write failed");
+
+    service.reconcileDue(COMPANY_ID, 600L);
+
+    verify(graphClient, times(2)).registerPhoneNumber("phone-1", "token", "123456");
+    verify(persistenceService, times(2)).markRegistrationSucceeded(600L);
+    verify(persistenceService).markHealthy(600L);
+  }
+
+  @Test
   void subscriptionRetryDoesNotRepeatSuccessfulRegistration() {
     MetaWhatsAppConnectionControl pending =
         control(COMPANY_ID, 600L, "phone-1", RegistrationState.PENDING, SubscriptionState.PENDING);
