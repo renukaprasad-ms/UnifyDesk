@@ -230,6 +230,27 @@ describe('WhatsApp Inbox Round-2 delivery state and template hardening', () => {
     expect(screen.queryByLabelText('Sent')).not.toBeInTheDocument()
   })
 
+  it('lets refreshed durable status replace temporary optimistic send memory', async () => {
+    vi.mocked(inboxApi.conversationDetail)
+      .mockResolvedValueOnce(detailWithStatus('SENT'))
+      .mockResolvedValueOnce(detailWithStatus('READ'))
+    vi.mocked(whatsappApi.send).mockResolvedValue({
+      messageId: 'message-2',
+      clientRequestId: 'request-accepted',
+      status: 'ACCEPTED',
+    })
+
+    renderInbox()
+    expect(await screen.findByLabelText('Sent')).toBeInTheDocument()
+
+    const composer = screen.getByLabelText('WhatsApp message')
+    fireEvent.change(composer, { target: { value: 'Follow up' } })
+    fireEvent.click(screen.getByRole('button', { name: /^send$/i }))
+
+    expect(await screen.findByLabelText('Read')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Accepted')).not.toBeInTheDocument()
+  })
+
   it('merges DELIVERED then READ from scoped realtime status events', async () => {
     vi.mocked(inboxApi.realtimeSnapshot)
       .mockResolvedValueOnce(snapshotWithStatus('DELIVERED'))
