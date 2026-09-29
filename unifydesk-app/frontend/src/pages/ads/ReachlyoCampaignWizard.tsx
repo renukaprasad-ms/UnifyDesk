@@ -491,6 +491,25 @@ export default function ReachlyoCampaignWizard() {
   const [pmaxBrandMainColor, setPmaxBrandMainColor] = useState('')
   const [pmaxBrandAccentColor, setPmaxBrandAccentColor] = useState('')
   const [pmaxBrandFontFamily, setPmaxBrandFontFamily] = useState('')
+  const [pmaxLifecycleGoalType, setPmaxLifecycleGoalType] = useState<
+    'NEW_CUSTOMER_ACQUISITION' | 'CUSTOMER_RETENTION' | 'LOYALTY_RETENTION' | ''
+  >('')
+  const [pmaxLifecycleTargetOption, setPmaxLifecycleTargetOption] = useState<
+    'TARGET_ALL' | 'TARGET_SPECIFIC'
+  >('TARGET_ALL')
+  const [pmaxLifecycleAdditionalValue, setPmaxLifecycleAdditionalValue] = useState('')
+  const [pmaxLifecycleHighLifetimeValue, setPmaxLifecycleHighLifetimeValue] =
+    useState('')
+  const [pmaxLifecycleValueMultiplier, setPmaxLifecycleValueMultiplier] =
+    useState('')
+  const [
+    pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers,
+    setPmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers,
+  ] = useState(false)
+  const [
+    pmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla,
+    setPmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla,
+  ] = useState(false)
   const [demandGenBidStrategy, setDemandGenBidStrategy] = useState<
     'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
   >('MAXIMIZE_CONVERSIONS')
@@ -1008,6 +1027,39 @@ export default function ReachlyoCampaignWizard() {
         typeof override.pmaxBrandFontFamily === 'string'
           ? override.pmaxBrandFontFamily
           : '',
+      )
+      setPmaxLifecycleGoalType(
+        override.pmaxLifecycleGoalType === 'NEW_CUSTOMER_ACQUISITION' ||
+          override.pmaxLifecycleGoalType === 'CUSTOMER_RETENTION' ||
+          override.pmaxLifecycleGoalType === 'LOYALTY_RETENTION'
+          ? override.pmaxLifecycleGoalType
+          : '',
+      )
+      setPmaxLifecycleTargetOption(
+        override.pmaxLifecycleTargetOption === 'TARGET_SPECIFIC'
+          ? 'TARGET_SPECIFIC'
+          : 'TARGET_ALL',
+      )
+      setPmaxLifecycleAdditionalValue(
+        typeof override.pmaxLifecycleAdditionalValue === 'number'
+          ? String(override.pmaxLifecycleAdditionalValue)
+          : '',
+      )
+      setPmaxLifecycleHighLifetimeValue(
+        typeof override.pmaxLifecycleHighLifetimeValue === 'number'
+          ? String(override.pmaxLifecycleHighLifetimeValue)
+          : '',
+      )
+      setPmaxLifecycleValueMultiplier(
+        typeof override.pmaxLifecycleValueMultiplier === 'number'
+          ? String(override.pmaxLifecycleValueMultiplier)
+          : '',
+      )
+      setPmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers(
+        override.pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers === true,
+      )
+      setPmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla(
+        override.pmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla === true,
       )
     }
 
@@ -1857,6 +1909,38 @@ export default function ReachlyoCampaignWizard() {
             pmaxBrandFontFamily:
               pmaxBrandGuidelinesEnabled && pmaxBrandFontFamily
                 ? pmaxBrandFontFamily
+                : undefined,
+            pmaxLifecycleGoalType: pmaxLifecycleGoalType || undefined,
+            pmaxLifecycleTargetOption:
+              pmaxLifecycleGoalType && pmaxLifecycleGoalType !== 'LOYALTY_RETENTION'
+                ? pmaxLifecycleTargetOption
+                : undefined,
+            pmaxLifecycleAdditionalValue:
+              pmaxLifecycleGoalType &&
+              pmaxLifecycleGoalType !== 'LOYALTY_RETENTION' &&
+              pmaxLifecycleTargetOption === 'TARGET_ALL' &&
+              pmaxLifecycleAdditionalValue.trim()
+                ? Number(pmaxLifecycleAdditionalValue)
+                : undefined,
+            pmaxLifecycleHighLifetimeValue:
+              pmaxLifecycleGoalType &&
+              pmaxLifecycleGoalType !== 'LOYALTY_RETENTION' &&
+              pmaxLifecycleTargetOption === 'TARGET_ALL' &&
+              pmaxLifecycleHighLifetimeValue.trim()
+                ? Number(pmaxLifecycleHighLifetimeValue)
+                : undefined,
+            pmaxLifecycleValueMultiplier:
+              pmaxLifecycleGoalType === 'LOYALTY_RETENTION' &&
+              pmaxLifecycleValueMultiplier.trim()
+                ? Number(pmaxLifecycleValueMultiplier)
+                : undefined,
+            pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers:
+              pmaxLifecycleGoalType === 'LOYALTY_RETENTION'
+                ? pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers
+                : undefined,
+            pmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla:
+              pmaxLifecycleGoalType === 'LOYALTY_RETENTION'
+                ? pmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla
                 : undefined,
           }
         }
@@ -3935,6 +4019,28 @@ export default function ReachlyoCampaignWizard() {
                   setPmaxBrandAccentColor={setPmaxBrandAccentColor}
                   pmaxBrandFontFamily={pmaxBrandFontFamily}
                   setPmaxBrandFontFamily={setPmaxBrandFontFamily}
+                  pmaxLifecycleGoalType={pmaxLifecycleGoalType}
+                  setPmaxLifecycleGoalType={setPmaxLifecycleGoalType}
+                  pmaxLifecycleTargetOption={pmaxLifecycleTargetOption}
+                  setPmaxLifecycleTargetOption={setPmaxLifecycleTargetOption}
+                  pmaxLifecycleAdditionalValue={pmaxLifecycleAdditionalValue}
+                  setPmaxLifecycleAdditionalValue={setPmaxLifecycleAdditionalValue}
+                  pmaxLifecycleHighLifetimeValue={pmaxLifecycleHighLifetimeValue}
+                  setPmaxLifecycleHighLifetimeValue={setPmaxLifecycleHighLifetimeValue}
+                  pmaxLifecycleValueMultiplier={pmaxLifecycleValueMultiplier}
+                  setPmaxLifecycleValueMultiplier={setPmaxLifecycleValueMultiplier}
+                  pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers={
+                    pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers
+                  }
+                  setPmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers={
+                    setPmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers
+                  }
+                  pmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla={
+                    pmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla
+                  }
+                  setPmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla={
+                    setPmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla
+                  }
                   demandGenBidStrategy={demandGenBidStrategy}
                   setDemandGenBidStrategy={setDemandGenBidStrategy}
                   demandGenChannelStrategy={demandGenChannelStrategy}
