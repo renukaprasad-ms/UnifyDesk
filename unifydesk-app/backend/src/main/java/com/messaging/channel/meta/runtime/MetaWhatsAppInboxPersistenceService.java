@@ -184,8 +184,11 @@ public class MetaWhatsAppInboxPersistenceService {
         Timestamp.from(event.providerEventAt()),
         Timestamp.from(now));
 
-    conversation.setLastMessageAt(event.providerEventAt());
-    conversation.setLastMessagePreview(shape.preview());
+    if (conversation.getLastMessageAt() == null
+        || event.providerEventAt().isAfter(conversation.getLastMessageAt())) {
+      conversation.setLastMessageAt(event.providerEventAt());
+      conversation.setLastMessagePreview(shape.preview());
+    }
     long unread =
         messageRepository.countByConversationIdAndDirectionAndReadFalse(
             conversation.getId(), InboxMessageDirection.INBOUND);
