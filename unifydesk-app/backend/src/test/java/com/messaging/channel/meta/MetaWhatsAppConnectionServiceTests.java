@@ -287,8 +287,7 @@ class MetaWhatsAppConnectionServiceTests {
             org.mockito.ArgumentMatchers.any(),
             org.mockito.ArgumentMatchers.any()))
         .thenReturn(
-            new PendingProvisioning(
-                500L, 700L, "123456", "waba-1", "phone-1", "+919000000000", "Acme", "GREEN"));
+            new PendingProvisioning(500L));
     when(persistenceService.readToken(500L))
         .thenReturn(new StoredMetaToken("new-token", "waba-1", "phone-1", "v26.0", null, null));
     when(graphClient.isAppSubscribed("waba-1", "new-token")).thenReturn(true);
