@@ -94,10 +94,15 @@ public class MetaWhatsAppWebhookNormalizer {
 
         if ((!messages.isArray() || messages.isEmpty())
             && (!statuses.isArray() || statuses.isEmpty())) {
+          String normalizedField =
+              field == null ? "" : field.toLowerCase(java.util.Locale.ROOT);
           String kind =
-              field != null && field.toLowerCase(java.util.Locale.ROOT).contains("template")
+              normalizedField.contains("template")
                   ? "TEMPLATE_STATUS"
-                  : "ACCOUNT_UPDATE";
+                  : normalizedField.contains("account")
+                          || normalizedField.contains("phone_number")
+                      ? "ACCOUNT_UPDATE"
+                      : "UNKNOWN";
           add(
               events,
               event(
