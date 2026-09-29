@@ -1458,6 +1458,64 @@ export type GoogleAssetGenerationImageResult = {
 
 export type GoogleAssetLinkLevel = 'CUSTOMER' | 'CAMPAIGN' | 'AD_GROUP'
 
+export type GooglePortfolioBiddingStrategy = {
+  id: string
+  resourceName: string
+  name: string
+  type: string
+  status: string
+  campaignCount?: number | null
+  nonRemovedCampaignCount?: number | null
+  alignedCampaignBudgetId?: string | null
+  targetCpaMicros?: number | null
+  targetRoas?: number | null
+  impressions?: number | null
+  clicks?: number | null
+  conversions?: number | null
+  conversionsValue?: number | null
+  costMicros?: number | null
+}
+
+export type CreateGooglePortfolioBiddingStrategyInput = {
+  name: string
+  type:
+    | 'TARGET_CPA'
+    | 'TARGET_ROAS'
+    | 'MAXIMIZE_CONVERSIONS'
+    | 'MAXIMIZE_CONVERSION_VALUE'
+  targetCpaMinor?: number | null
+  targetRoas?: number | null
+}
+
+export type GoogleSharedBudget = {
+  id: string
+  resourceName: string
+  name: string
+  status: string
+  deliveryMethod: string
+  amountMicros?: number | null
+  referenceCount?: number | null
+  alignedBiddingStrategyId?: string | null
+  impressions?: number | null
+  clicks?: number | null
+  conversions?: number | null
+  conversionsValue?: number | null
+  costMicros?: number | null
+}
+
+export type CreateGoogleSharedBudgetInput = {
+  name: string
+  amountMinor: number
+}
+
+export type GoogleCampaignPortfolioAssignment = {
+  campaignId: string
+  biddingStrategyResourceName?: string | null
+  campaignBudgetResourceName?: string | null
+  biddingStrategyType?: string | null
+  portfolioCompatible: boolean
+}
+
 export type GoogleLifecycleGoalType =
   | 'NEW_CUSTOMER_ACQUISITION'
   | 'CUSTOMER_RETENTION'
