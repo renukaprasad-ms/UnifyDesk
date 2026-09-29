@@ -44,6 +44,8 @@ public class MetaWhatsAppMessageService {
   private final MetaWhatsAppTemplateService templateService;
   private final MetaWhatsAppSendFailurePolicy sendFailurePolicy;
   private final MetaWhatsAppOutboundReservationStore reservationStore;
+  private final MetaWhatsAppOutboundRateLimiter outboundRateLimiter;
+  private final MetaWhatsAppPendingOutcomeRecovery pendingOutcomeRecovery;
   private final MetaWhatsAppRealtimePublisher realtimePublisher;
   private final MediaService mediaService;
   private final MessageStorageMeter messageStorageMeter;
@@ -55,6 +57,10 @@ public class MetaWhatsAppMessageService {
       long companyId, long conversationId, MetaWhatsAppSendRequest request) {
     InboxConversation conversation = requireConversation(companyId, conversationId);
     requireWhatsAppConversation(conversation);
+    pendingOutcomeRecovery.recoverIfStale(
+        companyId,
+        conversation.getConnection().getId(),
+        request.clientRequestId());
     MetaWhatsAppSendResponse duplicate =
         existingResponse(
             companyId,
@@ -97,6 +103,8 @@ public class MetaWhatsAppMessageService {
     } else {
       throw new BadRequestException("Unsupported WhatsApp message type");
     }
+
+    outboundRateLimiter.requirePermit(context.credential().phoneNumberId());
 
     Reservation reservation =
         reserve(
@@ -156,6 +164,14 @@ public class MetaWhatsAppMessageService {
           reservation.messageId(),
           result.providerMessageId());
     } catch (MetaWhatsAppProviderException exception) {
+      if (Integer.valueOf(429).equals(exception.httpStatus())) {
+        try {
+          outboundRateLimiter.imposeProviderCooldown(
+              context.credential().phoneNumberId(), exception.retryAfter());
+        } catch (RuntimeException cooldownFailure) {
+          exception.addSuppressed(cooldownFailure);
+        }
+      }
       MetaWhatsAppSendFailurePolicy.Outcome outcome = sendFailurePolicy.outcome(exception);
       if (outcome == MetaWhatsAppSendFailurePolicy.Outcome.UNKNOWN) {
         return markUnknown(
