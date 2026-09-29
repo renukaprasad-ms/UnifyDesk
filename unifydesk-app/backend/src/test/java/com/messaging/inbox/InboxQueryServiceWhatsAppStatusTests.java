@@ -172,7 +172,7 @@ class InboxQueryServiceWhatsAppStatusTests {
   private static final class EmptyStatusJdbcTemplate extends JdbcTemplate {
     @Override
     public <T> List<T> query(String sql, RowMapper<T> rowMapper, Object... args) {
-      return List.of();
+      throw new AssertionError("Email-only message lists must not query WhatsApp runtime state");
     }
   }
 
