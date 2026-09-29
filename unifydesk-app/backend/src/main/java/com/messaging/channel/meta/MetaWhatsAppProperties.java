@@ -16,6 +16,7 @@ public class MetaWhatsAppProperties {
   private String appId;
   private String appSecret;
   private String configurationId;
+  private String redirectUri = "https://app.unifydesk.in/company/connections";
   private String graphApiVersion = "v26.0";
   private String webhookVerifyToken;
   private Duration signupSessionTtl = Duration.ofMinutes(10);
@@ -40,6 +41,10 @@ public class MetaWhatsAppProperties {
 
   public void setConfigurationId(String configurationId) {
     this.configurationId = trimToNull(configurationId);
+  }
+
+  public void setRedirectUri(String redirectUri) {
+    this.redirectUri = trimToNull(redirectUri);
   }
 
   public void setGraphApiVersion(String graphApiVersion) {
@@ -91,6 +96,7 @@ public class MetaWhatsAppProperties {
         && hasText(appId)
         && hasText(appSecret)
         && hasText(configurationId)
+        && hasText(redirectUri)
         && hasText(graphApiVersion);
   }
 
