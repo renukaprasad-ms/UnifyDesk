@@ -41,8 +41,6 @@ type WhatsAppInboxMessage = InboxMessage & {
 }
 
 const mediaTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
-const maxUploadBytes = 25 * 1024 * 1024
-
 const counterpart = (conversation: InboxConversation) =>
   conversation.participants.find((participant) => participant.participantType === 'PHONE_NUMBER')
     ?.displayName ||
@@ -350,11 +348,6 @@ export default function WhatsAppInbox() {
       snackbar.warning('WhatsApp attachments support JPEG, PNG, WebP images and PDF documents.')
       return
     }
-    if (file.size > maxUploadBytes) {
-      snackbar.warning('This attachment is too large. Choose a file under 25 MB.')
-      return
-    }
-
     setUploading(true)
     try {
       const upload = await mediaApi.initiateUpload(file, 'WHATSAPP_MEDIA', companyId)
