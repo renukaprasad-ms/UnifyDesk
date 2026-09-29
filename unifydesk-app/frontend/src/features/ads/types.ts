@@ -1452,6 +1452,66 @@ export type GoogleAssetGenerationImageResult = {
 
 export type GoogleAssetLinkLevel = 'CUSTOMER' | 'CAMPAIGN' | 'AD_GROUP'
 
+export type GoogleLifecycleGoalType =
+  | 'NEW_CUSTOMER_ACQUISITION'
+  | 'CUSTOMER_RETENTION'
+  | 'LOYALTY_RETENTION'
+
+export type GoogleLifecycleGoal = {
+  resourceName: string
+  goalId: string
+  goalType: GoogleLifecycleGoalType
+  additionalValue?: number | null
+  additionalHighLifetimeValue?: number | null
+  valueMultiplier?: number | null
+  highLifetimeValueMultiplier?: number | null
+}
+
+export type UpsertGoogleLifecycleGoalInput = {
+  goalType: GoogleLifecycleGoalType
+  additionalValue?: number | null
+  additionalHighLifetimeValue?: number | null
+  valueMultiplier?: number | null
+}
+
+export type GoogleUserListCustomerType = {
+  resourceName: string
+  userListResourceName: string
+  externalUserListId: string
+  localAudienceId?: string | null
+  audienceName?: string | null
+  customerTypeCategory: string
+}
+
+export type UpdateGoogleUserListCustomerTypesInput = {
+  audienceId: string
+  customerTypeCategories: string[]
+}
+
+export type GooglePerformanceMaxLifecycle = {
+  resourceName: string
+  goalResourceName: string
+  goalId: string
+  goalType: GoogleLifecycleGoalType
+  targetOption?: 'TARGET_ALL' | 'TARGET_SPECIFIC' | null
+  additionalValue?: number | null
+  additionalHighLifetimeValue?: number | null
+  valueMultiplier?: number | null
+  highLifetimeValueMultiplier?: number | null
+  enableBidAdjustmentsForLoyaltyMembers?: boolean | null
+  showTargetedLoyaltyMemberBenefitsInPla?: boolean | null
+}
+
+export type UpdateGooglePerformanceMaxLifecycleInput = {
+  goalType: GoogleLifecycleGoalType
+  targetOption?: 'TARGET_ALL' | 'TARGET_SPECIFIC' | null
+  additionalValue?: number | null
+  additionalHighLifetimeValue?: number | null
+  valueMultiplier?: number | null
+  enableBidAdjustmentsForLoyaltyMembers?: boolean | null
+  showTargetedLoyaltyMemberBenefitsInPla?: boolean | null
+}
+
 export type GooglePerformanceMaxBrandAsset = {
   resourceName?: string | null
   assetResourceName?: string | null
