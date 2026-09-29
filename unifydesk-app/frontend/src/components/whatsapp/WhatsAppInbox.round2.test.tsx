@@ -79,21 +79,16 @@ vi.mock('../../features/whatsapp/whatsappApi', () => ({
 vi.mock('../../features/realtime/realtimeClient', () => ({
   realtimeClient: {
     isConnected: vi.fn(() => realtimeHarness.connected),
-    subscribe: vi.fn(
-      (
-        type: string,
-        listener: (event: StatusChangedEvent) => void,
-      ) => {
-        if (type === 'inbox.whatsapp.status.changed') {
-          realtimeHarness.statusListener = listener
+    subscribe: vi.fn((type: string, listener: (event: StatusChangedEvent) => void) => {
+      if (type === 'inbox.whatsapp.status.changed') {
+        realtimeHarness.statusListener = listener
+      }
+      return () => {
+        if (realtimeHarness.statusListener === listener) {
+          realtimeHarness.statusListener = null
         }
-        return () => {
-          if (realtimeHarness.statusListener === listener) {
-            realtimeHarness.statusListener = null
-          }
-        }
-      },
-    ),
+      }
+    }),
     subscribeConnection: vi.fn((listener: (connected: boolean) => void) => {
       realtimeHarness.connectionListener = listener
       listener(realtimeHarness.connected)
