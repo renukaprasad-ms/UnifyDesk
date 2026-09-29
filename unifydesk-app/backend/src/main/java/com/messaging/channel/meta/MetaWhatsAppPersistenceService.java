@@ -218,11 +218,11 @@ public class MetaWhatsAppPersistenceService {
     connection.setLastSyncAt(now);
     connectionRepository.save(connection);
 
-    senderIdentityRepository.findByConnectionIdOrderByCreatedAtAsc(connectionId).stream()
+    var senders = senderIdentityRepository.findByConnectionIdOrderByCreatedAtAsc(connectionId);
+    senders.stream()
         .filter(sender -> sender.getExternalId() != null)
         .forEach(sender -> sender.setStatus(SenderIdentityStatus.ACTIVE));
-    senderIdentityRepository.saveAll(
-        senderIdentityRepository.findByConnectionIdOrderByCreatedAtAsc(connectionId));
+    senderIdentityRepository.saveAll(senders);
 
     updateOperation(connectionId, ProvisioningStep.HEALTH_VALIDATED, OperationState.SUCCEEDED, null);
   }
