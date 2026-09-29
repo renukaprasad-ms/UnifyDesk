@@ -1,11 +1,14 @@
-import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { FiUpload, FiX } from 'react-icons/fi'
 import type {
   AdAccount,
   CreateGooglePerformanceMaxCampaignInput,
+  GoogleMerchantAccount,
 } from '../../features/ads/types'
+import { adCenterApi } from '../../features/ads/adCenterApi'
 
 type Props = {
+  companyId: string
   account: AdAccount
   open: boolean
   saving: boolean
@@ -39,6 +42,7 @@ const fileToDataUrl = (file: File) =>
   })
 
 export default function GooglePerformanceMaxCampaignModal({
+  companyId,
   account,
   open,
   saving,
@@ -70,6 +74,10 @@ export default function GooglePerformanceMaxCampaignModal({
   const [brandMainColor, setBrandMainColor] = useState('')
   const [brandAccentColor, setBrandAccentColor] = useState('')
   const [brandFontFamily, setBrandFontFamily] = useState('')
+  const [merchantAccounts, setMerchantAccounts] = useState<GoogleMerchantAccount[]>([])
+  const [merchantId, setMerchantId] = useState('')
+  const [feedLabel, setFeedLabel] = useState('')
+  const [merchantLoading, setMerchantLoading] = useState(false)
   const [imageError, setImageError] = useState('')
 
   const canSubmit = useMemo(
@@ -101,6 +109,16 @@ export default function GooglePerformanceMaxCampaignModal({
       containsEuPoliticalAdvertising,
     ],
   )
+
+  useEffect(() => {
+    if (!open) return
+    setMerchantLoading(true)
+    void adCenterApi
+      .googleMerchantAccounts(companyId, account.id)
+      .then(setMerchantAccounts)
+      .catch(() => setMerchantAccounts([]))
+      .finally(() => setMerchantLoading(false))
+  }, [open, companyId, account.id])
 
   if (!open) return null
 
@@ -159,6 +177,8 @@ export default function GooglePerformanceMaxCampaignModal({
       brandMainColor: brandGuidelinesEnabled ? brandMainColor || null : null,
       brandAccentColor: brandGuidelinesEnabled ? brandAccentColor || null : null,
       brandFontFamily: brandGuidelinesEnabled ? brandFontFamily || null : null,
+      merchantId: merchantId || null,
+      feedLabel: merchantId && feedLabel.trim() ? feedLabel.trim().toUpperCase() : null,
     })
   }
 
@@ -264,6 +284,51 @@ export default function GooglePerformanceMaxCampaignModal({
                 </option>
               </select>
             </label>
+          </div>
+
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4">
+            <h3 className="text-sm font-bold text-slate-950">Retail / Merchant Center</h3>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Optional. Select Merchant Center to create a retail Performance Max campaign.
+              UnifyDesk creates the required all-products listing group atomically.
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <label className="block text-xs font-semibold text-slate-700">
+                Merchant Center account
+                <select
+                  className="form-input mt-2"
+                  value={merchantId}
+                  disabled={merchantLoading}
+                  onChange={(event) => {
+                    setMerchantId(event.target.value)
+                    if (!event.target.value) setFeedLabel('')
+                  }}
+                >
+                  <option value="">
+                    {merchantLoading ? 'Loading Merchant accounts…' : 'Standard Performance Max'}
+                  </option>
+                  {merchantAccounts.map((merchant) => (
+                    <option key={merchant.accountId} value={merchant.accountId}>
+                      {merchant.accountName || merchant.accountId}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-xs font-semibold text-slate-700">
+                Feed label
+                <input
+                  className="form-input mt-2"
+                  value={feedLabel}
+                  disabled={!merchantId}
+                  maxLength={20}
+                  placeholder="Optional, e.g. IN"
+                  onChange={(event) => setFeedLabel(event.target.value.toUpperCase())}
+                />
+                <span className="mt-1 block font-normal text-slate-400">
+                  Optional · uppercase letters, numbers, or dashes.
+                </span>
+              </label>
+            </div>
           </div>
 
           <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4">
