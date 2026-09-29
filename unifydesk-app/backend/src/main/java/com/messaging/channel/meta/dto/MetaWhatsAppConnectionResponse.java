@@ -1,20 +1,28 @@
 package com.messaging.channel.meta.dto;
 
-import com.messaging.channel.enums.ChannelConnectionStatus;
-import com.messaging.channel.enums.SenderIdentityStatus;
+import com.messaging.channel.meta.control.MetaWhatsAppConnectionControl.ProductState;
 
 public record MetaWhatsAppConnectionResponse(
     String connectionId,
+    ProductState status,
     String wabaId,
-    String wabaName,
-    ChannelConnectionStatus status,
-    PhoneNumber phoneNumber) {
+    String whatsappAccountId,
+    String messagingAccountId,
+    Phone phone,
+    NextAction nextAction) {
 
-  public record PhoneNumber(
+  public enum NextAction {
+    NONE,
+    WAIT,
+    REAUTHORIZE,
+    OPEN_META,
+    RETRY
+  }
+
+  public record Phone(
       String senderIdentityId,
       String phoneNumberId,
       String displayPhoneNumber,
       String verifiedName,
-      String qualityRating,
-      SenderIdentityStatus status) {}
+      String qualityRating) {}
 }

@@ -1,7 +1,9 @@
 package com.messaging.channel.meta;
 
 import com.messaging.channel.meta.dto.CompleteMetaWhatsAppSignupRequest;
+import com.messaging.channel.meta.dto.MetaWhatsAppConnectionHealthResponse;
 import com.messaging.channel.meta.dto.MetaWhatsAppConnectionResponse;
+import com.messaging.channel.meta.dto.MetaWhatsAppDisconnectRequest;
 import com.messaging.channel.meta.dto.MetaWhatsAppSignupConfigResponse;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
@@ -27,8 +29,8 @@ public class MetaWhatsAppConnectionController {
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
-  @GetMapping("/signup-config")
-  public ResponseEntity<ApiResponse<MetaWhatsAppSignupConfigResponse>> signupConfig(
+  @PostMapping("/signup-session")
+  public ResponseEntity<ApiResponse<MetaWhatsAppSignupConfigResponse>> signupSession(
       @PathVariable Long companyId) {
     Long userId = currentUserService.currentUserId();
     authorizationService.requirePermission(
@@ -36,8 +38,21 @@ public class MetaWhatsAppConnectionController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            connectionService.signupConfig(companyId, userId),
-            "Meta WhatsApp signup configured"));
+            connectionService.signupSession(companyId, userId),
+            "Meta WhatsApp signup session created"));
+  }
+
+  @PostMapping("/reauthorize-session")
+  public ResponseEntity<ApiResponse<MetaWhatsAppSignupConfigResponse>> reauthorizeSession(
+      @PathVariable Long companyId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.WHATSAPP_CONNECT);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            connectionService.reauthorizeSession(companyId, userId),
+            "Meta WhatsApp reauthorization session created"));
   }
 
   @PostMapping("/complete")
@@ -50,6 +65,47 @@ public class MetaWhatsAppConnectionController {
         ApiResponse.success(
             HttpStatus.OK.value(),
             connectionService.complete(companyId, userId, request),
-            "WhatsApp connected"));
+            "Meta WhatsApp connection updated"));
+  }
+
+  @GetMapping("/connection")
+  public ResponseEntity<ApiResponse<MetaWhatsAppConnectionHealthResponse>> connection(
+      @PathVariable Long companyId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.WHATSAPP_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            connectionService.getConnection(companyId),
+            "Meta WhatsApp connection loaded"));
+  }
+
+  @PostMapping("/reconcile")
+  public ResponseEntity<ApiResponse<MetaWhatsAppConnectionHealthResponse>> reconcile(
+      @PathVariable Long companyId) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.WHATSAPP_MODIFY);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            connectionService.reconcile(companyId),
+            "Meta WhatsApp connection reconciled"));
+  }
+
+  @PostMapping("/disconnect")
+  public ResponseEntity<ApiResponse<MetaWhatsAppConnectionHealthResponse>> disconnect(
+      @PathVariable Long companyId,
+      @RequestBody(required = false) MetaWhatsAppDisconnectRequest request) {
+    Long userId = currentUserService.currentUserId();
+    authorizationService.requirePermission(
+        userId, companyId, CompanyPermissionKeys.WHATSAPP_DISCONNECT);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            HttpStatus.OK.value(),
+            connectionService.disconnect(
+                companyId, userId, request == null ? null : request.dataPolicy()),
+            "Meta WhatsApp disconnected"));
   }
 }
