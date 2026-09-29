@@ -24,8 +24,13 @@ public class MetaWhatsAppMessageStateMachine {
       State next,
       Instant incomingProviderAt) {
     if (next.rank() < currentRank) return false;
+    if (currentProviderAt != null
+        && incomingProviderAt != null
+        && incomingProviderAt.isBefore(currentProviderAt)
+        && currentRank >= 20) return false;
     if (next.rank() == currentRank
         && currentProviderAt != null
+        && incomingProviderAt != null
         && !incomingProviderAt.isAfter(currentProviderAt)) return false;
     return !"FAILED".equals(next.status())
         || (!"DELIVERED".equals(currentStatus) && !"READ".equals(currentStatus));
