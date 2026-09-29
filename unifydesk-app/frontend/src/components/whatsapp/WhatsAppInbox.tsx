@@ -34,11 +34,7 @@ import { useSnackbar } from '../feedback/SnackbarProvider'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
 
-type WhatsAppInboxMessage = InboxMessage & {
-  whatsappStatus?: WhatsAppSendStatus | null
-  detailedStatus?: WhatsAppSendStatus | null
-  unsupportedType?: string | null
-}
+type WhatsAppInboxMessage = InboxMessage
 
 const mediaTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
 const counterpart = (conversation: InboxConversation) =>
@@ -110,8 +106,6 @@ const messageStatus = (
   if (message.direction !== 'OUTBOUND') return null
   return (
     localResults[message.id]?.status ??
-    message.whatsappStatus ??
-    message.detailedStatus ??
     (message.status === 'FAILED' ? 'FAILED' : message.status === 'SENT' ? 'SENT' : null)
   )
 }
@@ -553,11 +547,9 @@ export default function WhatsAppInbox() {
                         <div className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-800">
                           {message.bodyText ||
                             message.snippet ||
-                            (message.unsupportedType
-                              ? `Unsupported WhatsApp message: ${message.unsupportedType}`
-                              : message.attachments.length > 0
-                                ? 'Attachment'
-                                : 'Unsupported WhatsApp message')}
+                            (message.attachments.length > 0
+                              ? 'Attachment'
+                              : 'Unsupported WhatsApp message')}
                         </div>
 
                         {message.attachments.length > 0 && (
