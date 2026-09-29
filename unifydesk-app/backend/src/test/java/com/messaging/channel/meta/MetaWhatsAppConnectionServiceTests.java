@@ -460,6 +460,54 @@ class MetaWhatsAppConnectionServiceTests {
   }
 
   @Test
+  void expiredStoredTokenRequiresReauthorizationWithoutProviderCall() {
+    MetaWhatsAppConnectionControl active =
+        control(
+            COMPANY_ID,
+            600L,
+            "phone-1",
+            RegistrationState.PENDING,
+            SubscriptionState.PENDING);
+    when(persistenceService.requireControl(COMPANY_ID, 600L)).thenReturn(active);
+    when(persistenceService.readTokenCredential(600L))
+        .thenReturn(
+            new StoredMetaCredential(
+                new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null),
+                java.time.Instant.now().minusSeconds(1)));
+
+    service.reconcileDue(COMPANY_ID, 600L);
+
+    verify(persistenceService)
+        .markCredentialReauthorizationRequired(
+            600L, AuthState.EXPIRED, "WHATSAPP_REAUTH_REQUIRED");
+    verify(graphClient, never())
+        .registerPhoneNumber(
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyString());
+  }
+
+  @Test
+  void leaseContentionSkipsDuplicateProviderWork() {
+    MetaWhatsAppConnectionControl active =
+        control(
+            COMPANY_ID,
+            600L,
+            "phone-1",
+            RegistrationState.REGISTERED,
+            SubscriptionState.SUBSCRIBED);
+    when(persistenceService.requireControl(COMPANY_ID, 600L)).thenReturn(active);
+    when(persistenceService.tryClaimProvisioning(
+            org.mockito.ArgumentMatchers.eq(600L),
+            org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(false);
+
+    service.reconcileDue(COMPANY_ID, 600L);
+
+    verify(graphClient, never()).inspectToken(org.mockito.ArgumentMatchers.anyString());
+  }
+
+  @Test
   void transientProviderFailureIsRecordedForDegradedReconciliation() {
     MetaWhatsAppConnectionControl active =
         control(
