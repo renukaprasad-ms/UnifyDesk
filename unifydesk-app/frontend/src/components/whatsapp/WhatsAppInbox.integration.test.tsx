@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { channelApi } from '../../features/channel/channelApi'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -29,7 +30,7 @@ vi.mock('../../features/iam/useIam', () => ({
 vi.mock('../feedback/SnackbarProvider', () => ({
   useSnackbar: () => snackbar,
   showGlobalSnackbar: vi.fn(),
-  SnackbarProvider: ({ children }: { children: unknown }) => children,
+  SnackbarProvider: ({ children }: { children: ReactNode }) => children,
 }))
 
 vi.mock('../../features/channel/channelApi', () => ({
@@ -243,7 +244,7 @@ describe('WhatsAppInbox frozen UX', () => {
       expiresAt: '2026-09-29T12:00:00Z',
       requiredHeaders: {},
     })
-    vi.mocked(mediaApi.uploadFileToStorage).mockResolvedValue()
+    vi.mocked(mediaApi.uploadFileToStorage).mockResolvedValue(undefined)
     vi.mocked(mediaApi.completeUpload).mockResolvedValue({
       mediaId: 'media-1',
       status: 'ACTIVE',
