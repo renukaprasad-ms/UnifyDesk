@@ -441,11 +441,16 @@ public class MediaService {
     }
 
     StorageProvider provider = storageProviderResolver.resolve(media.getStorageProvider());
+    boolean wroteObject = false;
     try {
-      provider.writeObject(
-          media.getBucket(), media.getObjectKey(), content, media.getContentType());
       StorageObjectMetadata metadata =
           provider.getObjectMetadata(media.getBucket(), media.getObjectKey());
+      if (!metadata.exists()) {
+        provider.writeObject(
+            media.getBucket(), media.getObjectKey(), content, media.getContentType());
+        wroteObject = true;
+        metadata = provider.getObjectMetadata(media.getBucket(), media.getObjectKey());
+      }
       if (!metadata.exists()) {
         throw new MediaException(HttpStatus.SERVICE_UNAVAILABLE, "MEDIA_STORAGE_ERROR");
       }
@@ -461,10 +466,12 @@ public class MediaService {
       storageAccounting.commit(media);
       return media;
     } catch (RuntimeException exception) {
-      try {
-        provider.delete(media.getBucket(), media.getObjectKey());
-      } catch (RuntimeException ignored) {
-        // Cleanup is best effort. A retry uses the same reserved media ID and object key.
+      if (wroteObject) {
+        try {
+          provider.delete(media.getBucket(), media.getObjectKey());
+        } catch (RuntimeException ignored) {
+          // Cleanup is best effort. A crash/retry reuses the same reserved object key.
+        }
       }
       if (media.getStatus() == MediaStatus.PENDING) {
         storageAccounting.release(media);
