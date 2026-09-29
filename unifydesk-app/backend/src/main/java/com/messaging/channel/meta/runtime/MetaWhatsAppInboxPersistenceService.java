@@ -36,6 +36,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @RequiredArgsConstructor
 public class MetaWhatsAppInboxPersistenceService {
   private final ObjectMapper objectMapper;
+  private final MetaWhatsAppInboundMessageMapper inboundMessageMapper;
   private final MetaWhatsAppTenantResolver tenantResolver;
   private final ChannelConnectionRepository connectionRepository;
   private final InboxConversationRepository conversationRepository;
@@ -69,7 +70,7 @@ public class MetaWhatsAppInboxPersistenceService {
                     new MetaWhatsAppRuntimeException(
                         "WHATSAPP_TENANT_MAPPING_CONFLICT", false, "Connection no longer exists"));
 
-    MessageShape shape = shape(message);
+    MetaWhatsAppInboundMessageMapper.MappedMessage shape = inboundMessageMapper.map(message);
     InboxMessage existing =
         messageRepository
             .findByConnectionIdAndExternalMessageId(connection.getId(), providerMessageId)
@@ -134,7 +135,7 @@ public class MetaWhatsAppInboxPersistenceService {
     inboxMessage.setStatus(InboxMessageStatus.RECEIVED);
     inboxMessage.setSnippet(shape.preview());
     inboxMessage.setBodyText(shape.bodyText());
-    inboxMessage.setInReplyTo(text(message.path("context"), "id"));
+    inboxMessage.setInReplyTo(shape.replyToProviderMessageId());
     inboxMessage.setSentAt(event.providerEventAt());
     inboxMessage.setRead(false);
     inboxMessage.setStorageBytes(
@@ -255,7 +256,7 @@ public class MetaWhatsAppInboxPersistenceService {
       InboxMessage message,
       ChannelConnection connection,
       MetaWhatsAppTenantResolver.ResolvedTenant tenant,
-      MessageShape shape,
+      MetaWhatsAppInboundMessageMapper.MappedMessage shape,
       boolean created) {
     return new InboundResult(
         tenant.companyId(),
@@ -266,32 +267,6 @@ public class MetaWhatsAppInboxPersistenceService {
         shape.mimeType(),
         shape.fileName(),
         created);
-  }
-
-  private MessageShape shape(JsonNode message) {
-    String type = text(message, "type");
-    if ("text".equals(type)) {
-      String body = text(message.path("text"), "body");
-      return new MessageShape("TEXT", compact(body, 500), body, null, null, null);
-    }
-    if ("image".equals(type)) {
-      JsonNode media = message.path("image");
-      String caption = text(media, "caption");
-      return new MessageShape(
-          "IMAGE", compact(caption == null ? "[Image]" : caption, 500), caption,
-          text(media, "id"), text(media, "mime_type"), null);
-    }
-    if ("document".equals(type)) {
-      JsonNode media = message.path("document");
-      String caption = text(media, "caption");
-      String fileName = text(media, "filename");
-      String preview = caption != null ? caption : fileName != null ? fileName : "[Document]";
-      return new MessageShape(
-          "DOCUMENT", compact(preview, 500), caption,
-          text(media, "id"), text(media, "mime_type"), fileName);
-    }
-    String placeholder = "[Unsupported WhatsApp message: " + (type == null ? "unknown" : type) + "]";
-    return new MessageShape("UNSUPPORTED", placeholder, placeholder, null, null, null);
   }
 
   private String contactName(JsonNode root) {
@@ -345,14 +320,6 @@ public class MetaWhatsAppInboxPersistenceService {
           }
         });
   }
-
-  private record MessageShape(
-      String kind,
-      String preview,
-      String bodyText,
-      String providerMediaId,
-      String mimeType,
-      String fileName) {}
 
   public record InboundResult(
       long companyId,
