@@ -21,6 +21,7 @@ public class MetaWhatsAppWebhookWorker {
   private final MetaWhatsAppRuntimeProperties properties;
   private final MediaService mediaService;
   private final MetaWhatsAppTemplateService templateService;
+  private final MetaWhatsAppProviderMediaReservationStore mediaReservationStore;
 
   @Scheduled(fixedDelayString = "${app.channel.meta-whatsapp.runtime.worker-delay-ms:1000}")
   public void processDue() {
@@ -71,36 +72,73 @@ public class MetaWhatsAppWebhookWorker {
 
   private void processMessage(MetaWhatsAppWebhookEventStore.ClaimedEvent event) {
     var inbound = inboxPersistence.persistInbound(event);
-    if (StringUtils.hasText(inbound.providerMediaId())
-        && !inboxPersistence.hasMediaLink(
-            inbound.inboxMessageId(), inbound.providerMediaId())) {
-      var credential = credentialResolver.require(inbound.connectionId());
-      var metadata = graphClient.mediaMetadata(credential, inbound.providerMediaId());
-      if (!StringUtils.hasText(metadata.url())) {
-        throw new MetaWhatsAppRuntimeException(
-            "WHATSAPP_MEDIA_INVALID", false, "Provider returned no media URL");
+    if (StringUtils.hasText(inbound.providerMediaId())) {
+      var reservation =
+          mediaReservationStore.reserveOrGet(
+              inbound.connectionId(), inbound.inboxMessageId(), inbound.providerMediaId());
+
+      if (inboxPersistence.hasMediaLink(
+          inbound.inboxMessageId(), inbound.providerMediaId())) {
+        mediaReservationStore.markLinked(reservation.id());
+        eventStore.markProcessed(event);
+        return;
       }
-      if (metadata.fileSize() != null
-          && metadata.fileSize() > properties.getInboundMediaHardLimit().toBytes()) {
-        throw new MetaWhatsAppRuntimeException(
-            "WHATSAPP_MEDIA_INVALID", false, "Provider media exceeds hard limit");
+
+      try {
+        Media media =
+            mediaService
+                .findActiveTrustedCompanyMedia(
+                    reservation.reservedMediaId(), inbound.companyId())
+                .orElse(null);
+        String fileName;
+        String mime;
+
+        if (media == null) {
+          var credential = credentialResolver.require(inbound.connectionId());
+          var metadata = graphClient.mediaMetadata(credential, inbound.providerMediaId());
+          if (!StringUtils.hasText(metadata.url())) {
+            throw new MetaWhatsAppRuntimeException(
+                "WHATSAPP_MEDIA_INVALID", false, "Provider returned no media URL");
+          }
+          if (metadata.fileSize() != null
+              && metadata.fileSize() > properties.getInboundMediaHardLimit().toBytes()) {
+            throw new MetaWhatsAppRuntimeException(
+                "WHATSAPP_MEDIA_INVALID", false, "Provider media exceeds hard limit");
+          }
+          mime =
+              StringUtils.hasText(metadata.mimeType())
+                  ? metadata.mimeType()
+                  : inbound.mimeType();
+          fileName =
+              StringUtils.hasText(inbound.fileName())
+                  ? inbound.fileName()
+                  : inbound.providerMediaId() + extension(mime);
+          byte[] content =
+              graphClient.downloadAuthenticated(
+                  metadata.url(),
+                  credential.accessToken(),
+                  properties.getInboundMediaHardLimit().toBytes());
+          media =
+              mediaService.ingestTrustedCompanyMediaWithId(
+                  reservation.reservedMediaId(),
+                  inbound.companyId(),
+                  inbound.ownerUserId(),
+                  fileName,
+                  mime,
+                  content);
+        } else {
+          fileName = media.getOriginalFileName();
+          mime = media.getContentType();
+        }
+
+        mediaReservationStore.markIngested(reservation.id());
+        inboxPersistence.linkMedia(
+            inbound.inboxMessageId(), inbound.providerMediaId(), fileName, mime, media);
+        mediaReservationStore.markLinked(reservation.id());
+      } catch (RuntimeException exception) {
+        mediaReservationStore.markFailed(reservation.id());
+        throw exception;
       }
-      String mime =
-          StringUtils.hasText(metadata.mimeType()) ? metadata.mimeType() : inbound.mimeType();
-      String fileName =
-          StringUtils.hasText(inbound.fileName())
-              ? inbound.fileName()
-              : inbound.providerMediaId() + extension(mime);
-      byte[] content =
-          graphClient.downloadAuthenticated(
-              metadata.url(),
-              credential.accessToken(),
-              properties.getInboundMediaHardLimit().toBytes());
-      Media media =
-          mediaService.ingestTrustedCompanyMedia(
-              inbound.companyId(), inbound.ownerUserId(), fileName, mime, content);
-      inboxPersistence.linkMedia(
-          inbound.inboxMessageId(), inbound.providerMediaId(), fileName, mime, media);
     }
     eventStore.markProcessed(event);
   }
