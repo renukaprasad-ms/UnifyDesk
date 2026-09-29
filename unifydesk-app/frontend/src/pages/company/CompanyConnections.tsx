@@ -331,11 +331,7 @@ export default function CompanyConnections() {
       await loadConnections()
       await loadMetaConnection()
     } catch (connectError) {
-      const message =
-        connectError instanceof Error
-          ? connectError.message
-          : apiErrorMessage(connectError, 'Unable to connect WhatsApp')
-      snackbar.error(message)
+      snackbar.error(apiErrorMessage(connectError, 'Unable to connect WhatsApp'))
     } finally {
       setConnecting(false)
     }
