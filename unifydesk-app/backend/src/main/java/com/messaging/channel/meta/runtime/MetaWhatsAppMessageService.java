@@ -104,8 +104,6 @@ public class MetaWhatsAppMessageService {
       throw new BadRequestException("Unsupported WhatsApp message type");
     }
 
-    outboundRateLimiter.requirePermit(context.credential().phoneNumberId());
-
     Reservation reservation =
         reserve(
             companyId,
@@ -259,6 +257,10 @@ public class MetaWhatsAppMessageService {
           conversation.setLastMessageAt(now);
           conversation.setLastMessagePreview(message.getSnippet());
           conversationRepository.save(conversation);
+
+          // Acquire at the final transactional boundary before the caller can submit to Meta.
+          // Any limiter/Redis failure rolls this local reservation back and no provider call occurs.
+          outboundRateLimiter.requirePermit(context.credential().phoneNumberId());
           return new Reservation(message.getId(), true);
         });
   }
