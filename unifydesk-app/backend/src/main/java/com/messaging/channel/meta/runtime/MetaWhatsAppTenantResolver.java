@@ -47,10 +47,18 @@ public class MetaWhatsAppTenantResolver {
     }
 
     ResolvedTenant tenant = rows.getFirst();
-    var projection = controlPlane.findByPhoneNumberId(phoneNumberId).orElse(null);
-    if (projection != null
-        && (projection.connectionId() != tenant.connectionId()
-            || projection.companyId() != tenant.companyId())) {
+    var projection =
+        controlPlane
+            .findByPhoneNumberId(phoneNumberId)
+            .orElseThrow(
+                () ->
+                    new MetaWhatsAppRuntimeException(
+                        "WHATSAPP_TENANT_PROJECTION_MISSING",
+                        false,
+                        "WhatsApp control-plane projection is missing"));
+    if (projection.connectionId() != tenant.connectionId()
+        || projection.companyId() != tenant.companyId()
+        || !phoneNumberId.equals(projection.selectedPhoneNumberId())) {
       throw new MetaWhatsAppRuntimeException(
           "WHATSAPP_TENANT_MAPPING_CONFLICT", false, "Control-plane mapping mismatch");
     }
