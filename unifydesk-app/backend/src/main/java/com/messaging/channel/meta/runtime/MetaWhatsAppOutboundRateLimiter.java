@@ -92,8 +92,14 @@ public class MetaWhatsAppOutboundRateLimiter {
     }
     long millis = Math.max(1L, effective.toMillis());
     try {
-      redisTemplate.execute(
-          COOLDOWN_SCRIPT, List.of(cooldownKey(phoneKey)), Long.toString(millis));
+      Long applied =
+          redisTemplate.execute(
+              COOLDOWN_SCRIPT, List.of(cooldownKey(phoneKey)), Long.toString(millis));
+      if (applied == null) {
+        throw new ServiceUnavailableException("WHATSAPP_RATE_LIMIT_UNAVAILABLE");
+      }
+    } catch (ServiceUnavailableException exception) {
+      throw exception;
     } catch (RuntimeException exception) {
       throw new ServiceUnavailableException("WHATSAPP_RATE_LIMIT_UNAVAILABLE", exception);
     }
