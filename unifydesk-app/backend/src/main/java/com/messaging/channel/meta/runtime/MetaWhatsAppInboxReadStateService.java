@@ -8,7 +8,6 @@ import com.messaging.channel.enums.ProviderType;
 import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
-import com.messaging.inbox.dto.InboxEmailChangedEvent;
 import com.messaging.inbox.dto.InboxReadStateResponse;
 import com.messaging.inbox.entity.InboxConversation;
 import com.messaging.inbox.entity.InboxMessage;
@@ -17,9 +16,7 @@ import com.messaging.inbox.enums.InboxMessageStatus;
 import com.messaging.inbox.repository.InboxConversationRepository;
 import com.messaging.inbox.repository.InboxMessageRepository;
 import com.messaging.inbox.service.InboxReadStatePersistenceService;
-import com.messaging.realtime.service.RealtimeService;
 import java.util.List;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -34,7 +31,7 @@ public class MetaWhatsAppInboxReadStateService {
   private final ChannelConnectionRepository connectionRepository;
   private final InboxReadStatePersistenceService persistenceService;
   private final AsyncJobService asyncJobService;
-  private final RealtimeService realtimeService;
+  private final MetaWhatsAppRealtimePublisher realtimePublisher;
 
   public InboxReadStateResponse setMessage(long companyId, long messageId, boolean read) {
     InboxMessage message =
@@ -140,18 +137,7 @@ public class MetaWhatsAppInboxReadStateService {
       long connectionId,
       InboxReadStatePersistenceService.ApplyResult applied) {
     if (applied.changedMessages() <= 0) return;
-    try {
-      realtimeService.sendToCompany(
-          companyId,
-          "inbox.email.changed",
-          InboxEmailChangedEvent.boundedDelta(
-              connectionId,
-              ProviderType.META_WHATSAPP,
-              applied.conversationIds(),
-              applied.messageIds(),
-              Set.of()));
-    } catch (RuntimeException ignored) {
-      // Persistence is authoritative.
-    }
+    realtimePublisher.readStateChanged(
+        companyId, connectionId, applied.conversationIds(), applied.messageIds());
   }
 }
