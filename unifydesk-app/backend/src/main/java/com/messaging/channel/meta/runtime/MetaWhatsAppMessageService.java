@@ -10,6 +10,7 @@ import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ConflictException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.common.exception.ServiceUnavailableException;
+import com.messaging.common.exception.TooManyRequestsException;
 import com.messaging.common.id.IdGenerator;
 import com.messaging.inbox.entity.InboxConversation;
 import com.messaging.inbox.entity.InboxMessage;
@@ -35,6 +36,8 @@ import org.springframework.util.StringUtils;
 @Service
 @RequiredArgsConstructor
 public class MetaWhatsAppMessageService {
+  private static final int LOCAL_RATE_LIMITED_CODE = -1001;
+  private static final int LOCAL_RATE_LIMIT_UNAVAILABLE_CODE = -1002;
   private final InboxConversationRepository conversationRepository;
   private final InboxMessageRepository messageRepository;
   private final MetaWhatsAppControlPlaneProjectionRepository controlPlane;
@@ -126,10 +129,20 @@ public class MetaWhatsAppMessageService {
     try {
       MetaWhatsAppRuntimeGraphClient.SendResult result;
       if ("TEXT".equals(type)) {
+        requirePermitOrFail(
+            companyId,
+            context,
+            request.clientRequestId(),
+            reservation.messageId());
         result =
             graphClient.sendText(
                 context.credential(), context.customerKey(), request.text().trim(), replyTo);
       } else if ("TEMPLATE".equals(type)) {
+        requirePermitOrFail(
+            companyId,
+            context,
+            request.clientRequestId(),
+            reservation.messageId());
         result =
             graphClient.sendTemplate(
                 context.credential(),
@@ -146,6 +159,11 @@ public class MetaWhatsAppMessageService {
                 media.getOriginalFileName(),
                 media.getContentType());
         linkOutboundMedia(reservation.messageId(), providerMediaId, media.getId());
+        requirePermitOrFail(
+            companyId,
+            context,
+            request.clientRequestId(),
+            reservation.messageId());
         result =
             graphClient.sendMedia(
                 context.credential(),
@@ -258,9 +276,6 @@ public class MetaWhatsAppMessageService {
           conversation.setLastMessagePreview(message.getSnippet());
           conversationRepository.save(conversation);
 
-          // Acquire at the final transactional boundary before the caller can submit to Meta.
-          // Any limiter/Redis failure rolls this local reservation back and no provider call occurs.
-          outboundRateLimiter.requirePermit(context.credential().phoneNumberId());
           return new Reservation(message.getId(), true);
         });
   }
@@ -278,6 +293,71 @@ public class MetaWhatsAppMessageService {
         messageId,
         providerMediaId,
         mediaId);
+  }
+
+  private void requirePermitOrFail(
+      long companyId,
+      SendContext context,
+      String clientRequestId,
+      long messageId) {
+    try {
+      outboundRateLimiter.requirePermit(context.credential().phoneNumberId());
+    } catch (TooManyRequestsException exception) {
+      markLocalLimiterFailed(
+          companyId,
+          context.connection().getId(),
+          clientRequestId,
+          messageId,
+          LOCAL_RATE_LIMITED_CODE);
+      throw exception;
+    } catch (ServiceUnavailableException exception) {
+      markLocalLimiterFailed(
+          companyId,
+          context.connection().getId(),
+          clientRequestId,
+          messageId,
+          LOCAL_RATE_LIMIT_UNAVAILABLE_CODE);
+      throw exception;
+    }
+  }
+
+  private void markLocalLimiterFailed(
+      long companyId,
+      long connectionId,
+      String clientRequestId,
+      long messageId,
+      int localErrorCode) {
+    int updated =
+        transactionTemplate.execute(
+            ignored -> {
+              int runtimeUpdated =
+                  jdbcTemplate.update(
+                      """
+                      update meta_whatsapp_message_runtime
+                      set detailed_status='FAILED',status_rank=25,provider_status_at=null,
+                          last_provider_error_code=?,last_provider_error_subcode=null,
+                          last_provider_fbtrace_id=null,updated_at=now()
+                      where company_id=? and connection_id=? and client_request_id=?
+                        and detailed_status='PENDING' and provider_message_id is null
+                      """,
+                      localErrorCode,
+                      companyId,
+                      connectionId,
+                      clientRequestId);
+              if (runtimeUpdated == 1) {
+                messageRepository
+                    .findById(messageId)
+                    .ifPresent(
+                        message -> {
+                          message.setStatus(InboxMessageStatus.FAILED);
+                          messageRepository.save(message);
+                        });
+              }
+              return runtimeUpdated;
+            });
+    if (updated == 1) {
+      publishStatusChanged(companyId, connectionId, messageId);
+    }
   }
 
   private MetaWhatsAppSendResponse markAccepted(
@@ -415,7 +495,7 @@ public class MetaWhatsAppMessageService {
         jdbcTemplate.query(
             """
             select r.inbox_message_id,r.client_request_id,r.provider_message_id,r.detailed_status,
-                   r.provider_status_at
+                   r.provider_status_at,r.last_provider_error_code
             from meta_whatsapp_message_runtime r
             join inbox_messages m on m.id = r.inbox_message_id
             where r.company_id=? and r.connection_id=? and m.conversation_id=?
@@ -430,7 +510,9 @@ public class MetaWhatsAppMessageService {
                     rs.getTimestamp("provider_status_at") == null
                         ? null
                         : rs.getTimestamp("provider_status_at").toInstant(),
-                    safeErrorForStatus(rs.getString("detailed_status"))),
+                    safeErrorForStatus(
+                        rs.getString("detailed_status"),
+                        rs.getObject("last_provider_error_code", Integer.class))),
             companyId,
             connectionId,
             conversationId,
@@ -438,8 +520,14 @@ public class MetaWhatsAppMessageService {
     return rows.stream().findFirst().orElse(null);
   }
 
-  private String safeErrorForStatus(String status) {
+  private String safeErrorForStatus(String status, Integer errorCode) {
     if ("UNKNOWN".equals(status)) return "WHATSAPP_SEND_AMBIGUOUS";
+    if ("FAILED".equals(status) && errorCode != null) {
+      if (errorCode == LOCAL_RATE_LIMITED_CODE) return "WHATSAPP_RATE_LIMITED";
+      if (errorCode == LOCAL_RATE_LIMIT_UNAVAILABLE_CODE) {
+        return "WHATSAPP_RATE_LIMIT_UNAVAILABLE";
+      }
+    }
     return null;
   }
 
@@ -558,6 +646,18 @@ public class MetaWhatsAppMessageService {
     if (value == null) return null;
     String normalized = value.replaceAll("\\s+", " ").trim();
     return normalized.length() <= max ? normalized : normalized.substring(0, max);
+  }
+
+  private void publishStatusChanged(long companyId, long connectionId, long messageId) {
+    messageRepository
+        .findById(messageId)
+        .ifPresent(
+            message ->
+                realtimePublisher.statusChanged(
+                    companyId,
+                    connectionId,
+                    message.getConversation().getId(),
+                    messageId));
   }
 
   private void publishMessageChanged(long companyId, long connectionId, long messageId) {
