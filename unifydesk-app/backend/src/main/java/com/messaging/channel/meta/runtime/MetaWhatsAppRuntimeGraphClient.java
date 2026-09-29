@@ -130,16 +130,15 @@ public class MetaWhatsAppRuntimeGraphClient {
       MetaWhatsAppCredentialResolver.StoredCredential credential) {
     if (!StringUtils.hasText(credential.wabaId())) return List.of();
     List<TemplateRecord> result = new ArrayList<>();
-    URI next =
-        URI.create(
-            "/"
-                + credential.graphApiVersion()
-                + "/"
-                + credential.wabaId()
-                + "/message_templates?fields=id,name,language,category,status,components&limit=250");
+    String next =
+        "/"
+            + credential.graphApiVersion()
+            + "/"
+            + credential.wabaId()
+            + "/message_templates?fields=id,name,language,category,status,components&limit=250";
     int pages = 0;
-    while (next != null && pages++ < 20) {
-      URI current = next;
+    while (StringUtils.hasText(next) && pages++ < 20) {
+      String current = next;
       JsonNode response =
           execute(
               false,
@@ -163,9 +162,7 @@ public class MetaWhatsAppRuntimeGraphClient {
                   item.path("components")));
         }
       }
-      String nextUrl =
-          response == null ? null : response.path("paging").path("next").asText(null);
-      next = StringUtils.hasText(nextUrl) ? URI.create(nextUrl) : null;
+      next = response == null ? null : response.path("paging").path("next").asText(null);
     }
     return List.copyOf(result);
   }
