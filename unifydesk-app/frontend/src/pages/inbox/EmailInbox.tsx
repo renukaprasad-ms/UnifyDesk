@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { useSearchParams } from 'react-router'
+import { useLocation, useSearchParams } from 'react-router'
 import {
   FiArrowLeft,
   FiCheckCircle,
@@ -11,6 +11,7 @@ import {
   FiUsers,
 } from 'react-icons/fi'
 import ConversationList, { conversationParticipant } from '../../components/inbox/ConversationList'
+import WhatsAppInbox from '../../components/whatsapp/WhatsAppInbox'
 import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
 import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'
 import type { AsyncJob } from '../../features/asyncJob/types'
@@ -94,7 +95,7 @@ const defaultSyncRange = () => {
   return { from: localDateInput(from), to: localDateInput(to) }
 }
 
-export default function EmailInbox() {
+function EmailInboxView() {
   const dispatch = useAppDispatch()
   const companyId = useAppSelector(selectSelectedCompanyId)
   const inbox = useAppSelector((state) => state.inbox)
@@ -1541,4 +1542,15 @@ export default function EmailInbox() {
       </div>
     </section>
   )
+}
+
+
+export default function EmailInbox() {
+  const location = useLocation()
+
+  if (location.pathname.endsWith('/social-media')) {
+    return <WhatsAppInbox />
+  }
+
+  return <EmailInboxView />
 }
