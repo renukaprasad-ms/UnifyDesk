@@ -406,6 +406,71 @@ class GoogleAdsPerformanceMaxServiceTests {
         .containsEntry("fontFamily", "Roboto");
   }
 
+  @Test
+  void reportsAssetGroupStrengthCoverageAndThirtyDayMetrics() throws Exception {
+    AdCampaign campaign = performanceMaxCampaign();
+    when(campaignRepository.findByIdAndCompanyId(700L, 10L))
+        .thenReturn(Optional.of(campaign));
+    when(contextService.requireManaged(10L, 20L)).thenReturn(context);
+
+    when(apiClient.searchRows(
+            eq("access-token"),
+            eq("1234567890"),
+            eq("9999999999"),
+            any()))
+        .thenReturn(
+            List.of(
+                new ObjectMapper()
+                    .readTree(
+                        """
+                        {
+                          "assetGroup": {
+                            "id": "501",
+                            "resourceName": "customers/1234567890/assetGroups/501",
+                            "name": "Core",
+                            "status": "ENABLED",
+                            "primaryStatus": "LIMITED",
+                            "primaryStatusReasons": ["ASSET_GROUP_LIMITED"],
+                            "adStrength": "GOOD",
+                            "assetCoverage": {
+                              "headline": {"currentCount": 5, "minimumCount": 3}
+                            }
+                          },
+                          "metrics": {
+                            "impressions": "1200",
+                            "clicks": "80",
+                            "conversions": 9.5,
+                            "conversionsValue": 15000.0,
+                            "costMicros": "250000000"
+                          }
+                        }
+                        """)));
+
+    var result = service.assetGroupPerformance(10L, 700L, 30);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().id()).isEqualTo("501");
+    assertThat(result.getFirst().primaryStatus()).isEqualTo("LIMITED");
+    assertThat(result.getFirst().primaryStatusReasons())
+        .containsExactly("ASSET_GROUP_LIMITED");
+    assertThat(result.getFirst().adStrength()).isEqualTo("GOOD");
+    assertThat(result.getFirst().impressions()).isEqualTo(1200L);
+    assertThat(result.getFirst().clicks()).isEqualTo(80L);
+    assertThat(result.getFirst().conversions()).isEqualTo(9.5);
+    assertThat(result.getFirst().costMicros()).isEqualTo(250000000L);
+
+    ArgumentCaptor<String> query = ArgumentCaptor.forClass(String.class);
+    verify(apiClient)
+        .searchRows(
+            eq("access-token"),
+            eq("1234567890"),
+            eq("9999999999"),
+            query.capture());
+    assertThat(query.getValue()).contains("asset_group.asset_coverage");
+    assertThat(query.getValue()).contains("metrics.conversions");
+    assertThat(query.getValue()).contains("segments.date BETWEEN");
+  }
+
   private AdCampaign performanceMaxCampaign() {
     AdCampaign campaign = new AdCampaign();
     campaign.setId(700L);
