@@ -23,6 +23,7 @@ public class MetaWhatsAppStatusService {
   private final JdbcTemplate jdbcTemplate;
   private final InboxMessageRepository messageRepository;
   private final RealtimeService realtimeService;
+  private final MetaWhatsAppMessageStateMachine stateMachine;
 
   @Transactional
   public boolean apply(MetaWhatsAppWebhookEventStore.ClaimedEvent event) {
@@ -56,8 +57,9 @@ public class MetaWhatsAppStatusService {
     if (rows.isEmpty()) return false;
 
     Row current = rows.getFirst();
-    State next = state(providerStatus);
-    if (!shouldApply(current, next, event.providerEventAt())) return true;
+    MetaWhatsAppMessageStateMachine.State next = stateMachine.providerState(providerStatus);
+    if (!stateMachine.shouldApply(
+        current.status(), current.rank(), current.providerStatusAt(), next, event.providerEventAt())) return true;
 
     Integer code = firstInt(status.path("errors"), "code");
     Integer subcode = firstInt(status.path("errors"), "error_subcode");
@@ -94,26 +96,6 @@ public class MetaWhatsAppStatusService {
               });
     }
     return true;
-  }
-
-  private boolean shouldApply(Row current, State next, Instant providerAt) {
-    if (next.rank() < current.rank()) return false;
-    if (next.rank() == current.rank()
-        && current.providerStatusAt() != null
-        && !providerAt.isAfter(current.providerStatusAt())) return false;
-    if ("FAILED".equals(next.status())
-        && ("DELIVERED".equals(current.status()) || "READ".equals(current.status()))) return false;
-    return true;
-  }
-
-  private State state(String provider) {
-    return switch (provider.toLowerCase(java.util.Locale.ROOT)) {
-      case "sent" -> new State("SENT", 20);
-      case "delivered" -> new State("DELIVERED", 30);
-      case "read" -> new State("READ", 40);
-      case "failed" -> new State("FAILED", 25);
-      default -> new State("UNKNOWN", 5);
-    };
   }
 
   private Integer firstInt(JsonNode errors, String field) {
@@ -168,5 +150,4 @@ public class MetaWhatsAppStatusService {
 
   private record Row(
       long id, Long inboxMessageId, String status, int rank, Instant providerStatusAt) {}
-  private record State(String status, int rank) {}
 }
