@@ -69,7 +69,7 @@ public class MetaWhatsAppStatusService {
         update meta_whatsapp_message_runtime
         set detailed_status=?,status_rank=?,provider_status_at=?,
             last_provider_error_code=?,last_provider_error_subcode=?,last_provider_fbtrace_id=?,
-            safe_error_code=?,updated_at=now()
+            updated_at=now()
         where id=?
         """,
         next.status(),
@@ -78,7 +78,6 @@ public class MetaWhatsAppStatusService {
         code,
         subcode,
         trace,
-        next.status().equals("FAILED") ? "WHATSAPP_PROVIDER_REJECTED" : null,
         current.id());
 
     if (current.inboxMessageId() != null) {
