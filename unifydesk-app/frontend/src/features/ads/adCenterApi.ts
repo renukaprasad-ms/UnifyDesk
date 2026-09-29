@@ -106,6 +106,9 @@ import type {
   GoogleAssetGroupUrlOptions,
   GoogleAssetGroup,
   GoogleAssetGroupPerformance,
+  GooglePerformanceMaxRetailSettings,
+  GooglePerformanceMaxListingGroup,
+  ReplaceGooglePerformanceMaxListingGroupsInput,
   GoogleAssetGroupAsset,
   GoogleAssetGroupAssetInput,
   GoogleAssetGroupSignal,
@@ -1069,6 +1072,42 @@ export const adCenterApi = {
   async googleAssetGroups(companyId: string, campaignId: string) {
     const response = await apiClient.get<ApiResponse<GoogleAssetGroup[]>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups`,
+    )
+    return unwrap(response.data)
+  },
+
+  async googlePerformanceMaxRetailSettings(
+    companyId: string,
+    campaignId: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GooglePerformanceMaxRetailSettings>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/retail-settings`,
+    )
+    return unwrap(response.data)
+  },
+
+  async googlePerformanceMaxListingGroups(
+    companyId: string,
+    campaignId: string,
+    assetGroupId: string,
+    days = 30,
+  ) {
+    const response = await apiClient.get<ApiResponse<GooglePerformanceMaxListingGroup[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/listing-groups`,
+      { params: { days } },
+    )
+    return unwrap(response.data)
+  },
+
+  async replaceGooglePerformanceMaxListingGroups(
+    companyId: string,
+    campaignId: string,
+    assetGroupId: string,
+    input: ReplaceGooglePerformanceMaxListingGroupsInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GooglePerformanceMaxListingGroup[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/listing-groups`,
+      input,
     )
     return unwrap(response.data)
   },
