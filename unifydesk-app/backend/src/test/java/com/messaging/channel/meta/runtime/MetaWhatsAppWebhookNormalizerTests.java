@@ -29,6 +29,7 @@ class MetaWhatsAppWebhookNormalizerTests {
     assertThat(first).hasSize(1);
     assertThat(second).hasSize(1);
     assertThat(first.getFirst().eventKey()).isEqualTo(second.getFirst().eventKey());
+    assertThat(first.getFirst().eventKey()).isEqualTo("msg:phone-1:wamid.duplicate");
     assertThat(first.getFirst().eventKind()).isEqualTo("MESSAGE");
     assertThat(first.getFirst().phoneNumberId()).isEqualTo("phone-1");
     assertThat(first.getFirst().providerMessageId()).isEqualTo("wamid.duplicate");
@@ -45,6 +46,60 @@ class MetaWhatsAppWebhookNormalizerTests {
     assertThat(event.payloadJson()).contains("\"contacts\"");
     assertThat(event.payloadJson()).contains("\"phoneNumberId\":\"phone-1\"");
     assertThat(event.payloadJson()).doesNotContain("access_token");
+  }
+
+  @Test
+  void statusUsesFrozenCanonicalIdentity() {
+    String payload =
+        """
+        {
+          "entry":[{
+            "id":"waba-1",
+            "changes":[{
+              "field":"messages",
+              "value":{
+                "metadata":{"phone_number_id":"phone-1"},
+                "statuses":[{
+                  "id":"wamid.status",
+                  "status":"delivered",
+                  "timestamp":"1700000001"
+                }]
+              }
+            }]
+          }]
+        }
+        """;
+
+    var event = normalizer.normalize(payload.getBytes(StandardCharsets.UTF_8)).getFirst();
+
+    assertThat(event.eventKey())
+        .isEqualTo("status:phone-1:wamid.status:delivered:1700000001");
+  }
+
+  @Test
+  void statusWithoutTimestampStillHasStableDeterministicFallbackKey() {
+    String payload =
+        """
+        {
+          "entry":[{
+            "id":"waba-1",
+            "changes":[{
+              "field":"messages",
+              "value":{
+                "metadata":{"phone_number_id":"phone-1"},
+                "statuses":[{"id":"wamid.status","status":"sent"}]
+              }
+            }]
+          }]
+        }
+        """;
+    byte[] body = payload.getBytes(StandardCharsets.UTF_8);
+
+    String first = normalizer.normalize(body).getFirst().eventKey();
+    String second = normalizer.normalize(body).getFirst().eventKey();
+
+    assertThat(first).isEqualTo(second);
+    assertThat(first).startsWith("sha256:");
   }
 
   @Test
