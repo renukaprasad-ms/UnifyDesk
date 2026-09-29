@@ -44,6 +44,7 @@ public class MetaGraphClient {
                             .queryParam("client_id", properties.getAppId())
                             .queryParam("client_secret", properties.getAppSecret())
                             .queryParam("code", code)
+                            .queryParam("redirect_uri", properties.getRedirectUri())
                             .build(properties.getGraphApiVersion()))
                 .retrieve()
                 .body(TokenResponse.class));
