@@ -2,6 +2,7 @@ package com.messaging.channel.meta.runtime;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -154,8 +155,8 @@ class MetaWhatsAppMessageServiceRateLimitTests {
             new MetaWhatsAppCredentialResolver.StoredCredential(
                 "token", "waba-1", "phone-1", "v24.0"));
     when(reservations.tryReserve(
-            any(Long.class),
-            any(Long.class),
+            anyLong(),
+            anyLong(),
             any(String.class),
             any(String.class),
             any(Instant.class)))
