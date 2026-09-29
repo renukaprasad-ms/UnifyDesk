@@ -179,6 +179,12 @@ class MetaWhatsAppMessageServiceSecurityTests {
 
   private static final class SessionJdbcTemplate extends JdbcTemplate {
     @Override
+    @SuppressWarnings("unchecked")
+    public <T> T queryForObject(String sql, Class<T> requiredType, Object... args) {
+      return (T) Integer.valueOf(1);
+    }
+
+    @Override
     public <T> List<T> query(String sql, RowMapper<T> rowMapper, Object... args) {
       try {
         @SuppressWarnings("unchecked")
