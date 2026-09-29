@@ -131,6 +131,45 @@ describe('CompanyConnections WhatsApp onboarding', () => {
     expect(metaWhatsAppApi.signupSession).toHaveBeenNthCalledWith(2, 'company-1')
   })
 
+  it('uses a fresh normal signup session when reconnecting a disconnected connection', async () => {
+    vi.mocked(channelApi.list).mockResolvedValue([
+      {
+        id: 'connection-1',
+        companyId: 'company-1',
+        channelType: 'WHATSAPP',
+        providerType: 'META_WHATSAPP',
+        name: 'Test Business',
+        externalAccountId: 'waba-1',
+        status: 'DISCONNECTED',
+        createdByUserId: 'user-1',
+        createdAt: '2026-09-29T00:00:00Z',
+        updatedAt: '2026-09-29T00:00:00Z',
+        providerConfigured: true,
+        capabilities: ['INBOX'],
+      },
+    ])
+    vi.mocked(metaWhatsAppApi.connection).mockResolvedValue({
+      connectionId: 'connection-1',
+      genericStatus: 'DISCONNECTED',
+      status: 'DISCONNECTED',
+      authState: 'UNKNOWN',
+      registrationState: 'REGISTERED',
+      subscriptionState: 'SUBSCRIBED',
+      coexistenceState: 'DISABLED',
+      phone: activeConnection.phone,
+      nextAction: 'NONE',
+    })
+
+    render(<CompanyConnections />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^reconnect$/i }))
+
+    await waitFor(() =>
+      expect(metaWhatsAppApi.signupSession).toHaveBeenCalledWith('company-1'),
+    )
+    expect(metaWhatsAppApi.reauthorizeSession).not.toHaveBeenCalled()
+  })
+
   it('uses the reauthorization session only when nextAction requires reauthorization', async () => {
     vi.mocked(channelApi.list).mockResolvedValue([
       {
