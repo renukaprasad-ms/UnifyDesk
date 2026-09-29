@@ -171,15 +171,7 @@ public class MetaWhatsAppPersistenceService {
     operation.setLastSafeErrorCode(null);
     operationRepository.save(operation);
 
-    return new PendingProvisioning(
-        connection.getId(),
-        sender.getId(),
-        pin,
-        wabaId,
-        phone.id(),
-        sender.getValue(),
-        phone.verifiedName(),
-        phone.qualityRating());
+    return new PendingProvisioning(connection.getId());
   }
 
   @Transactional
@@ -434,15 +426,7 @@ public class MetaWhatsAppPersistenceService {
     }
   }
 
-  public record PendingProvisioning(
-      Long connectionId,
-      Long senderIdentityId,
-      String pin,
-      String wabaId,
-      String phoneNumberId,
-      String displayPhoneNumber,
-      String verifiedName,
-      String qualityRating) {}
+  public record PendingProvisioning(Long connectionId) {}
 
   public record StoredMetaToken(
       String accessToken,
