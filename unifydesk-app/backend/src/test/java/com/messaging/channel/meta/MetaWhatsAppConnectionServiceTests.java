@@ -81,6 +81,12 @@ class MetaWhatsAppConnectionServiceTests {
             entitlementService,
             channelConnectionService,
             persistenceService);
+    org.mockito.Mockito.lenient()
+        .when(
+            persistenceService.tryClaimProvisioning(
+                org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.anyString()))
+        .thenReturn(true);
   }
 
   @Test
@@ -343,7 +349,7 @@ class MetaWhatsAppConnectionServiceTests {
             RegistrationState.REGISTERED,
             SubscriptionState.PENDING);
     when(persistenceService.requireControl(COMPANY_ID, 600L))
-        .thenReturn(pending, pending, registered);
+        .thenReturn(pending, pending, pending, pending, registered);
     when(persistenceService.readToken(600L))
         .thenReturn(new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null));
     when(persistenceService.readPin(600L)).thenReturn("123456");
@@ -379,7 +385,7 @@ class MetaWhatsAppConnectionServiceTests {
             RegistrationState.REGISTERED,
             SubscriptionState.PENDING);
     when(persistenceService.requireControl(COMPANY_ID, 600L))
-        .thenReturn(pending, pending, registered);
+        .thenReturn(pending, pending, pending, pending, registered);
     when(persistenceService.readToken(600L))
         .thenReturn(new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null));
     when(persistenceService.readPin(600L)).thenReturn("123456");
@@ -417,7 +423,7 @@ class MetaWhatsAppConnectionServiceTests {
             RegistrationState.REGISTERED,
             SubscriptionState.PENDING);
     when(persistenceService.requireControl(COMPANY_ID, 600L))
-        .thenReturn(pending, registered, registered, registered);
+        .thenReturn(pending, pending, registered, registered, registered, registered);
     when(persistenceService.readToken(600L))
         .thenReturn(new StoredMetaToken("token", "waba-1", "phone-1", "v26.0", null, null));
     when(persistenceService.readPin(600L)).thenReturn("123456");
