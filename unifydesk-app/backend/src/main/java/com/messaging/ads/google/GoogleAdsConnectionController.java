@@ -70,6 +70,13 @@ import com.messaging.ads.google.dto.GooglePerformanceMaxListingGroupResponse;
 import com.messaging.ads.google.dto.GooglePerformanceMaxRetailSettingsResponse;
 import com.messaging.ads.google.dto.GoogleUserListCustomerTypeRequest;
 import com.messaging.ads.google.dto.GoogleUserListCustomerTypeResponse;
+import com.messaging.ads.google.dto.CreateGooglePortfolioBiddingStrategyRequest;
+import com.messaging.ads.google.dto.CreateGoogleSharedBudgetRequest;
+import com.messaging.ads.google.dto.GoogleCampaignPortfolioAssignmentRequest;
+import com.messaging.ads.google.dto.GoogleCampaignPortfolioAssignmentResponse;
+import com.messaging.ads.google.dto.GooglePortfolioAlignmentRequest;
+import com.messaging.ads.google.dto.GooglePortfolioBiddingStrategyResponse;
+import com.messaging.ads.google.dto.GoogleSharedBudgetResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupAssetResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupAssetMutationRequest;
 import com.messaging.ads.google.dto.GoogleAssetGroupAssetRemoveRequest;
@@ -152,6 +159,7 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsCampaignTargetingService campaignTargetingService;
   private final GoogleAdsPerformanceMaxLifecycleService performanceMaxLifecycleService;
   private final GoogleAdsPerformanceMaxListingGroupService performanceMaxListingGroupService;
+  private final GoogleAdsPortfolioBiddingService portfolioBiddingService;
   private final GoogleAdsKeywordSyncService keywordSyncService;
   private final GoogleAdsKeywordMutationService keywordMutationService;
   private final GoogleAdsNegativeKeywordService negativeKeywordService;
@@ -580,6 +588,102 @@ public class GoogleAdsConnectionController {
             "Google Performance Max asset group status updated"));
   }
 
+
+  @GetMapping("/accounts/{accountId}/portfolio-bidding-strategies")
+  public ResponseEntity<ApiResponse<java.util.List<GooglePortfolioBiddingStrategyResponse>>>
+      portfolioBiddingStrategies(
+          @PathVariable Long companyId,
+          @PathVariable Long accountId,
+          @RequestParam(defaultValue = "30") Integer days) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            portfolioBiddingService.strategies(companyId, accountId, days),
+            "Google portfolio bidding strategies fetched"));
+  }
+
+  @PostMapping("/accounts/{accountId}/portfolio-bidding-strategies")
+  public ResponseEntity<ApiResponse<GooglePortfolioBiddingStrategyResponse>>
+      createPortfolioBiddingStrategy(
+          @PathVariable Long companyId,
+          @PathVariable Long accountId,
+          @Valid @RequestBody CreateGooglePortfolioBiddingStrategyRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            portfolioBiddingService.createStrategy(
+                companyId, accountId, request, userId),
+            "Google portfolio bidding strategy created"));
+  }
+
+  @GetMapping("/accounts/{accountId}/shared-budgets")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleSharedBudgetResponse>>>
+      sharedBudgets(
+          @PathVariable Long companyId,
+          @PathVariable Long accountId,
+          @RequestParam(defaultValue = "30") Integer days) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            portfolioBiddingService.sharedBudgets(companyId, accountId, days),
+            "Google shared budgets fetched"));
+  }
+
+  @PostMapping("/accounts/{accountId}/shared-budgets")
+  public ResponseEntity<ApiResponse<GoogleSharedBudgetResponse>>
+      createSharedBudget(
+          @PathVariable Long companyId,
+          @PathVariable Long accountId,
+          @Valid @RequestBody CreateGoogleSharedBudgetRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            portfolioBiddingService.createSharedBudget(
+                companyId, accountId, request, userId),
+            "Google shared budget created"));
+  }
+
+  @PostMapping("/accounts/{accountId}/portfolio-alignment")
+  public ResponseEntity<ApiResponse<Void>> alignPortfolioBudget(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody GooglePortfolioAlignmentRequest request) {
+    Long userId = requireModify(companyId);
+    portfolioBiddingService.align(companyId, accountId, request, userId);
+    return ResponseEntity.ok(
+        ApiResponse.success(200, null, "Google portfolio strategy and shared budget aligned"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/portfolio-assignment")
+  public ResponseEntity<ApiResponse<GoogleCampaignPortfolioAssignmentResponse>>
+      campaignPortfolioAssignment(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            portfolioBiddingService.assignment(companyId, campaignId),
+            "Google campaign portfolio assignment fetched"));
+  }
+
+  @PutMapping("/campaigns/{campaignId}/portfolio-assignment")
+  public ResponseEntity<ApiResponse<GoogleCampaignPortfolioAssignmentResponse>>
+      updateCampaignPortfolioAssignment(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId,
+          @Valid @RequestBody GoogleCampaignPortfolioAssignmentRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            portfolioBiddingService.assign(companyId, campaignId, request, userId),
+            "Google campaign portfolio assignment updated"));
+  }
 
   @GetMapping("/accounts/{accountId}/lifecycle-goals")
   public ResponseEntity<ApiResponse<List<GoogleLifecycleGoalResponse>>> lifecycleGoals(
