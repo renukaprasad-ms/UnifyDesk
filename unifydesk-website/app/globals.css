@@ -45,3 +45,13 @@ html{width:100%;min-width:320px;overflow-x:hidden}body{width:100%;min-width:320p
 .productFeatures .visualCanvas div{height:30px;margin-bottom:9px}
 .productFeatures .visualTop{padding:12px 14px}
 @media(max-width:850px){.productFeatures{grid-template-columns:1fr;width:calc(100% - 28px)!important}.productFeatures article,.productFeatures article:nth-child(even){min-height:0;padding:24px}.productFeatures .featureCopy>p{min-height:0}.productFeatures .featureVisual{margin-top:22px}.productFeatures .visualCanvas{height:150px}}
+
+
+/* Pre-launch state */
+.launchPill{display:inline-flex;align-items:center;justify-content:center;border:1px solid #cfd5ff;background:#f4f4ff;color:#5558c9;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:800;letter-spacing:.01em;white-space:nowrap}
+.mobileLaunchPill{margin-top:6px;padding:11px 12px;border-radius:9px;background:#f4f4ff;color:#5558c9;font-size:12px;font-weight:800;text-align:center}
+.disabledCta{cursor:default;pointer-events:none;box-shadow:none}
+.ctaSupport{max-width:620px;margin:-10px auto 22px;color:var(--muted);line-height:1.65}
+.footerStatus{font-size:12px!important;color:#7d899b!important;margin-top:-4px}
+.legalUpdated{font-size:12px;color:#8996a8;font-weight:700;letter-spacing:.02em;margin:-8px 0 28px}
+@media(max-width:850px){.launchPill{display:none}}
