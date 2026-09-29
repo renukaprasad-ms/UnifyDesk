@@ -63,13 +63,32 @@ class MetaWhatsAppPersistenceServiceTests {
     service.markFailure(
         600L,
         new MetaGraphException(
-            "debug_token", 401, "OAuthException", 190, 463, "trace", SafeCategory.AUTH, false));
+            "debug_token", 401, "OAuthException", 190, null, "trace", SafeCategory.AUTH, false));
 
     assertThat(control.getProductState()).isEqualTo(ProductState.REAUTH_REQUIRED);
     assertThat(control.getAuthState()).isEqualTo(AuthState.REVOKED);
     assertThat(connection.getStatus()).isEqualTo(ChannelConnectionStatus.ERROR);
     verify(controlRepository).save(control);
     verify(connectionRepository).save(connection);
+  }
+
+  @Test
+  void expiredTokenMovesConnectionToReauthRequiredWithExpiredAuthState() {
+    MetaWhatsAppConnectionControl control = activeControl();
+    ChannelConnection connection = connection(ChannelConnectionStatus.ACTIVE);
+    when(controlRepository.findById(600L)).thenReturn(Optional.of(control));
+    when(connectionRepository.findById(600L)).thenReturn(Optional.of(connection));
+    when(operationRepository.findFirstByConnectionIdOrderByUpdatedAtDesc(600L))
+        .thenReturn(Optional.empty());
+
+    service.markFailure(
+        600L,
+        new MetaGraphException(
+            "debug_token", 401, "OAuthException", 190, 463, "trace", SafeCategory.AUTH, false));
+
+    assertThat(control.getProductState()).isEqualTo(ProductState.REAUTH_REQUIRED);
+    assertThat(control.getAuthState()).isEqualTo(AuthState.EXPIRED);
+    assertThat(connection.getStatus()).isEqualTo(ChannelConnectionStatus.ERROR);
   }
 
   @Test
