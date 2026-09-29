@@ -126,10 +126,12 @@ public class InboxController {
       requirePermissionOrNotFound(
           userId, companyId, CompanyPermissionKeys.WHATSAPP_MODIFY, "Inbox message not found");
       response = whatsappReadStateService.setMessage(companyId, messageId, request.read());
-    } else {
+    } else if (connection.getChannelType() == ChannelType.EMAIL) {
       requirePermissionOrNotFound(
           userId, companyId, CompanyPermissionKeys.EMAIL_MODIFY, "Inbox message not found");
       response = readStateService.setMessageReadState(companyId, messageId, request.read());
+    } else {
+      throw new NotFoundException("Inbox message not found");
     }
     return ResponseEntity.ok(
         ApiResponse.success(
@@ -158,10 +160,12 @@ public class InboxController {
           userId, companyId, CompanyPermissionKeys.WHATSAPP_MODIFY, "Inbox conversation not found");
       response =
           whatsappReadStateService.setConversation(companyId, conversationId, request.read());
-    } else {
+    } else if (connection.getChannelType() == ChannelType.EMAIL) {
       requirePermissionOrNotFound(
           userId, companyId, CompanyPermissionKeys.EMAIL_MODIFY, "Inbox conversation not found");
       response = readStateService.setConversationReadState(companyId, conversationId, request.read());
+    } else {
+      throw new NotFoundException("Inbox conversation not found");
     }
     return ResponseEntity.ok(
         ApiResponse.success(
@@ -182,10 +186,12 @@ public class InboxController {
       requirePermissionOrNotFound(
           userId, companyId, CompanyPermissionKeys.WHATSAPP_MODIFY, "Inbox connection not found");
       job = whatsappReadStateService.markAllRead(companyId, userId, connectionId);
-    } else {
+    } else if (connection.getChannelType() == ChannelType.EMAIL) {
       requirePermissionOrNotFound(
           userId, companyId, CompanyPermissionKeys.EMAIL_MODIFY, "Inbox connection not found");
       job = readStateQueueService.queueMarkAllRead(companyId, userId, connectionId, folder);
+    } else {
+      throw new NotFoundException("Inbox connection not found");
     }
     return ResponseEntity.status(HttpStatus.ACCEPTED)
         .body(
