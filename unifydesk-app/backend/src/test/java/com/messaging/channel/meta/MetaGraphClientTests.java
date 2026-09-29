@@ -40,12 +40,13 @@ class MetaGraphClientTests {
     MetaWhatsAppProperties properties = new MetaWhatsAppProperties();
     MetaGraphClient client = new MetaGraphClient(properties, new ObjectMapper());
 
-    var failure =
-        client.parseGraphFailure(
-            "subscribe",
-            429,
-            "{"error":{"type":"OAuthException","code":4,"fbtrace_id":"t"}}"
-                .getBytes(StandardCharsets.UTF_8));
+    byte[] body =
+        """
+        {"error":{"type":"OAuthException","code":4,"fbtrace_id":"t"}}
+        """
+            .getBytes(StandardCharsets.UTF_8);
+
+    var failure = client.parseGraphFailure("subscribe", 429, body);
 
     assertThat(failure.safeCategory()).isEqualTo(SafeCategory.RATE_LIMIT);
     assertThat(failure.retryable()).isTrue();
