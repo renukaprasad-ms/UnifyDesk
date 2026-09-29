@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - review/whatsapp-security-qa-r2
+  pull_request:
+    branches:
+      - dev
 
 jobs:
   backend-full:
@@ -47,6 +50,16 @@ jobs:
           cache: maven
           cache-dependency-path: unifydesk-app/backend/pom.xml
       - run: docker compose -f unifydesk-app/compose.test.yml up -d --wait
+      - run: chmod +x mvnw
+        working-directory: unifydesk-app/backend
+      - name: Flyway V1/V75/V78 to V79
+        continue-on-error: true
+        run: ./mvnw -B -Dtest=MetaWhatsAppRound2MigrationQaTests test
+        working-directory: unifydesk-app/backend
+      - name: Send limiter ordering contract
+        continue-on-error: true
+        run: ./mvnw -B -Dtest=MetaWhatsAppRound2RateLimitQaTests test
+        working-directory: unifydesk-app/backend
       - name: Redis limiter concurrency and cooldown
         continue-on-error: true
         run: ./mvnw -B -Dtest=MetaWhatsAppOutboundRateLimiterRedisIntegrationTests,MetaWhatsAppOutboundRateLimiterTests,MetaWhatsAppRuntimeGraphClientRetryAfterTests test
