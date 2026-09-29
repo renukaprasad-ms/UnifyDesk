@@ -349,7 +349,8 @@ public class MetaWhatsAppMessageService {
                           last_provider_error_code=?,last_provider_error_subcode=null,
                           last_provider_fbtrace_id=null,updated_at=now()
                       where company_id=? and connection_id=? and client_request_id=?
-                        and detailed_status='PENDING' and provider_message_id is null
+                        and detailed_status in ('PENDING','UNKNOWN')
+                        and provider_message_id is null
                       """,
                       localErrorCode,
                       companyId,
