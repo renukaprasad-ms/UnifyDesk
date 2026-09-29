@@ -62,6 +62,19 @@ class MetaWhatsAppOutboundRateLimiterTests {
   }
 
   @Test
+  void missingCooldownResultFailsClosed() {
+    when(redisTemplate.execute(
+            any(RedisScript.class),
+            eq(List.of("unifydesk:whatsapp:rate:phone:phone-1:cooldown")),
+            eq("5000")))
+        .thenReturn(null);
+
+    assertThatThrownBy(() -> limiter.imposeProviderCooldown("phone-1", Duration.ofSeconds(5)))
+        .isInstanceOf(ServiceUnavailableException.class)
+        .hasMessage("WHATSAPP_RATE_LIMIT_UNAVAILABLE");
+  }
+
+  @Test
   void providerCooldownUsesConfiguredFallback() {
     properties.setProviderRetryAfterFallback(Duration.ofSeconds(7));
     when(redisTemplate.execute(
