@@ -62,7 +62,10 @@ public class MetaWhatsAppWebhookWorker {
     } catch (TransientDataAccessException exception) {
       eventStore.fail(event, "WHATSAPP_DB_TEMPORARY", true);
     } catch (RuntimeException exception) {
-      eventStore.fail(event, "WHATSAPP_PROCESSING_FAILED", false);
+      // Unknown application failures are retried with the bounded event-attempt policy. This is
+      // important for transactional post-processors: a rollback must not permanently drop the
+      // inbound message or its notification side effect.
+      eventStore.fail(event, "WHATSAPP_PROCESSING_FAILED", true);
     }
   }
 
