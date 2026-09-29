@@ -1087,7 +1087,7 @@ Reference:
 
 ## G-08 Performance Max completeness - P1
 
-Status: **in progress — C5 URL/automation, Brand Guidelines, and lifecycle/customer-acquisition controls are complete; deeper diagnostics/performance and listing-group work remain**.
+Status: **in progress — C5 URL/automation, Brand Guidelines, lifecycle/customer-acquisition controls, and asset diagnostics/performance are complete; listing-group work remains**.
 
 Implemented in C5:
 
@@ -1124,12 +1124,15 @@ Implemented in the Ads completion branch:
 - [x] lifecycle readiness validation in unified preflight so launches cannot silently create account-wide lifecycle state
 - [x] unified Performance Max launch operation `configure-pmax-lifecycle`
 - [x] native Performance Max lifecycle editor, RBAC/audit flow, provider read-back, and regression coverage
+- [x] Asset Group ad-strength and asset-coverage provider read-back
+- [x] Asset Group primary serving status and provider status reasons
+- [x] Asset Group 30-day performance metrics for impressions, clicks, conversions, conversion value, and spend
+- [x] linked Asset Group Asset source, policy review/approval status, primary serving status, and serving reasons
+- [x] diagnostics integrated into the existing native PMax asset manager with regression coverage
 
 Still add/review:
 
 - value multipliers beyond the currently productized lifecycle subset when Google makes them broadly supported/stable for the relevant PMax goal types
-- deeper asset strength/diagnostics
-- asset group performance
 - listing groups where relevant
 - any remaining URL-inclusion behavior that becomes directly writable for this PMax subtype
 
