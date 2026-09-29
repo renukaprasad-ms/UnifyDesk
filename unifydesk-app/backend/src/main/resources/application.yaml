@@ -332,6 +332,9 @@ app:
       degraded-reconcile-interval: ${META_WHATSAPP_DEGRADED_RECONCILE_INTERVAL:5m}
       manual-reconcile-min-interval: ${META_WHATSAPP_MANUAL_RECONCILE_MIN_INTERVAL:15s}
       reconcile-poll-interval: ${META_WHATSAPP_RECONCILE_POLL_INTERVAL:1m}
+      provisioning-claim-lease: ${META_WHATSAPP_PROVISIONING_CLAIM_LEASE:2m}
+      retry-initial-backoff: ${META_WHATSAPP_RETRY_INITIAL_BACKOFF:2s}
+      retry-max-backoff: ${META_WHATSAPP_RETRY_MAX_BACKOFF:5m}
     gmail:
       enabled: ${GMAIL_OAUTH_ENABLED:false}
       client-id: ${GMAIL_OAUTH_CLIENT_ID:}
