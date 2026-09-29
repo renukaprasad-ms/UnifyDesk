@@ -97,6 +97,11 @@ import type {
   UpdateGooglePerformanceMaxAutomationInput,
   GooglePerformanceMaxBrandGuidelines,
   UpdateGooglePerformanceMaxBrandGuidelinesInput,
+  GooglePortfolioBiddingStrategy,
+  CreateGooglePortfolioBiddingStrategyInput,
+  GoogleSharedBudget,
+  CreateGoogleSharedBudgetInput,
+  GoogleCampaignPortfolioAssignment,
   GoogleLifecycleGoal,
   UpsertGoogleLifecycleGoalInput,
   GoogleUserListCustomerType,
@@ -1181,6 +1186,83 @@ export const adCenterApi = {
     const response = await apiClient.post<ApiResponse<GoogleAssetGroupSignal[]>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/signals`,
       input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googlePortfolioBiddingStrategies(
+    companyId: string,
+    accountId: string,
+    days = 30,
+  ) {
+    const response = await apiClient.get<ApiResponse<GooglePortfolioBiddingStrategy[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/portfolio-bidding-strategies`,
+      { params: { days } },
+    )
+    return unwrap(response.data)
+  },
+
+  async createGooglePortfolioBiddingStrategy(
+    companyId: string,
+    accountId: string,
+    input: CreateGooglePortfolioBiddingStrategyInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GooglePortfolioBiddingStrategy>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/portfolio-bidding-strategies`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleSharedBudgets(companyId: string, accountId: string, days = 30) {
+    const response = await apiClient.get<ApiResponse<GoogleSharedBudget[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/shared-budgets`,
+      { params: { days } },
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleSharedBudget(
+    companyId: string,
+    accountId: string,
+    input: CreateGoogleSharedBudgetInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleSharedBudget>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/shared-budgets`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async alignGooglePortfolioBudget(
+    companyId: string,
+    accountId: string,
+    biddingStrategyId: string,
+    sharedBudgetId: string,
+  ) {
+    const response = await apiClient.post<ApiResponse<null>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/portfolio-alignment`,
+      { biddingStrategyId, sharedBudgetId },
+    )
+    return unwrap(response.data)
+  },
+
+  async googleCampaignPortfolioAssignment(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleCampaignPortfolioAssignment>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/portfolio-assignment`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleCampaignPortfolioAssignment(
+    companyId: string,
+    campaignId: string,
+    biddingStrategyId?: string | null,
+    sharedBudgetId?: string | null,
+  ) {
+    const response = await apiClient.put<ApiResponse<GoogleCampaignPortfolioAssignment>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/portfolio-assignment`,
+      { biddingStrategyId, sharedBudgetId },
     )
     return unwrap(response.data)
   },
