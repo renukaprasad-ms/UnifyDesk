@@ -239,7 +239,10 @@ public class MetaWhatsAppPersistenceService {
 
     switch (failure.safeCategory()) {
       case AUTH -> {
-        control.setAuthState(AuthState.REVOKED);
+        control.setAuthState(
+            Integer.valueOf(463).equals(failure.metaSubcode())
+                ? AuthState.EXPIRED
+                : AuthState.REVOKED);
         control.setProductState(ProductState.REAUTH_REQUIRED);
       }
       case PERMISSION -> {
