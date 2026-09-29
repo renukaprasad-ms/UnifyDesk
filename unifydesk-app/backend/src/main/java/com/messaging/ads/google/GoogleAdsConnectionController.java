@@ -44,6 +44,7 @@ import com.messaging.ads.google.dto.GoogleAssetGenerationImageResponse;
 import com.messaging.ads.google.dto.GoogleAssetGenerationTextRequest;
 import com.messaging.ads.google.dto.GoogleAssetGenerationTextResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupResponse;
+import com.messaging.ads.google.dto.GoogleAssetGroupPerformanceResponse;
 import com.messaging.ads.google.dto.CreateGoogleAppCampaignRequest;
 import com.messaging.ads.google.dto.CreateGoogleAppAdGroupRequest;
 import com.messaging.ads.google.dto.CreateGoogleAppAdRequest;
@@ -428,6 +429,20 @@ public class GoogleAdsConnectionController {
             200,
             performanceMaxService.assetGroups(companyId, campaignId),
             "Google Performance Max asset groups fetched"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/asset-groups/performance")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleAssetGroupPerformanceResponse>>>
+      assetGroupPerformance(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId,
+          @RequestParam(defaultValue = "30") Integer days) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxService.assetGroupPerformance(companyId, campaignId, days),
+            "Google Performance Max asset group performance fetched"));
   }
 
   @GetMapping("/campaigns/{campaignId}/asset-groups/{assetGroupId}/assets")
