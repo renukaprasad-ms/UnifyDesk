@@ -121,6 +121,60 @@ describe('Meta WhatsApp Embedded Signup v4', () => {
     })
   })
 
+  it('accepts Embedded Signup completion from trusted Facebook subdomains', async () => {
+    const facebook = installFacebook()
+    const promise = launchMetaWhatsAppSignup(config)
+
+    facebook.callback()({ authResponse: { code: 'auth-code' } })
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: 'https://business.facebook.com',
+        data: {
+          type: 'WA_EMBEDDED_SIGNUP',
+          event: 'FINISH',
+          data: { waba_id: 'waba-1', phone_number_id: 'phone-1' },
+        },
+      }),
+    )
+
+    await expect(promise).resolves.toMatchObject({
+      wabaId: 'waba-1',
+      phoneNumberId: 'phone-1',
+    })
+  })
+
+  it('rejects lookalike and insecure Facebook origins', async () => {
+    const facebook = installFacebook()
+    const promise = launchMetaWhatsAppSignup(config)
+
+    facebook.callback()({ authResponse: { code: 'auth-code' } })
+    for (const origin of [
+      'https://facebook.com.attacker.example',
+      'https://evilfacebook.com',
+      'http://www.facebook.com',
+    ]) {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin,
+          data: {
+            type: 'WA_EMBEDDED_SIGNUP',
+            event: 'FINISH',
+            data: { waba_id: 'evil', phone_number_id: 'evil' },
+          },
+        }),
+      )
+    }
+
+    window.dispatchEvent(
+      embeddedEvent('FINISH', { waba_id: 'waba-1', phone_number_id: 'phone-1' }),
+    )
+
+    await expect(promise).resolves.toMatchObject({
+      wabaId: 'waba-1',
+      phoneNumberId: 'phone-1',
+    })
+  })
+
   it('ignores untrusted origins and accepts a valid FINISH only once', async () => {
     const facebook = installFacebook()
     const removeSpy = vi.spyOn(window, 'removeEventListener')
