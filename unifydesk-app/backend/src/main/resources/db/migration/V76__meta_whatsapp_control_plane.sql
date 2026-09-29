@@ -1,3 +1,7 @@
+CREATE INDEX IF NOT EXISTS idx_sender_identities_external_id
+    ON sender_identities (external_id)
+    WHERE external_id IS NOT NULL;
+
 CREATE TABLE meta_whatsapp_connections (
     connection_id BIGINT PRIMARY KEY,
     company_id BIGINT NOT NULL,
