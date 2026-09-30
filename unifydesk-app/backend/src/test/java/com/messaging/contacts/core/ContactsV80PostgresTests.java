@@ -163,6 +163,18 @@ class ContactsV80PostgresTests {
         repository.patchContact(
             101L, 201L, java.util.Map.of("display_name", "current"), 0L);
     assertThat(current).isEqualTo(1);
+
+    int customFieldOnlyGuard = repository.patchContact(101L, 201L, java.util.Map.of(), 1L);
+    assertThat(customFieldOnlyGuard).isEqualTo(1);
+
+    int staleAfterCustomFieldOnlyGuard =
+        repository.patchContact(101L, 201L, java.util.Map.of(), 1L);
+    assertThat(staleAfterCustomFieldOnlyGuard).isZero();
+    assertThat(
+            db.jdbc()
+                .queryForObject(
+                    "select version from contacts where company_id=101 and id=201", Long.class))
+        .isEqualTo(2L);
   }
 
   @Test
@@ -202,6 +214,10 @@ class ContactsV80PostgresTests {
                       "select count(*) from contact_list_memberships where list_id=301",
                       Long.class))
           .isEqualTo(1L);
+      assertThat(repository.listsForContact(101L, 201L))
+          .extracting("id")
+          .containsExactly(301L);
+      assertThat(repository.listsForContact(102L, 201L)).isEmpty();
     } finally {
       pool.shutdownNow();
     }

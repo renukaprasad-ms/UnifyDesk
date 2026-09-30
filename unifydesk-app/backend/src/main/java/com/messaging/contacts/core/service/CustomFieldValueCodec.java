@@ -9,7 +9,6 @@ import com.messaging.contacts.core.domain.CoreRows.CustomFieldValueRow;
 import com.messaging.contacts.core.exception.ContactCoreException;
 import com.messaging.contacts.core.repository.CustomFieldRepository;
 import com.messaging.contacts.core.repository.CustomFieldRepository.TypedValue;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
