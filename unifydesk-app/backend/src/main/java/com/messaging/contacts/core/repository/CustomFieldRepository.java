@@ -255,6 +255,85 @@ public class CustomFieldRepository {
             });
   }
 
+  public void applyValuesToContacts(
+      long companyId,
+      Collection<Long> contactIds,
+      Collection<Long> deleteFieldIds,
+      List<TypedValue> values) {
+    if (contactIds == null || contactIds.isEmpty()) {
+      return;
+    }
+    List<Long> distinctContactIds = contactIds.stream().distinct().toList();
+
+    if (deleteFieldIds != null && !deleteFieldIds.isEmpty()) {
+      MapSqlParameterSource params =
+          new MapSqlParameterSource()
+              .addValue("companyId", companyId)
+              .addValue("contactIds", distinctContactIds)
+              .addValue("fieldIds", deleteFieldIds);
+      namedJdbcTemplate.update(
+          """
+          delete from contact_custom_field_values
+          where company_id = :companyId
+            and contact_id in (:contactIds)
+            and field_id in (:fieldIds)
+          """,
+          params);
+    }
+
+    if (values == null || values.isEmpty()) {
+      return;
+    }
+
+    jdbcTemplate.execute(
+        (ConnectionCallback<Void>)
+            connection -> {
+              try (PreparedStatement statement =
+                  connection.prepareStatement(
+                      """
+                      insert into contact_custom_field_values
+                        (company_id, contact_id, field_id, text_value, number_value,
+                         boolean_value, date_value, datetime_value, text_array_value, updated_at)
+                      values (?, ?, ?, ?, ?, ?, ?, ?, ?, now())
+                      on conflict (contact_id, field_id) do update
+                      set company_id = excluded.company_id,
+                          text_value = excluded.text_value,
+                          number_value = excluded.number_value,
+                          boolean_value = excluded.boolean_value,
+                          date_value = excluded.date_value,
+                          datetime_value = excluded.datetime_value,
+                          text_array_value = excluded.text_array_value,
+                          updated_at = now()
+                      """)) {
+                for (Long contactId : distinctContactIds) {
+                  for (TypedValue value : values) {
+                    statement.setLong(1, companyId);
+                    statement.setLong(2, contactId);
+                    statement.setLong(3, value.fieldId());
+                    statement.setObject(4, value.textValue());
+                    statement.setObject(5, value.numberValue());
+                    statement.setObject(6, value.booleanValue());
+                    statement.setObject(7, value.dateValue());
+                    statement.setObject(
+                        8,
+                        value.datetimeValue() == null
+                            ? null
+                            : Timestamp.from(value.datetimeValue()));
+                    Array sqlArray =
+                        value.textArrayValue() == null
+                            ? null
+                            : connection.createArrayOf(
+                                "text", value.textArrayValue().toArray(String[]::new));
+                    statement.setArray(9, sqlArray);
+                    statement.addBatch();
+                  }
+                }
+                statement.executeBatch();
+              }
+              return null;
+            });
+  }
+
   public void mergeValues(
       long companyId, long sourceId, long targetId, Collection<Long> sourceWinsFieldIds) {
     if (!sourceWinsFieldIds.isEmpty()) {
