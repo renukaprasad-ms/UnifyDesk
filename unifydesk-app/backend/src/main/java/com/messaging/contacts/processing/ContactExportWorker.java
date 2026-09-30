@@ -38,7 +38,12 @@ public class ContactExportWorker {
       long cursor = 0;
       try (BufferedWriter writer = Files.newBufferedWriter(temp, StandardCharsets.UTF_8);
           CSVPrinter printer =
-              new CSVPrinter(writer, CSVFormat.DEFAULT.builder().setHeader(fields.toArray(String[]::new)).get())) {
+              new CSVPrinter(
+                  writer,
+                  CSVFormat.DEFAULT
+                      .builder()
+                      .setHeader(fields.toArray(String[]::new))
+                      .build())) {
         while (true) {
           List<ExportRow> page =
               rowSource.page(companyId, source, fields, cursor, properties.boundedBatchSize());

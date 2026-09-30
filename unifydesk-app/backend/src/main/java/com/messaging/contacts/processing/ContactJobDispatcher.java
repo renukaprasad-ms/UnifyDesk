@@ -22,6 +22,9 @@ public class ContactJobDispatcher {
   private final ContactExportWorker exportWorker;
   private final ContactBulkWorker bulkWorker;
   private final ContactDeletePurgeWorker deletePurgeWorker;
+  private final ContactImportRepository importRepository;
+  private final ContactExportRepository exportRepository;
+  private final ContactBulkRepository bulkRepository;
   private final SegmentService segmentService;
   private final AudienceSnapshotService snapshotService;
   private final ContactAudienceProperties properties;
@@ -35,6 +38,9 @@ public class ContactJobDispatcher {
       ContactExportWorker exportWorker,
       ContactBulkWorker bulkWorker,
       ContactDeletePurgeWorker deletePurgeWorker,
+      ContactImportRepository importRepository,
+      ContactExportRepository exportRepository,
+      ContactBulkRepository bulkRepository,
       SegmentService segmentService,
       AudienceSnapshotService snapshotService,
       ContactAudienceProperties properties) {
@@ -44,6 +50,9 @@ public class ContactJobDispatcher {
     this.exportWorker = exportWorker;
     this.bulkWorker = bulkWorker;
     this.deletePurgeWorker = deletePurgeWorker;
+    this.importRepository = importRepository;
+    this.exportRepository = exportRepository;
+    this.bulkRepository = bulkRepository;
     this.segmentService = segmentService;
     this.snapshotService = snapshotService;
     this.properties = properties;
@@ -86,10 +95,33 @@ public class ContactJobDispatcher {
     ContactProcessingAuthorizationPolicy.Decision decision =
         authorizationPolicy.authorizeClaim(type, job);
     if (!decision.allowed()) {
+      failDeniedResource(type, job);
       asyncJobs.fail(job.jobId(), decision.failureCode());
       return;
     }
     processAuthorized(type, job);
+  }
+
+
+  private void failDeniedResource(
+      AsyncJobType type, AsyncJobService.ClaimedAsyncJob job) {
+    if (job == null || job.companyId() == null || job.resourceId() == null) {
+      return;
+    }
+    final long resourceId;
+    try {
+      resourceId = Long.parseLong(job.resourceId());
+    } catch (NumberFormatException exception) {
+      return;
+    }
+    switch (type) {
+      case CONTACT_IMPORT -> importRepository.fail(job.companyId(), resourceId);
+      case CONTACT_EXPORT -> exportRepository.fail(job.companyId(), resourceId);
+      case CONTACT_BULK -> bulkRepository.fail(job.companyId(), resourceId);
+      default -> {
+        // Non user-owned resource types have their own lifecycle semantics.
+      }
+    }
   }
 
   private void processAuthorized(

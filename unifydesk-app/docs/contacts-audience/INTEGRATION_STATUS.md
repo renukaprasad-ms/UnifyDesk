@@ -141,3 +141,39 @@ Active Round-2 final QA handoff/status documents all use:
 `75adcc7dd17105c2a62570c56a8e7c2509321398`
 
 This SHA is authoritative until Round-2 QA completes.
+
+
+## Round-2 final QA result
+
+Final Round-2 QA was completed on:
+
+`review/contacts-audience-security-qa-r2`
+
+Report:
+
+`SECURITY_QA_FEEDBACK_R2_FINAL.md`
+
+Round-2 QA disposition was `NOT RELEASE-READY` because two new Medium findings remained:
+
+- `CA-R2-001` — bulk DELETE destructive commits could diverge from the durable page checkpoint after a crash.
+- `CA-R2-002` — authorization-denied import/export/bulk async jobs failed the async job but could leave their Contacts resource QUEUED/RUNNING.
+
+## Round-3 hardening
+
+Branch:
+
+`fix/contacts-round3-hardening`
+
+Base:
+
+`9cff9014d0b513fa1f1708d22987224a3f783cea`
+
+Round-3 implements:
+
+- atomic per-Contact DELETE mutation + bulk checkpoint transactions while keeping destructive transactions bounded;
+- truthful FAILED state for authorization-denied Contact import/export/bulk resources;
+- focused tests for DELETE routing/checkpoint behavior and all three denied user-owned async resource types;
+- Apache Commons CSV 1.11 builder compatibility fixes;
+- Java record accessor/factory naming collision fix in `ContactProcessingAuthorizationPolicy.Decision`.
+
+The original Round-2 QA execution limitations remain historical evidence. The real Docker/Maven build that exposed the compile errors must be rerun after this remediation is merged.

@@ -202,7 +202,7 @@ public class ContactImportService {
         .setHeader()
         .setSkipHeaderRecord(true)
         .setIgnoreEmptyLines(false)
-        .get()
+        .build()
         .parse(reader);
   }
 

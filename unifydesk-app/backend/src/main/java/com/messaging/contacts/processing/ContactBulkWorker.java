@@ -17,6 +17,7 @@ public class ContactBulkWorker {
   private final ContactAudienceProperties properties;
   private final AsyncJobService asyncJobs;
   private final ObjectProvider<ContactBulkMutationPort> mutationPortProvider;
+  private final ContactBulkDeleteCoordinator deleteCoordinator;
 
   public void process(long companyId, long operationId, long jobId) {
     ContactBulkMutationPort port = mutationPortProvider.getIfAvailable();
@@ -35,20 +36,34 @@ public class ContactBulkWorker {
         asyncJobs.complete(jobId, "Bulk operation completed");
         return;
       }
-      var result =
-          port.apply(
-              companyId, operationId, row.requestedByUserId(), operation, ids);
-      long newCursor = ids.getLast();
-      repository.advance(
-          companyId,
-          operationId,
-          row.cursor(),
-          newCursor,
-          ids.size(),
-          result.succeeded(),
-          result.failed());
-      asyncJobs.incrementProgress(jobId, ids.size(), "Bulk operation running");
-      row = repository.require(companyId, operationId);
+      if ("DELETE".equals(operation.type())) {
+        for (Long contactId : ids) {
+          long expectedCursor = row.cursor();
+          deleteCoordinator.deleteAndCheckpoint(
+              companyId,
+              operationId,
+              row.requestedByUserId(),
+              expectedCursor,
+              contactId);
+          asyncJobs.incrementProgress(jobId, 1, "Bulk operation running");
+          row = repository.require(companyId, operationId);
+        }
+      } else {
+        var result =
+            port.apply(
+                companyId, operationId, row.requestedByUserId(), operation, ids);
+        long newCursor = ids.getLast();
+        repository.advance(
+            companyId,
+            operationId,
+            row.cursor(),
+            newCursor,
+            ids.size(),
+            result.succeeded(),
+            result.failed());
+        asyncJobs.incrementProgress(jobId, ids.size(), "Bulk operation running");
+        row = repository.require(companyId, operationId);
+      }
     }
   }
 }

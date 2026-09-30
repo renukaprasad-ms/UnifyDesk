@@ -7,7 +7,6 @@ import com.messaging.contacts.core.repository.ContactListRepository;
 import com.messaging.contacts.core.repository.ContactRepository;
 import com.messaging.contacts.core.repository.CustomFieldRepository;
 import com.messaging.contacts.core.repository.TagRepository;
-import com.messaging.contacts.core.service.ContactService;
 import com.messaging.contacts.core.service.CustomFieldValueCodec;
 import com.messaging.contacts.processing.ContactBulkMutationPort;
 import java.util.List;
@@ -27,7 +26,6 @@ public class ContactBulkMutationAdapter implements ContactBulkMutationPort {
   private final ContactListRepository listRepository;
   private final CustomFieldRepository customFieldRepository;
   private final CustomFieldValueCodec customFieldValueCodec;
-  private final ContactService contactService;
   private final ObjectMapper objectMapper;
   private final PlatformTransactionManager transactionManager;
 
@@ -44,7 +42,7 @@ public class ContactBulkMutationAdapter implements ContactBulkMutationPort {
 
     List<Long> ids = contactIds.stream().distinct().toList();
     if ("DELETE".equals(operation.type())) {
-      return deleteIndependently(companyId, requestedByUserId, ids);
+      throw new IllegalStateException("CONTACT_BULK_DELETE_REQUIRES_CHECKPOINT_COORDINATOR");
     }
 
     TransactionTemplate transaction = new TransactionTemplate(transactionManager);
@@ -142,24 +140,5 @@ public class ContactBulkMutationAdapter implements ContactBulkMutationPort {
     }
   }
 
-  /**
-   * Contact deletion has its own lifecycle, hooks and optimistic state. Process each Contact in an
-   * independent transaction so one worker batch never holds locks across hundreds/thousands of
-   * destructive workflows.
-   */
-  private BatchResult deleteIndependently(long companyId, long userId, List<Long> ids) {
-    TransactionTemplate transaction = new TransactionTemplate(transactionManager);
-    long succeeded = 0;
-    long failed = 0;
-    for (Long contactId : ids) {
-      try {
-        transaction.executeWithoutResult(
-            status -> contactService.delete(companyId, contactId, userId));
-        succeeded++;
-      } catch (RuntimeException exception) {
-        failed++;
-      }
-    }
-    return new BatchResult(succeeded, failed);
-  }
+
 }
