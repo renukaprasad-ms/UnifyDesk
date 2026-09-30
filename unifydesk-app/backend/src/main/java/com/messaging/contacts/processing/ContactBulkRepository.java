@@ -14,6 +14,13 @@ public class ContactBulkRepository {
 
   private final JdbcTemplate jdbcTemplate;
 
+  public void lockIdempotency(long companyId, String key) {
+    jdbcTemplate.query(
+        "select pg_advisory_xact_lock(hashtextextended(?, 0))",
+        rs -> null,
+        companyId + ":contact-bulk:" + key);
+  }
+
   public Optional<BulkRow> findByIdempotency(long companyId, String key) {
     return jdbcTemplate
         .query(

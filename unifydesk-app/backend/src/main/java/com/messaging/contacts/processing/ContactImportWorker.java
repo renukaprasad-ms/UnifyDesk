@@ -100,6 +100,7 @@ public class ContactImportWorker {
     BatchResult result =
         port.applyBatch(
             importRow.companyId(),
+            importRow.id(),
             importRow.requestedByUserId(),
             mapping,
             duplicateStrategy,
@@ -128,7 +129,7 @@ public class ContactImportWorker {
                   writer,
                   CSVFormat.DEFAULT
                       .builder()
-                      .setHeader("rowNumber", "errorCode", "message")
+                      .setHeader("rowNumber", "errorCode", "safeMessage")
                       .get())) {
         long afterRow = 0;
         String afterCode = "";

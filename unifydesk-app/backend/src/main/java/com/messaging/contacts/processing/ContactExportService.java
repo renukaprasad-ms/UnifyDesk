@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +27,7 @@ public class ContactExportService {
   private final ContactStorageAdapter storage;
   private final ObjectMapper objectMapper;
 
+  @Transactional
   public CreateResult create(
       long companyId,
       long userId,
@@ -40,6 +42,7 @@ public class ContactExportService {
     }
     rowSource.validateSource(companyId, source);
     rowSource.validateFields(fields);
+    repository.lockIdempotency(companyId, idempotencyKey);
     var existing = repository.findByIdempotency(companyId, idempotencyKey);
     if (existing.isPresent()) return new CreateResult(existing.get(), null);
 

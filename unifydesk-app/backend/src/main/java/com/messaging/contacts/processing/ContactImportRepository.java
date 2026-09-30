@@ -276,6 +276,13 @@ public class ContactImportRepository {
         id);
   }
 
+  public void lockIdempotency(long companyId, String key) {
+    jdbcTemplate.query(
+        "select pg_advisory_xact_lock(hashtextextended(?, 0))",
+        rs -> null,
+        companyId + ":contact-import:" + key);
+  }
+
   public Optional<ImportRow> findByIdempotency(long companyId, String key) {
     return jdbcTemplate
         .query(

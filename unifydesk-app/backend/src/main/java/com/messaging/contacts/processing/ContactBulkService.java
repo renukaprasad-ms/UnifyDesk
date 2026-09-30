@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +20,7 @@ public class ContactBulkService {
   private final ObjectMapper objectMapper;
   private final AsyncJobService asyncJobs;
 
+  @Transactional
   public CreateResult create(
       long companyId,
       long userId,
@@ -26,6 +28,7 @@ public class ContactBulkService {
       ContactBulkMutationPort.Operation operation,
       String idempotencyKey) {
     validate(selection, operation, idempotencyKey);
+    repository.lockIdempotency(companyId, idempotencyKey);
     var existing = repository.findByIdempotency(companyId, idempotencyKey);
     if (existing.isPresent()) return new CreateResult(existing.get().id(), null);
 

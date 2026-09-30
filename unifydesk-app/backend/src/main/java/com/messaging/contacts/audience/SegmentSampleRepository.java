@@ -44,7 +44,7 @@ public class SegmentSampleRepository {
           limit 1
         ) email on true
         left join lateral (
-          select ci.normalized_value
+          select ci.value
           from contact_identities ci
           where ci.company_id = c.company_id
             and ci.contact_id = c.id

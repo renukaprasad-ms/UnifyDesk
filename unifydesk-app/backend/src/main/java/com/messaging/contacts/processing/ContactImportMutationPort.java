@@ -9,6 +9,7 @@ public interface ContactImportMutationPort {
 
   BatchResult applyBatch(
       long companyId,
+      long importId,
       long requestedByUserId,
       ImportMapping mapping,
       DuplicateStrategy duplicateStrategy,

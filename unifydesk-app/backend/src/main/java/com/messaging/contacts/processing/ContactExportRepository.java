@@ -46,6 +46,13 @@ public class ContactExportRepository {
     return require(companyId, id);
   }
 
+  public void lockIdempotency(long companyId, String key) {
+    jdbcTemplate.query(
+        "select pg_advisory_xact_lock(hashtextextended(?, 0))",
+        rs -> null,
+        companyId + ":contact-export:" + key);
+  }
+
   public Optional<ExportRow> findByIdempotency(long companyId, String key) {
     return jdbcTemplate
         .query(

@@ -35,7 +35,9 @@ public class ContactBulkWorker {
         asyncJobs.complete(jobId, "Bulk operation completed");
         return;
       }
-      var result = port.apply(companyId, row.requestedByUserId(), operation, ids);
+      var result =
+          port.apply(
+              companyId, operationId, row.requestedByUserId(), operation, ids);
       long newCursor = ids.getLast();
       repository.advance(
           companyId,

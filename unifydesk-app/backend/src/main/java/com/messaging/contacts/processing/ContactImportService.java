@@ -3,10 +3,7 @@ package com.messaging.contacts.processing;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.asyncjob.dto.AsyncJobResponse;
-import com.messaging.asyncjob.enums.AsyncJobType;
-import com.messaging.asyncjob.service.AsyncJobService;
 import com.messaging.common.exception.BadRequestException;
-import com.messaging.common.exception.ConflictException;
 import com.messaging.common.id.IdGenerator;
 import com.messaging.contacts.audience.ContactAudienceProperties;
 import com.messaging.contacts.processing.ContactImportMutationPort.DuplicateStrategy;
@@ -24,8 +21,6 @@ import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.csv.CSVFormat;
@@ -44,7 +39,7 @@ public class ContactImportService {
   private final ContactStorageAdapter storage;
   private final ContactAudienceProperties properties;
   private final ObjectMapper objectMapper;
-  private final AsyncJobService asyncJobs;
+  private final ContactImportCommitCoordinator commitCoordinator;
 
   public ImportIntent initiate(
       long companyId,
@@ -137,41 +132,17 @@ public class ContactImportService {
     String mappingJson = json(mapping);
     String mappingHash = sha256(mappingJson.getBytes(StandardCharsets.UTF_8));
 
-    Optional<ContactImportRepository.ImportRow> replay =
-        repository.findByIdempotency(companyId, idempotencyKey);
-    if (replay.isPresent()) {
-      ContactImportRepository.ImportRow existing = replay.get();
-      if (!Objects.equals(existing.contentSha256(), checksum)
-          || !Objects.equals(existing.mappingHash(), mappingHash)) {
-        throw new ConflictException("CONTACT_IMPORT_IDEMPOTENCY_CONFLICT");
-      }
-      return new CommitResult(existing, null);
-    }
-
-    AsyncJobResponse job =
-        asyncJobs.create(
-            companyId,
-            userId,
-            AsyncJobType.CONTACT_IMPORT,
-            Long.toString(importId),
-            null,
-            "Contact import queued");
-    ContactImportRepository.QueueResult queued =
-        repository.queue(
-            companyId,
-            importId,
-            checksum,
-            mappingJson,
-            mappingHash,
-            duplicateStrategy.name(),
-            targetListId,
-            idempotencyKey,
-            Long.parseLong(job.jobId()));
-    if (queued.newlyQueued()) {
-      storage.commitImportReservation(
-          companyId, importId, row.expectedSizeBytes(), metadata.sizeBytes());
-    }
-    return new CommitResult(queued.row(), job);
+    return commitCoordinator.queue(
+        companyId,
+        userId,
+        importId,
+        checksum,
+        mappingJson,
+        mappingHash,
+        duplicateStrategy,
+        targetListId,
+        idempotencyKey,
+        metadata.sizeBytes());
   }
 
   public ContactImportRepository.ImportRow get(long companyId, long importId) {
@@ -243,7 +214,15 @@ public class ContactImportService {
         || headers.stream().distinct().count() != headers.size()) {
       throw invalid();
     }
-    return List.copyOf(headers);
+    List<String> normalized = new java.util.ArrayList<>(headers);
+    String first = normalized.getFirst();
+    if (!first.isEmpty() && first.charAt(0) == '\uFEFF') {
+      normalized.set(0, first.substring(1));
+    }
+    if (normalized.getFirst().isBlank() || normalized.stream().distinct().count() != normalized.size()) {
+      throw invalid();
+    }
+    return List.copyOf(normalized);
   }
 
   private void validateUploaded(
