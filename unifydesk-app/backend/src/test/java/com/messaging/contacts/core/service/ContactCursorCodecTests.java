@@ -2,6 +2,7 @@ package com.messaging.contacts.core.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.messaging.contacts.core.domain.ContactTypes.ContactSort;
 import com.messaging.contacts.core.exception.ContactCoreException;
@@ -126,12 +127,17 @@ class ContactCursorCodecTests {
     String dedicatedSecret = "dedicated-secret-that-must-not-leak";
     String sharedSecret = "shared-secret-that-must-not-leak";
 
-    assertThatThrownBy(() -> new ContactCursorCodec("", "   "))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("APP_CONTACTS_CURSOR_HMAC_KEY")
-        .hasMessageContaining("CHANNEL_CREDENTIAL_MASTER_KEY")
-        .hasMessageNotContaining(dedicatedSecret)
-        .hasMessageNotContaining(sharedSecret);
+    IllegalStateException blankSecretFailure =
+        assertThrows(IllegalStateException.class, () -> new ContactCursorCodec("", "   "));
+    IllegalStateException missingSecretFailure =
+        assertThrows(IllegalStateException.class, () -> new ContactCursorCodec(null, null));
+
+    assertThat(blankSecretFailure.getMessage())
+        .contains("APP_CONTACTS_CURSOR_HMAC_KEY", "CHANNEL_CREDENTIAL_MASTER_KEY")
+        .doesNotContain(dedicatedSecret, sharedSecret);
+    assertThat(missingSecretFailure.getMessage())
+        .contains("APP_CONTACTS_CURSOR_HMAC_KEY", "CHANNEL_CREDENTIAL_MASTER_KEY")
+        .doesNotContain(dedicatedSecret, sharedSecret);
   }
 
   private ContactCursorCodec codec(String key) {
