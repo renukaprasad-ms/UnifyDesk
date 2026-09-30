@@ -17,6 +17,7 @@ public class ContactJobDispatcher {
   private final ContactImportWorker importWorker;
   private final ContactExportWorker exportWorker;
   private final ContactBulkWorker bulkWorker;
+  private final ContactDeletePurgeWorker deletePurgeWorker;
   private final SegmentService segmentService;
   private final AudienceSnapshotService snapshotService;
   private final ContactAudienceProperties properties;
@@ -28,6 +29,7 @@ public class ContactJobDispatcher {
       ContactImportWorker importWorker,
       ContactExportWorker exportWorker,
       ContactBulkWorker bulkWorker,
+      ContactDeletePurgeWorker deletePurgeWorker,
       SegmentService segmentService,
       AudienceSnapshotService snapshotService,
       ContactAudienceProperties properties) {
@@ -35,6 +37,7 @@ public class ContactJobDispatcher {
     this.importWorker = importWorker;
     this.exportWorker = exportWorker;
     this.bulkWorker = bulkWorker;
+    this.deletePurgeWorker = deletePurgeWorker;
     this.segmentService = segmentService;
     this.snapshotService = snapshotService;
     this.properties = properties;
@@ -49,6 +52,7 @@ public class ContactJobDispatcher {
             AsyncJobType.CONTACT_IMPORT,
             AsyncJobType.CONTACT_EXPORT,
             AsyncJobType.CONTACT_BULK,
+            AsyncJobType.CONTACT_DELETE_PURGE,
             AsyncJobType.CONTACT_SEGMENT_COUNT,
             AsyncJobType.CONTACT_AUDIENCE_SNAPSHOT)) {
       if (available <= 0) break;
@@ -78,6 +82,11 @@ public class ContactJobDispatcher {
       case CONTACT_IMPORT -> importWorker.process(job.companyId(), resourceId, job.jobId());
       case CONTACT_EXPORT -> exportWorker.process(job.companyId(), resourceId, job.jobId());
       case CONTACT_BULK -> bulkWorker.process(job.companyId(), resourceId, job.jobId());
+      case CONTACT_DELETE_PURGE -> {
+        asyncJobs.startOrResume(job.jobId(), 1, "Contact privacy purge running");
+        deletePurgeWorker.process(job.companyId(), resourceId);
+        asyncJobs.complete(job.jobId(), "Contact privacy purge completed");
+      }
       case CONTACT_SEGMENT_COUNT -> {
         asyncJobs.startOrResume(job.jobId(), 1, "Segment count running");
         segmentService.processCountJob(job.companyId(), resourceId);
