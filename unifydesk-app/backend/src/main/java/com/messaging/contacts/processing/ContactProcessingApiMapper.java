@@ -2,7 +2,11 @@ package com.messaging.contacts.processing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.asyncjob.dto.AsyncJobResponse;
+import com.messaging.contacts.processing.ContactExportRowSource.Source;
+import com.messaging.contacts.processing.ContactProcessingApiModel.BulkOperation;
 import com.messaging.contacts.processing.ContactProcessingApiModel.BulkOperationResponse;
+import com.messaging.contacts.processing.ContactProcessingApiModel.BulkSelection;
+import com.messaging.contacts.processing.ContactProcessingApiModel.ExportCreateRequest;
 import com.messaging.contacts.processing.ContactProcessingApiModel.ContactExportResponse;
 import com.messaging.contacts.processing.ContactProcessingApiModel.ContactImportResponse;
 import com.messaging.contacts.processing.ContactProcessingApiModel.ExportDownloadResponse;
@@ -21,6 +25,83 @@ import org.springframework.stereotype.Component;
 public class ContactProcessingApiMapper {
 
   private final ObjectMapper objectMapper;
+
+  public Source exportSource(ExportCreateRequest request) {
+    if (request == null || request.sourceType() == null) throw invalid();
+    Long sourceId = parseOptionalId(request.sourceId());
+    if (request.sourceType() == ContactExportRowSource.SourceType.CONTACTS) {
+      if (sourceId != null) throw invalid();
+    } else if (sourceId == null) {
+      throw invalid();
+    }
+    return new Source(request.sourceType(), sourceId);
+  }
+
+  public ContactBulkService.Selection bulkSelection(BulkSelection selection) {
+    if (selection == null || selection.type() == null) throw invalid();
+    return switch (selection.type()) {
+      case IDS ->
+          new ContactBulkService.Selection(
+              ContactBulkService.SelectionType.IDS,
+              parseIds(selection.ids()),
+              null,
+              null);
+      case LIST ->
+          new ContactBulkService.Selection(
+              ContactBulkService.SelectionType.LIST,
+              null,
+              requireId(selection.listId()),
+              null);
+      case SEGMENT ->
+          new ContactBulkService.Selection(
+              ContactBulkService.SelectionType.SEGMENT,
+              null,
+              requireId(selection.segmentId()),
+              null);
+      case FILTER -> {
+        if (selection.filter() == null) throw invalid();
+        yield new ContactBulkService.Selection(
+            ContactBulkService.SelectionType.FILTER,
+            null,
+            null,
+            new ContactBulkService.ContactFilter(
+                selection.filter().q(),
+                selection.filter().status(),
+                parseOptionalId(selection.filter().tagId()),
+                parseOptionalId(selection.filter().listId()),
+                selection.filter().createdAfter(),
+                selection.filter().createdBefore(),
+                selection.filter().sort()));
+      }
+    };
+  }
+
+  public ContactBulkMutationPort.Operation bulkOperation(BulkOperation operation) {
+    if (operation == null || operation.type() == null) throw invalid();
+    try {
+      return switch (operation.type()) {
+        case "ADD_TAG", "REMOVE_TAG" ->
+            new ContactBulkMutationPort.Operation(
+                operation.type(), requireId(operation.tagId()), null, null);
+        case "ADD_TO_LIST", "REMOVE_FROM_LIST" ->
+            new ContactBulkMutationPort.Operation(
+                operation.type(), requireId(operation.listId()), null, null);
+        case "UPDATE_FIELD" ->
+            new ContactBulkMutationPort.Operation(
+                operation.type(),
+                requireId(operation.fieldId()),
+                null,
+                operation.value() == null
+                    ? "null"
+                    : objectMapper.writeValueAsString(operation.value()));
+        case "DELETE" ->
+            new ContactBulkMutationPort.Operation(operation.type(), null, null, null);
+        default -> throw invalid();
+      };
+    } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
+      throw invalid();
+    }
+  }
 
   public ContactImportResponse importIntent(ContactImportService.ImportIntent intent) {
     return new ContactImportResponse(
@@ -129,6 +210,17 @@ public class ContactProcessingApiMapper {
             row.processedCount(),
             row.succeededCount(),
             row.failedCount()));
+  }
+
+  private List<Long> parseIds(List<String> values) {
+    if (values == null || values.isEmpty() || values.size() > 500) throw invalid();
+    return values.stream().map(this::requireId).distinct().toList();
+  }
+
+  private long requireId(String value) {
+    Long parsed = parseOptionalId(value);
+    if (parsed == null) throw invalid();
+    return parsed;
   }
 
   public Long parseOptionalId(String value) {
