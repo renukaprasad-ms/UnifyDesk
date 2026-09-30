@@ -44,7 +44,7 @@ public class ContactBulkMutationAdapter implements ContactBulkMutationPort {
 
     List<Long> ids = contactIds.stream().distinct().toList();
     if ("DELETE".equals(operation.type())) {
-      return deleteIndependently(companyId, requestedByUserId, ids);
+      throw new IllegalStateException("CONTACT_BULK_DELETE_REQUIRES_CHECKPOINT_COORDINATOR");
     }
 
     TransactionTemplate transaction = new TransactionTemplate(transactionManager);
@@ -142,24 +142,5 @@ public class ContactBulkMutationAdapter implements ContactBulkMutationPort {
     }
   }
 
-  /**
-   * Contact deletion has its own lifecycle, hooks and optimistic state. Process each Contact in an
-   * independent transaction so one worker batch never holds locks across hundreds/thousands of
-   * destructive workflows.
-   */
-  private BatchResult deleteIndependently(long companyId, long userId, List<Long> ids) {
-    TransactionTemplate transaction = new TransactionTemplate(transactionManager);
-    long succeeded = 0;
-    long failed = 0;
-    for (Long contactId : ids) {
-      try {
-        transaction.executeWithoutResult(
-            status -> contactService.delete(companyId, contactId, userId));
-        succeeded++;
-      } catch (RuntimeException exception) {
-        failed++;
-      }
-    }
-    return new BatchResult(succeeded, failed);
-  }
+
 }
