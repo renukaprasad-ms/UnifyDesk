@@ -30,6 +30,7 @@ public class BroadcastPreparationChunkService {
   private final BroadcastOutboxService outboxService;
   private final BroadcastProperties properties;
   private final BroadcastProgressPublisher progressPublisher;
+  private final BroadcastRunFailureService runFailureService;
   private final AudienceSnapshotService audienceSnapshotService;
 
   @Transactional
@@ -112,7 +113,19 @@ public class BroadcastPreparationChunkService {
         audienceSnapshotService.get(run.getCompanyId(), run.getAudienceSnapshotId());
 
     if ("PREPARING".equals(snapshot.status())) {
-      audienceSnapshotService.processBatch(run.getCompanyId(), snapshot.id());
+      try {
+        audienceSnapshotService.processBatch(run.getCompanyId(), snapshot.id());
+      } catch (IllegalStateException exception) {
+        if ("Audience source changed after snapshot freeze".equals(exception.getMessage())) {
+          audienceSnapshotService.fail(run.getCompanyId(), snapshot.id());
+          runFailureService.fail(
+              run.getId(),
+              "AUDIENCE_SOURCE_CHANGED",
+              "The List or Segment changed while the audience snapshot was being materialized");
+          return;
+        }
+        throw exception;
+      }
       snapshot = audienceSnapshotService.get(run.getCompanyId(), snapshot.id());
       if ("PREPARING".equals(snapshot.status())) {
         outboxService.enqueueRunPrepare(run.getCompanyId(), run.getId(), currentCursor);
