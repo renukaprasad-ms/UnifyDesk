@@ -27,8 +27,6 @@ import com.messaging.contacts.core.service.IdentityNormalizer.NormalizedIdentity
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.text.Normalizer;
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
