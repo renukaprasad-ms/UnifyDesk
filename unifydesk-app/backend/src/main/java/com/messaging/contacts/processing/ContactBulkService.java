@@ -1,0 +1,141 @@
+package com.messaging.contacts.processing;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.messaging.asyncjob.dto.AsyncJobResponse;
+import com.messaging.asyncjob.enums.AsyncJobType;
+import com.messaging.asyncjob.service.AsyncJobService;
+import com.messaging.common.id.IdGenerator;
+import java.time.Instant;
+import java.util.List;
+import java.util.Set;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+public class ContactBulkService {
+
+  private final ContactBulkRepository repository;
+  private final ObjectMapper objectMapper;
+  private final AsyncJobService asyncJobs;
+
+  @Transactional
+  public CreateResult create(
+      long companyId,
+      long userId,
+      Selection selection,
+      ContactBulkMutationPort.Operation operation,
+      String idempotencyKey) {
+    validate(selection, operation, idempotencyKey);
+    repository.lockIdempotency(companyId, idempotencyKey);
+    var existing = repository.findByIdempotency(companyId, idempotencyKey);
+    if (existing.isPresent()) return new CreateResult(existing.get().id(), null);
+
+    long operationId = IdGenerator.nextId();
+    AsyncJobResponse job =
+        asyncJobs.create(
+            companyId,
+            userId,
+            AsyncJobType.CONTACT_BULK,
+            Long.toString(operationId),
+            null,
+            "Contact bulk operation queued");
+    try {
+      repository.create(
+          operationId,
+          companyId,
+          userId,
+          operation.type(),
+          objectMapper.writeValueAsString(selection),
+          objectMapper.writeValueAsString(operation),
+          idempotencyKey,
+          Long.parseLong(job.jobId()));
+    } catch (Exception exception) {
+      throw new com.messaging.common.exception.BadRequestException("CONTACT_BULK_INVALID");
+    }
+    return new CreateResult(operationId, job);
+  }
+
+  public ContactBulkRepository.BulkRow get(long companyId, long operationId) {
+    return repository.require(companyId, operationId);
+  }
+
+  public Selection parseSelection(String json) {
+    try {
+      return objectMapper.readValue(json, Selection.class);
+    } catch (Exception exception) {
+      throw new IllegalStateException("Stored bulk selection is invalid", exception);
+    }
+  }
+
+  public ContactBulkMutationPort.Operation parseOperation(String json) {
+    try {
+      return objectMapper.readValue(json, ContactBulkMutationPort.Operation.class);
+    } catch (Exception exception) {
+      throw new IllegalStateException("Stored bulk operation is invalid", exception);
+    }
+  }
+
+  private void validate(
+      Selection selection, ContactBulkMutationPort.Operation operation, String idempotencyKey) {
+    if (selection == null
+        || selection.type() == null
+        || operation == null
+        || operation.type() == null
+        || idempotencyKey == null
+        || idempotencyKey.isBlank()
+        || idempotencyKey.length() > 160) {
+      throw invalid();
+    }
+    if (selection.type() == SelectionType.IDS
+        && (selection.ids() == null
+            || selection.ids().isEmpty()
+            || selection.ids().size() > 500)) {
+      throw invalid();
+    }
+    if ((selection.type() == SelectionType.LIST
+            || selection.type() == SelectionType.SEGMENT)
+        && selection.sourceId() == null) {
+      throw invalid();
+    }
+    if (selection.type() == SelectionType.FILTER && selection.filter() == null) {
+      throw invalid();
+    }
+    if (!Set.of(
+            "ADD_TAG",
+            "REMOVE_TAG",
+            "ADD_TO_LIST",
+            "REMOVE_FROM_LIST",
+            "UPDATE_FIELD",
+            "DELETE")
+        .contains(operation.type())) {
+      throw invalid();
+    }
+  }
+
+  private com.messaging.common.exception.BadRequestException invalid() {
+    return new com.messaging.common.exception.BadRequestException("CONTACT_BULK_INVALID");
+  }
+
+  public enum SelectionType {
+    IDS,
+    LIST,
+    SEGMENT,
+    FILTER
+  }
+
+  public record ContactFilter(
+      String q,
+      String status,
+      Long tagId,
+      Long listId,
+      Instant createdAfter,
+      Instant createdBefore,
+      String sort) {}
+
+  public record Selection(
+      SelectionType type, List<Long> ids, Long sourceId, ContactFilter filter) {}
+
+  public record CreateResult(long operationId, AsyncJobResponse job) {}
+}
