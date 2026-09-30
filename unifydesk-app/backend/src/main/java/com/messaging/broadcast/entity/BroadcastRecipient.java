@@ -33,8 +33,20 @@ public class BroadcastRecipient {
   @Column(name = "sender_id")
   private Long senderId;
 
-  @Column(name = "source_member_id", nullable = false)
+  @Column(name = "source_member_id")
   private Long sourceMemberId;
+
+  @Column(name = "contact_id")
+  private Long contactId;
+
+  @Column(name = "contact_identity_id")
+  private Long contactIdentityId;
+
+  @Column(name = "audience_snapshot_id")
+  private Long audienceSnapshotId;
+
+  @Column(name = "audience_snapshot_sequence_id")
+  private Long audienceSnapshotSequenceId;
 
   @Column(nullable = false, length = 320)
   private String destination;
