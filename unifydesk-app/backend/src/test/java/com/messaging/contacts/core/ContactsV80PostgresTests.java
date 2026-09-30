@@ -215,7 +215,7 @@ class ContactsV80PostgresTests {
                       Long.class))
           .isEqualTo(1L);
       assertThat(repository.listsForContact(101L, 201L))
-          .extracting("id")
+          .extracting(row -> row.id())
           .containsExactly(301L);
       assertThat(repository.listsForContact(102L, 201L)).isEmpty();
     } finally {
