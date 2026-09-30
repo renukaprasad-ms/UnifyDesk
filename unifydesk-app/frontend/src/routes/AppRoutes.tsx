@@ -41,6 +41,14 @@ import PlaceholderPage from '../pages/placeholder/PlaceholderPage'
 import NotificationsPage from '../pages/notifications/NotificationsPage'
 import NotificationOpenPage from '../pages/notifications/NotificationOpenPage'
 import TemplateLibrary from '../pages/templates/TemplateLibrary'
+import ContactsPage from '../pages/contacts/ContactsPage'
+import ContactDetailPage from '../pages/contacts/ContactDetailPage'
+import ListsPage from '../pages/contacts/ListsPage'
+import ListDetailPage from '../pages/contacts/ListDetailPage'
+import SegmentsPage from '../pages/contacts/SegmentsPage'
+import SegmentEditorPage from '../pages/contacts/SegmentEditorPage'
+import ImportsPage from '../pages/contacts/ImportsPage'
+import ImportDetailPage from '../pages/contacts/ImportDetailPage'
 import PlatformAdmins from '../pages/platform/PlatformAdmins'
 import PlatformBilling from '../pages/platform/PlatformBilling'
 import PlatformCompanies from '../pages/platform/PlatformCompanies'
@@ -132,6 +140,17 @@ const AppRoutes = () => (
               <Route path="ad-center/billing" element={<AdBilling />} />
               <Route path="ad-center/activity" element={<AdActivity />} />
               <Route path="ad-center/settings" element={<AdSettings />} />
+            </Route>
+            <Route element={<PermissionRoute anyOf={[PERMISSIONS.CONTACT_READ]} />}>
+              <Route path="contacts" element={<ContactsPage />} />
+              <Route path="contacts/lists" element={<ListsPage />} />
+              <Route path="contacts/lists/:listId" element={<ListDetailPage />} />
+              <Route path="contacts/segments" element={<SegmentsPage />} />
+              <Route path="contacts/segments/new" element={<SegmentEditorPage />} />
+              <Route path="contacts/segments/:segmentId" element={<SegmentEditorPage />} />
+              <Route path="contacts/imports" element={<ImportsPage />} />
+              <Route path="contacts/imports/:importId" element={<ImportDetailPage />} />
+              <Route path="contacts/:contactId" element={<ContactDetailPage />} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.TEMPLATE_READ]} />}>
               <Route path="templates" element={<TemplateLibrary />} />

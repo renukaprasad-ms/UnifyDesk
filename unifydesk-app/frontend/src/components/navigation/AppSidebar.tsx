@@ -225,6 +225,17 @@ export default function AppSidebar({
         </NavLink>
         {renderSection('broadcast', 'Broadcast', <FiRadio aria-hidden="true" />, broadcastLinks)}
         {renderSection('inbox', 'Inbox', <FiInbox aria-hidden="true" />, inboxLinks)}
+        {hasWorkspacePermission(PERMISSIONS.CONTACT_READ) && (
+          <NavLink
+            to="/contacts"
+            className={linkClass}
+            onClick={onNavigate}
+            title={compact ? 'Contacts' : undefined}
+          >
+            <FiUsers className="sidebar-icon" aria-hidden="true" />
+            <span className="sidebar-copy">Contacts</span>
+          </NavLink>
+        )}
         {hasWorkspacePermission(PERMISSIONS.ADS_READ) && (
           <NavLink
             to="/ad-center"

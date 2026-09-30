@@ -77,6 +77,15 @@ export const PERMISSIONS = {
   MEDIA_UPLOAD: 'media.upload',
   MEDIA_DELETE: 'media.delete',
 
+  CONTACT_READ: 'contact.read',
+  CONTACT_CREATE: 'contact.create',
+  CONTACT_MODIFY: 'contact.modify',
+  CONTACT_DELETE: 'contact.delete',
+  CONTACT_IMPORT: 'contact.import',
+  CONTACT_EXPORT: 'contact.export',
+  CONTACT_CONSENT_READ: 'contact.consent.read',
+  CONTACT_CONSENT_MODIFY: 'contact.consent.modify',
+
   SETTINGS_READ: 'settings.read',
   SETTINGS_MODIFY: 'settings.modify',
 } as const
