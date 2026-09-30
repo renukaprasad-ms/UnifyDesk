@@ -51,7 +51,27 @@ public class CustomFieldValueCodec {
 
     Map<Long, CustomFieldDefinitionRow> definitions =
         repository.findActiveDefinitions(companyId, byId.keySet());
-    if (definitions.size() != byId.size()) {
+    return validatePrepared(definitions, supplied);
+  }
+
+  public Plan validatePrepared(
+      Map<Long, CustomFieldDefinitionRow> definitions, Map<String, JsonNode> supplied) {
+    if (supplied == null || supplied.isEmpty()) {
+      return new Plan(List.of(), List.of());
+    }
+    if (supplied.size() > 100) {
+      throw ContactCoreException.invalidField();
+    }
+
+    Map<Long, JsonNode> byId = new LinkedHashMap<>();
+    for (Map.Entry<String, JsonNode> entry : supplied.entrySet()) {
+      long id = parseId(entry.getKey());
+      if (byId.put(id, entry.getValue()) != null) {
+        throw ContactCoreException.invalidField();
+      }
+    }
+    if (definitions == null || definitions.size() != byId.size()
+        || !definitions.keySet().containsAll(byId.keySet())) {
       throw ContactCoreException.invalidField();
     }
 
