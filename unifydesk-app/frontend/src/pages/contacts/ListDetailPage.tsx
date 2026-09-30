@@ -160,7 +160,8 @@ export default function ListDetailPage() {
               <button
                 className="primary-button self-end"
                 disabled={busy || !name.trim()}
-                onClick={() =>
+                onClick={() => {
+                  if (!companyId) return
                   void action(
                     () =>
                       contactsApi
@@ -171,7 +172,7 @@ export default function ListDetailPage() {
                         .then(() => undefined),
                     'List updated.',
                   )
-                }
+                }}
               >
                 Save
               </button>
