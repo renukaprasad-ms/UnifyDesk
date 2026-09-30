@@ -103,7 +103,11 @@ public class ContactImportMutationAdapter implements ContactImportMutationPort {
         preparedRows.add(prepared);
         allIdentities.addAll(prepared.identities());
       } catch (RuntimeException exception) {
-        failures.add(failure(row.rowNumber(), exception));
+        RowFailure rowFailure = failure(row.rowNumber(), exception);
+        if ("CONTACT_IMPORT_ROW_FAILED".equals(rowFailure.code())) {
+          throw exception;
+        }
+        failures.add(rowFailure);
       }
     }
 
