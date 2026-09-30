@@ -35,7 +35,8 @@
 		<guava.version>33.7.1-jre</guava.version>
 		<webpush.version>5.1.2</webpush.version>
 		<jose4j.version>0.9.6</jose4j.version>
-		<bouncycastle.version>1.70</bouncycastle.version>\n\t\t<libphonenumber.version>9.0.40</libphonenumber.version>
+		<bouncycastle.version>1.70</bouncycastle.version>
+		<libphonenumber.version>9.0.40</libphonenumber.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -107,6 +108,11 @@
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.googlecode.libphonenumber</groupId>
+			<artifactId>libphonenumber</artifactId>
+			<version>${libphonenumber.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.jsoup</groupId>

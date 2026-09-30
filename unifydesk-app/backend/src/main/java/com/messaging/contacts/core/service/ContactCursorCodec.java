@@ -20,7 +20,7 @@ public class ContactCursorCodec {
 
   private final byte[] signingKey;
 
-  public ContactCursorCodec(@Value("${APP_CONTACTS_CURSOR_HMAC_KEY:}") String configuredKey) {
+  public ContactCursorCodec(@Value("${APP_CONTACTS_CURSOR_HMAC_KEY:${CHANNEL_CREDENTIAL_MASTER_KEY:}}") String configuredKey) {
     if (configuredKey == null || configuredKey.isBlank()) {
       byte[] generated = new byte[32];
       new SecureRandom().nextBytes(generated);

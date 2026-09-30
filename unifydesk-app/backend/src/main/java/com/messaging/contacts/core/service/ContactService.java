@@ -492,10 +492,15 @@ public class ContactService {
   }
 
   private void ensureIdentityOwnersFree(long companyId, List<PreparedIdentity> identities) {
+    Set<IdentityKey> requested =
+        identities.stream()
+            .map(PreparedIdentity::identity)
+            .map(ContactRepository::key)
+            .collect(java.util.stream.Collectors.toSet());
     Map<IdentityKey, Long> owners =
         contactRepository.findActiveIdentityOwners(
             companyId, identities.stream().map(PreparedIdentity::identity).toList());
-    if (!owners.isEmpty()) {
+    if (owners.keySet().stream().anyMatch(requested::contains)) {
       throw ContactCoreException.identityConflict();
     }
   }
