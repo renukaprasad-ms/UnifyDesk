@@ -11,6 +11,7 @@ import com.messaging.contacts.core.domain.ContactTypes.ContactSort;
 import com.messaging.contacts.core.domain.ContactTypes.ContactStatus;
 import com.messaging.contacts.core.domain.ContactTypes.CoreField;
 import com.messaging.contacts.core.domain.ContactTypes.IdentityType;
+import com.messaging.contacts.core.domain.CoreRows.ContactListRow;
 import com.messaging.contacts.core.domain.CoreRows.ContactRow;
 import com.messaging.contacts.core.domain.CoreRows.ContactSummaryRow;
 import com.messaging.contacts.core.domain.CoreRows.IdentityRow;
@@ -174,12 +175,10 @@ public class ContactService {
     putOwner(companyId, columns, request.ownerUserId());
 
     Plan fieldPlan = customFieldCodec.validate(companyId, request.customFields());
-    if (!columns.isEmpty()) {
-      int updated =
-          contactRepository.patchContact(companyId, contactId, columns, current.version());
-      if (updated == 0) {
-        throw ContactCoreException.versionConflict();
-      }
+    int updated =
+        contactRepository.patchContact(companyId, contactId, columns, current.version());
+    if (updated == 0) {
+      throw ContactCoreException.versionConflict();
     }
     customFieldRepository.deleteValues(companyId, contactId, fieldPlan.deletes());
     customFieldRepository.upsertValues(companyId, contactId, fieldPlan.values());
@@ -360,6 +359,8 @@ public class ContactService {
                 .map(this::identity)
                 .toList()
             : List.of();
+    String primaryEmail = preferredIdentity(identities, IdentityType.EMAIL);
+    String primaryPhone = preferredIdentity(identities, IdentityType.PHONE);
     List<TagResponse> tags =
         contact.status() == ContactStatus.ACTIVE
             ? tagRepository.tagsForContact(companyId, contactId).stream()
@@ -372,6 +373,12 @@ public class ContactService {
                             readJson(row.metadataJson()),
                             row.createdAt(),
                             row.updatedAt()))
+                .toList()
+            : List.of();
+    List<ContactListResponse> lists =
+        contact.status() == ContactStatus.ACTIVE
+            ? listRepository.listsForContact(companyId, contactId).stream()
+                .map(this::contactList)
                 .toList()
             : List.of();
     Map<String, JsonNode> customFields = new LinkedHashMap<>();
@@ -391,6 +398,8 @@ public class ContactService {
         contact.lastName(),
         contact.displayName(),
         contact.organization(),
+        primaryEmail,
+        primaryPhone,
         contact.jobTitle(),
         contact.countryCode(),
         contact.timezone(),
@@ -404,6 +413,7 @@ public class ContactService {
             : Long.toString(contact.mergedIntoContactId()),
         identities,
         tags,
+        lists,
         Map.copyOf(customFields),
         contact.createdAt(),
         contact.updatedAt(),
@@ -434,6 +444,26 @@ public class ContactService {
         row.normalizedValue(),
         row.primary(),
         row.status().name());
+  }
+
+  private String preferredIdentity(List<IdentityResponse> identities, IdentityType type) {
+    return identities.stream()
+        .filter(identity -> identity.type() == type)
+        .map(IdentityResponse::normalizedValue)
+        .findFirst()
+        .orElse(null);
+  }
+
+  private ContactListResponse contactList(ContactListRow row) {
+    return new ContactListResponse(
+        Long.toString(row.id()),
+        row.name(),
+        row.description(),
+        row.status().name(),
+        row.memberCount(),
+        row.createdAt(),
+        row.updatedAt(),
+        row.version());
   }
 
   private ContactRow requireActive(long companyId, long contactId) {

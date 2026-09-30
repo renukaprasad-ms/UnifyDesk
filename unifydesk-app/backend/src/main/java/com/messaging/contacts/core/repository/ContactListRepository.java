@@ -106,6 +106,24 @@ public class ContactListRepository {
         companyId);
   }
 
+  public List<ContactListRow> listsForContact(long companyId, long contactId) {
+    return jdbcTemplate.query(
+        """
+        select l.*
+        from contact_list_memberships m
+        join contact_lists l
+          on l.company_id = m.company_id
+         and l.id = m.list_id
+        where m.company_id = ?
+          and m.contact_id = ?
+          and l.status = 'ACTIVE'
+        order by l.normalized_name, l.id
+        """,
+        (rs, rowNum) -> mapList(rs),
+        companyId,
+        contactId);
+  }
+
   public void update(
       long companyId, long listId, String name, String normalizedName, String description) {
     int changed =

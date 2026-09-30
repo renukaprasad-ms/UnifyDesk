@@ -5,6 +5,7 @@ import static com.messaging.contacts.core.api.ContactDtos.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.contacts.core.domain.ContactTypes.ContactSort;
+import com.messaging.contacts.core.domain.ContactTypes.CustomFieldType;
 import com.messaging.contacts.core.domain.ContactTypes.MembershipSource;
 import com.messaging.contacts.core.domain.CoreRows.ContactListRow;
 import com.messaging.contacts.core.domain.CoreRows.ContactSummaryRow;
@@ -109,7 +110,8 @@ public class ContactCatalogService {
       throw ContactCoreException.invalidField();
     }
     String label = normalizedDisplayName(request.label(), 120);
-    String options = customFieldCodec.validateOptions(request.type(), request.options());
+    CustomFieldType domainType = toDomainType(request.type());
+    String options = customFieldCodec.validateOptions(domainType, request.options());
     try {
       return definition(
           customFieldRepository.insertDefinition(
@@ -117,7 +119,7 @@ public class ContactCatalogService {
               fieldKey,
               label,
               normalizedName(label, 120),
-              request.type(),
+              domainType,
               options,
               request.position() == null ? 0 : request.position()));
     } catch (DataIntegrityViolationException exception) {
@@ -138,7 +140,10 @@ public class ContactCatalogService {
       throw ContactCoreException.invalidField();
     }
     String label = normalizedDisplayName(request.label(), 120);
-    String options = customFieldCodec.validateOptions(current.type(), request.options());
+    String options =
+        request.options() == null
+            ? current.optionsJson()
+            : customFieldCodec.validateOptions(current.type(), request.options());
     try {
       customFieldRepository.updateDefinition(
           companyId,
@@ -343,7 +348,7 @@ public class ContactCatalogService {
         Long.toString(row.id()),
         row.fieldKey(),
         row.label(),
-        row.type(),
+        toApiType(row.type()),
         customFieldCodec.readOptions(row.optionsJson()),
         customFieldCodec.indexability(row.type()),
         row.status().name(),
@@ -415,6 +420,30 @@ public class ContactCatalogService {
     } catch (JsonProcessingException exception) {
       throw new IllegalStateException("Invalid stored Contact tag metadata", exception);
     }
+  }
+
+  private CustomFieldType toDomainType(CustomFieldApiType type) {
+    return switch (type) {
+      case TEXT -> CustomFieldType.TEXT;
+      case NUMBER -> CustomFieldType.NUMBER;
+      case BOOLEAN -> CustomFieldType.BOOLEAN;
+      case DATE -> CustomFieldType.DATE;
+      case DATETIME -> CustomFieldType.DATETIME;
+      case SELECT -> CustomFieldType.SINGLE_SELECT;
+      case MULTI_SELECT -> CustomFieldType.MULTI_SELECT;
+    };
+  }
+
+  private CustomFieldApiType toApiType(CustomFieldType type) {
+    return switch (type) {
+      case TEXT -> CustomFieldApiType.TEXT;
+      case NUMBER -> CustomFieldApiType.NUMBER;
+      case BOOLEAN -> CustomFieldApiType.BOOLEAN;
+      case DATE -> CustomFieldApiType.DATE;
+      case DATETIME -> CustomFieldApiType.DATETIME;
+      case SINGLE_SELECT -> CustomFieldApiType.SELECT;
+      case MULTI_SELECT -> CustomFieldApiType.MULTI_SELECT;
+    };
   }
 
   private String listFilterHash(long listId) {

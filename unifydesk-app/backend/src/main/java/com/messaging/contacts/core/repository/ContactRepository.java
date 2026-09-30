@@ -454,9 +454,6 @@ public class ContactRepository {
       long contactId,
       Map<String, Object> columns,
       long expectedVersion) {
-    if (columns.isEmpty()) {
-      return 0;
-    }
     StringJoiner assignments = new StringJoiner(", ");
     MapSqlParameterSource params =
         new MapSqlParameterSource()
@@ -467,12 +464,12 @@ public class ContactRepository {
       assignments.add(entry.getKey() + " = :" + entry.getKey());
       params.addValue(entry.getKey(), entry.getValue());
     }
+    assignments.add("updated_at = now()");
+    assignments.add("version = version + 1");
     String sql =
         """
         update contacts
-        set %s,
-            updated_at = now(),
-            version = version + 1
+        set %s
         where company_id = :companyId
           and id = :contactId
           and status = 'ACTIVE'

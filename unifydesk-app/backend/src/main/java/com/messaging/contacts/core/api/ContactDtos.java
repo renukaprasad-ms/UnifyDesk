@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.messaging.contacts.core.domain.ContactTypes.ContactSort;
 import com.messaging.contacts.core.domain.ContactTypes.ContactStatus;
 import com.messaging.contacts.core.domain.ContactTypes.CoreField;
-import com.messaging.contacts.core.domain.ContactTypes.CustomFieldType;
 import com.messaging.contacts.core.domain.ContactTypes.IdentityType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -84,10 +83,20 @@ public final class ContactDtos {
       @Size(max = 32) String color,
       JsonNode metadata) {}
 
+  public enum CustomFieldApiType {
+    TEXT,
+    NUMBER,
+    BOOLEAN,
+    DATE,
+    DATETIME,
+    SELECT,
+    MULTI_SELECT
+  }
+
   public record CustomFieldDefinitionRequest(
       @NotBlank @Size(max = 64) String fieldKey,
       @NotBlank @Size(max = 120) String label,
-      @NotNull CustomFieldType type,
+      @NotNull CustomFieldApiType type,
       List<String> options,
       Integer position) {}
 
@@ -142,6 +151,8 @@ public final class ContactDtos {
       String lastName,
       String displayName,
       String organization,
+      String primaryEmail,
+      String primaryPhone,
       String jobTitle,
       String countryCode,
       String timezone,
@@ -153,6 +164,7 @@ public final class ContactDtos {
       String mergedIntoContactId,
       List<IdentityResponse> identities,
       List<TagResponse> tags,
+      List<ContactListResponse> lists,
       Map<String, JsonNode> customFields,
       Instant createdAt,
       Instant updatedAt,
@@ -162,7 +174,7 @@ public final class ContactDtos {
       String id,
       String fieldKey,
       String label,
-      CustomFieldType type,
+      CustomFieldApiType type,
       List<String> options,
       String indexability,
       String status,
