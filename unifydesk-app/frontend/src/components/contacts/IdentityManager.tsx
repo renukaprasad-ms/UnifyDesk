@@ -5,7 +5,7 @@ type Props = {
   identities: ContactIdentity[]
   canModify: boolean
   busy: boolean
-  onAdd: (type: IdentityType, value: string) => Promise<void>
+  onAdd: (type: IdentityType, value: string, namespace?: string | null) => Promise<void>
   onPrimary: (identityId: string) => Promise<void>
   onRemove: (identityId: string) => Promise<void>
 }
@@ -20,12 +20,14 @@ export default function IdentityManager({
 }: Props) {
   const [type, setType] = useState<IdentityType>('EMAIL')
   const [value, setValue] = useState('')
+  const [namespace, setNamespace] = useState('')
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (!value.trim()) return
-    await onAdd(type, value.trim())
+    if (!value.trim() || (type === 'EXTERNAL' && !namespace.trim())) return
+    await onAdd(type, value.trim(), type === 'EXTERNAL' ? namespace.trim() : null)
     setValue('')
+    setNamespace('')
   }
 
   return (
@@ -107,7 +109,22 @@ export default function IdentityManager({
             placeholder={type === 'EMAIL' ? 'name@example.com' : type === 'PHONE' ? '+91…' : 'External ID'}
             onChange={(event) => setValue(event.target.value)}
           />
-          <button className="primary-button" disabled={busy || !value.trim()}>
+          {type === 'EXTERNAL' && (
+            <>
+              <label className="sr-only" htmlFor="identity-namespace">External identity namespace</label>
+              <input
+                id="identity-namespace"
+                className="form-input sm:col-start-2"
+                value={namespace}
+                placeholder="Namespace, e.g. crm"
+                onChange={(event) => setNamespace(event.target.value)}
+              />
+            </>
+          )}
+          <button
+            className="primary-button"
+            disabled={busy || !value.trim() || (type === 'EXTERNAL' && !namespace.trim())}
+          >
             Add identity
           </button>
         </form>

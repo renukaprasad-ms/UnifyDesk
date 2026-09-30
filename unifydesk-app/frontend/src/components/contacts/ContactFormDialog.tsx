@@ -8,9 +8,18 @@ type Props = {
   saving: boolean
   onClose: () => void
   onSubmit: (draft: ContactFormDraft) => void
+  showIdentityFields?: boolean
 }
 
-export default function ContactFormDialog({ open, title, initial, saving, onClose, onSubmit }: Props) {
+export default function ContactFormDialog({
+  open,
+  title,
+  initial,
+  saving,
+  onClose,
+  onSubmit,
+  showIdentityFields = true,
+}: Props) {
   const [draft, setDraft] = useState<ContactFormDraft>(initial ?? emptyContactDraft)
   const [errors, setErrors] = useState<Partial<Record<keyof ContactFormDraft, string>>>({})
 
@@ -67,8 +76,8 @@ export default function ContactFormDialog({ open, title, initial, saving, onClos
           {field('organization', 'Organization')}
           {field('firstName', 'First name')}
           {field('lastName', 'Last name')}
-          {field('email', 'Primary email', 'email')}
-          {field('phone', 'Primary phone', 'tel')}
+          {showIdentityFields && field('email', 'Primary email', 'email')}
+          {showIdentityFields && field('phone', 'Primary phone', 'tel')}
           <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
             <span className="mb-2 block">Notes</span>
             <textarea

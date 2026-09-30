@@ -4,6 +4,7 @@ import ContactAttributesPanel from '../../components/contacts/ContactAttributesP
 import ContactFormDialog from '../../components/contacts/ContactFormDialog'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import IdentityManager from '../../components/contacts/IdentityManager'
+import ManualSuppressionForm from '../../components/contacts/ManualSuppressionForm'
 import {
   toPatchContactInput,
   type ContactFormDraft,
@@ -362,6 +363,20 @@ export default function ContactDetailPage() {
               <p className="mt-1 text-sm text-slate-500">
                 Suppression is a delivery prohibition and remains separate from consent.
               </p>
+              {can(PERMISSIONS.CONTACT_CONSENT_MODIFY) && (
+                <ManualSuppressionForm
+                  busy={busy}
+                  onCreate={(payload) =>
+                    mutate(
+                      () =>
+                        contactsApi
+                          .createSuppression(companyId, contactId, payload)
+                          .then(() => undefined),
+                      'Suppression added.',
+                    )
+                  }
+                />
+              )}
               <div className="mt-4 space-y-2">
                 {suppressions.length === 0 ? (
                   <p className="text-sm text-slate-500">No active suppressions.</p>

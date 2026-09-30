@@ -42,7 +42,11 @@ export default function ContactAttributesPanel({
 
   const updateField = (field: CustomFieldDefinition, raw: string | boolean) => {
     let value: CustomFieldValue = typeof raw === 'boolean' ? raw : raw
-    if (field.type === 'NUMBER') value = raw === '' ? null : Number(raw)
+    if (field.type === 'BOOLEAN') {
+      value = raw === '' ? null : raw
+    } else if (field.type === 'NUMBER') {
+      value = raw === '' ? null : Number(raw)
+    }
     if (field.type === 'MULTI_SELECT' && typeof raw === 'string') {
       value = raw.split(',').map((item) => item.trim()).filter(Boolean)
     }
