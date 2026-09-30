@@ -16,7 +16,11 @@ public record BroadcastRecipientResponse(
     Instant bouncedAt,
     Instant failedAt,
     String failureCode,
-    String failureReason) {
+    String failureReason,
+    String contactId,
+    String contactIdentityId,
+    String audienceSnapshotId,
+    Long audienceSnapshotSequenceId) {
 
   public static BroadcastRecipientResponse from(BroadcastRecipient recipient) {
     return new BroadcastRecipientResponse(
@@ -31,6 +35,14 @@ public record BroadcastRecipientResponse(
         recipient.getBouncedAt(),
         recipient.getFailedAt(),
         recipient.getFailureCode(),
-        recipient.getFailureReason());
+        recipient.getFailureReason(),
+        stringId(recipient.getContactId()),
+        stringId(recipient.getContactIdentityId()),
+        stringId(recipient.getAudienceSnapshotId()),
+        recipient.getAudienceSnapshotSequenceId());
+  }
+
+  private static String stringId(Long value) {
+    return value == null ? null : value.toString();
   }
 }
