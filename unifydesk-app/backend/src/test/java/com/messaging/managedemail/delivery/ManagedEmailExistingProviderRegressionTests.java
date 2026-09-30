@@ -11,6 +11,7 @@ import com.messaging.broadcast.enums.BroadcastSenderManagementMode;
 import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.broadcast.service.*;
 import com.messaging.broadcast.transport.*;
+import com.messaging.contacts.consent.ContactEligibilityService;
 import com.messaging.managedemail.events.ManagedEmailPostAcceptanceReconciler;
 import com.messaging.managedemail.metering.ManagedEmailUsageService;
 import java.time.Instant;
@@ -41,6 +42,7 @@ class ManagedEmailExistingProviderRegressionTests {
     ManagedEmailSuppressionGate suppressionGate = mock(ManagedEmailSuppressionGate.class);
     ManagedEmailProviderBudgetService budget = mock(ManagedEmailProviderBudgetService.class);
     BroadcastEmailTransport transport = mock(BroadcastEmailTransport.class);
+    ContactEligibilityService contactEligibility = mock(ContactEligibilityService.class);
 
     BroadcastRun run = new BroadcastRun();
     run.setId(60L);
@@ -96,13 +98,15 @@ class ManagedEmailExistingProviderRegressionTests {
             usage,
             reconciler,
             suppressionGate,
-            budget);
+            budget,
+            contactEligibility);
 
     service.deliver(run, connection, sender, recipient);
 
     verify(genericRate).tryAcquire(connection);
     verify(transport).send(eq(connection), eq(sender), any(BroadcastEmailCommand.class));
     verify(state).accepted(eq(attempt), any(BroadcastEmailResult.class));
-    verifyNoInteractions(managedGuard, managedRate, usage, reconciler, suppressionGate, budget);
+    verifyNoInteractions(
+        managedGuard, managedRate, usage, reconciler, suppressionGate, budget, contactEligibility);
   }
 }

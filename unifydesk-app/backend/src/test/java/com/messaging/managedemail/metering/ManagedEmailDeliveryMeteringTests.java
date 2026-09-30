@@ -11,6 +11,7 @@ import com.messaging.broadcast.enums.BroadcastSenderManagementMode;
 import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.broadcast.service.*;
 import com.messaging.broadcast.transport.*;
+import com.messaging.contacts.consent.ContactEligibilityService;
 import com.messaging.managedemail.delivery.ManagedEmailDeliveryGuard;
 import com.messaging.managedemail.delivery.ManagedEmailProviderBudgetService;
 import com.messaging.managedemail.delivery.ManagedEmailRateLimiter;
@@ -102,6 +103,7 @@ class ManagedEmailDeliveryMeteringTests {
     ManagedEmailSuppressionGate suppressionGate = mock(ManagedEmailSuppressionGate.class);
     ManagedEmailProviderBudgetService budget = mock(ManagedEmailProviderBudgetService.class);
     BroadcastEmailTransport transport = mock(BroadcastEmailTransport.class);
+    ContactEligibilityService contactEligibility = mock(ContactEligibilityService.class);
 
     BroadcastRun run = new BroadcastRun();
     run.setId(60L);
@@ -183,7 +185,8 @@ class ManagedEmailDeliveryMeteringTests {
             usage,
             reconciler,
             suppressionGate,
-            budget);
+            budget,
+            contactEligibility);
     return new Fixture(
         service,
         state,
