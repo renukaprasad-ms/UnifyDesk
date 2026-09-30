@@ -188,7 +188,10 @@ public class ContactCompanyPurgeService {
 
   private void deleteObject(StorageProviderType provider, String bucket, String objectKey) {
     if (provider == null || bucket == null || objectKey == null) return;
-    storageProviderResolver.resolve(provider).delete(bucket, objectKey);
+    var storage = storageProviderResolver.resolve(provider);
+    if (storage.getObjectMetadata(bucket, objectKey).exists()) {
+      storage.delete(bucket, objectKey);
+    }
   }
 
   private boolean drain(String sql, long companyId, int batchSize) {
