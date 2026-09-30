@@ -28,31 +28,40 @@ public class ContactDeletePurgeWorker {
         .filter(item -> item.state() == SuppressionState.ACTIVE)
         .forEach(
             suppression -> {
-              IdentityRow identity =
-                  selectIdentity(identities, suppression.identityId(), suppression.channel());
-              if (identity == null) return;
+              List<IdentityRow> protectedIdentities =
+                  relevantIdentities(identities, suppression.identityId(), suppression.channel());
+              if (protectedIdentities.isEmpty()) return;
+
+              IdentityRow first = protectedIdentities.getFirst();
               suppressionRepository.tombstoneIdentity(
                   companyId,
                   suppression.id(),
                   fingerprintService.fingerprint(
-                      suppression.channel(), identity.normalizedValue()));
+                      suppression.channel(), first.normalizedValue()));
+
+              for (int index = 1; index < protectedIdentities.size(); index++) {
+                IdentityRow identity = protectedIdentities.get(index);
+                suppressionRepository.copyTombstone(
+                    companyId,
+                    suppression.id(),
+                    fingerprintService.fingerprint(
+                        suppression.channel(), identity.normalizedValue()));
+              }
             });
 
     contactRepository.purgeProfile(companyId, contactId);
   }
 
-  private IdentityRow selectIdentity(
+  private List<IdentityRow> relevantIdentities(
       List<IdentityRow> identities, Long identityId, Channel channel) {
     if (identityId != null) {
       return identities.stream()
           .filter(identity -> identity.id() == identityId)
-          .findFirst()
-          .orElse(null);
+          .toList();
     }
     IdentityType expected = channel == Channel.EMAIL ? IdentityType.EMAIL : IdentityType.PHONE;
     return identities.stream()
         .filter(identity -> identity.type() == expected)
-        .findFirst()
-        .orElse(null);
+        .toList();
   }
 }
