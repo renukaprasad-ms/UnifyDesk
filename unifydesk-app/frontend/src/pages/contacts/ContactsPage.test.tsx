@@ -114,9 +114,9 @@ describe('ContactsPage Round-2 remediation', () => {
 
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/contacts'))
 
-    expect(
-      vi.mocked(useContacts).mock.calls.every(([, query]) => query.status !== 'DELETED'),
-    ).toBe(true)
+    for (const [, query] of vi.mocked(useContacts).mock.calls) {
+      expect(query.status).not.toBe('DELETED')
+    }
     expect(vi.mocked(useContacts).mock.calls.at(-1)?.[1].status).toBeUndefined()
   })
 
