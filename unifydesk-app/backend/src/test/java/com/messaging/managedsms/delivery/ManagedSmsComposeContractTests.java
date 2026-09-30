@@ -12,6 +12,7 @@ import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.broadcast.repository.*;
 import com.messaging.broadcast.service.*;
 import com.messaging.channel.enums.ChannelType;
+import com.messaging.contacts.audience.AudienceSourceResolver;
 import com.messaging.emailtemplate.service.EmailTemplateService;
 import com.messaging.managedsms.runtime.ManagedSmsTemplateService;
 import java.util.Map;
@@ -33,6 +34,7 @@ class ManagedSmsComposeContractTests {
     BroadcastLaunchService launch = mock(BroadcastLaunchService.class);
     EmailTemplateService emailTemplates = mock(EmailTemplateService.class);
     ManagedSmsTemplateService smsTemplates = mock(ManagedSmsTemplateService.class);
+    AudienceSourceResolver audienceSourceResolver = mock(AudienceSourceResolver.class);
 
     BroadcastGroup group = new BroadcastGroup();
     group.setId(100L);
@@ -79,6 +81,7 @@ class ManagedSmsComposeContractTests {
             launch,
             emailTemplates,
             smsTemplates,
+            audienceSourceResolver,
             new ObjectMapper());
 
     service.create(
