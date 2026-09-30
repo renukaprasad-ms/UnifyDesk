@@ -47,6 +47,15 @@ export default function ContactDetailPage() {
 
   useEffect(() => { void load() }, [companyId, contactId])
 
+  const changePreference = async (state: CommunicationPreference['state']) => {
+    const channel = editingPreference
+    if (!companyId || !channel) return
+    if (!window.confirm('Record ' + state.replaceAll('_', ' ') + ' for ' + channel + ' marketing?')) return
+    await contactsApi.updatePreference(companyId, contactId, channel, state, 'Changed by workspace user')
+    setEditingPreference(null)
+    await load()
+  }
+
   if (contact?.status === 'MERGED' && contact.mergedIntoContactId) return <Navigate to={'/contacts/' + contact.mergedIntoContactId} replace />
 
   return (
@@ -70,7 +79,7 @@ export default function ContactDetailPage() {
             </div>
           </>
         )}
-        {editingPreference && <div className="mobile-modal-shell fixed inset-0 z-50 flex items-end justify-center bg-slate-950/35 p-0 sm:items-center sm:p-4"><div role="dialog" aria-modal="true" className="mobile-sheet w-full max-w-lg rounded-t-2xl bg-white p-5 sm:rounded-2xl"><h2 className="text-lg font-bold">Change {editingPreference} marketing preference</h2><p className="mt-2 text-sm text-slate-500">This records an explicit preference event. It does not remove unrelated suppressions.</p><div className="mt-5 grid gap-2">{(['OPTED_IN','OPTED_OUT','UNKNOWN'] as const).map((state) => <button key={state} className="secondary-button justify-start" onClick={async () => { if (!companyId) return; if (!window.confirm('Record ' + state.replaceAll('_',' ') + ' for ' + editingPreference + ' marketing?')) return; await contactsApi.updatePreference(companyId, contactId, editingPreference, state, 'Changed by workspace user'); setEditingPreference(null); await load() }}>{state.replaceAll('_',' ')}</button>)}</div><button className="secondary-button mt-4" onClick={() => setEditingPreference(null)}>Cancel</button></div></div>}
+        {editingPreference && <div className="mobile-modal-shell fixed inset-0 z-50 flex items-end justify-center bg-slate-950/35 p-0 sm:items-center sm:p-4"><div role="dialog" aria-modal="true" className="mobile-sheet w-full max-w-lg rounded-t-2xl bg-white p-5 sm:rounded-2xl"><h2 className="text-lg font-bold">Change {editingPreference} marketing preference</h2><p className="mt-2 text-sm text-slate-500">This records an explicit preference event. It does not remove unrelated suppressions.</p><div className="mt-5 grid gap-2">{(['OPTED_IN','OPTED_OUT','UNKNOWN'] as const).map((state) => <button key={state} className="secondary-button justify-start" onClick={() => void changePreference(state)}>{state.replaceAll('_',' ')}</button>)}</div><button className="secondary-button mt-4" onClick={() => setEditingPreference(null)}>Cancel</button></div></div>}
       </div>
     </section>
   )

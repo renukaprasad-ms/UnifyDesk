@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { CustomFieldValue, SegmentFieldOption, SegmentGroup, SegmentNode, SegmentPredicate } from '../../features/contacts/types'
 import {
   MAX_SEGMENT_DEPTH,
@@ -23,7 +24,7 @@ const defaultPredicate = (field: SegmentFieldOption): SegmentPredicate => ({
 })
 
 export default function SegmentBuilder({ value, fields, onChange }: Props) {
-  const renderNode = (node: SegmentNode, path: number[], depth: number) => {
+  const renderNode = (node: SegmentNode, path: number[], depth: number): ReactNode => {
     if (node.type === 'predicate') {
       const field = fieldOptionFor(fields, node) ?? fields[0]
       const updateField = (index: number) => {
