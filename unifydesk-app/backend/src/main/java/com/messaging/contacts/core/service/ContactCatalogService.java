@@ -429,7 +429,7 @@ public class ContactCatalogService {
       case BOOLEAN -> CustomFieldType.BOOLEAN;
       case DATE -> CustomFieldType.DATE;
       case DATETIME -> CustomFieldType.DATETIME;
-      case SELECT -> CustomFieldType.SINGLE_SELECT;
+      case SINGLE_SELECT -> CustomFieldType.SINGLE_SELECT;
       case MULTI_SELECT -> CustomFieldType.MULTI_SELECT;
     };
   }
@@ -441,7 +441,7 @@ public class ContactCatalogService {
       case BOOLEAN -> CustomFieldApiType.BOOLEAN;
       case DATE -> CustomFieldApiType.DATE;
       case DATETIME -> CustomFieldApiType.DATETIME;
-      case SINGLE_SELECT -> CustomFieldApiType.SELECT;
+      case SINGLE_SELECT -> CustomFieldApiType.SINGLE_SELECT;
       case MULTI_SELECT -> CustomFieldApiType.MULTI_SELECT;
     };
   }
