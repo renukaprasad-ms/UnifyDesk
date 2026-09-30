@@ -47,7 +47,7 @@ Branch:
 `feature/contacts-audience-integration-r1`
 
 PR:
-#203
+#203 initial Lead integration; #206 final Lead integration corrections
 
 Migration:
 `V82__contacts_audience_integration.sql`
@@ -67,12 +67,15 @@ Lead integration includes:
 - async Contact privacy purge
 - suppression HMAC tombstones across relevant identities
 - bounded Contacts company-purge registration/private artifact deletion
+- B2 import/bulk mutation ports wired to B1 production services/repositories
+- bounded batch tag/List helpers and batch quota enforcement
+- privacy-safe audience snapshot provenance with purged Contact/identity handling
 
 Legacy `broadcast_groups` remain supported.
 
 Exact integrated QA code base:
 
-`be6de61a7c46db4785457f3f9bbb0d622f026101`
+`f6a04c4596240d0c43bde6ef83c66619abbd9a02`
 
 ## QA/SEC
 
@@ -95,7 +98,7 @@ QA report path:
 
 ## CI execution state at freeze
 
-GitHub Actions for PR #203 completed as failures, but all inspected affected jobs contained zero workflow steps.
+GitHub Actions for PR #206 completed as failures, but all inspected affected jobs contained zero workflow steps.
 
 Therefore their product build/test status is:
 `EXECUTION BLOCKED / NOT VERIFIED BY GITHUB ACTIONS`
