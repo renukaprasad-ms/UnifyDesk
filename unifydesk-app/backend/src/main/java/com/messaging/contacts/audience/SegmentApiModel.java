@@ -30,16 +30,16 @@ public final class SegmentApiModel {
       String name,
       String description,
       int filterVersion,
-      Group filter,
+      Node filter,
       Long version) {}
 
-  public record FilterRequest(int filterVersion, Group filter, Integer sampleSize) {}
+  public record FilterRequest(int filterVersion, Node filter, Integer sampleSize) {}
 
   public record ValidationError(String path, String code, String message) {}
 
   public record ValidationResponse(
       boolean valid,
-      Group normalizedFilter,
+      Node normalizedFilter,
       String filterHash,
       String costClass,
       List<ValidationError> errors) {}
@@ -68,7 +68,7 @@ public final class SegmentApiModel {
       String name,
       String description,
       int filterVersion,
-      Group filter,
+      Node filter,
       String filterHash,
       Long count,
       String countState,

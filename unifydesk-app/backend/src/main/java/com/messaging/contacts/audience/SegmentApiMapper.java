@@ -47,7 +47,7 @@ public class SegmentApiMapper {
   private final ContactAudienceProperties properties;
   private final SegmentFieldMetadataRepository fieldMetadataRepository;
 
-  public SegmentFilter toDomain(long companyId, int filterVersion, Group filter) {
+  public SegmentFilter toDomain(long companyId, int filterVersion, Node filter) {
     if (filterVersion != 1 || filter == null) {
       throw invalid();
     }
@@ -63,15 +63,11 @@ public class SegmentApiMapper {
     return new SegmentFilter(1, toDomainNode(companyId, filter));
   }
 
-  public Group toApi(SegmentFilter filter) {
+  public Node toApi(SegmentFilter filter) {
     if (filter == null || filter.version() != 1 || filter.root() == null) {
       throw new IllegalStateException("Stored segment filter is invalid");
     }
-    Node root = toApiNode(filter.root());
-    if (root instanceof Group group) {
-      return group;
-    }
-    return new Group(SegmentFilter.GroupOperator.AND, List.of(root));
+    return toApiNode(filter.root());
   }
 
   public SegmentResponse toApi(SegmentService.SegmentResponse response) {
@@ -292,10 +288,8 @@ public class SegmentApiMapper {
   }
 
   private long requireId(JsonNode value) {
-    if (value == null) throw invalid();
-    if (value.isTextual()) return parseId(value.textValue());
-    if (value.canConvertToLong()) return value.longValue();
-    throw invalid();
+    if (value == null || !value.isTextual()) throw invalid();
+    return parseId(value.textValue());
   }
 
   private long parseId(String value) {

@@ -57,9 +57,34 @@ class SegmentApiMapperTests {
     assertEquals(123L, tag.field().id());
     assertInstanceOf(NoValue.class, tag.value());
 
-    Group roundTrip = mapper.toApi(domain);
+    Group roundTrip = assertInstanceOf(Group.class, mapper.toApi(domain));
     Predicate apiTag = assertInstanceOf(Predicate.class, roundTrip.children().get(1));
     assertEquals("123", apiTag.value().textValue());
+  }
+
+  @Test
+  void acceptsPredicateAsFrozenRootAst() {
+    Predicate filter =
+        new Predicate(
+            new Field(FieldKind.BUILTIN_CONTACT, "displayName", null),
+            SegmentOperator.EQ,
+            TextNode.valueOf("Acme"));
+
+    SegmentFilter domain = mapper.toDomain(1L, 1, filter);
+    PredicateNode root = assertInstanceOf(PredicateNode.class, domain.root());
+    assertEquals("Acme", assertInstanceOf(TextValue.class, root.value()).value());
+    assertInstanceOf(Predicate.class, mapper.toApi(domain));
+  }
+
+  @Test
+  void rejectsNumericJsonIdsAtWireBoundary() {
+    Predicate filter =
+        new Predicate(
+            new Field(FieldKind.TAG, "tagId", null),
+            SegmentOperator.HAS_TAG,
+            objectMapper.valueToTree(123L));
+
+    assertThrows(RuntimeException.class, () -> mapper.toDomain(1L, 1, filter));
   }
 
   @Test
