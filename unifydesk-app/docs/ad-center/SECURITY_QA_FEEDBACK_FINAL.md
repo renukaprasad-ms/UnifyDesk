@@ -49,15 +49,63 @@ These are targets for adversarial verification, not final findings.
 
 ## 3. Findings
 
-No finding is closed or opened yet. Use:
+### ADS-FINAL-001 — Concurrent launch execution can reacquire an already RUNNING step
 
-- `ADS-FINAL-NNN`
-- severity
-- state
-- exact evidence
-- impact
-- recommended owner
-- closure test
+Severity: **High**  
+State: **OPEN**  
+Owner: **B2 / launch runtime**
+
+Evidence:
+
+- `CampaignLaunchOrchestrator.execute()` permits execution when a run is already `RUNNING`.
+- `CampaignLaunchStateService.beginStep()` returns early only for `SUCCEEDED` and `SKIPPED`.
+- A step already in `RUNNING` is set to `RUNNING` again, its attempt count is incremented, and the caller is allowed to continue to the provider executor.
+- There is no execution lease/owner token or atomic PENDING/FAILED -> RUNNING compare-and-set guarding provider submission.
+- Review-only test added: `CampaignLaunchConcurrencyQaTests.runningStepMustNotBeAcquiredBySecondExecutor`. The desired contract is that a second executor receives a conflict before any provider call.
+
+Impact:
+
+Two concurrent execute/retry requests for the same launch run can reach the same provider step while the first request is still executing. Because provider creation is external and the first result may not yet be persisted, this can create duplicate remote campaigns/ad groups/assets or duplicate status mutations.
+
+Required fix:
+
+- claim each launch step atomically;
+- reject/skip an already RUNNING step unless a defined stale-lease recovery rule applies;
+- preferably use a database conditional update / pessimistic lock / execution lease with owner + timeout;
+- ensure concurrent run execution cannot perform the same provider mutation twice.
+
+Closure test:
+
+1. two threads/processes execute the same READY run concurrently;
+2. exactly one acquires each provider step;
+3. exactly one provider mutation occurs per operation key;
+4. the second caller returns the existing/in-progress state without provider mutation;
+5. stale RUNNING recovery, if supported, only occurs after an explicit lease timeout.
+
+### ADS-FINAL-002 — Concurrent launch preparation idempotency is constraint-backed but not conflict-safe
+
+Severity: **Medium**  
+State: **OPEN**  
+Owner: **B1 / launch control plane**
+
+Evidence:
+
+- `CampaignLaunchPlanningService.prepare()` performs `findBy...IdempotencyKey()` and then inserts a new `LaunchRun`.
+- the database correctly has `uk_campaign_launch_run_idempotency`;
+- there is no catch/reload path for the concurrent race where two requests both observe no row before one insert wins;
+- the global generic exception handler maps unhandled persistence conflicts to HTTP 500.
+
+Impact:
+
+The database prevents duplicate launch-run rows, so this is not the same remote-duplication risk as ADS-FINAL-001. However, a legitimate concurrent retry with the same idempotency key can receive an internal server error instead of the already-created run, violating the public idempotency contract.
+
+Required fix:
+
+Use conflict-safe insertion/reload semantics or catch the unique-key race outside an aborted transaction and return the existing run.
+
+Closure test:
+
+Two concurrent prepare calls with identical company/campaign/idempotency key must both return the same launch-run ID with no HTTP 500 and only one stored run.
 
 ## 4. Application-code readiness
 
