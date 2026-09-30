@@ -111,6 +111,33 @@ public class AudienceSnapshotRepository {
     return inserted;
   }
 
+  public List<MemberView> pageMembers(
+      long companyId, long snapshotId, long afterSequenceId, int limit) {
+    int bounded = Math.max(1, Math.min(limit, 2000));
+    return jdbcTemplate.query(
+        """
+        select contact_id, identity_id, normalized_destination, display_name_snapshot,
+               eligibility_version, eligibility_reason, sequence_id
+        from contact_audience_snapshot_members
+        where company_id = ? and snapshot_id = ? and sequence_id > ?
+        order by sequence_id asc
+        limit ?
+        """,
+        (rs, rowNum) ->
+            new MemberView(
+                rs.getLong("contact_id"),
+                rs.getLong("identity_id"),
+                rs.getString("normalized_destination"),
+                rs.getString("display_name_snapshot"),
+                rs.getString("eligibility_version"),
+                rs.getString("eligibility_reason"),
+                rs.getLong("sequence_id")),
+        companyId,
+        snapshotId,
+        afterSequenceId,
+        bounded);
+  }
+
   @Transactional
   public void advance(
       long companyId,
@@ -185,6 +212,15 @@ public class AudienceSnapshotRepository {
       Long asyncJobId,
       Instant snapshotAt,
       Instant completedAt) {}
+
+  public record MemberView(
+      long contactId,
+      long identityId,
+      String normalizedDestination,
+      String displayName,
+      String eligibilityVersion,
+      String eligibilityReason,
+      long sequenceId) {}
 
   public record Member(
       long contactId,
