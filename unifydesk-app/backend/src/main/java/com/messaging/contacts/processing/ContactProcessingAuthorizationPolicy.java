@@ -50,7 +50,7 @@ public class ContactProcessingAuthorizationPolicy {
   public Decision authorizeClaim(
       AsyncJobType type, AsyncJobService.ClaimedAsyncJob job) {
     if (type == AsyncJobType.CONTACT_DELETE_PURGE) {
-      return Decision.allowed();
+      return Decision.permitted();
     }
     if (job == null
         || job.companyId() == null
@@ -70,12 +70,12 @@ public class ContactProcessingAuthorizationPolicy {
         case CONTACT_SEGMENT_COUNT -> {
           authorization.requirePermission(
               job.userId(), job.companyId(), ContactAudiencePermissions.READ);
-          yield Decision.allowed();
+          yield Decision.permitted();
         }
         case CONTACT_AUDIENCE_SNAPSHOT -> {
           authorization.requirePermission(
               job.userId(), job.companyId(), ContactAudiencePermissions.READ);
-          yield Decision.allowed();
+          yield Decision.permitted();
         }
         default -> Decision.denied(RESOURCE_INVALID);
       };
@@ -97,7 +97,7 @@ public class ContactProcessingAuthorizationPolicy {
       authorization.requirePermission(
           job.userId(), job.companyId(), ContactAudiencePermissions.CONSENT_MODIFY);
     }
-    return Decision.allowed();
+    return Decision.permitted();
   }
 
   private Decision authorizeExport(
@@ -107,7 +107,7 @@ public class ContactProcessingAuthorizationPolicy {
     requireInitiatingUser(job, row.requestedByUserId());
     authorization.requirePermission(
         job.userId(), job.companyId(), ContactAudiencePermissions.EXPORT);
-    return Decision.allowed();
+    return Decision.permitted();
   }
 
   private Decision authorizeBulk(
@@ -123,7 +123,7 @@ public class ContactProcessingAuthorizationPolicy {
           default -> throw new IllegalStateException("Stored bulk operation type is invalid");
         };
     authorization.requirePermission(job.userId(), job.companyId(), permission);
-    return Decision.allowed();
+    return Decision.permitted();
   }
 
   private void requireCurrentPermission(
@@ -163,7 +163,7 @@ public class ContactProcessingAuthorizationPolicy {
   }
 
   public record Decision(boolean allowed, String failureCode) {
-    public static Decision allowed() {
+    public static Decision permitted() {
       return new Decision(true, null);
     }
 
