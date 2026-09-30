@@ -246,19 +246,18 @@ public class ContactImportMutationAdapter implements ContactImportMutationPort {
     }
 
     for (PreparedConsent consent : row.consents()) {
-      preferenceService.setFromUser(
+      preferenceService.setFromImport(
           companyId,
           contactId,
           null,
           consent.channel(),
           Purpose.MARKETING,
           consent.state(),
-          consent.source(),
           consent.evidence(),
           "Imported consent evidence",
           consent.occurredAt(),
           "import:" + importId + ":row:" + row.rowNumber() + ":" + consent.channel().name(),
-          userId);
+          importId);
     }
     return new AppliedRow(true, contactId);
   }
