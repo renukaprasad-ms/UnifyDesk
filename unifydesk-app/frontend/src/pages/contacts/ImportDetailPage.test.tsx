@@ -37,7 +37,46 @@ describe('ImportDetailPage', () => {
     vi.mocked(contactsApi.customFields).mockResolvedValue([])
   })
 
-  it('shows bounded mapping UX and requires explicit consent mapping', async () => {
+  it('auto-maps common columns and keeps consent settings advanced', async () => {
+    vi.mocked(contactsApi.getImport).mockResolvedValue({
+      id: 'import-1',
+      status: 'PREVIEWED',
+    })
+    vi.mocked(contactsApi.previewImport).mockResolvedValue({
+      headers: [
+        'external_id',
+        'first_name',
+        'last_name',
+        'email',
+        'phone',
+        'country_code',
+        'source',
+      ],
+      sampleRows: [
+        [
+          'TEST-00001',
+          'Alice',
+          'Contact',
+          'alice@example.com',
+          '+12025550100',
+          'US',
+          'CSV_TEST',
+        ],
+      ],
+    })
+
+    renderPage()
+
+    expect(await screen.findByText(/We matched common column names automatically/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Import first_name as')).toHaveValue('BUILTIN:firstName')
+    expect(screen.getByLabelText('Import last_name as')).toHaveValue('BUILTIN:lastName')
+    expect(screen.getByLabelText('Import email as')).toHaveValue('IDENTITY:EMAIL')
+    expect(screen.getByLabelText('Import phone as')).toHaveValue('IDENTITY:PHONE')
+    expect(screen.getByLabelText('Import external_id as')).toHaveValue('IGNORE')
+    expect(screen.getByText(/Advanced: import marketing consent/i)).toBeInTheDocument()
+  })
+
+  it('allows explicit consent evidence mapping when the advanced option is used', async () => {
     vi.mocked(contactsApi.getImport).mockResolvedValue({
       id: 'import-1',
       status: 'PREVIEWED',
@@ -45,26 +84,19 @@ describe('ImportDetailPage', () => {
     vi.mocked(contactsApi.previewImport).mockResolvedValue({
       headers: ['name', 'email_consent', 'evidence', 'occurred_at'],
       sampleRows: [['Alice', 'OPTED_IN', 'webform-1', '2026-09-01']],
-      estimatedRows: 12000,
     })
 
     renderPage()
 
-    expect(
-      await screen.findByText(/Importing a Contact never grants marketing consent/i),
-    ).toBeInTheDocument()
-    expect(screen.getByText(/bounded server-generated sample/i)).toBeInTheDocument()
+    fireEvent.click(await screen.findByText(/Advanced: import marketing consent/i))
+    fireEvent.click(screen.getByLabelText(/Import EMAIL marketing preference/i))
 
-    fireEvent.click(
-      screen.getByLabelText(/Map EMAIL marketing preference evidence/i),
-    )
-
-    expect(screen.getByText('Preference state column')).toBeInTheDocument()
-    expect(screen.getByText('Evidence/source reference column')).toBeInTheDocument()
-    expect(screen.getByText('Occurred-at column')).toBeInTheDocument()
+    expect(screen.getByText('Preference column')).toBeInTheDocument()
+    expect(screen.getByText('Evidence column')).toBeInTheDocument()
+    expect(screen.getByText('Consent date column')).toBeInTheDocument()
   })
 
-  it('announces asynchronous progress without retaining the whole import', async () => {
+  it('announces asynchronous progress in business-friendly language', async () => {
     vi.mocked(contactsApi.getImport).mockResolvedValue({
       id: 'import-1',
       status: 'RUNNING',
@@ -82,19 +114,23 @@ describe('ImportDetailPage', () => {
 
     renderPage()
 
-    expect(await screen.findByText(/Processing status: RUNNING/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Importing contacts/i)).toBeInTheDocument()
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42')
-    expect(screen.getByText(/Processed 420/i)).toBeInTheDocument()
+    expect(screen.getByText('420')).toBeInTheDocument()
+    expect(screen.getByText('400')).toBeInTheDocument()
+    expect(screen.getByText('20')).toBeInTheDocument()
   })
 
-  it('requests a fresh authorized error link only on demand', async () => {
+  it('shows a clear all-failed outcome and requests the error report only on demand', async () => {
     vi.mocked(contactsApi.getImport).mockResolvedValue({
       id: 'import-1',
       status: 'COMPLETED',
-      errorRows: 3,
+      totalRows: 5000,
+      successRows: 0,
+      errorRows: 5000,
     })
     vi.mocked(contactsApi.importErrors).mockResolvedValue({
-      count: 3,
+      count: 5000,
       ready: true,
       downloadUrl: 'https://signed.invalid/temporary',
       expiresAt: '2026-09-30T07:00:00Z',
@@ -103,7 +139,8 @@ describe('ImportDetailPage', () => {
 
     renderPage()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Download error report' }))
+    expect(await screen.findByText(/We couldn't add any contacts/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Download error report' }))
 
     await waitFor(() =>
       expect(contactsApi.importErrors).toHaveBeenCalledWith('company-1', 'import-1'),

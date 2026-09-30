@@ -10,6 +10,7 @@ import type {
   CursorPage,
   ImportCommitInput,
   ImportFieldMapping,
+  ImportFieldTarget,
 } from './types'
 
 export type ContactFormDraft = {
@@ -126,6 +127,81 @@ export const normalizeContactQuery = (query: ContactQuery): ContactQuery => {
     ...(query.sort ? { sort: query.sort } : {}),
     size: Math.min(Math.max(query.size ?? 50, 1), 200),
   }
+}
+
+const normalizeImportHeader = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[\s.-]+/g, '_')
+    .replace(/_+/g, '_')
+
+export const suggestImportTarget = (column: string): ImportFieldTarget => {
+  switch (normalizeImportHeader(column)) {
+    case 'name':
+    case 'full_name':
+    case 'display_name':
+    case 'contact_name':
+      return { type: 'BUILTIN', field: 'displayName' }
+    case 'first_name':
+    case 'firstname':
+    case 'given_name':
+      return { type: 'BUILTIN', field: 'firstName' }
+    case 'last_name':
+    case 'lastname':
+    case 'surname':
+    case 'family_name':
+      return { type: 'BUILTIN', field: 'lastName' }
+    case 'organization':
+    case 'organisation':
+    case 'company':
+    case 'company_name':
+      return { type: 'BUILTIN', field: 'organization' }
+    case 'notes':
+    case 'note':
+    case 'comments':
+      return { type: 'BUILTIN', field: 'notes' }
+    case 'email':
+    case 'email_address':
+    case 'email_id':
+    case 'e_mail':
+      return { type: 'IDENTITY', identityType: 'EMAIL' }
+    case 'phone':
+    case 'phone_number':
+    case 'mobile':
+    case 'mobile_number':
+    case 'telephone':
+      return { type: 'IDENTITY', identityType: 'PHONE' }
+    case 'tags':
+    case 'tag':
+    case 'tag_names':
+      return { type: 'TAG_NAMES' }
+    default:
+      return { type: 'IGNORE' }
+  }
+}
+
+const importTargetKey = (target: ImportFieldTarget) => {
+  if (target.type === 'IGNORE') return null
+  if (target.type === 'BUILTIN') return 'BUILTIN:' + target.field
+  if (target.type === 'IDENTITY') return 'IDENTITY:' + target.identityType
+  if (target.type === 'TAG_NAMES') return 'TAG_NAMES'
+  return 'CUSTOM_FIELD:' + target.fieldId
+}
+
+export const buildSuggestedImportMappings = (
+  headers: string[],
+): ImportFieldMapping[] => {
+  const usedTargets = new Set<string>()
+  return headers.map<ImportFieldMapping>((column) => {
+    const suggested = suggestImportTarget(column)
+    const key = importTargetKey(suggested)
+    if (!key || usedTargets.has(key)) {
+      return { column, target: { type: 'IGNORE' } }
+    }
+    usedTargets.add(key)
+    return { column, target: suggested }
+  })
 }
 
 export const buildImportCommitInput = (input: {

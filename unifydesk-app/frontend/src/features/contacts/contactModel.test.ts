@@ -4,6 +4,7 @@ import {
   appendCursorPage,
   buildImportCommitInput,
   buildSelectionDescriptor,
+  buildSuggestedImportMappings,
   contactPrimaryIdentityValue,
   normalizeContactQuery,
   parseContactSearchStatus,
@@ -99,6 +100,35 @@ describe('contactModel', () => {
     expect(DEFAULT_CONTACT_EXPORT_FIELDS).toEqual(['displayName', 'organization'])
     expect(DEFAULT_CONTACT_EXPORT_FIELDS).not.toContain('primaryEmail')
     expect(DEFAULT_CONTACT_EXPORT_FIELDS).not.toContain('primaryPhone')
+  })
+
+
+  it('auto-maps common CSV headers and leaves unknown columns untouched', () => {
+    const mappings = buildSuggestedImportMappings([
+      'external_id',
+      'first_name',
+      'last_name',
+      'email',
+      'phone',
+      'country_code',
+      'source',
+    ])
+
+    expect(mappings).toEqual([
+      { column: 'external_id', target: { type: 'IGNORE' } },
+      { column: 'first_name', target: { type: 'BUILTIN', field: 'firstName' } },
+      { column: 'last_name', target: { type: 'BUILTIN', field: 'lastName' } },
+      { column: 'email', target: { type: 'IDENTITY', identityType: 'EMAIL' } },
+      { column: 'phone', target: { type: 'IDENTITY', identityType: 'PHONE' } },
+      { column: 'country_code', target: { type: 'IGNORE' } },
+      { column: 'source', target: { type: 'IGNORE' } },
+    ])
+  })
+
+  it('never auto-assigns the same import target twice', () => {
+    const mappings = buildSuggestedImportMappings(['email', 'email_address'])
+    expect(mappings[0].target).toEqual({ type: 'IDENTITY', identityType: 'EMAIL' })
+    expect(mappings[1].target).toEqual({ type: 'IGNORE' })
   })
 
   it('does not create consent from an ordinary import mapping', () => {
