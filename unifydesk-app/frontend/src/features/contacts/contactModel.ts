@@ -1,7 +1,9 @@
 import type {
   ContactDetail,
+  ContactExportField,
   ContactPatchInput,
   ContactQuery,
+  ContactSearchStatus,
   ContactSelection,
   ContactSummary,
   ContactWriteInput,
@@ -28,6 +30,23 @@ export const emptyContactDraft: ContactFormDraft = {
   notes: '',
   email: '',
   phone: '',
+}
+
+export const DEFAULT_CONTACT_EXPORT_FIELDS: readonly ContactExportField[] = [
+  'displayName',
+  'organization',
+]
+
+export const parseContactSearchStatus = (
+  value: string | null,
+): ContactSearchStatus | undefined => {
+  switch (value) {
+    case 'ACTIVE':
+    case 'MERGED':
+      return value
+    default:
+      return undefined
+  }
 }
 
 export const validateContactDraft = (
