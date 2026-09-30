@@ -6,7 +6,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Bounded company-level cleanup for Contacts-owned data.
@@ -192,8 +191,7 @@ public class ContactCompanyPurgeService {
     storageProviderResolver.resolve(provider).delete(bucket, objectKey);
   }
 
-  @Transactional
-  protected boolean drain(String sql, long companyId, int batchSize) {
+  private boolean drain(String sql, long companyId, int batchSize) {
     return jdbcTemplate.update(sql, companyId, batchSize) < batchSize;
   }
 
