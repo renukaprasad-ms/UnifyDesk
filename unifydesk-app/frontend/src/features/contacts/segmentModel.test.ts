@@ -3,6 +3,7 @@ import {
   baseSegmentFields,
   emptySegment,
   serializeSegment,
+  segmentFields,
   validateSegmentClient,
 } from './segmentModel'
 import type { SegmentGroup } from './types'
@@ -41,6 +42,26 @@ describe('segmentModel', () => {
       operator: 'IS_SUPPRESSED',
     }
     expect(validateSegmentClient(filter, baseSegmentFields)[0]).toContain('does not support')
+  })
+
+  it('uses canonical SINGLE_SELECT custom-field definitions', () => {
+    const fields = segmentFields([
+      {
+        id: 'field-1',
+        fieldKey: 'plan',
+        label: 'Plan',
+        type: 'SINGLE_SELECT',
+        options: ['Starter', 'Growth'],
+        status: 'ACTIVE',
+        indexability: 'INDEXED',
+      },
+    ])
+    const field = fields.find(
+      (candidate) => candidate.descriptor.fieldId === 'field-1',
+    )
+    expect(field?.label).toBe('Plan')
+    expect(field?.valueType).toBe('SINGLE_SELECT')
+    expect(field?.operators).toContain('IN')
   })
 
   it('allows no-value preference operators', () => {

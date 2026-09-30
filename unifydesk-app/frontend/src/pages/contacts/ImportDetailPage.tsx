@@ -81,7 +81,7 @@ export default function ImportDetailPage() {
     ])
       .then(async ([nextResource, nextLists, nextFields]) => {
         setResource(nextResource)
-        setLists(nextLists.filter((list) => !list.archived))
+        setLists(nextLists.filter((list) => list.status !== 'ARCHIVED'))
         setCustomFields(nextFields.filter((field) => field.status === 'ACTIVE'))
 
         if (['UPLOADED', 'DRAFT_UPLOAD', 'PREVIEWED'].includes(nextResource.status)) {
