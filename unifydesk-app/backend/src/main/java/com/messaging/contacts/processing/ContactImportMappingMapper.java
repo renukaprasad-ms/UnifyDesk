@@ -30,9 +30,16 @@ public class ContactImportMappingMapper {
     Integer firstName = null;
     Integer lastName = null;
     Integer organization = null;
+    Integer jobTitle = null;
+    Integer countryCode = null;
+    Integer timezone = null;
+    Integer language = null;
+    Integer source = null;
     Integer notes = null;
     Integer email = null;
     Integer phone = null;
+    Integer externalId = null;
+    Integer externalNamespace = null;
     Integer tagNames = null;
     Map<Long, Integer> customFields = new HashMap<>();
     Set<String> assignedTargets = new HashSet<>();
@@ -55,6 +62,11 @@ public class ContactImportMappingMapper {
             case "firstName" -> firstName = column;
             case "lastName" -> lastName = column;
             case "organization" -> organization = column;
+            case "jobTitle" -> jobTitle = column;
+            case "countryCode" -> countryCode = column;
+            case "timezone" -> timezone = column;
+            case "language" -> language = column;
+            case "source" -> source = column;
             case "notes" -> notes = column;
             default -> throw invalid();
           }
@@ -66,6 +78,9 @@ public class ContactImportMappingMapper {
             email = column;
           } else if ("PHONE".equals(identityType)) {
             phone = column;
+          } else if ("EXTERNAL".equals(identityType)) {
+            externalId = column;
+            externalNamespace = requireColumn(columns, target.externalNamespaceColumn());
           } else {
             throw invalid();
           }
@@ -113,9 +128,16 @@ public class ContactImportMappingMapper {
         firstName,
         lastName,
         organization,
+        jobTitle,
+        countryCode,
+        timezone,
+        language,
+        source,
         notes,
         email,
         phone,
+        externalId,
+        externalNamespace,
         tagNames,
         Map.copyOf(customFields),
         List.copyOf(consent),

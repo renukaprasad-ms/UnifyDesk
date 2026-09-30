@@ -65,7 +65,17 @@ public final class ContactProcessingApiModel {
   }
 
   public record ImportFieldTarget(
-      ImportTargetType type, String field, String identityType, String fieldId) {}
+      ImportTargetType type,
+      String field,
+      String identityType,
+      String fieldId,
+      String externalNamespaceColumn) {
+
+    public ImportFieldTarget(
+        ImportTargetType type, String field, String identityType, String fieldId) {
+      this(type, field, identityType, fieldId, null);
+    }
+  }
 
   public record ImportFieldMapping(String column, ImportFieldTarget target) {}
 

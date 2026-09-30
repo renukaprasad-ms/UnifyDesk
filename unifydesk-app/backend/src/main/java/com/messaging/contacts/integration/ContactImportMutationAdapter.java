@@ -179,11 +179,11 @@ public class ContactImportMutationAdapter implements ContactImportMutationPort {
               row.lastName(),
               row.displayName(),
               row.organization(),
-              null,
+              row.jobTitle(),
               row.countryCode(),
-              null,
-              null,
-              "IMPORT",
+              row.timezone(),
+              row.language(),
+              row.source() == null ? "IMPORT" : row.source(),
               row.notes(),
               null);
       contactId = contact.id();
@@ -213,6 +213,11 @@ public class ContactImportMutationAdapter implements ContactImportMutationPort {
       putMapped(patch, "first_name", row.firstName(), row.firstNameMapped());
       putMapped(patch, "last_name", row.lastName(), row.lastNameMapped());
       putMapped(patch, "organization", row.organization(), row.organizationMapped());
+      putMapped(patch, "job_title", row.jobTitle(), row.jobTitleMapped());
+      putMapped(patch, "country_code", row.countryCode(), row.countryCodeMapped());
+      putMapped(patch, "timezone", row.timezone(), row.timezoneMapped());
+      putMapped(patch, "language", row.language(), row.languageMapped());
+      putMapped(patch, "source", row.source(), row.sourceMapped());
       putMapped(patch, "notes", row.notes(), row.notesMapped());
       if (!patch.isEmpty()
           && contactRepository.patchContact(companyId, contactId, patch, current.version()) == 0) {
@@ -269,7 +274,10 @@ public class ContactImportMutationAdapter implements ContactImportMutationPort {
       Map<Long, CustomFieldDefinitionRow> definitions,
       Map<String, Long> tagsByNormalizedName) {
     List<String> cells = row.cells();
-    List<NormalizedIdentity> identities = new ArrayList<>(2);
+    String countryCode = normalizeCountryCode(mapped(cells, mapping.countryCodeColumn()));
+    String phoneCountryContext =
+        countryCode == null ? mapping.defaultCountryCode() : countryCode;
+    List<NormalizedIdentity> identities = new ArrayList<>(3);
     if (mapping.emailColumn() != null) {
       String raw = cell(cells, mapping.emailColumn());
       if (raw != null) {
@@ -281,7 +289,15 @@ public class ContactImportMutationAdapter implements ContactImportMutationPort {
       if (raw != null) {
         identities.add(
             identityNormalizer.normalize(
-                IdentityType.PHONE, null, raw, mapping.defaultCountryCode()));
+                IdentityType.PHONE, null, raw, phoneCountryContext));
+      }
+    }
+    if (mapping.externalIdColumn() != null) {
+      String raw = cell(cells, mapping.externalIdColumn());
+      if (raw != null) {
+        String namespace = cell(cells, mapping.externalNamespaceColumn());
+        identities.add(
+            identityNormalizer.normalize(IdentityType.EXTERNAL, namespace, raw, null));
       }
     }
     if (identities.isEmpty()) {
@@ -346,11 +362,20 @@ public class ContactImportMutationAdapter implements ContactImportMutationPort {
         mapping.firstNameColumn() != null,
         mapped(cells, mapping.lastNameColumn()),
         mapping.lastNameColumn() != null,
-        mapped(cells, mapping.organizationColumn()),
+        bounded(mapped(cells, mapping.organizationColumn()), 240),
         mapping.organizationColumn() != null,
+        bounded(mapped(cells, mapping.jobTitleColumn()), 160),
+        mapping.jobTitleColumn() != null,
+        countryCode,
+        mapping.countryCodeColumn() != null,
+        bounded(mapped(cells, mapping.timezoneColumn()), 80),
+        mapping.timezoneColumn() != null,
+        bounded(mapped(cells, mapping.languageColumn()), 32),
+        mapping.languageColumn() != null,
+        bounded(mapped(cells, mapping.sourceColumn()), 80),
+        mapping.sourceColumn() != null,
         mapped(cells, mapping.notesColumn()),
         mapping.notesColumn() != null,
-        mapping.defaultCountryCode(),
         List.copyOf(identities),
         Set.copyOf(tagIds),
         plan,
@@ -431,6 +456,22 @@ public class ContactImportMutationAdapter implements ContactImportMutationPort {
     return value.isEmpty() ? null : value;
   }
 
+  private String bounded(String value, int maxLength) {
+    if (value != null && value.length() > maxLength) {
+      throw new IllegalArgumentException("CONTACT_FIELD_INVALID");
+    }
+    return value;
+  }
+
+  private String normalizeCountryCode(String value) {
+    if (value == null) return null;
+    String normalized = value.toUpperCase(Locale.ROOT);
+    if (!normalized.matches("[A-Z]{2}")) {
+      throw new IllegalArgumentException("CONTACT_FIELD_INVALID");
+    }
+    return normalized;
+  }
+
   private String normalizedName(String raw) {
     if (raw == null) return null;
     String value = Normalizer.normalize(raw.trim(), Normalizer.Form.NFKC).toLowerCase(Locale.ROOT);
@@ -490,9 +531,18 @@ public class ContactImportMutationAdapter implements ContactImportMutationPort {
       boolean lastNameMapped,
       String organization,
       boolean organizationMapped,
+      String jobTitle,
+      boolean jobTitleMapped,
+      String countryCode,
+      boolean countryCodeMapped,
+      String timezone,
+      boolean timezoneMapped,
+      String language,
+      boolean languageMapped,
+      String source,
+      boolean sourceMapped,
       String notes,
       boolean notesMapped,
-      String countryCode,
       List<NormalizedIdentity> identities,
       Set<Long> tagIds,
       CustomFieldValueCodec.Plan customFieldPlan,
