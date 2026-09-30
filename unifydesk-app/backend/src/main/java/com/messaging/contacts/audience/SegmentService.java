@@ -22,6 +22,7 @@ public class SegmentService {
 
   private final SegmentCompiler compiler;
   private final SegmentRepository repository;
+  private final SegmentSampleRepository sampleRepository;
   private final ObjectMapper objectMapper;
   private final EntitlementService entitlementService;
   private final AsyncJobService asyncJobService;
@@ -36,7 +37,8 @@ public class SegmentService {
   public SegmentResponse create(
       long companyId, long userId, String name, String description, SegmentFilter filter) {
     requireName(name);
-    entitlementService.assertWithinLimit(companyId, "SEGMENT_LIMIT", repository.countActive(companyId));
+    entitlementService.assertWithinLimit(
+        companyId, "SEGMENT_LIMIT", repository.countActive(companyId));
     CompiledSegment compiled = compiler.compile(companyId, filter);
     return response(
         repository.create(
@@ -98,8 +100,8 @@ public class SegmentService {
             1,
             Math.min(
                 requestedSampleSize == null ? 20 : requestedSampleSize,
-                Math.min(50, properties.getPageMaxSize())));
-    List<Long> sample = repository.page(compiled, 0, sampleSize);
+                Math.min(20, properties.getPageMaxSize())));
+    List<SegmentSampleRepository.SampleRow> sample = sampleRepository.page(compiled, sampleSize);
     if (compiled.costClass() == CostClass.LOW) {
       long count = repository.count(compiled);
       return new PreviewResult(sample, count, "EXACT", Instant.now());
@@ -170,10 +172,14 @@ public class SegmentService {
     }
   }
 
-  public record ValidationResult(SegmentFilter normalizedFilter, String filterHash, CostClass costClass) {}
+  public record ValidationResult(
+      SegmentFilter normalizedFilter, String filterHash, CostClass costClass) {}
 
   public record PreviewResult(
-      List<Long> sampleContactIds, Long count, String countState, Instant countComputedAt) {}
+      List<SegmentSampleRepository.SampleRow> sample,
+      Long count,
+      String countState,
+      Instant countComputedAt) {}
 
   public record SegmentResponse(
       String id,

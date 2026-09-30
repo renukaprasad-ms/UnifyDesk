@@ -134,7 +134,8 @@ public class ContactImportService {
             idempotencyKey,
             Long.parseLong(job.jobId()));
     if (queued.newlyQueued()) {
-      storage.commitImportReservation(\n          companyId, importId, row.expectedSizeBytes(), metadata.sizeBytes());
+      storage.commitImportReservation(
+          companyId, importId, row.expectedSizeBytes(), metadata.sizeBytes());
     }
     return new CommitResult(queued.row(), job);
   }

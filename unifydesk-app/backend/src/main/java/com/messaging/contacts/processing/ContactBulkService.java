@@ -6,7 +6,8 @@ import com.messaging.asyncjob.enums.AsyncJobType;
 import com.messaging.asyncjob.service.AsyncJobService;
 import com.messaging.common.id.IdGenerator;
 import com.messaging.contacts.audience.SegmentFilter;
-import java.util.List;\nimport java.util.Set;
+import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

@@ -233,9 +233,20 @@ public class SegmentCompiler {
   }
 
   private String compileSuppression(PredicateNode predicate, CompileState state) {
-    String channel = requireChannel(predicate.field().key());
     if (predicate.operator() != SegmentOperator.IS_SUPPRESSED) throw invalid();
     requireNoValue(predicate.value());
+    String key = normalizedKey(predicate.field().key());
+    if ("ANY".equals(key)) {
+      return """
+          EXISTS (
+            SELECT 1 FROM contact_suppressions cs
+            WHERE cs.company_id = c.company_id
+              AND cs.contact_id = c.id
+              AND cs.state = 'ACTIVE'
+          )
+          """;
+    }
+    String channel = requireChannel(key);
     return """
         EXISTS (
           SELECT 1 FROM contact_suppressions cs
