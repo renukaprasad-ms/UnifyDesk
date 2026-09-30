@@ -149,13 +149,26 @@ public class ContactStorageAdapter {
         .createSignedDownloadUrl(ref.bucket(), ref.objectKey(), contactsProperties.getSignedUrlTtl());
   }
 
-  public void commitImportReservation(long companyId, long importId, long bytes) {
+  public void commitImportReservation(
+      long companyId, long importId, long reservedBytes, long actualBytes) {
+    if (actualBytes <= 0 || actualBytes > reservedBytes) {
+      throw new IllegalArgumentException("Invalid import storage size");
+    }
     accountingService.commitReservation(
         companyId,
         StorageUsageType.CONTACT_DATA,
         "CONTACT_IMPORT",
         Long.toString(importId),
-        bytes);
+        actualBytes);
+    long unusedReservation = reservedBytes - actualBytes;
+    if (unusedReservation > 0) {
+      accountingService.releaseReservation(
+          companyId,
+          StorageUsageType.CONTACT_DATA,
+          "CONTACT_IMPORT",
+          Long.toString(importId),
+          unusedReservation);
+    }
   }
 
   public void releaseImportReservation(long companyId, long importId, long bytes) {

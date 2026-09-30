@@ -1,10 +1,12 @@
 package com.messaging.contacts.processing;
 
+import com.messaging.contacts.processing.ContactImportMutationPort.RowFailure;
 import com.messaging.media.enums.StorageProviderType;
-import java.sql.Timestamp;
+import java.sql.*;
 import java.time.Instant;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -146,6 +148,78 @@ public class ContactImportRepository {
   }
 
   @Transactional
+  public void appendFailures(long companyId, long importId, List<RowFailure> failures) {
+    if (failures == null || failures.isEmpty()) return;
+    Instant now = Instant.now();
+    jdbcTemplate.batchUpdate(
+        """
+        insert into contact_import_error_rows (
+          import_id, company_id, row_number, error_code, safe_message, created_at
+        ) values (?, ?, ?, ?, ?, ?)
+        on conflict (import_id, row_number, error_code) do nothing
+        """,
+        new BatchPreparedStatementSetter() {
+          @Override
+          public void setValues(PreparedStatement ps, int index) throws SQLException {
+            RowFailure failure = failures.get(index);
+            ps.setLong(1, importId);
+            ps.setLong(2, companyId);
+            ps.setLong(3, failure.rowNumber());
+            ps.setString(4, safe(failure.code(), 64));
+            ps.setString(5, safe(failure.safeMessage(), 500));
+            ps.setTimestamp(6, Timestamp.from(now));
+          }
+
+          @Override
+          public int getBatchSize() {
+            return failures.size();
+          }
+        });
+  }
+
+  public List<StoredError> pageErrors(
+      long companyId, long importId, long afterRow, String afterCode, int limit) {
+    return jdbcTemplate.query(
+        """
+        select row_number, error_code, safe_message
+        from contact_import_error_rows
+        where company_id = ? and import_id = ?
+          and (row_number > ? or (row_number = ? and error_code > ?))
+        order by row_number asc, error_code asc
+        limit ?
+        """,
+        (rs, rowNum) ->
+            new StoredError(
+                rs.getLong("row_number"),
+                rs.getString("error_code"),
+                rs.getString("safe_message")),
+        companyId,
+        importId,
+        afterRow,
+        afterRow,
+        afterCode == null ? "" : afterCode,
+        limit);
+  }
+
+  @Transactional
+  public void attachErrorReport(
+      long companyId, long importId, ContactStorageAdapter.PublishedObject object) {
+    jdbcTemplate.update(
+        """
+        update contact_imports
+        set error_report_provider = ?, error_report_bucket = ?,
+            error_report_object_key = ?, error_report_size_bytes = ?
+        where company_id = ? and id = ?
+        """,
+        object.provider().name(),
+        object.bucket(),
+        object.objectKey(),
+        object.sizeBytes(),
+        companyId,
+        importId);
+  }
+
+  @Transactional
   public void advance(
       long companyId,
       long id,
@@ -220,7 +294,8 @@ public class ContactImportRepository {
         .orElseThrow(() -> new com.messaging.common.exception.NotFoundException("CONTACT_NOT_FOUND"));
   }
 
-  private ImportRow map(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
+  private ImportRow map(ResultSet rs, int rowNum) throws SQLException {
+    String errorProvider = rs.getString("error_report_provider");
     return new ImportRow(
         rs.getLong("id"),
         rs.getLong("company_id"),
@@ -241,12 +316,23 @@ public class ContactImportRepository {
         rs.getLong("succeeded_rows"),
         rs.getLong("failed_rows"),
         rs.getLong("processed_row_cursor"),
+        errorProvider == null ? null : StorageProviderType.valueOf(errorProvider),
+        rs.getString("error_report_bucket"),
+        rs.getString("error_report_object_key"),
+        (Long) rs.getObject("error_report_size_bytes"),
         (Long) rs.getObject("async_job_id"),
         rs.getTimestamp("created_at").toInstant(),
         rs.getTimestamp("expires_at").toInstant());
   }
 
+  private static String safe(String value, int max) {
+    String normalized = value == null || value.isBlank() ? "UNKNOWN" : value.replaceAll("[\\r\\n\\t]+", " ");
+    return normalized.length() <= max ? normalized : normalized.substring(0, max);
+  }
+
   public record QueueResult(ImportRow row, boolean newlyQueued) {}
+
+  public record StoredError(long rowNumber, String code, String safeMessage) {}
 
   public record ImportRow(
       long id,
@@ -268,6 +354,10 @@ public class ContactImportRepository {
       long succeededRows,
       long failedRows,
       long processedRowCursor,
+      StorageProviderType errorReportProvider,
+      String errorReportBucket,
+      String errorReportObjectKey,
+      Long errorReportSizeBytes,
       Long asyncJobId,
       Instant createdAt,
       Instant expiresAt) {}

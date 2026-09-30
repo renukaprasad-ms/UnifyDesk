@@ -66,6 +66,15 @@ public class ContactProcessingController {
     return ResponseEntity.ok(ApiResponse.success(200, importService.get(companyId, importId), "Import fetched"));
   }
 
+  @GetMapping("/imports/{importId}/errors")
+  public ResponseEntity<ApiResponse<ContactImportService.Download>> importErrors(
+      @PathVariable long companyId, @PathVariable long importId) {
+    require(companyId, ContactAudiencePermissions.IMPORT);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200, importService.errors(companyId, importId), "Import error report ready"));
+  }
+
   @PostMapping("/exports")
   public ResponseEntity<ApiResponse<ContactExportService.CreateResult>> createExport(
       @PathVariable long companyId, @RequestBody ExportRequest request) {

@@ -122,13 +122,29 @@ public class ContactImportService {
             idempotencyKey,
             Long.parseLong(job.jobId()));
     if (queued.newlyQueued()) {
-      storage.commitImportReservation(companyId, importId, row.expectedSizeBytes());
+      storage.commitImportReservation(\n          companyId, importId, row.expectedSizeBytes(), metadata.sizeBytes());
     }
     return new CommitResult(queued.row(), job);
   }
 
   public ContactImportRepository.ImportRow get(long companyId, long importId) {
     return repository.require(companyId, importId);
+  }
+
+  public Download errors(long companyId, long importId) {
+    ContactImportRepository.ImportRow row = repository.require(companyId, importId);
+    if (row.errorReportProvider() == null
+        || row.errorReportBucket() == null
+        || row.errorReportObjectKey() == null) {
+      throw new BadRequestException("CONTACT_IMPORT_ERRORS_NOT_READY");
+    }
+    var signed =
+        storage.signedDownload(
+            new StorageRef(
+                row.errorReportProvider(),
+                row.errorReportBucket(),
+                row.errorReportObjectKey()));
+    return new Download(signed.url(), signed.expiresAt());
   }
 
   public ImportMapping parseMapping(String json) {
@@ -196,4 +212,7 @@ public class ContactImportService {
   public record Preview(List<String> headers, List<List<String>> sampleRows) {}
 
   public record CommitResult(ContactImportRepository.ImportRow importRow, AsyncJobResponse job) {}
+
+  public record Download(String url, Instant expiresAt) {}
 }
+

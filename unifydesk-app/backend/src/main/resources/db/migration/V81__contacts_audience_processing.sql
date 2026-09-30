@@ -198,6 +198,20 @@ create index idx_contact_imports_async_job
   on contact_imports (async_job_id)
   where async_job_id is not null;
 
+create table contact_import_error_rows (
+  import_id bigint not null,
+  company_id bigint not null,
+  row_number bigint not null,
+  error_code varchar(64) not null,
+  safe_message varchar(500) not null,
+  created_at timestamp(6) with time zone not null,
+  primary key (import_id, row_number, error_code),
+  constraint ck_contact_import_error_row_number check (row_number > 0)
+);
+
+create index idx_contact_import_error_rows_page
+  on contact_import_error_rows (company_id, import_id, row_number, error_code);
+
 create table contact_exports (
   id bigint primary key,
   company_id bigint not null,
