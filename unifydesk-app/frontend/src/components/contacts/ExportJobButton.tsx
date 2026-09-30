@@ -5,6 +5,7 @@ import {
 import { contactsApi } from '../../features/contacts/contactsApi'
 import type {
   ContactExport,
+  ContactExportField,
   ExportRequest,
 } from '../../features/contacts/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -13,7 +14,7 @@ type Props = {
   companyId: string
   sourceType: ExportRequest['sourceType']
   sourceId?: string | null
-  fields: string[]
+  fields: readonly ContactExportField[]
   label: string
   disabled?: boolean
   disabledReason?: string
@@ -61,7 +62,7 @@ export default function ExportJobButton({
       const next = await contactsApi.createExport(companyId, {
         sourceType,
         sourceId,
-        fields,
+        fields: [...fields],
         idempotencyKey: createIdempotencyKey(),
       })
       setResource(next)
