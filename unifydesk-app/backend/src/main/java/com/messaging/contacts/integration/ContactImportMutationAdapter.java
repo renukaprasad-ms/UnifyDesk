@@ -496,7 +496,7 @@ public class ContactImportMutationAdapter implements ContactImportMutationPort {
         code,
         switch (code) {
           case "CONTACT_IDENTITY_CONFLICT" -> "Identity already belongs to another contact";
-          case "CONTACT_INVALID_IDENTITY" -> "Email or phone is invalid";
+          case "CONTACT_INVALID_IDENTITY" -> "Email, phone, or external ID is invalid";
           case "CONTACT_FIELD_INVALID" -> "A mapped field value is invalid";
           case "CONTACT_TAG_NOT_FOUND" -> "A mapped tag does not exist";
           case "CONTACT_CONSENT_EVIDENCE_REQUIRED" -> "Opt-in consent evidence is required";

@@ -169,6 +169,14 @@ export default function ImportDetailPage() {
       return
     }
 
+    const hasIdentityMapping = mappings.some(
+      (mapping) => mapping.target.type === 'IDENTITY',
+    )
+    if (!hasIdentityMapping) {
+      setError('Map at least one Email, Phone, or External ID identity before starting the import.')
+      return
+    }
+
     const missingExternalNamespace = mappings.some(
       (mapping) =>
         mapping.target.type === 'IDENTITY' &&
