@@ -6,23 +6,39 @@ import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.asyncjob.enums.AsyncJobType;
 import com.messaging.asyncjob.service.AsyncJobService;
 import com.messaging.common.exception.BadRequestException;
+import com.messaging.common.exception.ConflictException;
 import com.messaging.common.id.IdGenerator;
 import com.messaging.contacts.audience.ContactAudienceProperties;
-import com.messaging.contacts.processing.ContactImportMutationPort.*;
-import com.messaging.contacts.processing.ContactStorageAdapter.*;
+import com.messaging.contacts.processing.ContactImportMutationPort.DuplicateStrategy;
+import com.messaging.contacts.processing.ContactImportMutationPort.ImportMapping;
+import com.messaging.contacts.processing.ContactStorageAdapter.StorageRef;
+import com.messaging.contacts.processing.ContactStorageAdapter.UploadIntent;
 import com.messaging.media.provider.StorageObjectMetadata;
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
-import java.util.*;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.csv.*;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class ContactImportService {
+
+  private static final Set<String> ALLOWED_CONTENT_TYPES =
+      Set.of("text/csv", "text/plain", "application/vnd.ms-excel", "application/octet-stream");
 
   private final ContactImportRepository repository;
   private final ContactStorageAdapter storage;
@@ -30,20 +46,31 @@ public class ContactImportService {
   private final ObjectMapper objectMapper;
   private final AsyncJobService asyncJobs;
 
-  public ImportIntent initiate(long companyId, long userId, long expectedBytes) {
+  public ImportIntent initiate(
+      long companyId,
+      long userId,
+      String fileName,
+      String contentType,
+      long expectedBytes) {
+    String safeFileName = safeFileName(fileName);
+    String safeContentType = safeContentType(contentType);
     long id = IdGenerator.nextId();
     String objectKey = "contacts/" + companyId + "/imports/" + id + "/source.csv";
     UploadIntent upload = storage.createImportUpload(companyId, id, expectedBytes, objectKey);
+    Instant createdAt = Instant.now();
     repository.create(
         id,
         companyId,
         userId,
+        safeFileName,
+        safeContentType,
         upload.provider(),
         upload.bucket(),
         upload.objectKey(),
         expectedBytes,
-        Instant.now().plus(properties.getArtifactTtl()));
-    return new ImportIntent(Long.toString(id), upload);
+        createdAt.plus(properties.getArtifactTtl()));
+    return new ImportIntent(
+        Long.toString(id), safeFileName, upload, properties.getCsvMaxBytes(), createdAt);
   }
 
   public Preview preview(long companyId, long importId) {
@@ -54,21 +81,13 @@ public class ContactImportService {
     repository.markUploaded(companyId, importId);
     try (InputStream input = storage.openStream(ref);
         Reader reader = new InputStreamReader(input, StandardCharsets.UTF_8);
-        CSVParser parser =
-            CSVFormat.DEFAULT
-                .builder()
-                .setHeader()
-                .setSkipHeaderRecord(true)
-                .setIgnoreEmptyLines(false)
-                .get()
-                .parse(reader)) {
-      List<String> headers = parser.getHeaderNames();
-      if (headers.isEmpty() || headers.size() > properties.getCsvMaxColumns()) throw invalid();
-      List<List<String>> sample = new ArrayList<>();
+        CSVParser parser = csvParser(reader)) {
+      List<String> headers = validateHeaders(parser.getHeaderNames());
+      List<List<String>> sample = new java.util.ArrayList<>();
       for (CSVRecord record : parser) {
         if (sample.size() >= properties.getCsvPreviewRows()) break;
         if (record.size() > properties.getCsvMaxColumns()) throw invalid();
-        List<String> cells = new ArrayList<>(record.size());
+        List<String> cells = new java.util.ArrayList<>(record.size());
         for (String value : record) {
           CsvSafety.validateCell(value, properties.getCsvMaxCellChars());
           cells.add(value);
@@ -77,6 +96,19 @@ public class ContactImportService {
       }
       repository.markPreviewed(companyId, importId);
       return new Preview(headers, sample);
+    } catch (IOException | IllegalArgumentException exception) {
+      throw invalid();
+    }
+  }
+
+  public List<String> headers(long companyId, long importId) {
+    ContactImportRepository.ImportRow row = repository.require(companyId, importId);
+    StorageObjectMetadata metadata = storage.metadata(ref(row));
+    validateUploaded(row, metadata);
+    try (InputStream input = storage.openStream(ref(row));
+        Reader reader = new InputStreamReader(input, StandardCharsets.UTF_8);
+        CSVParser parser = csvParser(reader)) {
+      return validateHeaders(parser.getHeaderNames());
     } catch (IOException | IllegalArgumentException exception) {
       throw invalid();
     }
@@ -93,7 +125,10 @@ public class ContactImportService {
     if (mapping == null
         || duplicateStrategy == null
         || idempotencyKey == null
-        || idempotencyKey.isBlank()) throw invalid();
+        || idempotencyKey.isBlank()
+        || idempotencyKey.length() > 160) {
+      throw invalid();
+    }
 
     ContactImportRepository.ImportRow row = repository.require(companyId, importId);
     StorageObjectMetadata metadata = storage.metadata(ref(row));
@@ -108,8 +143,7 @@ public class ContactImportService {
       ContactImportRepository.ImportRow existing = replay.get();
       if (!Objects.equals(existing.contentSha256(), checksum)
           || !Objects.equals(existing.mappingHash(), mappingHash)) {
-        throw new com.messaging.common.exception.ConflictException(
-            "CONTACT_IMPORT_IDEMPOTENCY_CONFLICT");
+        throw new ConflictException("CONTACT_IMPORT_IDEMPOTENCY_CONFLICT");
       }
       return new CommitResult(existing, null);
     }
@@ -144,12 +178,16 @@ public class ContactImportService {
     return repository.require(companyId, importId);
   }
 
-  public Download errors(long companyId, long importId) {
+  public ErrorReport errors(long companyId, long importId) {
     ContactImportRepository.ImportRow row = repository.require(companyId, importId);
-    if (row.errorReportProvider() == null
-        || row.errorReportBucket() == null
-        || row.errorReportObjectKey() == null) {
-      throw new BadRequestException("CONTACT_IMPORT_ERRORS_NOT_READY");
+    boolean reportReady =
+        row.errorReportProvider() != null
+            && row.errorReportBucket() != null
+            && row.errorReportObjectKey() != null;
+    boolean terminal =
+        Set.of("COMPLETED", "FAILED", "VALIDATION_FAILED", "EXPIRED").contains(row.status());
+    if (!reportReady) {
+      return new ErrorReport(row.failedRows(), terminal && row.failedRows() == 0, null, null);
     }
     var signed =
         storage.signedDownload(
@@ -157,7 +195,7 @@ public class ContactImportService {
                 row.errorReportProvider(),
                 row.errorReportBucket(),
                 row.errorReportObjectKey()));
-    return new Download(signed.url(), signed.expiresAt());
+    return new ErrorReport(row.failedRows(), true, signed.url(), signed.expiresAt());
   }
 
   public ImportMapping parseMapping(String json) {
@@ -173,7 +211,9 @@ public class ContactImportService {
       MessageDigest digest = MessageDigest.getInstance("SHA-256");
       byte[] buffer = new byte[64 * 1024];
       int read;
-      while ((read = input.read(buffer)) >= 0) if (read > 0) digest.update(buffer, 0, read);
+      while ((read = input.read(buffer)) >= 0) {
+        if (read > 0) digest.update(buffer, 0, read);
+      }
       return HexFormat.of().formatHex(digest.digest());
     } catch (Exception exception) {
       if (exception instanceof RuntimeException runtime) throw runtime;
@@ -185,19 +225,62 @@ public class ContactImportService {
     return new StorageRef(row.provider(), row.bucket(), row.objectKey());
   }
 
+  private CSVParser csvParser(Reader reader) throws IOException {
+    return CSVFormat.DEFAULT
+        .builder()
+        .setHeader()
+        .setSkipHeaderRecord(true)
+        .setIgnoreEmptyLines(false)
+        .get()
+        .parse(reader);
+  }
+
+  private List<String> validateHeaders(List<String> headers) {
+    if (headers == null
+        || headers.isEmpty()
+        || headers.size() > properties.getCsvMaxColumns()
+        || headers.stream().anyMatch(value -> value == null || value.isBlank())
+        || headers.stream().distinct().count() != headers.size()) {
+      throw invalid();
+    }
+    return List.copyOf(headers);
+  }
+
   private void validateUploaded(
       ContactImportRepository.ImportRow row, StorageObjectMetadata metadata) {
     if (!metadata.exists()
         || metadata.sizeBytes() == null
         || metadata.sizeBytes() <= 0
         || metadata.sizeBytes() > properties.getCsvMaxBytes()
-        || metadata.sizeBytes() > row.expectedSizeBytes()) throw invalid();
+        || metadata.sizeBytes() > row.expectedSizeBytes()) {
+      throw invalid();
+    }
     String type = metadata.contentType();
     if (type != null
         && !type.isBlank()
         && !type.toLowerCase(Locale.ROOT).contains("csv")
         && !type.toLowerCase(Locale.ROOT).contains("text/plain")
-        && !type.toLowerCase(Locale.ROOT).contains("octet-stream")) throw invalid();
+        && !type.toLowerCase(Locale.ROOT).contains("octet-stream")) {
+      throw invalid();
+    }
+  }
+
+  private String safeFileName(String value) {
+    if (value == null || value.isBlank()) throw invalid();
+    String normalized = value.replace('\\', '/');
+    normalized = normalized.substring(normalized.lastIndexOf('/') + 1).trim();
+    normalized = normalized.replaceAll("[\\p{Cntrl}]", "");
+    if (normalized.isBlank() || normalized.length() > 255) throw invalid();
+    return normalized;
+  }
+
+  private String safeContentType(String value) {
+    String normalized =
+        value == null || value.isBlank()
+            ? "text/csv"
+            : value.trim().toLowerCase(Locale.ROOT);
+    if (!ALLOWED_CONTENT_TYPES.contains(normalized)) throw invalid();
+    return normalized;
   }
 
   private String json(Object value) {
@@ -220,12 +303,17 @@ public class ContactImportService {
     return new BadRequestException("CONTACT_IMPORT_INVALID");
   }
 
-  public record ImportIntent(String importId, UploadIntent upload) {}
+  public record ImportIntent(
+      String importId,
+      String fileName,
+      UploadIntent upload,
+      long maxBytes,
+      Instant createdAt) {}
 
   public record Preview(List<String> headers, List<List<String>> sampleRows) {}
 
   public record CommitResult(ContactImportRepository.ImportRow importRow, AsyncJobResponse job) {}
 
-  public record Download(String url, Instant expiresAt) {}
+  public record ErrorReport(
+      long count, boolean ready, String downloadUrl, Instant expiresAt) {}
 }
-

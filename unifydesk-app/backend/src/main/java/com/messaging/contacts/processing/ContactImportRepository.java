@@ -22,6 +22,8 @@ public class ContactImportRepository {
       long id,
       long companyId,
       long userId,
+      String originalFileName,
+      String contentType,
       StorageProviderType provider,
       String bucket,
       String objectKey,
@@ -30,13 +32,16 @@ public class ContactImportRepository {
     jdbcTemplate.update(
         """
         insert into contact_imports (
-          id, company_id, requested_by_user_id, storage_provider, storage_bucket,
-          storage_object_key, expected_size_bytes, status, created_at, expires_at
-        ) values (?, ?, ?, ?, ?, ?, ?, 'DRAFT_UPLOAD', ?, ?)
+          id, company_id, requested_by_user_id, original_file_name, content_type,
+          storage_provider, storage_bucket, storage_object_key, expected_size_bytes,
+          status, created_at, expires_at
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT_UPLOAD', ?, ?)
         """,
         id,
         companyId,
         userId,
+        originalFileName,
+        contentType,
         provider.name(),
         bucket,
         objectKey,
@@ -300,6 +305,8 @@ public class ContactImportRepository {
         rs.getLong("id"),
         rs.getLong("company_id"),
         rs.getLong("requested_by_user_id"),
+        rs.getString("original_file_name"),
+        rs.getString("content_type"),
         StorageProviderType.valueOf(rs.getString("storage_provider")),
         rs.getString("storage_bucket"),
         rs.getString("storage_object_key"),
@@ -322,7 +329,13 @@ public class ContactImportRepository {
         (Long) rs.getObject("error_report_size_bytes"),
         (Long) rs.getObject("async_job_id"),
         rs.getTimestamp("created_at").toInstant(),
+        instant(rs.getTimestamp("started_at")),
+        instant(rs.getTimestamp("completed_at")),
         rs.getTimestamp("expires_at").toInstant());
+  }
+
+  private static Instant instant(Timestamp value) {
+    return value == null ? null : value.toInstant();
   }
 
   private static String safe(String value, int max) {
@@ -338,6 +351,8 @@ public class ContactImportRepository {
       long id,
       long companyId,
       long requestedByUserId,
+      String originalFileName,
+      String contentType,
       StorageProviderType provider,
       String bucket,
       String objectKey,
@@ -360,5 +375,7 @@ public class ContactImportRepository {
       Long errorReportSizeBytes,
       Long asyncJobId,
       Instant createdAt,
+      Instant startedAt,
+      Instant completedAt,
       Instant expiresAt) {}
 }

@@ -150,6 +150,8 @@ create table contact_imports (
   id bigint primary key,
   company_id bigint not null,
   requested_by_user_id bigint not null,
+  original_file_name varchar(255) not null,
+  content_type varchar(128) not null,
   storage_provider varchar(24) not null,
   storage_bucket varchar(255) not null,
   storage_object_key varchar(1000) not null,
