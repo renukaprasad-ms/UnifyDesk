@@ -1240,11 +1240,10 @@ export const adCenterApi = {
     biddingStrategyId: string,
     sharedBudgetId: string,
   ) {
-    const response = await apiClient.post<ApiResponse<null>>(
+    await apiClient.post<ApiResponse<null>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/portfolio-alignment`,
       { biddingStrategyId, sharedBudgetId },
     )
-    return unwrap(response.data)
   },
 
   async googleCampaignPortfolioAssignment(companyId: string, campaignId: string) {
