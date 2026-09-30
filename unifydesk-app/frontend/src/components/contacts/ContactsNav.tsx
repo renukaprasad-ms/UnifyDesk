@@ -1,13 +1,21 @@
 import { NavLink } from 'react-router'
+import { PERMISSIONS } from '../../features/iam/permissions'
+import { useIam } from '../../features/iam/useIam'
 
-const links = [
+const coreLinks = [
   ['/contacts', 'Contacts'],
   ['/contacts/lists', 'Lists'],
   ['/contacts/segments', 'Segments'],
-  ['/contacts/imports', 'Imports'],
 ] as const
 
 export default function ContactsNav() {
+  const { can } = useIam()
+  const links: ReadonlyArray<readonly [string, string]> = can(
+    PERMISSIONS.CONTACT_IMPORT,
+  )
+    ? [...coreLinks, ['/contacts/imports', 'Imports'] as const]
+    : coreLinks
+
   return (
     <nav aria-label="Contacts navigation" className="mb-6 flex gap-2 overflow-x-auto pb-1">
       {links.map(([to, label]) => (

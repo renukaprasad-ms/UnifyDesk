@@ -146,11 +146,27 @@ const AppRoutes = () => (
               <Route path="contacts/lists" element={<ListsPage />} />
               <Route path="contacts/lists/:listId" element={<ListDetailPage />} />
               <Route path="contacts/segments" element={<SegmentsPage />} />
-              <Route path="contacts/segments/new" element={<SegmentEditorPage />} />
               <Route path="contacts/segments/:segmentId" element={<SegmentEditorPage />} />
+              <Route path="contacts/:contactId" element={<ContactDetailPage />} />
+            </Route>
+            <Route
+              element={
+                <PermissionRoute
+                  allOf={[PERMISSIONS.CONTACT_READ, PERMISSIONS.CONTACT_MODIFY]}
+                />
+              }
+            >
+              <Route path="contacts/segments/new" element={<SegmentEditorPage />} />
+            </Route>
+            <Route
+              element={
+                <PermissionRoute
+                  allOf={[PERMISSIONS.CONTACT_READ, PERMISSIONS.CONTACT_IMPORT]}
+                />
+              }
+            >
               <Route path="contacts/imports" element={<ImportsPage />} />
               <Route path="contacts/imports/:importId" element={<ImportDetailPage />} />
-              <Route path="contacts/:contactId" element={<ContactDetailPage />} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.TEMPLATE_READ]} />}>
               <Route path="templates" element={<TemplateLibrary />} />

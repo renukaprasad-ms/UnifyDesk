@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
+import ExportJobButton from '../../components/contacts/ExportJobButton'
 import { contactsApi } from '../../features/contacts/contactsApi'
 import type { ContactSummary, ListSummary } from '../../features/contacts/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -98,21 +99,39 @@ export default function ListDetailPage() {
               {list?.memberCount.toLocaleString() || 0} members. Membership remains server-side and is loaded by cursor.
             </p>
           </div>
-          {can(PERMISSIONS.CONTACT_MODIFY) && list && (
-            <button
-              className="secondary-button text-rose-700"
-              disabled={busy}
-              onClick={() => {
-                if (!companyId || !window.confirm('Archive this List? Existing historical references remain intact.')) return
-                setBusy(true)
-                contactsApi.archiveList(companyId, listId)
-                  .then(() => navigate('/contacts/lists', { replace: true }))
-                  .catch((archiveError) => setError(apiErrorMessage(archiveError, 'Unable to archive List.')))
-                  .finally(() => setBusy(false))
-              }}
-            >
-              Archive List
-            </button>
+          {list && companyId && (
+            <div className="flex flex-wrap gap-2">
+              {can(PERMISSIONS.CONTACT_EXPORT) && (
+                <ExportJobButton
+                  companyId={companyId}
+                  sourceType="LIST"
+                  sourceId={listId}
+                  fields={[
+                    'displayName',
+                    'primaryEmail',
+                    'primaryPhone',
+                    'organization',
+                  ]}
+                  label="Export List"
+                />
+              )}
+              {can(PERMISSIONS.CONTACT_MODIFY) && (
+                <button
+                  className="secondary-button text-rose-700"
+                  disabled={busy}
+                  onClick={() => {
+                    if (!window.confirm('Archive this List? Existing historical references remain intact.')) return
+                    setBusy(true)
+                    contactsApi.archiveList(companyId, listId)
+                      .then(() => navigate('/contacts/lists', { replace: true }))
+                      .catch((archiveError) => setError(apiErrorMessage(archiveError, 'Unable to archive List.')))
+                      .finally(() => setBusy(false))
+                  }}
+                >
+                  Archive List
+                </button>
+              )}
+            </div>
           )}
         </div>
 

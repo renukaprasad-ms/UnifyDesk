@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { contactsApi } from '../../features/contacts/contactsApi'
+import { useIam } from '../../features/iam/useIam'
 import { useAppSelector } from '../../store/hooks'
 import SegmentEditorPage from './SegmentEditorPage'
 
@@ -22,10 +23,24 @@ vi.mock('../../store/hooks', () => ({
   useAppSelector: vi.fn(),
 }))
 
+vi.mock('../../features/iam/useIam', () => ({
+  useIam: vi.fn(),
+}))
+
 describe('SegmentEditorPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(useAppSelector).mockReturnValue('company-1')
+    vi.mocked(useIam).mockReturnValue({
+      owner: false,
+      permissions: [],
+      status: 'ready',
+      companyId: 'company-1',
+      error: null,
+      can: () => true,
+      canAny: () => true,
+      canAll: () => true,
+    })
     vi.mocked(contactsApi.customFields).mockResolvedValue([])
     vi.mocked(contactsApi.tags).mockResolvedValue([])
     vi.mocked(contactsApi.lists).mockResolvedValue([])

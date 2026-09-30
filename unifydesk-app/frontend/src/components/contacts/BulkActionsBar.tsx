@@ -9,6 +9,7 @@ type Props = {
   selectedIds: ReadonlySet<string>
   allMatching: boolean
   query: ContactQuery
+  allowModify: boolean
   allowDelete: boolean
   onDone: (message: string) => void
   onError: (message: string) => void
@@ -22,12 +23,13 @@ export default function BulkActionsBar({
   selectedIds,
   allMatching,
   query,
+  allowModify,
   allowDelete,
   onDone,
   onError,
   onClear,
 }: Props) {
-  const [action, setAction] = useState<Action>('ADD_TAG')
+  const [action, setAction] = useState<Action>(allowModify ? 'ADD_TAG' : 'DELETE')
   const [tags, setTags] = useState<TagSummary[]>([])
   const [lists, setLists] = useState<ListSummary[]>([])
   const [fields, setFields] = useState<CustomFieldDefinition[]>([])
@@ -36,6 +38,11 @@ export default function BulkActionsBar({
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
+    if (!allowModify && allowDelete) setAction('DELETE')
+  }, [allowModify, allowDelete])
+
+  useEffect(() => {
+    if (!allowModify) return
     Promise.all([
       contactsApi.tags(companyId),
       contactsApi.lists(companyId),
@@ -56,6 +63,28 @@ export default function BulkActionsBar({
           ? fields.map((item) => ({ id: item.id, label: item.name }))
           : []
 
+  const selectedField =
+    action === 'UPDATE_FIELD'
+      ? fields.find((field) => field.id === targetId)
+      : undefined
+
+  const typedFieldValue = () => {
+    if (!selectedField) return fieldValue
+    if (selectedField.type === 'NUMBER') {
+      return fieldValue.trim() === '' ? null : Number(fieldValue)
+    }
+    if (selectedField.type === 'BOOLEAN') {
+      return fieldValue === '' ? null : fieldValue === 'true'
+    }
+    if (selectedField.type === 'MULTI_SELECT') {
+      return fieldValue
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    }
+    return fieldValue
+  }
+
   const run = async () => {
     if (action !== 'DELETE' && !targetId) return
     if (action === 'DELETE' && !window.confirm('Delete the selected contacts? This queues permanent cleanup and cannot be undone.')) return
@@ -68,7 +97,7 @@ export default function BulkActionsBar({
         action === 'REMOVE_TAG' ? { type: 'REMOVE_TAG' as const, tagId: targetId } :
         action === 'ADD_TO_LIST' ? { type: 'ADD_TO_LIST' as const, listId: targetId } :
         action === 'REMOVE_FROM_LIST' ? { type: 'REMOVE_FROM_LIST' as const, listId: targetId } :
-        action === 'UPDATE_FIELD' ? { type: 'UPDATE_FIELD' as const, fieldId: targetId, value: fieldValue } :
+        action === 'UPDATE_FIELD' ? { type: 'UPDATE_FIELD' as const, fieldId: targetId, value: typedFieldValue() } :
         { type: 'DELETE' as const }
       await contactsApi.bulk(companyId, selection, operation, createIdempotencyKey())
       onClear()
@@ -93,11 +122,11 @@ export default function BulkActionsBar({
           setTargetId('')
           setFieldValue('')
         }}>
-          <option value="ADD_TAG">Add tag</option>
-          <option value="REMOVE_TAG">Remove tag</option>
-          <option value="ADD_TO_LIST">Add to list</option>
-          <option value="REMOVE_FROM_LIST">Remove from list</option>
-          <option value="UPDATE_FIELD">Update custom field</option>
+          {allowModify && <option value="ADD_TAG">Add tag</option>}
+          {allowModify && <option value="REMOVE_TAG">Remove tag</option>}
+          {allowModify && <option value="ADD_TO_LIST">Add to list</option>}
+          {allowModify && <option value="REMOVE_FROM_LIST">Remove from list</option>}
+          {allowModify && <option value="UPDATE_FIELD">Update custom field</option>}
           {allowDelete && <option value="DELETE">Delete contacts</option>}
         </select>
         {action === 'DELETE' ? <div className="self-center text-xs font-semibold text-rose-700">Destructive action</div> : (
@@ -107,7 +136,39 @@ export default function BulkActionsBar({
           </select>
         )}
         {action === 'UPDATE_FIELD' ? (
-          <input className="form-input" aria-label="Custom field value" value={fieldValue} onChange={(event) => setFieldValue(event.target.value)} placeholder="New value" />
+          selectedField?.type === 'BOOLEAN' ? (
+            <select
+              className="form-input"
+              aria-label="Custom field value"
+              value={fieldValue}
+              onChange={(event) => setFieldValue(event.target.value)}
+            >
+              <option value="">Unknown</option>
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          ) : selectedField?.type === 'SELECT' && selectedField.options?.length ? (
+            <select
+              className="form-input"
+              aria-label="Custom field value"
+              value={fieldValue}
+              onChange={(event) => setFieldValue(event.target.value)}
+            >
+              <option value="">Choose…</option>
+              {selectedField.options.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              className="form-input"
+              aria-label="Custom field value"
+              type={selectedField?.type === 'NUMBER' ? 'number' : 'text'}
+              value={fieldValue}
+              onChange={(event) => setFieldValue(event.target.value)}
+              placeholder={selectedField?.type === 'MULTI_SELECT' ? 'Comma-separated values' : 'New value'}
+            />
+          )
         ) : <div />}
         <button className="primary-button" disabled={busy || (action !== 'DELETE' && !targetId)} onClick={() => void run()}>
           {busy ? 'Starting…' : 'Apply'}

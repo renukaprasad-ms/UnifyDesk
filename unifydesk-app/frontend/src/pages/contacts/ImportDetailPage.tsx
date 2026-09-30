@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import {
@@ -68,6 +68,7 @@ export default function ImportDetailPage() {
   const [error, setError] = useState('')
   const [committing, setCommitting] = useState(false)
   const [downloadingErrors, setDownloadingErrors] = useState(false)
+  const pollAttempts = useRef(0)
 
   useEffect(() => {
     if (!companyId) return
@@ -109,7 +110,13 @@ export default function ImportDetailPage() {
     ) {
       return
     }
+    pollAttempts.current = 0
     const timer = window.setInterval(() => {
+      if (pollAttempts.current >= 120) {
+        window.clearInterval(timer)
+        return
+      }
+      pollAttempts.current += 1
       contactsApi
         .getImport(companyId, importId)
         .then(setResource)

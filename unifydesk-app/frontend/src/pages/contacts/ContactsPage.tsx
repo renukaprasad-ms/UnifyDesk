@@ -3,7 +3,8 @@ import { Link, useSearchParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import ContactFormDialog from '../../components/contacts/ContactFormDialog'
 import BulkActionsBar from '../../components/contacts/BulkActionsBar'
-import { createIdempotencyKey, toCreateContactInput } from '../../features/contacts/contactModel'
+import ExportJobButton from '../../components/contacts/ExportJobButton'
+import { toCreateContactInput } from '../../features/contacts/contactModel'
 import { contactsApi } from '../../features/contacts/contactsApi'
 import { useContacts } from '../../features/contacts/useContacts'
 import type { ContactQuery, ContactSort, ListSummary, TagSummary } from '../../features/contacts/types'
@@ -22,7 +23,6 @@ export default function ContactsPage() {
   const [allMatching, setAllMatching] = useState(false)
   const [creating, setCreating] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [exporting, setExporting] = useState(false)
   const [tags, setTags] = useState<TagSummary[]>([])
   const [lists, setLists] = useState<ListSummary[]>([])
   const [notice, setNotice] = useState('')
@@ -38,6 +38,8 @@ export default function ContactsPage() {
     size: 50,
   }
   const contacts = useContacts(companyId, query)
+  const canBulk =
+    can(PERMISSIONS.CONTACT_MODIFY) || can(PERMISSIONS.CONTACT_DELETE)
 
   useEffect(() => {
     if (!companyId) return
@@ -51,14 +53,19 @@ export default function ContactsPage() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const next = new URLSearchParams(params)
-      if (search.trim()) next.set('q', search.trim())
-      else next.delete('q')
-      next.delete('cursor')
-      setParams(next, { replace: true })
+      setParams(
+        (current) => {
+          const next = new URLSearchParams(current)
+          if (search.trim()) next.set('q', search.trim())
+          else next.delete('q')
+          next.delete('cursor')
+          return next
+        },
+        { replace: true },
+      )
     }, 300)
     return () => window.clearTimeout(timer)
-  }, [search])
+  }, [search, setParams])
 
   const toggle = (id: string) =>
     setSelected((current) => {
@@ -79,29 +86,22 @@ export default function ContactsPage() {
             <p className="mt-2 text-sm text-slate-500">Search and manage first-party customer records without loading the full audience into your browser.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {can(PERMISSIONS.CONTACT_EXPORT) && (
-              <button
-                className="secondary-button"
-                disabled={exporting || Boolean(query.q)}
-                title={query.q ? 'The frozen export contract does not define arbitrary filter exports.' : undefined}
-                onClick={() => {
-                  if (!companyId) return
-                  setExporting(true)
-                  setError('')
-                  contactsApi.createExport(companyId, {
-                    sourceType: 'CONTACTS',
-                    sourceId: null,
-                    fields: ['displayName', 'primaryEmail', 'primaryPhone', 'organization'],
-                    idempotencyKey: createIdempotencyKey(),
-                  }).then((resource) => {
-                    setNotice('Export queued with ID ' + resource.id + '.')
-                  }).catch((actionError) => {
-                    setError(apiErrorMessage(actionError, 'Unable to start export.'))
-                  }).finally(() => setExporting(false))
-                }}
-              >
-                {exporting ? 'Starting export…' : 'Export contacts'}
-              </button>
+            {can(PERMISSIONS.CONTACT_EXPORT) && companyId && (
+              <ExportJobButton
+                companyId={companyId}
+                sourceType="CONTACTS"
+                fields={['displayName', 'primaryEmail', 'primaryPhone', 'organization']}
+                label="Export contacts"
+                disabled={Boolean(
+                  query.q ||
+                    query.status ||
+                    query.tagId ||
+                    query.listId ||
+                    query.createdAfter ||
+                    query.createdBefore,
+                )}
+                disabledReason="The frozen Round-1 export contract does not define arbitrary filtered Contact exports."
+              />
             )}
             {can(PERMISSIONS.CONTACT_IMPORT) && <Link className="secondary-button" to="/contacts/imports">Import CSV</Link>}
             {can(PERMISSIONS.CONTACT_CREATE) && <button className="primary-button" onClick={() => setCreating(true)}>New contact</button>}
@@ -191,7 +191,7 @@ export default function ContactsPage() {
           </div>
         </div>
 
-        {(selected.size > 0 || allMatching) && companyId && (
+        {canBulk && (selected.size > 0 || allMatching) && companyId && (
           <>
             {!allMatching && contacts.hasMore && (
               <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm">
@@ -205,6 +205,7 @@ export default function ContactsPage() {
               selectedIds={selected}
               allMatching={allMatching}
               query={query}
+              allowModify={can(PERMISSIONS.CONTACT_MODIFY)}
               allowDelete={can(PERMISSIONS.CONTACT_DELETE)}
               onDone={(message) => {
                 setNotice(message)
@@ -226,16 +227,38 @@ export default function ContactsPage() {
             <div className="overflow-x-auto">
               <table className="mobile-card-table min-w-full text-sm">
                 <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                  <tr><th className="p-3"><span className="sr-only">Select</span></th><th className="p-3">Contact</th><th className="p-3">Email</th><th className="p-3">Phone</th><th className="p-3">Organization</th><th className="p-3">Updated</th></tr>
+                  <tr>{canBulk && <th className="p-3"><span className="sr-only">Select</span></th>}<th className="p-3">Contact</th><th className="p-3">Email</th><th className="p-3">Phone</th><th className="p-3">Organization</th><th className="p-3">Marketing</th><th className="p-3">Updated</th></tr>
                 </thead>
                 <tbody>
                   {contacts.items.map((contact) => (
                     <tr key={contact.id} className="border-t border-slate-100">
-                      <td className="p-3" data-label="Select"><input aria-label={'Select ' + contact.displayName} type="checkbox" checked={selected.has(contact.id)} disabled={allMatching} onChange={() => toggle(contact.id)} /></td>
+                      {canBulk && (
+                        <td className="p-3" data-label="Select">
+                          <input
+                            aria-label={'Select ' + contact.displayName}
+                            type="checkbox"
+                            checked={selected.has(contact.id)}
+                            disabled={allMatching}
+                            onChange={() => toggle(contact.id)}
+                          />
+                        </td>
+                      )}
                       <td className="p-3" data-label="Contact"><Link className="font-semibold text-indigo-700 hover:underline" to={'/contacts/' + contact.id}>{contact.displayName}</Link><div className="mt-1 flex flex-wrap gap-1">{contact.tags?.slice(0, 3).map((tag) => <span key={tag.id} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px]">{tag.name}</span>)}</div></td>
                       <td className="p-3" data-label="Email">{contact.primaryEmail || '—'}</td>
                       <td className="p-3" data-label="Phone">{contact.primaryPhone || '—'}</td>
                       <td className="p-3" data-label="Organization">{contact.organization || '—'}</td>
+                      <td className="p-3" data-label="Marketing">
+                        <div className="flex flex-wrap gap-1">
+                          {(['EMAIL', 'SMS', 'WHATSAPP'] as const).map((channel) => (
+                            <span
+                              key={channel}
+                              className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600"
+                            >
+                              {channel === 'WHATSAPP' ? 'WA' : channel}: {contact.preferenceSummary?.[channel] ?? 'UNKNOWN'}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
                       <td className="p-3" data-label="Updated">{new Date(contact.updatedAt).toLocaleDateString()}</td>
                     </tr>
                   ))}

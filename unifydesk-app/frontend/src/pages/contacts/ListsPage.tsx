@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import { contactsApi } from '../../features/contacts/contactsApi'
@@ -14,8 +14,125 @@ export default function ListsPage() {
   const { can } = useIam()
   const [items, setItems] = useState<ListSummary[]>([])
   const [name, setName] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
-  const load = async () => { if (!companyId) return; try { setItems(await contactsApi.lists(companyId)) } catch (e) { setError(apiErrorMessage(e, 'Unable to load lists.')) } }
-  useEffect(() => { void load() }, [companyId])
-  return <section className="px-4 py-6 sm:px-6 lg:px-8"><div className="mx-auto max-w-6xl"><ContactsNav/><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="eyebrow">Audience</p><h1 className="mt-2 text-3xl font-bold">Lists</h1><p className="mt-2 text-sm text-slate-500">Static contact membership with server-side counts.</p></div>{can(PERMISSIONS.CONTACT_MODIFY) && <form className="flex gap-2" onSubmit={async (e) => { e.preventDefault(); if (!companyId || !name.trim()) return; await contactsApi.createList(companyId,{name:name.trim()}); setName(''); await load() }}><label className="sr-only" htmlFor="list-name">List name</label><input id="list-name" className="form-input" value={name} placeholder="New list name" onChange={(e)=>setName(e.target.value)}/><button className="primary-button">Create list</button></form>}</div>{error && <div className="mt-5 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}<div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{items.map((item)=><Link key={item.id} to={'/contacts/lists/'+item.id} className="panel p-5 hover:border-indigo-200"><h2 className="font-bold">{item.name}</h2><p className="mt-2 text-sm text-slate-500">{item.description || 'Static audience list'}</p><p className="mt-4 text-2xl font-bold">{item.memberCount.toLocaleString()}</p><p className="text-xs text-slate-500">members</p></Link>)}</div></div></section>
+
+  const load = async () => {
+    if (!companyId) {
+      setItems([])
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    try {
+      setItems((await contactsApi.lists(companyId)).filter((item) => !item.archived))
+    } catch (loadError) {
+      setError(apiErrorMessage(loadError, 'Unable to load Lists.'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void load()
+  }, [companyId])
+
+  const create = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!companyId || !name.trim() || creating) return
+
+    setCreating(true)
+    setError('')
+    try {
+      await contactsApi.createList(companyId, { name: name.trim() })
+      setName('')
+      await load()
+    } catch (createError) {
+      setError(apiErrorMessage(createError, 'Unable to create List.'))
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  return (
+    <section className="px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl">
+        <ContactsNav />
+        <header className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="eyebrow">Audience</p>
+            <h1 className="mt-2 text-3xl font-bold text-slate-950">Lists</h1>
+            <p className="mt-2 text-sm text-slate-500">
+              Static membership with server-side counts and cursor-paged members.
+            </p>
+          </div>
+
+          {can(PERMISSIONS.CONTACT_MODIFY) && (
+            <form className="flex w-full gap-2 sm:w-auto" onSubmit={create}>
+              <label className="sr-only" htmlFor="list-name">
+                List name
+              </label>
+              <input
+                id="list-name"
+                className="form-input"
+                value={name}
+                placeholder="New List name"
+                onChange={(event) => setName(event.target.value)}
+              />
+              <button
+                className="primary-button whitespace-nowrap"
+                disabled={creating || !name.trim()}
+              >
+                {creating ? 'Creating…' : 'Create List'}
+              </button>
+            </form>
+          )}
+        </header>
+
+        {error && (
+          <div
+            role="alert"
+            className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
+          >
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="panel mt-6 p-10 text-center text-sm text-slate-500" role="status">
+            Loading Lists…
+          </div>
+        ) : items.length === 0 ? (
+          <div className="panel mt-6 p-10 text-center">
+            <h2 className="font-bold text-slate-950">No Lists yet</h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Create a static audience or add Contacts to a List from bulk actions.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {items.map((item) => (
+              <Link
+                key={item.id}
+                to={'/contacts/lists/' + item.id}
+                className="panel p-5 hover:border-indigo-200"
+              >
+                <h2 className="font-bold text-slate-950">{item.name}</h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  {item.description || 'Static audience List'}
+                </p>
+                <p className="mt-4 text-2xl font-bold text-slate-950">
+                  {item.memberCount.toLocaleString()}
+                </p>
+                <p className="text-xs text-slate-500">members</p>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  )
 }

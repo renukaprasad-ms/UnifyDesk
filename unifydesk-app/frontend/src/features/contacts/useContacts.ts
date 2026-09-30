@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { appendCursorPage, normalizeContactQuery } from './contactModel'
 import { contactsApi } from './contactsApi'
@@ -12,7 +12,19 @@ export const useContacts = (companyId: string | null, query: ContactQuery) => {
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
   const requestRef = useRef(0)
-  const normalized = normalizeContactQuery(query)
+  const normalized = useMemo(
+    () => normalizeContactQuery(query),
+    [
+      query.q,
+      query.status,
+      query.tagId,
+      query.listId,
+      query.createdAfter,
+      query.createdBefore,
+      query.sort,
+      query.size,
+    ],
+  )
   const queryKey = JSON.stringify(normalized)
 
   useEffect(() => {
@@ -41,7 +53,7 @@ export const useContacts = (companyId: string | null, query: ContactQuery) => {
       .finally(() => {
         if (requestRef.current === requestId) setLoading(false)
       })
-  }, [companyId, queryKey])
+  }, [companyId, queryKey, normalized])
 
   const loadMore = async () => {
     if (!companyId || !hasMore || !nextCursor || loadingMore) return
