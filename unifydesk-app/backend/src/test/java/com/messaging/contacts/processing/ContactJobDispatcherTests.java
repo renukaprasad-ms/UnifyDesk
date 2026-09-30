@@ -23,6 +23,9 @@ class ContactJobDispatcherTests {
     ContactExportWorker exportWorker = mock(ContactExportWorker.class);
     ContactBulkWorker bulkWorker = mock(ContactBulkWorker.class);
     ContactDeletePurgeWorker purgeWorker = mock(ContactDeletePurgeWorker.class);
+    ContactImportRepository importRepository = mock(ContactImportRepository.class);
+    ContactExportRepository exportRepository = mock(ContactExportRepository.class);
+    ContactBulkRepository bulkRepository = mock(ContactBulkRepository.class);
     SegmentService segmentService = mock(SegmentService.class);
     AudienceSnapshotService snapshotService = mock(AudienceSnapshotService.class);
     ContactJobDispatcher dispatcher =
@@ -33,6 +36,9 @@ class ContactJobDispatcherTests {
             exportWorker,
             bulkWorker,
             purgeWorker,
+            importRepository,
+            exportRepository,
+            bulkRepository,
             segmentService,
             snapshotService,
             new ContactAudienceProperties());
@@ -45,6 +51,7 @@ class ContactJobDispatcherTests {
 
     dispatcher.processClaimedJob(AsyncJobType.CONTACT_EXPORT, job);
 
+    verify(exportRepository).fail(5L, 11L);
     verify(asyncJobs)
         .fail(3L, ContactProcessingAuthorizationPolicy.AUTHORIZATION_REVOKED);
     verify(exportWorker, never()).process(5L, 11L, 3L);
