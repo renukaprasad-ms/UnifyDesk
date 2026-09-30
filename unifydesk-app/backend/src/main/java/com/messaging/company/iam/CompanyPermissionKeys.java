@@ -51,7 +51,7 @@ public final class CompanyPermissionKeys {
   public static final String BROADCAST_CREATE = "broadcast.create";
   public static final String BROADCAST_SEND = "broadcast.send";
   public static final String BROADCAST_MODIFY = "broadcast.modify";
-  public static final String BROADCAST_DELETE = "broadcast.delete";
+  public static final String BROADCAST_DELETE = "broadcast.delete";\n\n  public static final String CONTACT_READ = "contact.read";\n  public static final String CONTACT_CREATE = "contact.create";\n  public static final String CONTACT_MODIFY = "contact.modify";\n  public static final String CONTACT_DELETE = "contact.delete";\n  public static final String CONTACT_IMPORT = "contact.import";\n  public static final String CONTACT_EXPORT = "contact.export";\n  public static final String CONTACT_CONSENT_READ = "contact.consent.read";\n  public static final String CONTACT_CONSENT_MODIFY = "contact.consent.modify";
 
   public static final String TEMPLATE_READ = "template.read";
   public static final String TEMPLATE_CREATE = "template.create";
