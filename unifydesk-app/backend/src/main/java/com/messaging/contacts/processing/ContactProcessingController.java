@@ -40,6 +40,7 @@ public class ContactProcessingController {
   private final ContactActivityService activityService;
   private final ActivityApiMapper activityApiMapper;
   private final ContactProcessingApiMapper apiMapper;
+  private final ContactProcessingAuthorizationPolicy processingAuthorization;
   private final CompanyAuthorizationService authorization;
   private final CurrentUserService currentUser;
 
@@ -81,6 +82,7 @@ public class ContactProcessingController {
             importService.headers(companyId, importId),
             request.mappings(),
             request.consentMappings());
+    processingAuthorization.requireImportCommit(userId, companyId, mapping);
     var result =
         importService.commit(
             companyId,
@@ -156,13 +158,15 @@ public class ContactProcessingController {
   @PostMapping("/bulk-operations")
   public ResponseEntity<ApiResponse<JobResponse>> bulk(
       @PathVariable long companyId, @RequestBody BulkCreateRequest request) {
-    long userId = require(companyId, ContactAudiencePermissions.MODIFY);
+    long userId = currentUser.currentUserId();
+    ContactBulkMutationPort.Operation operation = apiMapper.bulkOperation(request.operation());
+    processingAuthorization.requireBulkQueue(userId, companyId, operation);
     ContactBulkService.CreateResult result =
         bulkService.create(
             companyId,
             userId,
             apiMapper.bulkSelection(request.selection()),
-            apiMapper.bulkOperation(request.operation()),
+            operation,
             request.idempotencyKey());
     ContactBulkRepository.BulkRow row =
         bulkRepository.require(companyId, result.operationId());
