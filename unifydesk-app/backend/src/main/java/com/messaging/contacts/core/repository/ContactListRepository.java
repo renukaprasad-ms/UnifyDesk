@@ -239,6 +239,40 @@ public class ContactListRepository {
     return deleted > 0;
   }
 
+  public int removeMembers(
+      long companyId, long listId, Collection<Long> contactIds) {
+    if (contactIds.isEmpty()) return 0;
+    MapSqlParameterSource params =
+        new MapSqlParameterSource()
+            .addValue("companyId", companyId)
+            .addValue("listId", listId)
+            .addValue("contactIds", contactIds);
+    int deleted =
+        namedJdbcTemplate.update(
+            """
+            delete from contact_list_memberships
+            where company_id = :companyId
+              and list_id = :listId
+              and contact_id in (:contactIds)
+            """,
+            params);
+    if (deleted > 0) {
+      jdbcTemplate.update(
+          """
+          update contact_lists
+          set member_count = greatest(0, member_count - ?),
+              updated_at = now(),
+              version = version + 1
+          where company_id = ? and id = ?
+          """,
+          deleted,
+          companyId,
+          listId);
+    }
+    return deleted;
+  }
+
+
   public List<ContactSummaryRow> members(
       long companyId, long listId, Long afterContactId, int limit) {
     String after = afterContactId == null ? "" : " and c.id > :afterContactId";
