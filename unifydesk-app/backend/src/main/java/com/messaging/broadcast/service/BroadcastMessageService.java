@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.broadcast.dto.*;
 import com.messaging.broadcast.entity.*;
-import com.messaging.broadcast.enums.BroadcastAudienceSourceType;
 import com.messaging.broadcast.enums.BroadcastMessageStatus;
 import com.messaging.broadcast.enums.BroadcastSenderManagementMode;
 import com.messaging.broadcast.enums.BroadcastSenderProvider;
@@ -119,7 +118,7 @@ public class BroadcastMessageService {
     message.setConnectionId(null);
     applyContent(
         companyId,
-        group.getChannelType(),
+        message.getChannelType(),
         request.templateId(),
         request.managedSmsTemplateId(),
         request.subject(),
