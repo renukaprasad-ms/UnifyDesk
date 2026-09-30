@@ -49,7 +49,7 @@ public class ContactImportWorker {
                 .setHeader()
                 .setSkipHeaderRecord(true)
                 .setIgnoreEmptyLines(false)
-                .get()
+                .build()
                 .parse(reader)) {
       if (parser.getHeaderNames().size() > properties.getCsvMaxColumns()) {
         throw new IllegalStateException("CONTACT_IMPORT_INVALID");
@@ -118,7 +118,7 @@ public class ContactImportWorker {
                   CSVFormat.DEFAULT
                       .builder()
                       .setHeader("rowNumber", "errorCode", "safeMessage")
-                      .get())) {
+                      .build())) {
         long afterRow = 0;
         String afterCode = "";
         while (true) {
