@@ -10,6 +10,7 @@ import GooglePerformanceMaxAssets from '../../components/ads/GooglePerformanceMa
 import GooglePerformanceMaxAutomationPanel from '../../components/ads/GooglePerformanceMaxAutomationPanel'
 import GooglePerformanceMaxBrandGuidelinesPanel from '../../components/ads/GooglePerformanceMaxBrandGuidelinesPanel'
 import GooglePerformanceMaxLifecyclePanel from '../../components/ads/GooglePerformanceMaxLifecyclePanel'
+import GooglePortfolioBiddingPanel from '../../components/ads/GooglePortfolioBiddingPanel'
 import GoogleAiAssetStudio from '../../components/ads/GoogleAiAssetStudio'
 import GoogleNegativeKeywordManagement from '../../components/ads/GoogleNegativeKeywordManagement'
 import GoogleSearchTermReport from '../../components/ads/GoogleSearchTermReport'
@@ -707,6 +708,20 @@ export default function AdCampaignDetails() {
                   companyId={selectedCompany.companyId}
                   campaignId={campaign.id}
                   currency={account?.currency}
+                />
+              )}
+
+            {campaign.provider === 'GOOGLE_ADS' &&
+              account &&
+              campaign.objective &&
+              ['SEARCH', 'DISPLAY', 'SHOPPING'].includes(campaign.objective) && (
+                <GooglePortfolioBiddingPanel
+                  companyId={selectedCompany.companyId}
+                  accountId={account.id}
+                  campaignId={campaign.id}
+                  currency={account.currency}
+                  canCreate={can(PERMISSIONS.ADS_CREATE)}
+                  canModify={can(PERMISSIONS.ADS_MODIFY)}
                 />
               )}
 
