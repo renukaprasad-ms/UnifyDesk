@@ -138,6 +138,10 @@ public class AudienceSnapshotService {
     return repository.require(companyId, snapshotId);
   }
 
+  public void fail(long companyId, long snapshotId) {
+    repository.fail(companyId, snapshotId);
+  }
+
   public List<AudienceSnapshotRepository.MemberView> pageMembers(
       long companyId, long snapshotId, long afterSequenceId, int limit) {
     return repository.pageMembers(companyId, snapshotId, afterSequenceId, limit);
