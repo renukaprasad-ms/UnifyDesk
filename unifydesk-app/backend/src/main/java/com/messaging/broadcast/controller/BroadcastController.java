@@ -137,6 +137,19 @@ public class BroadcastController {
                 "Broadcast draft created"));
   }
 
+  @PostMapping("/audiences/messages")
+  public ResponseEntity<ApiResponse<BroadcastMessageResponse>> createAudienceMessage(
+      @PathVariable Long companyId,
+      @Valid @RequestBody CreateAudienceBroadcastMessageRequest request) {
+    Long userId = require(companyId, CompanyPermissionKeys.BROADCAST_CREATE);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            ApiResponse.success(
+                201,
+                messageService.createAudience(companyId, userId, request),
+                "Audience Broadcast draft created"));
+  }
+
   @PutMapping("/messages/{broadcastId}")
   public ResponseEntity<ApiResponse<BroadcastMessageResponse>> updateMessage(
       @PathVariable Long companyId,
