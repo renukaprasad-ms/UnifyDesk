@@ -201,7 +201,7 @@ describe('contactsApi', () => {
     await contactsApi.createExport('company-1', {
       sourceType: 'SEGMENT',
       sourceId: 'segment-1',
-      fields: ['displayName', 'primaryEmail'],
+      fields: ['displayName', 'organization'],
       idempotencyKey: 'idem-export',
     })
 
@@ -210,7 +210,7 @@ describe('contactsApi', () => {
       {
         sourceType: 'SEGMENT',
         sourceId: 'segment-1',
-        fields: ['displayName', 'primaryEmail'],
+        fields: ['displayName', 'organization'],
         idempotencyKey: 'idem-export',
       },
     )
