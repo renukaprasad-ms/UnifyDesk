@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import ContactFormDialog from '../../components/contacts/ContactFormDialog'
-import { buildSelectionDescriptor, createIdempotencyKey, toCreateContactInput } from '../../features/contacts/contactModel'
+import BulkActionsBar from '../../components/contacts/BulkActionsBar'
+import { createIdempotencyKey, toCreateContactInput } from '../../features/contacts/contactModel'
 import { contactsApi } from '../../features/contacts/contactsApi'
 import { useContacts } from '../../features/contacts/useContacts'
 import type { ContactQuery, ContactSort } from '../../features/contacts/types'
@@ -21,6 +22,7 @@ export default function ContactsPage() {
   const [allMatching, setAllMatching] = useState(false)
   const [creating, setCreating] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const query: ContactQuery = {
@@ -49,21 +51,6 @@ export default function ContactsPage() {
       return next
     })
 
-  const bulkDelete = async () => {
-    if (!companyId || (!allMatching && selected.size === 0)) return
-    if (!window.confirm('Delete the selected contacts? This queues permanent cleanup and cannot be undone.')) return
-    setError('')
-    try {
-      await contactsApi.bulk(companyId, buildSelectionDescriptor(selected, allMatching, query), { type: 'DELETE' }, createIdempotencyKey())
-      setSelected(new Set())
-      setAllMatching(false)
-      setNotice('Delete operation queued.')
-      await contacts.refresh()
-    } catch (actionError) {
-      setError(apiErrorMessage(actionError, 'Unable to start bulk delete.'))
-    }
-  }
-
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
@@ -75,6 +62,30 @@ export default function ContactsPage() {
             <p className="mt-2 text-sm text-slate-500">Search and manage first-party customer records without loading the full audience into your browser.</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {can(PERMISSIONS.CONTACT_EXPORT) && (
+              <button
+                className="secondary-button"
+                disabled={exporting || Boolean(query.q)}
+                title={query.q ? 'The frozen export contract does not define arbitrary filter exports.' : undefined}
+                onClick={() => {
+                  if (!companyId) return
+                  setExporting(true)
+                  setError('')
+                  contactsApi.createExport(companyId, {
+                    sourceType: 'CONTACTS',
+                    sourceId: null,
+                    fields: ['displayName', 'primaryEmail', 'primaryPhone', 'organization'],
+                    idempotencyKey: createIdempotencyKey(),
+                  }).then((resource) => {
+                    setNotice('Export queued with ID ' + resource.id + '.')
+                  }).catch((actionError) => {
+                    setError(apiErrorMessage(actionError, 'Unable to start export.'))
+                  }).finally(() => setExporting(false))
+                }}
+              >
+                {exporting ? 'Starting export…' : 'Export contacts'}
+              </button>
+            )}
             {can(PERMISSIONS.CONTACT_IMPORT) && <Link className="secondary-button" to="/contacts/imports">Import CSV</Link>}
             {can(PERMISSIONS.CONTACT_CREATE) && <button className="primary-button" onClick={() => setCreating(true)}>New contact</button>}
           </div>
@@ -107,17 +118,32 @@ export default function ContactsPage() {
           </div>
         </div>
 
-        {(selected.size > 0 || allMatching) && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm">
-            <div>
-              <strong>{allMatching ? 'All matching contacts selected' : selected.size + ' loaded contacts selected'}</strong>
-              {!allMatching && contacts.hasMore && <button className="ml-3 font-semibold text-indigo-700 underline" onClick={() => setAllMatching(true)}>Select all matching results</button>}
-            </div>
-            <div className="flex gap-2">
-              <button className="secondary-button" onClick={() => { setSelected(new Set()); setAllMatching(false) }}>Clear</button>
-              {can(PERMISSIONS.CONTACT_DELETE) && <button className="secondary-button text-rose-700" onClick={() => void bulkDelete()}>Delete</button>}
-            </div>
-          </div>
+        {(selected.size > 0 || allMatching) && companyId && (
+          <>
+            {!allMatching && contacts.hasMore && (
+              <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm">
+                <button className="font-semibold text-indigo-700 underline" onClick={() => setAllMatching(true)}>
+                  Select all matching results without enumerating contact IDs
+                </button>
+              </div>
+            )}
+            <BulkActionsBar
+              companyId={companyId}
+              selectedIds={selected}
+              allMatching={allMatching}
+              query={query}
+              allowDelete={can(PERMISSIONS.CONTACT_DELETE)}
+              onDone={(message) => {
+                setNotice(message)
+                void contacts.refresh()
+              }}
+              onError={setError}
+              onClear={() => {
+                setSelected(new Set())
+                setAllMatching(false)
+              }}
+            />
+          </>
         )}
 
         <div className="panel mt-4 overflow-hidden">
