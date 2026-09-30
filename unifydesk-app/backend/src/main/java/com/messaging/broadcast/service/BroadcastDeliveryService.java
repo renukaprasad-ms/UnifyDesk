@@ -13,8 +13,15 @@ import com.messaging.managedemail.delivery.ManagedEmailSuppressionGate;
 import com.messaging.managedemail.events.ManagedEmailPostAcceptanceReconciler;
 import com.messaging.managedemail.metering.ManagedEmailUsageService;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
+import com.messaging.contacts.consent.ContactEligibilityService;
+import com.messaging.contacts.consent.ConsentTypes.Channel;
+import com.messaging.contacts.consent.ConsentTypes.EligibilityContext;
+import com.messaging.contacts.consent.ConsentTypes.EligibilityDecision;
+import com.messaging.contacts.consent.ConsentTypes.EligibilityResult;
+import com.messaging.contacts.consent.ConsentTypes.Purpose;
 import com.messaging.managedsms.delivery.ManagedSmsDeliveryCoordinator;
 import java.time.Instant;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +44,7 @@ public class BroadcastDeliveryService {
   private final ManagedEmailPostAcceptanceReconciler managedEmailPostAcceptanceReconciler;
   private final ManagedEmailSuppressionGate managedEmailSuppressionGate;
   private final ManagedEmailProviderBudgetService managedEmailProviderBudgetService;
+  private final ContactEligibilityService contactEligibilityService;
 
   private ManagedSmsDeliveryCoordinator managedSmsDeliveryCoordinator;
 
@@ -51,6 +59,8 @@ public class BroadcastDeliveryService {
       BroadcastSenderConnection connection,
       BroadcastSender sender,
       BroadcastRecipient recipient) {
+    if (!recheckContactEligibility(run, recipient)) return;
+
     if (connection.getManagementMode() == BroadcastSenderManagementMode.MESSAGING_MANAGED) {
       if (run.getProviderType() == BroadcastSenderProvider.MSG91_SMS) {
         if (managedSmsDeliveryCoordinator == null) {
@@ -64,6 +74,38 @@ public class BroadcastDeliveryService {
       return;
     }
     deliverExisting(run, connection, sender, recipient);
+  }
+
+  private boolean recheckContactEligibility(
+      BroadcastRun run, BroadcastRecipient recipient) {
+    if (recipient.getContactId() == null) return true;
+
+    Channel channel = Channel.valueOf(run.getProviderType().channelType().name());
+    EligibilityResult result =
+        contactEligibilityService.evaluate(
+            run.getCompanyId(),
+            recipient.getContactId(),
+            recipient.getContactIdentityId(),
+            channel,
+            Purpose.MARKETING,
+            new EligibilityContext(run.getProviderType().name(), null, null));
+
+    if (result.decision() != EligibilityDecision.ELIGIBLE) {
+      stateService.skipProcessing(
+          recipient.getId(),
+          "CONTACT_" + result.reason().name(),
+          "Contact is no longer eligible for this broadcast");
+      return false;
+    }
+
+    if (!Objects.equals(result.normalizedDestination(), recipient.getNormalizedDestination())) {
+      stateService.skipProcessing(
+          recipient.getId(),
+          "CONTACT_IDENTITY_CHANGED",
+          "Contact destination changed after audience snapshot");
+      return false;
+    }
+    return true;
   }
 
   private void deliverExisting(
