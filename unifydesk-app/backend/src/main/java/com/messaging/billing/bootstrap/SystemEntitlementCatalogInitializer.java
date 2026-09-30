@@ -45,7 +45,10 @@ public class SystemEntitlementCatalogInitializer implements ApplicationRunner {
           new Definition(910000000000000024L, "MANAGED_EMAIL_DOMAINS", "Managed Email domains", "Maximum active or provisioning Managed Email domains", EntitlementValueType.INTEGER, EntitlementCategory.BROADCAST, "0"),
           new Definition(910000000000000025L, "MANAGED_EMAIL_SENDERS", "Managed Email senders", "Maximum Managed Email sender identities", EntitlementValueType.INTEGER, EntitlementCategory.BROADCAST, "0"),
           new Definition(910000000000000026L, "MANAGED_EMAIL_MESSAGES_MONTHLY", "Managed Email messages per month", "Maximum provider-accepted UnifyDesk Managed Email messages per UTC calendar month", EntitlementValueType.INTEGER, EntitlementCategory.BROADCAST, "0"),
-          new Definition(910000000000000027L, "MANAGED_SMS_SEGMENTS_MONTHLY", "Managed SMS segments per month", "Maximum provider-accepted UnifyDesk Managed SMS segments per UTC calendar month", EntitlementValueType.INTEGER, EntitlementCategory.BROADCAST, "0"));
+          new Definition(910000000000000027L, "MANAGED_SMS_SEGMENTS_MONTHLY", "Managed SMS segments per month", "Maximum provider-accepted UnifyDesk Managed SMS segments per UTC calendar month", EntitlementValueType.INTEGER, EntitlementCategory.BROADCAST, "0"),
+          new Definition(910000000000000028L, "CONTACT_CUSTOM_FIELD_LIMIT", "Contact custom fields", "Maximum active Contact custom-field definitions in the workspace", EntitlementValueType.INTEGER, EntitlementCategory.WORKSPACE, "0"),
+          new Definition(910000000000000029L, "CONTACT_LIST_LIMIT", "Contact lists", "Maximum active static Contact lists in the workspace", EntitlementValueType.INTEGER, EntitlementCategory.WORKSPACE, "0"),
+          new Definition(910000000000000030L, "CONTACT_IMPORT_ROWS_LIMIT", "Contact import rows", "Maximum rows accepted by one Contact import", EntitlementValueType.INTEGER, EntitlementCategory.WORKSPACE, "0"));
 
   private static final String UPSERT_SQL =
       """

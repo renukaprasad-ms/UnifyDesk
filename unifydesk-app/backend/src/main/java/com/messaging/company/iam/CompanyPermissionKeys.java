@@ -53,6 +53,15 @@ public final class CompanyPermissionKeys {
   public static final String BROADCAST_MODIFY = "broadcast.modify";
   public static final String BROADCAST_DELETE = "broadcast.delete";
 
+  public static final String CONTACT_READ = "contact.read";
+  public static final String CONTACT_CREATE = "contact.create";
+  public static final String CONTACT_MODIFY = "contact.modify";
+  public static final String CONTACT_DELETE = "contact.delete";
+  public static final String CONTACT_IMPORT = "contact.import";
+  public static final String CONTACT_EXPORT = "contact.export";
+  public static final String CONTACT_CONSENT_READ = "contact.consent.read";
+  public static final String CONTACT_CONSENT_MODIFY = "contact.consent.modify";
+
   public static final String TEMPLATE_READ = "template.read";
   public static final String TEMPLATE_CREATE = "template.create";
   public static final String TEMPLATE_MODIFY = "template.modify";
@@ -117,6 +126,13 @@ public final class CompanyPermissionKeys {
           BROADCAST_CREATE,
           BROADCAST_SEND,
           BROADCAST_MODIFY,
+          CONTACT_READ,
+          CONTACT_CREATE,
+          CONTACT_MODIFY,
+          CONTACT_IMPORT,
+          CONTACT_EXPORT,
+          CONTACT_CONSENT_READ,
+          CONTACT_CONSENT_MODIFY,
           TEMPLATE_READ,
           TEMPLATE_CREATE,
           TEMPLATE_MODIFY,
@@ -141,6 +157,8 @@ public final class CompanyPermissionKeys {
           WHATSAPP_SEND,
           SMS_SEND,
           BROADCAST_READ,
+          CONTACT_READ,
+          CONTACT_CONSENT_READ,
           TEMPLATE_READ,
           ADS_READ,
           MEDIA_READ,
