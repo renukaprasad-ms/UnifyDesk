@@ -22,6 +22,9 @@ import com.messaging.contacts.core.service.IdentityNormalizer;
 import com.messaging.contacts.core.service.IdentityNormalizer.NormalizedIdentity;
 import com.messaging.contacts.processing.ContactImportMutationPort;
 import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.Savepoint;
+import java.sql.SQLException;
 import java.text.Normalizer;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -32,12 +35,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Component
 @RequiredArgsConstructor
@@ -52,7 +54,7 @@ public class ContactImportMutationAdapter implements ContactImportMutationPort {
   private final ContactQuotaGuard quotaGuard;
   private final ContactPreferenceService preferenceService;
   private final ObjectMapper objectMapper;
-  private final PlatformTransactionManager transactionManager;
+  private final DataSource dataSource;
 
   @Override
   @Transactional
@@ -101,7 +103,11 @@ public class ContactImportMutationAdapter implements ContactImportMutationPort {
         preparedRows.add(prepared);
         allIdentities.addAll(prepared.identities());
       } catch (RuntimeException exception) {
-        failures.add(failure(row.rowNumber(), exception));
+        RowFailure rowFailure = failure(row.rowNumber(), exception);
+        if ("CONTACT_IMPORT_ROW_FAILED".equals(rowFailure.code())) {
+          throw exception;
+        }
+        failures.add(rowFailure);
       }
     }
 
@@ -116,37 +122,75 @@ public class ContactImportMutationAdapter implements ContactImportMutationPort {
     }
 
     long succeeded = 0;
-    TransactionTemplate nested = new TransactionTemplate(transactionManager);
-    nested.setPropagationBehavior(
-        org.springframework.transaction.TransactionDefinition.PROPAGATION_NESTED);
-
-    for (PreparedRow row : preparedRows) {
-      try {
-        AppliedRow applied =
-            nested.execute(
-                status ->
-                    applyRow(
-                        companyId,
-                        importId,
-                        requestedByUserId,
-                        duplicateStrategy,
-                        targetListId,
-                        row,
-                        existingOwners));
-        if (applied != null && applied.succeeded()) {
-          succeeded++;
-          if (applied.contactId() != null) {
-            for (NormalizedIdentity identity : row.identities()) {
-              existingOwners.put(ContactRepository.key(identity), applied.contactId());
+    Connection connection = DataSourceUtils.getConnection(dataSource);
+    try {
+      if (connection.getAutoCommit()) {
+        throw new IllegalStateException("CONTACT_IMPORT_TRANSACTION_REQUIRED");
+      }
+      for (PreparedRow row : preparedRows) {
+        Savepoint savepoint = createSavepoint(connection);
+        try {
+          AppliedRow applied =
+              applyRow(
+                  companyId,
+                  importId,
+                  requestedByUserId,
+                  duplicateStrategy,
+                  targetListId,
+                  row,
+                  existingOwners);
+          releaseSavepoint(connection, savepoint);
+          if (applied.succeeded()) {
+            succeeded++;
+            if (applied.contactId() != null) {
+              for (NormalizedIdentity identity : row.identities()) {
+                existingOwners.put(ContactRepository.key(identity), applied.contactId());
+              }
             }
           }
+        } catch (RuntimeException exception) {
+          rollbackToSavepoint(connection, savepoint, exception);
+          RowFailure rowFailure = failure(row.rowNumber(), exception);
+          if ("CONTACT_IMPORT_ROW_FAILED".equals(rowFailure.code())) {
+            throw exception;
+          }
+          failures.add(rowFailure);
         }
-      } catch (RuntimeException exception) {
-        failures.add(failure(row.rowNumber(), exception));
       }
+    } catch (SQLException exception) {
+      throw new IllegalStateException("CONTACT_IMPORT_TRANSACTION_FAILED", exception);
+    } finally {
+      DataSourceUtils.releaseConnection(connection, dataSource);
     }
 
     return new BatchResult(succeeded, List.copyOf(failures));
+  }
+
+  private Savepoint createSavepoint(Connection connection) {
+    try {
+      return connection.setSavepoint();
+    } catch (SQLException exception) {
+      throw new IllegalStateException("CONTACT_IMPORT_SAVEPOINT_UNAVAILABLE", exception);
+    }
+  }
+
+  private void rollbackToSavepoint(
+      Connection connection, Savepoint savepoint, RuntimeException original) {
+    try {
+      connection.rollback(savepoint);
+      connection.releaseSavepoint(savepoint);
+    } catch (SQLException rollbackFailure) {
+      original.addSuppressed(rollbackFailure);
+      throw new IllegalStateException("CONTACT_IMPORT_SAVEPOINT_ROLLBACK_FAILED", original);
+    }
+  }
+
+  private void releaseSavepoint(Connection connection, Savepoint savepoint) {
+    try {
+      connection.releaseSavepoint(savepoint);
+    } catch (SQLException exception) {
+      throw new IllegalStateException("CONTACT_IMPORT_SAVEPOINT_RELEASE_FAILED", exception);
+    }
   }
 
   private AppliedRow applyRow(
