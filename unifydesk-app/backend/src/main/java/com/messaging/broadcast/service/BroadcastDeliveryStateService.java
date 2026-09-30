@@ -59,6 +59,25 @@ public class BroadcastDeliveryStateService {
   }
 
   @Transactional
+  public void skipProcessing(Long recipientId, String code, String reason) {
+    BroadcastRecipient recipient =
+        recipientRepository
+            .findByIdForUpdate(recipientId)
+            .orElseThrow(() -> new NotFoundException("Broadcast recipient not found"));
+    if (recipient.getStatus() != BroadcastRecipientStatus.PROCESSING) return;
+    recipient.setStatus(BroadcastRecipientStatus.SKIPPED);
+    recipient.setClaimedAt(null);
+    recipient.setNextAttemptAt(null);
+    recipient.setFailureCode(trim(code));
+    recipient.setFailureReason(limit(reason));
+    recipientRepository.save(recipient);
+    statsService.transition(
+        recipient.getRunId(),
+        BroadcastRecipientStatus.PROCESSING,
+        BroadcastRecipientStatus.SKIPPED);
+  }
+
+  @Transactional
   public void accepted(AttemptContext context, BroadcastEmailResult result) {
     accepted(
         context,
