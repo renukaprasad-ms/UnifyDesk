@@ -2,20 +2,21 @@ package com.messaging.contacts.integration;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.messaging.contacts.core.domain.ContactTypes.MembershipSource;
 import com.messaging.contacts.core.repository.ContactListRepository;
 import com.messaging.contacts.core.repository.ContactRepository;
 import com.messaging.contacts.core.repository.CustomFieldRepository;
 import com.messaging.contacts.core.repository.TagRepository;
 import com.messaging.contacts.core.service.ContactService;
 import com.messaging.contacts.core.service.CustomFieldValueCodec;
-import com.messaging.contacts.core.domain.ContactTypes.MembershipSource;
 import com.messaging.contacts.processing.ContactBulkMutationPort;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Component
 @RequiredArgsConstructor
@@ -28,9 +29,9 @@ public class ContactBulkMutationAdapter implements ContactBulkMutationPort {
   private final CustomFieldValueCodec customFieldValueCodec;
   private final ContactService contactService;
   private final ObjectMapper objectMapper;
+  private final PlatformTransactionManager transactionManager;
 
   @Override
-  @Transactional
   public BatchResult apply(
       long companyId,
       long operationId,
@@ -40,21 +41,30 @@ public class ContactBulkMutationAdapter implements ContactBulkMutationPort {
     if (operation == null || operation.type() == null || contactIds == null || contactIds.isEmpty()) {
       return new BatchResult(0, 0);
     }
+
     List<Long> ids = contactIds.stream().distinct().toList();
-    if (!contactRepository.allActiveOwned(companyId, ids)) {
-      return new BatchResult(0, ids.size());
+    if ("DELETE".equals(operation.type())) {
+      return deleteIndependently(companyId, requestedByUserId, ids);
     }
 
-    return switch (operation.type()) {
-      case "ADD_TAG" -> addTag(companyId, requestedByUserId, operation, ids);
-      case "REMOVE_TAG" -> removeTag(companyId, operation, ids);
-      case "ADD_TO_LIST" ->
-          addToList(companyId, operationId, requestedByUserId, operation, ids);
-      case "REMOVE_FROM_LIST" -> removeFromList(companyId, operation, ids);
-      case "UPDATE_FIELD" -> updateField(companyId, operation, ids);
-      case "DELETE" -> delete(companyId, requestedByUserId, ids);
-      default -> new BatchResult(0, ids.size());
-    };
+    TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+    BatchResult result =
+        transaction.execute(
+            status -> {
+              if (!contactRepository.allActiveOwned(companyId, ids)) {
+                return new BatchResult(0, ids.size());
+              }
+              return switch (operation.type()) {
+                case "ADD_TAG" -> addTag(companyId, requestedByUserId, operation, ids);
+                case "REMOVE_TAG" -> removeTag(companyId, operation, ids);
+                case "ADD_TO_LIST" ->
+                    addToList(companyId, operationId, requestedByUserId, operation, ids);
+                case "REMOVE_FROM_LIST" -> removeFromList(companyId, operation, ids);
+                case "UPDATE_FIELD" -> updateField(companyId, operation, ids);
+                default -> new BatchResult(0, ids.size());
+              };
+            });
+    return result == null ? new BatchResult(0, ids.size()) : result;
   }
 
   private BatchResult addTag(
@@ -124,22 +134,27 @@ public class ContactBulkMutationAdapter implements ContactBulkMutationPort {
       CustomFieldValueCodec.Plan plan =
           customFieldValueCodec.validatePrepared(
               definitions, Map.of(Long.toString(fieldId), value));
-      for (Long contactId : ids) {
-        customFieldRepository.deleteValues(companyId, contactId, plan.deletes());
-        customFieldRepository.upsertValues(companyId, contactId, plan.values());
-      }
+      customFieldRepository.applyValuesToContacts(
+          companyId, ids, plan.deletes(), plan.values());
       return new BatchResult(ids.size(), 0);
     } catch (RuntimeException | java.io.IOException exception) {
       return new BatchResult(0, ids.size());
     }
   }
 
-  private BatchResult delete(long companyId, long userId, List<Long> ids) {
+  /**
+   * Contact deletion has its own lifecycle, hooks and optimistic state. Process each Contact in an
+   * independent transaction so one worker batch never holds locks across hundreds/thousands of
+   * destructive workflows.
+   */
+  private BatchResult deleteIndependently(long companyId, long userId, List<Long> ids) {
+    TransactionTemplate transaction = new TransactionTemplate(transactionManager);
     long succeeded = 0;
     long failed = 0;
     for (Long contactId : ids) {
       try {
-        contactService.delete(companyId, contactId, userId);
+        transaction.executeWithoutResult(
+            status -> contactService.delete(companyId, contactId, userId));
         succeeded++;
       } catch (RuntimeException exception) {
         failed++;
