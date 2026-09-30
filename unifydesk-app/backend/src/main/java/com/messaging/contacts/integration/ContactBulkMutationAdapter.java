@@ -7,7 +7,6 @@ import com.messaging.contacts.core.repository.ContactListRepository;
 import com.messaging.contacts.core.repository.ContactRepository;
 import com.messaging.contacts.core.repository.CustomFieldRepository;
 import com.messaging.contacts.core.repository.TagRepository;
-import com.messaging.contacts.core.service.ContactService;
 import com.messaging.contacts.core.service.CustomFieldValueCodec;
 import com.messaging.contacts.processing.ContactBulkMutationPort;
 import java.util.List;
@@ -27,7 +26,6 @@ public class ContactBulkMutationAdapter implements ContactBulkMutationPort {
   private final ContactListRepository listRepository;
   private final CustomFieldRepository customFieldRepository;
   private final CustomFieldValueCodec customFieldValueCodec;
-  private final ContactService contactService;
   private final ObjectMapper objectMapper;
   private final PlatformTransactionManager transactionManager;
 
