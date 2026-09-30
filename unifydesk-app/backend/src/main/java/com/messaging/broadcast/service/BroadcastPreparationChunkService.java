@@ -167,7 +167,12 @@ public class BroadcastPreparationChunkService {
       recipient.setNormalizedDestination(member.normalizedDestination());
       recipient.setDisplayName(member.displayName());
       configureTransportMetadata(run, recipient);
-      if (suppressed.contains(member.normalizedDestination())) {
+      if (member.contactId() == null || member.identityId() == null) {
+        recipient.setStatus(BroadcastRecipientStatus.SKIPPED);
+        recipient.setFailureCode("CONTACT_IDENTITY_MISSING");
+        recipient.setFailureReason("Contact or identity was removed after audience snapshot");
+        skipped++;
+      } else if (suppressed.contains(member.normalizedDestination())) {
         markSuppressed(run, recipient);
         skipped++;
       } else {
