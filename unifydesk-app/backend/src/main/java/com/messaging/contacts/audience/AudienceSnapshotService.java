@@ -3,6 +3,7 @@ package com.messaging.contacts.audience;
 import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.asyncjob.enums.AsyncJobType;
 import com.messaging.asyncjob.service.AsyncJobService;
+import com.messaging.common.id.IdGenerator;
 import com.messaging.contacts.audience.AudienceSourceResolver.*;
 import com.messaging.contacts.consent.*;
 import com.messaging.contacts.consent.ConsentTypes.*;
@@ -32,16 +33,18 @@ public class AudienceSnapshotService {
       Channel channel,
       Purpose purpose) {
     SourceDescriptor source = sourceResolver.describe(companyId, sourceType, sourceId);
+    long snapshotId = IdGenerator.nextId();
     AsyncJobResponse job =
         asyncJobs.create(
             companyId,
             userId,
             AsyncJobType.CONTACT_AUDIENCE_SNAPSHOT,
-            null,
+            Long.toString(snapshotId),
             null,
             "Audience snapshot queued");
     AudienceSnapshotRepository.Snapshot snapshot =
         repository.create(
+            snapshotId,
             companyId,
             sourceType.name(),
             sourceId,
@@ -49,7 +52,7 @@ public class AudienceSnapshotService {
             source.filterHash(),
             channel,
             purpose,
-            Long.parseLong(job.id()));
+            Long.parseLong(job.jobId()));
     return new SnapshotJob(snapshot, job);
   }
 
@@ -64,11 +67,11 @@ public class AudienceSnapshotService {
             snapshot.sourceVersion(),
             snapshot.filterHash());
     List<Long> candidates =
-        sourceResolver.page(
-            companyId, source, snapshot.cursor(), properties.boundedBatchSize());
+        sourceResolver.page(companyId, source, snapshot.cursor(), properties.boundedBatchSize());
     if (candidates.isEmpty()) {
       repository.ready(companyId, snapshotId);
-      if (snapshot.asyncJobId() != null) asyncJobs.complete(snapshot.asyncJobId(), "Audience snapshot ready");
+      if (snapshot.asyncJobId() != null)
+        asyncJobs.complete(snapshot.asyncJobId(), "Audience snapshot ready");
       return false;
     }
 
@@ -111,7 +114,8 @@ public class AudienceSnapshotService {
         candidates.size(),
         inserted);
     if (snapshot.asyncJobId() != null) {
-      asyncJobs.incrementProgress(snapshot.asyncJobId(), candidates.size(), "Audience snapshot running");
+      asyncJobs.incrementProgress(
+          snapshot.asyncJobId(), candidates.size(), "Audience snapshot running");
     }
     return true;
   }

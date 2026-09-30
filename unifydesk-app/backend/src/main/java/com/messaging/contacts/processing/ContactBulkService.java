@@ -5,17 +5,16 @@ import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.asyncjob.enums.AsyncJobType;
 import com.messaging.asyncjob.service.AsyncJobService;
 import com.messaging.common.id.IdGenerator;
-import java.sql.Timestamp;
-import java.time.Instant;
+import com.messaging.contacts.audience.SegmentFilter;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class ContactBulkService {
 
-  private final JdbcTemplate jdbcTemplate;
+  private final ContactBulkRepository repository;
   private final ObjectMapper objectMapper;
   private final AsyncJobService asyncJobs;
 
@@ -25,46 +24,71 @@ public class ContactBulkService {
       Selection selection,
       ContactBulkMutationPort.Operation operation,
       String idempotencyKey) {
-    if (selection == null || operation == null || idempotencyKey == null || idempotencyKey.isBlank()) {
-      throw new com.messaging.common.exception.BadRequestException("CONTACT_FIELD_INVALID");
-    }
-    long existing =
-        jdbcTemplate.query(
-                "select id from contact_bulk_operations where company_id = ? and idempotency_key = ?",
-                (rs, rowNum) -> rs.getLong(1),
-                companyId,
-                idempotencyKey)
-            .stream()
-            .findFirst()
-            .orElse(0L);
-    if (existing != 0) {
-      return new CreateResult(existing, null);
-    }
+    validate(selection, operation, idempotencyKey);
+    var existing = repository.findByIdempotency(companyId, idempotencyKey);
+    if (existing.isPresent()) return new CreateResult(existing.get().id(), null);
+
+    long operationId = IdGenerator.nextId();
     AsyncJobResponse job =
-        asyncJobs.create(companyId, userId, AsyncJobType.CONTACT_BULK, null, null, "Contact bulk operation queued");
-    long id = IdGenerator.nextId();
+        asyncJobs.create(
+            companyId,
+            userId,
+            AsyncJobType.CONTACT_BULK,
+            Long.toString(operationId),
+            null,
+            "Contact bulk operation queued");
     try {
-      jdbcTemplate.update(
-          """
-          insert into contact_bulk_operations (
-            id, company_id, requested_by_user_id, operation_type, selection_json, operation_json,
-            idempotency_key, status, async_job_id, created_at
-          ) values (?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, 'QUEUED', ?, ?)
-          on conflict (company_id, idempotency_key) do nothing
-          """,
-          id,
+      repository.create(
+          operationId,
           companyId,
           userId,
           operation.type(),
           objectMapper.writeValueAsString(selection),
           objectMapper.writeValueAsString(operation),
           idempotencyKey,
-          Long.parseLong(job.id()),
-          Timestamp.from(Instant.now()));
+          Long.parseLong(job.jobId()));
     } catch (Exception exception) {
-      throw new com.messaging.common.exception.BadRequestException("CONTACT_FIELD_INVALID");
+      throw new com.messaging.common.exception.BadRequestException("CONTACT_BULK_INVALID");
     }
-    return new CreateResult(id, job);
+    return new CreateResult(operationId, job);
+  }
+
+  public Selection parseSelection(String json) {
+    try {
+      return objectMapper.readValue(json, Selection.class);
+    } catch (Exception exception) {
+      throw new IllegalStateException("Stored bulk selection is invalid", exception);
+    }
+  }
+
+  public ContactBulkMutationPort.Operation parseOperation(String json) {
+    try {
+      return objectMapper.readValue(json, ContactBulkMutationPort.Operation.class);
+    } catch (Exception exception) {
+      throw new IllegalStateException("Stored bulk operation is invalid", exception);
+    }
+  }
+
+  private void validate(
+      Selection selection, ContactBulkMutationPort.Operation operation, String idempotencyKey) {
+    if (selection == null
+        || selection.type() == null
+        || operation == null
+        || operation.type() == null
+        || idempotencyKey == null
+        || idempotencyKey.isBlank()
+        || idempotencyKey.length() > 160) {
+      throw new com.messaging.common.exception.BadRequestException("CONTACT_BULK_INVALID");
+    }
+    if (selection.type() == SelectionType.IDS
+        && (selection.ids() == null || selection.ids().isEmpty() || selection.ids().size() > 500)) {
+      throw new com.messaging.common.exception.BadRequestException("CONTACT_BULK_INVALID");
+    }
+    if (!Set.of(
+            "ADD_TAG", "REMOVE_TAG", "ADD_TO_LIST", "REMOVE_FROM_LIST", "UPDATE_FIELD", "DELETE")
+        .contains(operation.type())) {
+      throw new com.messaging.common.exception.BadRequestException("CONTACT_BULK_INVALID");
+    }
   }
 
   public enum SelectionType {
@@ -75,7 +99,7 @@ public class ContactBulkService {
   }
 
   public record Selection(
-      SelectionType type, java.util.List<Long> ids, Long sourceId, com.messaging.contacts.audience.SegmentFilter filter) {}
+      SelectionType type, List<Long> ids, Long sourceId, SegmentFilter filter) {}
 
   public record CreateResult(long operationId, AsyncJobResponse job) {}
 }

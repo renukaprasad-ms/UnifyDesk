@@ -1,6 +1,5 @@
 package com.messaging.contacts.processing;
 
-import com.messaging.common.id.IdGenerator;
 import com.messaging.media.enums.StorageProviderType;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -18,6 +17,7 @@ public class ContactImportRepository {
 
   @Transactional
   public ImportRow create(
+      long id,
       long companyId,
       long userId,
       StorageProviderType provider,
@@ -25,7 +25,6 @@ public class ContactImportRepository {
       String objectKey,
       long expectedSize,
       Instant expiresAt) {
-    long id = IdGenerator.nextId();
     jdbcTemplate.update(
         """
         insert into contact_imports (

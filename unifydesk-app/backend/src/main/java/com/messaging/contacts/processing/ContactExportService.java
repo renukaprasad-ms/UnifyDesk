@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.asyncjob.enums.AsyncJobType;
 import com.messaging.asyncjob.service.AsyncJobService;
+import com.messaging.common.id.IdGenerator;
 import com.messaging.contacts.audience.ContactAudienceProperties;
 import com.messaging.contacts.processing.ContactExportRowSource.*;
 import com.messaging.contacts.processing.ContactStorageAdapter.StorageRef;
@@ -31,28 +32,36 @@ public class ContactExportService {
       Source source,
       List<String> fields,
       String idempotencyKey) {
-    if (source == null || source.type() == null || idempotencyKey == null || idempotencyKey.isBlank()) {
+    if (source == null
+        || source.type() == null
+        || idempotencyKey == null
+        || idempotencyKey.isBlank()) {
       throw new com.messaging.common.exception.BadRequestException("CONTACT_FIELD_INVALID");
     }
     rowSource.validateSource(companyId, source);
     rowSource.validateFields(fields);
+    var existing = repository.findByIdempotency(companyId, idempotencyKey);
+    if (existing.isPresent()) return new CreateResult(existing.get(), null);
+
+    long exportId = IdGenerator.nextId();
     AsyncJobResponse job =
         asyncJobs.create(
             companyId,
             userId,
             AsyncJobType.CONTACT_EXPORT,
-            null,
+            Long.toString(exportId),
             null,
             "Contact export queued");
     ContactExportRepository.ExportRow row =
         repository.create(
+            exportId,
             companyId,
             userId,
             source.type().name(),
             source.id(),
             json(fields),
             idempotencyKey,
-            Long.parseLong(job.id()),
+            Long.parseLong(job.jobId()),
             Instant.now().plus(properties.getArtifactTtl()));
     return new CreateResult(row, job);
   }
@@ -63,7 +72,9 @@ public class ContactExportService {
 
   public Download download(long companyId, long exportId) {
     ContactExportRepository.ExportRow row = repository.require(companyId, exportId);
-    if (!"COMPLETED".equals(row.status()) || row.outputProvider() == null || row.expiresAt().isBefore(Instant.now())) {
+    if (!"COMPLETED".equals(row.status())
+        || row.outputProvider() == null
+        || row.expiresAt().isBefore(Instant.now())) {
       throw new com.messaging.common.exception.BadRequestException("CONTACT_EXPORT_NOT_READY");
     }
     SignedDownloadResult signed =

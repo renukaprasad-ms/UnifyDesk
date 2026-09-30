@@ -1,6 +1,5 @@
 package com.messaging.contacts.processing;
 
-import com.messaging.common.id.IdGenerator;
 import com.messaging.media.enums.StorageProviderType;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -18,6 +17,7 @@ public class ContactExportRepository {
 
   @Transactional
   public ExportRow create(
+      long id,
       long companyId,
       long userId,
       String sourceType,
@@ -26,16 +26,12 @@ public class ContactExportRepository {
       String idempotencyKey,
       long jobId,
       Instant expiresAt) {
-    Optional<ExportRow> existing = findByIdempotency(companyId, idempotencyKey);
-    if (existing.isPresent()) return existing.get();
-    long id = IdGenerator.nextId();
     jdbcTemplate.update(
         """
         insert into contact_exports (
           id, company_id, requested_by_user_id, source_type, source_id,
           field_selection_json, idempotency_key, status, async_job_id, created_at, expires_at
         ) values (?, ?, ?, ?, ?, ?::jsonb, ?, 'QUEUED', ?, ?, ?)
-        on conflict (company_id, idempotency_key) do nothing
         """,
         id,
         companyId,
@@ -47,7 +43,18 @@ public class ContactExportRepository {
         jobId,
         Timestamp.from(Instant.now()),
         Timestamp.from(expiresAt));
-    return findByIdempotency(companyId, idempotencyKey).orElseThrow();
+    return require(companyId, id);
+  }
+
+  public Optional<ExportRow> findByIdempotency(long companyId, String key) {
+    return jdbcTemplate
+        .query(
+            "select * from contact_exports where company_id = ? and idempotency_key = ?",
+            this::map,
+            companyId,
+            key)
+        .stream()
+        .findFirst();
   }
 
   public ExportRow require(long companyId, long id) {
@@ -72,10 +79,7 @@ public class ContactExportRepository {
 
   @Transactional
   public void complete(
-      long companyId,
-      long id,
-      long rows,
-      ContactStorageAdapter.PublishedObject object) {
+      long companyId, long id, long rows, ContactStorageAdapter.PublishedObject object) {
     jdbcTemplate.update(
         """
         update contact_exports
@@ -100,17 +104,6 @@ public class ContactExportRepository {
         Timestamp.from(Instant.now()),
         companyId,
         id);
-  }
-
-  private Optional<ExportRow> findByIdempotency(long companyId, String key) {
-    return jdbcTemplate
-        .query(
-            "select * from contact_exports where company_id = ? and idempotency_key = ?",
-            this::map,
-            companyId,
-            key)
-        .stream()
-        .findFirst();
   }
 
   private ExportRow map(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {

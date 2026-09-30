@@ -1,6 +1,5 @@
 package com.messaging.contacts.audience;
 
-import com.messaging.common.id.IdGenerator;
 import com.messaging.contacts.consent.ConsentTypes.*;
 import java.sql.*;
 import java.time.Instant;
@@ -18,6 +17,7 @@ public class AudienceSnapshotRepository {
 
   @Transactional
   public Snapshot create(
+      long id,
       long companyId,
       String sourceType,
       long sourceId,
@@ -26,7 +26,6 @@ public class AudienceSnapshotRepository {
       Channel channel,
       Purpose purpose,
       Long asyncJobId) {
-    long id = IdGenerator.nextId();
     Instant now = Instant.now();
     jdbcTemplate.update(
         """
@@ -107,7 +106,8 @@ public class AudienceSnapshotRepository {
               }
             });
     int inserted = 0;
-    for (int count : counts) if (count > 0 || count == Statement.SUCCESS_NO_INFO) inserted++;
+    for (int count : counts)
+      if (count > 0 || count == Statement.SUCCESS_NO_INFO) inserted++;
     return inserted;
   }
 

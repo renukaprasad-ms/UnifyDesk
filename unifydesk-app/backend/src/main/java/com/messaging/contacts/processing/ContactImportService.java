@@ -5,7 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.asyncjob.enums.AsyncJobType;
 import com.messaging.asyncjob.service.AsyncJobService;
-import com.messaging.common.exception.*;
+import com.messaging.common.exception.BadRequestException;
+import com.messaging.common.id.IdGenerator;
 import com.messaging.contacts.audience.ContactAudienceProperties;
 import com.messaging.contacts.processing.ContactImportMutationPort.*;
 import com.messaging.contacts.processing.ContactStorageAdapter.*;
@@ -30,23 +31,18 @@ public class ContactImportService {
   private final AsyncJobService asyncJobs;
 
   public ImportIntent initiate(long companyId, long userId, long expectedBytes) {
-    long id = com.messaging.common.id.IdGenerator.nextId();
+    long id = IdGenerator.nextId();
     String objectKey = "contacts/" + companyId + "/imports/" + id + "/source.csv";
     UploadIntent upload = storage.createImportUpload(companyId, id, expectedBytes, objectKey);
-    ContactImportRepository.ImportRow row =
-        repository.create(
-            companyId,
-            userId,
-            upload.provider(),
-            upload.bucket(),
-            upload.objectKey(),
-            expectedBytes,
-            Instant.now().plus(properties.getArtifactTtl()));
-    if (row.id() != id) {
-      // Repository-generated IDs are intentionally independent; release the unused reservation.
-      storage.releaseImportReservation(companyId, id, expectedBytes);
-      throw new IllegalStateException("Import ID allocation mismatch");
-    }
+    repository.create(
+        id,
+        companyId,
+        userId,
+        upload.provider(),
+        upload.bucket(),
+        upload.objectKey(),
+        expectedBytes,
+        Instant.now().plus(properties.getArtifactTtl()));
     return new ImportIntent(Long.toString(id), upload);
   }
 
@@ -67,9 +63,7 @@ public class ContactImportService {
                 .get()
                 .parse(reader)) {
       List<String> headers = parser.getHeaderNames();
-      if (headers.isEmpty() || headers.size() > properties.getCsvMaxColumns()) {
-        throw invalid();
-      }
+      if (headers.isEmpty() || headers.size() > properties.getCsvMaxColumns()) throw invalid();
       List<List<String>> sample = new ArrayList<>();
       for (CSVRecord record : parser) {
         if (sample.size() >= properties.getCsvPreviewRows()) break;
@@ -96,15 +90,18 @@ public class ContactImportService {
       DuplicateStrategy duplicateStrategy,
       Long targetListId,
       String idempotencyKey) {
-    if (mapping == null || duplicateStrategy == null || idempotencyKey == null || idempotencyKey.isBlank()) {
-      throw invalid();
-    }
+    if (mapping == null
+        || duplicateStrategy == null
+        || idempotencyKey == null
+        || idempotencyKey.isBlank()) throw invalid();
+
     ContactImportRepository.ImportRow row = repository.require(companyId, importId);
     StorageObjectMetadata metadata = storage.metadata(ref(row));
     validateUploaded(row, metadata);
     String checksum = sha256(ref(row));
     String mappingJson = json(mapping);
     String mappingHash = sha256(mappingJson.getBytes(StandardCharsets.UTF_8));
+
     AsyncJobResponse job =
         asyncJobs.create(
             companyId,
@@ -123,7 +120,7 @@ public class ContactImportService {
             duplicateStrategy.name(),
             targetListId,
             idempotencyKey,
-            Long.parseLong(job.id()));
+            Long.parseLong(job.jobId()));
     if (queued.newlyQueued()) {
       storage.commitImportReservation(companyId, importId, row.expectedSizeBytes());
     }
@@ -147,9 +144,7 @@ public class ContactImportService {
       MessageDigest digest = MessageDigest.getInstance("SHA-256");
       byte[] buffer = new byte[64 * 1024];
       int read;
-      while ((read = input.read(buffer)) >= 0) {
-        if (read > 0) digest.update(buffer, 0, read);
-      }
+      while ((read = input.read(buffer)) >= 0) if (read > 0) digest.update(buffer, 0, read);
       return HexFormat.of().formatHex(digest.digest());
     } catch (Exception exception) {
       if (exception instanceof RuntimeException runtime) throw runtime;
@@ -167,17 +162,13 @@ public class ContactImportService {
         || metadata.sizeBytes() == null
         || metadata.sizeBytes() <= 0
         || metadata.sizeBytes() > properties.getCsvMaxBytes()
-        || metadata.sizeBytes() > row.expectedSizeBytes()) {
-      throw invalid();
-    }
+        || metadata.sizeBytes() > row.expectedSizeBytes()) throw invalid();
     String type = metadata.contentType();
     if (type != null
         && !type.isBlank()
         && !type.toLowerCase(Locale.ROOT).contains("csv")
         && !type.toLowerCase(Locale.ROOT).contains("text/plain")
-        && !type.toLowerCase(Locale.ROOT).contains("octet-stream")) {
-      throw invalid();
-    }
+        && !type.toLowerCase(Locale.ROOT).contains("octet-stream")) throw invalid();
   }
 
   private String json(Object value) {

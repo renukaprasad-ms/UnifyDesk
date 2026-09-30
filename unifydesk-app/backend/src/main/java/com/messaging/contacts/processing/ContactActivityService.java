@@ -74,7 +74,10 @@ public class ContactActivityService {
     for (ContactActivityReadAdapter adapter : readAdapters) {
       merged.addAll(adapter.page(companyId, contactId, beforeId, bounded));
     }
-    merged.sort(Comparator.comparing(ActivityItem::occurredAt).reversed().thenComparing(ActivityItem::id).reversed());
+    merged.sort(
+        Comparator.comparing(ActivityItem::occurredAt)
+            .reversed()
+            .thenComparing(Comparator.comparingLong(ActivityItem::id).reversed()));
     if (merged.size() > bounded) return List.copyOf(merged.subList(0, bounded));
     return List.copyOf(merged);
   }

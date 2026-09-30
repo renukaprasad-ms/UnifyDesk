@@ -16,6 +16,7 @@ public class ContactJobDispatcher {
   private final AsyncJobService asyncJobs;
   private final ContactImportWorker importWorker;
   private final ContactExportWorker exportWorker;
+  private final ContactBulkWorker bulkWorker;
   private final SegmentService segmentService;
   private final AudienceSnapshotService snapshotService;
   private final ContactAudienceProperties properties;
@@ -26,12 +27,14 @@ public class ContactJobDispatcher {
       AsyncJobService asyncJobs,
       ContactImportWorker importWorker,
       ContactExportWorker exportWorker,
+      ContactBulkWorker bulkWorker,
       SegmentService segmentService,
       AudienceSnapshotService snapshotService,
       ContactAudienceProperties properties) {
     this.asyncJobs = asyncJobs;
     this.importWorker = importWorker;
     this.exportWorker = exportWorker;
+    this.bulkWorker = bulkWorker;
     this.segmentService = segmentService;
     this.snapshotService = snapshotService;
     this.properties = properties;
@@ -45,6 +48,7 @@ public class ContactJobDispatcher {
         List.of(
             AsyncJobType.CONTACT_IMPORT,
             AsyncJobType.CONTACT_EXPORT,
+            AsyncJobType.CONTACT_BULK,
             AsyncJobType.CONTACT_SEGMENT_COUNT,
             AsyncJobType.CONTACT_AUDIENCE_SNAPSHOT)) {
       if (available <= 0) break;
@@ -73,6 +77,7 @@ public class ContactJobDispatcher {
     switch (type) {
       case CONTACT_IMPORT -> importWorker.process(job.companyId(), resourceId, job.jobId());
       case CONTACT_EXPORT -> exportWorker.process(job.companyId(), resourceId, job.jobId());
+      case CONTACT_BULK -> bulkWorker.process(job.companyId(), resourceId, job.jobId());
       case CONTACT_SEGMENT_COUNT -> {
         asyncJobs.startOrResume(job.jobId(), 1, "Segment count running");
         segmentService.processCountJob(job.companyId(), resourceId);
@@ -81,7 +86,7 @@ public class ContactJobDispatcher {
       case CONTACT_AUDIENCE_SNAPSHOT -> {
         asyncJobs.startOrResume(job.jobId(), 0, "Audience snapshot running");
         while (snapshotService.processBatch(job.companyId(), resourceId)) {
-          // Each iteration commits one bounded keyset batch.
+          // Each iteration is bounded by the configured keyset batch size.
         }
       }
       default -> throw new IllegalStateException("Unsupported contacts job type " + type);
