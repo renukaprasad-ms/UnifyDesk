@@ -39,6 +39,7 @@ public class AudienceSourceResolver {
 
   public long count(long companyId, SourceDescriptor source) {
     if (source.type() == SourceType.LIST) {
+      requireFrozenList(companyId, source);
       Long value =
           jdbcTemplate.queryForObject(
               """
@@ -67,6 +68,7 @@ public class AudienceSourceResolver {
   public List<Long> page(
       long companyId, SourceDescriptor source, long afterContactId, int limit) {
     if (source.type() == SourceType.LIST) {
+      requireFrozenList(companyId, source);
       return jdbcTemplate.queryForList(
           """
           select c.id
@@ -92,6 +94,25 @@ public class AudienceSourceResolver {
     } catch (Exception exception) {
       if (exception instanceof RuntimeException runtime) throw runtime;
       throw new IllegalStateException("Stored segment filter is invalid", exception);
+    }
+  }
+
+  private void requireFrozenList(long companyId, SourceDescriptor source) {
+    Long version =
+        jdbcTemplate.query(
+                """
+                select version
+                from contact_lists
+                where company_id = ? and id = ? and status = 'ACTIVE'
+                """,
+                (rs, rowNum) -> rs.getLong("version"),
+                companyId,
+                source.id())
+            .stream()
+            .findFirst()
+            .orElseThrow(() -> notFound());
+    if (!Long.toString(version).equals(source.sourceVersion())) {
+      throw new IllegalStateException("Audience source changed after snapshot freeze");
     }
   }
 
