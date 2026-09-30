@@ -91,6 +91,9 @@ public class ContactCompanyPurgeService {
             + "(select ctid from contact_merge_audit where company_id = ? limit ?)",
         companyId,
         batchSize)) return false;
+
+    if (!clearMergedReferences(companyId, batchSize)) return false;
+
     if (!drain(
         "delete from contacts where ctid in "
             + "(select ctid from contacts where company_id = ? limit ?)",
@@ -119,6 +122,30 @@ public class ContactCompanyPurgeService {
         batchSize)) return false;
 
     return true;
+  }
+
+  private boolean clearMergedReferences(long companyId, int batchSize) {
+    int changed =
+        jdbcTemplate.update(
+            """
+            update contacts
+            set status = 'DELETED',
+                merged_into_contact_id = null,
+                deleted_at = coalesce(deleted_at, now()),
+                updated_at = now(),
+                version = version + 1
+            where ctid in (
+              select ctid
+              from contacts
+              where company_id = ?
+                and merged_into_contact_id is not null
+              order by id
+              limit ?
+            )
+            """,
+            companyId,
+            batchSize);
+    return changed < batchSize;
   }
 
   private boolean purgeImportArtifacts(long companyId, int batchSize) {
