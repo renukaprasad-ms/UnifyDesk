@@ -4,7 +4,6 @@ import com.messaging.contacts.core.domain.ContactTypes.ContactSort;
 import com.messaging.contacts.core.exception.ContactCoreException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.SecureRandom;
 import java.util.Base64;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -20,15 +19,25 @@ public class ContactCursorCodec {
 
   private final byte[] signingKey;
 
-  public ContactCursorCodec(@Value("${APP_CONTACTS_CURSOR_HMAC_KEY:${CHANNEL_CREDENTIAL_MASTER_KEY:}}") String configuredKey) {
-    if (configuredKey == null || configuredKey.isBlank()) {
-      byte[] generated = new byte[32];
-      new SecureRandom().nextBytes(generated);
-      this.signingKey = generated;
-    } else {
-      this.signingKey =
-          MessageDigestHolder.sha256(configuredKey.getBytes(StandardCharsets.UTF_8));
+  public ContactCursorCodec(
+      @Value("${APP_CONTACTS_CURSOR_HMAC_KEY:}") String contactsCursorKey,
+      @Value("${CHANNEL_CREDENTIAL_MASTER_KEY:}") String sharedPlatformKey) {
+    String configuredKey = resolveSigningKey(contactsCursorKey, sharedPlatformKey);
+    this.signingKey =
+        MessageDigestHolder.sha256(configuredKey.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private static String resolveSigningKey(
+      String contactsCursorKey, String sharedPlatformKey) {
+    if (contactsCursorKey != null && !contactsCursorKey.isBlank()) {
+      return contactsCursorKey;
     }
+    if (sharedPlatformKey != null && !sharedPlatformKey.isBlank()) {
+      return sharedPlatformKey;
+    }
+    throw new IllegalStateException(
+        "Contacts cursor signing key is not configured; set "
+            + "APP_CONTACTS_CURSOR_HMAC_KEY or CHANNEL_CREDENTIAL_MASTER_KEY");
   }
 
   public String encode(
