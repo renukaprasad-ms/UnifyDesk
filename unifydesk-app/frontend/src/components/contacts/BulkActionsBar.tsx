@@ -52,7 +52,7 @@ export default function BulkActionsBar({
       setLists(nextLists.filter((item) => !item.archived))
       setFields(nextFields.filter((item) => !item.archived))
     }).catch(() => undefined)
-  }, [companyId])
+  }, [companyId, allowModify])
 
   const choices =
     action === 'ADD_TAG' || action === 'REMOVE_TAG'
@@ -130,7 +130,10 @@ export default function BulkActionsBar({
           {allowDelete && <option value="DELETE">Delete contacts</option>}
         </select>
         {action === 'DELETE' ? <div className="self-center text-xs font-semibold text-rose-700">Destructive action</div> : (
-          <select className="form-input" aria-label="Bulk action target" value={targetId} onChange={(event) => setTargetId(event.target.value)}>
+          <select className="form-input" aria-label="Bulk action target" value={targetId} onChange={(event) => {
+              setTargetId(event.target.value)
+              setFieldValue('')
+            }}>
             <option value="">Choose target…</option>
             {choices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}
           </select>

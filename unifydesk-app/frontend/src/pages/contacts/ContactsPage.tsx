@@ -40,6 +40,12 @@ export default function ContactsPage() {
   const contacts = useContacts(companyId, query)
   const canBulk =
     can(PERMISSIONS.CONTACT_MODIFY) || can(PERMISSIONS.CONTACT_DELETE)
+  const selectionQueryKey = JSON.stringify(query)
+
+  useEffect(() => {
+    setSelected(new Set())
+    setAllMatching(false)
+  }, [selectionQueryKey])
 
   useEffect(() => {
     if (!companyId) return

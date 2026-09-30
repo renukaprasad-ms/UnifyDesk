@@ -29,14 +29,21 @@ export const emptyContactDraft: ContactFormDraft = {
   phone: '',
 }
 
-export const validateContactDraft = (draft: ContactFormDraft) => {
+export const validateContactDraft = (
+  draft: ContactFormDraft,
+  validateIdentities = true,
+) => {
   const errors: Partial<Record<keyof ContactFormDraft, string>> = {}
   if (!draft.displayName.trim()) errors.displayName = 'Display name is required.'
   if (draft.displayName.trim().length > 160) errors.displayName = 'Display name is too long.'
-  if (draft.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())) {
+  if (
+    validateIdentities &&
+    draft.email.trim() &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())
+  ) {
     errors.email = 'Enter a valid email address.'
   }
-  if (draft.phone.trim() && draft.phone.trim().length < 7) {
+  if (validateIdentities && draft.phone.trim() && draft.phone.trim().length < 7) {
     errors.phone = 'Enter a complete phone number including country code.'
   }
   return errors

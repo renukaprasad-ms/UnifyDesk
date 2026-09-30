@@ -68,6 +68,7 @@ export default function ImportDetailPage() {
   const [error, setError] = useState('')
   const [committing, setCommitting] = useState(false)
   const [downloadingErrors, setDownloadingErrors] = useState(false)
+  const [pollingPaused, setPollingPaused] = useState(false)
   const pollAttempts = useRef(0)
 
   useEffect(() => {
@@ -87,12 +88,9 @@ export default function ImportDetailPage() {
           const nextPreview = await contactsApi.previewImport(companyId, importId)
           setPreview(nextPreview)
           setMappings(
-            nextPreview.headers.map((column, index) => ({
+            nextPreview.headers.map((column) => ({
               column,
-              target:
-                index === 0
-                  ? { type: 'BUILTIN', field: 'displayName' }
-                  : { type: 'IGNORE' },
+              target: { type: 'IGNORE' },
             })),
           )
         }
@@ -111,9 +109,11 @@ export default function ImportDetailPage() {
       return
     }
     pollAttempts.current = 0
+    setPollingPaused(false)
     const timer = window.setInterval(() => {
       if (pollAttempts.current >= 120) {
         window.clearInterval(timer)
+        setPollingPaused(true)
         return
       }
       pollAttempts.current += 1
@@ -129,12 +129,11 @@ export default function ImportDetailPage() {
     setConsentMappings((current) => {
       if (!enabled) return current.filter((mapping) => mapping.channel !== channel)
       if (current.some((mapping) => mapping.channel === channel)) return current
-      const firstHeader = preview?.headers[0] ?? ''
       return [
         ...current,
         {
           channel,
-          stateColumn: firstHeader,
+          stateColumn: '',
           source: 'IMPORT',
           evidenceColumn: null,
           occurredAtColumn: null,
@@ -155,6 +154,14 @@ export default function ImportDetailPage() {
 
   const commit = async () => {
     if (!companyId || !preview) return
+    const mappedFieldCount = mappings.filter(
+      (mapping) => mapping.target.type !== 'IGNORE',
+    ).length
+    if (mappedFieldCount === 0) {
+      setError('Map at least one Contact field or identity before starting the import.')
+      return
+    }
+
     const invalidConsent = consentMappings.some((mapping) => !mapping.stateColumn)
     if (invalidConsent) {
       setError('Every enabled consent mapping needs a state column.')
@@ -268,6 +275,12 @@ export default function ImportDetailPage() {
               Error downloads are requested from the backend only when you click the button;
               signed URLs are not retained in React state.
             </p>
+            {pollingPaused && processing && (
+              <p className="mt-2 text-xs font-medium text-amber-700">
+                Automatic status refresh paused after the bounded polling window. Reopen this
+                import to resume status polling.
+              </p>
+            )}
           </section>
         ) : preview ? (
           <>
@@ -421,6 +434,7 @@ export default function ImportDetailPage() {
                                 })
                               }
                             >
+                              <option value="">Choose state column…</option>
                               {preview.headers.map((header) => (
                                 <option key={header} value={header}>
                                   {header}

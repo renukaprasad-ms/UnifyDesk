@@ -34,7 +34,7 @@ export default function ContactFormDialog({
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    const nextErrors = validateContactDraft(draft)
+    const nextErrors = validateContactDraft(draft, showIdentityFields)
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length === 0) onSubmit(draft)
   }
@@ -45,6 +45,7 @@ export default function ContactFormDialog({
       <input
         className="form-input"
         type={type}
+        autoFocus={key === 'displayName'}
         value={draft[key]}
         onChange={(event) => setDraft((current) => ({ ...current, [key]: event.target.value }))}
         aria-invalid={Boolean(errors[key])}
@@ -66,6 +67,12 @@ export default function ContactFormDialog({
         aria-labelledby="contact-dialog-title"
         className="mobile-sheet w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl"
         onSubmit={submit}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            onClose()
+          }
+        }}
       >
         <div className="flex items-center justify-between gap-4">
           <h2 id="contact-dialog-title" className="text-xl font-bold text-slate-950">{title}</h2>
