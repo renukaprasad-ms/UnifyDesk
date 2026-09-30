@@ -8,6 +8,7 @@ export type ContactChannel = 'EMAIL' | 'SMS' | 'WHATSAPP'
 export type PreferenceState = 'UNKNOWN' | 'OPTED_IN' | 'OPTED_OUT'
 export type ContactSort = 'UPDATED_DESC' | 'CREATED_DESC' | 'NAME_ASC'
 export type ContactStatus = 'ACTIVE' | 'DELETED' | 'MERGED'
+export type ContactSearchStatus = Exclude<ContactStatus, 'DELETED'>
 export type IdentityType = 'EMAIL' | 'PHONE' | 'EXTERNAL'
 
 export type TagSummary = {
@@ -125,7 +126,7 @@ export type ContactPatchInput = {
 
 export type ContactQuery = {
   q?: string
-  status?: string
+  status?: ContactSearchStatus
   tagId?: string
   listId?: string
   createdAfter?: string
@@ -412,6 +413,16 @@ export type ImportErrors = {
 
 export type ExportSourceType = 'CONTACTS' | 'LIST' | 'SEGMENT'
 
+export type ContactExportField =
+  | 'id'
+  | 'displayName'
+  | 'firstName'
+  | 'lastName'
+  | 'organization'
+  | 'jobTitle'
+  | 'countryCode'
+  | 'language'
+
 export type ContactExport = {
   id: string
   status: string
@@ -423,7 +434,7 @@ export type ContactExport = {
 export type ExportRequest = {
   sourceType: ExportSourceType
   sourceId?: string | null
-  fields: string[]
+  fields: ContactExportField[]
   idempotencyKey: string
 }
 
