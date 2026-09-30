@@ -23,6 +23,7 @@ public class ContactImportWorker {
   private final ContactStorageAdapter storage;
   private final ContactAudienceProperties properties;
   private final AsyncJobService asyncJobs;
+  private final ContactImportBatchCoordinator batchCoordinator;
   private final ObjectProvider<ContactImportMutationPort> mutationPortProvider;
 
   public void process(long companyId, long importId, long jobId) {
@@ -98,25 +99,12 @@ public class ContactImportWorker {
       long jobId,
       ContactImportMutationPort port) {
     BatchResult result =
-        port.applyBatch(
-            importRow.companyId(),
-            importRow.id(),
-            importRow.requestedByUserId(),
+        batchCoordinator.commit(
+            importRow,
             mapping,
             duplicateStrategy,
-            importRow.targetListId(),
-            List.copyOf(batch));
-    List<RowFailure> failures =
-        result.failures() == null ? List.of() : List.copyOf(result.failures());
-    repository.appendFailures(importRow.companyId(), importRow.id(), failures);
-    long lastRow = batch.getLast().rowNumber();
-    repository.advance(
-        importRow.companyId(),
-        importRow.id(),
-        lastRow,
-        batch.size(),
-        result.succeeded(),
-        failures.size());
+            List.copyOf(batch),
+            port);
     asyncJobs.incrementProgress(jobId, batch.size(), "Import running");
   }
 
