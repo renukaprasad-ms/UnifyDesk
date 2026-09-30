@@ -98,16 +98,25 @@ alter table contact_audience_snapshots
   add constraint fk_contact_audience_snapshots_company
     foreign key (company_id) references companies(id) on delete restrict;
 
+-- Snapshot membership is immutable send provenance. Contact/identity references are optional
+-- provenance after privacy purge; the normalized destination is already the historical snapshot.
 alter table contact_audience_snapshot_members
+  drop constraint contact_audience_snapshot_members_pkey,
+  alter column contact_id drop not null,
+  alter column identity_id drop not null,
+  add constraint pk_contact_audience_snapshot_members
+    primary key (snapshot_id, sequence_id),
   add constraint fk_contact_audience_members_snapshot
     foreign key (company_id, snapshot_id)
     references contact_audience_snapshots(company_id, id) on delete cascade,
   add constraint fk_contact_audience_members_contact
-    foreign key (company_id, contact_id)
-    references contacts(company_id, id) on delete cascade,
+    foreign key (contact_id) references contacts(id) on delete set null,
   add constraint fk_contact_audience_members_identity
-    foreign key (company_id, identity_id)
-    references contact_identities(company_id, id) on delete cascade;
+    foreign key (identity_id) references contact_identities(id) on delete set null;
+
+create unique index uk_contact_audience_snapshot_contact
+  on contact_audience_snapshot_members(snapshot_id, contact_id)
+  where contact_id is not null;
 
 -- Broadcast remains backward compatible with group-based messages while allowing a frozen
 -- Contacts List/Segment as the alternative source.

@@ -25,10 +25,18 @@ public class ContactQuotaGuard {
   private final ContactListRepository listRepository;
 
   public void requireContactCapacity(long companyId) {
+    requireContactCapacity(companyId, 1);
+  }
+
+  public void requireContactCapacity(long companyId, long additionalContacts) {
+    if (additionalContacts <= 0) return;
     lock(companyId, LOCK_NAMESPACE_CONTACT);
     try {
-      entitlementService.assertWithinLimit(
-          companyId, "CONTACT_LIMIT", contactRepository.countActive(companyId));
+      long limit = entitlementService.integerValue(companyId, "CONTACT_LIMIT");
+      long current = contactRepository.countActive(companyId);
+      if (limit >= 0 && (additionalContacts > limit || current > limit - additionalContacts)) {
+        throw ContactCoreException.contactLimit();
+      }
     } catch (PlanEntitlementException exception) {
       throw ContactCoreException.contactLimit();
     }

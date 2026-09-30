@@ -201,6 +201,48 @@ public class TagRepository {
         tagId);
   }
 
+  public int addMembershipToContacts(
+      long companyId, long tagId, Collection<Long> contactIds, long userId) {
+    if (contactIds.isEmpty()) return 0;
+    MapSqlParameterSource params =
+        new MapSqlParameterSource()
+            .addValue("companyId", companyId)
+            .addValue("tagId", tagId)
+            .addValue("contactIds", contactIds)
+            .addValue("userId", userId);
+    return namedJdbcTemplate.update(
+        """
+        insert into contact_tag_memberships
+          (company_id, tag_id, contact_id, assigned_by_user_id, assigned_at)
+        select :companyId, :tagId, c.id, :userId, now()
+        from contacts c
+        where c.company_id = :companyId
+          and c.status = 'ACTIVE'
+          and c.id in (:contactIds)
+        on conflict (tag_id, contact_id) do nothing
+        """,
+        params);
+  }
+
+  public int removeMembershipFromContacts(
+      long companyId, long tagId, Collection<Long> contactIds) {
+    if (contactIds.isEmpty()) return 0;
+    MapSqlParameterSource params =
+        new MapSqlParameterSource()
+            .addValue("companyId", companyId)
+            .addValue("tagId", tagId)
+            .addValue("contactIds", contactIds);
+    return namedJdbcTemplate.update(
+        """
+        delete from contact_tag_memberships
+        where company_id = :companyId
+          and tag_id = :tagId
+          and contact_id in (:contactIds)
+        """,
+        params);
+  }
+
+
   public List<TagRow> tagsForContact(long companyId, long contactId) {
     return jdbcTemplate.query(
         """
