@@ -530,8 +530,10 @@ public class ContactService {
 
   private Map<String, Object> coreMergePatch(
       ContactRow source, ContactRow target, Map<CoreField, MergeWinner> strategy) {
-    Map<CoreField, MergeWinner> choices =
-        strategy == null ? Map.of() : new EnumMap<>(strategy);
+    EnumMap<CoreField, MergeWinner> choices = new EnumMap<>(CoreField.class);
+    if (strategy != null) {
+      choices.putAll(strategy);
+    }
     Map<String, Object> patch = new LinkedHashMap<>();
     mergeValue(patch, "first_name", source.firstName(), target.firstName(), choices.get(CoreField.FIRST_NAME));
     mergeValue(patch, "last_name", source.lastName(), target.lastName(), choices.get(CoreField.LAST_NAME));
