@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type {
   CustomFieldDefinition,
   CustomFieldValue,
@@ -33,6 +33,11 @@ export default function ContactAttributesPanel({
 }: Props) {
   const [tagId, setTagId] = useState('')
   const [draft, setDraft] = useState<Record<string, CustomFieldValue>>(values)
+
+  useEffect(() => {
+    setDraft(values)
+  }, [values])
+
   const unassigned = tags.filter((tag) => !assignedTags.some((assigned) => assigned.id === tag.id))
 
   const updateField = (field: CustomFieldDefinition, raw: string | boolean) => {

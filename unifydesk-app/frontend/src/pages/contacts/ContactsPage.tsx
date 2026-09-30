@@ -6,7 +6,7 @@ import BulkActionsBar from '../../components/contacts/BulkActionsBar'
 import { createIdempotencyKey, toCreateContactInput } from '../../features/contacts/contactModel'
 import { contactsApi } from '../../features/contacts/contactsApi'
 import { useContacts } from '../../features/contacts/useContacts'
-import type { ContactQuery, ContactSort } from '../../features/contacts/types'
+import type { ContactQuery, ContactSort, ListSummary, TagSummary } from '../../features/contacts/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -23,14 +23,31 @@ export default function ContactsPage() {
   const [creating, setCreating] = useState(false)
   const [saving, setSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [tags, setTags] = useState<TagSummary[]>([])
+  const [lists, setLists] = useState<ListSummary[]>([])
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const query: ContactQuery = {
     q: params.get('q') || undefined,
+    status: params.get('status') || undefined,
+    tagId: params.get('tagId') || undefined,
+    listId: params.get('listId') || undefined,
+    createdAfter: params.get('createdAfter') || undefined,
+    createdBefore: params.get('createdBefore') || undefined,
     sort: (params.get('sort') as ContactSort | null) ?? 'UPDATED_DESC',
     size: 50,
   }
   const contacts = useContacts(companyId, query)
+
+  useEffect(() => {
+    if (!companyId) return
+    Promise.all([contactsApi.tags(companyId), contactsApi.lists(companyId)])
+      .then(([nextTags, nextLists]) => {
+        setTags(nextTags.filter((item) => !item.archived))
+        setLists(nextLists.filter((item) => !item.archived))
+      })
+      .catch(() => undefined)
+  }, [companyId])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -98,10 +115,66 @@ export default function ContactsPage() {
         )}
 
         <div className="panel mt-6 p-4">
-          <div className="grid gap-3 md:grid-cols-[1fr_220px]">
-            <label className="text-xs font-semibold text-slate-700">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <label className="text-xs font-semibold text-slate-700 lg:col-span-2">
               <span className="mb-2 block">Search</span>
               <input className="form-input" type="search" placeholder="Name, email, phone or organization" value={search} onChange={(event) => setSearch(event.target.value)} />
+            </label>
+            <label className="text-xs font-semibold text-slate-700">
+              <span className="mb-2 block">Tag</span>
+              <select className="form-input" value={query.tagId ?? ''} onChange={(event) => {
+                const next = new URLSearchParams(params)
+                if (event.target.value) next.set('tagId', event.target.value)
+                else next.delete('tagId')
+                setParams(next)
+              }}>
+                <option value="">All tags</option>
+                {tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+              </select>
+            </label>
+            <label className="text-xs font-semibold text-slate-700">
+              <span className="mb-2 block">List</span>
+              <select className="form-input" value={query.listId ?? ''} onChange={(event) => {
+                const next = new URLSearchParams(params)
+                if (event.target.value) next.set('listId', event.target.value)
+                else next.delete('listId')
+                setParams(next)
+              }}>
+                <option value="">All Lists</option>
+                {lists.map((list) => <option key={list.id} value={list.id}>{list.name}</option>)}
+              </select>
+            </label>
+            <label className="text-xs font-semibold text-slate-700">
+              <span className="mb-2 block">Status</span>
+              <select className="form-input" value={query.status ?? ''} onChange={(event) => {
+                const next = new URLSearchParams(params)
+                if (event.target.value) next.set('status', event.target.value)
+                else next.delete('status')
+                setParams(next)
+              }}>
+                <option value="">Active/default</option>
+                <option value="ACTIVE">Active</option>
+                <option value="DELETED">Deleted</option>
+                <option value="MERGED">Merged</option>
+              </select>
+            </label>
+            <label className="text-xs font-semibold text-slate-700">
+              <span className="mb-2 block">Created after</span>
+              <input className="form-input" type="date" value={query.createdAfter ?? ''} onChange={(event) => {
+                const next = new URLSearchParams(params)
+                if (event.target.value) next.set('createdAfter', event.target.value)
+                else next.delete('createdAfter')
+                setParams(next)
+              }} />
+            </label>
+            <label className="text-xs font-semibold text-slate-700">
+              <span className="mb-2 block">Created before</span>
+              <input className="form-input" type="date" value={query.createdBefore ?? ''} onChange={(event) => {
+                const next = new URLSearchParams(params)
+                if (event.target.value) next.set('createdBefore', event.target.value)
+                else next.delete('createdBefore')
+                setParams(next)
+              }} />
             </label>
             <label className="text-xs font-semibold text-slate-700">
               <span className="mb-2 block">Sort</span>
