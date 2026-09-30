@@ -35,24 +35,21 @@ alter table contact_channel_preferences
     references contact_identities(company_id, id) on delete cascade;
 
 alter table contact_preference_events
+  alter column contact_id drop not null,
   add constraint fk_contact_preference_events_company
     foreign key (company_id) references companies(id) on delete restrict,
   add constraint fk_contact_preference_events_contact
-    foreign key (company_id, contact_id)
-    references contacts(company_id, id) on delete restrict,
+    foreign key (contact_id) references contacts(id) on delete set null,
   add constraint fk_contact_preference_events_identity
-    foreign key (company_id, identity_id)
-    references contact_identities(company_id, id) on delete set null;
+    foreign key (identity_id) references contact_identities(id) on delete set null;
 
 alter table contact_suppressions
   add constraint fk_contact_suppressions_company
     foreign key (company_id) references companies(id) on delete restrict,
   add constraint fk_contact_suppressions_contact
-    foreign key (company_id, contact_id)
-    references contacts(company_id, id) on delete set null,
+    foreign key (contact_id) references contacts(id) on delete set null,
   add constraint fk_contact_suppressions_identity
-    foreign key (company_id, identity_id)
-    references contact_identities(company_id, id) on delete set null;
+    foreign key (identity_id) references contact_identities(id) on delete set null;
 
 alter table contact_suppression_events
   add constraint fk_contact_suppression_events_company
@@ -61,11 +58,9 @@ alter table contact_suppression_events
     foreign key (company_id, suppression_id)
     references contact_suppressions(company_id, id) on delete restrict,
   add constraint fk_contact_suppression_events_contact
-    foreign key (company_id, contact_id)
-    references contacts(company_id, id) on delete set null,
+    foreign key (contact_id) references contacts(id) on delete set null,
   add constraint fk_contact_suppression_events_identity
-    foreign key (company_id, identity_id)
-    references contact_identities(company_id, id) on delete set null;
+    foreign key (identity_id) references contact_identities(id) on delete set null;
 
 alter table contact_imports
   add constraint fk_contact_imports_company
@@ -73,8 +68,7 @@ alter table contact_imports
   add constraint fk_contact_imports_requester
     foreign key (requested_by_user_id) references users(id) on delete restrict,
   add constraint fk_contact_imports_target_list
-    foreign key (company_id, target_list_id)
-    references contact_lists(company_id, id) on delete set null;
+    foreign key (target_list_id) references contact_lists(id) on delete set null;
 
 alter table contact_import_error_rows
   add constraint fk_contact_import_errors_import
@@ -110,10 +104,10 @@ alter table contact_audience_snapshot_members
     references contact_audience_snapshots(company_id, id) on delete cascade,
   add constraint fk_contact_audience_members_contact
     foreign key (company_id, contact_id)
-    references contacts(company_id, id) on delete restrict,
+    references contacts(company_id, id) on delete cascade,
   add constraint fk_contact_audience_members_identity
     foreign key (company_id, identity_id)
-    references contact_identities(company_id, id) on delete restrict;
+    references contact_identities(company_id, id) on delete cascade;
 
 -- Broadcast remains backward compatible with group-based messages while allowing a frozen
 -- Contacts List/Segment as the alternative source.
@@ -157,15 +151,13 @@ alter table broadcast_recipients
     (source_member_id is not null and contact_id is null and contact_identity_id is null
       and audience_snapshot_id is null and audience_snapshot_sequence_id is null)
     or
-    (source_member_id is null and contact_id is not null and contact_identity_id is not null
+    (source_member_id is null
       and audience_snapshot_id is not null and audience_snapshot_sequence_id is not null)
   ),
   add constraint fk_broadcast_recipient_contact
-    foreign key (company_id, contact_id)
-    references contacts(company_id, id) on delete restrict,
+    foreign key (contact_id) references contacts(id) on delete set null,
   add constraint fk_broadcast_recipient_identity
-    foreign key (company_id, contact_identity_id)
-    references contact_identities(company_id, id) on delete restrict,
+    foreign key (contact_identity_id) references contact_identities(id) on delete set null,
   add constraint fk_broadcast_recipient_audience_snapshot
     foreign key (company_id, audience_snapshot_id)
     references contact_audience_snapshots(company_id, id) on delete restrict;
