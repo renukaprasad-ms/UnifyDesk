@@ -2,6 +2,8 @@ package com.messaging.ads.campaign.launch;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -55,6 +57,42 @@ class CampaignLaunchPlanningServiceTests {
             compilationService,
             executorRegistry,
             new ObjectMapper());
+  }
+
+  @Test
+  void concurrentIdempotencyRetryReloadsExistingRunAfterCampaignLock() {
+    ReachlyoCampaign campaign = new ReachlyoCampaign();
+    campaign.setId(2L);
+    campaign.setCompanyId(1L);
+    campaign.setStatus(ReachlyoCampaignStatus.DRAFT);
+
+    LaunchRun existing = new LaunchRun();
+    existing.setId(100L);
+    existing.setCompanyId(1L);
+    existing.setReachlyoCampaignId(2L);
+    existing.setIdempotencyKey("launch-race");
+    existing.setRequestedByUserId(9L);
+    existing.setStatus(LaunchRunStatus.READY);
+
+    when(launchRunRepository.findByCompanyIdAndReachlyoCampaignIdAndIdempotencyKey(
+            1L, 2L, "launch-race"))
+        .thenReturn(Optional.empty(), Optional.of(existing));
+    when(campaignRepository.findByIdAndCompanyIdForUpdate(2L, 1L))
+        .thenReturn(Optional.of(campaign));
+    when(launchStepRepository.findByCompanyIdAndLaunchRunIdOrderBySequenceAscIdAsc(1L, 100L))
+        .thenReturn(List.of());
+
+    var response =
+        service.prepare(
+            1L,
+            2L,
+            9L,
+            new StartCampaignLaunchRequest(
+                "launch-race", List.of(new LaunchChannelRequest(3L, 4L, null, null))));
+
+    assertThat(response.id()).isEqualTo("100");
+    verify(launchRunRepository, never()).save(any());
+    verify(compilationService, never()).compile(any(), any(), any(), any());
   }
 
   @Test
