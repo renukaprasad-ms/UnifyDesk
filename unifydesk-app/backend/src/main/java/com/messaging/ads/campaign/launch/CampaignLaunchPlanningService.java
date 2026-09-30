@@ -58,8 +58,16 @@ public class CampaignLaunchPlanningService {
 
     ReachlyoCampaign campaign =
         campaignRepository
-            .findByIdAndCompanyId(campaignId, companyId)
+            .findByIdAndCompanyIdForUpdate(campaignId, companyId)
             .orElseThrow(() -> new NotFoundException("Reachlyo campaign not found"));
+
+    existing =
+        launchRunRepository
+            .findByCompanyIdAndReachlyoCampaignIdAndIdempotencyKey(
+                companyId, campaignId, idempotencyKey)
+            .orElse(null);
+    if (existing != null) return response(existing);
+
     if (campaign.getStatus() == ReachlyoCampaignStatus.ARCHIVED) {
       throw new ConflictException("Archived campaigns cannot be launched");
     }

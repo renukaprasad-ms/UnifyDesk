@@ -90,12 +90,22 @@ public class CampaignLaunchStateService {
   public LaunchStep beginStep(Long companyId, Long runId, Long stepId) {
     LaunchStep step =
         stepRepository
-            .findByIdAndCompanyIdAndLaunchRunId(stepId, companyId, runId)
+            .findByIdAndCompanyIdAndLaunchRunIdForUpdate(stepId, companyId, runId)
             .orElseThrow(() -> new NotFoundException("Campaign launch step not found"));
+
+    if (step.getStatus() == LaunchStepStatus.RUNNING) {
+      throw new ConflictException("Campaign launch step is already running");
+    }
     if (step.getStatus() == LaunchStepStatus.SUCCEEDED
         || step.getStatus() == LaunchStepStatus.SKIPPED) {
-      return step;
+      throw new ConflictException("Campaign launch step is already completed");
     }
+    if (step.getStatus() != LaunchStepStatus.PENDING
+        && step.getStatus() != LaunchStepStatus.FAILED) {
+      throw new ConflictException(
+          "Campaign launch step cannot be executed from " + step.getStatus());
+    }
+
     step.setStatus(LaunchStepStatus.RUNNING);
     step.setAttemptCount(step.getAttemptCount() + 1);
     step.setLastErrorCode(null);
