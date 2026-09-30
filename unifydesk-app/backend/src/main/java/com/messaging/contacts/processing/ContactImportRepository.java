@@ -271,7 +271,7 @@ public class ContactImportRepository {
         id);
   }
 
-  private Optional<ImportRow> findByIdempotency(long companyId, String key) {
+  public Optional<ImportRow> findByIdempotency(long companyId, String key) {
     return jdbcTemplate
         .query(
             "select * from contact_imports where company_id = ? and idempotency_key = ?",

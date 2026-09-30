@@ -102,6 +102,18 @@ public class ContactImportService {
     String mappingJson = json(mapping);
     String mappingHash = sha256(mappingJson.getBytes(StandardCharsets.UTF_8));
 
+    Optional<ContactImportRepository.ImportRow> replay =
+        repository.findByIdempotency(companyId, idempotencyKey);
+    if (replay.isPresent()) {
+      ContactImportRepository.ImportRow existing = replay.get();
+      if (!Objects.equals(existing.contentSha256(), checksum)
+          || !Objects.equals(existing.mappingHash(), mappingHash)) {
+        throw new com.messaging.common.exception.ConflictException(
+            "CONTACT_IMPORT_IDEMPOTENCY_CONFLICT");
+      }
+      return new CommitResult(existing, null);
+    }
+
     AsyncJobResponse job =
         asyncJobs.create(
             companyId,
