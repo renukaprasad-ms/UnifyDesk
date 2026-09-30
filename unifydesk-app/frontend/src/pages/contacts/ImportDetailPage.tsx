@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import {
   buildImportCommitInput,
+  buildSuggestedImportMappings,
   createIdempotencyKey,
 } from '../../features/contacts/contactModel'
 import { contactsApi } from '../../features/contacts/contactsApi'
@@ -53,6 +54,65 @@ const parseTarget = (value: string): ImportFieldTarget => {
   }
 }
 
+const strategyLabel = (strategy: 'SKIP' | 'MERGE_EXACT' | 'FAIL') => {
+  if (strategy === 'MERGE_EXACT') return 'Update exact matches'
+  if (strategy === 'FAIL') return 'Stop duplicate rows'
+  return 'Keep existing contacts'
+}
+
+const statusPresentation = (resource: ContactImport) => {
+  const imported = resource.successRows ?? resource.job?.successCount ?? 0
+  const failed = resource.errorRows ?? resource.job?.errorCount ?? 0
+
+  if (['QUEUED', 'RUNNING'].includes(resource.status)) {
+    return {
+      title: 'Importing contacts…',
+      description: 'Your contacts are being processed. You can leave this page and come back later.',
+      tone: 'neutral',
+    }
+  }
+  if (resource.status === 'COMPLETED' && failed === 0) {
+    return {
+      title: 'Import complete',
+      description: imported > 0 ? `${imported.toLocaleString()} contacts were imported successfully.` : 'The import completed successfully.',
+      tone: 'success',
+    }
+  }
+  if (resource.status === 'COMPLETED' && imported > 0 && failed > 0) {
+    return {
+      title: 'Import finished with some issues',
+      description: `${imported.toLocaleString()} contacts were imported and ${failed.toLocaleString()} rows need attention.`,
+      tone: 'warning',
+    }
+  }
+  if (resource.status === 'COMPLETED' && failed > 0) {
+    return {
+      title: "We couldn't add any contacts",
+      description: 'Download the error report to see what needs to be corrected, then try the file again.',
+      tone: 'error',
+    }
+  }
+  if (resource.status === 'EXPIRED') {
+    return {
+      title: 'Import expired',
+      description: 'This import is no longer available. Start a new import with the CSV file.',
+      tone: 'warning',
+    }
+  }
+  return {
+    title: 'Import failed',
+    description: 'The import could not be completed. Review the error details and try again.',
+    tone: 'error',
+  }
+}
+
+const resultToneClass = (tone: string) => {
+  if (tone === 'success') return 'border-emerald-200 bg-emerald-50'
+  if (tone === 'warning') return 'border-amber-200 bg-amber-50'
+  if (tone === 'error') return 'border-rose-200 bg-rose-50'
+  return 'border-slate-200 bg-white'
+}
+
 export default function ImportDetailPage() {
   const { importId = '' } = useParams()
   const companyId = useAppSelector(selectSelectedCompanyId)
@@ -87,12 +147,7 @@ export default function ImportDetailPage() {
         if (['UPLOADED', 'DRAFT_UPLOAD', 'PREVIEWED'].includes(nextResource.status)) {
           const nextPreview = await contactsApi.previewImport(companyId, importId)
           setPreview(nextPreview)
-          setMappings(
-            nextPreview.headers.map((column) => ({
-              column,
-              target: { type: 'IGNORE' },
-            })),
-          )
+          setMappings(buildSuggestedImportMappings(nextPreview.headers))
         }
       })
       .catch((loadError) =>
@@ -124,6 +179,19 @@ export default function ImportDetailPage() {
     }, 3000)
     return () => window.clearInterval(timer)
   }, [companyId, importId, resource?.status])
+
+  const updateMapping = (index: number, target: ImportFieldTarget) => {
+    const nextKey = targetKey(target)
+    setMappings((current) =>
+      current.map((item, itemIndex) => {
+        if (itemIndex === index) return { ...item, target }
+        if (nextKey !== 'IGNORE' && targetKey(item.target) === nextKey) {
+          return { ...item, target: { type: 'IGNORE' } }
+        }
+        return item
+      }),
+    )
+  }
 
   const setConsentEnabled = (channel: ContactChannel, enabled: boolean) => {
     setConsentMappings((current) => {
@@ -158,13 +226,13 @@ export default function ImportDetailPage() {
       (mapping) => mapping.target.type !== 'IGNORE',
     ).length
     if (mappedFieldCount === 0) {
-      setError('Map at least one Contact field or identity before starting the import.')
+      setError('Choose at least one column to import.')
       return
     }
 
     const invalidConsent = consentMappings.some((mapping) => !mapping.stateColumn)
     if (invalidConsent) {
-      setError('Every enabled consent mapping needs a state column.')
+      setError('Choose a preference column for every enabled consent channel.')
       return
     }
 
@@ -184,7 +252,7 @@ export default function ImportDetailPage() {
       )
       setResource(await contactsApi.getImport(companyId, importId))
     } catch (commitError) {
-      setError(apiErrorMessage(commitError, 'Unable to commit import.'))
+      setError(apiErrorMessage(commitError, 'Unable to start the import.'))
     } finally {
       setCommitting(false)
     }
@@ -197,12 +265,12 @@ export default function ImportDetailPage() {
     try {
       const result = await contactsApi.importErrors(companyId, importId)
       if (!result.ready || !result.downloadUrl) {
-        setError('The import error report is not ready yet.')
+        setError('The error report is still being prepared. Please try again shortly.')
         return
       }
       window.open(result.downloadUrl, '_blank', 'noopener,noreferrer')
     } catch (downloadError) {
-      setError(apiErrorMessage(downloadError, 'Unable to download import errors.'))
+      setError(apiErrorMessage(downloadError, 'Unable to download the error report.'))
     } finally {
       setDownloadingErrors(false)
     }
@@ -213,14 +281,17 @@ export default function ImportDetailPage() {
     ['COMPLETED', 'FAILED', 'VALIDATION_FAILED', 'EXPIRED'].includes(resource.status)
   const processing =
     resource && ['QUEUED', 'RUNNING'].includes(resource.status)
+  const mappedCount = mappings.filter((mapping) => mapping.target.type !== 'IGNORE').length
+  const ignoredCount = Math.max(mappings.length - mappedCount, 0)
 
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-5xl">
         <ContactsNav />
-        <h1 className="text-3xl font-bold text-slate-950">CSV import</h1>
-        <p className="mt-2 text-sm text-slate-500">
-          Preview, map fields and consent evidence, review, then process asynchronously.
+        <p className="eyebrow">Contacts</p>
+        <h1 className="mt-2 text-3xl font-bold text-slate-950">Import contacts</h1>
+        <p className="mt-2 max-w-2xl text-sm text-slate-500">
+          Check how your CSV columns match UnifyDesk, choose where the contacts should go, then start the import.
         </p>
 
         {error && (
@@ -233,123 +304,147 @@ export default function ImportDetailPage() {
         )}
 
         {(processing || terminal) && resource ? (
-          <section className="panel mt-6 p-6" aria-live="polite">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="font-bold text-slate-950">
-                  Processing status: {resource.status}
-                </h2>
-                <p className="mt-2 text-sm text-slate-500">
-                  Processed {resource.job?.processedCount ?? resource.totalRows ?? 0} · Success{' '}
-                  {resource.successRows ?? resource.job?.successCount ?? 0} · Errors{' '}
-                  {resource.errorRows ?? resource.job?.errorCount ?? 0}
-                </p>
-              </div>
-              {(resource.errorRows ?? resource.job?.errorCount ?? 0) > 0 && (
-                <button
-                  className="secondary-button"
-                  disabled={downloadingErrors}
-                  onClick={() => void downloadErrors()}
+          (() => {
+            const presentation = statusPresentation(resource)
+            const processed = resource.job?.processedCount ?? resource.totalRows ?? 0
+            const imported = resource.successRows ?? resource.job?.successCount ?? 0
+            const failed = resource.errorRows ?? resource.job?.errorCount ?? 0
+            return (
+              <section
+                className={'mt-6 rounded-2xl border p-6 ' + resultToneClass(presentation.tone)}
+                aria-live="polite"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-950">{presentation.title}</h2>
+                    <p className="mt-2 max-w-2xl text-sm text-slate-600">
+                      {presentation.description}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {failed > 0 && (
+                      <button
+                        className="secondary-button"
+                        disabled={downloadingErrors}
+                        onClick={() => void downloadErrors()}
+                      >
+                        {downloadingErrors ? 'Preparing…' : 'Download error report'}
+                      </button>
+                    )}
+                    <Link className="secondary-button" to="/contacts/imports">
+                      Import another file
+                    </Link>
+                  </div>
+                </div>
+
+                <dl className="mt-6 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl bg-white/80 p-4">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Processed
+                    </dt>
+                    <dd className="mt-1 text-2xl font-bold text-slate-950">
+                      {processed.toLocaleString()}
+                    </dd>
+                  </div>
+                  <div className="rounded-xl bg-white/80 p-4">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Imported
+                    </dt>
+                    <dd className="mt-1 text-2xl font-bold text-slate-950">
+                      {imported.toLocaleString()}
+                    </dd>
+                  </div>
+                  <div className="rounded-xl bg-white/80 p-4">
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Failed
+                    </dt>
+                    <dd className="mt-1 text-2xl font-bold text-slate-950">
+                      {failed.toLocaleString()}
+                    </dd>
+                  </div>
+                </dl>
+
+                <div
+                  className="upload-progress mt-5"
+                  role="progressbar"
+                  aria-label="Import progress"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={resource.job?.progressPercent ?? (terminal ? 100 : 0)}
                 >
-                  {downloadingErrors ? 'Authorizing…' : 'Download error report'}
-                </button>
-              )}
-            </div>
-            <div
-              className="upload-progress mt-4"
-              role="progressbar"
-              aria-label="Import progress"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={resource.job?.progressPercent ?? (terminal ? 100 : 0)}
-            >
-              <span
-                style={{
-                  width:
-                    String(resource.job?.progressPercent ?? (terminal ? 100 : 0)) +
-                    '%',
-                }}
-              />
-            </div>
-            <p className="mt-2 text-xs text-slate-500">
-              Error downloads are requested from the backend only when you click the button;
-              signed URLs are not retained in React state.
-            </p>
-            {pollingPaused && processing && (
-              <p className="mt-2 text-xs font-medium text-amber-700">
-                Automatic status refresh paused after the bounded polling window. Reopen this
-                import to resume status polling.
-              </p>
-            )}
-          </section>
+                  <span
+                    style={{
+                      width:
+                        String(resource.job?.progressPercent ?? (terminal ? 100 : 0)) +
+                        '%',
+                    }}
+                  />
+                </div>
+
+                {pollingPaused && processing && (
+                  <p className="mt-3 text-xs font-medium text-amber-700">
+                    Automatic refresh has paused. Refresh this page to check the latest status.
+                  </p>
+                )}
+
+                {terminal && imported > 0 && (
+                  <Link className="mt-5 inline-flex text-sm font-semibold text-indigo-700" to="/contacts">
+                    View imported contacts →
+                  </Link>
+                )}
+              </section>
+            )
+          })()
         ) : preview ? (
           <>
             <section className="panel mt-6 p-5">
-              <h2 className="font-bold text-slate-950">1. Preview</h2>
-              <p className="mt-1 text-xs text-slate-500">
-                This is a bounded server-generated sample, not the full CSV.
-              </p>
-              <div className="mt-3 overflow-x-auto">
-                <table className="min-w-full text-xs">
-                  <thead>
-                    <tr>
-                      {preview.headers.map((header) => (
-                        <th key={header} className="p-2 text-left">
-                          {header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.sampleRows.slice(0, 10).map((row, rowIndex) => (
-                      <tr key={rowIndex} className="border-t border-slate-100">
-                        {row.map((cell, cellIndex) => (
-                          <td
-                            key={cellIndex}
-                            className="max-w-52 truncate p-2"
-                            title={cell}
-                          >
-                            {cell}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
+                    Step 1 of 3
+                  </p>
+                  <h2 className="mt-1 text-lg font-bold text-slate-950">Match your columns</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    We matched common column names automatically. Check the choices below before importing.
+                  </p>
+                </div>
+                <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm">
+                  <strong className="text-slate-950">{mappedCount}</strong> mapped
+                  {ignoredCount > 0 && (
+                    <span className="text-slate-500"> · {ignoredCount} not imported</span>
+                  )}
+                </div>
               </div>
-            </section>
 
-            <section className="panel mt-4 p-5">
-              <h2 className="font-bold text-slate-950">2. Field mapping</h2>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="mt-5 divide-y divide-slate-100 rounded-xl border border-slate-200">
                 {mappings.map((mapping, index) => (
                   <label
                     key={mapping.column}
-                    className="text-xs font-semibold text-slate-700"
+                    className="grid gap-2 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(220px,1fr)] sm:items-center"
                   >
-                    {mapping.column}
+                    <span>
+                      <span className="block text-sm font-semibold text-slate-800">
+                        {mapping.column}
+                      </span>
+                      <span className="text-xs text-slate-400">CSV column</span>
+                    </span>
                     <select
-                      className="form-input mt-1"
+                      className="form-input"
+                      aria-label={'Import ' + mapping.column + ' as'}
                       value={targetKey(mapping.target)}
                       onChange={(event) =>
-                        setMappings((current) =>
-                          current.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, target: parseTarget(event.target.value) }
-                              : item,
-                          ),
-                        )
+                        updateMapping(index, parseTarget(event.target.value))
                       }
                     >
-                      <option value="IGNORE">Ignore</option>
-                      <option value="BUILTIN:displayName">Display name</option>
+                      <option value="IGNORE">Don't import</option>
+                      <option value="BUILTIN:displayName">Full name</option>
                       <option value="BUILTIN:firstName">First name</option>
                       <option value="BUILTIN:lastName">Last name</option>
                       <option value="BUILTIN:organization">Organization</option>
                       <option value="BUILTIN:notes">Notes</option>
-                      <option value="IDENTITY:EMAIL">Email identity</option>
-                      <option value="IDENTITY:PHONE">Phone identity</option>
-                      <option value="TAG_NAMES">Tag names</option>
+                      <option value="IDENTITY:EMAIL">Email</option>
+                      <option value="IDENTITY:PHONE">Phone</option>
+                      <option value="TAG_NAMES">Tags</option>
                       {customFields.map((field) => (
                         <option key={field.id} value={'CUSTOM_FIELD:' + field.id}>
                           Custom field · {field.label}
@@ -359,47 +454,98 @@ export default function ImportDetailPage() {
                   </label>
                 ))}
               </div>
-            </section>
 
-            <section className="panel mt-4 grid gap-4 p-5 md:grid-cols-2">
-              <label className="text-xs font-semibold text-slate-700">
-                3. Duplicate behavior
-                <select
-                  className="form-input mt-1"
-                  value={strategy}
-                  onChange={(event) =>
-                    setStrategy(event.target.value as typeof strategy)
-                  }
-                >
-                  <option value="SKIP">Skip existing exact identity</option>
-                  <option value="MERGE_EXACT">Merge exact match</option>
-                  <option value="FAIL">Fail duplicate row</option>
-                </select>
-              </label>
-              <label className="text-xs font-semibold text-slate-700">
-                4. Target List (optional)
-                <select
-                  className="form-input mt-1"
-                  value={targetListId}
-                  onChange={(event) => setTargetListId(event.target.value)}
-                >
-                  <option value="">No target List</option>
-                  {lists.map((list) => (
-                    <option key={list.id} value={list.id}>
-                      {list.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <summary className="cursor-pointer text-sm font-semibold text-slate-800">
+                  Preview sample rows
+                </summary>
+                <p className="mt-2 text-xs text-slate-500">
+                  Showing a small sample so you can confirm the column mapping.
+                </p>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="min-w-full text-xs">
+                    <thead>
+                      <tr>
+                        {preview.headers.map((header) => (
+                          <th key={header} className="p-2 text-left">
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.sampleRows.slice(0, 10).map((row, rowIndex) => (
+                        <tr key={rowIndex} className="border-t border-slate-200">
+                          {row.map((cell, cellIndex) => (
+                            <td
+                              key={cellIndex}
+                              className="max-w-52 truncate p-2"
+                              title={cell}
+                            >
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
             </section>
 
             <section className="panel mt-4 p-5">
-              <h2 className="font-bold text-slate-950">5. Consent evidence mapping</h2>
-              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                <strong>Importing a Contact never grants marketing consent.</strong> Enable a
-                channel only when the CSV contains explicit preference/evidence data that you are
-                authorized to record.
+              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
+                Step 2 of 3
+              </p>
+              <h2 className="mt-1 text-lg font-bold text-slate-950">Import options</h2>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  If a contact already exists
+                  <select
+                    className="form-input mt-2"
+                    value={strategy}
+                    onChange={(event) =>
+                      setStrategy(event.target.value as typeof strategy)
+                    }
+                  >
+                    <option value="SKIP">Keep existing contact (recommended)</option>
+                    <option value="MERGE_EXACT">Update exact email/phone match</option>
+                    <option value="FAIL">Mark duplicate row as failed</option>
+                  </select>
+                  <span className="mt-1 block text-xs font-normal text-slate-500">
+                    Exact matching uses normalized email or phone identities.
+                  </span>
+                </label>
+
+                <label className="text-sm font-semibold text-slate-700">
+                  Add imported contacts to a List
+                  <select
+                    className="form-input mt-2"
+                    value={targetListId}
+                    onChange={(event) => setTargetListId(event.target.value)}
+                  >
+                    <option value="">Don't add to a List</option>
+                    {lists.map((list) => (
+                      <option key={list.id} value={list.id}>
+                        {list.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="mt-1 block text-xs font-normal text-slate-500">
+                    Lists make it easy to use these contacts later in Broadcast.
+                  </span>
+                </label>
               </div>
+            </section>
+
+            <details className="panel mt-4 p-5">
+              <summary className="cursor-pointer text-sm font-bold text-slate-950">
+                Advanced: import marketing consent
+              </summary>
+              <p className="mt-2 max-w-3xl text-sm text-slate-500">
+                Leave this closed unless your CSV contains explicit consent or preference evidence.
+                Importing contact details alone does not grant permission to send marketing messages.
+              </p>
               <div className="mt-4 space-y-4">
                 {channels.map((channel) => {
                   const mapping = consentMappings.find(
@@ -418,13 +564,12 @@ export default function ImportDetailPage() {
                             setConsentEnabled(channel, event.target.checked)
                           }
                         />
-                        Map {channel === 'WHATSAPP' ? 'WhatsApp' : channel} marketing
-                        preference evidence
+                        Import {channel === 'WHATSAPP' ? 'WhatsApp' : channel} marketing preference
                       </label>
                       {mapping && (
                         <div className="mt-3 grid gap-3 md:grid-cols-3">
                           <label className="text-xs font-semibold text-slate-700">
-                            Preference state column
+                            Preference column
                             <select
                               className="form-input mt-1"
                               value={mapping.stateColumn}
@@ -434,7 +579,7 @@ export default function ImportDetailPage() {
                                 })
                               }
                             >
-                              <option value="">Choose state column…</option>
+                              <option value="">Choose column…</option>
                               {preview.headers.map((header) => (
                                 <option key={header} value={header}>
                                   {header}
@@ -443,7 +588,7 @@ export default function ImportDetailPage() {
                             </select>
                           </label>
                           <label className="text-xs font-semibold text-slate-700">
-                            Evidence/source reference column
+                            Evidence column
                             <select
                               className="form-input mt-1"
                               value={mapping.evidenceColumn ?? ''}
@@ -453,7 +598,7 @@ export default function ImportDetailPage() {
                                 })
                               }
                             >
-                              <option value="">Not mapped</option>
+                              <option value="">Not included</option>
                               {preview.headers.map((header) => (
                                 <option key={header} value={header}>
                                   {header}
@@ -462,7 +607,7 @@ export default function ImportDetailPage() {
                             </select>
                           </label>
                           <label className="text-xs font-semibold text-slate-700">
-                            Occurred-at column
+                            Consent date column
                             <select
                               className="form-input mt-1"
                               value={mapping.occurredAtColumn ?? ''}
@@ -472,7 +617,7 @@ export default function ImportDetailPage() {
                                 })
                               }
                             >
-                              <option value="">Not mapped</option>
+                              <option value="">Not included</option>
                               {preview.headers.map((header) => (
                                 <option key={header} value={header}>
                                   {header}
@@ -486,43 +631,44 @@ export default function ImportDetailPage() {
                   )
                 })}
               </div>
-            </section>
+            </details>
 
             <section className="panel mt-4 p-5">
-              <h2 className="font-bold text-slate-950">6. Review & start</h2>
-              <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
-                <div>
-                  <dt className="text-slate-500">Mapped fields</dt>
-                  <dd className="font-bold">
-                    {mappings.filter((mapping) => mapping.target.type !== 'IGNORE').length}
-                  </dd>
+              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
+                Step 3 of 3
+              </p>
+              <h2 className="mt-1 text-lg font-bold text-slate-950">Ready to import</h2>
+              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+                <div className="rounded-xl bg-slate-50 p-4">
+                  <p className="text-slate-500">Columns</p>
+                  <p className="mt-1 font-bold text-slate-950">{mappedCount} will be imported</p>
                 </div>
-                <div>
-                  <dt className="text-slate-500">Consent channels</dt>
-                  <dd className="font-bold">{consentMappings.length}</dd>
+                <div className="rounded-xl bg-slate-50 p-4">
+                  <p className="text-slate-500">Existing contacts</p>
+                  <p className="mt-1 font-bold text-slate-950">{strategyLabel(strategy)}</p>
                 </div>
-                <div>
-                  <dt className="text-slate-500">Target List</dt>
-                  <dd className="font-bold">
-                    {lists.find((list) => list.id === targetListId)?.name || 'None'}
-                  </dd>
+                <div className="rounded-xl bg-slate-50 p-4">
+                  <p className="text-slate-500">List</p>
+                  <p className="mt-1 font-bold text-slate-950">
+                    {lists.find((list) => list.id === targetListId)?.name || 'No List selected'}
+                  </p>
                 </div>
-              </dl>
-              <p className="mt-3 text-sm text-slate-500">
-                After commit, processing is asynchronous and this import can be reopened by ID.
+              </div>
+              <p className="mt-4 text-sm text-slate-500">
+                You can continue using UnifyDesk while the file imports in the background.
               </p>
               <button
                 className="primary-button mt-4"
-                disabled={committing}
+                disabled={committing || mappedCount === 0}
                 onClick={() => void commit()}
               >
-                {committing ? 'Starting…' : 'Start import'}
+                {committing ? 'Starting import…' : 'Import contacts'}
               </button>
             </section>
           </>
         ) : (
           <div className="panel mt-6 p-6 text-sm text-slate-500" role="status">
-            Preparing bounded preview…
+            Preparing your CSV…
           </div>
         )}
       </div>
