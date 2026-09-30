@@ -2,7 +2,11 @@ package com.messaging.contacts.integration;
 
 import com.messaging.contacts.consent.ConsentTypes.Channel;
 import com.messaging.contacts.consent.ConsentTypes.ContactChannelIdentity;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -12,6 +16,24 @@ import org.springframework.stereotype.Repository;
 public class JdbcContactCoreReadAdapter implements ContactCoreReadPort {
 
   private final NamedParameterJdbcTemplate jdbcTemplate;
+
+  @Override
+  public boolean activeContactExists(long companyId, long contactId) {
+    Boolean exists =
+        jdbcTemplate.queryForObject(
+            """
+            select exists (
+              select 1
+              from contacts c
+              where c.company_id = :companyId
+                and c.id = :contactId
+                and c.status = 'ACTIVE'
+            )
+            """,
+            Map.of("companyId", companyId, "contactId", contactId),
+            Boolean.class);
+    return Boolean.TRUE.equals(exists);
+  }
 
   @Override
   public Optional<ContactChannelIdentity> loadIdentity(

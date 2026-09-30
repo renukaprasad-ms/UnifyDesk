@@ -22,6 +22,7 @@ public class ContactPreferenceService {
 
   private final ContactPreferenceRepository repository;
   private final ContactAudienceProperties properties;
+  private final ContactConsentTargetValidator targetValidator;
 
   public List<PreferenceSnapshot> list(long companyId, long contactId) {
     return repository.list(companyId, contactId);
@@ -41,8 +42,9 @@ public class ContactPreferenceService {
       Instant occurredAt,
       String idempotencyKey,
       long userId) {
-    PreferenceSource effectiveSource =
-        source == null ? PreferenceSource.USER_UI : source;
+    if (source != null && source != PreferenceSource.USER_UI) {
+      throw new BadRequestException("CONTACT_FIELD_INVALID");
+    }
     return apply(
         new PreferenceCommand(
             companyId,
@@ -51,7 +53,7 @@ public class ContactPreferenceService {
             channel,
             purpose,
             state,
-            effectiveSource,
+            PreferenceSource.USER_UI,
             sourceRef,
             ActorType.USER,
             Long.toString(userId),
@@ -63,15 +65,47 @@ public class ContactPreferenceService {
   }
 
   @Transactional
+  public PreferenceSnapshot setFromImport(
+      long companyId,
+      long contactId,
+      Long identityId,
+      Channel channel,
+      Purpose purpose,
+      PreferenceState state,
+      String sourceRef,
+      String reason,
+      Instant occurredAt,
+      String idempotencyKey,
+      long importId) {
+    return apply(
+        new PreferenceCommand(
+            companyId,
+            contactId,
+            identityId,
+            channel,
+            purpose,
+            state,
+            PreferenceSource.IMPORT,
+            sourceRef,
+            ActorType.IMPORT,
+            Long.toString(importId),
+            reason,
+            occurredAt,
+            idempotencyKey));
+  }
+
+  @Transactional
   public PreferenceSnapshot applyTrusted(PreferenceCommand command) {
-    if (command.actorType() == ActorType.USER && command.actorId() == null) {
+    if (command == null
+        || (command.actorType() == ActorType.USER && command.actorId() == null)) {
       throw new BadRequestException("CONTACT_PERMISSION_DENIED");
     }
     return apply(command);
   }
 
   private PreferenceSnapshot apply(PreferenceCommand command) {
-    if (command.channel() == null
+    if (command == null
+        || command.channel() == null
         || command.purpose() == null
         || command.state() == null
         || command.source() == null
@@ -81,6 +115,11 @@ public class ContactPreferenceService {
         || command.idempotencyKey().length() > 160) {
       throw new BadRequestException("CONTACT_FIELD_INVALID");
     }
+    targetValidator.requireWritableTarget(
+        command.companyId(),
+        command.contactId(),
+        command.identityId(),
+        command.channel());
     validateOccurredAt(command.occurredAt());
     return repository.apply(command);
   }

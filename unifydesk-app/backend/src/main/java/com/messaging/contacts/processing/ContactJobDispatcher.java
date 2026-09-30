@@ -2,10 +2,13 @@ package com.messaging.contacts.processing;
 
 import com.messaging.asyncjob.enums.AsyncJobType;
 import com.messaging.asyncjob.service.AsyncJobService;
-import com.messaging.contacts.audience.*;
+import com.messaging.contacts.audience.AudienceSnapshotService;
+import com.messaging.contacts.audience.ContactAudienceProperties;
+import com.messaging.contacts.audience.SegmentService;
 import jakarta.annotation.PreDestroy;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -14,6 +17,7 @@ import org.springframework.stereotype.Component;
 public class ContactJobDispatcher {
 
   private final AsyncJobService asyncJobs;
+  private final ContactProcessingAuthorizationPolicy authorizationPolicy;
   private final ContactImportWorker importWorker;
   private final ContactExportWorker exportWorker;
   private final ContactBulkWorker bulkWorker;
@@ -26,6 +30,7 @@ public class ContactJobDispatcher {
 
   public ContactJobDispatcher(
       AsyncJobService asyncJobs,
+      ContactProcessingAuthorizationPolicy authorizationPolicy,
       ContactImportWorker importWorker,
       ContactExportWorker exportWorker,
       ContactBulkWorker bulkWorker,
@@ -34,6 +39,7 @@ public class ContactJobDispatcher {
       AudienceSnapshotService snapshotService,
       ContactAudienceProperties properties) {
     this.asyncJobs = asyncJobs;
+    this.authorizationPolicy = authorizationPolicy;
     this.importWorker = importWorker;
     this.exportWorker = exportWorker;
     this.bulkWorker = bulkWorker;
@@ -64,7 +70,7 @@ public class ContactJobDispatcher {
         executor.submit(
             () -> {
               try {
-                process(type, job);
+                processClaimedJob(type, job);
               } catch (RuntimeException exception) {
                 asyncJobs.fail(job.jobId(), exception.getClass().getSimpleName());
               } finally {
@@ -75,8 +81,22 @@ public class ContactJobDispatcher {
     }
   }
 
-  private void process(AsyncJobType type, AsyncJobService.ClaimedAsyncJob job) {
-    if (job.resourceId() == null) throw new IllegalStateException("Contacts job has no resource");
+  void processClaimedJob(
+      AsyncJobType type, AsyncJobService.ClaimedAsyncJob job) {
+    ContactProcessingAuthorizationPolicy.Decision decision =
+        authorizationPolicy.authorizeClaim(type, job);
+    if (!decision.allowed()) {
+      asyncJobs.fail(job.jobId(), decision.failureCode());
+      return;
+    }
+    processAuthorized(type, job);
+  }
+
+  private void processAuthorized(
+      AsyncJobType type, AsyncJobService.ClaimedAsyncJob job) {
+    if (job.resourceId() == null) {
+      throw new IllegalStateException("Contacts job has no resource");
+    }
     long resourceId = Long.parseLong(job.resourceId());
     switch (type) {
       case CONTACT_IMPORT -> importWorker.process(job.companyId(), resourceId, job.jobId());

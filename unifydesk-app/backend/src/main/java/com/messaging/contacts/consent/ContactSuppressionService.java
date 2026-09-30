@@ -37,6 +37,7 @@ public class ContactSuppressionService {
 
   private final ContactSuppressionRepository repository;
   private final ContactAudienceProperties properties;
+  private final ContactConsentTargetValidator targetValidator;
 
   public List<SuppressionSnapshot> list(long companyId, long contactId) {
     return repository.list(companyId, contactId);
@@ -80,7 +81,19 @@ public class ContactSuppressionService {
 
   @Transactional
   public SuppressionSnapshot applyTrusted(SuppressionCommand command) {
+    if (command == null
+        || command.channel() == null
+        || command.reasonCode() == null
+        || command.source() == null
+        || command.actorType() == null) {
+      throw new BadRequestException("CONTACT_FIELD_INVALID");
+    }
     validate(command.occurredAt(), command.idempotencyKey());
+    targetValidator.requireWritableTarget(
+        command.companyId(),
+        command.contactId(),
+        command.identityId(),
+        command.channel());
     return repository.add(command);
   }
 
