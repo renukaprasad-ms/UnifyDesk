@@ -4,7 +4,11 @@ import ContactsNav from '../../components/contacts/ContactsNav'
 import ContactFormDialog from '../../components/contacts/ContactFormDialog'
 import BulkActionsBar from '../../components/contacts/BulkActionsBar'
 import ExportJobButton from '../../components/contacts/ExportJobButton'
-import { toCreateContactInput } from '../../features/contacts/contactModel'
+import {
+  DEFAULT_CONTACT_EXPORT_FIELDS,
+  parseContactSearchStatus,
+  toCreateContactInput,
+} from '../../features/contacts/contactModel'
 import { contactsApi } from '../../features/contacts/contactsApi'
 import { useContacts } from '../../features/contacts/useContacts'
 import type { ContactQuery, ContactSort, ListSummary, TagSummary } from '../../features/contacts/types'
@@ -27,9 +31,11 @@ export default function ContactsPage() {
   const [lists, setLists] = useState<ListSummary[]>([])
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
+  const rawStatus = params.get('status')
+  const status = parseContactSearchStatus(rawStatus)
   const query: ContactQuery = {
     q: params.get('q') || undefined,
-    status: params.get('status') || undefined,
+    status,
     tagId: params.get('tagId') || undefined,
     listId: params.get('listId') || undefined,
     createdAfter: params.get('createdAfter') || undefined,
@@ -46,6 +52,19 @@ export default function ContactsPage() {
     setSelected(new Set())
     setAllMatching(false)
   }, [selectionQueryKey])
+
+  useEffect(() => {
+    if (!rawStatus || status) return
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.delete('status')
+        next.delete('cursor')
+        return next
+      },
+      { replace: true },
+    )
+  }, [rawStatus, setParams, status])
 
   useEffect(() => {
     if (!companyId) return
@@ -96,7 +115,7 @@ export default function ContactsPage() {
               <ExportJobButton
                 companyId={companyId}
                 sourceType="CONTACTS"
-                fields={['displayName', 'primaryEmail', 'primaryPhone', 'organization']}
+                fields={DEFAULT_CONTACT_EXPORT_FIELDS}
                 label="Export contacts"
                 disabled={Boolean(
                   query.q ||
@@ -160,7 +179,6 @@ export default function ContactsPage() {
               }}>
                 <option value="">Active/default</option>
                 <option value="ACTIVE">Active</option>
-                <option value="DELETED">Deleted</option>
                 <option value="MERGED">Merged</option>
               </select>
             </label>
