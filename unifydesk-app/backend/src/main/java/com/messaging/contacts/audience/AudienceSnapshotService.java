@@ -75,8 +75,6 @@ public class AudienceSnapshotService {
       return false;
     }
 
-    Map<Long, ContactChannelIdentity> identities =
-        coreReadPort.loadDeterministicIdentities(companyId, candidates, snapshot.channel());
     Map<Long, EligibilityResult> decisions =
         eligibilityService.evaluateBatch(
             companyId,
@@ -89,17 +87,17 @@ public class AudienceSnapshotService {
     long sequence = snapshot.eligibleCount();
     for (Long contactId : candidates) {
       EligibilityResult decision = decisions.get(contactId);
-      ContactChannelIdentity identity = identities.get(contactId);
       if (decision == null
-          || identity == null
-          || decision.decision() != EligibilityDecision.ELIGIBLE) continue;
+          || decision.decision() != EligibilityDecision.ELIGIBLE
+          || decision.identityId() == null
+          || decision.normalizedDestination() == null) continue;
       sequence++;
       members.add(
           new AudienceSnapshotRepository.Member(
               contactId,
-              identity.identityId(),
-              identity.normalizedDestination(),
-              identity.displayName(),
+              decision.identityId(),
+              decision.normalizedDestination(),
+              null,
               decision.policyVersion(),
               decision.reason().name(),
               sequence));
