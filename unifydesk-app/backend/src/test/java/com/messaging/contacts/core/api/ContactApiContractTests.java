@@ -23,7 +23,7 @@ class ContactApiContractTests {
             "922337203685470001",
             "customer_tier",
             "Customer tier",
-            CustomFieldApiType.SELECT,
+            CustomFieldApiType.SINGLE_SELECT,
             List.of("STANDARD", "PREMIUM"),
             "EXACT",
             "ACTIVE",
