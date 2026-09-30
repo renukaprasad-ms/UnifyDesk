@@ -53,7 +53,7 @@ public final class ContactCoreException extends ApiException {
     return new ContactCoreException(HttpStatus.FORBIDDEN, LIST_LIMIT_REACHED);
   }
 
-  public static ContactCoreException invalidCursor() {
+  public static ContactCoreException permissionDenied() {\n    return new ContactCoreException(HttpStatus.FORBIDDEN, PERMISSION_DENIED);\n  }\n\n  public static ContactCoreException invalidCursor() {
     return new ContactCoreException(HttpStatus.BAD_REQUEST, INVALID_CURSOR);
   }
 

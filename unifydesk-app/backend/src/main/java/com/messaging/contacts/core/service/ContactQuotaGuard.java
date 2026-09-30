@@ -58,6 +58,6 @@ public class ContactQuotaGuard {
 
   private void lock(long companyId, long namespace) {
     long key = namespace ^ Long.rotateLeft(companyId, 17);
-    jdbcTemplate.queryForObject("select pg_advisory_xact_lock(?)", Long.class, key);
+    jdbcTemplate.query("select pg_advisory_xact_lock(?)", rs -> null, key);
   }
 }

@@ -128,7 +128,7 @@ public class TagRepository {
     }
   }
 
-  public void addMembership(long companyId, long contactId, long tagId, long userId) {
+  public boolean allActiveOwned(long companyId, Collection<Long> tagIds) {\n    if (tagIds.isEmpty()) return true;\n    MapSqlParameterSource params =\n        new MapSqlParameterSource("companyId", companyId).addValue("tagIds", tagIds);\n    Long count =\n        namedJdbcTemplate.queryForObject(\n            "select count(*) from contact_tags where company_id = :companyId and archived_at is null and id in (:tagIds)",\n            params,\n            Long.class);\n    return count != null && count == tagIds.size();\n  }\n\n  public void addMemberships(\n      long companyId, long contactId, Collection<Long> tagIds, long userId) {\n    if (tagIds.isEmpty()) return;\n    MapSqlParameterSource params =\n        new MapSqlParameterSource()\n            .addValue("companyId", companyId)\n            .addValue("contactId", contactId)\n            .addValue("tagIds", tagIds)\n            .addValue("userId", userId);\n    namedJdbcTemplate.update(\n        """\n        insert into contact_tag_memberships\n          (company_id, tag_id, contact_id, assigned_by_user_id, assigned_at)\n        select :companyId, t.id, :contactId, :userId, now()\n        from contact_tags t\n        where t.company_id = :companyId\n          and t.archived_at is null\n          and t.id in (:tagIds)\n        on conflict (tag_id, contact_id) do nothing\n        """,\n        params);\n  }\n\n  public void addMembership(long companyId, long contactId, long tagId, long userId) {
     jdbcTemplate.update(
         """
         insert into contact_tag_memberships
