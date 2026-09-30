@@ -1259,15 +1259,25 @@ References:
 
 ## G-11 Portfolio/shared bidding - P2
 
-Research and implement where supported:
+Status: **complete for the current verified Google portfolio/shared-budget scope**.
 
-- portfolio bid strategies
-- shared budgets
-- assignment
-- reporting
-- compatibility validation by campaign type
+Implemented:
 
-Do not expose portfolio options to campaign types that do not support them.
+- [x] account-level portfolio bid strategy discovery and creation
+- [x] Target CPA, Target ROAS, Maximize Conversions and Maximize Conversion Value portfolio strategies
+- [x] optional target CPA/ROAS constraints where Google supports them
+- [x] explicitly shared campaign budget discovery and creation
+- [x] campaign assignment to a portfolio strategy, shared budget, or aligned pair
+- [x] Google alignment of a portfolio strategy and shared budget only when both are attached to the exact same campaign set
+- [x] compatibility enforcement for Search, Display, and Shopping campaigns
+- [x] explicit blocking for Performance Max, Demand Gen, App, Video, and other incompatible campaign types
+- [x] 30-day strategy/budget performance read-back for impressions, clicks, spend, conversions, and conversion value
+- [x] campaign-detail UI for creating, selecting, assigning, aligning, refreshing, and reviewing portfolio resources
+- [x] RBAC-aware create/modify controls and activity audit
+- [x] backend regression coverage for currency conversion, incompatible campaign blocking, and alignment campaign-set safety
+- [x] frontend API regression coverage including successful empty alignment responses
+
+Google remains authoritative for account eligibility and campaign-type compatibility. UnifyDesk rejects known incompatible campaign types before provider mutation and surfaces provider validation for account-specific restrictions.
 
 ## G-12 Experiments - P2
 
