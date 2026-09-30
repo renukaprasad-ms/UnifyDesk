@@ -89,7 +89,7 @@ public final class ContactDtos {
     BOOLEAN,
     DATE,
     DATETIME,
-    SELECT,
+    SINGLE_SELECT,
     MULTI_SELECT
   }
 
