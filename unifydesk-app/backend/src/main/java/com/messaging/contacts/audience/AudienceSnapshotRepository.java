@@ -125,8 +125,8 @@ public class AudienceSnapshotRepository {
         """,
         (rs, rowNum) ->
             new MemberView(
-                rs.getLong("contact_id"),
-                rs.getLong("identity_id"),
+                (Long) rs.getObject("contact_id"),
+                (Long) rs.getObject("identity_id"),
                 rs.getString("normalized_destination"),
                 rs.getString("display_name_snapshot"),
                 rs.getString("eligibility_version"),
@@ -227,8 +227,8 @@ public class AudienceSnapshotRepository {
       Instant completedAt) {}
 
   public record MemberView(
-      long contactId,
-      long identityId,
+      Long contactId,
+      Long identityId,
       String normalizedDestination,
       String displayName,
       String eligibilityVersion,
