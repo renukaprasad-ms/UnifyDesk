@@ -47,6 +47,12 @@ class StorageProviderResolverTests {
     }
 
     @Override
+    public void writeObject(
+        String bucket, String objectKey, byte[] content, String contentType) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void move(String bucket, String sourceObjectKey, String destinationObjectKey) {
       throw new UnsupportedOperationException();
     }

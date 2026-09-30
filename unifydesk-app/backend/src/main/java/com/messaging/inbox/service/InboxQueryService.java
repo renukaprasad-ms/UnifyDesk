@@ -2,6 +2,9 @@ package com.messaging.inbox.service;
 
 import com.messaging.channel.email.EmailFolder;
 import com.messaging.channel.enums.ChannelConnectionStatus;
+import com.messaging.channel.enums.ChannelType;
+import com.messaging.channel.enums.ProviderType;
+import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.inbox.dto.InboxAttachmentResponse;
@@ -28,6 +31,7 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,22 +43,52 @@ public class InboxQueryService {
   private final InboxParticipantRepository participantRepository;
   private final InboxMessageRepository messageRepository;
   private final InboxMessageAttachmentRepository attachmentRepository;
+  private final ChannelConnectionRepository connectionRepository;
+  private final JdbcTemplate jdbcTemplate;
 
   @Transactional(readOnly = true)
   public InboxPageResponse<InboxConversationResponse> listConversations(
       Long companyId, Long connectionId, EmailFolder folder, int page, int size) {
+    return listConversations(companyId, connectionId, folder, page, size, true, true);
+  }
+
+  @Transactional(readOnly = true)
+  public InboxPageResponse<InboxConversationResponse> listConversations(
+      Long companyId,
+      Long connectionId,
+      EmailFolder folder,
+      int page,
+      int size,
+      boolean emailAllowed,
+      boolean whatsappAllowed) {
     PageRequest pageable = PageRequest.of(page, size);
     EmailFolder resolvedFolder = folder == null ? EmailFolder.INBOX : folder;
-    Page<InboxConversation> result =
-        conversationRepository.findByFolder(
-            companyId,
-            connectionId,
-            ChannelConnectionStatus.ACTIVE,
-            resolvedFolder.providerKey(),
-            pageable);
+    Page<InboxConversation> result;
+    if (connectionId != null) {
+      String providerFolder = folderKey(companyId, connectionId, resolvedFolder);
+      result =
+          conversationRepository.findByFolder(
+              companyId,
+              connectionId,
+              ChannelConnectionStatus.ACTIVE,
+              providerFolder,
+              pageable);
+    } else if (!emailAllowed && !whatsappAllowed) {
+      result = Page.empty(pageable);
+    } else {
+      result =
+          conversationRepository.findByPermittedChannels(
+              companyId,
+              ChannelConnectionStatus.ACTIVE,
+              emailAllowed,
+              ChannelType.EMAIL,
+              resolvedFolder.providerKey(),
+              whatsappAllowed,
+              ProviderType.META_WHATSAPP,
+              pageable);
+    }
 
     List<InboxConversationResponse> items = conversations(result.getContent());
-
     return new InboxPageResponse<>(
         items,
         result.getNumber(),
@@ -95,6 +129,7 @@ public class InboxQueryService {
       Long companyId, InboxRealtimeSnapshotRequest request) {
     Long connectionId = parseId(request.connectionId(), "connectionId");
     EmailFolder folder = request.folder() == null ? EmailFolder.INBOX : request.folder();
+    String providerFolderKey = folderKey(companyId, connectionId, folder);
     LinkedHashSet<Long> requestedConversationIds =
         parseIds(request.conversationIds(), "conversationIds");
     LinkedHashSet<Long> requestedMessageIds = parseIds(request.messageIds(), "messageIds");
@@ -111,7 +146,7 @@ public class InboxQueryService {
                 connectionId,
                 ChannelConnectionStatus.ACTIVE,
                 requestedConversationIds,
-                folder.providerKey(),
+                providerFolderKey,
                 InboxMessageStatus.DELETED);
 
     List<InboxMessage> foundMessages =
@@ -141,6 +176,23 @@ public class InboxQueryService {
         detailConversationId == null
             ? List.of()
             : missing(requestedMessageIds, foundMessageIds));
+  }
+
+  private String folderKey(Long companyId, Long connectionId, EmailFolder folder) {
+    var connection =
+        connectionRepository
+            .findByIdAndCompanyId(connectionId, companyId)
+            .orElseThrow(() -> new NotFoundException("Inbox connection not found"));
+    if (connection.getStatus() != ChannelConnectionStatus.ACTIVE) {
+      throw new NotFoundException("Inbox connection not found");
+    }
+    if (connection.getProviderType() == ProviderType.META_WHATSAPP) {
+      return "WHATSAPP";
+    }
+    if (connection.getChannelType() != ChannelType.EMAIL) {
+      throw new NotFoundException("Inbox connection not found");
+    }
+    return (folder == null ? EmailFolder.INBOX : folder).providerKey();
   }
 
   private InboxConversation requireVisibleConversation(Long companyId, Long conversationId) {
@@ -191,7 +243,16 @@ public class InboxQueryService {
     if (messages.isEmpty()) return List.of();
 
     List<Long> messageIds = messages.stream().map(InboxMessage::getId).toList();
+    List<Long> whatsappMessageIds =
+        messages.stream()
+            .filter(
+                message ->
+                    message.getConnection() != null
+                        && message.getConnection().getProviderType() == ProviderType.META_WHATSAPP)
+            .map(InboxMessage::getId)
+            .toList();
     Map<Long, List<InboxAttachmentResponse>> attachments = new HashMap<>();
+    Map<Long, String> whatsappStatuses = whatsappStatuses(whatsappMessageIds);
 
     attachmentRepository
         .findByMessageIdInOrderByFilenameAsc(messageIds)
@@ -231,9 +292,36 @@ public class InboxQueryService {
                     message.getReferencesHeader(),
                     message.getSentAt(),
                     message.isRead(),
+                    whatsappStatuses.get(message.getId()),
                     List.copyOf(attachments.getOrDefault(message.getId(), List.of()))))
         .toList();
   }
+
+  private Map<Long, String> whatsappStatuses(List<Long> messageIds) {
+    if (messageIds.isEmpty()) return Map.of();
+    String placeholders =
+        String.join(",", java.util.Collections.nCopies(messageIds.size(), "?"));
+    List<WhatsAppStatusRow> rows =
+        jdbcTemplate.query(
+            """
+            select inbox_message_id,detailed_status
+            from meta_whatsapp_message_runtime
+            where direction='OUTBOUND'
+              and inbox_message_id in (%s)
+            """
+                .formatted(placeholders),
+            (rs, rowNum) ->
+                new WhatsAppStatusRow(
+                    rs.getLong("inbox_message_id"), rs.getString("detailed_status")),
+            messageIds.toArray());
+    Map<Long, String> result = new HashMap<>();
+    for (WhatsAppStatusRow row : rows) {
+      result.put(row.messageId(), row.status());
+    }
+    return result;
+  }
+
+  private record WhatsAppStatusRow(long messageId, String status) {}
 
   private LinkedHashSet<Long> parseIds(List<String> values, String field) {
     LinkedHashSet<Long> ids = new LinkedHashSet<>();

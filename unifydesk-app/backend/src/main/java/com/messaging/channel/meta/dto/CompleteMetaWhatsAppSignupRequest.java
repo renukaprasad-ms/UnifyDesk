@@ -6,4 +6,6 @@ public record CompleteMetaWhatsAppSignupRequest(
     @NotBlank String state,
     @NotBlank String code,
     String wabaId,
-    String phoneNumberId) {}
+    String phoneNumberId,
+    String whatsappAccountId,
+    String messagingAccountId) {}

@@ -1,0 +1,119 @@
+name: WhatsApp Round 3 Final QA
+
+on:
+  push:
+    branches:
+      - review/whatsapp-security-qa-r3
+  pull_request:
+    branches:
+      - dev
+
+jobs:
+  backend-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: unifydesk-app/backend/pom.xml
+      - run: docker compose -f unifydesk-app/compose.test.yml up -d --wait
+      - name: Run complete backend command matrix
+        working-directory: unifydesk-app/backend
+        shell: bash
+        run: |
+          chmod +x mvnw
+          set +e
+          ./mvnw -B spotless:check
+          SPOTLESS=$?
+          ./mvnw -B test
+          TEST=$?
+          ./mvnw -B clean test
+          CLEAN_TEST=$?
+          ./mvnw -B package -DskipTests
+          PACKAGE=$?
+          echo "spotless:check=$SPOTLESS"
+          echo "test=$TEST"
+          echo "clean test=$CLEAN_TEST"
+          echo "package -DskipTests=$PACKAGE"
+          if [ "$SPOTLESS" -ne 0 ] || [ "$TEST" -ne 0 ] || [ "$CLEAN_TEST" -ne 0 ] || [ "$PACKAGE" -ne 0 ]; then
+            exit 1
+          fi
+      - if: always()
+        run: docker compose -f unifydesk-app/compose.test.yml down
+
+  whatsapp-focused:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: unifydesk-app/backend/pom.xml
+      - run: docker compose -f unifydesk-app/compose.test.yml up -d --wait
+      - name: Run final focused WhatsApp verification
+        working-directory: unifydesk-app/backend
+        shell: bash
+        run: |
+          chmod +x mvnw
+          set +e
+          ./mvnw -B -Dtest=MetaWhatsAppRound2RateLimitQaTests,MetaWhatsAppMessageServiceRound3RateLimitTests test
+          ORDERING=$?
+          ./mvnw -B -Dtest=MetaWhatsAppOutboundRateLimiterRedisIntegrationTests,MetaWhatsAppRound3RedisQaTests,MetaWhatsAppOutboundRateLimiterTests,MetaWhatsAppRuntimeGraphClientRetryAfterTests test
+          REDIS=$?
+          ./mvnw -B -Dtest=MetaWhatsAppRound2MigrationQaTests test
+          FLYWAY=$?
+          ./mvnw -B -Dtest=MetaWhatsAppWebhookControllerTests,InboxQueryServiceWhatsAppStatusTests,MetaWhatsAppWebhookWorkerTests,MetaWhatsAppProviderMediaReservationStoreTests,MediaServiceTests,MetaWhatsAppPendingOutcomeRecoveryTests,MetaWhatsAppMessageServiceIdempotencyTests,MetaWhatsAppWabaScopeAuthorizationTests,MetaWhatsAppMessageStateMachineTests test
+          REGRESSIONS=$?
+          echo "round3 ordering/failure/idempotency=$ORDERING"
+          echo "redis limiter/cooldown/outage=$REDIS"
+          echo "flyway V1/V75/V78 -> V79=$FLYWAY"
+          echo "prior WA-R1 backend regressions=$REGRESSIONS"
+          if [ "$ORDERING" -ne 0 ] || [ "$REDIS" -ne 0 ] || [ "$FLYWAY" -ne 0 ] || [ "$REGRESSIONS" -ne 0 ]; then
+            exit 1
+          fi
+      - if: always()
+        run: docker compose -f unifydesk-app/compose.test.yml down
+
+  frontend-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: unifydesk-app/frontend/package-lock.json
+      - name: Run complete frontend command matrix
+        working-directory: unifydesk-app/frontend
+        shell: bash
+        run: |
+          set +e
+          npm ci
+          NPM_CI=$?
+          npm run format:check
+          FORMAT=$?
+          npm run lint
+          LINT=$?
+          npm test
+          TEST=$?
+          npm run build
+          BUILD=$?
+          echo "npm ci=$NPM_CI"
+          echo "format:check=$FORMAT"
+          echo "lint=$LINT"
+          echo "test=$TEST"
+          echo "build=$BUILD"
+          if [ "$NPM_CI" -ne 0 ] || [ "$FORMAT" -ne 0 ] || [ "$LINT" -ne 0 ] || [ "$TEST" -ne 0 ] || [ "$BUILD" -ne 0 ]; then
+            exit 1
+          fi

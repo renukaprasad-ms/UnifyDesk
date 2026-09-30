@@ -30,6 +30,7 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -366,6 +367,139 @@ public class MediaService {
         .stream()
         .map(mediaMapper::toResponse)
         .toList();
+  }
+
+  @Transactional
+  public Media ingestTrustedCompanyMedia(
+      long companyId,
+      long ownerUserId,
+      String fileName,
+      String contentType,
+      byte[] content) {
+    return ingestTrustedCompanyMediaWithId(
+        IdGenerator.nextId(), companyId, ownerUserId, fileName, contentType, content);
+  }
+
+  @Transactional
+  public Media ingestTrustedCompanyMediaWithId(
+      long reservedMediaId,
+      long companyId,
+      long ownerUserId,
+      String fileName,
+      String contentType,
+      byte[] content) {
+    if (content == null || content.length == 0) {
+      throw new MediaException(HttpStatus.BAD_REQUEST, "MEDIA_INVALID_SIZE");
+    }
+    MediaValidationService.ValidatedMedia validated =
+        validationService.validateForUpload(fileName, contentType, content.length);
+    String expectedObjectKey =
+        objectKeyFactory.createUserObjectKey(
+            ownerUserId, MediaPurpose.WHATSAPP_MEDIA, reservedMediaId, validated.extension());
+
+    Media media = mediaRepository.findById(reservedMediaId).orElse(null);
+    if (media != null) {
+      if (!Long.valueOf(companyId).equals(media.getCompanyId())
+          || media.getOwnerUserId() != ownerUserId
+          || media.getPurpose() != MediaPurpose.WHATSAPP_MEDIA
+          || !expectedObjectKey.equals(media.getObjectKey())
+          || !validated.contentType().equals(media.getContentType())
+          || validated.sizeBytes() != media.getSizeBytes()) {
+        throw new MediaException(HttpStatus.CONFLICT, "MEDIA_IDEMPOTENCY_CONFLICT");
+      }
+      if (media.getStatus() == MediaStatus.ACTIVE) {
+        return media;
+      }
+      if (media.getStatus() == MediaStatus.DELETE_PENDING
+          || media.getStatus() == MediaStatus.DELETED) {
+        throw new MediaException(HttpStatus.CONFLICT, "MEDIA_INVALID_STATE");
+      }
+      if (media.getStatus() == MediaStatus.FAILED) {
+        media.setStatus(MediaStatus.PENDING);
+        media.setCompletedAt(null);
+        media.setDeletedAt(null);
+        media.setChecksum(null);
+        media = mediaRepository.saveAndFlush(media);
+        storageAccounting.reserve(media);
+      }
+    } else {
+      media = new Media();
+      media.setId(reservedMediaId);
+      media.setOwnerUserId(ownerUserId);
+      media.setCompanyId(companyId);
+      media.setStorageProvider(storageProperties.getDefaultProvider());
+      media.setBucket(configuredBucket());
+      media.setObjectKey(expectedObjectKey);
+      media.setOriginalFileName(validated.fileName());
+      media.setContentType(validated.contentType());
+      media.setSizeBytes(validated.sizeBytes());
+      media.setMediaType(validated.mediaType());
+      media.setPurpose(MediaPurpose.WHATSAPP_MEDIA);
+      media.setStatus(MediaStatus.PENDING);
+      media = mediaRepository.saveAndFlush(media);
+      storageAccounting.reserve(media);
+    }
+
+    StorageProvider provider = storageProviderResolver.resolve(media.getStorageProvider());
+    boolean wroteObject = false;
+    try {
+      StorageObjectMetadata metadata =
+          provider.getObjectMetadata(media.getBucket(), media.getObjectKey());
+      if (metadata.exists()) {
+        try {
+          validationService.validateUploadedObject(
+              media.getContentType(),
+              media.getSizeBytes(),
+              metadata.contentType(),
+              metadata.sizeBytes());
+        } catch (MediaException staleObject) {
+          provider.writeObject(
+              media.getBucket(), media.getObjectKey(), content, media.getContentType());
+          wroteObject = true;
+          metadata = provider.getObjectMetadata(media.getBucket(), media.getObjectKey());
+        }
+      } else {
+        provider.writeObject(
+            media.getBucket(), media.getObjectKey(), content, media.getContentType());
+        wroteObject = true;
+        metadata = provider.getObjectMetadata(media.getBucket(), media.getObjectKey());
+      }
+      if (!metadata.exists()) {
+        throw new MediaException(HttpStatus.SERVICE_UNAVAILABLE, "MEDIA_STORAGE_ERROR");
+      }
+      validationService.validateUploadedObject(
+          media.getContentType(),
+          media.getSizeBytes(),
+          metadata.contentType(),
+          metadata.sizeBytes());
+      media.setStatus(MediaStatus.ACTIVE);
+      media.setCompletedAt(Instant.now());
+      media.setChecksum(metadata.checksum());
+      media = mediaRepository.saveAndFlush(media);
+      storageAccounting.commit(media);
+      return media;
+    } catch (RuntimeException exception) {
+      if (wroteObject) {
+        try {
+          provider.delete(media.getBucket(), media.getObjectKey());
+        } catch (RuntimeException ignored) {
+          // Cleanup is best effort. A crash/retry reuses the same reserved object key.
+        }
+      }
+      if (media.getStatus() == MediaStatus.PENDING) {
+        storageAccounting.release(media);
+        media.setStatus(MediaStatus.FAILED);
+        mediaRepository.saveAndFlush(media);
+      }
+      throw exception;
+    }
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<Media> findActiveTrustedCompanyMedia(long mediaId, long companyId) {
+    return mediaRepository
+        .findByIdAndCompanyId(mediaId, companyId)
+        .filter(media -> media.getStatus() == MediaStatus.ACTIVE);
   }
 
   @Transactional(readOnly = true)

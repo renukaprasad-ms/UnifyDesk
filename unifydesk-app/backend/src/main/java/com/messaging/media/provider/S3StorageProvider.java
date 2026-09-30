@@ -17,6 +17,7 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
@@ -103,6 +104,23 @@ public class S3StorageProvider implements StorageProvider {
           .getObjectAsBytes(
               GetObjectRequest.builder().bucket(bucket).key(objectKey).build())
           .asByteArray();
+    } catch (S3Exception exception) {
+      throw storageException(exception);
+    }
+  }
+
+  @Override
+  public void writeObject(String bucket, String objectKey, byte[] content, String contentType) {
+    ensureConfigured();
+    try {
+      client()
+          .putObject(
+              PutObjectRequest.builder()
+                  .bucket(bucket)
+                  .key(objectKey)
+                  .contentType(contentType)
+                  .build(),
+              RequestBody.fromBytes(content));
     } catch (S3Exception exception) {
       throw storageException(exception);
     }

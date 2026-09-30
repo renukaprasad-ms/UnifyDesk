@@ -40,7 +40,12 @@ public class SystemEntitlementCatalogInitializer implements ApplicationRunner {
           new Definition(910000000000000019L, "STORAGE_GB", "Storage", "Maximum private workspace storage in GiB; use -1 for unlimited", EntitlementValueType.DECIMAL, EntitlementCategory.STORAGE, "0"),
           new Definition(910000000000000020L, "AUTO_REPLY_ENABLED", "Auto reply", "Enable automated replies", EntitlementValueType.BOOLEAN, EntitlementCategory.FEATURE, "false"),
           new Definition(910000000000000021L, "USER_SIGNATURE_ENABLED", "User signatures", "Enable per-user message signatures", EntitlementValueType.BOOLEAN, EntitlementCategory.FEATURE, "false"),
-          new Definition(910000000000000022L, "API_ACCESS_ENABLED", "API access", "Enable customer API access", EntitlementValueType.BOOLEAN, EntitlementCategory.FEATURE, "false"));
+          new Definition(910000000000000022L, "API_ACCESS_ENABLED", "API access", "Enable customer API access", EntitlementValueType.BOOLEAN, EntitlementCategory.FEATURE, "false"),
+          new Definition(910000000000000023L, "MANAGED_EMAIL_ENABLED", "Managed Email", "Enable UnifyDesk Managed Email for the workspace", EntitlementValueType.BOOLEAN, EntitlementCategory.FEATURE, "false"),
+          new Definition(910000000000000024L, "MANAGED_EMAIL_DOMAINS", "Managed Email domains", "Maximum active or provisioning Managed Email domains", EntitlementValueType.INTEGER, EntitlementCategory.BROADCAST, "0"),
+          new Definition(910000000000000025L, "MANAGED_EMAIL_SENDERS", "Managed Email senders", "Maximum Managed Email sender identities", EntitlementValueType.INTEGER, EntitlementCategory.BROADCAST, "0"),
+          new Definition(910000000000000026L, "MANAGED_EMAIL_MESSAGES_MONTHLY", "Managed Email messages per month", "Maximum provider-accepted UnifyDesk Managed Email messages per UTC calendar month", EntitlementValueType.INTEGER, EntitlementCategory.BROADCAST, "0"),
+          new Definition(910000000000000027L, "MANAGED_SMS_SEGMENTS_MONTHLY", "Managed SMS segments per month", "Maximum provider-accepted UnifyDesk Managed SMS segments per UTC calendar month", EntitlementValueType.INTEGER, EntitlementCategory.BROADCAST, "0"));
 
   private static final String UPSERT_SQL =
       """

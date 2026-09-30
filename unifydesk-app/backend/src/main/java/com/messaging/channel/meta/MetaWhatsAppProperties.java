@@ -20,6 +20,15 @@ public class MetaWhatsAppProperties {
   private String webhookVerifyToken;
   private Duration signupSessionTtl = Duration.ofMinutes(10);
   private boolean registerPhoneNumber = true;
+  private boolean coexistenceEnabled = false;
+  private Duration healthCacheTtl = Duration.ofMinutes(15);
+  private Duration healthyReconcileInterval = Duration.ofMinutes(30);
+  private Duration degradedReconcileInterval = Duration.ofMinutes(5);
+  private Duration manualReconcileMinInterval = Duration.ofSeconds(15);
+  private Duration reconcilePollInterval = Duration.ofMinutes(1);
+  private Duration provisioningClaimLease = Duration.ofMinutes(2);
+  private Duration retryInitialBackoff = Duration.ofSeconds(2);
+  private Duration retryMaxBackoff = Duration.ofMinutes(5);
 
   public void setAppId(String appId) {
     this.appId = trimToNull(appId);
@@ -37,12 +46,56 @@ public class MetaWhatsAppProperties {
     this.graphApiVersion = trimToNull(graphApiVersion);
   }
 
+  public Duration safeSignupSessionTtl() {
+    if (signupSessionTtl == null
+        || signupSessionTtl.isNegative()
+        || signupSessionTtl.isZero()
+        || signupSessionTtl.compareTo(Duration.ofMinutes(10)) > 0) {
+      return Duration.ofMinutes(10);
+    }
+    return signupSessionTtl;
+  }
+
+  public Duration safeHealthCacheTtl() {
+    return positiveOrDefault(healthCacheTtl, Duration.ofMinutes(15));
+  }
+
+  public Duration safeHealthyReconcileInterval() {
+    return positiveOrDefault(healthyReconcileInterval, Duration.ofMinutes(30));
+  }
+
+  public Duration safeDegradedReconcileInterval() {
+    return positiveOrDefault(degradedReconcileInterval, Duration.ofMinutes(5));
+  }
+
+  public Duration safeManualReconcileMinInterval() {
+    return positiveOrDefault(manualReconcileMinInterval, Duration.ofSeconds(15));
+  }
+
+  public Duration safeProvisioningClaimLease() {
+    return positiveOrDefault(provisioningClaimLease, Duration.ofMinutes(2));
+  }
+
+  public Duration safeRetryInitialBackoff() {
+    return positiveOrDefault(retryInitialBackoff, Duration.ofSeconds(2));
+  }
+
+  public Duration safeRetryMaxBackoff() {
+    Duration initial = safeRetryInitialBackoff();
+    Duration maximum = positiveOrDefault(retryMaxBackoff, Duration.ofMinutes(5));
+    return maximum.compareTo(initial) < 0 ? initial : maximum;
+  }
+
   public boolean configured() {
     return enabled
         && hasText(appId)
         && hasText(appSecret)
         && hasText(configurationId)
         && hasText(graphApiVersion);
+  }
+
+  private Duration positiveOrDefault(Duration value, Duration fallback) {
+    return value == null || value.isNegative() || value.isZero() ? fallback : value;
   }
 
   private boolean hasText(String value) {

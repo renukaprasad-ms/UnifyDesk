@@ -326,6 +326,35 @@ app:
       webhook-verify-token: ${META_WHATSAPP_WEBHOOK_VERIFY_TOKEN:}
       signup-session-ttl: ${META_WHATSAPP_SIGNUP_SESSION_TTL:10m}
       register-phone-number: ${META_WHATSAPP_REGISTER_PHONE_NUMBER:true}
+      coexistence-enabled: ${META_WHATSAPP_COEXISTENCE_ENABLED:false}
+      health-cache-ttl: ${META_WHATSAPP_HEALTH_CACHE_TTL:15m}
+      healthy-reconcile-interval: ${META_WHATSAPP_HEALTHY_RECONCILE_INTERVAL:30m}
+      degraded-reconcile-interval: ${META_WHATSAPP_DEGRADED_RECONCILE_INTERVAL:5m}
+      manual-reconcile-min-interval: ${META_WHATSAPP_MANUAL_RECONCILE_MIN_INTERVAL:15s}
+      reconcile-poll-interval: ${META_WHATSAPP_RECONCILE_POLL_INTERVAL:1m}
+      provisioning-claim-lease: ${META_WHATSAPP_PROVISIONING_CLAIM_LEASE:2m}
+      retry-initial-backoff: ${META_WHATSAPP_RETRY_INITIAL_BACKOFF:2s}
+      retry-max-backoff: ${META_WHATSAPP_RETRY_MAX_BACKOFF:5m}
+      runtime:
+        webhook-max-body: ${META_WHATSAPP_WEBHOOK_MAX_BODY:1MB}
+        webhook-max-effects: ${META_WHATSAPP_WEBHOOK_MAX_EFFECTS:200}
+        worker-batch-size: ${META_WHATSAPP_WORKER_BATCH_SIZE:100}
+        worker-lease: ${META_WHATSAPP_WORKER_LEASE:60s}
+        worker-max-attempts: ${META_WHATSAPP_WORKER_MAX_ATTEMPTS:10}
+        retry-base-delay: ${META_WHATSAPP_RUNTIME_RETRY_BASE_DELAY:2s}
+        retry-max-delay: ${META_WHATSAPP_RUNTIME_RETRY_MAX_DELAY:15m}
+        processed-retention: ${META_WHATSAPP_PROCESSED_RETENTION:7d}
+        dead-retention: ${META_WHATSAPP_DEAD_RETENTION:30d}
+        customer-service-window: ${META_WHATSAPP_CUSTOMER_SERVICE_WINDOW:24h}
+        template-max-age: ${META_WHATSAPP_TEMPLATE_MAX_AGE:15m}
+        provider-connect-timeout: ${META_WHATSAPP_PROVIDER_CONNECT_TIMEOUT:3s}
+        provider-read-timeout: ${META_WHATSAPP_PROVIDER_READ_TIMEOUT:10s}
+        inbound-media-hard-limit: ${META_WHATSAPP_INBOUND_MEDIA_HARD_LIMIT:20MB}
+        outbound-max-per-second: ${META_WHATSAPP_OUTBOUND_MAX_PER_SECOND:10}
+        outbound-rate-window: ${META_WHATSAPP_OUTBOUND_RATE_WINDOW:1s}
+        provider-retry-after-fallback: ${META_WHATSAPP_PROVIDER_RETRY_AFTER_FALLBACK:5s}
+        pending-outcome-timeout: ${META_WHATSAPP_PENDING_OUTCOME_TIMEOUT:2m}
+        graph-base-url: ${META_WHATSAPP_GRAPH_BASE_URL:https://graph.facebook.com}
     gmail:
       enabled: ${GMAIL_OAUTH_ENABLED:false}
       client-id: ${GMAIL_OAUTH_CLIENT_ID:}

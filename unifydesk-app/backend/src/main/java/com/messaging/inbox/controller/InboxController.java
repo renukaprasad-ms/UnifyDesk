@@ -2,7 +2,13 @@ package com.messaging.inbox.controller;
 
 import com.messaging.asyncjob.dto.AsyncJobResponse;
 import com.messaging.channel.email.EmailFolder;
+import com.messaging.channel.entity.ChannelConnection;
+import com.messaging.channel.enums.ChannelType;
+import com.messaging.channel.enums.ProviderType;
+import com.messaging.channel.meta.runtime.MetaWhatsAppInboxReadStateService;
+import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.BadRequestException;
+import com.messaging.common.exception.NotFoundException;
 import com.messaging.common.response.ApiResponse;
 import com.messaging.company.iam.CompanyPermissionKeys;
 import com.messaging.company.service.CompanyAuthorizationService;
@@ -14,6 +20,8 @@ import com.messaging.inbox.dto.InboxReadStateRequest;
 import com.messaging.inbox.dto.InboxReadStateResponse;
 import com.messaging.inbox.dto.InboxRealtimeSnapshotRequest;
 import com.messaging.inbox.dto.InboxRealtimeSnapshotResponse;
+import com.messaging.inbox.repository.InboxConversationRepository;
+import com.messaging.inbox.repository.InboxMessageRepository;
 import com.messaging.inbox.service.InboxQueryService;
 import com.messaging.inbox.service.InboxReadStateQueueService;
 import com.messaging.inbox.service.InboxReadStateService;
@@ -24,9 +32,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -40,8 +48,12 @@ public class InboxController {
   private final InboxQueryService inboxQueryService;
   private final InboxReadStateService readStateService;
   private final InboxReadStateQueueService readStateQueueService;
+  private final MetaWhatsAppInboxReadStateService whatsappReadStateService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
+  private final ChannelConnectionRepository connectionRepository;
+  private final InboxConversationRepository conversationRepository;
+  private final InboxMessageRepository messageRepository;
 
   @GetMapping("/conversations")
   public ResponseEntity<ApiResponse<InboxPageResponse<InboxConversationResponse>>> conversations(
@@ -51,16 +63,35 @@ public class InboxController {
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "30") int size) {
     Long userId = currentUserService.currentUserId();
-    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_READ);
+    boolean emailAllowed;
+    boolean whatsappAllowed;
+    if (connectionId != null) {
+      ChannelConnection connection = requireConnection(companyId, connectionId);
+      requireRead(userId, companyId, connection);
+      emailAllowed = connection.getChannelType() == ChannelType.EMAIL;
+      whatsappAllowed = connection.getProviderType() == ProviderType.META_WHATSAPP;
+    } else {
+      authorizationService.requireActiveMembership(userId, companyId);
+      emailAllowed =
+          authorizationService.hasPermission(userId, companyId, CompanyPermissionKeys.EMAIL_READ);
+      whatsappAllowed =
+          authorizationService.hasPermission(
+              userId, companyId, CompanyPermissionKeys.WHATSAPP_READ);
+    }
 
     int resolvedPage = Math.max(page, 0);
     int resolvedSize = Math.min(Math.max(size, 1), 100);
-
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
             inboxQueryService.listConversations(
-                companyId, connectionId, folder, resolvedPage, resolvedSize),
+                companyId,
+                connectionId,
+                folder,
+                resolvedPage,
+                resolvedSize,
+                emailAllowed,
+                whatsappAllowed),
             "Inbox conversations fetched"));
   }
 
@@ -68,8 +99,7 @@ public class InboxController {
   public ResponseEntity<ApiResponse<InboxConversationResponse>> conversation(
       @PathVariable Long companyId, @PathVariable Long conversationId) {
     Long userId = currentUserService.currentUserId();
-    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_READ);
-
+    requireConversationRead(userId, companyId, conversationId);
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
@@ -83,15 +113,29 @@ public class InboxController {
       @PathVariable Long messageId,
       @RequestBody(required = false) InboxReadStateRequest request) {
     Long userId = currentUserService.currentUserId();
-    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_MODIFY);
     if (request == null || request.read() == null) {
       throw new BadRequestException("Read state is required");
     }
-
+    ProviderType providerType =
+        messageRepository
+            .findProviderTypeByIdAndCompanyId(messageId, companyId)
+            .orElseThrow(() -> new NotFoundException("Inbox message not found"));
+    InboxReadStateResponse response;
+    if (isWhatsApp(providerType)) {
+      requirePermissionOrNotFound(
+          userId, companyId, CompanyPermissionKeys.WHATSAPP_MODIFY, "Inbox message not found");
+      response = whatsappReadStateService.setMessage(companyId, messageId, request.read());
+    } else if (providerType.channelType() == ChannelType.EMAIL) {
+      requirePermissionOrNotFound(
+          userId, companyId, CompanyPermissionKeys.EMAIL_MODIFY, "Inbox message not found");
+      response = readStateService.setMessageReadState(companyId, messageId, request.read());
+    } else {
+      throw new NotFoundException("Inbox message not found");
+    }
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            readStateService.setMessageReadState(companyId, messageId, request.read()),
+            response,
             request.read() ? "Message marked as read" : "Message marked as unread"));
   }
 
@@ -101,15 +145,30 @@ public class InboxController {
       @PathVariable Long conversationId,
       @RequestBody(required = false) InboxReadStateRequest request) {
     Long userId = currentUserService.currentUserId();
-    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_MODIFY);
     if (request == null || request.read() == null) {
       throw new BadRequestException("Read state is required");
     }
-
+    ProviderType providerType =
+        conversationRepository
+            .findProviderTypeByIdAndCompanyId(conversationId, companyId)
+            .orElseThrow(() -> new NotFoundException("Inbox conversation not found"));
+    InboxReadStateResponse response;
+    if (isWhatsApp(providerType)) {
+      requirePermissionOrNotFound(
+          userId, companyId, CompanyPermissionKeys.WHATSAPP_MODIFY, "Inbox conversation not found");
+      response =
+          whatsappReadStateService.setConversation(companyId, conversationId, request.read());
+    } else if (providerType.channelType() == ChannelType.EMAIL) {
+      requirePermissionOrNotFound(
+          userId, companyId, CompanyPermissionKeys.EMAIL_MODIFY, "Inbox conversation not found");
+      response = readStateService.setConversationReadState(companyId, conversationId, request.read());
+    } else {
+      throw new NotFoundException("Inbox conversation not found");
+    }
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            readStateService.setConversationReadState(companyId, conversationId, request.read()),
+            response,
             request.read() ? "Conversation marked as read" : "Conversation marked as unread"));
   }
 
@@ -119,10 +178,19 @@ public class InboxController {
       @RequestParam Long connectionId,
       @RequestParam(defaultValue = "INBOX") EmailFolder folder) {
     Long userId = currentUserService.currentUserId();
-    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_MODIFY);
-
-    AsyncJobResponse job =
-        readStateQueueService.queueMarkAllRead(companyId, userId, connectionId, folder);
+    ChannelConnection connection = requireConnection(companyId, connectionId);
+    AsyncJobResponse job;
+    if (isWhatsApp(connection)) {
+      requirePermissionOrNotFound(
+          userId, companyId, CompanyPermissionKeys.WHATSAPP_MODIFY, "Inbox connection not found");
+      job = whatsappReadStateService.markAllRead(companyId, userId, connectionId);
+    } else if (connection.getChannelType() == ChannelType.EMAIL) {
+      requirePermissionOrNotFound(
+          userId, companyId, CompanyPermissionKeys.EMAIL_MODIFY, "Inbox connection not found");
+      job = readStateQueueService.queueMarkAllRead(companyId, userId, connectionId, folder);
+    } else {
+      throw new NotFoundException("Inbox connection not found");
+    }
     return ResponseEntity.status(HttpStatus.ACCEPTED)
         .body(
             ApiResponse.success(
@@ -134,8 +202,9 @@ public class InboxController {
       @PathVariable Long companyId,
       @Valid @RequestBody InboxRealtimeSnapshotRequest request) {
     Long userId = currentUserService.currentUserId();
-    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_READ);
-
+    ChannelConnection connection =
+        requireConnection(companyId, parseId(request.connectionId(), "connectionId"));
+    requireRead(userId, companyId, connection);
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
@@ -147,8 +216,7 @@ public class InboxController {
   public ResponseEntity<ApiResponse<InboxConversationDetailResponse>> conversationDetail(
       @PathVariable Long companyId, @PathVariable Long conversationId) {
     Long userId = currentUserService.currentUserId();
-    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_READ);
-
+    requireConversationRead(userId, companyId, conversationId);
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
@@ -160,12 +228,66 @@ public class InboxController {
   public ResponseEntity<ApiResponse<List<InboxMessageResponse>>> messages(
       @PathVariable Long companyId, @PathVariable Long conversationId) {
     Long userId = currentUserService.currentUserId();
-    authorizationService.requirePermission(userId, companyId, CompanyPermissionKeys.EMAIL_READ);
-
+    requireConversationRead(userId, companyId, conversationId);
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
             inboxQueryService.listMessages(companyId, conversationId),
             "Inbox messages fetched"));
+  }
+
+  private void requireConversationRead(Long userId, Long companyId, Long conversationId) {
+    ProviderType providerType =
+        conversationRepository
+            .findProviderTypeByIdAndCompanyId(conversationId, companyId)
+            .orElseThrow(() -> new NotFoundException("Inbox conversation not found"));
+    requireRead(userId, companyId, providerType);
+  }
+
+  private void requireRead(Long userId, Long companyId, ChannelConnection connection) {
+    requireRead(userId, companyId, connection.getProviderType());
+  }
+
+  private void requireRead(Long userId, Long companyId, ProviderType providerType) {
+    if (isWhatsApp(providerType)) {
+      requirePermissionOrNotFound(
+          userId, companyId, CompanyPermissionKeys.WHATSAPP_READ, "Inbox connection not found");
+    } else if (providerType.channelType() == ChannelType.EMAIL) {
+      requirePermissionOrNotFound(
+          userId, companyId, CompanyPermissionKeys.EMAIL_READ, "Inbox connection not found");
+    } else {
+      throw new NotFoundException("Inbox connection not found");
+    }
+  }
+
+  private void requirePermissionOrNotFound(
+      Long userId, Long companyId, String permission, String notFoundMessage) {
+    authorizationService.requireActiveMembership(userId, companyId);
+    if (!authorizationService.hasPermission(userId, companyId, permission)) {
+      throw new NotFoundException(notFoundMessage);
+    }
+  }
+
+  private ChannelConnection requireConnection(Long companyId, Long connectionId) {
+    return connectionRepository
+        .findByIdAndCompanyId(connectionId, companyId)
+        .orElseThrow(() -> new NotFoundException("Inbox connection not found"));
+  }
+
+  private boolean isWhatsApp(ChannelConnection connection) {
+    return isWhatsApp(connection.getProviderType());
+  }
+
+  private boolean isWhatsApp(ProviderType providerType) {
+    return providerType == ProviderType.META_WHATSAPP
+        && providerType.channelType() == ChannelType.WHATSAPP;
+  }
+
+  private long parseId(String value, String field) {
+    try {
+      return Long.parseLong(value);
+    } catch (Exception exception) {
+      throw new BadRequestException("Invalid " + field);
+    }
   }
 }

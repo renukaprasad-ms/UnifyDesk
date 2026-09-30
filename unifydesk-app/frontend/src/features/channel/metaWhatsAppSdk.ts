@@ -22,13 +22,17 @@ type FacebookSdk = {
 }
 
 type EmbeddedSignupMessage = {
-  type?: string
-  event?: string
-  data?: {
-    waba_id?: string
-    phone_number_id?: string
-    error_message?: string
-  }
+  type?: unknown
+  event?: unknown
+  data?: unknown
+}
+
+type EmbeddedSignupData = {
+  waba_id?: unknown
+  phone_number_id?: unknown
+  whatsapp_account_id?: unknown
+  messaging_account_id?: unknown
+  error_message?: unknown
 }
 
 declare global {
@@ -40,7 +44,20 @@ declare global {
 
 const SDK_SCRIPT_ID = 'facebook-jssdk'
 const SDK_LOAD_TIMEOUT_MS = 15_000
-const SIGNUP_TIMEOUT_MS = 5 * 60_000
+export const META_WHATSAPP_SIGNUP_TIMEOUT_MS = 5 * 60_000
+export const META_WHATSAPP_SESSION_INFO_GRACE_MS = 3_000
+const isAllowedFacebookOrigin = (origin: string) => {
+  try {
+    const url = new URL(origin)
+    const hostname = url.hostname.toLowerCase()
+    return (
+      url.protocol === 'https:' &&
+      (hostname === 'facebook.com' || hostname.endsWith('.facebook.com'))
+    )
+  } catch {
+    return false
+  }
+}
 
 let sdkPromise: Promise<void> | null = null
 let sdkInitializedKey: string | null = null
@@ -67,18 +84,25 @@ const initializeSdk = (appId: string, graphApiVersion: string) => {
 export const loadMetaSdk = (appId: string, graphApiVersion: string) => {
   const normalizedAppId = appId.trim()
   const normalizedVersion = graphApiVersion.trim()
-  const initKey = `${normalizedAppId}:${normalizedVersion}`
 
-  if (sdkInitializedKey === initKey && window.FB) return Promise.resolve()
+  if (window.FB) {
+    initializeSdk(normalizedAppId, normalizedVersion)
+    return Promise.resolve()
+  }
   if (sdkPromise) return sdkPromise
 
   sdkPromise = new Promise<void>((resolve, reject) => {
     let settled = false
 
+    const cleanup = () => {
+      window.clearTimeout(timeout)
+      if (window.fbAsyncInit === finish) window.fbAsyncInit = undefined
+    }
+
     const fail = (message: string) => {
       if (settled) return
       settled = true
-      window.clearTimeout(timeout)
+      cleanup()
       sdkPromise = null
       reject(new Error(message))
     }
@@ -88,7 +112,7 @@ export const loadMetaSdk = (appId: string, graphApiVersion: string) => {
       try {
         if (!initializeSdk(normalizedAppId, normalizedVersion)) return
         settled = true
-        window.clearTimeout(timeout)
+        cleanup()
         resolve()
       } catch (error) {
         fail(
@@ -111,7 +135,7 @@ export const loadMetaSdk = (appId: string, graphApiVersion: string) => {
       existing.addEventListener('error', () => fail('Unable to load the Meta SDK'), { once: true })
       window.setTimeout(() => {
         if (!settled && window.FB) finish()
-      }, 1_000)
+      }, 0)
       return
     }
 
@@ -129,100 +153,128 @@ export const loadMetaSdk = (appId: string, graphApiVersion: string) => {
 }
 
 const parseEmbeddedSignupMessage = (value: unknown): EmbeddedSignupMessage | null => {
-  if (value && typeof value === 'object') {
-    return value as EmbeddedSignupMessage
-  }
-
+  if (value && typeof value === 'object') return value as EmbeddedSignupMessage
   if (typeof value !== 'string') return null
 
   const trimmed = value.trim()
-  if (!trimmed.startsWith('{')) {
-    // The Facebook SDK also posts internal protocol messages such as "cb=...".
-    // They are not WhatsApp Embedded Signup events and must be ignored.
-    return null
-  }
+  if (!trimmed.startsWith('{')) return null
 
   try {
-    return JSON.parse(trimmed) as EmbeddedSignupMessage
+    const parsed = JSON.parse(trimmed) as unknown
+    return parsed && typeof parsed === 'object' ? (parsed as EmbeddedSignupMessage) : null
   } catch {
     return null
   }
 }
 
+const stringValue = (value: unknown) =>
+  typeof value === 'string' && value.trim() ? value.trim() : undefined
+
 export const launchMetaWhatsAppSignup = (
   config: MetaWhatsAppSignupConfig,
 ): Promise<MetaWhatsAppSignupResult> =>
   new Promise((resolve, reject) => {
+    if (config.embeddedSignupVersion !== '4') {
+      reject(new Error('This WhatsApp connection requires Meta Embedded Signup v4.'))
+      return
+    }
+
     if (!window.isSecureContext && window.location.hostname !== 'localhost') {
       reject(new Error('Meta WhatsApp signup requires HTTPS'))
       return
     }
 
     if (!window.FB) {
-      reject(new Error('Meta SDK is not ready. Refresh the page and try again.'))
+      reject(new Error('Meta SDK is not ready. Please try again.'))
       return
     }
 
-    let code = ''
-    let wabaId = ''
-    let phoneNumberId = ''
+    let code: string | undefined
+    let finishData: EmbeddedSignupData | undefined
     let settled = false
-    let codeFallbackTimer: number | null = null
+    let sessionInfoGraceTimeout: number | undefined
 
     const cleanup = () => {
       window.removeEventListener('message', onMessage)
       window.clearTimeout(timeout)
-      if (codeFallbackTimer !== null) window.clearTimeout(codeFallbackTimer)
+      if (sessionInfoGraceTimeout !== undefined) {
+        window.clearTimeout(sessionInfoGraceTimeout)
+      }
     }
 
-    const finishIfReady = () => {
-      if (settled || !code || !wabaId || !phoneNumberId) return
-      settled = true
-      cleanup()
-      resolve({ code, wabaId, phoneNumberId })
-    }
-
-    const fail = (message: string) => {
+    const settleError = (message: string) => {
       if (settled) return
       settled = true
       cleanup()
       reject(new Error(message))
     }
 
-    const onMessage = (event: MessageEvent) => {
-      if (
-        event.origin !== 'https://www.facebook.com' &&
-        event.origin !== 'https://web.facebook.com'
-      ) {
+    const settleSuccess = (allowCodeOnly = false) => {
+      if (settled || !code) return
+      if (!finishData && !allowCodeOnly) return
+
+      const wabaId = stringValue(finishData?.waba_id)
+      const phoneNumberId = stringValue(finishData?.phone_number_id)
+      if (finishData && !wabaId && !phoneNumberId) {
+        settleError('Meta did not return a WhatsApp account or phone number reference.')
         return
       }
 
-      const data = parseEmbeddedSignupMessage(event.data)
-      if (!data || data.type !== 'WA_EMBEDDED_SIGNUP') return
+      settled = true
+      cleanup()
+      resolve({
+        code,
+        wabaId,
+        phoneNumberId,
+        whatsappAccountId: stringValue(finishData?.whatsapp_account_id),
+        messagingAccountId: stringValue(finishData?.messaging_account_id),
+      })
+    }
 
-      if (typeof data.event === 'string' && data.event.startsWith('FINISH')) {
-        wabaId = String(data.data?.waba_id ?? '')
-        phoneNumberId = String(data.data?.phone_number_id ?? '')
+    const scheduleCodeOnlyFallback = () => {
+      if (settled || !code || finishData || sessionInfoGraceTimeout !== undefined) return
+      sessionInfoGraceTimeout = window.setTimeout(
+        () => settleSuccess(true),
+        META_WHATSAPP_SESSION_INFO_GRACE_MS,
+      )
+    }
 
-        if (!wabaId || !phoneNumberId) {
-          fail('Meta did not return the WhatsApp account and phone number IDs')
+    const onMessage = (event: MessageEvent) => {
+      if (!isAllowedFacebookOrigin(event.origin)) return
+
+      const message = parseEmbeddedSignupMessage(event.data)
+      if (!message || message.type !== 'WA_EMBEDDED_SIGNUP' || typeof message.event !== 'string') {
+        return
+      }
+
+      const data =
+        message.data && typeof message.data === 'object'
+          ? (message.data as EmbeddedSignupData)
+          : undefined
+
+      if (message.event === 'FINISH' || message.event.startsWith('FINISH_')) {
+        if (!data) {
+          settleError('Meta completed signup without account details.')
           return
         }
-
-        finishIfReady()
+        finishData = data
+        settleSuccess()
         return
       }
 
-      if (data.event === 'CANCEL') {
-        fail('WhatsApp connection was cancelled')
-      } else if (data.event === 'ERROR') {
-        fail(data.data?.error_message || 'Meta could not complete WhatsApp signup')
+      if (message.event === 'CANCEL') {
+        settleError('WhatsApp connection was cancelled.')
+        return
+      }
+
+      if (message.event === 'ERROR') {
+        settleError(stringValue(data?.error_message) ?? 'Meta could not complete WhatsApp signup.')
       }
     }
 
     const timeout = window.setTimeout(
-      () => fail('WhatsApp connection timed out. Please try again.'),
-      SIGNUP_TIMEOUT_MS,
+      () => settleError('WhatsApp connection timed out. Please try again.'),
+      META_WHATSAPP_SIGNUP_TIMEOUT_MS,
     )
 
     window.addEventListener('message', onMessage)
@@ -230,14 +282,19 @@ export const launchMetaWhatsAppSignup = (
     try {
       window.FB.login(
         (response) => {
-          const returnedCode = response.authResponse?.code
+          const returnedCode = stringValue(response.authResponse?.code)
           if (!returnedCode) {
-            fail('WhatsApp connection was cancelled or could not be completed.')
+            settleError(
+              response.status === 'not_authorized'
+                ? 'Meta authorization was not granted.'
+                : 'WhatsApp connection was cancelled or the popup closed before authorization.',
+            )
             return
           }
 
           code = returnedCode
-          finishIfReady()
+          settleSuccess()
+          scheduleCodeOnlyFallback()
         },
         {
           config_id: config.configurationId.trim(),
@@ -246,11 +303,15 @@ export const launchMetaWhatsAppSignup = (
           override_default_response_type: true,
           extras: {
             setup: {},
-            sessionInfoVersion: '3',
           },
         },
       )
     } catch {
-      fail('Unable to open Meta login. Please try again.')
+      settleError('Unable to open Meta login. Please try again.')
     }
   })
+
+export const __resetMetaWhatsAppSdkForTests = () => {
+  sdkPromise = null
+  sdkInitializedKey = null
+}

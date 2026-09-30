@@ -81,14 +81,14 @@ spec:
                 name: messaging-env
           env:
             - name: JAVA_TOOL_OPTIONS
-              value: "-Xms128m -Xmx512m -XX:MaxMetaspaceSize=192m -XX:ReservedCodeCacheSize=64m -Xss512k -XX:ActiveProcessorCount=2"
+              value: "-Xms256m -Xmx1g -XX:MaxMetaspaceSize=384m -XX:ReservedCodeCacheSize=128m -Xss512k -XX:ActiveProcessorCount=2"
           resources:
             requests:
-              cpu: "500m"
-              memory: "512Mi"
+              cpu: "1"
+              memory: "1Gi"
             limits:
               cpu: "2"
-              memory: "1Gi"
+              memory: "2Gi"
           readinessProbe:
             tcpSocket:
               port: http

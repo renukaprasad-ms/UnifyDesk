@@ -26,4 +26,5 @@ public record InboxMessageResponse(
     String references,
     Instant sentAt,
     boolean read,
+    String whatsappStatus,
     List<InboxAttachmentResponse> attachments) {}
