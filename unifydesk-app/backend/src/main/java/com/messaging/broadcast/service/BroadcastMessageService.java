@@ -11,6 +11,7 @@ import com.messaging.broadcast.repository.*;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.contacts.audience.AudienceSourceResolver;
 import com.messaging.emailtemplate.enums.EmailTemplatePurpose;
 import com.messaging.emailtemplate.service.EmailTemplateService;
 import com.messaging.managedsms.runtime.ManagedSmsTemplateService;
@@ -35,6 +36,7 @@ public class BroadcastMessageService {
   private final BroadcastLaunchService launchService;
   private final EmailTemplateService emailTemplateService;
   private final ManagedSmsTemplateService managedSmsTemplateService;
+  private final AudienceSourceResolver audienceSourceResolver;
   private final ObjectMapper objectMapper;
 
   @Transactional
@@ -52,7 +54,43 @@ public class BroadcastMessageService {
     message.setChannelType(group.getChannelType());
     applyContent(
         companyId,
-        group.getChannelType(),
+        message.getChannelType(),
+        request.templateId(),
+        request.managedSmsTemplateId(),
+        request.subject(),
+        request.bodyText(),
+        request.bodyHtml(),
+        request.templateVariables(),
+        sender,
+        connection,
+        message);
+    message.setCreatedByUserId(userId);
+    message.setStatus(BroadcastMessageStatus.DRAFT);
+    return response(messageRepository.save(message));
+  }
+
+  @Transactional
+  public BroadcastMessageResponse createAudience(
+      Long companyId, Long userId, CreateAudienceBroadcastMessageRequest request) {
+    AudienceSourceResolver.SourceType sourceType =
+        AudienceSourceResolver.SourceType.valueOf(request.sourceType().name());
+    audienceSourceResolver.describe(companyId, sourceType, request.sourceId());
+
+    BroadcastSender sender =
+        validateSender(companyId, request.channelType(), request.senderId());
+    BroadcastSenderConnection connection =
+        senderService.requireConnection(companyId, sender.getConnectionId());
+
+    BroadcastMessage message = new BroadcastMessage();
+    message.setCompanyId(companyId);
+    message.setGroupId(null);
+    message.setAudienceSourceType(request.sourceType());
+    message.setAudienceSourceId(request.sourceId());
+    message.setSenderId(request.senderId());
+    message.setChannelType(request.channelType());
+    applyContent(
+        companyId,
+        request.channelType(),
         request.templateId(),
         request.managedSmsTemplateId(),
         request.subject(),
@@ -72,15 +110,15 @@ public class BroadcastMessageService {
       Long companyId, Long broadcastId, UpdateBroadcastMessageRequest request) {
     BroadcastMessage message = require(companyId, broadcastId);
     stateMachine.requireEditable(message.getStatus());
-    BroadcastGroup group = groupService.require(companyId, message.getGroupId());
-    BroadcastSender sender = validateSender(companyId, group, request.senderId());
+    BroadcastSender sender =
+        validateSender(companyId, message.getChannelType(), request.senderId());
     BroadcastSenderConnection connection =
         senderService.requireConnection(companyId, sender.getConnectionId());
     message.setSenderId(request.senderId());
     message.setConnectionId(null);
     applyContent(
         companyId,
-        group.getChannelType(),
+        message.getChannelType(),
         request.templateId(),
         request.managedSmsTemplateId(),
         request.subject(),
@@ -256,10 +294,15 @@ public class BroadcastMessageService {
   }
 
   private BroadcastSender validateSender(Long companyId, BroadcastGroup group, Long senderId) {
+    return validateSender(companyId, group.getChannelType(), senderId);
+  }
+
+  private BroadcastSender validateSender(
+      Long companyId, ChannelType channelType, Long senderId) {
     BroadcastSender sender = senderService.requireActive(companyId, senderId);
-    if (!sender.getProvider().supports(group.getChannelType())) {
+    if (!sender.getProvider().supports(channelType)) {
       throw new BadRequestException(
-          "Selected Broadcast sender does not support " + group.getChannelType());
+          "Selected Broadcast sender does not support " + channelType);
     }
     return sender;
   }

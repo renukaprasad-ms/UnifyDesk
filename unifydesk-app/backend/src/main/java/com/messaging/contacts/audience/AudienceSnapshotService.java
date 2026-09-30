@@ -57,6 +57,22 @@ public class AudienceSnapshotService {
   }
 
   @Transactional
+  public AudienceSnapshotRepository.Snapshot createForBroadcast(
+      long companyId, SourceType sourceType, long sourceId, Channel channel, Purpose purpose) {
+    SourceDescriptor source = sourceResolver.describe(companyId, sourceType, sourceId);
+    return repository.create(
+        IdGenerator.nextId(),
+        companyId,
+        sourceType.name(),
+        sourceId,
+        source.sourceVersion(),
+        source.filterHash(),
+        channel,
+        purpose,
+        null);
+  }
+
+  @Transactional
   public boolean processBatch(long companyId, long snapshotId) {
     AudienceSnapshotRepository.Snapshot snapshot = repository.requireForUpdate(companyId, snapshotId);
     if (!"PREPARING".equals(snapshot.status())) return false;
@@ -120,6 +136,15 @@ public class AudienceSnapshotService {
 
   public AudienceSnapshotRepository.Snapshot get(long companyId, long snapshotId) {
     return repository.require(companyId, snapshotId);
+  }
+
+  public void fail(long companyId, long snapshotId) {
+    repository.fail(companyId, snapshotId);
+  }
+
+  public List<AudienceSnapshotRepository.MemberView> pageMembers(
+      long companyId, long snapshotId, long afterSequenceId, int limit) {
+    return repository.pageMembers(companyId, snapshotId, afterSequenceId, limit);
   }
 
   public record SnapshotJob(AudienceSnapshotRepository.Snapshot snapshot, AsyncJobResponse job) {}

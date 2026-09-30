@@ -1,5 +1,6 @@
 package com.messaging.broadcast.entity;
 
+import com.messaging.broadcast.enums.BroadcastAudienceSourceType;
 import com.messaging.broadcast.enums.BroadcastRunStatus;
 import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.common.id.IdGenerator;
@@ -24,8 +25,18 @@ public class BroadcastRun {
   @Column(name = "company_id", nullable = false)
   private Long companyId;
 
-  @Column(name = "group_id", nullable = false)
+  @Column(name = "group_id")
   private Long groupId;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "audience_source_type", length = 16)
+  private BroadcastAudienceSourceType audienceSourceType;
+
+  @Column(name = "audience_source_id")
+  private Long audienceSourceId;
+
+  @Column(name = "audience_snapshot_id")
+  private Long audienceSnapshotId;
 
   /** Legacy mailbox sender reference retained only for historical runs. */
   @Column(name = "connection_id")

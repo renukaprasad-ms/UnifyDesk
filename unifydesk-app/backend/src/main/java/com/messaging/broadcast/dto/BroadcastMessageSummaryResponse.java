@@ -25,7 +25,7 @@ public record BroadcastMessageSummaryResponse(
       BroadcastMessage message, BroadcastRun run, BroadcastStatsResponse stats) {
     return new BroadcastMessageSummaryResponse(
         message.getId().toString(),
-        message.getGroupId().toString(),
+        stringId(message.getGroupId()),
         stringId(message.getSenderId()),
         stringId(message.getSourceTemplateId()),
         message.getSourceTemplateVersion(),

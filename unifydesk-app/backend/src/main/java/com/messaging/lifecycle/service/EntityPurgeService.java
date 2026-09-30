@@ -2,6 +2,7 @@ package com.messaging.lifecycle.service;
 
 import com.messaging.company.enums.CompanyStatus;
 import com.messaging.company.repository.CompanyRepository;
+import com.messaging.contacts.processing.ContactCompanyPurgeService;
 import com.messaging.lifecycle.config.DeletionLifecycleProperties;
 import com.messaging.lifecycle.entity.DeletionPurgeJob;
 import com.messaging.notification.platform.core.cleanup.NotificationCoreCleanupService;
@@ -25,6 +26,7 @@ public class EntityPurgeService {
   private final DeletionLifecycleProperties properties;
   private final NotificationDeliveryCleanupService notificationDeliveryCleanupService;
   private final NotificationCoreCleanupService notificationCoreCleanupService;
+  private final ContactCompanyPurgeService contactCompanyPurgeService;
 
   /**
    * Processes bounded purge work. Returns true only when the root entity reached its final PURGED
@@ -168,6 +170,11 @@ public class EntityPurgeService {
         "delete from async_jobs where ctid in "
             + "(select ctid from async_jobs where company_id = ? limit ?)",
         companyId)) return false;
+
+    if (!contactCompanyPurgeService.purgeCompanyBatch(
+        companyId, Math.max(1, properties.getRowBatchSize()))) {
+      return false;
+    }
 
     if (!drain(
         "delete from channel_connections where ctid in "

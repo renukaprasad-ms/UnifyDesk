@@ -6,6 +6,11 @@ import com.messaging.broadcast.repository.*;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.contacts.audience.AudienceSnapshotRepository;
+import com.messaging.contacts.audience.AudienceSnapshotService;
+import com.messaging.contacts.audience.AudienceSourceResolver;
+import com.messaging.contacts.consent.ConsentTypes.Channel;
+import com.messaging.contacts.consent.ConsentTypes.Purpose;
 import com.messaging.emailtemplate.entity.EmailTemplateProviderBinding;
 import com.messaging.emailtemplate.service.EmailTemplateProviderBindingService;
 import com.messaging.managedemail.delivery.ManagedEmailLaunchGuard;
@@ -32,6 +37,8 @@ public class BroadcastLaunchService {
   private final ManagedEmailLaunchGuard managedEmailLaunchGuard;
   private final ManagedSmsLaunchGuard managedSmsLaunchGuard;
   private final ManagedSmsRunBindingService managedSmsRunBindingService;
+  private final AudienceSourceResolver audienceSourceResolver;
+  private final AudienceSnapshotService audienceSnapshotService;
 
   @Transactional
   public BroadcastRun launch(Long companyId, Long broadcastId) {
@@ -56,38 +63,68 @@ public class BroadcastLaunchService {
       stateMachine.requireSendable(message.getStatus());
     }
 
-    BroadcastGroup group =
-        groupRepository
-            .findByIdAndCompanyId(message.getGroupId(), companyId)
-            .orElseThrow(() -> new NotFoundException("Broadcast group not found"));
-    if (group.getChannelType() != message.getChannelType()) {
-      throw new BadRequestException("Broadcast group and message channel do not match");
-    }
-    if (group.getChannelType() == ChannelType.WHATSAPP) {
+    ChannelType channelType = message.getChannelType();
+    if (channelType == ChannelType.WHATSAPP) {
       throw new BadRequestException("WhatsApp Broadcast execution is not implemented yet");
     }
     if (message.getSenderId() == null) {
       throw new BadRequestException("Choose a Broadcast sender before launching this broadcast");
     }
 
+    Long maxMemberId = null;
+    long recipientCount;
+    AudienceSnapshotRepository.Snapshot audienceSnapshot = null;
+
+    if (message.getGroupId() != null) {
+      BroadcastGroup group =
+          groupRepository
+              .findByIdAndCompanyId(message.getGroupId(), companyId)
+              .orElseThrow(() -> new NotFoundException("Broadcast group not found"));
+      if (group.getChannelType() != channelType) {
+        throw new BadRequestException("Broadcast group and message channel do not match");
+      }
+      maxMemberId = memberRepository.findMaxActiveMemberId(group.getId());
+      if (maxMemberId == null) {
+        throw new BadRequestException("Broadcast group has no active recipients");
+      }
+      recipientCount = memberRepository.countActiveMembers(group.getId());
+    } else {
+      if (message.getAudienceSourceType() == null || message.getAudienceSourceId() == null) {
+        throw new BadRequestException("Broadcast audience source is missing");
+      }
+      AudienceSourceResolver.SourceType sourceType =
+          AudienceSourceResolver.SourceType.valueOf(message.getAudienceSourceType().name());
+      audienceSnapshot =
+          audienceSnapshotService.createForBroadcast(
+              companyId,
+              sourceType,
+              message.getAudienceSourceId(),
+              Channel.valueOf(channelType.name()),
+              Purpose.MARKETING);
+      AudienceSourceResolver.SourceDescriptor frozenSource =
+          new AudienceSourceResolver.SourceDescriptor(
+              sourceType,
+              audienceSnapshot.sourceId(),
+              audienceSnapshot.sourceVersion(),
+              audienceSnapshot.filterHash());
+      recipientCount = audienceSourceResolver.count(companyId, frozenSource);
+      if (recipientCount <= 0) {
+        throw new BadRequestException("Broadcast audience has no active recipients");
+      }
+    }
+
     BroadcastSender sender = senderService.requireActive(companyId, message.getSenderId());
     BroadcastSenderConnection senderConnection =
         senderService.requireConnection(companyId, sender.getConnectionId());
-    if (!sender.getProvider().supports(group.getChannelType())
+    if (!sender.getProvider().supports(channelType)
         || senderConnection.getProvider() != sender.getProvider()) {
       throw new BadRequestException("Broadcast sender provider is not supported or mismatched");
     }
 
-    Long maxMemberId = memberRepository.findMaxActiveMemberId(group.getId());
-    if (maxMemberId == null) {
-      throw new BadRequestException("Broadcast group has no active recipients");
-    }
-    long recipientCount = memberRepository.countActiveMembers(group.getId());
     ManagedSmsRuntimeRepository.ManagedTemplateRuntime managedSmsRuntime = null;
     if (senderConnection.getManagementMode() == BroadcastSenderManagementMode.MESSAGING_MANAGED) {
       if (sender.getProvider() == BroadcastSenderProvider.AMAZON_SES) {
-        managedEmailLaunchGuard.validateLaunch(
-            companyId, sender, senderConnection, recipientCount);
+        managedEmailLaunchGuard.validateLaunch(companyId, sender, senderConnection, recipientCount);
       } else if (sender.getProvider() == BroadcastSenderProvider.MSG91_SMS) {
         managedSmsRuntime =
             managedSmsLaunchGuard.validateLaunch(
@@ -100,7 +137,10 @@ public class BroadcastLaunchService {
     BroadcastRun run = new BroadcastRun();
     run.setBroadcastMessageId(message.getId());
     run.setCompanyId(companyId);
-    run.setGroupId(group.getId());
+    run.setGroupId(message.getGroupId());
+    run.setAudienceSourceType(message.getAudienceSourceType());
+    run.setAudienceSourceId(message.getAudienceSourceId());
+    run.setAudienceSnapshotId(audienceSnapshot == null ? null : audienceSnapshot.id());
     run.setSenderId(sender.getId());
     run.setProviderType(sender.getProvider());
     run.setStatus(BroadcastRunStatus.PREPARING);

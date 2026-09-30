@@ -261,6 +261,29 @@ public class ContactSuppressionRepository {
         suppressionId);
   }
 
+  @Transactional
+  public void copyTombstone(
+      long companyId, long sourceSuppressionId, Fingerprint fingerprint) {
+    jdbcTemplate.update(
+        """
+        insert into contact_suppressions (
+          id, company_id, contact_id, identity_id, identity_fingerprint,
+          fingerprint_key_version, channel, reason_code, source, source_ref, state,
+          suppressed_at, lifted_at, created_at, updated_at, version
+        )
+        select ?, company_id, null, null, ?, ?, channel, reason_code, source, source_ref,
+               state, suppressed_at, lifted_at, created_at, ?, 0
+        from contact_suppressions
+        where company_id = ? and id = ? and state = 'ACTIVE'
+        """,
+        IdGenerator.nextId(),
+        fingerprint.value(),
+        fingerprint.keyVersion(),
+        Timestamp.from(Instant.now()),
+        companyId,
+        sourceSuppressionId);
+  }
+
   public SuppressionSnapshot require(long companyId, long id) {
     return jdbcTemplate
         .query(
