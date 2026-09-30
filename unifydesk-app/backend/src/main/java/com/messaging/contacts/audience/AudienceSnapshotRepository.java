@@ -176,6 +176,19 @@ public class AudienceSnapshotRepository {
         snapshotId);
   }
 
+  @Transactional
+  public void fail(long companyId, long snapshotId) {
+    jdbcTemplate.update(
+        """
+        update contact_audience_snapshots
+        set status = 'FAILED', completed_at = ?
+        where company_id = ? and id = ? and status = 'PREPARING'
+        """,
+        Timestamp.from(Instant.now()),
+        companyId,
+        snapshotId);
+  }
+
   private Snapshot map(ResultSet rs, int rowNum) throws SQLException {
     Timestamp completed = rs.getTimestamp("completed_at");
     return new Snapshot(
