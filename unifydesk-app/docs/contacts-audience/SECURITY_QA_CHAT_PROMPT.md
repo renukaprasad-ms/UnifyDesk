@@ -2,7 +2,7 @@
 
 Status: READY FOR QA/SEC
 Lead-frozen integrated code SHA:
-`be6de61a7c46db4785457f3f9bbb0d622f026101`
+`f6a04c4596240d0c43bde6ef83c66619abbd9a02`
 
 You are QA/SEC for UnifyDesk Contacts & Audience Management.
 
@@ -20,7 +20,7 @@ Architecture/worker base for reference only:
 
 Your EXACT integrated QA base is:
 
-`be6de61a7c46db4785457f3f9bbb0d622f026101`
+`f6a04c4596240d0c43bde6ef83c66619abbd9a02`
 
 Create the review branch from EXACTLY that SHA.
 
@@ -34,9 +34,10 @@ The documentation manifest may be newer than the QA base. Read the latest Contac
 - B1 PR #202 final reviewed head: `4c86c66607721c85b5e3f75d4b27bddae96dc421`
 - B2 PR #201 final head: `3c37f504fb5d256154f6c9f045567e514695a37a`
 - F1 PR #200 final head: `e9b4d7b7fdae1efd23b3ed53962a2882b12b9787`
-- Lead integration PR #203: merged
+- Lead integration PR #203: initial integration merged
+- Lead integration PR #206: final integration corrections merged
 - V82: `V82__contacts_audience_integration.sql`
-- Exact integrated QA code base: `be6de61a7c46db4785457f3f9bbb0d622f026101`
+- Exact integrated QA code base: `f6a04c4596240d0c43bde6ef83c66619abbd9a02`
 
 ## Read first
 
@@ -412,7 +413,7 @@ Frontend:
 
 ## Current CI infrastructure warning
 
-At Lead freeze time, GitHub Actions for PR #203 and the worker PRs reported failures but their affected jobs contained **zero executed workflow steps**.
+At Lead freeze time, GitHub Actions for PR #206 and the worker PRs reported failures but their affected jobs contained **zero executed workflow steps**.
 
 Therefore:
 
