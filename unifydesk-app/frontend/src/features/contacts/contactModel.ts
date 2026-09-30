@@ -193,7 +193,7 @@ export const buildSuggestedImportMappings = (
   headers: string[],
 ): ImportFieldMapping[] => {
   const usedTargets = new Set<string>()
-  return headers.map((column) => {
+  return headers.map<ImportFieldMapping>((column) => {
     const suggested = suggestImportTarget(column)
     const key = importTargetKey(suggested)
     if (!key || usedTargets.has(key)) {
