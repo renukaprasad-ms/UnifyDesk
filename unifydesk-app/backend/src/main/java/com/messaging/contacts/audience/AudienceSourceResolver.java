@@ -37,6 +37,33 @@ public class AudienceSourceResolver {
         type, sourceId, Long.toString(segment.version()), segment.filterHash());
   }
 
+  public long count(long companyId, SourceDescriptor source) {
+    if (source.type() == SourceType.LIST) {
+      Long value =
+          jdbcTemplate.queryForObject(
+              """
+              select count(*)
+              from contact_list_memberships clm
+              join contacts c
+                on c.company_id = clm.company_id and c.id = clm.contact_id
+              where clm.company_id = ? and clm.list_id = ? and c.status = 'ACTIVE'
+              """,
+              Long.class,
+              companyId,
+              source.id());
+      return value == null ? 0 : value;
+    }
+    SegmentRepository.SegmentRow segment = segmentRepository.require(companyId, source.id());
+    requireFrozenSegment(source, segment);
+    try {
+      SegmentFilter filter = objectMapper.readValue(segment.filterJson(), SegmentFilter.class);
+      return segmentRepository.count(segmentCompiler.compile(companyId, filter));
+    } catch (Exception exception) {
+      if (exception instanceof RuntimeException runtime) throw runtime;
+      throw new IllegalStateException("Stored segment filter is invalid", exception);
+    }
+  }
+
   public List<Long> page(
       long companyId, SourceDescriptor source, long afterContactId, int limit) {
     if (source.type() == SourceType.LIST) {
@@ -58,16 +85,21 @@ public class AudienceSourceResolver {
           limit);
     }
     SegmentRepository.SegmentRow segment = segmentRepository.require(companyId, source.id());
-    if (!segment.filterHash().equals(source.filterHash())
-        || !Long.toString(segment.version()).equals(source.sourceVersion())) {
-      throw new IllegalStateException("Audience source changed after snapshot freeze");
-    }
+    requireFrozenSegment(source, segment);
     try {
       SegmentFilter filter = objectMapper.readValue(segment.filterJson(), SegmentFilter.class);
       return segmentRepository.page(segmentCompiler.compile(companyId, filter), afterContactId, limit);
     } catch (Exception exception) {
       if (exception instanceof RuntimeException runtime) throw runtime;
       throw new IllegalStateException("Stored segment filter is invalid", exception);
+    }
+  }
+
+  private void requireFrozenSegment(
+      SourceDescriptor source, SegmentRepository.SegmentRow segment) {
+    if (!segment.filterHash().equals(source.filterHash())
+        || !Long.toString(segment.version()).equals(source.sourceVersion())) {
+      throw new IllegalStateException("Audience source changed after snapshot freeze");
     }
   }
 
