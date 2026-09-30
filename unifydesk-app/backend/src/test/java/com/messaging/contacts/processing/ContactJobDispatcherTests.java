@@ -15,7 +15,42 @@ import org.junit.jupiter.api.Test;
 class ContactJobDispatcherTests {
 
   @Test
-  void deniedClaimFailsBeforeWorkerMutationOrExport() {
+  void deniedImportTerminalizesResourceBeforeWorker() {
+    Fixture fixture = fixture(AsyncJobType.CONTACT_IMPORT);
+
+    fixture.dispatcher().processClaimedJob(AsyncJobType.CONTACT_IMPORT, fixture.job());
+
+    verify(fixture.importRepository()).fail(5L, 11L);
+    verify(fixture.asyncJobs())
+        .fail(3L, ContactProcessingAuthorizationPolicy.AUTHORIZATION_REVOKED);
+    verify(fixture.importWorker(), never()).process(5L, 11L, 3L);
+  }
+
+  @Test
+  void deniedExportTerminalizesResourceBeforeWorker() {
+    Fixture fixture = fixture(AsyncJobType.CONTACT_EXPORT);
+
+    fixture.dispatcher().processClaimedJob(AsyncJobType.CONTACT_EXPORT, fixture.job());
+
+    verify(fixture.exportRepository()).fail(5L, 11L);
+    verify(fixture.asyncJobs())
+        .fail(3L, ContactProcessingAuthorizationPolicy.AUTHORIZATION_REVOKED);
+    verify(fixture.exportWorker(), never()).process(5L, 11L, 3L);
+  }
+
+  @Test
+  void deniedBulkTerminalizesResourceBeforeWorker() {
+    Fixture fixture = fixture(AsyncJobType.CONTACT_BULK);
+
+    fixture.dispatcher().processClaimedJob(AsyncJobType.CONTACT_BULK, fixture.job());
+
+    verify(fixture.bulkRepository()).fail(5L, 11L);
+    verify(fixture.asyncJobs())
+        .fail(3L, ContactProcessingAuthorizationPolicy.AUTHORIZATION_REVOKED);
+    verify(fixture.bulkWorker(), never()).process(5L, 11L, 3L);
+  }
+
+  private Fixture fixture(AsyncJobType type) {
     AsyncJobService asyncJobs = mock(AsyncJobService.class);
     ContactProcessingAuthorizationPolicy policy =
         mock(ContactProcessingAuthorizationPolicy.class);
@@ -44,16 +79,30 @@ class ContactJobDispatcherTests {
             new ContactAudienceProperties());
     AsyncJobService.ClaimedAsyncJob job =
         new AsyncJobService.ClaimedAsyncJob(3L, 5L, 7L, "11", null);
-    when(policy.authorizeClaim(AsyncJobType.CONTACT_EXPORT, job))
+    when(policy.authorizeClaim(type, job))
         .thenReturn(
             ContactProcessingAuthorizationPolicy.Decision.denied(
                 ContactProcessingAuthorizationPolicy.AUTHORIZATION_REVOKED));
-
-    dispatcher.processClaimedJob(AsyncJobType.CONTACT_EXPORT, job);
-
-    verify(exportRepository).fail(5L, 11L);
-    verify(asyncJobs)
-        .fail(3L, ContactProcessingAuthorizationPolicy.AUTHORIZATION_REVOKED);
-    verify(exportWorker, never()).process(5L, 11L, 3L);
+    return new Fixture(
+        dispatcher,
+        asyncJobs,
+        importWorker,
+        exportWorker,
+        bulkWorker,
+        importRepository,
+        exportRepository,
+        bulkRepository,
+        job);
   }
+
+  private record Fixture(
+      ContactJobDispatcher dispatcher,
+      AsyncJobService asyncJobs,
+      ContactImportWorker importWorker,
+      ContactExportWorker exportWorker,
+      ContactBulkWorker bulkWorker,
+      ContactImportRepository importRepository,
+      ContactExportRepository exportRepository,
+      ContactBulkRepository bulkRepository,
+      AsyncJobService.ClaimedAsyncJob job) {}
 }
