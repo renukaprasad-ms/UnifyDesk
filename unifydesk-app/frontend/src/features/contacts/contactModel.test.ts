@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_CONTACT_EXPORT_FIELDS,
   appendCursorPage,
   buildImportCommitInput,
   buildSelectionDescriptor,
   contactPrimaryIdentityValue,
   normalizeContactQuery,
+  parseContactSearchStatus,
   toPatchContactInput,
   validateContactDraft,
 } from './contactModel'
@@ -84,6 +86,19 @@ describe('contactModel', () => {
 
   it('bounds page size and trims search', () => {
     expect(normalizeContactQuery({ q: '  alice  ', size: 999 })).toEqual({ q: 'alice', size: 200 })
+  })
+
+  it('accepts only supported Contact search statuses from URL state', () => {
+    expect(parseContactSearchStatus('ACTIVE')).toBe('ACTIVE')
+    expect(parseContactSearchStatus('MERGED')).toBe('MERGED')
+    expect(parseContactSearchStatus('DELETED')).toBeUndefined()
+    expect(parseContactSearchStatus('unknown')).toBeUndefined()
+  })
+
+  it('keeps default Contact export fields within the frozen backend allow-list', () => {
+    expect(DEFAULT_CONTACT_EXPORT_FIELDS).toEqual(['displayName', 'organization'])
+    expect(DEFAULT_CONTACT_EXPORT_FIELDS).not.toContain('primaryEmail')
+    expect(DEFAULT_CONTACT_EXPORT_FIELDS).not.toContain('primaryPhone')
   })
 
   it('does not create consent from an ordinary import mapping', () => {

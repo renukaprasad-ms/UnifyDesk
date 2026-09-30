@@ -4,6 +4,7 @@ import ContactsNav from '../../components/contacts/ContactsNav'
 import ExportJobButton from '../../components/contacts/ExportJobButton'
 import SegmentBuilder from '../../components/contacts/SegmentBuilder'
 import { contactsApi, isContactVersionConflict } from '../../features/contacts/contactsApi'
+import { DEFAULT_CONTACT_EXPORT_FIELDS } from '../../features/contacts/contactModel'
 import {
   emptySegment,
   segmentFields,
@@ -219,12 +220,7 @@ export default function SegmentEditorPage() {
                   companyId={companyId}
                   sourceType="SEGMENT"
                   sourceId={segmentId}
-                  fields={[
-                    'displayName',
-                    'primaryEmail',
-                    'primaryPhone',
-                    'organization',
-                  ]}
+                  fields={DEFAULT_CONTACT_EXPORT_FIELDS}
                   label="Export Segment"
                 />
               )}
