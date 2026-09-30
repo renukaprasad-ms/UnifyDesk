@@ -16,7 +16,9 @@ vi.mock('../../features/contacts/contactsApi', () => ({
     previewSegment: vi.fn(),
     createSegment: vi.fn(),
     updateSegment: vi.fn(),
+    archiveSegment: vi.fn(),
   },
+  isContactVersionConflict: vi.fn(() => false),
 }))
 
 vi.mock('../../store/hooks', () => ({
@@ -44,6 +46,88 @@ describe('SegmentEditorPage', () => {
     vi.mocked(contactsApi.customFields).mockResolvedValue([])
     vi.mocked(contactsApi.tags).mockResolvedValue([])
     vi.mocked(contactsApi.lists).mockResolvedValue([])
+  })
+
+  it('sends the loaded Segment version on update', async () => {
+    vi.mocked(contactsApi.getSegment).mockResolvedValue({
+      id: 'segment-1',
+      name: 'Existing',
+      description: null,
+      filterVersion: 1,
+      filter: {
+        type: 'group',
+        op: 'AND',
+        children: [
+          {
+            type: 'predicate',
+            field: { kind: 'BUILTIN_CONTACT', key: 'displayName' },
+            operator: 'CONTAINS',
+            value: 'A',
+          },
+        ],
+      },
+      version: 17,
+    })
+    vi.mocked(contactsApi.validateSegment).mockResolvedValue({
+      valid: true,
+      normalizedFilter: {
+        type: 'group',
+        op: 'AND',
+        children: [
+          {
+            type: 'predicate',
+            field: { kind: 'BUILTIN_CONTACT', key: 'displayName' },
+            operator: 'CONTAINS',
+            value: 'A',
+          },
+        ],
+      },
+      filterHash: 'hash-1',
+      costClass: 'LOW',
+    })
+    vi.mocked(contactsApi.updateSegment).mockResolvedValue({
+      id: 'segment-1',
+      name: 'Existing',
+      description: null,
+      filterVersion: 1,
+      filter: {
+        type: 'group',
+        op: 'AND',
+        children: [
+          {
+            type: 'predicate',
+            field: { kind: 'BUILTIN_CONTACT', key: 'displayName' },
+            operator: 'CONTAINS',
+            value: 'A',
+          },
+        ],
+      },
+      version: 18,
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/contacts/segments/segment-1']}>
+        <Routes>
+          <Route
+            path="/contacts/segments/:segmentId"
+            element={<SegmentEditorPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await screen.findByDisplayValue('Existing')
+    fireEvent.click(screen.getByRole('button', { name: 'Save Segment' }))
+
+    expect(contactsApi.updateSegment).toHaveBeenCalledWith(
+      'company-1',
+      'segment-1',
+      expect.objectContaining({
+        filterVersion: 1,
+        version: 17,
+        filter: expect.objectContaining({ type: 'group' }),
+      }),
+    )
   })
 
   it('renders backend count state and bounded preview sample', async () => {

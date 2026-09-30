@@ -14,28 +14,29 @@ export type TagSummary = {
   id: string
   name: string
   color?: string | null
-  archived?: boolean
+  createdAt?: string
+  updatedAt?: string
 }
 
 export type ListSummary = {
   id: string
   name: string
   description?: string | null
+  status?: string
   memberCount: number
-  archived?: boolean
   createdAt?: string
   updatedAt?: string
+  version?: number
 }
 
 export type ContactIdentity = {
   id: string
   type: IdentityType
   value: string
-  normalizedValue?: string
+  normalizedValue?: string | null
   namespace?: string | null
   primary: boolean
-  active?: boolean
-  createdAt?: string
+  status?: string
 }
 
 export type CustomFieldType =
@@ -44,18 +45,22 @@ export type CustomFieldType =
   | 'BOOLEAN'
   | 'DATE'
   | 'DATETIME'
-  | 'SELECT'
+  | 'SINGLE_SELECT'
   | 'MULTI_SELECT'
 
 export type CustomFieldValue = string | number | boolean | string[] | null
 
 export type CustomFieldDefinition = {
   id: string
-  name: string
+  fieldKey?: string
+  label: string
   type: CustomFieldType
-  options?: string[]
-  indexable?: boolean
-  archived?: boolean
+  options?: string[] | null
+  status: string
+  indexability: string
+  position?: number
+  createdAt?: string
+  updatedAt?: string
 }
 
 export type ContactPreferenceSummary = Partial<Record<ContactChannel, PreferenceState>>
@@ -74,15 +79,23 @@ export type ContactSummary = {
   createdAt?: string
   lastActivityAt?: string | null
   status?: ContactStatus
+  version?: number
 }
 
 export type ContactDetail = ContactSummary & {
+  companyId?: string
   version: number
   identities: ContactIdentity[]
   lists?: ListSummary[]
   customFields?: Record<string, CustomFieldValue>
   notes?: string | null
   mergedIntoContactId?: string | null
+  jobTitle?: string | null
+  countryCode?: string | null
+  timezone?: string | null
+  language?: string | null
+  source?: string | null
+  ownerUserId?: string | null
 }
 
 export type ContactWriteInput = {
@@ -101,8 +114,13 @@ export type ContactWriteInput = {
   customFields?: Record<string, CustomFieldValue>
 }
 
-export type ContactPatchInput = Partial<
-  Pick<ContactWriteInput, 'displayName' | 'firstName' | 'lastName' | 'organization' | 'notes' | 'tagIds' | 'customFields'>
+export type ContactPatchInput = {
+  version: number
+} & Partial<
+  Pick<
+    ContactWriteInput,
+    'displayName' | 'firstName' | 'lastName' | 'organization' | 'notes' | 'customFields'
+  >
 >
 
 export type ContactQuery = {
@@ -120,7 +138,11 @@ export type ExplicitSelection = { type: 'IDS'; ids: string[] }
 export type FilterSelection = { type: 'FILTER'; filter: ContactQuery }
 export type ListSelection = { type: 'LIST'; listId: string }
 export type SegmentSelection = { type: 'SEGMENT'; segmentId: string }
-export type ContactSelection = ExplicitSelection | FilterSelection | ListSelection | SegmentSelection
+export type ContactSelection =
+  | ExplicitSelection
+  | FilterSelection
+  | ListSelection
+  | SegmentSelection
 
 export type BulkOperation =
   | { type: 'ADD_TAG'; tagId: string }
@@ -132,7 +154,7 @@ export type BulkOperation =
 
 export type AsyncJob = {
   id: string
-  jobId?: string
+  jobId?: string | null
   status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | string
   progressPercent?: number | null
   processedCount?: number
@@ -154,7 +176,14 @@ export type FieldKind =
   | 'CREATED_AT'
   | 'LAST_ACTIVITY_AT'
 
-export type SegmentValueType = 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'DATE' | 'SELECT' | 'MULTI_SELECT' | 'NONE'
+export type SegmentValueType =
+  | 'TEXT'
+  | 'NUMBER'
+  | 'BOOLEAN'
+  | 'DATE'
+  | 'SINGLE_SELECT'
+  | 'MULTI_SELECT'
+  | 'NONE'
 
 export type SegmentFieldDescriptor = {
   kind: FieldKind
@@ -217,6 +246,9 @@ export type SegmentDefinition = {
   countState?: 'EXACT' | 'CACHED' | 'PENDING'
   countComputedAt?: string | null
   archived?: boolean
+  status?: string
+  version: number
+  createdAt?: string
   updatedAt?: string
 }
 
@@ -246,27 +278,47 @@ export type CommunicationPreference = {
   occurredAt?: string | null
   updatedAt?: string | null
   reason?: string | null
+  version?: number
 }
+
+export type SuppressionReasonCode =
+  | 'MANUAL'
+  | 'HARD_BOUNCE'
+  | 'COMPLAINT'
+  | 'PROVIDER_SUPPRESSED'
+  | 'DND'
+  | 'INVALID_DESTINATION'
+  | 'ABUSE_POLICY'
+  | 'LEGAL_POLICY'
 
 export type Suppression = {
   id: string
-  channel?: ContactChannel | null
+  channel: ContactChannel
   identityId?: string | null
-  reason:
-    | 'MANUAL'
-    | 'HARD_BOUNCE'
-    | 'COMPLAINT'
-    | 'PROVIDER_SUPPRESSED'
-    | 'DND'
-    | 'INVALID_DESTINATION'
-    | 'ABUSE_POLICY'
-    | 'LEGAL_POLICY'
-    | string
+  reasonCode: SuppressionReasonCode
   source?: string | null
+  sourceRef?: string | null
+  state: string
   createdAt?: string | null
   liftedAt?: string | null
-  liftable?: boolean
-  active?: boolean
+  liftable: boolean
+  active: boolean
+  version?: number
+}
+
+export type CreateSuppressionInput = {
+  identityId?: string | null
+  channel: ContactChannel
+  reasonCode: SuppressionReasonCode
+  sourceRef?: string | null
+  occurredAt: string
+  note?: string | null
+  idempotencyKey: string
+}
+
+export type LiftSuppressionInput = {
+  reason: string
+  idempotencyKey: string
 }
 
 export type ContactActivity = {
@@ -279,8 +331,8 @@ export type ContactActivity = {
 }
 
 export type ImportUploadContract = {
-  method?: 'PUT' | 'POST'
-  url?: string
+  method: 'PUT' | 'POST' | string
+  url: string
   headers?: Record<string, string>
 }
 
@@ -297,10 +349,10 @@ export type ContactImport = {
     | 'FAILED'
     | 'EXPIRED'
     | string
-  fileName?: string
-  upload?: ImportUploadContract
-  serverUploadUrl?: string
-  maxBytes?: number
+  fileName?: string | null
+  upload?: ImportUploadContract | null
+  serverUploadUrl?: string | null
+  maxBytes?: number | null
   job?: AsyncJob | null
   totalRows?: number
   successRows?: number
@@ -313,16 +365,19 @@ export type ContactImport = {
 export type ImportPreview = {
   headers: string[]
   sampleRows: string[][]
-  detectedDelimiter?: string
-  encoding?: string
-  estimatedRows?: number
+  detectedDelimiter?: string | null
+  encoding?: string | null
+  estimatedRows?: number | null
   validationWarnings?: string[]
   suggestedMappings?: Array<{ column: string; target: string }>
 }
 
 export type ImportFieldTarget =
   | { type: 'IGNORE' }
-  | { type: 'BUILTIN'; field: 'displayName' | 'firstName' | 'lastName' | 'organization' | 'notes' }
+  | {
+      type: 'BUILTIN'
+      field: 'displayName' | 'firstName' | 'lastName' | 'organization' | 'notes'
+    }
   | { type: 'IDENTITY'; identityType: 'EMAIL' | 'PHONE' }
   | { type: 'TAG_NAMES' }
   | { type: 'CUSTOM_FIELD'; fieldId: string }
@@ -356,11 +411,12 @@ export type ImportErrors = {
 }
 
 export type ExportSourceType = 'CONTACTS' | 'LIST' | 'SEGMENT'
+
 export type ContactExport = {
   id: string
   status: string
   job?: AsyncJob | null
-  rowCount?: number
+  rowCount: number
   expiresAt?: string | null
 }
 

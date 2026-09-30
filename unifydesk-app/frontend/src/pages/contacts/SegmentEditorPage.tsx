@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import ExportJobButton from '../../components/contacts/ExportJobButton'
 import SegmentBuilder from '../../components/contacts/SegmentBuilder'
-import { contactsApi } from '../../features/contacts/contactsApi'
+import { contactsApi, isContactVersionConflict } from '../../features/contacts/contactsApi'
 import {
   emptySegment,
   segmentFields,
@@ -39,6 +39,7 @@ export default function SegmentEditorPage() {
   const [errors, setErrors] = useState<string[]>([])
   const [serverErrors, setServerErrors] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
+  const [segmentVersion, setSegmentVersion] = useState<number | null>(null)
   const canModify = can(PERMISSIONS.CONTACT_MODIFY)
 
   useEffect(() => {
@@ -50,9 +51,9 @@ export default function SegmentEditorPage() {
       contactsApi.lists(companyId),
     ])
       .then(([nextFields, nextTags, nextLists]) => {
-        setCustomFields(nextFields)
+        setCustomFields(nextFields.filter((field) => field.status === 'ACTIVE'))
         setTags(nextTags)
-        setLists(nextLists)
+        setLists(nextLists.filter((list) => list.status !== 'ARCHIVED'))
       })
       .catch((loadError) => {
         setServerErrors([
@@ -67,6 +68,7 @@ export default function SegmentEditorPage() {
           setName(segment.name)
           setDescription(segment.description ?? '')
           setFilter(segment.normalizedFilter ?? segment.filter)
+          setSegmentVersion(segment.version)
         })
         .catch((loadError) => {
           setServerErrors([apiErrorMessage(loadError, 'Unable to load Segment.')])
@@ -132,11 +134,46 @@ export default function SegmentEditorPage() {
       }
       const saved = creating
         ? await contactsApi.createSegment(companyId, payload)
-        : await contactsApi.updateSegment(companyId, segmentId!, payload)
+        : segmentVersion === null
+          ? null
+          : await contactsApi.updateSegment(companyId, segmentId!, {
+              ...payload,
+              version: segmentVersion,
+            })
 
+      if (!saved) {
+        setServerErrors([
+          'Segment version is unavailable. Reload this Segment before saving.',
+        ])
+        return
+      }
+
+      setSegmentVersion(saved.version)
       navigate('/contacts/segments/' + saved.id, { replace: true })
     } catch (saveError) {
-      setServerErrors([apiErrorMessage(saveError, 'Unable to save Segment.')])
+      if (
+        !creating &&
+        segmentId &&
+        isContactVersionConflict(saveError)
+      ) {
+        try {
+          const latest = await contactsApi.getSegment(companyId, segmentId)
+          setName(latest.name)
+          setDescription(latest.description ?? '')
+          setFilter(latest.normalizedFilter ?? latest.filter)
+          setSegmentVersion(latest.version)
+          setPreview(null)
+          setServerErrors([
+            'This Segment changed after you opened it. The latest version has been reloaded; review it before saving again.',
+          ])
+        } catch {
+          setServerErrors([
+            'This Segment changed after you opened it. Reload the page before saving again.',
+          ])
+        }
+      } else {
+        setServerErrors([apiErrorMessage(saveError, 'Unable to save Segment.')])
+      }
     } finally {
       setSaving(false)
     }

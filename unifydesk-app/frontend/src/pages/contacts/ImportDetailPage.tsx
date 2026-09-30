@@ -82,7 +82,7 @@ export default function ImportDetailPage() {
       .then(async ([nextResource, nextLists, nextFields]) => {
         setResource(nextResource)
         setLists(nextLists.filter((list) => !list.archived))
-        setCustomFields(nextFields.filter((field) => !field.archived))
+        setCustomFields(nextFields.filter((field) => field.status === 'ACTIVE'))
 
         if (['UPLOADED', 'DRAFT_UPLOAD', 'PREVIEWED'].includes(nextResource.status)) {
           const nextPreview = await contactsApi.previewImport(companyId, importId)
@@ -352,7 +352,7 @@ export default function ImportDetailPage() {
                       <option value="TAG_NAMES">Tag names</option>
                       {customFields.map((field) => (
                         <option key={field.id} value={'CUSTOM_FIELD:' + field.id}>
-                          Custom field · {field.name}
+                          Custom field · {field.label}
                         </option>
                       ))}
                     </select>

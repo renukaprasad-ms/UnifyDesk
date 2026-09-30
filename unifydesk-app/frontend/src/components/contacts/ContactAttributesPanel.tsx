@@ -115,7 +115,7 @@ export default function ContactAttributesPanel({
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
             {customFields.map((field) => (
               <label key={field.id} className="text-xs font-semibold text-slate-700">
-                <span className="mb-2 block">{field.name}</span>
+                <span className="mb-2 block">{field.label}</span>
                 {field.type === 'BOOLEAN' ? (
                   <select
                     className="form-input"
@@ -129,7 +129,7 @@ export default function ContactAttributesPanel({
                     <option value="true">Yes</option>
                     <option value="false">No</option>
                   </select>
-                ) : field.type === 'SELECT' && field.options?.length ? (
+                ) : field.type === 'SINGLE_SELECT' && field.options?.length ? (
                   <select
                     className="form-input"
                     disabled={!canModify}

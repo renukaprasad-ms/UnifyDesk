@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { contactsApi } from '../../features/contacts/contactsApi'
@@ -24,6 +24,7 @@ vi.mock('../../features/contacts/contactsApi', () => ({
     createSuppression: vi.fn(),
     liftSuppression: vi.fn(),
   },
+  isContactVersionConflict: vi.fn(() => false),
 }))
 
 vi.mock('../../features/iam/useIam', () => ({ useIam: vi.fn() }))
@@ -74,6 +75,48 @@ describe('ContactDetailPage', () => {
     expect(await screen.findByText('Contact unavailable')).toBeInTheDocument()
     expect(screen.getByText('Contact not found.')).toBeInTheDocument()
     expect(screen.queryByText(/foreign tenant/i)).toBeNull()
+  })
+
+  it('sends the loaded Contact version and refreshes on version conflict', async () => {
+    const current = {
+      id: 'contact-1',
+      displayName: 'Alice',
+      updatedAt: '2026-09-30T00:00:00Z',
+      version: 7,
+      identities: [],
+      tags: [],
+      lists: [],
+      customFields: {},
+      status: 'ACTIVE' as const,
+    }
+    vi.mocked(contactsApi.get).mockResolvedValue(current)
+    vi.mocked(contactsApi.update).mockRejectedValue(new Error('conflict'))
+
+    const module = await import('../../features/contacts/contactsApi')
+    vi.mocked(module.isContactVersionConflict).mockReturnValue(true)
+
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit profile' }))
+    fireEvent.change(screen.getByDisplayValue('Alice'), {
+      target: { value: 'Alice Updated' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save contact' }))
+
+    await waitFor(() =>
+      expect(contactsApi.update).toHaveBeenCalledWith(
+        'company-1',
+        'contact-1',
+        expect.objectContaining({
+          version: 7,
+          displayName: 'Alice Updated',
+        }),
+      ),
+    )
+    expect(
+      await screen.findByText(/changed after you opened it/i),
+    ).toBeInTheDocument()
+    expect(contactsApi.get).toHaveBeenCalledTimes(2)
   })
 
   it('redirects merged contacts to the safe target', async () => {

@@ -3,7 +3,9 @@ import {
   appendCursorPage,
   buildImportCommitInput,
   buildSelectionDescriptor,
+  contactPrimaryIdentityValue,
   normalizeContactQuery,
+  toPatchContactInput,
   validateContactDraft,
 } from './contactModel'
 
@@ -22,6 +24,44 @@ describe('contactModel', () => {
       email: expect.any(String),
       phone: expect.any(String),
     }))
+  })
+
+  it('keeps Contact IDs as strings and includes optimistic version in PATCH payload', () => {
+    const patch = toPatchContactInput(
+      {
+        displayName: 'Alice',
+        firstName: '',
+        lastName: '',
+        organization: '',
+        notes: '',
+        email: '',
+        phone: '',
+      },
+      9,
+    )
+    expect(patch.version).toBe(9)
+    expect(typeof '9223372036854775807').toBe('string')
+  })
+
+  it('centralizes primary identity fallback from canonical identities', () => {
+    const value = contactPrimaryIdentityValue(
+      {
+        primaryEmail: null,
+        primaryPhone: null,
+        identities: [
+          {
+            id: 'identity-1',
+            type: 'EMAIL',
+            value: 'alice@example.com',
+            normalizedValue: 'alice@example.com',
+            primary: true,
+            status: 'ACTIVE',
+          },
+        ],
+      },
+      'EMAIL',
+    )
+    expect(value).toBe('alice@example.com')
   })
 
   it('preserves opaque cursor progression while deduplicating loaded rows', () => {

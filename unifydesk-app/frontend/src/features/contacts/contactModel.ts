@@ -1,4 +1,5 @@
 import type {
+  ContactDetail,
   ContactPatchInput,
   ContactQuery,
   ContactSelection,
@@ -67,7 +68,11 @@ export const toCreateContactInput = (draft: ContactFormDraft): ContactWriteInput
   }
 }
 
-export const toPatchContactInput = (draft: ContactFormDraft): ContactPatchInput => ({
+export const toPatchContactInput = (
+  draft: ContactFormDraft,
+  version: number,
+): ContactPatchInput => ({
+  version,
   displayName: draft.displayName.trim(),
   firstName: draft.firstName.trim() || null,
   lastName: draft.lastName.trim() || null,
@@ -121,4 +126,21 @@ export const buildImportCommitInput = (input: {
 export const createIdempotencyKey = () => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
   return 'contact-job-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2)
+}
+
+
+export const contactPrimaryIdentityValue = (
+  contact: Pick<ContactDetail, 'identities' | 'primaryEmail' | 'primaryPhone'>,
+  type: 'EMAIL' | 'PHONE',
+) => {
+  const direct = type === 'EMAIL' ? contact.primaryEmail : contact.primaryPhone
+  if (direct) return direct
+
+  const identity = contact.identities.find(
+    (candidate) =>
+      candidate.type === type &&
+      candidate.primary &&
+      (!candidate.status || candidate.status === 'ACTIVE'),
+  )
+  return identity?.normalizedValue || identity?.value || null
 }

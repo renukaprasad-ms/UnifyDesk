@@ -1,5 +1,7 @@
+import axios from 'axios'
 import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
+import { createIdempotencyKey } from './contactModel'
 import type {
   AsyncJob,
   BulkOperation,
@@ -12,6 +14,7 @@ import type {
   ContactPatchInput,
   ContactQuery,
   ContactSelection,
+  CreateSuppressionInput,
   ContactSummary,
   ContactWriteInput,
   CursorPage,
@@ -21,6 +24,7 @@ import type {
   ImportCommitInput,
   ImportErrors,
   ImportPreview,
+  LiftSuppressionInput,
   ListSummary,
   SegmentDefinition,
   SegmentGroup,
@@ -192,7 +196,13 @@ export const contactsApi = {
   async updateSegment(
     companyId: string,
     segmentId: string,
-    payload: { name: string; description?: string | null; filterVersion: 1; filter: SegmentGroup },
+    payload: {
+      name: string
+      description?: string | null
+      filterVersion: 1
+      filter: SegmentGroup
+      version: number
+    },
   ) {
     const response = await apiClient.put<ApiResponse<SegmentDefinition>>(
       base(companyId) + '/segments/' + segmentId,
@@ -252,6 +262,7 @@ export const contactsApi = {
         sourceRef: null,
         occurredAt: new Date().toISOString(),
         reason,
+        idempotencyKey: createIdempotencyKey(),
       },
     )
     return unwrap(response.data)
@@ -267,7 +278,7 @@ export const contactsApi = {
   async createSuppression(
     companyId: string,
     contactId: string,
-    payload: { channel?: string | null; identityId?: string | null; reason: string; note?: string | null },
+    payload: CreateSuppressionInput,
   ) {
     const response = await apiClient.post<ApiResponse<Suppression>>(
       base(companyId) + '/' + contactId + '/suppressions',
@@ -276,9 +287,15 @@ export const contactsApi = {
     return unwrap(response.data)
   },
 
-  async liftSuppression(companyId: string, contactId: string, suppressionId: string) {
+  async liftSuppression(
+    companyId: string,
+    contactId: string,
+    suppressionId: string,
+    payload: LiftSuppressionInput,
+  ) {
     const response = await apiClient.post<ApiResponse<Suppression>>(
       base(companyId) + '/' + contactId + '/suppressions/' + suppressionId + '/lift',
+      payload,
     )
     return unwrap(response.data)
   },
@@ -383,3 +400,17 @@ export const contactsApi = {
     return unwrap(response.data)
   },
 }
+
+
+export const isContactsErrorCode = (error: unknown, code: string) => {
+  if (!axios.isAxiosError<ApiResponse<never>>(error)) return false
+  const response = error.response
+  if (!response) return false
+  const values = [response.data?.error_message, response.data?.message].filter(
+    (value): value is string => Boolean(value),
+  )
+  return values.some((value) => value === code || value.includes(code))
+}
+
+export const isContactVersionConflict = (error: unknown) =>
+  isContactsErrorCode(error, 'CONTACT_VERSION_CONFLICT')

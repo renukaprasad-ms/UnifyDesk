@@ -43,13 +43,13 @@ export const baseSegmentFields: SegmentFieldOption[] = [
   {
     descriptor: { kind: 'TAG', key: 'tagId' },
     label: 'Has tag',
-    valueType: 'SELECT',
+    valueType: 'SINGLE_SELECT',
     operators: ['HAS_TAG'],
   },
   {
     descriptor: { kind: 'LIST', key: 'listId' },
     label: 'In list',
-    valueType: 'SELECT',
+    valueType: 'SINGLE_SELECT',
     operators: ['IN_LIST'],
   },
   {
@@ -93,7 +93,7 @@ export const baseSegmentFields: SegmentFieldOption[] = [
 const operatorsForCustomType = (type: CustomFieldDefinition['type']): SegmentOperator[] => {
   if (type === 'NUMBER') return numberOperators
   if (type === 'DATE' || type === 'DATETIME') return dateOperators
-  if (type === 'SELECT' || type === 'MULTI_SELECT') return selectOperators
+  if (type === 'SINGLE_SELECT' || type === 'MULTI_SELECT') return selectOperators
   if (type === 'BOOLEAN') return ['EQ', 'NE', 'PRESENT', 'ABSENT']
   return textOperators
 }
@@ -109,10 +109,10 @@ export const segmentFields = (
     return field
   }),
   ...customFields
-    .filter((field) => !field.archived)
+    .filter((field) => field.status === 'ACTIVE')
     .map<SegmentFieldOption>((field) => ({
       descriptor: { kind: 'CUSTOM_FIELD', key: 'customField', fieldId: field.id },
-      label: field.name,
+      label: field.label,
       valueType: field.type === 'DATETIME' ? 'DATE' : field.type,
       operators: operatorsForCustomType(field.type),
       options: field.options?.map((option) => ({ value: option, label: option })),

@@ -28,7 +28,7 @@ export default function ListsPage() {
     setLoading(true)
     setError('')
     try {
-      setItems((await contactsApi.lists(companyId)).filter((item) => !item.archived))
+      setItems((await contactsApi.lists(companyId)).filter((item) => item.status !== 'ARCHIVED'))
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load Lists.'))
     } finally {

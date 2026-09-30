@@ -51,8 +51,8 @@ export default function ContactsPage() {
     if (!companyId) return
     Promise.all([contactsApi.tags(companyId), contactsApi.lists(companyId)])
       .then(([nextTags, nextLists]) => {
-        setTags(nextTags.filter((item) => !item.archived))
-        setLists(nextLists.filter((item) => !item.archived))
+        setTags(nextTags)
+        setLists(nextLists.filter((item) => item.status !== 'ARCHIVED'))
       })
       .catch(() => undefined)
   }, [companyId])

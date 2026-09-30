@@ -48,9 +48,9 @@ export default function BulkActionsBar({
       contactsApi.lists(companyId),
       contactsApi.customFields(companyId),
     ]).then(([nextTags, nextLists, nextFields]) => {
-      setTags(nextTags.filter((item) => !item.archived))
-      setLists(nextLists.filter((item) => !item.archived))
-      setFields(nextFields.filter((item) => !item.archived))
+      setTags(nextTags)
+      setLists(nextLists.filter((item) => item.status !== 'ARCHIVED'))
+      setFields(nextFields.filter((item) => item.status === 'ACTIVE'))
     }).catch(() => undefined)
   }, [companyId, allowModify])
 
@@ -60,7 +60,7 @@ export default function BulkActionsBar({
       : action === 'ADD_TO_LIST' || action === 'REMOVE_FROM_LIST'
         ? lists.map((item) => ({ id: item.id, label: item.name }))
         : action === 'UPDATE_FIELD'
-          ? fields.map((item) => ({ id: item.id, label: item.name }))
+          ? fields.map((item) => ({ id: item.id, label: item.label }))
           : []
 
   const selectedField =
@@ -150,7 +150,7 @@ export default function BulkActionsBar({
               <option value="true">Yes</option>
               <option value="false">No</option>
             </select>
-          ) : selectedField?.type === 'SELECT' && selectedField.options?.length ? (
+          ) : selectedField?.type === 'SINGLE_SELECT' && selectedField.options?.length ? (
             <select
               className="form-input"
               aria-label="Custom field value"
