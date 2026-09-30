@@ -84,6 +84,27 @@ class ContactProcessingAuthorizationPolicyTests {
   }
 
   @Test
+  void importOnlyRoleCannotQueueConsentImport() {
+    ImportMapping mapping =
+        importMapping(
+            List.of(
+                new ConsentColumnMapping(
+                    Channel.EMAIL, 2, PreferenceSource.IMPORT, 3, null)));
+    doThrow(new ForbiddenException("consent denied"))
+        .when(authorization)
+        .requirePermission(7L, 11L, ContactAudiencePermissions.CONSENT_MODIFY);
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        ForbiddenException.class,
+        () -> policy.requireImportCommit(7L, 11L, mapping));
+
+    verify(authorization)
+        .requirePermission(7L, 11L, ContactAudiencePermissions.IMPORT);
+    verify(authorization)
+        .requirePermission(7L, 11L, ContactAudiencePermissions.CONSENT_MODIFY);
+  }
+
+  @Test
   void importWithConsentRequiresImportAndConsentModify() {
     ImportMapping mapping =
         importMapping(
@@ -159,6 +180,37 @@ class ContactProcessingAuthorizationPolicyTests {
     assertTrue(decision.allowed());
     verify(authorization, never())
         .requirePermission(7L, 11L, ContactAudiencePermissions.CONSENT_MODIFY);
+  }
+
+  @Test
+  void claimedBulkDeleteUsesCurrentDeletePermission() {
+    when(bulkRepository.require(11L, 99L))
+        .thenReturn(
+            new ContactBulkRepository.BulkRow(
+                99L,
+                11L,
+                7L,
+                "DELETE",
+                "{}",
+                "{}",
+                "QUEUED",
+                0,
+                0,
+                0,
+                0,
+                0,
+                123L));
+
+    var decision =
+        policy.authorizeClaim(
+            AsyncJobType.CONTACT_BULK,
+            new AsyncJobService.ClaimedAsyncJob(5L, 11L, 7L, "99", null));
+
+    assertTrue(decision.allowed());
+    verify(authorization)
+        .requirePermission(7L, 11L, ContactAudiencePermissions.DELETE);
+    verify(authorization, never())
+        .requirePermission(7L, 11L, ContactAudiencePermissions.MODIFY);
   }
 
   @Test
