@@ -3,7 +3,12 @@ package com.messaging.contacts.consent;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ForbiddenException;
 import com.messaging.contacts.audience.ContactAudienceProperties;
-import com.messaging.contacts.consent.ConsentTypes.*;
+import com.messaging.contacts.consent.ConsentTypes.ActorType;
+import com.messaging.contacts.consent.ConsentTypes.Channel;
+import com.messaging.contacts.consent.ConsentTypes.PreferenceSource;
+import com.messaging.contacts.consent.ConsentTypes.SuppressionCommand;
+import com.messaging.contacts.consent.ConsentTypes.SuppressionReason;
+import com.messaging.contacts.consent.ConsentTypes.SuppressionSnapshot;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
@@ -17,13 +22,29 @@ import org.springframework.transaction.annotation.Transactional;
 public class ContactSuppressionService {
 
   private static final Set<SuppressionReason> NON_LIFTABLE =
-      Set.of(SuppressionReason.COMPLAINT, SuppressionReason.LEGAL_POLICY, SuppressionReason.ABUSE_POLICY);
+      Set.of(
+          SuppressionReason.COMPLAINT,
+          SuppressionReason.LEGAL_POLICY,
+          SuppressionReason.ABUSE_POLICY);
+
+  private static final Set<SuppressionReason> USER_CREATABLE =
+      Set.of(
+          SuppressionReason.MANUAL,
+          SuppressionReason.DND,
+          SuppressionReason.INVALID_DESTINATION,
+          SuppressionReason.ABUSE_POLICY,
+          SuppressionReason.LEGAL_POLICY);
 
   private final ContactSuppressionRepository repository;
   private final ContactAudienceProperties properties;
 
   public List<SuppressionSnapshot> list(long companyId, long contactId) {
     return repository.list(companyId, contactId);
+  }
+
+  public boolean isLiftable(SuppressionSnapshot suppression) {
+    return suppression.state() == ConsentTypes.SuppressionState.ACTIVE
+        && !NON_LIFTABLE.contains(suppression.reasonCode());
   }
 
   @Transactional
@@ -38,7 +59,7 @@ public class ContactSuppressionService {
       Instant occurredAt,
       String idempotencyKey,
       long userId) {
-    if (reason != SuppressionReason.MANUAL) {
+    if (channel == null || reason == null || !USER_CREATABLE.contains(reason)) {
       throw new BadRequestException("CONTACT_FIELD_INVALID");
     }
     return applyTrusted(

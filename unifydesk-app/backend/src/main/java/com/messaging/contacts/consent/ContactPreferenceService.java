@@ -2,7 +2,13 @@ package com.messaging.contacts.consent;
 
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.contacts.audience.ContactAudienceProperties;
-import com.messaging.contacts.consent.ConsentTypes.*;
+import com.messaging.contacts.consent.ConsentTypes.ActorType;
+import com.messaging.contacts.consent.ConsentTypes.Channel;
+import com.messaging.contacts.consent.ConsentTypes.PreferenceCommand;
+import com.messaging.contacts.consent.ConsentTypes.PreferenceSnapshot;
+import com.messaging.contacts.consent.ConsentTypes.PreferenceSource;
+import com.messaging.contacts.consent.ConsentTypes.PreferenceState;
+import com.messaging.contacts.consent.ConsentTypes.Purpose;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -29,11 +35,14 @@ public class ContactPreferenceService {
       Channel channel,
       Purpose purpose,
       PreferenceState state,
+      PreferenceSource source,
       String sourceRef,
       String reason,
       Instant occurredAt,
       String idempotencyKey,
       long userId) {
+    PreferenceSource effectiveSource =
+        source == null ? PreferenceSource.USER_UI : source;
     return apply(
         new PreferenceCommand(
             companyId,
@@ -42,7 +51,7 @@ public class ContactPreferenceService {
             channel,
             purpose,
             state,
-            PreferenceSource.USER_UI,
+            effectiveSource,
             sourceRef,
             ActorType.USER,
             Long.toString(userId),

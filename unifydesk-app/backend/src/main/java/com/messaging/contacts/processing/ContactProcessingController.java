@@ -20,6 +20,7 @@ public class ContactProcessingController {
   private final ContactExportService exportService;
   private final ContactBulkService bulkService;
   private final ContactActivityService activityService;
+  private final ActivityApiMapper activityApiMapper;
   private final CompanyAuthorizationService authorization;
   private final CurrentUserService currentUser;
 
@@ -111,13 +112,19 @@ public class ContactProcessingController {
   }
 
   @GetMapping("/{contactId}/activity")
-  public ResponseEntity<ApiResponse<List<ContactActivityService.ActivityItem>>> activity(
+  public ResponseEntity<ApiResponse<ActivityApiModel.ActivityPage>> activity(
       @PathVariable long companyId,
       @PathVariable long contactId,
-      @RequestParam(defaultValue = "0") long cursor,
-      @RequestParam(defaultValue = "50") int size) {
+      @RequestParam(required = false) String cursor,
+      @RequestParam(defaultValue = "50") int size,
+      @RequestParam(required = false) List<String> types) {
     require(companyId, ContactAudiencePermissions.READ);
-    return ResponseEntity.ok(ApiResponse.success(200, activityService.page(companyId, contactId, cursor, size), "Contact activity fetched"));
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            activityApiMapper.toApi(
+                activityService.page(companyId, contactId, cursor, size, types)),
+            "Contact activity fetched"));
   }
 
   private long require(long companyId, String permission) {
