@@ -6,6 +6,7 @@ import com.messaging.ads.entity.AdCampaign;
 import com.messaging.ads.enums.AdProvider;
 import com.messaging.ads.google.dto.CreateGooglePerformanceMaxCampaignRequest;
 import com.messaging.ads.google.dto.GoogleAssetGroupResponse;
+import com.messaging.ads.google.dto.GoogleAssetGroupPerformanceResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupUrlOptionsResponse;
 import com.messaging.ads.google.dto.GoogleAutomatedVideoCrawlSource;
 import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationRequest;
@@ -63,6 +64,7 @@ public class GoogleAdsPerformanceMaxService {
   private final GoogleAdsApiClient apiClient;
   private final GoogleAdsCampaignSyncService campaignSyncService;
   private final GoogleAdsCampaignPersistenceService campaignPersistenceService;
+  private final GoogleMerchantService merchantService;
   private final AdCampaignRepository campaignRepository;
   private final AdActivityLogService activityLogService;
 
@@ -78,6 +80,10 @@ public class GoogleAdsPerformanceMaxService {
     }
 
     validate(request);
+
+    String merchantId = normalizeMerchantId(request.merchantId());
+    String feedLabel = normalizeFeedLabel(request.feedLabel(), merchantId);
+    validateRetailSettings(companyId, accountId, merchantId, feedLabel);
 
     String customerId = context.account().getExternalAccountId();
     long budgetMicros =
@@ -111,6 +117,12 @@ public class GoogleAdsPerformanceMaxService {
     campaign.put("brandGuidelinesEnabled", brandGuidelinesEnabled);
     if (!brandGuidelines.isEmpty()) {
       campaign.put("brandGuidelines", brandGuidelines);
+    }
+    if (merchantId != null) {
+      Map<String, Object> shoppingSettings = new LinkedHashMap<>();
+      shoppingSettings.put("merchantId", merchantId);
+      if (feedLabel != null) shoppingSettings.put("feedLabel", feedLabel);
+      campaign.put("shoppingSettings", shoppingSettings);
     }
     applyBidStrategy(campaign, request.bidStrategy());
     campaign.put(
@@ -281,6 +293,20 @@ public class GoogleAdsPerformanceMaxService {
       operations.add(operation("assetGroupAssetOperation", link));
     }
 
+    if (merchantId != null) {
+      Map<String, Object> rootListingGroup = new LinkedHashMap<>();
+      rootListingGroup.put(
+          "resourceName",
+          resource(customerId, "assetGroupListingGroupFilters", "-3~-4"));
+      rootListingGroup.put("assetGroup", assetGroupResource);
+      rootListingGroup.put("type", "UNIT_INCLUDED");
+      rootListingGroup.put("listingSource", "SHOPPING");
+      operations.add(
+          operation(
+              "assetGroupListingGroupFilterOperation",
+              rootListingGroup));
+    }
+
     JsonNode response =
         apiClient.mutateAll(
             context.accessToken(),
@@ -311,9 +337,30 @@ public class GoogleAdsPerformanceMaxService {
             "channel", "PERFORMANCE_MAX",
             "assetCount", assets.size(),
             "brandGuidelinesEnabled", brandGuidelinesEnabled,
+            "retail", merchantId != null,
+            "merchantId", merchantId == null ? "" : merchantId,
+            "feedLabel", feedLabel == null ? "" : feedLabel,
             "initialStatus", "PAUSED"));
 
     return created;
+  }
+
+  public void validateRetailSettings(
+      Long companyId,
+      Long accountId,
+      String merchantId,
+      String feedLabel) {
+    String normalizedMerchant = normalizeMerchantId(merchantId);
+    normalizeFeedLabel(feedLabel, normalizedMerchant);
+    if (normalizedMerchant == null) return;
+
+    boolean accessible =
+        merchantService.accounts(companyId, accountId).stream()
+            .anyMatch(account -> normalizedMerchant.equals(account.accountId()));
+    if (!accessible) {
+      throw new BadRequestException(
+          "Selected Merchant Center account is not accessible to the connected Google user");
+    }
   }
 
   public List<GoogleAssetResponse> assets(Long companyId, Long accountId) {
@@ -353,6 +400,63 @@ public class GoogleAdsPerformanceMaxService {
         .stream()
         .map(this::assetGroup)
         .toList();
+  }
+
+  public List<GoogleAssetGroupPerformanceResponse> assetGroupPerformance(
+      Long companyId, Long campaignId, Integer requestedDays) {
+    AdCampaign campaign = requirePerformanceMaxCampaign(companyId, campaignId);
+    var context = contextService.requireManaged(companyId, campaign.getAdAccountId());
+    int days = requestedDays == null ? 30 : Math.max(1, Math.min(requestedDays, 90));
+    LocalDate end = LocalDate.now();
+    LocalDate start = end.minusDays(days - 1L);
+
+    String query =
+        "SELECT asset_group.id, asset_group.resource_name, asset_group.name, "
+            + "asset_group.status, asset_group.primary_status, "
+            + "asset_group.primary_status_reasons, asset_group.ad_strength, "
+            + "asset_group.asset_coverage, metrics.impressions, metrics.clicks, "
+            + "metrics.conversions, metrics.conversions_value, metrics.cost_micros "
+            + "FROM asset_group WHERE campaign.id = "
+            + numeric(campaign.getExternalCampaignId())
+            + " AND segments.date BETWEEN '"
+            + start
+            + "' AND '"
+            + end
+            + "'";
+
+    List<GoogleAssetGroupPerformanceResponse> result = new ArrayList<>();
+    for (JsonNode row :
+        apiClient.searchRows(
+            context.accessToken(),
+            context.account().getExternalAccountId(),
+            context.loginCustomerId(),
+            query)) {
+      JsonNode group = row.path("assetGroup");
+      JsonNode metrics = row.path("metrics");
+      List<String> reasons = new ArrayList<>();
+      JsonNode reasonValues = group.path("primaryStatusReasons");
+      if (reasonValues.isArray()) {
+        reasonValues.forEach(value -> reasons.add(value.asText()));
+      }
+      result.add(
+          new GoogleAssetGroupPerformanceResponse(
+              text(group, "id"),
+              text(group, "resourceName"),
+              text(group, "name"),
+              text(group, "status"),
+              text(group, "primaryStatus"),
+              List.copyOf(reasons),
+              text(group, "adStrength"),
+              group.path("assetCoverage").isMissingNode()
+                  ? null
+                  : group.path("assetCoverage"),
+              longOrNull(metrics, "impressions"),
+              longOrNull(metrics, "clicks"),
+              doubleOrNull(metrics, "conversions"),
+              doubleOrNull(metrics, "conversionsValue"),
+              longOrNull(metrics, "costMicros")));
+    }
+    return List.copyOf(result);
   }
 
   public GoogleAssetGroupResponse setAssetGroupStatus(
@@ -1085,6 +1189,30 @@ public class GoogleAdsPerformanceMaxService {
     return campaign;
   }
 
+  private String normalizeMerchantId(String value) {
+    if (value == null || value.isBlank()) return null;
+    String normalized = value.trim();
+    if (!normalized.matches("\\d+")) {
+      throw new BadRequestException(
+          "Performance Max Merchant Center account ID must contain digits only");
+    }
+    return normalized;
+  }
+
+  private String normalizeFeedLabel(String value, String merchantId) {
+    if (value == null || value.isBlank()) return null;
+    if (merchantId == null) {
+      throw new BadRequestException(
+          "Performance Max feed label requires a Merchant Center account");
+    }
+    String normalized = value.trim().toUpperCase(Locale.ROOT);
+    if (!normalized.matches("[A-Z0-9-]{1,20}")) {
+      throw new BadRequestException(
+          "Performance Max feed label must use up to 20 uppercase letters, numbers, or dashes");
+    }
+    return normalized;
+  }
+
   private Map<String, Object> brandGuidelines(
       CreateGooglePerformanceMaxCampaignRequest request,
       boolean enabled) {
@@ -1369,6 +1497,17 @@ public class GoogleAdsPerformanceMaxService {
         text(group, "primaryStatus"),
         text(group, "adStrength"),
         List.copyOf(finalUrls));
+  }
+
+  private Double doubleOrNull(JsonNode node, String field) {
+    JsonNode value = node.get(field);
+    if (value == null || value.isNull()) return null;
+    if (value.isNumber()) return value.doubleValue();
+    try {
+      return new BigDecimal(value.asText()).doubleValue();
+    } catch (NumberFormatException ignored) {
+      return null;
+    }
   }
 
   private Long longOrNull(JsonNode node, String field) {

@@ -43,7 +43,10 @@ public class GoogleAdsAssetGroupAssetService {
         "SELECT asset_group_asset.resource_name, asset_group_asset.asset, "
             + "asset_group_asset.field_type, asset_group_asset.status, "
             + "asset_group_asset.primary_status, "
+            + "asset_group_asset.primary_status_reasons, "
+            + "asset_group_asset.source, "
             + "asset_group_asset.policy_summary.approval_status, "
+            + "asset_group_asset.policy_summary.review_status, "
             + "asset.id, asset.resource_name, asset.name, asset.type, "
             + "asset.text_asset.text, asset.image_asset.full_size.url, "
             + "asset.image_asset.full_size.width_pixels, "
@@ -256,6 +259,11 @@ public class GoogleAdsAssetGroupAssetService {
     JsonNode link = row.path("assetGroupAsset");
     JsonNode asset = row.path("asset");
     JsonNode fullSize = asset.path("imageAsset").path("fullSize");
+    List<String> primaryStatusReasons = new ArrayList<>();
+    JsonNode reasonValues = link.path("primaryStatusReasons");
+    if (reasonValues.isArray()) {
+      reasonValues.forEach(value -> primaryStatusReasons.add(value.asText()));
+    }
     return new GoogleAssetGroupAssetResponse(
         text(link, "resourceName"),
         text(asset, "resourceName"),
@@ -265,7 +273,10 @@ public class GoogleAdsAssetGroupAssetService {
         text(link, "fieldType"),
         text(link, "status"),
         text(link, "primaryStatus"),
+        List.copyOf(primaryStatusReasons),
+        text(link, "source"),
         text(link.path("policySummary"), "approvalStatus"),
+        text(link.path("policySummary"), "reviewStatus"),
         text(asset.path("textAsset"), "text"),
         text(fullSize, "url"),
         longOrNull(fullSize, "widthPixels"),

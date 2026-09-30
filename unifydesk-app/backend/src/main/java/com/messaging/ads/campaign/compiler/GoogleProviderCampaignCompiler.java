@@ -599,6 +599,25 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                   context.creativePack() == null
                       ? null
                       : context.creativePack().getId().toString())));
+      if (providerText(context, "pmaxLifecycleGoalType") != null) {
+        operations.add(
+            operation(
+                sequence++,
+                "configure-pmax-lifecycle",
+                ProviderPlanAction.CONFIGURE,
+                ProviderPlanResource.CAMPAIGN,
+                false,
+                Set.of(),
+                ProviderCampaignPlanSupport.config(
+                    "goalType", providerText(context, "pmaxLifecycleGoalType"),
+                    "targetOption", providerText(context, "pmaxLifecycleTargetOption"),
+                    "additionalValue",
+                    providerText(context, "pmaxLifecycleAdditionalValue"),
+                    "highLifetimeValue",
+                    providerText(context, "pmaxLifecycleHighLifetimeValue"),
+                    "valueMultiplier",
+                    providerText(context, "pmaxLifecycleValueMultiplier"))));
+      }
       if (context.conversionGoalMapping() != null) {
         operations.add(
             operation(
@@ -744,6 +763,10 @@ public class GoogleProviderCampaignCompiler implements ProviderCampaignCompiler 
                   providerText(context, "pmaxBrandAccentColor"),
                   "brandFontFamily",
                   providerText(context, "pmaxBrandFontFamily"),
+                  "merchantId",
+                  providerText(context, "pmaxMerchantId"),
+                  "feedLabel",
+                  providerText(context, "pmaxFeedLabel"),
                   "providerOverrideJson",
                   context.channel().getProviderOverrideJson())));
       if (context.audienceDefinition() != null) {

@@ -846,6 +846,12 @@ export type CreateGoogleAdvancedCampaignInput = {
   containsEuPoliticalAdvertising: boolean
   startDate?: string | null
   endDate?: string | null
+  brandGuidelinesEnabled?: boolean
+  brandMainColor?: string | null
+  brandAccentColor?: string | null
+  brandFontFamily?: string | null
+  merchantId?: string | null
+  feedLabel?: string | null
 }
 
 export type GoogleAppCampaignSubtype =
@@ -1311,10 +1317,6 @@ export type CreateGooglePerformanceMaxCampaignInput = {
   containsEuPoliticalAdvertising: boolean
   startDate?: string | null
   endDate?: string | null
-  brandGuidelinesEnabled?: boolean
-  brandMainColor?: string | null
-  brandAccentColor?: string | null
-  brandFontFamily?: string | null
 }
 
 export type GoogleReusableAssetType =
@@ -1456,6 +1458,124 @@ export type GoogleAssetGenerationImageResult = {
 
 export type GoogleAssetLinkLevel = 'CUSTOMER' | 'CAMPAIGN' | 'AD_GROUP'
 
+export type GooglePortfolioBiddingStrategy = {
+  id: string
+  resourceName: string
+  name: string
+  type: string
+  status: string
+  campaignCount?: number | null
+  nonRemovedCampaignCount?: number | null
+  alignedCampaignBudgetId?: string | null
+  targetCpaMicros?: number | null
+  targetRoas?: number | null
+  impressions?: number | null
+  clicks?: number | null
+  conversions?: number | null
+  conversionsValue?: number | null
+  costMicros?: number | null
+}
+
+export type CreateGooglePortfolioBiddingStrategyInput = {
+  name: string
+  type:
+    | 'TARGET_CPA'
+    | 'TARGET_ROAS'
+    | 'MAXIMIZE_CONVERSIONS'
+    | 'MAXIMIZE_CONVERSION_VALUE'
+  targetCpaMinor?: number | null
+  targetRoas?: number | null
+}
+
+export type GoogleSharedBudget = {
+  id: string
+  resourceName: string
+  name: string
+  status: string
+  deliveryMethod: string
+  amountMicros?: number | null
+  referenceCount?: number | null
+  alignedBiddingStrategyId?: string | null
+  impressions?: number | null
+  clicks?: number | null
+  conversions?: number | null
+  conversionsValue?: number | null
+  costMicros?: number | null
+}
+
+export type CreateGoogleSharedBudgetInput = {
+  name: string
+  amountMinor: number
+}
+
+export type GoogleCampaignPortfolioAssignment = {
+  campaignId: string
+  biddingStrategyResourceName?: string | null
+  campaignBudgetResourceName?: string | null
+  biddingStrategyType?: string | null
+  portfolioCompatible: boolean
+}
+
+export type GoogleLifecycleGoalType =
+  | 'NEW_CUSTOMER_ACQUISITION'
+  | 'CUSTOMER_RETENTION'
+  | 'LOYALTY_RETENTION'
+
+export type GoogleLifecycleGoal = {
+  resourceName: string
+  goalId: string
+  goalType: GoogleLifecycleGoalType
+  additionalValue?: number | null
+  additionalHighLifetimeValue?: number | null
+  valueMultiplier?: number | null
+  highLifetimeValueMultiplier?: number | null
+}
+
+export type UpsertGoogleLifecycleGoalInput = {
+  goalType: GoogleLifecycleGoalType
+  additionalValue?: number | null
+  additionalHighLifetimeValue?: number | null
+  valueMultiplier?: number | null
+}
+
+export type GoogleUserListCustomerType = {
+  resourceName: string
+  userListResourceName: string
+  externalUserListId: string
+  localAudienceId?: string | null
+  audienceName?: string | null
+  customerTypeCategory: string
+}
+
+export type UpdateGoogleUserListCustomerTypesInput = {
+  audienceId: string
+  customerTypeCategories: string[]
+}
+
+export type GooglePerformanceMaxLifecycle = {
+  resourceName: string
+  goalResourceName: string
+  goalId: string
+  goalType: GoogleLifecycleGoalType
+  targetOption?: 'TARGET_ALL' | 'TARGET_SPECIFIC' | null
+  additionalValue?: number | null
+  additionalHighLifetimeValue?: number | null
+  valueMultiplier?: number | null
+  highLifetimeValueMultiplier?: number | null
+  enableBidAdjustmentsForLoyaltyMembers?: boolean | null
+  showTargetedLoyaltyMemberBenefitsInPla?: boolean | null
+}
+
+export type UpdateGooglePerformanceMaxLifecycleInput = {
+  goalType: GoogleLifecycleGoalType
+  targetOption?: 'TARGET_ALL' | 'TARGET_SPECIFIC' | null
+  additionalValue?: number | null
+  additionalHighLifetimeValue?: number | null
+  valueMultiplier?: number | null
+  enableBidAdjustmentsForLoyaltyMembers?: boolean | null
+  showTargetedLoyaltyMemberBenefitsInPla?: boolean | null
+}
+
 export type GooglePerformanceMaxBrandAsset = {
   resourceName?: string | null
   assetResourceName?: string | null
@@ -1566,6 +1686,56 @@ export type GoogleAssetGroup = {
   finalUrls: string[]
 }
 
+export type GooglePerformanceMaxRetailSettings = {
+  retail: boolean
+  merchantId?: string | null
+  feedLabel?: string | null
+}
+
+export type GooglePerformanceMaxListingGroup = {
+  id?: string | null
+  resourceName?: string | null
+  parentResourceName?: string | null
+  type?: string | null
+  listingSource?: string | null
+  dimensionType?: string | null
+  dimensionValue?: string | null
+  dimensionLevel?: string | null
+  customAttributeIndex?: string | null
+  impressions?: number | null
+  clicks?: number | null
+  conversions?: number | null
+  costMicros?: number | null
+}
+
+export type GooglePerformanceMaxListingGroupValueInput = {
+  value: string
+  level?: string | null
+  customAttributeIndex?: string | null
+  included: boolean
+}
+
+export type ReplaceGooglePerformanceMaxListingGroupsInput = {
+  dimensionType?: string | null
+  values: GooglePerformanceMaxListingGroupValueInput[]
+  includeOtherProducts: boolean
+}
+
+export type GoogleAssetGroupPerformance = {
+  id?: string | null
+  resourceName?: string | null
+  name?: string | null
+  status?: string | null
+  primaryStatus?: string | null
+  primaryStatusReasons: string[]
+  adStrength?: string | null
+  assetCoverage?: Record<string, unknown> | null
+  impressions?: number | null
+  clicks?: number | null
+  conversions?: number | null
+  conversionsValue?: number | null
+  costMicros?: number | null
+}
 
 export type GoogleAssetGroupAsset = {
   resourceName: string
@@ -1576,7 +1746,10 @@ export type GoogleAssetGroupAsset = {
   fieldType: string
   status?: string | null
   primaryStatus?: string | null
+  primaryStatusReasons: string[]
+  source?: string | null
   policyApprovalStatus?: string | null
+  policyReviewStatus?: string | null
   text?: string | null
   imageUrl?: string | null
   imageWidth?: number | null

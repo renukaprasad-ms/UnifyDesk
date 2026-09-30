@@ -31,9 +31,11 @@ import com.messaging.ads.google.GoogleAdsCampaignConversionGoalService;
 import com.messaging.ads.google.GoogleAdsCampaignSyncService;
 import com.messaging.ads.google.GoogleAdsCampaignTargetingService;
 import com.messaging.ads.google.GoogleAdsPerformanceMaxService;
+import com.messaging.ads.google.GoogleAdsPerformanceMaxLifecycleService;
 import com.messaging.ads.google.GoogleAdsVisualAudienceService;
 import com.messaging.ads.google.dto.CreateGooglePerformanceMaxCampaignRequest;
 import com.messaging.ads.google.dto.GoogleAssetGroupSignalsRequest;
+import com.messaging.ads.google.dto.GooglePerformanceMaxLifecycleRequest;
 import com.messaging.ads.repository.AdAccountRepository;
 import com.messaging.ads.repository.AdCampaignRepository;
 import com.messaging.common.exception.BadRequestException;
@@ -66,6 +68,7 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
   private final AdCampaignRepository adCampaignRepository;
   private final GoogleAdsCampaignSyncService campaignSyncService;
   private final GoogleAdsPerformanceMaxService performanceMaxService;
+  private final GoogleAdsPerformanceMaxLifecycleService performanceMaxLifecycleService;
   private final GoogleAdsCampaignTargetingService campaignTargetingService;
   private final GoogleAdsAssetGroupSignalService signalService;
   private final GoogleAdsVisualAudienceService visualAudienceService;
@@ -108,6 +111,38 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
               "PMAX_BRAND_GUIDELINES_INVALID",
               "providerOverride.pmaxBrandGuidelinesEnabled",
               exception.getMessage()));
+    }
+
+    if (hasText(text(override, "pmaxMerchantId"))
+        || hasText(text(override, "pmaxFeedLabel"))) {
+      try {
+        performanceMaxService.validateRetailSettings(
+            companyId,
+            account.getId(),
+            text(override, "pmaxMerchantId"),
+            text(override, "pmaxFeedLabel"));
+      } catch (RuntimeException exception) {
+        issues.add(
+            error(
+                "PMAX_RETAIL_SETTINGS_INVALID",
+                "providerOverride.pmaxMerchantId",
+                exception.getMessage()));
+      }
+    }
+
+    if (hasText(text(override, "pmaxLifecycleGoalType"))) {
+      try {
+        performanceMaxLifecycleService.validateCampaignConfiguration(
+            companyId,
+            account.getId(),
+            lifecycleRequest(override));
+      } catch (RuntimeException exception) {
+        issues.add(
+            error(
+                "PMAX_LIFECYCLE_GOAL_INVALID",
+                "providerOverride.pmaxLifecycleGoalType",
+                exception.getMessage()));
+      }
     }
 
     if (dailyBudget(plan, campaign, account, false) == null) {
@@ -227,6 +262,8 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
           configureTargeting(companyId, plan, step, campaign);
       case "configure-audience-signals" ->
           configureSignals(companyId, run, plan, step, campaign, channel);
+      case "configure-pmax-lifecycle" ->
+          configureLifecycle(companyId, run, step, channel);
       case "configure-conversion-goal" ->
           configureConversionGoal(companyId, run, plan, step, campaign);
       default -> throw new BadRequestException(
@@ -291,7 +328,9 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
                       : true,
                   text(override, "pmaxBrandMainColor"),
                   text(override, "pmaxBrandAccentColor"),
-                  text(override, "pmaxBrandFontFamily")),
+                  text(override, "pmaxBrandFontFamily"),
+                  text(override, "pmaxMerchantId"),
+                  text(override, "pmaxFeedLabel")),
               run.getRequestedByUserId());
     }
 
@@ -371,6 +410,35 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
         Map.of(
             "searchThemeCount", themes.size(),
             "audienceSignalCount", providerAudienceIds.size()));
+  }
+
+  private LaunchStepExecutionResult configureLifecycle(
+      Long companyId,
+      LaunchRun run,
+      LaunchStep step,
+      CampaignChannel channel) {
+    JsonNode override = override(channel);
+    if (!hasText(text(override, "pmaxLifecycleGoalType"))) {
+      return LaunchStepExecutionResult.skipped(
+          "No Performance Max lifecycle goal is configured.");
+    }
+
+    AdCampaign providerCampaign =
+        providerCampaign(companyId, step.getProviderDeploymentId());
+    var result =
+        performanceMaxLifecycleService.upsertCampaignLifecycle(
+            companyId,
+            providerCampaign.getId(),
+            lifecycleRequest(override),
+            run.getRequestedByUserId());
+
+    return LaunchStepExecutionResult.succeeded(
+        providerCampaign.getId(),
+        result.resourceName(),
+        Map.of(
+            "goalType", result.goalType(),
+            "targetOption",
+            result.targetOption() == null ? "" : result.targetOption()));
   }
 
   private LaunchStepExecutionResult configureConversionGoal(
@@ -574,6 +642,38 @@ public class GooglePerformanceMaxLaunchExecutor implements LaunchProviderExecuto
       if (item.isTextual() && !item.asText().isBlank()) result.add(item.asText().trim());
     }
     return List.copyOf(result);
+  }
+
+  private GooglePerformanceMaxLifecycleRequest lifecycleRequest(JsonNode override) {
+    return new GooglePerformanceMaxLifecycleRequest(
+        text(override, "pmaxLifecycleGoalType"),
+        text(override, "pmaxLifecycleTargetOption"),
+        nullableDouble(override, "pmaxLifecycleAdditionalValue"),
+        nullableDouble(override, "pmaxLifecycleHighLifetimeValue"),
+        nullableDouble(override, "pmaxLifecycleValueMultiplier"),
+        nullableBoolean(override, "pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers"),
+        nullableBoolean(override, "pmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla"));
+  }
+
+  private Double nullableDouble(JsonNode node, String key) {
+    JsonNode value = node.get(key);
+    if (value == null || value.isNull()) return null;
+    if (value.isNumber()) return value.doubleValue();
+    if (value.isTextual() && !value.asText().isBlank()) {
+      try {
+        return Double.valueOf(value.asText().trim());
+      } catch (NumberFormatException exception) {
+        throw new BadRequestException("Performance Max lifecycle value must be numeric");
+      }
+    }
+    throw new BadRequestException("Performance Max lifecycle value must be numeric");
+  }
+
+  private Boolean nullableBoolean(JsonNode node, String key) {
+    JsonNode value = node.get(key);
+    return value == null || value.isNull() || !value.isBoolean()
+        ? null
+        : value.booleanValue();
   }
 
   private String text(JsonNode node, String key) {

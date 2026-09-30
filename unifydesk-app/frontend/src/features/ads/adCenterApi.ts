@@ -97,8 +97,23 @@ import type {
   UpdateGooglePerformanceMaxAutomationInput,
   GooglePerformanceMaxBrandGuidelines,
   UpdateGooglePerformanceMaxBrandGuidelinesInput,
+  GooglePortfolioBiddingStrategy,
+  CreateGooglePortfolioBiddingStrategyInput,
+  GoogleSharedBudget,
+  CreateGoogleSharedBudgetInput,
+  GoogleCampaignPortfolioAssignment,
+  GoogleLifecycleGoal,
+  UpsertGoogleLifecycleGoalInput,
+  GoogleUserListCustomerType,
+  UpdateGoogleUserListCustomerTypesInput,
+  GooglePerformanceMaxLifecycle,
+  UpdateGooglePerformanceMaxLifecycleInput,
   GoogleAssetGroupUrlOptions,
   GoogleAssetGroup,
+  GoogleAssetGroupPerformance,
+  GooglePerformanceMaxRetailSettings,
+  GooglePerformanceMaxListingGroup,
+  ReplaceGooglePerformanceMaxListingGroupsInput,
   GoogleAssetGroupAsset,
   GoogleAssetGroupAssetInput,
   GoogleAssetGroupSignal,
@@ -1066,6 +1081,54 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
+  async googlePerformanceMaxRetailSettings(
+    companyId: string,
+    campaignId: string,
+  ) {
+    const response = await apiClient.get<ApiResponse<GooglePerformanceMaxRetailSettings>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/retail-settings`,
+    )
+    return unwrap(response.data)
+  },
+
+  async googlePerformanceMaxListingGroups(
+    companyId: string,
+    campaignId: string,
+    assetGroupId: string,
+    days = 30,
+  ) {
+    const response = await apiClient.get<ApiResponse<GooglePerformanceMaxListingGroup[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/listing-groups`,
+      { params: { days } },
+    )
+    return unwrap(response.data)
+  },
+
+  async replaceGooglePerformanceMaxListingGroups(
+    companyId: string,
+    campaignId: string,
+    assetGroupId: string,
+    input: ReplaceGooglePerformanceMaxListingGroupsInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GooglePerformanceMaxListingGroup[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/listing-groups`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleAssetGroupPerformance(
+    companyId: string,
+    campaignId: string,
+    days = 30,
+  ) {
+    const response = await apiClient.get<ApiResponse<GoogleAssetGroupPerformance[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/performance`,
+      { params: { days } },
+    )
+    return unwrap(response.data)
+  },
+
   async googleAssetGroupAssets(
     companyId: string,
     campaignId: string,
@@ -1123,6 +1186,150 @@ export const adCenterApi = {
     const response = await apiClient.post<ApiResponse<GoogleAssetGroupSignal[]>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/signals`,
       input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googlePortfolioBiddingStrategies(
+    companyId: string,
+    accountId: string,
+    days = 30,
+  ) {
+    const response = await apiClient.get<ApiResponse<GooglePortfolioBiddingStrategy[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/portfolio-bidding-strategies`,
+      { params: { days } },
+    )
+    return unwrap(response.data)
+  },
+
+  async createGooglePortfolioBiddingStrategy(
+    companyId: string,
+    accountId: string,
+    input: CreateGooglePortfolioBiddingStrategyInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GooglePortfolioBiddingStrategy>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/portfolio-bidding-strategies`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleSharedBudgets(companyId: string, accountId: string, days = 30) {
+    const response = await apiClient.get<ApiResponse<GoogleSharedBudget[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/shared-budgets`,
+      { params: { days } },
+    )
+    return unwrap(response.data)
+  },
+
+  async createGoogleSharedBudget(
+    companyId: string,
+    accountId: string,
+    input: CreateGoogleSharedBudgetInput,
+  ) {
+    const response = await apiClient.post<ApiResponse<GoogleSharedBudget>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/shared-budgets`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async alignGooglePortfolioBudget(
+    companyId: string,
+    accountId: string,
+    biddingStrategyId: string,
+    sharedBudgetId: string,
+  ) {
+    await apiClient.post<ApiResponse<null>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/portfolio-alignment`,
+      { biddingStrategyId, sharedBudgetId },
+    )
+  },
+
+  async googleCampaignPortfolioAssignment(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleCampaignPortfolioAssignment>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/portfolio-assignment`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleCampaignPortfolioAssignment(
+    companyId: string,
+    campaignId: string,
+    biddingStrategyId?: string | null,
+    sharedBudgetId?: string | null,
+  ) {
+    const response = await apiClient.put<ApiResponse<GoogleCampaignPortfolioAssignment>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/portfolio-assignment`,
+      { biddingStrategyId, sharedBudgetId },
+    )
+    return unwrap(response.data)
+  },
+
+  async googleLifecycleGoals(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleLifecycleGoal[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/lifecycle-goals`,
+    )
+    return unwrap(response.data)
+  },
+
+  async upsertGoogleLifecycleGoal(
+    companyId: string,
+    accountId: string,
+    input: UpsertGoogleLifecycleGoalInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GoogleLifecycleGoal>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/lifecycle-goals/${input.goalType}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googleUserListCustomerTypes(companyId: string, accountId: string) {
+    const response = await apiClient.get<ApiResponse<GoogleUserListCustomerType[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/user-list-customer-types`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGoogleUserListCustomerTypes(
+    companyId: string,
+    accountId: string,
+    input: UpdateGoogleUserListCustomerTypesInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GoogleUserListCustomerType[]>>(
+      `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/user-list-customer-types`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async googlePerformanceMaxLifecycle(companyId: string, campaignId: string) {
+    const response = await apiClient.get<ApiResponse<GooglePerformanceMaxLifecycle[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/lifecycle-goals`,
+    )
+    return unwrap(response.data)
+  },
+
+  async updateGooglePerformanceMaxLifecycle(
+    companyId: string,
+    campaignId: string,
+    input: UpdateGooglePerformanceMaxLifecycleInput,
+  ) {
+    const response = await apiClient.put<ApiResponse<GooglePerformanceMaxLifecycle>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/lifecycle-goals/${input.goalType}`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async removeGooglePerformanceMaxLifecycle(
+    companyId: string,
+    campaignId: string,
+    goalType: string,
+  ) {
+    const response = await apiClient.delete<ApiResponse<GooglePerformanceMaxLifecycle[]>>(
+      `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/lifecycle-goals/${goalType}`,
     )
     return unwrap(response.data)
   },

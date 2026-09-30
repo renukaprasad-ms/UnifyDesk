@@ -1087,7 +1087,7 @@ Reference:
 
 ## G-08 Performance Max completeness - P1
 
-Status: **in progress — C5 URL/automation and the G-08 Brand Guidelines slice are complete; lifecycle/acquisition goals, deeper diagnostics/performance, and listing-group work remain**.
+Status: **complete for the current verified Google Performance Max API scope**.
 
 Implemented in C5:
 
@@ -1115,14 +1115,33 @@ Implemented in the Ads completion branch:
 - [x] migration of older eligible Performance Max campaigns using `EnablePMaxBrandGuidelines` with Google's top-performing brand-asset auto-population
 - [x] immutable enablement is handled safely: enabled Brand Guidelines cannot be disabled
 - [x] unified campaign wizard, native creation UI, native campaign editor, RBAC/audit flow, launch preflight, plan review metadata, and regression coverage
+- [x] Google v25 account lifecycle goals through the current `Goal` resource for New Customer Acquisition, Customer Retention, and Loyalty Retention
+- [x] Google `UserListCustomerType` classification management with provider conflict validation
+- [x] Performance Max campaign-specific `CampaignGoalConfig` read/create/update/remove
+- [x] New-customer `TARGET_ALL` / `TARGET_SPECIFIC` modes with Google value-override constraints
+- [x] retention campaign controls with explicit allowlist warning for `TARGET_SPECIFIC`
+- [x] loyalty value multiplier, loyalty-member bid adjustments, and eligible PLA benefit controls
+- [x] lifecycle readiness validation in unified preflight so launches cannot silently create account-wide lifecycle state
+- [x] unified Performance Max launch operation `configure-pmax-lifecycle`
+- [x] native Performance Max lifecycle editor, RBAC/audit flow, provider read-back, and regression coverage
+- [x] Asset Group ad-strength and asset-coverage provider read-back
+- [x] Asset Group primary serving status and provider status reasons
+- [x] Asset Group 30-day performance metrics for impressions, clicks, conversions, conversion value, and spend
+- [x] linked Asset Group Asset source, policy review/approval status, primary serving status, and serving reasons
+- [x] diagnostics integrated into the existing native PMax asset manager with regression coverage
+- [x] retail Performance Max creation using Merchant Center `shopping_settings.merchant_id` and optional `feed_label`
+- [x] required all-products `AssetGroupListingGroupFilter` root created atomically for new retail PMax campaigns
+- [x] native retail detection and product-group tree read-back per Asset Group
+- [x] product-group performance metrics from `asset_group_product_group_view`
+- [x] safe full-tree replacement with child-before-parent removal and temporary-ID parent/child creation
+- [x] one-level grouping by brand, condition, product type, Google product category, custom label, channel, or item ID
+- [x] explicit include/exclude product-group leaves plus required other-products catch-all behavior
+- [x] native PMax product-group editor, unified Merchant/feed-label selector, launch preflight, plan review, audit logging, and regression coverage
 
-Still add/review:
+Future provider/API follow-up rather than current G-08 blocker:
 
-- lifecycle/customer acquisition goals
-- value multipliers where currently supported by the Google v25 Goal / CampaignGoalConfig contract
-- deeper asset strength/diagnostics
-- asset group performance
-- listing groups where relevant
+- value multipliers beyond the currently productized lifecycle subset when Google makes them broadly supported/stable for the relevant PMax goal types
+- deeper multi-level product partition trees if customer demand requires them; the current product supports a safe one-level replace model
 - any remaining URL-inclusion behavior that becomes directly writable for this PMax subtype
 
 Google v25.2 adds AssetGroup URL options and automated video crawl settings.
@@ -1240,15 +1259,25 @@ References:
 
 ## G-11 Portfolio/shared bidding - P2
 
-Research and implement where supported:
+Status: **complete for the current verified Google portfolio/shared-budget scope**.
 
-- portfolio bid strategies
-- shared budgets
-- assignment
-- reporting
-- compatibility validation by campaign type
+Implemented:
 
-Do not expose portfolio options to campaign types that do not support them.
+- [x] account-level portfolio bid strategy discovery and creation
+- [x] Target CPA, Target ROAS, Maximize Conversions and Maximize Conversion Value portfolio strategies
+- [x] optional target CPA/ROAS constraints where Google supports them
+- [x] explicitly shared campaign budget discovery and creation
+- [x] campaign assignment to a portfolio strategy, shared budget, or aligned pair
+- [x] Google alignment of a portfolio strategy and shared budget only when both are attached to the exact same campaign set
+- [x] compatibility enforcement for Search, Display, and Shopping campaigns
+- [x] explicit blocking for Performance Max, Demand Gen, App, Video, and other incompatible campaign types
+- [x] 30-day strategy/budget performance read-back for impressions, clicks, spend, conversions, and conversion value
+- [x] campaign-detail UI for creating, selecting, assigning, aligning, refreshing, and reviewing portfolio resources
+- [x] RBAC-aware create/modify controls and activity audit
+- [x] backend regression coverage for currency conversion, incompatible campaign blocking, and alignment campaign-set safety
+- [x] frontend API regression coverage including successful empty alignment responses
+
+Google remains authoritative for account eligibility and campaign-type compatibility. UnifyDesk rejects known incompatible campaign types before provider mutation and surfaces provider validation for account-specific restrictions.
 
 ## G-12 Experiments - P2
 

@@ -44,6 +44,7 @@ import com.messaging.ads.google.dto.GoogleAssetGenerationImageResponse;
 import com.messaging.ads.google.dto.GoogleAssetGenerationTextRequest;
 import com.messaging.ads.google.dto.GoogleAssetGenerationTextResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupResponse;
+import com.messaging.ads.google.dto.GoogleAssetGroupPerformanceResponse;
 import com.messaging.ads.google.dto.CreateGoogleAppCampaignRequest;
 import com.messaging.ads.google.dto.CreateGoogleAppAdGroupRequest;
 import com.messaging.ads.google.dto.CreateGoogleAppAdRequest;
@@ -60,6 +61,22 @@ import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationRequest;
 import com.messaging.ads.google.dto.GooglePerformanceMaxAutomationResponse;
 import com.messaging.ads.google.dto.GooglePerformanceMaxBrandGuidelinesRequest;
 import com.messaging.ads.google.dto.GooglePerformanceMaxBrandGuidelinesResponse;
+import com.messaging.ads.google.dto.GoogleLifecycleGoalResponse;
+import com.messaging.ads.google.dto.GoogleLifecycleGoalUpsertRequest;
+import com.messaging.ads.google.dto.GooglePerformanceMaxLifecycleRequest;
+import com.messaging.ads.google.dto.GooglePerformanceMaxLifecycleResponse;
+import com.messaging.ads.google.dto.GooglePerformanceMaxListingGroupReplaceRequest;
+import com.messaging.ads.google.dto.GooglePerformanceMaxListingGroupResponse;
+import com.messaging.ads.google.dto.GooglePerformanceMaxRetailSettingsResponse;
+import com.messaging.ads.google.dto.GoogleUserListCustomerTypeRequest;
+import com.messaging.ads.google.dto.GoogleUserListCustomerTypeResponse;
+import com.messaging.ads.google.dto.CreateGooglePortfolioBiddingStrategyRequest;
+import com.messaging.ads.google.dto.CreateGoogleSharedBudgetRequest;
+import com.messaging.ads.google.dto.GoogleCampaignPortfolioAssignmentRequest;
+import com.messaging.ads.google.dto.GoogleCampaignPortfolioAssignmentResponse;
+import com.messaging.ads.google.dto.GooglePortfolioAlignmentRequest;
+import com.messaging.ads.google.dto.GooglePortfolioBiddingStrategyResponse;
+import com.messaging.ads.google.dto.GoogleSharedBudgetResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupAssetResponse;
 import com.messaging.ads.google.dto.GoogleAssetGroupAssetMutationRequest;
 import com.messaging.ads.google.dto.GoogleAssetGroupAssetRemoveRequest;
@@ -140,6 +157,9 @@ public class GoogleAdsConnectionController {
   private final GoogleAdsSearchAudienceService searchAudienceService;
   private final GoogleAdsSearchInterestService searchInterestService;
   private final GoogleAdsCampaignTargetingService campaignTargetingService;
+  private final GoogleAdsPerformanceMaxLifecycleService performanceMaxLifecycleService;
+  private final GoogleAdsPerformanceMaxListingGroupService performanceMaxListingGroupService;
+  private final GoogleAdsPortfolioBiddingService portfolioBiddingService;
   private final GoogleAdsKeywordSyncService keywordSyncService;
   private final GoogleAdsKeywordMutationService keywordMutationService;
   private final GoogleAdsNegativeKeywordService negativeKeywordService;
@@ -423,6 +443,65 @@ public class GoogleAdsConnectionController {
             "Google Performance Max asset groups fetched"));
   }
 
+  @GetMapping("/campaigns/{campaignId}/performance-max/retail-settings")
+  public ResponseEntity<ApiResponse<GooglePerformanceMaxRetailSettingsResponse>>
+      performanceMaxRetailSettings(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxListingGroupService.retailSettings(companyId, campaignId),
+            "Performance Max retail settings fetched"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/asset-groups/{assetGroupId}/listing-groups")
+  public ResponseEntity<ApiResponse<java.util.List<GooglePerformanceMaxListingGroupResponse>>>
+      performanceMaxListingGroups(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId,
+          @PathVariable String assetGroupId,
+          @RequestParam(defaultValue = "30") Integer days) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxListingGroupService.list(
+                companyId, campaignId, assetGroupId, days),
+            "Performance Max product groups fetched"));
+  }
+
+  @PutMapping("/campaigns/{campaignId}/asset-groups/{assetGroupId}/listing-groups")
+  public ResponseEntity<ApiResponse<java.util.List<GooglePerformanceMaxListingGroupResponse>>>
+      replacePerformanceMaxListingGroups(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId,
+          @PathVariable String assetGroupId,
+          @Valid @RequestBody GooglePerformanceMaxListingGroupReplaceRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxListingGroupService.replace(
+                companyId, campaignId, assetGroupId, request, userId),
+            "Performance Max product groups replaced"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/asset-groups/performance")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleAssetGroupPerformanceResponse>>>
+      assetGroupPerformance(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId,
+          @RequestParam(defaultValue = "30") Integer days) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxService.assetGroupPerformance(companyId, campaignId, days),
+            "Google Performance Max asset group performance fetched"));
+  }
+
   @GetMapping("/campaigns/{campaignId}/asset-groups/{assetGroupId}/assets")
   public ResponseEntity<ApiResponse<java.util.List<GoogleAssetGroupAssetResponse>>> assetGroupAssets(
       @PathVariable Long companyId,
@@ -509,6 +588,216 @@ public class GoogleAdsConnectionController {
             "Google Performance Max asset group status updated"));
   }
 
+
+  @GetMapping("/accounts/{accountId}/portfolio-bidding-strategies")
+  public ResponseEntity<ApiResponse<java.util.List<GooglePortfolioBiddingStrategyResponse>>>
+      portfolioBiddingStrategies(
+          @PathVariable Long companyId,
+          @PathVariable Long accountId,
+          @RequestParam(defaultValue = "30") Integer days) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            portfolioBiddingService.strategies(companyId, accountId, days),
+            "Google portfolio bidding strategies fetched"));
+  }
+
+  @PostMapping("/accounts/{accountId}/portfolio-bidding-strategies")
+  public ResponseEntity<ApiResponse<GooglePortfolioBiddingStrategyResponse>>
+      createPortfolioBiddingStrategy(
+          @PathVariable Long companyId,
+          @PathVariable Long accountId,
+          @Valid @RequestBody CreateGooglePortfolioBiddingStrategyRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            portfolioBiddingService.createStrategy(
+                companyId, accountId, request, userId),
+            "Google portfolio bidding strategy created"));
+  }
+
+  @GetMapping("/accounts/{accountId}/shared-budgets")
+  public ResponseEntity<ApiResponse<java.util.List<GoogleSharedBudgetResponse>>>
+      sharedBudgets(
+          @PathVariable Long companyId,
+          @PathVariable Long accountId,
+          @RequestParam(defaultValue = "30") Integer days) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            portfolioBiddingService.sharedBudgets(companyId, accountId, days),
+            "Google shared budgets fetched"));
+  }
+
+  @PostMapping("/accounts/{accountId}/shared-budgets")
+  public ResponseEntity<ApiResponse<GoogleSharedBudgetResponse>>
+      createSharedBudget(
+          @PathVariable Long companyId,
+          @PathVariable Long accountId,
+          @Valid @RequestBody CreateGoogleSharedBudgetRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            portfolioBiddingService.createSharedBudget(
+                companyId, accountId, request, userId),
+            "Google shared budget created"));
+  }
+
+  @PostMapping("/accounts/{accountId}/portfolio-alignment")
+  public ResponseEntity<ApiResponse<Void>> alignPortfolioBudget(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @Valid @RequestBody GooglePortfolioAlignmentRequest request) {
+    Long userId = requireModify(companyId);
+    portfolioBiddingService.align(companyId, accountId, request, userId);
+    return ResponseEntity.ok(
+        ApiResponse.success(200, null, "Google portfolio strategy and shared budget aligned"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/portfolio-assignment")
+  public ResponseEntity<ApiResponse<GoogleCampaignPortfolioAssignmentResponse>>
+      campaignPortfolioAssignment(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            portfolioBiddingService.assignment(companyId, campaignId),
+            "Google campaign portfolio assignment fetched"));
+  }
+
+  @PutMapping("/campaigns/{campaignId}/portfolio-assignment")
+  public ResponseEntity<ApiResponse<GoogleCampaignPortfolioAssignmentResponse>>
+      updateCampaignPortfolioAssignment(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId,
+          @Valid @RequestBody GoogleCampaignPortfolioAssignmentRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            portfolioBiddingService.assign(companyId, campaignId, request, userId),
+            "Google campaign portfolio assignment updated"));
+  }
+
+  @GetMapping("/accounts/{accountId}/lifecycle-goals")
+  public ResponseEntity<ApiResponse<List<GoogleLifecycleGoalResponse>>> lifecycleGoals(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxLifecycleService.goals(companyId, accountId),
+            "Google lifecycle goals fetched"));
+  }
+
+  @PutMapping("/accounts/{accountId}/lifecycle-goals/{goalType}")
+  public ResponseEntity<ApiResponse<GoogleLifecycleGoalResponse>> upsertLifecycleGoal(
+      @PathVariable Long companyId,
+      @PathVariable Long accountId,
+      @PathVariable String goalType,
+      @Valid @RequestBody GoogleLifecycleGoalUpsertRequest request) {
+    Long userId = requireModify(companyId);
+    GoogleLifecycleGoalUpsertRequest normalized =
+        new GoogleLifecycleGoalUpsertRequest(
+            goalType,
+            request.additionalValue(),
+            request.additionalHighLifetimeValue(),
+            request.valueMultiplier());
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxLifecycleService.upsertGoal(
+                companyId, accountId, normalized, userId),
+            "Google lifecycle goal saved"));
+  }
+
+  @GetMapping("/accounts/{accountId}/user-list-customer-types")
+  public ResponseEntity<ApiResponse<List<GoogleUserListCustomerTypeResponse>>>
+      userListCustomerTypes(
+          @PathVariable Long companyId,
+          @PathVariable Long accountId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxLifecycleService.customerTypes(companyId, accountId),
+            "Google user-list customer types fetched"));
+  }
+
+  @PutMapping("/accounts/{accountId}/user-list-customer-types")
+  public ResponseEntity<ApiResponse<List<GoogleUserListCustomerTypeResponse>>>
+      replaceUserListCustomerTypes(
+          @PathVariable Long companyId,
+          @PathVariable Long accountId,
+          @Valid @RequestBody GoogleUserListCustomerTypeRequest request) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxLifecycleService.replaceCustomerTypes(
+                companyId, accountId, request, userId),
+            "Google user-list customer types updated"));
+  }
+
+  @GetMapping("/campaigns/{campaignId}/performance-max/lifecycle-goals")
+  public ResponseEntity<ApiResponse<List<GooglePerformanceMaxLifecycleResponse>>>
+      performanceMaxLifecycleGoals(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId) {
+    requireRead(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxLifecycleService.campaignLifecycle(companyId, campaignId),
+            "Performance Max lifecycle goals fetched"));
+  }
+
+  @PutMapping("/campaigns/{campaignId}/performance-max/lifecycle-goals/{goalType}")
+  public ResponseEntity<ApiResponse<GooglePerformanceMaxLifecycleResponse>>
+      updatePerformanceMaxLifecycleGoal(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId,
+          @PathVariable String goalType,
+          @Valid @RequestBody GooglePerformanceMaxLifecycleRequest request) {
+    Long userId = requireModify(companyId);
+    GooglePerformanceMaxLifecycleRequest normalized =
+        new GooglePerformanceMaxLifecycleRequest(
+            goalType,
+            request.targetOption(),
+            request.additionalValue(),
+            request.additionalHighLifetimeValue(),
+            request.valueMultiplier(),
+            request.enableBidAdjustmentsForLoyaltyMembers(),
+            request.showTargetedLoyaltyMemberBenefitsInPla());
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxLifecycleService.upsertCampaignLifecycle(
+                companyId, campaignId, normalized, userId),
+            "Performance Max lifecycle goal updated"));
+  }
+
+  @DeleteMapping("/campaigns/{campaignId}/performance-max/lifecycle-goals/{goalType}")
+  public ResponseEntity<ApiResponse<List<GooglePerformanceMaxLifecycleResponse>>>
+      removePerformanceMaxLifecycleGoal(
+          @PathVariable Long companyId,
+          @PathVariable Long campaignId,
+          @PathVariable String goalType) {
+    Long userId = requireModify(companyId);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            performanceMaxLifecycleService.removeCampaignLifecycle(
+                companyId, campaignId, goalType, userId),
+            "Performance Max lifecycle goal removed"));
+  }
 
   @GetMapping("/campaigns/{campaignId}/performance-max/brand-guidelines")
   public ResponseEntity<ApiResponse<GooglePerformanceMaxBrandGuidelinesResponse>>

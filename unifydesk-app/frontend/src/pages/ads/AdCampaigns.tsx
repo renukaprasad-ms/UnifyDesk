@@ -707,6 +707,7 @@ export default function AdCampaigns() {
       {selectedAccount?.provider === 'GOOGLE_ADS' &&
         googleCreateType === 'PERFORMANCE_MAX' && (
           <GooglePerformanceMaxCampaignModal
+            companyId={selectedCompany.companyId}
             account={selectedAccount}
             open={createOpen}
             saving={creating}

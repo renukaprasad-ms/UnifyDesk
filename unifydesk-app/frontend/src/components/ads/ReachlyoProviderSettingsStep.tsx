@@ -3,6 +3,7 @@ import { FiClock, FiPlus, FiRefreshCw, FiTrash2 } from 'react-icons/fi'
 import GoogleAiMaxBrandSelector from './GoogleAiMaxBrandSelector'
 import GoogleSearchInterestSelector from './GoogleSearchInterestSelector'
 import GoogleSearchDemographicSelector from './GoogleSearchDemographicSelector'
+import GooglePerformanceMaxLifecycleLaunchSettings from './GooglePerformanceMaxLifecycleLaunchSettings'
 import type {
   AdAccountResource,
   AdConversion,
@@ -12,6 +13,7 @@ import type {
   CampaignBusinessGoal,
   CampaignChannelType,
   GoogleMerchantAccount,
+  GoogleLifecycleGoalType,
 } from '../../features/ads/types'
 
 export type GoogleAdScheduleDraft = {
@@ -46,6 +48,25 @@ type Props = {
   setPmaxBrandAccentColor: (value: string) => void
   pmaxBrandFontFamily: string
   setPmaxBrandFontFamily: (value: string) => void
+  pmaxMerchantAccounts: GoogleMerchantAccount[]
+  pmaxMerchantId: string
+  setPmaxMerchantId: (value: string) => void
+  pmaxFeedLabel: string
+  setPmaxFeedLabel: (value: string) => void
+  pmaxLifecycleGoalType: GoogleLifecycleGoalType | ''
+  setPmaxLifecycleGoalType: (value: GoogleLifecycleGoalType | '') => void
+  pmaxLifecycleTargetOption: 'TARGET_ALL' | 'TARGET_SPECIFIC'
+  setPmaxLifecycleTargetOption: (value: 'TARGET_ALL' | 'TARGET_SPECIFIC') => void
+  pmaxLifecycleAdditionalValue: string
+  setPmaxLifecycleAdditionalValue: (value: string) => void
+  pmaxLifecycleHighLifetimeValue: string
+  setPmaxLifecycleHighLifetimeValue: (value: string) => void
+  pmaxLifecycleValueMultiplier: string
+  setPmaxLifecycleValueMultiplier: (value: string) => void
+  pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers: boolean
+  setPmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers: (value: boolean) => void
+  pmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla: boolean
+  setPmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla: (value: boolean) => void
   demandGenBidStrategy:
     | 'MAXIMIZE_CLICKS'
     | 'MAXIMIZE_CONVERSIONS'
@@ -752,6 +773,45 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 </option>
               </select>
             </Field>
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-4 sm:col-span-2">
+              <p className="text-xs font-semibold text-slate-700">Retail / Merchant Center</p>
+              <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                Optional. Selecting Merchant Center creates retail Performance Max with a required all-products listing group.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <Field label="Merchant Center account">
+                  <select
+                    className="form-input mt-2"
+                    value={props.pmaxMerchantId}
+                    disabled={props.disabled}
+                    onChange={(event) => {
+                      props.setPmaxMerchantId(event.target.value)
+                      if (!event.target.value) props.setPmaxFeedLabel('')
+                    }}
+                  >
+                    <option value="">Standard Performance Max</option>
+                    {props.pmaxMerchantAccounts.map((merchant) => (
+                      <option key={merchant.accountId} value={merchant.accountId}>
+                        {merchant.accountName || merchant.accountId}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Feed label" hint="Optional. Uppercase letters, numbers, or dashes.">
+                  <input
+                    className="form-input mt-2"
+                    value={props.pmaxFeedLabel}
+                    disabled={props.disabled || !props.pmaxMerchantId}
+                    maxLength={20}
+                    placeholder="IN"
+                    onChange={(event) =>
+                      props.setPmaxFeedLabel(event.target.value.toUpperCase())
+                    }
+                  />
+                </Field>
+              </div>
+            </div>
+
             <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4 sm:col-span-2">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -813,6 +873,34 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 </div>
               )}
             </div>
+
+            <GooglePerformanceMaxLifecycleLaunchSettings
+              companyId={props.companyId}
+              accountId={googleAccount}
+              goalType={props.pmaxLifecycleGoalType}
+              setGoalType={props.setPmaxLifecycleGoalType}
+              targetOption={props.pmaxLifecycleTargetOption}
+              setTargetOption={props.setPmaxLifecycleTargetOption}
+              additionalValue={props.pmaxLifecycleAdditionalValue}
+              setAdditionalValue={props.setPmaxLifecycleAdditionalValue}
+              highLifetimeValue={props.pmaxLifecycleHighLifetimeValue}
+              setHighLifetimeValue={props.setPmaxLifecycleHighLifetimeValue}
+              valueMultiplier={props.pmaxLifecycleValueMultiplier}
+              setValueMultiplier={props.setPmaxLifecycleValueMultiplier}
+              enableBidAdjustmentsForLoyaltyMembers={
+                props.pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers
+              }
+              setEnableBidAdjustmentsForLoyaltyMembers={
+                props.setPmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers
+              }
+              showTargetedLoyaltyMemberBenefitsInPla={
+                props.pmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla
+              }
+              setShowTargetedLoyaltyMemberBenefitsInPla={
+                props.setPmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla
+              }
+              disabled={props.disabled}
+            />
 
             {conversionRequired && (
               <Field label="Conversion action">

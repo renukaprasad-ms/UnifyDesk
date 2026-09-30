@@ -21,13 +21,16 @@ public record CreateGooglePerformanceMaxCampaignRequest(
     String landscapeLogoImageBase64,
     List<String> youtubeVideoIds,
     String bidStrategy,
-    @NotNull(message = "Choose whether this campaign contains EU political advertising") Boolean containsEuPoliticalAdvertising,
+    @NotNull(message = "Choose whether this campaign contains EU political advertising")
+        Boolean containsEuPoliticalAdvertising,
     LocalDate startDate,
     LocalDate endDate,
     Boolean brandGuidelinesEnabled,
     String brandMainColor,
     String brandAccentColor,
-    String brandFontFamily) {
+    String brandFontFamily,
+    String merchantId,
+    String feedLabel) {
 
   public CreateGooglePerformanceMaxCampaignRequest(
       String name,
@@ -67,6 +70,56 @@ public record CreateGooglePerformanceMaxCampaignRequest(
         endDate,
         false,
         null,
+        null,
+        null,
+        null,
+        null);
+  }
+
+  public CreateGooglePerformanceMaxCampaignRequest(
+      String name,
+      Long dailyBudgetMinor,
+      String finalUrl,
+      String businessName,
+      List<String> headlines,
+      String longHeadline,
+      List<String> descriptions,
+      String marketingImageBase64,
+      String squareMarketingImageBase64,
+      String logoImageBase64,
+      String portraitMarketingImageBase64,
+      String landscapeLogoImageBase64,
+      List<String> youtubeVideoIds,
+      String bidStrategy,
+      Boolean containsEuPoliticalAdvertising,
+      LocalDate startDate,
+      LocalDate endDate,
+      Boolean brandGuidelinesEnabled,
+      String brandMainColor,
+      String brandAccentColor,
+      String brandFontFamily) {
+    this(
+        name,
+        dailyBudgetMinor,
+        finalUrl,
+        businessName,
+        headlines,
+        longHeadline,
+        descriptions,
+        marketingImageBase64,
+        squareMarketingImageBase64,
+        logoImageBase64,
+        portraitMarketingImageBase64,
+        landscapeLogoImageBase64,
+        youtubeVideoIds,
+        bidStrategy,
+        containsEuPoliticalAdvertising,
+        startDate,
+        endDate,
+        brandGuidelinesEnabled,
+        brandMainColor,
+        brandAccentColor,
+        brandFontFamily,
         null,
         null);
   }

@@ -192,6 +192,10 @@ class GoogleProviderCampaignCompilerTests {
     channel.setChannelType(CampaignChannelType.GOOGLE_PERFORMANCE_MAX);
     channel.setEnabled(true);
     channel.setBudgetAllocationMinor(8_000L);
+    channel.setProviderOverrideJson(
+        "{\"pmaxLifecycleGoalType\":\"NEW_CUSTOMER_ACQUISITION\","
+            + "\"pmaxLifecycleTargetOption\":\"TARGET_ALL\","
+            + "\"pmaxLifecycleAdditionalValue\":60}");
 
     AdAccount account = new AdAccount();
     account.setId(35L);
@@ -251,7 +255,8 @@ class GoogleProviderCampaignCompilerTests {
         .containsExactly(
             "create-performance-max-paused",
             "configure-pmax-targeting",
-            "configure-audience-signals");
+            "configure-audience-signals",
+            "configure-pmax-lifecycle");
     assertThat(plan.operations().getFirst().createPaused()).isTrue();
     assertThat(plan.operations())
         .noneMatch(operation -> "create-asset-group".equals(operation.operationKey()));

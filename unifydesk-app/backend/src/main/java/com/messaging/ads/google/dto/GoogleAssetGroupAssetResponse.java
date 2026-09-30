@@ -1,5 +1,7 @@
 package com.messaging.ads.google.dto;
 
+import java.util.List;
+
 public record GoogleAssetGroupAssetResponse(
     String resourceName,
     String assetResourceName,
@@ -9,9 +11,18 @@ public record GoogleAssetGroupAssetResponse(
     String fieldType,
     String status,
     String primaryStatus,
+    List<String> primaryStatusReasons,
+    String source,
     String policyApprovalStatus,
+    String policyReviewStatus,
     String text,
     String imageUrl,
     Long imageWidth,
     Long imageHeight,
-    String youtubeVideoId) {}
+    String youtubeVideoId) {
+
+  public GoogleAssetGroupAssetResponse {
+    primaryStatusReasons =
+        primaryStatusReasons == null ? List.of() : List.copyOf(primaryStatusReasons);
+  }
+}
