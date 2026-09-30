@@ -190,13 +190,20 @@ public class SegmentCompiler {
     if (predicate.field().id() == null) throw invalid();
     var metadata =
         fieldMetadataRepository.requireActiveCustomField(state.companyId, predicate.field().id());
-    CustomSql custom = customSql(metadata.type());
-    String comparison =
-        compileScalar(
-            custom.valueExpression(), custom.kind(), predicate.operator(), predicate.value(), state);
-    if (metadata.type() == CustomFieldType.MULTI_SELECT
-        && predicate.operator() == SegmentOperator.CONTAINS) {
-      state.raise(CostClass.HIGH);
+    String comparison;
+    if (metadata.type() == CustomFieldType.MULTI_SELECT) {
+      comparison =
+          compileMultiSelect(
+              "ccfv.text_array_value", predicate.operator(), predicate.value(), state);
+    } else {
+      CustomSql custom = customSql(metadata.type());
+      comparison =
+          compileScalar(
+              custom.valueExpression(),
+              custom.kind(),
+              predicate.operator(),
+              predicate.value(),
+              state);
     }
     return """
         EXISTS (
@@ -208,6 +215,40 @@ public class SegmentCompiler {
         )
         """
         .formatted(param(state, metadata.id()), comparison);
+  }
+
+  private String compileMultiSelect(
+      String sql, SegmentOperator operator, SegmentValue value, CompileState state) {
+    if (operator == SegmentOperator.PRESENT) {
+      requireNoValue(value);
+      return sql + " IS NOT NULL";
+    }
+    if (operator == SegmentOperator.ABSENT) {
+      requireNoValue(value);
+      return sql + " IS NULL";
+    }
+    if (operator == SegmentOperator.EQ || operator == SegmentOperator.NE) {
+      String expression =
+          sql + " @> ARRAY[" + param(state, requireText(value)) + "]::text[]";
+      return operator == SegmentOperator.EQ ? expression : "NOT (" + expression + ")";
+    }
+    if (operator == SegmentOperator.IN || operator == SegmentOperator.NOT_IN) {
+      if (!(value instanceof TextListValue texts)
+          || texts.value() == null
+          || texts.value().isEmpty()
+          || texts.value().size() > properties.getSegmentMaxListValues()
+          || texts.value().stream().anyMatch(Objects::isNull)) {
+        throw invalid();
+      }
+      List<String> placeholders = new ArrayList<>(texts.value().size());
+      for (String item : texts.value()) {
+        placeholders.add(param(state, item));
+      }
+      String expression =
+          sql + " && ARRAY[" + String.join(", ", placeholders) + "]::text[]";
+      return operator == SegmentOperator.IN ? expression : "NOT (" + expression + ")";
+    }
+    throw invalid();
   }
 
   private String compilePreference(PredicateNode predicate, CompileState state) {

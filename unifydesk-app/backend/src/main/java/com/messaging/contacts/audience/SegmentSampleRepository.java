@@ -30,11 +30,11 @@ public class SegmentSampleRepository {
                c.created_at,
                c.updated_at,
                c.last_activity_at,
-               email.normalized_value as primary_email,
-               phone.normalized_value as primary_phone
+               email.value as primary_email,
+               phone.value as primary_phone
         from contacts c
         left join lateral (
-          select ci.normalized_value
+          select ci.value
           from contact_identities ci
           where ci.company_id = c.company_id
             and ci.contact_id = c.id

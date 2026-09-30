@@ -402,7 +402,7 @@ public class SegmentApiMapper {
     if (value instanceof IdValue id) return objectMapper.valueToTree(Long.toString(id.value()));
     if (value instanceof TextListValue texts) return objectMapper.valueToTree(texts.value());
     if (value instanceof IdListValue ids) {
-      return objectMapper.valueToTree(ids.value().stream().map(Long::toString).toList());
+      return objectMapper.valueToTree(ids.value());
     }
     throw new IllegalStateException("Stored segment value is invalid");
   }

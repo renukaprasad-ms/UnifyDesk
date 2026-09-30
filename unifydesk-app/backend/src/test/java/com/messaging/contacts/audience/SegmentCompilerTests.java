@@ -69,4 +69,26 @@ class SegmentCompilerTests {
                 new TextListValue(List.of("A", "B"))));
     assertThrows(RuntimeException.class, () -> compiler.compile(1L, tooMany));
   }
+  @Test
+  void multiSelectUsesGinFriendlyArrayOperators() {
+    when(metadata.requireActiveCustomField(42L, 9L))
+        .thenReturn(
+            new SegmentFieldMetadataRepository.CustomFieldMetadata(
+                9L, SegmentFieldMetadataRepository.CustomFieldType.MULTI_SELECT));
+    SegmentFilter filter =
+        new SegmentFilter(
+            1,
+            new PredicateNode(
+                new SegmentField(FieldKind.CUSTOM_FIELD, null, 9L),
+                SegmentOperator.IN,
+                new TextListValue(List.of("gold", "silver"))));
+
+    SegmentCompiler.CompiledSegment compiled = compiler.compile(42L, filter);
+
+    assertTrue(compiled.whereSql().contains("text_array_value && ARRAY["));
+    assertFalse(compiled.whereSql().contains("gold"));
+    assertTrue(compiled.parameters().containsValue("gold"));
+    assertTrue(compiled.parameters().containsValue("silver"));
+  }
+
 }

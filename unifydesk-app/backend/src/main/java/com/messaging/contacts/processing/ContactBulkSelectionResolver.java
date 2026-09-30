@@ -98,14 +98,14 @@ public class ContactBulkSelectionResolver {
       predicates.add(
           """
           (
-            lower(c.display_name) like :q
+            lower(coalesce(c.display_name, '')) like :q
             or exists (
               select 1
               from contact_identities ci
               where ci.company_id = c.company_id
                 and ci.contact_id = c.id
                 and ci.status = 'ACTIVE'
-                and lower(ci.normalized_value) like :q
+                and ci.normalized_value like :q
             )
           )
           """);
