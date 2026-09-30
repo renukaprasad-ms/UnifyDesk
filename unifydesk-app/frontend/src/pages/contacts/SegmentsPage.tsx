@@ -1,0 +1,106 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
+import ContactsNav from '../../components/contacts/ContactsNav'
+import { contactsApi } from '../../features/contacts/contactsApi'
+import type { SegmentDefinition } from '../../features/contacts/types'
+import { PERMISSIONS } from '../../features/iam/permissions'
+import { useIam } from '../../features/iam/useIam'
+import { apiErrorMessage } from '../../lib/api/apiClient'
+import { useAppSelector } from '../../store/hooks'
+import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+
+export default function SegmentsPage() {
+  const companyId = useAppSelector(selectSelectedCompanyId)
+  const { can } = useIam()
+  const [items, setItems] = useState<SegmentDefinition[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!companyId) {
+      setItems([])
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    contactsApi
+      .segments(companyId)
+      .then((segments) => setItems(segments.filter((segment) => !segment.archived && segment.status !== 'ARCHIVED')))
+      .catch((loadError) =>
+        setError(apiErrorMessage(loadError, 'Unable to load Segments.')),
+      )
+      .finally(() => setLoading(false))
+  }, [companyId])
+
+  return (
+    <section className="px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl">
+        <ContactsNav />
+        <header className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="eyebrow">Audience</p>
+            <h1 className="mt-2 text-3xl font-bold text-slate-950">Segments</h1>
+            <p className="mt-2 text-sm text-slate-500">
+              Dynamic audiences evaluated by the backend from the frozen filter AST.
+            </p>
+          </div>
+          {can(PERMISSIONS.CONTACT_MODIFY) && (
+            <Link className="primary-button" to="/contacts/segments/new">
+              New Segment
+            </Link>
+          )}
+        </header>
+
+        {error && (
+          <div
+            role="alert"
+            className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
+          >
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="panel mt-6 p-10 text-center text-sm text-slate-500" role="status">
+            Loading Segments…
+          </div>
+        ) : items.length === 0 ? (
+          <div className="panel mt-6 p-10 text-center">
+            <h2 className="font-bold text-slate-950">No Segments yet</h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Build a dynamic audience from contact, identity, preference and suppression fields.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {items.map((item) => (
+              <Link
+                key={item.id}
+                to={'/contacts/segments/' + item.id}
+                className="panel p-5 hover:border-indigo-200"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="font-bold text-slate-950">{item.name}</h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {item.description || 'Dynamic Contact Segment'}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
+                    {item.countState || 'PENDING'}
+                  </span>
+                </div>
+                <p className="mt-4 text-2xl font-bold text-slate-950">
+                  {item.count == null ? '—' : item.count.toLocaleString()}
+                </p>
+                <p className="text-xs text-slate-500">matching Contacts</p>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}

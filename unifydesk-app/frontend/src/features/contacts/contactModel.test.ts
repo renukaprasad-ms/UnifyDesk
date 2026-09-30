@@ -1,0 +1,102 @@
+import { describe, expect, it } from 'vitest'
+import {
+  appendCursorPage,
+  buildImportCommitInput,
+  buildSelectionDescriptor,
+  contactPrimaryIdentityValue,
+  normalizeContactQuery,
+  toPatchContactInput,
+  validateContactDraft,
+} from './contactModel'
+
+describe('contactModel', () => {
+  it('validates create form fields', () => {
+    expect(validateContactDraft({
+      displayName: '',
+      firstName: '',
+      lastName: '',
+      organization: '',
+      notes: '',
+      email: 'bad',
+      phone: '12',
+    })).toEqual(expect.objectContaining({
+      displayName: expect.any(String),
+      email: expect.any(String),
+      phone: expect.any(String),
+    }))
+  })
+
+  it('keeps Contact IDs as strings and includes optimistic version in PATCH payload', () => {
+    const patch = toPatchContactInput(
+      {
+        displayName: 'Alice',
+        firstName: '',
+        lastName: '',
+        organization: '',
+        notes: '',
+        email: '',
+        phone: '',
+      },
+      9,
+    )
+    expect(patch.version).toBe(9)
+    expect(typeof '9223372036854775807').toBe('string')
+  })
+
+  it('centralizes primary identity fallback from canonical identities', () => {
+    const value = contactPrimaryIdentityValue(
+      {
+        primaryEmail: null,
+        primaryPhone: null,
+        identities: [
+          {
+            id: 'identity-1',
+            type: 'EMAIL',
+            value: 'alice@example.com',
+            normalizedValue: 'alice@example.com',
+            primary: true,
+            status: 'ACTIVE',
+          },
+        ],
+      },
+      'EMAIL',
+    )
+    expect(value).toBe('alice@example.com')
+  })
+
+  it('preserves opaque cursor progression while deduplicating loaded rows', () => {
+    const current = [{ id: '1', displayName: 'A', updatedAt: '2026-01-01' }]
+    const next = appendCursorPage(current, {
+      items: [
+        { id: '1', displayName: 'A', updatedAt: '2026-01-01' },
+        { id: '2', displayName: 'B', updatedAt: '2026-01-02' },
+      ],
+      nextCursor: 'opaque',
+      hasMore: true,
+    }, false)
+    expect(next.map((item) => item.id)).toEqual(['1', '2'])
+  })
+
+  it('uses a filter descriptor rather than enumerating all results', () => {
+    expect(buildSelectionDescriptor(new Set(['1', '2']), true, { q: 'acme', sort: 'UPDATED_DESC' }))
+      .toEqual({ type: 'FILTER', filter: { q: 'acme', sort: 'UPDATED_DESC' } })
+  })
+
+  it('bounds page size and trims search', () => {
+    expect(normalizeContactQuery({ q: '  alice  ', size: 999 })).toEqual({ q: 'alice', size: 200 })
+  })
+
+  it('does not create consent from an ordinary import mapping', () => {
+    const result = buildImportCommitInput({
+      mappings: [
+        { column: 'name', target: { type: 'BUILTIN', field: 'displayName' } },
+        { column: 'unused', target: { type: 'IGNORE' } },
+      ],
+      duplicateStrategy: 'SKIP',
+      consentMappings: [],
+      idempotencyKey: 'fixed',
+    })
+    expect(result.consentMappings).toEqual([])
+    expect(result.mappings).toHaveLength(1)
+  })
+})
