@@ -10,6 +10,7 @@ import type {
   CursorPage,
   ImportCommitInput,
   ImportFieldMapping,
+  ImportFieldTarget,
 } from './types'
 
 export type ContactFormDraft = {
@@ -126,6 +127,81 @@ export const normalizeContactQuery = (query: ContactQuery): ContactQuery => {
     ...(query.sort ? { sort: query.sort } : {}),
     size: Math.min(Math.max(query.size ?? 50, 1), 200),
   }
+}
+
+const normalizedImportHeader = (value: string) =>
+  value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+
+const suggestedTarget = (
+  column: string,
+  namespaceColumn?: string,
+): ImportFieldTarget => {
+  switch (normalizedImportHeader(column)) {
+    case 'display_name':
+    case 'full_name':
+      return { type: 'BUILTIN', field: 'displayName' }
+    case 'first_name':
+    case 'firstname':
+      return { type: 'BUILTIN', field: 'firstName' }
+    case 'last_name':
+    case 'lastname':
+    case 'surname':
+      return { type: 'BUILTIN', field: 'lastName' }
+    case 'organization':
+    case 'company':
+    case 'company_name':
+      return { type: 'BUILTIN', field: 'organization' }
+    case 'job_title':
+    case 'jobtitle':
+      return { type: 'BUILTIN', field: 'jobTitle' }
+    case 'country_code':
+    case 'countrycode':
+      return { type: 'BUILTIN', field: 'countryCode' }
+    case 'timezone':
+    case 'time_zone':
+      return { type: 'BUILTIN', field: 'timezone' }
+    case 'language':
+      return { type: 'BUILTIN', field: 'language' }
+    case 'source':
+      return { type: 'BUILTIN', field: 'source' }
+    case 'notes':
+    case 'note':
+      return { type: 'BUILTIN', field: 'notes' }
+    case 'email':
+    case 'email_address':
+      return { type: 'IDENTITY', identityType: 'EMAIL' }
+    case 'phone':
+    case 'phone_number':
+    case 'mobile':
+    case 'mobile_number':
+      return { type: 'IDENTITY', identityType: 'PHONE' }
+    case 'tags':
+    case 'tag_names':
+      return { type: 'TAG_NAMES' }
+    case 'external_id':
+    case 'externalid':
+      return namespaceColumn
+        ? {
+            type: 'IDENTITY',
+            identityType: 'EXTERNAL',
+            externalNamespaceColumn: namespaceColumn,
+          }
+        : { type: 'IGNORE' }
+    default:
+      return { type: 'IGNORE' }
+  }
+}
+
+export const suggestImportMappings = (headers: string[]): ImportFieldMapping[] => {
+  const namespaceColumn = headers.find((header) =>
+    ['source', 'external_namespace', 'external_source'].includes(
+      normalizedImportHeader(header),
+    ),
+  )
+  return headers.map((column) => ({
+    column,
+    target: suggestedTarget(column, namespaceColumn),
+  }))
 }
 
 export const buildImportCommitInput = (input: {

@@ -64,6 +64,45 @@ describe('ImportDetailPage', () => {
     expect(screen.getByText('Occurred-at column')).toBeInTheDocument()
   })
 
+  it('auto-maps common contact columns and external ID namespace', async () => {
+    vi.mocked(contactsApi.getImport).mockResolvedValue({
+      id: 'import-1',
+      status: 'PREVIEWED',
+    })
+    vi.mocked(contactsApi.previewImport).mockResolvedValue({
+      headers: [
+        'external_id',
+        'first_name',
+        'last_name',
+        'email',
+        'phone',
+        'country_code',
+        'source',
+      ],
+      sampleRows: [
+        [
+          'TEST-00001',
+          'Sample00001',
+          'Contact',
+          'contact00001@example.com',
+          '+12025550100',
+          'US',
+          'CSV_TEST',
+        ],
+      ],
+    })
+
+    renderPage()
+
+    expect(await screen.findByLabelText('Map first_name')).toHaveValue('BUILTIN:firstName')
+    expect(screen.getByLabelText('Map email')).toHaveValue('IDENTITY:EMAIL')
+    expect(screen.getByLabelText('Map phone')).toHaveValue('IDENTITY:PHONE')
+    expect(screen.getByLabelText('Map country_code')).toHaveValue('BUILTIN:countryCode')
+    expect(screen.getByLabelText('Map source')).toHaveValue('BUILTIN:source')
+    expect(screen.getByLabelText('Map external_id')).toHaveValue('IDENTITY:EXTERNAL')
+    expect(screen.getByLabelText('Namespace for external_id')).toHaveValue('source')
+  })
+
   it('announces asynchronous progress without retaining the whole import', async () => {
     vi.mocked(contactsApi.getImport).mockResolvedValue({
       id: 'import-1',

@@ -7,6 +7,7 @@ import {
   contactPrimaryIdentityValue,
   normalizeContactQuery,
   parseContactSearchStatus,
+  suggestImportMappings,
   toPatchContactInput,
   validateContactDraft,
 } from './contactModel'
@@ -99,6 +100,44 @@ describe('contactModel', () => {
     expect(DEFAULT_CONTACT_EXPORT_FIELDS).toEqual(['displayName', 'organization'])
     expect(DEFAULT_CONTACT_EXPORT_FIELDS).not.toContain('primaryEmail')
     expect(DEFAULT_CONTACT_EXPORT_FIELDS).not.toContain('primaryPhone')
+  })
+
+  it('auto-maps common CSV headers including namespaced external IDs', () => {
+    const mappings = suggestImportMappings([
+      'external_id',
+      'first_name',
+      'last_name',
+      'email',
+      'phone',
+      'country_code',
+      'source',
+    ])
+
+    expect(mappings).toEqual([
+      {
+        column: 'external_id',
+        target: {
+          type: 'IDENTITY',
+          identityType: 'EXTERNAL',
+          externalNamespaceColumn: 'source',
+        },
+      },
+      { column: 'first_name', target: { type: 'BUILTIN', field: 'firstName' } },
+      { column: 'last_name', target: { type: 'BUILTIN', field: 'lastName' } },
+      { column: 'email', target: { type: 'IDENTITY', identityType: 'EMAIL' } },
+      { column: 'phone', target: { type: 'IDENTITY', identityType: 'PHONE' } },
+      {
+        column: 'country_code',
+        target: { type: 'BUILTIN', field: 'countryCode' },
+      },
+      { column: 'source', target: { type: 'BUILTIN', field: 'source' } },
+    ])
+  })
+
+  it('does not auto-map an external ID without a namespace source', () => {
+    expect(suggestImportMappings(['external_id'])).toEqual([
+      { column: 'external_id', target: { type: 'IGNORE' } },
+    ])
   })
 
   it('does not create consent from an ordinary import mapping', () => {

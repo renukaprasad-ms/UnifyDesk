@@ -4,6 +4,7 @@ import ContactsNav from '../../components/contacts/ContactsNav'
 import {
   buildImportCommitInput,
   createIdempotencyKey,
+  suggestImportMappings,
 } from '../../features/contacts/contactModel'
 import { contactsApi } from '../../features/contacts/contactsApi'
 import type {
@@ -36,7 +37,13 @@ const parseTarget = (value: string): ImportFieldTarget => {
   if (value.startsWith('IDENTITY:')) {
     return {
       type: 'IDENTITY',
-      identityType: value.slice('IDENTITY:'.length) as 'EMAIL' | 'PHONE',
+      identityType: value.slice('IDENTITY:'.length) as
+        | 'EMAIL'
+        | 'PHONE'
+        | 'EXTERNAL',
+      ...(value === 'IDENTITY:EXTERNAL'
+        ? { externalNamespaceColumn: '' }
+        : {}),
     }
   }
   if (value.startsWith('CUSTOM_FIELD:')) {
@@ -49,6 +56,11 @@ const parseTarget = (value: string): ImportFieldTarget => {
       | 'firstName'
       | 'lastName'
       | 'organization'
+      | 'jobTitle'
+      | 'countryCode'
+      | 'timezone'
+      | 'language'
+      | 'source'
       | 'notes',
   }
 }
@@ -87,12 +99,7 @@ export default function ImportDetailPage() {
         if (['UPLOADED', 'DRAFT_UPLOAD', 'PREVIEWED'].includes(nextResource.status)) {
           const nextPreview = await contactsApi.previewImport(companyId, importId)
           setPreview(nextPreview)
-          setMappings(
-            nextPreview.headers.map((column) => ({
-              column,
-              target: { type: 'IGNORE' },
-            })),
-          )
+          setMappings(suggestImportMappings(nextPreview.headers))
         }
       })
       .catch((loadError) =>
@@ -159,6 +166,17 @@ export default function ImportDetailPage() {
     ).length
     if (mappedFieldCount === 0) {
       setError('Map at least one Contact field or identity before starting the import.')
+      return
+    }
+
+    const missingExternalNamespace = mappings.some(
+      (mapping) =>
+        mapping.target.type === 'IDENTITY' &&
+        mapping.target.identityType === 'EXTERNAL' &&
+        !mapping.target.externalNamespaceColumn,
+    )
+    if (missingExternalNamespace) {
+      setError('Every External ID mapping needs a namespace column.')
       return
     }
 
@@ -321,42 +339,104 @@ export default function ImportDetailPage() {
 
             <section className="panel mt-4 p-5">
               <h2 className="font-bold text-slate-950">2. Field mapping</h2>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <p className="mt-1 text-xs text-slate-500">
+                Common headers are mapped automatically. Review each suggestion before starting.
+              </p>
+              <div className="mt-4 space-y-3">
                 {mappings.map((mapping, index) => (
-                  <label
+                  <div
                     key={mapping.column}
-                    className="text-xs font-semibold text-slate-700"
+                    className="grid gap-3 rounded-xl border border-slate-200 bg-white p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] md:items-start"
                   >
-                    {mapping.column}
-                    <select
-                      className="form-input mt-1"
-                      value={targetKey(mapping.target)}
-                      onChange={(event) =>
-                        setMappings((current) =>
-                          current.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, target: parseTarget(event.target.value) }
-                              : item,
-                          ),
-                        )
-                      }
-                    >
-                      <option value="IGNORE">Ignore</option>
-                      <option value="BUILTIN:displayName">Display name</option>
-                      <option value="BUILTIN:firstName">First name</option>
-                      <option value="BUILTIN:lastName">Last name</option>
-                      <option value="BUILTIN:organization">Organization</option>
-                      <option value="BUILTIN:notes">Notes</option>
-                      <option value="IDENTITY:EMAIL">Email identity</option>
-                      <option value="IDENTITY:PHONE">Phone identity</option>
-                      <option value="TAG_NAMES">Tag names</option>
-                      {customFields.map((field) => (
-                        <option key={field.id} value={'CUSTOM_FIELD:' + field.id}>
-                          Custom field · {field.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        CSV column
+                      </div>
+                      <div className="mt-1 break-all font-mono text-sm font-semibold text-slate-900">
+                        {mapping.column}
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-xs font-semibold text-slate-700">
+                        Import as
+                        <select
+                          aria-label={'Map ' + mapping.column}
+                          className="form-input mt-1 w-full"
+                          value={targetKey(mapping.target)}
+                          onChange={(event) =>
+                            setMappings((current) =>
+                              current.map((item, itemIndex) =>
+                                itemIndex === index
+                                  ? { ...item, target: parseTarget(event.target.value) }
+                                  : item,
+                              ),
+                            )
+                          }
+                        >
+                          <option value="IGNORE">Ignore</option>
+                          <option value="BUILTIN:displayName">Display name</option>
+                          <option value="BUILTIN:firstName">First name</option>
+                          <option value="BUILTIN:lastName">Last name</option>
+                          <option value="BUILTIN:organization">Organization</option>
+                          <option value="BUILTIN:jobTitle">Job title</option>
+                          <option value="BUILTIN:countryCode">Country code</option>
+                          <option value="BUILTIN:timezone">Timezone</option>
+                          <option value="BUILTIN:language">Language</option>
+                          <option value="BUILTIN:source">Source</option>
+                          <option value="BUILTIN:notes">Notes</option>
+                          <option value="IDENTITY:EMAIL">Email identity</option>
+                          <option value="IDENTITY:PHONE">Phone identity</option>
+                          <option value="IDENTITY:EXTERNAL">External ID</option>
+                          <option value="TAG_NAMES">Tag names</option>
+                          {customFields.map((field) => (
+                            <option key={field.id} value={'CUSTOM_FIELD:' + field.id}>
+                              Custom field · {field.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {mapping.target.type === 'IDENTITY' &&
+                        mapping.target.identityType === 'EXTERNAL' && (
+                          <label className="text-xs font-semibold text-slate-700">
+                            External ID namespace column
+                            <select
+                              aria-label={'Namespace for ' + mapping.column}
+                              className="form-input mt-1 w-full"
+                              value={mapping.target.externalNamespaceColumn ?? ''}
+                              onChange={(event) =>
+                                setMappings((current) =>
+                                  current.map((item, itemIndex) =>
+                                    itemIndex === index &&
+                                    item.target.type === 'IDENTITY' &&
+                                    item.target.identityType === 'EXTERNAL'
+                                      ? {
+                                          ...item,
+                                          target: {
+                                            ...item.target,
+                                            externalNamespaceColumn: event.target.value,
+                                          },
+                                        }
+                                      : item,
+                                  ),
+                                )
+                              }
+                            >
+                              <option value="">Choose namespace column…</option>
+                              {preview.headers
+                                .filter((header) => header !== mapping.column)
+                                .map((header) => (
+                                  <option key={header} value={header}>
+                                    {header}
+                                  </option>
+                                ))}
+                            </select>
+                            <span className="mt-1 block font-normal text-slate-500">
+                              Use a stable source such as CRM/provider name to prevent ID collisions.
+                            </span>
+                          </label>
+                        )}
+                    </div>
+                  </div>
                 ))}
               </div>
             </section>

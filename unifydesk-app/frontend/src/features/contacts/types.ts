@@ -377,9 +377,23 @@ export type ImportFieldTarget =
   | { type: 'IGNORE' }
   | {
       type: 'BUILTIN'
-      field: 'displayName' | 'firstName' | 'lastName' | 'organization' | 'notes'
+      field:
+        | 'displayName'
+        | 'firstName'
+        | 'lastName'
+        | 'organization'
+        | 'jobTitle'
+        | 'countryCode'
+        | 'timezone'
+        | 'language'
+        | 'source'
+        | 'notes'
     }
-  | { type: 'IDENTITY'; identityType: 'EMAIL' | 'PHONE' }
+  | {
+      type: 'IDENTITY'
+      identityType: 'EMAIL' | 'PHONE' | 'EXTERNAL'
+      externalNamespaceColumn?: string | null
+    }
   | { type: 'TAG_NAMES' }
   | { type: 'CUSTOM_FIELD'; fieldId: string }
 
