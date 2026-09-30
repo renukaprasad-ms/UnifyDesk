@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import ExportJobButton from '../../components/contacts/ExportJobButton'
 import { contactsApi } from '../../features/contacts/contactsApi'
+import { DEFAULT_CONTACT_EXPORT_FIELDS } from '../../features/contacts/contactModel'
 import type { ContactSummary, ListSummary } from '../../features/contacts/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
@@ -106,12 +107,7 @@ export default function ListDetailPage() {
                   companyId={companyId}
                   sourceType="LIST"
                   sourceId={listId}
-                  fields={[
-                    'displayName',
-                    'primaryEmail',
-                    'primaryPhone',
-                    'organization',
-                  ]}
+                  fields={DEFAULT_CONTACT_EXPORT_FIELDS}
                   label="Export List"
                 />
               )}
