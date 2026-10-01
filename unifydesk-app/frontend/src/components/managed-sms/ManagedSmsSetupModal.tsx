@@ -68,6 +68,7 @@ export default function ManagedSmsSetupModal({
     if (currentCompanyId.current === companyId) return
     currentCompanyId.current = companyId
     requestGeneration.current += 1
+    setBusy(false)
     setLoading(true)
     setStatus(null)
     setProfile(null)
@@ -145,23 +146,35 @@ export default function ManagedSmsSetupModal({
     }
   }, [readyHeaders, templateHeaderId])
 
-  const withBusy = async (action: () => Promise<void>) => {
+  const withBusy = async (
+    action: (isCurrentTenant: () => boolean) => Promise<void>,
+  ) => {
+    const requestCompanyId = companyId
+    const isCurrentTenant = () =>
+      isManagedSmsTenantCurrent(requestCompanyId, currentCompanyId.current)
+
+    if (!isCurrentTenant()) return
+
     setBusy(true)
     try {
-      await action()
+      await action(isCurrentTenant)
+      if (!isCurrentTenant()) return
       onChanged()
       await load()
     } catch (error) {
+      if (!isCurrentTenant()) return
       snackbar.error(managedSmsErrorMessage(error))
     } finally {
-      setBusy(false)
+      if (isCurrentTenant()) {
+        setBusy(false)
+      }
     }
   }
 
   const createProfile = (event: FormEvent) => {
     event.preventDefault()
     if (!legalName.trim() || !peId.trim()) return
-    void withBusy(async () => {
+    void withBusy(async (isCurrentTenant) => {
       const created = await managedSmsApi.createDltProfile(companyId, {
         legalName: legalName.trim(),
         dltPlatform,
@@ -169,7 +182,9 @@ export default function ManagedSmsSetupModal({
         tmChainReference: tmChainReference.trim() || null,
         evidence: {},
       })
+      if (!isCurrentTenant()) return
       await managedSmsApi.submitDltProfile(companyId, created.id)
+      if (!isCurrentTenant()) return
       snackbar.success('DLT profile submitted for verification.')
     })
   }
@@ -177,12 +192,14 @@ export default function ManagedSmsSetupModal({
   const createHeader = (event: FormEvent) => {
     event.preventDefault()
     if (!header.trim()) return
-    void withBusy(async () => {
+    void withBusy(async (isCurrentTenant) => {
       const created = await managedSmsApi.createHeader(companyId, {
         header: header.trim().toUpperCase(),
         messageCategory: headerCategory,
       })
+      if (!isCurrentTenant()) return
       await managedSmsApi.submitHeader(companyId, created.id)
+      if (!isCurrentTenant()) return
       setHeader('')
       snackbar.success('Header submitted for verification.')
     })
@@ -198,7 +215,7 @@ export default function ManagedSmsSetupModal({
     ) {
       return
     }
-    void withBusy(async () => {
+    void withBusy(async (isCurrentTenant) => {
       const created = await managedSmsApi.createTemplate(companyId, {
         name: templateName.trim(),
         headerIds: [templateHeaderId],
@@ -210,6 +227,7 @@ export default function ManagedSmsSetupModal({
         consentPolicy: null,
         optOutPolicy: null,
       })
+      if (!isCurrentTenant()) return
       if (!created.activeVersion) {
         throw new Error('Template version was not returned')
       }
@@ -218,6 +236,7 @@ export default function ManagedSmsSetupModal({
         created.id,
         created.activeVersion.id,
       )
+      if (!isCurrentTenant()) return
       setTemplateName('')
       setDltTemplateId('')
       setTemplateBody('')
@@ -227,8 +246,9 @@ export default function ManagedSmsSetupModal({
   }
 
   const createSender = (headerId: string) => {
-    void withBusy(async () => {
+    void withBusy(async (isCurrentTenant) => {
       await managedSmsApi.createSender(companyId, { headerId })
+      if (!isCurrentTenant()) return
       snackbar.success('Managed SMS sender is ready for Broadcast.')
     })
   }
