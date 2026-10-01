@@ -1,12 +1,18 @@
 # Platform Hardening Round 1
 
-Status: **LEAD PLAN FROZEN — WORKERS MAY START AFTER THIS PLAN IS MERGED**
+Status: **L1 INTEGRATED — SEC/QA PRODUCTION-CODE BASE FROZEN**
 
 Starting `dev` SHA and frozen worker base:
 
 `c541899f238dbe6f70f9b91f5c513fa1b10f5641`
 
 Resolved on 2026-10-01 after Platform Baseline PR #221 merged.
+
+Frozen integrated production-code / SEC-QA base:
+
+`7fe25fe73eca72b57172d025d944b6ed54ce196f`
+
+See [INTEGRATION_STATUS.md](INTEGRATION_STATUS.md) for exact worker lineage, canonical run `36846527232`, zero-step evidence, and known required-gate findings.
 
 ## Objective
 
