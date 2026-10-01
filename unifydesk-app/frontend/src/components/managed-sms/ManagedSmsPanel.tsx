@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { FiActivity, FiMessageSquare, FiRefreshCw, FiShield } from 'react-icons/fi'
 import { managedSmsApi } from '../../features/managedSms/managedSmsApi'
 import { managedSmsErrorMessage, managedSmsStateDescription } from '../../features/managedSms/copy'
@@ -28,36 +28,50 @@ export default function ManagedSmsPanel({
   const [health, setHealth] = useState<ManagedSmsDeliveryHealth | null>(null)
   const [loading, setLoading] = useState(true)
   const currentCompanyId = useRef(companyId)
+  const requestGeneration = useRef(0)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (currentCompanyId.current === companyId) return
     currentCompanyId.current = companyId
+    requestGeneration.current += 1
+    setLoading(true)
+    setStatus(null)
+    setUsage(null)
+    setHealth(null)
   }, [companyId])
 
   const load = useCallback(async () => {
     const requestCompanyId = companyId
+    if (!isManagedSmsTenantCurrent(requestCompanyId, currentCompanyId.current)) return
+
+    const generation = ++requestGeneration.current
+    const isCurrentRequest = () =>
+      isManagedSmsTenantCurrent(requestCompanyId, currentCompanyId.current) &&
+      generation === requestGeneration.current
+
     setLoading(true)
     setStatus(null)
     setUsage(null)
     setHealth(null)
     try {
       const nextStatus = await managedSmsApi.status(requestCompanyId)
-      if (!isManagedSmsTenantCurrent(requestCompanyId, currentCompanyId.current)) return
+      if (!isCurrentRequest()) return
       setStatus(nextStatus)
       const [nextUsage, nextHealth] = await Promise.allSettled([
         managedSmsApi.usage(requestCompanyId),
         managedSmsApi.deliveryHealth(requestCompanyId),
       ])
-      if (!isManagedSmsTenantCurrent(requestCompanyId, currentCompanyId.current)) return
+      if (!isCurrentRequest()) return
       setUsage(nextUsage.status === 'fulfilled' ? nextUsage.value : null)
       setHealth(nextHealth.status === 'fulfilled' ? nextHealth.value : null)
     } catch (error) {
-      if (!isManagedSmsTenantCurrent(requestCompanyId, currentCompanyId.current)) return
+      if (!isCurrentRequest()) return
       setStatus(null)
       setUsage(null)
       setHealth(null)
       snackbar.error(managedSmsErrorMessage(error, 'Unable to load Managed SMS status.'))
     } finally {
-      if (isManagedSmsTenantCurrent(requestCompanyId, currentCompanyId.current)) {
+      if (isCurrentRequest()) {
         setLoading(false)
       }
     }
