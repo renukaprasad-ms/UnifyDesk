@@ -23,11 +23,14 @@ public class DatabaseMigrationConfig {
         Flyway.configure()
             .dataSource(write.getUrl(), write.getUsername(), write.getPassword())
             .locations(environment.getProperty("spring.flyway.locations", "classpath:db/migration"))
-            .baselineOnMigrate(
-                environment.getProperty("spring.flyway.baseline-on-migrate", Boolean.class, false))
+            .baselineOnMigrate(baselineOnMigrate(environment))
             .baselineVersion(environment.getProperty("spring.flyway.baseline-version", "0"))
             .load()
             .migrate();
+  }
+
+  static boolean baselineOnMigrate(Environment environment) {
+    return environment.getProperty("spring.flyway.baseline-on-migrate", Boolean.class, false);
   }
 
   @Bean
