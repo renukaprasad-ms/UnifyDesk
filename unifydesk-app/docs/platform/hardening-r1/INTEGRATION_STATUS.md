@@ -1,5 +1,7 @@
 # Platform Hardening R1 Integration Status
 
+> Current authoritative Round-1 state is the **final targeted-remediation integration** section at the end of this file. Earlier sections are preserved as historical integration evidence.
+
 ## Frozen lineage
 
 Starting `dev` / frozen worker base:
@@ -252,3 +254,109 @@ L1 planned integration order:
 After all three are reviewed and integrated, L1 must freeze a NEW exact integrated production-code SHA. SEC/QA must then independently reverify that exact SHA.
 
 PHR1-QA-001 remains external. Do not close it unless actual runner allocation is restored and exact-SHA jobs execute.
+
+
+## Final targeted-remediation integration — authoritative current state
+
+Main explicitly deferred the external GitHub Actions runner-allocation problem for this round. No additional runner reruns are required for this integration decision.
+
+### Final remediation lineage
+
+Common remediation worker base:
+
+`677dea286bfe45b2172872442125f2faf4ce7953`
+
+| Order | Scope | PR | Reviewed head | Integration decision | Merge commit |
+|---:|---|---:|---|---|---|
+| 1 | B1 — PHR1-QA-002 / PHR1-QA-004 | #231 | `8c4f6bfd37e457a44f7d120dfff330730083e387` | APPROVED for semantic/test remediation; formatting proof deferred | `b833aa739138f423463c8015dfdecc335874b922` |
+| 2 | F1 — PHR1-QA-005 | #230 | `09beabd0b7170b27c8b8b4fae8352e687705fd10` | APPROVED core load-generation remediation | `a56fbb0eb2fde1a599f287f50f72be220beafdcb` |
+| 2a | L1 integration-only completion for PHR1-QA-005 | #233 | `cd6e50aa127189251677278f9c5202508ebfaa32` | APPROVED; closes stale setup-mutation completion gap | `e5856cfb61c7613427713f73dc8fd6014768538d` |
+| 3 | B2 — PHR1-QA-003 | #232 | `11d16ccbd2ecaf30032860f87807ba59b1085f97` | APPROVED five exact evidence-backed formatter corrections; full baseline proof deferred | `5012fd426b4d2da50d5c8fe5c44cf3f15b5aebc3` |
+
+### New frozen production-code SHA
+
+Final Round-1 remediated production-code SHA:
+
+`5012fd426b4d2da50d5c8fe5c44cf3f15b5aebc3`
+
+This is the exact base for final independent SEC/QA re-verification.
+
+Later documentation-only commits do not change this frozen production-code base.
+
+### B1 review disposition
+
+PR #231 changed one production file plus targeted tests/fixtures only.
+
+Accepted production fixes in `GoogleProviderCampaignCompiler`:
+
+1. Display provider-audience-list targeting no longer dereferences a null canonical `AudienceDefinition`.
+2. `configure-pmax-lifecycle` is emitted from the Performance Max branch rather than the Display branch.
+
+The test corrections were reviewed against current production contracts. They update stale enum/key/URI/metric expectations, repair missing mocks/current JDBC overload fixtures, and remove historical fixture defects rather than suppressing assertions.
+
+No Flyway migration, `DatabaseMigrationConfig`, `application.yaml`, canonical CI workflow, or `SnowflakeIdGenerator` production validation was changed by #231.
+
+PHR1-QA-004 source remediation is therefore accepted.
+
+The full environment-correct backend matrix did not execute because the available GitHub runner path remained externally blocked. That verification debt remains explicit.
+
+PHR1-QA-002 repository-wide Spotless is NOT claimed green. The broad ~810-file mechanical formatting operation was intentionally not fabricated without an executable formatter environment.
+
+### F1 / L1 review disposition
+
+PR #230 correctly moves company-switch invalidation into layout phase and adds request-generation checks for Managed SMS loads.
+
+L1 review identified one narrow remaining integration gap in `ManagedSmsSetupModal`: a company-A mutation already in flight could still reach unguarded post-mutation `onChanged`, snackbar, or `finally setBusy(false)` paths after company B committed.
+
+PR #233 completed that same finding by:
+
+- synchronously clearing stale busy state on tenant switch;
+- scoping setup mutation completion to the initiating company;
+- preventing stale success/error/finally UI effects;
+- stopping later create/submit calls when the initiating tenant becomes stale;
+- adding delayed-promise component tests for stale mutation success and rejection.
+
+No Managed SMS UI redesign was introduced.
+
+PHR1-QA-005 source remediation is accepted. Frontend executable verification remains deferred if no execution environment is available.
+
+### B2 review disposition
+
+PR #232 was reviewed while draft, then marked ready by L1.
+
+Net diff is five email-provider Java files and is mechanical formatting only. The exact changes match prior real Spotless diagnostic output.
+
+No formatter rules, exclusions, Maven Wrapper behavior, CI workflow, product behavior, backend/frontend/website code, or migrations changed.
+
+PHR1-QA-003 is NOT claimed fully green. Only the recoverable five formatter corrections are integrated; the complete email-provider Spotless/test/package matrix remains deferred verification debt.
+
+## Final finding status before final SEC/QA
+
+| Finding | Current L1 status | Meaning |
+|---|---|---|
+| PHR1-QA-001 | **BLOCKED EXTERNAL / DEFERRED** | Main explicitly deferred GitHub runner allocation. Zero-step jobs are not PASS. |
+| PHR1-QA-002 | **DEFERRED VERIFICATION / FORMATTING DEBT** | Backend Spotless baseline not proven green; does not block normal product development under Main's decision. |
+| PHR1-QA-003 | **SOURCE REMEDIATION PARTIAL / DEFERRED VERIFICATION / FORMATTING DEBT** | Five exact formatter fixes integrated; full email-provider formatter/test/package proof unavailable. |
+| PHR1-QA-004 | **SOURCE REMEDIATION COMPLETE / EXECUTABLE VERIFICATION DEFERRED** | All historical failures classified; 19 stale/fixture issues + 2 production compiler regressions corrected; canonical backend rerun unavailable. |
+| PHR1-QA-005 | **SOURCE REMEDIATION COMPLETE / EXECUTABLE VERIFICATION DEFERRED** | Tenant-switch load and mutation completion paths are source-remediated with component race tests; frontend matrix not claimed executed. |
+
+## Final SEC/QA handoff
+
+Prompt:
+
+`unifydesk-app/docs/platform/hardening-r1/SECURITY_QA_R1_FINAL_CHAT_PROMPT.md`
+
+SEC/QA must branch from exactly:
+
+`5012fd426b4d2da50d5c8fe5c44cf3f15b5aebc3`
+
+Expected review emphasis:
+
+- independent SOURCE REVIEWED validation of B1/F1/B2 remediation;
+- use executable evidence only where a command actually runs;
+- retain PHR1-QA-001 as BLOCKED EXTERNAL / DEFERRED;
+- retain backend/email-provider Spotless debt unless actually proven;
+- do not falsely close PLAT-002;
+- preserve PLAT-003 integrated-execution limitation unless the final frozen SHA is actually executed.
+
+Main's deferral unblocks normal UnifyDesk product development after final SEC/QA source re-verification; it does not convert deferred production-release evidence into PASS.
