@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { WhatsAppTemplate } from '../../features/whatsapp/types'
-import { templateVariableCounts } from './WhatsAppInbox'
+import { templateVariableCounts } from './whatsappTemplateUtils'
 
 describe('WhatsApp Inbox template variables', () => {
   it('derives header, body and button variable counts from approved components', () => {
