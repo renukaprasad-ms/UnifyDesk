@@ -52,6 +52,15 @@ describe('inboxSlice realtime updates', () => {
 
     state = inboxReducer(
       state,
+      fetchInboxConversations.pending('request-1', {
+        companyId: 'company-1',
+        connectionId: 'connection-1',
+        folder: 'INBOX',
+      }),
+    )
+
+    state = inboxReducer(
+      state,
       fetchInboxConversations.fulfilled(
         {
           companyId: 'company-1',
@@ -73,6 +82,14 @@ describe('inboxSlice realtime updates', () => {
           folder: 'INBOX',
         },
       ),
+    )
+
+    state = inboxReducer(
+      state,
+      fetchInboxConversationDetail.pending('request-2', {
+        companyId: 'company-1',
+        conversationId: 'conversation-1',
+      }),
     )
 
     state = inboxReducer(
