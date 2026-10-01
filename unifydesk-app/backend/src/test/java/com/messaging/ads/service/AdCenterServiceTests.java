@@ -58,6 +58,8 @@ class AdCenterServiceTests {
     AdAccount account = account(1L, false, false, false);
     when(accountRepository.findByIdAndCompanyId(1L, COMPANY_ID))
         .thenReturn(Optional.of(account));
+    when(accountRepository.findByCompanyIdAndProviderForUpdate(COMPANY_ID, AdProvider.META_ADS))
+        .thenReturn(List.of(account));
 
     assertThatThrownBy(
             () ->

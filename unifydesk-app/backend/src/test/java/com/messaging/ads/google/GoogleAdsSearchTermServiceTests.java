@@ -157,9 +157,6 @@ class GoogleAdsSearchTermServiceTests {
 
   @Test
   void rejectsReportLongerThanNinetyDays() {
-    when(campaignRepository.findByIdAndCompanyId(10L, 1L))
-        .thenReturn(Optional.of(campaign()));
-
     assertThatThrownBy(
             () ->
                 service.report(
