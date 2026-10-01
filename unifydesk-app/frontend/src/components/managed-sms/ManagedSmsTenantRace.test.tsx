@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { managedSmsApi } from '../../features/managedSms/managedSmsApi'
 import type {
@@ -327,4 +327,137 @@ describe('Managed SMS tenant request invalidation', () => {
     expect(screen.getByText('HEADERB')).toBeInTheDocument()
     expect(screen.getByText('company-b template')).toBeInTheDocument()
   })
+  it('does not continue a stale company-A setup mutation after switching to B', async () => {
+    snackbar.success.mockClear()
+    snackbar.error.mockClear()
+    const onChanged = vi.fn()
+    const aCreate = deferred<ManagedSmsDltProfile>()
+
+    vi.spyOn(managedSmsApi, 'status').mockImplementation((companyId) =>
+      Promise.resolve(status(companyId)),
+    )
+    vi.spyOn(managedSmsApi, 'dltProfile').mockResolvedValue(null)
+    vi.spyOn(managedSmsApi, 'headers').mockResolvedValue([])
+    vi.spyOn(managedSmsApi, 'templates').mockResolvedValue([])
+    vi.spyOn(managedSmsApi, 'createDltProfile').mockImplementation((companyId) =>
+      companyId === 'company-a' ? aCreate.promise : Promise.resolve(profile(companyId)),
+    )
+    const submitSpy = vi
+      .spyOn(managedSmsApi, 'submitDltProfile')
+      .mockResolvedValue(profile('company-a'))
+
+    const view = render(
+      <ManagedSmsSetupModal
+        companyId="company-a"
+        canModify
+        onClose={vi.fn()}
+        onChanged={onChanged}
+      />,
+    )
+
+    await screen.findByText('company-a status')
+    fireEvent.change(screen.getByLabelText('Registered legal business name'), {
+      target: { value: 'Company A Legal' },
+    })
+    fireEvent.change(screen.getByLabelText('PE / Entity ID'), {
+      target: { value: 'PE-A' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit DLT profile' }))
+
+    await waitFor(() =>
+      expect(managedSmsApi.createDltProfile).toHaveBeenCalledWith(
+        'company-a',
+        expect.objectContaining({ legalName: 'Company A Legal', peId: 'PE-A' }),
+      ),
+    )
+
+    view.rerender(
+      <ManagedSmsSetupModal
+        companyId="company-b"
+        canModify
+        onClose={vi.fn()}
+        onChanged={onChanged}
+      />,
+    )
+    await screen.findByText('company-b status')
+
+    await act(async () => {
+      aCreate.resolve(profile('company-a'))
+      await aCreate.promise
+    })
+
+    expect(submitSpy).not.toHaveBeenCalled()
+    expect(onChanged).not.toHaveBeenCalled()
+    expect(snackbar.success).not.toHaveBeenCalled()
+    expect(snackbar.error).not.toHaveBeenCalled()
+    expect(screen.getByText('company-b status')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Submit DLT profile' })).not.toBeDisabled()
+  })
+
+  it('does not surface a stale company-A mutation failure after switching to B', async () => {
+    snackbar.error.mockClear()
+    const onChanged = vi.fn()
+    const aCreate = deferred<ManagedSmsDltProfile>()
+
+    vi.spyOn(managedSmsApi, 'status').mockImplementation((companyId) =>
+      Promise.resolve(status(companyId)),
+    )
+    vi.spyOn(managedSmsApi, 'dltProfile').mockResolvedValue(null)
+    vi.spyOn(managedSmsApi, 'headers').mockResolvedValue([])
+    vi.spyOn(managedSmsApi, 'templates').mockResolvedValue([])
+    vi.spyOn(managedSmsApi, 'createDltProfile').mockImplementation((companyId) =>
+      companyId === 'company-a' ? aCreate.promise : Promise.resolve(profile(companyId)),
+    )
+    vi.spyOn(managedSmsApi, 'submitDltProfile').mockResolvedValue(profile('company-a'))
+
+    const view = render(
+      <ManagedSmsSetupModal
+        companyId="company-a"
+        canModify
+        onClose={vi.fn()}
+        onChanged={onChanged}
+      />,
+    )
+
+    await screen.findByText('company-a status')
+    fireEvent.change(screen.getByLabelText('Registered legal business name'), {
+      target: { value: 'Company A Legal' },
+    })
+    fireEvent.change(screen.getByLabelText('PE / Entity ID'), {
+      target: { value: 'PE-A' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit DLT profile' }))
+
+    await waitFor(() =>
+      expect(managedSmsApi.createDltProfile).toHaveBeenCalledWith(
+        'company-a',
+        expect.any(Object),
+      ),
+    )
+
+    view.rerender(
+      <ManagedSmsSetupModal
+        companyId="company-b"
+        canModify
+        onClose={vi.fn()}
+        onChanged={onChanged}
+      />,
+    )
+    await screen.findByText('company-b status')
+
+    await act(async () => {
+      aCreate.reject(new Error('company-a mutation failure'))
+      try {
+        await aCreate.promise
+      } catch {
+        // Expected rejection: stale company-A failures must be ignored by company B.
+      }
+    })
+
+    expect(onChanged).not.toHaveBeenCalled()
+    expect(snackbar.error).not.toHaveBeenCalled()
+    expect(screen.getByText('company-b status')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Submit DLT profile' })).not.toBeDisabled()
+  })
+
 })
