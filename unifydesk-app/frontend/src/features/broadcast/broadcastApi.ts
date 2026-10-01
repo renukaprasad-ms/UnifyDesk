@@ -118,9 +118,7 @@ export const broadcastApi = {
   },
 
   async disconnectSender(companyId: string, senderId: string) {
-    await apiClient.delete(
-      `/api/v1/companies/${companyId}/broadcast/senders/${senderId}`,
-    )
+    await apiClient.delete(`/api/v1/companies/${companyId}/broadcast/senders/${senderId}`)
   },
 
   async groups(companyId: string, channelType: ChannelType, page = 0, size = 50) {
@@ -198,11 +196,7 @@ export const broadcastApi = {
     return unwrap(response.data)
   },
 
-  async createMessage(
-    companyId: string,
-    groupId: string,
-    input: CreateBroadcastMessageInput,
-  ) {
+  async createMessage(companyId: string, groupId: string, input: CreateBroadcastMessageInput) {
     const response = await apiClient.post<ApiResponse<BroadcastMessage>>(
       `/api/v1/companies/${companyId}/broadcast/groups/${groupId}/messages`,
       input,
@@ -210,11 +204,7 @@ export const broadcastApi = {
     return unwrap(response.data)
   },
 
-  async updateMessage(
-    companyId: string,
-    broadcastId: string,
-    input: CreateBroadcastMessageInput,
-  ) {
+  async updateMessage(companyId: string, broadcastId: string, input: CreateBroadcastMessageInput) {
     const response = await apiClient.put<ApiResponse<BroadcastMessage>>(
       `/api/v1/companies/${companyId}/broadcast/messages/${broadcastId}`,
       input,

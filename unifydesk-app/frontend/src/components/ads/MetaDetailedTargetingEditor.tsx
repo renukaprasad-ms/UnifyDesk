@@ -132,8 +132,7 @@ export default function MetaDetailedTargetingEditor({
               >
                 <span>
                   <span className="block text-sm font-semibold text-slate-800">{item.name}</span>
-                  {(item.audienceSizeLowerBound != null ||
-                    item.audienceSizeUpperBound != null) && (
+                  {(item.audienceSizeLowerBound != null || item.audienceSizeUpperBound != null) && (
                     <span className="mt-0.5 block text-[11px] text-slate-400">
                       Estimated Meta audience size:{' '}
                       {item.audienceSizeLowerBound?.toLocaleString() ?? '—'} –{' '}

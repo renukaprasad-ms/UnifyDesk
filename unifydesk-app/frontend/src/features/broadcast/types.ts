@@ -45,16 +45,13 @@ export type BroadcastMemberImportResult = {
   invalid: number
 }
 
-export type BroadcastSenderProvider = 'AMAZON_SES' | 'AZURE_EMAIL' | 'SENDGRID' | 'MSG91_EMAIL' | 'MSG91_SMS'
+export type BroadcastSenderProvider =
+  'AMAZON_SES' | 'AZURE_EMAIL' | 'SENDGRID' | 'MSG91_EMAIL' | 'MSG91_SMS'
 export type BroadcastSenderManagementMode = 'CUSTOMER_MANAGED' | 'MESSAGING_MANAGED'
 export type BroadcastSenderStatus = 'ACTIVE' | 'DISABLED'
 export type BroadcastSenderAuthMode = 'IAM_ROLE' | 'ACCESS_KEYS' | 'API_KEY'
 export type BroadcastSetupStatus =
-  | 'IN_PROGRESS'
-  | 'WAITING_EXTERNAL_ACTION'
-  | 'READY_TO_CONNECT'
-  | 'COMPLETED'
-  | 'CANCELLED'
+  'IN_PROGRESS' | 'WAITING_EXTERNAL_ACTION' | 'READY_TO_CONNECT' | 'COMPLETED' | 'CANCELLED'
 export type SendGridRegion = 'GLOBAL' | 'EU'
 
 export type BroadcastSetupSession = {
@@ -166,13 +163,7 @@ export type BroadcastMessageStatus =
   | 'FAILED'
 
 export type BroadcastRunStatus =
-  | 'PREPARING'
-  | 'RUNNING'
-  | 'PAUSED'
-  | 'COMPLETED'
-  | 'PARTIALLY_FAILED'
-  | 'CANCELLED'
-  | 'FAILED'
+  'PREPARING' | 'RUNNING' | 'PAUSED' | 'COMPLETED' | 'PARTIALLY_FAILED' | 'CANCELLED' | 'FAILED'
 
 export type BroadcastStats = {
   total: number

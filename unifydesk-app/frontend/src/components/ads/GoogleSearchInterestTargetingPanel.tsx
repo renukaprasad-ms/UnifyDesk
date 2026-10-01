@@ -39,12 +39,7 @@ export default function GoogleSearchInterestTargetingPanel({
       .googleSearchInterestTargeting(companyId, adGroupId)
       .then(applySnapshot)
       .catch((loadError) =>
-        setError(
-          apiErrorMessage(
-            loadError,
-            'Unable to load Google Search interest targeting',
-          ),
-        ),
+        setError(apiErrorMessage(loadError, 'Unable to load Google Search interest targeting')),
       )
       .finally(() => setLoading(false))
   }, [companyId, adGroupId])
@@ -54,23 +49,14 @@ export default function GoogleSearchInterestTargetingPanel({
     setError('')
     setNotice('')
     try {
-      const updated = await adCenterApi.updateGoogleSearchInterestTargeting(
-        companyId,
-        adGroupId,
-        {
-          includedResourceNames: included,
-          excludedResourceNames: excluded,
-        },
-      )
+      const updated = await adCenterApi.updateGoogleSearchInterestTargeting(companyId, adGroupId, {
+        includedResourceNames: included,
+        excludedResourceNames: excluded,
+      })
       applySnapshot(updated)
       setNotice('Affinity and In-market targeting updated in Google Ads.')
     } catch (saveError) {
-      setError(
-        apiErrorMessage(
-          saveError,
-          'Unable to update Google Search interest targeting',
-        ),
-      )
+      setError(apiErrorMessage(saveError, 'Unable to update Google Search interest targeting'))
     } finally {
       setSaving(false)
     }
@@ -79,13 +65,10 @@ export default function GoogleSearchInterestTargetingPanel({
   return (
     <section className="panel mt-5 p-5">
       <div>
-        <h2 className="font-bold text-slate-950">
-          Search interest segments
-        </h2>
+        <h2 className="font-bold text-slate-950">Search interest segments</h2>
         <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-          Manage Google Affinity and In-market criteria on this Search ad group.
-          These criteria share the Observation/Targeting mode configured in the
-          Search audience panel above.
+          Manage Google Affinity and In-market criteria on this Search ad group. These criteria
+          share the Observation/Targeting mode configured in the Search audience panel above.
         </p>
       </div>
 
@@ -102,16 +85,14 @@ export default function GoogleSearchInterestTargetingPanel({
       )}
 
       {loading ? (
-        <p className="mt-4 text-sm text-slate-500">
-          Loading Google Search segments…
-        </p>
+        <p className="mt-4 text-sm text-slate-500">Loading Google Search segments…</p>
       ) : (
         <>
           {snapshot?.preservedUnsupportedResourceNames.length ? (
             <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-              This ad group contains other Google USER_INTEREST criteria that are
-              outside the Affinity/In-market scope managed here. UnifyDesk
-              preserves them: {snapshot.preservedUnsupportedResourceNames.join(', ')}.
+              This ad group contains other Google USER_INTEREST criteria that are outside the
+              Affinity/In-market scope managed here. UnifyDesk preserves them:{' '}
+              {snapshot.preservedUnsupportedResourceNames.join(', ')}.
             </p>
           ) : null}
 

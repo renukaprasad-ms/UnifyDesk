@@ -67,8 +67,8 @@ export default function GoogleAiMaxBrandSelector(props: Props) {
         <div>
           <p className="text-xs font-bold text-slate-800">Brand controls</p>
           <p className="mt-1 text-[11px] leading-5 text-slate-500">
-            Select verified Google brands. Inclusions restrict this Search campaign to
-            selected brands; exclusions prevent matching selected brands.
+            Select verified Google brands. Inclusions restrict this Search campaign to selected
+            brands; exclusions prevent matching selected brands.
           </p>
         </div>
         <select
@@ -125,9 +125,7 @@ export default function GoogleAiMaxBrandSelector(props: Props) {
               onClick={() => select(brand)}
             >
               <div className="min-w-0">
-                <p className="truncate text-xs font-semibold text-slate-800">
-                  {brand.name}
-                </p>
+                <p className="truncate text-xs font-semibold text-slate-800">{brand.name}</p>
                 <p className="mt-0.5 truncate text-[10px] text-slate-400">
                   {brand.urls?.[0] || brand.state || 'Verified Google brand'}
                 </p>

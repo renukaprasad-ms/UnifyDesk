@@ -50,7 +50,9 @@ export const contactsApi = {
   },
 
   async get(companyId: string, contactId: string) {
-    const response = await apiClient.get<ApiResponse<ContactDetail>>(base(companyId) + '/' + contactId)
+    const response = await apiClient.get<ApiResponse<ContactDetail>>(
+      base(companyId) + '/' + contactId,
+    )
     return unwrap(response.data)
   },
 
@@ -74,7 +76,12 @@ export const contactsApi = {
   async addIdentity(
     companyId: string,
     contactId: string,
-    payload: { type: ContactIdentity['type']; value: string; namespace?: string | null; primary?: boolean },
+    payload: {
+      type: ContactIdentity['type']
+      value: string
+      namespace?: string | null
+      primary?: boolean
+    },
   ) {
     const response = await apiClient.post<ApiResponse<ContactIdentity>>(
       base(companyId) + '/' + contactId + '/identities',
@@ -100,7 +107,10 @@ export const contactsApi = {
   },
 
   async createTag(companyId: string, payload: { name: string; color?: string | null }) {
-    const response = await apiClient.post<ApiResponse<TagSummary>>(base(companyId) + '/tags', payload)
+    const response = await apiClient.post<ApiResponse<TagSummary>>(
+      base(companyId) + '/tags',
+      payload,
+    )
     return unwrap(response.data)
   },
 
@@ -125,12 +135,17 @@ export const contactsApi = {
   },
 
   async createList(companyId: string, payload: { name: string; description?: string | null }) {
-    const response = await apiClient.post<ApiResponse<ListSummary>>(base(companyId) + '/lists', payload)
+    const response = await apiClient.post<ApiResponse<ListSummary>>(
+      base(companyId) + '/lists',
+      payload,
+    )
     return unwrap(response.data)
   },
 
   async getList(companyId: string, listId: string) {
-    const response = await apiClient.get<ApiResponse<ListSummary>>(base(companyId) + '/lists/' + listId)
+    const response = await apiClient.get<ApiResponse<ListSummary>>(
+      base(companyId) + '/lists/' + listId,
+    )
     return unwrap(response.data)
   },
 
@@ -171,7 +186,9 @@ export const contactsApi = {
   },
 
   async segments(companyId: string) {
-    const response = await apiClient.get<ApiResponse<SegmentDefinition[]>>(base(companyId) + '/segments')
+    const response = await apiClient.get<ApiResponse<SegmentDefinition[]>>(
+      base(companyId) + '/segments',
+    )
     return unwrap(response.data)
   },
 
@@ -275,11 +292,7 @@ export const contactsApi = {
     return unwrap(response.data)
   },
 
-  async createSuppression(
-    companyId: string,
-    contactId: string,
-    payload: CreateSuppressionInput,
-  ) {
+  async createSuppression(companyId: string, contactId: string, payload: CreateSuppressionInput) {
     const response = await apiClient.post<ApiResponse<Suppression>>(
       base(companyId) + '/' + contactId + '/suppressions',
       payload,
@@ -322,11 +335,14 @@ export const contactsApi = {
   },
 
   async createImport(companyId: string, file: File) {
-    const response = await apiClient.post<ApiResponse<ContactImport>>(base(companyId) + '/imports', {
-      fileName: file.name,
-      contentType: file.type || 'text/csv',
-      sizeBytes: file.size,
-    })
+    const response = await apiClient.post<ApiResponse<ContactImport>>(
+      base(companyId) + '/imports',
+      {
+        fileName: file.name,
+        contentType: file.type || 'text/csv',
+        sizeBytes: file.size,
+      },
+    )
     return unwrap(response.data)
   },
 
@@ -400,7 +416,6 @@ export const contactsApi = {
     return unwrap(response.data)
   },
 }
-
 
 export const isContactsErrorCode = (error: unknown, code: string) => {
   if (!axios.isAxiosError<ApiResponse<never>>(error)) return false

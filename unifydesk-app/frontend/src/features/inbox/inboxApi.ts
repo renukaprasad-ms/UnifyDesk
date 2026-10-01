@@ -76,11 +76,7 @@ export const inboxApi = {
     return unwrap(response.data)
   },
 
-  async setConversationReadState(
-    companyId: string,
-    conversationId: string,
-    read: boolean,
-  ) {
+  async setConversationReadState(companyId: string, conversationId: string, read: boolean) {
     const response = await apiClient.put<ApiResponse<InboxReadStateResponse>>(
       `/api/v1/companies/${companyId}/inbox/conversations/${conversationId}/read-state`,
       { read },
@@ -88,11 +84,7 @@ export const inboxApi = {
     return unwrap(response.data)
   },
 
-  async markAllRead(
-    companyId: string,
-    connectionId: string,
-    folder: 'INBOX' | 'SENT' = 'INBOX',
-  ) {
+  async markAllRead(companyId: string, connectionId: string, folder: 'INBOX' | 'SENT' = 'INBOX') {
     const response = await apiClient.post<ApiResponse<AsyncJob>>(
       `/api/v1/companies/${companyId}/inbox/conversations/mark-all-read`,
       null,

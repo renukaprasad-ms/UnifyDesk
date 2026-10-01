@@ -72,7 +72,6 @@ export type InboxReadStateResponse = {
   updatedConversations: number
 }
 
-
 export type InboxConversationDetail = {
   conversation: InboxConversation
   messages: InboxMessage[]

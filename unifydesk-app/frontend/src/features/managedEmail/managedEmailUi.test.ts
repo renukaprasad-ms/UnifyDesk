@@ -42,18 +42,14 @@ describe('Managed Email UI helpers', () => {
 
   it('detects near-limit and limit-reached usage safely', () => {
     expect(isNearUsageLimit(usage({ limit: 1000, remaining: 75 }))).toBe(true)
-    expect(
-      isNearUsageLimit(usage({ limit: 1000, remaining: 0, limitReached: true })),
-    ).toBe(false)
+    expect(isNearUsageLimit(usage({ limit: 1000, remaining: 0, limitReached: true }))).toBe(false)
   })
 
   it('labels managed SES senders as UnifyDesk Managed Email', () => {
     expect(managedSenderProviderLabel('MESSAGING_MANAGED', 'AMAZON_SES')).toBe(
       'UnifyDesk Managed Email',
     )
-    expect(managedSenderProviderLabel('CUSTOMER_MANAGED', 'AMAZON_SES')).toBe(
-      'Amazon SES',
-    )
+    expect(managedSenderProviderLabel('CUSTOMER_MANAGED', 'AMAZON_SES')).toBe('Amazon SES')
   })
 
   it('supports every frozen deliverability status with customer-safe copy', () => {

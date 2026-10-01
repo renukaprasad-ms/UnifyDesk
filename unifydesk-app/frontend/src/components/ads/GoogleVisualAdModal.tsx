@@ -49,14 +49,12 @@ export default function GoogleVisualAdModal({
     () =>
       Boolean(
         name.trim() &&
-          finalUrl.trim() &&
-          businessName.trim() &&
-          headlines.every((value) => value.trim()) &&
-          longHeadline.trim() &&
-          descriptions.every((value) => value.trim()) &&
-          (mode === 'DISPLAY'
-            ? landscapeImage && squareImage
-            : logoImage && youtubeVideoId.trim()),
+        finalUrl.trim() &&
+        businessName.trim() &&
+        headlines.every((value) => value.trim()) &&
+        longHeadline.trim() &&
+        descriptions.every((value) => value.trim()) &&
+        (mode === 'DISPLAY' ? landscapeImage && squareImage : logoImage && youtubeVideoId.trim()),
       ),
     [
       mode,
@@ -76,8 +74,7 @@ export default function GoogleVisualAdModal({
   if (!open) return null
 
   const readImage =
-    (setter: (value: string) => void) =>
-    async (event: ChangeEvent<HTMLInputElement>) => {
+    (setter: (value: string) => void) => async (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0]
       if (!file) return
       setImageError('')
@@ -94,9 +91,7 @@ export default function GoogleVisualAdModal({
       try {
         setter(await fileToDataUrl(file))
       } catch (error) {
-        setImageError(
-          error instanceof Error ? error.message : 'Unable to read image file',
-        )
+        setImageError(error instanceof Error ? error.message : 'Unable to read image file')
       }
     }
 
@@ -150,13 +145,9 @@ export default function GoogleVisualAdModal({
           <div>
             <p className="eyebrow">Google Ads</p>
             <h2 className="mt-1 text-xl font-bold text-slate-950">
-              {mode === 'DISPLAY'
-                ? 'Create responsive display ad'
-                : 'Create Demand Gen video ad'}
+              {mode === 'DISPLAY' ? 'Create responsive display ad' : 'Create Demand Gen video ad'}
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              New ads are created paused for review.
-            </p>
+            <p className="mt-1 text-sm text-slate-500">New ads are created paused for review.</p>
           </div>
           <button
             type="button"
@@ -207,10 +198,7 @@ export default function GoogleVisualAdModal({
             <h3 className="text-sm font-bold text-slate-950">Creative text</h3>
             <div className="mt-4 grid gap-4 sm:grid-cols-3">
               {headlines.map((headline, index) => (
-                <label
-                  key={index}
-                  className="text-xs font-semibold text-slate-700"
-                >
+                <label key={index} className="text-xs font-semibold text-slate-700">
                   Headline {index + 1}
                   <input
                     className="form-input mt-2"
@@ -234,19 +222,14 @@ export default function GoogleVisualAdModal({
             </label>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               {descriptions.map((description, index) => (
-                <label
-                  key={index}
-                  className="text-xs font-semibold text-slate-700"
-                >
+                <label key={index} className="text-xs font-semibold text-slate-700">
                   Description {index + 1}
                   <textarea
                     className="form-input mt-2 min-h-24"
                     value={description}
                     maxLength={90}
                     required
-                    onChange={(event) =>
-                      setDescription(index, event.target.value)
-                    }
+                    onChange={(event) => setDescription(index, event.target.value)}
                   />
                 </label>
               ))}
@@ -297,24 +280,13 @@ export default function GoogleVisualAdModal({
             </div>
           )}
 
-          {imageError && (
-            <p className="text-xs font-semibold text-red-600">{imageError}</p>
-          )}
+          {imageError && <p className="text-xs font-semibold text-red-600">{imageError}</p>}
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-              disabled={saving}
-            >
+            <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={saving || !canSubmit}
-            >
+            <button type="submit" className="primary-button" disabled={saving || !canSubmit}>
               {saving ? 'Creating…' : 'Create paused ad'}
             </button>
           </div>

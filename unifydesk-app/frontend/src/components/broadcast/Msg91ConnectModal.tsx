@@ -67,9 +67,9 @@ export default function Msg91ConnectModal({ companyId, onClose, onConnected }: P
         <div className="mt-5 rounded-xl border border-violet-100 bg-violet-50/60 p-4">
           <p className="text-xs font-bold text-slate-900">Template-based SMS</p>
           <p className="mt-1 text-xs leading-5 text-slate-600">
-            The selected MSG91 Flow should contain one variable for the broadcast message body.
-            By default Messaging sends the body into <strong>VAR1</strong>. Indian commercial SMS
-            also needs the appropriate DLT-approved sender and template in MSG91.
+            The selected MSG91 Flow should contain one variable for the broadcast message body. By
+            default Messaging sends the body into <strong>VAR1</strong>. Indian commercial SMS also
+            needs the appropriate DLT-approved sender and template in MSG91.
           </p>
         </div>
 

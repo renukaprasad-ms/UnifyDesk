@@ -179,10 +179,7 @@ export default function ManagedEmailModal({
       onChanged?.()
     } catch (requestError) {
       setError(
-        managedEmailErrorMessage(
-          requestError,
-          'Unable to create your UnifyDesk email domain.',
-        ),
+        managedEmailErrorMessage(requestError, 'Unable to create your UnifyDesk email domain.'),
       )
       setStage('landing')
     } finally {
@@ -200,12 +197,7 @@ export default function ManagedEmailModal({
       setDomain(latest)
       if (latest.status === 'ACTIVE') onChanged?.()
     } catch (requestError) {
-      setError(
-        managedEmailErrorMessage(
-          requestError,
-          'Unable to recheck verification right now.',
-        ),
-      )
+      setError(managedEmailErrorMessage(requestError, 'Unable to recheck verification right now.'))
     } finally {
       setRefreshing(false)
     }
@@ -240,10 +232,7 @@ export default function ManagedEmailModal({
         displayName: displayName.trim() || null,
         replyToAddress: replyToAddress.trim() || null,
       })
-      setSenders((current) => [
-        created,
-        ...current.filter((sender) => sender.id !== created.id),
-      ])
+      setSenders((current) => [created, ...current.filter((sender) => sender.id !== created.id)])
       setLocalPart('')
       setDisplayName('')
       setReplyToAddress('')
@@ -286,12 +275,10 @@ export default function ManagedEmailModal({
               </button>
             )}
             <div>
-              <p className="text-base font-bold text-slate-950">
-                UnifyDesk Managed Email
-              </p>
+              <p className="text-base font-bold text-slate-950">UnifyDesk Managed Email</p>
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                UnifyDesk handles the email-sending infrastructure for you. No provider
-                credentials are needed.
+                UnifyDesk handles the email-sending infrastructure for you. No provider credentials
+                are needed.
               </p>
             </div>
           </div>
@@ -352,8 +339,8 @@ export default function ManagedEmailModal({
                 Use an UnifyDesk domain
               </span>
               <span className="mt-1 block text-xs leading-5 text-slate-600">
-                UnifyDesk creates and configures the email domain automatically. There are
-                no DNS tasks for you.
+                UnifyDesk creates and configures the email domain automatically. There are no DNS
+                tasks for you.
               </span>
             </button>
           </div>
@@ -377,8 +364,8 @@ export default function ManagedEmailModal({
               autoFocus
             />
             <p className="mt-2 text-xs leading-5 text-slate-500">
-              Enter only the domain, for example <strong>example.com</strong>. Do not enter
-              https:// or an email address.
+              Enter only the domain, for example <strong>example.com</strong>. Do not enter https://
+              or an email address.
             </p>
             <div className="mt-5 flex justify-end">
               <button type="submit" className="primary-button" disabled={busy}>
@@ -395,9 +382,7 @@ export default function ManagedEmailModal({
               aria-hidden="true"
               size={24}
             />
-            <p className="mt-3 text-sm font-bold text-slate-900">
-              Creating your email domain
-            </p>
+            <p className="mt-3 text-sm font-bold text-slate-900">Creating your email domain</p>
             <p className="mt-1 text-xs text-slate-500">
               UnifyDesk is configuring it automatically.
             </p>
@@ -413,9 +398,7 @@ export default function ManagedEmailModal({
             <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-slate-200 p-4">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="break-all text-base font-bold text-slate-950">
-                    {domain.domain}
-                  </p>
+                  <p className="break-all text-base font-bold text-slate-950">{domain.domain}</p>
                   <span
                     className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${domainStatusTone(domain.status)}`}
                   >
@@ -448,28 +431,22 @@ export default function ManagedEmailModal({
               domain.status !== 'ACTIVE' && (
                 <div className="mt-5">
                   <div className="flex items-start gap-3 rounded-xl border border-sky-100 bg-sky-50/70 p-4">
-                    <FiShield
-                      className="mt-0.5 shrink-0 text-sky-700"
-                      aria-hidden="true"
-                    />
+                    <FiShield className="mt-0.5 shrink-0 text-sky-700" aria-hidden="true" />
                     <div>
                       <p className="text-xs font-bold text-sky-900">
                         Add these DNS records with your domain provider
                       </p>
                       <p className="mt-1 text-xs leading-5 text-sky-700">
                         Required records activate sending. Recommended records improve
-                        deliverability or security but do not block activation unless the
-                        backend marks them required.
+                        deliverability or security but do not block activation unless the backend
+                        marks them required.
                       </p>
                     </div>
                   </div>
 
                   <div className="mt-3 grid gap-3">
                     {domain.dnsRecords.map((record) => (
-                      <div
-                        key={record.id}
-                        className="rounded-xl border border-slate-200 p-4"
-                      >
+                      <div key={record.id} className="rounded-xl border border-slate-200 p-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="rounded bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700">
@@ -482,9 +459,7 @@ export default function ManagedEmailModal({
                                   : 'bg-sky-50 text-sky-700'
                               }`}
                             >
-                              {record.required
-                                ? 'Required for activation'
-                                : 'Recommended'}
+                              {record.required ? 'Required for activation' : 'Recommended'}
                             </span>
                             <span className="text-[10px] font-semibold text-slate-500">
                               {record.status}
@@ -499,23 +474,18 @@ export default function ManagedEmailModal({
                             label="Host / Name"
                             value={record.name}
                             copied={copiedId === `${record.id}-name`}
-                            onCopy={() =>
-                              void copyRecord(`${record.id}-name`, record.name)
-                            }
+                            onCopy={() => void copyRecord(`${record.id}-name`, record.name)}
                           />
                           <DnsValue
                             label="Value"
                             value={record.value}
                             copied={copiedId === `${record.id}-value`}
-                            onCopy={() =>
-                              void copyRecord(`${record.id}-value`, record.value)
-                            }
+                            onCopy={() => void copyRecord(`${record.id}-value`, record.value)}
                           />
                         </div>
                         {record.priority !== null && record.priority !== undefined && (
                           <p className="mt-3 text-xs text-slate-600">
-                            <span className="font-semibold">Priority:</span>{' '}
-                            {record.priority}
+                            <span className="font-semibold">Priority:</span> {record.priority}
                           </p>
                         )}
                       </div>
@@ -526,12 +496,10 @@ export default function ManagedEmailModal({
 
             {domain.type === 'UNIFYDESK_HOSTED' && domain.status !== 'ACTIVE' && (
               <div className="mt-5 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
-                <p className="text-xs font-bold text-indigo-900">
-                  Automatic setup in progress
-                </p>
+                <p className="text-xs font-bold text-indigo-900">Automatic setup in progress</p>
                 <p className="mt-1 text-xs leading-5 text-indigo-700">
-                  Your assigned domain is <strong>{domain.domain}</strong>. UnifyDesk is
-                  configuring it automatically; no DNS action is required.
+                  Your assigned domain is <strong>{domain.domain}</strong>. UnifyDesk is configuring
+                  it automatically; no DNS action is required.
                 </p>
               </div>
             )}
@@ -540,8 +508,8 @@ export default function ManagedEmailModal({
               domain.status === 'SUSPENDED_VERIFICATION' ||
               overview?.sendingStatus !== 'ENABLED') && (
               <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs leading-5 text-rose-700">
-                Managed Email sending is not currently ready. Review the domain and
-                workspace status before using this sender.
+                Managed Email sending is not currently ready. Review the domain and workspace status
+                before using this sender.
               </div>
             )}
 
@@ -595,8 +563,8 @@ export default function ManagedEmailModal({
                   </span>
                 </div>
                 <p className="mt-1 text-[11px] text-slate-500">
-                  Enter only the part before @. The domain is locked to this active
-                  Managed Email domain.
+                  Enter only the part before @. The domain is locked to this active Managed Email
+                  domain.
                 </p>
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -610,8 +578,7 @@ export default function ManagedEmailModal({
                     />
                   </label>
                   <label className="text-xs font-semibold text-slate-700">
-                    Reply-to{' '}
-                    <span className="font-normal text-slate-400">(optional)</span>
+                    Reply-to <span className="font-normal text-slate-400">(optional)</span>
                     <input
                       className="form-input mt-2"
                       type="email"
@@ -648,10 +615,7 @@ export default function ManagedEmailModal({
                 </p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   {domainSenders.map((sender) => (
-                    <div
-                      key={sender.id}
-                      className="rounded-xl border border-slate-200 px-4 py-3"
-                    >
+                    <div key={sender.id} className="rounded-xl border border-slate-200 px-4 py-3">
                       <p className="break-all text-sm font-bold text-slate-900">
                         {sender.fromAddress}
                       </p>
@@ -683,30 +647,20 @@ function DnsValue({
 }) {
   return (
     <div>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-        {label}
-      </p>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
       <div className="mt-1 flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2">
-        <code className="min-w-0 flex-1 break-all text-xs text-slate-700">
-          {value}
-        </code>
+        <code className="min-w-0 flex-1 break-all text-xs text-slate-700">{value}</code>
         <button
           type="button"
           className="shrink-0 text-slate-500 hover:text-indigo-600"
           onClick={onCopy}
           aria-label={`Copy ${label}`}
         >
-          {copied ? (
-            <FiClipboard aria-hidden="true" />
-          ) : (
-            <FiCopy aria-hidden="true" />
-          )}
+          {copied ? <FiClipboard aria-hidden="true" /> : <FiCopy aria-hidden="true" />}
         </button>
       </div>
       {copied && (
-        <p className="mt-1 text-[10px] font-semibold text-emerald-600">
-          Copied to clipboard
-        </p>
+        <p className="mt-1 text-[10px] font-semibold text-emerald-600">Copied to clipboard</p>
       )}
     </div>
   )

@@ -134,20 +134,12 @@ export default function MetaCreativeVariantsEditor({
       let mediaId = draft.mediaId
 
       if (!draft.enabled && existing) {
-        await adCenterApi.deleteReachlyoCreativeVariant(
-          companyId,
-          campaignId,
-          pack.id,
-          existing.id,
-        )
+        await adCenterApi.deleteReachlyoCreativeVariant(companyId, campaignId, pack.id, existing.id)
       } else if (draft.enabled) {
         if (draft.mediaFile) {
           setUploadProgress((current) => ({ ...current, [type]: 1 }))
-          const uploaded = await mediaApi.uploadAdCreative(
-            draft.mediaFile,
-            companyId,
-            (progress) =>
-              setUploadProgress((current) => ({ ...current, [type]: progress })),
+          const uploaded = await mediaApi.uploadAdCreative(draft.mediaFile, companyId, (progress) =>
+            setUploadProgress((current) => ({ ...current, [type]: progress })),
           )
           mediaId = uploaded.mediaId
         }
@@ -171,12 +163,10 @@ export default function MetaCreativeVariantsEditor({
               existing.id,
               input,
             )
-          : await adCenterApi.createReachlyoCreativeVariant(
-              companyId,
-              campaignId,
-              pack.id,
-              { ...input, variantType: type },
-            )
+          : await adCenterApi.createReachlyoCreativeVariant(companyId, campaignId, pack.id, {
+              ...input,
+              variantType: type,
+            })
       }
 
       const variants = !draft.enabled
@@ -205,7 +195,8 @@ export default function MetaCreativeVariantsEditor({
   if (selectedPositions.length === 0) {
     return (
       <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600">
-        Advantage+ placements are selected. Placement-specific variants are optional; Meta can reuse the canonical creative.
+        Advantage+ placements are selected. Placement-specific variants are optional; Meta can reuse
+        the canonical creative.
       </div>
     )
   }
@@ -215,7 +206,8 @@ export default function MetaCreativeVariantsEditor({
       <div>
         <h4 className="text-sm font-bold text-slate-900">Placement creative variants</h4>
         <p className="mt-1 text-xs leading-5 text-slate-500">
-          Customize copy and media for Feed, Stories, and Reels. Image and video uploads are stored as AD_CREATIVE media and validated by the backend.
+          Customize copy and media for Feed, Stories, and Reels. Image and video uploads are stored
+          as AD_CREATIVE media and validated by the backend.
         </p>
       </div>
 

@@ -1,11 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  FiActivity,
-  FiBarChart2,
-  FiClock,
-  FiRefreshCw,
-  FiTrendingUp,
-} from 'react-icons/fi'
+import { FiActivity, FiBarChart2, FiClock, FiRefreshCw, FiTrendingUp } from 'react-icons/fi'
 import { Link } from 'react-router'
 import AdFeedbackAlert from '../../components/ads/AdFeedbackAlert'
 import AdOptimizationWorkspace from '../../components/ads/AdOptimizationWorkspace'
@@ -111,9 +105,7 @@ const emptyBreakdown = (type: AdInsightBreakdownType): AdAnalyticsBreakdown => (
 })
 
 const prettyDimension = (value: string) =>
-  value
-    .replaceAll('_', ' ')
-    .replace(/\b\w/g, (character) => character.toUpperCase())
+  value.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase())
 
 const metricRoas = (row: AdAnalyticsBreakdownRow) =>
   row.spend > 0 ? row.conversionValue / row.spend : null
@@ -121,7 +113,13 @@ const metricRoas = (row: AdAnalyticsBreakdownRow) =>
 const metricCpa = (row: AdAnalyticsBreakdownRow) =>
   row.conversions > 0 ? row.spend / row.conversions : null
 
-function TrendChart({ points, currency }: { points: AdAnalyticsDailyPoint[]; currency?: string | null }) {
+function TrendChart({
+  points,
+  currency,
+}: {
+  points: AdAnalyticsDailyPoint[]
+  currency?: string | null
+}) {
   if (points.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center text-sm text-slate-400">
@@ -140,8 +138,7 @@ function TrendChart({ points, currency }: { points: AdAnalyticsDailyPoint[]; cur
   const maxConversions = Math.max(...points.map((point) => point.conversions), 1)
   const x = (index: number) =>
     paddingX + (points.length === 1 ? plotWidth / 2 : (index / (points.length - 1)) * plotWidth)
-  const ySpend = (value: number) =>
-    paddingY + plotHeight - (value / maxSpend) * plotHeight
+  const ySpend = (value: number) => paddingY + plotHeight - (value / maxSpend) * plotHeight
   const yConversions = (value: number) =>
     paddingY + plotHeight - (value / maxConversions) * plotHeight
 
@@ -150,8 +147,7 @@ function TrendChart({ points, currency }: { points: AdAnalyticsDailyPoint[]; cur
     .join(' ')
   const conversionPath = points
     .map(
-      (point, index) =>
-        `${index === 0 ? 'M' : 'L'} ${x(index)} ${yConversions(point.conversions)}`,
+      (point, index) => `${index === 0 ? 'M' : 'L'} ${x(index)} ${yConversions(point.conversions)}`,
     )
     .join(' ')
 
@@ -221,7 +217,6 @@ function TrendChart({ points, currency }: { points: AdAnalyticsDailyPoint[]; cur
   )
 }
 
-
 function BreakdownPanel({
   breakdown,
   type,
@@ -248,9 +243,7 @@ function BreakdownPanel({
           <div>
             <div className="flex items-center gap-2">
               <FiActivity className="text-indigo-500" aria-hidden="true" />
-              <h2 className="text-base font-bold text-slate-950">
-                Audience & delivery breakdowns
-              </h2>
+              <h2 className="text-base font-bold text-slate-950">Audience & delivery breakdowns</h2>
             </div>
             <p className="mt-1 text-xs text-slate-500">
               Inspect who saw the ads, where delivery happened, and which devices produced actions.
@@ -283,9 +276,7 @@ function BreakdownPanel({
       </div>
 
       {loading ? (
-        <div className="p-10 text-center text-sm text-slate-500">
-          Loading breakdown…
-        </div>
+        <div className="p-10 text-center text-sm text-slate-500">Loading breakdown…</div>
       ) : breakdown.rows.length === 0 ? (
         <div className="p-10 text-center">
           <FiBarChart2 className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
@@ -293,7 +284,8 @@ function BreakdownPanel({
             No {prettyDimension(type).toLowerCase()} data
           </h3>
           <p className="mt-2 text-sm text-slate-500">
-            Sync analytics for this date range. The selected provider may not return every breakdown for every account or campaign mix.
+            Sync analytics for this date range. The selected provider may not return every breakdown
+            for every account or campaign mix.
           </p>
         </div>
       ) : isActionBreakdown ? (
@@ -301,12 +293,8 @@ function BreakdownPanel({
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-5 py-3">
-                  {type === 'ACTION_DEVICE' ? 'Device' : 'Action type'}
-                </th>
-                {type === 'ACTION_DEVICE' && (
-                  <th className="px-5 py-3">Action</th>
-                )}
+                <th className="px-5 py-3">{type === 'ACTION_DEVICE' ? 'Device' : 'Action type'}</th>
+                {type === 'ACTION_DEVICE' && <th className="px-5 py-3">Action</th>}
                 <th className="px-5 py-3 text-right">Count</th>
                 <th className="px-5 py-3 text-right">Attributed value</th>
               </tr>
@@ -427,11 +415,10 @@ function BreakdownPanel({
               <div key={`${row.dimension}-mobile-${index}`} className="p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-semibold text-slate-950">
-                      {prettyDimension(row.dimension)}
-                    </p>
+                    <p className="font-semibold text-slate-950">{prettyDimension(row.dimension)}</p>
                     <p className="mt-1 text-xs text-slate-400">
-                      {formatCompact(row.impressions)} impressions · {formatCompact(row.reach)} reach
+                      {formatCompact(row.impressions)} impressions · {formatCompact(row.reach)}{' '}
+                      reach
                     </p>
                   </div>
                   <p className="font-bold text-slate-950">
@@ -441,9 +428,7 @@ function BreakdownPanel({
                 <div className="mt-4 grid grid-cols-3 gap-3 text-xs">
                   <div>
                     <p className="text-slate-400">Clicks</p>
-                    <p className="mt-1 font-semibold text-slate-700">
-                      {formatCompact(row.clicks)}
-                    </p>
+                    <p className="mt-1 font-semibold text-slate-700">{formatCompact(row.clicks)}</p>
                   </div>
                   <div>
                     <p className="text-slate-400">Conversions</p>
@@ -487,8 +472,7 @@ export default function AdAnalytics() {
   const [notice, setNotice] = useState('')
 
   const managedAccounts = useMemo(
-    () =>
-      accounts.filter((account) => account.managed && account.accessible),
+    () => accounts.filter((account) => account.managed && account.accessible),
     [accounts],
   )
 
@@ -543,10 +527,7 @@ export default function AdAnalytics() {
       const preferred = eligible.find((account) => account.primaryAccount) ?? eligible[0]
       if (preferred) {
         setSelectedAccountId(preferred.id)
-        await Promise.all([
-          loadAnalytics(preferred.id),
-          loadBreakdown(preferred.id),
-        ])
+        await Promise.all([loadAnalytics(preferred.id), loadBreakdown(preferred.id)])
       } else {
         setAnalytics(emptyAnalytics)
         setBreakdown(emptyBreakdown(breakdownType))
@@ -635,12 +616,7 @@ export default function AdAnalytics() {
     try {
       if (selectedAccount.provider === 'GOOGLE_ADS') {
         const [result, breakdownResult] = await Promise.all([
-          adCenterApi.syncGoogleInsights(
-            selectedCompany.companyId,
-            selectedAccount.id,
-            from,
-            to,
-          ),
+          adCenterApi.syncGoogleInsights(selectedCompany.companyId, selectedAccount.id, from, to),
           adCenterApi.syncGoogleInsightBreakdowns(
             selectedCompany.companyId,
             selectedAccount.id,
@@ -648,10 +624,7 @@ export default function AdAnalytics() {
             to,
           ),
         ])
-        await Promise.all([
-          loadAnalytics(selectedAccount.id),
-          loadBreakdown(selectedAccount.id),
-        ])
+        await Promise.all([loadAnalytics(selectedAccount.id), loadBreakdown(selectedAccount.id)])
         const failed = breakdownResult.failedBreakdowns ?? []
         setNotice(
           failed.length === 0
@@ -671,10 +644,7 @@ export default function AdAnalytics() {
           from,
           to,
         )
-        await Promise.all([
-          loadAnalytics(selectedAccount.id),
-          loadBreakdown(selectedAccount.id),
-        ])
+        await Promise.all([loadAnalytics(selectedAccount.id), loadBreakdown(selectedAccount.id)])
         const failed = breakdownResult.failedBreakdowns ?? []
         setNotice(
           failed.length === 0
@@ -778,7 +748,9 @@ export default function AdAnalytics() {
               onClick={() => void sync()}
             >
               <FiRefreshCw aria-hidden="true" />
-              {syncing ? 'Syncing…' : `Sync ${selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google' : 'Meta'} analytics`}
+              {syncing
+                ? 'Syncing…'
+                : `Sync ${selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google' : 'Meta'} analytics`}
             </button>
           )}
         </header>
@@ -955,9 +927,7 @@ export default function AdAnalytics() {
                 <div>
                   <div className="flex items-center gap-2">
                     <FiBarChart2 className="text-indigo-500" aria-hidden="true" />
-                    <h2 className="text-base font-bold text-slate-950">
-                      Performance breakdown
-                    </h2>
+                    <h2 className="text-base font-bold text-slate-950">Performance breakdown</h2>
                   </div>
                   <p className="mt-1 text-xs text-slate-500">
                     Exact synchronized range totals for each provider object.
@@ -968,7 +938,10 @@ export default function AdAnalytics() {
                   {(
                     [
                       ['CAMPAIGN', 'Campaigns'],
-                      ['AD_SET', selectedAccount?.provider === 'GOOGLE_ADS' ? 'Ad groups' : 'Ad sets'],
+                      [
+                        'AD_SET',
+                        selectedAccount?.provider === 'GOOGLE_ADS' ? 'Ad groups' : 'Ad sets',
+                      ],
                       ['AD', 'Ads'],
                     ] as const
                   ).map(([value, label]) => (

@@ -5,10 +5,7 @@ export const isManagedSmsSender = (
   sender?: Pick<BroadcastSender, 'provider' | 'managementMode'> | null,
 ) => sender?.provider === 'MSG91_SMS' && sender.managementMode === 'MESSAGING_MANAGED'
 
-export const managedSmsTemplateReadyForHeader = (
-  template: ManagedSmsTemplate,
-  headerId: string,
-) =>
+export const managedSmsTemplateReadyForHeader = (template: ManagedSmsTemplate, headerId: string) =>
   template.state === 'READY' &&
   template.activeVersion?.providerSyncState === 'READY' &&
   template.activeVersion.allowedHeaderIds.includes(headerId)

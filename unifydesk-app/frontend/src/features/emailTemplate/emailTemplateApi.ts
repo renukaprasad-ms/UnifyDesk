@@ -104,10 +104,9 @@ export const emailTemplateApi = {
   },
 
   async publishAsset(companyId: string, mediaId: string) {
-    const response = await apiClient.post<ApiResponse<{ id: string; mediaId: string; publicUrl: string }>>(
-      `/api/v1/companies/${companyId}/email-template-assets`,
-      { mediaId },
-    )
+    const response = await apiClient.post<
+      ApiResponse<{ id: string; mediaId: string; publicUrl: string }>
+    >(`/api/v1/companies/${companyId}/email-template-assets`, { mediaId })
     return unwrap(response.data)
   },
 

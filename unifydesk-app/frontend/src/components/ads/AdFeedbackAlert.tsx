@@ -15,9 +15,7 @@ export default function AdFeedbackAlert({ error, notice }: Props) {
       className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3"
     >
       <p className="text-sm font-semibold text-emerald-800">Done</p>
-      <p className="mt-1 break-words text-sm font-medium leading-5 text-emerald-700">
-        {notice}
-      </p>
+      <p className="mt-1 break-words text-sm font-medium leading-5 text-emerald-700">{notice}</p>
     </div>
   )
 }

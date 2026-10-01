@@ -46,9 +46,7 @@ export default function AdCenterSidebar({ onNavigate }: { onNavigate: () => void
         return
       }
       try {
-        const summary = await adCenterApi.recommendationSummary(
-          selectedCompany.companyId,
-        )
+        const summary = await adCenterApi.recommendationSummary(selectedCompany.companyId)
         if (active) setAttentionCount(summary.attentionCount)
       } catch {
         if (active) setAttentionCount(0)
@@ -74,8 +72,16 @@ export default function AdCenterSidebar({ onNavigate }: { onNavigate: () => void
       </div>
       <nav aria-label="Ad Center navigation" className="space-y-1 px-2">
         {items.map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.to === '/ad-center'} className={linkClass} onClick={onNavigate}>
-            <span className="sidebar-icon" aria-hidden="true">{item.icon}</span>
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.to === '/ad-center'}
+            className={linkClass}
+            onClick={onNavigate}
+          >
+            <span className="sidebar-icon" aria-hidden="true">
+              {item.icon}
+            </span>
             <span>{item.label}</span>
             {item.to === '/ad-center/recommendations' && attentionCount > 0 && (
               <span className="ml-auto rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">

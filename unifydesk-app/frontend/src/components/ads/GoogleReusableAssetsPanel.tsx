@@ -184,9 +184,7 @@ export default function GoogleReusableAssetsPanel(props: Props) {
               customParameters: parseParameters(assetCustomParameters),
             }
           : {}),
-        ...(assetType === 'CALLOUT'
-          ? { calloutText: calloutText.trim() }
-          : {}),
+        ...(assetType === 'CALLOUT' ? { calloutText: calloutText.trim() } : {}),
         ...(assetType === 'STRUCTURED_SNIPPET'
           ? {
               structuredSnippetHeader: snippetHeader.trim(),
@@ -194,9 +192,7 @@ export default function GoogleReusableAssetsPanel(props: Props) {
             }
           : {}),
         ...(assetType === 'BUSINESS_NAME' ? { text: identityText.trim() } : {}),
-        ...(assetType === 'AD_IMAGE' || assetType === 'BUSINESS_LOGO'
-          ? { imageBase64 }
-          : {}),
+        ...(assetType === 'AD_IMAGE' || assetType === 'BUSINESS_LOGO' ? { imageBase64 } : {}),
       }
       const created = await adCenterApi.createGoogleReusableAsset(
         props.companyId,
@@ -308,13 +304,10 @@ export default function GoogleReusableAssetsPanel(props: Props) {
     <section className="panel mt-5 overflow-hidden">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <div>
-          <h2 className="text-base font-bold text-slate-950">
-            Google assets & URL options
-          </h2>
+          <h2 className="text-base font-bold text-slate-950">Google assets & URL options</h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-            Create reusable Google assets once, then attach them at account, campaign,
-            or ad-group level. Lower-level URL tracking settings override higher-level
-            defaults.
+            Create reusable Google assets once, then attach them at account, campaign, or ad-group
+            level. Lower-level URL tracking settings override higher-level defaults.
           </p>
         </div>
         <button
@@ -365,8 +358,8 @@ export default function GoogleReusableAssetsPanel(props: Props) {
             <div>
               <h3 className="text-sm font-bold text-slate-900">Reusable asset library</h3>
               <p className="mt-1 text-xs text-slate-500">
-                Advertiser-created sitelinks, callouts, structured snippets, calls,
-                prices, promotions, lead forms, reusable ad images, and business identity assets.
+                Advertiser-created sitelinks, callouts, structured snippets, calls, prices,
+                promotions, lead forms, reusable ad images, and business identity assets.
               </p>
             </div>
             <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
@@ -443,26 +436,18 @@ export default function GoogleReusableAssetsPanel(props: Props) {
                           disabled={workingId !== null}
                           onClick={() => void toggleLink(asset)}
                         >
-                          {attached ? (
-                            <FiX aria-hidden="true" />
-                          ) : (
-                            <FiLink aria-hidden="true" />
-                          )}
-                          {workingId === asset.id
-                            ? 'Updating…'
-                            : attached
-                              ? 'Detach'
-                              : 'Attach'}
+                          {attached ? <FiX aria-hidden="true" /> : <FiLink aria-hidden="true" />}
+                          {workingId === asset.id ? 'Updating…' : attached ? 'Detach' : 'Attach'}
                         </button>
                       )}
                     {!roleAllowed(
                       linkRoles[asset.id] ?? defaultLinkRole(asset, current?.level ?? 'CUSTOMER'),
                       current?.level ?? 'CUSTOMER',
                     ) && (
-                        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
-                          Not eligible at this scope
-                        </span>
-                      )}
+                      <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700">
+                        Not eligible at this scope
+                      </span>
+                    )}
                   </div>
                 )
               })}
@@ -470,7 +455,10 @@ export default function GoogleReusableAssetsPanel(props: Props) {
           )}
 
           {props.canCreate && (
-            <form className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4" onSubmit={createAsset}>
+            <form
+              className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4"
+              onSubmit={createAsset}
+            >
               <div className="flex items-center gap-2">
                 <FiPlus className="text-indigo-600" aria-hidden="true" />
                 <h4 className="text-sm font-bold text-slate-900">Create reusable asset</h4>
@@ -615,7 +603,8 @@ export default function GoogleReusableAssetsPanel(props: Props) {
                       }}
                     />
                     <span className="mt-1 block text-[11px] font-normal text-slate-500">
-                      Images are validated before Google mutation. Business logos require a square logo.
+                      Images are validated before Google mutation. Business logos require a square
+                      logo.
                     </span>
                   </label>
                 )}
@@ -685,9 +674,7 @@ export default function GoogleReusableAssetsPanel(props: Props) {
                   created,
                   ...currentAssets.filter((item) => item.id !== created.id),
                 ])
-                setNotice(
-                  `${pretty(created.type)} created in the Google asset library.`,
-                )
+                setNotice(`${pretty(created.type)} created in the Google asset library.`)
               }}
             />
           )}
@@ -696,8 +683,8 @@ export default function GoogleReusableAssetsPanel(props: Props) {
         <form className="rounded-xl border border-slate-200 p-4" onSubmit={saveUrlOptions}>
           <h3 className="text-sm font-bold text-slate-900">{current?.label} URL options</h3>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Tracking template and final URL suffix inherit downward unless overridden at a
-            lower level.
+            Tracking template and final URL suffix inherit downward unless overridden at a lower
+            level.
           </p>
 
           <label className="mt-4 block text-xs font-semibold text-slate-700">
@@ -739,11 +726,7 @@ export default function GoogleReusableAssetsPanel(props: Props) {
 
           {props.canModify && (
             <div className="mt-4 flex justify-end">
-              <button
-                type="submit"
-                className="primary-button"
-                disabled={savingUrls}
-              >
+              <button type="submit" className="primary-button" disabled={savingUrls}>
                 {savingUrls ? 'Saving…' : 'Save URL options'}
               </button>
             </div>

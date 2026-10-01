@@ -58,19 +58,10 @@ export default function MetaPixelModal({ open, saving, onClose, onCreate }: Prop
           </div>
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-              disabled={saving}
-            >
+            <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={saving || !name.trim()}
-            >
+            <button type="submit" className="primary-button" disabled={saving || !name.trim()}>
               {saving ? 'Creating…' : 'Create pixel'}
             </button>
           </div>

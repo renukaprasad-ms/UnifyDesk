@@ -19,7 +19,12 @@ import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 
 const formatLabel = (value?: string | null) =>
-  value ? value.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : 'Creative'
+  value
+    ? value
+        .replaceAll('_', ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+    : 'Creative'
 
 export default function AdCreatives() {
   const selectedCompany = useAppSelector(selectSelectedCompany)
@@ -38,10 +43,7 @@ export default function AdCreatives() {
   const [notice, setNotice] = useState('')
 
   const managedAccounts = useMemo(
-    () =>
-      accounts.filter(
-        (account) => account.managed && account.accessible,
-      ),
+    () => accounts.filter((account) => account.managed && account.accessible),
     [accounts],
   )
 
@@ -82,9 +84,7 @@ export default function AdCreatives() {
     try {
       const accountData = await adCenterApi.accounts(selectedCompany.companyId)
       setAccounts(accountData)
-      const eligible = accountData.filter(
-        (account) => account.managed && account.accessible,
-      )
+      const eligible = accountData.filter((account) => account.managed && account.accessible)
       const preferred = eligible.find((account) => account.primaryAccount) ?? eligible[0]
       if (preferred) {
         setSelectedAccountId(preferred.id)
@@ -138,15 +138,9 @@ export default function AdCreatives() {
         for (const campaign of campaigns.content) {
           if (campaign.objective === 'PERFORMANCE_MAX') continue
           await adCenterApi.syncGoogleAdGroups(selectedCompany.companyId, campaign.id)
-          const groups = await adCenterApi.adSets(
-            selectedCompany.companyId,
-            campaign.id,
-          )
+          const groups = await adCenterApi.adSets(selectedCompany.companyId, campaign.id)
           for (const group of groups) {
-            const result = await adCenterApi.syncGoogleAds(
-              selectedCompany.companyId,
-              group.id,
-            )
+            const result = await adCenterApi.syncGoogleAds(selectedCompany.companyId, group.id)
             synchronized += result.synchronizedCount
           }
         }
@@ -161,12 +155,7 @@ export default function AdCreatives() {
         setNotice(`Synchronized ${result.synchronizedCount} creative(s) from Meta.`)
       }
     } catch (syncError) {
-      setError(
-        apiErrorMessage(
-          syncError,
-          'Unable to synchronize advertising creative content',
-        ),
-      )
+      setError(apiErrorMessage(syncError, 'Unable to synchronize advertising creative content'))
     } finally {
       setSyncing(false)
     }
@@ -183,10 +172,7 @@ export default function AdCreatives() {
         selectedAccount.id,
         input,
       )
-      setCreatives((current) => [
-        created,
-        ...current.filter((item) => item.id !== created.id),
-      ])
+      setCreatives((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setModalOpen(false)
       setNotice(`${created.name} was created and is ready to use in an ad.`)
     } catch (createError) {
@@ -278,13 +264,15 @@ export default function AdCreatives() {
               <div className="border-b border-slate-100 px-5 py-4">
                 <h2 className="text-base font-bold text-slate-950">Google asset library</h2>
                 <p className="mt-1 text-xs text-slate-500">
-                  Reusable text, image, and YouTube assets available to Performance Max and other Google campaign types.
+                  Reusable text, image, and YouTube assets available to Performance Max and other
+                  Google campaign types.
                 </p>
               </div>
 
               {googleAssets.length === 0 ? (
                 <div className="p-8 text-center text-sm text-slate-500">
-                  No reusable Google assets are stored yet. Create a Performance Max campaign to add its first asset set.
+                  No reusable Google assets are stored yet. Create a Performance Max campaign to add
+                  its first asset set.
                 </div>
               ) : (
                 <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
@@ -344,9 +332,7 @@ export default function AdCreatives() {
             <div className="panel overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
                 <div>
-                  <h2 className="text-base font-bold text-slate-950">
-                    Responsive Search Ads
-                  </h2>
+                  <h2 className="text-base font-bold text-slate-950">Responsive Search Ads</h2>
                   <p className="mt-1 text-xs text-slate-500">
                     Search creative units remain attached to their Google Ad Groups.
                   </p>
@@ -414,11 +400,7 @@ export default function AdCreatives() {
               <article key={creative.id} className="panel overflow-hidden">
                 <div className="flex aspect-[16/9] items-center justify-center bg-slate-100">
                   {creative.imageUrl ? (
-                    <img
-                      src={creative.imageUrl}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
+                    <img src={creative.imageUrl} alt="" className="h-full w-full object-cover" />
                   ) : creative.creativeFormat === 'VIDEO' ? (
                     <FiVideo className="text-3xl text-slate-400" aria-hidden="true" />
                   ) : (

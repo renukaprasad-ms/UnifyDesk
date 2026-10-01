@@ -121,10 +121,7 @@ export const managedSmsApi = {
     return sanitizeManagedSmsPreview(data(response.data))
   },
 
-  async createSender(
-    companyId: string,
-    input: { headerId: string; displayName?: string | null },
-  ) {
+  async createSender(companyId: string, input: { headerId: string; displayName?: string | null }) {
     const response = await apiClient.post<ApiResponse<ManagedSmsSender>>(
       `${basePath(companyId)}/senders`,
       input,

@@ -1,9 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { FiUploadCloud, FiX } from 'react-icons/fi'
-import type {
-  AdConversion,
-  GoogleConversionEventUploadInput,
-} from '../../features/ads/types'
+import type { AdConversion, GoogleConversionEventUploadInput } from '../../features/ads/types'
 
 type Props = {
   conversion: AdConversion | null
@@ -22,11 +19,10 @@ export default function GoogleConversionEventUploadModal({
   onClose,
   onUpload,
 }: Props) {
-  const [eventTimestamp, setEventTimestamp] = useState(() =>
-    new Date().toISOString().slice(0, 16),
-  )
-  const [eventSource, setEventSource] =
-    useState<'WEB' | 'APP' | 'IN_STORE' | 'PHONE' | 'MESSAGE' | 'OTHER'>('WEB')
+  const [eventTimestamp, setEventTimestamp] = useState(() => new Date().toISOString().slice(0, 16))
+  const [eventSource, setEventSource] = useState<
+    'WEB' | 'APP' | 'IN_STORE' | 'PHONE' | 'MESSAGE' | 'OTHER'
+  >('WEB')
   const [transactionId, setTransactionId] = useState('')
   const [value, setValue] = useState('')
   const [currency, setCurrency] = useState(defaultCurrency ?? '')
@@ -75,9 +71,7 @@ export default function GoogleConversionEventUploadModal({
         <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white px-6 py-5">
           <div>
             <p className="eyebrow">Google Data Manager</p>
-            <h2 className="mt-1 text-xl font-bold text-slate-950">
-              Upload conversion event
-            </h2>
+            <h2 className="mt-1 text-xl font-bold text-slate-950">Upload conversion event</h2>
             <p className="mt-1 text-sm text-slate-500">{conversion.name}</p>
           </div>
           <button
@@ -109,12 +103,7 @@ export default function GoogleConversionEventUploadModal({
                 onChange={(event) =>
                   setEventSource(
                     event.target.value as
-                      | 'WEB'
-                      | 'APP'
-                      | 'IN_STORE'
-                      | 'PHONE'
-                      | 'MESSAGE'
-                      | 'OTHER',
+                      'WEB' | 'APP' | 'IN_STORE' | 'PHONE' | 'MESSAGE' | 'OTHER',
                   )
                 }
               >
@@ -168,15 +157,27 @@ export default function GoogleConversionEventUploadModal({
             <div className="mt-3 grid gap-4 sm:grid-cols-3">
               <label className="text-xs font-semibold text-slate-700">
                 GCLID
-                <input className="form-input mt-2" value={gclid} onChange={(event) => setGclid(event.target.value)} />
+                <input
+                  className="form-input mt-2"
+                  value={gclid}
+                  onChange={(event) => setGclid(event.target.value)}
+                />
               </label>
               <label className="text-xs font-semibold text-slate-700">
                 GBRAID
-                <input className="form-input mt-2" value={gbraid} onChange={(event) => setGbraid(event.target.value)} />
+                <input
+                  className="form-input mt-2"
+                  value={gbraid}
+                  onChange={(event) => setGbraid(event.target.value)}
+                />
               </label>
               <label className="text-xs font-semibold text-slate-700">
                 WBRAID
-                <input className="form-input mt-2" value={wbraid} onChange={(event) => setWbraid(event.target.value)} />
+                <input
+                  className="form-input mt-2"
+                  value={wbraid}
+                  onChange={(event) => setWbraid(event.target.value)}
+                />
               </label>
             </div>
           </div>
@@ -204,7 +205,8 @@ export default function GoogleConversionEventUploadModal({
               </label>
             </div>
             <p className="mt-2 text-xs text-slate-400">
-              Reachlyo normalizes and SHA-256 hashes email and phone identifiers before sending them to Google.
+              Reachlyo normalizes and SHA-256 hashes email and phone identifiers before sending them
+              to Google.
             </p>
           </div>
 
@@ -221,9 +223,7 @@ export default function GoogleConversionEventUploadModal({
               <input
                 type="checkbox"
                 checked={adPersonalizationConsent}
-                onChange={(event) =>
-                  setAdPersonalizationConsent(event.target.checked)
-                }
+                onChange={(event) => setAdPersonalizationConsent(event.target.checked)}
               />
               Ad personalization consent granted
             </label>
@@ -247,11 +247,7 @@ export default function GoogleConversionEventUploadModal({
               disabled={saving}
             >
               <FiUploadCloud aria-hidden="true" />
-              {saving
-                ? 'Submitting…'
-                : validateOnly
-                  ? 'Validate event'
-                  : 'Upload event'}
+              {saving ? 'Submitting…' : validateOnly ? 'Validate event' : 'Upload event'}
             </button>
           </div>
         </form>

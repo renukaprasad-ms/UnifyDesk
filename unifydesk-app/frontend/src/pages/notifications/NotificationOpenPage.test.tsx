@@ -44,9 +44,7 @@ describe('NotificationOpenPage', () => {
     render(
       <Provider store={store}>
         <MemoryRouter
-          initialEntries={[
-            '/notification-open?n=922337203685470001&c=922337203685470100',
-          ]}
+          initialEntries={['/notification-open?n=922337203685470001&c=922337203685470100']}
         >
           <Routes>
             <Route path="/notification-open" element={<NotificationOpenPage />} />
@@ -57,10 +55,7 @@ describe('NotificationOpenPage', () => {
     )
 
     expect(await screen.findByText('Inbox target')).toBeTruthy()
-    expect(notificationApi.get).toHaveBeenCalledWith(
-      '922337203685470001',
-      '922337203685470100',
-    )
+    expect(notificationApi.get).toHaveBeenCalledWith('922337203685470001', '922337203685470100')
     expect(notificationApi.setReadState).toHaveBeenCalledWith(
       companyNotification.id,
       '922337203685470100',
@@ -74,9 +69,7 @@ describe('NotificationOpenPage', () => {
     render(
       <Provider store={store}>
         <MemoryRouter
-          initialEntries={[
-            '/notification-open?n=922337203685470001&c=922337203685470100',
-          ]}
+          initialEntries={['/notification-open?n=922337203685470001&c=922337203685470100']}
         >
           <Routes>
             <Route path="/notification-open" element={<NotificationOpenPage />} />
@@ -85,9 +78,7 @@ describe('NotificationOpenPage', () => {
       </Provider>,
     )
 
-    expect(
-      await screen.findByText('This notification is no longer available'),
-    ).toBeTruthy()
+    expect(await screen.findByText('This notification is no longer available')).toBeTruthy()
     expect(notificationApi.get).not.toHaveBeenCalled()
   })
 })

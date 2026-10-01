@@ -185,8 +185,8 @@ export default function MetaGeoTargetingEditor({
       <div>
         <h4 className="text-sm font-bold text-slate-900">Geo targeting</h4>
         <p className="mt-1 text-xs leading-5 text-slate-500">
-          Add countries directly, search Meta for provider-valid regions/cities/postal codes,
-          or target a coordinate radius.
+          Add countries directly, search Meta for provider-valid regions/cities/postal codes, or
+          target a coordinate radius.
         </p>
       </div>
 
@@ -222,11 +222,7 @@ export default function MetaGeoTargetingEditor({
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-[120px_1fr_auto]">
-        <select
-          className="form-input"
-          value="COUNTRY"
-          disabled
-        >
+        <select className="form-input" value="COUNTRY" disabled>
           <option value="COUNTRY">Country</option>
         </select>
         <input
@@ -255,9 +251,7 @@ export default function MetaGeoTargetingEditor({
             className="form-input"
             value={searchType}
             disabled={disabled}
-            onChange={(event) =>
-              setSearchType(event.target.value as 'REGION' | 'CITY' | 'ZIP')
-            }
+            onChange={(event) => setSearchType(event.target.value as 'REGION' | 'CITY' | 'ZIP')}
           >
             <option value="REGION">Region</option>
             <option value="CITY">City</option>
@@ -406,9 +400,7 @@ export default function MetaGeoTargetingEditor({
                   className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
                   disabled={disabled}
                   aria-label="Remove location"
-                  onClick={() =>
-                    onChange(locations.filter((_, itemIndex) => itemIndex !== index))
-                  }
+                  onClick={() => onChange(locations.filter((_, itemIndex) => itemIndex !== index))}
                 >
                   <FiTrash2 aria-hidden="true" />
                 </button>

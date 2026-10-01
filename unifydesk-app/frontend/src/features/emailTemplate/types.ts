@@ -12,12 +12,7 @@ export type EmailTemplateStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
 export type EmailTemplatePurpose = 'MARKETING' | 'TRANSACTIONAL'
 export type EmailTemplateEditorMode = 'BUILDER' | 'HTML'
 export type EmailTemplateProviderBindingStatus =
-  | 'SYNCING'
-  | 'PENDING_REVIEW'
-  | 'SYNCED'
-  | 'READY'
-  | 'REJECTED'
-  | 'FAILED'
+  'SYNCING' | 'PENDING_REVIEW' | 'SYNCED' | 'READY' | 'REJECTED' | 'FAILED'
 
 export type EmailBlock =
   | { id: string; type: 'HEADER'; brandText?: string; logoUrl?: string }
@@ -115,7 +110,6 @@ export type Page<T> = {
   first: boolean
   last: boolean
 }
-
 
 export type EmailTemplateProviderBinding = {
   id: string

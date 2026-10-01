@@ -1,9 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { FiUploadCloud, FiX } from 'react-icons/fi'
-import type {
-  AdAudience,
-  GoogleCustomerMatchUploadInput,
-} from '../../features/ads/types'
+import type { AdAudience, GoogleCustomerMatchUploadInput } from '../../features/ads/types'
 
 type IdentifierType = 'EMAIL' | 'PHONE' | 'USER_ID' | 'MOBILE_ID'
 
@@ -64,9 +61,7 @@ export default function GoogleCustomerMatchUploadModal({
         <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
           <div>
             <p className="eyebrow">Google Customer Match</p>
-            <h2 className="mt-1 text-xl font-bold text-slate-950">
-              Upload audience members
-            </h2>
+            <h2 className="mt-1 text-xl font-bold text-slate-950">Upload audience members</h2>
             <p className="mt-1 text-sm text-slate-500">{audience.name}</p>
           </div>
           <button
@@ -84,9 +79,7 @@ export default function GoogleCustomerMatchUploadModal({
             <select
               className="form-input mt-2"
               value={identifierType}
-              onChange={(event) =>
-                setIdentifierType(event.target.value as IdentifierType)
-              }
+              onChange={(event) => setIdentifierType(event.target.value as IdentifierType)}
             >
               <option value="EMAIL">Email address</option>
               <option value="PHONE">Phone number (E.164)</option>
@@ -110,7 +103,8 @@ export default function GoogleCustomerMatchUploadModal({
               onChange={(event) => setValues(event.target.value)}
             />
             <span className="mt-1 block font-normal text-slate-400">
-              {rows.length} member(s). Emails and phone numbers are normalized and SHA-256 hashed by Reachlyo before upload.
+              {rows.length} member(s). Emails and phone numbers are normalized and SHA-256 hashed by
+              Reachlyo before upload.
             </span>
           </label>
 
@@ -127,9 +121,7 @@ export default function GoogleCustomerMatchUploadModal({
               <input
                 type="checkbox"
                 checked={adPersonalizationConsent}
-                onChange={(event) =>
-                  setAdPersonalizationConsent(event.target.checked)
-                }
+                onChange={(event) => setAdPersonalizationConsent(event.target.checked)}
               />
               Ad personalization consent granted
             </label>
@@ -141,7 +133,8 @@ export default function GoogleCustomerMatchUploadModal({
                 onChange={(event) => setTermsAccepted(event.target.checked)}
               />
               <span>
-                I confirm the Google Customer Match terms have been accepted for this account and that I am authorized to upload this first-party data.
+                I confirm the Google Customer Match terms have been accepted for this account and
+                that I am authorized to upload this first-party data.
               </span>
             </label>
             <label className="flex items-center gap-2 sm:col-span-2">
@@ -155,12 +148,7 @@ export default function GoogleCustomerMatchUploadModal({
           </div>
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-              disabled={saving}
-            >
+            <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>
               Cancel
             </button>
             <button
@@ -169,11 +157,7 @@ export default function GoogleCustomerMatchUploadModal({
               disabled={saving || !rows.length || !termsAccepted}
             >
               <FiUploadCloud aria-hidden="true" />
-              {saving
-                ? 'Submitting…'
-                : validateOnly
-                  ? 'Validate members'
-                  : 'Upload members'}
+              {saving ? 'Submitting…' : validateOnly ? 'Validate members' : 'Upload members'}
             </button>
           </div>
         </form>

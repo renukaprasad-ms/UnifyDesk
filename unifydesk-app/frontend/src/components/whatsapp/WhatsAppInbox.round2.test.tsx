@@ -278,12 +278,8 @@ describe('WhatsApp Inbox Round-2 delivery state and template hardening', () => {
     expect(await screen.findByLabelText('Sent')).toBeInTheDocument()
 
     await act(async () => {
-      realtimeHarness.statusListener?.(
-        statusEvent({ connectionId: 'connection-other' }),
-      )
-      realtimeHarness.statusListener?.(
-        statusEvent({ conversationId: 'conversation-other' }),
-      )
+      realtimeHarness.statusListener?.(statusEvent({ connectionId: 'connection-other' }))
+      realtimeHarness.statusListener?.(statusEvent({ conversationId: 'conversation-other' }))
     })
 
     expect(inboxApi.realtimeSnapshot).not.toHaveBeenCalled()

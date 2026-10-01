@@ -22,8 +22,8 @@ const toMinor = (value: string, currency?: string | null) => {
   if (!currency) return Math.round(numeric)
   try {
     const digits =
-      new Intl.NumberFormat(undefined, { style: 'currency', currency })
-        .resolvedOptions().maximumFractionDigits ?? 2
+      new Intl.NumberFormat(undefined, { style: 'currency', currency }).resolvedOptions()
+        .maximumFractionDigits ?? 2
     return Math.round(numeric * 10 ** digits)
   } catch {
     return Math.round(numeric)
@@ -57,11 +57,10 @@ export default function GooglePerformanceMaxCampaignModal({
   const [longHeadline, setLongHeadline] = useState('')
   const [descriptions, setDescriptions] = useState(['', ''])
   const [bidStrategy, setBidStrategy] =
-    useState<CreateGooglePerformanceMaxCampaignInput['bidStrategy']>(
-      'MAXIMIZE_CONVERSIONS',
-    )
-  const [containsEuPoliticalAdvertising, setContainsEuPoliticalAdvertising] =
-    useState<'YES' | 'NO' | ''>('')
+    useState<CreateGooglePerformanceMaxCampaignInput['bidStrategy']>('MAXIMIZE_CONVERSIONS')
+  const [containsEuPoliticalAdvertising, setContainsEuPoliticalAdvertising] = useState<
+    'YES' | 'NO' | ''
+  >('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [landscapeImage, setLandscapeImage] = useState('')
@@ -84,16 +83,16 @@ export default function GooglePerformanceMaxCampaignModal({
     () =>
       Boolean(
         name.trim() &&
-          budget &&
-          finalUrl.trim() &&
-          businessName.trim() &&
-          headlines.every((value) => value.trim()) &&
-          longHeadline.trim() &&
-          descriptions.every((value) => value.trim()) &&
-          landscapeImage &&
-          squareImage &&
-          logoImage &&
-          containsEuPoliticalAdvertising,
+        budget &&
+        finalUrl.trim() &&
+        businessName.trim() &&
+        headlines.every((value) => value.trim()) &&
+        longHeadline.trim() &&
+        descriptions.every((value) => value.trim()) &&
+        landscapeImage &&
+        squareImage &&
+        logoImage &&
+        containsEuPoliticalAdvertising,
       ),
     [
       name,
@@ -123,8 +122,7 @@ export default function GooglePerformanceMaxCampaignModal({
   if (!open) return null
 
   const readImage =
-    (setter: (value: string) => void) =>
-    async (event: ChangeEvent<HTMLInputElement>) => {
+    (setter: (value: string) => void) => async (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0]
       if (!file) return
       setImageError('')
@@ -141,9 +139,7 @@ export default function GooglePerformanceMaxCampaignModal({
       try {
         setter(await fileToDataUrl(file))
       } catch (error) {
-        setImageError(
-          error instanceof Error ? error.message : 'Unable to read image file',
-        )
+        setImageError(error instanceof Error ? error.message : 'Unable to read image file')
       }
     }
 
@@ -273,15 +269,12 @@ export default function GooglePerformanceMaxCampaignModal({
                 value={bidStrategy}
                 onChange={(event) =>
                   setBidStrategy(
-                    event.target
-                      .value as CreateGooglePerformanceMaxCampaignInput['bidStrategy'],
+                    event.target.value as CreateGooglePerformanceMaxCampaignInput['bidStrategy'],
                   )
                 }
               >
                 <option value="MAXIMIZE_CONVERSIONS">Maximize conversions</option>
-                <option value="MAXIMIZE_CONVERSION_VALUE">
-                  Maximize conversion value
-                </option>
+                <option value="MAXIMIZE_CONVERSION_VALUE">Maximize conversion value</option>
               </select>
             </label>
           </div>
@@ -336,8 +329,8 @@ export default function GooglePerformanceMaxCampaignModal({
               <div>
                 <h3 className="text-sm font-bold text-slate-950">Brand guidelines</h3>
                 <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">
-                  Recommended for new Performance Max campaigns. Google will use the
-                  business name and logos at campaign level instead of asset-group level.
+                  Recommended for new Performance Max campaigns. Google will use the business name
+                  and logos at campaign level instead of asset-group level.
                 </p>
               </div>
               <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700">
@@ -406,10 +399,7 @@ export default function GooglePerformanceMaxCampaignModal({
 
             <div className="mt-4 grid gap-4 sm:grid-cols-3">
               {headlines.map((headline, index) => (
-                <label
-                  key={index}
-                  className="block text-xs font-semibold text-slate-700"
-                >
+                <label key={index} className="block text-xs font-semibold text-slate-700">
                   Headline {index + 1}
                   <input
                     className="form-input mt-2"
@@ -435,10 +425,7 @@ export default function GooglePerformanceMaxCampaignModal({
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               {descriptions.map((description, index) => (
-                <label
-                  key={index}
-                  className="block text-xs font-semibold text-slate-700"
-                >
+                <label key={index} className="block text-xs font-semibold text-slate-700">
                   Description {index + 1}
                   <textarea
                     className="form-input mt-2 min-h-24"
@@ -460,7 +447,8 @@ export default function GooglePerformanceMaxCampaignModal({
           <div>
             <h3 className="text-sm font-bold text-slate-950">Image assets</h3>
             <p className="mt-1 text-xs text-slate-500">
-              PNG, JPG or GIF. Maximum 5 MB each. Reachlyo validates dimensions before sending to Google.
+              PNG, JPG or GIF. Maximum 5 MB each. Reachlyo validates dimensions before sending to
+              Google.
             </p>
 
             <div className="mt-4 grid gap-4 md:grid-cols-3">
@@ -486,9 +474,7 @@ export default function GooglePerformanceMaxCampaignModal({
                   <FiUpload aria-hidden="true" />
                   Square image
                 </span>
-                <span className="mt-1 block font-normal text-slate-400">
-                  1:1, minimum 300×300
-                </span>
+                <span className="mt-1 block font-normal text-slate-400">1:1, minimum 300×300</span>
                 <input
                   className="mt-3 block w-full text-xs"
                   type="file"
@@ -503,9 +489,7 @@ export default function GooglePerformanceMaxCampaignModal({
                   <FiUpload aria-hidden="true" />
                   Square logo
                 </span>
-                <span className="mt-1 block font-normal text-slate-400">
-                  1:1, minimum 128×128
-                </span>
+                <span className="mt-1 block font-normal text-slate-400">1:1, minimum 128×128</span>
                 <input
                   className="mt-3 block w-full text-xs"
                   type="file"
@@ -563,9 +547,7 @@ export default function GooglePerformanceMaxCampaignModal({
               </span>
             </label>
 
-            {imageError && (
-              <p className="mt-3 text-xs font-semibold text-red-600">{imageError}</p>
-            )}
+            {imageError && <p className="mt-3 text-xs font-semibold text-red-600">{imageError}</p>}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -576,13 +558,13 @@ export default function GooglePerformanceMaxCampaignModal({
                 value={containsEuPoliticalAdvertising}
                 required
                 onChange={(event) =>
-                  setContainsEuPoliticalAdvertising(
-                    event.target.value as 'YES' | 'NO' | '',
-                  )
+                  setContainsEuPoliticalAdvertising(event.target.value as 'YES' | 'NO' | '')
                 }
               >
                 <option value="">Select an answer</option>
-                <option value="NO">No, this campaign does not contain EU political advertising</option>
+                <option value="NO">
+                  No, this campaign does not contain EU political advertising
+                </option>
                 <option value="YES">Yes, this campaign contains EU political advertising</option>
               </select>
               <span className="mt-1 block font-normal text-slate-400">
@@ -611,23 +593,15 @@ export default function GooglePerformanceMaxCampaignModal({
           </div>
 
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
-            Reachlyo creates the budget, Performance Max campaign, assets, asset group, and required asset links atomically. Delivery remains paused until you review and start the campaign.
+            Reachlyo creates the budget, Performance Max campaign, assets, asset group, and required
+            asset links atomically. Delivery remains paused until you review and start the campaign.
           </div>
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-              disabled={saving}
-            >
+            <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={saving || !canSubmit}
-            >
+            <button type="submit" className="primary-button" disabled={saving || !canSubmit}>
               {saving ? 'Creating…' : 'Create paused Performance Max'}
             </button>
           </div>

@@ -56,9 +56,9 @@ const toMinor = (value: string, currency?: string | null) => {
   if (!Number.isFinite(numeric) || numeric <= 0) return null
   if (!currency) return Math.round(numeric)
   try {
-    const digits = new Intl.NumberFormat(undefined, { style: 'currency', currency })
-      .resolvedOptions()
-      .maximumFractionDigits ?? 2
+    const digits =
+      new Intl.NumberFormat(undefined, { style: 'currency', currency }).resolvedOptions()
+        .maximumFractionDigits ?? 2
     return Math.round(numeric * 10 ** digits)
   } catch {
     return Math.round(numeric)
@@ -150,18 +150,15 @@ export default function MetaAdSetModal({
       billingEvent,
       bidStrategy: bidStrategy || null,
       bidAmountMinor: toMinor(bidAmount, account.currency),
-      dailyBudgetMinor:
-        budgetType === 'DAILY' ? toMinor(budget, account.currency) : null,
-      lifetimeBudgetMinor:
-        budgetType === 'LIFETIME' ? toMinor(budget, account.currency) : null,
+      dailyBudgetMinor: budgetType === 'DAILY' ? toMinor(budget, account.currency) : null,
+      lifetimeBudgetMinor: budgetType === 'LIFETIME' ? toMinor(budget, account.currency) : null,
       startAt: startAt ? new Date(startAt).toISOString() : null,
       endAt: endAt ? new Date(endAt).toISOString() : null,
       destinationType: destinationType || null,
       locations,
       ageMin: Number(ageMin),
       ageMax: Number(ageMax),
-      genders:
-        gender === 'ALL' ? [] : gender === 'MEN' ? [1] : [2],
+      genders: gender === 'ALL' ? [] : gender === 'MEN' ? [1] : [2],
       publisherPlatforms,
       facebookPositions: placementMode === 'MANUAL' && facebook ? facebookPositions : [],
       instagramPositions: placementMode === 'MANUAL' && instagram ? instagramPositions : [],
@@ -188,7 +185,11 @@ export default function MetaAdSetModal({
             <h2 className="mt-1 text-xl font-bold text-slate-950">Create ad set</h2>
             <p className="mt-1 text-sm text-slate-500">{campaign.name}</p>
           </div>
-          <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100" onClick={onClose}>
+          <button
+            type="button"
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+            onClick={onClose}
+          >
             <FiX size={18} aria-hidden="true" />
           </button>
         </div>
@@ -199,12 +200,23 @@ export default function MetaAdSetModal({
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="block text-xs font-semibold text-slate-700 sm:col-span-2">
                 Ad set name
-                <input className="form-input mt-2" value={name} maxLength={255} required autoFocus onChange={(e) => setName(e.target.value)} />
+                <input
+                  className="form-input mt-2"
+                  value={name}
+                  maxLength={255}
+                  required
+                  autoFocus
+                  onChange={(e) => setName(e.target.value)}
+                />
               </label>
 
               <label className="block text-xs font-semibold text-slate-700">
                 Optimization goal
-                <select className="form-input mt-2" value={optimizationGoal} onChange={(e) => setOptimizationGoal(e.target.value)}>
+                <select
+                  className="form-input mt-2"
+                  value={optimizationGoal}
+                  onChange={(e) => setOptimizationGoal(e.target.value)}
+                >
                   <option value="LINK_CLICKS">Link clicks</option>
                   <option value="LANDING_PAGE_VIEWS">Landing page views</option>
                   <option value="IMPRESSIONS">Impressions</option>
@@ -218,7 +230,11 @@ export default function MetaAdSetModal({
 
               <label className="block text-xs font-semibold text-slate-700">
                 Billing event
-                <select className="form-input mt-2" value={billingEvent} onChange={(e) => setBillingEvent(e.target.value)}>
+                <select
+                  className="form-input mt-2"
+                  value={billingEvent}
+                  onChange={(e) => setBillingEvent(e.target.value)}
+                >
                   <option value="IMPRESSIONS">Impressions</option>
                   <option value="LINK_CLICKS">Link clicks</option>
                   <option value="THRUPLAY">ThruPlay</option>
@@ -227,7 +243,11 @@ export default function MetaAdSetModal({
 
               <label className="block text-xs font-semibold text-slate-700">
                 Bid strategy
-                <select className="form-input mt-2" value={bidStrategy} onChange={(e) => setBidStrategy(e.target.value)}>
+                <select
+                  className="form-input mt-2"
+                  value={bidStrategy}
+                  onChange={(e) => setBidStrategy(e.target.value)}
+                >
                   <option value="LOWEST_COST_WITHOUT_CAP">Lowest cost</option>
                   <option value="LOWEST_COST_WITH_BID_CAP">Bid cap</option>
                   <option value="COST_CAP">Cost cap</option>
@@ -236,12 +256,24 @@ export default function MetaAdSetModal({
 
               <label className="block text-xs font-semibold text-slate-700">
                 Bid amount {account.currency ? `(${account.currency})` : ''}
-                <input className="form-input mt-2" type="number" min="0.01" step="0.01" value={bidAmount} disabled={bidStrategy === 'LOWEST_COST_WITHOUT_CAP'} onChange={(e) => setBidAmount(e.target.value)} />
+                <input
+                  className="form-input mt-2"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={bidAmount}
+                  disabled={bidStrategy === 'LOWEST_COST_WITHOUT_CAP'}
+                  onChange={(e) => setBidAmount(e.target.value)}
+                />
               </label>
 
               <label className="block text-xs font-semibold text-slate-700">
                 Destination
-                <select className="form-input mt-2" value={destinationType} onChange={(e) => setDestinationType(e.target.value)}>
+                <select
+                  className="form-input mt-2"
+                  value={destinationType}
+                  onChange={(e) => setDestinationType(e.target.value)}
+                >
                   <option value="">Meta default</option>
                   <option value="WEBSITE">Website</option>
                   <option value="APP">App</option>
@@ -258,7 +290,11 @@ export default function MetaAdSetModal({
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="block text-xs font-semibold text-slate-700">
                 Budget source
-                <select className="form-input mt-2" value={budgetType} onChange={(e) => setBudgetType(e.target.value as 'NONE' | 'DAILY' | 'LIFETIME')}>
+                <select
+                  className="form-input mt-2"
+                  value={budgetType}
+                  onChange={(e) => setBudgetType(e.target.value as 'NONE' | 'DAILY' | 'LIFETIME')}
+                >
                   {campaignHasBudget ? (
                     <option value="NONE">Use campaign budget</option>
                   ) : (
@@ -272,17 +308,36 @@ export default function MetaAdSetModal({
 
               <label className="block text-xs font-semibold text-slate-700">
                 Amount {account.currency ? `(${account.currency})` : ''}
-                <input className="form-input mt-2" type="number" min="0.01" step="0.01" value={budget} disabled={budgetType === 'NONE'} required={budgetType !== 'NONE'} onChange={(e) => setBudget(e.target.value)} />
+                <input
+                  className="form-input mt-2"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={budget}
+                  disabled={budgetType === 'NONE'}
+                  required={budgetType !== 'NONE'}
+                  onChange={(e) => setBudget(e.target.value)}
+                />
               </label>
 
               <label className="block text-xs font-semibold text-slate-700">
                 Start
-                <input className="form-input mt-2" type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
+                <input
+                  className="form-input mt-2"
+                  type="datetime-local"
+                  value={startAt}
+                  onChange={(e) => setStartAt(e.target.value)}
+                />
               </label>
 
               <label className="block text-xs font-semibold text-slate-700">
                 End
-                <input className="form-input mt-2" type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
+                <input
+                  className="form-input mt-2"
+                  type="datetime-local"
+                  value={endAt}
+                  onChange={(e) => setEndAt(e.target.value)}
+                />
               </label>
             </div>
           </section>
@@ -300,16 +355,34 @@ export default function MetaAdSetModal({
 
               <label className="block text-xs font-semibold text-slate-700">
                 Minimum age
-                <input className="form-input mt-2" type="number" min="13" max="65" value={ageMin} onChange={(e) => setAgeMin(e.target.value)} />
+                <input
+                  className="form-input mt-2"
+                  type="number"
+                  min="13"
+                  max="65"
+                  value={ageMin}
+                  onChange={(e) => setAgeMin(e.target.value)}
+                />
               </label>
               <label className="block text-xs font-semibold text-slate-700">
                 Maximum age
-                <input className="form-input mt-2" type="number" min="13" max="65" value={ageMax} onChange={(e) => setAgeMax(e.target.value)} />
+                <input
+                  className="form-input mt-2"
+                  type="number"
+                  min="13"
+                  max="65"
+                  value={ageMax}
+                  onChange={(e) => setAgeMax(e.target.value)}
+                />
               </label>
 
               <label className="block text-xs font-semibold text-slate-700">
                 Gender
-                <select className="form-input mt-2" value={gender} onChange={(e) => setGender(e.target.value as 'ALL' | 'MEN' | 'WOMEN')}>
+                <select
+                  className="form-input mt-2"
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value as 'ALL' | 'MEN' | 'WOMEN')}
+                >
                   <option value="ALL">All</option>
                   <option value="MEN">Men</option>
                   <option value="WOMEN">Women</option>
@@ -342,9 +415,7 @@ export default function MetaAdSetModal({
                         type="checkbox"
                         className="mt-0.5"
                         checked={advantageAgeSuggestion}
-                        onChange={(event) =>
-                          setAdvantageAgeSuggestion(event.target.checked)
-                        }
+                        onChange={(event) => setAdvantageAgeSuggestion(event.target.checked)}
                       />
                       Treat the selected age range as an audience suggestion.
                     </label>
@@ -353,9 +424,7 @@ export default function MetaAdSetModal({
                         type="checkbox"
                         className="mt-0.5"
                         checked={advantageGenderSuggestion}
-                        onChange={(event) =>
-                          setAdvantageGenderSuggestion(event.target.checked)
-                        }
+                        onChange={(event) => setAdvantageGenderSuggestion(event.target.checked)}
                       />
                       Treat the selected gender as an audience suggestion.
                     </label>
@@ -413,7 +482,11 @@ export default function MetaAdSetModal({
             <h3 className="text-sm font-bold text-slate-950">Placements</h3>
             <label className="mt-4 block text-xs font-semibold text-slate-700">
               Placement mode
-              <select className="form-input mt-2" value={placementMode} onChange={(e) => setPlacementMode(e.target.value as 'AUTO' | 'MANUAL')}>
+              <select
+                className="form-input mt-2"
+                value={placementMode}
+                onChange={(e) => setPlacementMode(e.target.value as 'AUTO' | 'MANUAL')}
+              >
                 <option value="AUTO">Advantage+ placements (recommended)</option>
                 <option value="MANUAL">Manual placements</option>
               </select>
@@ -426,44 +499,80 @@ export default function MetaAdSetModal({
             {placementMode === 'MANUAL' && (
               <div className="mt-4 space-y-3">
                 {[
-                  ['facebook', 'Facebook', facebook, setFacebook, facebookPositions, setFacebookPositions],
-                  ['instagram', 'Instagram', instagram, setInstagram, instagramPositions, setInstagramPositions],
-                  ['messenger', 'Messenger', messenger, setMessenger, messengerPositions, setMessengerPositions],
-                  ['audience_network', 'Audience Network', audienceNetwork, setAudienceNetwork, audienceNetworkPositions, setAudienceNetworkPositions],
+                  [
+                    'facebook',
+                    'Facebook',
+                    facebook,
+                    setFacebook,
+                    facebookPositions,
+                    setFacebookPositions,
+                  ],
+                  [
+                    'instagram',
+                    'Instagram',
+                    instagram,
+                    setInstagram,
+                    instagramPositions,
+                    setInstagramPositions,
+                  ],
+                  [
+                    'messenger',
+                    'Messenger',
+                    messenger,
+                    setMessenger,
+                    messengerPositions,
+                    setMessengerPositions,
+                  ],
+                  [
+                    'audience_network',
+                    'Audience Network',
+                    audienceNetwork,
+                    setAudienceNetwork,
+                    audienceNetworkPositions,
+                    setAudienceNetworkPositions,
+                  ],
                 ].map(([key, label, enabled, setEnabled, positions, setPositions]) => (
                   <div key={key as string} className="rounded-xl border border-slate-200 p-4">
                     <label className="flex items-center gap-3 text-sm font-semibold text-slate-800">
                       <input
                         type="checkbox"
                         checked={enabled as boolean}
-                        onChange={(event) => (setEnabled as (value: boolean) => void)(event.target.checked)}
+                        onChange={(event) =>
+                          (setEnabled as (value: boolean) => void)(event.target.checked)
+                        }
                       />
                       {label as string}
                     </label>
                     {enabled && (
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        {META_PLACEMENTS[key as keyof typeof META_PLACEMENTS].map(([value, title]) => (
-                          <label key={value} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                            <input
-                              type="checkbox"
-                              checked={(positions as string[]).includes(value)}
-                              onChange={(event) =>
-                                (setPositions as (value: string[]) => void)(
-                                  event.target.checked
-                                    ? [...new Set([...(positions as string[]), value])]
-                                    : (positions as string[]).filter((item) => item !== value),
-                                )
-                              }
-                            />
-                            {title}
-                          </label>
-                        ))}
+                        {META_PLACEMENTS[key as keyof typeof META_PLACEMENTS].map(
+                          ([value, title]) => (
+                            <label
+                              key={value}
+                              className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={(positions as string[]).includes(value)}
+                                onChange={(event) =>
+                                  (setPositions as (value: string[]) => void)(
+                                    event.target.checked
+                                      ? [...new Set([...(positions as string[]), value])]
+                                      : (positions as string[]).filter((item) => item !== value),
+                                  )
+                                }
+                              />
+                              {title}
+                            </label>
+                          ),
+                        )}
                       </div>
                     )}
                   </div>
                 ))}
                 <p className="text-xs leading-5 text-slate-500">
-                  Leaving all positions unchecked for a selected platform lets Meta use every eligible placement on that platform.
+                  Leaving all positions unchecked for a selected platform lets Meta use every
+                  eligible placement on that platform.
                 </p>
               </div>
             )}
@@ -481,7 +590,10 @@ export default function MetaAdSetModal({
                 >
                   <option value="">Use pixel + standard event</option>
                   {conversions
-                    .filter((conversion) => conversion.accessible && !conversion.archived && !conversion.unavailable)
+                    .filter(
+                      (conversion) =>
+                        conversion.accessible && !conversion.archived && !conversion.unavailable,
+                    )
                     .map((conversion) => (
                       <option key={conversion.id} value={conversion.id}>
                         {conversion.name} · {conversion.customEventType ?? 'Conversion'}
@@ -494,7 +606,11 @@ export default function MetaAdSetModal({
                 <>
                   <label className="block text-xs font-semibold text-slate-700">
                     Pixel
-                    <select className="form-input mt-2" value={pixelId} onChange={(e) => setPixelId(e.target.value)}>
+                    <select
+                      className="form-input mt-2"
+                      value={pixelId}
+                      onChange={(e) => setPixelId(e.target.value)}
+                    >
                       <option value="">No pixel selected</option>
                       {pixels.map((pixel) => (
                         <option key={pixel.id} value={pixel.externalResourceId}>
@@ -506,7 +622,12 @@ export default function MetaAdSetModal({
 
                   <label className="block text-xs font-semibold text-slate-700">
                     Conversion event
-                    <select className="form-input mt-2" value={customEventType} disabled={!pixelId} onChange={(e) => setCustomEventType(e.target.value)}>
+                    <select
+                      className="form-input mt-2"
+                      value={customEventType}
+                      disabled={!pixelId}
+                      onChange={(e) => setCustomEventType(e.target.value)}
+                    >
                       <option value="">Meta default</option>
                       <option value="PURCHASE">Purchase</option>
                       <option value="LEAD">Lead</option>
@@ -522,12 +643,24 @@ export default function MetaAdSetModal({
           </section>
 
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
-            This ad set is created PAUSED. Starting the campaign or ad set never happens implicitly from this form.
+            This ad set is created PAUSED. Starting the campaign or ad set never happens implicitly
+            from this form.
           </div>
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
-            <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>Cancel</button>
-            <button type="submit" className="primary-button" disabled={saving || !name.trim() || locations.length === 0 || (budgetType !== 'NONE' && !budget)}>
+            <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={
+                saving ||
+                !name.trim() ||
+                locations.length === 0 ||
+                (budgetType !== 'NONE' && !budget)
+              }
+            >
               {saving ? 'Creating…' : 'Create paused ad set'}
             </button>
           </div>

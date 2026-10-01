@@ -22,7 +22,10 @@ import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 
 const formatValue = (value?: string | null) =>
   value
-    ? value.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+    ? value
+        .replaceAll('_', ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase())
     : '—'
 
 export default function AdConversions() {
@@ -44,8 +47,7 @@ export default function AdConversions() {
   const [notice, setNotice] = useState('')
 
   const managedAccounts = useMemo(
-    () =>
-      accounts.filter((account) => account.managed && account.accessible),
+    () => accounts.filter((account) => account.managed && account.accessible),
     [accounts],
   )
 
@@ -173,7 +175,11 @@ export default function AdConversions() {
     setError('')
     setNotice('')
     try {
-      const created = await adCenterApi.createMetaConversion(selectedCompany.companyId, selectedAccount.id, input)
+      const created = await adCenterApi.createMetaConversion(
+        selectedCompany.companyId,
+        selectedAccount.id,
+        input,
+      )
       setConversions((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setModalOpen(false)
       setNotice(`${created.name} was created in Meta.`)
@@ -190,7 +196,11 @@ export default function AdConversions() {
     setError('')
     setNotice('')
     try {
-      const created = await adCenterApi.createGoogleConversion(selectedCompany.companyId, selectedAccount.id, input)
+      const created = await adCenterApi.createGoogleConversion(
+        selectedCompany.companyId,
+        selectedAccount.id,
+        input,
+      )
       setConversions((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setModalOpen(false)
       setNotice(`${created.name} was created in Google Ads.`)
@@ -201,9 +211,7 @@ export default function AdConversions() {
     }
   }
 
-  const uploadGoogleConversionEvent = async (
-    input: GoogleConversionEventUploadInput,
-  ) => {
+  const uploadGoogleConversionEvent = async (input: GoogleConversionEventUploadInput) => {
     if (!selectedCompany || !uploadConversion) return
     setUploadingEvent(true)
     setError('')
@@ -226,12 +234,7 @@ export default function AdConversions() {
         )
       }
     } catch (uploadError) {
-      setError(
-        apiErrorMessage(
-          uploadError,
-          'Unable to upload Google conversion events',
-        ),
-      )
+      setError(apiErrorMessage(uploadError, 'Unable to upload Google conversion events'))
     } finally {
       setUploadingEvent(false)
     }
@@ -261,7 +264,9 @@ export default function AdConversions() {
                 onClick={() => void sync()}
               >
                 <FiRefreshCw aria-hidden="true" />
-                {syncing ? 'Syncing…' : `Sync ${selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google' : 'Meta'}`}
+                {syncing
+                  ? 'Syncing…'
+                  : `Sync ${selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google' : 'Meta'}`}
               </button>
             )}
             {can(PERMISSIONS.ADS_CREATE) && (
@@ -316,72 +321,74 @@ export default function AdConversions() {
           <>
             {selectedAccount?.provider === 'META_ADS' && (
               <>
-            <div className="mt-6">
-              <div className="flex items-end justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-950">Pixels</h2>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Event sources discovered from the selected Meta ad account.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-400">
-                    {pixels.length} connected
-                  </span>
-                  {can(PERMISSIONS.ADS_CREATE) && (
-                    <button
-                      type="button"
-                      className="secondary-button inline-flex items-center gap-2"
-                      disabled={!selectedAccount}
-                      onClick={() => setPixelModalOpen(true)}
-                    >
-                      <FiPlus aria-hidden="true" />
-                      Create pixel
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {pixels.length === 0 ? (
-                <div className="panel mt-3 p-8 text-center text-sm text-slate-500">
-                  No Meta pixels are accessible for this account. Sync Meta resources to refresh the account assets.
-                </div>
-              ) : (
-                <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {pixels.map((pixel) => (
-                    <div key={pixel.id} className="panel p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate font-bold text-slate-950">
-                            {pixel.name || 'Meta Pixel'}
-                          </p>
-                          <p className="mt-1 break-all text-xs text-slate-400">
-                            {pixel.externalResourceId}
-                          </p>
-                        </div>
-                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                          Accessible
-                        </span>
-                      </div>
-                      <p className="mt-4 text-xs text-slate-500">
-                        Last resource sync:{' '}
-                        {pixel.lastSyncAt
-                          ? new Date(pixel.lastSyncAt).toLocaleString()
-                          : 'Not synchronized'}
+                <div className="mt-6">
+                  <div className="flex items-end justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-950">Pixels</h2>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Event sources discovered from the selected Meta ad account.
                       </p>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-slate-400">
+                        {pixels.length} connected
+                      </span>
+                      {can(PERMISSIONS.ADS_CREATE) && (
+                        <button
+                          type="button"
+                          className="secondary-button inline-flex items-center gap-2"
+                          disabled={!selectedAccount}
+                          onClick={() => setPixelModalOpen(true)}
+                        >
+                          <FiPlus aria-hidden="true" />
+                          Create pixel
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
+                  {pixels.length === 0 ? (
+                    <div className="panel mt-3 p-8 text-center text-sm text-slate-500">
+                      No Meta pixels are accessible for this account. Sync Meta resources to refresh
+                      the account assets.
+                    </div>
+                  ) : (
+                    <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      {pixels.map((pixel) => (
+                        <div key={pixel.id} className="panel p-5">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate font-bold text-slate-950">
+                                {pixel.name || 'Meta Pixel'}
+                              </p>
+                              <p className="mt-1 break-all text-xs text-slate-400">
+                                {pixel.externalResourceId}
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                              Accessible
+                            </span>
+                          </div>
+                          <p className="mt-4 text-xs text-slate-500">
+                            Last resource sync:{' '}
+                            {pixel.lastSyncAt
+                              ? new Date(pixel.lastSyncAt).toLocaleString()
+                              : 'Not synchronized'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
             <div className="mt-8">
               <div>
                 <h2 className="text-lg font-bold text-slate-950">
-                  {selectedAccount?.provider === 'GOOGLE_ADS' ? 'Conversion actions' : 'Custom conversions'}
+                  {selectedAccount?.provider === 'GOOGLE_ADS'
+                    ? 'Conversion actions'
+                    : 'Custom conversions'}
                 </h2>
                 <p className="mt-1 text-xs text-slate-500">
                   {selectedAccount?.provider === 'GOOGLE_ADS'
@@ -437,7 +444,7 @@ export default function AdConversions() {
                             <td className="px-5 py-4 text-slate-600">
                               {selectedAccount?.provider === 'GOOGLE_ADS'
                                 ? formatValue(conversion.eventSourceType)
-                                : conversion.pixelId ?? '—'}
+                                : (conversion.pixelId ?? '—')}
                             </td>
                             <td className="px-5 py-4 text-slate-600">
                               {conversion.lastFiredAt

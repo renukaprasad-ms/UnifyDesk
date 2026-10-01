@@ -132,7 +132,10 @@ export default function PlatformUsers() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-sm font-medium text-slate-700" data-label="Username">
+                      <td
+                        className="px-5 py-4 text-sm font-medium text-slate-700"
+                        data-label="Username"
+                      >
                         @{user.username}
                       </td>
                       <td className="px-5 py-4" data-label="Verification">

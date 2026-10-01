@@ -36,9 +36,7 @@ describe('managedEmailApi safe usage and deliverability endpoints', () => {
 
     await managedEmailApi.usage('company-1')
 
-    expect(apiClient.get).toHaveBeenCalledWith(
-      '/api/v1/companies/company-1/managed-email/usage',
-    )
+    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/companies/company-1/managed-email/usage')
   })
 
   it('loads customer-safe health only from /managed-email/deliverability', async () => {

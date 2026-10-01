@@ -87,10 +87,7 @@ describe('notification browser permission flow', () => {
   })
 
   it('requests permission only from the explicit enable flow and registers push', async () => {
-    const requestPermission = setNotificationApi(
-      'default',
-      vi.fn().mockResolvedValue('granted'),
-    )
+    const requestPermission = setNotificationApi('default', vi.fn().mockResolvedValue('granted'))
     const localSubscription = subscription()
     const { subscribe } = installPushEnvironment(localSubscription)
     vi.mocked(notificationApi.pushCapability).mockResolvedValue({
@@ -128,9 +125,7 @@ describe('notification browser permission flow', () => {
     })
     vi.spyOn(axios, 'isAxiosError').mockReturnValue(true)
 
-    await expect(enableBrowserNotifications()).rejects.toBeInstanceOf(
-      PushRegistrationConflictError,
-    )
+    await expect(enableBrowserNotifications()).rejects.toBeInstanceOf(PushRegistrationConflictError)
     expect(unsubscribe).toHaveBeenCalledTimes(1)
     expect(window.localStorage.getItem('unifydesk.notification.pushSubscriptionId')).toBeNull()
   })

@@ -88,20 +88,23 @@ export default function AdminSidebar({
       </div>
 
       <nav aria-label="Administration" className="mt-6 space-y-1">
-        {links.filter(allowed).slice(0, -1).map((link) => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            end={link.to === '/platform'}
-            onClick={onNavigate}
-            className={({ isActive }) => `admin-nav-link ${isActive ? 'is-active' : ''}`}
-          >
-            <span aria-hidden="true" className="admin-nav-icon">
-              {link.icon}
-            </span>
-            <span>{link.label}</span>
-          </NavLink>
-        ))}
+        {links
+          .filter(allowed)
+          .slice(0, -1)
+          .map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              end={link.to === '/platform'}
+              onClick={onNavigate}
+              className={({ isActive }) => `admin-nav-link ${isActive ? 'is-active' : ''}`}
+            >
+              <span aria-hidden="true" className="admin-nav-icon">
+                {link.icon}
+              </span>
+              <span>{link.label}</span>
+            </NavLink>
+          ))}
 
         {canViewChannelAnalytics && (
           <div>
@@ -148,19 +151,22 @@ export default function AdminSidebar({
           </div>
         )}
 
-        {links.filter(allowed).slice(-1).map((link) => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            onClick={onNavigate}
-            className={({ isActive }) => `admin-nav-link ${isActive ? 'is-active' : ''}`}
-          >
-            <span aria-hidden="true" className="admin-nav-icon">
-              {link.icon}
-            </span>
-            <span>{link.label}</span>
-          </NavLink>
-        ))}
+        {links
+          .filter(allowed)
+          .slice(-1)
+          .map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              onClick={onNavigate}
+              className={({ isActive }) => `admin-nav-link ${isActive ? 'is-active' : ''}`}
+            >
+              <span aria-hidden="true" className="admin-nav-icon">
+                {link.icon}
+              </span>
+              <span>{link.label}</span>
+            </NavLink>
+          ))}
       </nav>
     </>
   )

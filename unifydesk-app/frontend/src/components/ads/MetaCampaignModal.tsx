@@ -19,9 +19,9 @@ const toMinor = (value: string, currency?: string | null) => {
   if (!Number.isFinite(numeric) || numeric <= 0) return null
   if (!currency) return Math.round(numeric)
   try {
-    const digits = new Intl.NumberFormat(undefined, { style: 'currency', currency })
-      .resolvedOptions()
-      .maximumFractionDigits ?? 2
+    const digits =
+      new Intl.NumberFormat(undefined, { style: 'currency', currency }).resolvedOptions()
+        .maximumFractionDigits ?? 2
     return Math.round(numeric * 10 ** digits)
   } catch {
     return Math.round(numeric)
@@ -37,13 +37,7 @@ const objectives: Array<{ value: MetaCampaignObjective; label: string }> = [
   { value: 'OUTCOME_SALES', label: 'Sales' },
 ]
 
-export default function MetaCampaignModal({
-  account,
-  open,
-  saving,
-  onClose,
-  onCreate,
-}: Props) {
+export default function MetaCampaignModal({ account, open, saving, onClose, onCreate }: Props) {
   const [name, setName] = useState('')
   const [objective, setObjective] = useState<MetaCampaignObjective>('OUTCOME_TRAFFIC')
   const [buyingType, setBuyingType] = useState<'AUCTION' | 'RESERVED'>('AUCTION')
@@ -80,7 +74,11 @@ export default function MetaCampaignModal({
               {account.name}. New campaigns are created paused.
             </p>
           </div>
-          <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100" onClick={onClose}>
+          <button
+            type="button"
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+            onClick={onClose}
+          >
             <FiX size={18} aria-hidden="true" />
           </button>
         </div>

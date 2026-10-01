@@ -6,11 +6,7 @@ import inboxReducer, {
   fetchInboxConversations,
 } from './inboxSlice'
 
-const conversation = (
-  id: string,
-  preview: string,
-  unreadCount: number,
-): InboxConversation => ({
+const conversation = (id: string, preview: string, unreadCount: number): InboxConversation => ({
   id,
   connectionId: 'connection-1',
   externalConversationId: `thread-${id}`,

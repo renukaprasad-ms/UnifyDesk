@@ -1,8 +1,7 @@
 import type { BroadcastSender } from '../broadcast/types'
 
-export const isMessagingManagedSender = (
-  sender?: Pick<BroadcastSender, 'managementMode'> | null,
-) => sender?.managementMode === 'MESSAGING_MANAGED'
+export const isMessagingManagedSender = (sender?: Pick<BroadcastSender, 'managementMode'> | null) =>
+  sender?.managementMode === 'MESSAGING_MANAGED'
 
 export const managedConnectionDisplayName = (
   sender: Pick<BroadcastSender, 'managementMode'> | null | undefined,
@@ -24,17 +23,11 @@ export const broadcastSenderProviderLabel = (
   return String(provider).replaceAll('_', ' ')
 }
 
-export const broadcastSenderConnectionDetails = (
-  sender?: BroadcastSender | null,
-): string[] => {
+export const broadcastSenderConnectionDetails = (sender?: BroadcastSender | null): string[] => {
   if (!sender || isMessagingManagedSender(sender)) return []
 
   const details: string[] = []
-  if (
-    sender.provider !== 'MSG91_SMS' &&
-    sender.provider !== 'MSG91_EMAIL' &&
-    sender.region
-  ) {
+  if (sender.provider !== 'MSG91_SMS' && sender.provider !== 'MSG91_EMAIL' && sender.region) {
     details.push(sender.region)
   }
   if (sender.maxSendRate) {

@@ -43,14 +43,8 @@ export default function GoogleAppAdModal({
   const [selectedVideos, setSelectedVideos] = useState<string[]>([])
   const [error, setError] = useState('')
 
-  const images = useMemo(
-    () => assets.filter((asset) => asset.type === 'IMAGE'),
-    [assets],
-  )
-  const videos = useMemo(
-    () => assets.filter((asset) => asset.type === 'YOUTUBE_VIDEO'),
-    [assets],
-  )
+  const images = useMemo(() => assets.filter((asset) => asset.type === 'IMAGE'), [assets])
+  const videos = useMemo(() => assets.filter((asset) => asset.type === 'YOUTUBE_VIDEO'), [assets])
 
   useEffect(() => {
     if (!open) return
@@ -70,14 +64,8 @@ export default function GoogleAppAdModal({
 
   if (!open) return null
 
-  const updateValue = (
-    setter: Dispatch<SetStateAction<string[]>>,
-    index: number,
-    value: string,
-  ) =>
-    setter((current) =>
-      current.map((item, itemIndex) => (itemIndex === index ? value : item)),
-    )
+  const updateValue = (setter: Dispatch<SetStateAction<string[]>>, index: number, value: string) =>
+    setter((current) => current.map((item, itemIndex) => (itemIndex === index ? value : item)))
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -105,7 +93,8 @@ export default function GoogleAppAdModal({
             <p className="eyebrow">Google Ads · {subtype}</p>
             <h2 className="mt-1 text-xl font-bold text-slate-950">Create App ad</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Text can be entered directly; images and videos reuse assets already stored in Google Ads.
+              Text can be entered directly; images and videos reuse assets already stored in Google
+              Ads.
             </p>
           </div>
           <button
@@ -241,7 +230,8 @@ export default function GoogleAppAdModal({
 
           <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs leading-5 text-indigo-800">
             The ad is created paused. Google can generate additional assets from App Store content
-            depending on account/campaign eligibility; UnifyDesk only sends the assets you selected here.
+            depending on account/campaign eligibility; UnifyDesk only sends the assets you selected
+            here.
           </div>
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
@@ -313,9 +303,7 @@ function TextList({
                   type="button"
                   className="mt-2 rounded-lg px-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
                   onClick={() =>
-                    setValues((current) =>
-                      current.filter((_, itemIndex) => itemIndex !== index),
-                    )
+                    setValues((current) => current.filter((_, itemIndex) => itemIndex !== index))
                   }
                 >
                   <FiTrash2 aria-hidden="true" />

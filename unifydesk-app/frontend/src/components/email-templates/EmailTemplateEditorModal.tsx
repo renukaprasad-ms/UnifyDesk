@@ -113,16 +113,12 @@ export default function EmailTemplateEditorModal({
   onSaved,
 }: Props) {
   const snackbar = useSnackbar()
-  const [mode, setMode] = useState<EmailTemplateEditorMode>(
-    template?.editorMode ?? initialMode,
-  )
+  const [mode, setMode] = useState<EmailTemplateEditorMode>(template?.editorMode ?? initialMode)
   const [name, setName] = useState(template?.name ?? '')
   const [category, setCategory] = useState<EmailTemplateCategory>(
     template?.category ?? 'PROMOTIONAL',
   )
-  const [purpose, setPurpose] = useState<EmailTemplatePurpose>(
-    template?.purpose ?? initialPurpose,
-  )
+  const [purpose, setPurpose] = useState<EmailTemplatePurpose>(template?.purpose ?? initialPurpose)
   const [subject, setSubject] = useState(template?.subject ?? '')
   const [preheader, setPreheader] = useState(template?.preheader ?? '')
   const [htmlSource, setHtmlSource] = useState(
@@ -208,11 +204,7 @@ export default function EmailTemplateEditorModal({
     }
   }
 
-  const uploadImage = async (
-    blockId: string,
-    field: 'logoUrl' | 'imageUrl',
-    file: File,
-  ) => {
+  const uploadImage = async (blockId: string, field: 'logoUrl' | 'imageUrl', file: File) => {
     setUploadingBlockId(blockId)
     try {
       const uploaded = await mediaApi.uploadTemplateMedia(file, companyId)
@@ -282,7 +274,9 @@ export default function EmailTemplateEditorModal({
                   onChange={(event) => setPurpose(event.target.value as EmailTemplatePurpose)}
                 >
                   <option value="MARKETING">Marketing — offers, newsletters, campaigns</option>
-                  <option value="TRANSACTIONAL">Transactional — expected service/account messages</option>
+                  <option value="TRANSACTIONAL">
+                    Transactional — expected service/account messages
+                  </option>
                 </select>
                 <span className="mt-1 block text-[10px] font-medium leading-4 text-slate-400">
                   MSG91 Email can only be synced when this template is genuinely transactional.
@@ -351,9 +345,7 @@ export default function EmailTemplateEditorModal({
                   document={document}
                   uploadingBlockId={uploadingBlockId}
                   onChange={setDocument}
-                  onUploadImage={(blockId, field, file) =>
-                    void uploadImage(blockId, field, file)
-                  }
+                  onUploadImage={(blockId, field, file) => void uploadImage(blockId, field, file)}
                 />
               </div>
             )}
@@ -404,22 +396,26 @@ export default function EmailTemplateEditorModal({
                 {variables.map((key) => {
                   const value = previewValues[key] ?? ''
                   return (
-                  <label
-                    key={key}
-                    className="grid grid-cols-[120px_1fr] items-center gap-2 text-[10px] text-slate-500"
-                  >
-                    <span>{'{{'}{key}{'}}'}</span>
-                    <input
-                      className="form-input !py-1.5 text-[11px]"
-                      value={value}
-                      onChange={(event) =>
-                        setPreviewValues((current) => ({
-                          ...current,
-                          [key]: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
+                    <label
+                      key={key}
+                      className="grid grid-cols-[120px_1fr] items-center gap-2 text-[10px] text-slate-500"
+                    >
+                      <span>
+                        {'{{'}
+                        {key}
+                        {'}}'}
+                      </span>
+                      <input
+                        className="form-input !py-1.5 text-[11px]"
+                        value={value}
+                        onChange={(event) =>
+                          setPreviewValues((current) => ({
+                            ...current,
+                            [key]: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
                   )
                 })}
               </div>

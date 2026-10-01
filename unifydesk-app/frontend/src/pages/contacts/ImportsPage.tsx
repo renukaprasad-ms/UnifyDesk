@@ -35,7 +35,8 @@ export default function ImportsPage() {
         <p className="eyebrow">Contacts</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-950">Import contacts</h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-500">
-          Upload a CSV and UnifyDesk will help match common columns like name, email and phone before anything is imported.
+          Upload a CSV and UnifyDesk will help match common columns like name, email and phone
+          before anything is imported.
         </p>
 
         <div className="panel mt-6 p-6">
@@ -64,9 +65,10 @@ export default function ImportsPage() {
           )}
 
           <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-slate-700">
-            <strong className="text-slate-950">Marketing consent is separate.</strong>{' '}
-            Adding someone to Contacts does not automatically opt them into Email, SMS or WhatsApp marketing.
-            If your CSV contains verified consent data, you can map it under Advanced settings.
+            <strong className="text-slate-950">Marketing consent is separate.</strong> Adding
+            someone to Contacts does not automatically opt them into Email, SMS or WhatsApp
+            marketing. If your CSV contains verified consent data, you can map it under Advanced
+            settings.
           </div>
 
           {error && (

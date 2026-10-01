@@ -32,7 +32,10 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { emailTemplateApi } from '../../features/emailTemplate/emailTemplateApi'
-import type { EmailTemplateProviderBinding, EmailTemplateSummary } from '../../features/emailTemplate/types'
+import type {
+  EmailTemplateProviderBinding,
+  EmailTemplateSummary,
+} from '../../features/emailTemplate/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import BroadcastSenderProviderMeta from '../../components/managed-email/BroadcastSenderProviderMeta'
@@ -73,9 +76,7 @@ const statsProcessed = (stats: BroadcastStats) =>
 const progressFor = (message: BroadcastMessageSummary | BroadcastMessage) => {
   if (message.progressPercent !== undefined) return message.progressPercent
   if (message.stats.total <= 0) return 0
-  const terminal = ['COMPLETED', 'PARTIALLY_FAILED', 'CANCELLED', 'FAILED'].includes(
-    message.status,
-  )
+  const terminal = ['COMPLETED', 'PARTIALLY_FAILED', 'CANCELLED', 'FAILED'].includes(message.status)
   const value = Math.floor((statsProcessed(message.stats) * 100) / message.stats.total)
   return Math.min(terminal ? 100 : 99, value)
 }
@@ -200,11 +201,15 @@ export default function BroadcastWorkspace() {
   const [groupBusy, setGroupBusy] = useState(false)
   const [composeSenderId, setComposeSenderId] = useState('')
   const [composeTemplates, setComposeTemplates] = useState<EmailTemplateSummary[]>([])
-  const [composeProviderBindings, setComposeProviderBindings] = useState<EmailTemplateProviderBinding[]>([])
+  const [composeProviderBindings, setComposeProviderBindings] = useState<
+    EmailTemplateProviderBinding[]
+  >([])
   const [composeTemplateId, setComposeTemplateId] = useState('')
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
-  const [composeTemplateVariables, setComposeTemplateVariables] = useState<Record<string, string>>({})
+  const [composeTemplateVariables, setComposeTemplateVariables] = useState<Record<string, string>>(
+    {},
+  )
   const [composeManagedHeaders, setComposeManagedHeaders] = useState<ManagedSmsHeader[]>([])
   const [composeManagedTemplates, setComposeManagedTemplates] = useState<ManagedSmsTemplate[]>([])
   const [composeManagedPreview, setComposeManagedPreview] = useState<ManagedSmsPreview | null>(null)
@@ -222,8 +227,7 @@ export default function BroadcastWorkspace() {
     ['QUEUED', 'RUNNING', 'PAUSED'].includes(message.status),
   )
   const selectedMessageActive =
-    selectedMessage !== null &&
-    ['QUEUED', 'RUNNING', 'PAUSED'].includes(selectedMessage.status)
+    selectedMessage !== null && ['QUEUED', 'RUNNING', 'PAUSED'].includes(selectedMessage.status)
 
   const activeSenders = useMemo(
     () =>
@@ -248,18 +252,17 @@ export default function BroadcastWorkspace() {
   const selectedActiveSender = useMemo(
     () =>
       selectedSenderId
-        ? activeSenders.find((sender) => sender.id === selectedSenderId) ?? null
+        ? (activeSenders.find((sender) => sender.id === selectedSenderId) ?? null)
         : null,
     [activeSenders, selectedSenderId],
   )
 
-  const composeSender = composeSenderId ? sendersById.get(composeSenderId) ?? null : null
+  const composeSender = composeSenderId ? (sendersById.get(composeSenderId) ?? null) : null
   const composeUsesMsg91Email = composeSender?.provider === 'MSG91_EMAIL'
   const composeUsesManagedSms = isManagedSmsSender(composeSender)
-  const composeManagedHeader =
-    composeUsesManagedSms
-      ? composeManagedHeaders.find((item) => item.header === composeSender?.fromAddress) ?? null
-      : null
+  const composeManagedHeader = composeUsesManagedSms
+    ? (composeManagedHeaders.find((item) => item.header === composeSender?.fromAddress) ?? null)
+    : null
 
   const composeBindingByTemplateVersion = useMemo(
     () =>
@@ -362,9 +365,7 @@ export default function BroadcastWorkspace() {
   const refreshHistory = useCallback(
     async (force = true) => {
       if (!companyId || !selectedGroupId) return
-      await dispatch(
-        fetchBroadcastHistory({ companyId, groupId: selectedGroupId, force }),
-      )
+      await dispatch(fetchBroadcastHistory({ companyId, groupId: selectedGroupId, force }))
     },
     [companyId, dispatch, selectedGroupId],
   )
@@ -446,7 +447,8 @@ export default function BroadcastWorkspace() {
         }
       })
       .catch((requestError) => {
-        if (active) snackbar.error(apiErrorMessage(requestError, 'Unable to load broadcast details'))
+        if (active)
+          snackbar.error(apiErrorMessage(requestError, 'Unable to load broadcast details'))
       })
       .finally(() => {
         if (active) setDetailLoading(false)
@@ -456,10 +458,7 @@ export default function BroadcastWorkspace() {
     }
   }, [companyId, dispatch, selectedBroadcastId])
 
-  useEffect(
-    () => realtimeClient.subscribeConnection(setRealtimeConnected),
-    [],
-  )
+  useEffect(() => realtimeClient.subscribeConnection(setRealtimeConnected), [])
 
   useEffect(() => {
     if (!companyId) return
@@ -489,8 +488,7 @@ export default function BroadcastWorkspace() {
           return {
             ...current,
             runId: event.payload.runId,
-            status:
-              event.payload.status === 'PREPARING' ? 'QUEUED' : event.payload.status,
+            status: event.payload.status === 'PREPARING' ? 'QUEUED' : event.payload.status,
             stats: event.payload.stats,
             progressPercent: event.payload.progressPercent,
           }
@@ -693,16 +691,12 @@ export default function BroadcastWorkspace() {
         const updates = new Map(
           refreshed
             .filter(
-              (
-                result,
-              ): result is PromiseFulfilledResult<EmailTemplateProviderBinding> =>
+              (result): result is PromiseFulfilledResult<EmailTemplateProviderBinding> =>
                 result.status === 'fulfilled',
             )
             .map((result) => [result.value.id, result.value]),
         )
-        setComposeProviderBindings(
-          items.map((binding) => updates.get(binding.id) ?? binding),
-        )
+        setComposeProviderBindings(items.map((binding) => updates.get(binding.id) ?? binding))
       } catch (requestError) {
         if (active) {
           snackbar.error(apiErrorMessage(requestError, 'Unable to load MSG91 template bindings'))
@@ -1001,11 +995,7 @@ export default function BroadcastWorkspace() {
         if (Number.isNaN(scheduleDate.getTime()) || scheduleDate.getTime() <= Date.now()) {
           throw new Error('Schedule time must be in the future')
         }
-        result = await broadcastApi.schedule(
-          companyId,
-          draft.id,
-          scheduleDate.toISOString(),
-        )
+        result = await broadcastApi.schedule(companyId, draft.id, scheduleDate.toISOString())
         snackbar.success('Broadcast scheduled.')
       } else {
         snackbar.success('Broadcast draft saved.')
@@ -1031,10 +1021,7 @@ export default function BroadcastWorkspace() {
     }
   }
 
-  const runAction = async (
-    action: 'pause' | 'resume' | 'cancel' | 'send',
-    messageId: string,
-  ) => {
+  const runAction = async (action: 'pause' | 'resume' | 'cancel' | 'send', messageId: string) => {
     if (!companyId) return
     setActionBusy(true)
     try {
@@ -1050,8 +1037,9 @@ export default function BroadcastWorkspace() {
       setSelectedMessage((current) => (current?.id === result.id ? result : current))
       await refreshHistory(true)
     } catch (requestError) {
-      const actionSender =
-        selectedMessage?.senderId ? sendersById.get(selectedMessage.senderId) ?? null : null
+      const actionSender = selectedMessage?.senderId
+        ? (sendersById.get(selectedMessage.senderId) ?? null)
+        : null
       snackbar.error(
         isManagedSmsSender(actionSender)
           ? managedSmsErrorMessage(requestError, `Unable to ${action} managed SMS broadcast.`)
@@ -1066,9 +1054,7 @@ export default function BroadcastWorkspace() {
     if (!companyId || !selectedBroadcastId) return
     setRecipientsLoading(true)
     try {
-      setRecipients(
-        await broadcastApi.recipients(companyId, selectedBroadcastId, page),
-      )
+      setRecipients(await broadcastApi.recipients(companyId, selectedBroadcastId, page))
     } catch (requestError) {
       snackbar.error(apiErrorMessage(requestError, 'Unable to load recipients'))
     } finally {
@@ -1112,8 +1098,8 @@ export default function BroadcastWorkspace() {
                 {channelLabel} Broadcast is coming next
               </h1>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                The production broadcast engine is live for email first. The same reusable group
-                and execution model is ready for {channelLabel.toLowerCase()} transport later.
+                The production broadcast engine is live for email first. The same reusable group and
+                execution model is ready for {channelLabel.toLowerCase()} transport later.
               </p>
             </div>
           </main>
@@ -1147,7 +1133,11 @@ export default function BroadcastWorkspace() {
           </button>
 
           {selectedGroup && can(PERMISSIONS.BROADCAST_MODIFY) && (
-            <button type="button" className="secondary-button gap-2" onClick={() => void openMembers()}>
+            <button
+              type="button"
+              className="secondary-button gap-2"
+              onClick={() => void openMembers()}
+            >
               <FiUsers aria-hidden="true" />
               <span className="inbox-action-label">Members</span>
             </button>
@@ -1159,7 +1149,9 @@ export default function BroadcastWorkspace() {
               className="primary-button gap-2"
               onClick={() => openComposer()}
               disabled={!selectedActiveSender}
-              title={!selectedActiveSender ? 'Choose a Broadcast account from the sidebar' : undefined}
+              title={
+                !selectedActiveSender ? 'Choose a Broadcast account from the sidebar' : undefined
+              }
             >
               <FiSend aria-hidden="true" />
               <span className="inbox-action-label">New broadcast</span>
@@ -1187,7 +1179,11 @@ export default function BroadcastWorkspace() {
                   send with its own immutable recipient snapshot and delivery history.
                 </p>
                 {can(PERMISSIONS.BROADCAST_CREATE) && (
-                  <button type="button" className="primary-button mt-5 gap-2" onClick={openNewGroup}>
+                  <button
+                    type="button"
+                    className="primary-button mt-5 gap-2"
+                    onClick={openNewGroup}
+                  >
                     <FiUsers aria-hidden="true" />
                     Create group
                   </button>
@@ -1199,16 +1195,14 @@ export default function BroadcastWorkspace() {
               message={selectedMessage}
               sender={
                 selectedMessage?.senderId
-                  ? sendersById.get(selectedMessage.senderId) ?? null
+                  ? (sendersById.get(selectedMessage.senderId) ?? null)
                   : null
               }
               loading={detailLoading}
               recipients={recipients}
               recipientsLoading={recipientsLoading}
               actionBusy={actionBusy}
-              canSend={
-                can(PERMISSIONS.BROADCAST_SEND) && Boolean(selectedMessage?.senderId)
-              }
+              canSend={can(PERMISSIONS.BROADCAST_SEND) && Boolean(selectedMessage?.senderId)}
               canModify={can(PERMISSIONS.BROADCAST_MODIFY)}
               onBack={() => updateSearch({ broadcastId: null })}
               onEdit={(id) => openComposer(id)}
@@ -1266,65 +1260,72 @@ export default function BroadcastWorkspace() {
                         </button>
                       )}
                     </div>
-               </div>
-
-                <div className="mt-5">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">Broadcast history</p>
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        Every send keeps the recipient snapshot used at that time.
-                      </p>
-                    </div>
                   </div>
 
-                  {broadcast.historyStatus === 'loading' && history.length === 0 ? (
-                    <div className="panel px-5 py-12 text-center text-sm text-slate-500">
-                      Loading broadcasts…
+                  <div className="mt-5">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">Broadcast history</p>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          Every send keeps the recipient snapshot used at that time.
+                        </p>
+                      </div>
                     </div>
-                  ) : history.length === 0 ? (
-                    <div className="panel px-5 py-12 text-center">
-                      <FiSend className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
-                      <p className="mt-3 text-sm font-semibold text-slate-800">No broadcasts yet</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        This group is ready. Compose the first broadcast when you want to send.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid gap-3">
-                      {history.map((message) => (
-                        <BroadcastHistoryCard
-                          key={message.id}
-                          message={message}
-                          sender={message.senderId ? sendersById.get(message.senderId) ?? null : null}
-                          canModify={can(PERMISSIONS.BROADCAST_MODIFY)}
-                          onOpen={() => updateSearch({ broadcastId: message.id })}
-                          onEdit={() => openComposer(message.id)}
-                        />
-                      ))}
-                      {broadcast.historyPage + 1 < broadcast.historyTotalPages && (
-                        <button
-                          type="button"
-                          className="secondary-button mx-auto mt-2"
-                          onClick={loadMoreHistory}
-                          disabled={broadcast.loadingMoreHistory}
-                        >
-                          {broadcast.loadingMoreHistory ? 'Loading…' : 'Load older broadcasts'}
-                        </button>
-                      )}
-                    </div>
-                  )}
+
+                    {broadcast.historyStatus === 'loading' && history.length === 0 ? (
+                      <div className="panel px-5 py-12 text-center text-sm text-slate-500">
+                        Loading broadcasts…
+                      </div>
+                    ) : history.length === 0 ? (
+                      <div className="panel px-5 py-12 text-center">
+                        <FiSend className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
+                        <p className="mt-3 text-sm font-semibold text-slate-800">
+                          No broadcasts yet
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          This group is ready. Compose the first broadcast when you want to send.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid gap-3">
+                        {history.map((message) => (
+                          <BroadcastHistoryCard
+                            key={message.id}
+                            message={message}
+                            sender={
+                              message.senderId ? (sendersById.get(message.senderId) ?? null) : null
+                            }
+                            canModify={can(PERMISSIONS.BROADCAST_MODIFY)}
+                            onOpen={() => updateSearch({ broadcastId: message.id })}
+                            onEdit={() => openComposer(message.id)}
+                          />
+                        ))}
+                        {broadcast.historyPage + 1 < broadcast.historyTotalPages && (
+                          <button
+                            type="button"
+                            className="secondary-button mx-auto mt-2"
+                            onClick={loadMoreHistory}
+                            disabled={broadcast.loadingMoreHistory}
+                          >
+                            {broadcast.loadingMoreHistory ? 'Loading…' : 'Load older broadcasts'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
           )}
         </main>
       </div>
 
       {newGroupOpen && (
         <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4">
-          <form className="mobile-sheet w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onSubmit={createGroup}>
+          <form
+            className="mobile-sheet w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
+            onSubmit={createGroup}
+          >
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-base font-bold text-slate-950">New broadcast group</p>
@@ -1362,10 +1363,18 @@ export default function BroadcastWorkspace() {
               />
             </label>
             <div className="mt-5 flex justify-end gap-2">
-              <button type="button" className="secondary-button" onClick={() => updateSearch({ newGroup: null })}>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => updateSearch({ newGroup: null })}
+              >
                 Cancel
               </button>
-              <button type="submit" className="primary-button" disabled={groupBusy || !groupName.trim()}>
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={groupBusy || !groupName.trim()}
+              >
                 {groupBusy ? 'Creating…' : 'Create group'}
               </button>
             </div>
@@ -1445,7 +1454,12 @@ export default function BroadcastWorkspace() {
                   {selectedGroup.memberCount.toLocaleString()} active recipients
                 </p>
               </div>
-              <button type="button" className="admin-back-button" onClick={() => setMembersOpen(false)} aria-label="Close">
+              <button
+                type="button"
+                className="admin-back-button"
+                onClick={() => setMembersOpen(false)}
+                aria-label="Close"
+              >
                 <FiX aria-hidden="true" />
               </button>
             </div>
@@ -1611,7 +1625,12 @@ export default function BroadcastWorkspace() {
                   recipients
                 </p>
               </div>
-              <button type="button" className="admin-back-button" onClick={closeComposer} aria-label="Close">
+              <button
+                type="button"
+                className="admin-back-button"
+                onClick={closeComposer}
+                aria-label="Close"
+              >
                 <FiX aria-hidden="true" />
               </button>
             </div>
@@ -1644,9 +1663,7 @@ export default function BroadcastWorkspace() {
                 {composeUsesManagedSms && (
                   <div className="mt-4 grid gap-4">
                     <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
-                      <p className="text-xs font-bold text-slate-900">
-                        Approved template required
-                      </p>
+                      <p className="text-xs font-bold text-slate-900">Approved template required</p>
                       <p className="mt-1 text-[11px] leading-5 text-slate-600">
                         Managed SMS sends the exact DLT-approved template for this Header. The
                         message body cannot be edited freely.
@@ -1682,7 +1699,9 @@ export default function BroadcastWorkspace() {
                             }}
                           >
                             <option value="">
-                              {composeManagedLoading ? 'Loading templates…' : 'Choose ready template'}
+                              {composeManagedLoading
+                                ? 'Loading templates…'
+                                : 'Choose ready template'}
                             </option>
                             {availableManagedSmsTemplates.map((template) => (
                               <option key={template.id} value={template.id}>
@@ -1714,31 +1733,33 @@ export default function BroadcastWorkspace() {
                               </p>
                             ) : (
                               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                                {selectedManagedSmsTemplate.activeVersion.variables.map((variable) => (
-                                  <label
-                                    key={variable.key}
-                                    className="text-[11px] font-semibold text-slate-700"
-                                  >
-                                    {variable.key}
-                                    <input
-                                      className="form-input mt-1.5"
-                                      value={composeTemplateVariables[variable.key] ?? ''}
-                                      maxLength={variable.maxLength}
-                                      onChange={(event) =>
-                                        setComposeTemplateVariables((current) => ({
-                                          ...current,
-                                          [variable.key]: event.target.value,
-                                        }))
-                                      }
-                                      placeholder={`Up to ${variable.maxLength} characters`}
-                                    />
-                                    {managedVariableErrors[variable.key] && (
-                                      <span className="mt-1 block text-[10px] font-medium text-rose-600">
-                                        {managedVariableErrors[variable.key]}
-                                      </span>
-                                    )}
-                                  </label>
-                                ))}
+                                {selectedManagedSmsTemplate.activeVersion.variables.map(
+                                  (variable) => (
+                                    <label
+                                      key={variable.key}
+                                      className="text-[11px] font-semibold text-slate-700"
+                                    >
+                                      {variable.key}
+                                      <input
+                                        className="form-input mt-1.5"
+                                        value={composeTemplateVariables[variable.key] ?? ''}
+                                        maxLength={variable.maxLength}
+                                        onChange={(event) =>
+                                          setComposeTemplateVariables((current) => ({
+                                            ...current,
+                                            [variable.key]: event.target.value,
+                                          }))
+                                        }
+                                        placeholder={`Up to ${variable.maxLength} characters`}
+                                      />
+                                      {managedVariableErrors[variable.key] && (
+                                        <span className="mt-1 block text-[10px] font-medium text-rose-600">
+                                          {managedVariableErrors[variable.key]}
+                                        </span>
+                                      )}
+                                    </label>
+                                  ),
+                                )}
                               </div>
                             )}
                           </div>
@@ -1771,35 +1792,39 @@ export default function BroadcastWorkspace() {
 
                 {!composeUsesManagedSms && (
                   <label className="mt-4 block text-xs font-semibold text-slate-700">
-                  Use template
-                  <select
-                    className="form-input mt-2"
-                    value={composeTemplateId}
-                    onChange={(event) => {
-                      const templateId = event.target.value
-                      setComposeTemplateId(templateId)
-                      if (!templateId) {
-                        setComposeTemplateVariables({})
-                        return
-                      }
-                      const template = composeTemplates.find((item) => item.id === templateId)
-                      if (!template) return
-                      setComposeSubject(template.subject ?? '')
-                      setComposeBody('')
-                      setComposeTemplateVariables((current) => {
-                        const next: Record<string, string> = {}
-                        template.variables.forEach((variable) => {
-                          if (current[variable]) next[variable] = current[variable]
+                    Use template
+                    <select
+                      className="form-input mt-2"
+                      value={composeTemplateId}
+                      onChange={(event) => {
+                        const templateId = event.target.value
+                        setComposeTemplateId(templateId)
+                        if (!templateId) {
+                          setComposeTemplateVariables({})
+                          return
+                        }
+                        const template = composeTemplates.find((item) => item.id === templateId)
+                        if (!template) return
+                        setComposeSubject(template.subject ?? '')
+                        setComposeBody('')
+                        setComposeTemplateVariables((current) => {
+                          const next: Record<string, string> = {}
+                          template.variables.forEach((variable) => {
+                            if (current[variable]) next[variable] = current[variable]
+                          })
+                          return next
                         })
-                        return next
-                      })
-                    }}
-                  >
-                    <option value="">
-                      {composeUsesMsg91Email ? 'Choose synced MSG91 template' : 'Start from scratch'}
-                    </option>
-                    {(composeUsesMsg91Email ? msg91ComposeTemplates : availableComposeTemplates).map(
-                      (template) => {
+                      }}
+                    >
+                      <option value="">
+                        {composeUsesMsg91Email
+                          ? 'Choose synced MSG91 template'
+                          : 'Start from scratch'}
+                      </option>
+                      {(composeUsesMsg91Email
+                        ? msg91ComposeTemplates
+                        : availableComposeTemplates
+                      ).map((template) => {
                         const binding =
                           composeUsesMsg91Email && template.publishedVersion !== null
                             ? composeBindingByTemplateVersion.get(
@@ -1810,41 +1835,46 @@ export default function BroadcastWorkspace() {
                         return (
                           <option key={template.id} value={template.id} disabled={!ready}>
                             {template.name} · {template.category.toLowerCase().replaceAll('_', ' ')}
-                            {composeUsesMsg91Email
-                              ? ` · ${msg91TemplateStatusLabel(binding)}`
-                              : ''}
+                            {composeUsesMsg91Email ? ` · ${msg91TemplateStatusLabel(binding)}` : ''}
                           </option>
                         )
-                      },
+                      })}
+                    </select>
+                    {availableComposeTemplates.length === 0 && (
+                      <div className="mt-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3">
+                        <p className="text-[10px] font-medium leading-4 text-slate-500">
+                          {composeUsesMsg91Email
+                            ? msg91ComposeTemplates.length > 0
+                              ? 'Your MSG91 templates are visible above but are not sendable yet. Messaging is refreshing their approval status automatically.'
+                              : 'No transactional templates yet. Create one, publish it, then sync it to MSG91.'
+                            : 'No published email templates yet. Create and publish one to reuse it here.'}
+                        </p>
+                        <Link
+                          to={
+                            composeUsesMsg91Email
+                              ? '/templates?create=transactional'
+                              : '/templates?create=marketing'
+                          }
+                          className="secondary-button mt-3 inline-flex items-center gap-2 px-3 py-2 text-xs"
+                        >
+                          <FiPlus aria-hidden="true" />
+                          Create new template
+                        </Link>
+                      </div>
                     )}
-                  </select>
-                  {availableComposeTemplates.length === 0 && (
-                    <div className="mt-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3">
-                      <p className="text-[10px] font-medium leading-4 text-slate-500">
-                        {composeUsesMsg91Email
-                          ? msg91ComposeTemplates.length > 0
-                            ? 'Your MSG91 templates are visible above but are not sendable yet. Messaging is refreshing their approval status automatically.'
-                            : 'No transactional templates yet. Create one, publish it, then sync it to MSG91.'
-                          : 'No published email templates yet. Create and publish one to reuse it here.'}
-                      </p>
+                    {availableComposeTemplates.length > 0 && (
                       <Link
-                        to={composeUsesMsg91Email ? '/templates?create=transactional' : '/templates?create=marketing'}
-                        className="secondary-button mt-3 inline-flex items-center gap-2 px-3 py-2 text-xs"
+                        to={
+                          composeUsesMsg91Email
+                            ? '/templates?create=transactional'
+                            : '/templates?create=marketing'
+                        }
+                        className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
                       >
                         <FiPlus aria-hidden="true" />
-                        Create new template
+                        Create another template
                       </Link>
-                    </div>
-                  )}
-                  {availableComposeTemplates.length > 0 && (
-                    <Link
-                      to={composeUsesMsg91Email ? '/templates?create=transactional' : '/templates?create=marketing'}
-                      className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
-                    >
-                      <FiPlus aria-hidden="true" />
-                      Create another template
-                    </Link>
-                  )}
+                    )}
                   </label>
                 )}
 
@@ -1866,8 +1896,8 @@ export default function BroadcastWorkspace() {
                         <div>
                           <p className="text-xs font-bold text-slate-900">Template variables</p>
                           <p className="mt-1 text-[11px] leading-5 text-slate-500">
-                            Recipient name/metadata overrides these fallback values. Leave a value blank
-                            only when every recipient provides that variable.
+                            Recipient name/metadata overrides these fallback values. Leave a value
+                            blank only when every recipient provides that variable.
                           </p>
                         </div>
 
@@ -1885,7 +1915,9 @@ export default function BroadcastWorkspace() {
                                     className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2"
                                   >
                                     <p className="text-[11px] font-semibold text-emerald-800">
-                                      {'{{'}{variable}{'}}'}
+                                      {'{{'}
+                                      {variable}
+                                      {'}}'}
                                     </p>
                                     <p className="mt-0.5 text-[10px] text-emerald-600">
                                       Filled automatically for each recipient
@@ -1900,7 +1932,9 @@ export default function BroadcastWorkspace() {
                                   key={variable}
                                   className="text-[11px] font-semibold text-slate-700"
                                 >
-                                  {'{{'}{variable}{'}}'}
+                                  {'{{'}
+                                  {variable}
+                                  {'}}'}
                                   <input
                                     className="form-input mt-1.5"
                                     value={composeTemplateVariables[variable] ?? ''}
@@ -1926,7 +1960,8 @@ export default function BroadcastWorkspace() {
                         {editableComposeVariables.length > 0 && (
                           <p className="mt-3 text-[10px] leading-4 text-slate-400">
                             For personalized values, add matching columns/metadata to group members.
-                            A recipient-specific value takes precedence over the fallback entered here.
+                            A recipient-specific value takes precedence over the fallback entered
+                            here.
                           </p>
                         )}
                       </div>
@@ -2004,9 +2039,7 @@ export default function BroadcastWorkspace() {
                     type="button"
                     className="primary-button gap-2"
                     disabled={
-                      composeBusy ||
-                      !composeContentReady ||
-                      !can(PERMISSIONS.BROADCAST_SEND)
+                      composeBusy || !composeContentReady || !can(PERMISSIONS.BROADCAST_SEND)
                     }
                     onClick={() => void submitCompose('send')}
                   >
@@ -2056,7 +2089,9 @@ function BroadcastHistoryCard({
             <h2 className="min-w-0 truncate text-sm font-bold text-slate-900">
               {message.subject || '(No subject)'}
             </h2>
-            <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${statusBadge(message.status)}`}>
+            <span
+              className={`rounded-full px-2 py-1 text-[10px] font-bold ${statusBadge(message.status)}`}
+            >
               {statusLabel(message.status)}
             </span>
           </div>
@@ -2078,7 +2113,10 @@ function BroadcastHistoryCard({
           </div>
           {message.stats.total > 0 && (
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-indigo-500" style={{ width: `${progress}%` }} />
+              <div
+                className="h-full rounded-full bg-indigo-500"
+                style={{ width: `${progress}%` }}
+              />
             </div>
           )}
         </div>
@@ -2124,10 +2162,7 @@ function BroadcastDetail({
   canModify: boolean
   onBack: () => void
   onEdit: (id: string) => void
-  onAction: (
-    action: 'pause' | 'resume' | 'cancel' | 'send',
-    id: string,
-  ) => void
+  onAction: (action: 'pause' | 'resume' | 'cancel' | 'send', id: string) => void
   onRecipientsPage: (page: number) => void
 }) {
   if (loading && !message) {
@@ -2150,7 +2185,11 @@ function BroadcastDetail({
           </button>
           <div className="flex flex-wrap gap-2">
             {(message.status === 'DRAFT' || message.status === 'SCHEDULED') && canModify && (
-              <button type="button" className="secondary-button gap-2" onClick={() => onEdit(message.id)}>
+              <button
+                type="button"
+                className="secondary-button gap-2"
+                onClick={() => onEdit(message.id)}
+              >
                 <FiEdit2 aria-hidden="true" />
                 Edit
               </button>
@@ -2204,15 +2243,16 @@ function BroadcastDetail({
         <article className="mt-4 rounded-2xl border border-slate-200 bg-white p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${statusBadge(message.status)}`}>
+              <span
+                className={`rounded-full px-2 py-1 text-[10px] font-bold ${statusBadge(message.status)}`}
+              >
                 {statusLabel(message.status)}
               </span>
               <h1 className="mt-3 text-xl font-bold text-slate-950">
                 {message.subject || '(No subject)'}
               </h1>
               <p className="mt-1 text-xs text-slate-500">
-                From {senderLabel(sender)} ·{' '}
-                <BroadcastSenderProviderMeta sender={sender} />
+                From {senderLabel(sender)} · <BroadcastSenderProviderMeta sender={sender} />
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 Created {formatDate(message.createdAt)}
@@ -2229,7 +2269,10 @@ function BroadcastDetail({
 
           {message.stats.total > 0 && (
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-indigo-500" style={{ width: `${progress}%` }} />
+              <div
+                className="h-full rounded-full bg-indigo-500"
+                style={{ width: `${progress}%` }}
+              />
             </div>
           )}
 
@@ -2254,7 +2297,8 @@ function BroadcastDetail({
                 <div>
                   <p className="text-sm font-bold text-slate-900">Recipients</p>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    Provider acceptance is shown as Sent. Bounces can update later from delivery reports.
+                    Provider acceptance is shown as Sent. Bounces can update later from delivery
+                    reports.
                   </p>
                 </div>
                 <button

@@ -13,9 +13,8 @@ export default function BroadcastSenderProviderMeta({
 }) {
   const managedSms =
     sender?.provider === 'MSG91_SMS' && sender.managementMode === 'MESSAGING_MANAGED'
-  const details = includeConnectionDetails && !managedSms
-    ? broadcastSenderConnectionDetails(sender)
-    : []
+  const details =
+    includeConnectionDetails && !managedSms ? broadcastSenderConnectionDetails(sender) : []
   const label = managedSms ? 'UnifyDesk Managed SMS' : broadcastSenderProviderLabel(sender)
 
   return (

@@ -9,11 +9,7 @@ export type ManagedSmsCustomerState =
   | 'REJECTED'
   | 'SUSPENDED'
 
-export type ManagedSmsMessageCategory =
-  | 'PROMOTIONAL'
-  | 'SERVICE'
-  | 'TRANSACTIONAL'
-  | 'GOVERNMENT'
+export type ManagedSmsMessageCategory = 'PROMOTIONAL' | 'SERVICE' | 'TRANSACTIONAL' | 'GOVERNMENT'
 
 export type ManagedSmsDltPlatform = 'AIRTEL' | 'JIO' | 'VIL' | 'BSNL' | 'OTHER'
 

@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FiRefreshCw, FiSave } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
-import type {
-  GoogleAssetGroup,
-  GooglePerformanceMaxListingGroup,
-} from '../../features/ads/types'
+import type { GoogleAssetGroup, GooglePerformanceMaxListingGroup } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 
 type Props = {
@@ -65,10 +62,7 @@ export default function GooglePerformanceMaxListingGroups({
     setLoading(true)
     setError('')
     try {
-      const settings = await adCenterApi.googlePerformanceMaxRetailSettings(
-        companyId,
-        campaignId,
-      )
+      const settings = await adCenterApi.googlePerformanceMaxRetailSettings(companyId, campaignId)
       setRetail(settings.retail)
       setMerchantId(settings.merchantId ?? '')
       setFeedLabel(settings.feedLabel ?? '')
@@ -112,9 +106,7 @@ export default function GooglePerformanceMaxListingGroups({
         setIncludeOther(other ? other.type === 'UNIT_INCLUDED' : true)
       }
     } catch (loadError) {
-      setError(
-        apiErrorMessage(loadError, 'Unable to load Performance Max product groups'),
-      )
+      setError(apiErrorMessage(loadError, 'Unable to load Performance Max product groups'))
     } finally {
       setLoading(false)
     }
@@ -142,22 +134,14 @@ export default function GooglePerformanceMaxListingGroups({
           : [
               ...included.map((value) => ({
                 value,
-                level:
-                  dimension === 'PRODUCT_TYPE' || dimension === 'CATEGORY'
-                    ? level
-                    : null,
-                customAttributeIndex:
-                  dimension === 'CUSTOM_LABEL' ? customIndex : null,
+                level: dimension === 'PRODUCT_TYPE' || dimension === 'CATEGORY' ? level : null,
+                customAttributeIndex: dimension === 'CUSTOM_LABEL' ? customIndex : null,
                 included: true,
               })),
               ...excluded.map((value) => ({
                 value,
-                level:
-                  dimension === 'PRODUCT_TYPE' || dimension === 'CATEGORY'
-                    ? level
-                    : null,
-                customAttributeIndex:
-                  dimension === 'CUSTOM_LABEL' ? customIndex : null,
+                level: dimension === 'PRODUCT_TYPE' || dimension === 'CATEGORY' ? level : null,
+                customAttributeIndex: dimension === 'CUSTOM_LABEL' ? customIndex : null,
                 included: false,
               })),
             ]
@@ -207,8 +191,8 @@ export default function GooglePerformanceMaxListingGroups({
           <p className="text-xs font-bold text-slate-800">Retail product groups</p>
           <p className="mt-1 text-[11px] leading-5 text-slate-500">
             Merchant Center {merchantId}
-            {feedLabel ? ` · feed label ${feedLabel}` : ''}. Replacing this editor
-            replaces the complete product partition tree for this Asset Group.
+            {feedLabel ? ` · feed label ${feedLabel}` : ''}. Replacing this editor replaces the
+            complete product partition tree for this Asset Group.
           </p>
         </div>
         <button
@@ -275,8 +259,8 @@ export default function GooglePerformanceMaxListingGroups({
         <div className="mt-5 border-t border-emerald-100 pt-4">
           <p className="text-xs font-bold text-slate-800">Replace product-group tree</p>
           <p className="mt-1 text-[11px] leading-5 text-amber-700">
-            This is an intentional full replacement. Existing provider-only product groups
-            under this Asset Group are removed before the new valid tree is created.
+            This is an intentional full replacement. Existing provider-only product groups under
+            this Asset Group are removed before the new valid tree is created.
           </p>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-2">

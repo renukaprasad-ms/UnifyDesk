@@ -75,8 +75,9 @@ export default function GooglePerformanceMaxLifecyclePanel({
   const [configs, setConfigs] = useState<GooglePerformanceMaxLifecycle[]>([])
   const [customerTypes, setCustomerTypes] = useState<GoogleUserListCustomerType[]>([])
   const [audiences, setAudiences] = useState<AdAudience[]>([])
-  const [selectedGoalType, setSelectedGoalType] =
-    useState<GoogleLifecycleGoalType>('NEW_CUSTOMER_ACQUISITION')
+  const [selectedGoalType, setSelectedGoalType] = useState<GoogleLifecycleGoalType>(
+    'NEW_CUSTOMER_ACQUISITION',
+  )
 
   const [accountValue, setAccountValue] = useState('')
   const [accountHighValue, setAccountHighValue] = useState('')
@@ -85,9 +86,7 @@ export default function GooglePerformanceMaxLifecyclePanel({
   const [selectedAudienceId, setSelectedAudienceId] = useState('')
   const [selectedCustomerTypes, setSelectedCustomerTypes] = useState<string[]>([])
 
-  const [targetOption, setTargetOption] = useState<'TARGET_ALL' | 'TARGET_SPECIFIC'>(
-    'TARGET_ALL',
-  )
+  const [targetOption, setTargetOption] = useState<'TARGET_ALL' | 'TARGET_SPECIFIC'>('TARGET_ALL')
   const [campaignValue, setCampaignValue] = useState('')
   const [campaignHighValue, setCampaignHighValue] = useState('')
   const [campaignMultiplier, setCampaignMultiplier] = useState('')
@@ -148,12 +147,8 @@ export default function GooglePerformanceMaxLifecyclePanel({
     setCampaignValue(currentConfig?.additionalValue?.toString() ?? '')
     setCampaignHighValue(currentConfig?.additionalHighLifetimeValue?.toString() ?? '')
     setCampaignMultiplier(currentConfig?.valueMultiplier?.toString() ?? '')
-    setLoyaltyBidAdjustments(
-      currentConfig?.enableBidAdjustmentsForLoyaltyMembers ?? false,
-    )
-    setLoyaltyPlaBenefits(
-      currentConfig?.showTargetedLoyaltyMemberBenefitsInPla ?? false,
-    )
+    setLoyaltyBidAdjustments(currentConfig?.enableBidAdjustmentsForLoyaltyMembers ?? false)
+    setLoyaltyPlaBenefits(currentConfig?.showTargetedLoyaltyMemberBenefitsInPla ?? false)
   }, [currentGoal, currentConfig, selectedGoalType])
 
   useEffect(() => {
@@ -180,18 +175,11 @@ export default function GooglePerformanceMaxLifecyclePanel({
         additionalValue:
           selectedGoalType === 'LOYALTY_RETENTION' ? null : optionalNumber(accountValue),
         additionalHighLifetimeValue:
-          selectedGoalType === 'LOYALTY_RETENTION'
-            ? null
-            : optionalNumber(accountHighValue),
+          selectedGoalType === 'LOYALTY_RETENTION' ? null : optionalNumber(accountHighValue),
         valueMultiplier:
-          selectedGoalType === 'LOYALTY_RETENTION'
-            ? optionalNumber(accountMultiplier)
-            : null,
+          selectedGoalType === 'LOYALTY_RETENTION' ? optionalNumber(accountMultiplier) : null,
       })
-      setGoals((current) => [
-        ...current.filter((goal) => goal.goalType !== saved.goalType),
-        saved,
-      ])
+      setGoals((current) => [...current.filter((goal) => goal.goalType !== saved.goalType), saved])
       setNotice('Google account lifecycle goal saved.')
     } catch (saveError) {
       setError(apiErrorMessage(saveError, 'Unable to save Google lifecycle goal'))
@@ -225,35 +213,20 @@ export default function GooglePerformanceMaxLifecyclePanel({
     setError('')
     setNotice('')
     try {
-      const saved = await adCenterApi.updateGooglePerformanceMaxLifecycle(
-        companyId,
-        campaignId,
-        {
-          goalType: selectedGoalType,
-          targetOption:
-            selectedGoalType === 'LOYALTY_RETENTION' ? null : targetOption,
-          additionalValue:
-            selectedGoalType === 'LOYALTY_RETENTION'
-              ? null
-              : optionalNumber(campaignValue),
-          additionalHighLifetimeValue:
-            selectedGoalType === 'LOYALTY_RETENTION'
-              ? null
-              : optionalNumber(campaignHighValue),
-          valueMultiplier:
-            selectedGoalType === 'LOYALTY_RETENTION'
-              ? optionalNumber(campaignMultiplier)
-              : null,
-          enableBidAdjustmentsForLoyaltyMembers:
-            selectedGoalType === 'LOYALTY_RETENTION'
-              ? loyaltyBidAdjustments
-              : null,
-          showTargetedLoyaltyMemberBenefitsInPla:
-            selectedGoalType === 'LOYALTY_RETENTION'
-              ? loyaltyPlaBenefits
-              : null,
-        },
-      )
+      const saved = await adCenterApi.updateGooglePerformanceMaxLifecycle(companyId, campaignId, {
+        goalType: selectedGoalType,
+        targetOption: selectedGoalType === 'LOYALTY_RETENTION' ? null : targetOption,
+        additionalValue:
+          selectedGoalType === 'LOYALTY_RETENTION' ? null : optionalNumber(campaignValue),
+        additionalHighLifetimeValue:
+          selectedGoalType === 'LOYALTY_RETENTION' ? null : optionalNumber(campaignHighValue),
+        valueMultiplier:
+          selectedGoalType === 'LOYALTY_RETENTION' ? optionalNumber(campaignMultiplier) : null,
+        enableBidAdjustmentsForLoyaltyMembers:
+          selectedGoalType === 'LOYALTY_RETENTION' ? loyaltyBidAdjustments : null,
+        showTargetedLoyaltyMemberBenefitsInPla:
+          selectedGoalType === 'LOYALTY_RETENTION' ? loyaltyPlaBenefits : null,
+      })
       setConfigs((current) => [
         ...current.filter((config) => config.goalType !== saved.goalType),
         saved,
@@ -299,8 +272,8 @@ export default function GooglePerformanceMaxLifecyclePanel({
         <div>
           <h2 className="font-bold text-slate-950">Performance Max lifecycle goals</h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-            Configure Google account lifecycle value, classify first-party customer lists,
-            and then apply campaign-specific acquisition or retention optimization.
+            Configure Google account lifecycle value, classify first-party customer lists, and then
+            apply campaign-specific acquisition or retention optimization.
           </p>
         </div>
         <button
@@ -361,11 +334,11 @@ export default function GooglePerformanceMaxLifecyclePanel({
                     campaigns that adopt the goal.
                   </p>
                 </div>
-                <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                  currentGoal
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-amber-100 text-amber-700'
-                }`}>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                    currentGoal ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                  }`}
+                >
                   {currentGoal ? 'Configured' : 'Not configured'}
                 </span>
               </div>
@@ -433,8 +406,8 @@ export default function GooglePerformanceMaxLifecyclePanel({
             <div className="mt-5 rounded-2xl border border-slate-200 p-4">
               <p className="text-sm font-bold text-slate-900">2. Classify customer lists</p>
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                Google requires UserListCustomerType classifications for lifecycle goals.
-                Assign only categories that truthfully describe the people in the selected list.
+                Google requires UserListCustomerType classifications for lifecycle goals. Assign
+                only categories that truthfully describe the people in the selected list.
               </p>
 
               <label className="mt-4 block text-xs font-semibold text-slate-700">
@@ -465,9 +438,7 @@ export default function GooglePerformanceMaxLifecyclePanel({
                         type="checkbox"
                         checked={selectedCustomerTypes.includes(category)}
                         disabled={!canModify}
-                        onChange={(event) =>
-                          toggleCustomerType(category, event.target.checked)
-                        }
+                        onChange={(event) => toggleCustomerType(category, event.target.checked)}
                       />
                       {pretty(category)}
                     </label>
@@ -498,11 +469,13 @@ export default function GooglePerformanceMaxLifecyclePanel({
                     Campaign-level settings override or specialize the account lifecycle goal.
                   </p>
                 </div>
-                <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                  currentConfig
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-slate-100 text-slate-600'
-                }`}>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                    currentConfig
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
                   {currentConfig ? 'Enabled on campaign' : 'Not enabled'}
                 </span>
               </div>
@@ -522,9 +495,7 @@ export default function GooglePerformanceMaxLifecyclePanel({
                           value={targetOption}
                           disabled={!canModify}
                           onChange={(event) =>
-                            setTargetOption(
-                              event.target.value as 'TARGET_ALL' | 'TARGET_SPECIFIC',
-                            )
+                            setTargetOption(event.target.value as 'TARGET_ALL' | 'TARGET_SPECIFIC')
                           }
                         >
                           <option value="TARGET_ALL">
@@ -588,9 +559,7 @@ export default function GooglePerformanceMaxLifecyclePanel({
                           type="checkbox"
                           checked={loyaltyBidAdjustments}
                           disabled={!canModify}
-                          onChange={(event) =>
-                            setLoyaltyBidAdjustments(event.target.checked)
-                          }
+                          onChange={(event) => setLoyaltyBidAdjustments(event.target.checked)}
                         />
                         Enable bid adjustments for loyalty members
                       </label>

@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FiPlus, FiRefreshCw } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
-import type {
-  AdAudience,
-  GoogleAssetGroup,
-  GoogleAssetGroupSignal,
-} from '../../features/ads/types'
+import type { AdAudience, GoogleAssetGroup, GoogleAssetGroupSignal } from '../../features/ads/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 
 type Props = {
@@ -41,13 +37,7 @@ export default function GooglePerformanceMaxSignals({
     setLoading(true)
     setError('')
     try {
-      setSignals(
-        await adCenterApi.googleAssetGroupSignals(
-          companyId,
-          campaignId,
-          assetGroup.id,
-        ),
-      )
+      setSignals(await adCenterApi.googleAssetGroupSignals(companyId, campaignId, assetGroup.id))
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load Performance Max signals'))
     } finally {
@@ -101,7 +91,8 @@ export default function GooglePerformanceMaxSignals({
         <div>
           <p className="text-sm font-bold text-slate-900">Audience & search signals</p>
           <p className="mt-1 text-xs text-slate-500">
-            Signals guide Google AI without restricting Performance Max to only these users or themes.
+            Signals guide Google AI without restricting Performance Max to only these users or
+            themes.
           </p>
         </div>
         <button
@@ -165,9 +156,7 @@ export default function GooglePerformanceMaxSignals({
           </label>
 
           <div>
-            <p className="text-xs font-semibold text-slate-700">
-              Customer Match audience signals
-            </p>
+            <p className="text-xs font-semibold text-slate-700">Customer Match audience signals</p>
             <div className="mt-2 max-h-36 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3">
               {eligibleAudiences.length === 0 ? (
                 <p className="text-xs text-slate-400">
@@ -201,10 +190,7 @@ export default function GooglePerformanceMaxSignals({
             <button
               type="button"
               className="primary-button inline-flex items-center gap-2"
-              disabled={
-                saving ||
-                (!themes.trim() && selectedAudienceIds.length === 0)
-              }
+              disabled={saving || (!themes.trim() && selectedAudienceIds.length === 0)}
               onClick={() => void addSignals()}
             >
               <FiPlus aria-hidden="true" />

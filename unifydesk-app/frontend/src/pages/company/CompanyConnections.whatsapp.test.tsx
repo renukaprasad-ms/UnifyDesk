@@ -4,10 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { channelApi } from '../../features/channel/channelApi'
 import { metaWhatsAppApi } from '../../features/channel/metaWhatsAppApi'
-import {
-  launchMetaWhatsAppSignup,
-  loadMetaSdk,
-} from '../../features/channel/metaWhatsAppSdk'
+import { launchMetaWhatsAppSignup, loadMetaSdk } from '../../features/channel/metaWhatsAppSdk'
 import CompanyConnections from './CompanyConnections'
 
 const snackbar = {

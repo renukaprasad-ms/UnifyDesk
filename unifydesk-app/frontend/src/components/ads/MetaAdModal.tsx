@@ -10,13 +10,7 @@ type Props = {
   onCreate: (input: CreateMetaAdInput) => Promise<void>
 }
 
-export default function MetaAdModal({
-  creatives,
-  open,
-  saving,
-  onClose,
-  onCreate,
-}: Props) {
+export default function MetaAdModal({ creatives, open, saving, onClose, onCreate }: Props) {
   const availableCreatives = useMemo(
     () => creatives.filter((creative) => creative.accessible),
     [creatives],
@@ -83,7 +77,8 @@ export default function MetaAdModal({
 
           {availableCreatives.length === 0 && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
-              No reusable creative is available for this account. Create or sync one in Ad Center → Creatives first.
+              No reusable creative is available for this account. Create or sync one in Ad Center →
+              Creatives first.
             </div>
           )}
 
@@ -92,12 +87,7 @@ export default function MetaAdModal({
           </div>
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-              disabled={saving}
-            >
+            <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>
               Cancel
             </button>
             <button

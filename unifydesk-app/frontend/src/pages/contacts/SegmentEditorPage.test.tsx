@@ -108,10 +108,7 @@ describe('SegmentEditorPage', () => {
     render(
       <MemoryRouter initialEntries={['/contacts/segments/segment-1']}>
         <Routes>
-          <Route
-            path="/contacts/segments/:segmentId"
-            element={<SegmentEditorPage />}
-          />
+          <Route path="/contacts/segments/:segmentId" element={<SegmentEditorPage />} />
         </Routes>
       </MemoryRouter>,
     )

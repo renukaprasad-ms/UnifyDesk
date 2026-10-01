@@ -53,21 +53,15 @@ describe('ImportDetailPage', () => {
         'source',
       ],
       sampleRows: [
-        [
-          'TEST-00001',
-          'Alice',
-          'Contact',
-          'alice@example.com',
-          '+12025550100',
-          'US',
-          'CSV_TEST',
-        ],
+        ['TEST-00001', 'Alice', 'Contact', 'alice@example.com', '+12025550100', 'US', 'CSV_TEST'],
       ],
     })
 
     renderPage()
 
-    expect(await screen.findByText(/We matched common column names automatically/i)).toBeInTheDocument()
+    expect(
+      await screen.findByText(/We matched common column names automatically/i),
+    ).toBeInTheDocument()
     expect(screen.getByLabelText('Import first_name as')).toHaveValue('BUILTIN:firstName')
     expect(screen.getByLabelText('Import last_name as')).toHaveValue('BUILTIN:lastName')
     expect(screen.getByLabelText('Import email as')).toHaveValue('IDENTITY:EMAIL')

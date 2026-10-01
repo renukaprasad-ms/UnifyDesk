@@ -13,7 +13,7 @@ vi.mock('../../lib/api/apiClient', () => ({
   },
 }))
 
-const ok = <T,>(data: T) => ({
+const ok = <T>(data: T) => ({
   data: {
     status: true,
     status_code: 200,
@@ -83,10 +83,7 @@ describe('notificationApi', () => {
       }) as never,
     )
 
-    await notificationApi.markAllRead(
-      '922337203685470100',
-      '2026-09-27T07:00:00Z',
-    )
+    await notificationApi.markAllRead('922337203685470100', '2026-09-27T07:00:00Z')
 
     expect(apiClient.post).toHaveBeenCalledWith('/api/v1/notifications/read-all', {
       companyId: '922337203685470100',

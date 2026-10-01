@@ -30,8 +30,7 @@ const browserStatusCopy = (
   }
   if (state.permission === 'denied')
     return 'Blocked by your browser. Allow notifications in the browser or site settings to enable them.'
-  if (state.permission === 'granted' && state.locallySubscribed)
-    return 'Enabled for this browser.'
+  if (state.permission === 'granted' && state.locallySubscribed) return 'Enabled for this browser.'
   if (state.permission === 'granted') return 'Permission granted. Enable to register this browser.'
   return 'Off. UnifyDesk will only ask for permission after you choose Enable.'
 }
@@ -46,8 +45,9 @@ export default function NotificationPreferencesPanel({
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null)
   const [draft, setDraft] = useState<UpdateNotificationPreferences | null>(null)
   const [subscriptions, setSubscriptions] = useState<PushSubscriptionSummary[]>([])
-  const [browserState, setBrowserState] =
-    useState<Awaited<ReturnType<typeof getBrowserNotificationState>> | null>(null)
+  const [browserState, setBrowserState] = useState<Awaited<
+    ReturnType<typeof getBrowserNotificationState>
+  > | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [browserBusy, setBrowserBusy] = useState(false)
@@ -146,7 +146,14 @@ export default function NotificationPreferencesPanel({
       }
       await load()
     } catch (browserError) {
-      setError(apiErrorMessage(browserError, browserError instanceof Error ? browserError.message : 'Unable to enable browser notifications'))
+      setError(
+        apiErrorMessage(
+          browserError,
+          browserError instanceof Error
+            ? browserError.message
+            : 'Unable to enable browser notifications',
+        ),
+      )
       setBrowserState(await getBrowserNotificationState().catch(() => null))
     } finally {
       setBrowserBusy(false)
@@ -188,7 +195,9 @@ export default function NotificationPreferencesPanel({
   if (!preferences || !draft) {
     return (
       <div className="panel p-5">
-        <p className="text-sm text-red-700">{error || 'Notification preferences are unavailable.'}</p>
+        <p className="text-sm text-red-700">
+          {error || 'Notification preferences are unavailable.'}
+        </p>
         <button type="button" className="secondary-button mt-4" onClick={() => void load()}>
           <FiRefreshCw aria-hidden="true" className="mr-2" />
           Retry
@@ -216,11 +225,14 @@ export default function NotificationPreferencesPanel({
 
       <div className="panel p-5">
         <div className="flex items-start gap-4">
-          <span className="security-icon shrink-0"><FiClock aria-hidden="true" /></span>
+          <span className="security-icon shrink-0">
+            <FiClock aria-hidden="true" />
+          </span>
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-bold text-slate-950">Quiet hours</h2>
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              Optional email and browser interruptions wait until quiet hours end. In-app history remains available.
+              Optional email and browser interruptions wait until quiet hours end. In-app history
+              remains available.
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px_140px]">
               <label className="text-sm font-semibold text-slate-700">
@@ -229,7 +241,9 @@ export default function NotificationPreferencesPanel({
                   className="form-input mt-1"
                   value={draft.timezone}
                   onChange={(event) =>
-                    setDraft((current) => (current ? { ...current, timezone: event.target.value } : current))
+                    setDraft((current) =>
+                      current ? { ...current, timezone: event.target.value } : current,
+                    )
                   }
                   aria-label="Notification timezone"
                 />
@@ -300,11 +314,14 @@ export default function NotificationPreferencesPanel({
       <div className="panel overflow-hidden">
         <div className="border-b border-slate-100 p-5">
           <div className="flex items-start gap-4">
-            <span className="security-icon shrink-0"><FiBell aria-hidden="true" /></span>
+            <span className="security-icon shrink-0">
+              <FiBell aria-hidden="true" />
+            </span>
             <div>
               <h2 className="text-base font-bold text-slate-950">Notification types</h2>
               <p className="mt-1 text-sm leading-6 text-slate-500">
-                Choose how each notification type can interrupt you. Mandatory controls are defined by the server.
+                Choose how each notification type can interrupt you. Mandatory controls are defined
+                by the server.
               </p>
             </div>
           </div>
@@ -314,7 +331,10 @@ export default function NotificationPreferencesPanel({
             const item = typeDraft.get(preference.type)
             if (!item) return null
             return (
-              <div key={preference.type} className="grid gap-4 p-5 md:grid-cols-[minmax(0,1fr)_180px_150px] md:items-center">
+              <div
+                key={preference.type}
+                className="grid gap-4 p-5 md:grid-cols-[minmax(0,1fr)_180px_150px] md:items-center"
+              >
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-bold text-slate-950">{preference.label}</p>
@@ -341,7 +361,9 @@ export default function NotificationPreferencesPanel({
                     }
                   >
                     {preference.email.allowedModes.map((mode) => (
-                      <option key={mode} value={mode}>{mode.toLowerCase()}</option>
+                      <option key={mode} value={mode}>
+                        {mode.toLowerCase()}
+                      </option>
                     ))}
                   </select>
                 </label>
@@ -365,7 +387,12 @@ export default function NotificationPreferencesPanel({
           })}
         </div>
         <div className="flex justify-end border-t border-slate-100 p-5">
-          <button type="button" className="primary-button" disabled={saving} onClick={() => void save()}>
+          <button
+            type="button"
+            className="primary-button"
+            disabled={saving}
+            onClick={() => void save()}
+          >
             {saving ? 'Saving…' : 'Save notification preferences'}
           </button>
         </div>
@@ -374,11 +401,14 @@ export default function NotificationPreferencesPanel({
       <div className="panel p-5">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-4">
-            <span className="security-icon shrink-0"><FiMonitor aria-hidden="true" /></span>
+            <span className="security-icon shrink-0">
+              <FiMonitor aria-hidden="true" />
+            </span>
             <div>
               <h2 className="text-base font-bold text-slate-950">Browser notifications</h2>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-                Receive privacy-safe alerts when UnifyDesk is in the background. We never ask for browser permission until you choose Enable.
+                Receive privacy-safe alerts when UnifyDesk is in the background. We never ask for
+                browser permission until you choose Enable.
               </p>
               <p className="mt-2 text-xs font-semibold text-slate-500">
                 {browserStatusCopy(browserState, configured)}
@@ -389,14 +419,24 @@ export default function NotificationPreferencesPanel({
             {browserState?.supported &&
             browserState.permission === 'granted' &&
             browserState.locallySubscribed ? (
-              <button type="button" className="secondary-button" disabled={browserBusy} onClick={() => void disableCurrentBrowser()}>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={browserBusy}
+                onClick={() => void disableCurrentBrowser()}
+              >
                 Disable this browser
               </button>
             ) : (
               <button
                 type="button"
                 className="primary-button"
-                disabled={browserBusy || !configured || !browserState?.supported || browserState.permission === 'denied'}
+                disabled={
+                  browserBusy ||
+                  !configured ||
+                  !browserState?.supported ||
+                  browserState.permission === 'denied'
+                }
                 onClick={() => void enableBrowser()}
               >
                 Enable browser notifications
@@ -407,18 +447,31 @@ export default function NotificationPreferencesPanel({
 
         {subscriptions.length > 0 && (
           <div className="mt-5 border-t border-slate-100 pt-5">
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Registered browsers</p>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+              Registered browsers
+            </p>
             <div className="mt-3 space-y-2">
               {subscriptions.map((subscription) => (
-                <div key={subscription.id} className="flex flex-col gap-2 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                  key={subscription.id}
+                  className="flex flex-col gap-2 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">{subscription.deviceLabel || 'Browser device'}</p>
+                    <p className="text-sm font-semibold text-slate-800">
+                      {subscription.deviceLabel || 'Browser device'}
+                    </p>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      {subscription.status} · Added {new Date(subscription.createdAt).toLocaleDateString()}
+                      {subscription.status} · Added{' '}
+                      {new Date(subscription.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                   {subscription.status === 'ACTIVE' && (
-                    <button type="button" className="notification-text-button" disabled={browserBusy} onClick={() => void removeDevice(subscription.id)}>
+                    <button
+                      type="button"
+                      className="notification-text-button"
+                      disabled={browserBusy}
+                      onClick={() => void removeDevice(subscription.id)}
+                    >
                       Remove
                     </button>
                   )}

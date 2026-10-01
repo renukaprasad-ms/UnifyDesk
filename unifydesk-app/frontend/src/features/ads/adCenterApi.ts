@@ -406,22 +406,14 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async reachlyoCampaignRecommendations(
-    companyId: string,
-    campaignId: string,
-  ) {
+  async reachlyoCampaignRecommendations(companyId: string, campaignId: string) {
     const response = await apiClient.get<ApiResponse<ReachlyoCampaignRecommendations>>(
       `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/recommendations`,
     )
     return unwrap(response.data)
   },
 
-  async reachlyoCampaignAnalytics(
-    companyId: string,
-    campaignId: string,
-    from: string,
-    to: string,
-  ) {
+  async reachlyoCampaignAnalytics(companyId: string, campaignId: string, from: string, to: string) {
     const response = await apiClient.get<ApiResponse<ReachlyoCampaignAnalytics>>(
       `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/analytics`,
       { params: { from, to } },
@@ -495,11 +487,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async removeReachlyoCampaignChannel(
-    companyId: string,
-    campaignId: string,
-    channelId: string,
-  ) {
+  async removeReachlyoCampaignChannel(companyId: string, campaignId: string, channelId: string) {
     const response = await apiClient.delete<ApiResponse<ReachlyoCampaign>>(
       `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/channels/${channelId}`,
     )
@@ -557,33 +545,21 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async reachlyoCampaignLaunchRun(
-    companyId: string,
-    campaignId: string,
-    runId: string,
-  ) {
+  async reachlyoCampaignLaunchRun(companyId: string, campaignId: string, runId: string) {
     const response = await apiClient.get<ApiResponse<LaunchRun>>(
       `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/launch-runs/${runId}`,
     )
     return unwrap(response.data)
   },
 
-  async executeReachlyoCampaignLaunch(
-    companyId: string,
-    campaignId: string,
-    runId: string,
-  ) {
+  async executeReachlyoCampaignLaunch(companyId: string, campaignId: string, runId: string) {
     const response = await apiClient.post<ApiResponse<LaunchRun>>(
       `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/launch-runs/${runId}/execute`,
     )
     return unwrap(response.data)
   },
 
-  async retryReachlyoCampaignLaunch(
-    companyId: string,
-    campaignId: string,
-    runId: string,
-  ) {
+  async retryReachlyoCampaignLaunch(companyId: string, campaignId: string, runId: string) {
     const response = await apiClient.post<ApiResponse<LaunchRun>>(
       `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/launch-runs/${runId}/retry`,
     )
@@ -780,12 +756,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async metaInterestSuggestions(
-    companyId: string,
-    accountId: string,
-    query: string,
-    limit = 20,
-  ) {
+  async metaInterestSuggestions(companyId: string, accountId: string, query: string, limit = 20) {
     const response = await apiClient.get<ApiResponse<MetaDetailedTargetingSuggestion[]>>(
       `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/detailed-targeting/interests`,
       { params: { q: query, limit } },
@@ -815,11 +786,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async createMetaCampaign(
-    companyId: string,
-    accountId: string,
-    input: CreateMetaCampaignInput,
-  ) {
+  async createMetaCampaign(companyId: string, accountId: string, input: CreateMetaCampaignInput) {
     const response = await apiClient.post<ApiResponse<AdCampaign>>(
       `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/campaigns`,
       input,
@@ -827,11 +794,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async updateMetaCampaign(
-    companyId: string,
-    campaignId: string,
-    input: UpdateMetaCampaignInput,
-  ) {
+  async updateMetaCampaign(companyId: string, campaignId: string, input: UpdateMetaCampaignInput) {
     const response = await apiClient.patch<ApiResponse<AdCampaign>>(
       `/api/v1/companies/${companyId}/ads/meta/campaigns/${campaignId}`,
       input,
@@ -839,18 +802,13 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async setMetaCampaignStatus(
-    companyId: string,
-    campaignId: string,
-    status: 'ACTIVE' | 'PAUSED',
-  ) {
+  async setMetaCampaignStatus(companyId: string, campaignId: string, status: 'ACTIVE' | 'PAUSED') {
     const response = await apiClient.post<ApiResponse<AdCampaign>>(
       `/api/v1/companies/${companyId}/ads/meta/campaigns/${campaignId}/status`,
       { status },
     )
     return unwrap(response.data)
   },
-
 
   async syncGoogleAll(companyId: string, accountId: string) {
     const response = await apiClient.post<ApiResponse<GoogleFullSync>>(
@@ -928,33 +886,21 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async scheduleGoogleExperiment(
-    companyId: string,
-    accountId: string,
-    experimentId: string,
-  ) {
+  async scheduleGoogleExperiment(companyId: string, accountId: string, experimentId: string) {
     const response = await apiClient.post<ApiResponse<GoogleExperimentAction>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/experiments/${experimentId}:schedule`,
     )
     return unwrap(response.data)
   },
 
-  async promoteGoogleExperiment(
-    companyId: string,
-    accountId: string,
-    experimentId: string,
-  ) {
+  async promoteGoogleExperiment(companyId: string, accountId: string, experimentId: string) {
     const response = await apiClient.post<ApiResponse<GoogleExperimentAction>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/experiments/${experimentId}:promote`,
     )
     return unwrap(response.data)
   },
 
-  async endGoogleExperiment(
-    companyId: string,
-    accountId: string,
-    experimentId: string,
-  ) {
+  async endGoogleExperiment(companyId: string, accountId: string, experimentId: string) {
     const response = await apiClient.post<ApiResponse<GoogleExperimentAction>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/experiments/${experimentId}:end`,
     )
@@ -973,11 +919,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async graduateGoogleExperiment(
-    companyId: string,
-    accountId: string,
-    experimentId: string,
-  ) {
+  async graduateGoogleExperiment(companyId: string, accountId: string, experimentId: string) {
     const response = await apiClient.post<ApiResponse<GoogleExperimentAction>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/experiments/${experimentId}:graduate`,
     )
@@ -1043,11 +985,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async createGoogleAppAd(
-    companyId: string,
-    adGroupId: string,
-    input: CreateGoogleAppAdInput,
-  ) {
+  async createGoogleAppAd(companyId: string, adGroupId: string, input: CreateGoogleAppAdInput) {
     const response = await apiClient.post<ApiResponse<Ad>>(
       `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/app-ads`,
       input,
@@ -1081,10 +1019,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async googlePerformanceMaxRetailSettings(
-    companyId: string,
-    campaignId: string,
-  ) {
+  async googlePerformanceMaxRetailSettings(companyId: string, campaignId: string) {
     const response = await apiClient.get<ApiResponse<GooglePerformanceMaxRetailSettings>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/retail-settings`,
     )
@@ -1117,11 +1052,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async googleAssetGroupPerformance(
-    companyId: string,
-    campaignId: string,
-    days = 30,
-  ) {
+  async googleAssetGroupPerformance(companyId: string, campaignId: string, days = 30) {
     const response = await apiClient.get<ApiResponse<GoogleAssetGroupPerformance[]>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/performance`,
       { params: { days } },
@@ -1129,11 +1060,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async googleAssetGroupAssets(
-    companyId: string,
-    campaignId: string,
-    assetGroupId: string,
-  ) {
+  async googleAssetGroupAssets(companyId: string, campaignId: string, assetGroupId: string) {
     const response = await apiClient.get<ApiResponse<GoogleAssetGroupAsset[]>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/assets`,
     )
@@ -1166,11 +1093,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async googleAssetGroupSignals(
-    companyId: string,
-    campaignId: string,
-    assetGroupId: string,
-  ) {
+  async googleAssetGroupSignals(companyId: string, campaignId: string, assetGroupId: string) {
     const response = await apiClient.get<ApiResponse<GoogleAssetGroupSignal[]>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/signals`,
     )
@@ -1190,11 +1113,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async googlePortfolioBiddingStrategies(
-    companyId: string,
-    accountId: string,
-    days = 30,
-  ) {
+  async googlePortfolioBiddingStrategies(companyId: string, accountId: string, days = 30) {
     const response = await apiClient.get<ApiResponse<GooglePortfolioBiddingStrategy[]>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/portfolio-bidding-strategies`,
       { params: { days } },
@@ -1334,10 +1253,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async googlePerformanceMaxBrandGuidelines(
-    companyId: string,
-    campaignId: string,
-  ) {
+  async googlePerformanceMaxBrandGuidelines(companyId: string, campaignId: string) {
     const response = await apiClient.get<ApiResponse<GooglePerformanceMaxBrandGuidelines>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/performance-max/brand-guidelines`,
     )
@@ -1375,11 +1291,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async googleAssetGroupUrlOptions(
-    companyId: string,
-    campaignId: string,
-    assetGroupId: string,
-  ) {
+  async googleAssetGroupUrlOptions(companyId: string, campaignId: string, assetGroupId: string) {
     const response = await apiClient.get<ApiResponse<GoogleAssetGroupUrlOptions>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/asset-groups/${assetGroupId}/url-options`,
     )
@@ -1457,11 +1369,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async createMetaAdSet(
-    companyId: string,
-    campaignId: string,
-    input: CreateMetaAdSetInput,
-  ) {
+  async createMetaAdSet(companyId: string, campaignId: string, input: CreateMetaAdSetInput) {
     const response = await apiClient.post<ApiResponse<AdSet>>(
       `/api/v1/companies/${companyId}/ads/meta/campaigns/${campaignId}/ad-sets`,
       input,
@@ -1469,11 +1377,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async updateMetaAdSet(
-    companyId: string,
-    adSetId: string,
-    input: UpdateMetaAdSetInput,
-  ) {
+  async updateMetaAdSet(companyId: string, adSetId: string, input: UpdateMetaAdSetInput) {
     const response = await apiClient.patch<ApiResponse<AdSet>>(
       `/api/v1/companies/${companyId}/ads/meta/ad-sets/${adSetId}`,
       input,
@@ -1481,18 +1385,13 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async setMetaAdSetStatus(
-    companyId: string,
-    adSetId: string,
-    status: 'ACTIVE' | 'PAUSED',
-  ) {
+  async setMetaAdSetStatus(companyId: string, adSetId: string, status: 'ACTIVE' | 'PAUSED') {
     const response = await apiClient.post<ApiResponse<AdSet>>(
       `/api/v1/companies/${companyId}/ads/meta/ad-sets/${adSetId}/status`,
       { status },
     )
     return unwrap(response.data)
   },
-
 
   async syncGoogleAdGroups(companyId: string, campaignId: string) {
     const response = await apiClient.post<ApiResponse<GoogleAdGroupSync>>(
@@ -1513,11 +1412,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async updateGoogleAdGroup(
-    companyId: string,
-    adGroupId: string,
-    input: UpdateGoogleAdGroupInput,
-  ) {
+  async updateGoogleAdGroup(companyId: string, adGroupId: string, input: UpdateGoogleAdGroupInput) {
     const response = await apiClient.patch<ApiResponse<AdSet>>(
       `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}`,
       input,
@@ -1537,12 +1432,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async googleDetailedDemographics(
-    companyId: string,
-    accountId: string,
-    query = '',
-    limit = 40,
-  ) {
+  async googleDetailedDemographics(companyId: string, accountId: string, query = '', limit = 40) {
     const response = await apiClient.get<ApiResponse<GoogleDetailedDemographicCatalog>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/detailed-demographics`,
       { params: { q: query || undefined, limit } },
@@ -1569,12 +1459,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async googleSearchInterestCatalog(
-    companyId: string,
-    accountId: string,
-    query = '',
-    limit = 40,
-  ) {
+  async googleSearchInterestCatalog(companyId: string, accountId: string, query = '', limit = 40) {
     const response = await apiClient.get<ApiResponse<GoogleSearchInterestCatalog>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/search-interest-catalog`,
       { params: { q: query || undefined, limit } },
@@ -1641,11 +1526,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async createGoogleKeyword(
-    companyId: string,
-    adGroupId: string,
-    input: CreateGoogleKeywordInput,
-  ) {
+  async createGoogleKeyword(companyId: string, adGroupId: string, input: CreateGoogleKeywordInput) {
     const response = await apiClient.post<ApiResponse<AdKeyword>>(
       `/api/v1/companies/${companyId}/ads/google/ad-groups/${adGroupId}/keywords`,
       input,
@@ -1653,11 +1534,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async updateGoogleKeyword(
-    companyId: string,
-    keywordId: string,
-    input: UpdateGoogleKeywordInput,
-  ) {
+  async updateGoogleKeyword(companyId: string, keywordId: string, input: UpdateGoogleKeywordInput) {
     const response = await apiClient.patch<ApiResponse<AdKeyword>>(
       `/api/v1/companies/${companyId}/ads/google/keywords/${keywordId}`,
       input,
@@ -1712,21 +1589,14 @@ export const adCenterApi = {
       {
         params: {
           prefix,
-          ...(selectedBrandIds.length
-            ? { selectedBrandIds: selectedBrandIds.join(',') }
-            : {}),
+          ...(selectedBrandIds.length ? { selectedBrandIds: selectedBrandIds.join(',') } : {}),
         },
       },
     )
     return unwrap(response.data)
   },
 
-  async googleAiMaxReport(
-    companyId: string,
-    campaignId: string,
-    from: string,
-    to: string,
-  ) {
+  async googleAiMaxReport(companyId: string, campaignId: string, from: string, to: string) {
     const response = await apiClient.get<ApiResponse<GoogleAiMaxCombinationReport>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/ai-max/report`,
       { params: { from, to } },
@@ -1734,12 +1604,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async googleSearchTerms(
-    companyId: string,
-    campaignId: string,
-    from: string,
-    to: string,
-  ) {
+  async googleSearchTerms(companyId: string, campaignId: string, from: string, to: string) {
     const response = await apiClient.get<ApiResponse<GoogleSearchTermReport>>(
       `/api/v1/companies/${companyId}/ads/google/campaigns/${campaignId}/search-terms`,
       { params: { from, to } },
@@ -1777,11 +1642,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async googleNegativeKeywordLists(
-    companyId: string,
-    accountId: string,
-    campaignId?: string,
-  ) {
+  async googleNegativeKeywordLists(companyId: string, accountId: string, campaignId?: string) {
     const response = await apiClient.get<ApiResponse<GoogleNegativeKeywordList[]>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/negative-keyword-lists`,
       { params: campaignId ? { campaignId } : undefined },
@@ -1882,10 +1743,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async createOptimizationPolicy(
-    companyId: string,
-    input: AdOptimizationPolicyInput,
-  ) {
+  async createOptimizationPolicy(companyId: string, input: AdOptimizationPolicyInput) {
     const response = await apiClient.post<ApiResponse<AdOptimizationPolicy>>(
       `/api/v1/companies/${companyId}/ads/optimization/policies`,
       input,
@@ -1893,11 +1751,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async setOptimizationPolicyEnabled(
-    companyId: string,
-    policyId: string,
-    enabled: boolean,
-  ) {
+  async setOptimizationPolicyEnabled(companyId: string, policyId: string, enabled: boolean) {
     const response = await apiClient.patch<ApiResponse<AdOptimizationPolicy>>(
       `/api/v1/companies/${companyId}/ads/optimization/policies/${policyId}/enabled`,
       undefined,
@@ -1920,10 +1774,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async buildFirstPartyAudience(
-    companyId: string,
-    input: FirstPartyAudienceBuildInput,
-  ) {
+  async buildFirstPartyAudience(companyId: string, input: FirstPartyAudienceBuildInput) {
     const response = await apiClient.post<ApiResponse<FirstPartyAudienceBuildResult>>(
       `/api/v1/companies/${companyId}/ads/optimization/first-party-audiences`,
       input,
@@ -1944,12 +1795,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async reachlyoFunnelAttribution(
-    companyId: string,
-    campaignId: string,
-    from: string,
-    to: string,
-  ) {
+  async reachlyoFunnelAttribution(companyId: string, campaignId: string, from: string, to: string) {
     const response = await apiClient.get<ApiResponse<ReachlyoFunnelAttribution>>(
       `/api/v1/companies/${companyId}/ads/reachlyo-campaigns/${campaignId}/funnel-attribution`,
       { params: { from, to } },
@@ -2040,7 +1886,6 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-
   async syncGoogleHealth(companyId: string, accountId: string) {
     const response = await apiClient.post<ApiResponse<AdAccountHealth>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/health/sync`,
@@ -2048,12 +1893,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async activity(
-    companyId: string,
-    accountId?: string,
-    page = 0,
-    size = 50,
-  ) {
+  async activity(companyId: string, accountId?: string, page = 0, size = 50) {
     const response = await apiClient.get<ApiResponse<PageResponse<AdActivityLog>>>(
       `/api/v1/companies/${companyId}/ads/activity`,
       {
@@ -2081,7 +1921,6 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-
   async googleMerchantAccounts(companyId: string, accountId: string) {
     const response = await apiClient.get<ApiResponse<GoogleMerchantAccount[]>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/merchant/accounts`,
@@ -2089,11 +1928,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async googleMerchantDataSources(
-    companyId: string,
-    accountId: string,
-    merchantId: string,
-  ) {
+  async googleMerchantDataSources(companyId: string, accountId: string, merchantId: string) {
     const response = await apiClient.get<ApiResponse<GoogleMerchantDataSource[]>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/merchant/accounts/${merchantId}/data-sources`,
     )
@@ -2172,11 +2007,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async updateMetaSpendCap(
-    companyId: string,
-    accountId: string,
-    spendCapMinor: number,
-  ) {
+  async updateMetaSpendCap(companyId: string, accountId: string, spendCapMinor: number) {
     const response = await apiClient.patch<ApiResponse<AdAccountBilling>>(
       `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/billing/spend-cap`,
       { spendCapMinor },
@@ -2198,12 +2029,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async syncMetaInsights(
-    companyId: string,
-    accountId: string,
-    from: string,
-    to: string,
-  ) {
+  async syncMetaInsights(companyId: string, accountId: string, from: string, to: string) {
     const response = await apiClient.post<ApiResponse<MetaInsightsSync>>(
       `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/insights/sync`,
       null,
@@ -2212,13 +2038,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-
-  async syncGoogleInsights(
-    companyId: string,
-    accountId: string,
-    from: string,
-    to: string,
-  ) {
+  async syncGoogleInsights(companyId: string, accountId: string, from: string, to: string) {
     const response = await apiClient.post<ApiResponse<GoogleInsightsSync>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/insights/sync`,
       null,
@@ -2255,12 +2075,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async syncMetaInsightBreakdowns(
-    companyId: string,
-    accountId: string,
-    from: string,
-    to: string,
-  ) {
+  async syncMetaInsightBreakdowns(companyId: string, accountId: string, from: string, to: string) {
     const response = await apiClient.post<ApiResponse<MetaInsightBreakdownsSync>>(
       `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/insights/breakdowns/sync`,
       null,
@@ -2291,18 +2106,13 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async createMetaAudience(
-    companyId: string,
-    accountId: string,
-    input: CreateMetaAudienceInput,
-  ) {
+  async createMetaAudience(companyId: string, accountId: string, input: CreateMetaAudienceInput) {
     const response = await apiClient.post<ApiResponse<AdAudience>>(
       `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/audiences`,
       input,
     )
     return unwrap(response.data)
   },
-
 
   async mutateMetaCustomerListMembers(
     companyId: string,
@@ -2373,7 +2183,6 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-
   async syncGoogleConversions(companyId: string, accountId: string) {
     const response = await apiClient.post<ApiResponse<GoogleConversionSync>>(
       `/api/v1/companies/${companyId}/ads/google/accounts/${accountId}/conversions/sync`,
@@ -2419,11 +2228,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async metaExistingPosts(
-    companyId: string,
-    accountId: string,
-    pageId: string,
-  ) {
+  async metaExistingPosts(companyId: string, accountId: string, pageId: string) {
     const response = await apiClient.get<ApiResponse<MetaExistingPost[]>>(
       `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/pages/${encodeURIComponent(pageId)}/posts`,
     )
@@ -2437,11 +2242,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async createMetaCreative(
-    companyId: string,
-    accountId: string,
-    input: CreateMetaCreativeInput,
-  ) {
+  async createMetaCreative(companyId: string, accountId: string, input: CreateMetaCreativeInput) {
     const response = await apiClient.post<ApiResponse<AdCreative>>(
       `/api/v1/companies/${companyId}/ads/meta/accounts/${accountId}/creatives`,
       input,
@@ -2477,11 +2278,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async createMetaAd(
-    companyId: string,
-    adSetId: string,
-    input: CreateMetaAdInput,
-  ) {
+  async createMetaAd(companyId: string, adSetId: string, input: CreateMetaAdInput) {
     const response = await apiClient.post<ApiResponse<Ad>>(
       `/api/v1/companies/${companyId}/ads/meta/ad-sets/${adSetId}/ads`,
       input,
@@ -2489,11 +2286,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async createMetaCatalogAd(
-    companyId: string,
-    adSetId: string,
-    input: CreateMetaCatalogAdInput,
-  ) {
+  async createMetaCatalogAd(companyId: string, adSetId: string, input: CreateMetaCatalogAdInput) {
     const response = await apiClient.post<ApiResponse<Ad>>(
       `/api/v1/companies/${companyId}/ads/meta/ad-sets/${adSetId}/catalog-ads`,
       input,
@@ -2508,11 +2301,7 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async updateMetaAd(
-    companyId: string,
-    adId: string,
-    input: UpdateMetaAdInput,
-  ) {
+  async updateMetaAd(companyId: string, adId: string, input: UpdateMetaAdInput) {
     const response = await apiClient.patch<ApiResponse<Ad>>(
       `/api/v1/companies/${companyId}/ads/meta/ads/${adId}`,
       input,
@@ -2520,18 +2309,13 @@ export const adCenterApi = {
     return unwrap(response.data)
   },
 
-  async setMetaAdStatus(
-    companyId: string,
-    adId: string,
-    status: 'ACTIVE' | 'PAUSED',
-  ) {
+  async setMetaAdStatus(companyId: string, adId: string, status: 'ACTIVE' | 'PAUSED') {
     const response = await apiClient.post<ApiResponse<Ad>>(
       `/api/v1/companies/${companyId}/ads/meta/ads/${adId}/status`,
       { status },
     )
     return unwrap(response.data)
   },
-
 
   async syncGoogleAds(companyId: string, adGroupId: string) {
     const response = await apiClient.post<ApiResponse<GoogleAdSync>>(

@@ -40,10 +40,7 @@ export const managedEmailApi = {
     return unwrap(response.data)
   },
 
-  async createCustomerDomain(
-    companyId: string,
-    input: CreateCustomerManagedEmailDomainInput,
-  ) {
+  async createCustomerDomain(companyId: string, input: CreateCustomerManagedEmailDomainInput) {
     const response = await apiClient.post<ApiResponse<ManagedEmailDomain>>(
       `${basePath(companyId)}/domains/customer`,
       input,

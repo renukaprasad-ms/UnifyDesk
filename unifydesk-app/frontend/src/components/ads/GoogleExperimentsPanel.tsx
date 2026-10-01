@@ -1,11 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import {
-  FiArrowUpCircle,
-  FiPlay,
-  FiPlusCircle,
-  FiRefreshCw,
-  FiSquare,
-} from 'react-icons/fi'
+import { FiArrowUpCircle, FiPlay, FiPlusCircle, FiRefreshCw, FiSquare } from 'react-icons/fi'
 import { adCenterApi } from '../../features/ads/adCenterApi'
 import type {
   AdCampaign,
@@ -24,7 +18,10 @@ type Props = {
 
 const pretty = (value?: string | null) =>
   value
-    ? value.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (character) => character.toUpperCase())
+    ? value
+        .replaceAll('_', ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (character) => character.toUpperCase())
     : '—'
 
 const formatNumber = (value?: number | null, digits = 2) =>
@@ -122,11 +119,16 @@ export default function GoogleExperimentsPanel({
           campaign.status !== 'REMOVED' &&
           campaign.status !== 'ARCHIVED',
       )
-      setBaseCampaignId((current) => current || eligibleCampaigns.find(
-        (campaign) => campaign.objective === 'SEARCH',
-      )?.id || '')
+      setBaseCampaignId(
+        (current) =>
+          current ||
+          eligibleCampaigns.find((campaign) => campaign.objective === 'SEARCH')?.id ||
+          '',
+      )
       setMixControlId((current) => current || eligibleCampaigns[0]?.id || '')
-      setMixTreatmentId((current) => current || eligibleCampaigns[1]?.id || eligibleCampaigns[0]?.id || '')
+      setMixTreatmentId(
+        (current) => current || eligibleCampaigns[1]?.id || eligibleCampaigns[0]?.id || '',
+      )
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load Google Ads experiments'))
     } finally {
@@ -209,10 +211,7 @@ export default function GoogleExperimentsPanel({
     ) {
       return
     }
-    if (
-      type === 'end' &&
-      !window.confirm('End this Google experiment now?')
-    ) {
+    if (type === 'end' && !window.confirm('End this Google experiment now?')) {
       return
     }
     if (
@@ -301,7 +300,10 @@ export default function GoogleExperimentsPanel({
       )}
 
       {showCreate && canCreate && (
-        <form className="grid gap-4 border-b border-slate-100 bg-slate-50/60 p-5 md:grid-cols-2" onSubmit={create}>
+        <form
+          className="grid gap-4 border-b border-slate-100 bg-slate-50/60 p-5 md:grid-cols-2"
+          onSubmit={create}
+        >
           <label className="block text-xs font-semibold text-slate-700">
             Experiment name
             <input
@@ -419,39 +421,85 @@ export default function GoogleExperimentsPanel({
       )}
 
       {showCampaignMix && canCreate && (
-        <form className="grid gap-4 border-b border-slate-100 bg-indigo-50/40 p-5 md:grid-cols-2" onSubmit={createCampaignMix}>
+        <form
+          className="grid gap-4 border-b border-slate-100 bg-indigo-50/40 p-5 md:grid-cols-2"
+          onSubmit={createCampaignMix}
+        >
           <label className="block text-xs font-semibold text-slate-700 md:col-span-2">
             Campaign-mix experiment name
-            <input className="form-input mt-2" value={mixName} onChange={(event) => setMixName(event.target.value)} required placeholder="Channel strategy comparison" />
+            <input
+              className="form-input mt-2"
+              value={mixName}
+              onChange={(event) => setMixName(event.target.value)}
+              required
+              placeholder="Channel strategy comparison"
+            />
           </label>
           <label className="block text-xs font-semibold text-slate-700">
             Control campaign
-            <select className="form-input mt-2" value={mixControlId} onChange={(event) => setMixControlId(event.target.value)} required>
+            <select
+              className="form-input mt-2"
+              value={mixControlId}
+              onChange={(event) => setMixControlId(event.target.value)}
+              required
+            >
               <option value="">Choose campaign</option>
-              {campaigns.filter((campaign) => campaign.accessible && campaign.status !== 'REMOVED').map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>{campaign.name} · {pretty(campaign.objective)}</option>
-              ))}
+              {campaigns
+                .filter((campaign) => campaign.accessible && campaign.status !== 'REMOVED')
+                .map((campaign) => (
+                  <option key={campaign.id} value={campaign.id}>
+                    {campaign.name} · {pretty(campaign.objective)}
+                  </option>
+                ))}
             </select>
           </label>
           <label className="block text-xs font-semibold text-slate-700">
             Treatment campaign
-            <select className="form-input mt-2" value={mixTreatmentId} onChange={(event) => setMixTreatmentId(event.target.value)} required>
+            <select
+              className="form-input mt-2"
+              value={mixTreatmentId}
+              onChange={(event) => setMixTreatmentId(event.target.value)}
+              required
+            >
               <option value="">Choose different campaign</option>
-              {campaigns.filter((campaign) => campaign.accessible && campaign.status !== 'REMOVED').map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>{campaign.name} · {pretty(campaign.objective)}</option>
-              ))}
+              {campaigns
+                .filter((campaign) => campaign.accessible && campaign.status !== 'REMOVED')
+                .map((campaign) => (
+                  <option key={campaign.id} value={campaign.id}>
+                    {campaign.name} · {pretty(campaign.objective)}
+                  </option>
+                ))}
             </select>
           </label>
           <label className="block text-xs font-semibold text-slate-700 md:col-span-2">
             Treatment traffic · {treatmentTrafficPercent}%
-            <input className="mt-3 w-full" type="range" min={1} max={99} value={treatmentTrafficPercent} onChange={(event) => setTreatmentTrafficPercent(Number(event.target.value))} />
+            <input
+              className="mt-3 w-full"
+              type="range"
+              min={1}
+              max={99}
+              value={treatmentTrafficPercent}
+              onChange={(event) => setTreatmentTrafficPercent(Number(event.target.value))}
+            />
           </label>
           <p className="text-[11px] leading-5 text-slate-500 md:col-span-2">
-            Google campaign-mix experiments compare existing campaigns and are currently allowlist/account dependent. UnifyDesk submits the native COMPARE_CAMPAIGNS contract and surfaces provider rejection rather than substituting another experiment type.
+            Google campaign-mix experiments compare existing campaigns and are currently
+            allowlist/account dependent. UnifyDesk submits the native COMPARE_CAMPAIGNS contract and
+            surfaces provider rejection rather than substituting another experiment type.
           </p>
           <div className="flex justify-end gap-2 md:col-span-2">
-            <button type="button" className="secondary-button" onClick={() => setShowCampaignMix(false)}>Cancel</button>
-            <button type="submit" className="primary-button" disabled={busy === 'mix' || !mixName.trim() || mixControlId === mixTreatmentId}>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => setShowCampaignMix(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={busy === 'mix' || !mixName.trim() || mixControlId === mixTreatmentId}
+            >
               {busy === 'mix' ? 'Creating…' : 'Create campaign mix'}
             </button>
           </div>
@@ -479,7 +527,9 @@ export default function GoogleExperimentsPanel({
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-bold text-slate-950">{experiment.name}</h3>
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${statusClass(experiment.status)}`}>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${statusClass(experiment.status)}`}
+                      >
                         {pretty(experiment.status)}
                       </span>
                       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
@@ -487,10 +537,13 @@ export default function GoogleExperimentsPanel({
                       </span>
                     </div>
                     {experiment.description && (
-                      <p className="mt-2 text-xs leading-5 text-slate-500">{experiment.description}</p>
+                      <p className="mt-2 text-xs leading-5 text-slate-500">
+                        {experiment.description}
+                      </p>
                     )}
                     <p className="mt-2 text-[11px] text-slate-400">
-                      {experiment.startDate || 'No start date'} → {experiment.endDate || 'No end date'}
+                      {experiment.startDate || 'No start date'} →{' '}
+                      {experiment.endDate || 'No end date'}
                       {experiment.longRunningOperation ? ' · Provider operation in progress' : ''}
                     </p>
                   </div>
@@ -542,13 +595,17 @@ export default function GoogleExperimentsPanel({
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {experiment.arms.map((arm) => (
-                    <div key={arm.resourceName ?? arm.name} className="rounded-xl border border-slate-100 p-3">
+                    <div
+                      key={arm.resourceName ?? arm.name}
+                      className="rounded-xl border border-slate-100 p-3"
+                    >
                       <p className="text-xs font-bold text-slate-900">
                         {arm.name || (arm.control ? 'Control' : 'Treatment')}
                       </p>
                       <p className="mt-1 text-xl font-bold text-slate-950">{arm.trafficSplit}%</p>
                       <p className="mt-1 text-[11px] text-slate-400">
-                        {arm.control ? 'Control arm' : 'Treatment arm'} · {arm.campaigns.length || arm.inDesignCampaigns.length} campaign
+                        {arm.control ? 'Control arm' : 'Treatment arm'} ·{' '}
+                        {arm.campaigns.length || arm.inDesignCampaigns.length} campaign
                       </p>
                     </div>
                   ))}
@@ -568,29 +625,45 @@ export default function GoogleExperimentsPanel({
                       <tr>
                         <td className="px-4 py-3 font-semibold">Clicks</td>
                         <td className="px-4 py-3 text-right">{formatNumber(metrics.clicks, 0)}</td>
-                        <td className="px-4 py-3 text-right">{formatNumber(metrics.controlClicks, 0)}</td>
                         <td className="px-4 py-3 text-right">
-                          p {formatNumber(metrics.clicksPValue, 4)} · ± {formatNumber(metrics.clicksMarginOfError, 3)}
+                          {formatNumber(metrics.controlClicks, 0)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          p {formatNumber(metrics.clicksPValue, 4)} · ±{' '}
+                          {formatNumber(metrics.clicksMarginOfError, 3)}
                         </td>
                       </tr>
                       <tr>
                         <td className="px-4 py-3 font-semibold">Conversions</td>
-                        <td className="px-4 py-3 text-right">{formatNumber(metrics.conversions)}</td>
-                        <td className="px-4 py-3 text-right">{formatNumber(metrics.controlConversions)}</td>
                         <td className="px-4 py-3 text-right">
-                          p {formatNumber(metrics.conversionsAbsoluteChangePValue, 4)} · ± {formatNumber(metrics.conversionsAbsoluteChangeMarginOfError, 3)}
+                          {formatNumber(metrics.conversions)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {formatNumber(metrics.controlConversions)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          p {formatNumber(metrics.conversionsAbsoluteChangePValue, 4)} · ±{' '}
+                          {formatNumber(metrics.conversionsAbsoluteChangeMarginOfError, 3)}
                         </td>
                       </tr>
                       <tr>
                         <td className="px-4 py-3 font-semibold">Spend</td>
-                        <td className="px-4 py-3 text-right">{moneyMicros(metrics.costMicros, currency)}</td>
-                        <td className="px-4 py-3 text-right">{moneyMicros(metrics.controlCostMicros, currency)}</td>
+                        <td className="px-4 py-3 text-right">
+                          {moneyMicros(metrics.costMicros, currency)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {moneyMicros(metrics.controlCostMicros, currency)}
+                        </td>
                         <td className="px-4 py-3 text-right text-slate-400">Provider reported</td>
                       </tr>
                       <tr>
                         <td className="px-4 py-3 font-semibold">Impressions</td>
-                        <td className="px-4 py-3 text-right">{formatNumber(metrics.impressions, 0)}</td>
-                        <td className="px-4 py-3 text-right">{formatNumber(metrics.controlImpressions, 0)}</td>
+                        <td className="px-4 py-3 text-right">
+                          {formatNumber(metrics.impressions, 0)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {formatNumber(metrics.controlImpressions, 0)}
+                        </td>
                         <td className="px-4 py-3 text-right text-slate-400">Provider reported</td>
                       </tr>
                     </tbody>

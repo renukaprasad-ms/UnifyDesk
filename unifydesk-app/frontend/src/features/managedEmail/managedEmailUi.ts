@@ -4,8 +4,7 @@ import type {
   ManagedEmailUsage,
 } from './types'
 
-export const normalizeBareDomain = (value: string) =>
-  value.trim().toLowerCase().replace(/\.$/, '')
+export const normalizeBareDomain = (value: string) => value.trim().toLowerCase().replace(/\.$/, '')
 
 export const isBareDomainInput = (value: string) => {
   const normalized = normalizeBareDomain(value)

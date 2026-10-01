@@ -22,12 +22,14 @@ describe('segmentModel', () => {
         {
           type: 'group',
           op: 'AND',
-          children: [{
-            type: 'predicate',
-            field: { kind: 'BUILTIN_CONTACT', key: 'organization' },
-            operator: 'CONTAINS',
-            value: 'Acme',
-          }],
+          children: [
+            {
+              type: 'predicate',
+              field: { kind: 'BUILTIN_CONTACT', key: 'organization' },
+              operator: 'CONTAINS',
+              value: 'Acme',
+            },
+          ],
         },
       ],
     }
@@ -56,9 +58,7 @@ describe('segmentModel', () => {
         indexability: 'INDEXED',
       },
     ])
-    const field = fields.find(
-      (candidate) => candidate.descriptor.fieldId === 'field-1',
-    )
+    const field = fields.find((candidate) => candidate.descriptor.fieldId === 'field-1')
     expect(field?.label).toBe('Plan')
     expect(field?.valueType).toBe('SINGLE_SELECT')
     expect(field?.operators).toContain('IN')
@@ -68,11 +68,13 @@ describe('segmentModel', () => {
     const filter: SegmentGroup = {
       type: 'group',
       op: 'AND',
-      children: [{
-        type: 'predicate',
-        field: { kind: 'CHANNEL_PREFERENCE', key: 'smsMarketing' },
-        operator: 'IS_OPTED_OUT',
-      }],
+      children: [
+        {
+          type: 'predicate',
+          field: { kind: 'CHANNEL_PREFERENCE', key: 'smsMarketing' },
+          operator: 'IS_OPTED_OUT',
+        },
+      ],
     }
     expect(validateSegmentClient(filter, baseSegmentFields)).toEqual([])
   })

@@ -95,28 +95,32 @@ const CHANNELS: Array<{
     type: 'GOOGLE_PERFORMANCE_MAX',
     title: 'Google Performance Max',
     provider: 'GOOGLE_ADS',
-    description: 'Launch a paused Google Performance Max campaign from the shared brief and creative pack.',
+    description:
+      'Launch a paused Google Performance Max campaign from the shared brief and creative pack.',
     executable: true,
   },
   {
     type: 'GOOGLE_DEMAND_GEN',
     title: 'Google Demand Gen',
     provider: 'GOOGLE_ADS',
-    description: 'Launch a paused Google Demand Gen campaign and visual multi-asset ad from the shared brief.',
+    description:
+      'Launch a paused Google Demand Gen campaign and visual multi-asset ad from the shared brief.',
     executable: true,
   },
   {
     type: 'GOOGLE_DISPLAY',
     title: 'Google Display',
     provider: 'GOOGLE_ADS',
-    description: 'Launch a paused Google Display campaign and responsive display ad from the shared visual creative pack.',
+    description:
+      'Launch a paused Google Display campaign and responsive display ad from the shared visual creative pack.',
     executable: true,
   },
   {
     type: 'GOOGLE_SHOPPING',
     title: 'Google Shopping',
     provider: 'GOOGLE_ADS',
-    description: 'Launch a paused Standard Shopping campaign from a connected Merchant Center catalog.',
+    description:
+      'Launch a paused Standard Shopping campaign from a connected Merchant Center catalog.',
     executable: true,
   },
 ]
@@ -263,7 +267,6 @@ const googleAudienceDisplayEligible = (audience: AdAudience) => {
   }
 }
 
-
 const listValues = (value: string) =>
   value
     .split(/\r?\n|,/)
@@ -293,8 +296,7 @@ const META_GOAL_EVENTS: Partial<Record<CampaignBusinessGoal, string[]>> = {
   TRAFFIC: ['CONTENT_VIEW'],
 }
 
-const defaultMetaStandardEvent = (goal: CampaignBusinessGoal) =>
-  META_GOAL_EVENTS[goal]?.[0] ?? ''
+const defaultMetaStandardEvent = (goal: CampaignBusinessGoal) => META_GOAL_EVENTS[goal]?.[0] ?? ''
 
 const recommendedConversion = (
   conversions: AdConversion[],
@@ -344,8 +346,8 @@ const GOOGLE_PROVIDER_AUDIENCE_CHANNELS: CampaignChannelType[] = [
 const currencyDigits = (currency: string) => {
   try {
     return (
-      new Intl.NumberFormat(undefined, { style: 'currency', currency })
-        .resolvedOptions().maximumFractionDigits ?? 2
+      new Intl.NumberFormat(undefined, { style: 'currency', currency }).resolvedOptions()
+        .maximumFractionDigits ?? 2
     )
   } catch {
     return 2
@@ -415,8 +417,12 @@ export default function ReachlyoCampaignWizard() {
   const [plans, setPlans] = useState<ProviderCampaignPlan[]>([])
   const [launchRuns, setLaunchRuns] = useState<LaunchRun[]>([])
   const [currentRun, setCurrentRun] = useState<LaunchRun | null>(null)
-  const [resourcesByAccount, setResourcesByAccount] = useState<Record<string, AdAccountResource[]>>({})
-  const [conversionsByAccount, setConversionsByAccount] = useState<Record<string, AdConversion[]>>({})
+  const [resourcesByAccount, setResourcesByAccount] = useState<Record<string, AdAccountResource[]>>(
+    {},
+  )
+  const [conversionsByAccount, setConversionsByAccount] = useState<Record<string, AdConversion[]>>(
+    {},
+  )
   const [audiencesByAccount, setAudiencesByAccount] = useState<Record<string, AdAudience[]>>({})
   const [googleAudienceIdsByChannel, setGoogleAudienceIdsByChannel] = useState<
     Partial<Record<CampaignChannelType, string[]>>
@@ -491,9 +497,7 @@ export default function ReachlyoCampaignWizard() {
   const [pmaxBrandMainColor, setPmaxBrandMainColor] = useState('')
   const [pmaxBrandAccentColor, setPmaxBrandAccentColor] = useState('')
   const [pmaxBrandFontFamily, setPmaxBrandFontFamily] = useState('')
-  const [pmaxMerchantAccounts, setPmaxMerchantAccounts] = useState<
-    GoogleMerchantAccount[]
-  >([])
+  const [pmaxMerchantAccounts, setPmaxMerchantAccounts] = useState<GoogleMerchantAccount[]>([])
   const [pmaxMerchantId, setPmaxMerchantId] = useState('')
   const [pmaxFeedLabel, setPmaxFeedLabel] = useState('')
   const [pmaxLifecycleGoalType, setPmaxLifecycleGoalType] = useState<
@@ -503,10 +507,8 @@ export default function ReachlyoCampaignWizard() {
     'TARGET_ALL' | 'TARGET_SPECIFIC'
   >('TARGET_ALL')
   const [pmaxLifecycleAdditionalValue, setPmaxLifecycleAdditionalValue] = useState('')
-  const [pmaxLifecycleHighLifetimeValue, setPmaxLifecycleHighLifetimeValue] =
-    useState('')
-  const [pmaxLifecycleValueMultiplier, setPmaxLifecycleValueMultiplier] =
-    useState('')
+  const [pmaxLifecycleHighLifetimeValue, setPmaxLifecycleHighLifetimeValue] = useState('')
+  const [pmaxLifecycleValueMultiplier, setPmaxLifecycleValueMultiplier] = useState('')
   const [
     pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers,
     setPmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers,
@@ -521,9 +523,9 @@ export default function ReachlyoCampaignWizard() {
   const [demandGenChannelStrategy, setDemandGenChannelStrategy] = useState<
     'ALL_CHANNELS' | 'ALL_OWNED_AND_OPERATED_CHANNELS'
   >('ALL_CHANNELS')
-  const [shoppingMerchantAccounts, setShoppingMerchantAccounts] = useState<
-    GoogleMerchantAccount[]
-  >([])
+  const [shoppingMerchantAccounts, setShoppingMerchantAccounts] = useState<GoogleMerchantAccount[]>(
+    [],
+  )
   const [shoppingMerchantId, setShoppingMerchantId] = useState('')
   const [shoppingPriority, setShoppingPriority] = useState<'0' | '1' | '2'>('0')
   const [shoppingEnableLocal, setShoppingEnableLocal] = useState(false)
@@ -538,30 +540,21 @@ export default function ReachlyoCampaignWizard() {
   const [googleSearchAudienceMode, setGoogleSearchAudienceMode] = useState<
     'OBSERVATION' | 'TARGETING'
   >('OBSERVATION')
-  const [googleSearchInterestResources, setGoogleSearchInterestResources] =
+  const [googleSearchInterestResources, setGoogleSearchInterestResources] = useState<string[]>([])
+  const [googleSearchExcludedInterestResources, setGoogleSearchExcludedInterestResources] =
     useState<string[]>([])
-  const [
-    googleSearchExcludedInterestResources,
-    setGoogleSearchExcludedInterestResources,
-  ] = useState<string[]>([])
-  const [googleParentalStatusIncludes, setGoogleParentalStatusIncludes] =
-    useState<string[]>([])
-  const [googleParentalStatusExcludes, setGoogleParentalStatusExcludes] =
-    useState<string[]>([])
-  const [googleIncomeRangeIncludes, setGoogleIncomeRangeIncludes] =
-    useState<string[]>([])
-  const [googleIncomeRangeExcludes, setGoogleIncomeRangeExcludes] =
-    useState<string[]>([])
-  const [googleDetailedDemographicIds, setGoogleDetailedDemographicIds] =
-    useState<string[]>([])
-  const [
-    googleExcludedDetailedDemographicIds,
-    setGoogleExcludedDetailedDemographicIds,
-  ] = useState<string[]>([])
+  const [googleParentalStatusIncludes, setGoogleParentalStatusIncludes] = useState<string[]>([])
+  const [googleParentalStatusExcludes, setGoogleParentalStatusExcludes] = useState<string[]>([])
+  const [googleIncomeRangeIncludes, setGoogleIncomeRangeIncludes] = useState<string[]>([])
+  const [googleIncomeRangeExcludes, setGoogleIncomeRangeExcludes] = useState<string[]>([])
+  const [googleDetailedDemographicIds, setGoogleDetailedDemographicIds] = useState<string[]>([])
+  const [googleExcludedDetailedDemographicIds, setGoogleExcludedDetailedDemographicIds] = useState<
+    string[]
+  >([])
   const [googleContentNetwork, setGoogleContentNetwork] = useState(false)
-  const [googleGeoMode, setGoogleGeoMode] = useState<
-    'PRESENCE' | 'PRESENCE_OR_INTEREST'
-  >('PRESENCE_OR_INTEREST')
+  const [googleGeoMode, setGoogleGeoMode] = useState<'PRESENCE' | 'PRESENCE_OR_INTEREST'>(
+    'PRESENCE_OR_INTEREST',
+  )
   const [googleDeviceBidModifiers, setGoogleDeviceBidModifiers] = useState<
     Record<'DESKTOP' | 'MOBILE' | 'TABLET', string>
   >({
@@ -570,19 +563,12 @@ export default function ReachlyoCampaignWizard() {
     TABLET: '1',
   })
   const [googleAiMaxEnabled, setGoogleAiMaxEnabled] = useState(false)
-  const [googleAiMaxTextCustomization, setGoogleAiMaxTextCustomization] =
+  const [googleAiMaxTextCustomization, setGoogleAiMaxTextCustomization] = useState(false)
+  const [googleAiMaxFinalUrlExpansion, setGoogleAiMaxFinalUrlExpansion] = useState(false)
+  const [googleAiMaxDisableSearchTermMatching, setGoogleAiMaxDisableSearchTermMatching] =
     useState(false)
-  const [googleAiMaxFinalUrlExpansion, setGoogleAiMaxFinalUrlExpansion] =
-    useState(false)
-  const [
-    googleAiMaxDisableSearchTermMatching,
-    setGoogleAiMaxDisableSearchTermMatching,
-  ] = useState(false)
   const [googleAiMaxTermExclusions, setGoogleAiMaxTermExclusions] = useState('')
-  const [
-    googleAiMaxMessagingRestrictions,
-    setGoogleAiMaxMessagingRestrictions,
-  ] = useState('')
+  const [googleAiMaxMessagingRestrictions, setGoogleAiMaxMessagingRestrictions] = useState('')
   const [googleAiMaxUrlExclusions, setGoogleAiMaxUrlExclusions] = useState('')
   const [googleAiMaxUrlInclusions, setGoogleAiMaxUrlInclusions] = useState('')
   const [googleAiMaxBrandInclusions, setGoogleAiMaxBrandInclusions] = useState<
@@ -592,11 +578,15 @@ export default function ReachlyoCampaignWizard() {
     GoogleBrandSuggestion[]
   >([])
   const [googleAdSchedules, setGoogleAdSchedules] = useState<GoogleAdScheduleDraft[]>([])
-  const [googleNegativeKeywords, setGoogleNegativeKeywords] = useState<GoogleNegativeKeywordInput[]>([])
-  const [googleNegativeKeywordLists, setGoogleNegativeKeywordLists] =
-    useState<GoogleNegativeKeywordList[]>([])
-  const [selectedGoogleNegativeKeywordListIds, setSelectedGoogleNegativeKeywordListIds] =
-    useState<string[]>([])
+  const [googleNegativeKeywords, setGoogleNegativeKeywords] = useState<
+    GoogleNegativeKeywordInput[]
+  >([])
+  const [googleNegativeKeywordLists, setGoogleNegativeKeywordLists] = useState<
+    GoogleNegativeKeywordList[]
+  >([])
+  const [selectedGoogleNegativeKeywordListIds, setSelectedGoogleNegativeKeywordListIds] = useState<
+    string[]
+  >([])
 
   const [metaPageId, setMetaPageId] = useState('')
   const [metaInstagramId, setMetaInstagramId] = useState('')
@@ -648,8 +638,7 @@ export default function ReachlyoCampaignWizard() {
     [campaign],
   )
   const shoppingOnly =
-    selectedChannels.length > 0 &&
-    selectedChannels.every((type) => type === 'GOOGLE_SHOPPING')
+    selectedChannels.length > 0 && selectedChannels.every((type) => type === 'GOOGLE_SHOPPING')
 
   useEffect(() => {
     if (!selectedCompany) return
@@ -725,8 +714,7 @@ export default function ReachlyoCampaignWizard() {
       const override = parseObject(channel.providerOverrideJson)
       const storedAccount = String(override._reachlyoAdAccountId ?? '')
       const eligible = accountData.filter(
-        (account) =>
-          account.provider === channel.provider && account.managed && account.accessible,
+        (account) => account.provider === channel.provider && account.managed && account.accessible,
       )
       accountSelections[channel.channelType] =
         eligible.find((account) => account.id === storedAccount)?.id ??
@@ -735,10 +723,7 @@ export default function ReachlyoCampaignWizard() {
         ''
 
       if (channel.budgetAllocationMinor != null) {
-        allocations[channel.channelType] = fromMinor(
-          channel.budgetAllocationMinor,
-          value.currency,
-        )
+        allocations[channel.channelType] = fromMinor(channel.budgetAllocationMinor, value.currency)
       } else if (channel.allocationPercent != null) {
         allocations[channel.channelType] = String(channel.allocationPercent)
       }
@@ -748,9 +733,7 @@ export default function ReachlyoCampaignWizard() {
     const nextGoogleAudienceIds: Partial<Record<CampaignChannelType, string[]>> = {}
     const nextGoogleExcludedAudienceIds: Partial<Record<CampaignChannelType, string[]>> = {}
     enabled.forEach((channel) => {
-      if (
-        !GOOGLE_PROVIDER_AUDIENCE_CHANNELS.includes(channel.channelType)
-      ) {
+      if (!GOOGLE_PROVIDER_AUDIENCE_CHANNELS.includes(channel.channelType)) {
         return
       }
       const override = parseObject(channel.providerOverrideJson)
@@ -780,9 +763,7 @@ export default function ReachlyoCampaignWizard() {
     if (google) {
       const override = parseObject(google.providerOverrideJson)
       if (typeof override.containsEuPoliticalAdvertising === 'boolean') {
-        setGooglePolitical(
-          String(override.containsEuPoliticalAdvertising) as 'true' | 'false',
-        )
+        setGooglePolitical(String(override.containsEuPoliticalAdvertising) as 'true' | 'false')
       }
       if (typeof override.bidStrategy === 'string') {
         setGoogleBidStrategy(override.bidStrategy)
@@ -863,24 +844,15 @@ export default function ReachlyoCampaignWizard() {
       ) {
         const devices = override.deviceBidModifiers as Record<string, unknown>
         setGoogleDeviceBidModifiers({
-          DESKTOP:
-            typeof devices.DESKTOP === 'number' ? String(devices.DESKTOP) : '1',
-          MOBILE:
-            typeof devices.MOBILE === 'number' ? String(devices.MOBILE) : '1',
-          TABLET:
-            typeof devices.TABLET === 'number' ? String(devices.TABLET) : '1',
+          DESKTOP: typeof devices.DESKTOP === 'number' ? String(devices.DESKTOP) : '1',
+          MOBILE: typeof devices.MOBILE === 'number' ? String(devices.MOBILE) : '1',
+          TABLET: typeof devices.TABLET === 'number' ? String(devices.TABLET) : '1',
         })
       }
       setGoogleAiMaxEnabled(override.aiMaxEnabled === true)
-      setGoogleAiMaxTextCustomization(
-        override.aiMaxTextCustomizationEnabled === true,
-      )
-      setGoogleAiMaxFinalUrlExpansion(
-        override.aiMaxFinalUrlExpansionEnabled === true,
-      )
-      setGoogleAiMaxDisableSearchTermMatching(
-        override.aiMaxDisableSearchTermMatching === true,
-      )
+      setGoogleAiMaxTextCustomization(override.aiMaxTextCustomizationEnabled === true)
+      setGoogleAiMaxFinalUrlExpansion(override.aiMaxFinalUrlExpansionEnabled === true)
+      setGoogleAiMaxDisableSearchTermMatching(override.aiMaxDisableSearchTermMatching === true)
       setGoogleAiMaxTermExclusions(
         Array.isArray(override.aiMaxTermExclusions)
           ? override.aiMaxTermExclusions
@@ -911,33 +883,29 @@ export default function ReachlyoCampaignWizard() {
       )
       setGoogleAiMaxBrandInclusions(
         Array.isArray(override.aiMaxBrandInclusions)
-          ? override.aiMaxBrandInclusions.filter(
-              (value): value is GoogleBrandSuggestion =>
-                Boolean(
-                  value &&
-                    typeof value === 'object' &&
-                    typeof (value as GoogleBrandSuggestion).id === 'string' &&
-                    typeof (value as GoogleBrandSuggestion).name === 'string',
-                ),
+          ? override.aiMaxBrandInclusions.filter((value): value is GoogleBrandSuggestion =>
+              Boolean(
+                value &&
+                typeof value === 'object' &&
+                typeof (value as GoogleBrandSuggestion).id === 'string' &&
+                typeof (value as GoogleBrandSuggestion).name === 'string',
+              ),
             )
           : [],
       )
       setGoogleAiMaxBrandExclusions(
         Array.isArray(override.aiMaxBrandExclusions)
-          ? override.aiMaxBrandExclusions.filter(
-              (value): value is GoogleBrandSuggestion =>
-                Boolean(
-                  value &&
-                    typeof value === 'object' &&
-                    typeof (value as GoogleBrandSuggestion).id === 'string' &&
-                    typeof (value as GoogleBrandSuggestion).name === 'string',
-                ),
+          ? override.aiMaxBrandExclusions.filter((value): value is GoogleBrandSuggestion =>
+              Boolean(
+                value &&
+                typeof value === 'object' &&
+                typeof (value as GoogleBrandSuggestion).id === 'string' &&
+                typeof (value as GoogleBrandSuggestion).name === 'string',
+              ),
             )
           : [],
       )
-      const savedSchedules = Array.isArray(override.adSchedules)
-        ? override.adSchedules
-        : []
+      const savedSchedules = Array.isArray(override.adSchedules) ? override.adSchedules : []
       setGoogleAdSchedules(
         savedSchedules.flatMap((value) => {
           if (!value || typeof value !== 'object' || Array.isArray(value)) return []
@@ -974,31 +942,25 @@ export default function ReachlyoCampaignWizard() {
           return [
             {
               text: keyword.text,
-              matchType: String(keyword.matchType) as
-                | 'BROAD'
-                | 'PHRASE'
-                | 'EXACT',
+              matchType: String(keyword.matchType) as 'BROAD' | 'PHRASE' | 'EXACT',
             },
           ]
         }),
       )
       setSelectedGoogleNegativeKeywordListIds(
         Array.isArray(override.negativeKeywordSharedSetIds)
-          ? override.negativeKeywordSharedSetIds
-              .filter((value): value is string => typeof value === 'string')
+          ? override.negativeKeywordSharedSetIds.filter(
+              (value): value is string => typeof value === 'string',
+            )
           : [],
       )
     }
 
-    const pmax = enabled.find(
-      (channel) => channel.channelType === 'GOOGLE_PERFORMANCE_MAX',
-    )
+    const pmax = enabled.find((channel) => channel.channelType === 'GOOGLE_PERFORMANCE_MAX')
     if (pmax) {
       const override = parseObject(pmax.providerOverrideJson)
       if (typeof override.containsEuPoliticalAdvertising === 'boolean') {
-        setGooglePolitical(
-          String(override.containsEuPoliticalAdvertising) as 'true' | 'false',
-        )
+        setGooglePolitical(String(override.containsEuPoliticalAdvertising) as 'true' | 'false')
       }
       if (
         override.bidStrategy === 'MAXIMIZE_CONVERSIONS' ||
@@ -1019,30 +981,16 @@ export default function ReachlyoCampaignWizard() {
           : true,
       )
       setPmaxBrandMainColor(
-        typeof override.pmaxBrandMainColor === 'string'
-          ? override.pmaxBrandMainColor
-          : '',
+        typeof override.pmaxBrandMainColor === 'string' ? override.pmaxBrandMainColor : '',
       )
       setPmaxBrandAccentColor(
-        typeof override.pmaxBrandAccentColor === 'string'
-          ? override.pmaxBrandAccentColor
-          : '',
+        typeof override.pmaxBrandAccentColor === 'string' ? override.pmaxBrandAccentColor : '',
       )
       setPmaxBrandFontFamily(
-        typeof override.pmaxBrandFontFamily === 'string'
-          ? override.pmaxBrandFontFamily
-          : '',
+        typeof override.pmaxBrandFontFamily === 'string' ? override.pmaxBrandFontFamily : '',
       )
-      setPmaxMerchantId(
-        typeof override.pmaxMerchantId === 'string'
-          ? override.pmaxMerchantId
-          : '',
-      )
-      setPmaxFeedLabel(
-        typeof override.pmaxFeedLabel === 'string'
-          ? override.pmaxFeedLabel
-          : '',
-      )
+      setPmaxMerchantId(typeof override.pmaxMerchantId === 'string' ? override.pmaxMerchantId : '')
+      setPmaxFeedLabel(typeof override.pmaxFeedLabel === 'string' ? override.pmaxFeedLabel : '')
       setPmaxLifecycleGoalType(
         override.pmaxLifecycleGoalType === 'NEW_CUSTOMER_ACQUISITION' ||
           override.pmaxLifecycleGoalType === 'CUSTOMER_RETENTION' ||
@@ -1051,9 +999,7 @@ export default function ReachlyoCampaignWizard() {
           : '',
       )
       setPmaxLifecycleTargetOption(
-        override.pmaxLifecycleTargetOption === 'TARGET_SPECIFIC'
-          ? 'TARGET_SPECIFIC'
-          : 'TARGET_ALL',
+        override.pmaxLifecycleTargetOption === 'TARGET_SPECIFIC' ? 'TARGET_SPECIFIC' : 'TARGET_ALL',
       )
       setPmaxLifecycleAdditionalValue(
         typeof override.pmaxLifecycleAdditionalValue === 'number'
@@ -1078,15 +1024,11 @@ export default function ReachlyoCampaignWizard() {
       )
     }
 
-    const demandGen = enabled.find(
-      (channel) => channel.channelType === 'GOOGLE_DEMAND_GEN',
-    )
+    const demandGen = enabled.find((channel) => channel.channelType === 'GOOGLE_DEMAND_GEN')
     if (demandGen) {
       const override = parseObject(demandGen.providerOverrideJson)
       if (typeof override.containsEuPoliticalAdvertising === 'boolean') {
-        setGooglePolitical(
-          String(override.containsEuPoliticalAdvertising) as 'true' | 'false',
-        )
+        setGooglePolitical(String(override.containsEuPoliticalAdvertising) as 'true' | 'false')
       }
       if (
         override.bidStrategy === 'MAXIMIZE_CLICKS' ||
@@ -1097,22 +1039,17 @@ export default function ReachlyoCampaignWizard() {
       }
       if (
         override.demandGenChannelStrategy === 'ALL_CHANNELS' ||
-        override.demandGenChannelStrategy ===
-          'ALL_OWNED_AND_OPERATED_CHANNELS'
+        override.demandGenChannelStrategy === 'ALL_OWNED_AND_OPERATED_CHANNELS'
       ) {
         setDemandGenChannelStrategy(override.demandGenChannelStrategy)
       }
     }
 
-    const shopping = enabled.find(
-      (channel) => channel.channelType === 'GOOGLE_SHOPPING',
-    )
+    const shopping = enabled.find((channel) => channel.channelType === 'GOOGLE_SHOPPING')
     if (shopping) {
       const override = parseObject(shopping.providerOverrideJson)
       if (typeof override.containsEuPoliticalAdvertising === 'boolean') {
-        setGooglePolitical(
-          String(override.containsEuPoliticalAdvertising) as 'true' | 'false',
-        )
+        setGooglePolitical(String(override.containsEuPoliticalAdvertising) as 'true' | 'false')
       }
       if (typeof override.merchantId === 'string') {
         setShoppingMerchantId(override.merchantId)
@@ -1127,15 +1064,11 @@ export default function ReachlyoCampaignWizard() {
       setShoppingEnableLocal(override.enableLocal === true)
     }
 
-    const display = enabled.find(
-      (channel) => channel.channelType === 'GOOGLE_DISPLAY',
-    )
+    const display = enabled.find((channel) => channel.channelType === 'GOOGLE_DISPLAY')
     if (display) {
       const override = parseObject(display.providerOverrideJson)
       if (typeof override.containsEuPoliticalAdvertising === 'boolean') {
-        setGooglePolitical(
-          String(override.containsEuPoliticalAdvertising) as 'true' | 'false',
-        )
+        setGooglePolitical(String(override.containsEuPoliticalAdvertising) as 'true' | 'false')
       }
       if (
         override.bidStrategy === 'MANUAL_CPC' ||
@@ -1188,17 +1121,23 @@ export default function ReachlyoCampaignWizard() {
       )
       setMetaInstagramPositions(
         Array.isArray(override.instagramPositions)
-          ? override.instagramPositions.filter((value): value is string => typeof value === 'string')
+          ? override.instagramPositions.filter(
+              (value): value is string => typeof value === 'string',
+            )
           : [],
       )
       setMetaMessengerPositions(
         Array.isArray(override.messengerPositions)
-          ? override.messengerPositions.filter((value): value is string => typeof value === 'string')
+          ? override.messengerPositions.filter(
+              (value): value is string => typeof value === 'string',
+            )
           : [],
       )
       setMetaAudienceNetworkPositions(
         Array.isArray(override.audienceNetworkPositions)
-          ? override.audienceNetworkPositions.filter((value): value is string => typeof value === 'string')
+          ? override.audienceNetworkPositions.filter(
+              (value): value is string => typeof value === 'string',
+            )
           : [],
       )
       setMetaAdvantageAudience(override.advantageAudience === true)
@@ -1207,10 +1146,14 @@ export default function ReachlyoCampaignWizard() {
       setMetaAdvantagePlusCreative(override.advantagePlusCreative === true)
       setMetaGenerativeText(override.generativeText === true)
       setMetaImageExpansion(override.imageExpansion === true)
-      setMetaCatalogEnabled(typeof override.productSetId === 'string' && override.productSetId.length > 0)
+      setMetaCatalogEnabled(
+        typeof override.productSetId === 'string' && override.productSetId.length > 0,
+      )
       setMetaBackgroundGeneration(override.backgroundGeneration === true)
       setMetaProductSetId(typeof override.productSetId === 'string' ? override.productSetId : '')
-      setMetaExistingPostId(typeof override.existingPostId === 'string' ? override.existingPostId : '')
+      setMetaExistingPostId(
+        typeof override.existingPostId === 'string' ? override.existingPostId : '',
+      )
       setMetaDetailedInterests(
         Array.isArray(override.detailedInterests)
           ? override.detailedInterests.flatMap((value) => {
@@ -1229,13 +1172,10 @@ export default function ReachlyoCampaignWizard() {
     mappings: ReachlyoConversionGoalMapping[],
     currentBusinessGoal: CampaignBusinessGoal,
   ) => {
-    const current = mappings.filter(
-      (mapping) => mapping.businessGoal === currentBusinessGoal,
-    )
+    const current = mappings.filter((mapping) => mapping.businessGoal === currentBusinessGoal)
     const google = current.find(
       (mapping) =>
-        mapping.provider === 'GOOGLE_ADS' &&
-        mapping.targetType === 'PROVIDER_CONVERSION',
+        mapping.provider === 'GOOGLE_ADS' && mapping.targetType === 'PROVIDER_CONVERSION',
     )
     setGoogleConversionId(google?.adConversionId ?? '')
 
@@ -1247,9 +1187,7 @@ export default function ReachlyoCampaignWizard() {
       setMetaConversionMode('STANDARD')
       setMetaConversionId('')
       setMetaStandardEvent(
-        meta.providerEventName ??
-          defaultMetaStandardEvent(currentBusinessGoal) ??
-          '',
+        meta.providerEventName ?? defaultMetaStandardEvent(currentBusinessGoal) ?? '',
       )
     } else {
       setMetaConversionMode('PROVIDER')
@@ -1258,10 +1196,7 @@ export default function ReachlyoCampaignWizard() {
     }
   }
 
-  const hydrateCreative = (
-    pack: ReachlyoCreativePack | undefined,
-    value: ReachlyoCampaign,
-  ) => {
+  const hydrateCreative = (pack: ReachlyoCreativePack | undefined, value: ReachlyoCampaign) => {
     if (!pack) {
       setCreativeUrl(value.landingPageUrl ?? '')
       return
@@ -1308,15 +1243,8 @@ export default function ReachlyoCampaignWizard() {
         endAt: fromLocalInput(endAt),
       }
       const saved = campaign
-        ? await adCenterApi.updateReachlyoCampaign(
-            selectedCompany.companyId,
-            campaign.id,
-            input,
-          )
-        : await adCenterApi.createReachlyoCampaign(
-            selectedCompany.companyId,
-            input,
-          )
+        ? await adCenterApi.updateReachlyoCampaign(selectedCompany.companyId, campaign.id, input)
+        : await adCenterApi.createReachlyoCampaign(selectedCompany.companyId, input)
       setCampaign(saved)
       if (!campaign) {
         navigate('/ad-center/unified-campaigns/' + saved.id, { replace: true })
@@ -1349,9 +1277,7 @@ export default function ReachlyoCampaignWizard() {
     try {
       let latest = campaign
       for (const type of selectedChannels) {
-        const existing = latest.channels.find(
-          (channel) => channel.channelType === type,
-        )
+        const existing = latest.channels.find((channel) => channel.channelType === type)
         const override = {
           ...parseObject(existing?.providerOverrideJson),
           _reachlyoAdAccountId: accountByChannel[type],
@@ -1366,20 +1292,15 @@ export default function ReachlyoCampaignWizard() {
                 providerOverrideJson: JSON.stringify(override),
               },
             )
-          : await adCenterApi.addReachlyoCampaignChannel(
-              selectedCompany.companyId,
-              campaign.id,
-              {
-                channelType: type,
-                enabled: true,
-                providerOverrideJson: JSON.stringify(override),
-              },
-            )
+          : await adCenterApi.addReachlyoCampaignChannel(selectedCompany.companyId, campaign.id, {
+              channelType: type,
+              enabled: true,
+              providerOverrideJson: JSON.stringify(override),
+            })
       }
 
       for (const existing of latest.channels.filter(
-        (channel) =>
-          channel.enabled && !selectedChannels.includes(channel.channelType),
+        (channel) => channel.enabled && !selectedChannels.includes(channel.channelType),
       )) {
         latest = await adCenterApi.updateReachlyoCampaignChannel(
           selectedCompany.companyId,
@@ -1422,9 +1343,7 @@ export default function ReachlyoCampaignWizard() {
       )
 
       const enabled = latest.channels.filter((channel) => channel.enabled)
-      const defaultPercent = enabled.length
-        ? Math.floor((10000 / enabled.length)) / 100
-        : 100
+      const defaultPercent = enabled.length ? Math.floor(10000 / enabled.length) / 100 : 100
       const defaultFixed = enabled.length
         ? Math.floor(totalBudgetMinor / enabled.length)
         : totalBudgetMinor
@@ -1545,8 +1464,7 @@ export default function ReachlyoCampaignWizard() {
         businessName: brandName.trim() || null,
         primaryMessage: primaryMessage.trim() || null,
         callToAction: callToAction || null,
-        destinationUrl:
-          creativeUrl.trim() || campaign.landingPageUrl || null,
+        destinationUrl: creativeUrl.trim() || campaign.landingPageUrl || null,
         headlines: listValues(headlines),
         descriptions: listValues(descriptions),
         assets,
@@ -1605,18 +1523,13 @@ export default function ReachlyoCampaignWizard() {
       setError('Add at least one audience location.')
       return
     }
-    if (
-      normalizedLocations.some(
-        (location) => !/^[A-Z]{2}$/.test(location.countryCode),
-      )
-    ) {
+    if (normalizedLocations.some((location) => !/^[A-Z]{2}$/.test(location.countryCode))) {
       setError('Audience country codes must use two-letter ISO codes such as IN or US.')
       return
     }
     if (
       normalizedLocations.some(
-        (location) =>
-          (location.latitude == null) !== (location.longitude == null),
+        (location) => (location.latitude == null) !== (location.longitude == null),
       )
     ) {
       setError('Latitude and longitude must be supplied together.')
@@ -1688,14 +1601,8 @@ export default function ReachlyoCampaignWizard() {
         const account = managedAccounts.find((item) => item.id === accountId)
         if (syncProvider && account?.provider === 'GOOGLE_ADS') {
           await Promise.all([
-            adCenterApi.syncGoogleConversions(
-              selectedCompany.companyId,
-              accountId,
-            ),
-            adCenterApi.syncGoogleAudiences(
-              selectedCompany.companyId,
-              accountId,
-            ),
+            adCenterApi.syncGoogleConversions(selectedCompany.companyId, accountId),
+            adCenterApi.syncGoogleAudiences(selectedCompany.companyId, accountId),
           ])
         }
         if (syncProvider && account?.provider === 'META_ADS') {
@@ -1705,40 +1612,23 @@ export default function ReachlyoCampaignWizard() {
           ])
         }
 
-        const conversionData = await adCenterApi.conversions(
-          selectedCompany.companyId,
-          accountId,
-        )
+        const conversionData = await adCenterApi.conversions(selectedCompany.companyId, accountId)
         nextConversions[accountId] = conversionData.filter(
-          (item) =>
-            item.accessible && !item.archived && !item.unavailable,
+          (item) => item.accessible && !item.archived && !item.unavailable,
         )
 
         if (account?.provider === 'GOOGLE_ADS') {
           const [negativeKeywordLists, audienceLists] = await Promise.all([
-            adCenterApi.googleNegativeKeywordLists(
-              selectedCompany.companyId,
-              accountId,
-            ),
-            adCenterApi.audiences(
-              selectedCompany.companyId,
-              accountId,
-            ),
+            adCenterApi.googleNegativeKeywordLists(selectedCompany.companyId, accountId),
+            adCenterApi.audiences(selectedCompany.companyId, accountId),
           ])
           nextGoogleNegativeKeywordLists = negativeKeywordLists
-          nextAudiences[accountId] = audienceLists.filter(
-            (item) => item.accessible,
-          )
+          nextAudiences[accountId] = audienceLists.filter((item) => item.accessible)
         }
 
         if (account?.provider === 'META_ADS') {
-          const resourceData = await adCenterApi.resources(
-            selectedCompany.companyId,
-            accountId,
-          )
-          nextResources[accountId] = resourceData.filter(
-            (item) => item.accessible,
-          )
+          const resourceData = await adCenterApi.resources(selectedCompany.companyId, accountId)
+          nextResources[accountId] = resourceData.filter((item) => item.accessible)
         }
       }),
     )
@@ -1754,17 +1644,9 @@ export default function ReachlyoCampaignWizard() {
       accountByChannel.GOOGLE_DEMAND_GEN ??
       accountByChannel.GOOGLE_SHOPPING ??
       accountByChannel.GOOGLE_DISPLAY
-    if (
-      googleAccount &&
-      !googleConversionId &&
-      nextConversions[googleAccount]?.length
-    ) {
+    if (googleAccount && !googleConversionId && nextConversions[googleAccount]?.length) {
       setGoogleConversionId(
-        recommendedConversion(
-          nextConversions[googleAccount],
-          businessGoal,
-          'GOOGLE_ADS',
-        )?.id ?? '',
+        recommendedConversion(nextConversions[googleAccount], businessGoal, 'GOOGLE_ADS')?.id ?? '',
       )
     }
 
@@ -1777,9 +1659,7 @@ export default function ReachlyoCampaignWizard() {
         )
         setPmaxMerchantAccounts(merchants)
         setPmaxMerchantId((current) =>
-          current && merchants.some((merchant) => merchant.accountId === current)
-            ? current
-            : '',
+          current && merchants.some((merchant) => merchant.accountId === current) ? current : '',
         )
       } catch {
         setPmaxMerchantAccounts([])
@@ -1800,9 +1680,7 @@ export default function ReachlyoCampaignWizard() {
           shoppingAccount,
         )
         setShoppingMerchantAccounts(merchants)
-        setShoppingMerchantId((current) =>
-          current || merchants[0]?.accountId || '',
-        )
+        setShoppingMerchantId((current) => current || merchants[0]?.accountId || '')
       } catch {
         setShoppingMerchantAccounts([])
       }
@@ -1814,37 +1692,30 @@ export default function ReachlyoCampaignWizard() {
     if (metaAccount) {
       if (!metaConversionId && nextConversions[metaAccount]?.length) {
         setMetaConversionId(
-          recommendedConversion(
-            nextConversions[metaAccount],
-            businessGoal,
-            'META_ADS',
-          )?.id ?? '',
+          recommendedConversion(nextConversions[metaAccount], businessGoal, 'META_ADS')?.id ?? '',
         )
       }
       const resources = nextResources[metaAccount] ?? []
       if (!metaPageId) {
         setMetaPageId(
-          resources.find((item) => item.resourceType === 'FACEBOOK_PAGE')
-            ?.externalResourceId ?? '',
+          resources.find((item) => item.resourceType === 'FACEBOOK_PAGE')?.externalResourceId ?? '',
         )
       }
       if (!metaInstagramId) {
         setMetaInstagramId(
-          resources.find(
-            (item) => item.resourceType === 'INSTAGRAM_ACCOUNT',
-          )?.externalResourceId ?? '',
+          resources.find((item) => item.resourceType === 'INSTAGRAM_ACCOUNT')?.externalResourceId ??
+            '',
         )
       }
       if (!metaPixelId) {
         setMetaPixelId(
-          resources.find((item) => item.resourceType === 'META_PIXEL')
-            ?.externalResourceId ?? '',
+          resources.find((item) => item.resourceType === 'META_PIXEL')?.externalResourceId ?? '',
         )
       }
       if (!metaProductSetId) {
         setMetaProductSetId(
-          resources.find((item) => item.resourceType === 'META_PRODUCT_SET')
-            ?.externalResourceId ?? '',
+          resources.find((item) => item.resourceType === 'META_PRODUCT_SET')?.externalResourceId ??
+            '',
         )
       }
     }
@@ -1865,30 +1736,22 @@ export default function ReachlyoCampaignWizard() {
           _reachlyoAdAccountId: accountId,
         }
 
-        if (
-          GOOGLE_PROVIDER_AUDIENCE_CHANNELS.includes(channel.channelType)
-        ) {
+        if (GOOGLE_PROVIDER_AUDIENCE_CHANNELS.includes(channel.channelType)) {
           override = {
             ...override,
-            googleAudienceIds:
-              googleAudienceIdsByChannel[channel.channelType] ?? [],
+            googleAudienceIds: googleAudienceIdsByChannel[channel.channelType] ?? [],
             googleExcludedAudienceIds:
               channel.channelType === 'GOOGLE_PERFORMANCE_MAX'
                 ? []
-                : googleExcludedAudienceIdsByChannel[channel.channelType] ?? [],
+                : (googleExcludedAudienceIdsByChannel[channel.channelType] ?? []),
           }
         }
 
         if (channel.channelType === 'GOOGLE_DISPLAY') {
           if (!googlePolitical) {
-            throw new Error(
-              'Choose the Google EU political advertising declaration.',
-            )
+            throw new Error('Choose the Google EU political advertising declaration.')
           }
-          if (
-            displayBidStrategy === 'TARGET_CPA' &&
-            !(Number(displayTargetCpa) > 0)
-          ) {
+          if (displayBidStrategy === 'TARGET_CPA' && !(Number(displayTargetCpa) > 0)) {
             throw new Error('Enter a positive Display target CPA.')
           }
           override = {
@@ -1900,8 +1763,7 @@ export default function ReachlyoCampaignWizard() {
                 ? toMinor(displayTargetCpa, campaign.currency)
                 : undefined,
             adGroupCpcBidMinor:
-              displayBidStrategy === 'MANUAL_CPC' &&
-              Number(displayCpcBid) > 0
+              displayBidStrategy === 'MANUAL_CPC' && Number(displayCpcBid) > 0
                 ? toMinor(displayCpcBid, campaign.currency)
                 : undefined,
           }
@@ -1909,9 +1771,7 @@ export default function ReachlyoCampaignWizard() {
 
         if (channel.channelType === 'GOOGLE_SHOPPING') {
           if (!googlePolitical) {
-            throw new Error(
-              'Choose the Google EU political advertising declaration.',
-            )
+            throw new Error('Choose the Google EU political advertising declaration.')
           }
           if (!shoppingMerchantId) {
             throw new Error('Choose a Merchant Center account for Google Shopping.')
@@ -1927,9 +1787,7 @@ export default function ReachlyoCampaignWizard() {
 
         if (channel.channelType === 'GOOGLE_PERFORMANCE_MAX') {
           if (!googlePolitical) {
-            throw new Error(
-              'Choose the Google EU political advertising declaration.',
-            )
+            throw new Error('Choose the Google EU political advertising declaration.')
           }
           override = {
             ...override,
@@ -1946,9 +1804,7 @@ export default function ReachlyoCampaignWizard() {
                 ? pmaxBrandAccentColor.trim()
                 : undefined,
             pmaxBrandFontFamily:
-              pmaxBrandGuidelinesEnabled && pmaxBrandFontFamily
-                ? pmaxBrandFontFamily
-                : undefined,
+              pmaxBrandGuidelinesEnabled && pmaxBrandFontFamily ? pmaxBrandFontFamily : undefined,
             pmaxMerchantId: pmaxMerchantId || undefined,
             pmaxFeedLabel:
               pmaxMerchantId && pmaxFeedLabel.trim()
@@ -1974,8 +1830,7 @@ export default function ReachlyoCampaignWizard() {
                 ? Number(pmaxLifecycleHighLifetimeValue)
                 : undefined,
             pmaxLifecycleValueMultiplier:
-              pmaxLifecycleGoalType === 'LOYALTY_RETENTION' &&
-              pmaxLifecycleValueMultiplier.trim()
+              pmaxLifecycleGoalType === 'LOYALTY_RETENTION' && pmaxLifecycleValueMultiplier.trim()
                 ? Number(pmaxLifecycleValueMultiplier)
                 : undefined,
             pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers:
@@ -1991,9 +1846,7 @@ export default function ReachlyoCampaignWizard() {
 
         if (channel.channelType === 'GOOGLE_DEMAND_GEN') {
           if (!googlePolitical) {
-            throw new Error(
-              'Choose the Google EU political advertising declaration.',
-            )
+            throw new Error('Choose the Google EU political advertising declaration.')
           }
           override = {
             ...override,
@@ -2017,9 +1870,7 @@ export default function ReachlyoCampaignWizard() {
 
         if (channel.channelType === 'GOOGLE_SEARCH') {
           if (!googlePolitical) {
-            throw new Error(
-              'Choose the Google EU political advertising declaration.',
-            )
+            throw new Error('Choose the Google EU political advertising declaration.')
           }
           override = {
             ...override,
@@ -2045,30 +1896,18 @@ export default function ReachlyoCampaignWizard() {
               ]),
             ),
             aiMaxEnabled: googleAiMaxEnabled,
-            aiMaxTextCustomizationEnabled:
-              googleAiMaxEnabled && googleAiMaxTextCustomization,
-            aiMaxFinalUrlExpansionEnabled:
-              googleAiMaxEnabled && googleAiMaxFinalUrlExpansion,
+            aiMaxTextCustomizationEnabled: googleAiMaxEnabled && googleAiMaxTextCustomization,
+            aiMaxFinalUrlExpansionEnabled: googleAiMaxEnabled && googleAiMaxFinalUrlExpansion,
             aiMaxDisableSearchTermMatching:
               googleAiMaxEnabled && googleAiMaxDisableSearchTermMatching,
-            aiMaxTermExclusions: googleAiMaxEnabled
-              ? listValues(googleAiMaxTermExclusions)
-              : [],
+            aiMaxTermExclusions: googleAiMaxEnabled ? listValues(googleAiMaxTermExclusions) : [],
             aiMaxMessagingRestrictions: googleAiMaxEnabled
               ? listValues(googleAiMaxMessagingRestrictions)
               : [],
-            aiMaxUrlExclusions: googleAiMaxEnabled
-              ? listValues(googleAiMaxUrlExclusions)
-              : [],
-            aiMaxUrlInclusions: googleAiMaxEnabled
-              ? listValues(googleAiMaxUrlInclusions)
-              : [],
-            aiMaxBrandInclusions: googleAiMaxEnabled
-              ? googleAiMaxBrandInclusions
-              : [],
-            aiMaxBrandExclusions: googleAiMaxEnabled
-              ? googleAiMaxBrandExclusions
-              : [],
+            aiMaxUrlExclusions: googleAiMaxEnabled ? listValues(googleAiMaxUrlExclusions) : [],
+            aiMaxUrlInclusions: googleAiMaxEnabled ? listValues(googleAiMaxUrlInclusions) : [],
+            aiMaxBrandInclusions: googleAiMaxEnabled ? googleAiMaxBrandInclusions : [],
+            aiMaxBrandExclusions: googleAiMaxEnabled ? googleAiMaxBrandExclusions : [],
             adSchedules: googleAdSchedules,
             negativeKeywords: googleNegativeKeywords
               .map((keyword) => ({
@@ -2091,8 +1930,7 @@ export default function ReachlyoCampaignWizard() {
             specialAdCategories: [metaSpecialCategory],
             pixelId: metaPixelId || undefined,
             advantagePlacements: metaPlacementMode === 'AUTO',
-            publisherPlatforms:
-              metaPlacementMode === 'MANUAL' ? metaPublisherPlatforms : [],
+            publisherPlatforms: metaPlacementMode === 'MANUAL' ? metaPublisherPlatforms : [],
             facebookPositions:
               metaPlacementMode === 'MANUAL' && metaPublisherPlatforms.includes('facebook')
                 ? metaFacebookPositions
@@ -2106,15 +1944,12 @@ export default function ReachlyoCampaignWizard() {
                 ? metaMessengerPositions
                 : [],
             audienceNetworkPositions:
-              metaPlacementMode === 'MANUAL' &&
-              metaPublisherPlatforms.includes('audience_network')
+              metaPlacementMode === 'MANUAL' && metaPublisherPlatforms.includes('audience_network')
                 ? metaAudienceNetworkPositions
                 : [],
             advantageAudience: metaAdvantageAudience,
-            advantageAgeSuggestion:
-              metaAdvantageAudience && metaAdvantageAgeSuggestion,
-            advantageGenderSuggestion:
-              metaAdvantageAudience && metaAdvantageGenderSuggestion,
+            advantageAgeSuggestion: metaAdvantageAudience && metaAdvantageAgeSuggestion,
+            advantageGenderSuggestion: metaAdvantageAudience && metaAdvantageGenderSuggestion,
             advantagePlusCreative: metaAdvantagePlusCreative,
             generativeText: metaGenerativeText,
             imageExpansion: metaImageExpansion,
@@ -2144,9 +1979,13 @@ export default function ReachlyoCampaignWizard() {
               channel.channelType === 'GOOGLE_SHOPPING' ||
               channel.channelType === 'GOOGLE_DISPLAY'
                 ? googleConversionId
-                : conversionsByAccount[accountId]?.[0]?.id ?? ''
+                : (conversionsByAccount[accountId]?.[0]?.id ?? '')
             if (!conversionId) {
-              throw new Error('Choose or sync a Google conversion action for ' + pretty(channel.channelType) + '.')
+              throw new Error(
+                'Choose or sync a Google conversion action for ' +
+                  pretty(channel.channelType) +
+                  '.',
+              )
             }
             await adCenterApi.upsertReachlyoConversionGoalMapping(
               selectedCompany.companyId,
@@ -2199,9 +2038,7 @@ export default function ReachlyoCampaignWizard() {
       await compilePlans(latest)
     } catch (saveError) {
       const fallback =
-        saveError instanceof Error
-          ? saveError.message
-          : 'Unable to save provider settings'
+        saveError instanceof Error ? saveError.message : 'Unable to save provider settings'
       setError(apiErrorMessage(saveError, fallback))
     } finally {
       setBusy(false)
@@ -2217,17 +2054,11 @@ export default function ReachlyoCampaignWizard() {
       const packs =
         creativePacks.length > 0
           ? creativePacks
-          : await adCenterApi.reachlyoCreativePacks(
-              selectedCompany.companyId,
-              value.id,
-            )
+          : await adCenterApi.reachlyoCreativePacks(selectedCompany.companyId, value.id)
       const definitions =
         audiences.length > 0
           ? audiences
-          : await adCenterApi.reachlyoAudienceDefinitions(
-              selectedCompany.companyId,
-              value.id,
-            )
+          : await adCenterApi.reachlyoAudienceDefinitions(selectedCompany.companyId, value.id)
 
       if (creativePacks.length === 0) setCreativePacks(packs)
       if (audiences.length === 0) setAudiences(definitions)
@@ -2236,14 +2067,9 @@ export default function ReachlyoCampaignWizard() {
       for (const channel of value.channels.filter((item) => item.enabled)) {
         const override = parseObject(channel.providerOverrideJson)
         const accountId =
-          accountByChannel[channel.channelType] ||
-          String(override._reachlyoAdAccountId ?? '')
+          accountByChannel[channel.channelType] || String(override._reachlyoAdAccountId ?? '')
         if (!accountId) {
-          throw new Error(
-            'Choose an advertising account for ' +
-              pretty(channel.channelType) +
-              '.',
-          )
+          throw new Error('Choose an advertising account for ' + pretty(channel.channelType) + '.')
         }
 
         compiled.push(
@@ -2319,26 +2145,17 @@ export default function ReachlyoCampaignWizard() {
       )
 
       setCurrentRun(run)
-      setLaunchRuns((current) => [
-        run,
-        ...current.filter((item) => item.id !== run.id),
-      ])
+      setLaunchRuns((current) => [run, ...current.filter((item) => item.id !== run.id)])
       setStep(7)
 
       if (run.status === 'READY') {
-        setNotice(
-          'Launch preflight passed. Provider resources have not been created yet.',
-        )
+        setNotice('Launch preflight passed. Provider resources have not been created yet.')
       } else {
-        setError(
-          'Launch preflight found issues. Review the validation details below.',
-        )
+        setError('Launch preflight found issues. Review the validation details below.')
       }
     } catch (prepareError) {
       const fallback =
-        prepareError instanceof Error
-          ? prepareError.message
-          : 'Unable to prepare launch'
+        prepareError instanceof Error ? prepareError.message : 'Unable to prepare launch'
       setError(apiErrorMessage(prepareError, fallback))
     } finally {
       setBusy(false)
@@ -2365,15 +2182,9 @@ export default function ReachlyoCampaignWizard() {
           )
 
       setCurrentRun(run)
-      setLaunchRuns((current) => [
-        run,
-        ...current.filter((item) => item.id !== run.id),
-      ])
+      setLaunchRuns((current) => [run, ...current.filter((item) => item.id !== run.id)])
 
-      const refreshed = await adCenterApi.reachlyoCampaign(
-        selectedCompany.companyId,
-        campaign.id,
-      )
+      const refreshed = await adCenterApi.reachlyoCampaign(selectedCompany.companyId, campaign.id)
       setCampaign(refreshed)
 
       setNotice(
@@ -2397,10 +2208,7 @@ export default function ReachlyoCampaignWizard() {
         currentRun.id,
       )
       setCurrentRun(run)
-      setLaunchRuns((current) => [
-        run,
-        ...current.filter((item) => item.id !== run.id),
-      ])
+      setLaunchRuns((current) => [run, ...current.filter((item) => item.id !== run.id)])
     } catch (refreshError) {
       setError(apiErrorMessage(refreshError, 'Unable to refresh launch run'))
     }
@@ -2451,9 +2259,8 @@ export default function ReachlyoCampaignWizard() {
       if (accountByChannel[type]) return
       const provider = providerForChannel(type)
       const account =
-        managedAccounts.find(
-          (item) => item.provider === provider && item.primaryAccount,
-        ) ?? managedAccounts.find((item) => item.provider === provider)
+        managedAccounts.find((item) => item.provider === provider && item.primaryAccount) ??
+        managedAccounts.find((item) => item.provider === provider)
       if (account) {
         setAccountByChannel((current) => ({
           ...current,
@@ -2465,17 +2272,13 @@ export default function ReachlyoCampaignWizard() {
 
   const toggleChannel = (type: CampaignChannelType, checked: boolean) => {
     setSelectedChannels((current) =>
-      checked
-        ? [...new Set([...current, type])]
-        : current.filter((item) => item !== type),
+      checked ? [...new Set([...current, type])] : current.filter((item) => item !== type),
     )
 
     if (checked && !accountByChannel[type]) {
       const provider = providerForChannel(type)
       const account =
-        managedAccounts.find(
-          (item) => item.provider === provider && item.primaryAccount,
-        ) ??
+        managedAccounts.find((item) => item.provider === provider && item.primaryAccount) ??
         managedAccounts.find((item) => item.provider === provider)
       if (account) {
         setAccountByChannel((current) => ({
@@ -2487,13 +2290,8 @@ export default function ReachlyoCampaignWizard() {
   }
 
   const accountOptions = (type: CampaignChannelType) =>
-    managedAccounts.filter(
-      (account) => account.provider === providerForChannel(type),
-    )
-  const selectChannelAccount = (
-    channelType: CampaignChannelType,
-    accountId: string,
-  ) => {
+    managedAccounts.filter((account) => account.provider === providerForChannel(type))
+  const selectChannelAccount = (channelType: CampaignChannelType, accountId: string) => {
     setAccountByChannel((current) => ({
       ...current,
       [channelType]: accountId,
@@ -2510,11 +2308,7 @@ export default function ReachlyoCampaignWizard() {
     }
   }
 
-
-  const updateAudienceLocation = (
-    index: number,
-    patch: Partial<ReachlyoAudienceLocationInput>,
-  ) => {
+  const updateAudienceLocation = (index: number, patch: Partial<ReachlyoAudienceLocationInput>) => {
     setAudienceLocations((current) =>
       current.map((location, locationIndex) =>
         locationIndex === index ? { ...location, ...patch } : location,
@@ -2532,9 +2326,7 @@ export default function ReachlyoCampaignWizard() {
     .map((type) => accountByChannel[type])
     .find(Boolean)
 
-  const metaLocationAccountId = requiresMetaLocationSupport
-    ? accountByChannel.META_ADS
-    : undefined
+  const metaLocationAccountId = requiresMetaLocationSupport ? accountByChannel.META_ADS : undefined
 
   const requiredLocationProviders = [
     ...(requiresGoogleLocationSupport ? (['GOOGLE_ADS'] as const) : []),
@@ -2594,29 +2386,17 @@ export default function ReachlyoCampaignWizard() {
     } catch (searchError) {
       setLocationSearchErrorByIndex((current) => ({
         ...current,
-        [index]: apiErrorMessage(
-          searchError,
-          'Unable to search provider locations',
-        ),
+        [index]: apiErrorMessage(searchError, 'Unable to search provider locations'),
       }))
     } finally {
-      setLocationSearchBusyIndex((current) =>
-        current === index ? null : current,
-      )
+      setLocationSearchBusyIndex((current) => (current === index ? null : current))
     }
   }
 
-  const suggestionSupportsSelectedProviders = (
-    suggestion: CanonicalLocationSuggestion,
-  ) =>
-    requiredLocationProviders.every((provider) =>
-      suggestion.supportedProviders.includes(provider),
-    )
+  const suggestionSupportsSelectedProviders = (suggestion: CanonicalLocationSuggestion) =>
+    requiredLocationProviders.every((provider) => suggestion.supportedProviders.includes(provider))
 
-  const applyLocationSuggestion = (
-    index: number,
-    suggestion: CanonicalLocationSuggestion,
-  ) => {
+  const applyLocationSuggestion = (index: number, suggestion: CanonicalLocationSuggestion) => {
     if (!suggestionSupportsSelectedProviders(suggestion)) return
     updateAudienceLocation(index, {
       countryCode: suggestion.countryCode,
@@ -2656,9 +2436,7 @@ export default function ReachlyoCampaignWizard() {
     if (checked) {
       setGoogleExcludedAudienceIdsByChannel((current) => ({
         ...current,
-        [channelType]: (current[channelType] ?? []).filter(
-          (id) => id !== audienceId,
-        ),
+        [channelType]: (current[channelType] ?? []).filter((id) => id !== audienceId),
       }))
     }
   }
@@ -2678,9 +2456,7 @@ export default function ReachlyoCampaignWizard() {
     if (checked) {
       setGoogleAudienceIdsByChannel((current) => ({
         ...current,
-        [channelType]: (current[channelType] ?? []).filter(
-          (id) => id !== audienceId,
-        ),
+        [channelType]: (current[channelType] ?? []).filter((id) => id !== audienceId),
       }))
     }
   }
@@ -2715,15 +2491,14 @@ export default function ReachlyoCampaignWizard() {
               {campaign?.name || 'Create a campaign once'}
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-              Build one canonical campaign, inspect provider translation, then
-              create supported Google and Meta resources paused.
+              Build one canonical campaign, inspect provider translation, then create supported
+              Google and Meta resources paused.
             </p>
           </div>
           {campaign && (
             <span
               className={
-                'rounded-full px-3 py-1.5 text-xs font-semibold ' +
-                statusClass(campaign.status)
+                'rounded-full px-3 py-1.5 text-xs font-semibold ' + statusClass(campaign.status)
               }
             >
               {pretty(campaign.status)}
@@ -2783,10 +2558,7 @@ export default function ReachlyoCampaignWizard() {
                       <Icon aria-hidden="true" />
                     </span>
                     <span className="flex-1">{item.label}</span>
-                    <FiChevronRight
-                      className="text-slate-300"
-                      aria-hidden="true"
-                    />
+                    <FiChevronRight className="text-slate-300" aria-hidden="true" />
                   </button>
                 )
               })}
@@ -2796,8 +2568,8 @@ export default function ReachlyoCampaignWizard() {
           <main>
             {!editableDefinition && step < 6 && (
               <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                This campaign is in {pretty(campaign?.status ?? '')}. Definition
-                steps are read-only; review and launch history stay available.
+                This campaign is in {pretty(campaign?.status ?? '')}. Definition steps are
+                read-only; review and launch history stay available.
               </div>
             )}
 
@@ -2820,14 +2592,10 @@ export default function ReachlyoCampaignWizard() {
                       className="form-input mt-2 uppercase"
                       value={currency}
                       disabled={
-                        Boolean(campaign?.deployments.length) ||
-                        !canEdit ||
-                        !editableDefinition
+                        Boolean(campaign?.deployments.length) || !canEdit || !editableDefinition
                       }
                       maxLength={3}
-                      onChange={(event) =>
-                        setCurrency(event.target.value.toUpperCase())
-                      }
+                      onChange={(event) => setCurrency(event.target.value.toUpperCase())}
                     />
                   </Field>
                   <div className="sm:col-span-2">
@@ -2848,9 +2616,7 @@ export default function ReachlyoCampaignWizard() {
                             key={option.objective + '-' + option.goal}
                             type="button"
                             disabled={!canEdit || !editableDefinition}
-                            onClick={() =>
-                              selectBusinessGoal(option.objective, option.goal)
-                            }
+                            onClick={() => selectBusinessGoal(option.objective, option.goal)}
                             className={
                               'rounded-2xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ' +
                               (selected
@@ -2879,8 +2645,7 @@ export default function ReachlyoCampaignWizard() {
                             value={objective}
                             disabled={!canEdit || !editableDefinition}
                             onChange={(event) => {
-                              const next =
-                                event.target.value as ReachlyoCampaignObjective
+                              const next = event.target.value as ReachlyoCampaignObjective
                               selectBusinessGoal(next, defaultGoal(next))
                             }}
                           >
@@ -2918,9 +2683,7 @@ export default function ReachlyoCampaignWizard() {
                       className="form-input mt-2"
                       value={landingPageUrl}
                       disabled={!canEdit || !editableDefinition}
-                      onChange={(event) =>
-                        setLandingPageUrl(event.target.value)
-                      }
+                      onChange={(event) => setLandingPageUrl(event.target.value)}
                       placeholder="https://example.com/offer"
                     />
                   </Field>
@@ -2962,10 +2725,15 @@ export default function ReachlyoCampaignWizard() {
                 <div className="mb-4 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-bold text-slate-900">Recommended for {pretty(businessGoal)}</p>
+                      <p className="text-sm font-bold text-slate-900">
+                        Recommended for {pretty(businessGoal)}
+                      </p>
                       <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Start with {recommendedChannelsForGoal(businessGoal, objective).map(pretty).join(' + ')}.
-                        You stay in control and can change the channel mix before launch.
+                        Start with{' '}
+                        {recommendedChannelsForGoal(businessGoal, objective)
+                          .map(pretty)
+                          .join(' + ')}
+                        . You stay in control and can change the channel mix before launch.
                       </p>
                     </div>
                     <button
@@ -2987,9 +2755,7 @@ export default function ReachlyoCampaignWizard() {
                         key={option.type}
                         className={
                           'rounded-2xl border p-4 ' +
-                          (selected
-                            ? 'border-indigo-200 bg-indigo-50/40'
-                            : 'border-slate-200')
+                          (selected ? 'border-indigo-200 bg-indigo-50/40' : 'border-slate-200')
                         }
                       >
                         <div className="flex items-start gap-3">
@@ -2998,16 +2764,14 @@ export default function ReachlyoCampaignWizard() {
                             className="mt-1 h-4 w-4"
                             checked={selected}
                             disabled={!canEdit || !editableDefinition}
-                            onChange={(event) =>
-                              toggleChannel(option.type, event.target.checked)
-                            }
+                            onChange={(event) => toggleChannel(option.type, event.target.checked)}
                           />
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-sm font-bold text-slate-900">
-                                {option.title}
-                              </p>
-                              {recommendedChannelsForGoal(businessGoal, objective).includes(option.type) && (
+                              <p className="text-sm font-bold text-slate-900">{option.title}</p>
+                              {recommendedChannelsForGoal(businessGoal, objective).includes(
+                                option.type,
+                              ) && (
                                 <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
                                   Recommended
                                 </span>
@@ -3020,9 +2784,7 @@ export default function ReachlyoCampaignWizard() {
                                     : 'bg-amber-50 text-amber-700')
                                 }
                               >
-                                {option.executable
-                                  ? 'Launch supported'
-                                  : 'Plan preview only'}
+                                {option.executable ? 'Launch supported' : 'Plan preview only'}
                               </span>
                             </div>
                             <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -3037,19 +2799,14 @@ export default function ReachlyoCampaignWizard() {
                                   value={accountByChannel[option.type] ?? ''}
                                   disabled={!canEdit || !editableDefinition}
                                   onChange={(event) =>
-                                    selectChannelAccount(
-                                      option.type,
-                                      event.target.value,
-                                    )
+                                    selectChannelAccount(option.type, event.target.value)
                                   }
                                 >
                                   <option value="">Select account</option>
                                   {accountOptions(option.type).map((account) => (
                                     <option key={account.id} value={account.id}>
                                       {account.name}
-                                      {account.currency
-                                        ? ' · ' + account.currency
-                                        : ''}
+                                      {account.currency ? ' · ' + account.currency : ''}
                                     </option>
                                   ))}
                                 </select>
@@ -3076,11 +2833,7 @@ export default function ReachlyoCampaignWizard() {
                 description="Set one budget, then decide how it is allocated across channels."
               >
                 <div className="grid gap-5 sm:grid-cols-3">
-                  <Field
-                    label={
-                      'Total budget (' + (campaign?.currency ?? currency) + ')'
-                    }
-                  >
+                  <Field label={'Total budget (' + (campaign?.currency ?? currency) + ')'}>
                     <input
                       className="form-input mt-2"
                       type="number"
@@ -3088,9 +2841,7 @@ export default function ReachlyoCampaignWizard() {
                       step="0.01"
                       value={budgetAmount}
                       disabled={!canEdit || !editableDefinition}
-                      onChange={(event) =>
-                        setBudgetAmount(event.target.value)
-                      }
+                      onChange={(event) => setBudgetAmount(event.target.value)}
                     />
                   </Field>
                   <Field label="Budget period">
@@ -3098,9 +2849,7 @@ export default function ReachlyoCampaignWizard() {
                       className="form-input mt-2"
                       value={budgetPeriod}
                       disabled={!canEdit || !editableDefinition}
-                      onChange={(event) =>
-                        setBudgetPeriod(event.target.value as BudgetPeriod)
-                      }
+                      onChange={(event) => setBudgetPeriod(event.target.value as BudgetPeriod)}
                     >
                       <option value="DAILY">Daily</option>
                       <option value="TOTAL">Total campaign budget</option>
@@ -3112,9 +2861,7 @@ export default function ReachlyoCampaignWizard() {
                       value={allocationMode}
                       disabled={!canEdit || !editableDefinition}
                       onChange={(event) =>
-                        setAllocationMode(
-                          event.target.value as BudgetAllocationMode,
-                        )
+                        setAllocationMode(event.target.value as BudgetAllocationMode)
                       }
                     >
                       <option value="PERCENTAGE">Percentage</option>
@@ -3132,9 +2879,7 @@ export default function ReachlyoCampaignWizard() {
                         label={
                           pretty(channel.channelType) +
                           ' · ' +
-                          (allocationMode === 'PERCENTAGE'
-                            ? '%'
-                            : campaign?.currency ?? currency)
+                          (allocationMode === 'PERCENTAGE' ? '%' : (campaign?.currency ?? currency))
                         }
                       >
                         <input
@@ -3142,16 +2887,11 @@ export default function ReachlyoCampaignWizard() {
                           type="number"
                           min="0"
                           step="0.01"
-                          value={
-                            allocationByChannel[channel.channelType] ?? ''
-                          }
+                          value={allocationByChannel[channel.channelType] ?? ''}
                           disabled={!canEdit || !editableDefinition}
                           placeholder={
                             allocationMode === 'PERCENTAGE'
-                              ? String(
-                                  100 /
-                                    Math.max(1, enabledChannels.length),
-                                )
+                              ? String(100 / Math.max(1, enabledChannels.length))
                               : 'Equal split when blank'
                           }
                           onChange={(event) =>
@@ -3166,15 +2906,13 @@ export default function ReachlyoCampaignWizard() {
                   </div>
                 )}
 
-                {allocationMode === 'AUTOMATIC' &&
-                  enabledChannels.length > 1 && (
-                    <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
-                      Automatic multi-channel allocation is stored but the
-                      current compiler intentionally blocks deployment until
-                      the optimizer is implemented. Use Percentage or Fixed
-                      for launchable campaigns today.
-                    </p>
-                  )}
+                {allocationMode === 'AUTOMATIC' && enabledChannels.length > 1 && (
+                  <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
+                    Automatic multi-channel allocation is stored but the current compiler
+                    intentionally blocks deployment until the optimizer is implemented. Use
+                    Percentage or Fixed for launchable campaigns today.
+                  </p>
+                )}
 
                 <StepActions
                   busy={busy}
@@ -3199,17 +2937,13 @@ export default function ReachlyoCampaignWizard() {
                     </p>
                   </div>
                 )}
-                <div className={
-                  shoppingOnly ? 'hidden' : 'grid gap-5 sm:grid-cols-2'
-                }>
+                <div className={shoppingOnly ? 'hidden' : 'grid gap-5 sm:grid-cols-2'}>
                   <Field label="Creative pack name">
                     <input
                       className="form-input mt-2"
                       value={creativeName}
                       disabled={!canEdit || !editableDefinition}
-                      onChange={(event) =>
-                        setCreativeName(event.target.value)
-                      }
+                      onChange={(event) => setCreativeName(event.target.value)}
                     />
                   </Field>
                   <Field label="Business / brand name">
@@ -3225,9 +2959,7 @@ export default function ReachlyoCampaignWizard() {
                       className="form-input mt-2 min-h-28"
                       value={primaryMessage}
                       disabled={!canEdit || !editableDefinition}
-                      onChange={(event) =>
-                        setPrimaryMessage(event.target.value)
-                      }
+                      onChange={(event) => setPrimaryMessage(event.target.value)}
                     />
                   </Field>
                   <Field label="Destination URL">
@@ -3235,9 +2967,7 @@ export default function ReachlyoCampaignWizard() {
                       className="form-input mt-2"
                       value={creativeUrl}
                       disabled={!canEdit || !editableDefinition}
-                      onChange={(event) =>
-                        setCreativeUrl(event.target.value)
-                      }
+                      onChange={(event) => setCreativeUrl(event.target.value)}
                       placeholder={campaign?.landingPageUrl ?? 'https://'}
                     />
                   </Field>
@@ -3260,9 +2990,7 @@ export default function ReachlyoCampaignWizard() {
                       className="form-input mt-2 min-h-36"
                       value={descriptions}
                       disabled={!canEdit || !editableDefinition}
-                      onChange={(event) =>
-                        setDescriptions(event.target.value)
-                      }
+                      onChange={(event) => setDescriptions(event.target.value)}
                     />
                   </Field>
                   <Field label="Call to action">
@@ -3270,9 +2998,7 @@ export default function ReachlyoCampaignWizard() {
                       className="form-input mt-2"
                       value={callToAction}
                       disabled={!canEdit || !editableDefinition}
-                      onChange={(event) =>
-                        setCallToAction(event.target.value)
-                      }
+                      onChange={(event) => setCallToAction(event.target.value)}
                     >
                       <option value="LEARN_MORE">Learn more</option>
                       <option value="SIGN_UP">Sign up</option>
@@ -3289,9 +3015,7 @@ export default function ReachlyoCampaignWizard() {
                       <FiUploadCloud aria-hidden="true" />
                       {creativeFile
                         ? creativeFile.name
-                        : creativePacks[0]?.assets.some(
-                              (asset) => asset.role === 'IMAGE',
-                            )
+                        : creativePacks[0]?.assets.some((asset) => asset.role === 'IMAGE')
                           ? 'Replace existing image'
                           : 'Choose image'}
                       <input
@@ -3299,17 +3023,11 @@ export default function ReachlyoCampaignWizard() {
                         type="file"
                         accept="image/*"
                         disabled={!canEdit || !editableDefinition}
-                        onChange={(event) =>
-                          setCreativeFile(
-                            event.target.files?.[0] ?? null,
-                          )
-                        }
+                        onChange={(event) => setCreativeFile(event.target.files?.[0] ?? null)}
                       />
                     </label>
                     {uploadProgress > 0 && (
-                      <p className="mt-2 text-xs text-slate-500">
-                        Upload {uploadProgress}%
-                      </p>
+                      <p className="mt-2 text-xs text-slate-500">Upload {uploadProgress}%</p>
                     )}
                   </Field>
                 </div>
@@ -3318,20 +3036,34 @@ export default function ReachlyoCampaignWizard() {
                   selectedChannels.includes('GOOGLE_DEMAND_GEN') ||
                   selectedChannels.includes('GOOGLE_DISPLAY')) && (
                   <div className="mt-5 rounded-2xl border border-indigo-100 bg-indigo-50/30 p-4">
-                    <p className="text-sm font-bold text-slate-900">
-                      Google visual asset bundle
-                    </p>
+                    <p className="text-sm font-bold text-slate-900">Google visual asset bundle</p>
                     <p className="mt-1 text-xs leading-5 text-slate-500">
-                      Performance Max, Demand Gen and Display use provider-valid visual aspect ratios.
-                      Existing saved assets stay in the Creative Pack when you do not replace them.
+                      Performance Max, Demand Gen and Display use provider-valid visual aspect
+                      ratios. Existing saved assets stay in the Creative Pack when you do not
+                      replace them.
                     </p>
                     <div className="mt-4 grid gap-3 md:grid-cols-3">
                       {[
-                        ['Landscape 1.91:1', pmaxLandscapeFile, setPmaxLandscapeFile, 'MARKETING_IMAGE'],
+                        [
+                          'Landscape 1.91:1',
+                          pmaxLandscapeFile,
+                          setPmaxLandscapeFile,
+                          'MARKETING_IMAGE',
+                        ],
                         ['Square 1:1', pmaxSquareFile, setPmaxSquareFile, 'SQUARE_MARKETING_IMAGE'],
                         ['Square logo 1:1', pmaxLogoFile, setPmaxLogoFile, 'LOGO'],
-                        ['Portrait 4:5 · optional', pmaxPortraitFile, setPmaxPortraitFile, 'PORTRAIT_MARKETING_IMAGE'],
-                        ['Landscape logo 4:1 · optional', pmaxLandscapeLogoFile, setPmaxLandscapeLogoFile, 'LANDSCAPE_LOGO'],
+                        [
+                          'Portrait 4:5 · optional',
+                          pmaxPortraitFile,
+                          setPmaxPortraitFile,
+                          'PORTRAIT_MARKETING_IMAGE',
+                        ],
+                        [
+                          'Landscape logo 4:1 · optional',
+                          pmaxLandscapeLogoFile,
+                          setPmaxLandscapeLogoFile,
+                          'LANDSCAPE_LOGO',
+                        ],
                       ].map(([label, file, setter, role]) => (
                         <label
                           key={role as string}
@@ -3349,13 +3081,12 @@ export default function ReachlyoCampaignWizard() {
                               )
                             }
                           />
-                          {creativePacks[0]?.assets.some(
-                            (asset) => asset.role === role,
-                          ) && !(file as File | null) && (
-                            <span className="mt-1 block font-normal text-emerald-600">
-                              Existing asset saved
-                            </span>
-                          )}
+                          {creativePacks[0]?.assets.some((asset) => asset.role === role) &&
+                            !(file as File | null) && (
+                              <span className="mt-1 block font-normal text-emerald-600">
+                                Existing asset saved
+                              </span>
+                            )}
                         </label>
                       ))}
                     </div>
@@ -3382,9 +3113,7 @@ export default function ReachlyoCampaignWizard() {
                       className="form-input mt-2"
                       value={audienceName}
                       disabled={!canEdit || !editableDefinition}
-                      onChange={(event) =>
-                        setAudienceName(event.target.value)
-                      }
+                      onChange={(event) => setAudienceName(event.target.value)}
                     />
                   </Field>
                   <div className="sm:col-span-2">
@@ -3392,7 +3121,9 @@ export default function ReachlyoCampaignWizard() {
                       <div>
                         <p className="text-xs font-semibold text-slate-700">Locations</p>
                         <p className="mt-1 text-[11px] leading-4 text-slate-400">
-                          Country, region, city and postal targets map to Google and Meta provider geo targets during preflight. Radius targeting requires latitude and longitude so both providers can map it safely.
+                          Country, region, city and postal targets map to Google and Meta provider
+                          geo targets during preflight. Radius targeting requires latitude and
+                          longitude so both providers can map it safely.
                         </p>
                       </div>
                       <button
@@ -3400,10 +3131,7 @@ export default function ReachlyoCampaignWizard() {
                         className="secondary-button inline-flex items-center gap-2"
                         disabled={!canEdit || !editableDefinition}
                         onClick={() =>
-                          setAudienceLocations((current) => [
-                            ...current,
-                            { countryCode: 'IN' },
-                          ])
+                          setAudienceLocations((current) => [...current, { countryCode: 'IN' }])
                         }
                       >
                         <FiPlus aria-hidden="true" />
@@ -3413,10 +3141,7 @@ export default function ReachlyoCampaignWizard() {
 
                     <div className="mt-3 grid gap-3">
                       {audienceLocations.map((location, index) => (
-                        <div
-                          key={index}
-                          className="rounded-2xl border border-slate-200 p-4"
-                        >
+                        <div key={index} className="rounded-2xl border border-slate-200 p-4">
                           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                             <div className="sm:col-span-2 lg:col-span-4 rounded-xl border border-indigo-100 bg-indigo-50/30 p-3">
                               <div className="flex flex-wrap items-end gap-2">
@@ -3459,8 +3184,9 @@ export default function ReachlyoCampaignWizard() {
                                 </button>
                               </div>
                               <p className="mt-2 text-[11px] leading-4 text-slate-500">
-                                Results are verified against the ad providers selected for this campaign.
-                                A result must support every selected provider before you can use it.
+                                Results are verified against the ad providers selected for this
+                                campaign. A result must support every selected provider before you
+                                can use it.
                               </p>
                               {locationSearchErrorByIndex[index] && (
                                 <p className="mt-2 text-xs font-medium text-red-600">
@@ -3477,9 +3203,7 @@ export default function ReachlyoCampaignWizard() {
                                         key={suggestion.key}
                                         type="button"
                                         disabled={!supported || !canEdit || !editableDefinition}
-                                        onClick={() =>
-                                          applyLocationSuggestion(index, suggestion)
-                                        }
+                                        onClick={() => applyLocationSuggestion(index, suggestion)}
                                         className={
                                           'flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-xs transition ' +
                                           (supported
@@ -3652,15 +3376,11 @@ export default function ReachlyoCampaignWizard() {
                                 type="button"
                                 className="secondary-button inline-flex w-full items-center justify-center gap-2"
                                 disabled={
-                                  !canEdit ||
-                                  !editableDefinition ||
-                                  audienceLocations.length === 1
+                                  !canEdit || !editableDefinition || audienceLocations.length === 1
                                 }
                                 onClick={() =>
                                   setAudienceLocations((current) =>
-                                    current.filter(
-                                      (_, locationIndex) => locationIndex !== index,
-                                    ),
+                                    current.filter((_, locationIndex) => locationIndex !== index),
                                   )
                                 }
                               >
@@ -3761,9 +3481,7 @@ export default function ReachlyoCampaignWizard() {
                               setGenders((current) =>
                                 event.target.checked
                                   ? [...current, value]
-                                  : current.filter(
-                                      (item) => item !== value,
-                                    ),
+                                  : current.filter((item) => item !== value),
                               )
                             }
                           />
@@ -3791,31 +3509,24 @@ export default function ReachlyoCampaignWizard() {
                       className="form-input mt-2 min-h-28"
                       value={searchIntents}
                       disabled={!canEdit || !editableDefinition}
-                      onChange={(event) =>
-                        setSearchIntents(event.target.value)
-                      }
+                      onChange={(event) => setSearchIntents(event.target.value)}
                     />
                   </Field>
-                  {selectedChannels.includes('GOOGLE_SEARCH') &&
-                    accountByChannel.GOOGLE_SEARCH && (
-                      <GoogleKeywordPlannerPanel
-                        companyId={selectedCompany.companyId}
-                        accountId={accountByChannel.GOOGLE_SEARCH}
-                        landingPageUrl={
-                          creativeUrl.trim() ||
-                          campaign?.landingPageUrl ||
-                          landingPageUrl
-                        }
-                        locations={audienceLocations}
-                        language={listValues(languages)[0] ?? null}
-                        includeSearchPartners={googleSearchPartners}
-                        currentKeywords={listValues(searchIntents)}
-                        disabled={!canEdit || !editableDefinition}
-                        onApply={(keywords) =>
-                          setSearchIntents(keywords.join('\n'))
-                        }
-                      />
-                    )}
+                  {selectedChannels.includes('GOOGLE_SEARCH') && accountByChannel.GOOGLE_SEARCH && (
+                    <GoogleKeywordPlannerPanel
+                      companyId={selectedCompany.companyId}
+                      accountId={accountByChannel.GOOGLE_SEARCH}
+                      landingPageUrl={
+                        creativeUrl.trim() || campaign?.landingPageUrl || landingPageUrl
+                      }
+                      locations={audienceLocations}
+                      language={listValues(languages)[0] ?? null}
+                      includeSearchPartners={googleSearchPartners}
+                      currentKeywords={listValues(searchIntents)}
+                      disabled={!canEdit || !editableDefinition}
+                      onApply={(keywords) => setSearchIntents(keywords.join('\n'))}
+                    />
+                  )}
                 </div>
 
                 <StepActions
@@ -3842,8 +3553,7 @@ export default function ReachlyoCampaignWizard() {
                       : googleAudienceDisplayEligible,
                   )
                   const selected = googleAudienceIdsByChannel[channelType] ?? []
-                  const excluded =
-                    googleExcludedAudienceIdsByChannel[channelType] ?? []
+                  const excluded = googleExcludedAudienceIdsByChannel[channelType] ?? []
                   const pmax = channelType === 'GOOGLE_PERFORMANCE_MAX'
 
                   return (
@@ -3877,9 +3587,10 @@ export default function ReachlyoCampaignWizard() {
                         </p>
                       ) : options.length === 0 ? (
                         <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-                          No {channelType === 'GOOGLE_SEARCH' ? 'Search' : 'Display'}-eligible Google audience lists are available for this account.
-                          Use Refresh provider resources after creating or updating Customer Match /
-                          remarketing lists in Google Ads.
+                          No {channelType === 'GOOGLE_SEARCH' ? 'Search' : 'Display'}-eligible
+                          Google audience lists are available for this account. Use Refresh provider
+                          resources after creating or updating Customer Match / remarketing lists in
+                          Google Ads.
                         </p>
                       ) : (
                         <div className="mt-4 grid gap-2">
@@ -3897,7 +3608,9 @@ export default function ReachlyoCampaignWizard() {
                                       {audience.name}
                                     </p>
                                     <p className="mt-1 text-[11px] text-slate-400">
-                                      {audience.subtype ? pretty(audience.subtype) : 'Google audience'}
+                                      {audience.subtype
+                                        ? pretty(audience.subtype)
+                                        : 'Google audience'}
                                       {channelType === 'GOOGLE_SEARCH'
                                         ? audience.approximateCountLowerBound != null
                                           ? ' · Search size ' +
@@ -3963,16 +3676,12 @@ export default function ReachlyoCampaignWizard() {
                 {selectedChannels.includes('META_ADS') &&
                   campaign &&
                   creativePacks[0] &&
-                  campaign.channels.find(
-                    (channel) => channel.channelType === 'META_ADS',
-                  ) && (
+                  campaign.channels.find((channel) => channel.channelType === 'META_ADS') && (
                     <MetaCreativeVariantsEditor
                       companyId={selectedCompany.companyId}
                       campaignId={campaign.id}
                       channelId={
-                        campaign.channels.find(
-                          (channel) => channel.channelType === 'META_ADS',
-                        )!.id
+                        campaign.channels.find((channel) => channel.channelType === 'META_ADS')!.id
                       }
                       pack={creativePacks[0]}
                       selectedPositions={[
@@ -3987,16 +3696,15 @@ export default function ReachlyoCampaignWizard() {
                     />
                   )}
 
-                {selectedChannels.includes('META_ADS') &&
-                  accountByChannel.META_ADS && (
-                    <MetaDetailedTargetingEditor
-                      companyId={selectedCompany.companyId}
-                      accountId={accountByChannel.META_ADS}
-                      selected={metaDetailedInterests}
-                      disabled={!canEdit || !editableDefinition}
-                      onChange={setMetaDetailedInterests}
-                    />
-                  )}
+                {selectedChannels.includes('META_ADS') && accountByChannel.META_ADS && (
+                  <MetaDetailedTargetingEditor
+                    companyId={selectedCompany.companyId}
+                    accountId={accountByChannel.META_ADS}
+                    selected={metaDetailedInterests}
+                    disabled={!canEdit || !editableDefinition}
+                    onChange={setMetaDetailedInterests}
+                  />
+                )}
 
                 <div className="mb-4 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -4013,7 +3721,9 @@ export default function ReachlyoCampaignWizard() {
                       className="secondary-button"
                       onClick={() => setShowAdvancedProviderSettings((value) => !value)}
                     >
-                      {showAdvancedProviderSettings ? 'Hide advanced settings' : 'Advanced settings'}
+                      {showAdvancedProviderSettings
+                        ? 'Hide advanced settings'
+                        : 'Advanced settings'}
                     </button>
                   </div>
                   <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
@@ -4039,208 +3749,192 @@ export default function ReachlyoCampaignWizard() {
                 </div>
 
                 {showAdvancedProviderSettings && (
-                <ReachlyoProviderSettingsStep
-                  companyId={selectedCompany.companyId}
-                  businessGoal={campaign?.businessGoal ?? businessGoal}
-                  currency={campaign?.currency ?? currency}
-                  selectedChannels={selectedChannels}
-                  accountByChannel={accountByChannel}
-                  resourcesByAccount={resourcesByAccount}
-                  conversionsByAccount={conversionsByAccount}
-                  googlePolitical={googlePolitical}
-                  setGooglePolitical={setGooglePolitical}
-                  googleBidStrategy={googleBidStrategy}
-                  setGoogleBidStrategy={setGoogleBidStrategy}
-                  pmaxBidStrategy={pmaxBidStrategy}
-                  setPmaxBidStrategy={setPmaxBidStrategy}
-                  pmaxYoutubeVideoIds={pmaxYoutubeVideoIds}
-                  setPmaxYoutubeVideoIds={setPmaxYoutubeVideoIds}
-                  pmaxBrandGuidelinesEnabled={pmaxBrandGuidelinesEnabled}
-                  setPmaxBrandGuidelinesEnabled={setPmaxBrandGuidelinesEnabled}
-                  pmaxBrandMainColor={pmaxBrandMainColor}
-                  setPmaxBrandMainColor={setPmaxBrandMainColor}
-                  pmaxBrandAccentColor={pmaxBrandAccentColor}
-                  setPmaxBrandAccentColor={setPmaxBrandAccentColor}
-                  pmaxBrandFontFamily={pmaxBrandFontFamily}
-                  setPmaxBrandFontFamily={setPmaxBrandFontFamily}
-                  pmaxMerchantAccounts={pmaxMerchantAccounts}
-                  pmaxMerchantId={pmaxMerchantId}
-                  setPmaxMerchantId={setPmaxMerchantId}
-                  pmaxFeedLabel={pmaxFeedLabel}
-                  setPmaxFeedLabel={setPmaxFeedLabel}
-                  pmaxLifecycleGoalType={pmaxLifecycleGoalType}
-                  setPmaxLifecycleGoalType={setPmaxLifecycleGoalType}
-                  pmaxLifecycleTargetOption={pmaxLifecycleTargetOption}
-                  setPmaxLifecycleTargetOption={setPmaxLifecycleTargetOption}
-                  pmaxLifecycleAdditionalValue={pmaxLifecycleAdditionalValue}
-                  setPmaxLifecycleAdditionalValue={setPmaxLifecycleAdditionalValue}
-                  pmaxLifecycleHighLifetimeValue={pmaxLifecycleHighLifetimeValue}
-                  setPmaxLifecycleHighLifetimeValue={setPmaxLifecycleHighLifetimeValue}
-                  pmaxLifecycleValueMultiplier={pmaxLifecycleValueMultiplier}
-                  setPmaxLifecycleValueMultiplier={setPmaxLifecycleValueMultiplier}
-                  pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers={
-                    pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers
-                  }
-                  setPmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers={
-                    setPmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers
-                  }
-                  pmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla={
-                    pmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla
-                  }
-                  setPmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla={
-                    setPmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla
-                  }
-                  demandGenBidStrategy={demandGenBidStrategy}
-                  setDemandGenBidStrategy={setDemandGenBidStrategy}
-                  demandGenChannelStrategy={demandGenChannelStrategy}
-                  setDemandGenChannelStrategy={setDemandGenChannelStrategy}
-                  shoppingMerchantAccounts={shoppingMerchantAccounts}
-                  shoppingMerchantId={shoppingMerchantId}
-                  setShoppingMerchantId={setShoppingMerchantId}
-                  shoppingPriority={shoppingPriority}
-                  setShoppingPriority={setShoppingPriority}
-                  shoppingEnableLocal={shoppingEnableLocal}
-                  setShoppingEnableLocal={setShoppingEnableLocal}
-                  displayBidStrategy={displayBidStrategy}
-                  setDisplayBidStrategy={setDisplayBidStrategy}
-                  displayTargetCpa={displayTargetCpa}
-                  setDisplayTargetCpa={setDisplayTargetCpa}
-                  displayCpcBid={displayCpcBid}
-                  setDisplayCpcBid={setDisplayCpcBid}
-                  keywordMatchType={keywordMatchType}
-                  setKeywordMatchType={setKeywordMatchType}
-                  googleConversionId={googleConversionId}
-                  setGoogleConversionId={setGoogleConversionId}
-                  googleSearchPartners={googleSearchPartners}
-                  setGoogleSearchPartners={setGoogleSearchPartners}
-                  googleSearchAudienceMode={googleSearchAudienceMode}
-                  setGoogleSearchAudienceMode={setGoogleSearchAudienceMode}
-                  googleSearchInterestResources={googleSearchInterestResources}
-                  setGoogleSearchInterestResources={setGoogleSearchInterestResources}
-                  googleSearchExcludedInterestResources={
-                    googleSearchExcludedInterestResources
-                  }
-                  setGoogleSearchExcludedInterestResources={
-                    setGoogleSearchExcludedInterestResources
-                  }
-                  googleParentalStatusIncludes={googleParentalStatusIncludes}
-                  setGoogleParentalStatusIncludes={setGoogleParentalStatusIncludes}
-                  googleParentalStatusExcludes={googleParentalStatusExcludes}
-                  setGoogleParentalStatusExcludes={setGoogleParentalStatusExcludes}
-                  googleIncomeRangeIncludes={googleIncomeRangeIncludes}
-                  setGoogleIncomeRangeIncludes={setGoogleIncomeRangeIncludes}
-                  googleIncomeRangeExcludes={googleIncomeRangeExcludes}
-                  setGoogleIncomeRangeExcludes={setGoogleIncomeRangeExcludes}
-                  googleDetailedDemographicIds={googleDetailedDemographicIds}
-                  setGoogleDetailedDemographicIds={setGoogleDetailedDemographicIds}
-                  googleExcludedDetailedDemographicIds={
-                    googleExcludedDetailedDemographicIds
-                  }
-                  setGoogleExcludedDetailedDemographicIds={
-                    setGoogleExcludedDetailedDemographicIds
-                  }
-                  googleContentNetwork={googleContentNetwork}
-                  setGoogleContentNetwork={setGoogleContentNetwork}
-                  googleGeoMode={googleGeoMode}
-                  setGoogleGeoMode={setGoogleGeoMode}
-                  googleDeviceBidModifiers={googleDeviceBidModifiers}
-                  setGoogleDeviceBidModifiers={setGoogleDeviceBidModifiers}
-                  googleAiMaxEnabled={googleAiMaxEnabled}
-                  setGoogleAiMaxEnabled={setGoogleAiMaxEnabled}
-                  googleAiMaxTextCustomization={googleAiMaxTextCustomization}
-                  setGoogleAiMaxTextCustomization={
-                    setGoogleAiMaxTextCustomization
-                  }
-                  googleAiMaxFinalUrlExpansion={googleAiMaxFinalUrlExpansion}
-                  setGoogleAiMaxFinalUrlExpansion={
-                    setGoogleAiMaxFinalUrlExpansion
-                  }
-                  googleAiMaxDisableSearchTermMatching={
-                    googleAiMaxDisableSearchTermMatching
-                  }
-                  setGoogleAiMaxDisableSearchTermMatching={
-                    setGoogleAiMaxDisableSearchTermMatching
-                  }
-                  googleAiMaxTermExclusions={googleAiMaxTermExclusions}
-                  setGoogleAiMaxTermExclusions={setGoogleAiMaxTermExclusions}
-                  googleAiMaxMessagingRestrictions={
-                    googleAiMaxMessagingRestrictions
-                  }
-                  setGoogleAiMaxMessagingRestrictions={
-                    setGoogleAiMaxMessagingRestrictions
-                  }
-                  googleAiMaxUrlExclusions={googleAiMaxUrlExclusions}
-                  setGoogleAiMaxUrlExclusions={setGoogleAiMaxUrlExclusions}
-                  googleAiMaxUrlInclusions={googleAiMaxUrlInclusions}
-                  setGoogleAiMaxUrlInclusions={setGoogleAiMaxUrlInclusions}
-                  googleAiMaxBrandInclusions={googleAiMaxBrandInclusions}
-                  setGoogleAiMaxBrandInclusions={setGoogleAiMaxBrandInclusions}
-                  googleAiMaxBrandExclusions={googleAiMaxBrandExclusions}
-                  setGoogleAiMaxBrandExclusions={setGoogleAiMaxBrandExclusions}
-                  googleAdSchedules={googleAdSchedules}
-                  setGoogleAdSchedules={setGoogleAdSchedules}
-                  googleNegativeKeywords={googleNegativeKeywords}
-                  setGoogleNegativeKeywords={setGoogleNegativeKeywords}
-                  googleNegativeKeywordLists={googleNegativeKeywordLists}
-                  selectedGoogleNegativeKeywordListIds={
-                    selectedGoogleNegativeKeywordListIds
-                  }
-                  setSelectedGoogleNegativeKeywordListIds={
-                    setSelectedGoogleNegativeKeywordListIds
-                  }
-                  metaPageId={metaPageId}
-                  setMetaPageId={setMetaPageId}
-                  metaInstagramId={metaInstagramId}
-                  setMetaInstagramId={setMetaInstagramId}
-                  metaOptimizationGoal={metaOptimizationGoal}
-                  setMetaOptimizationGoal={setMetaOptimizationGoal}
-                  metaBillingEvent={metaBillingEvent}
-                  setMetaBillingEvent={setMetaBillingEvent}
-                  metaSpecialCategory={metaSpecialCategory}
-                  setMetaSpecialCategory={setMetaSpecialCategory}
-                  metaPixelId={metaPixelId}
-                  setMetaPixelId={setMetaPixelId}
-                  metaConversionMode={metaConversionMode}
-                  setMetaConversionMode={setMetaConversionMode}
-                  metaConversionId={metaConversionId}
-                  setMetaConversionId={setMetaConversionId}
-                  metaStandardEvent={metaStandardEvent}
-                  setMetaStandardEvent={setMetaStandardEvent}
-                  metaPlacementMode={metaPlacementMode}
-                  setMetaPlacementMode={setMetaPlacementMode}
-                  metaPublisherPlatforms={metaPublisherPlatforms}
-                  setMetaPublisherPlatforms={setMetaPublisherPlatforms}
-                  metaFacebookPositions={metaFacebookPositions}
-                  setMetaFacebookPositions={setMetaFacebookPositions}
-                  metaInstagramPositions={metaInstagramPositions}
-                  setMetaInstagramPositions={setMetaInstagramPositions}
-                  metaMessengerPositions={metaMessengerPositions}
-                  setMetaMessengerPositions={setMetaMessengerPositions}
-                  metaAudienceNetworkPositions={metaAudienceNetworkPositions}
-                  setMetaAudienceNetworkPositions={setMetaAudienceNetworkPositions}
-                  metaAdvantageAudience={metaAdvantageAudience}
-                  setMetaAdvantageAudience={setMetaAdvantageAudience}
-                  metaAdvantageAgeSuggestion={metaAdvantageAgeSuggestion}
-                  setMetaAdvantageAgeSuggestion={setMetaAdvantageAgeSuggestion}
-                  metaAdvantageGenderSuggestion={metaAdvantageGenderSuggestion}
-                  setMetaAdvantageGenderSuggestion={setMetaAdvantageGenderSuggestion}
-                  metaAdvantagePlusCreative={metaAdvantagePlusCreative}
-                  setMetaAdvantagePlusCreative={setMetaAdvantagePlusCreative}
-                  metaGenerativeText={metaGenerativeText}
-                  setMetaGenerativeText={setMetaGenerativeText}
-                  metaImageExpansion={metaImageExpansion}
-                  setMetaImageExpansion={setMetaImageExpansion}
-                  metaCatalogEnabled={metaCatalogEnabled}
-                  setMetaCatalogEnabled={setMetaCatalogEnabled}
-                  metaBackgroundGeneration={metaBackgroundGeneration}
-                  setMetaBackgroundGeneration={setMetaBackgroundGeneration}
-                  metaProductSetId={metaProductSetId}
-                  setMetaProductSetId={setMetaProductSetId}
-                  metaExistingPostId={metaExistingPostId}
-                  setMetaExistingPostId={setMetaExistingPostId}
-                  disabled={!canEdit || !editableDefinition}
-                  onRefresh={() => void loadProviderData(true)}
-                />
+                  <ReachlyoProviderSettingsStep
+                    companyId={selectedCompany.companyId}
+                    businessGoal={campaign?.businessGoal ?? businessGoal}
+                    currency={campaign?.currency ?? currency}
+                    selectedChannels={selectedChannels}
+                    accountByChannel={accountByChannel}
+                    resourcesByAccount={resourcesByAccount}
+                    conversionsByAccount={conversionsByAccount}
+                    googlePolitical={googlePolitical}
+                    setGooglePolitical={setGooglePolitical}
+                    googleBidStrategy={googleBidStrategy}
+                    setGoogleBidStrategy={setGoogleBidStrategy}
+                    pmaxBidStrategy={pmaxBidStrategy}
+                    setPmaxBidStrategy={setPmaxBidStrategy}
+                    pmaxYoutubeVideoIds={pmaxYoutubeVideoIds}
+                    setPmaxYoutubeVideoIds={setPmaxYoutubeVideoIds}
+                    pmaxBrandGuidelinesEnabled={pmaxBrandGuidelinesEnabled}
+                    setPmaxBrandGuidelinesEnabled={setPmaxBrandGuidelinesEnabled}
+                    pmaxBrandMainColor={pmaxBrandMainColor}
+                    setPmaxBrandMainColor={setPmaxBrandMainColor}
+                    pmaxBrandAccentColor={pmaxBrandAccentColor}
+                    setPmaxBrandAccentColor={setPmaxBrandAccentColor}
+                    pmaxBrandFontFamily={pmaxBrandFontFamily}
+                    setPmaxBrandFontFamily={setPmaxBrandFontFamily}
+                    pmaxMerchantAccounts={pmaxMerchantAccounts}
+                    pmaxMerchantId={pmaxMerchantId}
+                    setPmaxMerchantId={setPmaxMerchantId}
+                    pmaxFeedLabel={pmaxFeedLabel}
+                    setPmaxFeedLabel={setPmaxFeedLabel}
+                    pmaxLifecycleGoalType={pmaxLifecycleGoalType}
+                    setPmaxLifecycleGoalType={setPmaxLifecycleGoalType}
+                    pmaxLifecycleTargetOption={pmaxLifecycleTargetOption}
+                    setPmaxLifecycleTargetOption={setPmaxLifecycleTargetOption}
+                    pmaxLifecycleAdditionalValue={pmaxLifecycleAdditionalValue}
+                    setPmaxLifecycleAdditionalValue={setPmaxLifecycleAdditionalValue}
+                    pmaxLifecycleHighLifetimeValue={pmaxLifecycleHighLifetimeValue}
+                    setPmaxLifecycleHighLifetimeValue={setPmaxLifecycleHighLifetimeValue}
+                    pmaxLifecycleValueMultiplier={pmaxLifecycleValueMultiplier}
+                    setPmaxLifecycleValueMultiplier={setPmaxLifecycleValueMultiplier}
+                    pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers={
+                      pmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers
+                    }
+                    setPmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers={
+                      setPmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers
+                    }
+                    pmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla={
+                      pmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla
+                    }
+                    setPmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla={
+                      setPmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla
+                    }
+                    demandGenBidStrategy={demandGenBidStrategy}
+                    setDemandGenBidStrategy={setDemandGenBidStrategy}
+                    demandGenChannelStrategy={demandGenChannelStrategy}
+                    setDemandGenChannelStrategy={setDemandGenChannelStrategy}
+                    shoppingMerchantAccounts={shoppingMerchantAccounts}
+                    shoppingMerchantId={shoppingMerchantId}
+                    setShoppingMerchantId={setShoppingMerchantId}
+                    shoppingPriority={shoppingPriority}
+                    setShoppingPriority={setShoppingPriority}
+                    shoppingEnableLocal={shoppingEnableLocal}
+                    setShoppingEnableLocal={setShoppingEnableLocal}
+                    displayBidStrategy={displayBidStrategy}
+                    setDisplayBidStrategy={setDisplayBidStrategy}
+                    displayTargetCpa={displayTargetCpa}
+                    setDisplayTargetCpa={setDisplayTargetCpa}
+                    displayCpcBid={displayCpcBid}
+                    setDisplayCpcBid={setDisplayCpcBid}
+                    keywordMatchType={keywordMatchType}
+                    setKeywordMatchType={setKeywordMatchType}
+                    googleConversionId={googleConversionId}
+                    setGoogleConversionId={setGoogleConversionId}
+                    googleSearchPartners={googleSearchPartners}
+                    setGoogleSearchPartners={setGoogleSearchPartners}
+                    googleSearchAudienceMode={googleSearchAudienceMode}
+                    setGoogleSearchAudienceMode={setGoogleSearchAudienceMode}
+                    googleSearchInterestResources={googleSearchInterestResources}
+                    setGoogleSearchInterestResources={setGoogleSearchInterestResources}
+                    googleSearchExcludedInterestResources={googleSearchExcludedInterestResources}
+                    setGoogleSearchExcludedInterestResources={
+                      setGoogleSearchExcludedInterestResources
+                    }
+                    googleParentalStatusIncludes={googleParentalStatusIncludes}
+                    setGoogleParentalStatusIncludes={setGoogleParentalStatusIncludes}
+                    googleParentalStatusExcludes={googleParentalStatusExcludes}
+                    setGoogleParentalStatusExcludes={setGoogleParentalStatusExcludes}
+                    googleIncomeRangeIncludes={googleIncomeRangeIncludes}
+                    setGoogleIncomeRangeIncludes={setGoogleIncomeRangeIncludes}
+                    googleIncomeRangeExcludes={googleIncomeRangeExcludes}
+                    setGoogleIncomeRangeExcludes={setGoogleIncomeRangeExcludes}
+                    googleDetailedDemographicIds={googleDetailedDemographicIds}
+                    setGoogleDetailedDemographicIds={setGoogleDetailedDemographicIds}
+                    googleExcludedDetailedDemographicIds={googleExcludedDetailedDemographicIds}
+                    setGoogleExcludedDetailedDemographicIds={
+                      setGoogleExcludedDetailedDemographicIds
+                    }
+                    googleContentNetwork={googleContentNetwork}
+                    setGoogleContentNetwork={setGoogleContentNetwork}
+                    googleGeoMode={googleGeoMode}
+                    setGoogleGeoMode={setGoogleGeoMode}
+                    googleDeviceBidModifiers={googleDeviceBidModifiers}
+                    setGoogleDeviceBidModifiers={setGoogleDeviceBidModifiers}
+                    googleAiMaxEnabled={googleAiMaxEnabled}
+                    setGoogleAiMaxEnabled={setGoogleAiMaxEnabled}
+                    googleAiMaxTextCustomization={googleAiMaxTextCustomization}
+                    setGoogleAiMaxTextCustomization={setGoogleAiMaxTextCustomization}
+                    googleAiMaxFinalUrlExpansion={googleAiMaxFinalUrlExpansion}
+                    setGoogleAiMaxFinalUrlExpansion={setGoogleAiMaxFinalUrlExpansion}
+                    googleAiMaxDisableSearchTermMatching={googleAiMaxDisableSearchTermMatching}
+                    setGoogleAiMaxDisableSearchTermMatching={
+                      setGoogleAiMaxDisableSearchTermMatching
+                    }
+                    googleAiMaxTermExclusions={googleAiMaxTermExclusions}
+                    setGoogleAiMaxTermExclusions={setGoogleAiMaxTermExclusions}
+                    googleAiMaxMessagingRestrictions={googleAiMaxMessagingRestrictions}
+                    setGoogleAiMaxMessagingRestrictions={setGoogleAiMaxMessagingRestrictions}
+                    googleAiMaxUrlExclusions={googleAiMaxUrlExclusions}
+                    setGoogleAiMaxUrlExclusions={setGoogleAiMaxUrlExclusions}
+                    googleAiMaxUrlInclusions={googleAiMaxUrlInclusions}
+                    setGoogleAiMaxUrlInclusions={setGoogleAiMaxUrlInclusions}
+                    googleAiMaxBrandInclusions={googleAiMaxBrandInclusions}
+                    setGoogleAiMaxBrandInclusions={setGoogleAiMaxBrandInclusions}
+                    googleAiMaxBrandExclusions={googleAiMaxBrandExclusions}
+                    setGoogleAiMaxBrandExclusions={setGoogleAiMaxBrandExclusions}
+                    googleAdSchedules={googleAdSchedules}
+                    setGoogleAdSchedules={setGoogleAdSchedules}
+                    googleNegativeKeywords={googleNegativeKeywords}
+                    setGoogleNegativeKeywords={setGoogleNegativeKeywords}
+                    googleNegativeKeywordLists={googleNegativeKeywordLists}
+                    selectedGoogleNegativeKeywordListIds={selectedGoogleNegativeKeywordListIds}
+                    setSelectedGoogleNegativeKeywordListIds={
+                      setSelectedGoogleNegativeKeywordListIds
+                    }
+                    metaPageId={metaPageId}
+                    setMetaPageId={setMetaPageId}
+                    metaInstagramId={metaInstagramId}
+                    setMetaInstagramId={setMetaInstagramId}
+                    metaOptimizationGoal={metaOptimizationGoal}
+                    setMetaOptimizationGoal={setMetaOptimizationGoal}
+                    metaBillingEvent={metaBillingEvent}
+                    setMetaBillingEvent={setMetaBillingEvent}
+                    metaSpecialCategory={metaSpecialCategory}
+                    setMetaSpecialCategory={setMetaSpecialCategory}
+                    metaPixelId={metaPixelId}
+                    setMetaPixelId={setMetaPixelId}
+                    metaConversionMode={metaConversionMode}
+                    setMetaConversionMode={setMetaConversionMode}
+                    metaConversionId={metaConversionId}
+                    setMetaConversionId={setMetaConversionId}
+                    metaStandardEvent={metaStandardEvent}
+                    setMetaStandardEvent={setMetaStandardEvent}
+                    metaPlacementMode={metaPlacementMode}
+                    setMetaPlacementMode={setMetaPlacementMode}
+                    metaPublisherPlatforms={metaPublisherPlatforms}
+                    setMetaPublisherPlatforms={setMetaPublisherPlatforms}
+                    metaFacebookPositions={metaFacebookPositions}
+                    setMetaFacebookPositions={setMetaFacebookPositions}
+                    metaInstagramPositions={metaInstagramPositions}
+                    setMetaInstagramPositions={setMetaInstagramPositions}
+                    metaMessengerPositions={metaMessengerPositions}
+                    setMetaMessengerPositions={setMetaMessengerPositions}
+                    metaAudienceNetworkPositions={metaAudienceNetworkPositions}
+                    setMetaAudienceNetworkPositions={setMetaAudienceNetworkPositions}
+                    metaAdvantageAudience={metaAdvantageAudience}
+                    setMetaAdvantageAudience={setMetaAdvantageAudience}
+                    metaAdvantageAgeSuggestion={metaAdvantageAgeSuggestion}
+                    setMetaAdvantageAgeSuggestion={setMetaAdvantageAgeSuggestion}
+                    metaAdvantageGenderSuggestion={metaAdvantageGenderSuggestion}
+                    setMetaAdvantageGenderSuggestion={setMetaAdvantageGenderSuggestion}
+                    metaAdvantagePlusCreative={metaAdvantagePlusCreative}
+                    setMetaAdvantagePlusCreative={setMetaAdvantagePlusCreative}
+                    metaGenerativeText={metaGenerativeText}
+                    setMetaGenerativeText={setMetaGenerativeText}
+                    metaImageExpansion={metaImageExpansion}
+                    setMetaImageExpansion={setMetaImageExpansion}
+                    metaCatalogEnabled={metaCatalogEnabled}
+                    setMetaCatalogEnabled={setMetaCatalogEnabled}
+                    metaBackgroundGeneration={metaBackgroundGeneration}
+                    setMetaBackgroundGeneration={setMetaBackgroundGeneration}
+                    metaProductSetId={metaProductSetId}
+                    setMetaProductSetId={setMetaProductSetId}
+                    metaExistingPostId={metaExistingPostId}
+                    setMetaExistingPostId={setMetaExistingPostId}
+                    disabled={!canEdit || !editableDefinition}
+                    onRefresh={() => void loadProviderData(true)}
+                  />
                 )}
 
                 {!showAdvancedProviderSettings && (
@@ -4264,12 +3958,10 @@ export default function ReachlyoCampaignWizard() {
               <div className="grid gap-4">
                 <div className="panel flex flex-wrap items-center justify-between gap-4 p-5">
                   <div>
-                    <h2 className="text-lg font-bold text-slate-950">
-                      7. Provider plan review
-                    </h2>
+                    <h2 className="text-lg font-bold text-slate-950">7. Provider plan review</h2>
                     <p className="mt-1 text-sm text-slate-500">
-                      Compilation is side-effect free. Review exact operations,
-                      warnings and audience mapping before preparing launch.
+                      Compilation is side-effect free. Review exact operations, warnings and
+                      audience mapping before preparing launch.
                     </p>
                   </div>
                   <button
@@ -4290,7 +3982,9 @@ export default function ReachlyoCampaignWizard() {
                   <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <div>
                       <p className="text-xs text-slate-400">Goal</p>
-                      <p className="mt-1 text-sm font-bold text-slate-900">{pretty(businessGoal)}</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">
+                        {pretty(businessGoal)}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-400">Budget</p>
@@ -4301,7 +3995,8 @@ export default function ReachlyoCampaignWizard() {
                     <div>
                       <p className="text-xs text-slate-400">Channels</p>
                       <p className="mt-1 text-sm font-bold text-slate-900">
-                        {enabledChannels.map((channel) => pretty(channel.channelType)).join(', ') || '—'}
+                        {enabledChannels.map((channel) => pretty(channel.channelType)).join(', ') ||
+                          '—'}
                       </p>
                     </div>
                     <div>
@@ -4327,31 +4022,22 @@ export default function ReachlyoCampaignWizard() {
                 />
 
                 {selectedChannels.some(
-                  (type) =>
-                    !CHANNELS.find((option) => option.type === type)
-                      ?.executable,
+                  (type) => !CHANNELS.find((option) => option.type === type)?.executable,
                 ) && (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-                    At least one selected channel is plan-preview only. Launch
-                    preparation will block before any provider mutation until
-                    its paused executor is implemented.
+                    At least one selected channel is plan-preview only. Launch preparation will
+                    block before any provider mutation until its paused executor is implemented.
                   </div>
                 )}
 
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() => setStep(5)}
-                  >
+                  <button type="button" className="secondary-button" onClick={() => setStep(5)}>
                     Back
                   </button>
                   <button
                     type="button"
                     className="primary-button inline-flex items-center gap-2"
-                    disabled={
-                      busy || reviewLoading || plans.length === 0
-                    }
+                    disabled={busy || reviewLoading || plans.length === 0}
                     onClick={() => void prepareLaunch()}
                   >
                     <FiCheck aria-hidden="true" />
@@ -4364,13 +4050,10 @@ export default function ReachlyoCampaignWizard() {
             {step === 7 && (
               <div className="grid gap-4">
                 <div className="panel p-5">
-                  <h2 className="text-lg font-bold text-slate-950">
-                    8. Launch & retry
-                  </h2>
+                  <h2 className="text-lg font-bold text-slate-950">8. Launch & retry</h2>
                   <p className="mt-1 text-sm leading-6 text-slate-500">
-                    The persistent Saga creates supported provider resources
-                    paused. Partial failures retain completed steps and retry
-                    only unfinished work.
+                    The persistent Saga creates supported provider resources paused. Partial
+                    failures retain completed steps and retry only unfinished work.
                   </p>
                 </div>
 
@@ -4380,22 +4063,17 @@ export default function ReachlyoCampaignWizard() {
                     busy={busy}
                     onRefresh={() => void refreshRun()}
                     onExecute={
-                      currentRun.status === 'READY'
-                        ? () => void executeRun(false)
-                        : undefined
+                      currentRun.status === 'READY' ? () => void executeRun(false) : undefined
                     }
                     onRetry={
-                      currentRun.status === 'FAILED' ||
-                      currentRun.status === 'PARTIAL_FAILURE'
+                      currentRun.status === 'FAILED' || currentRun.status === 'PARTIAL_FAILURE'
                         ? () => void executeRun(true)
                         : undefined
                     }
                   />
                 ) : (
                   <div className="panel p-10 text-center">
-                    <p className="text-sm text-slate-500">
-                      No launch run yet.
-                    </p>
+                    <p className="text-sm text-slate-500">No launch run yet.</p>
                     <button
                       type="button"
                       className="primary-button mt-4"
@@ -4423,9 +4101,7 @@ export default function ReachlyoCampaignWizard() {
                 {launchRuns.length > 1 && (
                   <div className="panel overflow-hidden">
                     <div className="border-b border-slate-100 px-5 py-4">
-                      <h3 className="text-base font-bold text-slate-950">
-                        Launch history
-                      </h3>
+                      <h3 className="text-base font-bold text-slate-950">Launch history</h3>
                     </div>
                     <div className="divide-y divide-slate-100">
                       {launchRuns.map((run) => (
@@ -4436,9 +4112,7 @@ export default function ReachlyoCampaignWizard() {
                           onClick={() => setCurrentRun(run)}
                         >
                           <div>
-                            <p className="text-sm font-semibold text-slate-800">
-                              Run {run.id}
-                            </p>
+                            <p className="text-sm font-semibold text-slate-800">Run {run.id}</p>
                             <p className="mt-1 text-xs text-slate-400">
                               {new Date(run.createdAt).toLocaleString()}
                             </p>
@@ -4478,24 +4152,14 @@ function StepCard({
     <div className="panel p-5 sm:p-6">
       <div className="border-b border-slate-100 pb-5">
         <h2 className="text-lg font-bold text-slate-950">{title}</h2>
-        <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
-          {description}
-        </p>
+        <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">{description}</p>
       </div>
       <div className="pt-5">{children}</div>
     </div>
   )
 }
 
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string
-  hint?: string
-  children: ReactNode
-}) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block text-xs font-semibold text-slate-700">
       {label}
@@ -4526,11 +4190,7 @@ function StepActions({
     <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
       <div>
         {onBack && (
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={onBack}
-          >
+          <button type="button" className="secondary-button" onClick={onBack}>
             Back
           </button>
         )}

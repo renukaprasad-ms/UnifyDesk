@@ -41,13 +41,7 @@ export type ContactIdentity = {
 }
 
 export type CustomFieldType =
-  | 'TEXT'
-  | 'NUMBER'
-  | 'BOOLEAN'
-  | 'DATE'
-  | 'DATETIME'
-  | 'SINGLE_SELECT'
-  | 'MULTI_SELECT'
+  'TEXT' | 'NUMBER' | 'BOOLEAN' | 'DATE' | 'DATETIME' | 'SINGLE_SELECT' | 'MULTI_SELECT'
 
 export type CustomFieldValue = string | number | boolean | string[] | null
 
@@ -140,10 +134,7 @@ export type FilterSelection = { type: 'FILTER'; filter: ContactQuery }
 export type ListSelection = { type: 'LIST'; listId: string }
 export type SegmentSelection = { type: 'SEGMENT'; segmentId: string }
 export type ContactSelection =
-  | ExplicitSelection
-  | FilterSelection
-  | ListSelection
-  | SegmentSelection
+  ExplicitSelection | FilterSelection | ListSelection | SegmentSelection
 
 export type BulkOperation =
   | { type: 'ADD_TAG'; tagId: string }
@@ -178,13 +169,7 @@ export type FieldKind =
   | 'LAST_ACTIVITY_AT'
 
 export type SegmentValueType =
-  | 'TEXT'
-  | 'NUMBER'
-  | 'BOOLEAN'
-  | 'DATE'
-  | 'SINGLE_SELECT'
-  | 'MULTI_SELECT'
-  | 'NONE'
+  'TEXT' | 'NUMBER' | 'BOOLEAN' | 'DATE' | 'SINGLE_SELECT' | 'MULTI_SELECT' | 'NONE'
 
 export type SegmentFieldDescriptor = {
   kind: FieldKind

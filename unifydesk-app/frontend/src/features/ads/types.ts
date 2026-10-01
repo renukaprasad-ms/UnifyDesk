@@ -43,21 +43,10 @@ export type CampaignChannelType =
   | 'META_ADS'
 
 export type CampaignChannelStatus =
-  | 'DRAFT'
-  | 'READY'
-  | 'DEPLOYING'
-  | 'DEPLOYED'
-  | 'FAILED'
-  | 'DISABLED'
+  'DRAFT' | 'READY' | 'DEPLOYING' | 'DEPLOYED' | 'FAILED' | 'DISABLED'
 
 export type ProviderDeploymentStatus =
-  | 'PENDING'
-  | 'DEPLOYING'
-  | 'PAUSED'
-  | 'ACTIVE'
-  | 'PARTIAL_FAILURE'
-  | 'FAILED'
-  | 'ARCHIVED'
+  'PENDING' | 'DEPLOYING' | 'PAUSED' | 'ACTIVE' | 'PARTIAL_FAILURE' | 'FAILED' | 'ARCHIVED'
 
 export type BudgetAllocationMode = 'AUTOMATIC' | 'PERCENTAGE' | 'FIXED'
 export type BudgetPeriod = 'DAILY' | 'TOTAL'
@@ -247,8 +236,6 @@ export type UpsertReachlyoBudgetPlanInput = {
   allocationMode: BudgetAllocationMode
 }
 
-
-
 export type CreativeAssetRole =
   | 'IMAGE'
   | 'MARKETING_IMAGE'
@@ -356,11 +343,7 @@ export type UpdateReachlyoCreativeVariantInput = Omit<
   'variantType'
 >
 
-export type AudienceMappingStatus =
-  | 'EXACT'
-  | 'APPROXIMATE'
-  | 'PROVIDER_ONLY'
-  | 'UNSUPPORTED'
+export type AudienceMappingStatus = 'EXACT' | 'APPROXIMATE' | 'PROVIDER_ONLY' | 'UNSUPPORTED'
 
 export type CanonicalLocationSuggestion = {
   key: string
@@ -430,8 +413,7 @@ export type CreateReachlyoAudienceDefinitionInput = {
   searchIntents?: string[]
 }
 
-export type UpdateReachlyoAudienceDefinitionInput =
-  Partial<CreateReachlyoAudienceDefinitionInput>
+export type UpdateReachlyoAudienceDefinitionInput = Partial<CreateReachlyoAudienceDefinitionInput>
 
 export type ConversionTargetType = 'PROVIDER_CONVERSION' | 'STANDARD_EVENT'
 
@@ -457,7 +439,6 @@ export type UpsertReachlyoConversionGoalMappingInput = {
   adConversionId?: string | null
   providerEventName?: string | null
 }
-
 
 export type PlanIssueSeverity = 'ERROR' | 'WARNING' | 'INFO'
 export type ProviderPlanAction = 'CREATE' | 'CONFIGURE' | 'ATTACH'
@@ -520,7 +501,6 @@ export type CompileReachlyoCampaignInput = {
   audienceDefinitionId?: string | null
 }
 
-
 export type LaunchRunStatus =
   | 'VALIDATING'
   | 'VALIDATION_FAILED'
@@ -530,12 +510,7 @@ export type LaunchRunStatus =
   | 'PARTIAL_FAILURE'
   | 'FAILED'
 
-export type LaunchStepStatus =
-  | 'PENDING'
-  | 'RUNNING'
-  | 'SUCCEEDED'
-  | 'FAILED'
-  | 'SKIPPED'
+export type LaunchStepStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'SKIPPED'
 
 export type LaunchChannelInput = {
   channelId: string
@@ -699,7 +674,6 @@ export type AdAccount = {
   updatedAt: string
 }
 
-
 export type MetaAdsAuthorization = {
   authorizationUrl: string
 }
@@ -707,7 +681,6 @@ export type MetaAdsAuthorization = {
 export type GoogleAdsAuthorization = {
   authorizationUrl: string
 }
-
 
 export type AdProviderConnection = {
   id: string
@@ -722,11 +695,7 @@ export type AdProviderConnection = {
 }
 
 export type AdAccountResourceType =
-  | 'FACEBOOK_PAGE'
-  | 'INSTAGRAM_ACCOUNT'
-  | 'META_PIXEL'
-  | 'META_PRODUCT_CATALOG'
-  | 'META_PRODUCT_SET'
+  'FACEBOOK_PAGE' | 'INSTAGRAM_ACCOUNT' | 'META_PIXEL' | 'META_PRODUCT_CATALOG' | 'META_PRODUCT_SET'
 
 export type AdAccountResource = {
   id: string
@@ -748,8 +717,6 @@ export type MetaAdsResourceSync = {
   productSets: number
   resources: AdAccountResource[]
 }
-
-
 
 export type AdEntityStatus = 'ACTIVE' | 'PAUSED' | 'ARCHIVED' | 'REMOVED' | 'DISABLED' | 'UNKNOWN'
 
@@ -816,11 +783,11 @@ export type MetaCampaignSync = {
   synchronizedCount: number
 }
 
-
 export type CreateGoogleCampaignInput = {
   name: string
   dailyBudgetMinor: number
-  bidStrategy?: 'MANUAL_CPC' | 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
+  bidStrategy?:
+    'MANUAL_CPC' | 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
   containsEuPoliticalAdvertising: boolean
   startDate?: string | null
   endDate?: string | null
@@ -837,7 +804,8 @@ export type CreateGoogleAdvancedCampaignInput = {
   channelType: 'DISPLAY' | 'DEMAND_GEN' | 'SHOPPING'
   dailyBudgetMinor?: number | null
   totalBudgetMinor?: number | null
-  bidStrategy?: 'MANUAL_CPC' | 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'TARGET_CPA' | 'TARGET_ROAS'
+  bidStrategy?:
+    'MANUAL_CPC' | 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'TARGET_CPA' | 'TARGET_ROAS'
   targetCpaMinor?: number | null
   targetRoas?: number | null
   merchantId?: string | null
@@ -854,9 +822,7 @@ export type CreateGoogleAdvancedCampaignInput = {
 }
 
 export type GoogleAppCampaignSubtype =
-  | 'APP_CAMPAIGN'
-  | 'APP_CAMPAIGN_FOR_ENGAGEMENT'
-  | 'APP_CAMPAIGN_FOR_PRE_REGISTRATION'
+  'APP_CAMPAIGN' | 'APP_CAMPAIGN_FOR_ENGAGEMENT' | 'APP_CAMPAIGN_FOR_PRE_REGISTRATION'
 
 export type GoogleAppStore = 'GOOGLE_APP_STORE' | 'APPLE_APP_STORE'
 
@@ -956,10 +922,7 @@ export type CreateGoogleExperimentInput = {
   baseCampaignId: string
   treatmentTrafficPercent?: number | null
   treatmentBidStrategy:
-    | 'MANUAL_CPC'
-    | 'MAXIMIZE_CLICKS'
-    | 'MAXIMIZE_CONVERSIONS'
-    | 'MAXIMIZE_CONVERSION_VALUE'
+    'MANUAL_CPC' | 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
   suffix?: string | null
   startDate?: string | null
   endDate?: string | null
@@ -1049,14 +1012,9 @@ export type AdExperimentOverview = {
   }>
 }
 
-export type AdOptimizationPolicyMode =
-  | 'RECOMMENDATION_ONLY'
-  | 'APPROVAL_REQUIRED'
-  | 'AUTOMATIC'
+export type AdOptimizationPolicyMode = 'RECOMMENDATION_ONLY' | 'APPROVAL_REQUIRED' | 'AUTOMATIC'
 
-export type AdOptimizationPolicyType =
-  | 'AUTOMATION_RULE'
-  | 'LIFECYCLE_RETARGETING'
+export type AdOptimizationPolicyType = 'AUTOMATION_RULE' | 'LIFECYCLE_RETARGETING'
 
 export type AdOptimizationPolicy = {
   id: string
@@ -1483,11 +1441,7 @@ export type GooglePortfolioBiddingStrategy = {
 
 export type CreateGooglePortfolioBiddingStrategyInput = {
   name: string
-  type:
-    | 'TARGET_CPA'
-    | 'TARGET_ROAS'
-    | 'MAXIMIZE_CONVERSIONS'
-    | 'MAXIMIZE_CONVERSION_VALUE'
+  type: 'TARGET_CPA' | 'TARGET_ROAS' | 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
   targetCpaMinor?: number | null
   targetRoas?: number | null
 }
@@ -1522,9 +1476,7 @@ export type GoogleCampaignPortfolioAssignment = {
 }
 
 export type GoogleLifecycleGoalType =
-  | 'NEW_CUSTOMER_ACQUISITION'
-  | 'CUSTOMER_RETENTION'
-  | 'LOYALTY_RETENTION'
+  'NEW_CUSTOMER_ACQUISITION' | 'CUSTOMER_RETENTION' | 'LOYALTY_RETENTION'
 
 export type GoogleLifecycleGoal = {
   resourceName: string
@@ -1856,7 +1808,6 @@ export type GoogleCampaignSync = {
   synchronizedCount: number
 }
 
-
 export type AdSet = {
   id: string
   companyId: string
@@ -2036,7 +1987,6 @@ export type MetaAdSetSync = {
   synchronizedCount: number
 }
 
-
 export type CreateGoogleAdGroupInput = {
   name: string
   cpcBidMinor?: number | null
@@ -2047,7 +1997,6 @@ export type UpdateGoogleAdGroupInput = Partial<CreateGoogleAdGroupInput>
 export type GoogleAdGroupSync = {
   synchronizedCount: number
 }
-
 
 export type MetaCreativeFormat = 'SINGLE_IMAGE' | 'VIDEO' | 'CAROUSEL'
 
@@ -2172,7 +2121,6 @@ export type UpdateMetaAdInput = {
 export type MetaAdSync = {
   synchronizedCount: number
 }
-
 
 export type CreateGoogleResponsiveDisplayAdInput = {
   name: string
@@ -2426,9 +2374,7 @@ export type GoogleKeywordPlannerHistoricalInput = {
 
 export type GoogleKeywordForecastMatchType = 'BROAD' | 'PHRASE' | 'EXACT'
 export type GoogleKeywordForecastBiddingStrategy =
-  | 'MANUAL_CPC'
-  | 'MAXIMIZE_CLICKS'
-  | 'MAXIMIZE_CONVERSIONS'
+  'MANUAL_CPC' | 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS'
 
 export type GoogleKeywordForecastInput = {
   keywords: Array<{
@@ -2521,7 +2467,6 @@ export type CreateGoogleNegativeKeywordListInput = {
   keywords?: GoogleNegativeKeywordInput[]
 }
 
-
 export type AdAudience = {
   id: string
   companyId: string
@@ -2557,10 +2502,7 @@ export type CreateMetaAudienceInput = {
   country?: string | null
   ratio?: number | null
   customerFileSource?:
-    | 'USER_PROVIDED_ONLY'
-    | 'PARTNER_PROVIDED_ONLY'
-    | 'BOTH_USER_AND_PARTNER_PROVIDED'
-    | null
+    'USER_PROVIDED_ONLY' | 'PARTNER_PROVIDED_ONLY' | 'BOTH_USER_AND_PARTNER_PROVIDED' | null
 }
 
 export type MetaCustomerListSchema =
@@ -2599,7 +2541,6 @@ export type MetaCustomerListMembersResult = {
 export type MetaAudienceSync = {
   synchronizedCount: number
 }
-
 
 export type CreateGoogleAudienceInput = {
   name: string
@@ -2648,7 +2589,6 @@ export type MetaConversionSync = {
   synchronizedCount: number
 }
 
-
 export type CreateGoogleConversionInput = {
   name: string
   category: string
@@ -2660,7 +2600,6 @@ export type CreateGoogleConversionInput = {
 export type GoogleConversionSync = {
   synchronizedCount: number
 }
-
 
 export type AdInsightLevel = 'CAMPAIGN' | 'AD_SET' | 'AD'
 
@@ -2724,14 +2663,12 @@ export type MetaInsightsSync = {
   adRows: number
 }
 
-
 export type GoogleInsightsSync = {
   accountRows: number
   campaignRows: number
   adGroupRows: number
   adRows: number
 }
-
 
 export type AdInsightBreakdownType =
   | 'AGE'
@@ -2802,7 +2739,6 @@ export type GoogleInsightBreakdownsSync = {
   failedBreakdowns: string[]
 }
 
-
 export type AdAccountBilling = {
   synced: boolean
   id?: string | null
@@ -2828,7 +2764,6 @@ export type AdAccountBilling = {
   businessCountryCode?: string | null
   lastSyncAt?: string | null
 }
-
 
 export type MetaDeliveryCheck = {
   check_name?: string | null
@@ -2875,21 +2810,11 @@ export type AdActivityLog = {
   createdAt: string
 }
 
-
 export type AdRecommendationSeverity = 'CRITICAL' | 'WARNING' | 'OPPORTUNITY' | 'INFO'
 export type AdRecommendationCategory =
-  | 'ACCOUNT'
-  | 'DELIVERY'
-  | 'BILLING'
-  | 'TRACKING'
-  | 'SETUP'
-  | 'PERFORMANCE'
+  'ACCOUNT' | 'DELIVERY' | 'BILLING' | 'TRACKING' | 'SETUP' | 'PERFORMANCE'
 export type AdRecommendationSource = 'META_PROVIDER' | 'GOOGLE_PROVIDER' | 'REACHLYO_DIAGNOSTIC'
-export type AdRecommendationLifecycleStatus =
-  | 'ACTIVE'
-  | 'DISMISSED'
-  | 'SNOOZED'
-  | 'RESOLVED'
+export type AdRecommendationLifecycleStatus = 'ACTIVE' | 'DISMISSED' | 'SNOOZED' | 'RESOLVED'
 export type AdRecommendationLifecycleAction = 'DISMISS' | 'SNOOZE' | 'REOPEN'
 
 export type AdRecommendationItem = {

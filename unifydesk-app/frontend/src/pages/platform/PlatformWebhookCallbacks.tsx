@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  FiChevronLeft,
-  FiChevronRight,
-  FiEye,
-  FiRefreshCw,
-  FiSearch,
-  FiX,
-} from 'react-icons/fi'
+import { FiChevronLeft, FiChevronRight, FiEye, FiRefreshCw, FiSearch, FiX } from 'react-icons/fi'
 import { platformApi } from '../../features/platform/platformApi'
 import type {
   Page,
@@ -73,9 +66,7 @@ export default function PlatformWebhookCallbacks() {
         }),
       )
     } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : 'Unable to load webhook callbacks',
-      )
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load webhook callbacks')
     } finally {
       setLoading(false)
     }
@@ -127,7 +118,10 @@ export default function PlatformWebhookCallbacks() {
 
         <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
           <div className="border-b border-slate-200 p-4 sm:p-5">
-            <form className="grid gap-3 lg:grid-cols-[1fr_180px_180px_auto]" onSubmit={submitSearch}>
+            <form
+              className="grid gap-3 lg:grid-cols-[1fr_180px_180px_auto]"
+              onSubmit={submitSearch}
+            >
               <label className="relative block">
                 <FiSearch
                   aria-hidden="true"
@@ -200,7 +194,10 @@ export default function PlatformWebhookCallbacks() {
               <tbody className="divide-y divide-slate-100">
                 {loading && callbacks.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-14 text-center text-sm font-medium text-slate-500">
+                    <td
+                      colSpan={7}
+                      className="px-5 py-14 text-center text-sm font-medium text-slate-500"
+                    >
                       Loading webhook callbacks…
                     </td>
                   </tr>
@@ -217,10 +214,10 @@ export default function PlatformWebhookCallbacks() {
                   callbacks.map((callback) => (
                     <tr key={callback.id} className="transition-colors hover:bg-slate-50/60">
                       <td className="px-5 py-4 text-sm text-slate-700" data-label="Received">
-                        <div className="font-medium text-slate-900">{formatDate(callback.receivedAt)}</div>
-                        <div className="mt-0.5 text-xs text-slate-500">
-                          ID {callback.id}
+                        <div className="font-medium text-slate-900">
+                          {formatDate(callback.receivedAt)}
                         </div>
+                        <div className="mt-0.5 text-xs text-slate-500">ID {callback.id}</div>
                       </td>
                       <td className="px-5 py-4" data-label="Provider">
                         <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-600/20">
@@ -228,7 +225,9 @@ export default function PlatformWebhookCallbacks() {
                         </span>
                       </td>
                       <td className="px-5 py-4" data-label="Callback">
-                        <p className="text-sm font-semibold text-slate-900">{callback.callbackType}</p>
+                        <p className="text-sm font-semibold text-slate-900">
+                          {callback.callbackType}
+                        </p>
                         <p className="mt-0.5 max-w-[320px] truncate text-xs text-slate-500">
                           {callback.eventId ? `Event ${callback.eventId}` : callback.endpoint}
                         </p>
@@ -240,7 +239,10 @@ export default function PlatformWebhookCallbacks() {
                           {callback.status}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-sm font-medium text-slate-700" data-label="HTTP">
+                      <td
+                        className="px-5 py-4 text-sm font-medium text-slate-700"
+                        data-label="HTTP"
+                      >
                         {callback.httpStatus ?? '—'}
                       </td>
                       <td className="px-5 py-4 text-sm text-slate-600" data-label="Duration">
@@ -331,7 +333,9 @@ export default function PlatformWebhookCallbacks() {
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-slate-500">HTTP response</p>
-                  <p className="mt-2 text-sm font-bold text-slate-900">{selected.httpStatus ?? '—'}</p>
+                  <p className="mt-2 text-sm font-bold text-slate-900">
+                    {selected.httpStatus ?? '—'}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-slate-500">Duration</p>
@@ -378,7 +382,9 @@ export default function PlatformWebhookCallbacks() {
 
               {selected.errorMessage && (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-rose-600">Error</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-rose-600">
+                    Error
+                  </p>
                   <p className="mt-2 whitespace-pre-wrap break-words text-sm text-rose-800">
                     {selected.errorMessage}
                   </p>

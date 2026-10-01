@@ -27,10 +27,10 @@ export default function SegmentsPage() {
     setError('')
     contactsApi
       .segments(companyId)
-      .then((segments) => setItems(segments.filter((segment) => !segment.archived && segment.status !== 'ARCHIVED')))
-      .catch((loadError) =>
-        setError(apiErrorMessage(loadError, 'Unable to load Segments.')),
+      .then((segments) =>
+        setItems(segments.filter((segment) => !segment.archived && segment.status !== 'ARCHIVED')),
       )
+      .catch((loadError) => setError(apiErrorMessage(loadError, 'Unable to load Segments.')))
       .finally(() => setLoading(false))
   }, [companyId])
 

@@ -90,10 +90,7 @@ describe('ME-SEC-008 managed sender surfaces', () => {
   it('preserves customer-managed SES branding and legitimate provider details', () => {
     render(
       <div data-testid="customer-managed">
-        <BroadcastSenderProviderMeta
-          sender={customerManagedSes}
-          includeConnectionDetails
-        />
+        <BroadcastSenderProviderMeta sender={customerManagedSes} includeConnectionDetails />
       </div>,
     )
 

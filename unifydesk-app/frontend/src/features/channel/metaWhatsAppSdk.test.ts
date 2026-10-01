@@ -166,9 +166,7 @@ describe('Meta WhatsApp Embedded Signup v4', () => {
       )
     }
 
-    window.dispatchEvent(
-      embeddedEvent('FINISH', { waba_id: 'waba-1', phone_number_id: 'phone-1' }),
-    )
+    window.dispatchEvent(embeddedEvent('FINISH', { waba_id: 'waba-1', phone_number_id: 'phone-1' }))
 
     await expect(promise).resolves.toMatchObject({
       wabaId: 'waba-1',
@@ -201,9 +199,7 @@ describe('Meta WhatsApp Embedded Signup v4', () => {
 
     facebook.callback()({ status: 'connected', authResponse: { code: 'auth-code' } })
     await vi.advanceTimersByTimeAsync(META_WHATSAPP_SESSION_INFO_GRACE_MS - 1)
-    window.dispatchEvent(
-      embeddedEvent('FINISH', { waba_id: 'waba-1', phone_number_id: 'phone-1' }),
-    )
+    window.dispatchEvent(embeddedEvent('FINISH', { waba_id: 'waba-1', phone_number_id: 'phone-1' }))
 
     await expect(promise).resolves.toMatchObject({
       code: 'auth-code',
@@ -228,20 +224,14 @@ describe('Meta WhatsApp Embedded Signup v4', () => {
         },
       }),
     )
-    window.dispatchEvent(
-      embeddedEvent('FINISH', { waba_id: 'waba-1', phone_number_id: 'phone-1' }),
-    )
-    window.dispatchEvent(
-      embeddedEvent('FINISH', { waba_id: 'waba-2', phone_number_id: 'phone-2' }),
-    )
+    window.dispatchEvent(embeddedEvent('FINISH', { waba_id: 'waba-1', phone_number_id: 'phone-1' }))
+    window.dispatchEvent(embeddedEvent('FINISH', { waba_id: 'waba-2', phone_number_id: 'phone-2' }))
 
     await expect(promise).resolves.toMatchObject({
       wabaId: 'waba-1',
       phoneNumberId: 'phone-1',
     })
-    expect(
-      removeSpy.mock.calls.filter(([type]) => type === 'message'),
-    ).toHaveLength(1)
+    expect(removeSpy.mock.calls.filter(([type]) => type === 'message')).toHaveLength(1)
     removeSpy.mockRestore()
   })
 
@@ -258,20 +248,21 @@ describe('Meta WhatsApp Embedded Signup v4', () => {
     },
   ]
 
-  it.each(terminalCases)('handles $event and removes its listener', async ({ event, data, expected }) => {
-    const facebook = installFacebook()
-    const removeSpy = vi.spyOn(window, 'removeEventListener')
-    const promise = launchMetaWhatsAppSignup(config)
+  it.each(terminalCases)(
+    'handles $event and removes its listener',
+    async ({ event, data, expected }) => {
+      const facebook = installFacebook()
+      const removeSpy = vi.spyOn(window, 'removeEventListener')
+      const promise = launchMetaWhatsAppSignup(config)
 
-    window.dispatchEvent(embeddedEvent(event, data))
+      window.dispatchEvent(embeddedEvent(event, data))
 
-    await expect(promise).rejects.toThrow(expected)
-    expect(
-      removeSpy.mock.calls.filter(([type]) => type === 'message'),
-    ).toHaveLength(1)
-    expect(facebook.callback()).toBeTypeOf('function')
-    removeSpy.mockRestore()
-  })
+      await expect(promise).rejects.toThrow(expected)
+      expect(removeSpy.mock.calls.filter(([type]) => type === 'message')).toHaveLength(1)
+      expect(facebook.callback()).toBeTypeOf('function')
+      removeSpy.mockRestore()
+    },
+  )
 
   it('handles Facebook callback without an authorization code', async () => {
     const facebook = installFacebook()
@@ -291,9 +282,7 @@ describe('Meta WhatsApp Embedded Signup v4', () => {
     await vi.advanceTimersByTimeAsync(META_WHATSAPP_SIGNUP_TIMEOUT_MS)
 
     await expect(promise).rejects.toThrow('timed out')
-    expect(
-      removeSpy.mock.calls.filter(([type]) => type === 'message'),
-    ).toHaveLength(1)
+    expect(removeSpy.mock.calls.filter(([type]) => type === 'message')).toHaveLength(1)
     removeSpy.mockRestore()
   })
 
@@ -301,7 +290,9 @@ describe('Meta WhatsApp Embedded Signup v4', () => {
     const facebook = installFacebook()
     const invalid = { ...config, embeddedSignupVersion: '3' as '4' }
 
-    await expect(launchMetaWhatsAppSignup(invalid)).rejects.toThrow('requires Meta Embedded Signup v4')
+    await expect(launchMetaWhatsAppSignup(invalid)).rejects.toThrow(
+      'requires Meta Embedded Signup v4',
+    )
     expect(window.FB?.login).not.toHaveBeenCalled()
     expect(facebook.options()).toBeNull()
   })

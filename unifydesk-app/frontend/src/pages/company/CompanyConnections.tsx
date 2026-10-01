@@ -337,10 +337,7 @@ export default function CompanyConnections() {
     }
   }
 
-  const disconnect = async (
-    connection: ChannelConnection,
-    dataPolicy: DisconnectDataPolicy,
-  ) => {
+  const disconnect = async (connection: ChannelConnection, dataPolicy: DisconnectDataPolicy) => {
     if (!selectedCompany) return
 
     setWorkingConnectionId(connection.id)
@@ -634,9 +631,7 @@ export default function CompanyConnections() {
           ) : emailConnections.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <FiMail className="mx-auto text-slate-300" size={28} />
-              <p className="mt-3 text-sm font-semibold text-slate-800">
-                No email connection yet
-              </p>
+              <p className="mt-3 text-sm font-semibold text-slate-800">No email connection yet</p>
               <p className="mt-1 text-xs text-slate-500">
                 Connect an Inbox mailbox or a Broadcast email provider above.
               </p>
@@ -664,10 +659,7 @@ export default function CompanyConnections() {
                         {connection.status}
                       </span>
                       <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-700">
-                        {providerLabel(
-                          connection.providerType,
-                          broadcastSenderFor(connection.id),
-                        )}
+                        {providerLabel(connection.providerType, broadcastSenderFor(connection.id))}
                       </span>
                       {connection.capabilities.map((capability) => (
                         <span
@@ -783,7 +775,9 @@ export default function CompanyConnections() {
                           ? 'UnifyDesk Managed SMS'
                           : connection.name}
                       </p>
-                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${statusClass[connection.status]}`}>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${statusClass[connection.status]}`}
+                      >
                         {connection.status}
                       </span>
                       <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-700">
@@ -816,16 +810,16 @@ export default function CompanyConnections() {
                     {connection.status !== 'DISCONNECTED' &&
                       broadcastSenderFor(connection.id)?.managementMode !== 'MESSAGING_MANAGED' &&
                       can(PERMISSIONS.BROADCAST_MODIFY) && (
-                      <button
-                        type="button"
-                        className="secondary-button inline-flex shrink-0 items-center gap-2 text-rose-600"
-                        disabled={workingConnectionId === connection.id}
-                        onClick={() => setDisconnectTarget(connection)}
-                      >
-                        <FiSlash aria-hidden="true" />
-                        Disconnect
-                      </button>
-                    )}
+                        <button
+                          type="button"
+                          className="secondary-button inline-flex shrink-0 items-center gap-2 text-rose-600"
+                          disabled={workingConnectionId === connection.id}
+                          onClick={() => setDisconnectTarget(connection)}
+                        >
+                          <FiSlash aria-hidden="true" />
+                          Disconnect
+                        </button>
+                      )}
 
                     <ConnectionRetentionNotice
                       connection={connection}
@@ -1187,12 +1181,8 @@ export default function CompanyConnections() {
       )}
 
       <DisconnectChannelModal
-        connection={
-          disconnectTarget?.providerType === 'META_WHATSAPP' ? null : disconnectTarget
-        }
-        working={
-          disconnectTarget !== null && workingConnectionId === disconnectTarget.id
-        }
+        connection={disconnectTarget?.providerType === 'META_WHATSAPP' ? null : disconnectTarget}
+        working={disconnectTarget !== null && workingConnectionId === disconnectTarget.id}
         onClose={() => {
           if (!workingConnectionId) setDisconnectTarget(null)
         }}
@@ -1202,12 +1192,8 @@ export default function CompanyConnections() {
       />
 
       <WhatsAppDisconnectModal
-        connection={
-          disconnectTarget?.providerType === 'META_WHATSAPP' ? disconnectTarget : null
-        }
-        working={
-          disconnectTarget !== null && workingConnectionId === disconnectTarget.id
-        }
+        connection={disconnectTarget?.providerType === 'META_WHATSAPP' ? disconnectTarget : null}
+        working={disconnectTarget !== null && workingConnectionId === disconnectTarget.id}
         onClose={() => {
           if (!workingConnectionId) setDisconnectTarget(null)
         }}

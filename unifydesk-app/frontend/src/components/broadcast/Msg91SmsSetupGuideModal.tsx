@@ -91,7 +91,9 @@ export default function Msg91SmsSetupGuideModal({ companyId, onClose, onContinue
         setupDataJson: JSON.stringify({ onboardingMode: 'guided' }),
       })
     } catch {
-      snackbar.warning('Unable to save setup progress. You can still continue, but resume may not work.')
+      snackbar.warning(
+        'Unable to save setup progress. You can still continue, but resume may not work.',
+      )
     } finally {
       setSaving(false)
     }

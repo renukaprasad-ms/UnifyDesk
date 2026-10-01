@@ -12,7 +12,16 @@ export const MAX_SEGMENT_PREDICATES = 50
 
 const textOperators: SegmentOperator[] = ['EQ', 'NE', 'CONTAINS', 'PRESENT', 'ABSENT']
 const selectOperators: SegmentOperator[] = ['EQ', 'NE', 'IN', 'NOT_IN', 'PRESENT', 'ABSENT']
-const numberOperators: SegmentOperator[] = ['EQ', 'NE', 'GT', 'GTE', 'LT', 'LTE', 'PRESENT', 'ABSENT']
+const numberOperators: SegmentOperator[] = [
+  'EQ',
+  'NE',
+  'GT',
+  'GTE',
+  'LT',
+  'LTE',
+  'PRESENT',
+  'ABSENT',
+]
 const dateOperators: SegmentOperator[] = ['BEFORE', 'AFTER', 'PRESENT', 'ABSENT']
 
 export const baseSegmentFields: SegmentFieldOption[] = [
@@ -206,11 +215,13 @@ export const addSegmentChild = (
 export const validateSegmentClient = (root: SegmentGroup, fields: SegmentFieldOption[]) => {
   const errors: string[] = []
   if (segmentDepth(root) > MAX_SEGMENT_DEPTH) errors.push('Segment nesting cannot exceed 4 levels.')
-  if (countPredicates(root) > MAX_SEGMENT_PREDICATES) errors.push('A segment can contain at most 50 predicates.')
+  if (countPredicates(root) > MAX_SEGMENT_PREDICATES)
+    errors.push('A segment can contain at most 50 predicates.')
 
   const walk = (node: SegmentNode) => {
     if (node.type === 'group') {
-      if (node.children.length === 0) errors.push('Every AND/OR group needs at least one condition.')
+      if (node.children.length === 0)
+        errors.push('Every AND/OR group needs at least one condition.')
       node.children.forEach(walk)
       return
     }
@@ -236,4 +247,5 @@ export const validateSegmentClient = (root: SegmentGroup, fields: SegmentFieldOp
   return errors
 }
 
-export const serializeSegment = (root: SegmentGroup) => JSON.parse(JSON.stringify(root)) as SegmentGroup
+export const serializeSegment = (root: SegmentGroup) =>
+  JSON.parse(JSON.stringify(root)) as SegmentGroup

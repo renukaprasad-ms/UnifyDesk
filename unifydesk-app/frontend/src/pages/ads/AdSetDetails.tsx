@@ -69,10 +69,46 @@ type PromotedObjectSnapshot = {
 }
 
 const META_PLACEMENT_GROUPS = [
-  { key: 'facebook', label: 'Facebook', positions: [['feed', 'Feed'], ['story', 'Stories'], ['reels', 'Reels'], ['marketplace', 'Marketplace'], ['video_feeds', 'Video feeds'], ['search', 'Search results']] },
-  { key: 'instagram', label: 'Instagram', positions: [['stream', 'Feed'], ['story', 'Stories'], ['reels', 'Reels'], ['explore', 'Explore'], ['explore_home', 'Explore home'], ['profile_feed', 'Profile feed']] },
-  { key: 'messenger', label: 'Messenger', positions: [['messenger_home', 'Inbox'], ['story', 'Stories']] },
-  { key: 'audience_network', label: 'Audience Network', positions: [['classic', 'Native, banner and interstitial'], ['rewarded_video', 'Rewarded video']] },
+  {
+    key: 'facebook',
+    label: 'Facebook',
+    positions: [
+      ['feed', 'Feed'],
+      ['story', 'Stories'],
+      ['reels', 'Reels'],
+      ['marketplace', 'Marketplace'],
+      ['video_feeds', 'Video feeds'],
+      ['search', 'Search results'],
+    ],
+  },
+  {
+    key: 'instagram',
+    label: 'Instagram',
+    positions: [
+      ['stream', 'Feed'],
+      ['story', 'Stories'],
+      ['reels', 'Reels'],
+      ['explore', 'Explore'],
+      ['explore_home', 'Explore home'],
+      ['profile_feed', 'Profile feed'],
+    ],
+  },
+  {
+    key: 'messenger',
+    label: 'Messenger',
+    positions: [
+      ['messenger_home', 'Inbox'],
+      ['story', 'Stories'],
+    ],
+  },
+  {
+    key: 'audience_network',
+    label: 'Audience Network',
+    positions: [
+      ['classic', 'Native, banner and interstitial'],
+      ['rewarded_video', 'Rewarded video'],
+    ],
+  },
 ] as const
 
 const parseJson = <T,>(value?: string | null): T | null => {
@@ -85,7 +121,12 @@ const parseJson = <T,>(value?: string | null): T | null => {
 }
 
 const displayValue = (value?: string | null) =>
-  value ? value.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : '—'
+  value
+    ? value
+        .replaceAll('_', ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+    : '—'
 
 const formatMinor = (value: number | null | undefined, currency?: string | null) => {
   if (value == null) return '—'
@@ -103,9 +144,9 @@ const toMajor = (value: number | null | undefined, currency?: string | null) => 
   if (value == null) return ''
   if (!currency) return String(value)
   try {
-    const digits = new Intl.NumberFormat(undefined, { style: 'currency', currency })
-      .resolvedOptions()
-      .maximumFractionDigits ?? 2
+    const digits =
+      new Intl.NumberFormat(undefined, { style: 'currency', currency }).resolvedOptions()
+        .maximumFractionDigits ?? 2
     return String(value / 10 ** digits)
   } catch {
     return String(value)
@@ -117,9 +158,9 @@ const toMinor = (value: string, currency?: string | null) => {
   if (!Number.isFinite(numeric) || numeric <= 0) return undefined
   if (!currency) return Math.round(numeric)
   try {
-    const digits = new Intl.NumberFormat(undefined, { style: 'currency', currency })
-      .resolvedOptions()
-      .maximumFractionDigits ?? 2
+    const digits =
+      new Intl.NumberFormat(undefined, { style: 'currency', currency }).resolvedOptions()
+        .maximumFractionDigits ?? 2
     return Math.round(numeric * 10 ** digits)
   } catch {
     return Math.round(numeric)
@@ -139,10 +180,9 @@ const metaLocationsFromTargeting = (
   const geo = targeting?.geo_locations
   if (!geo) return []
 
-  const locationTypes =
-    geo.location_types?.filter(
-      (value): value is 'home' | 'recent' => value === 'home' || value === 'recent',
-    ) ?? ['home', 'recent']
+  const locationTypes = geo.location_types?.filter(
+    (value): value is 'home' | 'recent' => value === 'home' || value === 'recent',
+  ) ?? ['home', 'recent']
 
   const providerLocations = (
     values: ProviderGeoTarget[] | undefined,
@@ -159,12 +199,7 @@ const metaLocationsFromTargeting = (
       }))
 
   const customLocations: MetaTargetingLocation[] = (geo.custom_locations ?? [])
-    .filter(
-      (value) =>
-        value.latitude != null &&
-        value.longitude != null &&
-        value.radius != null,
-    )
+    .filter((value) => value.latitude != null && value.longitude != null && value.radius != null)
     .map((value) => ({
       type: 'CUSTOM',
       name: value.name ?? null,
@@ -280,11 +315,7 @@ export default function AdSetDetails() {
     setAgeMin(String(targeting?.age_min ?? 18))
     setAgeMax(String(targeting?.age_max ?? 65))
     setGender(
-      targeting?.genders?.includes(1)
-        ? 'MEN'
-        : targeting?.genders?.includes(2)
-          ? 'WOMEN'
-          : 'ALL',
+      targeting?.genders?.includes(1) ? 'MEN' : targeting?.genders?.includes(2) ? 'WOMEN' : 'ALL',
     )
     setPlacementMode(platforms.length ? 'MANUAL' : 'AUTO')
     setFacebook(platforms.includes('facebook'))
@@ -299,9 +330,7 @@ export default function AdSetDetails() {
       (targeting?.custom_audiences ?? []).map((item) => item.id).filter(Boolean),
     )
     const excludedExternalIds = new Set(
-      (targeting?.excluded_custom_audiences ?? [])
-        .map((item) => item.id)
-        .filter(Boolean),
+      (targeting?.excluded_custom_audiences ?? []).map((item) => item.id).filter(Boolean),
     )
     setCustomAudiences(
       audienceValues
@@ -330,8 +359,7 @@ export default function AdSetDetails() {
     setCustomEventType(promotedObject?.custom_event_type ?? '')
     setCustomConversionId(
       conversionValues.find(
-        (conversion) =>
-          conversion.externalConversionId === promotedObject?.custom_conversion_id,
+        (conversion) => conversion.externalConversionId === promotedObject?.custom_conversion_id,
       )?.id ?? '',
     )
   }
@@ -345,21 +373,15 @@ export default function AdSetDetails() {
         adCenterApi.adSet(selectedCompany.companyId, adSetId),
         adCenterApi.accounts(selectedCompany.companyId),
       ])
-      const [
-        campaignData,
-        resourceData,
-        audienceData,
-        conversionData,
-        adData,
-        creativeData,
-      ] = await Promise.all([
-        adCenterApi.campaign(selectedCompany.companyId, adSetData.campaignId),
-        adCenterApi.resources(selectedCompany.companyId, adSetData.adAccountId),
-        adCenterApi.audiences(selectedCompany.companyId, adSetData.adAccountId),
-        adCenterApi.conversions(selectedCompany.companyId, adSetData.adAccountId),
-        adCenterApi.ads(selectedCompany.companyId, adSetData.id),
-        adCenterApi.creatives(selectedCompany.companyId, adSetData.adAccountId),
-      ])
+      const [campaignData, resourceData, audienceData, conversionData, adData, creativeData] =
+        await Promise.all([
+          adCenterApi.campaign(selectedCompany.companyId, adSetData.campaignId),
+          adCenterApi.resources(selectedCompany.companyId, adSetData.adAccountId),
+          adCenterApi.audiences(selectedCompany.companyId, adSetData.adAccountId),
+          adCenterApi.conversions(selectedCompany.companyId, adSetData.adAccountId),
+          adCenterApi.ads(selectedCompany.companyId, adSetData.id),
+          adCenterApi.creatives(selectedCompany.companyId, adSetData.adAccountId),
+        ])
       setAdSet(adSetData)
       setCampaign(campaignData)
       setAccounts(accountData)
@@ -438,11 +460,7 @@ export default function AdSetDetails() {
     }
 
     try {
-      const updated = await adCenterApi.updateMetaAdSet(
-        selectedCompany.companyId,
-        adSet.id,
-        input,
-      )
+      const updated = await adCenterApi.updateMetaAdSet(selectedCompany.companyId, adSet.id, input)
       setAdSet(updated)
       syncForm(updated, account, audiences, conversions)
       setNotice('Ad-set settings updated in Meta.')
@@ -480,11 +498,7 @@ export default function AdSetDetails() {
     setError('')
     setNotice('')
     try {
-      const created = await adCenterApi.createMetaAd(
-        selectedCompany.companyId,
-        adSet.id,
-        input,
-      )
+      const created = await adCenterApi.createMetaAd(selectedCompany.companyId, adSet.id, input)
       setAds((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setAdModalOpen(false)
       setNotice(`${created.name} was created in paused state.`)
@@ -501,14 +515,8 @@ export default function AdSetDetails() {
     setError('')
     setNotice('')
     try {
-      const updated = await adCenterApi.setMetaAdStatus(
-        selectedCompany.companyId,
-        ad.id,
-        status,
-      )
-      setAds((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      )
+      const updated = await adCenterApi.setMetaAdStatus(selectedCompany.companyId, ad.id, status)
+      setAds((current) => current.map((item) => (item.id === updated.id ? updated : item)))
       setNotice(`${updated.name} is now ${status.toLowerCase()}.`)
     } catch (statusError) {
       setError(apiErrorMessage(statusError, 'Unable to update ad status'))
@@ -615,15 +623,21 @@ export default function AdSetDetails() {
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="panel p-5">
                 <p className="text-xs font-semibold text-slate-400">Configured</p>
-                <p className="mt-2 text-lg font-bold text-slate-950">{adSet.providerStatus ?? adSet.status}</p>
+                <p className="mt-2 text-lg font-bold text-slate-950">
+                  {adSet.providerStatus ?? adSet.status}
+                </p>
               </div>
               <div className="panel p-5">
                 <p className="text-xs font-semibold text-slate-400">Effective</p>
-                <p className="mt-2 text-lg font-bold text-slate-950">{adSet.effectiveStatus ?? '—'}</p>
+                <p className="mt-2 text-lg font-bold text-slate-950">
+                  {adSet.effectiveStatus ?? '—'}
+                </p>
               </div>
               <div className="panel p-5">
                 <p className="text-xs font-semibold text-slate-400">Optimization</p>
-                <p className="mt-2 text-lg font-bold text-slate-950">{displayValue(adSet.optimizationGoal)}</p>
+                <p className="mt-2 text-lg font-bold text-slate-950">
+                  {displayValue(adSet.optimizationGoal)}
+                </p>
               </div>
               <div className="panel p-5">
                 <p className="text-xs font-semibold text-slate-400">Budget</p>
@@ -648,11 +662,19 @@ export default function AdSetDetails() {
               <div className="mt-5 grid gap-5 sm:grid-cols-2">
                 <label className="block text-xs font-semibold text-slate-700">
                   Name
-                  <input className="form-input mt-2" value={name} onChange={(e) => setName(e.target.value)} />
+                  <input
+                    className="form-input mt-2"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
                 </label>
                 <label className="block text-xs font-semibold text-slate-700">
                   Destination
-                  <select className="form-input mt-2" value={destinationType} onChange={(e) => setDestinationType(e.target.value)}>
+                  <select
+                    className="form-input mt-2"
+                    value={destinationType}
+                    onChange={(e) => setDestinationType(e.target.value)}
+                  >
                     <option value="">Meta default</option>
                     <option value="WEBSITE">Website</option>
                     <option value="APP">App</option>
@@ -663,7 +685,11 @@ export default function AdSetDetails() {
                 </label>
                 <label className="block text-xs font-semibold text-slate-700">
                   Optimization goal
-                  <select className="form-input mt-2" value={optimizationGoal} onChange={(e) => setOptimizationGoal(e.target.value)}>
+                  <select
+                    className="form-input mt-2"
+                    value={optimizationGoal}
+                    onChange={(e) => setOptimizationGoal(e.target.value)}
+                  >
                     <option value="LINK_CLICKS">Link clicks</option>
                     <option value="LANDING_PAGE_VIEWS">Landing page views</option>
                     <option value="IMPRESSIONS">Impressions</option>
@@ -676,7 +702,11 @@ export default function AdSetDetails() {
                 </label>
                 <label className="block text-xs font-semibold text-slate-700">
                   Billing event
-                  <select className="form-input mt-2" value={billingEvent} onChange={(e) => setBillingEvent(e.target.value)}>
+                  <select
+                    className="form-input mt-2"
+                    value={billingEvent}
+                    onChange={(e) => setBillingEvent(e.target.value)}
+                  >
                     <option value="IMPRESSIONS">Impressions</option>
                     <option value="LINK_CLICKS">Link clicks</option>
                     <option value="THRUPLAY">ThruPlay</option>
@@ -684,7 +714,11 @@ export default function AdSetDetails() {
                 </label>
                 <label className="block text-xs font-semibold text-slate-700">
                   Bid strategy
-                  <select className="form-input mt-2" value={bidStrategy} onChange={(e) => setBidStrategy(e.target.value)}>
+                  <select
+                    className="form-input mt-2"
+                    value={bidStrategy}
+                    onChange={(e) => setBidStrategy(e.target.value)}
+                  >
                     <option value="">Meta default</option>
                     <option value="LOWEST_COST_WITHOUT_CAP">Lowest cost</option>
                     <option value="LOWEST_COST_WITH_BID_CAP">Bid cap</option>
@@ -693,10 +727,21 @@ export default function AdSetDetails() {
                 </label>
                 <label className="block text-xs font-semibold text-slate-700">
                   Bid amount {account?.currency ? `(${account.currency})` : ''}
-                  <input className="form-input mt-2" type="number" min="0.01" step="0.01" value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} />
+                  <input
+                    className="form-input mt-2"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={bidAmount}
+                    onChange={(e) => setBidAmount(e.target.value)}
+                  />
                 </label>
                 <label className="block text-xs font-semibold text-slate-700">
-                  {adSet.lifetimeBudgetMinor != null ? 'Lifetime budget' : adSet.dailyBudgetMinor != null ? 'Daily budget' : 'Campaign budget'}
+                  {adSet.lifetimeBudgetMinor != null
+                    ? 'Lifetime budget'
+                    : adSet.dailyBudgetMinor != null
+                      ? 'Daily budget'
+                      : 'Campaign budget'}
                   <input
                     className="form-input mt-2"
                     type="number"
@@ -710,11 +755,21 @@ export default function AdSetDetails() {
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block text-xs font-semibold text-slate-700">
                     Start
-                    <input className="form-input mt-2" type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
+                    <input
+                      className="form-input mt-2"
+                      type="datetime-local"
+                      value={startAt}
+                      onChange={(e) => setStartAt(e.target.value)}
+                    />
                   </label>
                   <label className="block text-xs font-semibold text-slate-700">
                     End
-                    <input className="form-input mt-2" type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
+                    <input
+                      className="form-input mt-2"
+                      type="datetime-local"
+                      value={endAt}
+                      onChange={(e) => setEndAt(e.target.value)}
+                    />
                   </label>
                 </div>
               </div>
@@ -733,15 +788,33 @@ export default function AdSetDetails() {
                   )}
                   <label className="block text-xs font-semibold text-slate-700">
                     Minimum age
-                    <input className="form-input mt-2" type="number" min="13" max="65" value={ageMin} onChange={(e) => setAgeMin(e.target.value)} />
+                    <input
+                      className="form-input mt-2"
+                      type="number"
+                      min="13"
+                      max="65"
+                      value={ageMin}
+                      onChange={(e) => setAgeMin(e.target.value)}
+                    />
                   </label>
                   <label className="block text-xs font-semibold text-slate-700">
                     Maximum age
-                    <input className="form-input mt-2" type="number" min="13" max="65" value={ageMax} onChange={(e) => setAgeMax(e.target.value)} />
+                    <input
+                      className="form-input mt-2"
+                      type="number"
+                      min="13"
+                      max="65"
+                      value={ageMax}
+                      onChange={(e) => setAgeMax(e.target.value)}
+                    />
                   </label>
                   <label className="block text-xs font-semibold text-slate-700">
                     Gender
-                    <select className="form-input mt-2" value={gender} onChange={(e) => setGender(e.target.value as 'ALL' | 'MEN' | 'WOMEN')}>
+                    <select
+                      className="form-input mt-2"
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value as 'ALL' | 'MEN' | 'WOMEN')}
+                    >
                       <option value="ALL">All</option>
                       <option value="MEN">Men</option>
                       <option value="WOMEN">Women</option>
@@ -749,7 +822,11 @@ export default function AdSetDetails() {
                   </label>
                   <label className="block text-xs font-semibold text-slate-700">
                     Placement mode
-                    <select className="form-input mt-2" value={placementMode} onChange={(e) => setPlacementMode(e.target.value as 'AUTO' | 'MANUAL')}>
+                    <select
+                      className="form-input mt-2"
+                      value={placementMode}
+                      onChange={(e) => setPlacementMode(e.target.value as 'AUTO' | 'MANUAL')}
+                    >
                       <option value="AUTO">Advantage+ placements (recommended)</option>
                       <option value="MANUAL">Manual</option>
                     </select>
@@ -780,9 +857,7 @@ export default function AdSetDetails() {
                             type="checkbox"
                             className="mt-0.5"
                             checked={advantageAgeSuggestion}
-                            onChange={(event) =>
-                              setAdvantageAgeSuggestion(event.target.checked)
-                            }
+                            onChange={(event) => setAdvantageAgeSuggestion(event.target.checked)}
                           />
                           Age range is a suggestion.
                         </label>
@@ -791,9 +866,7 @@ export default function AdSetDetails() {
                             type="checkbox"
                             className="mt-0.5"
                             checked={advantageGenderSuggestion}
-                            onChange={(event) =>
-                              setAdvantageGenderSuggestion(event.target.checked)
-                            }
+                            onChange={(event) => setAdvantageGenderSuggestion(event.target.checked)}
                           />
                           Gender is a suggestion.
                         </label>
@@ -883,13 +956,20 @@ export default function AdSetDetails() {
                       return (
                         <div key={group.key} className="rounded-xl border border-slate-200 p-4">
                           <label className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+                            <input
+                              type="checkbox"
+                              checked={enabled}
+                              onChange={(e) => setEnabled(e.target.checked)}
+                            />
                             {group.label}
                           </label>
                           {enabled && (
                             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                               {group.positions.map(([value, label]) => (
-                                <label key={value} className="flex items-center gap-2 text-xs text-slate-600">
+                                <label
+                                  key={value}
+                                  className="flex items-center gap-2 text-xs text-slate-600"
+                                >
                                   <input
                                     type="checkbox"
                                     checked={positions.includes(value)}
@@ -910,7 +990,8 @@ export default function AdSetDetails() {
                       )
                     })}
                     <p className="text-xs text-slate-500">
-                      Leave a platform's individual positions empty to allow all eligible positions on that platform.
+                      Leave a platform's individual positions empty to allow all eligible positions
+                      on that platform.
                     </p>
                   </div>
                 )}
@@ -945,7 +1026,11 @@ export default function AdSetDetails() {
                     <>
                       <label className="block text-xs font-semibold text-slate-700">
                         Pixel
-                        <select className="form-input mt-2" value={pixelId} onChange={(e) => setPixelId(e.target.value)}>
+                        <select
+                          className="form-input mt-2"
+                          value={pixelId}
+                          onChange={(e) => setPixelId(e.target.value)}
+                        >
                           <option value="">No pixel selected</option>
                           {pixels.map((pixel) => (
                             <option key={pixel.id} value={pixel.externalResourceId}>
@@ -956,7 +1041,12 @@ export default function AdSetDetails() {
                       </label>
                       <label className="block text-xs font-semibold text-slate-700">
                         Conversion event
-                        <select className="form-input mt-2" value={customEventType} disabled={!pixelId} onChange={(e) => setCustomEventType(e.target.value)}>
+                        <select
+                          className="form-input mt-2"
+                          value={customEventType}
+                          disabled={!pixelId}
+                          onChange={(e) => setCustomEventType(e.target.value)}
+                        >
                           <option value="">Meta default</option>
                           <option value="PURCHASE">Purchase</option>
                           <option value="LEAD">Lead</option>
@@ -973,7 +1063,11 @@ export default function AdSetDetails() {
 
               {can(PERMISSIONS.ADS_MODIFY) && (
                 <div className="mt-6 flex justify-end border-t border-slate-100 pt-5">
-                  <button type="submit" className="primary-button inline-flex items-center gap-2" disabled={saving || !name.trim() || locations.length === 0}>
+                  <button
+                    type="submit"
+                    className="primary-button inline-flex items-center gap-2"
+                    disabled={saving || !name.trim() || locations.length === 0}
+                  >
                     <FiSave aria-hidden="true" />
                     {saving ? 'Saving…' : 'Save to Meta'}
                   </button>
@@ -1035,7 +1129,8 @@ export default function AdSetDetails() {
                             {ad.name}
                           </Link>
                           <p className="mt-1 text-xs text-slate-500">
-                            {creative?.name ?? ad.externalCreativeId ?? 'Creative'} · Meta ad {ad.externalAdId}
+                            {creative?.name ?? ad.externalCreativeId ?? 'Creative'} · Meta ad{' '}
+                            {ad.externalAdId}
                           </p>
                         </div>
 
@@ -1091,7 +1186,11 @@ export default function AdSetDetails() {
             />
           </>
         ) : (
-          error && <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+          error && (
+            <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )
         )}
       </div>
     </section>

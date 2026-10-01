@@ -59,9 +59,7 @@ describe('BroadcastEmailProviderPickerModal Managed Email entry', () => {
 
   it('keeps the customer-managed provider path and all existing email providers accessible', async () => {
     renderPicker()
-    fireEvent.click(
-      await screen.findByRole('button', { name: /Connect my own provider/i }),
-    )
+    fireEvent.click(await screen.findByRole('button', { name: /Connect my own provider/i }))
 
     expect(screen.getByRole('button', { name: /Amazon SES/i })).toBeTruthy()
     expect(screen.getByRole('button', { name: /SendGrid/i })).toBeTruthy()
@@ -71,9 +69,7 @@ describe('BroadcastEmailProviderPickerModal Managed Email entry', () => {
 
   it('continues the existing provider setup-session flow', async () => {
     renderPicker()
-    fireEvent.click(
-      await screen.findByRole('button', { name: /Connect my own provider/i }),
-    )
+    fireEvent.click(await screen.findByRole('button', { name: /Connect my own provider/i }))
     fireEvent.click(screen.getByRole('button', { name: /Amazon SES/i }))
 
     await waitFor(() =>

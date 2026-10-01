@@ -20,10 +20,12 @@ import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 const fractionDigits = (currency?: string | null) => {
   if (!currency) return 2
   try {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency,
-    }).resolvedOptions().maximumFractionDigits ?? 2
+    return (
+      new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency,
+      }).resolvedOptions().maximumFractionDigits ?? 2
+    )
   } catch {
     return 2
   }
@@ -94,8 +96,7 @@ export default function AdBilling() {
   const [notice, setNotice] = useState('')
 
   const managedAccounts = useMemo(
-    () =>
-      accounts.filter((account) => account.managed && account.accessible),
+    () => accounts.filter((account) => account.managed && account.accessible),
     [accounts],
   )
 
@@ -118,11 +119,8 @@ export default function AdBilling() {
     try {
       const accountData = await adCenterApi.accounts(selectedCompany.companyId)
       setAccounts(accountData)
-      const eligible = accountData.filter(
-        (account) => account.managed && account.accessible,
-      )
-      const preferred =
-        eligible.find((account) => account.primaryAccount) ?? eligible[0]
+      const eligible = accountData.filter((account) => account.managed && account.accessible)
+      const preferred = eligible.find((account) => account.primaryAccount) ?? eligible[0]
       if (preferred) {
         setSelectedAccountId(preferred.id)
         await loadBilling(preferred)
@@ -165,21 +163,12 @@ export default function AdBilling() {
     try {
       const updated =
         selectedAccount.provider === 'GOOGLE_ADS'
-          ? await adCenterApi.syncGoogleBilling(
-              selectedCompany.companyId,
-              selectedAccount.id,
-            )
-          : await adCenterApi.syncMetaBilling(
-              selectedCompany.companyId,
-              selectedAccount.id,
-            )
+          ? await adCenterApi.syncGoogleBilling(selectedCompany.companyId, selectedAccount.id)
+          : await adCenterApi.syncMetaBilling(selectedCompany.companyId, selectedAccount.id)
       setBilling(updated)
       setNotice(`${providerName(selectedAccount)} billing state synchronized.`)
       try {
-        await adCenterApi.reconcileRecommendations(
-          selectedCompany.companyId,
-          selectedAccount.id,
-        )
+        await adCenterApi.reconcileRecommendations(selectedCompany.companyId, selectedAccount.id)
       } catch {
         // Billing succeeded; lifecycle reconciliation is best effort here.
       }
@@ -205,10 +194,7 @@ export default function AdBilling() {
       setBilling(updated)
       setCapModalOpen(false)
       try {
-        await adCenterApi.reconcileRecommendations(
-          selectedCompany.companyId,
-          selectedAccount.id,
-        )
+        await adCenterApi.reconcileRecommendations(selectedCompany.companyId, selectedAccount.id)
       } catch {
         // Meta accepted the cap change; lifecycle reconciliation is best effort.
       }
@@ -219,9 +205,7 @@ export default function AdBilling() {
           : 'Meta account spending limit updated.',
       )
     } catch (updateError) {
-      setError(
-        apiErrorMessage(updateError, 'Unable to update Meta account spending limit'),
-      )
+      setError(apiErrorMessage(updateError, 'Unable to update Meta account spending limit'))
     } finally {
       setSavingCap(false)
     }
@@ -248,7 +232,8 @@ export default function AdBilling() {
               Billing
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Monitor provider billing setup, payment-account information, and available account budget limits.
+              Monitor provider billing setup, payment-account information, and available account
+              budget limits.
             </p>
           </div>
 
@@ -311,9 +296,7 @@ export default function AdBilling() {
             Connect and manage an ad account before using billing.
           </div>
         ) : loading ? (
-          <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
-            Loading billing…
-          </div>
+          <div className="panel mt-6 p-10 text-center text-sm text-slate-500">Loading billing…</div>
         ) : !billing?.synced ? (
           <div className="panel mt-6 p-10 text-center">
             <FiCreditCard className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
@@ -321,7 +304,8 @@ export default function AdBilling() {
               Billing has not been synchronized
             </h2>
             <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">
-              Sync this account to read the billing and payment information exposed by the selected advertising provider.
+              Sync this account to read the billing and payment information exposed by the selected
+              advertising provider.
             </p>
             {can(PERMISSIONS.ADS_MODIFY) && (
               <button
@@ -373,19 +357,20 @@ export default function AdBilling() {
                         : 'No limit'}
                     </p>
                   </div>
-                  {selectedAccount?.provider === 'META_ADS' &&
-                    can(PERMISSIONS.ADS_MODIFY) && (
-                      <button
-                        type="button"
-                        className="secondary-button px-3 py-2 text-xs"
-                        onClick={() => setCapModalOpen(true)}
-                      >
-                        Edit
-                      </button>
-                    )}
+                  {selectedAccount?.provider === 'META_ADS' && can(PERMISSIONS.ADS_MODIFY) && (
+                    <button
+                      type="button"
+                      className="secondary-button px-3 py-2 text-xs"
+                      onClick={() => setCapModalOpen(true)}
+                    >
+                      Edit
+                    </button>
+                  )}
                 </div>
                 <p className="mt-2 text-xs leading-5 text-slate-500">
-                  {selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google account-budget spending limit when exposed by the billing setup.' : 'Account-level limit across Meta campaigns.'}
+                  {selectedAccount?.provider === 'GOOGLE_ADS'
+                    ? 'Google account-budget spending limit when exposed by the billing setup.'
+                    : 'Account-level limit across Meta campaigns.'}
                 </p>
               </article>
 
@@ -422,9 +407,7 @@ export default function AdBilling() {
               <div className="panel p-5 sm:p-6">
                 <div className="flex items-center gap-2">
                   <FiCreditCard className="text-indigo-500" aria-hidden="true" />
-                  <h2 className="text-base font-bold text-slate-950">
-                    Payment setup
-                  </h2>
+                  <h2 className="text-base font-bold text-slate-950">Payment setup</h2>
                 </div>
 
                 <dl className="mt-5 divide-y divide-slate-100 text-sm">
@@ -483,9 +466,7 @@ export default function AdBilling() {
               <div className="panel p-5 sm:p-6">
                 <div className="flex items-center gap-2">
                   <FiDollarSign className="text-indigo-500" aria-hidden="true" />
-                  <h2 className="text-base font-bold text-slate-950">
-                    Account limits
-                  </h2>
+                  <h2 className="text-base font-bold text-slate-950">Account limits</h2>
                 </div>
 
                 <dl className="mt-5 divide-y divide-slate-100 text-sm">
@@ -496,14 +477,9 @@ export default function AdBilling() {
                     </dd>
                   </div>
                   <div className="flex items-start justify-between gap-4 py-3">
-                    <dt className="text-slate-500">
-                      Minimum campaign-group spend cap
-                    </dt>
+                    <dt className="text-slate-500">Minimum campaign-group spend cap</dt>
                     <dd className="text-right font-semibold text-slate-900">
-                      {formatMinor(
-                        billing.minCampaignGroupSpendCapMinor,
-                        currency,
-                      )}
+                      {formatMinor(billing.minCampaignGroupSpendCapMinor, currency)}
                     </dd>
                   </div>
                   <div className="flex items-start justify-between gap-4 py-3">
@@ -530,9 +506,7 @@ export default function AdBilling() {
               <div className="panel p-5 sm:p-6">
                 <div className="flex items-center gap-2">
                   <FiShield className="text-indigo-500" aria-hidden="true" />
-                  <h2 className="text-base font-bold text-slate-950">
-                    Tax & account information
-                  </h2>
+                  <h2 className="text-base font-bold text-slate-950">Tax & account information</h2>
                 </div>
 
                 <dl className="mt-5 divide-y divide-slate-100 text-sm">
@@ -569,16 +543,15 @@ export default function AdBilling() {
 
               <div className="panel p-5 sm:p-6">
                 <div className="flex items-start gap-3">
-                  <FiAlertTriangle
-                    className="mt-0.5 shrink-0 text-amber-600"
-                    aria-hidden="true"
-                  />
+                  <FiAlertTriangle className="mt-0.5 shrink-0 text-amber-600" aria-hidden="true" />
                   <div>
                     <h2 className="text-base font-bold text-slate-950">
                       Payment actions stay with the provider
                     </h2>
                     <p className="mt-2 text-sm leading-6 text-slate-500">
-                      Ad Center reads the billing state exposed by the provider. Meta spend-cap changes are supported where available; Google payment methods, funds, invoices, and checkout remain provider-hosted operations.
+                      Ad Center reads the billing state exposed by the provider. Meta spend-cap
+                      changes are supported where available; Google payment methods, funds,
+                      invoices, and checkout remain provider-hosted operations.
                     </p>
                   </div>
                 </div>
@@ -597,9 +570,7 @@ export default function AdBilling() {
 
                 <p className="mt-4 text-xs text-slate-400">
                   Last synchronized:{' '}
-                  {billing.lastSyncAt
-                    ? new Date(billing.lastSyncAt).toLocaleString()
-                    : 'Never'}
+                  {billing.lastSyncAt ? new Date(billing.lastSyncAt).toLocaleString() : 'Never'}
                 </p>
               </div>
             </div>

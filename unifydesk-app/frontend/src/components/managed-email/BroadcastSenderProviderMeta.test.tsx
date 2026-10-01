@@ -40,10 +40,7 @@ describe('BroadcastSenderProviderMeta privacy', () => {
   it('hides stale AWS topology and shared account capacity for Managed Email', () => {
     render(
       <div data-testid="meta">
-        <BroadcastSenderProviderMeta
-          sender={managedStaleSender}
-          includeConnectionDetails
-        />
+        <BroadcastSenderProviderMeta sender={managedStaleSender} includeConnectionDetails />
       </div>,
     )
 
@@ -61,18 +58,13 @@ describe('BroadcastSenderProviderMeta privacy', () => {
     expect(managedConnectionDisplayName(managedStaleSender, 'Amazon SES ap-south-1')).toBe(
       'UnifyDesk Managed Email',
     )
-    expect(managedConnectionDisplayName(customerManagedSes, 'My Amazon SES')).toBe(
-      'My Amazon SES',
-    )
+    expect(managedConnectionDisplayName(customerManagedSes, 'My Amazon SES')).toBe('My Amazon SES')
   })
 
   it('keeps legitimate customer-managed SES provider details visible', () => {
     render(
       <div data-testid="meta">
-        <BroadcastSenderProviderMeta
-          sender={customerManagedSes}
-          includeConnectionDetails
-        />
+        <BroadcastSenderProviderMeta sender={customerManagedSes} includeConnectionDetails />
       </div>,
     )
 

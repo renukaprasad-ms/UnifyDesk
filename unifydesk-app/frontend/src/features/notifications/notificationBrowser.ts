@@ -87,8 +87,7 @@ const registrationPayload = (subscription: PushSubscription) => {
   }
 }
 
-const isConflict = (error: unknown) =>
-  axios.isAxiosError(error) && error.response?.status === 409
+const isConflict = (error: unknown) => axios.isAxiosError(error) && error.response?.status === 409
 
 const handleRegistration = async (subscription: PushSubscription) => {
   try {

@@ -23,8 +23,8 @@ const toMinor = (value: string, currency?: string | null) => {
   if (!currency) return Math.round(numeric)
   try {
     const digits =
-      new Intl.NumberFormat(undefined, { style: 'currency', currency })
-        .resolvedOptions().maximumFractionDigits ?? 2
+      new Intl.NumberFormat(undefined, { style: 'currency', currency }).resolvedOptions()
+        .maximumFractionDigits ?? 2
     return Math.round(numeric * 10 ** digits)
   } catch {
     return Math.round(numeric)
@@ -45,9 +45,7 @@ export default function GoogleAdvancedCampaignModal({
   const [budget, setBudget] = useState('')
   const [budgetMode, setBudgetMode] = useState<'DAILY' | 'TOTAL'>('DAILY')
   const [bidStrategy, setBidStrategy] =
-    useState<CreateGoogleAdvancedCampaignInput['bidStrategy']>(
-      'MAXIMIZE_CONVERSIONS',
-    )
+    useState<CreateGoogleAdvancedCampaignInput['bidStrategy']>('MAXIMIZE_CONVERSIONS')
   const [targetCpa, setTargetCpa] = useState('')
   const [targetRoas, setTargetRoas] = useState('')
   const [merchantId, setMerchantId] = useState('')
@@ -56,8 +54,9 @@ export default function GoogleAdvancedCampaignModal({
   const [merchantError, setMerchantError] = useState('')
   const [campaignPriority, setCampaignPriority] = useState('0')
   const [enableLocal, setEnableLocal] = useState(false)
-  const [containsEuPoliticalAdvertising, setContainsEuPoliticalAdvertising] =
-    useState<'YES' | 'NO' | ''>('')
+  const [containsEuPoliticalAdvertising, setContainsEuPoliticalAdvertising] = useState<
+    'YES' | 'NO' | ''
+  >('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
@@ -117,9 +116,7 @@ export default function GoogleAdvancedCampaignModal({
 
   if (!open) return null
 
-  const changeChannel = (
-    next: CreateGoogleAdvancedCampaignInput['channelType'],
-  ) => {
+  const changeChannel = (next: CreateGoogleAdvancedCampaignInput['channelType']) => {
     setChannelType(next)
     setTargetCpa('')
     setTargetRoas('')
@@ -133,9 +130,7 @@ export default function GoogleAdvancedCampaignModal({
     const budgetMinor = toMinor(budget, account.currency)
     if (budgetMinor == null) return
 
-    const targetCpaMinor = targetCpa
-      ? toMinor(targetCpa, account.currency)
-      : null
+    const targetCpaMinor = targetCpa ? toMinor(targetCpa, account.currency) : null
 
     await onCreate({
       name: name.trim(),
@@ -146,8 +141,7 @@ export default function GoogleAdvancedCampaignModal({
       targetCpaMinor,
       targetRoas: targetRoas ? Number(targetRoas) : null,
       merchantId: channelType === 'SHOPPING' ? merchantId.trim() : null,
-      campaignPriority:
-        channelType === 'SHOPPING' ? Number(campaignPriority) : null,
+      campaignPriority: channelType === 'SHOPPING' ? Number(campaignPriority) : null,
       enableLocal: channelType === 'SHOPPING' ? enableLocal : null,
       containsEuPoliticalAdvertising: containsEuPoliticalAdvertising === 'YES',
       startDate: startDate || null,
@@ -161,9 +155,7 @@ export default function GoogleAdvancedCampaignModal({
         <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white px-6 py-5">
           <div>
             <p className="eyebrow">Google Ads</p>
-            <h2 className="mt-1 text-xl font-bold text-slate-950">
-              Create campaign
-            </h2>
+            <h2 className="mt-1 text-xl font-bold text-slate-950">Create campaign</h2>
             <p className="mt-1 text-sm text-slate-500">
               Display, Demand Gen, and Standard Shopping campaigns are created paused.
             </p>
@@ -184,9 +176,7 @@ export default function GoogleAdvancedCampaignModal({
                 key={type}
                 type="button"
                 className={`rounded-lg px-3 py-2 text-xs font-semibold ${
-                  channelType === type
-                    ? 'bg-white text-slate-950 shadow-sm'
-                    : 'text-slate-500'
+                  channelType === type ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'
                 }`}
                 onClick={() => changeChannel(type)}
               >
@@ -211,7 +201,8 @@ export default function GoogleAdvancedCampaignModal({
             </label>
 
             <label className="text-xs font-semibold text-slate-700">
-              {budgetMode === 'TOTAL' ? 'Total campaign budget' : 'Daily budget'} {account.currency ? `(${account.currency})` : ''}
+              {budgetMode === 'TOTAL' ? 'Total campaign budget' : 'Daily budget'}{' '}
+              {account.currency ? `(${account.currency})` : ''}
               <input
                 className="form-input mt-2"
                 type="number"
@@ -229,16 +220,15 @@ export default function GoogleAdvancedCampaignModal({
                 <select
                   className="form-input mt-2"
                   value={budgetMode}
-                  onChange={(event) =>
-                    setBudgetMode(event.target.value as 'DAILY' | 'TOTAL')
-                  }
+                  onChange={(event) => setBudgetMode(event.target.value as 'DAILY' | 'TOTAL')}
                 >
                   <option value="DAILY">Average daily budget</option>
                   <option value="TOTAL">Campaign total budget</option>
                 </select>
                 {budgetMode === 'TOTAL' && (
                   <span className="mt-1 block font-normal text-slate-400">
-                    Total budget requires both start and end dates and cannot be changed to daily after creation.
+                    Total budget requires both start and end dates and cannot be changed to daily
+                    after creation.
                   </span>
                 )}
               </label>
@@ -251,8 +241,7 @@ export default function GoogleAdvancedCampaignModal({
                 value={bidStrategy}
                 onChange={(event) =>
                   setBidStrategy(
-                    event.target
-                      .value as CreateGoogleAdvancedCampaignInput['bidStrategy'],
+                    event.target.value as CreateGoogleAdvancedCampaignInput['bidStrategy'],
                   )
                 }
               >
@@ -339,17 +328,13 @@ export default function GoogleAdvancedCampaignModal({
                   ) : (
                     merchantAccounts.map((merchant) => (
                       <option key={merchant.accountId} value={merchant.accountId}>
-                        {(merchant.accountName || 'Merchant Center') +
-                          ' · ' +
-                          merchant.accountId}
+                        {(merchant.accountName || 'Merchant Center') + ' · ' + merchant.accountId}
                       </option>
                     ))
                   )}
                 </select>
                 {merchantError && (
-                  <span className="mt-1 block font-normal text-red-600">
-                    {merchantError}
-                  </span>
+                  <span className="mt-1 block font-normal text-red-600">{merchantError}</span>
                 )}
               </label>
 
@@ -377,8 +362,8 @@ export default function GoogleAdvancedCampaignModal({
 
               <p className="text-xs leading-5 text-slate-500 sm:col-span-2">
                 The Google Ads customer must already be linked to this Merchant Center account.
-                Reachlyo also creates the initial paused Shopping Product Ad Group, Product Ad,
-                and root listing group.
+                Reachlyo also creates the initial paused Shopping Product Ad Group, Product Ad, and
+                root listing group.
               </p>
             </div>
           )}
@@ -390,13 +375,13 @@ export default function GoogleAdvancedCampaignModal({
               value={containsEuPoliticalAdvertising}
               required
               onChange={(event) =>
-                setContainsEuPoliticalAdvertising(
-                  event.target.value as 'YES' | 'NO' | '',
-                )
+                setContainsEuPoliticalAdvertising(event.target.value as 'YES' | 'NO' | '')
               }
             >
               <option value="">Select an answer</option>
-              <option value="NO">No, this campaign does not contain EU political advertising</option>
+              <option value="NO">
+                No, this campaign does not contain EU political advertising
+              </option>
               <option value="YES">Yes, this campaign contains EU political advertising</option>
             </select>
             <span className="mt-1 block font-normal text-slate-400">
@@ -406,23 +391,20 @@ export default function GoogleAdvancedCampaignModal({
 
           {channelType === 'DEMAND_GEN' && (
             <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs leading-5 text-indigo-800">
-              After creation, add a Demand Gen Ad Group and creative assets before starting delivery.
+              After creation, add a Demand Gen Ad Group and creative assets before starting
+              delivery.
             </div>
           )}
 
           {channelType === 'DISPLAY' && (
             <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs leading-5 text-indigo-800">
-              After creation, add a Display Ad Group and Responsive Display Ad before starting delivery.
+              After creation, add a Display Ad Group and Responsive Display Ad before starting
+              delivery.
             </div>
           )}
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-              disabled={saving}
-            >
+            <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>
               Cancel
             </button>
             <button
@@ -435,12 +417,12 @@ export default function GoogleAdvancedCampaignModal({
                 !containsEuPoliticalAdvertising ||
                 (channelType === 'SHOPPING' &&
                   (!merchantId || loadingMerchants || merchantAccounts.length === 0)) ||
-                (channelType === 'DEMAND_GEN' &&
-                  budgetMode === 'TOTAL' &&
-                  (!startDate || !endDate))
+                (channelType === 'DEMAND_GEN' && budgetMode === 'TOTAL' && (!startDate || !endDate))
               }
             >
-              {saving ? 'Creating…' : `Create paused ${channelType === 'DEMAND_GEN' ? 'Demand Gen' : channelType.toLowerCase()}`}
+              {saving
+                ? 'Creating…'
+                : `Create paused ${channelType === 'DEMAND_GEN' ? 'Demand Gen' : channelType.toLowerCase()}`}
             </button>
           </div>
         </form>

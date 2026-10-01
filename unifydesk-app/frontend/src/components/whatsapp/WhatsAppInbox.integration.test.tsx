@@ -264,11 +264,7 @@ describe('WhatsAppInbox frozen UX', () => {
     fireEvent.change(input as HTMLInputElement, { target: { files: [file] } })
 
     await waitFor(() =>
-      expect(mediaApi.initiateUpload).toHaveBeenCalledWith(
-        file,
-        'WHATSAPP_MEDIA',
-        'company-1',
-      ),
+      expect(mediaApi.initiateUpload).toHaveBeenCalledWith(file, 'WHATSAPP_MEDIA', 'company-1'),
     )
     expect(mediaApi.uploadFileToStorage).toHaveBeenCalled()
     expect(mediaApi.completeUpload).toHaveBeenCalledWith('media-1')

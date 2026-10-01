@@ -150,16 +150,12 @@ export default function GooglePerformanceMaxAssets({
       ])
       setLinkedAssets(linked)
       setLibraryAssets(library)
-      setPerformance(
-        performanceRows.find((row) => row.id === assetGroup.id) ?? null,
-      )
+      setPerformance(performanceRows.find((row) => row.id === assetGroup.id) ?? null)
       setTrackingTemplate(urlOptions.trackingUrlTemplate ?? '')
       setFinalUrlSuffix(urlOptions.finalUrlSuffix ?? '')
       setCustomParameters(formatParameters(urlOptions.customParameters))
     } catch (loadError) {
-      setError(
-        apiErrorMessage(loadError, 'Unable to load Performance Max assets'),
-      )
+      setError(apiErrorMessage(loadError, 'Unable to load Performance Max assets'))
     } finally {
       setLoading(false)
     }
@@ -196,9 +192,7 @@ export default function GooglePerformanceMaxAssets({
       setImageBase64(await fileToDataUrl(file))
       setError('')
     } catch (readError) {
-      setError(
-        readError instanceof Error ? readError.message : 'Unable to read image',
-      )
+      setError(readError instanceof Error ? readError.message : 'Unable to read image')
     }
   }
 
@@ -242,9 +236,7 @@ export default function GooglePerformanceMaxAssets({
       )
       setLibraryAssets(await adCenterApi.googleAssets(companyId, accountId))
     } catch (saveError) {
-      setError(
-        apiErrorMessage(saveError, 'Unable to add Performance Max asset'),
-      )
+      setError(apiErrorMessage(saveError, 'Unable to add Performance Max asset'))
     } finally {
       setSaving(false)
     }
@@ -265,12 +257,7 @@ export default function GooglePerformanceMaxAssets({
       setLinkedAssets(updated)
       setNotice('Asset unlinked from the Performance Max Asset Group.')
     } catch (removeError) {
-      setError(
-        apiErrorMessage(
-          removeError,
-          'Unable to remove Performance Max asset',
-        ),
-      )
+      setError(apiErrorMessage(removeError, 'Unable to remove Performance Max asset'))
     } finally {
       setRemoving(null)
     }
@@ -297,9 +284,7 @@ export default function GooglePerformanceMaxAssets({
       setCustomParameters(formatParameters(updated.customParameters))
       setNotice('Asset Group URL options saved to Google Ads.')
     } catch (saveError) {
-      setError(
-        apiErrorMessage(saveError, 'Unable to update Asset Group URL options'),
-      )
+      setError(apiErrorMessage(saveError, 'Unable to update Asset Group URL options'))
     } finally {
       setSavingUrls(false)
     }
@@ -345,7 +330,6 @@ export default function GooglePerformanceMaxAssets({
           {error || notice}
         </div>
       )}
-
 
       {performance && (
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
@@ -396,17 +380,16 @@ export default function GooglePerformanceMaxAssets({
             ))}
           </div>
 
-          {performance.assetCoverage &&
-            Object.keys(performance.assetCoverage).length > 0 && (
-              <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <summary className="cursor-pointer text-xs font-semibold text-slate-700">
-                  Asset coverage details
-                </summary>
-                <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-[10px] leading-5 text-slate-500">
-                  {JSON.stringify(performance.assetCoverage, null, 2)}
-                </pre>
-              </details>
-            )}
+          {performance.assetCoverage && Object.keys(performance.assetCoverage).length > 0 && (
+            <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <summary className="cursor-pointer text-xs font-semibold text-slate-700">
+                Asset coverage details
+              </summary>
+              <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-[10px] leading-5 text-slate-500">
+                {JSON.stringify(performance.assetCoverage, null, 2)}
+              </pre>
+            </details>
+          )}
         </div>
       )}
 
@@ -476,9 +459,7 @@ export default function GooglePerformanceMaxAssets({
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                   {formatLabel(type)}
                 </p>
-                <span className="text-[11px] font-semibold text-slate-400">
-                  {assets.length}
-                </span>
+                <span className="text-[11px] font-semibold text-slate-400">{assets.length}</span>
               </div>
               <div className="grid gap-2 md:grid-cols-2">
                 {assets.map((asset) => (
@@ -588,9 +569,7 @@ export default function GooglePerformanceMaxAssets({
                   key={mode}
                   type="button"
                   className={`rounded-md px-3 py-1.5 text-[11px] font-semibold ${
-                    sourceMode === mode
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-500'
+                    sourceMode === mode ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
                   }`}
                   onClick={() => setSourceMode(mode)}
                 >
@@ -606,9 +585,7 @@ export default function GooglePerformanceMaxAssets({
               <select
                 className="form-input mt-2"
                 value={fieldType}
-                onChange={(event) =>
-                  setFieldType(event.target.value as FieldType)
-                }
+                onChange={(event) => setFieldType(event.target.value as FieldType)}
               >
                 {FIELD_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -627,20 +604,12 @@ export default function GooglePerformanceMaxAssets({
                 <select
                   className="form-input mt-2"
                   value={existingAssetResourceName}
-                  onChange={(event) =>
-                    setExistingAssetResourceName(event.target.value)
-                  }
+                  onChange={(event) => setExistingAssetResourceName(event.target.value)}
                 >
                   <option value="">Select an asset</option>
                   {compatibleLibraryAssets.map((asset) => (
-                    <option
-                      key={asset.resourceName ?? asset.id}
-                      value={asset.resourceName ?? ''}
-                    >
-                      {asset.name ||
-                        asset.text ||
-                        asset.youtubeVideoId ||
-                        asset.id}
+                    <option key={asset.resourceName ?? asset.id} value={asset.resourceName ?? ''}>
+                      {asset.name || asset.text || asset.youtubeVideoId || asset.id}
                     </option>
                   ))}
                 </select>

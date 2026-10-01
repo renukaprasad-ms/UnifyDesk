@@ -59,7 +59,11 @@ export default function EmailTemplateProviderModal({
       )
       let nextBindings = allBindings
 
-      if (canModify && template.publishedVersion !== null && template.publishedVersion !== undefined) {
+      if (
+        canModify &&
+        template.publishedVersion !== null &&
+        template.publishedVersion !== undefined
+      ) {
         const refreshable = allBindings.filter(
           (binding) =>
             binding.templateVersion === template.publishedVersion &&
@@ -74,9 +78,7 @@ export default function EmailTemplateProviderModal({
           const updates = new Map(
             refreshed
               .filter(
-                (
-                  result,
-                ): result is PromiseFulfilledResult<EmailTemplateProviderBinding> =>
+                (result): result is PromiseFulfilledResult<EmailTemplateProviderBinding> =>
                   result.status === 'fulfilled',
               )
               .map((result) => [result.value.id, result.value]),
@@ -109,15 +111,8 @@ export default function EmailTemplateProviderModal({
   const sync = async (connectionId: string) => {
     setWorkingId(connectionId)
     try {
-      const binding = await emailTemplateApi.syncMsg91(
-        companyId,
-        template.id,
-        connectionId,
-      )
-      setBindings((current) => [
-        binding,
-        ...current.filter((item) => item.id !== binding.id),
-      ])
+      const binding = await emailTemplateApi.syncMsg91(companyId, template.id, connectionId)
+      setBindings((current) => [binding, ...current.filter((item) => item.id !== binding.id)])
       snackbar.success('Template synced to MSG91.')
     } catch (error) {
       snackbar.error(apiErrorMessage(error, 'Unable to sync template to MSG91'))
@@ -131,9 +126,7 @@ export default function EmailTemplateProviderModal({
     setWorkingId(binding.connectionId)
     try {
       const updated = await emailTemplateApi.refreshProviderBinding(companyId, binding.id)
-      setBindings((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      )
+      setBindings((current) => current.map((item) => (item.id === updated.id ? updated : item)))
       snackbar.success('MSG91 template status refreshed.')
     } catch (error) {
       snackbar.error(apiErrorMessage(error, 'Unable to refresh MSG91 status'))
@@ -161,8 +154,8 @@ export default function EmailTemplateProviderModal({
           <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-xs font-bold text-amber-900">MSG91 Email is transactional-only</p>
             <p className="mt-1 text-xs leading-5 text-amber-800">
-              The published version is marked Marketing, so Messaging will not sync or send it through
-              MSG91. Change the purpose only when the message is genuinely transactional.
+              The published version is marked Marketing, so Messaging will not sync or send it
+              through MSG91. Change the purpose only when the message is genuinely transactional.
             </p>
           </div>
         )}
@@ -200,15 +193,10 @@ export default function EmailTemplateProviderModal({
                 const binding = currentBindings.get(sender.connectionId)
                 const busy = workingId === sender.connectionId
                 return (
-                  <div
-                    key={sender.id}
-                    className="rounded-xl border border-slate-200 bg-white p-4"
-                  >
+                  <div key={sender.id} className="rounded-xl border border-slate-200 bg-white p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-bold text-slate-900">
-                          {sender.connectionName}
-                        </p>
+                        <p className="text-sm font-bold text-slate-900">{sender.connectionName}</p>
                         <p className="mt-1 text-xs text-slate-500">
                           {sender.displayName
                             ? `${sender.displayName} <${sender.fromAddress}>`
@@ -218,7 +206,7 @@ export default function EmailTemplateProviderModal({
                       <span
                         className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
                           binding
-                            ? statusClass[binding.status] ?? 'bg-slate-100 text-slate-600'
+                            ? (statusClass[binding.status] ?? 'bg-slate-100 text-slate-600')
                             : 'bg-slate-100 text-slate-600'
                         }`}
                       >
@@ -258,16 +246,16 @@ export default function EmailTemplateProviderModal({
                       {canModify &&
                         (!binding ||
                           (binding.status === 'FAILED' && !binding.providerTemplateId)) && (
-                        <button
-                          type="button"
-                          className="primary-button inline-flex items-center gap-2"
-                          disabled={busy || publishedPurpose !== 'TRANSACTIONAL'}
-                          onClick={() => void sync(sender.connectionId)}
-                        >
-                          <FiUploadCloud />
-                          {binding ? 'Retry sync' : 'Sync to MSG91'}
-                        </button>
-                      )}
+                          <button
+                            type="button"
+                            className="primary-button inline-flex items-center gap-2"
+                            disabled={busy || publishedPurpose !== 'TRANSACTIONAL'}
+                            onClick={() => void sync(sender.connectionId)}
+                          >
+                            <FiUploadCloud />
+                            {binding ? 'Retry sync' : 'Sync to MSG91'}
+                          </button>
+                        )}
                     </div>
                   </div>
                 )

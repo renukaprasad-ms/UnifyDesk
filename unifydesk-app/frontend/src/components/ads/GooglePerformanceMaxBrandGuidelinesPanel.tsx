@@ -115,8 +115,8 @@ export default function GooglePerformanceMaxBrandGuidelinesPanel({
         <div>
           <h2 className="font-bold text-slate-950">Performance Max brand guidelines</h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-            Controls campaign-level brand assets and the colors/font Google can use in
-            automatically generated Performance Max formats.
+            Controls campaign-level brand assets and the colors/font Google can use in automatically
+            generated Performance Max formats.
           </p>
         </div>
         <button
@@ -149,9 +149,7 @@ export default function GooglePerformanceMaxBrandGuidelinesPanel({
           <>
             <div
               className={`rounded-xl border p-4 ${
-                value.enabled
-                  ? 'border-emerald-200 bg-emerald-50'
-                  : 'border-amber-200 bg-amber-50'
+                value.enabled ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'
               }`}
             >
               <p

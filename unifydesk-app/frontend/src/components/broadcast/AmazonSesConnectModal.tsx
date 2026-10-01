@@ -1,10 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { FiCheckCircle, FiCloud, FiShield, FiX } from 'react-icons/fi'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
-import type {
-  BroadcastSender,
-  BroadcastSenderAuthMode,
-} from '../../features/broadcast/types'
+import type { BroadcastSender, BroadcastSenderAuthMode } from '../../features/broadcast/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../feedback/SnackbarProvider'
 
@@ -66,8 +63,8 @@ export default function AmazonSesConnectModal({ companyId, onClose, onConnected 
             <div>
               <p className="text-base font-bold text-slate-950">Connect Amazon SES</p>
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                Bring your own AWS SES account for high-volume email broadcasts. AWS bills your
-                AWS account directly.
+                Bring your own AWS SES account for high-volume email broadcasts. AWS bills your AWS
+                account directly.
               </p>
             </div>
           </div>
@@ -233,16 +230,16 @@ export default function AmazonSesConnectModal({ companyId, onClose, onConnected 
             <span>$0.11 USD / 1,000 emails above 100M emails/month</span>
           </div>
           <p className="mt-2 text-[11px] leading-4 text-slate-500">
-            Reference pricing from the AWS plan screen you provided. AWS pricing can change; this
-            is informational and is not used by Messaging for billing.
+            Reference pricing from the AWS plan screen you provided. AWS pricing can change; this is
+            informational and is not used by Messaging for billing.
           </p>
         </div>
 
         <div className="mt-4 flex gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-800">
           <FiCheckCircle className="mt-0.5 shrink-0" aria-hidden="true" />
           <span>
-            Messaging validates the SES account, reads its current quota/send rate, and verifies
-            the From email or its domain before saving this sender.
+            Messaging validates the SES account, reads its current quota/send rate, and verifies the
+            From email or its domain before saving this sender.
           </span>
         </div>
 

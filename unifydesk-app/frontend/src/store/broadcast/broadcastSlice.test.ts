@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type {
-  BroadcastMessageSummary,
-  BroadcastStats,
-} from '../../features/broadcast/types'
-import broadcastReducer, {
-  applyBroadcastProgress,
-  fetchBroadcastHistory,
-} from './broadcastSlice'
+import type { BroadcastMessageSummary, BroadcastStats } from '../../features/broadcast/types'
+import broadcastReducer, { applyBroadcastProgress, fetchBroadcastHistory } from './broadcastSlice'
 
 const stats = (accepted = 0): BroadcastStats => ({
   total: 10,

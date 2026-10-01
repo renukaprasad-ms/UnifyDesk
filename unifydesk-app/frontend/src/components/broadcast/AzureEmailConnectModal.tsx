@@ -67,8 +67,8 @@ export default function AzureEmailConnectModal({ companyId, onClose, onConnected
         <div className="mt-5 rounded-xl border border-sky-100 bg-sky-50/60 p-4">
           <p className="text-xs font-bold text-slate-900">Azure setup</p>
           <p className="mt-1 text-xs leading-5 text-slate-600">
-            Use the endpoint and access key from the Azure Communication Services resource. The
-            From address must be a MailFrom address on a domain linked to that resource.
+            Use the endpoint and access key from the Azure Communication Services resource. The From
+            address must be a MailFrom address on a domain linked to that resource.
           </p>
         </div>
 
@@ -143,7 +143,9 @@ export default function AzureEmailConnectModal({ companyId, onClose, onConnected
 
         <div className="mt-4 flex gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-800">
           <FiCheckCircle className="mt-0.5 shrink-0" aria-hidden="true" />
-          <span>The Azure access key is encrypted before storage and is never returned by the API.</span>
+          <span>
+            The Azure access key is encrypted before storage and is never returned by the API.
+          </span>
         </div>
 
         <div className="mt-6 flex flex-wrap justify-end gap-2">

@@ -1,9 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { FiX } from 'react-icons/fi'
-import type {
-  AdAccountResource,
-  CreateMetaConversionInput,
-} from '../../features/ads/types'
+import type { AdAccountResource, CreateMetaConversionInput } from '../../features/ads/types'
 
 type Props = {
   resources: AdAccountResource[]
@@ -31,20 +28,15 @@ const eventTypes = [
 ]
 
 const label = (value: string) =>
-  value.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+  value
+    .replaceAll('_', ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
 
-export default function MetaConversionModal({
-  resources,
-  open,
-  saving,
-  onClose,
-  onCreate,
-}: Props) {
+export default function MetaConversionModal({ resources, open, saving, onClose, onCreate }: Props) {
   const pixels = useMemo(
     () =>
-      resources.filter(
-        (resource) => resource.resourceType === 'META_PIXEL' && resource.accessible,
-      ),
+      resources.filter((resource) => resource.resourceType === 'META_PIXEL' && resource.accessible),
     [resources],
   )
 
@@ -77,9 +69,7 @@ export default function MetaConversionModal({
         <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white px-6 py-5">
           <div>
             <p className="eyebrow">Meta Ads</p>
-            <h2 className="mt-1 text-xl font-bold text-slate-950">
-              Create custom conversion
-            </h2>
+            <h2 className="mt-1 text-xl font-bold text-slate-950">Create custom conversion</h2>
             <p className="mt-1 text-sm text-slate-500">
               Define a conversion from an existing Meta pixel and event rule.
             </p>
@@ -159,8 +149,8 @@ export default function MetaConversionModal({
               onChange={(event) => setRuleJson(event.target.value)}
             />
             <span className="mt-2 block font-normal leading-5 text-slate-400">
-              Define the URL/event rule that determines when the pixel event counts as this
-              custom conversion.
+              Define the URL/event rule that determines when the pixel event counts as this custom
+              conversion.
             </span>
           </label>
 
@@ -179,18 +169,13 @@ export default function MetaConversionModal({
 
           {pixels.length === 0 && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
-              No accessible pixel is synced for this account. Sync Meta resources before creating
-              a custom conversion.
+              No accessible pixel is synced for this account. Sync Meta resources before creating a
+              custom conversion.
             </div>
           )}
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-              disabled={saving}
-            >
+            <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>
               Cancel
             </button>
             <button

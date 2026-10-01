@@ -100,12 +100,7 @@ const client = (overrides: Partial<ManagedEmailApi> = {}): ManagedEmailApi =>
 describe('ManagedEmailPanel', () => {
   it('shows useful usage, near-limit and deliverability states', async () => {
     render(
-      <ManagedEmailPanel
-        companyId="company-1"
-        canModify
-        onOpenSetup={vi.fn()}
-        client={client()}
-      />,
+      <ManagedEmailPanel companyId="company-1" canModify onOpenSetup={vi.fn()} client={client()} />,
     )
 
     expect(await screen.findByText('920')).toBeTruthy()
@@ -122,19 +117,10 @@ describe('ManagedEmailPanel', () => {
     const api = client({
       usage: vi.fn().mockResolvedValue({ ...usage, limit: -1, remaining: -1 }),
     })
-    render(
-      <ManagedEmailPanel
-        companyId="company-1"
-        canModify
-        onOpenSetup={vi.fn()}
-        client={api}
-      />,
-    )
+    render(<ManagedEmailPanel companyId="company-1" canModify onOpenSetup={vi.fn()} client={api} />)
 
     await screen.findByText('920')
-    expect(screen.getByText('Unlimited').parentElement?.textContent).toContain(
-      'remaining',
-    )
+    expect(screen.getByText('Unlimited').parentElement?.textContent).toContain('remaining')
     expect(screen.getByText(/Limit: Unlimited/i)).toBeTruthy()
     expect(screen.queryByText('-1')).toBeNull()
   })
@@ -142,9 +128,7 @@ describe('ManagedEmailPanel', () => {
   it('shows limit reached and suspended deliverability as non-ready', async () => {
     const api = client({
       overview: vi.fn().mockResolvedValue({ ...overview, sendingStatus: 'DISABLED' }),
-      usage: vi
-        .fn()
-        .mockResolvedValue({ ...usage, remaining: 0, limitReached: true }),
+      usage: vi.fn().mockResolvedValue({ ...usage, remaining: 0, limitReached: true }),
       deliverability: vi.fn().mockResolvedValue({
         ...deliverability,
         status: 'SUSPENDED',
@@ -152,31 +136,17 @@ describe('ManagedEmailPanel', () => {
         notice: 'Sending is paused while this workspace is reviewed.',
       }),
     })
-    render(
-      <ManagedEmailPanel
-        companyId="company-1"
-        canModify
-        onOpenSetup={vi.fn()}
-        client={api}
-      />,
-    )
+    render(<ManagedEmailPanel companyId="company-1" canModify onOpenSetup={vi.fn()} client={api} />)
 
     expect(await screen.findByText(/Sending needs attention/i)).toBeTruthy()
     expect(screen.getByText(/Monthly sending limit reached/i)).toBeTruthy()
     expect(screen.getByText('SUSPENDED')).toBeTruthy()
-    expect(
-      screen.getByText(/Sending is paused while this workspace is reviewed/i),
-    ).toBeTruthy()
+    expect(screen.getByText(/Sending is paused while this workspace is reviewed/i)).toBeTruthy()
   })
 
   it('never renders stale managed SES topology or shared account capacity', async () => {
     render(
-      <ManagedEmailPanel
-        companyId="company-1"
-        canModify
-        onOpenSetup={vi.fn()}
-        client={client()}
-      />,
+      <ManagedEmailPanel companyId="company-1" canModify onOpenSetup={vi.fn()} client={client()} />,
     )
 
     expect(await screen.findByText('offers@example.com')).toBeTruthy()
@@ -207,30 +177,17 @@ describe('ManagedEmailPanel', () => {
 
   it('supports disabling a sender and retiring a domain without deleting history client-side', async () => {
     const removeSender = vi.fn().mockResolvedValue(undefined)
-    const retireDomain = vi
-      .fn()
-      .mockResolvedValue({ ...activeDomain, status: 'DELETING' })
+    const retireDomain = vi.fn().mockResolvedValue({ ...activeDomain, status: 'DELETING' })
     const api = client({ removeSender, retireDomain })
     vi.spyOn(window, 'confirm').mockReturnValue(true)
 
-    render(
-      <ManagedEmailPanel
-        companyId="company-1"
-        canModify
-        onOpenSetup={vi.fn()}
-        client={api}
-      />,
-    )
+    render(<ManagedEmailPanel companyId="company-1" canModify onOpenSetup={vi.fn()} client={api} />)
 
     await screen.findByText('offers@example.com')
     fireEvent.click(screen.getByRole('button', { name: /Disable/i }))
-    await waitFor(() =>
-      expect(removeSender).toHaveBeenCalledWith('company-1', 'sender-1'),
-    )
+    await waitFor(() => expect(removeSender).toHaveBeenCalledWith('company-1', 'sender-1'))
 
     fireEvent.click(screen.getByRole('button', { name: /Retire/i }))
-    await waitFor(() =>
-      expect(retireDomain).toHaveBeenCalledWith('company-1', 'domain-1'),
-    )
+    await waitFor(() => expect(retireDomain).toHaveBeenCalledWith('company-1', 'domain-1'))
   })
 })

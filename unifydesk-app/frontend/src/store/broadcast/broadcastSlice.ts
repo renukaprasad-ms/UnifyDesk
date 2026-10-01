@@ -46,9 +46,8 @@ const initialState: BroadcastState = {
   loadingMoreHistory: false,
 }
 
-const messageStatusFromRun = (
-  status: BroadcastProgressEvent['status'],
-): BroadcastMessageStatus => (status === 'PREPARING' ? 'QUEUED' : status)
+const messageStatusFromRun = (status: BroadcastProgressEvent['status']): BroadcastMessageStatus =>
+  status === 'PREPARING' ? 'QUEUED' : status
 
 const summaryFromMessage = (message: BroadcastMessage): BroadcastMessageSummary => ({
   id: message.id,
@@ -93,10 +92,7 @@ export const fetchBroadcastGroups = createAsyncThunk<
     condition: ({ companyId, channelType, append = false, force }, { getState }) => {
       if (force) return true
       const state = getState().broadcast
-      if (
-        state.groupsCompanyId !== companyId ||
-        state.groupsChannelType !== channelType
-      ) {
+      if (state.groupsCompanyId !== companyId || state.groupsChannelType !== channelType) {
         return true
       }
       if (append) return !state.loadingMoreGroups
@@ -132,8 +128,7 @@ export const fetchBroadcastHistory = createAsyncThunk<
     condition: ({ companyId, groupId, append = false, force }, { getState }) => {
       if (force) return true
       const state = getState().broadcast
-      const same =
-        state.historyCompanyId === companyId && state.historyGroupId === groupId
+      const same = state.historyCompanyId === companyId && state.historyGroupId === groupId
       if (!same) return true
       if (append) return !state.loadingMoreHistory
       return state.historyStatus === 'idle' || state.historyStatus === 'error'
@@ -162,9 +157,7 @@ const broadcastSlice = createSlice({
     },
     applyBroadcastProgress(state, action: PayloadAction<BroadcastProgressEvent>) {
       if (state.historyGroupId !== action.payload.groupId) return
-      const message = state.messages.find(
-        (item) => item.id === action.payload.broadcastId,
-      )
+      const message = state.messages.find((item) => item.id === action.payload.broadcastId)
       if (!message) return
       message.runId = action.payload.runId
       message.status = messageStatusFromRun(action.payload.status)
@@ -185,10 +178,7 @@ const broadcastSlice = createSlice({
     builder
       .addCase(fetchBroadcastGroups.pending, (state, action) => {
         const { companyId, channelType, append = false } = action.meta.arg
-        if (
-          state.groupsCompanyId !== companyId ||
-          state.groupsChannelType !== channelType
-        ) {
+        if (state.groupsCompanyId !== companyId || state.groupsChannelType !== channelType) {
           state.groups = []
         }
         state.groupsCompanyId = companyId
@@ -222,8 +212,7 @@ const broadcastSlice = createSlice({
       })
       .addCase(fetchBroadcastHistory.pending, (state, action) => {
         const { companyId, groupId, append = false } = action.meta.arg
-        const same =
-          state.historyCompanyId === companyId && state.historyGroupId === groupId
+        const same = state.historyCompanyId === companyId && state.historyGroupId === groupId
         if (!same) {
           state.messages = []
           state.historyPage = 0

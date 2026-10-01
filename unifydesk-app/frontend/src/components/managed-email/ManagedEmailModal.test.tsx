@@ -18,9 +18,7 @@ const overview: ManagedEmailOverview = {
   globalNotice: null,
 }
 
-const domain = (
-  overrides: Partial<ManagedEmailDomain> = {},
-): ManagedEmailDomain => ({
+const domain = (overrides: Partial<ManagedEmailDomain> = {}): ManagedEmailDomain => ({
   id: 'domain-1',
   type: 'CUSTOMER_DOMAIN',
   domain: 'example.com',
@@ -63,15 +61,13 @@ const client = (overrides: Partial<ManagedEmailApi> = {}): ManagedEmailApi =>
     domains: vi.fn().mockResolvedValue([]),
     domain: vi.fn().mockResolvedValue(domain()),
     createCustomerDomain: vi.fn().mockResolvedValue(domain()),
-    createHostedDomain: vi
-      .fn()
-      .mockResolvedValue(
-        domain({
-          type: 'UNIFYDESK_HOSTED',
-          domain: 'abc-k7m4q2.unifydesk.in',
-          status: 'VERIFYING',
-        }),
-      ),
+    createHostedDomain: vi.fn().mockResolvedValue(
+      domain({
+        type: 'UNIFYDESK_HOSTED',
+        domain: 'abc-k7m4q2.unifydesk.in',
+        status: 'VERIFYING',
+      }),
+    ),
     refreshDomain: vi.fn().mockResolvedValue(domain()),
     retireDomain: vi.fn().mockResolvedValue(null),
     senders: vi.fn().mockResolvedValue([]),
@@ -133,9 +129,7 @@ describe('ManagedEmailModal', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: /Add domain/i }))
 
-    expect(
-      await screen.findByText(/Enter a bare domain such as example.com/i),
-    ).toBeTruthy()
+    expect(await screen.findByText(/Enter a bare domain such as example.com/i)).toBeTruthy()
     expect(api.createCustomerDomain).not.toHaveBeenCalled()
   })
 
@@ -180,9 +174,7 @@ describe('ManagedEmailModal', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: /Copy Value/i })[0])
     await waitFor(() =>
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-        'abc.dkim.target.example',
-      ),
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('abc.dkim.target.example'),
     )
     expect(screen.getByText('Copied to clipboard')).toBeTruthy()
     expect(screen.queryByText(/Copied.*verified/i)).toBeNull()
@@ -205,9 +197,7 @@ describe('ManagedEmailModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Recheck/i }))
 
-    await waitFor(() =>
-      expect(api.refreshDomain).toHaveBeenCalledWith('company-1', 'domain-1'),
-    )
+    await waitFor(() => expect(api.refreshDomain).toHaveBeenCalledWith('company-1', 'domain-1'))
     expect(await screen.findByText(/Domain active/i)).toBeTruthy()
   })
 
@@ -253,8 +243,7 @@ describe('ManagedEmailModal', () => {
 
     fireEvent.change(localPart, { target: { value: 'ceo@amazon.com' } })
     expect(
-      (screen.getByRole('button', { name: /^Create sender$/i }) as HTMLButtonElement)
-        .disabled,
+      (screen.getByRole('button', { name: /^Create sender$/i }) as HTMLButtonElement).disabled,
     ).toBe(true)
     expect(createSender).not.toHaveBeenCalled()
 
@@ -310,9 +299,8 @@ describe('ManagedEmailModal', () => {
 
     expect(await screen.findByText('offers@example.com')).toBeTruthy()
     expect(
-      screen.getByText((_, element) =>
-        element?.textContent ===
-        'Example Offers · UnifyDesk Managed Email',
+      screen.getByText(
+        (_, element) => element?.textContent === 'Example Offers · UnifyDesk Managed Email',
       ),
     ).toBeTruthy()
     expect(screen.queryByText(/ap-south-1/i)).toBeNull()

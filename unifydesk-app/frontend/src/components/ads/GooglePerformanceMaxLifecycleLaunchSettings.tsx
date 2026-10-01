@@ -74,20 +74,12 @@ export default function GooglePerformanceMaxLifecycleLaunchSettings({
         setCustomerTypes(customerTypeData)
       })
       .catch((loadError) =>
-        setError(
-          apiErrorMessage(
-            loadError,
-            'Unable to load Google lifecycle-goal readiness',
-          ),
-        ),
+        setError(apiErrorMessage(loadError, 'Unable to load Google lifecycle-goal readiness')),
       )
       .finally(() => setLoading(false))
   }, [companyId, accountId])
 
-  const configured = useMemo(
-    () => new Set(goals.map((goal) => goal.goalType)),
-    [goals],
-  )
+  const configured = useMemo(() => new Set(goals.map((goal) => goal.goalType)), [goals])
   const hasClassifiedLists = customerTypes.length > 0
   const hasLoyaltyTier = customerTypes.some((item) =>
     item.customerTypeCategory?.startsWith('LOYALTY_TIER_'),
@@ -95,12 +87,10 @@ export default function GooglePerformanceMaxLifecycleLaunchSettings({
 
   return (
     <div className="rounded-xl border border-violet-100 bg-violet-50/40 p-4 sm:col-span-2">
-      <p className="text-xs font-semibold text-slate-700">
-        Customer lifecycle optimization
-      </p>
+      <p className="text-xs font-semibold text-slate-700">Customer lifecycle optimization</p>
       <p className="mt-1 text-[11px] leading-5 text-slate-500">
-        Optional. Account lifecycle goals and customer-list classifications must
-        already be configured. This launch only applies campaign-specific settings.
+        Optional. Account lifecycle goals and customer-list classifications must already be
+        configured. This launch only applies campaign-specific settings.
       </p>
 
       {error && (
@@ -119,11 +109,7 @@ export default function GooglePerformanceMaxLifecycleLaunchSettings({
               className="form-input mt-2"
               value={goalType}
               disabled={disabled || !accountId}
-              onChange={(event) =>
-                setGoalType(
-                  event.target.value as GoogleLifecycleGoalType | '',
-                )
-              }
+              onChange={(event) => setGoalType(event.target.value as GoogleLifecycleGoalType | '')}
             >
               <option value="">No lifecycle goal</option>
               {OPTIONS.map((option) => {
@@ -132,11 +118,7 @@ export default function GooglePerformanceMaxLifecycleLaunchSettings({
                   hasClassifiedLists &&
                   (option.value !== 'LOYALTY_RETENTION' || hasLoyaltyTier)
                 return (
-                  <option
-                    key={option.value}
-                    value={option.value}
-                    disabled={!ready}
-                  >
+                  <option key={option.value} value={option.value} disabled={!ready}>
                     {option.label}
                     {ready
                       ? ''
@@ -162,26 +144,20 @@ export default function GooglePerformanceMaxLifecycleLaunchSettings({
                       value={targetOption}
                       disabled={disabled}
                       onChange={(event) =>
-                        setTargetOption(
-                          event.target.value as 'TARGET_ALL' | 'TARGET_SPECIFIC',
-                        )
+                        setTargetOption(event.target.value as 'TARGET_ALL' | 'TARGET_SPECIFIC')
                       }
                     >
                       <option value="TARGET_ALL">
                         Target all · bid/value higher for lifecycle customers
                       </option>
-                      <option value="TARGET_SPECIFIC">
-                        Target lifecycle customers only
-                      </option>
+                      <option value="TARGET_SPECIFIC">Target lifecycle customers only</option>
                     </select>
                   </label>
-                  {goalType === 'CUSTOMER_RETENTION' &&
-                    targetOption === 'TARGET_SPECIFIC' && (
-                      <p className="text-[11px] leading-5 text-amber-700">
-                        Google only allows retention TARGET_SPECIFIC for allowlisted
-                        accounts.
-                      </p>
-                    )}
+                  {goalType === 'CUSTOMER_RETENTION' && targetOption === 'TARGET_SPECIFIC' && (
+                    <p className="text-[11px] leading-5 text-amber-700">
+                      Google only allows retention TARGET_SPECIFIC for allowlisted accounts.
+                    </p>
+                  )}
 
                   {targetOption === 'TARGET_ALL' && (
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -193,9 +169,7 @@ export default function GooglePerformanceMaxLifecycleLaunchSettings({
                           min="0"
                           value={additionalValue}
                           disabled={disabled}
-                          onChange={(event) =>
-                            setAdditionalValue(event.target.value)
-                          }
+                          onChange={(event) => setAdditionalValue(event.target.value)}
                         />
                       </label>
                       <label className="block text-xs font-semibold text-slate-700">
@@ -206,9 +180,7 @@ export default function GooglePerformanceMaxLifecycleLaunchSettings({
                           min="0"
                           value={highLifetimeValue}
                           disabled={disabled}
-                          onChange={(event) =>
-                            setHighLifetimeValue(event.target.value)
-                          }
+                          onChange={(event) => setHighLifetimeValue(event.target.value)}
                         />
                       </label>
                     </div>
@@ -225,9 +197,7 @@ export default function GooglePerformanceMaxLifecycleLaunchSettings({
                       step="0.1"
                       value={valueMultiplier}
                       disabled={disabled}
-                      onChange={(event) =>
-                        setValueMultiplier(event.target.value)
-                      }
+                      onChange={(event) => setValueMultiplier(event.target.value)}
                     />
                   </label>
                   <label className="flex items-center gap-2 text-xs text-slate-700">
@@ -236,9 +206,7 @@ export default function GooglePerformanceMaxLifecycleLaunchSettings({
                       checked={enableBidAdjustmentsForLoyaltyMembers}
                       disabled={disabled}
                       onChange={(event) =>
-                        setEnableBidAdjustmentsForLoyaltyMembers(
-                          event.target.checked,
-                        )
+                        setEnableBidAdjustmentsForLoyaltyMembers(event.target.checked)
                       }
                     />
                     Enable bid adjustments for loyalty members
@@ -249,9 +217,7 @@ export default function GooglePerformanceMaxLifecycleLaunchSettings({
                       checked={showTargetedLoyaltyMemberBenefitsInPla}
                       disabled={disabled}
                       onChange={(event) =>
-                        setShowTargetedLoyaltyMemberBenefitsInPla(
-                          event.target.checked,
-                        )
+                        setShowTargetedLoyaltyMemberBenefitsInPla(event.target.checked)
                       }
                     />
                     Show eligible loyalty-member PLA benefits

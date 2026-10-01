@@ -12,12 +12,8 @@ type Props = {
   open: boolean
   saving: boolean
   onClose: () => void
-  onCreateMultiAsset: (
-    input: CreateGoogleDemandGenMultiAssetAdInput,
-  ) => Promise<void>
-  onCreateCarousel: (
-    input: CreateGoogleDemandGenCarouselAdInput,
-  ) => Promise<void>
+  onCreateMultiAsset: (input: CreateGoogleDemandGenMultiAssetAdInput) => Promise<void>
+  onCreateCarousel: (input: CreateGoogleDemandGenCarouselAdInput) => Promise<void>
   onChooseVideo: () => void
 }
 
@@ -112,8 +108,7 @@ export default function GoogleDemandGenCreativeModal({
   if (!open) return null
 
   const readImage =
-    (setter: (value: string) => void) =>
-    async (event: ChangeEvent<HTMLInputElement>) => {
+    (setter: (value: string) => void) => async (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0]
       if (!file) return
       setImageError('')
@@ -130,19 +125,14 @@ export default function GoogleDemandGenCreativeModal({
       try {
         setter(await fileToDataUrl(file))
       } catch (error) {
-        setImageError(
-          error instanceof Error ? error.message : 'Unable to read image file',
-        )
+        setImageError(error instanceof Error ? error.message : 'Unable to read image file')
       }
     }
 
   const readCardImage =
     (
       id: string,
-      key:
-        | 'marketingImageBase64'
-        | 'squareMarketingImageBase64'
-        | 'portraitMarketingImageBase64',
+      key: 'marketingImageBase64' | 'squareMarketingImageBase64' | 'portraitMarketingImageBase64',
     ) =>
     async (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0]
@@ -164,9 +154,7 @@ export default function GoogleDemandGenCreativeModal({
         )
         setImageError('')
       } catch (error) {
-        setImageError(
-          error instanceof Error ? error.message : 'Unable to read image file',
-        )
+        setImageError(error instanceof Error ? error.message : 'Unable to read image file')
       }
     }
 
@@ -209,13 +197,8 @@ export default function GoogleDemandGenCreativeModal({
     })
   }
 
-  const updateCard = (
-    id: string,
-    patch: Partial<GoogleDemandGenCarouselCardInput>,
-  ) =>
-    setCards((current) =>
-      current.map((card) => (card.id === id ? { ...card, ...patch } : card)),
-    )
+  const updateCard = (id: string, patch: Partial<GoogleDemandGenCarouselCardInput>) =>
+    setCards((current) => current.map((card) => (card.id === id ? { ...card, ...patch } : card)))
 
   return (
     <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
@@ -223,9 +206,7 @@ export default function GoogleDemandGenCreativeModal({
         <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white px-6 py-5">
           <div>
             <p className="eyebrow">Google Ads · Demand Gen</p>
-            <h2 className="mt-1 text-xl font-bold text-slate-950">
-              Create Demand Gen creative
-            </h2>
+            <h2 className="mt-1 text-xl font-bold text-slate-950">Create Demand Gen creative</h2>
             <p className="mt-1 text-sm text-slate-500">
               Multi-Asset and Carousel ads are created paused for review.
             </p>
@@ -323,10 +304,7 @@ export default function GoogleDemandGenCreativeModal({
                 </div>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   {headlines.map((value, index) => (
-                    <label
-                      key={index}
-                      className="text-xs font-semibold text-slate-700"
-                    >
+                    <label key={index} className="text-xs font-semibold text-slate-700">
                       Headline {index + 1}
                       <input
                         className="form-input mt-2"
@@ -353,9 +331,7 @@ export default function GoogleDemandGenCreativeModal({
                     <button
                       type="button"
                       className="secondary-button text-xs"
-                      onClick={() =>
-                        setDescriptions((current) => [...current, ''])
-                      }
+                      onClick={() => setDescriptions((current) => [...current, ''])}
                     >
                       <FiPlus aria-hidden="true" /> Add
                     </button>
@@ -363,10 +339,7 @@ export default function GoogleDemandGenCreativeModal({
                 </div>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   {descriptions.map((value, index) => (
-                    <label
-                      key={index}
-                      className="text-xs font-semibold text-slate-700"
-                    >
+                    <label key={index} className="text-xs font-semibold text-slate-700">
                       Description {index + 1}
                       <textarea
                         className="form-input mt-2 min-h-20"
@@ -389,7 +362,8 @@ export default function GoogleDemandGenCreativeModal({
               <div>
                 <h3 className="text-sm font-bold text-slate-950">Images</h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  Supply at least a landscape or square image. Portrait and tall portrait are optional.
+                  Supply at least a landscape or square image. Portrait and tall portrait are
+                  optional.
                 </p>
                 <div className="mt-3 grid gap-3 md:grid-cols-3">
                   <ImageInput
@@ -458,9 +432,7 @@ export default function GoogleDemandGenCreativeModal({
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-bold text-slate-950">Carousel cards</h3>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Google requires 2–10 cards.
-                    </p>
+                    <p className="mt-1 text-xs text-slate-500">Google requires 2–10 cards.</p>
                   </div>
                   {cards.length < 10 && (
                     <button
@@ -476,22 +448,15 @@ export default function GoogleDemandGenCreativeModal({
 
                 <div className="mt-4 space-y-4">
                   {cards.map((card, index) => (
-                    <div
-                      key={card.id}
-                      className="rounded-xl border border-slate-200 p-4"
-                    >
+                    <div key={card.id} className="rounded-xl border border-slate-200 p-4">
                       <div className="flex items-center justify-between gap-3">
-                        <p className="text-xs font-bold text-slate-800">
-                          Card {index + 1}
-                        </p>
+                        <p className="text-xs font-bold text-slate-800">Card {index + 1}</p>
                         {cards.length > 2 && (
                           <button
                             type="button"
                             className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
                             onClick={() =>
-                              setCards((current) =>
-                                current.filter((item) => item.id !== card.id),
-                              )
+                              setCards((current) => current.filter((item) => item.id !== card.id))
                             }
                           >
                             <FiTrash2 aria-hidden="true" />
@@ -528,26 +493,17 @@ export default function GoogleDemandGenCreativeModal({
                         <ImageInput
                           label="Landscape"
                           hint="1.91:1"
-                          onChange={readCardImage(
-                            card.id,
-                            'marketingImageBase64',
-                          )}
+                          onChange={readCardImage(card.id, 'marketingImageBase64')}
                         />
                         <ImageInput
                           label="Square"
                           hint="1:1"
-                          onChange={readCardImage(
-                            card.id,
-                            'squareMarketingImageBase64',
-                          )}
+                          onChange={readCardImage(card.id, 'squareMarketingImageBase64')}
                         />
                         <ImageInput
                           label="Portrait"
                           hint="4:5"
-                          onChange={readCardImage(
-                            card.id,
-                            'portraitMarketingImageBase64',
-                          )}
+                          onChange={readCardImage(card.id, 'portraitMarketingImageBase64')}
                         />
                       </div>
                     </div>
@@ -557,29 +513,16 @@ export default function GoogleDemandGenCreativeModal({
             </>
           )}
 
-          {imageError && (
-            <p className="text-xs font-semibold text-red-600">{imageError}</p>
-          )}
+          {imageError && <p className="text-xs font-semibold text-red-600">{imageError}</p>}
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
-            <button
-              type="button"
-              className="secondary-button"
-              disabled={saving}
-              onClick={onClose}
-            >
+            <button type="button" className="secondary-button" disabled={saving} onClick={onClose}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={saving || !canSubmit}
-            >
+            <button type="submit" className="primary-button" disabled={saving || !canSubmit}>
               {saving
                 ? 'Creating…'
-                : `Create paused ${
-                    format === 'MULTI_ASSET' ? 'Multi-Asset' : 'Carousel'
-                  } ad`}
+                : `Create paused ${format === 'MULTI_ASSET' ? 'Multi-Asset' : 'Carousel'} ad`}
             </button>
           </div>
         </form>
