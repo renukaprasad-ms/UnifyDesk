@@ -4,9 +4,7 @@ on:
   push:
     branches:
       - review/whatsapp-security-qa-r3
-  pull_request:
-    branches:
-      - dev
+  workflow_dispatch:
 
 jobs:
   backend-matrix:
