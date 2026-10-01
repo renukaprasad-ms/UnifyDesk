@@ -39,7 +39,8 @@ import { apiErrorMessage } from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
 import { useSnackbar } from '../feedback/SnackbarProvider'
 import { useAppSelector } from '../../store/hooks'
-import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'\nimport { templateVariableCounts } from './whatsappTemplateUtils'
+import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import { templateVariableCounts } from './whatsappTemplateUtils'
 
 type WhatsAppInboxMessage = InboxMessage
 
