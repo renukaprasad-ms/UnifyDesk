@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react'
 import { FiCheckCircle, FiRefreshCw, FiSend, FiX } from 'react-icons/fi'
 import { managedSmsApi } from '../../features/managedSms/managedSmsApi'
 import {
@@ -53,9 +62,17 @@ export default function ManagedSmsSetupModal({
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const currentCompanyId = useRef(companyId)
+  const requestGeneration = useRef(0)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (currentCompanyId.current === companyId) return
     currentCompanyId.current = companyId
+    requestGeneration.current += 1
+    setLoading(true)
+    setStatus(null)
+    setProfile(null)
+    setHeaders([])
+    setTemplates([])
   }, [companyId])
 
   const [legalName, setLegalName] = useState('')
@@ -81,6 +98,13 @@ export default function ManagedSmsSetupModal({
 
   const load = useCallback(async () => {
     const requestCompanyId = companyId
+    if (!isManagedSmsTenantCurrent(requestCompanyId, currentCompanyId.current)) return
+
+    const generation = ++requestGeneration.current
+    const isCurrentRequest = () =>
+      isManagedSmsTenantCurrent(requestCompanyId, currentCompanyId.current) &&
+      generation === requestGeneration.current
+
     setLoading(true)
     setStatus(null)
     setProfile(null)
@@ -95,16 +119,16 @@ export default function ManagedSmsSetupModal({
           managedSmsApi.templates(requestCompanyId),
         ])
 
-      if (!isManagedSmsTenantCurrent(requestCompanyId, currentCompanyId.current)) return
+      if (!isCurrentRequest()) return
       setStatus(nextStatus.status === 'fulfilled' ? nextStatus.value : null)
       setProfile(profileResult.status === 'fulfilled' ? profileResult.value : null)
       setHeaders(headerResult.status === 'fulfilled' ? headerResult.value : [])
       setTemplates(templateResult.status === 'fulfilled' ? templateResult.value : [])
     } catch (error) {
-      if (!isManagedSmsTenantCurrent(requestCompanyId, currentCompanyId.current)) return
+      if (!isCurrentRequest()) return
       snackbar.error(managedSmsErrorMessage(error, 'Unable to load Managed SMS setup.'))
     } finally {
-      if (isManagedSmsTenantCurrent(requestCompanyId, currentCompanyId.current)) {
+      if (isCurrentRequest()) {
         setLoading(false)
       }
     }
