@@ -43,6 +43,7 @@ A workflow definition, test source, mock, code review, or GitHub job with zero e
 - [Decisions](DECISIONS.md) — platform-level decisions established by this baseline.
 - [Risk register](RISK-REGISTER.md) — P0/P1/P2 follow-up work.
 - [Go-live checklist](GO-LIVE-CHECKLIST.md) — evidence-driven release gates.
+- [Platform Hardening R1](hardening-r1/README.md) — current executable-baseline initiative, CI investigation, frozen worker contracts and QA handoff.
 
 ## Feature documentation
 
