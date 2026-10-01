@@ -21,8 +21,9 @@ export default function ConnectionRetentionNotice({
   if (connection.status !== 'DISCONNECTED') return null
 
   const hasDeadline = Boolean(connection.purgeAfter)
-  const deletionQueued =
-    hasDeadline && new Date(connection.purgeAfter as string).getTime() <= Date.now()
+  const deletionQueued = connection.purgeAfter
+    ? new Date(connection.purgeAfter).getTime() <= new Date().getTime()
+    : false
 
   return (
     <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3">
