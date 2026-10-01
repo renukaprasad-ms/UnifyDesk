@@ -20,7 +20,7 @@ spring:
     user: ${SPRING_FLYWAY_USER:${APP_DATASOURCE_WRITE_USERNAME:${SPRING_DATASOURCE_USERNAME:messaging}}}
     password: ${SPRING_FLYWAY_PASSWORD:${APP_DATASOURCE_WRITE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:messaging}}}
     locations: classpath:db/migration
-    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
     baseline-version: ${FLYWAY_BASELINE_VERSION:0}
   data:
     redis:
