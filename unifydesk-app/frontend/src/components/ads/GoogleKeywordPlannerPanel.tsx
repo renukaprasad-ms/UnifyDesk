@@ -23,7 +23,8 @@ type Props = {
 
 const values = (input: string) =>
   input
-    .split(/\r?\n|,/)
+    .split(/\r?
+|,/)
     .map((value) => value.trim())
     .filter(Boolean)
 
@@ -38,7 +39,8 @@ const dedupe = (items: string[]) => {
 }
 
 export default function GoogleKeywordPlannerPanel(props: Props) {
-  const [seedText, setSeedText] = useState(props.currentKeywords.join('\n'))
+  const [seedText, setSeedText] = useState(props.currentKeywords.join('
+'))
   const [url, setUrl] = useState(props.landingPageUrl)
   const [useEntireSite, setUseEntireSite] = useState(false)
   const [language, setLanguage] = useState(props.language ?? '')
@@ -77,7 +79,8 @@ export default function GoogleKeywordPlannerPanel(props: Props) {
       return
     }
 
-    if (append) setLoadingMore(true)\n    else setLoading(true)
+    if (append) setLoadingMore(true)
+    else setLoading(true)
     setError('')
     try {
       const result = await adCenterApi.googleKeywordPlannerIdeas(
@@ -152,7 +155,8 @@ export default function GoogleKeywordPlannerPanel(props: Props) {
   const applySelected = () => {
     const next = dedupe([...props.currentKeywords, ...selected])
     props.onApply(next)
-    setSeedText(next.join('\n'))
+    setSeedText(next.join('
+'))
   }
 
   const selectVisible = () => {
@@ -205,7 +209,9 @@ export default function GoogleKeywordPlannerPanel(props: Props) {
             value={seedText}
             disabled={props.disabled || useEntireSite}
             onChange={(event) => setSeedText(event.target.value)}
-            placeholder={'customer support software\nomnichannel inbox\nhelp desk'}
+            placeholder={'customer support software
+omnichannel inbox
+help desk'}
           />
           <span className="mt-1 block text-[11px] font-normal text-slate-400">
             Up to 20 seed keywords for idea generation. Historical analysis can use a larger list.
