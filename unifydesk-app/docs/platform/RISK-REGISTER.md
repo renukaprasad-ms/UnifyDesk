@@ -11,8 +11,8 @@ Priority meaning:
 | ID | Priority | Risk | Evidence / impact | Required follow-up |
 |---|---|---|---|---|
 | PLAT-001 | P0 | `dev` and `main` unprotected | GitHub branch metadata reports protected=false; required checks off | enable protection/required checks/review policy |
-| PLAT-002 | P0 | CI execution cannot be trusted from historical zero-step jobs | QA reports record runner_id=0, steps=[] | restore Actions runner execution and rerun full current-head matrix |
-| PLAT-003 | P0 | Flyway baseline default can fail open | `application.yaml` defaults true; env/Compose use false | code/config round: make production-safe default false and test legacy adoption separately |
+| PLAT-002 | P0 | Canonical CI is not yet trustworthy/green | Historical zero-step jobs were external runner/account allocation failures; GitHub-hosted runners execute again, but current-head canonical jobs now expose real backend/frontend/email-provider/website failures | complete Hardening R1, obtain successful executed current-head matrix, and have Main confirm the historical Actions billing/usage condition |
+| PLAT-003 | P0 | Flyway baseline default can fail open | `application.yaml` and `DatabaseMigrationConfig` default baseline-on-migrate to true while env/Compose expect false | Hardening R1 B1: default false in both paths; prove default fail-closed and explicit legacy-adoption opt-in with executable migration tests |
 | PLAT-004 | P0 | PostgreSQL single-node availability | one Deployment + one PVC | production DB/managed HA design, backups, PITR/restore rehearsal |
 | PLAT-005 | P0 | Redis state is single-node and ephemeral in K8s | no PVC; one pod | define reconstructability; persistent/managed/HA Redis as required |
 | PLAT-006 | P0 | Kafka is single broker with ephemeral storage and RF=1 behavior | one broker/controller, no PVC | production Kafka/managed service, persistence, replication/min ISR |
