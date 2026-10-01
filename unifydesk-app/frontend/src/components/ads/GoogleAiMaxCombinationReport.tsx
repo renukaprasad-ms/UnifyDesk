@@ -22,7 +22,7 @@ const defaultRange = () => {
 }
 
 export default function GoogleAiMaxCombinationReport({ companyId, campaignId }: Props) {
-  const initial = useMemo(defaultRange, [])
+  const initial = useMemo(() => defaultRange(), [])
   const [from, setFrom] = useState(initial.from)
   const [to, setTo] = useState(initial.to)
   const [report, setReport] = useState<Report | null>(null)
