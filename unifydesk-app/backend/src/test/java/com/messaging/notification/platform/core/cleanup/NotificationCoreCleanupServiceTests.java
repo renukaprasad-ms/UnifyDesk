@@ -92,7 +92,10 @@ class NotificationCoreCleanupServiceTests {
     when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenAnswer(
             invocation -> {
-              firstSqlArgs.compareAndSet(null, invocation.getArgument(2));
+              firstSqlArgs.compareAndSet(
+                  null,
+                  java.util.Arrays.copyOfRange(
+                      invocation.getArguments(), 2, invocation.getArguments().length));
               if (calls.getAndIncrement() > 0) {
                 return List.of();
               }
@@ -133,7 +136,9 @@ class NotificationCoreCleanupServiceTests {
         .thenAnswer(
             invocation -> {
               sql.add(invocation.getArgument(0));
-              args.add(invocation.getArgument(1));
+              args.add(
+                  java.util.Arrays.copyOfRange(
+                      invocation.getArguments(), 1, invocation.getArguments().length));
               return 0;
             });
 

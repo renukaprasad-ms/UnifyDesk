@@ -51,6 +51,15 @@ class GoogleAdsPerformanceMaxListingGroupServiceTests {
     when(campaignRepository.findByIdAndCompanyId(700L, 10L))
         .thenReturn(Optional.of(campaign));
     when(contextService.requireManaged(10L, 20L)).thenReturn(context());
+    when(apiClient.customerResourceName("1234567890", "assetGroups", "501"))
+        .thenReturn("customers/1234567890/assetGroups/501");
+    when(
+            apiClient.customerResourceName(
+                eq("1234567890"), eq("assetGroupListingGroupFilters"), anyString()))
+        .thenAnswer(
+            invocation ->
+                "customers/1234567890/assetGroupListingGroupFilters/"
+                    + invocation.getArgument(2, String.class));
 
     when(apiClient.searchRows(
             eq("access-token"), eq("1234567890"), eq(null), anyString()))

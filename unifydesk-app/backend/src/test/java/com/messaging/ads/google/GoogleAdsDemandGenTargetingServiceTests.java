@@ -128,6 +128,8 @@ class GoogleAdsDemandGenTargetingServiceTests {
               }
               return List.of();
             });
+    when(apiClient.customerResourceName("1234567890", "adGroups", "888"))
+        .thenReturn("customers/1234567890/adGroups/888");
 
     service.update(
         10L,

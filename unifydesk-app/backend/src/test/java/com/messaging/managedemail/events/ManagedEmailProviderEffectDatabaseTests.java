@@ -166,7 +166,12 @@ class ManagedEmailProviderEffectDatabaseTests {
             effects.ensureTenantSuppressionScheduled(
                 event, runtime, SuppressionListReason.BOUNCE));
 
-    Instant claimTime = Instant.parse("2026-09-26T10:01:00Z");
+    Instant claimTime =
+        jdbc.queryForObject(
+                "select next_attempt_at from managed_email_provider_effects limit 1",
+                java.time.OffsetDateTime.class)
+            .toInstant()
+            .plusSeconds(1);
     var claimed =
         transaction.execute(
             status ->

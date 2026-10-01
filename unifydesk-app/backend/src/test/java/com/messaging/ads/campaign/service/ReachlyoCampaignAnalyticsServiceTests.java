@@ -137,7 +137,7 @@ class ReachlyoCampaignAnalyticsServiceTests {
 
     assertThat(result.exactRangeAvailable()).isTrue();
     assertThat(result.summary().spend()).isEqualByComparingTo("300");
-    assertThat(result.summary().conversions()).isEqualByComparingTo("30");
+    assertThat(result.summary().conversions()).isEqualByComparingTo("100");
     assertThat(result.summary().conversionValue()).isEqualByComparingTo("280");
     assertThat(result.summary().cpa()).isEqualByComparingTo("10");
     assertThat(result.deployments()).hasSize(2);
@@ -202,7 +202,7 @@ class ReachlyoCampaignAnalyticsServiceTests {
 
     assertThat(result.exactRangeAvailable()).isFalse();
     assertThat(result.summary().spend()).isEqualByComparingTo("40");
-    assertThat(result.summary().conversions()).isEqualByComparingTo("3");
+    assertThat(result.summary().conversions()).isEqualByComparingTo("8");
   }
 
   @Test

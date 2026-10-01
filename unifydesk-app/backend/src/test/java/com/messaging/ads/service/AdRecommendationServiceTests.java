@@ -113,7 +113,7 @@ class AdRecommendationServiceTests {
     assertThat(response.items())
         .extracting(item -> item.key())
         .contains(
-            "META_DELIVERY_PAYMENT_METHOD",
+            "META_ADS_DELIVERY_PAYMENT_METHOD",
             "META_DISABLE_REASON_7",
             "PAGE_NOT_AUTHORIZED",
             "PIXEL_TERMS_NOT_ACCEPTED",

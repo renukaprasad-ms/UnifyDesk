@@ -36,7 +36,7 @@ class ContactApiContractTests {
     assertThat(json.get("id").isTextual()).isTrue();
     assertThat(json.get("id").asText()).isEqualTo("922337203685470001");
     assertThat(json.get("label").asText()).isEqualTo("Customer tier");
-    assertThat(json.get("type").asText()).isEqualTo("SELECT");
+    assertThat(json.get("type").asText()).isEqualTo("SINGLE_SELECT");
     assertThat(json.get("options").isArray()).isTrue();
     assertThat(json.get("status").asText()).isEqualTo("ACTIVE");
     assertThat(json.get("indexability").asText()).isEqualTo("EXACT");

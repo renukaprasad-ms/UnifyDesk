@@ -22,11 +22,13 @@ import com.messaging.security.service.CurrentUserService;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
+import org.springframework.jdbc.core.RowMapper;
 
 class NotificationReadStateTests {
 
@@ -73,16 +75,15 @@ class NotificationReadStateTests {
     org.mockito.stubbing.Answer<Object> queryAnswer =
         invocation -> {
           String sql = invocation.getArgument(0);
-          ResultSetExtractor extractor = invocation.getArgument(1);
-          ResultSet rs = org.mockito.Mockito.mock(ResultSet.class);
+          RowMapper mapper = invocation.getArgument(1);
           if (sql.contains("from user_notifications") && batches.getAndIncrement() == 0) {
+            ResultSet rs = org.mockito.Mockito.mock(ResultSet.class);
             stubRow(rs, null);
-          } else {
-            when(rs.next()).thenReturn(false);
+            return List.of(mapper.mapRow(rs, 0));
           }
-          return extractor.extractData(rs);
+          return List.of();
         };
-    when(fixture.jdbc.query(anyString(), any(ResultSetExtractor.class), any(Object[].class)))
+    when(fixture.jdbc.query(anyString(), any(RowMapper.class), any(Object[].class)))
         .thenAnswer(queryAnswer);
     when(fixture.jdbc.update(contains("read_at=now()"), any(Object[].class))).thenReturn(1);
     when(fixture.counters.counts(7L, null, Set.of()))
@@ -99,7 +100,7 @@ class NotificationReadStateTests {
     verify(fixture.jdbc, atLeastOnce())
         .query(
             contains("last_event_at <= ?"),
-            any(ResultSetExtractor.class),
+            any(RowMapper.class),
             any(Object[].class));
   }
 

@@ -148,7 +148,7 @@ class MetaAdsCustomerListServiceTests {
 
   @Test
   void rejectsPreHashedValuesThatAreNotSha256() {
-    stubContext();
+    stubAudienceAndAccount();
 
     assertThatThrownBy(
             () ->
@@ -166,7 +166,7 @@ class MetaAdsCustomerListServiceTests {
         .hasMessageContaining("SHA-256");
   }
 
-  private void stubContext() {
+  private void stubAudienceAndAccount() {
     AdAudience audience = new AdAudience();
     audience.setId(40L);
     audience.setCompanyId(10L);
@@ -188,6 +188,10 @@ class MetaAdsCustomerListServiceTests {
     account.setAccessible(true);
     when(accountRepository.findByIdAndCompanyId(20L, 10L))
         .thenReturn(Optional.of(account));
+  }
+
+  private void stubContext() {
+    stubAudienceAndAccount();
 
     AdProviderConnection connection = new AdProviderConnection();
     connection.setId(30L);
