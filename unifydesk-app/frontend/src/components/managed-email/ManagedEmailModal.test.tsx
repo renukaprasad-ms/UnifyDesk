@@ -83,6 +83,12 @@ const client = (overrides: Partial<ManagedEmailApi> = {}): ManagedEmailApi =>
   }) as ManagedEmailApi
 
 describe('ManagedEmailModal', () => {
+  const clickEnabled = async (name: RegExp) => {
+    const button = screen.getByRole('button', { name }) as HTMLButtonElement
+    await waitFor(() => expect(button).not.toBeDisabled())
+    fireEvent.click(button)
+  }
+
   beforeEach(() => {
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
@@ -102,7 +108,7 @@ describe('ManagedEmailModal', () => {
     })
     render(<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /I have my own domain/i }))
+    await clickEnabled(/I have my own domain/i)
     fireEvent.change(screen.getByLabelText(/Business domain/i), {
       target: { value: 'Example.com' },
     })
@@ -121,7 +127,7 @@ describe('ManagedEmailModal', () => {
     const api = client()
     render(<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /I have my own domain/i }))
+    await clickEnabled(/I have my own domain/i)
     fireEvent.change(screen.getByLabelText(/Business domain/i), {
       target: { value: 'https://example.com' },
     })
@@ -161,7 +167,7 @@ describe('ManagedEmailModal', () => {
     const api = client({ createCustomerDomain: vi.fn().mockResolvedValue(pending) })
     render(<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /I have my own domain/i }))
+    await clickEnabled(/I have my own domain/i)
     fireEvent.change(screen.getByLabelText(/Business domain/i), {
       target: { value: 'example.com' },
     })
@@ -190,7 +196,7 @@ describe('ManagedEmailModal', () => {
     })
     render(<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /I have my own domain/i }))
+    await clickEnabled(/I have my own domain/i)
     fireEvent.change(screen.getByLabelText(/Business domain/i), {
       target: { value: 'example.com' },
     })
@@ -215,7 +221,7 @@ describe('ManagedEmailModal', () => {
     const api = client({ createHostedDomain: vi.fn().mockResolvedValue(hosted) })
     render(<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Use an UnifyDesk domain/i }))
+    await clickEnabled(/Use an UnifyDesk domain/i)
 
     expect(await screen.findByText('abc-k7m4q2.unifydesk.in')).toBeTruthy()
     expect(screen.getByText(/Domain active/i)).toBeTruthy()
@@ -303,7 +309,12 @@ describe('ManagedEmailModal', () => {
     )
 
     expect(await screen.findByText('offers@example.com')).toBeTruthy()
-    expect(screen.getByText(/UnifyDesk Managed Email/i)).toBeTruthy()
+    expect(
+      screen.getByText((_, element) =>
+        element?.textContent ===
+        'Example Offers · UnifyDesk Managed Email',
+      ),
+    ).toBeTruthy()
     expect(screen.queryByText(/ap-south-1/i)).toBeNull()
     expect(screen.queryByText(/50,?000/i)).toBeNull()
     expect(screen.queryByText(/12,?345/i)).toBeNull()
