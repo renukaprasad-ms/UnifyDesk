@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { FiMail } from 'react-icons/fi'
 import type { ChannelConnection } from '../../features/channel/types'
-import type { InboxConversation } from '../../features/inbox/types'\nimport { conversationParticipant } from './conversationListUtils'
+import type { InboxConversation } from '../../features/inbox/types'
+import { conversationParticipant } from './conversationListUtils'
 
 type ConversationListProps = {
   conversations: InboxConversation[]
