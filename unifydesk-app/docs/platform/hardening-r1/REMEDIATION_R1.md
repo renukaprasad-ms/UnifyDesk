@@ -1,6 +1,6 @@
 # Platform Hardening Round-1 — Targeted Remediation
 
-Status: **L1 REMEDIATION CONTRACT FROZEN — B1/B2/F1 MAY START AFTER THIS DOCUMENTATION IS MERGED**
+Status: **REMEDIATION INTEGRATED — FINAL SEC/QA RE-VERIFICATION PENDING**
 
 ## Frozen lineage
 
@@ -195,3 +195,29 @@ SEC/QA must independently branch from the NEW exact integrated production-code S
 Only evidence from actually executed commands can close executable findings.
 
 Do not begin Platform Hardening Round 2 or another product feature until this targeted Round-1 remediation is integrated and independently reverified.
+
+
+## Final remediation integration result
+
+Integrated production-code SHA:
+
+`5012fd426b4d2da50d5c8fe5c44cf3f15b5aebc3`
+
+Integrated lineage:
+
+- B1 PR #231 -> `b833aa739138f423463c8015dfdecc335874b922`
+- F1 PR #230 -> `a56fbb0eb2fde1a599f287f50f72be220beafdcb`
+- L1 F1 integration completion PR #233 -> `e5856cfb61c7613427713f73dc8fd6014768538d`
+- B2 PR #232 -> `5012fd426b4d2da50d5c8fe5c44cf3f15b5aebc3`
+
+Main disposition after integration:
+
+- PHR1-QA-001: BLOCKED EXTERNAL / DEFERRED
+- PHR1-QA-002: DEFERRED VERIFICATION / FORMATTING DEBT
+- PHR1-QA-003: SOURCE REMEDIATION PARTIAL / DEFERRED VERIFICATION / FORMATTING DEBT
+- PHR1-QA-004: SOURCE REMEDIATION COMPLETE / EXECUTABLE VERIFICATION DEFERRED
+- PHR1-QA-005: SOURCE REMEDIATION COMPLETE / EXECUTABLE VERIFICATION DEFERRED
+
+The final SEC/QA review must use [SECURITY_QA_R1_FINAL_CHAT_PROMPT.md](SECURITY_QA_R1_FINAL_CHAT_PROMPT.md) and branch from exactly the SHA above.
+
+Round 1 may unblock normal product development after final SEC/QA source re-verification under Main's explicit deferred-verification decision. This does not make deferred production release evidence green.
