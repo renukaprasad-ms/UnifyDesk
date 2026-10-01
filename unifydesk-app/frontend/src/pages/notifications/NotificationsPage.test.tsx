@@ -6,7 +6,7 @@ import {
   accountNotification,
   companyNotification,
 } from '../../features/notifications/notificationFixtures'
-import { useNotifications } from '../../features/notifications/NotificationProvider'
+import { useNotifications } from '../../features/notifications/notificationContext'
 import NotificationsPage from './NotificationsPage'
 
 vi.mock('../../features/notifications/notificationApi', () => ({
@@ -16,7 +16,7 @@ vi.mock('../../features/notifications/notificationApi', () => ({
   },
 }))
 
-vi.mock('../../features/notifications/NotificationProvider', () => ({
+vi.mock('../../features/notifications/notificationContext', () => ({
   useNotifications: vi.fn(),
 }))
 
