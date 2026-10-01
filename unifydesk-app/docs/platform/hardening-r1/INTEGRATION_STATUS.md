@@ -360,3 +360,78 @@ Expected review emphasis:
 - preserve PLAT-003 integrated-execution limitation unless the final frozen SHA is actually executed.
 
 Main's deferral unblocks normal UnifyDesk product development after final SEC/QA source re-verification; it does not convert deferred production-release evidence into PASS.
+
+
+## Narrow tenant-epoch remediation after final SEC/QA
+
+Final SEC/QA PR #235 reviewed:
+
+`5012fd426b4d2da50d5c8fe5c44cf3f15b5aebc3`
+
+and found one residual source issue:
+
+- PHR1-QA-005 remained partially open;
+- new PHR1-QA-006 identified A -> B -> A mutation reactivation because setup mutation currentness was company-ID-only.
+
+QA PR #235 merged into `dev` as:
+
+`20db8a07f28a6611d2b448d8273575dd736a0d7a`
+
+That exact commit was frozen as the sole base for the final narrow remediation.
+
+### Final narrow remediation
+
+Branch:
+
+`fix/platform-managed-sms-tenant-epoch-r1`
+
+PR:
+
+`#236`
+
+Worker/L1 head:
+
+`b0f58a29e3822f47d18e079eeaeb97e02efc3922`
+
+Integration merge / NEW frozen production-code SHA:
+
+`d592da3b7b09f91a80b8029db5dc7500e1d6ba52`
+
+Scope was limited to:
+
+- `ManagedSmsSetupModal.tsx`
+- `ManagedSmsTenantRace.test.tsx`
+
+Accepted design:
+
+- dedicated `tenantEpoch` separate from ordinary `requestGeneration`;
+- epoch increments on every committed company transition;
+- setup mutation captures initiating company ID + epoch;
+- mutation currentness requires BOTH company ID and epoch;
+- multi-step profile/header/template flows retain checks before later API operations;
+- shared `withBusy` protects stale success/error/`onChanged`/follow-up load/finally;
+- sender and refresh flows inherit the same epoch-scoped completion protection;
+- no UI/backend/provider/CI changes.
+
+Regression coverage now includes same-mounted-component A1 -> B -> A2 delayed mutation success/rejection and proves a NEW A2 mutation remains usable.
+
+### Current status before narrow final SEC/QA
+
+- PHR1-QA-001: BLOCKED EXTERNAL / DEFERRED
+- PHR1-QA-002: DEFERRED VERIFICATION / FORMATTING DEBT
+- PHR1-QA-003: SOURCE REMEDIATION PARTIAL / DEFERRED VERIFICATION / FORMATTING DEBT
+- PHR1-QA-004: SOURCE REMEDIATION COMPLETE / EXECUTABLE VERIFICATION DEFERRED
+- PHR1-QA-005: SOURCE REMEDIATED BY #236 / PENDING NARROW INDEPENDENT QA
+- PHR1-QA-006: SOURCE REMEDIATED BY #236 / PENDING NARROW INDEPENDENT QA
+
+Narrow final SEC/QA prompt:
+
+`unifydesk-app/docs/platform/hardening-r1/SECURITY_QA_R1_TENANT_EPOCH_FINAL_CHAT_PROMPT.md`
+
+SEC/QA must branch from exactly:
+
+`d592da3b7b09f91a80b8029db5dc7500e1d6ba52`
+
+If independent source review finds no further issue, PHR1-QA-005 and PHR1-QA-006 may be marked SOURCE REMEDIATION COMPLETE and Round 1 may be classified:
+
+**SOURCE COMPLETE WITH DEFERRED EXECUTABLE/FORMATTING VERIFICATION**

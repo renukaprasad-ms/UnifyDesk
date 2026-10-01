@@ -221,3 +221,30 @@ Main disposition after integration:
 The final SEC/QA review must use [SECURITY_QA_R1_FINAL_CHAT_PROMPT.md](SECURITY_QA_R1_FINAL_CHAT_PROMPT.md) and branch from exactly the SHA above.
 
 Round 1 may unblock normal product development after final SEC/QA source re-verification under Main's explicit deferred-verification decision. This does not make deferred production release evidence green.
+
+
+## Final tenant-epoch remediation
+
+Final SEC/QA PR #235 found PHR1-QA-006 after reviewing production SHA:
+
+`5012fd426b4d2da50d5c8fe5c44cf3f15b5aebc3`
+
+QA merge / final narrow remediation base:
+
+`20db8a07f28a6611d2b448d8273575dd736a0d7a`
+
+Narrow remediation PR:
+
+`#236`
+
+New frozen production-code SHA:
+
+`d592da3b7b09f91a80b8029db5dc7500e1d6ba52`
+
+The implementation introduces a dedicated setup-mutation tenant epoch that distinguishes A1 from later A2 even when company IDs match. It is intentionally separate from normal load request generations.
+
+PHR1-QA-005 and PHR1-QA-006 are source-remediated by #236 but remain pending narrow independent QA.
+
+Final prompt:
+
+[SECURITY_QA_R1_TENANT_EPOCH_FINAL_CHAT_PROMPT.md](SECURITY_QA_R1_TENANT_EPOCH_FINAL_CHAT_PROMPT.md)

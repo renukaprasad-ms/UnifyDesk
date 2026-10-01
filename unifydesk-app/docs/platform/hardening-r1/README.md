@@ -1,6 +1,6 @@
 # Platform Hardening Round 1
 
-Status: **TARGETED REMEDIATION INTEGRATED — FINAL SEC/QA RE-VERIFICATION READY**
+Status: **TENANT-EPOCH REMEDIATION INTEGRATED — NARROW FINAL SEC/QA READY**
 
 Starting `dev` SHA and frozen worker base:
 
@@ -115,3 +115,18 @@ Final remediated production-code SHA:
 Final SEC/QA prompt:
 
 [SECURITY_QA_R1_FINAL_CHAT_PROMPT.md](SECURITY_QA_R1_FINAL_CHAT_PROMPT.md)
+
+
+## Final narrow Managed SMS remediation
+
+Final SEC/QA PR #235 found residual ABA tenant reactivation (PHR1-QA-006).
+
+The narrow fix is integrated at:
+
+`d592da3b7b09f91a80b8029db5dc7500e1d6ba52`
+
+Final narrow QA prompt:
+
+[SECURITY_QA_R1_TENANT_EPOCH_FINAL_CHAT_PROMPT.md](SECURITY_QA_R1_TENANT_EPOCH_FINAL_CHAT_PROMPT.md)
+
+Only PHR1-QA-005 / PHR1-QA-006 remain in narrow source re-verification scope. Existing external/executable/formatting debt remains deferred and unchanged.
