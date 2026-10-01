@@ -132,7 +132,10 @@ describe('ManagedEmailPanel', () => {
     )
 
     await screen.findByText('920')
-    expect(screen.getAllByText('Unlimited').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText('Unlimited').parentElement?.textContent).toContain(
+      'remaining',
+    )
+    expect(screen.getByText(/Limit: Unlimited/i)).toBeTruthy()
     expect(screen.queryByText('-1')).toBeNull()
   })
 
