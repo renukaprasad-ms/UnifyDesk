@@ -27,7 +27,7 @@ class ManagedSmsRound2FlywayMigrationTests {
   @Test
   void cleanMigrationReachesV66() {
     String schema = "qa_managed_sms_r2_clean";
-    Flyway flyway = flyway(schema, null);
+    Flyway flyway = flyway(schema, MigrationVersion.fromVersion("66"));
 
     flyway.clean();
     flyway.migrate();
@@ -47,7 +47,7 @@ class ManagedSmsRound2FlywayMigrationTests {
     throughV64.migrate();
     assertThat(throughV64.info().current().getVersion().getVersion()).isEqualTo("64");
 
-    Flyway throughV66 = flyway(schema, null);
+    Flyway throughV66 = flyway(schema, MigrationVersion.fromVersion("66"));
     throughV66.migrate();
 
     assertThat(throughV66.info().current().getVersion().getVersion()).isEqualTo("66");
