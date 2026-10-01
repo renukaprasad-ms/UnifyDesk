@@ -49,8 +49,6 @@ class GoogleAdsProviderReportingServiceTests {
 
   @Test
   void rejectsRangesLongerThanNinetyDays() {
-    when(contextService.requireManaged(10L, 20L)).thenReturn(context);
-
     assertThatThrownBy(
             () ->
                 service.report(

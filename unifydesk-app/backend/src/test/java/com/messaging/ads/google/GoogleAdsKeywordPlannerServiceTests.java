@@ -42,7 +42,7 @@ class GoogleAdsKeywordPlannerServiceTests {
   @Mock private ValueOperations<String, String> valueOperations;
   @Mock private AdActivityLogService activityLogService;
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
   private GoogleAdsKeywordPlannerService service;
 
   @BeforeEach
