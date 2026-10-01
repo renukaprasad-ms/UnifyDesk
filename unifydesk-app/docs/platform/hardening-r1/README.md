@@ -1,6 +1,6 @@
 # Platform Hardening Round 1
 
-Status: **L1 INTEGRATED — SEC/QA PRODUCTION-CODE BASE FROZEN**
+Status: **SEC/QA R1 COMPLETE — TARGETED REMEDIATION CONTRACT FROZEN**
 
 Starting `dev` SHA and frozen worker base:
 
@@ -12,7 +12,11 @@ Frozen integrated production-code / SEC-QA base:
 
 `7fe25fe73eca72b57172d025d944b6ed54ce196f`
 
-See [INTEGRATION_STATUS.md](INTEGRATION_STATUS.md) for exact worker lineage, canonical run `36846527232`, zero-step evidence, and known required-gate findings.
+See [INTEGRATION_STATUS.md](INTEGRATION_STATUS.md) for exact worker lineage and QA evidence. Independent QA PR #228 reviewed the frozen production SHA and produced five findings. Targeted remediation is defined in [REMEDIATION_R1.md](REMEDIATION_R1.md).
+
+Exact common remediation worker base after QA merge:
+
+`677dea286bfe45b2172872442125f2faf4ce7953`
 
 ## Objective
 
@@ -74,7 +78,12 @@ WhatsApp R3 also runs on every PR to `dev` even though some migration assertions
 - [B2 prompt](BACKEND_B2_CHAT_PROMPT.md)
 - [F1 prompt](FRONTEND_F1_CHAT_PROMPT.md)
 - [Integration status](INTEGRATION_STATUS.md)
-- [SEC/QA handoff placeholder](SECURITY_QA_R1_CHAT_PROMPT.md)
+- [Independent SEC/QA findings](SECURITY_QA_R1_FINDINGS.md)
+- [Targeted remediation plan](REMEDIATION_R1.md)
+- [B1 remediation prompt](BACKEND_B1_R1_INTEGRATION_REMEDIATION_CHAT_PROMPT.md)
+- [B2 remediation prompt](BACKEND_B2_R1_INTEGRATION_REMEDIATION_CHAT_PROMPT.md)
+- [F1 remediation prompt](FRONTEND_F1_R1_INTEGRATION_REMEDIATION_CHAT_PROMPT.md)
+- [Original SEC/QA handoff](SECURITY_QA_R1_CHAT_PROMPT.md)
 
 ## Worker rules
 
@@ -87,3 +96,14 @@ Do not rebase onto moving `dev`.
 Workers open PRs to `dev` but do not merge independently. L1 reviews and integrates deliberately.
 
 SEC/QA does not start until L1 freezes one exact integrated production-code SHA and updates the QA prompt with that SHA.
+
+
+## Current remediation worker rule
+
+For the targeted post-QA remediation only, B1/B2/F1 all branch from exactly:
+
+`677dea286bfe45b2172872442125f2faf4ce7953`
+
+This supersedes the original Round-1 worker base only for the remediation cycle. The original worker lineage remains historical evidence.
+
+PHR1-QA-001 remains BLOCKED EXTERNAL / EXECUTION BLOCKED and has no repository-code owner.

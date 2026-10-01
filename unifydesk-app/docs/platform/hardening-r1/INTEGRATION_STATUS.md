@@ -197,3 +197,58 @@ not from later moving `dev`.
 
 - PLAT-002 remains OPEN: canonical workflow source is integrated, but the exact integrated run is zero-step and known format gates remain red in executable worker evidence.
 - PLAT-003 remains OPEN: safe defaults are implemented and focused migration tests executed on B1, but exact integrated-SHA database execution is blocked.
+
+
+## Independent SEC/QA Round-1 result
+
+QA PR:
+
+`#228`
+
+QA branch/head:
+
+`review/platform-hardening-security-qa-r1@0bf0965b2fade910bea9d206e8277c041d81f0d6`
+
+Reviewed production-code SHA:
+
+`7fe25fe73eca72b57172d025d944b6ed54ce196f`
+
+QA result:
+
+**NOT PASS — targeted remediation required**
+
+Frozen findings:
+
+| Finding | Owner | Status |
+|---|---|---|
+| PHR1-QA-001 | External | BLOCKED EXTERNAL / EXECUTION BLOCKED |
+| PHR1-QA-002 | B1 | remediation required |
+| PHR1-QA-003 | B2 | remediation required |
+| PHR1-QA-004 | B1 | remediation required |
+| PHR1-QA-005 | F1 | remediation required |
+
+QA PR #228 merged into `dev` as:
+
+`677dea286bfe45b2172872442125f2faf4ce7953`
+
+That exact commit is frozen as the common targeted-remediation worker base.
+
+### Targeted remediation workers
+
+| Worker | Findings | Branch | Frozen base | State |
+|---|---|---|---|---|
+| B1 | PHR1-QA-002, PHR1-QA-004 | `fix/platform-backend-remediation-r1` | `677dea286bfe45b2172872442125f2faf4ce7953` | READY |
+| B2 | PHR1-QA-003 | `fix/platform-email-provider-remediation-r1` | `677dea286bfe45b2172872442125f2faf4ce7953` | READY |
+| F1 | PHR1-QA-005 | `fix/platform-managed-sms-tenant-race-r1` | `677dea286bfe45b2172872442125f2faf4ce7953` | READY |
+
+All three workers are independent and must not rebase onto later moving `dev`.
+
+L1 planned integration order:
+
+1. B1;
+2. F1;
+3. B2.
+
+After all three are reviewed and integrated, L1 must freeze a NEW exact integrated production-code SHA. SEC/QA must then independently reverify that exact SHA.
+
+PHR1-QA-001 remains external. Do not close it unless actual runner allocation is restored and exact-SHA jobs execute.

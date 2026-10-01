@@ -1,41 +1,125 @@
 # B2 Integration Remediation Prompt — Platform Hardening R1
 
-**Prepared only. Do not start unless L1/Main assigns this after SEC/QA or explicitly chooses to remediate the known finding first.**
+You are B2 for the targeted UnifyDesk Platform Hardening Round-1 remediation.
 
 Repository:
 
 `renukaprasad-ms/UnifyDesk`
 
-Known integrated production-code base:
+Independent QA finding owned by you:
 
-`7fe25fe73eca72b57172d025d944b6ed54ce196f`
+`PHR1-QA-003` — High — email-provider Spotless baseline is red.
 
-Primary finding already supported by executable worker evidence:
+## Exact frozen remediation base
 
-- email-provider Maven Wrapper bootstrap is fixed;
-- B2 exact-head job `110276953077` reached Spotless;
-- Spotless inspected 190 Java files and found 40 requiring formatting.
+Create:
 
-When assigned, L1 must freeze the exact remediation base SHA again before work starts.
+`fix/platform-email-provider-remediation-r1`
+
+from exactly:
+
+`677dea286bfe45b2172872442125f2faf4ce7953`
+
+Do NOT branch from later moving `dev`.
+Do NOT rebase.
+
+After the remediation-plan documentation is merged, read from current `dev`:
+
+- `unifydesk-app/docs/platform/hardening-r1/SECURITY_QA_R1_FINDINGS.md`
+- `unifydesk-app/docs/platform/hardening-r1/REMEDIATION_R1.md`
+- `unifydesk-app/docs/platform/hardening-r1/CHECK-MATRIX.md`
+- this prompt.
 
 ## Scope
 
-Own email-provider verification remediation only:
+Own ONLY `PHR1-QA-003`.
 
-1. apply the existing Spotless formatter to `email-provider`;
-2. do not disable/exclude formatting or change formatter rules;
-3. keep changes mechanical unless executable tests expose a real defect;
-4. execute:
-   - `./mvnw -B spotless:check`
-   - `./mvnw -B clean test`
-   - `./mvnw -B package -DskipTests`
-5. classify any post-format test/package failure before editing behavior.
+Current executable evidence:
 
-Do not change backend application business logic.
-Do not change frontend.
-Do not alter website content.
-Do not weaken the canonical `Checks` workflow.
+- Maven Wrapper bootstrap/newline defect is already fixed;
+- prior job `110276953077` reached Spotless;
+- Spotless inspected 190 Java files and found 40 requiring formatting.
+
+### 1. Restore email-provider Spotless baseline
+
+Use the existing formatter configuration.
+
+Do NOT:
+
+- disable Spotless;
+- exclude existing source files;
+- change formatter rules merely to obtain green;
+- hand-bypass the gate.
+
+Keep the formatter-only change mechanical and separate from semantic fixes where practical.
+
+### 2. Execute the complete email-provider matrix
+
+From `email-provider`:
+
+```bash
+./mvnw -B spotless:check
+./mvnw -B clean test
+./mvnw -B package -DskipTests
+```
+
+Run the commands independently.
+
+If tests/package expose a failure after formatting, classify the failure before editing behavior.
+
+Make only minimal corrections required by existing behavior/contracts.
+
+### 3. Preserve existing hardening
+
+Do not regress:
+
+- newline-terminated Maven Wrapper properties;
+- Maven Wrapper-based execution;
+- canonical `Checks` workflow;
+- fail-closed CI gates;
+- website/npm work from B2 Round 1.
+
+No email-provider feature redesign belongs in this remediation.
+
+## Restrictions
+
+Do not edit:
+
+- `unifydesk-app/backend/**`
+- `unifydesk-app/frontend/**`
+- `unifydesk-website/**`
+- `.github/workflows/**`
+
+unless a directly exposed B2-owned verification infrastructure defect makes a tiny correction necessary and you document it for L1 review.
+
+Do not merge your own PR.
+
+## Acceptance
+
+Required evidence:
+
+- Spotless executes successfully;
+- clean tests execute successfully or every remaining failure is explicitly classified;
+- package executes successfully;
+- wrapper fix remains intact;
+- no formatter/test rule weakening;
+- no unrelated product redesign.
 
 ## Deliverable
 
-Open a targeted remediation PR and report exact base/head SHA plus actual command evidence. Do not merge independently.
+Open a PR to `dev`.
+
+Report:
+
+- branch;
+- exact base SHA;
+- final SHA;
+- files changed;
+- formatter-only commit SHA;
+- any semantic correction and justification;
+- Spotless result;
+- clean-test result;
+- package result;
+- any remaining EXECUTION BLOCKED / BLOCKED EXTERNAL item.
+
+Do not merge independently.
