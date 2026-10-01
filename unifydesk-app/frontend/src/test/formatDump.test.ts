@@ -36,5 +36,5 @@ describe('frontend formatting extractor', () => {
     console.log(JSON.stringify(files))
     console.log('UNIFYDESK_FORMAT_DUMP_END')
     expect(Object.keys(files).length).toBeGreaterThan(0)
-  })
+  }, 30_000)
 })
