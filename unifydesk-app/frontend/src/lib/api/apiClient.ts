@@ -144,7 +144,7 @@ const cleanApiErrorMessage = (message: string | undefined, fallback: string) => 
     return fallback
   }
 
-  const rawJsonMatch = cleaned.match(/\s*\(HTTP\s+\d+\)\s*:\s*[\[{]/i)
+  const rawJsonMatch = cleaned.match(/\s*\(HTTP\s+\d+\)\s*:\s*(?:\[|{)/i)
   if (rawJsonMatch?.index !== undefined) {
     cleaned = cleaned.slice(0, rawJsonMatch.index).trim()
   } else {
