@@ -1,5 +1,5 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { managedSmsApi } from '../../features/managedSms/managedSmsApi'
 import type {
   ManagedSmsDeliveryHealth,
@@ -101,6 +101,14 @@ const template = (company: string): ManagedSmsTemplate => ({
 })
 
 describe('Managed SMS tenant request invalidation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('keeps delayed company-A panel results out of the company-B UI', async () => {
     const aStatus = deferred<ManagedSmsStatus>()
     const bStatus = deferred<ManagedSmsStatus>()
@@ -109,10 +117,14 @@ describe('Managed SMS tenant request invalidation', () => {
     })
     const usageSpy = vi
       .spyOn(managedSmsApi, 'usage')
-      .mockImplementation((companyId) => Promise.resolve(usage(companyId === 'company-a' ? 111 : 222)))
+      .mockImplementation((companyId) =>
+        Promise.resolve(usage(companyId === 'company-a' ? 111 : 222)),
+      )
     const healthSpy = vi
       .spyOn(managedSmsApi, 'deliveryHealth')
-      .mockImplementation((companyId) => Promise.resolve(health(companyId === 'company-a' ? 111 : 222)))
+      .mockImplementation((companyId) =>
+        Promise.resolve(health(companyId === 'company-a' ? 111 : 222)),
+      )
 
     const view = render(
       <ManagedSmsPanel
@@ -301,7 +313,12 @@ describe('Managed SMS tenant request invalidation', () => {
       aProfile.reject(new Error('company-a profile failure'))
       aHeaders.reject(new Error('company-a headers failure'))
       aTemplates.reject(new Error('company-a templates failure'))
-      await Promise.allSettled([aStatus.promise, aProfile.promise, aHeaders.promise, aTemplates.promise])
+      await Promise.allSettled([
+        aStatus.promise,
+        aProfile.promise,
+        aHeaders.promise,
+        aTemplates.promise,
+      ])
     })
 
     expect(snackbar.error).not.toHaveBeenCalled()
