@@ -60,7 +60,7 @@ describe('NotificationsPage', () => {
       </MemoryRouter>,
     )
 
-    await screen.findByText('New inbox activity')
+    await screen.findByText('3 new emails')
     fireEvent.click(screen.getByRole('button', { name: 'Load more' }))
 
     await screen.findByText('Security update')
@@ -88,7 +88,7 @@ describe('NotificationsPage', () => {
       </MemoryRouter>,
     )
 
-    await screen.findByText('New inbox activity')
+    await screen.findByText('3 new emails')
     fireEvent.click(screen.getByRole('button', { name: 'Mark read' }))
 
     await waitFor(() => expect(screen.getByText('Unread')).toBeTruthy())
