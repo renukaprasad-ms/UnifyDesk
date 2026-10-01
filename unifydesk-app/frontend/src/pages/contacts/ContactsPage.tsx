@@ -11,7 +11,12 @@ import {
 } from '../../features/contacts/contactModel'
 import { contactsApi } from '../../features/contacts/contactsApi'
 import { useContacts } from '../../features/contacts/useContacts'
-import type { ContactQuery, ContactSort, ListSummary, TagSummary } from '../../features/contacts/types'
+import type {
+  ContactQuery,
+  ContactSort,
+  ListSummary,
+  TagSummary,
+} from '../../features/contacts/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -44,8 +49,7 @@ export default function ContactsPage() {
     size: 50,
   }
   const contacts = useContacts(companyId, query)
-  const canBulk =
-    can(PERMISSIONS.CONTACT_MODIFY) || can(PERMISSIONS.CONTACT_DELETE)
+  const canBulk = can(PERMISSIONS.CONTACT_MODIFY) || can(PERMISSIONS.CONTACT_DELETE)
   const selectionQueryKey = JSON.stringify(query)
 
   useEffect(() => {
@@ -108,7 +112,10 @@ export default function ContactsPage() {
           <div>
             <p className="eyebrow">Audience</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Contacts</h1>
-            <p className="mt-2 text-sm text-slate-500">Search and manage first-party customer records without loading the full audience into your browser.</p>
+            <p className="mt-2 text-sm text-slate-500">
+              Search and manage first-party customer records without loading the full audience into
+              your browser.
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             {can(PERMISSIONS.CONTACT_EXPORT) && companyId && (
@@ -119,22 +126,38 @@ export default function ContactsPage() {
                 label="Export contacts"
                 disabled={Boolean(
                   query.q ||
-                    query.status ||
-                    query.tagId ||
-                    query.listId ||
-                    query.createdAfter ||
-                    query.createdBefore,
+                  query.status ||
+                  query.tagId ||
+                  query.listId ||
+                  query.createdAfter ||
+                  query.createdBefore,
                 )}
                 disabledReason="The frozen Round-1 export contract does not define arbitrary filtered Contact exports."
               />
             )}
-            {can(PERMISSIONS.CONTACT_IMPORT) && <Link className="secondary-button" to="/contacts/imports">Import CSV</Link>}
-            {can(PERMISSIONS.CONTACT_CREATE) && <button className="primary-button" onClick={() => setCreating(true)}>New contact</button>}
+            {can(PERMISSIONS.CONTACT_IMPORT) && (
+              <Link className="secondary-button" to="/contacts/imports">
+                Import CSV
+              </Link>
+            )}
+            {can(PERMISSIONS.CONTACT_CREATE) && (
+              <button className="primary-button" onClick={() => setCreating(true)}>
+                New contact
+              </button>
+            )}
           </div>
         </header>
 
         {(notice || error || contacts.error) && (
-          <div role={error || contacts.error ? 'alert' : 'status'} className={'mt-5 rounded-xl border px-4 py-3 text-sm font-medium ' + (error || contacts.error ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700')}>
+          <div
+            role={error || contacts.error ? 'alert' : 'status'}
+            className={
+              'mt-5 rounded-xl border px-4 py-3 text-sm font-medium ' +
+              (error || contacts.error
+                ? 'border-rose-200 bg-rose-50 text-rose-700'
+                : 'border-emerald-200 bg-emerald-50 text-emerald-700')
+            }
+          >
             {error || contacts.error || notice}
           </div>
         )}
@@ -143,40 +166,66 @@ export default function ContactsPage() {
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
             <label className="text-xs font-semibold text-slate-700 lg:col-span-2">
               <span className="mb-2 block">Search</span>
-              <input className="form-input" type="search" placeholder="Name, email, phone or organization" value={search} onChange={(event) => setSearch(event.target.value)} />
+              <input
+                className="form-input"
+                type="search"
+                placeholder="Name, email, phone or organization"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
             </label>
             <label className="text-xs font-semibold text-slate-700">
               <span className="mb-2 block">Tag</span>
-              <select className="form-input" value={query.tagId ?? ''} onChange={(event) => {
-                const next = new URLSearchParams(params)
-                if (event.target.value) next.set('tagId', event.target.value)
-                else next.delete('tagId')
-                setParams(next)
-              }}>
+              <select
+                className="form-input"
+                value={query.tagId ?? ''}
+                onChange={(event) => {
+                  const next = new URLSearchParams(params)
+                  if (event.target.value) next.set('tagId', event.target.value)
+                  else next.delete('tagId')
+                  setParams(next)
+                }}
+              >
                 <option value="">All tags</option>
-                {tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+                {tags.map((tag) => (
+                  <option key={tag.id} value={tag.id}>
+                    {tag.name}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="text-xs font-semibold text-slate-700">
               <span className="mb-2 block">List</span>
-              <select className="form-input" value={query.listId ?? ''} onChange={(event) => {
-                const next = new URLSearchParams(params)
-                if (event.target.value) next.set('listId', event.target.value)
-                else next.delete('listId')
-                setParams(next)
-              }}>
+              <select
+                className="form-input"
+                value={query.listId ?? ''}
+                onChange={(event) => {
+                  const next = new URLSearchParams(params)
+                  if (event.target.value) next.set('listId', event.target.value)
+                  else next.delete('listId')
+                  setParams(next)
+                }}
+              >
                 <option value="">All Lists</option>
-                {lists.map((list) => <option key={list.id} value={list.id}>{list.name}</option>)}
+                {lists.map((list) => (
+                  <option key={list.id} value={list.id}>
+                    {list.name}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="text-xs font-semibold text-slate-700">
               <span className="mb-2 block">Status</span>
-              <select className="form-input" value={query.status ?? ''} onChange={(event) => {
-                const next = new URLSearchParams(params)
-                if (event.target.value) next.set('status', event.target.value)
-                else next.delete('status')
-                setParams(next)
-              }}>
+              <select
+                className="form-input"
+                value={query.status ?? ''}
+                onChange={(event) => {
+                  const next = new URLSearchParams(params)
+                  if (event.target.value) next.set('status', event.target.value)
+                  else next.delete('status')
+                  setParams(next)
+                }}
+              >
                 <option value="">Active/default</option>
                 <option value="ACTIVE">Active</option>
                 <option value="MERGED">Merged</option>
@@ -184,29 +233,43 @@ export default function ContactsPage() {
             </label>
             <label className="text-xs font-semibold text-slate-700">
               <span className="mb-2 block">Created after</span>
-              <input className="form-input" type="date" value={query.createdAfter ?? ''} onChange={(event) => {
-                const next = new URLSearchParams(params)
-                if (event.target.value) next.set('createdAfter', event.target.value)
-                else next.delete('createdAfter')
-                setParams(next)
-              }} />
+              <input
+                className="form-input"
+                type="date"
+                value={query.createdAfter ?? ''}
+                onChange={(event) => {
+                  const next = new URLSearchParams(params)
+                  if (event.target.value) next.set('createdAfter', event.target.value)
+                  else next.delete('createdAfter')
+                  setParams(next)
+                }}
+              />
             </label>
             <label className="text-xs font-semibold text-slate-700">
               <span className="mb-2 block">Created before</span>
-              <input className="form-input" type="date" value={query.createdBefore ?? ''} onChange={(event) => {
-                const next = new URLSearchParams(params)
-                if (event.target.value) next.set('createdBefore', event.target.value)
-                else next.delete('createdBefore')
-                setParams(next)
-              }} />
+              <input
+                className="form-input"
+                type="date"
+                value={query.createdBefore ?? ''}
+                onChange={(event) => {
+                  const next = new URLSearchParams(params)
+                  if (event.target.value) next.set('createdBefore', event.target.value)
+                  else next.delete('createdBefore')
+                  setParams(next)
+                }}
+              />
             </label>
             <label className="text-xs font-semibold text-slate-700">
               <span className="mb-2 block">Sort</span>
-              <select className="form-input" value={query.sort} onChange={(event) => {
-                const next = new URLSearchParams(params)
-                next.set('sort', event.target.value)
-                setParams(next)
-              }}>
+              <select
+                className="form-input"
+                value={query.sort}
+                onChange={(event) => {
+                  const next = new URLSearchParams(params)
+                  next.set('sort', event.target.value)
+                  setParams(next)
+                }}
+              >
                 <option value="UPDATED_DESC">Recently updated</option>
                 <option value="CREATED_DESC">Recently created</option>
                 <option value="NAME_ASC">Name A–Z</option>
@@ -219,7 +282,10 @@ export default function ContactsPage() {
           <>
             {!allMatching && contacts.hasMore && (
               <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm">
-                <button className="font-semibold text-indigo-700 underline" onClick={() => setAllMatching(true)}>
+                <button
+                  className="font-semibold text-indigo-700 underline"
+                  onClick={() => setAllMatching(true)}
+                >
                   Select all matching results without enumerating contact IDs
                 </button>
               </div>
@@ -245,13 +311,34 @@ export default function ContactsPage() {
         )}
 
         <div className="panel mt-4 overflow-hidden">
-          {contacts.loading ? <div className="p-10 text-center text-sm text-slate-500" role="status">Loading contacts…</div> : contacts.items.length === 0 ? (
-            <div className="p-10 text-center"><h2 className="font-bold text-slate-900">No contacts found</h2><p className="mt-2 text-sm text-slate-500">Adjust search or create your first contact.</p></div>
+          {contacts.loading ? (
+            <div className="p-10 text-center text-sm text-slate-500" role="status">
+              Loading contacts…
+            </div>
+          ) : contacts.items.length === 0 ? (
+            <div className="p-10 text-center">
+              <h2 className="font-bold text-slate-900">No contacts found</h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Adjust search or create your first contact.
+              </p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="mobile-card-table min-w-full text-sm">
                 <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                  <tr>{canBulk && <th className="p-3"><span className="sr-only">Select</span></th>}<th className="p-3">Contact</th><th className="p-3">Email</th><th className="p-3">Phone</th><th className="p-3">Organization</th><th className="p-3">Marketing</th><th className="p-3">Updated</th></tr>
+                  <tr>
+                    {canBulk && (
+                      <th className="p-3">
+                        <span className="sr-only">Select</span>
+                      </th>
+                    )}
+                    <th className="p-3">Contact</th>
+                    <th className="p-3">Email</th>
+                    <th className="p-3">Phone</th>
+                    <th className="p-3">Organization</th>
+                    <th className="p-3">Marketing</th>
+                    <th className="p-3">Updated</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {contacts.items.map((contact) => (
@@ -267,10 +354,33 @@ export default function ContactsPage() {
                           />
                         </td>
                       )}
-                      <td className="p-3" data-label="Contact"><Link className="font-semibold text-indigo-700 hover:underline" to={'/contacts/' + contact.id}>{contact.displayName}</Link><div className="mt-1 flex flex-wrap gap-1">{contact.tags?.slice(0, 3).map((tag) => <span key={tag.id} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px]">{tag.name}</span>)}</div></td>
-                      <td className="p-3" data-label="Email">{contact.primaryEmail || '—'}</td>
-                      <td className="p-3" data-label="Phone">{contact.primaryPhone || '—'}</td>
-                      <td className="p-3" data-label="Organization">{contact.organization || '—'}</td>
+                      <td className="p-3" data-label="Contact">
+                        <Link
+                          className="font-semibold text-indigo-700 hover:underline"
+                          to={'/contacts/' + contact.id}
+                        >
+                          {contact.displayName}
+                        </Link>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {contact.tags?.slice(0, 3).map((tag) => (
+                            <span
+                              key={tag.id}
+                              className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px]"
+                            >
+                              {tag.name}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="p-3" data-label="Email">
+                        {contact.primaryEmail || '—'}
+                      </td>
+                      <td className="p-3" data-label="Phone">
+                        {contact.primaryPhone || '—'}
+                      </td>
+                      <td className="p-3" data-label="Organization">
+                        {contact.organization || '—'}
+                      </td>
                       <td className="p-3" data-label="Marketing">
                         <div className="flex flex-wrap gap-1">
                           {(['EMAIL', 'SMS', 'WHATSAPP'] as const).map((channel) => (
@@ -278,12 +388,15 @@ export default function ContactsPage() {
                               key={channel}
                               className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600"
                             >
-                              {channel === 'WHATSAPP' ? 'WA' : channel}: {contact.preferenceSummary?.[channel] ?? 'UNKNOWN'}
+                              {channel === 'WHATSAPP' ? 'WA' : channel}:{' '}
+                              {contact.preferenceSummary?.[channel] ?? 'UNKNOWN'}
                             </span>
                           ))}
                         </div>
                       </td>
-                      <td className="p-3" data-label="Updated">{new Date(contact.updatedAt).toLocaleDateString()}</td>
+                      <td className="p-3" data-label="Updated">
+                        {new Date(contact.updatedAt).toLocaleDateString()}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -291,7 +404,17 @@ export default function ContactsPage() {
             </div>
           )}
         </div>
-        {contacts.hasMore && <div className="mt-4 text-center"><button className="secondary-button" disabled={contacts.loadingMore} onClick={() => void contacts.loadMore()}>{contacts.loadingMore ? 'Loading…' : 'Load more'}</button></div>}
+        {contacts.hasMore && (
+          <div className="mt-4 text-center">
+            <button
+              className="secondary-button"
+              disabled={contacts.loadingMore}
+              onClick={() => void contacts.loadMore()}
+            >
+              {contacts.loadingMore ? 'Loading…' : 'Load more'}
+            </button>
+          </div>
+        )}
 
         <ContactFormDialog
           open={creating}
@@ -302,9 +425,16 @@ export default function ContactsPage() {
             if (!companyId) return
             setSaving(true)
             setError('')
-            contactsApi.create(companyId, toCreateContactInput(draft))
-              .then(() => { setCreating(false); setNotice('Contact created.'); return contacts.refresh() })
-              .catch((actionError) => setError(apiErrorMessage(actionError, 'Unable to create contact.')))
+            contactsApi
+              .create(companyId, toCreateContactInput(draft))
+              .then(() => {
+                setCreating(false)
+                setNotice('Contact created.')
+                return contacts.refresh()
+              })
+              .catch((actionError) =>
+                setError(apiErrorMessage(actionError, 'Unable to create contact.')),
+              )
               .finally(() => setSaving(false))
           }}
         />

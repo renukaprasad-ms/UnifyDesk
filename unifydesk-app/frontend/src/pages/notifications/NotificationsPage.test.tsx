@@ -6,7 +6,7 @@ import {
   accountNotification,
   companyNotification,
 } from '../../features/notifications/notificationFixtures'
-import { useNotifications } from '../../features/notifications/NotificationProvider'
+import { useNotifications } from '../../features/notifications/notificationContext'
 import NotificationsPage from './NotificationsPage'
 
 vi.mock('../../features/notifications/notificationApi', () => ({
@@ -16,7 +16,7 @@ vi.mock('../../features/notifications/notificationApi', () => ({
   },
 }))
 
-vi.mock('../../features/notifications/NotificationProvider', () => ({
+vi.mock('../../features/notifications/notificationContext', () => ({
   useNotifications: vi.fn(),
 }))
 
@@ -60,7 +60,7 @@ describe('NotificationsPage', () => {
       </MemoryRouter>,
     )
 
-    await screen.findByText('New inbox activity')
+    await screen.findByText('3 new emails')
     fireEvent.click(screen.getByRole('button', { name: 'Load more' }))
 
     await screen.findByText('Security update')
@@ -88,7 +88,7 @@ describe('NotificationsPage', () => {
       </MemoryRouter>,
     )
 
-    await screen.findByText('New inbox activity')
+    await screen.findByText('3 new emails')
     fireEvent.click(screen.getByRole('button', { name: 'Mark read' }))
 
     await waitFor(() => expect(screen.getByText('Unread')).toBeTruthy())

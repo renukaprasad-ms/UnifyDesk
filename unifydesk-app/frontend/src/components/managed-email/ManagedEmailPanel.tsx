@@ -42,8 +42,7 @@ const formatDate = (value?: string | null) => {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date)
 }
 
-const percent = (value: number) =>
-  `${(value * 100).toFixed(value * 100 >= 1 ? 1 : 2)}%`
+const percent = (value: number) => `${(value * 100).toFixed(value * 100 >= 1 ? 1 : 2)}%`
 
 export default function ManagedEmailPanel({
   companyId,
@@ -56,8 +55,7 @@ export default function ManagedEmailPanel({
   const [domains, setDomains] = useState<ManagedEmailDomain[]>([])
   const [senders, setSenders] = useState<ManagedEmailSender[]>([])
   const [usage, setUsage] = useState<ManagedEmailUsage | null>(null)
-  const [deliverability, setDeliverability] =
-    useState<ManagedEmailDeliverability | null>(null)
+  const [deliverability, setDeliverability] = useState<ManagedEmailDeliverability | null>(null)
   const [loading, setLoading] = useState(true)
   const [workingId, setWorkingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -73,22 +71,14 @@ export default function ManagedEmailPanel({
       client.usage(companyId),
       client.deliverability(companyId),
     ])
-    const [
-      overviewResult,
-      domainsResult,
-      sendersResult,
-      usageResult,
-      deliverabilityResult,
-    ] = results
+    const [overviewResult, domainsResult, sendersResult, usageResult, deliverabilityResult] =
+      results
 
     if (overviewResult.status === 'fulfilled') {
       setOverview(overviewResult.value)
     } else {
       setError(
-        managedEmailErrorMessage(
-          overviewResult.reason,
-          'Unable to load Managed Email status.',
-        ),
+        managedEmailErrorMessage(overviewResult.reason, 'Unable to load Managed Email status.'),
       )
     }
     if (domainsResult.status === 'fulfilled') setDomains(domainsResult.value)
@@ -131,9 +121,7 @@ export default function ManagedEmailPanel({
       await client.removeSender(companyId, sender.id)
       setSenders((current) => current.filter((item) => item.id !== sender.id))
     } catch (requestError) {
-      setError(
-        managedEmailErrorMessage(requestError, 'Unable to disable this sender.'),
-      )
+      setError(managedEmailErrorMessage(requestError, 'Unable to disable this sender.'))
     } finally {
       setWorkingId(null)
     }
@@ -142,9 +130,7 @@ export default function ManagedEmailPanel({
   const retireDomain = async (domain: ManagedEmailDomain) => {
     if (!canModify || workingId) return
     if (
-      !window.confirm(
-        `Retire ${domain.domain}? Its Managed Email senders will become unavailable.`,
-      )
+      !window.confirm(`Retire ${domain.domain}? Its Managed Email senders will become unavailable.`)
     ) {
       return
     }
@@ -154,16 +140,12 @@ export default function ManagedEmailPanel({
     try {
       const latest = await client.retireDomain(companyId, domain.id)
       if (latest) {
-        setDomains((current) =>
-          current.map((item) => (item.id === latest.id ? latest : item)),
-        )
+        setDomains((current) => current.map((item) => (item.id === latest.id ? latest : item)))
       } else {
         await load()
       }
     } catch (requestError) {
-      setError(
-        managedEmailErrorMessage(requestError, 'Unable to retire this domain.'),
-      )
+      setError(managedEmailErrorMessage(requestError, 'Unable to retire this domain.'))
     } finally {
       setWorkingId(null)
     }
@@ -174,9 +156,7 @@ export default function ManagedEmailPanel({
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-sm font-bold text-slate-950">
-              UnifyDesk Managed Email
-            </h2>
+            <h2 className="text-sm font-bold text-slate-950">UnifyDesk Managed Email</h2>
             {overview && (
               <span
                 className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
@@ -185,15 +165,13 @@ export default function ManagedEmailPanel({
                     : 'bg-amber-50 text-amber-700'
                 }`}
               >
-                {overview.enabled
-                  ? overview.serviceStatus.replaceAll('_', ' ')
-                  : 'NOT ENABLED'}
+                {overview.enabled ? overview.serviceStatus.replaceAll('_', ' ') : 'NOT ENABLED'}
               </span>
             )}
           </div>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">
-            Send Broadcast email without managing provider credentials. Add your own
-            domain or let UnifyDesk create one for you.
+            Send Broadcast email without managing provider credentials. Add your own domain or let
+            UnifyDesk create one for you.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -238,16 +216,14 @@ export default function ManagedEmailPanel({
             <FiAlertTriangle aria-hidden="true" /> Sending needs attention
           </span>
           <p className="mt-1">
-            Managed Email is not currently ready for sending. Review the domain and
-            deliverability status below before using a sender.
+            Managed Email is not currently ready for sending. Review the domain and deliverability
+            status below before using a sender.
           </p>
         </div>
       )}
 
       {loading ? (
-        <p className="px-5 py-10 text-center text-sm text-slate-500">
-          Loading Managed Email…
-        </p>
+        <p className="px-5 py-10 text-center text-sm text-slate-500">Loading Managed Email…</p>
       ) : (
         <>
           <div className="grid gap-3 border-b border-slate-100 p-5 md:grid-cols-2">
@@ -278,8 +254,7 @@ export default function ManagedEmailPanel({
                     </div>
                   </div>
                   <p className="mt-3 text-[11px] text-slate-500">
-                    {formatDate(usage.periodStart)} –{' '}
-                    {formatDate(usage.periodEndExclusive)}
+                    {formatDate(usage.periodStart)} – {formatDate(usage.periodEndExclusive)}
                   </p>
                   {usage.limitReached && (
                     <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
@@ -293,9 +268,7 @@ export default function ManagedEmailPanel({
                   )}
                 </>
               ) : (
-                <p className="mt-3 text-xs text-slate-500">
-                  Usage is temporarily unavailable.
-                </p>
+                <p className="mt-3 text-xs text-slate-500">Usage is temporarily unavailable.</p>
               )}
             </section>
 
@@ -350,9 +323,7 @@ export default function ManagedEmailPanel({
           </div>
 
           <div className="border-b border-slate-100 px-5 py-4">
-            <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-400">
-              Domains
-            </p>
+            <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-400">Domains</p>
             <p className="mt-1 text-xs text-slate-500">
               {activeDomains.length}
               {overview ? ` of ${overview.domainLimit}` : ''} configured
@@ -360,11 +331,7 @@ export default function ManagedEmailPanel({
 
             {activeDomains.length === 0 ? (
               <div className="py-8 text-center">
-                <FiGlobe
-                  className="mx-auto text-slate-300"
-                  size={26}
-                  aria-hidden="true"
-                />
+                <FiGlobe className="mx-auto text-slate-300" size={26} aria-hidden="true" />
                 <p className="mt-2 text-sm font-semibold text-slate-800">
                   No Managed Email domain yet
                 </p>
@@ -375,19 +342,14 @@ export default function ManagedEmailPanel({
             ) : (
               <div className="mt-3 grid gap-3 lg:grid-cols-2">
                 {activeDomains.map((domain) => (
-                  <div
-                    key={domain.id}
-                    className="rounded-xl border border-slate-200 p-4"
-                  >
+                  <div key={domain.id} className="rounded-xl border border-slate-200 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="break-all text-sm font-bold text-slate-900">
                           {domain.domain}
                         </p>
                         <p className="mt-1 text-[11px] text-slate-500">
-                          {domain.type === 'UNIFYDESK_HOSTED'
-                            ? 'UnifyDesk domain'
-                            : 'Your domain'}
+                          {domain.type === 'UNIFYDESK_HOSTED' ? 'UnifyDesk domain' : 'Your domain'}
                         </p>
                       </div>
                       <span
@@ -432,17 +394,11 @@ export default function ManagedEmailPanel({
 
             {senders.length === 0 ? (
               <div className="py-8 text-center">
-                <FiMail
-                  className="mx-auto text-slate-300"
-                  size={26}
-                  aria-hidden="true"
-                />
+                <FiMail className="mx-auto text-slate-300" size={26} aria-hidden="true" />
                 <p className="mt-2 text-sm font-semibold text-slate-800">
                   No Managed Email sender yet
                 </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  Open an active domain to create one.
-                </p>
+                <p className="mt-1 text-xs text-slate-500">Open an active domain to create one.</p>
               </div>
             ) : (
               <div className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200">

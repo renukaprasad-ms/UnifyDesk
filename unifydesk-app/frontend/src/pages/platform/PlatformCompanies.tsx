@@ -164,7 +164,9 @@ export default function PlatformCompanies() {
                       <td className="px-5 py-4 text-sm text-slate-600" data-label="Email">
                         {company.businessEmail || '—'}
                       </td>
-                      <td className="px-5 py-4 text-sm text-slate-600" data-label="Country">{company.country || '—'}</td>
+                      <td className="px-5 py-4 text-sm text-slate-600" data-label="Country">
+                        {company.country || '—'}
+                      </td>
                       <td className="px-5 py-4" data-label="Status">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusClasses[company.status]}`}

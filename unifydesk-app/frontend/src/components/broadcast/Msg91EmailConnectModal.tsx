@@ -11,11 +11,7 @@ type Props = {
   onConnected: (sender: BroadcastSender) => void
 }
 
-export default function Msg91EmailConnectModal({
-  companyId,
-  onClose,
-  onConnected,
-}: Props) {
+export default function Msg91EmailConnectModal({ companyId, onClose, onConnected }: Props) {
   const snackbar = useSnackbar()
   const [name, setName] = useState('MSG91 Email')
   const [authKey, setAuthKey] = useState('')
@@ -72,9 +68,9 @@ export default function Msg91EmailConnectModal({
         <div className="mt-5 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
           <p className="text-xs font-bold text-slate-900">Account-level connection</p>
           <p className="mt-1 text-xs leading-5 text-slate-600">
-            Messaging verifies the Auth Key against the MSG91 Email templates API. Provider
-            template IDs are not stored on this connection because every published Email template
-            version receives its own MSG91 mapping.
+            Messaging verifies the Auth Key against the MSG91 Email templates API. Provider template
+            IDs are not stored on this connection because every published Email template version
+            receives its own MSG91 mapping.
           </p>
         </div>
 

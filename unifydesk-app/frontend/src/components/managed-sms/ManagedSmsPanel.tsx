@@ -28,7 +28,10 @@ export default function ManagedSmsPanel({
   const [health, setHealth] = useState<ManagedSmsDeliveryHealth | null>(null)
   const [loading, setLoading] = useState(true)
   const currentCompanyId = useRef(companyId)
-  currentCompanyId.current = companyId
+
+  useEffect(() => {
+    currentCompanyId.current = companyId
+  }, [companyId])
 
   const load = useCallback(async () => {
     const requestCompanyId = companyId

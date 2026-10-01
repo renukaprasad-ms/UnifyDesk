@@ -38,9 +38,7 @@ export const DEFAULT_CONTACT_EXPORT_FIELDS: readonly ContactExportField[] = [
   'organization',
 ]
 
-export const parseContactSearchStatus = (
-  value: string | null,
-): ContactSearchStatus | undefined => {
+export const parseContactSearchStatus = (value: string | null): ContactSearchStatus | undefined => {
   switch (value) {
     case 'ACTIVE':
     case 'MERGED':
@@ -50,10 +48,7 @@ export const parseContactSearchStatus = (
   }
 }
 
-export const validateContactDraft = (
-  draft: ContactFormDraft,
-  validateIdentities = true,
-) => {
+export const validateContactDraft = (draft: ContactFormDraft, validateIdentities = true) => {
   const errors: Partial<Record<keyof ContactFormDraft, string>> = {}
   if (!draft.displayName.trim()) errors.displayName = 'Display name is required.'
   if (draft.displayName.trim().length > 160) errors.displayName = 'Display name is too long.'
@@ -104,7 +99,10 @@ export const appendCursorPage = (
   current: ContactSummary[],
   page: CursorPage<ContactSummary>,
   reset: boolean,
-) => (reset ? page.items : [...current, ...page.items.filter((next) => !current.some((item) => item.id === next.id))])
+) =>
+  reset
+    ? page.items
+    : [...current, ...page.items.filter((next) => !current.some((item) => item.id === next.id))]
 
 export const buildSelectionDescriptor = (
   selectedIds: ReadonlySet<string>,
@@ -189,9 +187,7 @@ const importTargetKey = (target: ImportFieldTarget) => {
   return 'CUSTOM_FIELD:' + target.fieldId
 }
 
-export const buildSuggestedImportMappings = (
-  headers: string[],
-): ImportFieldMapping[] => {
+export const buildSuggestedImportMappings = (headers: string[]): ImportFieldMapping[] => {
   const usedTargets = new Set<string>()
   return headers.map<ImportFieldMapping>((column) => {
     const suggested = suggestImportTarget(column)
@@ -222,7 +218,6 @@ export const createIdempotencyKey = () => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
   return 'contact-job-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2)
 }
-
 
 export const contactPrimaryIdentityValue = (
   contact: Pick<ContactDetail, 'identities' | 'primaryEmail' | 'primaryPhone'>,

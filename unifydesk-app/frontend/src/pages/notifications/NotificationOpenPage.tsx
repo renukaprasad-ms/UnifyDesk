@@ -80,7 +80,11 @@ export default function NotificationOpenPage() {
           <p className="mt-2 text-sm leading-6 text-slate-500">
             It may have expired, or your workspace access may have changed.
           </p>
-          <button type="button" className="primary-button mt-5" onClick={() => navigate('/workspace', { replace: true })}>
+          <button
+            type="button"
+            className="primary-button mt-5"
+            onClick={() => navigate('/workspace', { replace: true })}
+          >
             Go to workspace
           </button>
         </div>
@@ -89,7 +93,10 @@ export default function NotificationOpenPage() {
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-slate-50 px-4" aria-live="polite">
+    <main
+      className="flex min-h-dvh items-center justify-center bg-slate-50 px-4"
+      aria-live="polite"
+    >
       <div className="flex items-center gap-3 text-sm font-semibold text-slate-500">
         <FiLoader aria-hidden="true" className="animate-spin" />
         Opening notification…

@@ -57,9 +57,7 @@ export default function SegmentEditorPage() {
         setLists(nextLists.filter((list) => list.status !== 'ARCHIVED'))
       })
       .catch((loadError) => {
-        setServerErrors([
-          apiErrorMessage(loadError, 'Unable to load Segment field metadata.'),
-        ])
+        setServerErrors([apiErrorMessage(loadError, 'Unable to load Segment field metadata.')])
       })
 
     if (!creating && segmentId) {
@@ -96,9 +94,7 @@ export default function SegmentEditorPage() {
     try {
       const validation = await contactsApi.validateSegment(companyId, filter)
       if (!validation.valid) {
-        setServerErrors(
-          validation.errors?.map((item) => item.message) ?? ['Segment is invalid.'],
-        )
+        setServerErrors(validation.errors?.map((item) => item.message) ?? ['Segment is invalid.'])
         return
       }
 
@@ -106,9 +102,7 @@ export default function SegmentEditorPage() {
       setFilter(normalized)
       setPreview(await contactsApi.previewSegment(companyId, normalized, 20))
     } catch (previewError) {
-      setServerErrors([
-        apiErrorMessage(previewError, 'Unable to preview Segment.'),
-      ])
+      setServerErrors([apiErrorMessage(previewError, 'Unable to preview Segment.')])
     }
   }
 
@@ -120,9 +114,7 @@ export default function SegmentEditorPage() {
     try {
       const validation = await contactsApi.validateSegment(companyId, filter)
       if (!validation.valid) {
-        setServerErrors(
-          validation.errors?.map((item) => item.message) ?? ['Segment is invalid.'],
-        )
+        setServerErrors(validation.errors?.map((item) => item.message) ?? ['Segment is invalid.'])
         return
       }
 
@@ -143,20 +135,14 @@ export default function SegmentEditorPage() {
             })
 
       if (!saved) {
-        setServerErrors([
-          'Segment version is unavailable. Reload this Segment before saving.',
-        ])
+        setServerErrors(['Segment version is unavailable. Reload this Segment before saving.'])
         return
       }
 
       setSegmentVersion(saved.version)
       navigate('/contacts/segments/' + saved.id, { replace: true })
     } catch (saveError) {
-      if (
-        !creating &&
-        segmentId &&
-        isContactVersionConflict(saveError)
-      ) {
+      if (!creating && segmentId && isContactVersionConflict(saveError)) {
         try {
           const latest = await contactsApi.getSegment(companyId, segmentId)
           setName(latest.name)
@@ -209,7 +195,8 @@ export default function SegmentEditorPage() {
               {creating ? 'New Segment' : canModify ? 'Edit Segment' : 'Segment'}
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              The browser builds the frozen AST only. Validation, counts and matching are server-side.
+              The browser builds the frozen AST only. Validation, counts and matching are
+              server-side.
             </p>
           </div>
 
@@ -286,11 +273,7 @@ export default function SegmentEditorPage() {
         )}
 
         <div className="mt-5 flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => void runPreview()}
-          >
+          <button type="button" className="secondary-button" onClick={() => void runPreview()}>
             Validate & preview
           </button>
           {canModify && (
@@ -316,10 +299,7 @@ export default function SegmentEditorPage() {
             </div>
             <div className="mt-4 grid gap-2">
               {preview.sample.map((contact) => (
-                <div
-                  key={contact.id}
-                  className="rounded-lg bg-slate-50 p-3 text-sm"
-                >
+                <div key={contact.id} className="rounded-lg bg-slate-50 p-3 text-sm">
                   <strong>{contact.displayName}</strong>
                   <span className="ml-2 text-slate-500">
                     {contact.primaryEmail || contact.primaryPhone || ''}

@@ -33,7 +33,8 @@ describe('Contacts permission route', () => {
       error: null,
       can: (permission) => permission === PERMISSIONS.CONTACT_READ,
       canAny: (permissions) => permissions.includes(PERMISSIONS.CONTACT_READ),
-      canAll: (permissions) => permissions.every((permission) => permission === PERMISSIONS.CONTACT_READ),
+      canAll: (permissions) =>
+        permissions.every((permission) => permission === PERMISSIONS.CONTACT_READ),
     })
 
     renderContactsRoute()

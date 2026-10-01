@@ -45,12 +45,7 @@ export default function GoogleSearchDemographicTargetingPanel({
       .googleSearchDemographics(companyId, campaignId)
       .then(apply)
       .catch((loadError) =>
-        setError(
-          apiErrorMessage(
-            loadError,
-            'Unable to load Google Search demographics',
-          ),
-        ),
+        setError(apiErrorMessage(loadError, 'Unable to load Google Search demographics')),
       )
       .finally(() => setLoading(false))
   }, [companyId, campaignId])
@@ -60,27 +55,18 @@ export default function GoogleSearchDemographicTargetingPanel({
     setError('')
     setNotice('')
     try {
-      const updated = await adCenterApi.updateGoogleSearchDemographics(
-        companyId,
-        campaignId,
-        {
-          parentalStatusIncludes: parentalIncludes,
-          parentalStatusExcludes: parentalExcludes,
-          incomeRangeIncludes: incomeIncludes,
-          incomeRangeExcludes: incomeExcludes,
-          detailedDemographicIds: detailedIds,
-          excludedDetailedDemographicIds: excludedDetailedIds,
-        },
-      )
+      const updated = await adCenterApi.updateGoogleSearchDemographics(companyId, campaignId, {
+        parentalStatusIncludes: parentalIncludes,
+        parentalStatusExcludes: parentalExcludes,
+        incomeRangeIncludes: incomeIncludes,
+        incomeRangeExcludes: incomeExcludes,
+        detailedDemographicIds: detailedIds,
+        excludedDetailedDemographicIds: excludedDetailedIds,
+      })
       apply(updated)
       setNotice('Search demographic targeting updated in Google Ads.')
     } catch (saveError) {
-      setError(
-        apiErrorMessage(
-          saveError,
-          'Unable to update Google Search demographics',
-        ),
-      )
+      setError(apiErrorMessage(saveError, 'Unable to update Google Search demographics'))
     } finally {
       setSaving(false)
     }
@@ -91,8 +77,8 @@ export default function GoogleSearchDemographicTargetingPanel({
       <div>
         <h2 className="font-bold text-slate-950">Search demographics</h2>
         <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-          Manage Google Search parental status, household income, and detailed
-          demographic criteria at campaign level.
+          Manage Google Search parental status, household income, and detailed demographic criteria
+          at campaign level.
         </p>
       </div>
 
@@ -109,9 +95,7 @@ export default function GoogleSearchDemographicTargetingPanel({
       )}
 
       {loading ? (
-        <p className="mt-4 text-sm text-slate-500">
-          Loading Google Search demographics…
-        </p>
+        <p className="mt-4 text-sm text-slate-500">Loading Google Search demographics…</p>
       ) : (
         <>
           <div className="mt-4">

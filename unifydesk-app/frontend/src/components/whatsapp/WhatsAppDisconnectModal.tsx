@@ -54,7 +54,10 @@ export default function WhatsAppDisconnectModal({
             <h2 id="disconnect-whatsapp-title" className="mt-2 text-lg font-bold text-slate-950">
               Disconnect {connection.name} from UnifyDesk?
             </h2>
-            <p id="disconnect-whatsapp-description" className="mt-2 text-sm leading-6 text-slate-600">
+            <p
+              id="disconnect-whatsapp-description"
+              className="mt-2 text-sm leading-6 text-slate-600"
+            >
               UnifyDesk will stop using this WhatsApp connection and remove its local provider
               credentials. This does not delete your WhatsApp Business Account, phone number, or
               other Meta business assets.
@@ -87,9 +90,12 @@ export default function WhatsAppDisconnectModal({
             <span className="flex gap-3">
               <FiClock className="mt-0.5 shrink-0 text-indigo-600" aria-hidden="true" />
               <span>
-                <span className="block text-sm font-bold text-slate-900">Keep imported data for 7 days</span>
+                <span className="block text-sm font-bold text-slate-900">
+                  Keep imported data for 7 days
+                </span>
                 <span className="mt-1 block text-xs leading-5 text-slate-600">
-                  Reconnecting the same WhatsApp account during the retention period can keep local history.
+                  Reconnecting the same WhatsApp account during the retention period can keep local
+                  history.
                 </span>
               </span>
             </span>
@@ -108,10 +114,12 @@ export default function WhatsAppDisconnectModal({
             <span className="flex gap-3">
               <FiTrash2 className="mt-0.5 shrink-0 text-rose-600" aria-hidden="true" />
               <span>
-                <span className="block text-sm font-bold text-rose-700">Delete imported UnifyDesk data now</span>
+                <span className="block text-sm font-bold text-rose-700">
+                  Delete imported UnifyDesk data now
+                </span>
                 <span className="mt-1 block text-xs leading-5 text-slate-600">
-                  This removes local imported WhatsApp history according to the existing retention policy.
-                  It still does not delete Meta-owned business assets.
+                  This removes local imported WhatsApp history according to the existing retention
+                  policy. It still does not delete Meta-owned business assets.
                 </span>
               </span>
             </span>
@@ -119,16 +127,29 @@ export default function WhatsAppDisconnectModal({
         </div>
 
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button type="button" className="secondary-button justify-center" disabled={working} onClick={onClose}>
+          <button
+            type="button"
+            className="secondary-button justify-center"
+            disabled={working}
+            onClick={onClose}
+          >
             Cancel
           </button>
           <button
             type="button"
-            className={policy === 'DELETE_NOW' ? 'rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white' : 'primary-button justify-center'}
+            className={
+              policy === 'DELETE_NOW'
+                ? 'rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white'
+                : 'primary-button justify-center'
+            }
             disabled={working}
             onClick={() => onConfirm(policy)}
           >
-            {working ? 'Disconnecting…' : policy === 'DELETE_NOW' ? 'Disconnect & delete local data' : 'Disconnect'}
+            {working
+              ? 'Disconnecting…'
+              : policy === 'DELETE_NOW'
+                ? 'Disconnect & delete local data'
+                : 'Disconnect'}
           </button>
         </div>
       </div>

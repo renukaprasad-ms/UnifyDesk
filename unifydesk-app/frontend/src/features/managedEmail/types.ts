@@ -1,12 +1,7 @@
 import type { BroadcastSender } from '../broadcast/types'
 
 export type ManagedEmailServiceStatus =
-  | 'NOT_CONFIGURED'
-  | 'PROVISIONING'
-  | 'ACTIVE'
-  | 'SUSPENDED'
-  | 'ERROR'
-  | 'DISABLED'
+  'NOT_CONFIGURED' | 'PROVISIONING' | 'ACTIVE' | 'SUSPENDED' | 'ERROR' | 'DISABLED'
 
 export type ManagedEmailSendingStatus = 'ENABLED' | 'DISABLED' | 'PROVIDER_DISABLED'
 
@@ -72,11 +67,7 @@ export type ManagedEmailUsage = {
 }
 
 export type ManagedEmailDeliverabilityStatus =
-  | 'INSUFFICIENT_DATA'
-  | 'HEALTHY'
-  | 'WARNING'
-  | 'THROTTLED'
-  | 'SUSPENDED'
+  'INSUFFICIENT_DATA' | 'HEALTHY' | 'WARNING' | 'THROTTLED' | 'SUSPENDED'
 
 export type ManagedEmailDeliverability = {
   status: ManagedEmailDeliverabilityStatus

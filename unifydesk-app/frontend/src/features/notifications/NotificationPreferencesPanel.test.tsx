@@ -3,9 +3,7 @@ import { Provider } from 'react-redux'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { store } from '../../store/store'
 import { notificationApi } from './notificationApi'
-import {
-  getBrowserNotificationState,
-} from './notificationBrowser'
+import { getBrowserNotificationState } from './notificationBrowser'
 import { notificationPreferencesFixture } from './notificationFixtures'
 import NotificationPreferencesPanel from './NotificationPreferencesPanel'
 
@@ -28,9 +26,7 @@ vi.mock('./notificationBrowser', () => ({
 describe('NotificationPreferencesPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(notificationApi.preferences).mockResolvedValue(
-      notificationPreferencesFixture,
-    )
+    vi.mocked(notificationApi.preferences).mockResolvedValue(notificationPreferencesFixture)
     vi.mocked(notificationApi.pushSubscriptions).mockResolvedValue([])
     vi.mocked(getBrowserNotificationState).mockResolvedValue({
       supported: true,

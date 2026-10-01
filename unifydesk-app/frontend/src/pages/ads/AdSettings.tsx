@@ -68,6 +68,16 @@ const checkName = (check: MetaDeliveryCheck) =>
 const providerName = (account?: AdAccount | null) =>
   account?.provider === 'GOOGLE_ADS' ? 'Google Ads' : 'Meta Ads'
 
+const accessExpiryState = (expiresAt?: string | null) => {
+  if (!expiresAt) return { expired: false, soon: false }
+  const expiresAtMs = new Date(expiresAt).getTime()
+  const now = Date.now()
+  return {
+    expired: expiresAtMs < now,
+    soon: expiresAtMs >= now && expiresAtMs - now < 7 * 24 * 60 * 60 * 1000,
+  }
+}
+
 export default function AdSettings() {
   const selectedCompany = useAppSelector(selectSelectedCompany)
   const { can } = useIam()
@@ -263,15 +273,9 @@ export default function AdSettings() {
 
   if (!selectedCompany) return null
 
-  const accessExpiry = health?.accessExpiresAt
-    ? new Date(health.accessExpiresAt)
-    : null
-  const accessExpired =
-    accessExpiry != null && accessExpiry.getTime() < Date.now()
-  const accessSoon =
-    accessExpiry != null &&
-    !accessExpired &&
-    accessExpiry.getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000
+  const { expired: accessExpired, soon: accessSoon } = accessExpiryState(
+    health?.accessExpiresAt,
+  )
 
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">

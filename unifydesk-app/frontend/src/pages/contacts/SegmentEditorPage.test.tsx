@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { contactsApi } from '../../features/contacts/contactsApi'
@@ -108,10 +108,7 @@ describe('SegmentEditorPage', () => {
     render(
       <MemoryRouter initialEntries={['/contacts/segments/segment-1']}>
         <Routes>
-          <Route
-            path="/contacts/segments/:segmentId"
-            element={<SegmentEditorPage />}
-          />
+          <Route path="/contacts/segments/:segmentId" element={<SegmentEditorPage />} />
         </Routes>
       </MemoryRouter>,
     )
@@ -119,14 +116,16 @@ describe('SegmentEditorPage', () => {
     await screen.findByDisplayValue('Existing')
     fireEvent.click(screen.getByRole('button', { name: 'Save Segment' }))
 
-    expect(contactsApi.updateSegment).toHaveBeenCalledWith(
-      'company-1',
-      'segment-1',
-      expect.objectContaining({
-        filterVersion: 1,
-        version: 17,
-        filter: expect.objectContaining({ type: 'group' }),
-      }),
+    await waitFor(() =>
+      expect(contactsApi.updateSegment).toHaveBeenCalledWith(
+        'company-1',
+        'segment-1',
+        expect.objectContaining({
+          filterVersion: 1,
+          version: 17,
+          filter: expect.objectContaining({ type: 'group' }),
+        }),
+      ),
     )
   })
 

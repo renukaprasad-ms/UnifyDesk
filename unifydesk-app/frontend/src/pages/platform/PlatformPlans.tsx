@@ -309,11 +309,18 @@ export default function PlatformPlans() {
                           {plan.status}
                         </span>
                       </td>
-                      <td className="px-4 py-4 font-semibold text-slate-700" data-label="Base price">
+                      <td
+                        className="px-4 py-4 font-semibold text-slate-700"
+                        data-label="Base price"
+                      >
                         {money(plan.basePrice, plan.currency)}
                       </td>
-                      <td className="px-4 py-4 text-slate-600" data-label="Prices">{plan.prices.length}</td>
-                      <td className="px-4 py-4 text-slate-600" data-label="Limits">{plan.entitlements.length}</td>
+                      <td className="px-4 py-4 text-slate-600" data-label="Prices">
+                        {plan.prices.length}
+                      </td>
+                      <td className="px-4 py-4 text-slate-600" data-label="Limits">
+                        {plan.entitlements.length}
+                      </td>
                       <td className="mobile-action-cell px-5 py-4 text-right" data-label="Manage">
                         <button
                           type="button"

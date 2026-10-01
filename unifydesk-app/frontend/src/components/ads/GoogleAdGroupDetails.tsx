@@ -42,8 +42,8 @@ const toMajor = (value: number | null | undefined, currency?: string | null) => 
   if (!currency) return String(value)
   try {
     const digits =
-      new Intl.NumberFormat(undefined, { style: 'currency', currency })
-        .resolvedOptions().maximumFractionDigits ?? 2
+      new Intl.NumberFormat(undefined, { style: 'currency', currency }).resolvedOptions()
+        .maximumFractionDigits ?? 2
     return String(value / 10 ** digits)
   } catch {
     return String(value)
@@ -57,8 +57,8 @@ const toMinor = (value: string, currency?: string | null) => {
   if (!currency) return Math.round(numeric)
   try {
     const digits =
-      new Intl.NumberFormat(undefined, { style: 'currency', currency })
-        .resolvedOptions().maximumFractionDigits ?? 2
+      new Intl.NumberFormat(undefined, { style: 'currency', currency }).resolvedOptions()
+        .maximumFractionDigits ?? 2
     return Math.round(numeric * 10 ** digits)
   } catch {
     return Math.round(numeric)
@@ -189,7 +189,7 @@ export default function GoogleAdGroupDetails({
     setError('')
     try {
       const updated = await adCenterApi.updateGoogleKeyword(companyId, keyword.id, { status })
-      setKeywords((current) => current.map((item) => item.id === updated.id ? updated : item))
+      setKeywords((current) => current.map((item) => (item.id === updated.id ? updated : item)))
       setNotice(`${updated.keywordText} is now ${status.toLowerCase()}.`)
     } catch (statusError) {
       setError(apiErrorMessage(statusError, 'Unable to update Google Ads keyword'))
@@ -241,9 +241,7 @@ export default function GoogleAdGroupDetails({
     }
   }
 
-  const createDisplayAd = async (
-    input: CreateGoogleResponsiveDisplayAdInput,
-  ) => {
+  const createDisplayAd = async (input: CreateGoogleResponsiveDisplayAdInput) => {
     setCreatingAd(true)
     setError('')
     try {
@@ -252,50 +250,32 @@ export default function GoogleAdGroupDetails({
         adGroup.id,
         input,
       )
-      setAds((current) => [
-        created,
-        ...current.filter((item) => item.id !== created.id),
-      ])
+      setAds((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setAdOpen(false)
       setNotice(`${created.name} was created in paused state.`)
     } catch (createError) {
-      setError(
-        apiErrorMessage(createError, 'Unable to create responsive display ad'),
-      )
+      setError(apiErrorMessage(createError, 'Unable to create responsive display ad'))
     } finally {
       setCreatingAd(false)
     }
   }
 
-  const createDemandGenAd = async (
-    input: CreateGoogleDemandGenVideoAdInput,
-  ) => {
+  const createDemandGenAd = async (input: CreateGoogleDemandGenVideoAdInput) => {
     setCreatingAd(true)
     setError('')
     try {
-      const created = await adCenterApi.createGoogleDemandGenVideoAd(
-        companyId,
-        adGroup.id,
-        input,
-      )
-      setAds((current) => [
-        created,
-        ...current.filter((item) => item.id !== created.id),
-      ])
+      const created = await adCenterApi.createGoogleDemandGenVideoAd(companyId, adGroup.id, input)
+      setAds((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setAdOpen(false)
       setNotice(`${created.name} was created in paused state.`)
     } catch (createError) {
-      setError(
-        apiErrorMessage(createError, 'Unable to create Demand Gen video ad'),
-      )
+      setError(apiErrorMessage(createError, 'Unable to create Demand Gen video ad'))
     } finally {
       setCreatingAd(false)
     }
   }
 
-  const createDemandGenMultiAssetAd = async (
-    input: CreateGoogleDemandGenMultiAssetAdInput,
-  ) => {
+  const createDemandGenMultiAssetAd = async (input: CreateGoogleDemandGenMultiAssetAdInput) => {
     setCreatingAd(true)
     setError('')
     try {
@@ -304,24 +284,17 @@ export default function GoogleAdGroupDetails({
         adGroup.id,
         input,
       )
-      setAds((current) => [
-        created,
-        ...current.filter((item) => item.id !== created.id),
-      ])
+      setAds((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setDemandGenCreativeOpen(false)
       setNotice(`${created.name} was created as a paused Demand Gen Multi-Asset ad.`)
     } catch (createError) {
-      setError(
-        apiErrorMessage(createError, 'Unable to create Demand Gen Multi-Asset ad'),
-      )
+      setError(apiErrorMessage(createError, 'Unable to create Demand Gen Multi-Asset ad'))
     } finally {
       setCreatingAd(false)
     }
   }
 
-  const createDemandGenCarouselAd = async (
-    input: CreateGoogleDemandGenCarouselAdInput,
-  ) => {
+  const createDemandGenCarouselAd = async (input: CreateGoogleDemandGenCarouselAdInput) => {
     setCreatingAd(true)
     setError('')
     try {
@@ -330,35 +303,22 @@ export default function GoogleAdGroupDetails({
         adGroup.id,
         input,
       )
-      setAds((current) => [
-        created,
-        ...current.filter((item) => item.id !== created.id),
-      ])
+      setAds((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setDemandGenCreativeOpen(false)
       setNotice(`${created.name} was created as a paused Demand Gen Carousel ad.`)
     } catch (createError) {
-      setError(
-        apiErrorMessage(createError, 'Unable to create Demand Gen Carousel ad'),
-      )
+      setError(apiErrorMessage(createError, 'Unable to create Demand Gen Carousel ad'))
     } finally {
       setCreatingAd(false)
     }
   }
 
-
   const createAppAd = async (input: CreateGoogleAppAdInput) => {
     setCreatingAd(true)
     setError('')
     try {
-      const created = await adCenterApi.createGoogleAppAd(
-        companyId,
-        adGroup.id,
-        input,
-      )
-      setAds((current) => [
-        created,
-        ...current.filter((item) => item.id !== created.id),
-      ])
+      const created = await adCenterApi.createGoogleAppAd(companyId, adGroup.id, input)
+      setAds((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setAdOpen(false)
       setNotice(`${created.name} was created as a paused App ad.`)
     } catch (createError) {
@@ -368,25 +328,17 @@ export default function GoogleAdGroupDetails({
     }
   }
 
-
   const createShoppingAd = async () => {
     setCreatingAd(true)
     setError('')
     try {
-      const created = await adCenterApi.createGoogleShoppingProductAd(
-        companyId,
-        adGroup.id,
-        { name: `${campaign?.name ?? 'Shopping'} product ad` },
-      )
-      setAds((current) => [
-        created,
-        ...current.filter((item) => item.id !== created.id),
-      ])
+      const created = await adCenterApi.createGoogleShoppingProductAd(companyId, adGroup.id, {
+        name: `${campaign?.name ?? 'Shopping'} product ad`,
+      })
+      setAds((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setNotice('Shopping Product Ad was created in paused state.')
     } catch (createError) {
-      setError(
-        apiErrorMessage(createError, 'Unable to create Shopping Product Ad'),
-      )
+      setError(apiErrorMessage(createError, 'Unable to create Shopping Product Ad'))
     } finally {
       setCreatingAd(false)
     }
@@ -397,7 +349,7 @@ export default function GoogleAdGroupDetails({
     setError('')
     try {
       const updated = await adCenterApi.setGoogleAdStatus(companyId, ad.id, status)
-      setAds((current) => current.map((item) => item.id === updated.id ? updated : item))
+      setAds((current) => current.map((item) => (item.id === updated.id ? updated : item)))
       setNotice(`${updated.name} is now ${status.toLowerCase()}.`)
     } catch (statusError) {
       setError(apiErrorMessage(statusError, 'Unable to update Google Ads ad'))
@@ -409,54 +361,101 @@ export default function GoogleAdGroupDetails({
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
-        <Link to={campaign ? `/ad-center/campaigns/${campaign.id}` : '/ad-center/campaigns'} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900">
+        <Link
+          to={campaign ? `/ad-center/campaigns/${campaign.id}` : '/ad-center/campaigns'}
+          className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900"
+        >
           <FiArrowLeft /> Back to campaign
         </Link>
 
         <header className="mt-5 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="eyebrow">Google Ads · Ad group</p>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">{adGroup.name}</h1>
-            <p className="mt-2 text-sm text-slate-500">{campaign?.name ?? 'Campaign'} · {adGroup.externalAdSetId}</p>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+              {adGroup.name}
+            </h1>
+            <p className="mt-2 text-sm text-slate-500">
+              {campaign?.name ?? 'Campaign'} · {adGroup.externalAdSetId}
+            </p>
           </div>
-          {!isVideo && can(PERMISSIONS.ADS_MODIFY) && (
-            adGroup.status === 'ACTIVE' ? (
-              <button className="secondary-button inline-flex items-center gap-2" disabled={workingId !== null} onClick={() => void setGroupStatus('PAUSED')}><FiPause />Pause</button>
+          {!isVideo &&
+            can(PERMISSIONS.ADS_MODIFY) &&
+            (adGroup.status === 'ACTIVE' ? (
+              <button
+                className="secondary-button inline-flex items-center gap-2"
+                disabled={workingId !== null}
+                onClick={() => void setGroupStatus('PAUSED')}
+              >
+                <FiPause />
+                Pause
+              </button>
             ) : (
-              <button className="primary-button inline-flex items-center gap-2" disabled={workingId !== null || adGroup.status === 'REMOVED'} onClick={() => void setGroupStatus('ACTIVE')}><FiPlay />Start ad group</button>
-            )
-          )}
+              <button
+                className="primary-button inline-flex items-center gap-2"
+                disabled={workingId !== null || adGroup.status === 'REMOVED'}
+                onClick={() => void setGroupStatus('ACTIVE')}
+              >
+                <FiPlay />
+                Start ad group
+              </button>
+            ))}
         </header>
 
-        {(error || notice) && <div className={`mt-6 rounded-xl border px-4 py-3 text-sm font-medium ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{error || notice}</div>}
+        {(error || notice) && (
+          <div
+            className={`mt-6 rounded-xl border px-4 py-3 text-sm font-medium ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}
+          >
+            {error || notice}
+          </div>
+        )}
 
         {isVideo && (
           <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
-            This Video Ad Group is read-only through Google Ads API. Reachlyo keeps it synchronized for reporting.
+            This Video Ad Group is read-only through Google Ads API. Reachlyo keeps it synchronized
+            for reporting.
           </div>
         )}
 
         {!isVideo && (
-        <form className="panel mt-6 p-6" onSubmit={save}>
-          <h2 className="text-base font-bold text-slate-950">Ad group settings</h2>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <label className="text-xs font-semibold text-slate-700">Name<input className="form-input mt-2" value={name} maxLength={255} onChange={(e) => setName(e.target.value)} /></label>
-            {!isDemandGen && !isApp && (
+          <form className="panel mt-6 p-6" onSubmit={save}>
+            <h2 className="text-base font-bold text-slate-950">Ad group settings</h2>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <label className="text-xs font-semibold text-slate-700">
-                Default CPC bid {account?.currency ? `(${account.currency})` : ''}
+                Name
                 <input
                   className="form-input mt-2"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={cpcBid}
-                  onChange={(e) => setCpcBid(e.target.value)}
+                  value={name}
+                  maxLength={255}
+                  onChange={(e) => setName(e.target.value)}
                 />
               </label>
+              {!isDemandGen && !isApp && (
+                <label className="text-xs font-semibold text-slate-700">
+                  Default CPC bid {account?.currency ? `(${account.currency})` : ''}
+                  <input
+                    className="form-input mt-2"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={cpcBid}
+                    onChange={(e) => setCpcBid(e.target.value)}
+                  />
+                </label>
+              )}
+            </div>
+            {can(PERMISSIONS.ADS_MODIFY) && (
+              <div className="mt-5 flex justify-end">
+                <button
+                  type="submit"
+                  className="primary-button inline-flex items-center gap-2"
+                  disabled={saving || !name.trim()}
+                >
+                  <FiSave />
+                  {saving ? 'Saving…' : 'Save to Google'}
+                </button>
+              </div>
             )}
-          </div>
-          {can(PERMISSIONS.ADS_MODIFY) && <div className="mt-5 flex justify-end"><button type="submit" className="primary-button inline-flex items-center gap-2" disabled={saving || !name.trim()}><FiSave />{saving ? 'Saving…' : 'Save to Google'}</button></div>}
-        </form>
+          </form>
         )}
 
         {isDemandGen && (
@@ -470,68 +469,123 @@ export default function GoogleAdGroupDetails({
 
         {isSearch && (
           <>
-        {!isVideo && account && (
-          <GoogleReusableAssetsPanel
-            companyId={companyId}
-            accountId={account.id}
-            adGroupId={adGroup.id}
-            canCreate={can(PERMISSIONS.ADS_CREATE)}
-            canModify={can(PERMISSIONS.ADS_MODIFY)}
-          />
-        )}
+            {!isVideo && account && (
+              <GoogleReusableAssetsPanel
+                companyId={companyId}
+                accountId={account.id}
+                adGroupId={adGroup.id}
+                canCreate={can(PERMISSIONS.ADS_CREATE)}
+                canModify={can(PERMISSIONS.ADS_MODIFY)}
+              />
+            )}
 
-        {account && (
-          <GoogleSearchAudienceTargetingPanel
-            companyId={companyId}
-            accountId={account.id}
-            adGroupId={adGroup.id}
-            canModify={can(PERMISSIONS.ADS_MODIFY)}
-          />
-        )}
+            {account && (
+              <GoogleSearchAudienceTargetingPanel
+                companyId={companyId}
+                accountId={account.id}
+                adGroupId={adGroup.id}
+                canModify={can(PERMISSIONS.ADS_MODIFY)}
+              />
+            )}
 
-        {account && (
-          <GoogleSearchInterestTargetingPanel
-            companyId={companyId}
-            accountId={account.id}
-            adGroupId={adGroup.id}
-            canModify={can(PERMISSIONS.ADS_MODIFY)}
-          />
-        )}
+            {account && (
+              <GoogleSearchInterestTargetingPanel
+                companyId={companyId}
+                accountId={account.id}
+                adGroupId={adGroup.id}
+                canModify={can(PERMISSIONS.ADS_MODIFY)}
+              />
+            )}
 
-        <div className="panel mt-5 overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-            <div><h2 className="font-bold text-slate-950">Keywords</h2><p className="mt-1 text-xs text-slate-500">Broad, phrase, exact, and negative keywords for this ad group.</p></div>
-            <div className="flex gap-2">
-              {can(PERMISSIONS.ADS_MODIFY) && <button className="secondary-button inline-flex items-center gap-2" disabled={syncingKeywords} onClick={() => void syncKeywords()}><FiRefreshCw />{syncingKeywords ? 'Syncing…' : 'Sync keywords'}</button>}
-              {can(PERMISSIONS.ADS_CREATE) && <button className="primary-button inline-flex items-center gap-2" onClick={() => setKeywordOpen(true)}><FiPlus />Add keyword</button>}
-            </div>
-          </div>
-          {keywords.length === 0 ? <div className="p-8 text-center text-sm text-slate-500">No keywords stored yet.</div> : (
-            <div className="divide-y divide-slate-100">
-              {keywords.map((keyword) => <div key={keyword.id} className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
-                <div><p className="font-semibold text-slate-950">{keyword.negative ? '− ' : ''}{keyword.keywordText}</p><p className="mt-1 text-xs text-slate-500">{keyword.matchType ?? 'Keyword'} · CPC {formatMicros(keyword.bidAmountMicros, account?.currency)}{keyword.qualityScore != null ? ` · Quality ${keyword.qualityScore}/10` : ''}</p></div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{keyword.providerStatus ?? keyword.status}</span>
-                  {can(PERMISSIONS.ADS_MODIFY) &&
-                    (keyword.negative ? (
-                      <button
-                        type="button"
-                        className="secondary-button inline-flex items-center gap-2"
-                        disabled={workingId !== null}
-                        onClick={() => void removeNegativeKeyword(keyword)}
-                      >
-                        <FiTrash2 />
-                        Remove
-                      </button>
-                    ) : (
-                      <button className="secondary-button" disabled={workingId !== null} onClick={() => void setKeywordStatus(keyword, keyword.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}>{keyword.status === 'ACTIVE' ? 'Pause' : 'Enable'}</button>
-                    ))}
+            <div className="panel mt-5 overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                <div>
+                  <h2 className="font-bold text-slate-950">Keywords</h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Broad, phrase, exact, and negative keywords for this ad group.
+                  </p>
                 </div>
-              </div>)}
+                <div className="flex gap-2">
+                  {can(PERMISSIONS.ADS_MODIFY) && (
+                    <button
+                      className="secondary-button inline-flex items-center gap-2"
+                      disabled={syncingKeywords}
+                      onClick={() => void syncKeywords()}
+                    >
+                      <FiRefreshCw />
+                      {syncingKeywords ? 'Syncing…' : 'Sync keywords'}
+                    </button>
+                  )}
+                  {can(PERMISSIONS.ADS_CREATE) && (
+                    <button
+                      className="primary-button inline-flex items-center gap-2"
+                      onClick={() => setKeywordOpen(true)}
+                    >
+                      <FiPlus />
+                      Add keyword
+                    </button>
+                  )}
+                </div>
+              </div>
+              {keywords.length === 0 ? (
+                <div className="p-8 text-center text-sm text-slate-500">
+                  No keywords stored yet.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {keywords.map((keyword) => (
+                    <div
+                      key={keyword.id}
+                      className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
+                    >
+                      <div>
+                        <p className="font-semibold text-slate-950">
+                          {keyword.negative ? '− ' : ''}
+                          {keyword.keywordText}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {keyword.matchType ?? 'Keyword'} · CPC{' '}
+                          {formatMicros(keyword.bidAmountMicros, account?.currency)}
+                          {keyword.qualityScore != null
+                            ? ` · Quality ${keyword.qualityScore}/10`
+                            : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                          {keyword.providerStatus ?? keyword.status}
+                        </span>
+                        {can(PERMISSIONS.ADS_MODIFY) &&
+                          (keyword.negative ? (
+                            <button
+                              type="button"
+                              className="secondary-button inline-flex items-center gap-2"
+                              disabled={workingId !== null}
+                              onClick={() => void removeNegativeKeyword(keyword)}
+                            >
+                              <FiTrash2 />
+                              Remove
+                            </button>
+                          ) : (
+                            <button
+                              className="secondary-button"
+                              disabled={workingId !== null}
+                              onClick={() =>
+                                void setKeywordStatus(
+                                  keyword,
+                                  keyword.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE',
+                                )
+                              }
+                            >
+                              {keyword.status === 'ACTIVE' ? 'Pause' : 'Enable'}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-
           </>
         )}
 
@@ -548,8 +602,8 @@ export default function GoogleAdGroupDetails({
                       : isApp
                         ? 'App ads'
                         : isVideo
-                        ? 'Video ads'
-                        : 'Responsive search ads'}
+                          ? 'Video ads'
+                          : 'Responsive search ads'}
               </h2>
               <p className="mt-1 text-xs text-slate-500">
                 {isDisplay
@@ -561,12 +615,21 @@ export default function GoogleAdGroupDetails({
                       : isApp
                         ? 'App, App Engagement, or Pre-registration creatives selected by campaign subtype.'
                         : isVideo
-                        ? 'Synced Video ads are available for reporting; mutations remain in Google Ads.'
-                        : 'Headlines, descriptions, final URLs, and delivery status.'}
+                          ? 'Synced Video ads are available for reporting; mutations remain in Google Ads.'
+                          : 'Headlines, descriptions, final URLs, and delivery status.'}
               </p>
             </div>
             <div className="flex gap-2">
-              {can(PERMISSIONS.ADS_MODIFY) && <button className="secondary-button inline-flex items-center gap-2" disabled={syncing} onClick={() => void syncAds()}><FiRefreshCw />{syncing ? 'Syncing…' : 'Sync ads'}</button>}
+              {can(PERMISSIONS.ADS_MODIFY) && (
+                <button
+                  className="secondary-button inline-flex items-center gap-2"
+                  disabled={syncing}
+                  onClick={() => void syncAds()}
+                >
+                  <FiRefreshCw />
+                  {syncing ? 'Syncing…' : 'Sync ads'}
+                </button>
+              )}
               {!isVideo &&
                 can(PERMISSIONS.ADS_CREATE) &&
                 (isShopping ? (
@@ -581,11 +644,7 @@ export default function GoogleAdGroupDetails({
                 ) : (
                   <button
                     className="primary-button inline-flex items-center gap-2"
-                    onClick={() =>
-                      isDemandGen
-                        ? setDemandGenCreativeOpen(true)
-                        : setAdOpen(true)
-                    }
+                    onClick={() => (isDemandGen ? setDemandGenCreativeOpen(true) : setAdOpen(true))}
                   >
                     <FiPlus />
                     Create ad
@@ -593,24 +652,55 @@ export default function GoogleAdGroupDetails({
                 ))}
             </div>
           </div>
-          {ads.length === 0 ? <div className="p-8 text-center text-sm text-slate-500">No ads stored yet.</div> : (
+          {ads.length === 0 ? (
+            <div className="p-8 text-center text-sm text-slate-500">No ads stored yet.</div>
+          ) : (
             <div className="divide-y divide-slate-100">
-              {ads.map((ad) => <div key={ad.id} className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
-                <div><Link to={`/ad-center/ads/${ad.id}`} className="font-semibold text-slate-950 hover:text-indigo-600">{ad.name}</Link><p className="mt-1 text-xs text-slate-500">
-                  {isDisplay
-                    ? 'Responsive Display Ad'
-                    : isDemandGen
-                      ? 'Demand Gen Ad'
-                      : isShopping
-                        ? 'Shopping Product Ad'
-                        : isApp
-                          ? 'App Ad'
-                          : isVideo
-                          ? 'Video Ad'
-                          : 'Responsive Search Ad'} · {ad.externalAdId}
-                </p></div>
-                <div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{ad.providerStatus ?? ad.status}</span>{!isVideo && can(PERMISSIONS.ADS_MODIFY) && <button className="secondary-button" disabled={workingId !== null} onClick={() => void setAdStatus(ad, ad.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}>{ad.status === 'ACTIVE' ? 'Pause' : 'Enable'}</button>}</div>
-              </div>)}
+              {ads.map((ad) => (
+                <div
+                  key={ad.id}
+                  className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
+                >
+                  <div>
+                    <Link
+                      to={`/ad-center/ads/${ad.id}`}
+                      className="font-semibold text-slate-950 hover:text-indigo-600"
+                    >
+                      {ad.name}
+                    </Link>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {isDisplay
+                        ? 'Responsive Display Ad'
+                        : isDemandGen
+                          ? 'Demand Gen Ad'
+                          : isShopping
+                            ? 'Shopping Product Ad'
+                            : isApp
+                              ? 'App Ad'
+                              : isVideo
+                                ? 'Video Ad'
+                                : 'Responsive Search Ad'}{' '}
+                      · {ad.externalAdId}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                      {ad.providerStatus ?? ad.status}
+                    </span>
+                    {!isVideo && can(PERMISSIONS.ADS_MODIFY) && (
+                      <button
+                        className="secondary-button"
+                        disabled={workingId !== null}
+                        onClick={() =>
+                          void setAdStatus(ad, ad.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')
+                        }
+                      >
+                        {ad.status === 'ACTIVE' ? 'Pause' : 'Enable'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

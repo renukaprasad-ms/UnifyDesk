@@ -46,9 +46,8 @@ export default function AdDetails() {
       setName(adData.name)
       setCreativeId(
         adData.creativeId ??
-          creativeData.find(
-            (creative) => creative.externalCreativeId === adData.externalCreativeId,
-          )?.id ??
+          creativeData.find((creative) => creative.externalCreativeId === adData.externalCreativeId)
+            ?.id ??
           '',
       )
     } catch (loadError) {
@@ -75,18 +74,13 @@ export default function AdDetails() {
     }
 
     try {
-      const updated = await adCenterApi.updateMetaAd(
-        selectedCompany.companyId,
-        ad.id,
-        input,
-      )
+      const updated = await adCenterApi.updateMetaAd(selectedCompany.companyId, ad.id, input)
       setAd(updated)
       setName(updated.name)
       setCreativeId(
         updated.creativeId ??
-          creatives.find(
-            (creative) => creative.externalCreativeId === updated.externalCreativeId,
-          )?.id ??
+          creatives.find((creative) => creative.externalCreativeId === updated.externalCreativeId)
+            ?.id ??
           '',
       )
       setNotice('Ad updated in Meta.')
@@ -103,11 +97,7 @@ export default function AdDetails() {
     setError('')
     setNotice('')
     try {
-      const updated = await adCenterApi.setMetaAdStatus(
-        selectedCompany.companyId,
-        ad.id,
-        status,
-      )
+      const updated = await adCenterApi.setMetaAdStatus(selectedCompany.companyId, ad.id, status)
       setAd(updated)
       setNotice(`Ad is now ${status.toLowerCase()}.`)
     } catch (statusError) {
@@ -131,9 +121,7 @@ export default function AdDetails() {
         </Link>
 
         {loading ? (
-          <div className="panel mt-6 p-10 text-center text-sm text-slate-500">
-            Loading ad…
-          </div>
+          <div className="panel mt-6 p-10 text-center text-sm text-slate-500">Loading ad…</div>
         ) : ad ? (
           <>
             <header className="mt-5 flex flex-wrap items-end justify-between gap-4">
@@ -163,9 +151,7 @@ export default function AdDetails() {
                     type="button"
                     className="primary-button inline-flex items-center gap-2"
                     disabled={
-                      statusWorking ||
-                      ad.providerStatus === 'ARCHIVED' ||
-                      ad.status === 'DISABLED'
+                      statusWorking || ad.providerStatus === 'ARCHIVED' || ad.status === 'DISABLED'
                     }
                     onClick={() => void setStatus('ACTIVE')}
                   >
@@ -196,9 +182,7 @@ export default function AdDetails() {
               </div>
               <div className="panel p-5">
                 <p className="text-xs font-semibold text-slate-400">Effective status</p>
-                <p className="mt-2 text-lg font-bold text-slate-950">
-                  {ad.effectiveStatus ?? '—'}
-                </p>
+                <p className="mt-2 text-lg font-bold text-slate-950">{ad.effectiveStatus ?? '—'}</p>
               </div>
               <div className="panel p-5">
                 <p className="text-xs font-semibold text-slate-400">Creative</p>

@@ -29,8 +29,7 @@ const dateFromToday = (days: number) => {
 
 export default function GoogleKeywordForecastPanel(props: Props) {
   const [matchType, setMatchType] = useState<GoogleKeywordForecastMatchType>('PHRASE')
-  const [strategy, setStrategy] =
-    useState<GoogleKeywordForecastBiddingStrategy>('MAXIMIZE_CLICKS')
+  const [strategy, setStrategy] = useState<GoogleKeywordForecastBiddingStrategy>('MAXIMIZE_CLICKS')
   const [dailyBudget, setDailyBudget] = useState('100')
   const [maxCpcBid, setMaxCpcBid] = useState('5')
   const [maxCpcBidCeiling, setMaxCpcBidCeiling] = useState('')
@@ -138,9 +137,7 @@ export default function GoogleKeywordForecastPanel(props: Props) {
             className="form-input mt-2"
             value={matchType}
             disabled={props.disabled}
-            onChange={(event) =>
-              setMatchType(event.target.value as GoogleKeywordForecastMatchType)
-            }
+            onChange={(event) => setMatchType(event.target.value as GoogleKeywordForecastMatchType)}
           >
             <option value="BROAD">Broad</option>
             <option value="PHRASE">Phrase</option>
@@ -269,8 +266,8 @@ export default function GoogleKeywordForecastPanel(props: Props) {
             <Metric label="Average CPA" value={money(result.averageCpa)} />
           </div>
           <p className="mt-2 text-[10px] leading-4 text-slate-400">
-            Google returns click metrics for Manual CPC / Maximize Clicks and conversion metrics
-            for Maximize Conversions. Metrics unavailable for the selected strategy are shown as —.
+            Google returns click metrics for Manual CPC / Maximize Clicks and conversion metrics for
+            Maximize Conversions. Metrics unavailable for the selected strategy are shown as —.
             Forecast period: {result.startDate} to {result.endDate}.
           </p>
         </div>

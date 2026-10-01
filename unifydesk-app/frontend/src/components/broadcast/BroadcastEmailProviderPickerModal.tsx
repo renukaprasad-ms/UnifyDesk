@@ -13,16 +13,9 @@ import {
 } from 'react-icons/fi'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import { useSnackbar } from '../feedback/SnackbarProvider'
-import type {
-  BroadcastSenderProvider,
-  BroadcastSetupStatus,
-} from '../../features/broadcast/types'
+import type { BroadcastSenderProvider, BroadcastSetupStatus } from '../../features/broadcast/types'
 
-export type BroadcastEmailProviderChoice =
-  | 'AMAZON_SES'
-  | 'SENDGRID'
-  | 'AZURE_EMAIL'
-  | 'MSG91_EMAIL'
+export type BroadcastEmailProviderChoice = 'AMAZON_SES' | 'SENDGRID' | 'AZURE_EMAIL' | 'MSG91_EMAIL'
 
 type Props = {
   companyId: string
@@ -60,7 +53,12 @@ const providers: ProviderInfo[] = [
     icon: <FiCloud aria-hidden="true" />,
     consoleUrl: 'https://console.aws.amazon.com/ses/',
     goodFor: ['You already use AWS', 'High-volume sending', 'AWS-managed infrastructure'],
-    needs: ['AWS account', 'Verified email or domain', 'SES sending access', 'IAM role or access keys'],
+    needs: [
+      'AWS account',
+      'Verified email or domain',
+      'SES sending access',
+      'IAM role or access keys',
+    ],
     steps: [
       {
         title: 'Open Amazon SES and choose a region',
@@ -73,8 +71,7 @@ const providers: ProviderInfo[] = [
         title: 'Verify your sending identity',
         description:
           'In SES, verify the email address or domain you want to use as the From address.',
-        explainer:
-          'A verified identity proves that you control the sender address or domain.',
+        explainer: 'A verified identity proves that you control the sender address or domain.',
       },
       {
         title: 'Check production access',
@@ -103,7 +100,11 @@ const providers: ProviderInfo[] = [
     description: 'API-focused email delivery through Twilio SendGrid.',
     icon: <FiSend aria-hidden="true" />,
     consoleUrl: 'https://app.sendgrid.com/',
-    goodFor: ['You already use SendGrid', 'API-first email delivery', 'Transactional and broadcast email'],
+    goodFor: [
+      'You already use SendGrid',
+      'API-first email delivery',
+      'Transactional and broadcast email',
+    ],
     needs: ['SendGrid account', 'Verified sender or domain', 'API key'],
     steps: [
       {
@@ -126,8 +127,7 @@ const providers: ProviderInfo[] = [
       },
       {
         title: 'Connect SendGrid to Messaging',
-        description:
-          'You are ready to enter the API key and the verified From address.',
+        description: 'You are ready to enter the API key and the verified From address.',
       },
     ],
   },
@@ -137,8 +137,17 @@ const providers: ProviderInfo[] = [
     description: 'Azure Communication Services Email.',
     icon: <FiMail aria-hidden="true" />,
     consoleUrl: 'https://portal.azure.com/',
-    goodFor: ['Your company already uses Azure', 'Microsoft cloud infrastructure', 'ACS-based applications'],
-    needs: ['Azure subscription', 'Communication Services resource', 'Email domain', 'Endpoint and access key'],
+    goodFor: [
+      'Your company already uses Azure',
+      'Microsoft cloud infrastructure',
+      'ACS-based applications',
+    ],
+    needs: [
+      'Azure subscription',
+      'Communication Services resource',
+      'Email domain',
+      'Endpoint and access key',
+    ],
     steps: [
       {
         title: 'Create or open Communication Services',
@@ -156,8 +165,7 @@ const providers: ProviderInfo[] = [
         title: 'Copy the ACS endpoint and access key',
         description:
           'Open Keys in the Communication Services resource and copy the endpoint and one access key.',
-        explainer:
-          'The access key is a secret. Messaging encrypts it before storage.',
+        explainer: 'The access key is a secret. Messaging encrypts it before storage.',
       },
       {
         title: 'Choose your MailFrom address',
@@ -166,8 +174,7 @@ const providers: ProviderInfo[] = [
       },
       {
         title: 'Connect Azure Email to Messaging',
-        description:
-          'You are ready to enter the endpoint, access key and MailFrom address.',
+        description: 'You are ready to enter the endpoint, access key and MailFrom address.',
       },
     ],
   },
@@ -187,10 +194,8 @@ const providers: ProviderInfo[] = [
       },
       {
         title: 'Verify your sending domain',
-        description:
-          'Add the sending domain in MSG91 and complete the DNS verification steps.',
-        explainer:
-          'The From address you enter in Messaging must belong to this verified domain.',
+        description: 'Add the sending domain in MSG91 and complete the DNS verification steps.',
+        explainer: 'The From address you enter in Messaging must belong to this verified domain.',
       },
       {
         title: 'Create an email template',
@@ -201,12 +206,12 @@ const providers: ProviderInfo[] = [
       },
       {
         title: 'Copy your auth key',
-        description: 'Get the MSG91 auth key for this account. Messaging encrypts it before storage.',
+        description:
+          'Get the MSG91 auth key for this account. Messaging encrypts it before storage.',
       },
       {
         title: 'Connect MSG91 Email to Messaging',
-        description:
-          'You are ready to enter the domain, template ID, auth key and From address.',
+        description: 'You are ready to enter the domain, template ID, auth key and From address.',
       },
     ],
   },
@@ -232,8 +237,9 @@ export default function BroadcastEmailProviderPickerModal({
 }: Props) {
   const snackbar = useSnackbar()
   const [stage, setStage] = useState<Stage>('landing')
-  const [selectedProvider, setSelectedProvider] =
-    useState<BroadcastEmailProviderChoice | null>(null)
+  const [selectedProvider, setSelectedProvider] = useState<BroadcastEmailProviderChoice | null>(
+    null,
+  )
   const [step, setStep] = useState(0)
   const [ecosystem, setEcosystem] = useState<Ecosystem>('NONE')
   const [goal, setGoal] = useState<Goal>('BOTH')
@@ -309,7 +315,9 @@ export default function BroadcastEmailProviderPickerModal({
         setupDataJson: setupDataJson(),
       })
     } catch {
-      snackbar.warning('Unable to save setup progress. You can still continue, but resume may not work.')
+      snackbar.warning(
+        'Unable to save setup progress. You can still continue, but resume may not work.',
+      )
     } finally {
       setSaving(false)
     }
@@ -427,7 +435,8 @@ export default function BroadcastEmailProviderPickerModal({
                 Use UnifyDesk Managed Email
               </span>
               <span className="mt-1 block text-xs leading-5 text-slate-600">
-                UnifyDesk handles the email-sending infrastructure for you. No provider credentials are needed.
+                UnifyDesk handles the email-sending infrastructure for you. No provider credentials
+                are needed.
               </span>
               <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-indigo-600">
                 Set up Managed Email <FiChevronRight aria-hidden="true" />
@@ -449,7 +458,8 @@ export default function BroadcastEmailProviderPickerModal({
                 Connect my own provider
               </span>
               <span className="mt-1 block text-xs leading-5 text-slate-600">
-                Advanced: connect Amazon SES, SendGrid, Azure Email or MSG91 Email that you already manage.
+                Advanced: connect Amazon SES, SendGrid, Azure Email or MSG91 Email that you already
+                manage.
               </span>
               <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-slate-600">
                 Choose provider <FiChevronRight aria-hidden="true" />
@@ -460,7 +470,9 @@ export default function BroadcastEmailProviderPickerModal({
 
         {stage === 'questions' && (
           <div className="mt-6">
-            <p className="text-sm font-bold text-slate-950">Where do you already have an account?</p>
+            <p className="text-sm font-bold text-slate-950">
+              Where do you already have an account?
+            </p>
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
               {[
                 ['AWS', 'AWS'],
@@ -507,7 +519,11 @@ export default function BroadcastEmailProviderPickerModal({
             </div>
 
             <div className="mt-6 flex justify-end">
-              <button type="button" className="primary-button" onClick={() => setStage('providers')}>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => setStage('providers')}
+              >
                 Show setup options
               </button>
             </div>
@@ -607,9 +623,7 @@ export default function BroadcastEmailProviderPickerModal({
                       <FiHelpCircle aria-hidden="true" />
                       What does this mean?
                     </p>
-                    <p className="mt-1 text-xs leading-5 text-sky-700">
-                      {currentStep.explainer}
-                    </p>
+                    <p className="mt-1 text-xs leading-5 text-sky-700">{currentStep.explainer}</p>
                   </div>
                 )}
 
@@ -633,15 +647,18 @@ export default function BroadcastEmailProviderPickerModal({
                 <div className="mt-3 grid gap-2">
                   {info.needs.map((need) => (
                     <div key={need} className="flex gap-2 text-xs leading-5 text-slate-600">
-                      <FiCheckCircle className="mt-0.5 shrink-0 text-emerald-500" aria-hidden="true" />
+                      <FiCheckCircle
+                        className="mt-0.5 shrink-0 text-emerald-500"
+                        aria-hidden="true"
+                      />
                       <span>{need}</span>
                     </div>
                   ))}
                 </div>
 
                 <div className="mt-5 rounded-xl bg-slate-50 p-3 text-[11px] leading-5 text-slate-500">
-                  Provider credentials are entered only in the secure connection form. Setup progress
-                  never stores API keys, passwords or access keys.
+                  Provider credentials are entered only in the secure connection form. Setup
+                  progress never stores API keys, passwords or access keys.
                 </div>
               </aside>
             </div>

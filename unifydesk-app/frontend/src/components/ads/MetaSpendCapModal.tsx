@@ -14,10 +14,12 @@ type Props = {
 const fractionDigits = (currency?: string | null) => {
   if (!currency) return 2
   try {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency,
-    }).resolvedOptions().maximumFractionDigits ?? 2
+    return (
+      new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency,
+      }).resolvedOptions().maximumFractionDigits ?? 2
+    )
   } catch {
     return 2
   }
@@ -59,10 +61,7 @@ export default function MetaSpendCapModal({
   const valid = Number.isFinite(parsed) && parsed >= 0
   const nextMinor = valid ? majorToMinor(parsed, currency) : 0
   const nearOrBelowSpent =
-    valid &&
-    nextMinor > 0 &&
-    amountSpentMinor != null &&
-    nextMinor <= amountSpentMinor
+    valid && nextMinor > 0 && amountSpentMinor != null && nextMinor <= amountSpentMinor
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -104,7 +103,8 @@ export default function MetaSpendCapModal({
               onChange={(event) => setValue(event.target.value)}
             />
             <span className="mt-2 block font-normal leading-5 text-slate-400">
-              Enter 0 to remove the account spending limit. Campaign and ad-set budgets remain unchanged.
+              Enter 0 to remove the account spending limit. Campaign and ad-set budgets remain
+              unchanged.
             </span>
           </label>
 
@@ -114,7 +114,8 @@ export default function MetaSpendCapModal({
               <div className="text-xs leading-5 text-amber-800">
                 <p className="font-semibold">This can affect live delivery.</p>
                 <p className="mt-1">
-                  When Meta considers the account cap reached, campaign delivery can stop until the limit is changed or reset.
+                  When Meta considers the account cap reached, campaign delivery can stop until the
+                  limit is changed or reset.
                 </p>
               </div>
             </div>
@@ -122,24 +123,16 @@ export default function MetaSpendCapModal({
 
           {nearOrBelowSpent && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs leading-5 text-red-700">
-              The new cap is at or below Meta's currently reported amount spent. This may immediately restrict delivery depending on Meta's spend-cap state.
+              The new cap is at or below Meta's currently reported amount spent. This may
+              immediately restrict delivery depending on Meta's spend-cap state.
             </div>
           )}
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-              disabled={saving}
-            >
+            <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={saving || !valid}
-            >
+            <button type="submit" className="primary-button" disabled={saving || !valid}>
               {saving ? 'Updating…' : nextMinor === 0 ? 'Remove limit' : 'Update limit'}
             </button>
           </div>

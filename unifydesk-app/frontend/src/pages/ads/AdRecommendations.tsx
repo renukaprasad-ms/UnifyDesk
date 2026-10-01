@@ -71,6 +71,9 @@ const severityTone: Record<
 const freshness = (value?: string | null) =>
   value ? new Date(value).toLocaleString() : 'Not synchronized'
 
+const snoozeUntilTomorrow = () =>
+  new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+
 const emptyRecommendations = (accountId: string): AdRecommendationsData => ({
   adAccountId: accountId,
   criticalCount: 0,
@@ -335,9 +338,7 @@ export default function AdRecommendations() {
     setNotice('')
     try {
       const snoozedUntil =
-        action === 'SNOOZE'
-          ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-          : undefined
+        action === 'SNOOZE' ? snoozeUntilTomorrow() : undefined
       const updated = await adCenterApi.updateRecommendationState(
         selectedCompany.companyId,
         selectedAccount.id,

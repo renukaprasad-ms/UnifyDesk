@@ -51,7 +51,7 @@ export default function GoogleSearchTermReport({
   canCreate,
   canModify,
 }: Props) {
-  const initial = useMemo(defaultRange, [])
+  const initial = useMemo(() => defaultRange(), [])
   const [from, setFrom] = useState(initial.from)
   const [to, setTo] = useState(initial.to)
   const [report, setReport] = useState<GoogleSearchTermReport | null>(null)

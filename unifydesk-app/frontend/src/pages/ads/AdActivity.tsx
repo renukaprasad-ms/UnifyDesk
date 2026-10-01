@@ -7,9 +7,7 @@ import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 
 const pretty = (value: string) =>
-  value
-    .replaceAll('_', ' ')
-    .replace(/\b\w/g, (character) => character.toUpperCase())
+  value.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase())
 
 const safeJson = (value?: string | null) => {
   if (!value) return null
@@ -52,12 +50,7 @@ export default function AdActivity() {
     try {
       const [accountData, activityData] = await Promise.all([
         adCenterApi.accounts(selectedCompany.companyId),
-        adCenterApi.activity(
-          selectedCompany.companyId,
-          nextAccountId || undefined,
-          nextPage,
-          30,
-        ),
+        adCenterApi.activity(selectedCompany.companyId, nextAccountId || undefined, nextPage, 30),
       ])
       setAccounts(accountData)
       setPageData(activityData)
@@ -98,7 +91,8 @@ export default function AdActivity() {
               Activity
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Audit provider-affecting Ad Center changes with actor, account, entity, and before/after state.
+              Audit provider-affecting Ad Center changes with actor, account, entity, and
+              before/after state.
             </p>
           </div>
 
@@ -149,17 +143,14 @@ export default function AdActivity() {
           </div>
 
           {loading ? (
-            <div className="p-10 text-center text-sm text-slate-500">
-              Loading activity…
-            </div>
+            <div className="p-10 text-center text-sm text-slate-500">Loading activity…</div>
           ) : !pageData || pageData.content.length === 0 ? (
             <div className="p-10 text-center">
               <FiActivity className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
-              <h3 className="mt-3 text-base font-bold text-slate-950">
-                No activity recorded yet
-              </h3>
+              <h3 className="mt-3 text-base font-bold text-slate-950">No activity recorded yet</h3>
               <p className="mt-2 text-sm text-slate-500">
-                Provider-affecting mutations such as Meta account spend-cap changes will appear here.
+                Provider-affecting mutations such as Meta account spend-cap changes will appear
+                here.
               </p>
             </div>
           ) : (
@@ -167,9 +158,7 @@ export default function AdActivity() {
               <div className="divide-y divide-slate-100">
                 {pageData.content.map((item) => {
                   const expanded = expandedId === item.id
-                  const account = item.adAccountId
-                    ? accountById[item.adAccountId]
-                    : undefined
+                  const account = item.adAccountId ? accountById[item.adAccountId] : undefined
                   const before = formatPayload(item.beforeJson)
                   const after = formatPayload(item.afterJson)
                   const metadata = formatPayload(item.metadataJson)
@@ -182,16 +171,12 @@ export default function AdActivity() {
                         className="flex w-full items-start justify-between gap-4 px-5 py-4 text-left hover:bg-slate-50"
                         onClick={() =>
                           hasDetails &&
-                          setExpandedId((current) =>
-                            current === item.id ? null : item.id,
-                          )
+                          setExpandedId((current) => (current === item.id ? null : item.id))
                         }
                       >
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-semibold text-slate-950">
-                              {pretty(item.action)}
-                            </p>
+                            <p className="font-semibold text-slate-950">{pretty(item.action)}</p>
                             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                               {item.provider === 'META_ADS' ? 'Meta Ads' : 'Google Ads'}
                             </span>

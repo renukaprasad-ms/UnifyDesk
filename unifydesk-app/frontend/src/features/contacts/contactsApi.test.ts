@@ -12,7 +12,7 @@ vi.mock('../../lib/api/apiClient', () => ({
   },
 }))
 
-const ok = <T,>(data: T) => ({
+const ok = <T>(data: T) => ({
   data: {
     status: true,
     status_code: 200,
@@ -34,14 +34,10 @@ describe('contactsApi', () => {
       }) as never,
     )
 
-    await contactsApi.update(
-      '9223372036854775000',
-      '9223372036854775001',
-      {
-        version: 7,
-        displayName: 'Alice Updated',
-      },
-    )
+    await contactsApi.update('9223372036854775000', '9223372036854775001', {
+      version: 7,
+      displayName: 'Alice Updated',
+    })
 
     expect(apiClient.patch).toHaveBeenCalledWith(
       '/api/v1/companies/9223372036854775000/contacts/9223372036854775001',
@@ -118,15 +114,10 @@ describe('contactsApi', () => {
       },
     )
 
-    await contactsApi.liftSuppression(
-      'company-1',
-      'contact-1',
-      'suppression-1',
-      {
-        reason: 'Reviewed',
-        idempotencyKey: 'suppression-lift-1',
-      },
-    )
+    await contactsApi.liftSuppression('company-1', 'contact-1', 'suppression-1', {
+      reason: 'Reviewed',
+      idempotencyKey: 'suppression-lift-1',
+    })
 
     expect(apiClient.post).toHaveBeenLastCalledWith(
       '/api/v1/companies/company-1/contacts/contact-1/suppressions/suppression-1/lift',
@@ -155,26 +146,21 @@ describe('contactsApi', () => {
       'opaque.current',
     )
 
-    expect(apiClient.get).toHaveBeenCalledWith(
-      '/api/v1/companies/company-1/contacts',
-      {
-        params: {
-          q: 'alice',
-          tagId: 'tag-1',
-          listId: 'list-1',
-          createdAfter: '2026-01-01',
-          sort: 'NAME_ASC',
-          size: 50,
-          cursor: 'opaque.current',
-        },
+    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/companies/company-1/contacts', {
+      params: {
+        q: 'alice',
+        tagId: 'tag-1',
+        listId: 'list-1',
+        createdAfter: '2026-01-01',
+        sort: 'NAME_ASC',
+        size: 50,
+        cursor: 'opaque.current',
       },
-    )
+    })
   })
 
   it('uses a selection descriptor for bulk work instead of a flattened contact list', async () => {
-    vi.mocked(apiClient.post).mockResolvedValue(
-      ok({ id: 'job-1', status: 'QUEUED' }) as never,
-    )
+    vi.mocked(apiClient.post).mockResolvedValue(ok({ id: 'job-1', status: 'QUEUED' }) as never)
 
     await contactsApi.bulk(
       'company-1',
@@ -194,9 +180,7 @@ describe('contactsApi', () => {
   })
 
   it('keeps export on the frozen source-based export contract', async () => {
-    vi.mocked(apiClient.post).mockResolvedValue(
-      ok({ id: 'export-1', status: 'QUEUED' }) as never,
-    )
+    vi.mocked(apiClient.post).mockResolvedValue(ok({ id: 'export-1', status: 'QUEUED' }) as never)
 
     await contactsApi.createExport('company-1', {
       sourceType: 'SEGMENT',
@@ -205,15 +189,12 @@ describe('contactsApi', () => {
       idempotencyKey: 'idem-export',
     })
 
-    expect(apiClient.post).toHaveBeenCalledWith(
-      '/api/v1/companies/company-1/contacts/exports',
-      {
-        sourceType: 'SEGMENT',
-        sourceId: 'segment-1',
-        fields: ['displayName', 'organization'],
-        idempotencyKey: 'idem-export',
-      },
-    )
+    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/companies/company-1/contacts/exports', {
+      sourceType: 'SEGMENT',
+      sourceId: 'segment-1',
+      fields: ['displayName', 'organization'],
+      idempotencyKey: 'idem-export',
+    })
   })
 
   it('records channel-specific preference updates without a global subscribed flag', async () => {

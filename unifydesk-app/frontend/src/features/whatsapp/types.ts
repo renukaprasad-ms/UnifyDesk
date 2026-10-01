@@ -39,13 +39,7 @@ export type WhatsAppTemplateParameters = {
 }
 
 export type WhatsAppSendStatus =
-  | 'PENDING'
-  | 'ACCEPTED'
-  | 'SENT'
-  | 'DELIVERED'
-  | 'READ'
-  | 'FAILED'
-  | 'UNKNOWN'
+  'PENDING' | 'ACCEPTED' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'UNKNOWN'
 
 export type WhatsAppSendResult = {
   messageId: string
@@ -79,6 +73,4 @@ export type WhatsAppMediaRequest = {
 }
 
 export type WhatsAppSendRequest =
-  | WhatsAppTextRequest
-  | WhatsAppTemplateRequest
-  | WhatsAppMediaRequest
+  WhatsAppTextRequest | WhatsAppTemplateRequest | WhatsAppMediaRequest

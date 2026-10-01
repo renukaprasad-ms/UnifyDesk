@@ -32,10 +32,7 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { apiErrorMessage } from '../../lib/api/apiClient'
-import {
-  fetchEmailConnections,
-  fetchInboxConversations,
-} from '../../store/inbox/inboxSlice'
+import { fetchEmailConnections, fetchInboxConversations } from '../../store/inbox/inboxSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
 
@@ -126,8 +123,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     broadcast.groupsCompanyId === companyId && broadcast.groupsChannelType === channelType
       ? broadcast.groups
       : []
-  const emailConnections =
-    inbox.connectionsCompanyId === companyId ? inbox.connections : []
+  const emailConnections = inbox.connectionsCompanyId === companyId ? inbox.connections : []
   const connections = (
     channelType === 'EMAIL'
       ? emailConnections.filter((connection) => connection.capabilities.includes('INBOX'))
@@ -145,14 +141,11 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     inbox.scopeConnectionId === selectedConnectionId &&
     inbox.scopeFolder === selectedFolder
   const conversations = sameConversationScope ? inbox.conversations : []
-  const conversationLoading =
-    sameConversationScope && inbox.conversationsStatus === 'loading'
+  const conversationLoading = sameConversationScope && inbox.conversationsStatus === 'loading'
   const conversationLoadingMore = sameConversationScope && inbox.loadingMore
   const conversationPage = sameConversationScope ? inbox.conversationPage : 0
   const conversationTotalPages = sameConversationScope ? inbox.conversationTotalPages : 0
-  const conversationTotalElements = sameConversationScope
-    ? inbox.conversationTotalElements
-    : 0
+  const conversationTotalElements = sameConversationScope ? inbox.conversationTotalElements : 0
 
   useEffect(() => {
     if (!menuOpen) return
@@ -262,11 +255,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   }, [broadcastMode, channelType, companyId, dispatch])
 
   useEffect(() => {
-    if (
-      !companyId ||
-      !emailMode ||
-      !selectedConnectionId
-    ) {
+    if (!companyId || !emailMode || !selectedConnectionId) {
       return
     }
 
@@ -384,23 +373,10 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       },
       { replace: true },
     )
-  }, [
-    emailMode,
-    identities,
-    loading,
-    location.pathname,
-    location.search,
-    navigate,
-    selectedItem,
-  ])
+  }, [emailMode, identities, loading, location.pathname, location.search, navigate, selectedItem])
 
   useEffect(() => {
-    if (
-      !desktop ||
-      !emailMode ||
-      selectedConversationId ||
-      conversations.length === 0
-    ) {
+    if (!desktop || !emailMode || selectedConversationId || conversations.length === 0) {
       return
     }
 
@@ -441,12 +417,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   }
 
   useEffect(() => {
-    if (
-      !desktop ||
-      !broadcastMode ||
-      selectedGroupId ||
-      broadcastGroups.length === 0
-    ) {
+    if (!desktop || !broadcastMode || selectedGroupId || broadcastGroups.length === 0) {
       return
     }
 
@@ -455,10 +426,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     params.delete('broadcastId')
     params.delete('compose')
     params.delete('newGroup')
-    navigate(
-      { pathname: location.pathname, search: `?${params.toString()}` },
-      { replace: true },
-    )
+    navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true })
   }, [
     broadcastGroups,
     broadcastMode,
@@ -556,8 +524,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         ? can(PERMISSIONS.WHATSAPP_CONNECT)
         : can(PERMISSIONS.SMS_CONNECT)
 
-  const emptyListLabel =
-    emailMode ? 'Conversations' : mode === 'inbox' ? 'Chats' : 'Broadcasts'
+  const emptyListLabel = emailMode ? 'Conversations' : mode === 'inbox' ? 'Chats' : 'Broadcasts'
 
   const effectiveError =
     error ||
@@ -566,7 +533,6 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       : emailMode && sameConversationScope && inbox.conversationsStatus === 'error'
         ? 'Unable to load conversations.'
         : null)
-
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -581,209 +547,217 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
       </div>
 
       {(!broadcastMode || channelType !== 'WHATSAPP') && (
-      <div className="mt-4">
-        <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
-          {broadcastMode ? 'Broadcast account' : channelType === 'EMAIL' ? 'Email account' : 'Sender'}
-        </p>
+        <div className="mt-4">
+          <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+            {broadcastMode
+              ? 'Broadcast account'
+              : channelType === 'EMAIL'
+                ? 'Email account'
+                : 'Sender'}
+          </p>
 
-        <div ref={menuRef} className="relative">
-          <button
-            type="button"
-            className="workspace-switcher"
-            disabled={loading || (!broadcastMode && identities.length === 0)}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((current) => !current)}
-          >
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-indigo-50 text-indigo-500">
-              {channelType === 'EMAIL' && selectedItem
-                ? emailProviderIcon(selectedItem.providerType)
-                : channelType === 'WHATSAPP'
-                  ? <FiRadio aria-hidden="true" />
-                  : meta.icon}
-            </span>
-            <span className="workspace-switcher-copy min-w-0 flex-1 text-left">
-              <span className="block truncate text-[12px] font-semibold text-slate-950">
-                {loading
-                  ? 'Loading...'
-                  : selectedItem?.label || `No ${meta.label.toLowerCase()} connected`}
+          <div ref={menuRef} className="relative">
+            <button
+              type="button"
+              className="workspace-switcher"
+              disabled={loading || (!broadcastMode && identities.length === 0)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((current) => !current)}
+            >
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-indigo-50 text-indigo-500">
+                {channelType === 'EMAIL' && selectedItem ? (
+                  emailProviderIcon(selectedItem.providerType)
+                ) : channelType === 'WHATSAPP' ? (
+                  <FiRadio aria-hidden="true" />
+                ) : (
+                  meta.icon
+                )}
               </span>
-              <span className="mt-0.5 block truncate text-[10px] font-medium text-slate-500">
-                {selectedItem?.secondary || `${identities.length} connected`}
+              <span className="workspace-switcher-copy min-w-0 flex-1 text-left">
+                <span className="block truncate text-[12px] font-semibold text-slate-950">
+                  {loading
+                    ? 'Loading...'
+                    : selectedItem?.label || `No ${meta.label.toLowerCase()} connected`}
+                </span>
+                <span className="mt-0.5 block truncate text-[10px] font-medium text-slate-500">
+                  {selectedItem?.secondary || `${identities.length} connected`}
+                </span>
               </span>
-            </span>
-            <FiChevronDown
-              aria-hidden="true"
-              className="workspace-switcher-chevron shrink-0 text-slate-500"
-            />
-          </button>
+              <FiChevronDown
+                aria-hidden="true"
+                className="workspace-switcher-chevron shrink-0 text-slate-500"
+              />
+            </button>
 
-          {menuOpen && (
-            <div className="workspace-menu left-0 right-auto" role="menu">
-              {identities.map((item) => (
-                <button
-                  key={`${item.connectionId}:${item.senderId ?? 'connection'}`}
-                  type="button"
-                  className="workspace-menu-item"
-                  role="menuitem"
-                  onClick={() => selectIdentity(item)}
-                >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-indigo-50 text-indigo-500">
-                    {channelType === 'EMAIL'
-                      ? emailProviderIcon(item.providerType)
-                      : channelType === 'WHATSAPP'
-                        ? <FiRadio aria-hidden="true" />
-                        : meta.icon}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate">{item.label}</span>
-                    <span className="mt-0.5 block truncate text-[10px] font-medium text-slate-500">
-                      {item.secondary}
+            {menuOpen && (
+              <div className="workspace-menu left-0 right-auto" role="menu">
+                {identities.map((item) => (
+                  <button
+                    key={`${item.connectionId}:${item.senderId ?? 'connection'}`}
+                    type="button"
+                    className="workspace-menu-item"
+                    role="menuitem"
+                    onClick={() => selectIdentity(item)}
+                  >
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-indigo-50 text-indigo-500">
+                      {channelType === 'EMAIL' ? (
+                        emailProviderIcon(item.providerType)
+                      ) : channelType === 'WHATSAPP' ? (
+                        <FiRadio aria-hidden="true" />
+                      ) : (
+                        meta.icon
+                      )}
                     </span>
-                  </span>
-                  {selectedItem?.connectionId === item.connectionId &&
-                    selectedItem?.senderId === item.senderId && (
-                      <FiCheck aria-hidden="true" className="shrink-0 text-indigo-500" />
-                    )}
-                </button>
-              ))}
-
-              {channelType === 'EMAIL' && companyId && (
-                <div className="border-t border-slate-100 pt-1">
-                  {!broadcastMode && connectAllowed && (
-                    <EmailProviderPicker
-                      companyId={companyId}
-                      returnTo={location.pathname}
-                      label="Connect inbox email"
-                      className="workspace-menu-item justify-start"
-                      buttonIcon="plus"
-                      onClose={() => setMenuOpen(false)}
-                      onError={setError}
-                      onConnected={() => {
-                        setMenuOpen(false)
-                        void dispatch(fetchEmailConnections({ companyId, force: true }))
-                      }}
-                    />
-                  )}
-                  {broadcastMode ? (
-                    can(PERMISSIONS.BROADCAST_MODIFY) && (
-                      <>
-                        <div className="px-3 pb-1 pt-2 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">
-                          Broadcast email setup
-                        </div>
-                        <button
-                          type="button"
-                          className="workspace-menu-item justify-start"
-                          role="menuitem"
-                          onClick={() => {
-                            setMenuOpen(false)
-                            navigate('/company/connections?connect=broadcast-email')
-                            onNavigate()
-                          }}
-                        >
-                          <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-indigo-50 text-indigo-600">
-                            <FiPlus aria-hidden="true" />
-                          </span>
-                          <span className="text-left">
-                            <span className="block text-[12px] font-semibold text-slate-800">
-                              Connect broadcast email
-                            </span>
-                            <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
-                              Guided setup for SES, SendGrid, Azure or MSG91
-                            </span>
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          className="workspace-menu-item justify-start"
-                          role="menuitem"
-                          onClick={() => {
-                            setMenuOpen(false)
-                            navigate('/company/connections')
-                            onNavigate()
-                          }}
-                        >
-                          <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
-                            <FiLink aria-hidden="true" />
-                          </span>
-                          <span className="text-left">
-                            <span className="block text-[12px] font-semibold text-slate-800">
-                              Manage connections
-                            </span>
-                            <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
-                              View connected senders and provider status
-                            </span>
-                          </span>
-                        </button>
-                      </>
-                    )
-                  ) : (
-                    <button
-                      type="button"
-                      className="workspace-menu-item justify-start"
-                      role="menuitem"
-                      onClick={() => {
-                        setMenuOpen(false)
-                        navigate('/company/connections')
-                        onNavigate()
-                      }}
-                    >
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
-                        <FiPlus aria-hidden="true" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">{item.label}</span>
+                      <span className="mt-0.5 block truncate text-[10px] font-medium text-slate-500">
+                        {item.secondary}
                       </span>
-                      <span className="text-left">
-                        <span className="block text-[12px] font-semibold text-slate-800">
-                          Manage email connections
-                        </span>
-                        <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
-                          Inbox connections and provider settings
-                        </span>
-                      </span>
-                    </button>
-                  )}
-                </div>
-              )}
+                    </span>
+                    {selectedItem?.connectionId === item.connectionId &&
+                      selectedItem?.senderId === item.senderId && (
+                        <FiCheck aria-hidden="true" className="shrink-0 text-indigo-500" />
+                      )}
+                  </button>
+                ))}
 
-              {channelType === 'SMS' &&
-                broadcastMode &&
-                companyId &&
-                can(PERMISSIONS.BROADCAST_MODIFY) && (
+                {channelType === 'EMAIL' && companyId && (
                   <div className="border-t border-slate-100 pt-1">
-                    <div className="px-3 pb-1 pt-2 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">
-                      Connect SMS provider
-                    </div>
-                    <button
-                      type="button"
-                      className="workspace-menu-item justify-start"
-                      role="menuitem"
-                      onClick={() => {
-                        setMenuOpen(false)
-                        navigate('/company/connections?connect=msg91-sms')
-                        onNavigate()
-                      }}
-                    >
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
-                        <FiSmartphone aria-hidden="true" />
-                      </span>
-                      <span className="text-left">
-                        <span className="block text-[12px] font-semibold text-slate-800">
-                          MSG91 SMS
+                    {!broadcastMode && connectAllowed && (
+                      <EmailProviderPicker
+                        companyId={companyId}
+                        returnTo={location.pathname}
+                        label="Connect inbox email"
+                        className="workspace-menu-item justify-start"
+                        buttonIcon="plus"
+                        onClose={() => setMenuOpen(false)}
+                        onError={setError}
+                        onConnected={() => {
+                          setMenuOpen(false)
+                          void dispatch(fetchEmailConnections({ companyId, force: true }))
+                        }}
+                      />
+                    )}
+                    {broadcastMode ? (
+                      can(PERMISSIONS.BROADCAST_MODIFY) && (
+                        <>
+                          <div className="px-3 pb-1 pt-2 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                            Broadcast email setup
+                          </div>
+                          <button
+                            type="button"
+                            className="workspace-menu-item justify-start"
+                            role="menuitem"
+                            onClick={() => {
+                              setMenuOpen(false)
+                              navigate('/company/connections?connect=broadcast-email')
+                              onNavigate()
+                            }}
+                          >
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-indigo-50 text-indigo-600">
+                              <FiPlus aria-hidden="true" />
+                            </span>
+                            <span className="text-left">
+                              <span className="block text-[12px] font-semibold text-slate-800">
+                                Connect broadcast email
+                              </span>
+                              <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                                Guided setup for SES, SendGrid, Azure or MSG91
+                              </span>
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            className="workspace-menu-item justify-start"
+                            role="menuitem"
+                            onClick={() => {
+                              setMenuOpen(false)
+                              navigate('/company/connections')
+                              onNavigate()
+                            }}
+                          >
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
+                              <FiLink aria-hidden="true" />
+                            </span>
+                            <span className="text-left">
+                              <span className="block text-[12px] font-semibold text-slate-800">
+                                Manage connections
+                              </span>
+                              <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                                View connected senders and provider status
+                              </span>
+                            </span>
+                          </button>
+                        </>
+                      )
+                    ) : (
+                      <button
+                        type="button"
+                        className="workspace-menu-item justify-start"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false)
+                          navigate('/company/connections')
+                          onNavigate()
+                        }}
+                      >
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
+                          <FiPlus aria-hidden="true" />
                         </span>
-                        <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
-                          Guided Flow, Header and template setup
+                        <span className="text-left">
+                          <span className="block text-[12px] font-semibold text-slate-800">
+                            Manage email connections
+                          </span>
+                          <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                            Inbox connections and provider settings
+                          </span>
                         </span>
-                      </span>
-                    </button>
+                      </button>
+                    )}
                   </div>
                 )}
-            </div>
+
+                {channelType === 'SMS' &&
+                  broadcastMode &&
+                  companyId &&
+                  can(PERMISSIONS.BROADCAST_MODIFY) && (
+                    <div className="border-t border-slate-100 pt-1">
+                      <div className="px-3 pb-1 pt-2 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                        Connect SMS provider
+                      </div>
+                      <button
+                        type="button"
+                        className="workspace-menu-item justify-start"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false)
+                          navigate('/company/connections?connect=msg91-sms')
+                          onNavigate()
+                        }}
+                      >
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-slate-50 text-slate-500">
+                          <FiSmartphone aria-hidden="true" />
+                        </span>
+                        <span className="text-left">
+                          <span className="block text-[12px] font-semibold text-slate-800">
+                            MSG91 SMS
+                          </span>
+                          <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                            Guided Flow, Header and template setup
+                          </span>
+                        </span>
+                      </button>
+                    </div>
+                  )}
+              </div>
+            )}
+          </div>
+
+          {effectiveError && (
+            <p className="mt-3 px-1 text-xs leading-5 text-rose-600">{effectiveError}</p>
           )}
         </div>
-
-        {effectiveError && (
-          <p className="mt-3 px-1 text-xs leading-5 text-rose-600">{effectiveError}</p>
-        )}
-      </div>
       )}
 
       {broadcastMode && (

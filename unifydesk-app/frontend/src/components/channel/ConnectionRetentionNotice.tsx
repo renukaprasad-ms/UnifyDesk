@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { FiClock, FiLink, FiTrash2 } from 'react-icons/fi'
 import type { ChannelConnection } from '../../features/channel/types'
 
@@ -18,11 +19,18 @@ export default function ConnectionRetentionNotice({
   onReconnect?: () => void
   onDeleteNow: () => void
 }) {
-  if (connection.status !== 'DISCONNECTED') return null
-
   const hasDeadline = Boolean(connection.purgeAfter)
-  const deletionQueued =
-    hasDeadline && new Date(connection.purgeAfter as string).getTime() <= Date.now()
+  const [deletionQueued, setDeletionQueued] = useState(false)
+
+  useEffect(() => {
+    setDeletionQueued(
+      connection.purgeAfter
+        ? new Date(connection.purgeAfter).getTime() <= Date.now()
+        : false,
+    )
+  }, [connection.purgeAfter])
+
+  if (connection.status !== 'DISCONNECTED') return null
 
   return (
     <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3">

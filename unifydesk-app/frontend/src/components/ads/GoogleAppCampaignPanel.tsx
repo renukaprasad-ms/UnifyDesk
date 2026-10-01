@@ -39,7 +39,7 @@ export default function GoogleAppCampaignPanel({
   campaignId,
   currency,
 }: Props) {
-  const dates = useMemo(range, [])
+  const dates = useMemo(() => range(), [])
   const [settings, setSettings] = useState<GoogleAppCampaignSettings | null>(null)
   const [performance, setPerformance] =
     useState<GoogleAppCampaignPerformance | null>(null)

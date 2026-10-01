@@ -102,108 +102,112 @@ export default function MainLayout({ platform = false }: { platform?: boolean })
   return (
     <NotificationProvider companyIdOverride={platform ? null : undefined}>
       <div className={`app-shell ${platform ? 'is-platform-shell' : ''}`}>
-      {(menuOpen || contextOpen) && (
-        <button
-          aria-label="Close navigation"
-          onClick={() => {
-            setMenuOpen(false)
-            setContextOpen(false)
-          }}
-          className="fixed inset-0 z-30 bg-slate-900/30 lg:hidden"
-        />
-      )}
-      <aside
-        id="main-navigation"
-        className={`app-sidebar ${compactNavigation ? 'is-compact' : ''} ${railHovered ? 'is-hover-expanded' : ''} ${menuOpen ? 'is-open' : ''}`}
-        onMouseEnter={() => compactNavigation && setRailHovered(true)}
-        onMouseLeave={() => compactNavigation && setRailHovered(false)}
-      >
-        {platform && platformAccess ? (
-          <>
-            <div className="flex min-h-full flex-col lg:hidden">
-              <AdminSidebar access={platformAccess} onNavigate={closeNavigation} />
-              <div className="mt-auto border-t border-slate-100 pt-5">
-                <button
-                  type="button"
-                  className="sidebar-link w-full text-left"
-                  onClick={() => void logout()}
-                  disabled={loggingOut}
-                >
-                  {loggingOut ? 'Logging out...' : 'Logout'}
-                </button>
+        {(menuOpen || contextOpen) && (
+          <button
+            aria-label="Close navigation"
+            onClick={() => {
+              setMenuOpen(false)
+              setContextOpen(false)
+            }}
+            className="fixed inset-0 z-30 bg-slate-900/30 lg:hidden"
+          />
+        )}
+        <aside
+          id="main-navigation"
+          className={`app-sidebar ${compactNavigation ? 'is-compact' : ''} ${railHovered ? 'is-hover-expanded' : ''} ${menuOpen ? 'is-open' : ''}`}
+          onMouseEnter={() => compactNavigation && setRailHovered(true)}
+          onMouseLeave={() => compactNavigation && setRailHovered(false)}
+        >
+          {platform && platformAccess ? (
+            <>
+              <div className="flex min-h-full flex-col lg:hidden">
+                <AdminSidebar access={platformAccess} onNavigate={closeNavigation} />
+                <div className="mt-auto border-t border-slate-100 pt-5">
+                  <button
+                    type="button"
+                    className="sidebar-link w-full text-left"
+                    onClick={() => void logout()}
+                    disabled={loggingOut}
+                  >
+                    {loggingOut ? 'Logging out...' : 'Logout'}
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="hidden lg:contents">
+              <div className="hidden lg:contents">
+                <AppSidebar
+                  platformAccess={platformAccess}
+                  compact
+                  loggingOut={loggingOut}
+                  onNavigate={closeNavigation}
+                  onLogout={() => void logout()}
+                  notificationPath={platform ? '/platform/notifications' : '/notifications'}
+                />
+              </div>
+            </>
+          ) : (
+            <>
               <AppSidebar
                 platformAccess={platformAccess}
-                compact
+                compact={compactNavigation}
                 loggingOut={loggingOut}
                 onNavigate={closeNavigation}
                 onLogout={() => void logout()}
                 notificationPath={platform ? '/platform/notifications' : '/notifications'}
               />
-            </div>
-          </>
-        ) : (
-          <>
-            <AppSidebar
-              platformAccess={platformAccess}
-              compact={compactNavigation}
-              loggingOut={loggingOut}
-              onNavigate={closeNavigation}
-              onLogout={() => void logout()}
-              notificationPath={platform ? '/platform/notifications' : '/notifications'}
-            />
-          </>
-        )}
-      </aside>
-
-      {platform && platformAccess && (
-        <aside className="admin-sidebar">
-          <AdminSidebar access={platformAccess} onNavigate={closeNavigation} />
-        </aside>
-      )}
-
-      {!platform && workspaceContextMode && (
-        <aside
-          id="channel-navigation"
-          className={`channel-context-sidebar ${contextOpen ? 'is-open' : ''}`}
-        >
-          {adCenterMode ? (
-            <AdCenterSidebar onNavigate={closeContext} />
-          ) : (
-            <ChannelContextSidebar
-              mode={inboxMode ? 'inbox' : 'broadcast'}
-              onNavigate={closeContext}
-            />
+            </>
           )}
         </aside>
-      )}
 
-      <div
-        className={`app-content min-w-0 ${
-          platform ? 'with-admin-sidebar' : workspaceContextMode ? 'with-channel-context-sidebar' : ''
-        }`}
-      >
-        <Header
-          menuOpen={menuOpen}
-          onToggleMenu={() => {
-            setContextOpen(false)
-            setMenuOpen((open) => !open)
-          }}
-          contextAvailable={!platform && workspaceContextMode}
-          contextOpen={contextOpen}
-          contextLabel={adCenterMode ? 'Ad Center' : channelContextLabel}
-          onToggleContext={() => {
-            setMenuOpen(false)
-            setContextOpen((open) => !open)
-          }}
-          notificationPath={platform ? '/platform/notifications' : '/notifications'}
-        />
-        <main id="main-content">
-          <Outlet />
-        </main>
-      </div>
+        {platform && platformAccess && (
+          <aside className="admin-sidebar">
+            <AdminSidebar access={platformAccess} onNavigate={closeNavigation} />
+          </aside>
+        )}
+
+        {!platform && workspaceContextMode && (
+          <aside
+            id="channel-navigation"
+            className={`channel-context-sidebar ${contextOpen ? 'is-open' : ''}`}
+          >
+            {adCenterMode ? (
+              <AdCenterSidebar onNavigate={closeContext} />
+            ) : (
+              <ChannelContextSidebar
+                mode={inboxMode ? 'inbox' : 'broadcast'}
+                onNavigate={closeContext}
+              />
+            )}
+          </aside>
+        )}
+
+        <div
+          className={`app-content min-w-0 ${
+            platform
+              ? 'with-admin-sidebar'
+              : workspaceContextMode
+                ? 'with-channel-context-sidebar'
+                : ''
+          }`}
+        >
+          <Header
+            menuOpen={menuOpen}
+            onToggleMenu={() => {
+              setContextOpen(false)
+              setMenuOpen((open) => !open)
+            }}
+            contextAvailable={!platform && workspaceContextMode}
+            contextOpen={contextOpen}
+            contextLabel={adCenterMode ? 'Ad Center' : channelContextLabel}
+            onToggleContext={() => {
+              setMenuOpen(false)
+              setContextOpen((open) => !open)
+            }}
+            notificationPath={platform ? '/platform/notifications' : '/notifications'}
+          />
+          <main id="main-content">
+            <Outlet />
+          </main>
+        </div>
       </div>
     </NotificationProvider>
   )

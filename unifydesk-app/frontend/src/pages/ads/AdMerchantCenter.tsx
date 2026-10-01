@@ -48,10 +48,7 @@ export default function AdMerchantCenter() {
   const googleAccounts = useMemo(
     () =>
       accounts.filter(
-        (account) =>
-          account.provider === 'GOOGLE_ADS' &&
-          account.managed &&
-          account.accessible,
+        (account) => account.provider === 'GOOGLE_ADS' && account.managed && account.accessible,
       ),
     [accounts],
   )
@@ -64,10 +61,7 @@ export default function AdMerchantCenter() {
 
   const apiSources = dataSources.filter((source) => source.apiManaged)
 
-  const loadMerchant = async (
-    accountId: string,
-    preferredMerchantId?: string,
-  ) => {
+  const loadMerchant = async (accountId: string, preferredMerchantId?: string) => {
     if (!selectedCompany) return
     setLoadingMerchant(true)
     setError('')
@@ -131,13 +125,9 @@ export default function AdMerchantCenter() {
       const accountData = await adCenterApi.accounts(selectedCompany.companyId)
       setAccounts(accountData)
       const eligible = accountData.filter(
-        (account) =>
-          account.provider === 'GOOGLE_ADS' &&
-          account.managed &&
-          account.accessible,
+        (account) => account.provider === 'GOOGLE_ADS' && account.managed && account.accessible,
       )
-      const preferred =
-        eligible.find((account) => account.primaryAccount) ?? eligible[0]
+      const preferred = eligible.find((account) => account.primaryAccount) ?? eligible[0]
       if (preferred) {
         setSelectedAccountId(preferred.id)
         await loadMerchant(preferred.id)
@@ -211,9 +201,7 @@ export default function AdMerchantCenter() {
       setSourceOpen(false)
       setNotice((created.displayName || 'API data source') + ' was created.')
     } catch (createError) {
-      setError(
-        apiErrorMessage(createError, 'Unable to create Merchant API data source'),
-      )
+      setError(apiErrorMessage(createError, 'Unable to create Merchant API data source'))
     } finally {
       setSavingSource(false)
     }
@@ -222,7 +210,13 @@ export default function AdMerchantCenter() {
   const deleteSource = async (source: GoogleMerchantDataSource) => {
     if (!selectedCompany || !selectedAccount || !merchantId) return
     const label = source.displayName || source.dataSourceId
-    if (!window.confirm('Delete ' + label + '? Products owned by a primary source can also disappear from Merchant Center.')) {
+    if (
+      !window.confirm(
+        'Delete ' +
+          label +
+          '? Products owned by a primary source can also disappear from Merchant Center.',
+      )
+    ) {
       return
     }
     setError('')
@@ -236,9 +230,7 @@ export default function AdMerchantCenter() {
       setNotice('Merchant data source deleted.')
       await refresh()
     } catch (deleteError) {
-      setError(
-        apiErrorMessage(deleteError, 'Unable to delete Merchant data source'),
-      )
+      setError(apiErrorMessage(deleteError, 'Unable to delete Merchant data source'))
     }
   }
 
@@ -268,15 +260,14 @@ export default function AdMerchantCenter() {
   }
 
   const deleteProduct = async (product: GoogleMerchantProduct) => {
-    if (
-      !selectedCompany ||
-      !selectedAccount ||
-      !merchantId ||
-      !product.dataSource
-    ) {
+    if (!selectedCompany || !selectedAccount || !merchantId || !product.dataSource) {
       return
     }
-    if (!window.confirm('Delete ' + (product.title || product.offerId) + ' from this API data source?')) {
+    if (
+      !window.confirm(
+        'Delete ' + (product.title || product.offerId) + ' from this API data source?',
+      )
+    ) {
       return
     }
     setError('')
@@ -342,7 +333,8 @@ export default function AdMerchantCenter() {
               Merchant Center
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-              Manage Merchant API product data sources and catalog items used by Google Shopping campaigns.
+              Manage Merchant API product data sources and catalog items used by Google Shopping
+              campaigns.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -427,11 +419,10 @@ export default function AdMerchantCenter() {
         {selectedAccount && merchantAccounts.length === 0 && !loadingMerchant && !error && (
           <div className="panel mt-6 p-10 text-center">
             <FiShoppingBag className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
-            <h2 className="mt-3 font-bold text-slate-950">
-              No Merchant Center account found
-            </h2>
+            <h2 className="mt-3 font-bold text-slate-950">No Merchant Center account found</h2>
             <p className="mt-2 text-sm text-slate-500">
-              Ensure the connected Google user has Merchant Center access. Existing Google connections must reconnect once to grant the Merchant API scope.
+              Ensure the connected Google user has Merchant Center access. Existing Google
+              connections must reconnect once to grant the Merchant API scope.
             </p>
           </div>
         )}
@@ -514,16 +505,15 @@ export default function AdMerchantCenter() {
               <div className="border-b border-slate-100 px-5 py-4">
                 <h2 className="font-bold text-slate-950">Products</h2>
                 <p className="mt-1 text-xs text-slate-500">
-                  Processed Merchant Center products. Google can take several minutes to show a newly submitted change.
+                  Processed Merchant Center products. Google can take several minutes to show a
+                  newly submitted change.
                 </p>
               </div>
 
               {products.length === 0 ? (
                 <div className="p-10 text-center">
                   <FiBox className="mx-auto text-3xl text-slate-300" aria-hidden="true" />
-                  <h3 className="mt-3 font-bold text-slate-950">
-                    No products returned
-                  </h3>
+                  <h3 className="mt-3 font-bold text-slate-950">No products returned</h3>
                   <p className="mt-2 text-sm text-slate-500">
                     Create an API source, then add the first catalog product.
                   </p>
@@ -534,11 +524,7 @@ export default function AdMerchantCenter() {
                     <div
                       key={
                         product.name ||
-                        product.contentLanguage +
-                          '~' +
-                          product.feedLabel +
-                          '~' +
-                          product.offerId
+                        product.contentLanguage + '~' + product.feedLabel + '~' + product.offerId
                       }
                       className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
                     >
@@ -559,7 +545,9 @@ export default function AdMerchantCenter() {
                             {product.title || product.offerId}
                           </p>
                           <p className="mt-1 text-xs text-slate-500">
-                            {product.offerId + ' · ' + (product.availability || 'Unknown availability')}
+                            {product.offerId +
+                              ' · ' +
+                              (product.availability || 'Unknown availability')}
                             {product.priceAmountMicros && product.priceCurrency
                               ? ' · ' +
                                 priceFromMicros(product.priceAmountMicros) +
@@ -577,9 +565,7 @@ export default function AdMerchantCenter() {
 
                       {can(PERMISSIONS.ADS_MODIFY) &&
                         product.dataSource &&
-                        apiSources.some(
-                          (source) => source.name === product.dataSource,
-                        ) && (
+                        apiSources.some((source) => source.name === product.dataSource) && (
                           <div className="flex gap-2">
                             <button
                               type="button"

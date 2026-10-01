@@ -44,8 +44,8 @@ const toMinor = (value: string, currency?: string | null) => {
   if (!currency) return Math.round(numeric)
   try {
     const digits =
-      new Intl.NumberFormat(undefined, { style: 'currency', currency })
-        .resolvedOptions().maximumFractionDigits ?? 2
+      new Intl.NumberFormat(undefined, { style: 'currency', currency }).resolvedOptions()
+        .maximumFractionDigits ?? 2
     return Math.round(numeric * 10 ** digits)
   } catch {
     return Math.round(numeric)
@@ -59,7 +59,11 @@ const normalizeLocation = (value: LocationRow): ReachlyoAudienceLocationInput =>
   postalCode: value.postalCode?.trim() || null,
 })
 
-const GOALS: Array<{ value: GoogleAppBiddingGoal; label: string; subtype: GoogleAppCampaignSubtype[] }> = [
+const GOALS: Array<{
+  value: GoogleAppBiddingGoal
+  label: string
+  subtype: GoogleAppCampaignSubtype[]
+}> = [
   {
     value: 'OPTIMIZE_INSTALLS_TARGET_INSTALL_COST',
     label: 'Installs · target cost per install',
@@ -113,10 +117,7 @@ const needsTargetCpa = (goal: GoogleAppBiddingGoal) =>
 const needsTargetRoas = (goal: GoogleAppBiddingGoal) =>
   goal === 'OPTIMIZE_RETURN_ON_ADVERTISING_SPEND'
 
-const needsConversions = (
-  subtype: GoogleAppCampaignSubtype,
-  goal: GoogleAppBiddingGoal,
-) =>
+const needsConversions = (subtype: GoogleAppCampaignSubtype, goal: GoogleAppBiddingGoal) =>
   subtype === 'APP_CAMPAIGN_FOR_ENGAGEMENT' ||
   [
     'OPTIMIZE_IN_APP_CONVERSIONS_TARGET_INSTALL_COST',
@@ -135,12 +136,10 @@ export default function GoogleAppCampaignModal({
   onCreate,
 }: Props) {
   const [name, setName] = useState('')
-  const [subtype, setSubtype] =
-    useState<GoogleAppCampaignSubtype>('APP_CAMPAIGN')
+  const [subtype, setSubtype] = useState<GoogleAppCampaignSubtype>('APP_CAMPAIGN')
   const [appStore, setAppStore] = useState<GoogleAppStore>('GOOGLE_APP_STORE')
   const [appId, setAppId] = useState('')
-  const [goal, setGoal] =
-    useState<GoogleAppBiddingGoal>('OPTIMIZE_INSTALLS_TARGET_INSTALL_COST')
+  const [goal, setGoal] = useState<GoogleAppBiddingGoal>('OPTIMIZE_INSTALLS_TARGET_INSTALL_COST')
   const [budget, setBudget] = useState('')
   const [targetCpa, setTargetCpa] = useState('')
   const [targetRoas, setTargetRoas] = useState('')
@@ -149,8 +148,9 @@ export default function GoogleAppCampaignModal({
   const [locations, setLocations] = useState<LocationRow[]>([newLocation()])
   const [excludedLocations, setExcludedLocations] = useState<LocationRow[]>([])
   const [languages, setLanguages] = useState('en')
-  const [containsEuPoliticalAdvertising, setContainsEuPoliticalAdvertising] =
-    useState<'YES' | 'NO' | ''>('')
+  const [containsEuPoliticalAdvertising, setContainsEuPoliticalAdvertising] = useState<
+    'YES' | 'NO' | ''
+  >('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [loadError, setLoadError] = useState('')
@@ -205,10 +205,7 @@ export default function GoogleAppCampaignModal({
     setter: Dispatch<SetStateAction<LocationRow[]>>,
     id: string,
     patch: Partial<LocationRow>,
-  ) =>
-    setter((current) =>
-      current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
-    )
+  ) => setter((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)))
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -252,9 +249,7 @@ export default function GoogleAppCampaignModal({
         <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white px-6 py-5">
           <div>
             <p className="eyebrow">Google Ads · App</p>
-            <h2 className="mt-1 text-xl font-bold text-slate-950">
-              Create App campaign
-            </h2>
+            <h2 className="mt-1 text-xl font-bold text-slate-950">Create App campaign</h2>
             <p className="mt-1 text-sm text-slate-500">
               Installs, in-app actions/value, engagement, and Android pre-registration.
             </p>
@@ -293,15 +288,11 @@ export default function GoogleAppCampaignModal({
               <select
                 className="form-input mt-2"
                 value={subtype}
-                onChange={(event) =>
-                  setSubtype(event.target.value as GoogleAppCampaignSubtype)
-                }
+                onChange={(event) => setSubtype(event.target.value as GoogleAppCampaignSubtype)}
               >
                 <option value="APP_CAMPAIGN">Installs / in-app actions</option>
                 <option value="APP_CAMPAIGN_FOR_ENGAGEMENT">App engagement</option>
-                <option value="APP_CAMPAIGN_FOR_PRE_REGISTRATION">
-                  Pre-registration
-                </option>
+                <option value="APP_CAMPAIGN_FOR_PRE_REGISTRATION">Pre-registration</option>
               </select>
             </label>
 
@@ -319,18 +310,12 @@ export default function GoogleAppCampaignModal({
             </label>
 
             <label className="text-xs font-semibold text-slate-700">
-              {appStore === 'GOOGLE_APP_STORE'
-                ? 'Android package name'
-                : 'Apple App Store ID'}
+              {appStore === 'GOOGLE_APP_STORE' ? 'Android package name' : 'Apple App Store ID'}
               <input
                 className="form-input mt-2"
                 value={appId}
                 required
-                placeholder={
-                  appStore === 'GOOGLE_APP_STORE'
-                    ? 'com.example.app'
-                    : '123456789'
-                }
+                placeholder={appStore === 'GOOGLE_APP_STORE' ? 'com.example.app' : '123456789'}
                 onChange={(event) => setAppId(event.target.value)}
               />
             </label>
@@ -340,9 +325,7 @@ export default function GoogleAppCampaignModal({
               <select
                 className="form-input mt-2"
                 value={goal}
-                onChange={(event) =>
-                  setGoal(event.target.value as GoogleAppBiddingGoal)
-                }
+                onChange={(event) => setGoal(event.target.value as GoogleAppBiddingGoal)}
               >
                 {goalOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -367,8 +350,7 @@ export default function GoogleAppCampaignModal({
 
             {needsTargetCpa(goal) && (
               <label className="text-xs font-semibold text-slate-700">
-                Target CPA / install cost{' '}
-                {account.currency ? `(${account.currency})` : ''}
+                Target CPA / install cost {account.currency ? `(${account.currency})` : ''}
                 <input
                   className="form-input mt-2"
                   type="number"
@@ -419,9 +401,7 @@ export default function GoogleAppCampaignModal({
 
           {subtype !== 'APP_CAMPAIGN_FOR_PRE_REGISTRATION' && (
             <div>
-              <h3 className="text-sm font-bold text-slate-950">
-                App conversion actions
-              </h3>
+              <h3 className="text-sm font-bold text-slate-950">App conversion actions</h3>
               <p className="mt-1 text-xs text-slate-500">
                 Required for engagement and in-app action/value goals. Google validates the
                 conversion origin and eligibility during creation.
@@ -440,16 +420,12 @@ export default function GoogleAppCampaignModal({
                       <input
                         type="checkbox"
                         className="mt-1"
-                        checked={selectedConversions.includes(
-                          conversion.externalConversionId,
-                        )}
+                        checked={selectedConversions.includes(conversion.externalConversionId)}
                         onChange={(event) =>
                           setSelectedConversions((current) =>
                             event.target.checked
                               ? [...current, conversion.externalConversionId]
-                              : current.filter(
-                                  (item) => item !== conversion.externalConversionId,
-                                ),
+                              : current.filter((item) => item !== conversion.externalConversionId),
                           )
                         }
                       />
@@ -473,26 +449,18 @@ export default function GoogleAppCampaignModal({
             title="Included locations"
             rows={locations}
             onAdd={() => setLocations((current) => [...current, newLocation()])}
-            onRemove={(id) =>
-              setLocations((current) => current.filter((item) => item.id !== id))
-            }
+            onRemove={(id) => setLocations((current) => current.filter((item) => item.id !== id))}
             onChange={(id, patch) => changeLocation(setLocations, id, patch)}
           />
 
           <LocationEditor
             title="Excluded locations"
             rows={excludedLocations}
-            onAdd={() =>
-              setExcludedLocations((current) => [...current, newLocation()])
-            }
+            onAdd={() => setExcludedLocations((current) => [...current, newLocation()])}
             onRemove={(id) =>
-              setExcludedLocations((current) =>
-                current.filter((item) => item.id !== id),
-              )
+              setExcludedLocations((current) => current.filter((item) => item.id !== id))
             }
-            onChange={(id, patch) =>
-              changeLocation(setExcludedLocations, id, patch)
-            }
+            onChange={(id, patch) => changeLocation(setExcludedLocations, id, patch)}
           />
 
           <label className="block text-xs font-semibold text-slate-700">
@@ -512,9 +480,7 @@ export default function GoogleAppCampaignModal({
               value={containsEuPoliticalAdvertising}
               required
               onChange={(event) =>
-                setContainsEuPoliticalAdvertising(
-                  event.target.value as 'YES' | 'NO' | '',
-                )
+                setContainsEuPoliticalAdvertising(event.target.value as 'YES' | 'NO' | '')
               }
             >
               <option value="">Select an answer</option>
@@ -524,20 +490,16 @@ export default function GoogleAppCampaignModal({
           </label>
 
           <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs leading-5 text-indigo-800">
-            App campaigns are created paused. After creation, add an App ad group and an
-            asset-based App ad before enabling delivery. App Campaign Legacy remains
-            Google-Ads-UI-only and is not created here.
+            App campaigns are created paused. After creation, add an App ad group and an asset-based
+            App ad before enabling delivery. App Campaign Legacy remains Google-Ads-UI-only and is
+            not created here.
           </div>
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
             <button type="button" className="secondary-button" onClick={onClose}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={saving || !complete}
-            >
+            <button type="submit" className="primary-button" disabled={saving || !complete}>
               {saving ? 'Creating…' : 'Create paused App campaign'}
             </button>
           </div>
@@ -588,9 +550,7 @@ function LocationEditor({
               value={row.countryCode}
               maxLength={8}
               placeholder="IN"
-              onChange={(event) =>
-                onChange(row.id, { countryCode: event.target.value })
-              }
+              onChange={(event) => onChange(row.id, { countryCode: event.target.value })}
             />
             <input
               className="form-input"
@@ -608,9 +568,7 @@ function LocationEditor({
               className="form-input"
               value={row.postalCode ?? ''}
               placeholder="Postal code"
-              onChange={(event) =>
-                onChange(row.id, { postalCode: event.target.value })
-              }
+              onChange={(event) => onChange(row.id, { postalCode: event.target.value })}
             />
             <button
               type="button"

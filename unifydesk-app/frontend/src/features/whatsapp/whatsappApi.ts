@@ -12,8 +12,7 @@ const unwrap = <T>(response: ApiResponse<T>) => {
   return response.data
 }
 
-const controlBase = (companyId: string) =>
-  `/api/v1/companies/${companyId}/channels/whatsapp/meta`
+const controlBase = (companyId: string) => `/api/v1/companies/${companyId}/channels/whatsapp/meta`
 
 export const whatsappApi = {
   async composer(companyId: string, conversationId: string) {

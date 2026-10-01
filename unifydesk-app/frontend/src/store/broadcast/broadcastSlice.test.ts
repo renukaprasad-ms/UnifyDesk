@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type {
-  BroadcastMessageSummary,
-  BroadcastStats,
-} from '../../features/broadcast/types'
-import broadcastReducer, {
-  applyBroadcastProgress,
-  fetchBroadcastHistory,
-} from './broadcastSlice'
+import type { BroadcastMessageSummary, BroadcastStats } from '../../features/broadcast/types'
+import broadcastReducer, { applyBroadcastProgress, fetchBroadcastHistory } from './broadcastSlice'
 
 const stats = (accepted = 0): BroadcastStats => ({
   total: 10,
@@ -35,6 +29,14 @@ const message = (id: string, groupId: string): BroadcastMessageSummary => ({
 describe('broadcastSlice realtime progress', () => {
   it('patches only the affected broadcast in the active group', () => {
     let state = broadcastReducer(undefined, { type: 'init' })
+
+    state = broadcastReducer(
+      state,
+      fetchBroadcastHistory.pending('request-1', {
+        companyId: 'company-1',
+        groupId: 'group-1',
+      }),
+    )
 
     state = broadcastReducer(
       state,

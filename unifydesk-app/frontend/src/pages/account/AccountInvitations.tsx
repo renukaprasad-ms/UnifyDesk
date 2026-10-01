@@ -73,7 +73,9 @@ export default function AccountInvitations() {
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-bold text-slate-950">{invitation.companyName}</p>
-          <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusClass[invitation.status]}`}>
+          <span
+            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusClass[invitation.status]}`}
+          >
             {invitation.status}
           </span>
         </div>
@@ -123,7 +125,11 @@ export default function AccountInvitations() {
               Workspace invitations sent to your verified email appear here.
             </p>
           </div>
-          <button type="button" className="secondary-button inline-flex items-center gap-2" onClick={() => void load()}>
+          <button
+            type="button"
+            className="secondary-button inline-flex items-center gap-2"
+            onClick={() => void load()}
+          >
             <FiRefreshCw aria-hidden="true" />
             Refresh
           </button>

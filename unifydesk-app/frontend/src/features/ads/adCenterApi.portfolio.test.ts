@@ -12,7 +12,7 @@ vi.mock('../../lib/api/apiClient', () => ({
   },
 }))
 
-const ok = <T,>(data: T) => ({
+const ok = <T>(data: T) => ({
   data: {
     status: true,
     status_code: 200,

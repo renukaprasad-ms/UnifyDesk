@@ -28,7 +28,10 @@ type Props = {
 
 const pretty = (value?: string | null) =>
   value
-    ? value.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (character) => character.toUpperCase())
+    ? value
+        .replaceAll('_', ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (character) => character.toUpperCase())
     : '—'
 
 const number = (value?: number | null, digits = 2) =>
@@ -36,8 +39,7 @@ const number = (value?: number | null, digits = 2) =>
     ? '—'
     : new Intl.NumberFormat(undefined, { maximumFractionDigits: digits }).format(value)
 
-const percent = (value?: number | null) =>
-  value == null ? '—' : `${number(value, 1)}%`
+const percent = (value?: number | null) => (value == null ? '—' : `${number(value, 1)}%`)
 
 export default function AdOptimizationWorkspace({
   companyId,
@@ -66,10 +68,8 @@ export default function AdOptimizationWorkspace({
   const [notice, setNotice] = useState('')
 
   const [policyName, setPolicyName] = useState('')
-  const [policyType, setPolicyType] =
-    useState<AdOptimizationPolicyType>('AUTOMATION_RULE')
-  const [policyMode, setPolicyMode] =
-    useState<AdOptimizationPolicyMode>('RECOMMENDATION_ONLY')
+  const [policyType, setPolicyType] = useState<AdOptimizationPolicyType>('AUTOMATION_RULE')
+  const [policyMode, setPolicyMode] = useState<AdOptimizationPolicyMode>('RECOMMENDATION_ONLY')
   const [metric, setMetric] = useState('CPA')
   const [operator, setOperator] = useState('GT')
   const [threshold, setThreshold] = useState('0')
@@ -86,8 +86,7 @@ export default function AdOptimizationWorkspace({
   const [metaTerms, setMetaTerms] = useState(false)
   const [adUserDataConsent, setAdUserDataConsent] = useState(false)
   const [adPersonalizationConsent, setAdPersonalizationConsent] = useState(false)
-  const [audienceResult, setAudienceResult] =
-    useState<FirstPartyAudienceBuildResult | null>(null)
+  const [audienceResult, setAudienceResult] = useState<FirstPartyAudienceBuildResult | null>(null)
 
   const managedAccounts = useMemo(
     () => accounts.filter((account) => account.managed && account.accessible),
@@ -111,12 +110,12 @@ export default function AdOptimizationWorkspace({
       setSelectedProviderCampaignId((current) =>
         current && providerPage.content.some((campaign) => campaign.id === current)
           ? current
-          : providerPage.content[0]?.id ?? '',
+          : (providerPage.content[0]?.id ?? ''),
       )
       setSelectedReachlyoCampaignId((current) =>
         current && reachlyoPage.content.some((campaign) => campaign.id === current)
           ? current
-          : reachlyoPage.content[0]?.id ?? '',
+          : (reachlyoPage.content[0]?.id ?? ''),
       )
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load Ad Center optimization data'))
@@ -143,10 +142,7 @@ export default function AdOptimizationWorkspace({
       }
       try {
         setSimulations(
-          await adCenterApi.googleCampaignSimulations(
-            companyId,
-            selectedProviderCampaignId,
-          ),
+          await adCenterApi.googleCampaignSimulations(companyId, selectedProviderCampaignId),
         )
       } catch {
         setSimulations([])
@@ -170,12 +166,7 @@ export default function AdOptimizationWorkspace({
             from,
             to,
           ),
-          adCenterApi.reachlyoFunnelAttribution(
-            companyId,
-            selectedReachlyoCampaignId,
-            from,
-            to,
-          ),
+          adCenterApi.reachlyoFunnelAttribution(companyId, selectedReachlyoCampaignId, from, to),
         ])
         setBudgetRecommendation(budget)
         setFunnel(funnelData)
@@ -258,9 +249,7 @@ export default function AdOptimizationWorkspace({
         policy.id,
         !policy.enabled,
       )
-      setPolicies((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      )
+      setPolicies((current) => current.map((item) => (item.id === updated.id ? updated : item)))
     } catch (toggleError) {
       setError(apiErrorMessage(toggleError, 'Unable to update optimization policy'))
     }
@@ -273,7 +262,9 @@ export default function AdOptimizationWorkspace({
       .map((line) => line.trim())
       .filter(Boolean)
       .map((line) => {
-        const [email = '', phone = '', externalId = ''] = line.split(',').map((value) => value.trim())
+        const [email = '', phone = '', externalId = ''] = line
+          .split(',')
+          .map((value) => value.trim())
         return {
           email: email || null,
           phone: phone || null,
@@ -281,7 +272,9 @@ export default function AdOptimizationWorkspace({
         }
       })
     if (!audienceName.trim() || members.length === 0 || targetAccountIds.length === 0) {
-      setError('Audience name, at least one member, and at least one provider account are required.')
+      setError(
+        'Audience name, at least one member, and at least one provider account are required.',
+      )
       return
     }
     try {
@@ -300,7 +293,9 @@ export default function AdOptimizationWorkspace({
         metaCustomAudienceTermsAccepted: metaTerms,
       })
       setAudienceResult(result)
-      setNotice('First-party audience submission completed. Raw identifiers were not retained by the optimization workspace.')
+      setNotice(
+        'First-party audience submission completed. Raw identifiers were not retained by the optimization workspace.',
+      )
       setAudienceRows('')
     } catch (audienceError) {
       setError(apiErrorMessage(audienceError, 'Unable to build first-party audience'))
@@ -354,21 +349,30 @@ export default function AdOptimizationWorkspace({
               <p className="text-xs text-slate-400">No provider experiments discovered.</p>
             ) : (
               experiments.experiments.slice(0, 12).map((experiment) => (
-                <div key={`${experiment.provider}-${experiment.adAccountId}-${experiment.providerExperimentId}`} className="rounded-xl bg-slate-50 p-3">
+                <div
+                  key={`${experiment.provider}-${experiment.adAccountId}-${experiment.providerExperimentId}`}
+                  className="rounded-xl bg-slate-50 p-3"
+                >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-slate-900">{experiment.name || 'Experiment'}</span>
+                    <span className="text-xs font-bold text-slate-900">
+                      {experiment.name || 'Experiment'}
+                    </span>
                     <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-slate-500">
                       {pretty(experiment.provider)} · {pretty(experiment.managementMode)}
                     </span>
                   </div>
                   <p className="mt-1 text-[11px] text-slate-500">
-                    {pretty(experiment.type)} · {pretty(experiment.status)} · clicks {number(experiment.clicks, 0)} · conversions {number(experiment.conversions)}
+                    {pretty(experiment.type)} · {pretty(experiment.status)} · clicks{' '}
+                    {number(experiment.clicks, 0)} · conversions {number(experiment.conversions)}
                   </p>
                 </div>
               ))
             )}
             {experiments.failures.map((failure) => (
-              <p key={`${failure.provider}-${failure.adAccountId}`} className="text-[11px] text-amber-700">
+              <p
+                key={`${failure.provider}-${failure.adAccountId}`}
+                className="text-[11px] text-amber-700"
+              >
                 {pretty(failure.provider)}: {failure.message}
               </p>
             ))}
@@ -390,7 +394,9 @@ export default function AdOptimizationWorkspace({
               >
                 <option value="">Choose campaign</option>
                 {providerCampaigns.map((campaign) => (
-                  <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
+                  <option key={campaign.id} value={campaign.id}>
+                    {campaign.name}
+                  </option>
                 ))}
               </select>
               <p className="mt-2 text-[11px] leading-5 text-slate-400">
@@ -399,13 +405,19 @@ export default function AdOptimizationWorkspace({
               </p>
               <div className="mt-3 space-y-2">
                 {simulations.length === 0 ? (
-                  <p className="text-xs text-slate-400">No current campaign simulation returned by Google.</p>
+                  <p className="text-xs text-slate-400">
+                    No current campaign simulation returned by Google.
+                  </p>
                 ) : (
                   simulations.map((simulation) => (
-                    <div key={simulation.resourceName ?? simulation.type} className="rounded-xl bg-slate-50 p-3">
+                    <div
+                      key={simulation.resourceName ?? simulation.type}
+                      className="rounded-xl bg-slate-50 p-3"
+                    >
                       <p className="text-xs font-bold text-slate-900">{pretty(simulation.type)}</p>
                       <p className="mt-1 text-[11px] text-slate-500">
-                        {simulation.points.length} provider points · {simulation.startDate || '—'} → {simulation.endDate || '—'}
+                        {simulation.points.length} provider points · {simulation.startDate || '—'} →{' '}
+                        {simulation.endDate || '—'}
                       </p>
                     </div>
                   ))
@@ -424,22 +436,30 @@ export default function AdOptimizationWorkspace({
           >
             <option value="">Choose UnifyDesk campaign</option>
             {reachlyoCampaigns.map((campaign) => (
-              <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
+              <option key={campaign.id} value={campaign.id}>
+                {campaign.name}
+              </option>
             ))}
           </select>
 
           {budgetRecommendation && (
             <div className="mt-4">
               <p className="text-xs leading-5 text-slate-500">
-                Confidence: <strong>{pretty(budgetRecommendation.confidence)}</strong>. {budgetRecommendation.methodology}
+                Confidence: <strong>{pretty(budgetRecommendation.confidence)}</strong>.{' '}
+                {budgetRecommendation.methodology}
               </p>
               <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {budgetRecommendation.channels.map((channel) => (
                   <div key={channel.channelId} className="rounded-xl bg-slate-50 p-3">
-                    <p className="text-xs font-bold text-slate-900">{pretty(channel.channelType || channel.provider)}</p>
-                    <p className="mt-1 text-lg font-bold text-slate-950">{percent(channel.recommendedPercent)}</p>
+                    <p className="text-xs font-bold text-slate-900">
+                      {pretty(channel.channelType || channel.provider)}
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-slate-950">
+                      {percent(channel.recommendedPercent)}
+                    </p>
                     <p className="text-[11px] text-slate-500">
-                      Historical spend {percent(channel.historicalSpendSharePercent)} · conversions {number(channel.conversions)}
+                      Historical spend {percent(channel.historicalSpendSharePercent)} · conversions{' '}
+                      {number(channel.conversions)}
                     </p>
                   </div>
                 ))}
@@ -449,7 +469,9 @@ export default function AdOptimizationWorkspace({
 
           {funnel && (
             <div className="mt-4 rounded-xl border border-slate-100 p-4">
-              <p className="text-xs font-bold text-slate-900">Normalized provider-attributed funnel</p>
+              <p className="text-xs font-bold text-slate-900">
+                Normalized provider-attributed funnel
+              </p>
               <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
                 {[
                   ['Impressions', number(funnel.totals.impressions, 0)],
@@ -474,43 +496,97 @@ export default function AdOptimizationWorkspace({
           <form className="rounded-2xl border border-slate-100 p-4" onSubmit={createPolicy}>
             <h3 className="text-sm font-bold text-slate-950">Automation & lifecycle policy</h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <input className="form-input" value={policyName} onChange={(event) => setPolicyName(event.target.value)} placeholder="Policy name" required />
-              <select className="form-input" value={policyType} onChange={(event) => setPolicyType(event.target.value as AdOptimizationPolicyType)}>
+              <input
+                className="form-input"
+                value={policyName}
+                onChange={(event) => setPolicyName(event.target.value)}
+                placeholder="Policy name"
+                required
+              />
+              <select
+                className="form-input"
+                value={policyType}
+                onChange={(event) => setPolicyType(event.target.value as AdOptimizationPolicyType)}
+              >
                 <option value="AUTOMATION_RULE">Automation rule</option>
                 <option value="LIFECYCLE_RETARGETING">Lifecycle / retargeting</option>
               </select>
-              <select className="form-input" value={policyMode} onChange={(event) => setPolicyMode(event.target.value as AdOptimizationPolicyMode)}>
+              <select
+                className="form-input"
+                value={policyMode}
+                onChange={(event) => setPolicyMode(event.target.value as AdOptimizationPolicyMode)}
+              >
                 <option value="RECOMMENDATION_ONLY">Recommendation only</option>
                 <option value="APPROVAL_REQUIRED">Approval required</option>
                 <option value="AUTOMATIC">Automatic with guardrails</option>
               </select>
-              <select className="form-input" value={policyCampaignId} onChange={(event) => setPolicyCampaignId(event.target.value)}>
+              <select
+                className="form-input"
+                value={policyCampaignId}
+                onChange={(event) => setPolicyCampaignId(event.target.value)}
+              >
                 <option value="">Account scope</option>
                 {providerCampaigns.map((campaign) => (
-                  <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
+                  <option key={campaign.id} value={campaign.id}>
+                    {campaign.name}
+                  </option>
                 ))}
               </select>
             </div>
 
             {policyType === 'AUTOMATION_RULE' ? (
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <select className="form-input" value={metric} onChange={(event) => setMetric(event.target.value)}>
+                <select
+                  className="form-input"
+                  value={metric}
+                  onChange={(event) => setMetric(event.target.value)}
+                >
                   <option value="SPEND">Spend</option>
                   <option value="CPA">CPA</option>
                   <option value="ROAS">ROAS</option>
                   <option value="CONVERSIONS">Conversions</option>
                   <option value="CTR">CTR</option>
                 </select>
-                <select className="form-input" value={operator} onChange={(event) => setOperator(event.target.value)}>
+                <select
+                  className="form-input"
+                  value={operator}
+                  onChange={(event) => setOperator(event.target.value)}
+                >
                   <option value="GT">&gt;</option>
                   <option value="GTE">≥</option>
                   <option value="LT">&lt;</option>
                   <option value="LTE">≤</option>
                 </select>
-                <input className="form-input" type="number" step="0.01" value={threshold} onChange={(event) => setThreshold(event.target.value)} placeholder="Threshold" />
-                <input className="form-input" type="number" min="0" value={minimumConversions} onChange={(event) => setMinimumConversions(event.target.value)} placeholder="Minimum conversions" />
-                <input className="form-input" type="number" min="0" max="720" value={cooldownHours} onChange={(event) => setCooldownHours(event.target.value)} placeholder="Cooldown hours" />
-                <select className="form-input" value={action} onChange={(event) => setAction(event.target.value)}>
+                <input
+                  className="form-input"
+                  type="number"
+                  step="0.01"
+                  value={threshold}
+                  onChange={(event) => setThreshold(event.target.value)}
+                  placeholder="Threshold"
+                />
+                <input
+                  className="form-input"
+                  type="number"
+                  min="0"
+                  value={minimumConversions}
+                  onChange={(event) => setMinimumConversions(event.target.value)}
+                  placeholder="Minimum conversions"
+                />
+                <input
+                  className="form-input"
+                  type="number"
+                  min="0"
+                  max="720"
+                  value={cooldownHours}
+                  onChange={(event) => setCooldownHours(event.target.value)}
+                  placeholder="Cooldown hours"
+                />
+                <select
+                  className="form-input"
+                  value={action}
+                  onChange={(event) => setAction(event.target.value)}
+                >
                   <option value="NOTIFY_ONLY">Notify only</option>
                   <option value="PAUSE_CAMPAIGN">Pause campaign</option>
                   <option value="ENABLE_CAMPAIGN">Enable campaign</option>
@@ -520,7 +596,11 @@ export default function AdOptimizationWorkspace({
                 </select>
               </div>
             ) : (
-              <select className="form-input mt-3" value={segmentType} onChange={(event) => setSegmentType(event.target.value)}>
+              <select
+                className="form-input mt-3"
+                value={segmentType}
+                onChange={(event) => setSegmentType(event.target.value)}
+              >
                 <option value="CLICKED_NOT_CONVERTED">Clicked ad, not converted</option>
                 <option value="LEAD_NOT_PURCHASED">Lead, not purchased</option>
                 <option value="INACTIVE_CUSTOMER">Inactive customer</option>
@@ -533,7 +613,9 @@ export default function AdOptimizationWorkspace({
               Automatic mode only executes reversible campaign pause/enable actions. Budget and
               creative actions remain advisory or approval-based.
             </p>
-            <button className="primary-button mt-3" type="submit">Create policy</button>
+            <button className="primary-button mt-3" type="submit">
+              Create policy
+            </button>
           </form>
         )}
 
@@ -549,20 +631,33 @@ export default function AdOptimizationWorkspace({
                     <div>
                       <p className="text-xs font-bold text-slate-900">{policy.name}</p>
                       <p className="mt-1 text-[11px] text-slate-500">
-                        {pretty(policy.policyType)} · {pretty(policy.mode)} · {pretty(policy.status)}
+                        {pretty(policy.policyType)} · {pretty(policy.mode)} ·{' '}
+                        {pretty(policy.status)}
                       </p>
                     </div>
                     {canModify && (
                       <div className="flex gap-2">
-                        <button type="button" className="secondary-button" onClick={() => void evaluatePolicy(policy)}>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => void evaluatePolicy(policy)}
+                        >
                           Evaluate
                         </button>
                         {policy.status === 'PENDING_APPROVAL' && (
-                          <button type="button" className="primary-button" onClick={() => void approvePolicy(policy)}>
+                          <button
+                            type="button"
+                            className="primary-button"
+                            onClick={() => void approvePolicy(policy)}
+                          >
                             Approve
                           </button>
                         )}
-                        <button type="button" className="secondary-button" onClick={() => void togglePolicy(policy)}>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => void togglePolicy(policy)}
+                        >
                           {policy.enabled ? 'Disable' : 'Enable'}
                         </button>
                       </div>
@@ -575,7 +670,10 @@ export default function AdOptimizationWorkspace({
         </div>
 
         {canCreate && (
-          <form className="rounded-2xl border border-slate-100 p-4 xl:col-span-2" onSubmit={buildAudience}>
+          <form
+            className="rounded-2xl border border-slate-100 p-4 xl:col-span-2"
+            onSubmit={buildAudience}
+          >
             <div className="flex items-center gap-2">
               <FiUsers className="text-indigo-500" aria-hidden="true" />
               <h3 className="text-sm font-bold text-slate-950">First-party audience builder</h3>
@@ -585,12 +683,21 @@ export default function AdOptimizationWorkspace({
               Audiences. Raw member rows are not persisted by this workspace.
             </p>
             <div className="mt-3 grid gap-3 lg:grid-cols-2">
-              <input className="form-input" value={audienceName} onChange={(event) => setAudienceName(event.target.value)} placeholder="Audience name" required />
+              <input
+                className="form-input"
+                value={audienceName}
+                onChange={(event) => setAudienceName(event.target.value)}
+                placeholder="Audience name"
+                required
+              />
               <div className="rounded-xl border border-slate-200 p-3">
                 <p className="text-xs font-semibold text-slate-700">Provider targets</p>
                 <div className="mt-2 flex flex-wrap gap-3">
                   {managedAccounts.map((account) => (
-                    <label key={account.id} className="inline-flex items-center gap-2 text-xs text-slate-600">
+                    <label
+                      key={account.id}
+                      className="inline-flex items-center gap-2 text-xs text-slate-600"
+                    >
                       <input
                         type="checkbox"
                         checked={targetAccountIds.includes(account.id)}
@@ -611,33 +718,56 @@ export default function AdOptimizationWorkspace({
                 className="form-input min-h-32 lg:col-span-2"
                 value={audienceRows}
                 onChange={(event) => setAudienceRows(event.target.value)}
-                placeholder={"One member per line: email,phone,externalId\nuser@example.com,+919876543210,crm-123"}
+                placeholder={
+                  'One member per line: email,phone,externalId\nuser@example.com,+919876543210,crm-123'
+                }
                 required
               />
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <label className="inline-flex items-start gap-2 text-xs text-slate-600">
-                <input type="checkbox" checked={googleTerms} onChange={(event) => setGoogleTerms(event.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={googleTerms}
+                  onChange={(event) => setGoogleTerms(event.target.checked)}
+                />
                 Google Customer Match terms accepted
               </label>
               <label className="inline-flex items-start gap-2 text-xs text-slate-600">
-                <input type="checkbox" checked={metaTerms} onChange={(event) => setMetaTerms(event.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={metaTerms}
+                  onChange={(event) => setMetaTerms(event.target.checked)}
+                />
                 Meta Custom Audience terms / first-party authorization confirmed
               </label>
               <label className="inline-flex items-start gap-2 text-xs text-slate-600">
-                <input type="checkbox" checked={adUserDataConsent} onChange={(event) => setAdUserDataConsent(event.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={adUserDataConsent}
+                  onChange={(event) => setAdUserDataConsent(event.target.checked)}
+                />
                 Google ad user data consent granted for these members
               </label>
               <label className="inline-flex items-start gap-2 text-xs text-slate-600">
-                <input type="checkbox" checked={adPersonalizationConsent} onChange={(event) => setAdPersonalizationConsent(event.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={adPersonalizationConsent}
+                  onChange={(event) => setAdPersonalizationConsent(event.target.checked)}
+                />
                 Google ad personalization consent granted for these members
               </label>
             </div>
-            <button className="primary-button mt-3" type="submit">Build provider audiences</button>
+            <button className="primary-button mt-3" type="submit">
+              Build provider audiences
+            </button>
             {audienceResult && (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {audienceResult.targets.map((target) => (
-                  <div key={`${target.provider}-${target.adAccountId}`} className="rounded-xl bg-slate-50 p-3">
+                  <div
+                    key={`${target.provider}-${target.adAccountId}`}
+                    className="rounded-xl bg-slate-50 p-3"
+                  >
                     <p className="text-xs font-bold text-slate-900">{pretty(target.provider)}</p>
                     <p className="mt-1 text-[11px] text-slate-500">
                       {target.success

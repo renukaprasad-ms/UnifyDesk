@@ -586,10 +586,16 @@ export default function PlatformBilling() {
                           <td className="px-4 py-4 font-bold text-slate-950" data-label="Price">
                             {override.currency} {override.price}
                           </td>
-                          <td className="max-w-[260px] px-4 py-4 text-xs text-slate-500" data-label="Reason">
+                          <td
+                            className="max-w-[260px] px-4 py-4 text-xs text-slate-500"
+                            data-label="Reason"
+                          >
                             {override.reason || '—'}
                           </td>
-                          <td className="px-4 py-4 text-xs font-semibold text-slate-600" data-label="Status">
+                          <td
+                            className="px-4 py-4 text-xs font-semibold text-slate-600"
+                            data-label="Status"
+                          >
                             {override.status}
                           </td>
                         </tr>

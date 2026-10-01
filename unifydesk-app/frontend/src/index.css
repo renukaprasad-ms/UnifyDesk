@@ -608,8 +608,7 @@
       z-index: 45;
       display: block;
       width: min(360px, calc(100vw - 24px));
-      padding: max(18px, env(safe-area-inset-top)) 17px
-        max(18px, env(safe-area-inset-bottom));
+      padding: max(18px, env(safe-area-inset-top)) 17px max(18px, env(safe-area-inset-bottom));
       overflow-y: auto;
       background: #fbfcff;
       box-shadow: 18px 0 50px rgb(15 23 42 / 16%);
@@ -653,7 +652,6 @@
     }
   }
 }
-
 
 @layer base {
   html,
@@ -944,7 +942,6 @@
   }
 }
 
-
 @layer components {
   .broadcast-group-nav-item {
     display: flex;
@@ -1008,7 +1005,6 @@
     }
   }
 }
-
 
 @layer components {
   .notification-bell-root {
@@ -1370,7 +1366,6 @@
     }
   }
 }
-
 
 @layer components {
   .app-sidebar.is-compact:not(.is-hover-expanded) .sidebar-link {

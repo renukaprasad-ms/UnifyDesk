@@ -52,12 +52,7 @@ export default function GoogleSearchInterestSelector({
         .googleSearchInterestCatalog(companyId, accountId, query.trim(), 50)
         .then(setCatalog)
         .catch((catalogError) =>
-          setError(
-            apiErrorMessage(
-              catalogError,
-              'Unable to load Google Search audience segments',
-            ),
-          ),
+          setError(apiErrorMessage(catalogError, 'Unable to load Google Search audience segments')),
         )
         .finally(() => setLoading(false))
     }, 250)
@@ -65,15 +60,9 @@ export default function GoogleSearchInterestSelector({
     return () => window.clearTimeout(handle)
   }, [companyId, accountId, query])
 
-  const interests = useMemo(
-    () => catalog?.interests ?? [],
-    [catalog?.interests],
-  )
+  const interests = useMemo(() => catalog?.interests ?? [], [catalog?.interests])
 
-  const toggleIncluded = (
-    option: GoogleSearchInterestOption,
-    checked: boolean,
-  ) => {
+  const toggleIncluded = (option: GoogleSearchInterestOption, checked: boolean) => {
     const resource = option.resourceName
     setIncludedResourceNames(
       checked
@@ -81,16 +70,11 @@ export default function GoogleSearchInterestSelector({
         : includedResourceNames.filter((value) => value !== resource),
     )
     if (checked) {
-      setExcludedResourceNames(
-        excludedResourceNames.filter((value) => value !== resource),
-      )
+      setExcludedResourceNames(excludedResourceNames.filter((value) => value !== resource))
     }
   }
 
-  const toggleExcluded = (
-    option: GoogleSearchInterestOption,
-    checked: boolean,
-  ) => {
+  const toggleExcluded = (option: GoogleSearchInterestOption, checked: boolean) => {
     const resource = option.resourceName
     setExcludedResourceNames(
       checked
@@ -98,9 +82,7 @@ export default function GoogleSearchInterestSelector({
         : excludedResourceNames.filter((value) => value !== resource),
     )
     if (checked) {
-      setIncludedResourceNames(
-        includedResourceNames.filter((value) => value !== resource),
-      )
+      setIncludedResourceNames(includedResourceNames.filter((value) => value !== resource))
     }
   }
 
@@ -108,17 +90,14 @@ export default function GoogleSearchInterestSelector({
     <div className="rounded-2xl border border-slate-200 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-bold text-slate-900">
-            Affinity &amp; In-market segments
-          </p>
+          <p className="text-sm font-bold text-slate-900">Affinity &amp; In-market segments</p>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-            These are provider-backed Google segments. Search uses the same
-            Observation/Targeting mode configured above.
+            These are provider-backed Google segments. Search uses the same Observation/Targeting
+            mode configured above.
           </p>
         </div>
         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-          {includedResourceNames.length} included · {excludedResourceNames.length}{' '}
-          excluded
+          {includedResourceNames.length} included · {excludedResourceNames.length} excluded
         </span>
       </div>
 
@@ -171,9 +150,7 @@ export default function GoogleSearchInterestSelector({
                 className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-slate-200 px-3 py-3"
               >
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-800">
-                    {option.name ?? option.id}
-                  </p>
+                  <p className="text-xs font-semibold text-slate-800">{option.name ?? option.id}</p>
                   <p className="mt-1 text-[11px] text-slate-500">
                     {pretty(option.taxonomyType)}
                     {option.launchedToAll ? ' · All-channel availability' : ' · Search available'}
@@ -185,9 +162,7 @@ export default function GoogleSearchInterestSelector({
                       type="checkbox"
                       checked={included}
                       disabled={disabled}
-                      onChange={(event) =>
-                        toggleIncluded(option, event.target.checked)
-                      }
+                      onChange={(event) => toggleIncluded(option, event.target.checked)}
                     />
                     Include
                   </label>
@@ -196,9 +171,7 @@ export default function GoogleSearchInterestSelector({
                       type="checkbox"
                       checked={excluded}
                       disabled={disabled}
-                      onChange={(event) =>
-                        toggleExcluded(option, event.target.checked)
-                      }
+                      onChange={(event) => toggleExcluded(option, event.target.checked)}
                     />
                     Exclude
                   </label>

@@ -210,9 +210,7 @@ export default function AppSidebar({
           onClick={onNavigate}
           title={compact ? 'Notifications' : undefined}
           aria-label={
-            unreadCount.total > 0
-              ? `Notifications, ${unreadCount.total} unread`
-              : 'Notifications'
+            unreadCount.total > 0 ? `Notifications, ${unreadCount.total} unread` : 'Notifications'
           }
         >
           <FiBell className="sidebar-icon" aria-hidden="true" />

@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { notificationApi } from '../../features/notifications/notificationApi'
 import { notificationPresentation } from '../../features/notifications/notificationPresentation'
-import { useNotifications } from '../../features/notifications/NotificationProvider'
+import { useNotifications } from '../../features/notifications/notificationContext'
 import { isSafeAppRoute } from '../../features/notifications/notificationUtils'
 import type { NotificationItem } from '../../features/notifications/types'
 

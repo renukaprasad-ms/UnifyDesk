@@ -12,8 +12,7 @@ const unwrap = <T>(response: ApiResponse<T>) => {
   return response.data
 }
 
-const basePath = (companyId: string) =>
-  `/api/v1/companies/${companyId}/channels/whatsapp/meta`
+const basePath = (companyId: string) => `/api/v1/companies/${companyId}/channels/whatsapp/meta`
 
 export const metaWhatsAppApi = {
   async signupSession(companyId: string) {

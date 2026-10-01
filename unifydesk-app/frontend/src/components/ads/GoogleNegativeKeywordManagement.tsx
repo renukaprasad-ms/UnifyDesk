@@ -18,22 +18,19 @@ type Props = {
   canModify: boolean
 }
 
-const MATCH_TYPES: GoogleNegativeKeywordInput['matchType'][] = [
-  'BROAD',
-  'PHRASE',
-  'EXACT',
-]
+const MATCH_TYPES: GoogleNegativeKeywordInput['matchType'][] = ['BROAD', 'PHRASE', 'EXACT']
 
 const label = (value: string) =>
   value.toLowerCase().replace(/\b\w/g, (character) => character.toUpperCase())
 
-const lines = (value: string) =>
-  [...new Set(
+const lines = (value: string) => [
+  ...new Set(
     value
       .split(/\r?\n/)
       .map((item) => item.trim())
       .filter(Boolean),
-  )]
+  ),
+]
 
 export default function GoogleNegativeKeywordManagement({
   companyId,
@@ -111,10 +108,7 @@ export default function GoogleNegativeKeywordManagement({
         values.map((text) => ({ text, matchType: campaignMatchType })),
       )
       setCampaignText('')
-      const refreshed = await adCenterApi.googleCampaignNegativeKeywords(
-        companyId,
-        campaign.id,
-      )
+      const refreshed = await adCenterApi.googleCampaignNegativeKeywords(companyId, campaign.id)
       setCampaignKeywords(refreshed)
       setNotice(
         result.createdCount > 0
@@ -143,11 +137,9 @@ export default function GoogleNegativeKeywordManagement({
     const name = listName.trim()
     if (!name) return
     await run(async () => {
-      const created = await adCenterApi.createGoogleNegativeKeywordList(
-        companyId,
-        account.id,
-        { name },
-      )
+      const created = await adCenterApi.createGoogleNegativeKeywordList(companyId, account.id, {
+        name,
+      })
       setListName('')
       const refreshed = await adCenterApi.googleNegativeKeywordLists(
         companyId,
@@ -156,12 +148,7 @@ export default function GoogleNegativeKeywordManagement({
       )
       setLists(refreshed)
       setSelectedList(
-        await adCenterApi.googleNegativeKeywordList(
-          companyId,
-          account.id,
-          created.id,
-          campaign.id,
-        ),
+        await adCenterApi.googleNegativeKeywordList(companyId, account.id, created.id, campaign.id),
       )
       setNotice('Reusable negative keyword list created.')
     })
@@ -182,19 +169,9 @@ export default function GoogleNegativeKeywordManagement({
   const toggleAttachment = async (list: GoogleNegativeKeywordList) => {
     await run(async () => {
       const updated = list.attachedToCampaign
-        ? await adCenterApi.detachGoogleNegativeKeywordList(
-            companyId,
-            campaign.id,
-            list.id,
-          )
-        : await adCenterApi.attachGoogleNegativeKeywordList(
-            companyId,
-            campaign.id,
-            list.id,
-          )
-      setLists((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      )
+        ? await adCenterApi.detachGoogleNegativeKeywordList(companyId, campaign.id, list.id)
+        : await adCenterApi.attachGoogleNegativeKeywordList(companyId, campaign.id, list.id)
+      setLists((current) => current.map((item) => (item.id === updated.id ? updated : item)))
       if (selectedList?.id === updated.id) {
         setSelectedList({ ...selectedList, attachedToCampaign: updated.attachedToCampaign })
       }
@@ -228,9 +205,7 @@ export default function GoogleNegativeKeywordManagement({
       setSelectedList(detail)
       setLists((current) =>
         current.map((item) =>
-          item.id === detail.id
-            ? { ...item, memberCount: detail.memberCount }
-            : item,
+          item.id === detail.id ? { ...item, memberCount: detail.memberCount } : item,
         ),
       )
       setNotice(
@@ -259,9 +234,7 @@ export default function GoogleNegativeKeywordManagement({
       setSelectedList(detail)
       setLists((current) =>
         current.map((item) =>
-          item.id === detail.id
-            ? { ...item, memberCount: detail.memberCount }
-            : item,
+          item.id === detail.id ? { ...item, memberCount: detail.memberCount } : item,
         ),
       )
       setNotice('Shared negative keyword removed.')
@@ -274,7 +247,8 @@ export default function GoogleNegativeKeywordManagement({
         <div>
           <h2 className="text-base font-bold text-slate-950">Negative keywords</h2>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Block unwanted Search queries at campaign level or reuse a shared Google Ads negative keyword list.
+            Block unwanted Search queries at campaign level or reuse a shared Google Ads negative
+            keyword list.
           </p>
         </div>
         <button
@@ -309,11 +283,14 @@ export default function GoogleNegativeKeywordManagement({
           </p>
 
           {canModify && (
-            <form className="mt-4 grid gap-2 sm:grid-cols-[1fr_130px_auto]" onSubmit={addCampaignKeyword}>
+            <form
+              className="mt-4 grid gap-2 sm:grid-cols-[1fr_130px_auto]"
+              onSubmit={addCampaignKeyword}
+            >
               <textarea
                 className="form-input min-h-24"
                 value={campaignText}
-                placeholder={"free\njobs\nsupport"}
+                placeholder={'free\njobs\nsupport'}
                 onChange={(event) => setCampaignText(event.target.value)}
               />
               <select
@@ -326,7 +303,9 @@ export default function GoogleNegativeKeywordManagement({
                 }
               >
                 {MATCH_TYPES.map((type) => (
-                  <option key={type} value={type}>{label(type)}</option>
+                  <option key={type} value={type}>
+                    {label(type)}
+                  </option>
                 ))}
               </select>
               <button
@@ -413,10 +392,7 @@ export default function GoogleNegativeKeywordManagement({
               </p>
             ) : (
               lists.map((list) => (
-                <div
-                  key={list.id}
-                  className="rounded-xl border border-slate-200 p-3"
-                >
+                <div key={list.id} className="rounded-xl border border-slate-200 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <button
                       type="button"
@@ -427,7 +403,9 @@ export default function GoogleNegativeKeywordManagement({
                         {list.name}
                       </span>
                       <span className="mt-1 block text-[11px] text-slate-400">
-                        {list.memberCount} keyword{list.memberCount === 1 ? '' : 's'} · {list.referenceCount} campaign reference{list.referenceCount === 1 ? '' : 's'}
+                        {list.memberCount} keyword{list.memberCount === 1 ? '' : 's'} ·{' '}
+                        {list.referenceCount} campaign reference
+                        {list.referenceCount === 1 ? '' : 's'}
                       </span>
                     </button>
                     {canModify && (
@@ -459,7 +437,8 @@ export default function GoogleNegativeKeywordManagement({
             <div>
               <h3 className="text-sm font-bold text-slate-900">{selectedList.name}</h3>
               <p className="mt-1 text-xs text-slate-500">
-                Shared list members · {selectedList.attachedToCampaign ? 'attached to this campaign' : 'not attached'}
+                Shared list members ·{' '}
+                {selectedList.attachedToCampaign ? 'attached to this campaign' : 'not attached'}
               </p>
             </div>
             <button
@@ -476,20 +455,20 @@ export default function GoogleNegativeKeywordManagement({
               <textarea
                 className="form-input min-h-24"
                 value={memberText}
-                placeholder={"free\njobs\nsupport"}
+                placeholder={'free\njobs\nsupport'}
                 onChange={(event) => setMemberText(event.target.value)}
               />
               <select
                 className="form-input"
                 value={memberMatchType}
                 onChange={(event) =>
-                  setMemberMatchType(
-                    event.target.value as GoogleNegativeKeywordInput['matchType'],
-                  )
+                  setMemberMatchType(event.target.value as GoogleNegativeKeywordInput['matchType'])
                 }
               >
                 {MATCH_TYPES.map((type) => (
-                  <option key={type} value={type}>{label(type)}</option>
+                  <option key={type} value={type}>
+                    {label(type)}
+                  </option>
                 ))}
               </select>
               <button

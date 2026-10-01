@@ -5,13 +5,7 @@ import SegmentBuilder from './SegmentBuilder'
 
 describe('SegmentBuilder', () => {
   it('only exposes operators valid for the selected field type', () => {
-    render(
-      <SegmentBuilder
-        value={emptySegment()}
-        fields={baseSegmentFields}
-        onChange={vi.fn()}
-      />,
-    )
+    render(<SegmentBuilder value={emptySegment()} fields={baseSegmentFields} onChange={vi.fn()} />)
 
     const operator = screen.getByLabelText('Operator')
     expect(operator.querySelector('option[value="CONTAINS"]')).not.toBeNull()
@@ -20,13 +14,7 @@ describe('SegmentBuilder', () => {
 
   it('emits AST changes instead of SQL fragments', () => {
     const onChange = vi.fn()
-    render(
-      <SegmentBuilder
-        value={emptySegment()}
-        fields={baseSegmentFields}
-        onChange={onChange}
-      />,
-    )
+    render(<SegmentBuilder value={emptySegment()} fields={baseSegmentFields} onChange={onChange} />)
 
     fireEvent.change(screen.getByLabelText('Value'), {
       target: { value: 'Acme' },

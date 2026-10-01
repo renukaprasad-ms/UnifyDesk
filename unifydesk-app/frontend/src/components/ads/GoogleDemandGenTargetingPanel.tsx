@@ -112,7 +112,7 @@ export default function GoogleDemandGenTargetingPanel({
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
-  const range = useMemo(dateRange, [])
+  const range = useMemo(() => dateRange(), [])
 
   const load = async () => {
     setLoading(true)

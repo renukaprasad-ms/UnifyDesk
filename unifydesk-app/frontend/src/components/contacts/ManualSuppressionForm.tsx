@@ -69,9 +69,7 @@ export default function ManualSuppressionForm({ busy, onCreate }: Props) {
         <select
           className="form-input mt-1"
           value={reasonCode}
-          onChange={(event) =>
-            setReasonCode(event.target.value as SuppressionReasonCode)
-          }
+          onChange={(event) => setReasonCode(event.target.value as SuppressionReasonCode)}
         >
           {reasons.map((item) => (
             <option key={item} value={item}>

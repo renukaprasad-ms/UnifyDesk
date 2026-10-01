@@ -31,10 +31,7 @@ export default function GoogleMerchantProductModal({
   onClose,
   onSave,
 }: Props) {
-  const apiSources = useMemo(
-    () => dataSources.filter((source) => source.apiManaged),
-    [dataSources],
-  )
+  const apiSources = useMemo(() => dataSources.filter((source) => source.apiManaged), [dataSources])
   const [dataSourceName, setDataSourceName] = useState('')
   const [offerId, setOfferId] = useState('')
   const [language, setLanguage] = useState('en')
@@ -45,8 +42,7 @@ export default function GoogleMerchantProductModal({
   const [imageLink, setImageLink] = useState('')
   const [availability, setAvailability] =
     useState<UpsertGoogleMerchantProductInput['availability']>('IN_STOCK')
-  const [condition, setCondition] =
-    useState<UpsertGoogleMerchantProductInput['condition']>('NEW')
+  const [condition, setCondition] = useState<UpsertGoogleMerchantProductInput['condition']>('NEW')
   const [brand, setBrand] = useState('')
   const [price, setPrice] = useState('')
   const [currency, setCurrency] = useState(defaultCurrency || 'INR')
@@ -55,10 +51,7 @@ export default function GoogleMerchantProductModal({
 
   useEffect(() => {
     if (!open) return
-    const source =
-      product?.dataSource ??
-      apiSources[0]?.name ??
-      ''
+    const source = product?.dataSource ?? apiSources[0]?.name ?? ''
     const sourceRecord = apiSources.find((item) => item.name === source)
     setDataSourceName(source)
     setOfferId(product?.offerId ?? '')
@@ -69,13 +62,9 @@ export default function GoogleMerchantProductModal({
     setLink(product?.link ?? '')
     setImageLink(product?.imageLink ?? '')
     setAvailability(
-      (product?.availability as UpsertGoogleMerchantProductInput['availability']) ??
-        'IN_STOCK',
+      (product?.availability as UpsertGoogleMerchantProductInput['availability']) ?? 'IN_STOCK',
     )
-    setCondition(
-      (product?.condition as UpsertGoogleMerchantProductInput['condition']) ??
-        'NEW',
-    )
+    setCondition((product?.condition as UpsertGoogleMerchantProductInput['condition']) ?? 'NEW')
     setBrand(product?.brand ?? '')
     setPrice(priceFromMicros(product?.priceAmountMicros))
     setCurrency(product?.priceCurrency ?? defaultCurrency ?? 'INR')
@@ -129,11 +118,7 @@ export default function GoogleMerchantProductModal({
               {product ? 'Update product' : 'Add product'}
             </h2>
           </div>
-          <button
-            type="button"
-            className="rounded-lg p-2 text-slate-400"
-            onClick={onClose}
-          >
+          <button type="button" className="rounded-lg p-2 text-slate-400" onClick={onClose}>
             <FiX aria-hidden="true" />
           </button>
         </div>
@@ -246,9 +231,7 @@ export default function GoogleMerchantProductModal({
               className="form-input mt-2"
               value={condition}
               onChange={(event) =>
-                setCondition(
-                  event.target.value as UpsertGoogleMerchantProductInput['condition'],
-                )
+                setCondition(event.target.value as UpsertGoogleMerchantProductInput['condition'])
               }
             >
               <option value="NEW">New</option>
@@ -308,16 +291,8 @@ export default function GoogleMerchantProductModal({
           <button type="button" className="secondary-button" onClick={onClose}>
             Cancel
           </button>
-          <button
-            type="submit"
-            className="primary-button"
-            disabled={saving || !dataSourceName}
-          >
-            {saving
-              ? 'Saving…'
-              : product
-                ? 'Update product'
-                : 'Add product'}
+          <button type="submit" className="primary-button" disabled={saving || !dataSourceName}>
+            {saving ? 'Saving…' : product ? 'Update product' : 'Add product'}
           </button>
         </div>
       </form>

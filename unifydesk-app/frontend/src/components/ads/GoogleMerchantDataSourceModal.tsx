@@ -9,12 +9,7 @@ type Props = {
   onCreate: (input: CreateGoogleMerchantDataSourceInput) => Promise<void>
 }
 
-export default function GoogleMerchantDataSourceModal({
-  open,
-  saving,
-  onClose,
-  onCreate,
-}: Props) {
+export default function GoogleMerchantDataSourceModal({ open, saving, onClose, onCreate }: Props) {
   const [displayName, setDisplayName] = useState('Reachlyo API products')
   const [contentLanguage, setContentLanguage] = useState('en')
   const [feedLabel, setFeedLabel] = useState('IN')
@@ -44,15 +39,9 @@ export default function GoogleMerchantDataSourceModal({
         <div className="flex items-start justify-between">
           <div>
             <p className="eyebrow">Merchant Center</p>
-            <h2 className="mt-1 text-xl font-bold text-slate-950">
-              Create API data source
-            </h2>
+            <h2 className="mt-1 text-xl font-bold text-slate-950">Create API data source</h2>
           </div>
-          <button
-            type="button"
-            className="rounded-lg p-2 text-slate-400"
-            onClick={onClose}
-          >
+          <button type="button" className="rounded-lg p-2 text-slate-400" onClick={onClose}>
             <FiX aria-hidden="true" />
           </button>
         </div>

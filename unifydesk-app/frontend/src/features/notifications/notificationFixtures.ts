@@ -1,8 +1,4 @@
-import type {
-  NotificationItem,
-  NotificationPreferences,
-  NotificationUnreadCount,
-} from './types'
+import type { NotificationItem, NotificationPreferences, NotificationUnreadCount } from './types'
 
 export const companyNotification: NotificationItem = {
   id: '922337203685470001',

@@ -113,9 +113,7 @@ describe('ContactDetailPage', () => {
         }),
       ),
     )
-    expect(
-      await screen.findByText(/changed after you opened it/i),
-    ).toBeInTheDocument()
+    expect(await screen.findByText(/changed after you opened it/i)).toBeInTheDocument()
     expect(contactsApi.get).toHaveBeenCalledTimes(2)
   })
 

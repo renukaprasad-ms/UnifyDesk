@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import {
-  createIdempotencyKey,
-} from '../../features/contacts/contactModel'
+import { createIdempotencyKey } from '../../features/contacts/contactModel'
 import { contactsApi } from '../../features/contacts/contactsApi'
 import type {
   ContactExport,
@@ -121,7 +119,11 @@ export default function ExportJobButton({
           {resource.rowCount != null ? ' · ' + resource.rowCount.toLocaleString() + ' rows' : ''}
         </span>
       )}
-      {error && <span className="max-w-64 text-xs text-rose-600" role="alert">{error}</span>}
+      {error && (
+        <span className="max-w-64 text-xs text-rose-600" role="alert">
+          {error}
+        </span>
+      )}
     </div>
   )
 }

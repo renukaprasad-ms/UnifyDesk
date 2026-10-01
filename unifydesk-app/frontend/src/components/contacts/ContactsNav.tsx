@@ -10,9 +10,7 @@ const coreLinks = [
 
 export default function ContactsNav() {
   const { can } = useIam()
-  const links: ReadonlyArray<readonly [string, string]> = can(
-    PERMISSIONS.CONTACT_IMPORT,
-  )
+  const links: ReadonlyArray<readonly [string, string]> = can(PERMISSIONS.CONTACT_IMPORT)
     ? [...coreLinks, ['/contacts/imports', 'Imports'] as const]
     : coreLinks
 

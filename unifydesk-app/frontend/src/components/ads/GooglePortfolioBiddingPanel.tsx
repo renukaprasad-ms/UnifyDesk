@@ -18,10 +18,7 @@ type Props = {
 }
 
 type PortfolioStrategyType =
-  | 'TARGET_CPA'
-  | 'TARGET_ROAS'
-  | 'MAXIMIZE_CONVERSIONS'
-  | 'MAXIMIZE_CONVERSION_VALUE'
+  'TARGET_CPA' | 'TARGET_ROAS' | 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
 
 const STRATEGY_TYPES: Array<{ value: PortfolioStrategyType; label: string }> = [
   { value: 'TARGET_CPA', label: 'Target CPA' },
@@ -40,8 +37,7 @@ const currencyDigits = (currency?: string | null) => {
   if (!currency) return 2
   try {
     return (
-      new Intl.NumberFormat(undefined, { style: 'currency', currency })
-        .resolvedOptions()
+      new Intl.NumberFormat(undefined, { style: 'currency', currency }).resolvedOptions()
         .maximumFractionDigits ?? 2
     )
   } catch {
@@ -93,12 +89,10 @@ export default function GooglePortfolioBiddingPanel({
 }: Props) {
   const [strategies, setStrategies] = useState<GooglePortfolioBiddingStrategy[]>([])
   const [budgets, setBudgets] = useState<GoogleSharedBudget[]>([])
-  const [assignment, setAssignment] =
-    useState<GoogleCampaignPortfolioAssignment | null>(null)
+  const [assignment, setAssignment] = useState<GoogleCampaignPortfolioAssignment | null>(null)
 
   const [strategyName, setStrategyName] = useState('')
-  const [strategyType, setStrategyType] =
-    useState<PortfolioStrategyType>('MAXIMIZE_CONVERSIONS')
+  const [strategyType, setStrategyType] = useState<PortfolioStrategyType>('MAXIMIZE_CONVERSIONS')
   const [targetCpa, setTargetCpa] = useState('')
   const [targetRoas, setTargetRoas] = useState('')
   const [budgetName, setBudgetName] = useState('')
@@ -179,23 +173,18 @@ export default function GooglePortfolioBiddingPanel({
     setError('')
     setNotice('')
     try {
-      const created = await adCenterApi.createGooglePortfolioBiddingStrategy(
-        companyId,
-        accountId,
-        {
-          name: strategyName.trim(),
-          type: strategyType,
-          targetCpaMinor:
-            strategyType === 'TARGET_CPA' || strategyType === 'MAXIMIZE_CONVERSIONS'
-              ? targetCpaMinor
-              : null,
-          targetRoas:
-            strategyType === 'TARGET_ROAS' ||
-            strategyType === 'MAXIMIZE_CONVERSION_VALUE'
-              ? targetRoasValue
-              : null,
-        },
-      )
+      const created = await adCenterApi.createGooglePortfolioBiddingStrategy(companyId, accountId, {
+        name: strategyName.trim(),
+        type: strategyType,
+        targetCpaMinor:
+          strategyType === 'TARGET_CPA' || strategyType === 'MAXIMIZE_CONVERSIONS'
+            ? targetCpaMinor
+            : null,
+        targetRoas:
+          strategyType === 'TARGET_ROAS' || strategyType === 'MAXIMIZE_CONVERSION_VALUE'
+            ? targetRoasValue
+            : null,
+      })
       setStrategies((current) => [
         created,
         ...current.filter((strategy) => strategy.id !== created.id),
@@ -231,10 +220,7 @@ export default function GooglePortfolioBiddingPanel({
         name: budgetName.trim(),
         amountMinor,
       })
-      setBudgets((current) => [
-        created,
-        ...current.filter((budget) => budget.id !== created.id),
-      ])
+      setBudgets((current) => [created, ...current.filter((budget) => budget.id !== created.id)])
       setSelectedBudgetId(created.id)
       setBudgetName('')
       setBudgetAmount('')
@@ -371,8 +357,7 @@ export default function GooglePortfolioBiddingPanel({
                       ))}
                     </select>
                   </label>
-                  {(strategyType === 'TARGET_CPA' ||
-                    strategyType === 'MAXIMIZE_CONVERSIONS') && (
+                  {(strategyType === 'TARGET_CPA' || strategyType === 'MAXIMIZE_CONVERSIONS') && (
                     <label className="text-xs font-semibold text-slate-700">
                       Target CPA {strategyType === 'MAXIMIZE_CONVERSIONS' ? '(optional)' : ''}
                       <input
@@ -516,8 +501,8 @@ export default function GooglePortfolioBiddingPanel({
               {(selectedStrategy?.alignedCampaignBudgetId ||
                 selectedBudget?.alignedBiddingStrategyId) && (
                 <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs leading-5 text-indigo-800">
-                  Google reports an existing alignment for this selection. Keep the aligned
-                  strategy and budget together when assigning them to campaigns.
+                  Google reports an existing alignment for this selection. Keep the aligned strategy
+                  and budget together when assigning them to campaigns.
                 </div>
               )}
 
@@ -525,7 +510,9 @@ export default function GooglePortfolioBiddingPanel({
                 <button
                   type="button"
                   className="primary-button inline-flex items-center gap-2"
-                  disabled={!canModify || Boolean(working) || (!selectedStrategyId && !selectedBudgetId)}
+                  disabled={
+                    !canModify || Boolean(working) || (!selectedStrategyId && !selectedBudgetId)
+                  }
                   onClick={() => void saveAssignment()}
                 >
                   <FiSave aria-hidden="true" />
@@ -535,10 +522,7 @@ export default function GooglePortfolioBiddingPanel({
                   type="button"
                   className="secondary-button inline-flex items-center gap-2"
                   disabled={
-                    !canModify ||
-                    Boolean(working) ||
-                    !selectedStrategyId ||
-                    !selectedBudgetId
+                    !canModify || Boolean(working) || !selectedStrategyId || !selectedBudgetId
                   }
                   onClick={() => void alignPair()}
                 >

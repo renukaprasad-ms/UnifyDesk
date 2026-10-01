@@ -96,10 +96,7 @@ const AppRoutes = () => (
           <Route path="/account/invitations" element={<AccountInvitations />} />
           <Route path="/account/settings" element={<AccountSettings />} />
           <Route path="/account/settings/password" element={<ChangePassword />} />
-          <Route
-            path="/account/settings/notifications"
-            element={<AccountNotificationSettings />}
-          />
+          <Route path="/account/settings/notifications" element={<AccountNotificationSettings />} />
         </Route>
 
         <Route element={<WorkspaceRoute />}>
@@ -126,7 +123,10 @@ const AppRoutes = () => (
               <Route path="ad-center" element={<AdCenterOverview />} />
               <Route path="ad-center/unified-campaigns" element={<ReachlyoCampaigns />} />
               <Route path="ad-center/unified-campaigns/new" element={<ReachlyoCampaignWizard />} />
-              <Route path="ad-center/unified-campaigns/:campaignId" element={<ReachlyoCampaignWizard />} />
+              <Route
+                path="ad-center/unified-campaigns/:campaignId"
+                element={<ReachlyoCampaignWizard />}
+              />
               <Route path="ad-center/campaigns" element={<AdCampaigns />} />
               <Route path="ad-center/campaigns/:campaignId" element={<AdCampaignDetails />} />
               <Route path="ad-center/ad-sets/:adSetId" element={<AdSetDetails />} />
@@ -151,18 +151,14 @@ const AppRoutes = () => (
             </Route>
             <Route
               element={
-                <PermissionRoute
-                  allOf={[PERMISSIONS.CONTACT_READ, PERMISSIONS.CONTACT_MODIFY]}
-                />
+                <PermissionRoute allOf={[PERMISSIONS.CONTACT_READ, PERMISSIONS.CONTACT_MODIFY]} />
               }
             >
               <Route path="contacts/segments/new" element={<SegmentEditorPage />} />
             </Route>
             <Route
               element={
-                <PermissionRoute
-                  allOf={[PERMISSIONS.CONTACT_READ, PERMISSIONS.CONTACT_IMPORT]}
-                />
+                <PermissionRoute allOf={[PERMISSIONS.CONTACT_READ, PERMISSIONS.CONTACT_IMPORT]} />
               }
             >
               <Route path="contacts/imports" element={<ImportsPage />} />
@@ -200,7 +196,6 @@ const AppRoutes = () => (
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.BILLING_READ]} />}>
               <Route path="company/plan" element={<CompanyPlan />} />
             </Route>
-
           </Route>
         </Route>
       </Route>

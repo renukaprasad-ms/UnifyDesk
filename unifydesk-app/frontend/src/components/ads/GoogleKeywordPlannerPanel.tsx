@@ -77,7 +77,8 @@ export default function GoogleKeywordPlannerPanel(props: Props) {
       return
     }
 
-    append ? setLoadingMore(true) : setLoading(true)
+    if (append) setLoadingMore(true)
+    else setLoading(true)
     setError('')
     try {
       const result = await adCenterApi.googleKeywordPlannerIdeas(

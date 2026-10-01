@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react'
-import { buildSelectionDescriptor, createIdempotencyKey } from '../../features/contacts/contactModel'
+import {
+  buildSelectionDescriptor,
+  createIdempotencyKey,
+} from '../../features/contacts/contactModel'
 import { contactsApi } from '../../features/contacts/contactsApi'
-import type { ContactQuery, CustomFieldDefinition, ListSummary, TagSummary } from '../../features/contacts/types'
+import type {
+  ContactQuery,
+  CustomFieldDefinition,
+  ListSummary,
+  TagSummary,
+} from '../../features/contacts/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 
 type Props = {
@@ -16,7 +24,8 @@ type Props = {
   onClear: () => void
 }
 
-type Action = 'ADD_TAG' | 'REMOVE_TAG' | 'ADD_TO_LIST' | 'REMOVE_FROM_LIST' | 'UPDATE_FIELD' | 'DELETE'
+type Action =
+  'ADD_TAG' | 'REMOVE_TAG' | 'ADD_TO_LIST' | 'REMOVE_FROM_LIST' | 'UPDATE_FIELD' | 'DELETE'
 
 export default function BulkActionsBar({
   companyId,
@@ -47,11 +56,13 @@ export default function BulkActionsBar({
       contactsApi.tags(companyId),
       contactsApi.lists(companyId),
       contactsApi.customFields(companyId),
-    ]).then(([nextTags, nextLists, nextFields]) => {
-      setTags(nextTags)
-      setLists(nextLists.filter((item) => item.status !== 'ARCHIVED'))
-      setFields(nextFields.filter((item) => item.status === 'ACTIVE'))
-    }).catch(() => undefined)
+    ])
+      .then(([nextTags, nextLists, nextFields]) => {
+        setTags(nextTags)
+        setLists(nextLists.filter((item) => item.status !== 'ARCHIVED'))
+        setFields(nextFields.filter((item) => item.status === 'ACTIVE'))
+      })
+      .catch(() => undefined)
   }, [companyId, allowModify])
 
   const choices =
@@ -64,9 +75,7 @@ export default function BulkActionsBar({
           : []
 
   const selectedField =
-    action === 'UPDATE_FIELD'
-      ? fields.find((field) => field.id === targetId)
-      : undefined
+    action === 'UPDATE_FIELD' ? fields.find((field) => field.id === targetId) : undefined
 
   const typedFieldValue = () => {
     if (!selectedField) return fieldValue
@@ -87,18 +96,29 @@ export default function BulkActionsBar({
 
   const run = async () => {
     if (action !== 'DELETE' && !targetId) return
-    if (action === 'DELETE' && !window.confirm('Delete the selected contacts? This queues permanent cleanup and cannot be undone.')) return
+    if (
+      action === 'DELETE' &&
+      !window.confirm(
+        'Delete the selected contacts? This queues permanent cleanup and cannot be undone.',
+      )
+    )
+      return
     setBusy(true)
     onError('')
     try {
       const selection = buildSelectionDescriptor(selectedIds, allMatching, query)
       const operation =
-        action === 'ADD_TAG' ? { type: 'ADD_TAG' as const, tagId: targetId } :
-        action === 'REMOVE_TAG' ? { type: 'REMOVE_TAG' as const, tagId: targetId } :
-        action === 'ADD_TO_LIST' ? { type: 'ADD_TO_LIST' as const, listId: targetId } :
-        action === 'REMOVE_FROM_LIST' ? { type: 'REMOVE_FROM_LIST' as const, listId: targetId } :
-        action === 'UPDATE_FIELD' ? { type: 'UPDATE_FIELD' as const, fieldId: targetId, value: typedFieldValue() } :
-        { type: 'DELETE' as const }
+        action === 'ADD_TAG'
+          ? { type: 'ADD_TAG' as const, tagId: targetId }
+          : action === 'REMOVE_TAG'
+            ? { type: 'REMOVE_TAG' as const, tagId: targetId }
+            : action === 'ADD_TO_LIST'
+              ? { type: 'ADD_TO_LIST' as const, listId: targetId }
+              : action === 'REMOVE_FROM_LIST'
+                ? { type: 'REMOVE_FROM_LIST' as const, listId: targetId }
+                : action === 'UPDATE_FIELD'
+                  ? { type: 'UPDATE_FIELD' as const, fieldId: targetId, value: typedFieldValue() }
+                  : { type: 'DELETE' as const }
       await contactsApi.bulk(companyId, selection, operation, createIdempotencyKey())
       onClear()
       onDone('Bulk operation queued.')
@@ -112,16 +132,29 @@ export default function BulkActionsBar({
   return (
     <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-        <strong>{allMatching ? 'All matching contacts selected' : selectedIds.size + ' loaded contacts selected'}</strong>
-        <button className="secondary-button" onClick={onClear}>Clear selection</button>
+        <strong>
+          {allMatching
+            ? 'All matching contacts selected'
+            : selectedIds.size + ' loaded contacts selected'}
+        </strong>
+        <button className="secondary-button" onClick={onClear}>
+          Clear selection
+        </button>
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-[180px_minmax(180px,1fr)_minmax(160px,1fr)_auto]">
-        <label className="sr-only" htmlFor="bulk-action">Bulk action</label>
-        <select id="bulk-action" className="form-input" value={action} onChange={(event) => {
-          setAction(event.target.value as Action)
-          setTargetId('')
-          setFieldValue('')
-        }}>
+        <label className="sr-only" htmlFor="bulk-action">
+          Bulk action
+        </label>
+        <select
+          id="bulk-action"
+          className="form-input"
+          value={action}
+          onChange={(event) => {
+            setAction(event.target.value as Action)
+            setTargetId('')
+            setFieldValue('')
+          }}
+        >
           {allowModify && <option value="ADD_TAG">Add tag</option>}
           {allowModify && <option value="REMOVE_TAG">Remove tag</option>}
           {allowModify && <option value="ADD_TO_LIST">Add to list</option>}
@@ -129,13 +162,24 @@ export default function BulkActionsBar({
           {allowModify && <option value="UPDATE_FIELD">Update custom field</option>}
           {allowDelete && <option value="DELETE">Delete contacts</option>}
         </select>
-        {action === 'DELETE' ? <div className="self-center text-xs font-semibold text-rose-700">Destructive action</div> : (
-          <select className="form-input" aria-label="Bulk action target" value={targetId} onChange={(event) => {
+        {action === 'DELETE' ? (
+          <div className="self-center text-xs font-semibold text-rose-700">Destructive action</div>
+        ) : (
+          <select
+            className="form-input"
+            aria-label="Bulk action target"
+            value={targetId}
+            onChange={(event) => {
               setTargetId(event.target.value)
               setFieldValue('')
-            }}>
+            }}
+          >
             <option value="">Choose target…</option>
-            {choices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}
+            {choices.map((choice) => (
+              <option key={choice.id} value={choice.id}>
+                {choice.label}
+              </option>
+            ))}
           </select>
         )}
         {action === 'UPDATE_FIELD' ? (
@@ -159,7 +203,9 @@ export default function BulkActionsBar({
             >
               <option value="">Choose…</option>
               {selectedField.options.map((option) => (
-                <option key={option} value={option}>{option}</option>
+                <option key={option} value={option}>
+                  {option}
+                </option>
               ))}
             </select>
           ) : (
@@ -169,11 +215,19 @@ export default function BulkActionsBar({
               type={selectedField?.type === 'NUMBER' ? 'number' : 'text'}
               value={fieldValue}
               onChange={(event) => setFieldValue(event.target.value)}
-              placeholder={selectedField?.type === 'MULTI_SELECT' ? 'Comma-separated values' : 'New value'}
+              placeholder={
+                selectedField?.type === 'MULTI_SELECT' ? 'Comma-separated values' : 'New value'
+              }
             />
           )
-        ) : <div />}
-        <button className="primary-button" disabled={busy || (action !== 'DELETE' && !targetId)} onClick={() => void run()}>
+        ) : (
+          <div />
+        )}
+        <button
+          className="primary-button"
+          disabled={busy || (action !== 'DELETE' && !targetId)}
+          onClick={() => void run()}
+        >
           {busy ? 'Starting…' : 'Apply'}
         </button>
       </div>

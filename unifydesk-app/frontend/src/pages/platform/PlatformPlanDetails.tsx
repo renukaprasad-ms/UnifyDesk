@@ -811,10 +811,16 @@ export default function PlatformPlanDetails() {
                           <td className="px-4 py-4 font-bold text-slate-900" data-label="Price">
                             {money(rate.price, rate.currency)}
                           </td>
-                          <td className="px-4 py-4 text-xs font-semibold text-slate-600" data-label="Status">
+                          <td
+                            className="px-4 py-4 text-xs font-semibold text-slate-600"
+                            data-label="Status"
+                          >
                             {rate.status}
                           </td>
-                          <td className="mobile-action-cell px-4 py-4 text-right" data-label="Action">
+                          <td
+                            className="mobile-action-cell px-4 py-4 text-right"
+                            data-label="Action"
+                          >
                             {rate.status === 'ACTIVE' && (
                               <button
                                 type="button"

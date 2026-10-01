@@ -51,10 +51,7 @@ export default function GoogleSearchAudienceTargetingPanel({
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
-  const options = useMemo(
-    () => audiences.filter(eligibleForSearch),
-    [audiences],
-  )
+  const options = useMemo(() => audiences.filter(eligibleForSearch), [audiences])
 
   const applySnapshot = (value: GoogleSearchAudienceTargeting) => {
     setSnapshot(value)
@@ -86,9 +83,7 @@ export default function GoogleSearchAudienceTargetingPanel({
 
   const toggleIncluded = (audienceId: string, checked: boolean) => {
     setIncluded((current) =>
-      checked
-        ? [...new Set([...current, audienceId])]
-        : current.filter((id) => id !== audienceId),
+      checked ? [...new Set([...current, audienceId])] : current.filter((id) => id !== audienceId),
     )
     if (checked) {
       setExcluded((current) => current.filter((id) => id !== audienceId))
@@ -97,9 +92,7 @@ export default function GoogleSearchAudienceTargetingPanel({
 
   const toggleExcluded = (audienceId: string, checked: boolean) => {
     setExcluded((current) =>
-      checked
-        ? [...new Set([...current, audienceId])]
-        : current.filter((id) => id !== audienceId),
+      checked ? [...new Set([...current, audienceId])] : current.filter((id) => id !== audienceId),
     )
     if (checked) {
       setIncluded((current) => current.filter((id) => id !== audienceId))
@@ -111,15 +104,11 @@ export default function GoogleSearchAudienceTargetingPanel({
     setError('')
     setNotice('')
     try {
-      const updated = await adCenterApi.updateGoogleSearchAudienceTargeting(
-        companyId,
-        adGroupId,
-        {
-          mode,
-          includedAudienceIds: included,
-          excludedAudienceIds: excluded,
-        },
-      )
+      const updated = await adCenterApi.updateGoogleSearchAudienceTargeting(companyId, adGroupId, {
+        mode,
+        includedAudienceIds: included,
+        excludedAudienceIds: excluded,
+      })
       applySnapshot(updated)
       setNotice('Search audience targeting updated in Google Ads.')
     } catch (saveError) {
@@ -189,9 +178,7 @@ export default function GoogleSearchAudienceTargetingPanel({
                   className="form-input mt-2"
                   value={mode}
                   disabled={!canModify}
-                  onChange={(event) =>
-                    setMode(event.target.value as GoogleSearchAudienceMode)
-                  }
+                  onChange={(event) => setMode(event.target.value as GoogleSearchAudienceMode)}
                 >
                   <option value="OBSERVATION">Observation</option>
                   <option value="TARGETING">Targeting</option>
@@ -216,8 +203,8 @@ export default function GoogleSearchAudienceTargetingPanel({
               </div>
             </div>
 
-            {(snapshot?.providerOnlyIncludedExternalIds.length ||
-              snapshot?.providerOnlyExcludedExternalIds.length) ? (
+            {snapshot?.providerOnlyIncludedExternalIds.length ||
+            snapshot?.providerOnlyExcludedExternalIds.length ? (
               <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-800">
                 Google currently has audience criteria that are not mapped to a synchronized local
                 audience. UnifyDesk preserves them when you save. Included provider IDs:{' '}
@@ -255,9 +242,7 @@ export default function GoogleSearchAudienceTargetingPanel({
                             type="checkbox"
                             checked={includeChecked}
                             disabled={!canModify}
-                            onChange={(event) =>
-                              toggleIncluded(audience.id, event.target.checked)
-                            }
+                            onChange={(event) => toggleIncluded(audience.id, event.target.checked)}
                           />
                           Include
                         </label>
@@ -266,9 +251,7 @@ export default function GoogleSearchAudienceTargetingPanel({
                             type="checkbox"
                             checked={excludeChecked}
                             disabled={!canModify}
-                            onChange={(event) =>
-                              toggleExcluded(audience.id, event.target.checked)
-                            }
+                            onChange={(event) => toggleExcluded(audience.id, event.target.checked)}
                           />
                           Exclude
                         </label>

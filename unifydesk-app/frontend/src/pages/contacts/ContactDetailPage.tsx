@@ -11,10 +11,7 @@ import {
   toPatchContactInput,
   type ContactFormDraft,
 } from '../../features/contacts/contactModel'
-import {
-  contactsApi,
-  isContactVersionConflict,
-} from '../../features/contacts/contactsApi'
+import { contactsApi, isContactVersionConflict } from '../../features/contacts/contactsApi'
 import type {
   CommunicationPreference,
   ContactActivity,
@@ -58,8 +55,9 @@ export default function ContactDetailPage() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState(false)
-  const [editingPreference, setEditingPreference] =
-    useState<CommunicationPreference['channel'] | null>(null)
+  const [editingPreference, setEditingPreference] = useState<
+    CommunicationPreference['channel'] | null
+  >(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -137,34 +135,21 @@ export default function ContactDetailPage() {
   }
 
   const loadMoreActivity = async () => {
-    if (
-      !companyId ||
-      !activityHasMore ||
-      !activityCursor ||
-      activityLoadingMore
-    ) {
+    if (!companyId || !activityHasMore || !activityCursor || activityLoadingMore) {
       return
     }
 
     setActivityLoadingMore(true)
     try {
-      const page = await contactsApi.activity(
-        companyId,
-        contactId,
-        activityCursor,
-      )
+      const page = await contactsApi.activity(companyId, contactId, activityCursor)
       setActivity((current) => [
         ...current,
-        ...page.items.filter(
-          (next) => !current.some((existing) => existing.id === next.id),
-        ),
+        ...page.items.filter((next) => !current.some((existing) => existing.id === next.id)),
       ])
       setActivityCursor(page.nextCursor)
       setActivityHasMore(page.hasMore)
     } catch (activityError) {
-      setError(
-        apiErrorMessage(activityError, 'Unable to load more Contact activity.'),
-      )
+      setError(apiErrorMessage(activityError, 'Unable to load more Contact activity.'))
     } finally {
       setActivityLoadingMore(false)
     }
@@ -174,9 +159,7 @@ export default function ContactDetailPage() {
     const channel = editingPreference
     if (!companyId || !channel) return
     if (
-      !window.confirm(
-        'Record ' + state.replaceAll('_', ' ') + ' for ' + channel + ' marketing?',
-      )
+      !window.confirm('Record ' + state.replaceAll('_', ' ') + ' for ' + channel + ' marketing?')
     ) {
       return
     }
@@ -184,13 +167,7 @@ export default function ContactDetailPage() {
     const changed = await mutate(
       () =>
         contactsApi
-          .updatePreference(
-            companyId,
-            contactId,
-            channel,
-            state,
-            'Changed by workspace user',
-          )
+          .updatePreference(companyId, contactId, channel, state, 'Changed by workspace user')
           .then(() => undefined),
       channel + ' marketing preference updated.',
     )
@@ -206,10 +183,7 @@ export default function ContactDetailPage() {
       <section className="px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <ContactsNav />
-          <div
-            className="panel p-10 text-center text-sm text-slate-500"
-            role="status"
-          >
+          <div className="panel p-10 text-center text-sm text-slate-500" role="status">
             Loading Contact…
           </div>
         </div>
@@ -223,9 +197,7 @@ export default function ContactDetailPage() {
         <div className="mx-auto max-w-6xl">
           <ContactsNav />
           <div className="panel p-8 text-center">
-            <h1 className="text-xl font-bold text-slate-950">
-              Contact unavailable
-            </h1>
+            <h1 className="text-xl font-bold text-slate-950">Contact unavailable</h1>
             <p className="mt-2 text-sm text-slate-500">
               {error || 'This Contact could not be loaded.'}
             </p>
@@ -251,9 +223,7 @@ export default function ContactDetailPage() {
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="eyebrow">Contact</p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-950">
-              {contact.displayName}
-            </h1>
+            <h1 className="mt-2 text-3xl font-bold text-slate-950">{contact.displayName}</h1>
             <p className="mt-2 text-sm text-slate-500">
               {contact.organization || 'No organization'}
             </p>
@@ -285,37 +255,25 @@ export default function ContactDetailPage() {
             <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
               <div>
                 <dt className="text-slate-500">Name</dt>
-                <dd className="font-medium text-slate-900">
-                  {contact.displayName}
-                </dd>
+                <dd className="font-medium text-slate-900">{contact.displayName}</dd>
               </div>
               <div>
                 <dt className="text-slate-500">Organization</dt>
-                <dd className="font-medium text-slate-900">
-                  {contact.organization || '—'}
-                </dd>
+                <dd className="font-medium text-slate-900">{contact.organization || '—'}</dd>
               </div>
               <div>
                 <dt className="text-slate-500">Primary email</dt>
-                <dd className="font-medium text-slate-900">
-                  {primaryEmail || '—'}
-                </dd>
+                <dd className="font-medium text-slate-900">{primaryEmail || '—'}</dd>
               </div>
               <div>
                 <dt className="text-slate-500">Primary phone</dt>
-                <dd className="font-medium text-slate-900">
-                  {primaryPhone || '—'}
-                </dd>
+                <dd className="font-medium text-slate-900">{primaryPhone || '—'}</dd>
               </div>
             </dl>
             {contact.notes && (
               <div className="mt-5 border-t border-slate-100 pt-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  Notes
-                </p>
-                <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
-                  {contact.notes}
-                </p>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Notes</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{contact.notes}</p>
               </div>
             )}
           </section>
@@ -372,8 +330,7 @@ export default function ContactDetailPage() {
             }
             onRemove={(identityId) =>
               mutate(
-                () =>
-                  contactsApi.removeIdentity(companyId, contactId, identityId),
+                () => contactsApi.removeIdentity(companyId, contactId, identityId),
                 'Identity removed.',
               ).then(() => undefined)
             }
@@ -387,16 +344,14 @@ export default function ContactDetailPage() {
             canModify={can(PERMISSIONS.CONTACT_MODIFY)}
             busy={busy}
             onAddTag={(tagId) =>
-              mutate(
-                () => contactsApi.addTag(companyId, contactId, tagId),
-                'Tag added.',
-              ).then(() => undefined)
+              mutate(() => contactsApi.addTag(companyId, contactId, tagId), 'Tag added.').then(
+                () => undefined,
+              )
             }
             onRemoveTag={(tagId) =>
-              mutate(
-                () => contactsApi.removeTag(companyId, contactId, tagId),
-                'Tag removed.',
-              ).then(() => undefined)
+              mutate(() => contactsApi.removeTag(companyId, contactId, tagId), 'Tag removed.').then(
+                () => undefined,
+              )
             }
             onSaveFields={(customFieldValues: Record<string, CustomFieldValue>) =>
               mutate(
@@ -415,27 +370,18 @@ export default function ContactDetailPage() {
 
           {can(PERMISSIONS.CONTACT_CONSENT_READ) && (
             <section className="panel p-5 lg:col-span-2">
-              <h2 className="text-lg font-bold text-slate-950">
-                Marketing preferences
-              </h2>
+              <h2 className="text-lg font-bold text-slate-950">Marketing preferences</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Contact existence does not imply marketing consent. Each channel
-                is managed separately.
+                Contact existence does not imply marketing consent. Each channel is managed
+                separately.
               </p>
               <div className="mt-4 grid gap-3 md:grid-cols-3">
                 {channels.map((channel) => {
-                  const preference = preferences.find(
-                    (item) => item.channel === channel,
-                  )
+                  const preference = preferences.find((item) => item.channel === channel)
                   return (
-                    <div
-                      key={channel}
-                      className="rounded-xl border border-slate-200 p-4"
-                    >
+                    <div key={channel} className="rounded-xl border border-slate-200 p-4">
                       <div className="flex items-center justify-between gap-3">
-                        <strong>
-                          {channel === 'WHATSAPP' ? 'WhatsApp' : channel}
-                        </strong>
+                        <strong>{channel === 'WHATSAPP' ? 'WhatsApp' : channel}</strong>
                         <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold">
                           {preference?.state ?? 'UNKNOWN'}
                         </span>
@@ -443,14 +389,11 @@ export default function ContactDetailPage() {
                       <p className="mt-2 text-xs text-slate-500">
                         Source: {preference?.source || 'Not recorded'}
                         {preference?.occurredAt
-                          ? ' · ' +
-                            new Date(preference.occurredAt).toLocaleString()
+                          ? ' · ' + new Date(preference.occurredAt).toLocaleString()
                           : ''}
                       </p>
                       {preference?.reason && (
-                        <p className="mt-1 text-xs text-slate-500">
-                          Reason: {preference.reason}
-                        </p>
+                        <p className="mt-1 text-xs text-slate-500">Reason: {preference.reason}</p>
                       )}
                       {can(PERMISSIONS.CONTACT_CONSENT_MODIFY) && (
                         <button
@@ -469,12 +412,9 @@ export default function ContactDetailPage() {
 
           {can(PERMISSIONS.CONTACT_CONSENT_READ) && (
             <section className="panel p-5 lg:col-span-2">
-              <h2 className="text-lg font-bold text-slate-950">
-                Suppressions
-              </h2>
+              <h2 className="text-lg font-bold text-slate-950">Suppressions</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Suppression is a delivery prohibition and remains separate from
-                consent.
+                Suppression is a delivery prohibition and remains separate from consent.
               </p>
 
               {can(PERMISSIONS.CONTACT_CONSENT_MODIFY) && (
@@ -494,9 +434,7 @@ export default function ContactDetailPage() {
 
               <div className="mt-4 space-y-2">
                 {suppressions.length === 0 ? (
-                  <p className="text-sm text-slate-500">
-                    No active suppressions.
-                  </p>
+                  <p className="text-sm text-slate-500">No active suppressions.</p>
                 ) : (
                   suppressions.map((item) => (
                     <div
@@ -504,53 +442,39 @@ export default function ContactDetailPage() {
                       className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm"
                     >
                       <div>
-                        <strong>
-                          {item.reasonCode.replaceAll('_', ' ')}
-                        </strong>
+                        <strong>{item.reasonCode.replaceAll('_', ' ')}</strong>
                         <p className="text-xs text-rose-700">
-                          State: {item.state} · Source:{' '}
-                          {item.source || 'Unknown'}
-                          {item.createdAt
-                            ? ' · ' +
-                              new Date(item.createdAt).toLocaleString()
-                            : ''}
+                          State: {item.state} · Source: {item.source || 'Unknown'}
+                          {item.createdAt ? ' · ' + new Date(item.createdAt).toLocaleString() : ''}
                         </p>
                       </div>
-                      {item.active &&
-                        item.liftable &&
-                        can(PERMISSIONS.CONTACT_CONSENT_MODIFY) && (
-                          <button
-                            className="secondary-button"
-                            disabled={busy}
-                            onClick={() => {
-                              if (
-                                !window.confirm(
-                                  'Lift this suppression? This action is recorded for audit.',
-                                )
-                              ) {
-                                return
-                              }
-                              void mutate(
-                                () =>
-                                  contactsApi
-                                    .liftSuppression(
-                                      companyId,
-                                      contactId,
-                                      item.id,
-                                      {
-                                        reason:
-                                          'Lifted by workspace user after review',
-                                        idempotencyKey: createIdempotencyKey(),
-                                      },
-                                    )
-                                    .then(() => undefined),
-                                'Suppression lifted.',
+                      {item.active && item.liftable && can(PERMISSIONS.CONTACT_CONSENT_MODIFY) && (
+                        <button
+                          className="secondary-button"
+                          disabled={busy}
+                          onClick={() => {
+                            if (
+                              !window.confirm(
+                                'Lift this suppression? This action is recorded for audit.',
                               )
-                            }}
-                          >
-                            Lift suppression
-                          </button>
-                        )}
+                            ) {
+                              return
+                            }
+                            void mutate(
+                              () =>
+                                contactsApi
+                                  .liftSuppression(companyId, contactId, item.id, {
+                                    reason: 'Lifted by workspace user after review',
+                                    idempotencyKey: createIdempotencyKey(),
+                                  })
+                                  .then(() => undefined),
+                              'Suppression lifted.',
+                            )
+                          }}
+                        >
+                          Lift suppression
+                        </button>
+                      )}
                     </div>
                   ))
                 )}
@@ -565,16 +489,9 @@ export default function ContactDetailPage() {
                 <p className="text-sm text-slate-500">No recent activity.</p>
               ) : (
                 activity.map((item) => (
-                  <div
-                    key={item.id}
-                    className="border-l-2 border-indigo-200 pl-4"
-                  >
-                    <strong className="text-sm text-slate-900">
-                      {item.title}
-                    </strong>
-                    {item.summary && (
-                      <p className="text-xs text-slate-500">{item.summary}</p>
-                    )}
+                  <div key={item.id} className="border-l-2 border-indigo-200 pl-4">
+                    <strong className="text-sm text-slate-900">{item.title}</strong>
+                    {item.summary && <p className="text-xs text-slate-500">{item.summary}</p>}
                     <time className="text-xs text-slate-400">
                       {new Date(item.occurredAt).toLocaleString()}
                     </time>
@@ -605,11 +522,7 @@ export default function ContactDetailPage() {
             void mutate(
               () =>
                 contactsApi
-                  .update(
-                    companyId,
-                    contactId,
-                    toPatchContactInput(draft, contact.version),
-                  )
+                  .update(companyId, contactId, toPatchContactInput(draft, contact.version))
                   .then(() => undefined),
               'Contact profile updated.',
               { versioned: true },
@@ -627,34 +540,26 @@ export default function ContactDetailPage() {
               aria-labelledby="preference-dialog-title"
               className="mobile-sheet w-full max-w-lg rounded-t-2xl bg-white p-5 sm:rounded-2xl"
             >
-              <h2
-                id="preference-dialog-title"
-                className="text-lg font-bold text-slate-950"
-              >
+              <h2 id="preference-dialog-title" className="text-lg font-bold text-slate-950">
                 Change {editingPreference} marketing preference
               </h2>
               <p className="mt-2 text-sm text-slate-500">
-                This records an explicit preference event. It does not remove
-                unrelated suppressions.
+                This records an explicit preference event. It does not remove unrelated
+                suppressions.
               </p>
               <div className="mt-5 grid gap-2">
-                {(['OPTED_IN', 'OPTED_OUT', 'UNKNOWN'] as const).map(
-                  (state) => (
-                    <button
-                      key={state}
-                      className="secondary-button justify-start"
-                      disabled={busy}
-                      onClick={() => void changePreference(state)}
-                    >
-                      {state.replaceAll('_', ' ')}
-                    </button>
-                  ),
-                )}
+                {(['OPTED_IN', 'OPTED_OUT', 'UNKNOWN'] as const).map((state) => (
+                  <button
+                    key={state}
+                    className="secondary-button justify-start"
+                    disabled={busy}
+                    onClick={() => void changePreference(state)}
+                  >
+                    {state.replaceAll('_', ' ')}
+                  </button>
+                ))}
               </div>
-              <button
-                className="secondary-button mt-4"
-                onClick={() => setEditingPreference(null)}
-              >
+              <button className="secondary-button mt-4" onClick={() => setEditingPreference(null)}>
                 Cancel
               </button>
             </div>

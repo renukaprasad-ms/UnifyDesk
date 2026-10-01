@@ -16,27 +16,22 @@ const toMinor = (value: string, currency?: string | null) => {
   if (!currency) return Math.round(numeric)
   try {
     const digits =
-      new Intl.NumberFormat(undefined, { style: 'currency', currency })
-        .resolvedOptions().maximumFractionDigits ?? 2
+      new Intl.NumberFormat(undefined, { style: 'currency', currency }).resolvedOptions()
+        .maximumFractionDigits ?? 2
     return Math.round(numeric * 10 ** digits)
   } catch {
     return Math.round(numeric)
   }
 }
 
-export default function GoogleCampaignModal({
-  account,
-  open,
-  saving,
-  onClose,
-  onCreate,
-}: Props) {
+export default function GoogleCampaignModal({ account, open, saving, onClose, onCreate }: Props) {
   const [name, setName] = useState('')
   const [budget, setBudget] = useState('')
   const [bidStrategy, setBidStrategy] =
     useState<CreateGoogleCampaignInput['bidStrategy']>('MANUAL_CPC')
-  const [containsEuPoliticalAdvertising, setContainsEuPoliticalAdvertising] =
-    useState<'YES' | 'NO' | ''>('')
+  const [containsEuPoliticalAdvertising, setContainsEuPoliticalAdvertising] = useState<
+    'YES' | 'NO' | ''
+  >('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
@@ -67,7 +62,11 @@ export default function GoogleCampaignModal({
               {account.name}. New campaigns are created paused.
             </p>
           </div>
-          <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100" onClick={onClose}>
+          <button
+            type="button"
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+            onClick={onClose}
+          >
             <FiX size={18} aria-hidden="true" />
           </button>
         </div>
@@ -75,18 +74,39 @@ export default function GoogleCampaignModal({
         <form className="space-y-5 p-6" onSubmit={submit}>
           <label className="block text-xs font-semibold text-slate-700">
             Campaign name
-            <input className="form-input mt-2" value={name} maxLength={255} required autoFocus onChange={(event) => setName(event.target.value)} />
+            <input
+              className="form-input mt-2"
+              value={name}
+              maxLength={255}
+              required
+              autoFocus
+              onChange={(event) => setName(event.target.value)}
+            />
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-xs font-semibold text-slate-700">
               Daily budget {account.currency ? `(${account.currency})` : ''}
-              <input className="form-input mt-2" type="number" min="0.01" step="0.01" value={budget} required onChange={(event) => setBudget(event.target.value)} />
+              <input
+                className="form-input mt-2"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={budget}
+                required
+                onChange={(event) => setBudget(event.target.value)}
+              />
             </label>
 
             <label className="block text-xs font-semibold text-slate-700">
               Bid strategy
-              <select className="form-input mt-2" value={bidStrategy} onChange={(event) => setBidStrategy(event.target.value as CreateGoogleCampaignInput['bidStrategy'])}>
+              <select
+                className="form-input mt-2"
+                value={bidStrategy}
+                onChange={(event) =>
+                  setBidStrategy(event.target.value as CreateGoogleCampaignInput['bidStrategy'])
+                }
+              >
                 <option value="MANUAL_CPC">Manual CPC</option>
                 <option value="MAXIMIZE_CLICKS">Maximize clicks</option>
                 <option value="MAXIMIZE_CONVERSIONS">Maximize conversions</option>
@@ -101,13 +121,13 @@ export default function GoogleCampaignModal({
                 value={containsEuPoliticalAdvertising}
                 required
                 onChange={(event) =>
-                  setContainsEuPoliticalAdvertising(
-                    event.target.value as 'YES' | 'NO' | '',
-                  )
+                  setContainsEuPoliticalAdvertising(event.target.value as 'YES' | 'NO' | '')
                 }
               >
                 <option value="">Select an answer</option>
-                <option value="NO">No, this campaign does not contain EU political advertising</option>
+                <option value="NO">
+                  No, this campaign does not contain EU political advertising
+                </option>
                 <option value="YES">Yes, this campaign contains EU political advertising</option>
               </select>
               <span className="mt-1 block font-normal text-slate-400">
@@ -117,22 +137,39 @@ export default function GoogleCampaignModal({
 
             <label className="block text-xs font-semibold text-slate-700">
               Start date
-              <input className="form-input mt-2" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+              <input
+                className="form-input mt-2"
+                type="date"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+              />
             </label>
 
             <label className="block text-xs font-semibold text-slate-700">
               End date
-              <input className="form-input mt-2" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
+              <input
+                className="form-input mt-2"
+                type="date"
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
+              />
             </label>
           </div>
 
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
-            Reachlyo creates the campaign and its Google campaign budget in PAUSED state. Add an ad group, keywords, and an ad before enabling delivery.
+            Reachlyo creates the campaign and its Google campaign budget in PAUSED state. Add an ad
+            group, keywords, and an ad before enabling delivery.
           </div>
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
-            <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>Cancel</button>
-            <button type="submit" className="primary-button" disabled={saving || !name.trim() || !budget || !containsEuPoliticalAdvertising}>
+            <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={saving || !name.trim() || !budget || !containsEuPoliticalAdvertising}
+            >
               {saving ? 'Creating…' : 'Create paused campaign'}
             </button>
           </div>

@@ -24,7 +24,10 @@ const emptyReport: GoogleProviderReport = {
 
 const pretty = (value?: string | null) =>
   value
-    ? value.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+    ? value
+        .replaceAll('_', ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase())
     : '—'
 
 const number = (value?: number | null, digits = 2) =>
@@ -46,8 +49,7 @@ const moneyMicros = (micros: number, currency?: string | null) => {
   }
 }
 
-const percent = (value?: number | null) =>
-  value == null ? '—' : `${number(value * 100, 1)}%`
+const percent = (value?: number | null) => (value == null ? '—' : `${number(value * 100, 1)}%`)
 
 export default function GoogleProviderReportingPanel({
   companyId,
@@ -138,14 +140,30 @@ export default function GoogleProviderReportingPanel({
           {tab === 'LANDING' && (
             <table className="w-full min-w-[900px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                <tr><th className="px-5 py-3">Landing page</th><th className="px-5 py-3">Campaign / ad group</th><th className="px-5 py-3 text-right">Spend</th><th className="px-5 py-3 text-right">Impressions</th><th className="px-5 py-3 text-right">Clicks</th><th className="px-5 py-3 text-right">Conversions</th></tr>
+                <tr>
+                  <th className="px-5 py-3">Landing page</th>
+                  <th className="px-5 py-3">Campaign / ad group</th>
+                  <th className="px-5 py-3 text-right">Spend</th>
+                  <th className="px-5 py-3 text-right">Impressions</th>
+                  <th className="px-5 py-3 text-right">Clicks</th>
+                  <th className="px-5 py-3 text-right">Conversions</th>
+                </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {report.landingPages.map((row, index) => (
                   <tr key={`${row.url}-${index}`}>
-                    <td className="max-w-sm break-all px-5 py-4 font-semibold text-slate-900">{row.url}</td>
-                    <td className="px-5 py-4 text-slate-600">{row.campaignName ?? row.campaignId ?? '—'}<div className="text-xs text-slate-400">{row.adGroupName ?? row.adGroupId ?? '—'}</div></td>
-                    <td className="px-5 py-4 text-right">{moneyMicros(row.costMicros, currency)}</td>
+                    <td className="max-w-sm break-all px-5 py-4 font-semibold text-slate-900">
+                      {row.url}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">
+                      {row.campaignName ?? row.campaignId ?? '—'}
+                      <div className="text-xs text-slate-400">
+                        {row.adGroupName ?? row.adGroupId ?? '—'}
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      {moneyMicros(row.costMicros, currency)}
+                    </td>
                     <td className="px-5 py-4 text-right">{number(row.impressions, 0)}</td>
                     <td className="px-5 py-4 text-right">{number(row.clicks, 0)}</td>
                     <td className="px-5 py-4 text-right">{number(row.conversions)}</td>
@@ -158,15 +176,37 @@ export default function GoogleProviderReportingPanel({
           {tab === 'PLACEMENT' && (
             <table className="w-full min-w-[1000px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                <tr><th className="px-5 py-3">Placement</th><th className="px-5 py-3">Type / network</th><th className="px-5 py-3">Campaign</th><th className="px-5 py-3 text-right">Spend</th><th className="px-5 py-3 text-right">Impressions</th><th className="px-5 py-3 text-right">Clicks</th><th className="px-5 py-3 text-right">Conversions</th></tr>
+                <tr>
+                  <th className="px-5 py-3">Placement</th>
+                  <th className="px-5 py-3">Type / network</th>
+                  <th className="px-5 py-3">Campaign</th>
+                  <th className="px-5 py-3 text-right">Spend</th>
+                  <th className="px-5 py-3 text-right">Impressions</th>
+                  <th className="px-5 py-3 text-right">Clicks</th>
+                  <th className="px-5 py-3 text-right">Conversions</th>
+                </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {report.placements.map((row, index) => (
                   <tr key={`${row.placement}-${index}`}>
-                    <td className="px-5 py-4"><p className="font-semibold text-slate-900">{row.displayName ?? row.placement}</p><p className="max-w-sm break-all text-xs text-slate-400">{row.targetUrl ?? row.placement}</p></td>
-                    <td className="px-5 py-4 text-slate-600">{pretty(row.placementType)}<div className="text-xs text-slate-400">{pretty(row.adNetworkType)}</div></td>
-                    <td className="px-5 py-4 text-slate-600">{row.campaignName ?? row.campaignId ?? '—'}</td>
-                    <td className="px-5 py-4 text-right">{moneyMicros(row.costMicros, currency)}</td>
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-slate-900">
+                        {row.displayName ?? row.placement}
+                      </p>
+                      <p className="max-w-sm break-all text-xs text-slate-400">
+                        {row.targetUrl ?? row.placement}
+                      </p>
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">
+                      {pretty(row.placementType)}
+                      <div className="text-xs text-slate-400">{pretty(row.adNetworkType)}</div>
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">
+                      {row.campaignName ?? row.campaignId ?? '—'}
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      {moneyMicros(row.costMicros, currency)}
+                    </td>
                     <td className="px-5 py-4 text-right">{number(row.impressions, 0)}</td>
                     <td className="px-5 py-4 text-right">{number(row.clicks, 0)}</td>
                     <td className="px-5 py-4 text-right">{number(row.conversions)}</td>
@@ -179,18 +219,31 @@ export default function GoogleProviderReportingPanel({
           {tab === 'AUCTION' && (
             <table className="w-full min-w-[900px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                <tr><th className="px-5 py-3">Domain</th><th className="px-5 py-3">Campaign</th><th className="px-5 py-3 text-right">Impression share</th><th className="px-5 py-3 text-right">Overlap</th><th className="px-5 py-3 text-right">Above rate</th><th className="px-5 py-3 text-right">Top</th><th className="px-5 py-3 text-right">Abs. top</th><th className="px-5 py-3 text-right">Outranking</th></tr>
+                <tr>
+                  <th className="px-5 py-3">Domain</th>
+                  <th className="px-5 py-3">Campaign</th>
+                  <th className="px-5 py-3 text-right">Impression share</th>
+                  <th className="px-5 py-3 text-right">Overlap</th>
+                  <th className="px-5 py-3 text-right">Above rate</th>
+                  <th className="px-5 py-3 text-right">Top</th>
+                  <th className="px-5 py-3 text-right">Abs. top</th>
+                  <th className="px-5 py-3 text-right">Outranking</th>
+                </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {report.auctionInsights.map((row, index) => (
                   <tr key={`${row.domain}-${row.campaignId ?? index}`}>
                     <td className="px-5 py-4 font-semibold text-slate-900">{row.domain}</td>
-                    <td className="px-5 py-4 text-slate-600">{row.campaignName ?? row.campaignId ?? '—'}</td>
+                    <td className="px-5 py-4 text-slate-600">
+                      {row.campaignName ?? row.campaignId ?? '—'}
+                    </td>
                     <td className="px-5 py-4 text-right">{percent(row.impressionShare)}</td>
                     <td className="px-5 py-4 text-right">{percent(row.overlapRate)}</td>
                     <td className="px-5 py-4 text-right">{percent(row.positionAboveRate)}</td>
                     <td className="px-5 py-4 text-right">{percent(row.topImpressionPercentage)}</td>
-                    <td className="px-5 py-4 text-right">{percent(row.absoluteTopImpressionPercentage)}</td>
+                    <td className="px-5 py-4 text-right">
+                      {percent(row.absoluteTopImpressionPercentage)}
+                    </td>
                     <td className="px-5 py-4 text-right">{percent(row.outrankingShare)}</td>
                   </tr>
                 ))}
@@ -201,14 +254,30 @@ export default function GoogleProviderReportingPanel({
           {tab === 'CONVERSION' && (
             <table className="w-full min-w-[900px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                <tr><th className="px-5 py-3">Conversion action</th><th className="px-5 py-3">Campaign</th><th className="px-5 py-3">Category / source</th><th className="px-5 py-3 text-right">Conversions</th><th className="px-5 py-3 text-right">Value</th><th className="px-5 py-3 text-right">All conv.</th></tr>
+                <tr>
+                  <th className="px-5 py-3">Conversion action</th>
+                  <th className="px-5 py-3">Campaign</th>
+                  <th className="px-5 py-3">Category / source</th>
+                  <th className="px-5 py-3 text-right">Conversions</th>
+                  <th className="px-5 py-3 text-right">Value</th>
+                  <th className="px-5 py-3 text-right">All conv.</th>
+                </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {report.conversionAttribution.map((row, index) => (
                   <tr key={`${row.conversionActionName}-${row.campaignId ?? index}`}>
-                    <td className="px-5 py-4 font-semibold text-slate-900">{row.conversionActionName}</td>
-                    <td className="px-5 py-4 text-slate-600">{row.campaignName ?? row.campaignId ?? '—'}</td>
-                    <td className="px-5 py-4 text-slate-600">{pretty(row.conversionActionCategory)}<div className="text-xs text-slate-400">{pretty(row.externalConversionSource)}</div></td>
+                    <td className="px-5 py-4 font-semibold text-slate-900">
+                      {row.conversionActionName}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">
+                      {row.campaignName ?? row.campaignId ?? '—'}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">
+                      {pretty(row.conversionActionCategory)}
+                      <div className="text-xs text-slate-400">
+                        {pretty(row.externalConversionSource)}
+                      </div>
+                    </td>
                     <td className="px-5 py-4 text-right">{number(row.conversions)}</td>
                     <td className="px-5 py-4 text-right">{number(row.conversionValue)}</td>
                     <td className="px-5 py-4 text-right">{number(row.allConversions)}</td>
@@ -221,16 +290,35 @@ export default function GoogleProviderReportingPanel({
           {tab === 'CHANGES' && (
             <table className="w-full min-w-[900px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                <tr><th className="px-5 py-3">When</th><th className="px-5 py-3">Change</th><th className="px-5 py-3">Resource</th><th className="px-5 py-3">Changed fields</th><th className="px-5 py-3">Actor / client</th></tr>
+                <tr>
+                  <th className="px-5 py-3">When</th>
+                  <th className="px-5 py-3">Change</th>
+                  <th className="px-5 py-3">Resource</th>
+                  <th className="px-5 py-3">Changed fields</th>
+                  <th className="px-5 py-3">Actor / client</th>
+                </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {report.changeEvents.map((row, index) => (
                   <tr key={`${row.changeDateTime ?? 'change'}-${index}`}>
-                    <td className="px-5 py-4 text-slate-600">{row.changeDateTime ? new Date(row.changeDateTime.replace(' ', 'T')).toLocaleString() : '—'}</td>
-                    <td className="px-5 py-4 font-semibold text-slate-900">{pretty(row.operation)} · {pretty(row.resourceType)}</td>
-                    <td className="max-w-xs break-all px-5 py-4 text-slate-600">{row.changeResourceName ?? '—'}</td>
-                    <td className="px-5 py-4 text-xs text-slate-500">{row.changedFields.join(', ') || '—'}</td>
-                    <td className="px-5 py-4 text-slate-600">{row.userEmail ?? 'Google / system'}<div className="text-xs text-slate-400">{pretty(row.clientType)}</div></td>
+                    <td className="px-5 py-4 text-slate-600">
+                      {row.changeDateTime
+                        ? new Date(row.changeDateTime.replace(' ', 'T')).toLocaleString()
+                        : '—'}
+                    </td>
+                    <td className="px-5 py-4 font-semibold text-slate-900">
+                      {pretty(row.operation)} · {pretty(row.resourceType)}
+                    </td>
+                    <td className="max-w-xs break-all px-5 py-4 text-slate-600">
+                      {row.changeResourceName ?? '—'}
+                    </td>
+                    <td className="px-5 py-4 text-xs text-slate-500">
+                      {row.changedFields.join(', ') || '—'}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">
+                      {row.userEmail ?? 'Google / system'}
+                      <div className="text-xs text-slate-400">{pretty(row.clientType)}</div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -40,7 +40,7 @@ export default function ReachlyoCampaignAnalyticsPanel({
   campaignId,
   canSync,
 }: Props) {
-  const initial = useMemo(defaultRange, [])
+  const initial = useMemo(() => defaultRange(), [])
   const [from, setFrom] = useState(initial.from)
   const [to, setTo] = useState(initial.to)
   const [analytics, setAnalytics] = useState<ReachlyoCampaignAnalytics | null>(null)

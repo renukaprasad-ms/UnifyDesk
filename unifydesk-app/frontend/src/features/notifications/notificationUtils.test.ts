@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  formatUnreadBadge,
-  isSafeAppRoute,
-  isSafeNotificationOpenPath,
-} from './notificationUtils'
+import { formatUnreadBadge, isSafeAppRoute, isSafeNotificationOpenPath } from './notificationUtils'
 
 describe('notificationUtils', () => {
   it('caps visual unread badges without changing the source count', () => {

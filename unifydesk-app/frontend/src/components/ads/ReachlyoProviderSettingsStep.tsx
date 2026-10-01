@@ -35,9 +35,7 @@ type Props = {
   googleBidStrategy: string
   setGoogleBidStrategy: (value: string) => void
   pmaxBidStrategy: 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
-  setPmaxBidStrategy: (
-    value: 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE',
-  ) => void
+  setPmaxBidStrategy: (value: 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE') => void
   pmaxYoutubeVideoIds: string
   setPmaxYoutubeVideoIds: (value: string) => void
   pmaxBrandGuidelinesEnabled: boolean
@@ -67,20 +65,12 @@ type Props = {
   setPmaxLifecycleEnableBidAdjustmentsForLoyaltyMembers: (value: boolean) => void
   pmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla: boolean
   setPmaxLifecycleShowTargetedLoyaltyMemberBenefitsInPla: (value: boolean) => void
-  demandGenBidStrategy:
-    | 'MAXIMIZE_CLICKS'
-    | 'MAXIMIZE_CONVERSIONS'
-    | 'MAXIMIZE_CONVERSION_VALUE'
+  demandGenBidStrategy: 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE'
   setDemandGenBidStrategy: (
-    value:
-      | 'MAXIMIZE_CLICKS'
-      | 'MAXIMIZE_CONVERSIONS'
-      | 'MAXIMIZE_CONVERSION_VALUE',
+    value: 'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE',
   ) => void
   demandGenChannelStrategy: 'ALL_CHANNELS' | 'ALL_OWNED_AND_OPERATED_CHANNELS'
-  setDemandGenChannelStrategy: (
-    value: 'ALL_CHANNELS' | 'ALL_OWNED_AND_OPERATED_CHANNELS',
-  ) => void
+  setDemandGenChannelStrategy: (value: 'ALL_CHANNELS' | 'ALL_OWNED_AND_OPERATED_CHANNELS') => void
   shoppingMerchantAccounts: GoogleMerchantAccount[]
   shoppingMerchantId: string
   setShoppingMerchantId: (value: string) => void
@@ -89,9 +79,7 @@ type Props = {
   shoppingEnableLocal: boolean
   setShoppingEnableLocal: (value: boolean) => void
   displayBidStrategy: 'MANUAL_CPC' | 'MAXIMIZE_CONVERSIONS' | 'TARGET_CPA'
-  setDisplayBidStrategy: (
-    value: 'MANUAL_CPC' | 'MAXIMIZE_CONVERSIONS' | 'TARGET_CPA',
-  ) => void
+  setDisplayBidStrategy: (value: 'MANUAL_CPC' | 'MAXIMIZE_CONVERSIONS' | 'TARGET_CPA') => void
   displayTargetCpa: string
   setDisplayTargetCpa: (value: string) => void
   displayCpcBid: string
@@ -125,9 +113,7 @@ type Props = {
   googleGeoMode: 'PRESENCE' | 'PRESENCE_OR_INTEREST'
   setGoogleGeoMode: (value: 'PRESENCE' | 'PRESENCE_OR_INTEREST') => void
   googleDeviceBidModifiers: Record<'DESKTOP' | 'MOBILE' | 'TABLET', string>
-  setGoogleDeviceBidModifiers: (
-    value: Record<'DESKTOP' | 'MOBILE' | 'TABLET', string>,
-  ) => void
+  setGoogleDeviceBidModifiers: (value: Record<'DESKTOP' | 'MOBILE' | 'TABLET', string>) => void
   googleAiMaxEnabled: boolean
   setGoogleAiMaxEnabled: (value: boolean) => void
   googleAiMaxTextCustomization: boolean
@@ -243,8 +229,7 @@ const isRecommendedConversion = (
   return recommended?.includes(event) ?? false
 }
 
-const recommendedMetaEvent = (goal: CampaignBusinessGoal) =>
-  META_GOAL_EVENTS[goal]?.[0] ?? ''
+const recommendedMetaEvent = (goal: CampaignBusinessGoal) => META_GOAL_EVENTS[goal]?.[0] ?? ''
 
 const META_STANDARD_EVENTS = [
   'ACHIEVEMENT_UNLOCKED',
@@ -278,15 +263,7 @@ const META_STANDARD_EVENTS = [
   'TUTORIAL_COMPLETION',
 ] as const
 
-const DAYS = [
-  'MONDAY',
-  'TUESDAY',
-  'WEDNESDAY',
-  'THURSDAY',
-  'FRIDAY',
-  'SATURDAY',
-  'SUNDAY',
-]
+const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
 
 const quarterHours = (includeEndOfDay: boolean) => {
   const values: string[] = []
@@ -295,9 +272,7 @@ const quarterHours = (includeEndOfDay: boolean) => {
     const totalMinutes = index * 15
     const hour = Math.floor(totalMinutes / 60)
     const minute = totalMinutes % 60
-    values.push(
-      String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0'),
-    )
+    values.push(String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0'))
   }
   return values
 }
@@ -385,8 +360,8 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
         <section className="rounded-2xl border border-slate-200 p-5">
           <h3 className="text-base font-bold text-slate-950">Google Display</h3>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            UnifyDesk creates a paused Display campaign, paused Display ad group,
-            and responsive display ad from the shared visual Creative Pack.
+            UnifyDesk creates a paused Display campaign, paused Display ad group, and responsive
+            display ad from the shared visual Creative Pack.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label="EU political advertising">
@@ -395,18 +370,12 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 value={props.googlePolitical}
                 disabled={props.disabled}
                 onChange={(event) =>
-                  props.setGooglePolitical(
-                    event.target.value as 'true' | 'false' | '',
-                  )
+                  props.setGooglePolitical(event.target.value as 'true' | 'false' | '')
                 }
               >
                 <option value="">Choose</option>
-                <option value="false">
-                  Does not contain EU political advertising
-                </option>
-                <option value="true">
-                  Contains EU political advertising
-                </option>
+                <option value="false">Does not contain EU political advertising</option>
+                <option value="true">Contains EU political advertising</option>
               </select>
             </Field>
             <Field label="Bid strategy">
@@ -416,17 +385,12 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 disabled={props.disabled}
                 onChange={(event) =>
                   props.setDisplayBidStrategy(
-                    event.target.value as
-                      | 'MANUAL_CPC'
-                      | 'MAXIMIZE_CONVERSIONS'
-                      | 'TARGET_CPA',
+                    event.target.value as 'MANUAL_CPC' | 'MAXIMIZE_CONVERSIONS' | 'TARGET_CPA',
                   )
                 }
               >
                 <option value="MANUAL_CPC">Manual CPC</option>
-                <option value="MAXIMIZE_CONVERSIONS">
-                  Maximize conversions
-                </option>
+                <option value="MAXIMIZE_CONVERSIONS">Maximize conversions</option>
                 <option value="TARGET_CPA">Target CPA</option>
               </select>
             </Field>
@@ -442,9 +406,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                   step="0.01"
                   value={props.displayCpcBid}
                   disabled={props.disabled}
-                  onChange={(event) =>
-                    props.setDisplayCpcBid(event.target.value)
-                  }
+                  onChange={(event) => props.setDisplayCpcBid(event.target.value)}
                 />
               </Field>
             )}
@@ -457,9 +419,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                   step="0.01"
                   value={props.displayTargetCpa}
                   disabled={props.disabled}
-                  onChange={(event) =>
-                    props.setDisplayTargetCpa(event.target.value)
-                  }
+                  onChange={(event) => props.setDisplayTargetCpa(event.target.value)}
                 />
               </Field>
             )}
@@ -469,22 +429,14 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                   className="form-input mt-2"
                   value={props.googleConversionId}
                   disabled={props.disabled}
-                  onChange={(event) =>
-                    props.setGoogleConversionId(event.target.value)
-                  }
+                  onChange={(event) => props.setGoogleConversionId(event.target.value)}
                 >
                   <option value="">Select conversion</option>
                   {googleConversions.map((conversion) => (
                     <option key={conversion.id} value={conversion.id}>
                       {conversion.name}
-                      {conversion.customEventType
-                        ? ' · ' + pretty(conversion.customEventType)
-                        : ''}
-                      {isRecommendedConversion(
-                        conversion,
-                        props.businessGoal,
-                        'GOOGLE_ADS',
-                      )
+                      {conversion.customEventType ? ' · ' + pretty(conversion.customEventType) : ''}
+                      {isRecommendedConversion(conversion, props.businessGoal, 'GOOGLE_ADS')
                         ? ' · Recommended'
                         : ''}
                     </option>
@@ -500,9 +452,9 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
         <section className="rounded-2xl border border-slate-200 p-5">
           <h3 className="text-base font-bold text-slate-950">Google Shopping</h3>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Shopping uses your Merchant Center catalog instead of a Creative Pack.
-            UnifyDesk creates the budget, paused Shopping campaign, paused product
-            ad group, paused product ad, and root listing group together.
+            Shopping uses your Merchant Center catalog instead of a Creative Pack. UnifyDesk creates
+            the budget, paused Shopping campaign, paused product ad group, paused product ad, and
+            root listing group together.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label="Merchant Center account">
@@ -510,16 +462,12 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 className="form-input mt-2"
                 value={props.shoppingMerchantId}
                 disabled={props.disabled}
-                onChange={(event) =>
-                  props.setShoppingMerchantId(event.target.value)
-                }
+                onChange={(event) => props.setShoppingMerchantId(event.target.value)}
               >
                 <option value="">Choose Merchant Center</option>
                 {props.shoppingMerchantAccounts.map((merchant) => (
                   <option key={merchant.accountId} value={merchant.accountId}>
-                    {(merchant.accountName || 'Merchant Center') +
-                      ' · ' +
-                      merchant.accountId}
+                    {(merchant.accountName || 'Merchant Center') + ' · ' + merchant.accountId}
                   </option>
                 ))}
               </select>
@@ -533,9 +481,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 value={props.shoppingPriority}
                 disabled={props.disabled}
                 onChange={(event) =>
-                  props.setShoppingPriority(
-                    event.target.value as '0' | '1' | '2',
-                  )
+                  props.setShoppingPriority(event.target.value as '0' | '1' | '2')
                 }
               >
                 <option value="0">Low · 0</option>
@@ -549,18 +495,12 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 value={props.googlePolitical}
                 disabled={props.disabled}
                 onChange={(event) =>
-                  props.setGooglePolitical(
-                    event.target.value as 'true' | 'false' | '',
-                  )
+                  props.setGooglePolitical(event.target.value as 'true' | 'false' | '')
                 }
               >
                 <option value="">Choose</option>
-                <option value="false">
-                  Does not contain EU political advertising
-                </option>
-                <option value="true">
-                  Contains EU political advertising
-                </option>
+                <option value="false">Does not contain EU political advertising</option>
+                <option value="true">Contains EU political advertising</option>
               </select>
             </Field>
             {conversionRequired && (
@@ -569,22 +509,14 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                   className="form-input mt-2"
                   value={props.googleConversionId}
                   disabled={props.disabled}
-                  onChange={(event) =>
-                    props.setGoogleConversionId(event.target.value)
-                  }
+                  onChange={(event) => props.setGoogleConversionId(event.target.value)}
                 >
                   <option value="">Select conversion</option>
                   {googleConversions.map((conversion) => (
                     <option key={conversion.id} value={conversion.id}>
                       {conversion.name}
-                      {conversion.customEventType
-                        ? ' · ' + pretty(conversion.customEventType)
-                        : ''}
-                      {isRecommendedConversion(
-                        conversion,
-                        props.businessGoal,
-                        'GOOGLE_ADS',
-                      )
+                      {conversion.customEventType ? ' · ' + pretty(conversion.customEventType) : ''}
+                      {isRecommendedConversion(conversion, props.businessGoal, 'GOOGLE_ADS')
                         ? ' · Recommended'
                         : ''}
                     </option>
@@ -598,26 +530,24 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 className="mt-1"
                 checked={props.shoppingEnableLocal}
                 disabled={props.disabled}
-                onChange={(event) =>
-                  props.setShoppingEnableLocal(event.target.checked)
-                }
+                onChange={(event) => props.setShoppingEnableLocal(event.target.checked)}
               />
               <span>
                 <span className="block text-xs font-semibold text-slate-800">
                   Enable local inventory
                 </span>
                 <span className="mt-1 block text-[11px] leading-5 text-slate-500">
-                  Enable only when this Merchant Center account is configured for
-                  eligible local inventory products.
+                  Enable only when this Merchant Center account is configured for eligible local
+                  inventory products.
                 </span>
               </span>
             </label>
           </div>
           {props.shoppingMerchantAccounts.length === 0 && (
             <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
-              No accessible Merchant Center account was returned for the selected
-              Google Ads connection. Open Merchant Center in Ad Center or reconnect
-              Google if Merchant API permission was added after the connection.
+              No accessible Merchant Center account was returned for the selected Google Ads
+              connection. Open Merchant Center in Ad Center or reconnect Google if Merchant API
+              permission was added after the connection.
             </p>
           )}
         </section>
@@ -627,9 +557,8 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
         <section className="rounded-2xl border border-slate-200 p-5">
           <h3 className="text-base font-bold text-slate-950">Google Demand Gen</h3>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Demand Gen uses a paused campaign and paused ad group. Shared locations and
-            languages map to ad-group targeting; the creative step supplies the visual
-            multi-asset ad.
+            Demand Gen uses a paused campaign and paused ad group. Shared locations and languages
+            map to ad-group targeting; the creative step supplies the visual multi-asset ad.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label="EU political advertising">
@@ -638,18 +567,12 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 value={props.googlePolitical}
                 disabled={props.disabled}
                 onChange={(event) =>
-                  props.setGooglePolitical(
-                    event.target.value as 'true' | 'false' | '',
-                  )
+                  props.setGooglePolitical(event.target.value as 'true' | 'false' | '')
                 }
               >
                 <option value="">Choose</option>
-                <option value="false">
-                  Does not contain EU political advertising
-                </option>
-                <option value="true">
-                  Contains EU political advertising
-                </option>
+                <option value="false">Does not contain EU political advertising</option>
+                <option value="true">Contains EU political advertising</option>
               </select>
             </Field>
             <Field label="Bid strategy">
@@ -660,17 +583,13 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 onChange={(event) =>
                   props.setDemandGenBidStrategy(
                     event.target.value as
-                      | 'MAXIMIZE_CLICKS'
-                      | 'MAXIMIZE_CONVERSIONS'
-                      | 'MAXIMIZE_CONVERSION_VALUE',
+                      'MAXIMIZE_CLICKS' | 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE',
                   )
                 }
               >
                 <option value="MAXIMIZE_CLICKS">Maximize clicks</option>
                 <option value="MAXIMIZE_CONVERSIONS">Maximize conversions</option>
-                <option value="MAXIMIZE_CONVERSION_VALUE">
-                  Maximize conversion value
-                </option>
+                <option value="MAXIMIZE_CONVERSION_VALUE">Maximize conversion value</option>
               </select>
             </Field>
             <Field label="Channel coverage">
@@ -680,16 +599,12 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 disabled={props.disabled}
                 onChange={(event) =>
                   props.setDemandGenChannelStrategy(
-                    event.target.value as
-                      | 'ALL_CHANNELS'
-                      | 'ALL_OWNED_AND_OPERATED_CHANNELS',
+                    event.target.value as 'ALL_CHANNELS' | 'ALL_OWNED_AND_OPERATED_CHANNELS',
                   )
                 }
               >
                 <option value="ALL_CHANNELS">All Demand Gen channels</option>
-                <option value="ALL_OWNED_AND_OPERATED_CHANNELS">
-                  Google-owned channels only
-                </option>
+                <option value="ALL_OWNED_AND_OPERATED_CHANNELS">Google-owned channels only</option>
               </select>
             </Field>
             {conversionRequired && (
@@ -698,22 +613,14 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                   className="form-input mt-2"
                   value={props.googleConversionId}
                   disabled={props.disabled}
-                  onChange={(event) =>
-                    props.setGoogleConversionId(event.target.value)
-                  }
+                  onChange={(event) => props.setGoogleConversionId(event.target.value)}
                 >
                   <option value="">Select conversion</option>
                   {googleConversions.map((conversion) => (
                     <option key={conversion.id} value={conversion.id}>
                       {conversion.name}
-                      {conversion.customEventType
-                        ? ' · ' + pretty(conversion.customEventType)
-                        : ''}
-                      {isRecommendedConversion(
-                        conversion,
-                        props.businessGoal,
-                        'GOOGLE_ADS',
-                      )
+                      {conversion.customEventType ? ' · ' + pretty(conversion.customEventType) : ''}
+                      {isRecommendedConversion(conversion, props.businessGoal, 'GOOGLE_ADS')
                         ? ' · Recommended'
                         : ''}
                     </option>
@@ -729,9 +636,9 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
         <section className="rounded-2xl border border-slate-200 p-5">
           <h3 className="text-base font-bold text-slate-950">Google Performance Max</h3>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            UnifyDesk creates the budget, paused Performance Max campaign, required assets,
-            and first asset group atomically. Search intent from the shared audience becomes
-            Performance Max search-theme signals.
+            UnifyDesk creates the budget, paused Performance Max campaign, required assets, and
+            first asset group atomically. Search intent from the shared audience becomes Performance
+            Max search-theme signals.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label="EU political advertising">
@@ -740,18 +647,12 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 value={props.googlePolitical}
                 disabled={props.disabled}
                 onChange={(event) =>
-                  props.setGooglePolitical(
-                    event.target.value as 'true' | 'false' | '',
-                  )
+                  props.setGooglePolitical(event.target.value as 'true' | 'false' | '')
                 }
               >
                 <option value="">Choose</option>
-                <option value="false">
-                  Does not contain EU political advertising
-                </option>
-                <option value="true">
-                  Contains EU political advertising
-                </option>
+                <option value="false">Does not contain EU political advertising</option>
+                <option value="true">Contains EU political advertising</option>
               </select>
             </Field>
             <Field label="Bid strategy">
@@ -761,22 +662,19 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 disabled={props.disabled}
                 onChange={(event) =>
                   props.setPmaxBidStrategy(
-                    event.target.value as
-                      | 'MAXIMIZE_CONVERSIONS'
-                      | 'MAXIMIZE_CONVERSION_VALUE',
+                    event.target.value as 'MAXIMIZE_CONVERSIONS' | 'MAXIMIZE_CONVERSION_VALUE',
                   )
                 }
               >
                 <option value="MAXIMIZE_CONVERSIONS">Maximize conversions</option>
-                <option value="MAXIMIZE_CONVERSION_VALUE">
-                  Maximize conversion value
-                </option>
+                <option value="MAXIMIZE_CONVERSION_VALUE">Maximize conversion value</option>
               </select>
             </Field>
             <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-4 sm:col-span-2">
               <p className="text-xs font-semibold text-slate-700">Retail / Merchant Center</p>
               <p className="mt-1 text-[11px] leading-5 text-slate-500">
-                Optional. Selecting Merchant Center creates retail Performance Max with a required all-products listing group.
+                Optional. Selecting Merchant Center creates retail Performance Max with a required
+                all-products listing group.
               </p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <Field label="Merchant Center account">
@@ -804,9 +702,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                     disabled={props.disabled || !props.pmaxMerchantId}
                     maxLength={20}
                     placeholder="IN"
-                    onChange={(event) =>
-                      props.setPmaxFeedLabel(event.target.value.toUpperCase())
-                    }
+                    onChange={(event) => props.setPmaxFeedLabel(event.target.value.toUpperCase())}
                   />
                 </Field>
               </div>
@@ -825,9 +721,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                     type="checkbox"
                     checked={props.pmaxBrandGuidelinesEnabled}
                     disabled={props.disabled}
-                    onChange={(event) =>
-                      props.setPmaxBrandGuidelinesEnabled(event.target.checked)
-                    }
+                    onChange={(event) => props.setPmaxBrandGuidelinesEnabled(event.target.checked)}
                   />
                   Enabled
                 </label>
@@ -908,22 +802,14 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                   className="form-input mt-2"
                   value={props.googleConversionId}
                   disabled={props.disabled}
-                  onChange={(event) =>
-                    props.setGoogleConversionId(event.target.value)
-                  }
+                  onChange={(event) => props.setGoogleConversionId(event.target.value)}
                 >
                   <option value="">Select conversion</option>
                   {googleConversions.map((conversion) => (
                     <option key={conversion.id} value={conversion.id}>
                       {conversion.name}
-                      {conversion.customEventType
-                        ? ' · ' + pretty(conversion.customEventType)
-                        : ''}
-                      {isRecommendedConversion(
-                        conversion,
-                        props.businessGoal,
-                        'GOOGLE_ADS',
-                      )
+                      {conversion.customEventType ? ' · ' + pretty(conversion.customEventType) : ''}
+                      {isRecommendedConversion(conversion, props.businessGoal, 'GOOGLE_ADS')
                         ? ' · Recommended'
                         : ''}
                     </option>
@@ -939,9 +825,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 className="form-input mt-2 min-h-24"
                 value={props.pmaxYoutubeVideoIds}
                 disabled={props.disabled}
-                onChange={(event) =>
-                  props.setPmaxYoutubeVideoIds(event.target.value)
-                }
+                onChange={(event) => props.setPmaxYoutubeVideoIds(event.target.value)}
                 placeholder={'dQw4w9WgXcQ\nvideoIdTwo'}
               />
             </Field>
@@ -989,8 +873,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 value={props.keywordMatchType}
                 disabled={
                   props.disabled ||
-                  (props.googleAiMaxEnabled &&
-                    !props.googleAiMaxDisableSearchTermMatching)
+                  (props.googleAiMaxEnabled && !props.googleAiMaxDisableSearchTermMatching)
                 }
                 onChange={(event) => props.setKeywordMatchType(event.target.value)}
               >
@@ -1044,9 +927,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 value={props.googleGeoMode}
                 disabled={props.disabled}
                 onChange={(event) =>
-                  props.setGoogleGeoMode(
-                    event.target.value as 'PRESENCE' | 'PRESENCE_OR_INTEREST',
-                  )
+                  props.setGoogleGeoMode(event.target.value as 'PRESENCE' | 'PRESENCE_OR_INTEREST')
                 }
               >
                 <option value="PRESENCE_OR_INTEREST">Presence or interest</option>
@@ -1062,17 +943,13 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 incomeRangeIncludes={props.googleIncomeRangeIncludes}
                 incomeRangeExcludes={props.googleIncomeRangeExcludes}
                 detailedDemographicIds={props.googleDetailedDemographicIds}
-                excludedDetailedDemographicIds={
-                  props.googleExcludedDetailedDemographicIds
-                }
+                excludedDetailedDemographicIds={props.googleExcludedDetailedDemographicIds}
                 setParentalStatusIncludes={props.setGoogleParentalStatusIncludes}
                 setParentalStatusExcludes={props.setGoogleParentalStatusExcludes}
                 setIncomeRangeIncludes={props.setGoogleIncomeRangeIncludes}
                 setIncomeRangeExcludes={props.setGoogleIncomeRangeExcludes}
                 setDetailedDemographicIds={props.setGoogleDetailedDemographicIds}
-                setExcludedDetailedDemographicIds={
-                  props.setGoogleExcludedDetailedDemographicIds
-                }
+                setExcludedDetailedDemographicIds={props.setGoogleExcludedDetailedDemographicIds}
                 disabled={props.disabled}
               />
             </div>
@@ -1092,7 +969,8 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
             <div className="rounded-xl border border-slate-100 p-4 sm:col-span-2">
               <p className="text-xs font-semibold text-slate-700">Device bid adjustments</p>
               <p className="mt-1 text-[11px] leading-5 text-slate-500">
-                Leave 1.0 for normal bidding, use 0 to exclude a device, or set 0.1–10.0 as a bid multiplier.
+                Leave 1.0 for normal bidding, use 0 to exclude a device, or set 0.1–10.0 as a bid
+                multiplier.
               </p>
               <div className="mt-3 grid gap-3 sm:grid-cols-3">
                 {(['DESKTOP', 'MOBILE', 'TABLET'] as const).map((device) => (
@@ -1122,9 +1000,9 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                 <div>
                   <p className="text-sm font-bold text-slate-900">AI Max for Search</p>
                   <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-                    AI Max expands Search matching and can customize text and landing pages.
-                    Google treats keywords as broad match while AI Max search-term matching is
-                    active, so individual keyword match types apply only when matching is disabled.
+                    AI Max expands Search matching and can customize text and landing pages. Google
+                    treats keywords as broad match while AI Max search-term matching is active, so
+                    individual keyword match types apply only when matching is disabled.
                   </p>
                 </div>
                 <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700">
@@ -1147,125 +1025,122 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
 
               {props.googleAiMaxEnabled && (
                 <>
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <label className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
-                    <span className="flex items-center gap-2 font-semibold text-slate-800">
-                      <input
-                        type="checkbox"
-                        checked={props.googleAiMaxTextCustomization}
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <label className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
+                      <span className="flex items-center gap-2 font-semibold text-slate-800">
+                        <input
+                          type="checkbox"
+                          checked={props.googleAiMaxTextCustomization}
+                          disabled={props.disabled}
+                          onChange={(event) =>
+                            props.setGoogleAiMaxTextCustomization(event.target.checked)
+                          }
+                        />
+                        Text customization
+                      </span>
+                      <span className="mt-1 block leading-5">
+                        Allow Google to tailor headlines and descriptions from campaign and
+                        landing-page context.
+                      </span>
+                    </label>
+                    <label className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
+                      <span className="flex items-center gap-2 font-semibold text-slate-800">
+                        <input
+                          type="checkbox"
+                          checked={props.googleAiMaxFinalUrlExpansion}
+                          disabled={props.disabled}
+                          onChange={(event) =>
+                            props.setGoogleAiMaxFinalUrlExpansion(event.target.checked)
+                          }
+                        />
+                        Final URL expansion
+                      </span>
+                      <span className="mt-1 block leading-5">
+                        Let Google choose a more relevant landing page when eligible. This can also
+                        generate matching text assets.
+                      </span>
+                    </label>
+                    <label className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
+                      <span className="flex items-center gap-2 font-semibold text-slate-800">
+                        <input
+                          type="checkbox"
+                          checked={props.googleAiMaxDisableSearchTermMatching}
+                          disabled={props.disabled}
+                          onChange={(event) =>
+                            props.setGoogleAiMaxDisableSearchTermMatching(event.target.checked)
+                          }
+                        />
+                        Preserve keyword match types
+                      </span>
+                      <span className="mt-1 block leading-5">
+                        Disable AI Max search-term matching for the created ad group so
+                        Exact/Phrase/Broad keyword settings apply normally.
+                      </span>
+                    </label>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <Field
+                      label="Generated-text exclusions"
+                      hint="One exact word or phrase per line. Up to 25 values, maximum 30 characters each."
+                    >
+                      <textarea
+                        className="form-input mt-2 min-h-28"
+                        value={props.googleAiMaxTermExclusions}
+                        disabled={props.disabled}
+                        onChange={(event) => props.setGoogleAiMaxTermExclusions(event.target.value)}
+                        placeholder={'free\ncheap\ncompetitor phrase'}
+                      />
+                    </Field>
+                    <Field
+                      label="AI messaging restrictions"
+                      hint="One instruction per line. Up to 40 instructions, maximum 300 characters each."
+                    >
+                      <textarea
+                        className="form-input mt-2 min-h-28"
+                        value={props.googleAiMaxMessagingRestrictions}
                         disabled={props.disabled}
                         onChange={(event) =>
-                          props.setGoogleAiMaxTextCustomization(event.target.checked)
+                          props.setGoogleAiMaxMessagingRestrictions(event.target.value)
                         }
+                        placeholder="Do not imply a guaranteed outcome"
                       />
-                      Text customization
-                    </span>
-                    <span className="mt-1 block leading-5">
-                      Allow Google to tailor headlines and descriptions from campaign and landing-page context.
-                    </span>
-                  </label>
-                  <label className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
-                    <span className="flex items-center gap-2 font-semibold text-slate-800">
-                      <input
-                        type="checkbox"
-                        checked={props.googleAiMaxFinalUrlExpansion}
+                    </Field>
+                    <Field
+                      label="Landing-page URL exclusions"
+                      hint="One absolute URL or path per line. Excluded pages will not be selected by AI Max final URL expansion."
+                    >
+                      <textarea
+                        className="form-input mt-2 min-h-28"
+                        value={props.googleAiMaxUrlExclusions}
                         disabled={props.disabled}
-                        onChange={(event) =>
-                          props.setGoogleAiMaxFinalUrlExpansion(event.target.checked)
-                        }
+                        onChange={(event) => props.setGoogleAiMaxUrlExclusions(event.target.value)}
+                        placeholder={'/careers/\n/privacy-policy\nhttps://example.com/old-page'}
                       />
-                      Final URL expansion
-                    </span>
-                    <span className="mt-1 block leading-5">
-                      Let Google choose a more relevant landing page when eligible. This can also generate matching text assets.
-                    </span>
-                  </label>
-                  <label className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
-                    <span className="flex items-center gap-2 font-semibold text-slate-800">
-                      <input
-                        type="checkbox"
-                        checked={props.googleAiMaxDisableSearchTermMatching}
+                    </Field>
+                    <Field
+                      label="Landing-page URL inclusions"
+                      hint="One absolute URL per line. UnifyDesk creates/reuses a Google page feed and limits this ad group to those page-feed URLs. Requires text customization, Final URL expansion, and AI Max search-term matching."
+                    >
+                      <textarea
+                        className="form-input mt-2 min-h-28"
+                        value={props.googleAiMaxUrlInclusions}
                         disabled={props.disabled}
-                        onChange={(event) =>
-                          props.setGoogleAiMaxDisableSearchTermMatching(event.target.checked)
-                        }
+                        onChange={(event) => props.setGoogleAiMaxUrlInclusions(event.target.value)}
+                        placeholder={'https://example.com/product\nhttps://example.com/pricing'}
                       />
-                      Preserve keyword match types
-                    </span>
-                    <span className="mt-1 block leading-5">
-                      Disable AI Max search-term matching for the created ad group so Exact/Phrase/Broad keyword settings apply normally.
-                    </span>
-                  </label>
-                </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <Field
-                    label="Generated-text exclusions"
-                    hint="One exact word or phrase per line. Up to 25 values, maximum 30 characters each."
-                  >
-                    <textarea
-                      className="form-input mt-2 min-h-28"
-                      value={props.googleAiMaxTermExclusions}
+                    </Field>
+                  </div>
+                  {googleAccount && (
+                    <GoogleAiMaxBrandSelector
+                      companyId={props.companyId}
+                      accountId={googleAccount}
+                      inclusions={props.googleAiMaxBrandInclusions}
+                      exclusions={props.googleAiMaxBrandExclusions}
+                      setInclusions={props.setGoogleAiMaxBrandInclusions}
+                      setExclusions={props.setGoogleAiMaxBrandExclusions}
                       disabled={props.disabled}
-                      onChange={(event) =>
-                        props.setGoogleAiMaxTermExclusions(event.target.value)
-                      }
-                      placeholder={'free\ncheap\ncompetitor phrase'}
                     />
-                  </Field>
-                  <Field
-                    label="AI messaging restrictions"
-                    hint="One instruction per line. Up to 40 instructions, maximum 300 characters each."
-                  >
-                    <textarea
-                      className="form-input mt-2 min-h-28"
-                      value={props.googleAiMaxMessagingRestrictions}
-                      disabled={props.disabled}
-                      onChange={(event) =>
-                        props.setGoogleAiMaxMessagingRestrictions(event.target.value)
-                      }
-                      placeholder="Do not imply a guaranteed outcome"
-                    />
-                  </Field>
-                  <Field
-                    label="Landing-page URL exclusions"
-                    hint="One absolute URL or path per line. Excluded pages will not be selected by AI Max final URL expansion."
-                  >
-                    <textarea
-                      className="form-input mt-2 min-h-28"
-                      value={props.googleAiMaxUrlExclusions}
-                      disabled={props.disabled}
-                      onChange={(event) =>
-                        props.setGoogleAiMaxUrlExclusions(event.target.value)
-                      }
-                      placeholder={'/careers/\n/privacy-policy\nhttps://example.com/old-page'}
-                    />
-                  </Field>
-                  <Field
-                    label="Landing-page URL inclusions"
-                    hint="One absolute URL per line. UnifyDesk creates/reuses a Google page feed and limits this ad group to those page-feed URLs. Requires text customization, Final URL expansion, and AI Max search-term matching."
-                  >
-                    <textarea
-                      className="form-input mt-2 min-h-28"
-                      value={props.googleAiMaxUrlInclusions}
-                      disabled={props.disabled}
-                      onChange={(event) =>
-                        props.setGoogleAiMaxUrlInclusions(event.target.value)
-                      }
-                      placeholder={'https://example.com/product\nhttps://example.com/pricing'}
-                    />
-                  </Field>
-                </div>
-                {googleAccount && (
-                  <GoogleAiMaxBrandSelector
-                    companyId={props.companyId}
-                    accountId={googleAccount}
-                    inclusions={props.googleAiMaxBrandInclusions}
-                    exclusions={props.googleAiMaxBrandExclusions}
-                    setInclusions={props.setGoogleAiMaxBrandInclusions}
-                    setExclusions={props.setGoogleAiMaxBrandExclusions}
-                    disabled={props.disabled}
-                  />
-                )}
+                  )}
                 </>
               )}
             </div>
@@ -1274,11 +1149,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
               <p className="text-xs font-semibold text-slate-700">Search networks</p>
               <div className="mt-3 grid gap-2">
                 <label className="inline-flex items-center gap-2 text-sm text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked
-                    disabled
-                  />
+                  <input type="checkbox" checked disabled />
                   Google Search
                 </label>
                 <label className="inline-flex items-center gap-2 text-sm text-slate-600">
@@ -1311,7 +1182,8 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                   <h4 className="text-sm font-bold text-slate-900">Ad schedule</h4>
                 </div>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  Optional dayparting in the Google Ads account timezone. Times use 15-minute boundaries.
+                  Optional dayparting in the Google Ads account timezone. Times use 15-minute
+                  boundaries.
                 </p>
               </div>
               <button
@@ -1348,9 +1220,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                       onChange={(event) =>
                         props.setGoogleAdSchedules(
                           props.googleAdSchedules.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, dayOfWeek: event.target.value }
-                              : item,
+                            itemIndex === index ? { ...item, dayOfWeek: event.target.value } : item,
                           ),
                         )
                       }
@@ -1368,15 +1238,15 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                       onChange={(event) =>
                         props.setGoogleAdSchedules(
                           props.googleAdSchedules.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, startTime: event.target.value }
-                              : item,
+                            itemIndex === index ? { ...item, startTime: event.target.value } : item,
                           ),
                         )
                       }
                     >
                       {START_TIMES.map((time) => (
-                        <option key={time} value={time}>{time}</option>
+                        <option key={time} value={time}>
+                          {time}
+                        </option>
                       ))}
                     </select>
                     <select
@@ -1386,15 +1256,15 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                       onChange={(event) =>
                         props.setGoogleAdSchedules(
                           props.googleAdSchedules.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, endTime: event.target.value }
-                              : item,
+                            itemIndex === index ? { ...item, endTime: event.target.value } : item,
                           ),
                         )
                       }
                     >
                       {END_TIMES.map((time) => (
-                        <option key={time} value={time}>{time}</option>
+                        <option key={time} value={time}>
+                          {time}
+                        </option>
                       ))}
                     </select>
                     <button
@@ -1421,7 +1291,8 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
               <div>
                 <h4 className="text-sm font-bold text-slate-900">Negative keywords</h4>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  Campaign negatives apply to every ad group in this Search campaign. Reusable lists stay managed in Google Ads and can be attached here.
+                  Campaign negatives apply to every ad group in this Search campaign. Reusable lists
+                  stay managed in Google Ads and can be attached here.
                 </p>
               </div>
               <button
@@ -1460,9 +1331,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                       onChange={(event) =>
                         props.setGoogleNegativeKeywords(
                           props.googleNegativeKeywords.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, text: event.target.value }
-                              : item,
+                            itemIndex === index ? { ...item, text: event.target.value } : item,
                           ),
                         )
                       }
@@ -1477,10 +1346,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                             itemIndex === index
                               ? {
                                   ...item,
-                                  matchType: event.target.value as
-                                    | 'BROAD'
-                                    | 'PHRASE'
-                                    | 'EXACT',
+                                  matchType: event.target.value as 'BROAD' | 'PHRASE' | 'EXACT',
                                 }
                               : item,
                           ),
@@ -1522,16 +1388,13 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
               ) : (
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {props.googleNegativeKeywordLists.map((list) => {
-                    const checked =
-                      props.selectedGoogleNegativeKeywordListIds.includes(list.id)
+                    const checked = props.selectedGoogleNegativeKeywordListIds.includes(list.id)
                     return (
                       <label
                         key={list.id}
                         className={
                           'flex cursor-pointer items-start gap-3 rounded-xl border p-3 ' +
-                          (checked
-                            ? 'border-indigo-200 bg-indigo-50/50'
-                            : 'border-slate-200')
+                          (checked ? 'border-indigo-200 bg-indigo-50/50' : 'border-slate-200')
                         }
                       >
                         <input
@@ -1559,7 +1422,8 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                             {list.name}
                           </span>
                           <span className="mt-1 block text-xs text-slate-500">
-                            {list.memberCount} keyword{list.memberCount === 1 ? '' : 's'} · used by {list.referenceCount} campaign{list.referenceCount === 1 ? '' : 's'}
+                            {list.memberCount} keyword{list.memberCount === 1 ? '' : 's'} · used by{' '}
+                            {list.referenceCount} campaign{list.referenceCount === 1 ? '' : 's'}
                           </span>
                         </span>
                       </label>
@@ -1663,9 +1527,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                   className="mt-1"
                   checked={props.metaAdvantageAudience}
                   disabled={props.disabled}
-                  onChange={(event) =>
-                    props.setMetaAdvantageAudience(event.target.checked)
-                  }
+                  onChange={(event) => props.setMetaAdvantageAudience(event.target.checked)}
                 />
                 <span>
                   <span className="block text-sm font-bold text-indigo-950">
@@ -1724,8 +1586,8 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                     Advantage+ creative
                   </span>
                   <span className="mt-1 block text-xs leading-5 text-indigo-700">
-                    Opt in to Meta standard creative enhancements. Text generation, image
-                    expansion and background generation remain separate features.
+                    Opt in to Meta standard creative enhancements. Text generation, image expansion
+                    and background generation remain separate features.
                   </span>
                 </span>
               </label>
@@ -1744,8 +1606,8 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                     AI text generation
                   </span>
                   <span className="mt-1 block text-xs leading-5 text-violet-700">
-                    Allow Meta to generate eligible text variations from your source copy.
-                    Generated copy must be reviewed from provider preview/read-back before activation.
+                    Allow Meta to generate eligible text variations from your source copy. Generated
+                    copy must be reviewed from provider preview/read-back before activation.
                   </span>
                 </span>
               </label>
@@ -1760,9 +1622,7 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                   onChange={(event) => props.setMetaImageExpansion(event.target.checked)}
                 />
                 <span>
-                  <span className="block text-sm font-bold text-cyan-950">
-                    Image expansion
-                  </span>
+                  <span className="block text-sm font-bold text-cyan-950">Image expansion</span>
                   <span className="mt-1 block text-xs leading-5 text-cyan-700">
                     Allow Meta to extend image boundaries for eligible placements. The selected
                     creative pack must include an image and the provider preview should be reviewed
@@ -1812,8 +1672,8 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                       (resource) => resource.resourceType === 'META_PRODUCT_SET',
                     ) && (
                       <span className="mt-2 block text-[11px] leading-5 text-orange-700">
-                        No product sets are synchronized. Refresh provider resources after connecting
-                        a Meta business catalog.
+                        No product sets are synchronized. Refresh provider resources after
+                        connecting a Meta business catalog.
                       </span>
                     )}
                 </span>
@@ -1918,7 +1778,9 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                               props.setMetaPublisherPlatforms(
                                 event.target.checked
                                   ? [...new Set([...props.metaPublisherPlatforms, group.key])]
-                                  : props.metaPublisherPlatforms.filter((item) => item !== group.key),
+                                  : props.metaPublisherPlatforms.filter(
+                                      (item) => item !== group.key,
+                                    ),
                               )
                             }
                           />
@@ -1927,7 +1789,10 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                         {selected && (
                           <div className="mt-3 grid gap-2 sm:grid-cols-2">
                             {group.positions.map(([value, label]) => (
-                              <label key={value} className="flex items-center gap-2 text-xs text-slate-600">
+                              <label
+                                key={value}
+                                className="flex items-center gap-2 text-xs text-slate-600"
+                              >
                                 <input
                                   type="checkbox"
                                   checked={positions.includes(value)}
@@ -1949,7 +1814,8 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                     )
                   })}
                   <p className="text-xs leading-5 text-slate-500">
-                    If a selected platform has no individual positions checked, Meta can use all eligible positions on that platform.
+                    If a selected platform has no individual positions checked, Meta can use all
+                    eligible positions on that platform.
                   </p>
                 </div>
               )}
@@ -1999,7 +1865,9 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                       {metaConversions.map((conversion) => (
                         <option key={conversion.id} value={conversion.id}>
                           {conversion.name}
-                          {conversion.customEventType ? ` · ${pretty(conversion.customEventType)}` : ''}
+                          {conversion.customEventType
+                            ? ` · ${pretty(conversion.customEventType)}`
+                            : ''}
                           {isRecommendedConversion(conversion, props.businessGoal, 'META_ADS')
                             ? ' · Recommended'
                             : ''}
@@ -2027,7 +1895,8 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
                     </select>
                     {recommendedMetaEvent(props.businessGoal) && (
                       <span className="mt-1 block text-[11px] font-normal text-slate-500">
-                        Suggested for {pretty(props.businessGoal)}: {pretty(recommendedMetaEvent(props.businessGoal))}
+                        Suggested for {pretty(props.businessGoal)}:{' '}
+                        {pretty(recommendedMetaEvent(props.businessGoal))}
                       </span>
                     )}
                   </Field>
@@ -2041,23 +1910,13 @@ export default function ReachlyoProviderSettingsStep(props: Props) {
   )
 }
 
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string
-  hint?: string
-  children: ReactNode
-}) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block text-xs font-semibold text-slate-700">
       {label}
       {children}
       {hint && (
-        <span className="mt-1 block text-[11px] font-normal leading-5 text-slate-500">
-          {hint}
-        </span>
+        <span className="mt-1 block text-[11px] font-normal leading-5 text-slate-500">{hint}</span>
       )}
     </label>
   )

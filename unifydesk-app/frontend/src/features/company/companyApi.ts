@@ -45,9 +45,7 @@ export const companyApi = {
   },
 
   async myInvitations() {
-    const response = await apiClient.get<ApiResponse<CompanyInvitation[]>>(
-      '/api/v1/invitations/me',
-    )
+    const response = await apiClient.get<ApiResponse<CompanyInvitation[]>>('/api/v1/invitations/me')
     return unwrap(response.data)
   },
 

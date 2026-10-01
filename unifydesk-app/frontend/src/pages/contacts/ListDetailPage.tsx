@@ -74,11 +74,18 @@ export default function ListDetailPage() {
 
   const addMembers = async () => {
     const ids = Array.from(
-      new Set(memberIds.split(/[\s,]+/).map((item) => item.trim()).filter(Boolean)),
+      new Set(
+        memberIds
+          .split(/[\s,]+/)
+          .map((item) => item.trim())
+          .filter(Boolean),
+      ),
     )
     if (!companyId || ids.length === 0) return
     if (ids.length > 500) {
-      setError('Small List membership changes are limited to 500 Contact IDs. Use bulk actions for larger selections.')
+      setError(
+        'Small List membership changes are limited to 500 Contact IDs. Use bulk actions for larger selections.',
+      )
       return
     }
     await action(
@@ -97,7 +104,8 @@ export default function ListDetailPage() {
             <p className="eyebrow">Static audience</p>
             <h1 className="mt-2 text-3xl font-bold text-slate-950">{list?.name || 'List'}</h1>
             <p className="mt-2 text-sm text-slate-500">
-              {list?.memberCount.toLocaleString() || 0} members. Membership remains server-side and is loaded by cursor.
+              {list?.memberCount.toLocaleString() || 0} members. Membership remains server-side and
+              is loaded by cursor.
             </p>
           </div>
           {list && companyId && (
@@ -116,11 +124,19 @@ export default function ListDetailPage() {
                   className="secondary-button text-rose-700"
                   disabled={busy}
                   onClick={() => {
-                    if (!window.confirm('Archive this List? Existing historical references remain intact.')) return
+                    if (
+                      !window.confirm(
+                        'Archive this List? Existing historical references remain intact.',
+                      )
+                    )
+                      return
                     setBusy(true)
-                    contactsApi.archiveList(companyId, listId)
+                    contactsApi
+                      .archiveList(companyId, listId)
                       .then(() => navigate('/contacts/lists', { replace: true }))
-                      .catch((archiveError) => setError(apiErrorMessage(archiveError, 'Unable to archive List.')))
+                      .catch((archiveError) =>
+                        setError(apiErrorMessage(archiveError, 'Unable to archive List.')),
+                      )
                       .finally(() => setBusy(false))
                   }}
                 >
@@ -151,11 +167,19 @@ export default function ListDetailPage() {
             <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1.5fr_auto]">
               <label className="text-xs font-semibold text-slate-700">
                 Name
-                <input className="form-input mt-1" value={name} onChange={(event) => setName(event.target.value)} />
+                <input
+                  className="form-input mt-1"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                />
               </label>
               <label className="text-xs font-semibold text-slate-700">
                 Description
-                <input className="form-input mt-1" value={description} onChange={(event) => setDescription(event.target.value)} />
+                <input
+                  className="form-input mt-1"
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                />
               </label>
               <button
                 className="primary-button self-end"
@@ -187,7 +211,9 @@ export default function ListDetailPage() {
               Enter up to 500 Contact IDs. Use Contacts bulk selection for larger audiences.
             </p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <label className="sr-only" htmlFor="list-member-ids">Contact IDs</label>
+              <label className="sr-only" htmlFor="list-member-ids">
+                Contact IDs
+              </label>
               <input
                 id="list-member-ids"
                 className="form-input"
@@ -195,7 +221,11 @@ export default function ListDetailPage() {
                 placeholder="123, 456, 789"
                 onChange={(event) => setMemberIds(event.target.value)}
               />
-              <button className="primary-button" disabled={busy || !memberIds.trim()} onClick={() => void addMembers()}>
+              <button
+                className="primary-button"
+                disabled={busy || !memberIds.trim()}
+                onClick={() => void addMembers()}
+              >
                 Add members
               </button>
             </div>
@@ -204,7 +234,9 @@ export default function ListDetailPage() {
 
         <div className="panel mt-4 overflow-hidden">
           {members.length === 0 ? (
-            <div className="p-8 text-center text-sm text-slate-500">This List has no loaded members.</div>
+            <div className="p-8 text-center text-sm text-slate-500">
+              This List has no loaded members.
+            </div>
           ) : (
             <table className="mobile-card-table min-w-full text-sm">
               <thead>
@@ -223,15 +255,20 @@ export default function ListDetailPage() {
                         {member.displayName}
                       </Link>
                     </td>
-                    <td data-label="Email" className="p-3">{member.primaryEmail || '—'}</td>
-                    <td data-label="Organization" className="p-3">{member.organization || '—'}</td>
+                    <td data-label="Email" className="p-3">
+                      {member.primaryEmail || '—'}
+                    </td>
+                    <td data-label="Organization" className="p-3">
+                      {member.organization || '—'}
+                    </td>
                     {can(PERMISSIONS.CONTACT_MODIFY) && (
                       <td data-label="Action" className="mobile-action-cell p-3">
                         <button
                           className="secondary-button"
                           disabled={busy}
                           onClick={() => {
-                            if (!companyId || !window.confirm('Remove this Contact from the List?')) return
+                            if (!companyId || !window.confirm('Remove this Contact from the List?'))
+                              return
                             void action(
                               () => contactsApi.removeListMember(companyId, listId, member.id),
                               'List member removed.',
@@ -249,7 +286,11 @@ export default function ListDetailPage() {
           )}
         </div>
         {hasMore && (
-          <button className="secondary-button mt-4" disabled={busy} onClick={() => void load(false)}>
+          <button
+            className="secondary-button mt-4"
+            disabled={busy}
+            onClick={() => void load(false)}
+          >
             Load more
           </button>
         )}

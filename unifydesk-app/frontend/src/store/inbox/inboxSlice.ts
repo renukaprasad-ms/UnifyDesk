@@ -148,10 +148,7 @@ export const fetchInboxConversationDetail = createAsyncThunk<
     condition: ({ companyId, conversationId, force }, { getState }) => {
       const state = getState().inbox
       if (force) return true
-      if (
-        state.detailCompanyId !== companyId ||
-        state.detailConversationId !== conversationId
-      ) {
+      if (state.detailCompanyId !== companyId || state.detailConversationId !== conversationId) {
         return true
       }
       return state.detailStatus === 'idle' || state.detailStatus === 'error'
@@ -229,10 +226,7 @@ const inboxSlice = createSlice({
         )
       }
     },
-    applyMessageReadState(
-      state,
-      action: PayloadAction<{ messageId: string; read: boolean }>,
-    ) {
+    applyMessageReadState(state, action: PayloadAction<{ messageId: string; read: boolean }>) {
       const { messageId, read } = action.payload
       state.messages = state.messages.map((message) =>
         message.id === messageId ? { ...message, read } : message,
@@ -297,10 +291,7 @@ const inboxSlice = createSlice({
       })
       .addCase(fetchInboxConversationDetail.pending, (state, action) => {
         const { companyId, conversationId } = action.meta.arg
-        if (
-          state.detailCompanyId !== companyId ||
-          state.detailConversationId !== conversationId
-        ) {
+        if (state.detailCompanyId !== companyId || state.detailConversationId !== conversationId) {
           state.selectedConversation = null
           state.messages = []
         }

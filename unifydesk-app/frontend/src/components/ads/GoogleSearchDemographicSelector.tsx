@@ -46,11 +46,7 @@ const toggleExclusive = (
   setCurrent: (value: string[]) => void,
   setOpposite: (value: string[]) => void,
 ) => {
-  setCurrent(
-    checked
-      ? [...new Set([...current, value])]
-      : current.filter((item) => item !== value),
-  )
+  setCurrent(checked ? [...new Set([...current, value])] : current.filter((item) => item !== value))
   if (checked) {
     setOpposite(opposite.filter((item) => item !== value))
   }
@@ -72,20 +68,10 @@ export default function GoogleSearchDemographicSelector(props: Props) {
       setLoading(true)
       setError('')
       void adCenterApi
-        .googleDetailedDemographics(
-          props.companyId,
-          props.accountId,
-          query.trim(),
-          50,
-        )
+        .googleDetailedDemographics(props.companyId, props.accountId, query.trim(), 50)
         .then((result) => setOptions(result.demographics))
         .catch((loadError) =>
-          setError(
-            apiErrorMessage(
-              loadError,
-              'Unable to load Google detailed demographics',
-            ),
-          ),
+          setError(apiErrorMessage(loadError, 'Unable to load Google detailed demographics')),
         )
         .finally(() => setLoading(false))
     }, 250)
@@ -117,8 +103,8 @@ export default function GoogleSearchDemographicSelector(props: Props) {
         <div>
           <p className="text-sm font-bold text-slate-900">Search demographics</p>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-            Google Search demographic controls for parental status, household
-            income, and provider-backed detailed demographic segments.
+            Google Search demographic controls for parental status, household income, and
+            provider-backed detailed demographic segments.
           </p>
         </div>
         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
@@ -233,13 +219,10 @@ export default function GoogleSearchDemographicSelector(props: Props) {
       </div>
 
       <div className="mt-5 border-t border-slate-100 pt-5">
-        <p className="text-xs font-semibold text-slate-700">
-          Detailed demographics
-        </p>
+        <p className="text-xs font-semibold text-slate-700">Detailed demographics</p>
         <p className="mt-1 text-[11px] leading-5 text-slate-500">
-          Examples can include education, homeownership, marital status, and
-          other long-term life facts. Only segments Google reports as available
-          for Search are shown.
+          Examples can include education, homeownership, marital status, and other long-term life
+          facts. Only segments Google reports as available for Search are shown.
         </p>
 
         <label className="relative mt-3 block">
@@ -272,8 +255,7 @@ export default function GoogleSearchDemographicSelector(props: Props) {
           <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
             {options.map((option) => {
               const included = props.detailedDemographicIds.includes(option.id)
-              const excluded =
-                props.excludedDetailedDemographicIds.includes(option.id)
+              const excluded = props.excludedDetailedDemographicIds.includes(option.id)
               return (
                 <div
                   key={option.id}

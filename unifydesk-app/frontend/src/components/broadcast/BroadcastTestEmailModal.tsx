@@ -39,12 +39,7 @@ const sampleValue = (variable: string) => {
   return 'Sample value'
 }
 
-export default function BroadcastTestEmailModal({
-  companyId,
-  sender,
-  onClose,
-  onDone,
-}: Props) {
+export default function BroadcastTestEmailModal({ companyId, sender, onClose, onDone }: Props) {
   const snackbar = useSnackbar()
   const isMsg91 = sender.provider === 'MSG91_EMAIL'
   const [recipient, setRecipient] = useState('')
@@ -92,16 +87,12 @@ export default function BroadcastTestEmailModal({
         const updates = new Map(
           refreshed
             .filter(
-              (
-                result,
-              ): result is PromiseFulfilledResult<EmailTemplateProviderBinding> =>
+              (result): result is PromiseFulfilledResult<EmailTemplateProviderBinding> =>
                 result.status === 'fulfilled',
             )
             .map((result) => [result.value.id, result.value]),
         )
-        setBindings(
-          providerBindings.map((binding) => updates.get(binding.id) ?? binding),
-        )
+        setBindings(providerBindings.map((binding) => updates.get(binding.id) ?? binding))
       } catch (error) {
         if (active) snackbar.error(apiErrorMessage(error, 'Unable to load MSG91 templates'))
       }
@@ -114,10 +105,7 @@ export default function BroadcastTestEmailModal({
   const bindingByTemplateVersion = useMemo(
     () =>
       new Map(
-        bindings.map((binding) => [
-          `${binding.templateId}:${binding.templateVersion}`,
-          binding,
-        ]),
+        bindings.map((binding) => [`${binding.templateId}:${binding.templateVersion}`, binding]),
       ),
     [bindings],
   )
@@ -129,8 +117,8 @@ export default function BroadcastTestEmailModal({
         return false
       }
       return (
-        bindingByTemplateVersion.get(`${template.id}:${template.publishedVersion}`)
-          ?.sendable === true
+        bindingByTemplateVersion.get(`${template.id}:${template.publishedVersion}`)?.sendable ===
+        true
       )
     })
   }, [bindingByTemplateVersion, isMsg91, templates])
@@ -310,7 +298,9 @@ export default function BroadcastTestEmailModal({
                         )
                         .map((variable) => (
                           <label key={variable} className="text-xs font-semibold text-slate-600">
-                            {'{{'}{variable}{'}}'}
+                            {'{{'}
+                            {variable}
+                            {'}}'}
                             <input
                               className="form-input mt-1.5"
                               value={variables[variable] ?? ''}

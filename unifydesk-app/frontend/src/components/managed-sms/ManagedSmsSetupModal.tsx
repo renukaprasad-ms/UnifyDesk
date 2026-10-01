@@ -53,7 +53,10 @@ export default function ManagedSmsSetupModal({
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const currentCompanyId = useRef(companyId)
-  currentCompanyId.current = companyId
+
+  useEffect(() => {
+    currentCompanyId.current = companyId
+  }, [companyId])
 
   const [legalName, setLegalName] = useState('')
   const [dltPlatform, setDltPlatform] = useState<ManagedSmsDltPlatform>('OTHER')

@@ -1,5 +1,15 @@
 export type ChannelType = 'EMAIL' | 'WHATSAPP' | 'SMS'
-export type ProviderType = 'GMAIL' | 'MICROSOFT' | 'IMAP_SMTP' | 'SMTP' | 'AMAZON_SES' | 'AZURE_EMAIL' | 'SENDGRID' | 'META_WHATSAPP' | 'MSG91_EMAIL' | 'MSG91_SMS'
+export type ProviderType =
+  | 'GMAIL'
+  | 'MICROSOFT'
+  | 'IMAP_SMTP'
+  | 'SMTP'
+  | 'AMAZON_SES'
+  | 'AZURE_EMAIL'
+  | 'SENDGRID'
+  | 'META_WHATSAPP'
+  | 'MSG91_EMAIL'
+  | 'MSG91_SMS'
 export type ChannelConnectionStatus = 'PENDING' | 'ACTIVE' | 'ERROR' | 'DISCONNECTED'
 export type ChannelConnectionCapability = 'INBOX' | 'BROADCAST'
 export type DisconnectDataPolicy = 'KEEP_7_DAYS' | 'DELETE_NOW'
@@ -65,25 +75,12 @@ export type MetaWhatsAppProductStatus =
   | 'ERROR'
 
 export type MetaWhatsAppAuthState =
-  | 'VALID'
-  | 'EXPIRING'
-  | 'EXPIRED'
-  | 'REVOKED'
-  | 'MISSING_PERMISSION'
-  | 'UNKNOWN'
+  'VALID' | 'EXPIRING' | 'EXPIRED' | 'REVOKED' | 'MISSING_PERMISSION' | 'UNKNOWN'
 
-export type MetaWhatsAppRegistrationState =
-  | 'PENDING'
-  | 'REGISTERED'
-  | 'ACTION_REQUIRED'
-  | 'ERROR'
+export type MetaWhatsAppRegistrationState = 'PENDING' | 'REGISTERED' | 'ACTION_REQUIRED' | 'ERROR'
 
 export type MetaWhatsAppSubscriptionState = 'PENDING' | 'SUBSCRIBED' | 'ERROR'
-export type MetaWhatsAppCoexistenceState =
-  | 'DISABLED'
-  | 'ELIGIBLE_UNVERIFIED'
-  | 'ENABLED'
-  | 'ERROR'
+export type MetaWhatsAppCoexistenceState = 'DISABLED' | 'ELIGIBLE_UNVERIFIED' | 'ENABLED' | 'ERROR'
 
 export type MetaWhatsAppNextAction = 'NONE' | 'WAIT' | 'REAUTHORIZE' | 'OPEN_META' | 'RETRY'
 
@@ -164,7 +161,6 @@ export type GmailSendResponse = {
   sentAt: string
 }
 
-
 export type MicrosoftAuthorization = {
   authorizationUrl: string
 }
@@ -188,7 +184,6 @@ export type MicrosoftSendResponse = {
   subject: string
   acceptedAt: string
 }
-
 
 export type MailSecurityMode = 'SSL_TLS' | 'STARTTLS'
 

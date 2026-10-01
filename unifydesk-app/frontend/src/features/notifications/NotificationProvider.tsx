@@ -1,7 +1,5 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -17,30 +15,14 @@ import {
   reconcileExistingBrowserSubscription,
   registerNotificationServiceWorker,
 } from './notificationBrowser'
+import { NotificationContext, type NotificationRefreshReason } from './notificationContext'
 import type {
   NotificationChangedPayload,
   NotificationItem,
   NotificationUnreadCount,
 } from './types'
 
-type RefreshReason = 'initial' | 'scope' | 'realtime' | 'reconnect' | 'focus' | 'broadcast' | 'push'
-
-type NotificationContextValue = {
-  companyId: string | null
-  unreadCount: NotificationUnreadCount
-  recent: NotificationItem[]
-  loadingRecent: boolean
-  connected: boolean
-  refresh: (reason?: RefreshReason) => Promise<void>
-  setRead: (notification: NotificationItem, read: boolean) => Promise<void>
-  markAllRead: () => Promise<void>
-  openNotification: (notification: NotificationItem) => Promise<string | null>
-  broadcastRefresh: () => void
-  refreshVersion: number
-}
-
 const EMPTY_COUNT: NotificationUnreadCount = { account: 0, company: 0, total: 0 }
-const NotificationContext = createContext<NotificationContextValue | null>(null)
 const CHANNEL_NAME = 'unifydesk-notifications'
 
 const updateAppBadge = async (count: number) => {
@@ -79,7 +61,8 @@ export default function NotificationProvider({
   const refreshSequence = useRef(0)
 
   const refresh = useCallback(
-    async (_reason: RefreshReason = 'initial') => {
+    async (reason: NotificationRefreshReason = 'initial') => {
+      void reason
       const sequence = ++refreshSequence.current
       const [countResult, listResult] = await Promise.allSettled([
         notificationApi.unreadCount(companyId),
@@ -310,8 +293,3 @@ export default function NotificationProvider({
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>
 }
 
-export const useNotifications = () => {
-  const value = useContext(NotificationContext)
-  if (!value) throw new Error('useNotifications must be used inside NotificationProvider')
-  return value
-}

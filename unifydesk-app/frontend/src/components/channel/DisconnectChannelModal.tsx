@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FiCheck, FiClock, FiTrash2, FiX } from 'react-icons/fi'
-import type {
-  ChannelConnection,
-  DisconnectDataPolicy,
-} from '../../features/channel/types'
+import type { ChannelConnection, DisconnectDataPolicy } from '../../features/channel/types'
 
 export default function DisconnectChannelModal({
   connection,
@@ -119,8 +116,8 @@ export default function DisconnectChannelModal({
               <span className="min-w-0 flex-1">
                 <span className="text-sm font-bold text-rose-700">Delete imported data now</span>
                 <span className="mt-1.5 block text-xs leading-5 text-slate-600">
-                  Queue permanent deletion of imported messages, attachment metadata and sync
-                  state. Reconnecting later will require a fresh sync.
+                  Queue permanent deletion of imported messages, attachment metadata and sync state.
+                  Reconnecting later will require a fresh sync.
                 </span>
               </span>
               {policy === 'DELETE_NOW' && (
@@ -138,7 +135,12 @@ export default function DisconnectChannelModal({
         </p>
 
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button type="button" className="secondary-button justify-center" disabled={working} onClick={onClose}>
+          <button
+            type="button"
+            className="secondary-button justify-center"
+            disabled={working}
+            onClick={onClose}
+          >
             Cancel
           </button>
           <button
@@ -151,11 +153,7 @@ export default function DisconnectChannelModal({
             disabled={working}
             onClick={() => onConfirm(policy)}
           >
-            {working
-              ? 'Disconnecting…'
-              : destructive
-                ? 'Disconnect & delete data'
-                : 'Disconnect'}
+            {working ? 'Disconnecting…' : destructive ? 'Disconnect & delete data' : 'Disconnect'}
           </button>
         </div>
       </div>

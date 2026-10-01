@@ -21,8 +21,7 @@ const asRecord = (value: unknown): UnknownRecord =>
 
 const text = (value: unknown) => (typeof value === 'string' ? value : '')
 const nullableText = (value: unknown) => (typeof value === 'string' ? value : null)
-const number = (value: unknown) =>
-  typeof value === 'number' && Number.isFinite(value) ? value : 0
+const number = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? value : 0)
 const nullableNumber = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) ? value : null
 const bool = (value: unknown) => value === true
@@ -169,9 +168,7 @@ export const sanitizeManagedSmsUsage = (value: unknown): ManagedSmsUsage => {
   }
 }
 
-export const sanitizeManagedSmsDeliveryHealth = (
-  value: unknown,
-): ManagedSmsDeliveryHealth => {
+export const sanitizeManagedSmsDeliveryHealth = (value: unknown): ManagedSmsDeliveryHealth => {
   const raw = asRecord(value)
   return {
     status: text(raw.status) || 'DEGRADED',

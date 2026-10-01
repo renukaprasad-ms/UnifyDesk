@@ -31,8 +31,14 @@ describe('ContactsNav', () => {
 
     expect(screen.getByRole('link', { name: 'Contacts' })).toHaveAttribute('href', '/contacts')
     expect(screen.getByRole('link', { name: 'Lists' })).toHaveAttribute('href', '/contacts/lists')
-    expect(screen.getByRole('link', { name: 'Segments' })).toHaveAttribute('href', '/contacts/segments')
-    expect(screen.getByRole('link', { name: 'Imports' })).toHaveAttribute('href', '/contacts/imports')
+    expect(screen.getByRole('link', { name: 'Segments' })).toHaveAttribute(
+      'href',
+      '/contacts/segments',
+    )
+    expect(screen.getByRole('link', { name: 'Imports' })).toHaveAttribute(
+      'href',
+      '/contacts/imports',
+    )
     expect(container.querySelector('nav')).toHaveClass('overflow-x-auto')
   })
 

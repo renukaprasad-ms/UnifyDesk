@@ -63,7 +63,9 @@ export default function PlatformAdmins() {
                 </td>
                 <td data-label="Role">{a.role}</td>
                 <td data-label="Status">{a.status}</td>
-                <td data-label="Permissions">{a.role === 'SUPER_ADMIN' ? 'All' : a.permissions.length}</td>
+                <td data-label="Permissions">
+                  {a.role === 'SUPER_ADMIN' ? 'All' : a.permissions.length}
+                </td>
               </tr>
             ))}
           </tbody>

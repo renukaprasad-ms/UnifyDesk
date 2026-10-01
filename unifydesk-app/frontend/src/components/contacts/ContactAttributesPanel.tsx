@@ -48,7 +48,10 @@ export default function ContactAttributesPanel({
       value = raw === '' ? null : Number(raw)
     }
     if (field.type === 'MULTI_SELECT' && typeof raw === 'string') {
-      value = raw.split(',').map((item) => item.trim()).filter(Boolean)
+      value = raw
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
     }
     setDraft((current) => ({ ...current, [field.id]: value }))
   }
@@ -82,7 +85,9 @@ export default function ContactAttributesPanel({
         </div>
         {canModify && unassigned.length > 0 && (
           <div className="mt-3 flex gap-2">
-            <label className="sr-only" htmlFor="contact-tag">Add tag</label>
+            <label className="sr-only" htmlFor="contact-tag">
+              Add tag
+            </label>
             <select
               id="contact-tag"
               className="form-input"
@@ -90,7 +95,11 @@ export default function ContactAttributesPanel({
               onChange={(event) => setTagId(event.target.value)}
             >
               <option value="">Choose tag…</option>
-              {unassigned.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+              {unassigned.map((tag) => (
+                <option key={tag.id} value={tag.id}>
+                  {tag.name}
+                </option>
+              ))}
             </select>
             <button
               type="button"
@@ -120,9 +129,14 @@ export default function ContactAttributesPanel({
                   <select
                     className="form-input"
                     disabled={!canModify}
-                    value={draft[field.id] === true ? 'true' : draft[field.id] === false ? 'false' : ''}
+                    value={
+                      draft[field.id] === true ? 'true' : draft[field.id] === false ? 'false' : ''
+                    }
                     onChange={(event) =>
-                      updateField(field, event.target.value === '' ? '' : event.target.value === 'true')
+                      updateField(
+                        field,
+                        event.target.value === '' ? '' : event.target.value === 'true',
+                      )
                     }
                   >
                     <option value="">Unknown</option>
@@ -137,13 +151,19 @@ export default function ContactAttributesPanel({
                     onChange={(event) => updateField(field, event.target.value)}
                   >
                     <option value="">Choose…</option>
-                    {field.options.map((option) => <option key={option} value={option}>{option}</option>)}
+                    {field.options.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
                   </select>
                 ) : (
                   <input
                     className="form-input"
                     disabled={!canModify}
-                    type={field.type === 'NUMBER' ? 'number' : field.type === 'DATE' ? 'date' : 'text'}
+                    type={
+                      field.type === 'NUMBER' ? 'number' : field.type === 'DATE' ? 'date' : 'text'
+                    }
                     value={renderValue(draft[field.id] ?? null)}
                     onChange={(event) => updateField(field, event.target.value)}
                   />

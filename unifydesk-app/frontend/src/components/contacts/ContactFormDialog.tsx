@@ -1,5 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { emptyContactDraft, validateContactDraft, type ContactFormDraft } from '../../features/contacts/contactModel'
+import {
+  emptyContactDraft,
+  validateContactDraft,
+  type ContactFormDraft,
+} from '../../features/contacts/contactModel'
 
 type Props = {
   open: boolean
@@ -60,7 +64,10 @@ export default function ContactFormDialog({
   )
 
   return (
-    <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4" role="presentation">
+    <div
+      className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4"
+      role="presentation"
+    >
       <form
         role="dialog"
         aria-modal="true"
@@ -75,8 +82,12 @@ export default function ContactFormDialog({
         }}
       >
         <div className="flex items-center justify-between gap-4">
-          <h2 id="contact-dialog-title" className="text-xl font-bold text-slate-950">{title}</h2>
-          <button type="button" className="secondary-button" onClick={onClose}>Close</button>
+          <h2 id="contact-dialog-title" className="text-xl font-bold text-slate-950">
+            {title}
+          </h2>
+          <button type="button" className="secondary-button" onClick={onClose}>
+            Close
+          </button>
         </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           {field('displayName', 'Display name')}
@@ -90,13 +101,19 @@ export default function ContactFormDialog({
             <textarea
               className="form-input min-h-24"
               value={draft.notes}
-              onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, notes: event.target.value }))
+              }
             />
           </label>
         </div>
         <div className="mt-6 flex justify-end gap-2">
-          <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>Cancel</button>
-          <button type="submit" className="primary-button" disabled={saving}>{saving ? 'Saving…' : 'Save contact'}</button>
+          <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>
+            Cancel
+          </button>
+          <button type="submit" className="primary-button" disabled={saving}>
+            {saving ? 'Saving…' : 'Save contact'}
+          </button>
         </div>
       </form>
     </div>

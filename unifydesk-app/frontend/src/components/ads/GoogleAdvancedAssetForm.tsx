@@ -85,11 +85,7 @@ const pretty = (value: string) =>
     .toLowerCase()
     .replace(/\b\w/g, (character) => character.toUpperCase())
 
-export default function GoogleAdvancedAssetForm({
-  companyId,
-  accountId,
-  onCreated,
-}: Props) {
+export default function GoogleAdvancedAssetForm({ companyId, accountId, onCreated }: Props) {
   const [type, setType] = useState<AdvancedType>('CALL')
   const [name, setName] = useState('')
   const [working, setWorking] = useState(false)
@@ -108,8 +104,9 @@ export default function GoogleAdvancedAssetForm({
   ])
 
   const [promotionTarget, setPromotionTarget] = useState('')
-  const [promotionDiscountKind, setPromotionDiscountKind] =
-    useState<'PERCENT' | 'AMOUNT'>('PERCENT')
+  const [promotionDiscountKind, setPromotionDiscountKind] = useState<'PERCENT' | 'AMOUNT'>(
+    'PERCENT',
+  )
   const [promotionValue, setPromotionValue] = useState('')
   const [promotionCurrency, setPromotionCurrency] = useState('INR')
   const [promotionModifier, setPromotionModifier] = useState('')
@@ -125,31 +122,20 @@ export default function GoogleAdvancedAssetForm({
   const [leadDescription, setLeadDescription] = useState('')
   const [leadPrivacyUrl, setLeadPrivacyUrl] = useState('')
   const [leadFinalUrl, setLeadFinalUrl] = useState('')
-  const [leadFields, setLeadFields] = useState<string[]>([
-    'FULL_NAME',
-    'EMAIL',
-    'PHONE_NUMBER',
-  ])
+  const [leadFields, setLeadFields] = useState<string[]>(['FULL_NAME', 'EMAIL', 'PHONE_NUMBER'])
   const [leadPostCta, setLeadPostCta] = useState('VISIT_SITE')
   const [leadPostHeadline, setLeadPostHeadline] = useState('')
   const [leadPostDescription, setLeadPostDescription] = useState('')
 
-  const updateOffering = (
-    index: number,
-    patch: Partial<GooglePriceOfferingInput>,
-  ) => {
+  const updateOffering = (index: number, patch: Partial<GooglePriceOfferingInput>) => {
     setPriceOfferings((current) =>
-      current.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, ...patch } : item,
-      ),
+      current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)),
     )
   }
 
   const toggleLeadField = (field: string) => {
     setLeadFields((current) =>
-      current.includes(field)
-        ? current.filter((item) => item !== field)
-        : [...current, field],
+      current.includes(field) ? current.filter((item) => item !== field) : [...current, field],
     )
   }
 
@@ -197,9 +183,7 @@ export default function GoogleAdvancedAssetForm({
                   ? numericPromotion
                   : null,
               promotionCurrencyCode:
-                promotionDiscountKind === 'AMOUNT'
-                  ? promotionCurrency.trim().toUpperCase()
-                  : null,
+                promotionDiscountKind === 'AMOUNT' ? promotionCurrency.trim().toUpperCase() : null,
               promotionDiscountModifier: promotionModifier || null,
               promotionCode: promotionCode.trim() || null,
               promotionOccasion: promotionOccasion.trim() || null,
@@ -250,17 +234,12 @@ export default function GoogleAdvancedAssetForm({
   }
 
   return (
-    <form
-      className="mt-4 rounded-xl border border-slate-200 bg-white p-4"
-      onSubmit={submit}
-    >
+    <form className="mt-4 rounded-xl border border-slate-200 bg-white p-4" onSubmit={submit}>
       <div>
-        <h4 className="text-sm font-bold text-slate-900">
-          Advanced extension
-        </h4>
+        <h4 className="text-sm font-bold text-slate-900">Advanced extension</h4>
         <p className="mt-1 text-[11px] leading-5 text-slate-500">
-          Call, price and promotion assets can be reused across account,
-          campaign and ad-group levels. Lead forms are campaign-only.
+          Call, price and promotion assets can be reused across account, campaign and ad-group
+          levels. Lead forms are campaign-only.
         </p>
       </div>
 
@@ -362,16 +341,12 @@ export default function GoogleAdvancedAssetForm({
             </label>
             <div className="sm:col-span-2">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-semibold text-slate-700">
-                  Price offerings
-                </p>
+                <p className="text-xs font-semibold text-slate-700">Price offerings</p>
                 <button
                   type="button"
                   className="secondary-button"
                   disabled={priceOfferings.length >= 8}
-                  onClick={() =>
-                    setPriceOfferings((current) => [...current, emptyOffering()])
-                  }
+                  onClick={() => setPriceOfferings((current) => [...current, emptyOffering()])}
                 >
                   Add offering
                 </button>
@@ -388,9 +363,7 @@ export default function GoogleAdvancedAssetForm({
                       maxLength={25}
                       required
                       placeholder="Header"
-                      onChange={(event) =>
-                        updateOffering(index, { header: event.target.value })
-                      }
+                      onChange={(event) => updateOffering(index, { header: event.target.value })}
                     />
                     <input
                       className="form-input"
@@ -463,9 +436,7 @@ export default function GoogleAdvancedAssetForm({
                       value={offering.finalUrl}
                       required
                       placeholder="https://example.com/service"
-                      onChange={(event) =>
-                        updateOffering(index, { finalUrl: event.target.value })
-                      }
+                      onChange={(event) => updateOffering(index, { finalUrl: event.target.value })}
                     />
                   </div>
                 ))}
@@ -493,9 +464,7 @@ export default function GoogleAdvancedAssetForm({
                   className="form-input w-32"
                   value={promotionDiscountKind}
                   onChange={(event) =>
-                    setPromotionDiscountKind(
-                      event.target.value as 'PERCENT' | 'AMOUNT',
-                    )
+                    setPromotionDiscountKind(event.target.value as 'PERCENT' | 'AMOUNT')
                   }
                 >
                   <option value="PERCENT">Percent</option>
@@ -520,9 +489,7 @@ export default function GoogleAdvancedAssetForm({
                   value={promotionCurrency}
                   maxLength={3}
                   required
-                  onChange={(event) =>
-                    setPromotionCurrency(event.target.value.toUpperCase())
-                  }
+                  onChange={(event) => setPromotionCurrency(event.target.value.toUpperCase())}
                 />
               </label>
             )}
@@ -551,9 +518,7 @@ export default function GoogleAdvancedAssetForm({
               <input
                 className="form-input mt-2"
                 value={promotionOccasion}
-                onChange={(event) =>
-                  setPromotionOccasion(event.target.value.toUpperCase())
-                }
+                onChange={(event) => setPromotionOccasion(event.target.value.toUpperCase())}
                 placeholder="DIWALI"
               />
             </label>
@@ -653,9 +618,7 @@ export default function GoogleAdvancedAssetForm({
               />
             </label>
             <div className="sm:col-span-2">
-              <p className="text-xs font-semibold text-slate-700">
-                Form fields
-              </p>
+              <p className="text-xs font-semibold text-slate-700">Form fields</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {LEAD_FIELDS.map((field) => (
                   <label

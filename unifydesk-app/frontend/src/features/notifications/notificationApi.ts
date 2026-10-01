@@ -18,8 +18,7 @@ const unwrap = <T>(response: ApiResponse<T>) => {
   return response.data
 }
 
-const scopeParams = (companyId: string | null) =>
-  companyId ? { companyId } : undefined
+const scopeParams = (companyId: string | null) => (companyId ? { companyId } : undefined)
 
 export const notificationApi = {
   async list(
@@ -87,10 +86,7 @@ export const notificationApi = {
     return unwrap(response.data)
   },
 
-  async updatePreferences(
-    companyId: string | null,
-    payload: UpdateNotificationPreferences,
-  ) {
+  async updatePreferences(companyId: string | null, payload: UpdateNotificationPreferences) {
     const response = await apiClient.put<ApiResponse<NotificationPreferences>>(
       '/api/v1/notifications/preferences',
       payload,

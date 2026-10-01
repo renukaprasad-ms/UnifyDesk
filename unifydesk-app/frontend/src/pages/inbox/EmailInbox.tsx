@@ -10,7 +10,8 @@ import {
   FiShare2,
   FiUsers,
 } from 'react-icons/fi'
-import ConversationList, { conversationParticipant } from '../../components/inbox/ConversationList'
+import ConversationList from '../../components/inbox/ConversationList'
+import { conversationParticipant } from '../../components/inbox/conversationListUtils'
 import WhatsAppInbox from '../../components/whatsapp/WhatsAppInbox'
 import EmailHtmlFrame from '../../components/inbox/EmailHtmlFrame'
 import { asyncJobApi } from '../../features/asyncJob/asyncJobApi'

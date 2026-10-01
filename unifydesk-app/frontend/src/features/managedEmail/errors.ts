@@ -2,13 +2,10 @@ import axios from 'axios'
 
 const managedEmailErrorMessages: Record<string, string> = {
   MANAGED_EMAIL_NOT_ENABLED: 'UnifyDesk Managed Email is not enabled for this workspace.',
-  MANAGED_EMAIL_DOMAIN_LIMIT_REACHED:
-    'This workspace has reached its Managed Email domain limit.',
-  MANAGED_EMAIL_SENDER_LIMIT_REACHED:
-    'This workspace has reached its Managed Email sender limit.',
+  MANAGED_EMAIL_DOMAIN_LIMIT_REACHED: 'This workspace has reached its Managed Email domain limit.',
+  MANAGED_EMAIL_SENDER_LIMIT_REACHED: 'This workspace has reached its Managed Email sender limit.',
   MANAGED_EMAIL_DOMAIN_ALREADY_CLAIMED: 'That domain is unavailable or already registered.',
-  MANAGED_EMAIL_DOMAIN_NOT_ACTIVE:
-    'This domain must be active before a sender can be created.',
+  MANAGED_EMAIL_DOMAIN_NOT_ACTIVE: 'This domain must be active before a sender can be created.',
   MANAGED_EMAIL_DOMAIN_VERIFICATION_REQUIRED:
     'Complete domain verification before using this sender.',
   MANAGED_EMAIL_SENDING_SUSPENDED:
@@ -30,8 +27,7 @@ export const managedEmailErrorMessage = (
 ) => {
   if (!axios.isAxiosError(error)) return fallback
   const body = error.response?.data as
-    | { error_code?: string; code?: string; error_message?: string }
-    | undefined
+    { error_code?: string; code?: string; error_message?: string } | undefined
   const code = body?.error_code ?? body?.code
   if (code && managedEmailErrorMessages[code]) return managedEmailErrorMessages[code]
 

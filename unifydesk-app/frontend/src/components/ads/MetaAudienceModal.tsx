@@ -25,9 +25,7 @@ export default function MetaAudienceModal({
 }: Props) {
   const pixels = useMemo(
     () =>
-      resources.filter(
-        (resource) => resource.resourceType === 'META_PIXEL' && resource.accessible,
-      ),
+      resources.filter((resource) => resource.resourceType === 'META_PIXEL' && resource.accessible),
     [resources],
   )
   const sourceAudiences = useMemo(
@@ -44,10 +42,9 @@ export default function MetaAudienceModal({
   const [originAudienceId, setOriginAudienceId] = useState('')
   const [country, setCountry] = useState('IN')
   const [ratioPercent, setRatioPercent] = useState('1')
-  const [customerFileSource, setCustomerFileSource] =
-    useState<'USER_PROVIDED_ONLY' | 'PARTNER_PROVIDED_ONLY' | 'BOTH_USER_AND_PARTNER_PROVIDED'>(
-      'USER_PROVIDED_ONLY',
-    )
+  const [customerFileSource, setCustomerFileSource] = useState<
+    'USER_PROVIDED_ONLY' | 'PARTNER_PROVIDED_ONLY' | 'BOTH_USER_AND_PARTNER_PROVIDED'
+  >('USER_PROVIDED_ONLY')
 
   if (!open) return null
 
@@ -59,12 +56,10 @@ export default function MetaAudienceModal({
       description: description.trim() || null,
       pixelId: type === 'WEBSITE' ? pixelId : null,
       ruleJson: type === 'WEBSITE' ? ruleJson.trim() : null,
-      retentionDays:
-        type === 'WEBSITE' ? Number(retentionDays || 30) : null,
+      retentionDays: type === 'WEBSITE' ? Number(retentionDays || 30) : null,
       originAudienceId: type === 'LOOKALIKE' ? originAudienceId : null,
       country: type === 'LOOKALIKE' ? country.trim().toUpperCase() : null,
-      ratio:
-        type === 'LOOKALIKE' ? Number(ratioPercent || 1) / 100 : null,
+      ratio: type === 'LOOKALIKE' ? Number(ratioPercent || 1) / 100 : null,
       customerFileSource: type === 'CUSTOMER_LIST' ? customerFileSource : null,
     })
   }
@@ -109,12 +104,7 @@ export default function MetaAudienceModal({
                 className="form-input mt-2"
                 value={type}
                 onChange={(event) =>
-                  setType(
-                    event.target.value as
-                      | 'WEBSITE'
-                      | 'LOOKALIKE'
-                      | 'CUSTOMER_LIST',
-                  )
+                  setType(event.target.value as 'WEBSITE' | 'LOOKALIKE' | 'CUSTOMER_LIST')
                 }
               >
                 <option value="WEBSITE">Website custom audience</option>
@@ -216,8 +206,8 @@ export default function MetaAudienceModal({
                 </select>
               </label>
               <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs leading-5 text-indigo-800">
-                This creates an empty Meta Custom Audience. Add members after creation using
-                the Upload members action. Customer identifiers are not stored by UnifyDesk.
+                This creates an empty Meta Custom Audience. Add members after creation using the
+                Upload members action. Customer identifiers are not stored by UnifyDesk.
               </div>
             </div>
           ) : (
@@ -262,21 +252,14 @@ export default function MetaAudienceModal({
                     value={ratioPercent}
                     onChange={(event) => setRatioPercent(event.target.value)}
                   />
-                  <span className="w-12 text-sm font-bold text-slate-900">
-                    {ratioPercent}%
-                  </span>
+                  <span className="w-12 text-sm font-bold text-slate-900">{ratioPercent}%</span>
                 </div>
               </label>
             </div>
           )}
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-              disabled={saving}
-            >
+            <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>
               Cancel
             </button>
             <button
@@ -286,8 +269,7 @@ export default function MetaAudienceModal({
                 saving ||
                 !name.trim() ||
                 (type === 'WEBSITE' && (!pixelId || !ruleJson.trim())) ||
-                (type === 'LOOKALIKE' &&
-                  (!originAudienceId || !country.trim() || !ratioPercent)) ||
+                (type === 'LOOKALIKE' && (!originAudienceId || !country.trim() || !ratioPercent)) ||
                 (type === 'CUSTOMER_LIST' && !customerFileSource)
               }
             >

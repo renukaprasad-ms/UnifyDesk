@@ -101,7 +101,7 @@ export default function TemplateLibrary() {
     }
   }
 
-  const useCatalog = async (catalogId: string) => {
+  const cloneCatalogTemplate = async (catalogId: string) => {
     if (!companyId) return
     try {
       const created = await emailTemplateApi.cloneCatalog(companyId, catalogId)
@@ -214,7 +214,7 @@ export default function TemplateLibrary() {
                       <button
                         type="button"
                         className="primary-button flex-1 inline-flex items-center justify-center gap-2"
-                        onClick={() => void useCatalog(item.id)}
+                        onClick={() => void cloneCatalogTemplate(item.id)}
                       >
                         <FiCopy /> Use template
                       </button>

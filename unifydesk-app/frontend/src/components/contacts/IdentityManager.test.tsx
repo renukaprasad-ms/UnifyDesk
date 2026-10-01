@@ -63,9 +63,7 @@ describe('IdentityManager', () => {
   it('hides mutation controls without modify permission', () => {
     render(
       <IdentityManager
-        identities={[
-          { id: 'phone-1', type: 'PHONE', value: '+919999999999', primary: false },
-        ]}
+        identities={[{ id: 'phone-1', type: 'PHONE', value: '+919999999999', primary: false }]}
         canModify={false}
         busy={false}
         onAdd={vi.fn()}

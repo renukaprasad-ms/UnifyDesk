@@ -29,7 +29,8 @@ export default function ReachlyoCampaigns() {
 
   const load = async (manual = false) => {
     if (!selectedCompany) return
-    manual ? setRefreshing(true) : setLoading(true)
+    if (manual) setRefreshing(true)
+    else setLoading(true)
     setError('')
     try {
       const page = await adCenterApi.reachlyoCampaigns(selectedCompany.companyId, 0, 100)

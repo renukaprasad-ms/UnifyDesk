@@ -23,7 +23,10 @@ import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
 
 const formatSubtype = (value?: string | null) =>
   value
-    ? value.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+    ? value
+        .replaceAll('_', ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase())
     : 'Audience'
 
 const countLabel = (audience: AdAudience) => {
@@ -64,8 +67,7 @@ export default function AdAudiences() {
   const [notice, setNotice] = useState('')
 
   const managedAccounts = useMemo(
-    () =>
-      accounts.filter((account) => account.managed && account.accessible),
+    () => accounts.filter((account) => account.managed && account.accessible),
     [accounts],
   )
 
@@ -139,7 +141,9 @@ export default function AdAudiences() {
           ? await adCenterApi.syncGoogleAudiences(selectedCompany.companyId, selectedAccount.id)
           : await adCenterApi.syncMetaAudiences(selectedCompany.companyId, selectedAccount.id)
       await loadForAccount(selectedAccount.id)
-      setNotice(`Synchronized ${result.synchronizedCount} audience(s) from ${selectedAccount.provider === 'GOOGLE_ADS' ? 'Google Ads' : 'Meta'}.`)
+      setNotice(
+        `Synchronized ${result.synchronizedCount} audience(s) from ${selectedAccount.provider === 'GOOGLE_ADS' ? 'Google Ads' : 'Meta'}.`,
+      )
     } catch (syncError) {
       setError(apiErrorMessage(syncError, 'Unable to synchronize audiences'))
     } finally {
@@ -153,7 +157,11 @@ export default function AdAudiences() {
     setError('')
     setNotice('')
     try {
-      const created = await adCenterApi.createMetaAudience(selectedCompany.companyId, selectedAccount.id, input)
+      const created = await adCenterApi.createMetaAudience(
+        selectedCompany.companyId,
+        selectedAccount.id,
+        input,
+      )
       setAudiences((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setModalOpen(false)
       setNotice(`${created.name} was created in Meta.`)
@@ -170,7 +178,11 @@ export default function AdAudiences() {
     setError('')
     setNotice('')
     try {
-      const created = await adCenterApi.createGoogleAudience(selectedCompany.companyId, selectedAccount.id, input)
+      const created = await adCenterApi.createGoogleAudience(
+        selectedCompany.companyId,
+        selectedAccount.id,
+        input,
+      )
       setAudiences((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setModalOpen(false)
       setNotice(`${created.name} was created in Google Ads.`)
@@ -181,9 +193,7 @@ export default function AdAudiences() {
     }
   }
 
-  const uploadGoogleMembers = async (
-    input: GoogleCustomerMatchUploadInput,
-  ) => {
+  const uploadGoogleMembers = async (input: GoogleCustomerMatchUploadInput) => {
     if (!selectedCompany || !uploadAudience) return
     setUploadingMembers(true)
     setError('')
@@ -206,17 +216,13 @@ export default function AdAudiences() {
         )
       }
     } catch (uploadError) {
-      setError(
-        apiErrorMessage(uploadError, 'Unable to upload Google Customer Match members'),
-      )
+      setError(apiErrorMessage(uploadError, 'Unable to upload Google Customer Match members'))
     } finally {
       setUploadingMembers(false)
     }
   }
 
-  const uploadMetaMembers = async (
-    input: MetaCustomerListMembersInput,
-  ) => {
+  const uploadMetaMembers = async (input: MetaCustomerListMembersInput) => {
     if (!selectedCompany || !uploadAudience) return
     setUploadingMembers(true)
     setError('')
@@ -232,9 +238,7 @@ export default function AdAudiences() {
         `${result.operation === 'ADD' ? 'Submitted' : 'Removed'} ${result.submittedRows} Meta customer-list member row(s) in ${result.batchCount} batch(es). Meta reported ${result.providerInvalidRows} invalid row(s).`,
       )
     } catch (uploadError) {
-      setError(
-        apiErrorMessage(uploadError, 'Unable to update Meta customer-list members'),
-      )
+      setError(apiErrorMessage(uploadError, 'Unable to update Meta customer-list members'))
     } finally {
       setUploadingMembers(false)
     }
@@ -264,7 +268,9 @@ export default function AdAudiences() {
                 onClick={() => void sync()}
               >
                 <FiRefreshCw aria-hidden="true" />
-                {syncing ? 'Syncing…' : `Sync ${selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google' : 'Meta'}`}
+                {syncing
+                  ? 'Syncing…'
+                  : `Sync ${selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google' : 'Meta'}`}
               </button>
             )}
             {can(PERMISSIONS.ADS_CREATE) && (
@@ -331,9 +337,7 @@ export default function AdAudiences() {
                     <th className="px-5 py-3">Estimated size</th>
                     <th className="px-5 py-3">Delivery</th>
                     <th className="px-5 py-3">Retention</th>
-                    {selectedAccount && (
-                      <th className="px-5 py-3 text-right">Action</th>
-                    )}
+                    {selectedAccount && <th className="px-5 py-3 text-right">Action</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -341,9 +345,7 @@ export default function AdAudiences() {
                     <tr key={audience.id}>
                       <td className="px-5 py-4">
                         <p className="font-semibold text-slate-950">{audience.name}</p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {audience.externalAudienceId}
-                        </p>
+                        <p className="mt-1 text-xs text-slate-400">{audience.externalAudienceId}</p>
                       </td>
                       <td className="px-5 py-4 text-slate-600">
                         {formatSubtype(audience.subtype)}
@@ -368,9 +370,7 @@ export default function AdAudiences() {
                         </span>
                       </td>
                       <td className="px-5 py-4 text-slate-600">
-                        {audience.retentionDays != null
-                          ? `${audience.retentionDays} days`
-                          : '—'}
+                        {audience.retentionDays != null ? `${audience.retentionDays} days` : '—'}
                       </td>
                       {selectedAccount && (
                         <td className="px-5 py-4 text-right">

@@ -72,11 +72,10 @@ describe('ListDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add members' }))
 
     await waitFor(() =>
-      expect(contactsApi.addListMembers).toHaveBeenCalledWith(
-        'company-1',
-        'list-1',
-        ['contact-2', 'contact-3'],
-      ),
+      expect(contactsApi.addListMembers).toHaveBeenCalledWith('company-1', 'list-1', [
+        'contact-2',
+        'contact-3',
+      ]),
     )
   })
 
@@ -88,11 +87,7 @@ describe('ListDetailPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Remove' }))
 
     await waitFor(() =>
-      expect(contactsApi.removeListMember).toHaveBeenCalledWith(
-        'company-1',
-        'list-1',
-        'contact-1',
-      ),
+      expect(contactsApi.removeListMember).toHaveBeenCalledWith('company-1', 'list-1', 'contact-1'),
     )
   })
 })

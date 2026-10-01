@@ -80,11 +80,7 @@ export const mediaApi = {
     return unwrap(response.data)
   },
 
-  async uploadAdCreative(
-    file: File,
-    companyId: string,
-    onProgress?: (progress: number) => void,
-  ) {
+  async uploadAdCreative(file: File, companyId: string, onProgress?: (progress: number) => void) {
     const upload = await mediaApi.initiateAdCreativeUpload(file, companyId)
     await mediaApi.uploadFileToStorage(upload, file, onProgress)
     await mediaApi.completeUpload(upload.mediaId)

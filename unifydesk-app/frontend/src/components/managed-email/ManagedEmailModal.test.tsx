@@ -18,9 +18,7 @@ const overview: ManagedEmailOverview = {
   globalNotice: null,
 }
 
-const domain = (
-  overrides: Partial<ManagedEmailDomain> = {},
-): ManagedEmailDomain => ({
+const domain = (overrides: Partial<ManagedEmailDomain> = {}): ManagedEmailDomain => ({
   id: 'domain-1',
   type: 'CUSTOMER_DOMAIN',
   domain: 'example.com',
@@ -63,15 +61,13 @@ const client = (overrides: Partial<ManagedEmailApi> = {}): ManagedEmailApi =>
     domains: vi.fn().mockResolvedValue([]),
     domain: vi.fn().mockResolvedValue(domain()),
     createCustomerDomain: vi.fn().mockResolvedValue(domain()),
-    createHostedDomain: vi
-      .fn()
-      .mockResolvedValue(
-        domain({
-          type: 'UNIFYDESK_HOSTED',
-          domain: 'abc-k7m4q2.unifydesk.in',
-          status: 'VERIFYING',
-        }),
-      ),
+    createHostedDomain: vi.fn().mockResolvedValue(
+      domain({
+        type: 'UNIFYDESK_HOSTED',
+        domain: 'abc-k7m4q2.unifydesk.in',
+        status: 'VERIFYING',
+      }),
+    ),
     refreshDomain: vi.fn().mockResolvedValue(domain()),
     retireDomain: vi.fn().mockResolvedValue(null),
     senders: vi.fn().mockResolvedValue([]),
@@ -83,6 +79,12 @@ const client = (overrides: Partial<ManagedEmailApi> = {}): ManagedEmailApi =>
   }) as ManagedEmailApi
 
 describe('ManagedEmailModal', () => {
+  const clickEnabled = async (name: RegExp) => {
+    const button = screen.getByRole('button', { name }) as HTMLButtonElement
+    await waitFor(() => expect(button).not.toBeDisabled())
+    fireEvent.click(button)
+  }
+
   beforeEach(() => {
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
@@ -102,7 +104,7 @@ describe('ManagedEmailModal', () => {
     })
     render(<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /I have my own domain/i }))
+    await clickEnabled(/I have my own domain/i)
     fireEvent.change(screen.getByLabelText(/Business domain/i), {
       target: { value: 'Example.com' },
     })
@@ -121,15 +123,13 @@ describe('ManagedEmailModal', () => {
     const api = client()
     render(<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /I have my own domain/i }))
+    await clickEnabled(/I have my own domain/i)
     fireEvent.change(screen.getByLabelText(/Business domain/i), {
       target: { value: 'https://example.com' },
     })
     fireEvent.click(screen.getByRole('button', { name: /Add domain/i }))
 
-    expect(
-      await screen.findByText(/Enter a bare domain such as example.com/i),
-    ).toBeTruthy()
+    expect(await screen.findByText(/Enter a bare domain such as example.com/i)).toBeTruthy()
     expect(api.createCustomerDomain).not.toHaveBeenCalled()
   })
 
@@ -161,7 +161,7 @@ describe('ManagedEmailModal', () => {
     const api = client({ createCustomerDomain: vi.fn().mockResolvedValue(pending) })
     render(<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /I have my own domain/i }))
+    await clickEnabled(/I have my own domain/i)
     fireEvent.change(screen.getByLabelText(/Business domain/i), {
       target: { value: 'example.com' },
     })
@@ -174,9 +174,7 @@ describe('ManagedEmailModal', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: /Copy Value/i })[0])
     await waitFor(() =>
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-        'abc.dkim.target.example',
-      ),
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('abc.dkim.target.example'),
     )
     expect(screen.getByText('Copied to clipboard')).toBeTruthy()
     expect(screen.queryByText(/Copied.*verified/i)).toBeNull()
@@ -190,7 +188,7 @@ describe('ManagedEmailModal', () => {
     })
     render(<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /I have my own domain/i }))
+    await clickEnabled(/I have my own domain/i)
     fireEvent.change(screen.getByLabelText(/Business domain/i), {
       target: { value: 'example.com' },
     })
@@ -199,9 +197,7 @@ describe('ManagedEmailModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Recheck/i }))
 
-    await waitFor(() =>
-      expect(api.refreshDomain).toHaveBeenCalledWith('company-1', 'domain-1'),
-    )
+    await waitFor(() => expect(api.refreshDomain).toHaveBeenCalledWith('company-1', 'domain-1'))
     expect(await screen.findByText(/Domain active/i)).toBeTruthy()
   })
 
@@ -215,7 +211,7 @@ describe('ManagedEmailModal', () => {
     const api = client({ createHostedDomain: vi.fn().mockResolvedValue(hosted) })
     render(<ManagedEmailModal companyId="company-1" client={api} onClose={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Use an UnifyDesk domain/i }))
+    await clickEnabled(/Use an UnifyDesk domain/i)
 
     expect(await screen.findByText('abc-k7m4q2.unifydesk.in')).toBeTruthy()
     expect(screen.getByText(/Domain active/i)).toBeTruthy()
@@ -247,8 +243,7 @@ describe('ManagedEmailModal', () => {
 
     fireEvent.change(localPart, { target: { value: 'ceo@amazon.com' } })
     expect(
-      (screen.getByRole('button', { name: /^Create sender$/i }) as HTMLButtonElement)
-        .disabled,
+      (screen.getByRole('button', { name: /^Create sender$/i }) as HTMLButtonElement).disabled,
     ).toBe(true)
     expect(createSender).not.toHaveBeenCalled()
 
@@ -303,7 +298,11 @@ describe('ManagedEmailModal', () => {
     )
 
     expect(await screen.findByText('offers@example.com')).toBeTruthy()
-    expect(screen.getByText(/UnifyDesk Managed Email/i)).toBeTruthy()
+    expect(
+      screen.getByText(
+        (_, element) => element?.textContent === 'Example Offers · UnifyDesk Managed Email',
+      ),
+    ).toBeTruthy()
     expect(screen.queryByText(/ap-south-1/i)).toBeNull()
     expect(screen.queryByText(/50,?000/i)).toBeNull()
     expect(screen.queryByText(/12,?345/i)).toBeNull()

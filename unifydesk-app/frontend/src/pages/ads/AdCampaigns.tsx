@@ -8,7 +8,15 @@ import GoogleAdvancedCampaignModal from '../../components/ads/GoogleAdvancedCamp
 import GooglePerformanceMaxCampaignModal from '../../components/ads/GooglePerformanceMaxCampaignModal'
 import GoogleAppCampaignModal from '../../components/ads/GoogleAppCampaignModal'
 import { adCenterApi } from '../../features/ads/adCenterApi'
-import type { AdAccount, AdCampaign, CreateGoogleAdvancedCampaignInput, CreateGoogleCampaignInput, CreateGooglePerformanceMaxCampaignInput, CreateGoogleAppCampaignInput, CreateMetaCampaignInput } from '../../features/ads/types'
+import type {
+  AdAccount,
+  AdCampaign,
+  CreateGoogleAdvancedCampaignInput,
+  CreateGoogleCampaignInput,
+  CreateGooglePerformanceMaxCampaignInput,
+  CreateGoogleAppCampaignInput,
+  CreateMetaCampaignInput,
+} from '../../features/ads/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -51,13 +59,14 @@ export default function AdCampaigns() {
   const [creating, setCreating] = useState(false)
   const [workingCampaignId, setWorkingCampaignId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
-  const [googleCreateType, setGoogleCreateType] = useState<'SEARCH' | 'PERFORMANCE_MAX' | 'ADVANCED' | 'APP'>('SEARCH')
+  const [googleCreateType, setGoogleCreateType] = useState<
+    'SEARCH' | 'PERFORMANCE_MAX' | 'ADVANCED' | 'APP'
+  >('SEARCH')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
   const managedAccounts = useMemo(
-    () =>
-      accounts.filter((account) => account.managed && account.accessible),
+    () => accounts.filter((account) => account.managed && account.accessible),
     [accounts],
   )
 
@@ -81,9 +90,7 @@ export default function AdCampaigns() {
     try {
       const accountData = await adCenterApi.accounts(selectedCompany.companyId)
       setAccounts(accountData)
-      const eligible = accountData.filter(
-        (account) => account.managed && account.accessible,
-      )
+      const eligible = accountData.filter((account) => account.managed && account.accessible)
       const preferred =
         eligible.find((account) => account.id === requestedAccountId) ??
         eligible.find((account) => account.primaryAccount) ??
@@ -125,25 +132,18 @@ export default function AdCampaigns() {
     try {
       const result =
         selectedAccount.provider === 'GOOGLE_ADS'
-          ? await adCenterApi.syncGoogleCampaigns(
-              selectedCompany.companyId,
-              selectedAccount.id,
-            )
-          : await adCenterApi.syncMetaCampaigns(
-              selectedCompany.companyId,
-              selectedAccount.id,
-            )
+          ? await adCenterApi.syncGoogleCampaigns(selectedCompany.companyId, selectedAccount.id)
+          : await adCenterApi.syncMetaCampaigns(selectedCompany.companyId, selectedAccount.id)
       await loadCampaigns(selectedAccount.id)
       try {
-        await adCenterApi.reconcileRecommendations(
-          selectedCompany.companyId,
-          selectedAccount.id,
-        )
+        await adCenterApi.reconcileRecommendations(selectedCompany.companyId, selectedAccount.id)
       } catch {
         // Campaign sync succeeded; recommendation lifecycle reconciliation is best effort.
       }
       window.dispatchEvent(new Event('ad-center:recommendations-changed'))
-      setNotice(`Synchronized ${result.synchronizedCount} campaign(s) from ${selectedAccount.provider === 'GOOGLE_ADS' ? 'Google Ads' : 'Meta'}.`)
+      setNotice(
+        `Synchronized ${result.synchronizedCount} campaign(s) from ${selectedAccount.provider === 'GOOGLE_ADS' ? 'Google Ads' : 'Meta'}.`,
+      )
     } catch (syncError) {
       setError(apiErrorMessage(syncError, 'Unable to synchronize advertising campaigns'))
     } finally {
@@ -193,9 +193,7 @@ export default function AdCampaigns() {
     }
   }
 
-  const createGooglePerformanceMax = async (
-    input: CreateGooglePerformanceMaxCampaignInput,
-  ) => {
+  const createGooglePerformanceMax = async (input: CreateGooglePerformanceMaxCampaignInput) => {
     if (!selectedCompany || !selectedAccount) return
     setCreating(true)
     setError('')
@@ -206,27 +204,19 @@ export default function AdCampaigns() {
         selectedAccount.id,
         input,
       )
-      setCampaigns((current) => [
-        created,
-        ...current.filter((item) => item.id !== created.id),
-      ])
+      setCampaigns((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setCreateOpen(false)
       setNotice(
         `${created.name} was created as a paused Performance Max campaign with its initial asset group.`,
       )
     } catch (createError) {
-      setError(
-        apiErrorMessage(createError, 'Unable to create Google Performance Max campaign'),
-      )
+      setError(apiErrorMessage(createError, 'Unable to create Google Performance Max campaign'))
     } finally {
       setCreating(false)
     }
   }
 
-
-  const createGoogleApp = async (
-    input: CreateGoogleAppCampaignInput,
-  ) => {
+  const createGoogleApp = async (input: CreateGoogleAppCampaignInput) => {
     if (!selectedCompany || !selectedAccount) return
     setCreating(true)
     setError('')
@@ -237,10 +227,7 @@ export default function AdCampaigns() {
         selectedAccount.id,
         input,
       )
-      setCampaigns((current) => [
-        created,
-        ...current.filter((item) => item.id !== created.id),
-      ])
+      setCampaigns((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setCreateOpen(false)
       setNotice(`${created.name} was created as a paused Google App campaign.`)
     } catch (createError) {
@@ -250,10 +237,7 @@ export default function AdCampaigns() {
     }
   }
 
-
-  const createGoogleAdvanced = async (
-    input: CreateGoogleAdvancedCampaignInput,
-  ) => {
+  const createGoogleAdvanced = async (input: CreateGoogleAdvancedCampaignInput) => {
     if (!selectedCompany || !selectedAccount) return
     setCreating(true)
     setError('')
@@ -264,18 +248,13 @@ export default function AdCampaigns() {
         selectedAccount.id,
         input,
       )
-      setCampaigns((current) => [
-        created,
-        ...current.filter((item) => item.id !== created.id),
-      ])
+      setCampaigns((current) => [created, ...current.filter((item) => item.id !== created.id)])
       setCreateOpen(false)
       setNotice(
         `${created.name} was created as a paused ${objectiveLabel(created.objective)} campaign.`,
       )
     } catch (createError) {
-      setError(
-        apiErrorMessage(createError, 'Unable to create Google Ads campaign'),
-      )
+      setError(apiErrorMessage(createError, 'Unable to create Google Ads campaign'))
     } finally {
       setCreating(false)
     }
@@ -294,20 +273,11 @@ export default function AdCampaigns() {
               campaign.id,
               status,
             )
-          : await adCenterApi.setMetaCampaignStatus(
-              selectedCompany.companyId,
-              campaign.id,
-              status,
-            )
-      setCampaigns((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      )
+          : await adCenterApi.setMetaCampaignStatus(selectedCompany.companyId, campaign.id, status)
+      setCampaigns((current) => current.map((item) => (item.id === updated.id ? updated : item)))
       if (selectedAccount) {
         try {
-          await adCenterApi.reconcileRecommendations(
-            selectedCompany.companyId,
-            selectedAccount.id,
-          )
+          await adCenterApi.reconcileRecommendations(selectedCompany.companyId, selectedAccount.id)
         } catch {
           // Campaign status update succeeded; lifecycle reconciliation is best effort.
         }
@@ -341,7 +311,8 @@ export default function AdCampaigns() {
               Provider campaigns
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Inspect and manage raw Google and Meta campaign objects. For one campaign brief that compiles across providers, use Unified campaigns.
+              Inspect and manage raw Google and Meta campaign objects. For one campaign brief that
+              compiles across providers, use Unified campaigns.
             </p>
           </div>
 
@@ -363,7 +334,9 @@ export default function AdCampaigns() {
                 onClick={() => void sync()}
               >
                 <FiRefreshCw aria-hidden="true" />
-                {syncing ? 'Syncing…' : `Sync ${selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google' : 'Meta'}`}
+                {syncing
+                  ? 'Syncing…'
+                  : `Sync ${selectedAccount?.provider === 'GOOGLE_ADS' ? 'Google' : 'Meta'}`}
               </button>
             )}
             {can(PERMISSIONS.ADS_CREATE) &&
@@ -457,7 +430,8 @@ export default function AdCampaigns() {
           </label>
           {selectedAccount && (
             <p className="pb-2 text-xs text-slate-400">
-              {selectedAccount.provider === 'GOOGLE_ADS' ? 'Google Ads' : 'Meta'} account {selectedAccount.externalAccountId}
+              {selectedAccount.provider === 'GOOGLE_ADS' ? 'Google Ads' : 'Meta'} account{' '}
+              {selectedAccount.externalAccountId}
             </p>
           )}
         </div>
@@ -466,7 +440,8 @@ export default function AdCampaigns() {
           <div className="panel mt-6 p-10 text-center">
             <h2 className="text-lg font-bold text-slate-950">Choose an ad account first</h2>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
-              Connect an advertising provider in Ad Center, then mark at least one accessible ad account as managed before campaigns can be synchronized or created.
+              Connect an advertising provider in Ad Center, then mark at least one accessible ad
+              account as managed before campaigns can be synchronized or created.
             </p>
             <Link to="/ad-center" className="primary-button mt-5 inline-flex">
               Open Ad Center
@@ -491,7 +466,8 @@ export default function AdCampaigns() {
               </div>
             ) : campaigns.length === 0 ? (
               <div className="p-10 text-center text-sm text-slate-500">
-                No campaigns are stored for this account yet. Sync the provider or create your first campaign.
+                No campaigns are stored for this account yet. Sync the provider or create your first
+                campaign.
               </div>
             ) : (
               <>
@@ -551,7 +527,9 @@ export default function AdCampaigns() {
                                     campaign.lifetimeBudgetMinor,
                                     selectedAccount?.currency,
                                   )} lifetime`
-                                : selectedAccount?.provider === 'GOOGLE_ADS' ? 'Campaign budget unavailable' : 'Ad-set budget'}
+                                : selectedAccount?.provider === 'GOOGLE_ADS'
+                                  ? 'Campaign budget unavailable'
+                                  : 'Ad-set budget'}
                           </td>
                           <td className="px-5 py-4 text-right">
                             {campaign.objective === 'VIDEO' ? (
@@ -575,8 +553,7 @@ export default function AdCampaigns() {
                                   type="button"
                                   className="secondary-button inline-flex items-center gap-2"
                                   disabled={
-                                    workingCampaignId !== null ||
-                                    campaign.status === 'ARCHIVED'
+                                    workingCampaignId !== null || campaign.status === 'ARCHIVED'
                                   }
                                   onClick={() => void setStatus(campaign, 'ACTIVE')}
                                 >
@@ -626,7 +603,9 @@ export default function AdCampaigns() {
                                 campaign.lifetimeBudgetMinor,
                                 selectedAccount?.currency,
                               )} lifetime`
-                            : selectedAccount?.provider === 'GOOGLE_ADS' ? 'Campaign budget unavailable' : 'Budget will be configured at ad-set level'}
+                            : selectedAccount?.provider === 'GOOGLE_ADS'
+                              ? 'Campaign budget unavailable'
+                              : 'Budget will be configured at ad-set level'}
                       </p>
                       {campaign.objective === 'VIDEO' ? (
                         <p className="mt-4 text-xs font-semibold text-slate-400">
@@ -672,49 +651,45 @@ export default function AdCampaigns() {
           onCreate={createMeta}
         />
       )}
-      {selectedAccount?.provider === 'GOOGLE_ADS' &&
-        googleCreateType === 'SEARCH' && (
-          <GoogleCampaignModal
-            account={selectedAccount}
-            open={createOpen}
-            saving={creating}
-            onClose={() => setCreateOpen(false)}
-            onCreate={createGoogle}
-          />
-        )}
-      {selectedAccount?.provider === 'GOOGLE_ADS' &&
-        googleCreateType === 'APP' && (
-          <GoogleAppCampaignModal
-            companyId={selectedCompany.companyId}
-            account={selectedAccount}
-            open={createOpen}
-            saving={creating}
-            onClose={() => setCreateOpen(false)}
-            onCreate={createGoogleApp}
-          />
-        )}
-      {selectedAccount?.provider === 'GOOGLE_ADS' &&
-        googleCreateType === 'ADVANCED' && (
-          <GoogleAdvancedCampaignModal
-            companyId={selectedCompany.companyId}
-            account={selectedAccount}
-            open={createOpen}
-            saving={creating}
-            onClose={() => setCreateOpen(false)}
-            onCreate={createGoogleAdvanced}
-          />
-        )}
-      {selectedAccount?.provider === 'GOOGLE_ADS' &&
-        googleCreateType === 'PERFORMANCE_MAX' && (
-          <GooglePerformanceMaxCampaignModal
-            companyId={selectedCompany.companyId}
-            account={selectedAccount}
-            open={createOpen}
-            saving={creating}
-            onClose={() => setCreateOpen(false)}
-            onCreate={createGooglePerformanceMax}
-          />
-        )}
+      {selectedAccount?.provider === 'GOOGLE_ADS' && googleCreateType === 'SEARCH' && (
+        <GoogleCampaignModal
+          account={selectedAccount}
+          open={createOpen}
+          saving={creating}
+          onClose={() => setCreateOpen(false)}
+          onCreate={createGoogle}
+        />
+      )}
+      {selectedAccount?.provider === 'GOOGLE_ADS' && googleCreateType === 'APP' && (
+        <GoogleAppCampaignModal
+          companyId={selectedCompany.companyId}
+          account={selectedAccount}
+          open={createOpen}
+          saving={creating}
+          onClose={() => setCreateOpen(false)}
+          onCreate={createGoogleApp}
+        />
+      )}
+      {selectedAccount?.provider === 'GOOGLE_ADS' && googleCreateType === 'ADVANCED' && (
+        <GoogleAdvancedCampaignModal
+          companyId={selectedCompany.companyId}
+          account={selectedAccount}
+          open={createOpen}
+          saving={creating}
+          onClose={() => setCreateOpen(false)}
+          onCreate={createGoogleAdvanced}
+        />
+      )}
+      {selectedAccount?.provider === 'GOOGLE_ADS' && googleCreateType === 'PERFORMANCE_MAX' && (
+        <GooglePerformanceMaxCampaignModal
+          companyId={selectedCompany.companyId}
+          account={selectedAccount}
+          open={createOpen}
+          saving={creating}
+          onClose={() => setCreateOpen(false)}
+          onCreate={createGooglePerformanceMax}
+        />
+      )}
     </section>
   )
 }

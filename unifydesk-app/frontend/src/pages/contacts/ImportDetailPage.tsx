@@ -46,11 +46,7 @@ const parseTarget = (value: string): ImportFieldTarget => {
   return {
     type: 'BUILTIN',
     field: value.slice('BUILTIN:'.length) as
-      | 'displayName'
-      | 'firstName'
-      | 'lastName'
-      | 'organization'
-      | 'notes',
+      'displayName' | 'firstName' | 'lastName' | 'organization' | 'notes',
   }
 }
 
@@ -67,14 +63,18 @@ const statusPresentation = (resource: ContactImport) => {
   if (['QUEUED', 'RUNNING'].includes(resource.status)) {
     return {
       title: 'Importing contacts…',
-      description: 'Your contacts are being processed. You can leave this page and come back later.',
+      description:
+        'Your contacts are being processed. You can leave this page and come back later.',
       tone: 'neutral',
     }
   }
   if (resource.status === 'COMPLETED' && failed === 0) {
     return {
       title: 'Import complete',
-      description: imported > 0 ? `${imported.toLocaleString()} contacts were imported successfully.` : 'The import completed successfully.',
+      description:
+        imported > 0
+          ? `${imported.toLocaleString()} contacts were imported successfully.`
+          : 'The import completed successfully.',
       tone: 'success',
     }
   }
@@ -88,7 +88,8 @@ const statusPresentation = (resource: ContactImport) => {
   if (resource.status === 'COMPLETED' && failed > 0) {
     return {
       title: "We couldn't add any contacts",
-      description: 'Download the error report to see what needs to be corrected, then try the file again.',
+      description:
+        'Download the error report to see what needs to be corrected, then try the file again.',
       tone: 'error',
     }
   }
@@ -121,8 +122,7 @@ export default function ImportDetailPage() {
   const [mappings, setMappings] = useState<ImportFieldMapping[]>([])
   const [consentMappings, setConsentMappings] = useState<ConsentImportMapping[]>([])
   const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([])
-  const [strategy, setStrategy] =
-    useState<'SKIP' | 'MERGE_EXACT' | 'FAIL'>('SKIP')
+  const [strategy, setStrategy] = useState<'SKIP' | 'MERGE_EXACT' | 'FAIL'>('SKIP')
   const [targetListId, setTargetListId] = useState('')
   const [lists, setLists] = useState<ListSummary[]>([])
   const [error, setError] = useState('')
@@ -150,17 +150,11 @@ export default function ImportDetailPage() {
           setMappings(buildSuggestedImportMappings(nextPreview.headers))
         }
       })
-      .catch((loadError) =>
-        setError(apiErrorMessage(loadError, 'Unable to load import.')),
-      )
+      .catch((loadError) => setError(apiErrorMessage(loadError, 'Unable to load import.')))
   }, [companyId, importId])
 
   useEffect(() => {
-    if (
-      !companyId ||
-      !resource ||
-      !['QUEUED', 'RUNNING'].includes(resource.status)
-    ) {
+    if (!companyId || !resource || !['QUEUED', 'RUNNING'].includes(resource.status)) {
       return
     }
     pollAttempts.current = 0
@@ -210,21 +204,14 @@ export default function ImportDetailPage() {
     })
   }
 
-  const updateConsent = (
-    channel: ContactChannel,
-    patch: Partial<ConsentImportMapping>,
-  ) =>
+  const updateConsent = (channel: ContactChannel, patch: Partial<ConsentImportMapping>) =>
     setConsentMappings((current) =>
-      current.map((mapping) =>
-        mapping.channel === channel ? { ...mapping, ...patch } : mapping,
-      ),
+      current.map((mapping) => (mapping.channel === channel ? { ...mapping, ...patch } : mapping)),
     )
 
   const commit = async () => {
     if (!companyId || !preview) return
-    const mappedFieldCount = mappings.filter(
-      (mapping) => mapping.target.type !== 'IGNORE',
-    ).length
+    const mappedFieldCount = mappings.filter((mapping) => mapping.target.type !== 'IGNORE').length
     if (mappedFieldCount === 0) {
       setError('Choose at least one column to import.')
       return
@@ -277,10 +264,8 @@ export default function ImportDetailPage() {
   }
 
   const terminal =
-    resource &&
-    ['COMPLETED', 'FAILED', 'VALIDATION_FAILED', 'EXPIRED'].includes(resource.status)
-  const processing =
-    resource && ['QUEUED', 'RUNNING'].includes(resource.status)
+    resource && ['COMPLETED', 'FAILED', 'VALIDATION_FAILED', 'EXPIRED'].includes(resource.status)
+  const processing = resource && ['QUEUED', 'RUNNING'].includes(resource.status)
   const mappedCount = mappings.filter((mapping) => mapping.target.type !== 'IGNORE').length
   const ignoredCount = Math.max(mappings.length - mappedCount, 0)
 
@@ -291,7 +276,8 @@ export default function ImportDetailPage() {
         <p className="eyebrow">Contacts</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-950">Import contacts</h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-500">
-          Check how your CSV columns match UnifyDesk, choose where the contacts should go, then start the import.
+          Check how your CSV columns match UnifyDesk, choose where the contacts should go, then
+          start the import.
         </p>
 
         {error && (
@@ -374,9 +360,7 @@ export default function ImportDetailPage() {
                 >
                   <span
                     style={{
-                      width:
-                        String(resource.job?.progressPercent ?? (terminal ? 100 : 0)) +
-                        '%',
+                      width: String(resource.job?.progressPercent ?? (terminal ? 100 : 0)) + '%',
                     }}
                   />
                 </div>
@@ -388,7 +372,10 @@ export default function ImportDetailPage() {
                 )}
 
                 {terminal && imported > 0 && (
-                  <Link className="mt-5 inline-flex text-sm font-semibold text-indigo-700" to="/contacts">
+                  <Link
+                    className="mt-5 inline-flex text-sm font-semibold text-indigo-700"
+                    to="/contacts"
+                  >
                     View imported contacts →
                   </Link>
                 )}
@@ -405,7 +392,8 @@ export default function ImportDetailPage() {
                   </p>
                   <h2 className="mt-1 text-lg font-bold text-slate-950">Match your columns</h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    We matched common column names automatically. Check the choices below before importing.
+                    We matched common column names automatically. Check the choices below before
+                    importing.
                   </p>
                 </div>
                 <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm">
@@ -432,9 +420,7 @@ export default function ImportDetailPage() {
                       className="form-input"
                       aria-label={'Import ' + mapping.column + ' as'}
                       value={targetKey(mapping.target)}
-                      onChange={(event) =>
-                        updateMapping(index, parseTarget(event.target.value))
-                      }
+                      onChange={(event) => updateMapping(index, parseTarget(event.target.value))}
                     >
                       <option value="IGNORE">Don't import</option>
                       <option value="BUILTIN:displayName">Full name</option>
@@ -477,11 +463,7 @@ export default function ImportDetailPage() {
                       {preview.sampleRows.slice(0, 10).map((row, rowIndex) => (
                         <tr key={rowIndex} className="border-t border-slate-200">
                           {row.map((cell, cellIndex) => (
-                            <td
-                              key={cellIndex}
-                              className="max-w-52 truncate p-2"
-                              title={cell}
-                            >
+                            <td key={cellIndex} className="max-w-52 truncate p-2" title={cell}>
                               {cell}
                             </td>
                           ))}
@@ -504,9 +486,7 @@ export default function ImportDetailPage() {
                   <select
                     className="form-input mt-2"
                     value={strategy}
-                    onChange={(event) =>
-                      setStrategy(event.target.value as typeof strategy)
-                    }
+                    onChange={(event) => setStrategy(event.target.value as typeof strategy)}
                   >
                     <option value="SKIP">Keep existing contact (recommended)</option>
                     <option value="MERGE_EXACT">Update exact email/phone match</option>
@@ -544,25 +524,19 @@ export default function ImportDetailPage() {
               </summary>
               <p className="mt-2 max-w-3xl text-sm text-slate-500">
                 Leave this closed unless your CSV contains explicit consent or preference evidence.
-                Importing contact details alone does not grant permission to send marketing messages.
+                Importing contact details alone does not grant permission to send marketing
+                messages.
               </p>
               <div className="mt-4 space-y-4">
                 {channels.map((channel) => {
-                  const mapping = consentMappings.find(
-                    (item) => item.channel === channel,
-                  )
+                  const mapping = consentMappings.find((item) => item.channel === channel)
                   return (
-                    <fieldset
-                      key={channel}
-                      className="rounded-xl border border-slate-200 p-4"
-                    >
+                    <fieldset key={channel} className="rounded-xl border border-slate-200 p-4">
                       <label className="flex items-center gap-2 text-sm font-semibold">
                         <input
                           type="checkbox"
                           checked={Boolean(mapping)}
-                          onChange={(event) =>
-                            setConsentEnabled(channel, event.target.checked)
-                          }
+                          onChange={(event) => setConsentEnabled(channel, event.target.checked)}
                         />
                         Import {channel === 'WHATSAPP' ? 'WhatsApp' : channel} marketing preference
                       </label>

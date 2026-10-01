@@ -66,8 +66,7 @@ export default function MetaCustomerListUploadModal({
 }: Props) {
   const [schema, setSchema] = useState<MetaCustomerListSchema>('EMAIL')
   const [values, setValues] = useState('')
-  const [operation, setOperation] =
-    useState<MetaCustomerListMembersInput['operation']>('ADD')
+  const [operation, setOperation] = useState<MetaCustomerListMembersInput['operation']>('ADD')
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [hashing, setHashing] = useState(false)
   const [error, setError] = useState('')
@@ -100,9 +99,7 @@ export default function MetaCustomerListUploadModal({
       for (const raw of rows) {
         const normalized = normalize(schema, raw)
         if (!normalized) continue
-        processed.push([
-          schema === 'EXTERN_ID' ? normalized : await hashHex(normalized),
-        ])
+        processed.push([schema === 'EXTERN_ID' ? normalized : await hashHex(normalized)])
       }
       if (!processed.length) {
         setError('No valid customer identifiers remain after normalization.')
@@ -134,9 +131,7 @@ export default function MetaCustomerListUploadModal({
         <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
           <div>
             <p className="eyebrow">Meta Customer List</p>
-            <h2 className="mt-1 text-xl font-bold text-slate-950">
-              Manage audience members
-            </h2>
+            <h2 className="mt-1 text-xl font-bold text-slate-950">Manage audience members</h2>
             <p className="mt-1 text-sm text-slate-500">{audience.name}</p>
           </div>
           <button
@@ -161,9 +156,7 @@ export default function MetaCustomerListUploadModal({
               <select
                 className="form-input mt-2"
                 value={schema}
-                onChange={(event) =>
-                  setSchema(event.target.value as MetaCustomerListSchema)
-                }
+                onChange={(event) => setSchema(event.target.value as MetaCustomerListSchema)}
               >
                 {SCHEMA_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -179,9 +172,7 @@ export default function MetaCustomerListUploadModal({
                 className="form-input mt-2"
                 value={operation}
                 onChange={(event) =>
-                  setOperation(
-                    event.target.value as MetaCustomerListMembersInput['operation'],
-                  )
+                  setOperation(event.target.value as MetaCustomerListMembersInput['operation'])
                 }
               >
                 <option value="ADD">Add / match members</option>
@@ -205,10 +196,9 @@ export default function MetaCustomerListUploadModal({
               onChange={(event) => setValues(event.target.value)}
             />
             <span className="mt-1 block font-normal leading-5 text-slate-400">
-              {rows.length} row(s). Matching identifiers are normalized and SHA-256 hashed
-              in your browser before they are sent to UnifyDesk. External customer IDs are
-              sent as advertiser-defined IDs because Meta's multi-key schema treats them
-              differently.
+              {rows.length} row(s). Matching identifiers are normalized and SHA-256 hashed in your
+              browser before they are sent to UnifyDesk. External customer IDs are sent as
+              advertiser-defined IDs because Meta's multi-key schema treats them differently.
             </span>
           </label>
 
@@ -221,8 +211,8 @@ export default function MetaCustomerListUploadModal({
                 onChange={(event) => setTermsAccepted(event.target.checked)}
               />
               <span>
-                I confirm this business is authorized to use this customer data for advertising
-                and has satisfied Meta's Custom Audience terms and applicable consent/privacy
+                I confirm this business is authorized to use this customer data for advertising and
+                has satisfied Meta's Custom Audience terms and applicable consent/privacy
                 requirements.
               </span>
             </label>

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { FiMail } from 'react-icons/fi'
 import type { ChannelConnection } from '../../features/channel/types'
 import type { InboxConversation } from '../../features/inbox/types'
+import { conversationParticipant } from './conversationListUtils'
 
 type ConversationListProps = {
   conversations: InboxConversation[]
@@ -27,16 +28,6 @@ const formatDate = (value?: string | null) => {
   }
 
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
-}
-
-export const conversationParticipant = (
-  conversation: InboxConversation,
-  ownAddress?: string,
-) => {
-  const participant = conversation.participants.find(
-    (item) => item.address.toLowerCase() !== ownAddress?.toLowerCase(),
-  )
-  return participant?.displayName || participant?.address || ownAddress || 'Email'
 }
 
 export default function ConversationList({

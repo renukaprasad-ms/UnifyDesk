@@ -90,7 +90,9 @@ export default function IdentityManager({
 
       {canModify && (
         <form className="mt-4 grid gap-2 sm:grid-cols-[150px_minmax(0,1fr)_auto]" onSubmit={submit}>
-          <label className="sr-only" htmlFor="identity-type">Identity type</label>
+          <label className="sr-only" htmlFor="identity-type">
+            Identity type
+          </label>
           <select
             id="identity-type"
             className="form-input"
@@ -101,17 +103,23 @@ export default function IdentityManager({
             <option value="PHONE">Phone</option>
             <option value="EXTERNAL">External</option>
           </select>
-          <label className="sr-only" htmlFor="identity-value">Identity value</label>
+          <label className="sr-only" htmlFor="identity-value">
+            Identity value
+          </label>
           <input
             id="identity-value"
             className="form-input"
             value={value}
-            placeholder={type === 'EMAIL' ? 'name@example.com' : type === 'PHONE' ? '+91…' : 'External ID'}
+            placeholder={
+              type === 'EMAIL' ? 'name@example.com' : type === 'PHONE' ? '+91…' : 'External ID'
+            }
             onChange={(event) => setValue(event.target.value)}
           />
           {type === 'EXTERNAL' && (
             <>
-              <label className="sr-only" htmlFor="identity-namespace">External identity namespace</label>
+              <label className="sr-only" htmlFor="identity-namespace">
+                External identity namespace
+              </label>
               <input
                 id="identity-namespace"
                 className="form-input sm:col-start-2"

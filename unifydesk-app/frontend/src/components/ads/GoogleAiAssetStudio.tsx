@@ -100,9 +100,7 @@ export default function GoogleAiAssetStudio({
     setError('')
     try {
       const capabilities = await adCenterApi.accountCapabilities(companyId, accountId)
-      setCapability(
-        capabilities.find((item) => item.feature === 'GOOGLE_ASSET_GENERATION') ?? null,
-      )
+      setCapability(capabilities.find((item) => item.feature === 'GOOGLE_ASSET_GENERATION') ?? null)
     } catch (loadError) {
       setError(apiErrorMessage(loadError, 'Unable to load Google AI capability'))
     } finally {
@@ -114,13 +112,9 @@ export default function GoogleAiAssetStudio({
     void loadCapability()
   }, [companyId, accountId])
 
-  const toggleTextType = (
-    value: GoogleAssetGenerationTextInput['assetFieldTypes'][number],
-  ) => {
+  const toggleTextType = (value: GoogleAssetGenerationTextInput['assetFieldTypes'][number]) => {
     setTextFieldTypes((current) =>
-      current.includes(value)
-        ? current.filter((item) => item !== value)
-        : [...current, value],
+      current.includes(value) ? current.filter((item) => item !== value) : [...current, value],
     )
   }
 
@@ -128,9 +122,7 @@ export default function GoogleAiAssetStudio({
     value: NonNullable<GoogleAssetGenerationImageInput['assetFieldTypes']>[number],
   ) => {
     setImageFieldTypes((current) =>
-      current.includes(value)
-        ? current.filter((item) => item !== value)
-        : [...current, value],
+      current.includes(value) ? current.filter((item) => item !== value) : [...current, value],
     )
   }
 
@@ -214,10 +206,7 @@ export default function GoogleAiAssetStudio({
           disabled={loadingCapability}
           onClick={() => void loadCapability()}
         >
-          <FiRefreshCw
-            className={loadingCapability ? 'animate-spin' : ''}
-            aria-hidden="true"
-          />
+          <FiRefreshCw className={loadingCapability ? 'animate-spin' : ''} aria-hidden="true" />
           Check eligibility
         </button>
       </div>
@@ -319,10 +308,7 @@ export default function GoogleAiAssetStudio({
               type="submit"
               className="primary-button mt-4 inline-flex items-center gap-2"
               disabled={
-                !available ||
-                generatingText ||
-                textFieldTypes.length === 0 ||
-                !finalUrl.trim()
+                !available || generatingText || textFieldTypes.length === 0 || !finalUrl.trim()
               }
             >
               <FiStar aria-hidden="true" />
@@ -356,9 +342,7 @@ export default function GoogleAiAssetStudio({
                     onChange={(event) =>
                       setTextSuggestions((current) =>
                         current.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? { ...item, text: event.target.value }
-                            : item,
+                          itemIndex === index ? { ...item, text: event.target.value } : item,
                         ),
                       )
                     }
@@ -385,9 +369,7 @@ export default function GoogleAiAssetStudio({
                 type="button"
                 className={
                   'rounded-full px-3 py-1.5 text-xs font-semibold ' +
-                  (imageMode === mode
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-600')
+                  (imageMode === mode ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600')
                 }
                 disabled={!canCreate || generatingImages}
                 onClick={() => setImageMode(mode)}
@@ -451,8 +433,8 @@ export default function GoogleAiAssetStudio({
                       {pretty(suggestion.assetFieldType ?? 'Generated image')}
                     </p>
                     <p className="mt-1 text-[11px] leading-5 text-slate-500">
-                      Temporary provider URL. Review it now; UnifyDesk has not published or saved
-                      it as an ad asset.
+                      Temporary provider URL. Review it now; UnifyDesk has not published or saved it
+                      as an ad asset.
                     </p>
                   </div>
                 </div>

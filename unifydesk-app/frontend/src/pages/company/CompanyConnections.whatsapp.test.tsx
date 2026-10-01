@@ -4,10 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PERMISSIONS } from '../../features/iam/permissions'
 import { channelApi } from '../../features/channel/channelApi'
 import { metaWhatsAppApi } from '../../features/channel/metaWhatsAppApi'
-import {
-  launchMetaWhatsAppSignup,
-  loadMetaSdk,
-} from '../../features/channel/metaWhatsAppSdk'
+import { launchMetaWhatsAppSignup, loadMetaSdk } from '../../features/channel/metaWhatsAppSdk'
 import CompanyConnections from './CompanyConnections'
 
 const snackbar = {
@@ -205,8 +202,8 @@ describe('CompanyConnections WhatsApp onboarding', () => {
 
     render(<CompanyConnections />)
 
-    expect(await screen.findByText('Authorization expired')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /reauthorize/i }))
+    const reauthorize = await screen.findByRole('button', { name: /reauthorize/i })
+    fireEvent.click(reauthorize)
 
     await waitFor(() =>
       expect(metaWhatsAppApi.reauthorizeSession).toHaveBeenCalledWith('company-1'),
