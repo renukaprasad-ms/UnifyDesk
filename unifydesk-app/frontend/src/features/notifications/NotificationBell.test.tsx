@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { companyNotification } from './notificationFixtures'
 import NotificationBell from './NotificationBell'
 import { notificationApi } from './notificationApi'
-import { useNotifications } from './NotificationProvider'
+import { useNotifications } from './notificationContext'
 
 vi.mock('./notificationApi', () => ({
   notificationApi: {
@@ -12,7 +12,7 @@ vi.mock('./notificationApi', () => ({
   },
 }))
 
-vi.mock('./NotificationProvider', () => ({
+vi.mock('./notificationContext', () => ({
   useNotifications: vi.fn(),
 }))
 
