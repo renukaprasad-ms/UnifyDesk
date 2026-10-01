@@ -63,10 +63,7 @@ public class MimeMessageBuilder {
     String body;
     if (message.getTextBody() != null && message.getHtmlBody() != null) {
       String boundary =
-          "=_reachlyo_"
-              + message.getId()
-              + "_"
-              + UUID.randomUUID().toString().replace("-", "");
+          "=_reachlyo_" + message.getId() + "_" + UUID.randomUUID().toString().replace("-", "");
       headers
           .append("Content-Type: multipart/alternative; boundary=\"")
           .append(boundary)
