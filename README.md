@@ -1,86 +1,83 @@
-# Messaging
+# UnifyDesk
 
-A Spring Boot + React modular monolith. Authentication, users, sessions, companies, roles, and notifications have separate modules.
+UnifyDesk is a multi-tenant customer communication and marketing platform. The current application combines shared Inbox and channel connections, Contacts & Audience Management, Broadcast, email templates, managed messaging services, notifications, advertising integrations, billing/entitlements, storage accounting and platform administration.
 
-## Code structure
+The primary application is a Spring Boot modular monolith with a React/Vite frontend. PostgreSQL is the durable system of record; Redis and Kafka support distributed/realtime and asynchronous workloads.
 
-Controllers call services from their own module. Services access repositories only from their own module; cross-module work goes through the other module's service. DTOs define API contracts, repositories handle queries, and `AccessPolicy` defines company access rules. `ModuleBoundaryTests` checks the repository boundary.
+> For the authoritative platform map, current module status, production-readiness assessment and release process, start with [unifydesk-app/docs/platform/README.md](unifydesk-app/docs/platform/README.md).
 
-Examples:
+## Repository structure
 
-- `PlatformAdminController → PlatformAdminService → UserService → UserRepository`
-- `AuthController → AuthService → UserService / UserSessionService`
-- `CompanyController → CompanyService → CompanyAccessService / CompanyMembershipService`
+- `unifydesk-app/backend/` — Java 25 / Spring Boot 4.1.1 API and background workers.
+- `unifydesk-app/frontend/` — React 19, TypeScript 6 and Vite 8 web application.
+- `unifydesk-app/backend/src/main/resources/db/migration/` — Flyway migrations; the audited platform baseline contains migrations through V83.
+- `unifydesk-app/k8s/` — current k3s/Traefik development/small-host manifests.
+- `unifydesk-app/docs/` — feature contracts, architecture, QA history and platform documentation.
+- `email-provider/` — separate Spring Boot email-provider service and its deployment assets.
+- `unifydesk-website/` — public UnifyDesk website.
+- `.github/workflows/` — repository checks and feature-specific QA workflows.
 
-Java uses ordinary imports and Google Java Format. The only qualified class names inside queries are required JPQL constructor/enum references. Frontend formatting uses Prettier.
+## Major capabilities
 
-## Access rules
+Current source includes:
 
-| Account or role | Access |
-| --- | --- |
-| Guest | Sign in, register, password recovery |
-| Pending verification | Current account, email verification, password change, logout |
-| Active, verified user | Create a company; enter companies with an active membership |
-| Company OWNER / ADMIN | Read and update that company's details |
-| Company MANAGER / MEMBER | Read that company's details |
-| Platform ADMIN / SUPERADMIN | Platform user administration |
-| Suspended / disabled | No authenticated access |
-| Temporary bootstrap password | Password change required before workspace/admin access |
+- authentication, JWT sessions, email verification, password recovery and 2FA;
+- companies/workspaces, memberships, IAM/RBAC and platform administration;
+- billing catalog, subscriptions, pricing and entitlements;
+- Gmail, Microsoft, IMAP/SMTP and Meta-related channel connections;
+- unified Inbox, provider sync/read state and realtime WebSocket updates;
+- Broadcast preparation/delivery with multiple email/SMS transport integrations;
+- versioned email templates and media assets;
+- media storage, quotas, deferred deletion and storage accounting;
+- UnifyDesk Managed Email with SES-oriented domain/sender control and delivery events;
+- UnifyDesk Managed SMS with MSG91/DLT-oriented control and delivery;
+- in-app, email and browser-push notifications and digests;
+- Meta WhatsApp control plane, messaging, templates, media and webhook processing;
+- Contacts, identities, tags, Lists, Segments, consent/suppression, import/export and bulk jobs;
+- Google Ads / Meta Ads Ad Center capabilities;
+- durable async job state, prioritized Kafka topics/retry/DLT flows and Redis-backed coordination.
 
-Company roles do not grant platform privileges. Platform roles do not bypass company membership checks. Public registration cannot assign privileged roles. Role changes are currently operator-managed; there is no public role-grant endpoint.
+Source availability does not mean every module is production-ready. See [MODULE-STATUS.md](unifydesk-app/docs/platform/MODULE-STATUS.md) and [PRODUCTION-READINESS.md](unifydesk-app/docs/platform/PRODUCTION-READINESS.md).
 
-Every authenticated request checks the live user, roles, and session with one indexed query. Logout and password changes revoke access immediately. Refresh rotation is serialized per user with a database row lock; different users do not block each other. JWTs have random IDs so tokens issued in the same second remain distinct.
+## Local development
 
-## Passwords and verification
+Requirements depend on the path you run, but the primary stack expects Java 25, Node 24+, Docker and a local PostgreSQL/Redis/Kafka environment.
 
-New passwords require **8–72 characters**, uppercase, lowercase, a digit, and an ASCII special character. The backend also enforces BCrypt's 72 UTF-8 byte limit. Registration, reset, and password-change screens share the same strength bar and checklist. The bar indicates rule completion and length, not a cryptographic entropy estimate.
+Start from the application directory:
 
-OTP issuance, attempt counting, and one-time consumption use atomic Redis scripts. Keys are purpose-specific, expire automatically, and hash contact details. An email verification code cannot reset a password. Password-reset tokens use atomic get-and-delete; a failed database transaction consumes the token and the user must request another code (fail closed).
+```bash
+cd unifydesk-app
+cp .env.example .env
+```
 
-Cookie-authenticated mutations require CSRF tokens. The frontend fetches `/api/auth/csrf`, sends `X-XSRF-TOKEN`, restores `/api/auth/me` on reload, and shares a single refresh request across concurrent 401 responses. See [Spring Security's CSRF documentation](https://docs.spring.io/spring-security/reference/7.0/servlet/exploits/csrf.html).
+Populate development-only values in `.env`. Never commit secrets.
 
-## Database migrations and bootstrap accounts
+For the Compose path:
 
-Flyway owns the schema; Hibernate only validates it. See [Spring Boot migration configuration](https://docs.spring.io/spring-boot/how-to/data-initialization.html).
+```bash
+docker compose up --build
+```
 
-- V1 creates the existing schema on an empty database.
-- V2 adds platform-role assignments and revocable access sessions. Existing sessions are invalidated once.
-- V3 seeds `renukaprasadms00@gmail.com` and `renukaprasad.dev@gmail.com` as SUPERADMIN. Only BCrypt hashes are committed. New accounts require a password change. Existing matching accounts keep their passwords and status.
+For the local k3s path, review [unifydesk-app/k8s/README.md](unifydesk-app/k8s/README.md) and use `unifydesk-app/k8s.sh`. The checked-in Kubernetes topology is a development/small-host baseline, not the final production architecture.
 
-The generated temporary credentials for this workspace are in **`.tools/superadmin-credentials.txt`**, which is ignored by Git. Keep that file private. After a password change, the user signs in again.
+## Verification commands
 
-For an existing Hibernate-managed database, back it up and compare its schema to V1 first. Then set `FLYWAY_BASELINE_ON_MIGRATE=true` for the first migration run only. This records the existing schema as version 1 and applies V2 onward. Return the setting to `false` afterwards. Do not enable baselining against an arbitrary database. Test upgrades on a restored copy before production.
+The commands below are the repository's standard verification paths. Their presence here is not a claim that they executed successfully for the current branch.
 
-## Small server defaults: 2 CPUs / 2 GiB RAM
+Backend:
 
-The default Compose stack runs the frontend, backend, PostgreSQL, Redis, and Kafka.
+```bash
+docker compose -f unifydesk-app/compose.test.yml up -d --wait
+cd unifydesk-app/backend
+./mvnw -B spotless:check test
+./mvnw -B clean test
+./mvnw -B package -DskipTests
+```
 
-| Service | Container memory limit |
-| --- | ---: |
-| Backend | 896 MiB (512 MiB Java heap) |
-| PostgreSQL | 384 MiB |
-| Redis | 128 MiB (64 MiB data cap, no eviction) |
-| Kafka | Configure for your host capacity |
-| Nginx frontend | 64 MiB |
+Frontend:
 
-These limits total 1,472 MiB, leaving approximately 576 MiB for the OS and Docker on a 2 GiB host. They are starting limits, not a throughput guarantee. Build images on a workstation or CI; building Maven and Node images on this host can exceed its memory budget. Monitor resident memory, CPU, database connections, response latency, and Redis capacity under representative load.
-
-The backend shares one five-connection pool when read and write database settings match. It uses at most 25 HTTP worker threads. Lists return 25 records, fetch related company/role data together, and avoid total-count queries. Membership checks use indexed `EXISTS` queries. Page-number pagination has O(offset + page size) database work at deep pages; switch to cursor pagination if those lists become large. Password checking is O(password length), bounded at 72 bytes; BCrypt is intentionally CPU-expensive and login requests are rate-limited.
-
-Email uses SMTP directly when async notifications are disabled, with five-second network timeouts; delivery failures return an error and allow retry. Configure a real SMTP provider. **SMS is not implemented** and explicitly reports unavailable; it never logs OTPs. By default, `APP_NOTIFICATION_ASYNC=true` and Compose starts Kafka for queued notification delivery. Publishing waits for broker acknowledgement; consumers retry twice and then publish to a `.DLT` topic. Delivery is at-least-once, so duplicate email is possible. Restrict broker access, monitor dead letters, and do not replay expired OTPs. Kafka adds memory overhead beyond the small-host baseline.
-
-Use HTTPS with `JWT_COOKIE_SECURE=true`, keep signing keys and SMTP credentials outside Git, and configure `APP_CORS_ALLOWED_ORIGINS` for the actual frontend origin. PostgreSQL and Redis host ports bind only to loopback. The application ignores raw forwarding headers; configure trusted proxy handling before relying on client IP limits behind a proxy. Clients sharing an IP also share its 30-login-per-minute limit.
-
-## Development and checks
-
-Requires Java 25, Node, and Docker for integration tests. Copy `.env.example` to `.env` and configure signing keys and SMTP. Existing `.env` values override the new defaults; reduce any old pool/worker values before deploying to the small host.
-
-```sh
-docker compose -f compose.test.yml up -d --wait
-cd backend
-./mvnw test
-./mvnw spotless:check
-cd ../frontend
+```bash
+cd unifydesk-app/frontend
 npm ci
 npm test
 npm run build
@@ -88,8 +85,59 @@ npm run lint
 npm run format:check
 ```
 
-Tests use a separate PostgreSQL database on port 55432 and Redis on port 56379. Email is mocked; tests do not deliver messages. Set `TEST_HOST=host.docker.internal` when running Maven inside Docker. Stop test services with `docker compose -f compose.test.yml down`.
+Email-provider service:
 
-Format code with `./mvnw spotless:apply` and `npm run format`. CI runs the same checks. Tests cover password boundaries, module boundaries, role/tenant access, CSRF, account restrictions, concurrent OTP consumption and refresh rotation, session revocation, and frontend session/route behavior.
+```bash
+cd email-provider
+./mvnw -B spotless:check test
+```
 
-The frontend layout adapts [Messaging Dashboard V2 in Figma](https://www.figma.com/design/H1P6tz6ARebL4JeC13vs3U/Messaging-SaaS-%E2%80%94-Authentication?node-id=9-3). Future messaging features are visibly unavailable, and dashboard metrics show empty states until a real analytics API exists.
+Website:
+
+```bash
+cd unifydesk-website
+npm ci
+npm run build
+```
+
+When finished with the application integration-test dependencies:
+
+```bash
+docker compose -f unifydesk-app/compose.test.yml down
+```
+
+Verification results must use the evidence terminology defined in [platform/README.md](unifydesk-app/docs/platform/README.md). A workflow that terminates without executing steps is not a test PASS.
+
+## Security and production configuration
+
+Development defaults are not production approval. Production must explicitly provide and verify, at minimum:
+
+- JWT signing keys and secure cookie settings;
+- exact CORS/realtime origins;
+- proxy/TLS/forwarded-header behavior;
+- provider and OAuth credentials;
+- channel-credential encryption keys;
+- managed-service credentials and webhook secrets;
+- database/Redis/Kafka production endpoints and durability;
+- secret rotation and backup/restore procedures.
+
+Normal production Flyway startup should explicitly use `FLYWAY_BASELINE_ON_MIGRATE=false`. See [PRODUCTION-READINESS.md](unifydesk-app/docs/platform/PRODUCTION-READINESS.md) for the current baseline finding and required follow-up.
+
+## Documentation
+
+Platform entry point:
+
+- [unifydesk-app/docs/platform/README.md](unifydesk-app/docs/platform/README.md)
+
+Key platform references:
+
+- [System overview](unifydesk-app/docs/platform/SYSTEM-OVERVIEW.md)
+- [Module status](unifydesk-app/docs/platform/MODULE-STATUS.md)
+- [Production readiness](unifydesk-app/docs/platform/PRODUCTION-READINESS.md)
+- [Deployment architecture](unifydesk-app/docs/platform/DEPLOYMENT-ARCHITECTURE.md)
+- [Release process](unifydesk-app/docs/platform/RELEASE-PROCESS.md)
+- [Team workflow](unifydesk-app/docs/platform/TEAM-WORKFLOW.md)
+- [Risk register](unifydesk-app/docs/platform/RISK-REGISTER.md)
+- [Go-live checklist](unifydesk-app/docs/platform/GO-LIVE-CHECKLIST.md)
+
+Feature-specific documentation remains under `unifydesk-app/docs/`; historical QA reports should be preserved as evidence for the exact SHA/round they reviewed.
