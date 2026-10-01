@@ -94,3 +94,23 @@ Preferred integration order after all PRs are ready:
 This ordering is an L1 integration decision, not a dependency between workers.
 
 L1 then freezes one exact integrated production-code SHA and obtains real canonical workflow evidence before SEC/QA starts.
+
+
+## Post-QA targeted remediation
+
+The original assignments above are historical and complete.
+
+Independent SEC/QA PR #228 added the targeted remediation cycle documented in [REMEDIATION_R1.md](REMEDIATION_R1.md).
+
+Common remediation worker base:
+
+`677dea286bfe45b2172872442125f2faf4ce7953`
+
+Remediation ownership:
+
+- B1: PHR1-QA-002 + PHR1-QA-004 — `fix/platform-backend-remediation-r1`
+- B2: PHR1-QA-003 — `fix/platform-email-provider-remediation-r1`
+- F1: PHR1-QA-005 — `fix/platform-managed-sms-tenant-race-r1`
+- External: PHR1-QA-001 — no repository-code remediation
+
+Do not reuse the original worker branch names for remediation.
