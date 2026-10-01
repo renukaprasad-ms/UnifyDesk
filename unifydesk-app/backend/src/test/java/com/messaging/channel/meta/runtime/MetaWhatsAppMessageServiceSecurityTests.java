@@ -188,13 +188,7 @@ class MetaWhatsAppMessageServiceSecurityTests {
 
     @Override
     public <T> List<T> query(String sql, RowMapper<T> rowMapper, Object... args) {
-      try {
-        @SuppressWarnings("unchecked")
-        T value = (T) Instant.now();
-        return List.of(value);
-      } catch (RuntimeException exception) {
-        throw exception;
-      }
+      return List.of();
     }
   }
 }
