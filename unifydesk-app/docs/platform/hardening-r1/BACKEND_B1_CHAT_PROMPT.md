@@ -18,7 +18,7 @@ from exactly that SHA.
 
 Do not branch from moving `dev`. Do not rebase unless L1 explicitly instructs you.
 
-Read first:
+After the Lead planning PR is merged, read these documents from current `dev` before creating your worker branch:
 
 - `unifydesk-app/docs/platform/README.md`
 - `unifydesk-app/docs/platform/PRODUCTION-READINESS.md`
