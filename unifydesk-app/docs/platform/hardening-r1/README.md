@@ -1,6 +1,6 @@
 # Platform Hardening Round 1
 
-Status: **SEC/QA R1 COMPLETE — TARGETED REMEDIATION CONTRACT FROZEN**
+Status: **TARGETED REMEDIATION INTEGRATED — FINAL SEC/QA RE-VERIFICATION READY**
 
 Starting `dev` SHA and frozen worker base:
 
@@ -106,4 +106,12 @@ For the targeted post-QA remediation only, B1/B2/F1 all branch from exactly:
 
 This supersedes the original Round-1 worker base only for the remediation cycle. The original worker lineage remains historical evidence.
 
-PHR1-QA-001 remains BLOCKED EXTERNAL / EXECUTION BLOCKED and has no repository-code owner.
+PHR1-QA-001 is explicitly **BLOCKED EXTERNAL / DEFERRED** by Main and has no repository-code owner. Zero-step jobs remain non-PASS evidence.
+
+Final remediated production-code SHA:
+
+`5012fd426b4d2da50d5c8fe5c44cf3f15b5aebc3`
+
+Final SEC/QA prompt:
+
+[SECURITY_QA_R1_FINAL_CHAT_PROMPT.md](SECURITY_QA_R1_FINAL_CHAT_PROMPT.md)
