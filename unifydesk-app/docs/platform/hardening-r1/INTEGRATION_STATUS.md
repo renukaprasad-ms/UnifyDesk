@@ -109,7 +109,19 @@ L1 explicitly reran failed jobs. GitHub again completed without allocating runne
 | email-provider | `110318002167` | EXECUTION BLOCKED — `steps=null` |
 | website | `110318002239` | EXECUTION BLOCKED — `steps=null` |
 
-No result from run `36846527232` is a PASS.
+### Attempt 3
+
+L1 issued a fresh failed-job rerun during final handoff review. GitHub again completed every canonical job without allocating a runner:
+
+| Job | Job ID | Evidence |
+|---|---:|---|
+| email-provider | `110321916569` | EXECUTION BLOCKED — `runner_id=0`, `steps=[]` |
+| database | `110321916839` | EXECUTION BLOCKED — `runner_id=0`, `steps=[]` |
+| website | `110321916863` | EXECUTION BLOCKED — `runner_id=0`, `steps=[]` |
+| backend | `110321916920` | EXECUTION BLOCKED — `runner_id=0`, `steps=[]` |
+| frontend | `110321916934` | EXECUTION BLOCKED — `runner_id=0`, `steps=[]` |
+
+No result from any attempt of run `36846527232` is a PASS.
 
 The recurring zero-step behavior remains an external GitHub/account/runner-allocation issue. Main still needs to confirm Actions usage/budget/payment status in GitHub Billing & licensing.
 
