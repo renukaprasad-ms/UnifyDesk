@@ -79,7 +79,8 @@ export default function NotificationProvider({
   const refreshSequence = useRef(0)
 
   const refresh = useCallback(
-    async (_reason: RefreshReason = 'initial') => {
+    async (reason: RefreshReason = 'initial') => {
+      void reason
       const sequence = ++refreshSequence.current
       const [countResult, listResult] = await Promise.allSettled([
         notificationApi.unreadCount(companyId),
