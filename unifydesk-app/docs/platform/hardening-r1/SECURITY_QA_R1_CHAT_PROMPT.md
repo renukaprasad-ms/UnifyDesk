@@ -104,13 +104,21 @@ Attempt 2 job IDs after explicit rerun:
 - email-provider `110318002167`
 - website `110318002239`
 
-Both attempts completed with no allocated runner steps (`steps=null`).
+Attempt 3 job IDs after a fresh L1 final-handoff rerun:
+
+- email-provider `110321916569`
+- database `110321916839`
+- website `110321916863`
+- backend `110321916920`
+- frontend `110321916934`
+
+All three attempts completed with no allocated runner steps (`runner_id=0`, `steps=[]`).
 
 Classification:
 
 **EXECUTION BLOCKED**
 
-Never convert either attempt to PASS.
+Never convert any of these attempts to PASS.
 
 Historical/current account-side zero-step failures remain an external GitHub/account/runner allocation issue. The exact account billing/quota subtype is not visible to the repository integration and still requires Main to confirm GitHub Billing & licensing usage/budgets/payment state.
 
