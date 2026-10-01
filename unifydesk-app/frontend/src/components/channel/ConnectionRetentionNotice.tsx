@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'\nimport { FiClock, FiLink, FiTrash2 } from 'react-icons/fi'
+import { useEffect, useState } from 'react'
+import { FiClock, FiLink, FiTrash2 } from 'react-icons/fi'
 import type { ChannelConnection } from '../../features/channel/types'
 
 const formatPurgeDate = (value: string) =>
