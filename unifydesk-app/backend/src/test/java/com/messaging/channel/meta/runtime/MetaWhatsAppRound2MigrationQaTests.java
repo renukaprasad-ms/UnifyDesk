@@ -20,7 +20,7 @@ class MetaWhatsAppRound2MigrationQaTests {
     withDatabase(
         "whatsapp_r2_clean",
         url -> {
-          Flyway flyway = flyway(url, null);
+          Flyway flyway = flyway(url, MigrationVersion.fromVersion("79"));
           flyway.clean();
           flyway.migrate();
           assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("79");
@@ -36,7 +36,7 @@ class MetaWhatsAppRound2MigrationQaTests {
           through75.migrate();
           assertThat(through75.info().current().getVersion().getVersion()).isEqualTo("75");
 
-          Flyway latest = flyway(url, null);
+          Flyway latest = flyway(url, MigrationVersion.fromVersion("79"));
           latest.migrate();
           assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("79");
         });
@@ -51,7 +51,7 @@ class MetaWhatsAppRound2MigrationQaTests {
           through78.migrate();
           assertThat(through78.info().current().getVersion().getVersion()).isEqualTo("78");
 
-          Flyway latest = flyway(url, null);
+          Flyway latest = flyway(url, MigrationVersion.fromVersion("79"));
           latest.migrate();
           assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("79");
         });
