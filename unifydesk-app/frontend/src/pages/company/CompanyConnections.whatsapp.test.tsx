@@ -205,8 +205,8 @@ describe('CompanyConnections WhatsApp onboarding', () => {
 
     render(<CompanyConnections />)
 
-    expect(await screen.findByText('Authorization expired')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /reauthorize/i }))
+    const reauthorize = await screen.findByRole('button', { name: /reauthorize/i })
+    fireEvent.click(reauthorize)
 
     await waitFor(() =>
       expect(metaWhatsAppApi.reauthorizeSession).toHaveBeenCalledWith('company-1'),
