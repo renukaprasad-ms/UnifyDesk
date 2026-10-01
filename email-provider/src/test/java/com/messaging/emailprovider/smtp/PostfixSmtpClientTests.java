@@ -60,8 +60,7 @@ class PostfixSmtpClientTests {
                   + ".dot-line\r\n")
               .getBytes(StandardCharsets.ISO_8859_1);
 
-      SmtpDeliveryResult result =
-          client.handoff("sender@example.com", "user@example.net", raw);
+      SmtpDeliveryResult result = client.handoff("sender@example.com", "user@example.net", raw);
 
       assertEquals(SmtpDeliveryOutcome.HANDED_OFF, result.outcome());
       String data = received.get();
