@@ -18,8 +18,6 @@ export default function ConnectionRetentionNotice({
   onReconnect?: () => void
   onDeleteNow: () => void
 }) {
-  if (connection.status !== 'DISCONNECTED') return null
-
   const hasDeadline = Boolean(connection.purgeAfter)
   const [deletionQueued, setDeletionQueued] = useState(false)
 
@@ -30,6 +28,8 @@ export default function ConnectionRetentionNotice({
         : false,
     )
   }, [connection.purgeAfter])
+
+  if (connection.status !== 'DISCONNECTED') return null
 
   return (
     <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3">
