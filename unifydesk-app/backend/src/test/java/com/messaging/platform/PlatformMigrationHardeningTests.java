@@ -119,7 +119,9 @@ class PlatformMigrationHardeningTests {
     entityManagerFactory.setJpaPropertyMap(
         Map.of(
             "hibernate.hbm2ddl.auto", "validate",
-            "hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect"));
+            "hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect",
+            "hibernate.physical_naming_strategy",
+                "org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy"));
 
     entityManagerFactory.afterPropertiesSet();
     try {
