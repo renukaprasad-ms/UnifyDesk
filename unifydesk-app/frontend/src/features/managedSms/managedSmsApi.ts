@@ -30,7 +30,8 @@ export const managedSmsApi = {
 
   async dltProfile(companyId: string) {
     const response = await apiClient.get<ApiResponse<unknown>>(`${basePath(companyId)}/dlt-profile`)
-    return sanitizeManagedSmsDltProfile(data(response.data))
+    const payload = data(response.data)
+    return payload == null ? null : sanitizeManagedSmsDltProfile(payload)
   },
 
   async createDltProfile(companyId: string, input: CreateManagedSmsDltProfileInput) {

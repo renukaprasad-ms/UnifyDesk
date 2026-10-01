@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { WhatsAppTemplate } from '../../features/whatsapp/types'
-import { templateVariableCounts } from './WhatsAppInbox'
+import { templateVariableCounts } from './whatsappTemplateUtils'
 
 describe('WhatsApp Round-1 QA contract regressions', () => {
   it('derives URL button variables from the provider BUTTONS structure', () => {

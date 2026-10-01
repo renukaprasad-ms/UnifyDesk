@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import BroadcastEmailProviderPickerModal from '../broadcast/BroadcastEmailProviderPickerModal'
-import { SnackbarProvider } from '../feedback/SnackbarProvider'
+import { SnackbarProvider } from '../feedback/SnackbarProviderComponent'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 
 vi.mock('../../features/broadcast/broadcastApi', () => ({

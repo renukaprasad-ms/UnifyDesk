@@ -25,7 +25,7 @@ import { NavLink } from 'react-router'
 import type { PlatformAccess } from '../../features/platform/types'
 import { PERMISSIONS, type PermissionKey } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
-import { useNotifications } from '../../features/notifications/NotificationProvider'
+import { useNotifications } from '../../features/notifications/notificationContext'
 import { formatUnreadBadge } from '../../features/notifications/notificationUtils'
 import WorkspaceSwitcher from '../WorkspaceSwitcher'
 

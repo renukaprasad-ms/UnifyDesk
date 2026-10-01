@@ -273,6 +273,9 @@ export default function AdSettings() {
 
   if (!selectedCompany) return null
 
+  const accessExpiry = health?.accessExpiresAt
+    ? new Date(health.accessExpiresAt)
+    : null
   const { expired: accessExpired, soon: accessSoon } = accessExpiryState(
     health?.accessExpiresAt,
   )
