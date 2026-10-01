@@ -1,4 +1,5 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { useState } from 'react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { store } from '../../store/store'
@@ -74,18 +75,28 @@ const deferred = <T,>() => {
   return { promise, resolve }
 }
 
-let exposedNotifications: ReturnType<typeof useNotifications> | null = null
-
 function CountProbe() {
   const notifications = useNotifications()
-  exposedNotifications = notifications
   const { unreadCount, companyId } = notifications
+  const [resolvedPath, setResolvedPath] = useState('')
+
   return (
     <div>
       <span data-testid="scope">{companyId ?? 'account'}</span>
       <span data-testid="account-count">{unreadCount.account}</span>
       <span data-testid="company-count">{unreadCount.company}</span>
       <span data-testid="count">{unreadCount.total}</span>
+      <span data-testid="resolved-path">{resolvedPath}</span>
+      <button
+        type="button"
+        onClick={() => {
+          void notifications
+            .openNotification(companyNotification)
+            .then((path) => setResolvedPath(path ?? ''))
+        }}
+      >
+        Open notification probe
+      </button>
     </div>
   )
 }
@@ -127,7 +138,6 @@ describe('NotificationProvider recovery and realtime flow', () => {
     realtimeHarness.listeners.clear()
     realtimeHarness.connectionListener = null
     FakeBroadcastChannel.instances = []
-    exposedNotifications = null
     Object.defineProperty(window, 'BroadcastChannel', {
       configurable: true,
       value: FakeBroadcastChannel,
@@ -160,16 +170,15 @@ describe('NotificationProvider recovery and realtime flow', () => {
 
     renderProvider()
 
-    await waitFor(() => expect(exposedNotifications).not.toBeNull())
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open notification probe' }),
+    )
 
-    let resolvedPath: string | null | undefined
-    void exposedNotifications?.openNotification(companyNotification).then((path) => {
-      resolvedPath = path
-    })
-
-    await new Promise((resolve) => window.setTimeout(resolve, 0))
-
-    expect(resolvedPath).toBe(companyNotification.action?.path)
+    await waitFor(() =>
+      expect(screen.getByTestId('resolved-path').textContent).toBe(
+        companyNotification.action?.path,
+      ),
+    )
     expect(notificationApi.setReadState).toHaveBeenCalledWith(
       companyNotification.id,
       COMPANY_ID,
