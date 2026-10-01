@@ -51,7 +51,7 @@ class MetaWhatsAppRound2MigrationQaTests {
           through78.migrate();
           assertThat(through78.info().current().getVersion().getVersion()).isEqualTo("78");
 
-          Flyway latest = flyway(url, null);
+          Flyway latest = flyway(url, MigrationVersion.fromVersion("79"));
           latest.migrate();
           assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("79");
         });
