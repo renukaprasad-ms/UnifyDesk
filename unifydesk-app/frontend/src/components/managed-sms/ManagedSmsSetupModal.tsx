@@ -62,11 +62,13 @@ export default function ManagedSmsSetupModal({
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const currentCompanyId = useRef(companyId)
+  const tenantEpoch = useRef(0)
   const requestGeneration = useRef(0)
 
   useLayoutEffect(() => {
     if (currentCompanyId.current === companyId) return
     currentCompanyId.current = companyId
+    tenantEpoch.current += 1
     requestGeneration.current += 1
     setBusy(false)
     setLoading(true)
@@ -149,9 +151,11 @@ export default function ManagedSmsSetupModal({
   const withBusy = async (
     action: (isCurrentTenant: () => boolean) => Promise<void>,
   ) => {
-    const requestCompanyId = companyId
+    const mutationCompanyId = companyId
+    const mutationTenantEpoch = tenantEpoch.current
     const isCurrentTenant = () =>
-      isManagedSmsTenantCurrent(requestCompanyId, currentCompanyId.current)
+      isManagedSmsTenantCurrent(mutationCompanyId, currentCompanyId.current) &&
+      mutationTenantEpoch === tenantEpoch.current
 
     if (!isCurrentTenant()) return
 
