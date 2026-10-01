@@ -9,7 +9,8 @@ import {
 } from '../../store/workspace/workspaceSlice'
 import { companyNotification } from './notificationFixtures'
 import { notificationApi } from './notificationApi'
-import NotificationProvider from './NotificationProvider'\nimport { useNotifications } from './notificationContext'
+import NotificationProvider from './NotificationProvider'
+import { useNotifications } from './notificationContext'
 import type { NotificationUnreadCount } from './types'
 
 const COMPANY_ID = '922337203685470100'
