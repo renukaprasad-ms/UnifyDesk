@@ -12,8 +12,7 @@ class PostfixQueueIdExtractorTests {
   @Test
   void extractsQueueIdFromPostfixResponse() {
     assertEquals(
-        "4F9A812345",
-        extractor.extract("250 2.0.0 Ok: queued as 4F9A812345").orElseThrow());
+        "4F9A812345", extractor.extract("250 2.0.0 Ok: queued as 4F9A812345").orElseThrow());
   }
 
   @Test
