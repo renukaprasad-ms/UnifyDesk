@@ -38,6 +38,14 @@ describe('broadcastSlice realtime progress', () => {
 
     state = broadcastReducer(
       state,
+      fetchBroadcastHistory.pending('request-1', {
+        companyId: 'company-1',
+        groupId: 'group-1',
+      }),
+    )
+
+    state = broadcastReducer(
+      state,
       fetchBroadcastHistory.fulfilled(
         {
           companyId: 'company-1',
