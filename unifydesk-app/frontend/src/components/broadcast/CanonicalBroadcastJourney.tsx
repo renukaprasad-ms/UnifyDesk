@@ -443,7 +443,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
           <button
             type="button"
             className="secondary-button mt-4"
-            disabled={!selector || previewing}
+            disabled={!selector || !senderId || previewing}
             onClick={() => void runPreview()}
           >
             {previewing ? 'Checking eligibility…' : 'Preview eligible recipients'}
