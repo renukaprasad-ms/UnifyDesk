@@ -55,15 +55,7 @@ public class AzureEmailGateway {
     String endpoint = endpoint(connection);
     String accessKey = accessKey(connection);
 
-    EmailMessage message =
-        new EmailMessage()
-            .setSenderAddress(sender.getFromAddress())
-            .setToRecipients(command.recipient())
-            .setSubject(command.subject() == null ? "" : command.subject())
-            .setBodyPlainText(command.bodyText());
-    if (command.bodyHtml() != null && !command.bodyHtml().isBlank()) {
-      message.setBodyHtml(command.bodyHtml());
-    }
+    EmailMessage message = buildMessage(sender, command);
 
     try {
       SyncPoller<EmailSendResult, EmailSendResult> poller =
@@ -99,6 +91,22 @@ public class AzureEmailGateway {
           "Azure Email send outcome could not be confirmed: " + safeMessage(exception),
           exception);
     }
+  }
+
+  EmailMessage buildMessage(BroadcastSender sender, BroadcastEmailCommand command) {
+    EmailMessage message =
+        new EmailMessage()
+            .setSenderAddress(sender.getFromAddress())
+            .setToRecipients(command.recipient())
+            .setSubject(command.subject() == null ? "" : command.subject())
+            .setBodyPlainText(command.bodyText());
+    if (command.bodyHtml() != null && !command.bodyHtml().isBlank()) {
+      message.setBodyHtml(command.bodyHtml());
+    }
+    if (command.compliance() != null) {
+      message.setHeaders(command.compliance().standardOneClickHeaders());
+    }
+    return message;
   }
 
   private EmailClient client(String endpoint, String accessKey) {
