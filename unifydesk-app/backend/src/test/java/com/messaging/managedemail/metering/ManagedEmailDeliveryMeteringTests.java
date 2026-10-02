@@ -104,6 +104,7 @@ class ManagedEmailDeliveryMeteringTests {
     ManagedEmailProviderBudgetService budget = mock(ManagedEmailProviderBudgetService.class);
     BroadcastEmailTransport transport = mock(BroadcastEmailTransport.class);
     ContactEligibilityService contactEligibility = mock(ContactEligibilityService.class);
+    BroadcastWhatsAppDeliveryService whatsAppDelivery = mock(BroadcastWhatsAppDeliveryService.class);
 
     BroadcastRun run = new BroadcastRun();
     run.setId(60L);
@@ -186,7 +187,8 @@ class ManagedEmailDeliveryMeteringTests {
             reconciler,
             suppressionGate,
             budget,
-            contactEligibility);
+            contactEligibility,
+            whatsAppDelivery);
     return new Fixture(
         service,
         state,
