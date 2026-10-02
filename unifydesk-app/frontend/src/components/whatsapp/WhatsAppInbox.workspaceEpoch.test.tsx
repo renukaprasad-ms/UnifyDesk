@@ -96,7 +96,7 @@ const connection = (companyId: string, name: string): ChannelConnection => ({
   channelType: 'WHATSAPP',
   providerType: 'META_WHATSAPP',
   name,
-  externalAccountId: 'waba-1',
+  externalAccountId: null,
   status: 'ACTIVE',
   createdByUserId: 'user-1',
   createdAt: '2026-10-02T00:00:00Z',
@@ -117,7 +117,7 @@ const conversation = (preview: string): InboxConversation => ({
   participants: [
     {
       address: '+15550001111',
-      displayName: preview,
+      displayName: `${preview} Customer`,
       participantType: 'PHONE_NUMBER',
     },
   ],
