@@ -422,7 +422,7 @@ export default function BroadcastWorkspace() {
         snackbar.error(apiErrorMessage(requestError, 'Unable to load Broadcast senders'))
       }
     }
-  }, [channelType, companyId, workspaceEpoch])
+  }, [companyId, isCurrentScope, snackbar, workspaceEpoch])
 
   useEffect(() => {
     void refreshSenders()
@@ -2388,8 +2388,7 @@ function BroadcastDetail({
                 <div>
                   <p className="text-sm font-bold text-slate-900">Recipients</p>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    Provider acceptance is shown as Accepted. Delivery and bounce status update only when provider events are available
-                    reports.
+                    Provider acceptance is shown as Accepted. Delivery and bounce status update only when provider events are available.
                   </p>
                 </div>
                 <button
