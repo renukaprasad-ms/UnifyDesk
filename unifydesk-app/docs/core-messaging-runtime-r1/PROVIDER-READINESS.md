@@ -99,32 +99,80 @@ A Meta test WABA/test phone may be used for runtime verification if legitimately
 
 Current classification: **NOT EXECUTED**.
 
-## Provider 4 — Gmail / Microsoft / SMTP direct Broadcast
+## Provider 4 — Direct customer-managed bulk Email
 
-This verification target conflicts with current canonical Broadcast source.
+### MAIN decision
 
-`BroadcastSenderProvider` contains historical values:
+Provider-4 verification scope is now explicitly:
 
-- `GMAIL`
-- `MICROSOFT`
-- `IMAP_SMTP`
-- `SMTP`
-
-but `isBroadcastProvider()` returns false for them. `supports(channel)` requires `isBroadcastProvider()`, and `BroadcastLaunchService` rejects unsupported providers. `BroadcastSenderService.refresh()` also states mailbox providers cannot be refreshed as Broadcast senders.
-
-Therefore canonical new Broadcast execution against Gmail/Microsoft/SMTP is not currently supported.
-
-Current classification for the requested Provider-4 regression: **FAIL — source/scope mismatch**.
-
-This is not a missing-secret problem. Restoring mailbox-backed canonical Broadcast would be product/architecture work and should not be smuggled into this narrow verification round without an explicit MAIN scope decision.
-
-## Customer-managed bulk Email providers already supported by canonical Broadcast
-
-The modern Broadcast sender service has explicit customer-managed connections for:
-
-- Amazon SES
+- Amazon SES (customer-managed Broadcast connection)
 - SendGrid
 - Azure Communication Services Email
 - MSG91 Email
 
-Those are the direct/customer-managed bulk Email providers represented by current canonical Broadcast source.
+Gmail, Microsoft, IMAP/SMTP and SMTP mailbox transports are **not** Provider-4 targets for this runtime-verification round. Their historical enum values remain outside the modern Broadcast-provider contract and do not require remediation here.
+
+### Common regression contract
+
+For each Provider-4 sender, verify that provider selection does not bypass:
+
+- canonical Contacts/List/Segment audience selection;
+- authoritative Preview descriptor;
+- immutable final audience freeze;
+- send-time marketing consent;
+- canonical Contact suppression;
+- tenant/company ownership;
+- durable Broadcast recipient/run state;
+- terminal finalization;
+- durable Notification emission.
+
+Provider acceptance must be presented as acceptance/sent only. Delivery/read claims require actual provider event support and evidence.
+
+### Amazon SES — customer-managed
+
+Required runtime assets:
+
+- active customer-managed SES Broadcast sender;
+- encrypted connection credentials or supported IAM-role setup;
+- verified From identity;
+- account/region sending enabled.
+
+Capture provider message ID and Broadcast recipient state. This is distinct from **UnifyDesk Managed Email**, which uses platform-owned AWS runtime credentials/control-plane state.
+
+### SendGrid
+
+Required runtime assets:
+
+- active SendGrid Broadcast sender;
+- valid encrypted API key;
+- verified sender identity;
+- provider sending enabled.
+
+Capture provider request/message identity where returned and preserve acceptance-vs-delivery semantics.
+
+### Azure Communication Services Email
+
+Required runtime assets:
+
+- active Azure Email Broadcast sender;
+- valid endpoint/access key;
+- verified sender identity/domain as required by Azure;
+- provider sending enabled.
+
+Capture provider message/operation identity and do not infer final delivery without provider event evidence.
+
+### MSG91 Email
+
+Required runtime assets:
+
+- active MSG91 Email Broadcast sender;
+- valid auth key/domain;
+- published Email template;
+- provider template binding synchronized to the selected Broadcast connection.
+
+Capture the run's provider-template binding snapshot and provider message identity.
+
+### Current audit classification
+
+All four Provider-4 cases are **NOT EXECUTED** until real provider calls are made.
+
