@@ -117,6 +117,99 @@ Because Phase 0 is not proven, Contacts/consent/audience/provider mutations are 
 
 These remain pending behind Phase 0 deployment proof.
 
+## Independent unsubscribe / consent-precedence source review
+
+Frozen source reviewed:
+
+`f2760fe0a11ad571f984636a65304a64b77459ac`
+
+### CMR1-RUNTIME-001A — Recipient-facing Email marketing unsubscribe action missing
+
+**SOURCE DEFECT — HIGH**
+
+Confirmed source evidence:
+
+- `ConsentController` exposes preference mutation only below the authenticated workspace/company Contacts route.
+- `SecurityConfig` has no public recipient Contact-action/unsubscribe route.
+- `PreferenceSource.CONTACT_ACTION` and `ActorType.CONTACT` already exist, but the outbound Email Broadcast path does not create such an action.
+- `BroadcastEmailCommand` carries no unsubscribe URL/action metadata.
+- `BroadcastTemplateRenderer` performs variable rendering/safety checks only; it does not add a visible marketing unsubscribe action.
+- current SES/SendGrid/Azure/MSG91 Email send implementations do not add `List-Unsubscribe` or `List-Unsubscribe-Post`.
+- no recipient-facing unsubscribe route/page exists in the current frontend router.
+
+Result: a real recipient of a canonical MARKETING Broadcast Email cannot currently unsubscribe into the canonical Contacts preference system without authenticating as a workspace user.
+
+Expected remediation:
+
+`recipient action -> secure opaque/protected token -> canonical Contact preference -> EMAIL/MARKETING OPTED_OUT -> immutable preference event -> future Preview/send-time eligibility blocked`.
+
+### CMR1-RUNTIME-001B — Stale historical preference events can overwrite newer opt-out
+
+**SOURCE DEFECT — HIGH**
+
+`ContactPreferenceRepository.apply()`:
+
+1. locks/reads the current projection;
+2. appends `contact_preference_events`;
+3. unconditionally writes the arriving command state/source/`occurred_at` into `contact_channel_preferences`.
+
+There is no comparison between incoming `command.occurredAt()` and current projection `occurredAt()`.
+
+`ContactImportMutationAdapter` passes imported consent `occurredAt` through `ContactPreferenceService.setFromImport()`.
+
+Therefore this valid sequence is currently unsafe:
+
+```text
+T1 10:00 IMPORT OPTED_IN
+T2 12:00 CONTACT_ACTION OPTED_OUT
+T3 13:00 replay old IMPORT evidence with occurredAt=10:00 OPTED_IN
+```
+
+T3 is accepted as an immutable historical event and also overwrites the current projection to `OPTED_IN`.
+
+Required projection rule:
+
+- append a valid new immutable event once;
+- newer `occurredAt` may update effective projection;
+- older `occurredAt` must remain history only and must not regress effective state;
+- equal-time conflicts require one documented deterministic fail-closed ordering;
+- genuinely later valid re-consent may become effective.
+
+### Event-history status
+
+`contact_preference_events` and `contact_suppression_events` are append-only through the current application repository paths and have company-scoped idempotency uniqueness. Current repositories insert events and do not expose event update/delete mutation methods.
+
+The schema itself does not install a database trigger that makes privileged SQL mutation impossible; "immutable" here is the application/domain contract.
+
+### Send-time safety already present
+
+`BroadcastDeliveryService.recheckContactEligibility()` evaluates the current canonical Contact using:
+
+`Purpose.MARKETING`
+
+immediately before transport selection. Once recipient unsubscribe correctly writes `OPTED_OUT`, the existing gate can produce deterministic `SKIPPED` instead of calling the provider.
+
+### Broadcast-purpose note
+
+The current Broadcast recipient eligibility path is implicitly MARKETING: `BroadcastDeliveryService` hardcodes `Purpose.MARKETING`. `BroadcastMessage`/`BroadcastRun` do not carry an independent recipient-purpose field.
+
+Reusable Email templates do have `EmailTemplatePurpose`, but that template metadata does not change the Broadcast eligibility purpose. The unsubscribe remediation is therefore scoped to canonical Broadcast Email and must not be applied to Notification/OTP/password-reset/security email pipelines.
+
+MSG91 Email additionally requires a TRANSACTIONAL provider-bound template in current source while the Broadcast eligibility gate remains MARKETING. This inconsistency is recorded as an architecture note, not expanded into a separate feature round in this remediation.
+
+### Worker decision
+
+Backend and public-page responsibilities are separable:
+
+- **B2** — complete narrow backend contract for CMR1-RUNTIME-001A/001B: secure recipient action token + public API, canonical Contact preference mutation/projection ordering, Broadcast Email compliance metadata/footer, provider transport adaptation and backend regression tests.
+- **F1** — minimal unauthenticated unsubscribe confirmation/result page consuming the public backend action contract.
+
+No B1 worker is required.
+
+Frozen worker/remediation base remains:
+
+`f2760fe0a11ad571f984636a65304a64b77459ac`
+
 ## Provider execution
 
 ### Managed Email / AWS SES
