@@ -14,7 +14,7 @@ import {
   FiSend,
   FiX,
 } from 'react-icons/fi'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { channelApi } from '../../features/channel/channelApi'
 import type { ChannelConnection } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -23,6 +23,7 @@ import { inboxApi } from '../../features/inbox/inboxApi'
 import type {
   InboxConversation,
   InboxMessage,
+  InboxParticipant,
   InboxWhatsAppStatusChangedEvent,
 } from '../../features/inbox/types'
 import { mediaApi } from '../../features/media/mediaApi'
@@ -53,6 +54,13 @@ const counterpart = (conversation: InboxConversation) =>
   conversation.participants[0]?.displayName ||
   conversation.participants[0]?.address ||
   'WhatsApp customer'
+
+const createContactHref = (participant: InboxParticipant) => {
+  const params = new URLSearchParams({ new: '1' })
+  if (participant.participantType === 'EMAIL_ADDRESS') params.set('email', participant.address)
+  else params.set('phone', participant.address)
+  return `/contacts?${params.toString()}`
+}
 
 const blankParameters = (template: WhatsAppTemplate): WhatsAppTemplateParameters => {
   const counts = templateVariableCounts(template)
@@ -134,6 +142,15 @@ export default function WhatsAppInbox() {
   const selectedConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === selectedConversationId) ?? null,
     [conversations, selectedConversationId],
+  )
+  const contactParticipant = useMemo(
+    () =>
+      selectedConversation?.participants.find((participant) => participant.contactId) ??
+      selectedConversation?.participants.find(
+        (participant) => participant.contactResolution !== 'AMBIGUOUS',
+      ) ??
+      null,
+    [selectedConversation],
   )
 
   const loadConnections = useCallback(async () => {
@@ -615,6 +632,25 @@ export default function WhatsAppInbox() {
                           : 'WhatsApp conversation'}
                   </p>
                 </div>
+                {contactParticipant?.contactId && can(PERMISSIONS.CONTACT_READ) && (
+                  <Link
+                    className="secondary-button shrink-0 px-3"
+                    to={`/contacts/${contactParticipant.contactId}`}
+                  >
+                    View contact
+                  </Link>
+                )}
+                {contactParticipant &&
+                  !contactParticipant.contactId &&
+                  contactParticipant.contactResolution !== 'AMBIGUOUS' &&
+                  can(PERMISSIONS.CONTACT_CREATE) && (
+                    <Link
+                      className="secondary-button shrink-0 px-3"
+                      to={createContactHref(contactParticipant)}
+                    >
+                      Add to contacts
+                    </Link>
+                  )}
               </header>
 
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50/60 p-3 sm:p-5">
