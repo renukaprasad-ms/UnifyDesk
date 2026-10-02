@@ -8,15 +8,23 @@ Canonical journey:
 
 `Workspace -> Contacts import -> Consent/Preferences -> Lists/Segments -> Broadcast creation -> Audience preview -> Audience freeze -> Send/Schedule -> Provider -> Delivery events -> Notifications -> Inbox -> Contact linkage`
 
-## Frozen audit baseline
+## Frozen baselines
+
+### Source-audit baseline
 
 - Repository: `renukaprasad-ms/UnifyDesk`
-- Branch inspected live before audit: `dev`
-- Exact frozen SHA: `850ce7ad2874d20070067d46d8604ddc2bdd2c99`
-- Commit: `test(contacts): keep segment conditions after preview`
+- Exact source-audit SHA: `850ce7ad2874d20070067d46d8604ddc2bdd2c99`
 - Audit branch: `review/core-messaging-runtime-provider-verification-r1`
 
-Do not substitute moving `dev` for this SHA when reproducing the evidence in this directory.
+### Executable runtime production baseline
+
+PR #249 was merged to `dev` after MAIN's Provider-4 decision was recorded.
+
+- Exact frozen production SHA: `f2760fe0a11ad571f984636a65304a64b77459ac`
+- Commit: `Merge PR #249: Core Messaging runtime/provider verification R1 audit`
+- Runtime evidence branch: `review/core-messaging-runtime-r1-execution`
+
+All executable runtime/provider results from this point forward must name `f2760fe0a11ad571f984636a65304a64b77459ac` unless a later production-code remediation is intentionally integrated and re-frozen.
 
 ## Verification vocabulary
 
@@ -37,7 +45,7 @@ Source review is supporting evidence only. It is not promoted to runtime/provide
   - Segment HTTP wire model/mapper use Jackson 3 `tools.jackson.*` types.
   - Inbox -> Contacts prefill is present.
   - Segment Preview uses the server-normalized AST without replacing editor-visible filter state.
-- Exact frozen SHA has no GitHub Actions workflow run returned by GitHub at audit time: current executable CI result is **NOT EXECUTED**.
+- Frozen production SHA `f2760fe0a11ad571f984636a65304a64b77459ac` triggered GitHub Actions run `37011044661`. Attempts 1 and 2 both terminated before job steps/logs existed, so CI is **BLOCKED by the execution environment**, not an application-code FAIL.
 - Real SES/MSG91/Meta provider execution was not available through this repository audit and remains **NOT EXECUTED/BLOCKED pending runtime assets**.
 - Meta customer Embedded Signup remains separately **BLOCKED BY META** per the initiative handoff.
 - MAIN resolved Provider-4 scope: runtime regression covers the supported customer-managed bulk Email providers — Amazon SES, SendGrid, Azure Communication Services Email and MSG91 Email. Gmail/Microsoft/IMAP-SMTP/SMTP mailbox transports are not Provider-4 targets in this round.
