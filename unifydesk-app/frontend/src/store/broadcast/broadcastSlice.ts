@@ -56,6 +56,9 @@ const messageStatusFromRun = (status: BroadcastProgressEvent['status']): Broadca
 const summaryFromMessage = (message: BroadcastMessage): BroadcastMessageSummary => ({
   id: message.id,
   groupId: message.groupId,
+  audienceSourceType: message.audienceSourceType,
+  audienceSourceId: message.audienceSourceId,
+  audienceSnapshotId: message.audienceSnapshotId,
   senderId: message.senderId,
   legacyConnectionId: message.legacyConnectionId,
   runId: message.runId,
