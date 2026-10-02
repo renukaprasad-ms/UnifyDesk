@@ -9,6 +9,7 @@ import com.messaging.common.exception.NotFoundException;
 import com.messaging.common.id.IdGenerator;
 import com.messaging.contacts.audience.AudienceSnapshotRepository;
 import com.messaging.contacts.audience.AudienceSnapshotService;
+import com.messaging.notification.platform.core.event.NotificationEventRecorder;
 import java.time.Instant;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class BroadcastPreparationChunkService {
   private final BroadcastProgressPublisher progressPublisher;
   private final BroadcastRunFailureService runFailureService;
   private final AudienceSnapshotService audienceSnapshotService;
+  private final NotificationEventRecorder notificationEventRecorder;
 
   @Transactional
   public void process(Long runId, Long expectedAfterMemberId) {
@@ -274,6 +276,12 @@ public class BroadcastPreparationChunkService {
       run.setStartedAt(now);
       run.setCompletedAt(now);
       message.setStatus(BroadcastMessageStatus.COMPLETED);
+      notificationEventRecorder.recordBroadcastCompleted(
+          run.getId(),
+          message.getId(),
+          run.getCompanyId(),
+          message.getChannelType().name(),
+          run.getCompletedAt());
     } else {
       run.setStatus(BroadcastRunStatus.RUNNING);
       run.setStartedAt(now);
