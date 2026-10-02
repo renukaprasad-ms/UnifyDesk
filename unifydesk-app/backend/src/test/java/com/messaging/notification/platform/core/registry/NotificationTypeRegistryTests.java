@@ -56,6 +56,24 @@ class NotificationTypeRegistryTests {
   }
 
   @Test
+  void broadcastTerminalSourcesUseServerOwnedBroadcastRoutes() {
+    NotificationTypeRegistry.Definition completed =
+        registry.requireSource("broadcast.completed", 1);
+    NotificationTypeRegistry.Definition failed =
+        registry.requireSource("broadcast.failed", 1);
+    Map<String, String> variables =
+        Map.of("runId", "11", "broadcastId", "22", "channel", "EMAIL");
+
+    registry.validateVariables(completed, variables);
+    registry.validateVariables(failed, variables);
+
+    assertThat(completed.notificationType()).isEqualTo("BROADCAST_COMPLETED");
+    assertThat(failed.notificationType()).isEqualTo("BROADCAST_FAILED");
+    assertThat(registry.render(completed, variables).actionPath()).isEqualTo("/broadcast/email");
+    assertThat(registry.render(failed, variables).actionPath()).isEqualTo("/broadcast/email");
+  }
+
+  @Test
   void unknownSourceOrSchemaIsRejected() {
     assertThatThrownBy(() -> registry.requireSource("arbitrary.notification", 1))
         .isInstanceOf(BadRequestException.class);
