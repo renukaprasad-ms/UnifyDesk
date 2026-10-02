@@ -105,8 +105,25 @@ public class NotificationTypeRegistry {
               "Invitation accepted",
               variables.get("memberName") + " joined " + variables.get("companyName") + ".",
               "/company/users");
+      case "BROADCAST_COMPLETED" ->
+          new Rendered(
+              "Broadcast completed",
+              "Your broadcast finished processing.",
+              broadcastPath(variables.get("channel")));
+      case "BROADCAST_FAILED" ->
+          new Rendered(
+              "Broadcast needs attention",
+              "Your broadcast finished with delivery failures.",
+              broadcastPath(variables.get("channel")));
       default -> throw new BadRequestException("Notification type has no source renderer");
     };
+  }
+
+  private String broadcastPath(String channel) {
+    if ("EMAIL".equalsIgnoreCase(channel)) return "/broadcast/email";
+    if ("SMS".equalsIgnoreCase(channel)) return "/broadcast/sms";
+    if ("WHATSAPP".equalsIgnoreCase(channel)) return "/broadcast/social-media";
+    return "/workspace";
   }
 
   private String inboxBody(Map<String, String> variables) {
@@ -230,21 +247,29 @@ public class NotificationTypeRegistry {
             false));
     add(
         values,
-        type(
+        new Definition(
+            "broadcast.completed",
             "BROADCAST_COMPLETED",
             "Broadcast completed",
             "BROADCAST",
             "NORMAL",
+            Set.of("runId", "broadcastId", "channel"),
+            false,
+            false,
             List.of(EmailMode.OFF, EmailMode.DELAYED),
             EmailMode.OFF,
             false));
     add(
         values,
-        type(
+        new Definition(
+            "broadcast.failed",
             "BROADCAST_FAILED",
             "Broadcast failed",
             "BROADCAST",
             "HIGH",
+            Set.of("runId", "broadcastId", "channel"),
+            false,
+            false,
             List.of(EmailMode.OFF, EmailMode.DELAYED),
             EmailMode.DELAYED,
             true));
