@@ -76,18 +76,25 @@ class ContactPreferenceOrderingPostgresTests {
             T1.plusSeconds(30),
             "stale-import"));
 
-    var current =
-        repository
-            .findCurrent(101L, 201L, 301L, Channel.EMAIL, Purpose.MARKETING)
-            .orElseThrow();
+    PreferenceState current =
+        repository.effectiveState(101L, 201L, 301L, Channel.EMAIL, Purpose.MARKETING);
+    Instant currentOccurredAt =
+        db.jdbc()
+            .queryForObject(
+                """
+                select occurred_at from contact_channel_preferences
+                where company_id=101 and contact_id=201 and identity_id=301
+                  and channel='EMAIL' and purpose='MARKETING'
+                """,
+                (rs, rowNum) -> rs.getTimestamp(1).toInstant());
     Integer events =
         db.jdbc()
             .queryForObject(
                 "select count(*) from contact_preference_events where company_id=101 and contact_id=201",
                 Integer.class);
 
-    assertThat(current.state()).isEqualTo(PreferenceState.OPTED_OUT);
-    assertThat(current.occurredAt()).isEqualTo(T2);
+    assertThat(current).isEqualTo(PreferenceState.OPTED_OUT);
+    assertThat(currentOccurredAt).isEqualTo(T2);
     assertThat(events).isEqualTo(3);
   }
 
@@ -95,16 +102,14 @@ class ContactPreferenceOrderingPostgresTests {
   void strictlyLaterReconsentBecomesEffective() {
     TestDatabase db = migratedDatabase();
     seed(db.jdbc());
-    ContactPreferenceRepository repository = new ContactPreferenceRepository(db.jdbc());
+    ContactPreferenceRepository repository = new ContactPreferenceRepository(db.jdbc(), new NamedParameterJdbcTemplate(db.jdbc()));
 
     apply(db, repository, command(PreferenceState.OPTED_OUT, T2, "unsubscribe"));
     apply(db, repository, command(PreferenceState.OPTED_IN, T3, "reconsent"));
 
     assertThat(
-            repository
-                .findCurrent(101L, 201L, 301L, Channel.EMAIL, Purpose.MARKETING)
-                .orElseThrow()
-                .state())
+            repository.effectiveState(
+                101L, 201L, 301L, Channel.EMAIL, Purpose.MARKETING))
         .isEqualTo(PreferenceState.OPTED_IN);
   }
 
@@ -112,16 +117,14 @@ class ContactPreferenceOrderingPostgresTests {
   void equalTimestampConflictFailsClosedToOptOut() {
     TestDatabase db = migratedDatabase();
     seed(db.jdbc());
-    ContactPreferenceRepository repository = new ContactPreferenceRepository(db.jdbc());
+    ContactPreferenceRepository repository = new ContactPreferenceRepository(db.jdbc(), new NamedParameterJdbcTemplate(db.jdbc()));
 
     apply(db, repository, command(PreferenceState.OPTED_IN, T2, "optin"));
     apply(db, repository, command(PreferenceState.OPTED_OUT, T2, "optout"));
 
     assertThat(
-            repository
-                .findCurrent(101L, 201L, 301L, Channel.EMAIL, Purpose.MARKETING)
-                .orElseThrow()
-                .state())
+            repository.effectiveState(
+                101L, 201L, 301L, Channel.EMAIL, Purpose.MARKETING))
         .isEqualTo(PreferenceState.OPTED_OUT);
   }
 
@@ -129,7 +132,7 @@ class ContactPreferenceOrderingPostgresTests {
   void repeatedActionIdempotencyDoesNotAppendAnotherEvent() {
     TestDatabase db = migratedDatabase();
     seed(db.jdbc());
-    ContactPreferenceRepository repository = new ContactPreferenceRepository(db.jdbc());
+    ContactPreferenceRepository repository = new ContactPreferenceRepository(db.jdbc(), new NamedParameterJdbcTemplate(db.jdbc()));
     PreferenceCommand command = command(PreferenceState.OPTED_OUT, T2, "same-key");
 
     apply(db, repository, command);
@@ -147,7 +150,7 @@ class ContactPreferenceOrderingPostgresTests {
   void concurrentOlderOptInAndNewerOptOutConvergeToNewerEvent() throws Exception {
     TestDatabase db = migratedDatabase();
     seed(db.jdbc());
-    ContactPreferenceRepository repository = new ContactPreferenceRepository(db.jdbc());
+    ContactPreferenceRepository repository = new ContactPreferenceRepository(db.jdbc(), new NamedParameterJdbcTemplate(db.jdbc()));
     CountDownLatch start = new CountDownLatch(1);
     CountDownLatch done = new CountDownLatch(2);
 
@@ -171,10 +174,8 @@ class ContactPreferenceOrderingPostgresTests {
 
     assertThat(done.await(10, TimeUnit.SECONDS)).isTrue();
     assertThat(
-            repository
-                .findCurrent(101L, 201L, 301L, Channel.EMAIL, Purpose.MARKETING)
-                .orElseThrow()
-                .state())
+            repository.effectiveState(
+                101L, 201L, 301L, Channel.EMAIL, Purpose.MARKETING))
         .isEqualTo(PreferenceState.OPTED_OUT);
   }
 
