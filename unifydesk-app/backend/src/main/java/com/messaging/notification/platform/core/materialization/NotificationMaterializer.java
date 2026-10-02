@@ -253,6 +253,17 @@ public class NotificationMaterializer {
 
     EffectivePreference preference = preference(userId, event.companyId(), definition);
 
+    if (isBroadcastTerminal(definition.notificationType())
+        && preference.emailMode() != EmailMode.OFF) {
+      insertIntent(
+          event,
+          userId,
+          notificationId,
+          "EMAIL",
+          preference.emailMode().name(),
+          "email:broadcast:" + notificationId + ":" + userId);
+    }
+
     if ("INBOX_ACTIVITY".equals(definition.notificationType())
         && preference.emailMode() == EmailMode.DIGEST) {
       insertIntent(
@@ -266,7 +277,8 @@ public class NotificationMaterializer {
 
     if (("INBOX_ACTIVITY".equals(definition.notificationType())
             || "COMPANY_INVITATION".equals(definition.notificationType())
-            || "COMPANY_INVITATION_ACCEPTED".equals(definition.notificationType()))
+            || "COMPANY_INVITATION_ACCEPTED".equals(definition.notificationType())
+            || isBroadcastTerminal(definition.notificationType()))
         && preference.browserEnabled()) {
       insertIntent(
           event,
@@ -276,6 +288,11 @@ public class NotificationMaterializer {
           "IMMEDIATE",
           "push:" + notificationId + ":" + userId);
     }
+  }
+
+  private boolean isBroadcastTerminal(String notificationType) {
+    return "BROADCAST_COMPLETED".equals(notificationType)
+        || "BROADCAST_FAILED".equals(notificationType);
   }
 
   private void insertIntent(
