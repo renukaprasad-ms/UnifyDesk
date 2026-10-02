@@ -14,6 +14,7 @@ type RequestStatus = 'idle' | 'loading' | 'ready' | 'error'
 
 type BroadcastState = {
   groupsCompanyId: string | null
+  groupsEpoch: number | null
   groupsChannelType: ChannelType | null
   groups: BroadcastGroup[]
   groupsPage: number
@@ -21,6 +22,7 @@ type BroadcastState = {
   groupsStatus: RequestStatus
   loadingMoreGroups: boolean
   historyCompanyId: string | null
+  historyEpoch: number | null
   historyGroupId: string | null
   messages: BroadcastMessageSummary[]
   historyPage: number
@@ -31,6 +33,7 @@ type BroadcastState = {
 
 const initialState: BroadcastState = {
   groupsCompanyId: null,
+  groupsEpoch: null,
   groupsChannelType: null,
   groups: [],
   groupsPage: 0,
@@ -38,6 +41,7 @@ const initialState: BroadcastState = {
   groupsStatus: 'idle',
   loadingMoreGroups: false,
   historyCompanyId: null,
+  historyEpoch: null,
   historyGroupId: null,
   messages: [],
   historyPage: 0,
@@ -68,12 +72,14 @@ const summaryFromMessage = (message: BroadcastMessage): BroadcastMessageSummary 
 export const fetchBroadcastGroups = createAsyncThunk<
   {
     companyId: string
+    epoch: number
     channelType: ChannelType
     append: boolean
     page: Awaited<ReturnType<typeof broadcastApi.groups>>
   },
   {
     companyId: string
+    epoch: number
     channelType: ChannelType
     page?: number
     append?: boolean
@@ -82,17 +88,22 @@ export const fetchBroadcastGroups = createAsyncThunk<
   { state: { broadcast: BroadcastState } }
 >(
   'broadcast/fetchGroups',
-  async ({ companyId, channelType, page = 0, append = false }) => ({
+  async ({ companyId, epoch, channelType, page = 0, append = false }) => ({
     companyId,
+    epoch,
     channelType,
     append,
     page: await broadcastApi.groups(companyId, channelType, page),
   }),
   {
-    condition: ({ companyId, channelType, append = false, force }, { getState }) => {
+    condition: ({ companyId, epoch, channelType, append = false, force }, { getState }) => {
       if (force) return true
       const state = getState().broadcast
-      if (state.groupsCompanyId !== companyId || state.groupsChannelType !== channelType) {
+      if (
+        state.groupsCompanyId !== companyId ||
+        state.groupsEpoch !== epoch ||
+        state.groupsChannelType !== channelType
+      ) {
         return true
       }
       if (append) return !state.loadingMoreGroups
@@ -104,12 +115,14 @@ export const fetchBroadcastGroups = createAsyncThunk<
 export const fetchBroadcastHistory = createAsyncThunk<
   {
     companyId: string
+    epoch: number
     groupId: string
     append: boolean
     page: Awaited<ReturnType<typeof broadcastApi.history>>
   },
   {
     companyId: string
+    epoch: number
     groupId: string
     page?: number
     append?: boolean
@@ -118,17 +131,21 @@ export const fetchBroadcastHistory = createAsyncThunk<
   { state: { broadcast: BroadcastState } }
 >(
   'broadcast/fetchHistory',
-  async ({ companyId, groupId, page = 0, append = false }) => ({
+  async ({ companyId, epoch, groupId, page = 0, append = false }) => ({
     companyId,
+    epoch,
     groupId,
     append,
     page: await broadcastApi.history(companyId, groupId, page),
   }),
   {
-    condition: ({ companyId, groupId, append = false, force }, { getState }) => {
+    condition: ({ companyId, epoch, groupId, append = false, force }, { getState }) => {
       if (force) return true
       const state = getState().broadcast
-      const same = state.historyCompanyId === companyId && state.historyGroupId === groupId
+      const same =
+        state.historyCompanyId === companyId &&
+        state.historyEpoch === epoch &&
+        state.historyGroupId === groupId
       if (!same) return true
       if (append) return !state.loadingMoreHistory
       return state.historyStatus === 'idle' || state.historyStatus === 'error'
@@ -166,6 +183,7 @@ const broadcastSlice = createSlice({
     },
     clearBroadcastHistory(state) {
       state.historyCompanyId = null
+      state.historyEpoch = null
       state.historyGroupId = null
       state.messages = []
       state.historyPage = 0
@@ -177,11 +195,16 @@ const broadcastSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchBroadcastGroups.pending, (state, action) => {
-        const { companyId, channelType, append = false } = action.meta.arg
-        if (state.groupsCompanyId !== companyId || state.groupsChannelType !== channelType) {
+        const { companyId, epoch, channelType, append = false } = action.meta.arg
+        if (
+          state.groupsCompanyId !== companyId ||
+          state.groupsEpoch !== epoch ||
+          state.groupsChannelType !== channelType
+        ) {
           state.groups = []
         }
         state.groupsCompanyId = companyId
+        state.groupsEpoch = epoch
         state.groupsChannelType = channelType
         if (append) state.loadingMoreGroups = true
         else state.groupsStatus = 'loading'
@@ -189,6 +212,7 @@ const broadcastSlice = createSlice({
       .addCase(fetchBroadcastGroups.fulfilled, (state, action) => {
         if (
           state.groupsCompanyId !== action.payload.companyId ||
+          state.groupsEpoch !== action.payload.epoch ||
           state.groupsChannelType !== action.payload.channelType
         ) {
           return
@@ -207,18 +231,27 @@ const broadcastSlice = createSlice({
       })
       .addCase(fetchBroadcastGroups.rejected, (state, action) => {
         if (action.meta.condition) return
+        if (
+          state.groupsCompanyId !== action.meta.arg.companyId ||
+          state.groupsEpoch !== action.meta.arg.epoch ||
+          state.groupsChannelType !== action.meta.arg.channelType
+        ) return
         if (action.meta.arg.append) state.loadingMoreGroups = false
         else state.groupsStatus = 'error'
       })
       .addCase(fetchBroadcastHistory.pending, (state, action) => {
-        const { companyId, groupId, append = false } = action.meta.arg
-        const same = state.historyCompanyId === companyId && state.historyGroupId === groupId
+        const { companyId, epoch, groupId, append = false } = action.meta.arg
+        const same =
+          state.historyCompanyId === companyId &&
+          state.historyEpoch === epoch &&
+          state.historyGroupId === groupId
         if (!same) {
           state.messages = []
           state.historyPage = 0
           state.historyTotalPages = 0
         }
         state.historyCompanyId = companyId
+        state.historyEpoch = epoch
         state.historyGroupId = groupId
         if (append) state.loadingMoreHistory = true
         else state.historyStatus = 'loading'
@@ -226,6 +259,7 @@ const broadcastSlice = createSlice({
       .addCase(fetchBroadcastHistory.fulfilled, (state, action) => {
         if (
           state.historyCompanyId !== action.payload.companyId ||
+          state.historyEpoch !== action.payload.epoch ||
           state.historyGroupId !== action.payload.groupId
         ) {
           return
@@ -244,6 +278,11 @@ const broadcastSlice = createSlice({
       })
       .addCase(fetchBroadcastHistory.rejected, (state, action) => {
         if (action.meta.condition) return
+        if (
+          state.historyCompanyId !== action.meta.arg.companyId ||
+          state.historyEpoch !== action.meta.arg.epoch ||
+          state.historyGroupId !== action.meta.arg.groupId
+        ) return
         state.historyStatus = 'error'
         state.loadingMoreHistory = false
       })
