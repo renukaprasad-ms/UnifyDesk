@@ -67,6 +67,7 @@ import PlatformRoute from './guards/PlatformRoute'
 import ProtectedRoute from './guards/ProtectedRoute'
 import VerifiedRoute from './guards/VerifiedRoute'
 import WorkspaceRoute from './guards/WorkspaceRoute'
+import WorkspaceEpochBoundary from '../components/workspace/WorkspaceEpochBoundary'
 
 const AppRoutes = () => (
   <Routes>
@@ -105,19 +106,19 @@ const AppRoutes = () => (
             <Route path="/notifications" element={<NotificationsPage />} />
 
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.WHATSAPP_READ]} />}>
-              <Route path="inbox/social-media" element={<EmailInbox />} />
+              <Route path="inbox/social-media" element={<WorkspaceEpochBoundary><EmailInbox /></WorkspaceEpochBoundary>} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.SMS_READ]} />}>
               <Route path="inbox/sms" element={<PlaceholderPage />} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.EMAIL_READ]} />}>
-              <Route path="inbox/email" element={<EmailInbox />} />
+              <Route path="inbox/email" element={<WorkspaceEpochBoundary><EmailInbox /></WorkspaceEpochBoundary>} />
             </Route>
 
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.BROADCAST_READ]} />}>
-              <Route path="broadcast/sms" element={<BroadcastWorkspace />} />
-              <Route path="broadcast/social-media" element={<BroadcastWorkspace />} />
-              <Route path="broadcast/email" element={<BroadcastWorkspace />} />
+              <Route path="broadcast/sms" element={<WorkspaceEpochBoundary><BroadcastWorkspace /></WorkspaceEpochBoundary>} />
+              <Route path="broadcast/social-media" element={<WorkspaceEpochBoundary><BroadcastWorkspace /></WorkspaceEpochBoundary>} />
+              <Route path="broadcast/email" element={<WorkspaceEpochBoundary><BroadcastWorkspace /></WorkspaceEpochBoundary>} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.ADS_READ]} />}>
               <Route path="ad-center" element={<AdCenterOverview />} />
@@ -142,11 +143,11 @@ const AppRoutes = () => (
               <Route path="ad-center/settings" element={<AdSettings />} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.CONTACT_READ]} />}>
-              <Route path="contacts" element={<ContactsPage />} />
-              <Route path="contacts/lists" element={<ListsPage />} />
-              <Route path="contacts/lists/:listId" element={<ListDetailPage />} />
-              <Route path="contacts/segments" element={<SegmentsPage />} />
-              <Route path="contacts/segments/:segmentId" element={<SegmentEditorPage />} />
+              <Route path="contacts" element={<WorkspaceEpochBoundary><ContactsPage /></WorkspaceEpochBoundary>} />
+              <Route path="contacts/lists" element={<WorkspaceEpochBoundary><ListsPage /></WorkspaceEpochBoundary>} />
+              <Route path="contacts/lists/:listId" element={<WorkspaceEpochBoundary><ListDetailPage /></WorkspaceEpochBoundary>} />
+              <Route path="contacts/segments" element={<WorkspaceEpochBoundary><SegmentsPage /></WorkspaceEpochBoundary>} />
+              <Route path="contacts/segments/:segmentId" element={<WorkspaceEpochBoundary><SegmentEditorPage /></WorkspaceEpochBoundary>} />
               <Route path="contacts/:contactId" element={<ContactDetailPage />} />
             </Route>
             <Route
@@ -154,7 +155,7 @@ const AppRoutes = () => (
                 <PermissionRoute allOf={[PERMISSIONS.CONTACT_READ, PERMISSIONS.CONTACT_MODIFY]} />
               }
             >
-              <Route path="contacts/segments/new" element={<SegmentEditorPage />} />
+              <Route path="contacts/segments/new" element={<WorkspaceEpochBoundary><SegmentEditorPage /></WorkspaceEpochBoundary>} />
             </Route>
             <Route
               element={
