@@ -277,7 +277,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
 
   useEffect(() => {
     if (!companyId || !broadcastMode) return
-    void dispatch(fetchBroadcastGroups({ companyId, channelType }))
+    void dispatch(fetchBroadcastGroups({ companyId, epoch: workspaceEpoch, channelType }))
   }, [broadcastMode, channelType, companyId, dispatch])
 
   useEffect(() => {
@@ -494,6 +494,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     void dispatch(
       fetchBroadcastGroups({
         companyId,
+        epoch: workspaceEpoch,
         channelType,
         page: broadcast.groupsPage + 1,
         append: true,
