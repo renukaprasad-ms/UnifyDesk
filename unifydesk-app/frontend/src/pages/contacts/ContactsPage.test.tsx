@@ -114,16 +114,17 @@ describe('ContactsPage Round-2 remediation', () => {
 
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/contacts'))
 
-    for (const [, query] of vi.mocked(useContacts).mock.calls) {
+    for (const [, , query] of vi.mocked(useContacts).mock.calls) {
       expect(query.status).not.toBe('DELETED')
     }
-    expect(vi.mocked(useContacts).mock.calls.at(-1)?.[1].status).toBeUndefined()
+    expect(vi.mocked(useContacts).mock.calls.at(-1)?.[2].status).toBeUndefined()
   })
 
   it('preserves the supported MERGED status from URL state', () => {
     renderPage('/contacts?status=MERGED')
 
     expect(vi.mocked(useContacts)).toHaveBeenCalledWith(
+      'company-1',
       'company-1',
       expect.objectContaining({ status: 'MERGED' }),
     )
