@@ -114,6 +114,27 @@ const page = () => (
 )
 
 describe('ContactDetailPage workspace epoch remediation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    currentCompanyId = 'company-a'
+    currentEpoch = 1
+    vi.mocked(useAppSelector).mockImplementation((selector) => selector(fakeState()))
+    vi.mocked(useIam).mockReturnValue({
+      owner: false,
+      permissions: [],
+      status: 'ready',
+      companyId: 'company-a',
+      error: null,
+      can: () => true,
+      canAny: () => true,
+      canAll: () => true,
+    })
+    vi.mocked(contactsApi.tags).mockResolvedValue([])
+    vi.mocked(contactsApi.customFields).mockResolvedValue([])
+    vi.mocked(contactsApi.preferences).mockResolvedValue([preference('current')])
+    vi.mocked(contactsApi.suppressions).mockResolvedValue([])
+  })
+
   it('synchronously removes A1 Contact state on B and only renders freshly resolved A2 state', async () => {
     const bDetail = deferred<ContactDetail>()
     const oldAActivity = deferred<ReturnType<typeof activity>>()
@@ -193,26 +214,7 @@ describe('ContactDetailPage workspace epoch remediation', () => {
     expect(screen.getByText('A2 Contact')).toBeInTheDocument()
   })
 
-  beforeEach(() => {
-    vi.clearAllMocks()
-    currentCompanyId = 'company-a'
-    currentEpoch = 1
-    vi.mocked(useAppSelector).mockImplementation((selector) => selector(fakeState()))
-    vi.mocked(useIam).mockReturnValue({
-      owner: false,
-      permissions: [],
-      status: 'ready',
-      companyId: 'company-a',
-      error: null,
-      can: () => true,
-      canAny: () => true,
-      canAll: () => true,
-    })
-    vi.mocked(contactsApi.tags).mockResolvedValue([])
-    vi.mocked(contactsApi.customFields).mockResolvedValue([])
-    vi.mocked(contactsApi.preferences).mockResolvedValue([preference('current')])
-    vi.mocked(contactsApi.suppressions).mockResolvedValue([])
-  })
+
 
   it('keeps delayed A1 detail and activity responses out of A2', async () => {
     const oldDetail = deferred<ContactDetail>()
