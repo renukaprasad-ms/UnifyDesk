@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { apiErrorMessage } from '../../lib/api/apiClient'
+import { useWorkspaceEpochScope } from '../workspace/useWorkspaceEpochScope'
 import { appendCursorPage, normalizeContactQuery } from './contactModel'
 import { contactsApi } from './contactsApi'
 import type { ContactQuery, ContactSummary } from './types'
 
-export const useContacts = (companyId: string | null, query: ContactQuery) => {
+export const useContacts = (companyId: string | null, epoch: number, query: ContactQuery) => {
+  const { capture: captureScope, isCurrent: scopeIsCurrent } = useWorkspaceEpochScope(
+    companyId,
+    epoch,
+  )
   const [items, setItems] = useState<ContactSummary[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
@@ -35,55 +40,67 @@ export const useContacts = (companyId: string | null, query: ContactQuery) => {
       return
     }
     const requestId = ++requestRef.current
+    const scope = captureScope()
+    setItems([])
+    setNextCursor(null)
+    setHasMore(false)
     setLoading(true)
     setError('')
     contactsApi
       .list(companyId, normalized)
       .then((page) => {
-        if (requestRef.current !== requestId) return
+        if (requestRef.current !== requestId || !scopeIsCurrent(scope)) return
         setItems(page.items)
         setNextCursor(page.nextCursor)
         setHasMore(page.hasMore)
       })
       .catch((loadError) => {
-        if (requestRef.current === requestId) {
+        if (requestRef.current === requestId && scopeIsCurrent(scope)) {
           setError(apiErrorMessage(loadError, 'Unable to load contacts.'))
         }
       })
       .finally(() => {
-        if (requestRef.current === requestId) setLoading(false)
+        if (requestRef.current === requestId && scopeIsCurrent(scope)) setLoading(false)
       })
-  }, [companyId, queryKey, normalized])
+  }, [captureScope, companyId, epoch, queryKey, normalized, scopeIsCurrent])
 
   const loadMore = async () => {
     if (!companyId || !hasMore || !nextCursor || loadingMore) return
+    const scope = captureScope()
     setLoadingMore(true)
     setError('')
     try {
       const page = await contactsApi.list(companyId, normalized, nextCursor)
+      if (!scopeIsCurrent(scope)) return
       setItems((current) => appendCursorPage(current, page, false))
       setNextCursor(page.nextCursor)
       setHasMore(page.hasMore)
     } catch (loadError) {
-      setError(apiErrorMessage(loadError, 'Unable to load more contacts.'))
+      if (scopeIsCurrent(scope)) {
+        setError(apiErrorMessage(loadError, 'Unable to load more contacts.'))
+      }
     } finally {
-      setLoadingMore(false)
+      if (scopeIsCurrent(scope)) setLoadingMore(false)
     }
   }
 
   const refresh = async () => {
     if (!companyId) return
+    const scope = captureScope()
     setLoading(true)
     setError('')
     try {
       const page = await contactsApi.list(companyId, normalized)
+      if (!scopeIsCurrent(scope)) return
       setItems(page.items)
       setNextCursor(page.nextCursor)
       setHasMore(page.hasMore)
     } catch (loadError) {
-      setError(apiErrorMessage(loadError, 'Unable to refresh contacts.'))
+      if (scopeIsCurrent(scope)) {
+        setError(apiErrorMessage(loadError, 'Unable to refresh contacts.'))
+      }
     } finally {
-      setLoading(false)
+      if (scopeIsCurrent(scope)) setLoading(false)
     }
   }
 
