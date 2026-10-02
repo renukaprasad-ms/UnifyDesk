@@ -46,7 +46,12 @@ export type BroadcastMemberImportResult = {
 }
 
 export type BroadcastSenderProvider =
-  'AMAZON_SES' | 'AZURE_EMAIL' | 'SENDGRID' | 'MSG91_EMAIL' | 'MSG91_SMS'
+  | 'AMAZON_SES'
+  | 'AZURE_EMAIL'
+  | 'SENDGRID'
+  | 'MSG91_EMAIL'
+  | 'MSG91_SMS'
+  | 'META_WHATSAPP'
 export type BroadcastSenderManagementMode = 'CUSTOMER_MANAGED' | 'MESSAGING_MANAGED'
 export type BroadcastSenderStatus = 'ACTIVE' | 'DISABLED'
 export type BroadcastSenderAuthMode = 'IAM_ROLE' | 'ACCESS_KEYS' | 'API_KEY'
@@ -177,9 +182,80 @@ export type BroadcastStats = {
   processed?: number
 }
 
+export type BroadcastAudienceSourceType = 'LIST' | 'SEGMENT' | 'CONTACTS'
+
+export type AudienceSelector =
+  | { sourceType: 'CONTACT_LIST'; sourceId: string }
+  | { sourceType: 'SEGMENT'; sourceId: string }
+  | { sourceType: 'CONTACTS'; contactIds: string[] }
+
+export type RecipientExclusionReason =
+  | 'DUPLICATE'
+  | 'MISSING_IDENTITY'
+  | 'INVALID_IDENTITY'
+  | 'OPTED_OUT'
+  | 'CONSENT_REQUIRED'
+  | 'SUPPRESSED'
+  | 'CHANNEL_INELIGIBLE'
+
+export type DeliveryCapabilities = {
+  providerAcceptance: boolean
+  deliveryEvents: boolean
+  readEvents: boolean
+  inboundReplies: boolean
+  templateRequired: boolean
+  freeFormSessionSupported: boolean
+}
+
+export type SenderReadiness = {
+  senderId: string
+  label: string
+  addressOrNumber?: string | null
+  state: 'READY' | 'ACTION_REQUIRED' | 'BLOCKED' | 'DISCONNECTED' | 'TEMPORARILY_UNAVAILABLE'
+  nextAction?: string | null
+  capabilities: DeliveryCapabilities
+}
+
+export type ChannelReadiness = {
+  channel: ChannelType
+  availability: 'AVAILABLE' | 'UNAVAILABLE'
+  configuration: 'NOT_CONFIGURED' | 'ACTION_REQUIRED' | 'READY' | 'DEGRADED' | 'DISCONNECTED'
+  senders: SenderReadiness[]
+  nextAction?: string | null
+}
+
+export type RecipientResolutionSample = {
+  contactId?: string | null
+  displayName?: string | null
+  destination?: string | null
+  reason?: RecipientExclusionReason | null
+}
+
+export type RecipientResolutionPreview = {
+  channel: ChannelType
+  purpose: string
+  selectedCount: number
+  eligibleCount: number
+  excludedCount: number
+  exclusions: Partial<Record<RecipientExclusionReason, number>>
+  sampleEligible: RecipientResolutionSample[]
+  sampleExcluded: RecipientResolutionSample[]
+  senderReadiness?: ChannelReadiness | null
+  computedAt: string
+}
+
+export type CreateAudienceBroadcastMessageInput = CreateBroadcastMessageInput & {
+  sourceType: Extract<BroadcastAudienceSourceType, 'LIST' | 'SEGMENT'>
+  sourceId: string
+  channelType: ChannelType
+}
+
 export type BroadcastMessageSummary = {
   id: string
-  groupId: string
+  groupId?: string | null
+  audienceSourceType?: BroadcastAudienceSourceType | null
+  audienceSourceId?: string | null
+  audienceSnapshotId?: string | null
   senderId?: string | null
   sourceTemplateId?: string | null
   sourceTemplateVersion?: number | null
@@ -214,6 +290,8 @@ export type BroadcastRecipientStatus =
 
 export type BroadcastRecipient = {
   id: string
+  contactId?: string | null
+  contactIdentityId?: string | null
   destination: string
   displayName?: string | null
   status: BroadcastRecipientStatus
