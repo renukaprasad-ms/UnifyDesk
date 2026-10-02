@@ -29,6 +29,11 @@ describe('Broadcast journey cards', () => {
     const preview: RecipientResolutionPreview = {
       channel: 'EMAIL',
       purpose: 'MARKETING',
+      sourceDescriptor: {
+        sourceType: 'LIST',
+        sourceId: 'list-1',
+        resolvedAt: new Date(0).toISOString(),
+      },
       selectedCount: 10,
       eligibleCount: 6,
       excludedCount: 4,
@@ -66,6 +71,11 @@ describe('Broadcast journey cards', () => {
     const preview: RecipientResolutionPreview = {
       channel: 'SMS',
       purpose: 'MARKETING',
+      sourceDescriptor: {
+        sourceType: 'LIST',
+        sourceId: 'list-1',
+        resolvedAt: new Date(0).toISOString(),
+      },
       selectedCount: 2,
       eligibleCount: 1,
       excludedCount: 1,
