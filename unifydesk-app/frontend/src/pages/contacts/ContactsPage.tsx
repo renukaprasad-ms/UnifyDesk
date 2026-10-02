@@ -22,10 +22,19 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
-import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import {
+  selectSelectedCompanyId,
+  selectWorkspaceEpoch,
+} from '../../store/workspace/workspaceSlice'
+import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 
 export default function ContactsPage() {
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
+  const { capture: captureScope, isCurrent: scopeIsCurrent } = useWorkspaceEpochScope(
+    companyId,
+    workspaceEpoch,
+  )
   const { can } = useIam()
   const [params, setParams] = useSearchParams()
   const [search, setSearch] = useState(params.get('q') ?? '')
@@ -52,14 +61,14 @@ export default function ContactsPage() {
     sort: (params.get('sort') as ContactSort | null) ?? 'UPDATED_DESC',
     size: 50,
   }
-  const contacts = useContacts(companyId, query)
+  const contacts = useContacts(companyId, workspaceEpoch, query)
   const canBulk = can(PERMISSIONS.CONTACT_MODIFY) || can(PERMISSIONS.CONTACT_DELETE)
   const selectionQueryKey = JSON.stringify(query)
 
   useEffect(() => {
     setSelected(new Set())
     setAllMatching(false)
-  }, [selectionQueryKey])
+  }, [selectionQueryKey, workspaceEpoch])
 
   useEffect(() => {
     if (!rawStatus || status) return
@@ -75,14 +84,18 @@ export default function ContactsPage() {
   }, [rawStatus, setParams, status])
 
   useEffect(() => {
+    setTags([])
+    setLists([])
     if (!companyId) return
+    const scope = captureScope()
     Promise.all([contactsApi.tags(companyId), contactsApi.lists(companyId)])
       .then(([nextTags, nextLists]) => {
+        if (!scopeIsCurrent(scope)) return
         setTags(nextTags)
         setLists(nextLists.filter((item) => item.status !== 'ARCHIVED'))
       })
       .catch(() => undefined)
-  }, [companyId])
+  }, [captureScope, companyId, scopeIsCurrent, workspaceEpoch])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -438,19 +451,25 @@ export default function ContactsPage() {
           }}
           onSubmit={(draft) => {
             if (!companyId) return
+            const scope = captureScope()
             setSaving(true)
             setError('')
             contactsApi
               .create(companyId, toCreateContactInput(draft))
-              .then(() => {
+              .then(async () => {
+                if (!scopeIsCurrent(scope)) return
                 setCreating(false)
                 setNotice('Contact created.')
-                return contacts.refresh()
+                await contacts.refresh()
               })
-              .catch((actionError) =>
-                setError(apiErrorMessage(actionError, 'Unable to create contact.')),
-              )
-              .finally(() => setSaving(false))
+              .catch((actionError) => {
+                if (scopeIsCurrent(scope)) {
+                  setError(apiErrorMessage(actionError, 'Unable to create contact.'))
+                }
+              })
+              .finally(() => {
+                if (scopeIsCurrent(scope)) setSaving(false)
+              })
           }}
         />
       </div>
