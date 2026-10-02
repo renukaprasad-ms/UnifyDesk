@@ -43,6 +43,7 @@ class ManagedEmailExistingProviderRegressionTests {
     ManagedEmailProviderBudgetService budget = mock(ManagedEmailProviderBudgetService.class);
     BroadcastEmailTransport transport = mock(BroadcastEmailTransport.class);
     ContactEligibilityService contactEligibility = mock(ContactEligibilityService.class);
+    BroadcastWhatsAppDeliveryService whatsAppDelivery = mock(BroadcastWhatsAppDeliveryService.class);
 
     BroadcastRun run = new BroadcastRun();
     run.setId(60L);
@@ -99,7 +100,8 @@ class ManagedEmailExistingProviderRegressionTests {
             reconciler,
             suppressionGate,
             budget,
-            contactEligibility);
+            contactEligibility,
+            whatsAppDelivery);
 
     service.deliver(run, connection, sender, recipient);
 
@@ -107,6 +109,13 @@ class ManagedEmailExistingProviderRegressionTests {
     verify(transport).send(eq(connection), eq(sender), any(BroadcastEmailCommand.class));
     verify(state).accepted(eq(attempt), any(BroadcastEmailResult.class));
     verifyNoInteractions(
-        managedGuard, managedRate, usage, reconciler, suppressionGate, budget, contactEligibility);
+        managedGuard,
+        managedRate,
+        usage,
+        reconciler,
+        suppressionGate,
+        budget,
+        contactEligibility,
+        whatsAppDelivery);
   }
 }
