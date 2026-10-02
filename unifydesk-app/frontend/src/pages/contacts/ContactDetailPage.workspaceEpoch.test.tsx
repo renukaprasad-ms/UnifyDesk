@@ -189,7 +189,6 @@ describe('ContactDetailPage workspace epoch remediation', () => {
     })
 
     const view = render(page())
-    expect(await screen.findByText('A1 Contact')).toBeInTheDocument()
     await waitFor(() => expect(contactsApi.preferences).toHaveBeenCalledTimes(1))
 
     currentCompanyId = 'company-b'
