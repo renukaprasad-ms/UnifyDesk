@@ -245,10 +245,11 @@ export type RecipientResolutionPreview = {
 }
 
 export type CreateAudienceBroadcastMessageInput = CreateBroadcastMessageInput & {
-  sourceType: Extract<BroadcastAudienceSourceType, 'LIST' | 'SEGMENT'>
-  sourceId: string
   channelType: ChannelType
-}
+} & (
+  | { sourceType: 'LIST' | 'SEGMENT'; sourceId: string; contactIds?: never }
+  | { sourceType: 'CONTACTS'; contactIds: string[]; sourceId?: never }
+)
 
 export type BroadcastMessageSummary = {
   id: string
