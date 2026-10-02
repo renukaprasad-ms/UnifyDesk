@@ -137,13 +137,14 @@ export function ChannelReadinessPanel({
         </p>
       )}
 
-      {selectedSenderId && (
-        <p className="mt-3 text-[11px] leading-5 text-slate-500">
-          {deliveryCapabilityCopy(
-            readiness.senders.find((sender) => sender.senderId === selectedSenderId) ?? readySenders[0],
-          )}
-        </p>
-      )}
+      {selectedSenderId &&
+        readiness.senders.find((sender) => sender.senderId === selectedSenderId) && (
+          <p className="mt-3 text-[11px] leading-5 text-slate-500">
+            {deliveryCapabilityCopy(
+              readiness.senders.find((sender) => sender.senderId === selectedSenderId)!,
+            )}
+          </p>
+        )}
     </section>
   )
 }
