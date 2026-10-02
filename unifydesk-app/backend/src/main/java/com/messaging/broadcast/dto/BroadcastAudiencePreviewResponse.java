@@ -1,7 +1,6 @@
 package com.messaging.broadcast.dto;
 
 import com.messaging.broadcast.dto.BroadcastChannelReadinessResponse.SenderReadiness;
-import com.messaging.broadcast.enums.BroadcastAudienceSourceType;
 import com.messaging.channel.enums.ChannelType;
 import java.time.Instant;
 import java.util.List;
@@ -10,7 +9,7 @@ import java.util.Map;
 public record BroadcastAudiencePreviewResponse(
     ChannelType channel,
     String purpose,
-    SourceDescriptor sourceDescriptor,
+    BroadcastExpectedSourceDescriptor sourceDescriptor,
     long selectedCount,
     long eligibleCount,
     long excludedCount,
@@ -29,15 +28,6 @@ public record BroadcastAudiencePreviewResponse(
     SUPPRESSED,
     CHANNEL_INELIGIBLE
   }
-
-  public record SourceDescriptor(
-      BroadcastAudienceSourceType sourceType,
-      String sourceId,
-      String sourceVersion,
-      Integer filterVersion,
-      String filterHash,
-      String contactSelectionHash,
-      Instant resolvedAt) {}
 
   public record RecipientSample(
       String contactId, String maskedDestination, String reason) {}
