@@ -34,6 +34,7 @@ describe('broadcastSlice realtime progress', () => {
       state,
       fetchBroadcastHistory.pending('request-1', {
         companyId: 'company-1',
+        epoch: 1,
         groupId: 'group-1',
       }),
     )
@@ -43,6 +44,7 @@ describe('broadcastSlice realtime progress', () => {
       fetchBroadcastHistory.fulfilled(
         {
           companyId: 'company-1',
+          epoch: 1,
           groupId: 'group-1',
           append: false,
           page: {
@@ -56,7 +58,7 @@ describe('broadcastSlice realtime progress', () => {
           },
         },
         'request-1',
-        { companyId: 'company-1', groupId: 'group-1' },
+        { companyId: 'company-1', epoch: 1, groupId: 'group-1' },
       ),
     )
 
@@ -76,6 +78,62 @@ describe('broadcastSlice realtime progress', () => {
     expect(state.messages[1].status).toBe('RUNNING')
     expect(state.messages[1].stats.accepted).toBe(4)
     expect(state.messages[1].progressPercent).toBe(40)
+  })
+
+  it('ignores an A1 history response after A -> B -> A reaches a new epoch', () => {
+    let state = broadcastReducer(undefined, { type: 'init' })
+
+    state = broadcastReducer(
+      state,
+      fetchBroadcastHistory.pending('request-a1', {
+        companyId: 'company-a',
+        epoch: 1,
+        groupId: 'group-a',
+      }),
+    )
+    state = broadcastReducer(
+      state,
+      fetchBroadcastHistory.pending('request-b', {
+        companyId: 'company-b',
+        epoch: 2,
+        groupId: 'group-b',
+      }),
+    )
+    state = broadcastReducer(
+      state,
+      fetchBroadcastHistory.pending('request-a2', {
+        companyId: 'company-a',
+        epoch: 3,
+        groupId: 'group-a',
+      }),
+    )
+
+    state = broadcastReducer(
+      state,
+      fetchBroadcastHistory.fulfilled(
+        {
+          companyId: 'company-a',
+          epoch: 1,
+          groupId: 'group-a',
+          append: false,
+          page: {
+            content: [message('stale-a1', 'group-a')],
+            number: 0,
+            size: 30,
+            totalElements: 1,
+            totalPages: 1,
+            first: true,
+            last: true,
+          },
+        },
+        'request-a1',
+        { companyId: 'company-a', epoch: 1, groupId: 'group-a' },
+      ),
+    )
+
+    expect(state.historyCompanyId).toBe('company-a')
+    expect(state.historyEpoch).toBe(3)
+    expect(state.messages).toEqual([])
   })
 
   it('ignores progress for a group that is not currently loaded', () => {

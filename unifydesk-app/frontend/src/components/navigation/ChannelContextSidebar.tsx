@@ -34,7 +34,14 @@ import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { fetchEmailConnections, fetchInboxConversations } from '../../store/inbox/inboxSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import {
+  selectSelectedCompanyId,
+  selectWorkspaceEpoch,
+} from '../../store/workspace/workspaceSlice'
+import {
+  isWorkspaceEpochCurrent,
+  workspaceEpochToken,
+} from '../../features/workspace/workspaceEpoch'
 
 type ChannelContextSidebarProps = {
   mode: 'inbox' | 'broadcast'
@@ -93,6 +100,9 @@ const emailProviderIcon = (providerType: string) => {
 export default function ChannelContextSidebar({ mode, onNavigate }: ChannelContextSidebarProps) {
   const dispatch = useAppDispatch()
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
+  const workspaceScopeRef = useRef({ companyId, epoch: workspaceEpoch })
+  workspaceScopeRef.current = { companyId, epoch: workspaceEpoch }
   const inbox = useAppSelector((state) => state.inbox)
   const broadcast = useAppSelector((state) => state.broadcast)
   const { can } = useIam()
@@ -115,6 +125,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const selectedSenderId = search.get('senderId')
   const selectedConversationId = search.get('conversationId')
   const selectedGroupId = search.get('groupId')
+  const legacyBroadcastMode = search.get('legacy') === '1' || Boolean(selectedGroupId)
   const selectedFolder = search.get('folder') === 'SENT' ? 'SENT' : 'INBOX'
 
   const emailMode = mode === 'inbox' && channelType === 'EMAIL'
@@ -160,8 +171,8 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     if (broadcastMode) return
     if (channelType !== 'EMAIL') return
     if (!companyId) return
-    void dispatch(fetchEmailConnections({ companyId }))
-  }, [broadcastMode, channelType, companyId, dispatch])
+    void dispatch(fetchEmailConnections({ companyId, epoch: workspaceEpoch }))
+  }, [broadcastMode, channelType, companyId, dispatch, workspaceEpoch])
 
   useEffect(() => {
     if (broadcastMode) {
@@ -185,13 +196,21 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     }
 
     let active = true
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
+    const current = () =>
+      active &&
+      isWorkspaceEpochCurrent(
+        token,
+        workspaceScopeRef.current.companyId,
+        workspaceScopeRef.current.epoch,
+      )
     setLocalLoading(true)
     setError(null)
 
     channelApi
       .list(companyId, channelType)
       .then(async (items) => {
-        if (!active) return
+        if (!current()) return
 
         const connected = items.filter((item) => item.status === 'ACTIVE')
         setLocalConnections(connected)
@@ -206,21 +225,21 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           }),
         )
 
-        if (active) setSenders(Object.fromEntries(senderEntries))
+        if (current()) setSenders(Object.fromEntries(senderEntries))
       })
       .catch((requestError) => {
-        if (active) {
+        if (current()) {
           setError(apiErrorMessage(requestError, `Unable to load connected ${meta.label}`))
         }
       })
       .finally(() => {
-        if (active) setLocalLoading(false)
+        if (current()) setLocalLoading(false)
       })
 
     return () => {
       active = false
     }
-  }, [broadcastMode, channelType, companyId, meta.label])
+  }, [broadcastMode, channelType, companyId, meta.label, workspaceEpoch])
 
   useEffect(() => {
     if (!companyId || !broadcastMode || channelType === 'WHATSAPP') {
@@ -230,28 +249,36 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     }
 
     let active = true
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
+    const current = () =>
+      active &&
+      isWorkspaceEpochCurrent(
+        token,
+        workspaceScopeRef.current.companyId,
+        workspaceScopeRef.current.epoch,
+      )
     setBroadcastSenderLoading(true)
     setError(null)
     broadcastApi
       .senders(companyId)
       .then((items) => {
-        if (active) setBroadcastSenders(items)
+        if (current()) setBroadcastSenders(items)
       })
       .catch((requestError) => {
-        if (active) setError(apiErrorMessage(requestError, 'Unable to load Broadcast senders'))
+        if (current()) setError(apiErrorMessage(requestError, 'Unable to load Broadcast senders'))
       })
       .finally(() => {
-        if (active) setBroadcastSenderLoading(false)
+        if (current()) setBroadcastSenderLoading(false)
       })
 
     return () => {
       active = false
     }
-  }, [broadcastMode, channelType, companyId])
+  }, [broadcastMode, channelType, companyId, workspaceEpoch])
 
   useEffect(() => {
     if (!companyId || !broadcastMode) return
-    void dispatch(fetchBroadcastGroups({ companyId, channelType }))
+    void dispatch(fetchBroadcastGroups({ companyId, epoch: workspaceEpoch, channelType }))
   }, [broadcastMode, channelType, companyId, dispatch])
 
   useEffect(() => {
@@ -262,11 +289,12 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     void dispatch(
       fetchInboxConversations({
         companyId,
+        epoch: workspaceEpoch,
         connectionId: selectedConnectionId,
         folder: selectedFolder,
       }),
     )
-  }, [companyId, dispatch, emailMode, selectedConnectionId, selectedFolder])
+  }, [companyId, dispatch, emailMode, selectedConnectionId, selectedFolder, workspaceEpoch])
 
   const identities = useMemo<IdentityItem[]>(() => {
     if (broadcastMode && channelType !== 'WHATSAPP') {
@@ -417,7 +445,13 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   }
 
   useEffect(() => {
-    if (!desktop || !broadcastMode || selectedGroupId || broadcastGroups.length === 0) {
+    if (
+      !desktop ||
+      !broadcastMode ||
+      !legacyBroadcastMode ||
+      selectedGroupId ||
+      broadcastGroups.length === 0
+    ) {
       return
     }
 
@@ -431,6 +465,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     broadcastGroups,
     broadcastMode,
     desktop,
+    legacyBroadcastMode,
     location.pathname,
     location.search,
     navigate,
@@ -440,6 +475,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const selectBroadcastGroup = (groupId: string) => {
     const params = new URLSearchParams(location.search)
     params.set('groupId', groupId)
+    params.set('legacy', '1')
     params.delete('broadcastId')
     params.delete('compose')
     params.delete('newGroup')
@@ -451,6 +487,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     if (channelType === 'WHATSAPP') return
     const params = new URLSearchParams(location.search)
     params.set('newGroup', '1')
+    params.set('legacy', '1')
     params.delete('broadcastId')
     navigate({ pathname: location.pathname, search: `?${params.toString()}` })
     onNavigate()
@@ -467,6 +504,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     void dispatch(
       fetchBroadcastGroups({
         companyId,
+        epoch: workspaceEpoch,
         channelType,
         page: broadcast.groupsPage + 1,
         append: true,
@@ -509,6 +547,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     void dispatch(
       fetchInboxConversations({
         companyId,
+        epoch: workspaceEpoch,
         connectionId: selectedConnectionId,
         folder: selectedFolder,
         page: conversationPage + 1,
@@ -635,7 +674,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                         onError={setError}
                         onConnected={() => {
                           setMenuOpen(false)
-                          void dispatch(fetchEmailConnections({ companyId, force: true }))
+                          void dispatch(fetchEmailConnections({ companyId, epoch: workspaceEpoch, force: true }))
                         }}
                       />
                     )}
@@ -760,17 +799,21 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         </div>
       )}
 
-      {broadcastMode && (
-        <div className="mt-4 flex items-center gap-2">
+      {broadcastMode && legacyBroadcastMode && (
+        <div className="mt-4">
           <button
             type="button"
-            className="primary-button min-w-0 flex-1 gap-2"
+            className="secondary-button w-full gap-2"
             disabled={channelType === 'WHATSAPP' || !can(PERMISSIONS.BROADCAST_CREATE)}
             onClick={createBroadcastGroup}
           >
             <FiPlus aria-hidden="true" />
-            <span>New group</span>
+            <span>New legacy group</span>
           </button>
+          <p className="mt-2 px-1 text-[10px] leading-4 text-slate-500">
+            Legacy groups are kept for existing history. New Broadcasts should use Contacts, Lists
+            or Segments.
+          </p>
         </div>
       )}
 
@@ -825,6 +868,27 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
               onSelect={(conversation) => selectConversation(conversation.id)}
               onLoadMore={loadMoreConversations}
             />
+          </div>
+        ) : broadcastMode && !legacyBroadcastMode ? (
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-5">
+            <p className="text-xs font-semibold text-slate-800">Canonical audience</p>
+            <p className="mt-1 text-[11px] leading-5 text-slate-600">
+              Choose Contacts, a List or a Segment in the Broadcast composer. Recipient eligibility
+              is resolved server-side before launch.
+            </p>
+            {channelType !== 'WHATSAPP' && (
+              <button
+                type="button"
+                className="secondary-button mt-3 w-full"
+                onClick={() => {
+                  const params = new URLSearchParams(location.search)
+                  params.set('legacy', '1')
+                  navigate({ pathname: location.pathname, search: `?${params.toString()}` })
+                }}
+              >
+                View legacy group history
+              </button>
+            )}
           </div>
         ) : broadcastMode ? (
           <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 pb-2">

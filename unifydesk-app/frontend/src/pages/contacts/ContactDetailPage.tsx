@@ -490,7 +490,13 @@ export default function ContactDetailPage() {
               ) : (
                 activity.map((item) => (
                   <div key={item.id} className="border-l-2 border-indigo-200 pl-4">
-                    <strong className="text-sm text-slate-900">{item.title}</strong>
+                    {item.href ? (
+                      <Link className="text-sm font-bold text-indigo-700 hover:underline" to={item.href}>
+                        {item.title}
+                      </Link>
+                    ) : (
+                      <strong className="text-sm text-slate-900">{item.title}</strong>
+                    )}
                     {item.summary && <p className="text-xs text-slate-500">{item.summary}</p>}
                     <time className="text-xs text-slate-400">
                       {new Date(item.occurredAt).toLocaleString()}

@@ -110,6 +110,14 @@ export default function ListDetailPage() {
           </div>
           {list && companyId && (
             <div className="flex flex-wrap gap-2">
+              {can(PERMISSIONS.BROADCAST_CREATE) && (
+                <Link
+                  className="primary-button"
+                  to={`/broadcast/email?audienceType=CONTACT_LIST&audienceId=${listId}`}
+                >
+                  Create Broadcast
+                </Link>
+              )}
               {can(PERMISSIONS.CONTACT_EXPORT) && (
                 <ExportJobButton
                   companyId={companyId}

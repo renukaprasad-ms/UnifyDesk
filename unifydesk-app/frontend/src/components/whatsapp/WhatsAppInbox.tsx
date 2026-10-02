@@ -14,7 +14,7 @@ import {
   FiSend,
   FiX,
 } from 'react-icons/fi'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { channelApi } from '../../features/channel/channelApi'
 import type { ChannelConnection } from '../../features/channel/types'
 import { PERMISSIONS } from '../../features/iam/permissions'
@@ -23,6 +23,7 @@ import { inboxApi } from '../../features/inbox/inboxApi'
 import type {
   InboxConversation,
   InboxMessage,
+  InboxParticipant,
   InboxWhatsAppStatusChangedEvent,
 } from '../../features/inbox/types'
 import { mediaApi } from '../../features/media/mediaApi'
@@ -39,7 +40,15 @@ import { apiErrorMessage } from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
 import { useSnackbar } from '../feedback/SnackbarProvider'
 import { useAppSelector } from '../../store/hooks'
-import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import {
+  selectSelectedCompanyId,
+  selectWorkspaceEpoch,
+} from '../../store/workspace/workspaceSlice'
+import {
+  isWorkspaceEpochCurrent,
+  workspaceEpochToken,
+  type WorkspaceEpochToken,
+} from '../../features/workspace/workspaceEpoch'
 import { templateVariableCounts } from './whatsappTemplateUtils'
 
 type WhatsAppInboxMessage = InboxMessage
@@ -53,6 +62,13 @@ const counterpart = (conversation: InboxConversation) =>
   conversation.participants[0]?.displayName ||
   conversation.participants[0]?.address ||
   'WhatsApp customer'
+
+const createContactHref = (participant: InboxParticipant) => {
+  const params = new URLSearchParams({ new: '1' })
+  if (participant.participantType === 'EMAIL_ADDRESS') params.set('email', participant.address)
+  else params.set('phone', participant.address)
+  return `/contacts?${params.toString()}`
+}
 
 const blankParameters = (template: WhatsAppTemplate): WhatsAppTemplateParameters => {
   const counts = templateVariableCounts(template)
@@ -98,6 +114,18 @@ const messageStatus = (
 
 export default function WhatsAppInbox() {
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
+  const workspaceScopeRef = useRef({ companyId, epoch: workspaceEpoch })
+  workspaceScopeRef.current = { companyId, epoch: workspaceEpoch }
+  const isCurrentScope = useCallback(
+    (token: WorkspaceEpochToken | null) =>
+      isWorkspaceEpochCurrent(
+        token,
+        workspaceScopeRef.current.companyId,
+        workspaceScopeRef.current.epoch,
+      ),
+    [],
+  )
   const { can } = useIam()
   const snackbar = useSnackbar()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -135,16 +163,27 @@ export default function WhatsAppInbox() {
     () => conversations.find((conversation) => conversation.id === selectedConversationId) ?? null,
     [conversations, selectedConversationId],
   )
+  const contactParticipant = useMemo(
+    () =>
+      selectedConversation?.participants.find((participant) => participant.contactId) ??
+      selectedConversation?.participants.find(
+        (participant) => participant.contactResolution !== 'AMBIGUOUS',
+      ) ??
+      null,
+    [selectedConversation],
+  )
 
   const loadConnections = useCallback(async () => {
     if (!companyId || !can(PERMISSIONS.WHATSAPP_READ)) {
       setConnections([])
       return
     }
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
     try {
       const items = (await channelApi.list(companyId, 'WHATSAPP')).filter(
         (item) => item.status === 'ACTIVE' && item.capabilities.includes('INBOX'),
       )
+      if (!isCurrentScope(token)) return
       setConnections(items)
       if (!selectedConnectionId && items[0]) {
         const params = new URLSearchParams(searchParams)
@@ -153,22 +192,27 @@ export default function WhatsAppInbox() {
         setSearchParams(params, { replace: true })
       }
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to load WhatsApp connections'))
+      if (isCurrentScope(token)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load WhatsApp connections'))
+      }
     }
-  }, [can, companyId, searchParams, selectedConnectionId, setSearchParams])
+  }, [can, companyId, isCurrentScope, searchParams, selectedConnectionId, setSearchParams, workspaceEpoch])
 
   const loadConversations = useCallback(async () => {
     if (!companyId || !selectedConnectionId || !can(PERMISSIONS.WHATSAPP_READ)) return
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
     setLoading(true)
     try {
       const page = await inboxApi.conversations(companyId, 0, 50, selectedConnectionId, 'INBOX')
-      setConversations(page.items)
+      if (isCurrentScope(token)) setConversations(page.items)
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to load WhatsApp chats'))
+      if (isCurrentScope(token)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load WhatsApp chats'))
+      }
     } finally {
-      setLoading(false)
+      if (isCurrentScope(token)) setLoading(false)
     }
-  }, [can, companyId, selectedConnectionId])
+  }, [can, companyId, isCurrentScope, selectedConnectionId, workspaceEpoch])
 
   const loadDetail = useCallback(async () => {
     if (!companyId || !selectedConversationId || !can(PERMISSIONS.WHATSAPP_READ)) {
@@ -177,6 +221,7 @@ export default function WhatsAppInbox() {
       return
     }
 
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
     setDetailLoading(true)
     setComposerLoading(true)
     try {
@@ -186,6 +231,7 @@ export default function WhatsAppInbox() {
           ? whatsappApi.composer(companyId, selectedConversationId)
           : Promise.resolve(null),
       ])
+      if (!isCurrentScope(token)) return
       const nextMessages = detail.messages as WhatsAppInboxMessage[]
       setMessages(nextMessages)
       const durableMessageIds = new Set(
@@ -209,12 +255,16 @@ export default function WhatsAppInbox() {
       setComposer(state)
       setTemplateMode(Boolean(state?.templateRequired))
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to load WhatsApp conversation'))
+      if (isCurrentScope(token)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load WhatsApp conversation'))
+      }
     } finally {
-      setDetailLoading(false)
-      setComposerLoading(false)
+      if (isCurrentScope(token)) {
+        setDetailLoading(false)
+        setComposerLoading(false)
+      }
     }
-  }, [can, companyId, selectedConversationId])
+  }, [can, companyId, isCurrentScope, selectedConversationId, workspaceEpoch])
 
   const loadTemplates = useCallback(async () => {
     if (
@@ -225,13 +275,18 @@ export default function WhatsAppInbox() {
       setTemplates([])
       return
     }
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
     try {
       const items = await whatsappApi.templates(companyId, selectedConnectionId)
-      setTemplates(items.filter((item) => item.status === 'APPROVED'))
+      if (isCurrentScope(token)) {
+        setTemplates(items.filter((item) => item.status === 'APPROVED'))
+      }
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to load WhatsApp templates'))
+      if (isCurrentScope(token)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load WhatsApp templates'))
+      }
     }
-  }, [can, companyId, selectedConnectionId])
+  }, [can, companyId, isCurrentScope, selectedConnectionId, workspaceEpoch])
 
   useEffect(() => {
     void loadConnections()
@@ -257,12 +312,14 @@ export default function WhatsAppInbox() {
 
   useEffect(() => {
     if (!companyId || !selectedConnectionId || !selectedConversationId) return
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
 
     return realtimeClient.subscribe<InboxWhatsAppStatusChangedEvent>(
       'inbox.whatsapp.status.changed',
       (event) => {
         const change = event.payload
         if (
+          !isCurrentScope(token) ||
           !change ||
           change.connectionId !== selectedConnectionId ||
           change.conversationId !== selectedConversationId
@@ -279,6 +336,7 @@ export default function WhatsAppInbox() {
             messageIds: [change.messageId],
           })
           .then((snapshot) => {
+            if (!isCurrentScope(token)) return
             const refreshedMessage = snapshot.messages.find(
               (message) => message.id === change.messageId,
             )
@@ -305,11 +363,11 @@ export default function WhatsAppInbox() {
             }
           })
           .catch(() => {
-            void loadDetail()
+            if (isCurrentScope(token)) void loadDetail()
           })
       },
     )
-  }, [companyId, loadDetail, selectedConnectionId, selectedConversationId])
+  }, [companyId, isCurrentScope, loadDetail, selectedConnectionId, selectedConversationId, workspaceEpoch])
 
   useEffect(() => {
     if (!selectedConversationId) return
@@ -365,6 +423,7 @@ export default function WhatsAppInbox() {
       return
     }
 
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
     setSending(true)
     try {
       const result = await whatsappApi.send(companyId, selectedConversationId, {
@@ -373,11 +432,13 @@ export default function WhatsAppInbox() {
         text: text.trim(),
         replyToMessageId: replyTo?.id,
       })
+      if (!isCurrentScope(token)) return
       rememberResult(result)
       setText('')
       setReplyTo(null)
       await refresh()
     } catch (requestError) {
+      if (!isCurrentScope(token)) return
       const message = apiErrorMessage(requestError, 'Unable to send WhatsApp message')
       const templateRequired =
         axios.isAxiosError<ApiResponse<never>>(requestError) &&
@@ -388,7 +449,7 @@ export default function WhatsAppInbox() {
       }
       snackbar.error(message)
     } finally {
-      setSending(false)
+      if (isCurrentScope(token)) setSending(false)
     }
   }
 
@@ -403,6 +464,7 @@ export default function WhatsAppInbox() {
       return
     }
 
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
     setSending(true)
     try {
       const result = await whatsappApi.send(companyId, selectedConversationId, {
@@ -411,15 +473,18 @@ export default function WhatsAppInbox() {
         templateId: selectedTemplate.id,
         parameters,
       })
+      if (!isCurrentScope(token)) return
       rememberResult(result)
       setSelectedTemplate(null)
       setParameters({ header: [], body: [], buttons: [] })
       if (composer?.freeFormAllowed) setTemplateMode(false)
       await refresh()
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to send WhatsApp template'))
+      if (isCurrentScope(token)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to send WhatsApp template'))
+      }
     } finally {
-      setSending(false)
+      if (isCurrentScope(token)) setSending(false)
     }
   }
 
@@ -432,11 +497,15 @@ export default function WhatsAppInbox() {
       snackbar.warning('WhatsApp attachments support JPEG, PNG, WebP images and PDF documents.')
       return
     }
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
     setUploading(true)
     try {
       const upload = await mediaApi.initiateUpload(file, 'WHATSAPP_MEDIA', companyId)
+      if (!isCurrentScope(token)) return
       await mediaApi.uploadFileToStorage(upload, file)
+      if (!isCurrentScope(token)) return
       await mediaApi.completeUpload(upload.mediaId)
+      if (!isCurrentScope(token)) return
 
       const result = await whatsappApi.send(companyId, selectedConversationId, {
         clientRequestId: crypto.randomUUID(),
@@ -445,14 +514,17 @@ export default function WhatsAppInbox() {
         caption: text.trim() || undefined,
         replyToMessageId: replyTo?.id,
       })
+      if (!isCurrentScope(token)) return
       rememberResult(result)
       setText('')
       setReplyTo(null)
       await refresh()
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to send WhatsApp attachment'))
+      if (isCurrentScope(token)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to send WhatsApp attachment'))
+      }
     } finally {
-      setUploading(false)
+      if (isCurrentScope(token)) setUploading(false)
     }
   }
 
@@ -465,15 +537,19 @@ export default function WhatsAppInbox() {
     ) {
       return
     }
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
     setSyncingTemplates(true)
     try {
       const result = await whatsappApi.syncTemplates(companyId, selectedConnectionId)
+      if (!isCurrentScope(token)) return
       snackbar.success(`Synced ${result.synced} templates; ${result.approved} approved.`)
       await loadTemplates()
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to sync WhatsApp templates'))
+      if (isCurrentScope(token)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to sync WhatsApp templates'))
+      }
     } finally {
-      setSyncingTemplates(false)
+      if (isCurrentScope(token)) setSyncingTemplates(false)
     }
   }
 
@@ -615,6 +691,34 @@ export default function WhatsAppInbox() {
                           : 'WhatsApp conversation'}
                   </p>
                 </div>
+                {contactParticipant?.contactId && can(PERMISSIONS.CONTACT_READ) && (
+                  <Link
+                    className="secondary-button shrink-0 px-3"
+                    to={`/contacts/${contactParticipant.contactId}`}
+                  >
+                    View contact
+                  </Link>
+                )}
+                {contactParticipant &&
+                  !contactParticipant.contactId &&
+                  contactParticipant.contactResolution !== 'AMBIGUOUS' &&
+                  can(PERMISSIONS.CONTACT_CREATE) && (
+                    <Link
+                      className="secondary-button shrink-0 px-3"
+                      to={createContactHref(contactParticipant)}
+                    >
+                      Add to contacts
+                    </Link>
+                  )}
+                {contactParticipant?.contactResolution === 'AMBIGUOUS' &&
+                  can(PERMISSIONS.CONTACT_READ) && (
+                    <Link
+                      className="secondary-button shrink-0 px-3"
+                      to={`/contacts?q=${encodeURIComponent(contactParticipant.address)}`}
+                    >
+                      Review contacts
+                    </Link>
+                  )}
               </header>
 
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50/60 p-3 sm:p-5">

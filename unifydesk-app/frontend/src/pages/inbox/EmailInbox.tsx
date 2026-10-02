@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { useLocation, useSearchParams } from 'react-router'
+import { Link, useLocation, useSearchParams } from 'react-router'
 import {
   FiArrowLeft,
   FiCheckCircle,
@@ -31,6 +31,7 @@ import type {
   InboxConversation,
   InboxEmailChangedEvent,
   InboxMessage,
+  InboxParticipant,
 } from '../../features/inbox/types'
 import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -45,7 +46,14 @@ import {
   fetchInboxConversations,
 } from '../../store/inbox/inboxSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import {
+  selectSelectedCompanyId,
+  selectWorkspaceEpoch,
+} from '../../store/workspace/workspaceSlice'
+import {
+  isWorkspaceEpochCurrent,
+  workspaceEpochToken,
+} from '../../features/workspace/workspaceEpoch'
 
 const messageTitle = (message: InboxMessage) =>
   message.subject || message.snippet || (message.direction === 'OUTBOUND' ? 'Sent email' : 'Email')
@@ -89,6 +97,13 @@ const forwardSubject = (subject?: string | null) => {
   return /^fwd?:/i.test(value) ? value : `Fwd: ${value || '(no subject)'}`
 }
 
+const createContactHref = (participant: InboxParticipant) => {
+  const params = new URLSearchParams({ new: '1' })
+  if (participant.participantType === 'EMAIL_ADDRESS') params.set('email', participant.address)
+  else params.set('phone', participant.address)
+  return `/contacts?${params.toString()}`
+}
+
 const defaultSyncRange = () => {
   const to = new Date()
   const from = new Date()
@@ -99,6 +114,9 @@ const defaultSyncRange = () => {
 function EmailInboxView() {
   const dispatch = useAppDispatch()
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
+  const workspaceScopeRef = useRef({ companyId, epoch: workspaceEpoch })
+  workspaceScopeRef.current = { companyId, epoch: workspaceEpoch }
   const inbox = useAppSelector((state) => state.inbox)
   const { can } = useIam()
   const snackbar = useSnackbar()
@@ -154,7 +172,7 @@ function EmailInboxView() {
   })
 
   const connections =
-    inbox.connectionsCompanyId === companyId
+    inbox.connectionsCompanyId === companyId && inbox.connectionsEpoch === workspaceEpoch
       ? inbox.connections.filter(
           (connection) =>
             connection.status === 'ACTIVE' && connection.capabilities.includes('INBOX'),
@@ -162,6 +180,7 @@ function EmailInboxView() {
       : []
   const sameConversationScope =
     inbox.scopeCompanyId === companyId &&
+    inbox.scopeEpoch === workspaceEpoch &&
     inbox.scopeConnectionId === selectedConnectionId &&
     inbox.scopeFolder === selectedFolder
   const conversations = sameConversationScope ? inbox.conversations : []
@@ -172,6 +191,7 @@ function EmailInboxView() {
   const totalElements = sameConversationScope ? inbox.conversationTotalElements : 0
   const detailSelected =
     inbox.detailCompanyId === companyId &&
+    inbox.detailEpoch === workspaceEpoch &&
     inbox.detailConversationId === selectedConversationId
   const selectedConversation = detailSelected ? inbox.selectedConversation : null
   const messages = detailSelected ? inbox.messages : []
@@ -194,6 +214,19 @@ function EmailInboxView() {
     return selectedConnection?.externalAccountId ?? undefined
   }, [connections, selectedConnection, selectedConversation])
 
+  const contactParticipant = useMemo(() => {
+    if (!selectedConversation) return null
+    const otherParticipants = selectedConversation.participants.filter(
+      (participant) => participant.address.toLowerCase() !== ownAddress?.toLowerCase(),
+    )
+    return (
+      otherParticipants.find((participant) => participant.contactId) ??
+      otherParticipants.find((participant) => participant.contactResolution !== 'AMBIGUOUS') ??
+      otherParticipants[0] ??
+      null
+    )
+  }, [ownAddress, selectedConversation])
+
   const loadConversations = useCallback(
     async (page = 0, append = false, force = false) => {
       if (!companyId || !selectedConnectionId) return
@@ -201,6 +234,7 @@ function EmailInboxView() {
         await dispatch(
           fetchInboxConversations({
             companyId,
+            epoch: workspaceEpoch,
             connectionId: selectedConnectionId,
             folder: selectedFolder,
             page,
@@ -212,7 +246,7 @@ function EmailInboxView() {
         snackbar.error(apiErrorMessage(requestError, 'Unable to load email inbox'))
       }
     },
-    [companyId, dispatch, selectedConnectionId, selectedFolder],
+    [companyId, dispatch, selectedConnectionId, selectedFolder, workspaceEpoch],
   )
 
   const refreshInbox = useCallback(
@@ -221,6 +255,7 @@ function EmailInboxView() {
       await dispatch(
         fetchInboxConversations({
           companyId,
+          epoch: workspaceEpoch,
           connectionId: selectedConnectionId,
           folder: selectedFolder,
           force: true,
@@ -230,6 +265,7 @@ function EmailInboxView() {
         await dispatch(
           fetchInboxConversationDetail({
             companyId,
+            epoch: workspaceEpoch,
             conversationId: selectedConversationId,
             force: true,
           }),
@@ -242,24 +278,26 @@ function EmailInboxView() {
       selectedConnectionId,
       selectedConversationId,
       selectedFolder,
+      workspaceEpoch,
     ],
   )
 
   useEffect(() => {
     if (!companyId) return
-    void dispatch(fetchEmailConnections({ companyId }))
-  }, [companyId, dispatch])
+    void dispatch(fetchEmailConnections({ companyId, epoch: workspaceEpoch }))
+  }, [companyId, dispatch, workspaceEpoch])
 
   useEffect(() => {
     if (!companyId || !selectedConnectionId) return
     void dispatch(
       fetchInboxConversations({
         companyId,
+        epoch: workspaceEpoch,
         connectionId: selectedConnectionId,
         folder: selectedFolder,
       }),
     )
-  }, [companyId, dispatch, selectedConnectionId, selectedFolder])
+  }, [companyId, dispatch, selectedConnectionId, selectedFolder, workspaceEpoch])
 
   useEffect(() => {
     setMobileConversationOpen(Boolean(selectedConversationId))
@@ -325,9 +363,9 @@ function EmailInboxView() {
     params.delete('microsoft')
     setSearchParams(params, { replace: true })
     if (companyId) {
-      void dispatch(fetchEmailConnections({ companyId, force: true }))
+      void dispatch(fetchEmailConnections({ companyId, epoch: workspaceEpoch, force: true }))
     }
-  }, [companyId, dispatch, searchParams, setSearchParams])
+  }, [companyId, dispatch, searchParams, setSearchParams, workspaceEpoch])
 
   useEffect(() => {
     if (!companyId || !selectedConversationId) {
@@ -338,12 +376,13 @@ function EmailInboxView() {
     void dispatch(
       fetchInboxConversationDetail({
         companyId,
+        epoch: workspaceEpoch,
         conversationId: selectedConversationId,
       }),
     ).unwrap().catch((requestError) => {
       snackbar.error(apiErrorMessage(requestError, 'Unable to load conversation'))
     })
-  }, [companyId, dispatch, selectedConversationId])
+  }, [companyId, dispatch, selectedConversationId, workspaceEpoch])
 
   const trackedSyncJobs = useMemo(() => Object.values(syncJobs), [syncJobs])
   const activeSyncJobs = useMemo(
@@ -373,6 +412,13 @@ function EmailInboxView() {
   useEffect(() => {
     if (!companyId || !selectedConnectionId) return
 
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
+    const current = () =>
+      isWorkspaceEpochCurrent(
+        token,
+        workspaceScopeRef.current.companyId,
+        workspaceScopeRef.current.epoch,
+      )
     const batch = realtimeBatchRef.current
 
     const flush = async () => {
@@ -384,6 +430,7 @@ function EmailInboxView() {
       batch.messageIds.clear()
       batch.fullRefresh = false
 
+      if (!current()) return
       if (fullRefresh) {
         await refreshInbox(true)
         return
@@ -398,9 +445,19 @@ function EmailInboxView() {
           conversationIds,
           messageIds: selectedConversationId ? messageIds : [],
         })
-        dispatch(applyRealtimeSnapshot({ connectionId: selectedConnectionId, snapshot }))
+        if (!current()) return
+        dispatch(
+          applyRealtimeSnapshot({
+            companyId,
+            epoch: workspaceEpoch,
+            connectionId: selectedConnectionId,
+            snapshot,
+          }),
+        )
       } catch (requestError) {
-        snackbar.error(apiErrorMessage(requestError, 'Unable to apply realtime inbox update'))
+        if (current()) {
+          snackbar.error(apiErrorMessage(requestError, 'Unable to apply realtime inbox update'))
+        }
       }
     }
 
@@ -1390,6 +1447,37 @@ function EmailInboxView() {
                     {selectedConversation && ownAddress ? ` · ${ownAddress}` : ''}
                   </p>
                 </div>
+                {contactParticipant?.contactId && can(PERMISSIONS.CONTACT_READ) && (
+                  <Link
+                    className="secondary-button shrink-0 gap-2 px-3"
+                    to={`/contacts/${contactParticipant.contactId}`}
+                  >
+                    <FiUsers aria-hidden="true" />
+                    <span className="hidden sm:inline">View contact</span>
+                  </Link>
+                )}
+                {contactParticipant &&
+                  !contactParticipant.contactId &&
+                  contactParticipant.contactResolution !== 'AMBIGUOUS' &&
+                  can(PERMISSIONS.CONTACT_CREATE) && (
+                    <Link
+                      className="secondary-button shrink-0 gap-2 px-3"
+                      to={createContactHref(contactParticipant)}
+                    >
+                      <FiUsers aria-hidden="true" />
+                      <span className="hidden sm:inline">Add to contacts</span>
+                    </Link>
+                  )}
+                {contactParticipant?.contactResolution === 'AMBIGUOUS' &&
+                  can(PERMISSIONS.CONTACT_READ) && (
+                    <Link
+                      className="secondary-button shrink-0 gap-2 px-3"
+                      to={`/contacts?q=${encodeURIComponent(contactParticipant.address)}`}
+                    >
+                      <FiUsers aria-hidden="true" />
+                      <span className="hidden sm:inline">Review contacts</span>
+                    </Link>
+                  )}
                 {selectedConversation &&
                   selectedFolder === 'INBOX' &&
                   can(PERMISSIONS.EMAIL_MODIFY) && (

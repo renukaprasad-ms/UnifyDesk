@@ -39,6 +39,7 @@ import type {
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import BroadcastSenderProviderMeta from '../../components/managed-email/BroadcastSenderProviderMeta'
+import CanonicalBroadcastJourney from '../../components/broadcast/CanonicalBroadcastJourney'
 import { managedSmsApi } from '../../features/managedSms/managedSmsApi'
 import {
   isManagedSmsSender,
@@ -59,7 +60,14 @@ import {
   upsertBroadcastGroup,
 } from '../../store/broadcast/broadcastSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import {
+  selectSelectedCompanyId,
+  selectWorkspaceEpoch,
+} from '../../store/workspace/workspaceSlice'
+import {
+  isWorkspaceEpochCurrent,
+  workspaceEpochToken,
+} from '../../features/workspace/workspaceEpoch'
 
 const channelFromPath = (pathname: string): ChannelType => {
   if (pathname.endsWith('/email')) return 'EMAIL'
@@ -98,7 +106,7 @@ const statusBadge = (status: BroadcastMessageStatus) => {
 }
 
 const recipientStatusLabel = (status: BroadcastRecipientStatus) => {
-  if (status === 'ACCEPTED_BY_PROVIDER') return 'Sent'
+  if (status === 'ACCEPTED_BY_PROVIDER') return 'Accepted'
   if (status === 'RETRY') return 'Retrying'
   return status
     .toLowerCase()
@@ -163,6 +171,18 @@ const emptyPage = <T,>(): Page<T> => ({
 export default function BroadcastWorkspace() {
   const dispatch = useAppDispatch()
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
+  const workspaceScopeRef = useRef({ companyId, epoch: workspaceEpoch })
+  workspaceScopeRef.current = { companyId, epoch: workspaceEpoch }
+  const isCurrentScope = useCallback(
+    (capturedCompanyId: string, capturedEpoch: number) =>
+      isWorkspaceEpochCurrent(
+        workspaceEpochToken(capturedCompanyId, capturedEpoch),
+        workspaceScopeRef.current.companyId,
+        workspaceScopeRef.current.epoch,
+      ),
+    [],
+  )
   const broadcast = useAppSelector((state) => state.broadcast)
   const { can } = useIam()
   const snackbar = useSnackbar()
@@ -179,12 +199,16 @@ export default function BroadcastWorkspace() {
   const editBroadcastId = searchParams.get('editBroadcastId')
 
   const groups =
-    broadcast.groupsCompanyId === companyId && broadcast.groupsChannelType === channelType
+    broadcast.groupsCompanyId === companyId &&
+    broadcast.groupsEpoch === workspaceEpoch &&
+    broadcast.groupsChannelType === channelType
       ? broadcast.groups
       : []
   const selectedGroup = groups.find((group) => group.id === selectedGroupId) ?? null
   const history =
-    broadcast.historyCompanyId === companyId && broadcast.historyGroupId === selectedGroupId
+    broadcast.historyCompanyId === companyId &&
+    broadcast.historyEpoch === workspaceEpoch &&
+    broadcast.historyGroupId === selectedGroupId
       ? broadcast.messages
       : []
 
@@ -238,8 +262,8 @@ export default function BroadcastWorkspace() {
           (channelType === 'SMS'
             ? sender.provider === 'MSG91_SMS'
             : channelType === 'EMAIL'
-              ? sender.provider !== 'MSG91_SMS'
-              : false),
+              ? sender.provider !== 'MSG91_SMS' && sender.provider !== 'META_WHATSAPP'
+              : sender.provider === 'META_WHATSAPP'),
       ),
     [channelType, senders],
   )
@@ -357,17 +381,17 @@ export default function BroadcastWorkspace() {
   const refreshGroups = useCallback(
     async (force = true) => {
       if (!companyId) return
-      await dispatch(fetchBroadcastGroups({ companyId, channelType, force }))
+      await dispatch(fetchBroadcastGroups({ companyId, epoch: workspaceEpoch, channelType, force }))
     },
-    [channelType, companyId, dispatch],
+    [channelType, companyId, dispatch, workspaceEpoch],
   )
 
   const refreshHistory = useCallback(
     async (force = true) => {
       if (!companyId || !selectedGroupId) return
-      await dispatch(fetchBroadcastHistory({ companyId, groupId: selectedGroupId, force }))
+      await dispatch(fetchBroadcastHistory({ companyId, epoch: workspaceEpoch, groupId: selectedGroupId, force }))
     },
-    [companyId, dispatch, selectedGroupId],
+    [companyId, dispatch, selectedGroupId, workspaceEpoch],
   )
 
   useEffect(() => {
@@ -380,20 +404,25 @@ export default function BroadcastWorkspace() {
 
   useEffect(() => {
     if (!companyId) return
-    void dispatch(fetchBroadcastGroups({ companyId, channelType }))
-  }, [channelType, companyId, dispatch])
+    void dispatch(fetchBroadcastGroups({ companyId, epoch: workspaceEpoch, channelType }))
+  }, [channelType, companyId, dispatch, workspaceEpoch])
 
   const refreshSenders = useCallback(async () => {
-    if (!companyId || channelType === 'WHATSAPP') {
+    if (!companyId) {
       setSenders([])
       return
     }
+    const capturedCompanyId = companyId
+    const capturedEpoch = workspaceEpoch
     try {
-      setSenders(await broadcastApi.senders(companyId))
+      const nextSenders = await broadcastApi.senders(companyId)
+      if (isCurrentScope(capturedCompanyId, capturedEpoch)) setSenders(nextSenders)
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to load Broadcast senders'))
+      if (isCurrentScope(capturedCompanyId, capturedEpoch)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load Broadcast senders'))
+      }
     }
-  }, [channelType, companyId])
+  }, [companyId, isCurrentScope, snackbar, workspaceEpoch])
 
   useEffect(() => {
     void refreshSenders()
@@ -402,23 +431,28 @@ export default function BroadcastWorkspace() {
   useEffect(() => {
     if (!companyId || !selectedGroupId || selectedGroup) return
     let active = true
+    const capturedEpoch = workspaceEpoch
     broadcastApi
       .group(companyId, selectedGroupId)
       .then((group) => {
-        if (active) dispatch(upsertBroadcastGroup(group))
+        if (active && isCurrentScope(companyId, capturedEpoch)) {
+          dispatch(upsertBroadcastGroup(group))
+        }
       })
       .catch((requestError) => {
-        if (active) snackbar.error(apiErrorMessage(requestError, 'Unable to load broadcast group'))
+        if (active && isCurrentScope(companyId, capturedEpoch)) {
+          snackbar.error(apiErrorMessage(requestError, 'Unable to load broadcast group'))
+        }
       })
     return () => {
       active = false
     }
-  }, [companyId, dispatch, selectedGroup, selectedGroupId])
+  }, [companyId, dispatch, isCurrentScope, selectedGroup, selectedGroupId, workspaceEpoch])
 
   useEffect(() => {
     if (!companyId || !selectedGroupId) return
-    void dispatch(fetchBroadcastHistory({ companyId, groupId: selectedGroupId }))
-  }, [companyId, dispatch, selectedGroupId])
+    void dispatch(fetchBroadcastHistory({ companyId, epoch: workspaceEpoch, groupId: selectedGroupId }))
+  }, [companyId, dispatch, selectedGroupId, workspaceEpoch])
 
   useEffect(() => {
     if (!companyId || !selectedBroadcastId) {
@@ -427,41 +461,43 @@ export default function BroadcastWorkspace() {
       return
     }
     let active = true
+    const capturedEpoch = workspaceEpoch
     setDetailLoading(true)
     broadcastApi
       .message(companyId, selectedBroadcastId)
       .then(async (message) => {
-        if (!active) return
+        if (!active || !isCurrentScope(companyId, capturedEpoch)) return
         setSelectedMessage(message)
         dispatch(applyBroadcastMutation(message))
         if (message.runId) {
           setRecipientsLoading(true)
           try {
             const page = await broadcastApi.recipients(companyId, selectedBroadcastId)
-            if (active) setRecipients(page)
+            if (active && isCurrentScope(companyId, capturedEpoch)) setRecipients(page)
           } finally {
-            if (active) setRecipientsLoading(false)
+            if (active && isCurrentScope(companyId, capturedEpoch)) setRecipientsLoading(false)
           }
         } else {
           setRecipients(emptyPage())
         }
       })
       .catch((requestError) => {
-        if (active)
+        if (active && isCurrentScope(companyId, capturedEpoch))
           snackbar.error(apiErrorMessage(requestError, 'Unable to load broadcast details'))
       })
       .finally(() => {
-        if (active) setDetailLoading(false)
+        if (active && isCurrentScope(companyId, capturedEpoch)) setDetailLoading(false)
       })
     return () => {
       active = false
     }
-  }, [companyId, dispatch, selectedBroadcastId])
+  }, [companyId, dispatch, isCurrentScope, selectedBroadcastId, workspaceEpoch])
 
   useEffect(() => realtimeClient.subscribeConnection(setRealtimeConnected), [])
 
   useEffect(() => {
     if (!companyId) return
+    const capturedEpoch = workspaceEpoch
 
     const scheduleRecipientRefresh = (broadcastId: string) => {
       if (broadcastId !== selectedBroadcastId) return
@@ -471,10 +507,13 @@ export default function BroadcastWorkspace() {
 
       recipientRefreshTimer.current = window.setTimeout(() => {
         recipientRefreshTimer.current = null
+        if (!isCurrentScope(companyId, capturedEpoch)) return
         lastRecipientRefreshAt.current = Date.now()
         void broadcastApi
           .recipients(companyId, broadcastId, recipients.number)
-          .then(setRecipients)
+          .then((page) => {
+            if (isCurrentScope(companyId, capturedEpoch)) setRecipients(page)
+          })
           .catch(() => undefined)
       }, delay)
     }
@@ -482,6 +521,7 @@ export default function BroadcastWorkspace() {
     const unsubscribe = realtimeClient.subscribe<BroadcastProgressEvent>(
       'broadcast.progress.changed',
       (event) => {
+        if (!isCurrentScope(companyId, capturedEpoch)) return
         dispatch(applyBroadcastProgress(event.payload))
         setSelectedMessage((current) => {
           if (!current || current.id !== event.payload.broadcastId) return current
@@ -504,7 +544,14 @@ export default function BroadcastWorkspace() {
         recipientRefreshTimer.current = null
       }
     }
-  }, [companyId, dispatch, recipients.number, selectedBroadcastId])
+  }, [
+    companyId,
+    dispatch,
+    isCurrentScope,
+    recipients.number,
+    selectedBroadcastId,
+    workspaceEpoch,
+  ])
 
   useEffect(() => {
     if (realtimeConnected || !companyId) return
@@ -512,12 +559,13 @@ export default function BroadcastWorkspace() {
     if (!selectedMessageActive && !hasActiveHistory) return
 
     let stopped = false
+    const capturedEpoch = workspaceEpoch
     const poll = async () => {
       if (stopped) return
       try {
         if (selectedBroadcastId) {
           const message = await broadcastApi.message(companyId, selectedBroadcastId)
-          if (stopped) return
+          if (stopped || !isCurrentScope(companyId, capturedEpoch)) return
           setSelectedMessage(message)
           dispatch(applyBroadcastMutation(message))
           if (message.runId) {
@@ -526,13 +574,14 @@ export default function BroadcastWorkspace() {
               selectedBroadcastId,
               recipients.number,
             )
-            if (!stopped) setRecipients(page)
+            if (!stopped && isCurrentScope(companyId, capturedEpoch)) setRecipients(page)
           }
         }
         if (selectedGroupId) {
           await dispatch(
             fetchBroadcastHistory({
               companyId,
+              epoch: workspaceEpoch,
               groupId: selectedGroupId,
               force: true,
             }),
@@ -558,6 +607,8 @@ export default function BroadcastWorkspace() {
     selectedBroadcastId,
     selectedGroupId,
     selectedMessageActive,
+    workspaceEpoch,
+    isCurrentScope,
   ])
 
   useEffect(() => {
@@ -567,13 +618,14 @@ export default function BroadcastWorkspace() {
     }
 
     let active = true
+    const capturedEpoch = workspaceEpoch
     emailTemplateApi
       .published(companyId)
       .then((items) => {
-        if (active) setComposeTemplates(items)
+        if (active && isCurrentScope(companyId, capturedEpoch)) setComposeTemplates(items)
       })
       .catch((requestError) => {
-        if (active) {
+        if (active && isCurrentScope(companyId, capturedEpoch)) {
           snackbar.error(apiErrorMessage(requestError, 'Unable to load published email templates'))
         }
       })
@@ -581,7 +633,7 @@ export default function BroadcastWorkspace() {
     return () => {
       active = false
     }
-  }, [channelType, companyId, composeOpen, snackbar])
+  }, [channelType, companyId, composeOpen, isCurrentScope, snackbar, workspaceEpoch])
 
   useEffect(() => {
     if (!companyId || !composeOpen || !composeUsesManagedSms) {
@@ -592,18 +644,19 @@ export default function BroadcastWorkspace() {
     }
 
     let active = true
+    const capturedEpoch = workspaceEpoch
     setComposeManagedHeaders([])
     setComposeManagedTemplates([])
     setComposeManagedPreview(null)
     setComposeManagedLoading(true)
     Promise.all([managedSmsApi.headers(companyId), managedSmsApi.templates(companyId)])
       .then(([nextHeaders, nextTemplates]) => {
-        if (!active) return
+        if (!active || !isCurrentScope(companyId, capturedEpoch)) return
         setComposeManagedHeaders(nextHeaders)
         setComposeManagedTemplates(nextTemplates)
       })
       .catch((requestError) => {
-        if (active) {
+        if (active && isCurrentScope(companyId, capturedEpoch)) {
           snackbar.error(
             managedSmsErrorMessage(
               requestError,
@@ -613,13 +666,13 @@ export default function BroadcastWorkspace() {
         }
       })
       .finally(() => {
-        if (active) setComposeManagedLoading(false)
+        if (active && isCurrentScope(companyId, capturedEpoch)) setComposeManagedLoading(false)
       })
 
     return () => {
       active = false
     }
-  }, [companyId, composeOpen, composeUsesManagedSms, snackbar])
+  }, [companyId, composeOpen, composeUsesManagedSms, isCurrentScope, snackbar, workspaceEpoch])
 
   useEffect(() => {
     if (
@@ -633,14 +686,19 @@ export default function BroadcastWorkspace() {
       return
     }
 
+    const capturedEpoch = workspaceEpoch
     const timer = window.setTimeout(() => {
+      if (!isCurrentScope(companyId, capturedEpoch)) return
       void managedSmsApi
         .previewTemplate(companyId, composeTemplateId, {
           headerId: composeManagedHeader.id,
           variables: composeTemplateVariables,
         })
-        .then(setComposeManagedPreview)
+        .then((nextPreview) => {
+          if (isCurrentScope(companyId, capturedEpoch)) setComposeManagedPreview(nextPreview)
+        })
         .catch((requestError) => {
+          if (!isCurrentScope(companyId, capturedEpoch)) return
           setComposeManagedPreview(null)
           snackbar.error(
             managedSmsErrorMessage(requestError, 'Unable to preview this managed SMS template.'),
@@ -657,6 +715,8 @@ export default function BroadcastWorkspace() {
     composeTemplateVariables,
     composeUsesManagedSms,
     snackbar,
+    workspaceEpoch,
+    isCurrentScope,
   ])
 
   useEffect(() => {
@@ -666,12 +726,13 @@ export default function BroadcastWorkspace() {
     }
 
     let active = true
+    const capturedEpoch = workspaceEpoch
     void (async () => {
       try {
         const items = await emailTemplateApi.providerBindings(companyId, {
           connectionId: composeSender.connectionId,
         })
-        if (!active) return
+        if (!active || !isCurrentScope(companyId, capturedEpoch)) return
 
         const refreshable = items.filter((binding) =>
           ['SYNCING', 'SYNCED', 'PENDING_REVIEW'].includes(binding.status),
@@ -686,7 +747,7 @@ export default function BroadcastWorkspace() {
             emailTemplateApi.refreshProviderBinding(companyId, binding.id),
           ),
         )
-        if (!active) return
+        if (!active || !isCurrentScope(companyId, capturedEpoch)) return
 
         const updates = new Map(
           refreshed
@@ -698,7 +759,7 @@ export default function BroadcastWorkspace() {
         )
         setComposeProviderBindings(items.map((binding) => updates.get(binding.id) ?? binding))
       } catch (requestError) {
-        if (active) {
+        if (active && isCurrentScope(companyId, capturedEpoch)) {
           snackbar.error(apiErrorMessage(requestError, 'Unable to load MSG91 template bindings'))
         }
       }
@@ -707,11 +768,20 @@ export default function BroadcastWorkspace() {
     return () => {
       active = false
     }
-  }, [companyId, composeOpen, composeSender?.connectionId, composeUsesMsg91Email, snackbar])
+  }, [
+    companyId,
+    composeOpen,
+    composeSender?.connectionId,
+    composeUsesMsg91Email,
+    isCurrentScope,
+    snackbar,
+    workspaceEpoch,
+  ])
 
   useEffect(() => {
     if (!composeOpen) return
     let active = true
+    const capturedEpoch = workspaceEpoch
 
     const reset = () => {
       setComposeSubject('')
@@ -732,27 +802,36 @@ export default function BroadcastWorkspace() {
     broadcastApi
       .message(companyId, editBroadcastId)
       .then((message) => {
-        if (!active) return
+        if (!active || !isCurrentScope(companyId, capturedEpoch)) return
         setComposeSenderId(message.senderId ?? '')
         setComposeTemplateId(message.managedSmsTemplateId ?? message.sourceTemplateId ?? '')
         setComposeSubject(message.subject ?? '')
-        setComposeBody(message.bodyText)
+        setComposeBody(message.bodyText ?? '')
         setComposeTemplateVariables(message.templateVariables ?? {})
         setComposeScheduleAt(
           message.scheduledAt ? new Date(message.scheduledAt).toISOString().slice(0, 16) : '',
         )
       })
       .catch((requestError) => {
-        if (active) snackbar.error(apiErrorMessage(requestError, 'Unable to load broadcast draft'))
+        if (active && isCurrentScope(companyId, capturedEpoch)) {
+          snackbar.error(apiErrorMessage(requestError, 'Unable to load broadcast draft'))
+        }
       })
       .finally(() => {
-        if (active) setComposeBusy(false)
+        if (active && isCurrentScope(companyId, capturedEpoch)) setComposeBusy(false)
       })
 
     return () => {
       active = false
     }
-  }, [companyId, composeOpen, editBroadcastId, selectedActiveSender])
+  }, [
+    companyId,
+    composeOpen,
+    editBroadcastId,
+    isCurrentScope,
+    selectedActiveSender,
+    workspaceEpoch,
+  ])
 
   const openNewGroup = () => {
     setGroupName('')
@@ -779,9 +858,16 @@ export default function BroadcastWorkspace() {
     })
   }
 
+  const mutationScope = () =>
+    companyId ? { companyId, epoch: workspaceEpoch } : null
+
+  const mutationScopeIsCurrent = (scope: { companyId: string; epoch: number } | null) =>
+    Boolean(scope && isCurrentScope(scope.companyId, scope.epoch))
+
   const createGroup = async (event: FormEvent) => {
     event.preventDefault()
     if (!companyId || !groupName.trim() || channelType === 'WHATSAPP') return
+    const scope = mutationScope()
     setGroupBusy(true)
     try {
       const group = await broadcastApi.createGroup(companyId, {
@@ -789,60 +875,79 @@ export default function BroadcastWorkspace() {
         description: groupDescription.trim() || null,
         channelType,
       })
+      if (!mutationScopeIsCurrent(scope)) return
       dispatch(upsertBroadcastGroup(group))
       updateSearch({ newGroup: null, groupId: group.id, broadcastId: null })
       snackbar.success('Broadcast group created. Add recipients when you are ready.')
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to create broadcast group'))
+      if (mutationScopeIsCurrent(scope)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to create broadcast group'))
+      }
     } finally {
-      setGroupBusy(false)
+      if (mutationScopeIsCurrent(scope)) setGroupBusy(false)
     }
   }
 
   const updateGroup = async (event: FormEvent) => {
     event.preventDefault()
     if (!companyId || !selectedGroupId || !groupName.trim()) return
+    const scope = mutationScope()
     setGroupBusy(true)
     try {
       const group = await broadcastApi.updateGroup(companyId, selectedGroupId, {
         name: groupName.trim(),
         description: groupDescription.trim() || null,
       })
+      if (!mutationScopeIsCurrent(scope)) return
       dispatch(upsertBroadcastGroup(group))
       updateSearch({ editGroup: null })
       snackbar.success('Broadcast group updated.')
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to update broadcast group'))
+      if (mutationScopeIsCurrent(scope)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to update broadcast group'))
+      }
     } finally {
-      setGroupBusy(false)
+      if (mutationScopeIsCurrent(scope)) setGroupBusy(false)
     }
   }
 
   const openMembers = async () => {
     if (!companyId || !selectedGroupId) return
+    const scope = mutationScope()
     setMembersOpen(true)
     setMembers(emptyPage())
     try {
-      setMembers(await broadcastApi.members(companyId, selectedGroupId))
+      const nextMembers = await broadcastApi.members(companyId, selectedGroupId)
+      if (mutationScopeIsCurrent(scope)) setMembers(nextMembers)
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to load group members'))
+      if (mutationScopeIsCurrent(scope)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load group members'))
+      }
     }
   }
 
   const loadMembersPage = async (page: number) => {
     if (!companyId || !selectedGroupId) return
+    const scope = mutationScope()
     setMemberBusy(true)
     try {
-      setMembers(await broadcastApi.members(companyId, selectedGroupId, page))
+      const nextMembers = await broadcastApi.members(companyId, selectedGroupId, page)
+      if (mutationScopeIsCurrent(scope)) setMembers(nextMembers)
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to load group members'))
+      if (mutationScopeIsCurrent(scope)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load group members'))
+      }
     } finally {
-      setMemberBusy(false)
+      if (mutationScopeIsCurrent(scope)) setMemberBusy(false)
     }
   }
 
-  const afterMemberChange = async (result?: BroadcastMemberImportResult) => {
+  const afterMemberChange = async (
+    result?: BroadcastMemberImportResult,
+    scope = mutationScope(),
+  ) => {
     await Promise.all([loadMembersPage(0), refreshGroups(true)])
+    if (!mutationScopeIsCurrent(scope)) return
     if (result) {
       snackbar.success(
         `Processed ${result.processed.toLocaleString()} · added ${result.insertedOrReactivated.toLocaleString()} · duplicates ${result.duplicates.toLocaleString()} · invalid ${result.invalid.toLocaleString()}`,
@@ -862,6 +967,7 @@ export default function BroadcastWorkspace() {
     )
     if (values.length === 0) return
 
+    const scope = mutationScope()
     setMemberBusy(true)
     try {
       let processed = 0
@@ -875,49 +981,63 @@ export default function BroadcastWorkspace() {
           selectedGroupId,
           chunk.map((destination) => ({ destination })),
         )
+        if (!mutationScopeIsCurrent(scope)) return
         processed += result.processed
         insertedOrReactivated += result.insertedOrReactivated
         duplicates += result.duplicates
         invalid += result.invalid
       }
       setMemberEmails('')
-      await afterMemberChange({
-        processed,
-        insertedOrReactivated,
-        duplicates,
-        invalid,
-      })
+      await afterMemberChange(
+        {
+          processed,
+          insertedOrReactivated,
+          duplicates,
+          invalid,
+        },
+        scope,
+      )
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to add recipients'))
+      if (mutationScopeIsCurrent(scope)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to add recipients'))
+      }
     } finally {
-      setMemberBusy(false)
+      if (mutationScopeIsCurrent(scope)) setMemberBusy(false)
     }
   }
 
   const importCsv = async () => {
     if (!companyId || !selectedGroupId || !memberCsv) return
+    const scope = mutationScope()
     setMemberBusy(true)
     try {
       const result = await broadcastApi.importMembers(companyId, selectedGroupId, memberCsv)
+      if (!mutationScopeIsCurrent(scope)) return
       setMemberCsv(null)
-      await afterMemberChange(result)
+      await afterMemberChange(result, scope)
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to import CSV'))
+      if (mutationScopeIsCurrent(scope)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to import CSV'))
+      }
     } finally {
-      setMemberBusy(false)
+      if (mutationScopeIsCurrent(scope)) setMemberBusy(false)
     }
   }
 
   const removeMember = async (memberId: string) => {
     if (!companyId || !selectedGroupId) return
+    const scope = mutationScope()
     setMemberBusy(true)
     try {
       await broadcastApi.removeMember(companyId, selectedGroupId, memberId)
-      await afterMemberChange()
+      if (!mutationScopeIsCurrent(scope)) return
+      await afterMemberChange(undefined, scope)
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to remove recipient'))
+      if (mutationScopeIsCurrent(scope)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to remove recipient'))
+      }
     } finally {
-      setMemberBusy(false)
+      if (mutationScopeIsCurrent(scope)) setMemberBusy(false)
     }
   }
 
@@ -973,22 +1093,27 @@ export default function BroadcastWorkspace() {
           bodyText: composeBody,
           templateVariables: composeTemplateId ? composeTemplateVariables : undefined,
         }
+    const scope = mutationScope()
     const message = editBroadcastId
       ? await broadcastApi.updateMessage(companyId, editBroadcastId, input)
       : await broadcastApi.createMessage(companyId, selectedGroupId, input)
+    if (!mutationScopeIsCurrent(scope)) throw new Error('Workspace changed while saving Broadcast')
     dispatch(applyBroadcastMutation(message))
     return message
   }
 
   const submitCompose = async (mode: 'draft' | 'send' | 'schedule') => {
     if (!companyId) return
+    const scope = mutationScope()
     setComposeBusy(true)
     try {
       const draft = await saveDraft()
+      if (!mutationScopeIsCurrent(scope)) return
       let result = draft
       if (mode === 'send') {
         result = await broadcastApi.send(companyId, draft.id)
-        snackbar.success('Broadcast queued. Delivery progress will update live.')
+        if (!mutationScopeIsCurrent(scope)) return
+        snackbar.success('Broadcast queued. Provider acceptance and delivery events will update separately.')
       } else if (mode === 'schedule') {
         if (!composeScheduleAt) throw new Error('Choose a schedule time')
         const scheduleDate = new Date(composeScheduleAt)
@@ -996,14 +1121,17 @@ export default function BroadcastWorkspace() {
           throw new Error('Schedule time must be in the future')
         }
         result = await broadcastApi.schedule(companyId, draft.id, scheduleDate.toISOString())
+        if (!mutationScopeIsCurrent(scope)) return
         snackbar.success('Broadcast scheduled.')
       } else {
         snackbar.success('Broadcast draft saved.')
       }
+      if (!mutationScopeIsCurrent(scope)) return
       dispatch(applyBroadcastMutation(result))
       closeComposer()
       await refreshHistory(true)
     } catch (requestError) {
+      if (!mutationScopeIsCurrent(scope)) return
       snackbar.error(
         composeUsesManagedSms
           ? managedSmsErrorMessage(
@@ -1017,12 +1145,13 @@ export default function BroadcastWorkspace() {
             : apiErrorMessage(requestError, 'Unable to save broadcast'),
       )
     } finally {
-      setComposeBusy(false)
+      if (mutationScopeIsCurrent(scope)) setComposeBusy(false)
     }
   }
 
   const runAction = async (action: 'pause' | 'resume' | 'cancel' | 'send', messageId: string) => {
     if (!companyId) return
+    const scope = mutationScope()
     setActionBusy(true)
     try {
       const result =
@@ -1033,10 +1162,12 @@ export default function BroadcastWorkspace() {
             : action === 'cancel'
               ? await broadcastApi.cancel(companyId, messageId)
               : await broadcastApi.send(companyId, messageId)
+      if (!mutationScopeIsCurrent(scope)) return
       dispatch(applyBroadcastMutation(result))
       setSelectedMessage((current) => (current?.id === result.id ? result : current))
       await refreshHistory(true)
     } catch (requestError) {
+      if (!mutationScopeIsCurrent(scope)) return
       const actionSender = selectedMessage?.senderId
         ? (sendersById.get(selectedMessage.senderId) ?? null)
         : null
@@ -1046,19 +1177,23 @@ export default function BroadcastWorkspace() {
           : apiErrorMessage(requestError, `Unable to ${action} broadcast`),
       )
     } finally {
-      setActionBusy(false)
+      if (mutationScopeIsCurrent(scope)) setActionBusy(false)
     }
   }
 
   const loadRecipientsPage = async (page: number) => {
     if (!companyId || !selectedBroadcastId) return
+    const scope = mutationScope()
     setRecipientsLoading(true)
     try {
-      setRecipients(await broadcastApi.recipients(companyId, selectedBroadcastId, page))
+      const nextRecipients = await broadcastApi.recipients(companyId, selectedBroadcastId, page)
+      if (mutationScopeIsCurrent(scope)) setRecipients(nextRecipients)
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to load recipients'))
+      if (mutationScopeIsCurrent(scope)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load recipients'))
+      }
     } finally {
-      setRecipientsLoading(false)
+      if (mutationScopeIsCurrent(scope)) setRecipientsLoading(false)
     }
   }
 
@@ -1074,37 +1209,11 @@ export default function BroadcastWorkspace() {
     void dispatch(
       fetchBroadcastHistory({
         companyId,
+        epoch: workspaceEpoch,
         groupId: selectedGroupId,
         page: broadcast.historyPage + 1,
         append: true,
       }),
-    )
-  }
-
-  if (channelType === 'WHATSAPP') {
-    return (
-      <section className="channel-workspace-page">
-        <div className="channel-workspace-toolbar">
-          <div className="min-w-0">
-            <p className="eyebrow">BROADCAST</p>
-            <p className="mt-1 text-xs font-semibold text-slate-700">{channelLabel}</p>
-          </div>
-        </div>
-        <div className="channel-workspace-body">
-          <main className="channel-message-surface flex items-center justify-center px-6 text-center">
-            <div className="max-w-md py-14">
-              <FiSend className="mx-auto text-4xl text-slate-300" aria-hidden="true" />
-              <h1 className="mt-4 text-base font-bold text-slate-900">
-                {channelLabel} Broadcast is coming next
-              </h1>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                The production broadcast engine is live for email first. The same reusable group and
-                execution model is ready for {channelLabel.toLowerCase()} transport later.
-              </p>
-            </div>
-          </main>
-        </div>
-      </section>
     )
   }
 
@@ -1114,7 +1223,7 @@ export default function BroadcastWorkspace() {
         <div className="min-w-0">
           <p className="eyebrow">BROADCAST</p>
           <p className="mt-1 truncate text-xs font-semibold text-slate-700">
-            {selectedGroup?.name ?? `${channelLabel} groups`}
+            {selectedGroup?.name ?? `Create ${channelLabel} Broadcast`}
           </p>
         </div>
 
@@ -1156,41 +1265,18 @@ export default function BroadcastWorkspace() {
               <FiSend aria-hidden="true" />
               <span className="inbox-action-label">New broadcast</span>
             </button>
-          ) : (
-            <button type="button" className="primary-button gap-2" onClick={openNewGroup}>
+          ) : channelType !== 'WHATSAPP' && can(PERMISSIONS.BROADCAST_CREATE) ? (
+            <button type="button" className="secondary-button gap-2" onClick={openNewGroup}>
               <FiUsers aria-hidden="true" />
-              <span className="inbox-action-label">New group</span>
+              <span className="inbox-action-label">Legacy group</span>
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
       <div className="channel-workspace-body">
         <main className="channel-message-surface">
-          {!selectedGroupId ? (
-            <div className="flex min-h-[calc(100dvh-210px)] items-center justify-center px-6 text-center">
-              <div className="max-w-md">
-                <FiUsers className="mx-auto text-4xl text-slate-300" aria-hidden="true" />
-                <h1 className="mt-4 text-base font-bold text-slate-900">
-                  Create a reusable broadcast group
-                </h1>
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Save recipients once, reuse the same group for future broadcasts, and keep every
-                  send with its own immutable recipient snapshot and delivery history.
-                </p>
-                {can(PERMISSIONS.BROADCAST_CREATE) && (
-                  <button
-                    type="button"
-                    className="primary-button mt-5 gap-2"
-                    onClick={openNewGroup}
-                  >
-                    <FiUsers aria-hidden="true" />
-                    Create group
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : selectedBroadcastId ? (
+          {selectedBroadcastId ? (
             <BroadcastDetail
               message={selectedMessage}
               sender={
@@ -1208,6 +1294,11 @@ export default function BroadcastWorkspace() {
               onEdit={(id) => openComposer(id)}
               onAction={(action, id) => void runAction(action, id)}
               onRecipientsPage={(page) => void loadRecipientsPage(page)}
+            />
+          ) : !selectedGroupId ? (
+            <CanonicalBroadcastJourney
+              channel={channelType}
+              onCreated={(id) => updateSearch({ broadcastId: id, groupId: null, compose: null })}
             />
           ) : (
             <div className="channel-message-scroll min-h-[calc(100dvh-214px)] p-4 sm:p-5">
@@ -2105,7 +2196,7 @@ function BroadcastHistoryCard({
             <span>{formatDate(message.scheduledAt || message.createdAt)}</span>
             {message.stats.total > 0 && (
               <>
-                <span>Sent {message.stats.accepted.toLocaleString()}</span>
+                <span>Accepted {message.stats.accepted.toLocaleString()}</span>
                 <span>Failed {message.stats.failed.toLocaleString()}</span>
                 <span>Bounced {message.stats.bounced.toLocaleString()}</span>
               </>
@@ -2285,7 +2376,7 @@ function BroadcastDetail({
           <>
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
               <StatCard label="Total" value={message.stats.total} />
-              <StatCard label="Sent" value={message.stats.accepted} />
+              <StatCard label="Accepted" value={message.stats.accepted} />
               <StatCard label="Failed" value={message.stats.failed} />
               <StatCard label="Bounced" value={message.stats.bounced} />
               <StatCard label="Unknown" value={message.stats.unknown} />
@@ -2297,8 +2388,7 @@ function BroadcastDetail({
                 <div>
                   <p className="text-sm font-bold text-slate-900">Recipients</p>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    Provider acceptance is shown as Sent. Bounces can update later from delivery
-                    reports.
+                    Provider acceptance is shown as Accepted. Delivery and bounce status update only when provider events are available.
                   </p>
                 </div>
                 <button

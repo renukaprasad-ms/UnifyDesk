@@ -2,6 +2,7 @@ import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
 import type { ChannelType } from '../channel/types'
 import type {
+  AudienceSelector,
   BroadcastGroup,
   BroadcastMember,
   BroadcastMemberImportResult,
@@ -17,9 +18,12 @@ import type {
   ConnectMsg91EmailInput,
   ConnectMsg91Input,
   ConnectSendGridInput,
+  ChannelReadiness,
+  CreateAudienceBroadcastMessageInput,
   CreateBroadcastGroupInput,
   CreateBroadcastMessageInput,
   Page,
+  RecipientResolutionPreview,
   UpsertBroadcastSetupSessionInput,
 } from './types'
 
@@ -202,6 +206,49 @@ export const broadcastApi = {
       input,
     )
     return unwrap(response.data)
+  },
+
+  async createAudienceMessage(companyId: string, input: CreateAudienceBroadcastMessageInput) {
+    const response = await apiClient.post<ApiResponse<BroadcastMessage>>(
+      `/api/v1/companies/${companyId}/broadcast/audiences/messages`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async previewAudience(
+    companyId: string,
+    input: {
+      selector: AudienceSelector
+      channel: ChannelType
+      senderId: string
+    },
+  ) {
+    const source =
+      input.selector.sourceType === 'CONTACT_LIST'
+        ? { sourceType: 'LIST' as const, sourceId: input.selector.sourceId }
+        : input.selector.sourceType === 'SEGMENT'
+          ? { sourceType: 'SEGMENT' as const, sourceId: input.selector.sourceId }
+          : { sourceType: 'CONTACTS' as const, contactIds: input.selector.contactIds }
+
+    const response = await apiClient.post<ApiResponse<RecipientResolutionPreview>>(
+      `/api/v1/companies/${companyId}/broadcast/audiences/preview`,
+      {
+        ...source,
+        channelType: input.channel,
+        senderId: input.senderId,
+      },
+    )
+    return unwrap(response.data)
+  },
+
+  async channelReadiness(companyId: string, channel: ChannelType) {
+    const response = await apiClient.get<ApiResponse<ChannelReadiness[]>>(
+      `/api/v1/companies/${companyId}/broadcast/readiness`,
+    )
+    const readiness = unwrap(response.data).find((item) => item.channel === channel)
+    if (!readiness) throw new Error(`No readiness state returned for ${channel}`)
+    return readiness
   },
 
   async updateMessage(companyId: string, broadcastId: string, input: CreateBroadcastMessageInput) {

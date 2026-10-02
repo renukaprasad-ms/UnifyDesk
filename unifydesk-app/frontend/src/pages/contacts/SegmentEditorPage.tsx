@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import ExportJobButton from '../../components/contacts/ExportJobButton'
 import SegmentBuilder from '../../components/contacts/SegmentBuilder'
@@ -202,6 +202,14 @@ export default function SegmentEditorPage() {
 
           {!creating && segmentId && companyId && (
             <div className="flex flex-wrap gap-2">
+              {can(PERMISSIONS.BROADCAST_CREATE) && (
+                <Link
+                  className="primary-button"
+                  to={`/broadcast/email?audienceType=SEGMENT&audienceId=${segmentId}`}
+                >
+                  Create Broadcast
+                </Link>
+              )}
               {can(PERMISSIONS.CONTACT_EXPORT) && (
                 <ExportJobButton
                   companyId={companyId}
