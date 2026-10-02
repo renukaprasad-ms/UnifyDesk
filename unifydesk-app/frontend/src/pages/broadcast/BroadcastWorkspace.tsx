@@ -858,9 +858,16 @@ export default function BroadcastWorkspace() {
     })
   }
 
+  const mutationScope = () =>
+    companyId ? { companyId, epoch: workspaceEpoch } : null
+
+  const mutationScopeIsCurrent = (scope: { companyId: string; epoch: number } | null) =>
+    Boolean(scope && isCurrentScope(scope.companyId, scope.epoch))
+
   const createGroup = async (event: FormEvent) => {
     event.preventDefault()
     if (!companyId || !groupName.trim() || channelType === 'WHATSAPP') return
+    const scope = mutationScope()
     setGroupBusy(true)
     try {
       const group = await broadcastApi.createGroup(companyId, {
@@ -868,60 +875,79 @@ export default function BroadcastWorkspace() {
         description: groupDescription.trim() || null,
         channelType,
       })
+      if (!mutationScopeIsCurrent(scope)) return
       dispatch(upsertBroadcastGroup(group))
       updateSearch({ newGroup: null, groupId: group.id, broadcastId: null })
       snackbar.success('Broadcast group created. Add recipients when you are ready.')
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to create broadcast group'))
+      if (mutationScopeIsCurrent(scope)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to create broadcast group'))
+      }
     } finally {
-      setGroupBusy(false)
+      if (mutationScopeIsCurrent(scope)) setGroupBusy(false)
     }
   }
 
   const updateGroup = async (event: FormEvent) => {
     event.preventDefault()
     if (!companyId || !selectedGroupId || !groupName.trim()) return
+    const scope = mutationScope()
     setGroupBusy(true)
     try {
       const group = await broadcastApi.updateGroup(companyId, selectedGroupId, {
         name: groupName.trim(),
         description: groupDescription.trim() || null,
       })
+      if (!mutationScopeIsCurrent(scope)) return
       dispatch(upsertBroadcastGroup(group))
       updateSearch({ editGroup: null })
       snackbar.success('Broadcast group updated.')
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to update broadcast group'))
+      if (mutationScopeIsCurrent(scope)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to update broadcast group'))
+      }
     } finally {
-      setGroupBusy(false)
+      if (mutationScopeIsCurrent(scope)) setGroupBusy(false)
     }
   }
 
   const openMembers = async () => {
     if (!companyId || !selectedGroupId) return
+    const scope = mutationScope()
     setMembersOpen(true)
     setMembers(emptyPage())
     try {
-      setMembers(await broadcastApi.members(companyId, selectedGroupId))
+      const nextMembers = await broadcastApi.members(companyId, selectedGroupId)
+      if (mutationScopeIsCurrent(scope)) setMembers(nextMembers)
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to load group members'))
+      if (mutationScopeIsCurrent(scope)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load group members'))
+      }
     }
   }
 
   const loadMembersPage = async (page: number) => {
     if (!companyId || !selectedGroupId) return
+    const scope = mutationScope()
     setMemberBusy(true)
     try {
-      setMembers(await broadcastApi.members(companyId, selectedGroupId, page))
+      const nextMembers = await broadcastApi.members(companyId, selectedGroupId, page)
+      if (mutationScopeIsCurrent(scope)) setMembers(nextMembers)
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to load group members'))
+      if (mutationScopeIsCurrent(scope)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load group members'))
+      }
     } finally {
-      setMemberBusy(false)
+      if (mutationScopeIsCurrent(scope)) setMemberBusy(false)
     }
   }
 
-  const afterMemberChange = async (result?: BroadcastMemberImportResult) => {
+  const afterMemberChange = async (
+    result?: BroadcastMemberImportResult,
+    scope = mutationScope(),
+  ) => {
     await Promise.all([loadMembersPage(0), refreshGroups(true)])
+    if (!mutationScopeIsCurrent(scope)) return
     if (result) {
       snackbar.success(
         `Processed ${result.processed.toLocaleString()} · added ${result.insertedOrReactivated.toLocaleString()} · duplicates ${result.duplicates.toLocaleString()} · invalid ${result.invalid.toLocaleString()}`,
@@ -941,6 +967,7 @@ export default function BroadcastWorkspace() {
     )
     if (values.length === 0) return
 
+    const scope = mutationScope()
     setMemberBusy(true)
     try {
       let processed = 0
@@ -954,49 +981,63 @@ export default function BroadcastWorkspace() {
           selectedGroupId,
           chunk.map((destination) => ({ destination })),
         )
+        if (!mutationScopeIsCurrent(scope)) return
         processed += result.processed
         insertedOrReactivated += result.insertedOrReactivated
         duplicates += result.duplicates
         invalid += result.invalid
       }
       setMemberEmails('')
-      await afterMemberChange({
-        processed,
-        insertedOrReactivated,
-        duplicates,
-        invalid,
-      })
+      await afterMemberChange(
+        {
+          processed,
+          insertedOrReactivated,
+          duplicates,
+          invalid,
+        },
+        scope,
+      )
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to add recipients'))
+      if (mutationScopeIsCurrent(scope)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to add recipients'))
+      }
     } finally {
-      setMemberBusy(false)
+      if (mutationScopeIsCurrent(scope)) setMemberBusy(false)
     }
   }
 
   const importCsv = async () => {
     if (!companyId || !selectedGroupId || !memberCsv) return
+    const scope = mutationScope()
     setMemberBusy(true)
     try {
       const result = await broadcastApi.importMembers(companyId, selectedGroupId, memberCsv)
+      if (!mutationScopeIsCurrent(scope)) return
       setMemberCsv(null)
-      await afterMemberChange(result)
+      await afterMemberChange(result, scope)
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to import CSV'))
+      if (mutationScopeIsCurrent(scope)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to import CSV'))
+      }
     } finally {
-      setMemberBusy(false)
+      if (mutationScopeIsCurrent(scope)) setMemberBusy(false)
     }
   }
 
   const removeMember = async (memberId: string) => {
     if (!companyId || !selectedGroupId) return
+    const scope = mutationScope()
     setMemberBusy(true)
     try {
       await broadcastApi.removeMember(companyId, selectedGroupId, memberId)
-      await afterMemberChange()
+      if (!mutationScopeIsCurrent(scope)) return
+      await afterMemberChange(undefined, scope)
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to remove recipient'))
+      if (mutationScopeIsCurrent(scope)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to remove recipient'))
+      }
     } finally {
-      setMemberBusy(false)
+      if (mutationScopeIsCurrent(scope)) setMemberBusy(false)
     }
   }
 
@@ -1052,22 +1093,27 @@ export default function BroadcastWorkspace() {
           bodyText: composeBody,
           templateVariables: composeTemplateId ? composeTemplateVariables : undefined,
         }
+    const scope = mutationScope()
     const message = editBroadcastId
       ? await broadcastApi.updateMessage(companyId, editBroadcastId, input)
       : await broadcastApi.createMessage(companyId, selectedGroupId, input)
+    if (!mutationScopeIsCurrent(scope)) throw new Error('Workspace changed while saving Broadcast')
     dispatch(applyBroadcastMutation(message))
     return message
   }
 
   const submitCompose = async (mode: 'draft' | 'send' | 'schedule') => {
     if (!companyId) return
+    const scope = mutationScope()
     setComposeBusy(true)
     try {
       const draft = await saveDraft()
+      if (!mutationScopeIsCurrent(scope)) return
       let result = draft
       if (mode === 'send') {
         result = await broadcastApi.send(companyId, draft.id)
-        snackbar.success('Broadcast queued. Delivery progress will update live.')
+        if (!mutationScopeIsCurrent(scope)) return
+        snackbar.success('Broadcast queued. Provider acceptance and delivery events will update separately.')
       } else if (mode === 'schedule') {
         if (!composeScheduleAt) throw new Error('Choose a schedule time')
         const scheduleDate = new Date(composeScheduleAt)
@@ -1075,14 +1121,17 @@ export default function BroadcastWorkspace() {
           throw new Error('Schedule time must be in the future')
         }
         result = await broadcastApi.schedule(companyId, draft.id, scheduleDate.toISOString())
+        if (!mutationScopeIsCurrent(scope)) return
         snackbar.success('Broadcast scheduled.')
       } else {
         snackbar.success('Broadcast draft saved.')
       }
+      if (!mutationScopeIsCurrent(scope)) return
       dispatch(applyBroadcastMutation(result))
       closeComposer()
       await refreshHistory(true)
     } catch (requestError) {
+      if (!mutationScopeIsCurrent(scope)) return
       snackbar.error(
         composeUsesManagedSms
           ? managedSmsErrorMessage(
@@ -1096,12 +1145,13 @@ export default function BroadcastWorkspace() {
             : apiErrorMessage(requestError, 'Unable to save broadcast'),
       )
     } finally {
-      setComposeBusy(false)
+      if (mutationScopeIsCurrent(scope)) setComposeBusy(false)
     }
   }
 
   const runAction = async (action: 'pause' | 'resume' | 'cancel' | 'send', messageId: string) => {
     if (!companyId) return
+    const scope = mutationScope()
     setActionBusy(true)
     try {
       const result =
@@ -1112,10 +1162,12 @@ export default function BroadcastWorkspace() {
             : action === 'cancel'
               ? await broadcastApi.cancel(companyId, messageId)
               : await broadcastApi.send(companyId, messageId)
+      if (!mutationScopeIsCurrent(scope)) return
       dispatch(applyBroadcastMutation(result))
       setSelectedMessage((current) => (current?.id === result.id ? result : current))
       await refreshHistory(true)
     } catch (requestError) {
+      if (!mutationScopeIsCurrent(scope)) return
       const actionSender = selectedMessage?.senderId
         ? (sendersById.get(selectedMessage.senderId) ?? null)
         : null
@@ -1125,19 +1177,23 @@ export default function BroadcastWorkspace() {
           : apiErrorMessage(requestError, `Unable to ${action} broadcast`),
       )
     } finally {
-      setActionBusy(false)
+      if (mutationScopeIsCurrent(scope)) setActionBusy(false)
     }
   }
 
   const loadRecipientsPage = async (page: number) => {
     if (!companyId || !selectedBroadcastId) return
+    const scope = mutationScope()
     setRecipientsLoading(true)
     try {
-      setRecipients(await broadcastApi.recipients(companyId, selectedBroadcastId, page))
+      const nextRecipients = await broadcastApi.recipients(companyId, selectedBroadcastId, page)
+      if (mutationScopeIsCurrent(scope)) setRecipients(nextRecipients)
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to load recipients'))
+      if (mutationScopeIsCurrent(scope)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load recipients'))
+      }
     } finally {
-      setRecipientsLoading(false)
+      if (mutationScopeIsCurrent(scope)) setRecipientsLoading(false)
     }
   }
 
