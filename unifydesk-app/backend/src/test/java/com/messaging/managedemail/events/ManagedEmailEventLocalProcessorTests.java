@@ -37,7 +37,7 @@ class ManagedEmailEventLocalProcessorTests {
     fixture.processor.process(event, fixture.runtime);
 
     verify(fixture.suppression, times(1))
-        .hardBounce(fixture.runtime, event.eventTimestamp());
+        .hardBounce(fixture.runtime, event);
     verify(fixture.effects, times(1))
         .ensureTenantSuppressionScheduled(event, fixture.runtime, SuppressionListReason.BOUNCE);
     verify(fixture.ledger, times(1)).markProcessed(event);
@@ -53,7 +53,7 @@ class ManagedEmailEventLocalProcessorTests {
     fixture.processor.process(event, fixture.runtime);
     fixture.processor.process(event, fixture.runtime);
 
-    verify(fixture.suppression, times(1)).complaint(fixture.runtime);
+    verify(fixture.suppression, times(1)).complaint(fixture.runtime, event);
     verify(fixture.effects, times(1))
         .ensureTenantSuppressionScheduled(event, fixture.runtime, SuppressionListReason.COMPLAINT);
     verify(fixture.ledger, times(1)).markProcessed(event);
