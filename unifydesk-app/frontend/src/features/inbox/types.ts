@@ -6,10 +6,15 @@ export type InboxMessageDirection = 'INBOUND' | 'OUTBOUND'
 export type InboxMessageStatus = 'RECEIVED' | 'SENT' | 'DRAFT' | 'FAILED'
 export type InboxParticipantType = 'EMAIL_ADDRESS' | 'PHONE_NUMBER'
 
+export type InboxParticipantContactResolution = 'MATCHED' | 'UNMATCHED' | 'AMBIGUOUS'
+
 export type InboxParticipant = {
   address: string
   displayName?: string | null
   participantType: InboxParticipantType
+  contactId?: string | null
+  contactIdentityId?: string | null
+  contactResolution?: InboxParticipantContactResolution | null
 }
 
 export type InboxConversation = {
