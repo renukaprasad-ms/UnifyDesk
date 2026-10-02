@@ -24,6 +24,8 @@ public class BroadcastController {
   private final BroadcastMemberService memberService;
   private final BroadcastMessageService messageService;
   private final BroadcastExecutionControlService controlService;
+  private final BroadcastAudiencePreviewService audiencePreviewService;
+  private final BroadcastChannelReadinessService channelReadinessService;
   private final CompanyAuthorizationService authorizationService;
   private final CurrentUserService currentUserService;
 
@@ -135,6 +137,29 @@ public class BroadcastController {
                 201,
                 messageService.create(companyId, userId, groupId, request),
                 "Broadcast draft created"));
+  }
+
+  @PostMapping("/audiences/preview")
+  public ResponseEntity<ApiResponse<BroadcastAudiencePreviewResponse>> previewAudience(
+      @PathVariable Long companyId,
+      @Valid @RequestBody BroadcastAudiencePreviewRequest request) {
+    require(companyId, CompanyPermissionKeys.BROADCAST_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            audiencePreviewService.preview(companyId, request),
+            "Broadcast audience preview computed"));
+  }
+
+  @GetMapping("/readiness")
+  public ResponseEntity<ApiResponse<java.util.List<BroadcastChannelReadinessResponse.ChannelReadiness>>>
+      readiness(@PathVariable Long companyId) {
+    require(companyId, CompanyPermissionKeys.BROADCAST_READ);
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            200,
+            channelReadinessService.readiness(companyId),
+            "Broadcast channel readiness fetched"));
   }
 
   @PostMapping("/audiences/messages")

@@ -14,6 +14,7 @@ public enum BroadcastSenderProvider {
   SENDGRID,
   MSG91_EMAIL,
   MSG91_SMS,
+  META_WHATSAPP,
   GMAIL,
   MICROSOFT,
   IMAP_SMTP,
@@ -22,6 +23,7 @@ public enum BroadcastSenderProvider {
   public ChannelType channelType() {
     return switch (this) {
       case MSG91_SMS -> ChannelType.SMS;
+      case META_WHATSAPP -> ChannelType.WHATSAPP;
       case AMAZON_SES, AZURE_EMAIL, SENDGRID, MSG91_EMAIL, GMAIL, MICROSOFT, IMAP_SMTP, SMTP ->
           ChannelType.EMAIL;
     };
@@ -32,7 +34,8 @@ public enum BroadcastSenderProvider {
         || this == AZURE_EMAIL
         || this == SENDGRID
         || this == MSG91_EMAIL
-        || this == MSG91_SMS;
+        || this == MSG91_SMS
+        || this == META_WHATSAPP;
   }
 
   public boolean isBulkProvider() {

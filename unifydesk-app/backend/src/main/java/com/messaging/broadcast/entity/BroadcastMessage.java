@@ -45,6 +45,15 @@ public class BroadcastMessage {
   @Column(name = "source_template_version")
   private Long sourceTemplateVersion;
 
+  @Column(name = "frozen_audience_snapshot_id")
+  private Long frozenAudienceSnapshotId;
+
+  @Column(name = "whatsapp_template_id")
+  private Long whatsAppTemplateId;
+
+  @Column(name = "whatsapp_template_parameters_json", nullable = false, columnDefinition = "text")
+  private String whatsAppTemplateParametersJson = "{}";
+
   @Enumerated(EnumType.STRING)
   @Column(name = "channel_type", nullable = false, length = 24)
   private ChannelType channelType;

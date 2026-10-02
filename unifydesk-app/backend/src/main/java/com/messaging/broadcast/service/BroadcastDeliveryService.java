@@ -45,6 +45,7 @@ public class BroadcastDeliveryService {
   private final ManagedEmailSuppressionGate managedEmailSuppressionGate;
   private final ManagedEmailProviderBudgetService managedEmailProviderBudgetService;
   private final ContactEligibilityService contactEligibilityService;
+  private final BroadcastWhatsAppDeliveryService whatsAppDeliveryService;
 
   private ManagedSmsDeliveryCoordinator managedSmsDeliveryCoordinator;
 
@@ -60,6 +61,11 @@ public class BroadcastDeliveryService {
       BroadcastSender sender,
       BroadcastRecipient recipient) {
     if (!recheckContactEligibility(run, recipient)) return;
+
+    if (run.getProviderType() == BroadcastSenderProvider.META_WHATSAPP) {
+      whatsAppDeliveryService.deliver(run, connection, sender, recipient);
+      return;
+    }
 
     if (connection.getManagementMode() == BroadcastSenderManagementMode.MESSAGING_MANAGED) {
       if (run.getProviderType() == BroadcastSenderProvider.MSG91_SMS) {

@@ -19,6 +19,8 @@ public record BroadcastMessageResponse(
     Long sourceTemplateVersion,
     String managedSmsTemplateId,
     Long managedSmsTemplateVersion,
+    String whatsappTemplateId,
+    BroadcastWhatsAppTemplateParameters whatsappTemplateParameters,
     String legacyConnectionId,
     String runId,
     String subject,
@@ -61,6 +63,8 @@ public record BroadcastMessageResponse(
         sourceTemplateVersion,
         managedSmsTemplateId,
         managedSmsTemplateVersion,
+        null,
+        null,
         legacyConnectionId,
         runId,
         subject,
@@ -94,9 +98,6 @@ public record BroadcastMessageResponse(
     this(
         id,
         groupId,
-        null,
-        null,
-        null,
         senderId,
         sourceTemplateId,
         sourceTemplateVersion,
@@ -120,6 +121,15 @@ public record BroadcastMessageResponse(
       BroadcastRun run,
       BroadcastStatsResponse stats,
       Map<String, String> templateVariables) {
+    return from(message, run, stats, templateVariables, null);
+  }
+
+  public static BroadcastMessageResponse from(
+      BroadcastMessage message,
+      BroadcastRun run,
+      BroadcastStatsResponse stats,
+      Map<String, String> templateVariables,
+      BroadcastWhatsAppTemplateParameters whatsAppTemplateParameters) {
     boolean managedSms =
         message.getChannelType() == ChannelType.SMS && message.getSourceTemplateId() != null;
     return new BroadcastMessageResponse(
@@ -127,12 +137,16 @@ public record BroadcastMessageResponse(
         stringId(message.getGroupId()),
         message.getAudienceSourceType(),
         stringId(message.getAudienceSourceId()),
-        run == null ? null : stringId(run.getAudienceSnapshotId()),
+        run == null
+            ? stringId(message.getFrozenAudienceSnapshotId())
+            : stringId(run.getAudienceSnapshotId()),
         stringId(message.getSenderId()),
         stringId(message.getSourceTemplateId()),
         message.getSourceTemplateVersion(),
         managedSms ? stringId(message.getSourceTemplateId()) : null,
         managedSms ? message.getSourceTemplateVersion() : null,
+        stringId(message.getWhatsAppTemplateId()),
+        whatsAppTemplateParameters,
         stringId(message.getConnectionId()),
         run == null ? null : run.getId().toString(),
         message.getSubject(),

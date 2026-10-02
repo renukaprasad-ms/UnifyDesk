@@ -8,9 +8,6 @@ import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.contacts.audience.AudienceSnapshotRepository;
 import com.messaging.contacts.audience.AudienceSnapshotService;
-import com.messaging.contacts.audience.AudienceSourceResolver;
-import com.messaging.contacts.consent.ConsentTypes.Channel;
-import com.messaging.contacts.consent.ConsentTypes.Purpose;
 import com.messaging.emailtemplate.entity.EmailTemplateProviderBinding;
 import com.messaging.emailtemplate.service.EmailTemplateProviderBindingService;
 import com.messaging.managedemail.delivery.ManagedEmailLaunchGuard;
@@ -37,8 +34,8 @@ public class BroadcastLaunchService {
   private final ManagedEmailLaunchGuard managedEmailLaunchGuard;
   private final ManagedSmsLaunchGuard managedSmsLaunchGuard;
   private final ManagedSmsRunBindingService managedSmsRunBindingService;
-  private final AudienceSourceResolver audienceSourceResolver;
-  private final AudienceSnapshotService audienceSnapshotService;
+  private final BroadcastAudienceFreezeService audienceFreezeService;
+  private final BroadcastWhatsAppTemplateService whatsAppTemplateService;
 
   @Transactional
   public BroadcastRun launch(Long companyId, Long broadcastId) {
@@ -64,9 +61,6 @@ public class BroadcastLaunchService {
     }
 
     ChannelType channelType = message.getChannelType();
-    if (channelType == ChannelType.WHATSAPP) {
-      throw new BadRequestException("WhatsApp Broadcast execution is not implemented yet");
-    }
     if (message.getSenderId() == null) {
       throw new BadRequestException("Choose a Broadcast sender before launching this broadcast");
     }
@@ -92,22 +86,11 @@ public class BroadcastLaunchService {
       if (message.getAudienceSourceType() == null || message.getAudienceSourceId() == null) {
         throw new BadRequestException("Broadcast audience source is missing");
       }
-      AudienceSourceResolver.SourceType sourceType =
-          AudienceSourceResolver.SourceType.valueOf(message.getAudienceSourceType().name());
-      audienceSnapshot =
-          audienceSnapshotService.createForBroadcast(
-              companyId,
-              sourceType,
-              message.getAudienceSourceId(),
-              Channel.valueOf(channelType.name()),
-              Purpose.MARKETING);
-      AudienceSourceResolver.SourceDescriptor frozenSource =
-          new AudienceSourceResolver.SourceDescriptor(
-              sourceType,
-              audienceSnapshot.sourceId(),
-              audienceSnapshot.sourceVersion(),
-              audienceSnapshot.filterHash());
-      recipientCount = audienceSourceResolver.count(companyId, frozenSource);
+      BroadcastAudienceFreezeService.FrozenAudience frozen =
+          audienceFreezeService.freeze(message);
+      audienceSnapshot = frozen.snapshot();
+      recipientCount = frozen.candidateCount();
+      message.setFrozenAudienceSnapshotId(audienceSnapshot.id());
       if (recipientCount <= 0) {
         throw new BadRequestException("Broadcast audience has no active recipients");
       }
@@ -119,6 +102,21 @@ public class BroadcastLaunchService {
     if (!sender.getProvider().supports(channelType)
         || senderConnection.getProvider() != sender.getProvider()) {
       throw new BadRequestException("Broadcast sender provider is not supported or mismatched");
+    }
+
+    BroadcastWhatsAppTemplateService.Prepared whatsAppTemplate = null;
+    if (sender.getProvider() == BroadcastSenderProvider.META_WHATSAPP) {
+      if (message.getWhatsAppTemplateId() == null
+          || senderConnection.getChannelConnectionId() == null) {
+        throw new BadRequestException("WHATSAPP_TEMPLATE_NOT_READY");
+      }
+      whatsAppTemplate =
+          whatsAppTemplateService.validate(
+              companyId,
+              senderConnection.getChannelConnectionId(),
+              message.getWhatsAppTemplateId(),
+              whatsAppTemplateService.readParameters(
+                  message.getWhatsAppTemplateParametersJson()));
     }
 
     ManagedSmsRuntimeRepository.ManagedTemplateRuntime managedSmsRuntime = null;
@@ -148,6 +146,13 @@ public class BroadcastLaunchService {
     run.setBodyTextSnapshot(message.getBodyText());
     run.setBodyHtmlSnapshot(message.getBodyHtml());
     run.setTemplateVariablesJsonSnapshot(message.getTemplateVariablesJson());
+    if (whatsAppTemplate != null) {
+      run.setWhatsAppTemplateIdSnapshot(message.getWhatsAppTemplateId());
+      run.setWhatsAppTemplateNameSnapshot(whatsAppTemplate.name());
+      run.setWhatsAppTemplateLanguageSnapshot(whatsAppTemplate.language());
+      run.setWhatsAppTemplateComponentsJsonSnapshot(
+          whatsAppTemplate.providerComponentsJson());
+    }
 
     if (sender.getProvider() == BroadcastSenderProvider.MSG91_EMAIL) {
       if (message.getSourceTemplateId() == null || message.getSourceTemplateVersion() == null) {

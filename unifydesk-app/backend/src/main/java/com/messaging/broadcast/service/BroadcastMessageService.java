@@ -12,6 +12,7 @@ import com.messaging.channel.enums.ChannelType;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.contacts.audience.AudienceSourceResolver;
+import com.messaging.contacts.audience.ContactAudienceSelectionService;
 import com.messaging.emailtemplate.enums.EmailTemplatePurpose;
 import com.messaging.emailtemplate.service.EmailTemplateService;
 import com.messaging.managedsms.runtime.ManagedSmsTemplateService;
@@ -37,6 +38,9 @@ public class BroadcastMessageService {
   private final EmailTemplateService emailTemplateService;
   private final ManagedSmsTemplateService managedSmsTemplateService;
   private final AudienceSourceResolver audienceSourceResolver;
+  private final ContactAudienceSelectionService contactAudienceSelectionService;
+  private final BroadcastAudienceFreezeService audienceFreezeService;
+  private final BroadcastWhatsAppTemplateService whatsAppTemplateService;
   private final ObjectMapper objectMapper;
 
   @Transactional
@@ -57,6 +61,8 @@ public class BroadcastMessageService {
         message.getChannelType(),
         request.templateId(),
         request.managedSmsTemplateId(),
+        request.whatsappTemplateId(),
+        request.whatsappTemplateParameters(),
         request.subject(),
         request.bodyText(),
         request.bodyHtml(),
@@ -72,9 +78,24 @@ public class BroadcastMessageService {
   @Transactional
   public BroadcastMessageResponse createAudience(
       Long companyId, Long userId, CreateAudienceBroadcastMessageRequest request) {
-    AudienceSourceResolver.SourceType sourceType =
-        AudienceSourceResolver.SourceType.valueOf(request.sourceType().name());
-    audienceSourceResolver.describe(companyId, sourceType, request.sourceId());
+    Long audienceSourceId;
+    if (request.sourceType() == com.messaging.broadcast.enums.BroadcastAudienceSourceType.CONTACTS) {
+      if (request.sourceId() != null) {
+        throw new BadRequestException("CONTACT_SELECTION_INVALID");
+      }
+      ContactAudienceSelectionService.Selection selection =
+          contactAudienceSelectionService.create(companyId, userId, request.contactIds());
+      audienceSourceId = selection.id();
+    } else {
+      if (request.sourceId() == null
+          || (request.contactIds() != null && !request.contactIds().isEmpty())) {
+        throw new BadRequestException("Broadcast audience source is invalid");
+      }
+      AudienceSourceResolver.SourceType sourceType =
+          AudienceSourceResolver.SourceType.valueOf(request.sourceType().name());
+      audienceSourceResolver.describe(companyId, sourceType, request.sourceId());
+      audienceSourceId = request.sourceId();
+    }
 
     BroadcastSender sender =
         validateSender(companyId, request.channelType(), request.senderId());
@@ -85,7 +106,7 @@ public class BroadcastMessageService {
     message.setCompanyId(companyId);
     message.setGroupId(null);
     message.setAudienceSourceType(request.sourceType());
-    message.setAudienceSourceId(request.sourceId());
+    message.setAudienceSourceId(audienceSourceId);
     message.setSenderId(request.senderId());
     message.setChannelType(request.channelType());
     applyContent(
@@ -93,6 +114,8 @@ public class BroadcastMessageService {
         request.channelType(),
         request.templateId(),
         request.managedSmsTemplateId(),
+        request.whatsappTemplateId(),
+        request.whatsappTemplateParameters(),
         request.subject(),
         request.bodyText(),
         request.bodyHtml(),
@@ -121,6 +144,8 @@ public class BroadcastMessageService {
         message.getChannelType(),
         request.templateId(),
         request.managedSmsTemplateId(),
+        request.whatsappTemplateId(),
+        request.whatsappTemplateParameters(),
         request.subject(),
         request.bodyText(),
         request.bodyHtml(),
@@ -140,6 +165,7 @@ public class BroadcastMessageService {
     if (!request.scheduledAt().isAfter(Instant.now())) {
       throw new BadRequestException("Broadcast schedule time must be in the future");
     }
+    freezeCanonicalAudience(message);
     message.setScheduledAt(request.scheduledAt());
     message.setStatus(BroadcastMessageStatus.SCHEDULED);
     return response(messageRepository.save(message));
@@ -149,6 +175,8 @@ public class BroadcastMessageService {
   public BroadcastMessageResponse sendNow(Long companyId, Long broadcastId) {
     BroadcastMessage message = require(companyId, broadcastId);
     requireModernSender(companyId, message);
+    freezeCanonicalAudience(message);
+    messageRepository.save(message);
     launchService.launch(companyId, broadcastId);
     return response(require(companyId, broadcastId));
   }
@@ -191,6 +219,8 @@ public class BroadcastMessageService {
       ChannelType channelType,
       Long templateId,
       Long managedSmsTemplateId,
+      Long whatsAppTemplateId,
+      BroadcastWhatsAppTemplateParameters whatsAppTemplateParameters,
       String subject,
       String bodyText,
       String bodyHtml,
@@ -198,6 +228,38 @@ public class BroadcastMessageService {
       BroadcastSender sender,
       BroadcastSenderConnection connection,
       BroadcastMessage message) {
+    if (channelType == ChannelType.WHATSAPP) {
+      if (sender.getProvider() != BroadcastSenderProvider.META_WHATSAPP
+          || whatsAppTemplateId == null
+          || templateId != null
+          || managedSmsTemplateId != null
+          || connection.getChannelConnectionId() == null) {
+        throw new BadRequestException("WHATSAPP_TEMPLATE_NOT_READY");
+      }
+      BroadcastWhatsAppTemplateService.Prepared prepared =
+          whatsAppTemplateService.validate(
+              companyId,
+              connection.getChannelConnectionId(),
+              whatsAppTemplateId,
+              whatsAppTemplateParameters);
+      message.setSourceTemplateId(null);
+      message.setSourceTemplateVersion(null);
+      message.setWhatsAppTemplateId(whatsAppTemplateId);
+      message.setWhatsAppTemplateParametersJson(
+          whatsAppTemplateService.writeParameters(whatsAppTemplateParameters));
+      message.setSubject(null);
+      message.setBodyText("WhatsApp template: " + prepared.name());
+      message.setBodyHtml(null);
+      message.setTemplateVariablesJson("{}");
+      return;
+    }
+
+    if (whatsAppTemplateId != null || whatsAppTemplateParameters != null) {
+      throw new BadRequestException("WhatsApp templates require a Meta WhatsApp sender");
+    }
+    message.setWhatsAppTemplateId(null);
+    message.setWhatsAppTemplateParametersJson("{}");
+
     if (connection.getManagementMode() == BroadcastSenderManagementMode.MESSAGING_MANAGED
         && sender.getProvider() == BroadcastSenderProvider.MSG91_SMS) {
       if (channelType != ChannelType.SMS || managedSmsTemplateId == null) {
@@ -307,6 +369,15 @@ public class BroadcastMessageService {
     return sender;
   }
 
+  private void freezeCanonicalAudience(BroadcastMessage message) {
+    if (message.getGroupId() != null) return;
+    BroadcastAudienceFreezeService.FrozenAudience frozen = audienceFreezeService.freeze(message);
+    if (frozen == null || frozen.candidateCount() <= 0) {
+      throw new BadRequestException("Broadcast audience has no active recipients");
+    }
+    message.setFrozenAudienceSnapshotId(frozen.snapshot().id());
+  }
+
   private void requireModernSender(Long companyId, BroadcastMessage message) {
     if (message.getSenderId() == null) {
       throw new BadRequestException(
@@ -323,7 +394,8 @@ public class BroadcastMessageService {
         message,
         run,
         BroadcastStatsResponse.from(stats),
-        readTemplateVariables(message.getTemplateVariablesJson()));
+        readTemplateVariables(message.getTemplateVariablesJson()),
+        whatsAppTemplateService.readParameters(message.getWhatsAppTemplateParametersJson()));
   }
 
   private BroadcastMessageSummaryResponse summary(BroadcastMessage message) {

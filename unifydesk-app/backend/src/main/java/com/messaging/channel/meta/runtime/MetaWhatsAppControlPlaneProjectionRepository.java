@@ -22,6 +22,10 @@ public class MetaWhatsAppControlPlaneProjectionRepository {
         .findFirst();
   }
 
+  public List<Projection> findByCompanyId(long companyId) {
+    return query("where company_id = ?", companyId);
+  }
+
   private List<Projection> query(String predicate, Object value) {
     return jdbcTemplate.query(
         """

@@ -40,6 +40,7 @@ public class BroadcastSenderService {
   private final Msg91Gateway msg91Gateway;
   private final Msg91EmailGateway msg91EmailGateway;
   private final CredentialCipher credentialCipher;
+  private final BroadcastWhatsAppSenderAdapter whatsAppSenderAdapter;
   private final ObjectMapper objectMapper;
 
   public BroadcastSenderResponse connectAmazonSes(
@@ -233,8 +234,9 @@ public class BroadcastSenderService {
     return persistAndCompleteSetup(connection, sender, state.reconnecting());
   }
 
-  @Transactional(readOnly = true)
+  @Transactional
   public List<BroadcastSenderResponse> list(Long companyId) {
+    whatsAppSenderAdapter.synchronizeCompany(companyId);
     return senderRepository
         .findByCompanyIdAndStatusOrderByUpdatedAtDesc(companyId, BroadcastSenderStatus.ACTIVE)
         .stream()
@@ -288,6 +290,12 @@ public class BroadcastSenderService {
         applyMsg91EmailSnapshot(connection, snapshot);
         sender.setVerifiedIdentity(snapshot.verifiedIdentity());
       }
+      case META_WHATSAPP -> {
+        BroadcastSender refreshed = whatsAppSenderAdapter.reconcile(companyId, senderId);
+        BroadcastSenderConnection refreshedConnection =
+            requireConnection(companyId, refreshed.getConnectionId());
+        return BroadcastSenderResponse.from(refreshed, refreshedConnection);
+      }
       case GMAIL, MICROSOFT, IMAP_SMTP, SMTP ->
           throw new BadRequestException("Mailbox providers cannot be refreshed as Broadcast senders");
     }
@@ -313,12 +321,15 @@ public class BroadcastSenderService {
         com.messaging.channel.enums.DisconnectDataPolicy.DELETE_NOW);
   }
 
-  @Transactional(readOnly = true)
+  @Transactional
   public BroadcastSender requireActive(Long companyId, Long senderId) {
     BroadcastSender sender =
         senderRepository
             .findByIdAndCompanyId(senderId, companyId)
             .orElseThrow(() -> new NotFoundException("Broadcast sender not found"));
+    if (sender.getProvider() == BroadcastSenderProvider.META_WHATSAPP) {
+      sender = whatsAppSenderAdapter.reconcile(companyId, senderId);
+    }
     if (sender.getStatus() != BroadcastSenderStatus.ACTIVE) {
       throw new BadRequestException("Broadcast sender is not active");
     }

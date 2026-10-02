@@ -111,6 +111,38 @@ public class AudienceSnapshotRepository {
     return inserted;
   }
 
+  public List<Long> pageCandidates(
+      long companyId, long snapshotId, long afterContactId, int limit) {
+    int bounded = Math.max(1, Math.min(limit, 2000));
+    return jdbcTemplate.queryForList(
+        """
+        select contact_id
+        from contact_audience_snapshot_candidates
+        where company_id = ? and snapshot_id = ? and contact_id > ?
+        order by contact_id asc
+        limit ?
+        """,
+        Long.class,
+        companyId,
+        snapshotId,
+        afterContactId,
+        bounded);
+  }
+
+  public long candidateCount(long companyId, long snapshotId) {
+    Long count =
+        jdbcTemplate.queryForObject(
+            """
+            select count(*)
+            from contact_audience_snapshot_candidates
+            where company_id = ? and snapshot_id = ?
+            """,
+            Long.class,
+            companyId,
+            snapshotId);
+    return count == null ? 0 : count;
+  }
+
   public List<MemberView> pageMembers(
       long companyId, long snapshotId, long afterSequenceId, int limit) {
     int bounded = Math.max(1, Math.min(limit, 2000));

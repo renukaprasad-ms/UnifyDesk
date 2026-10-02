@@ -164,6 +164,7 @@ public class BroadcastSenderPersistenceService {
       case SENDGRID -> ProviderType.SENDGRID;
       case MSG91_EMAIL -> ProviderType.MSG91_EMAIL;
       case MSG91_SMS -> ProviderType.MSG91_SMS;
+      case META_WHATSAPP -> ProviderType.META_WHATSAPP;
       case GMAIL, MICROSOFT, IMAP_SMTP, SMTP ->
           throw new IllegalArgumentException(
               "Mailbox provider cannot be used for new Broadcast senders: " + provider);
