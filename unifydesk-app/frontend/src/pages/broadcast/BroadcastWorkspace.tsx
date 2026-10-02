@@ -172,6 +172,18 @@ export default function BroadcastWorkspace() {
   const dispatch = useAppDispatch()
   const companyId = useAppSelector(selectSelectedCompanyId)
   const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
+  const workspaceScopeRef = useRef({ companyId, epoch: workspaceEpoch })
+  workspaceScopeRef.current = { companyId, epoch: workspaceEpoch }
+  const isCurrentScope = useCallback(
+    (token: WorkspaceEpochToken | null) =>
+      isWorkspaceEpochCurrent(
+        token,
+        workspaceScopeRef.current.companyId,
+        workspaceScopeRef.current.epoch,
+      ),
+    [],
+  )
+  const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
   const currentScopeRef = useRef({ companyId, epoch: workspaceEpoch })
   currentScopeRef.current = { companyId, epoch: workspaceEpoch }
   const scopeIsCurrent = (capturedCompanyId: string, capturedEpoch: number) =>
@@ -559,6 +571,7 @@ export default function BroadcastWorkspace() {
           await dispatch(
             fetchBroadcastHistory({
               companyId,
+              epoch: workspaceEpoch,
               epoch: workspaceEpoch,
               groupId: selectedGroupId,
               force: true,
@@ -1101,6 +1114,7 @@ export default function BroadcastWorkspace() {
     void dispatch(
       fetchBroadcastHistory({
         companyId,
+        epoch: workspaceEpoch,
         epoch: workspaceEpoch,
         groupId: selectedGroupId,
         page: broadcast.historyPage + 1,
