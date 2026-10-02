@@ -4,36 +4,22 @@
 
 Do not manufacture B1/B2/F1 work. Create implementation assignments only when evidence proves a production-source defect that belongs in this narrow round.
 
-## Finding CMR1-AUDIT-001 — Direct mailbox providers are not canonical Broadcast providers
+## MAIN decision — Provider-4 scope resolved
 
-### Classification
+MAIN selected the scope-correction option.
 
-**A. SOURCE DEFECT / REQUIREMENT-SCOPE MISMATCH** if this initiative truly requires canonical Broadcast execution via Gmail, Microsoft and SMTP.
+Provider-4 canonical direct Email regression means the modern supported customer-managed bulk Email providers:
 
-Current source is explicit:
+1. Amazon SES
+2. SendGrid
+3. Azure Communication Services Email
+4. MSG91 Email
 
-- historical enum values exist;
-- `isBroadcastProvider()` excludes them;
-- `supports()` therefore returns false;
-- modern `BroadcastLaunchService` rejects them;
-- `BroadcastSenderService.refresh()` says mailbox providers cannot be refreshed as Broadcast senders.
+Gmail, Microsoft, IMAP/SMTP and SMTP mailbox providers are outside Provider-4 verification for this round. No production remediation is required merely to make those historical mailbox enum values launchable as modern Broadcast senders.
 
-### Impact
+The prior `CMR1-AUDIT-001` requirement/scope mismatch is therefore **RESOLVED BY SCOPE DECISION**, not by source modification.
 
-The requested Provider-4 regression suite cannot be executed as written because there is no supported canonical launch path for those providers.
-
-### Remediation decision
-
-**Do not implement in this narrow verification branch.**
-
-Supporting Gmail/Microsoft/SMTP as modern canonical Broadcast transports would require an explicit product/architecture decision around sender ownership, OAuth/mailbox quotas, bulk-send behavior, delivery semantics, retries, consent/suppression, and provider events. That is broader than a verification-only repair.
-
-MAIN/L1 should choose one of two contracts before worker assignment:
-
-1. **Provider-4 scope correction:** canonical direct Email regression means the modern supported customer-managed bulk providers: Amazon SES, SendGrid, Azure Email and MSG91 Email; or
-2. **New feature scope:** explicitly add mailbox-backed Gmail/Microsoft/SMTP canonical Broadcast, with new architecture/contracts and a separate implementation round.
-
-No B1/B2/F1 task is created from this audit without that decision.
+No B1/B2/F1 implementation assignment is created for mailbox-backed Broadcast.
 
 ## Environment/provider blockers
 
@@ -55,7 +41,7 @@ Classify them as environment/provider blockers or NOT EXECUTED after checking th
 4. Execute Managed Email end-to-end first.
 5. Execute Managed SMS end-to-end second.
 6. Execute Meta test-WABA outbound/status/inbound path if assets are available.
-7. Resolve Provider-4 contract mismatch before attempting Gmail/Microsoft/SMTP work.
+7. Regression-verify Provider-4 against Amazon SES, SendGrid, Azure Email and MSG91 Email after the Managed Email/SES path.
 8. Record every API ID, DB transition and provider event in `EXECUTION-RESULTS.md`.
 9. If a genuine narrow source defect appears, create exactly the worker assignment needed, integrate it, freeze the resulting production SHA and hand that exact SHA to independent SEC/QA.
 
