@@ -246,6 +246,13 @@ export type RecipientResolutionPreview = {
 
 export type CreateAudienceBroadcastMessageInput = CreateBroadcastMessageInput & {
   channelType: ChannelType
+  whatsappTemplateId?: string | null
+  whatsappTemplateLanguage?: string | null
+  whatsappTemplateParameters?: {
+    header: string[]
+    body: string[]
+    buttons: string[]
+  } | null
 } & (
   | { sourceType: 'LIST' | 'SEGMENT'; sourceId: string; contactIds?: never }
   | { sourceType: 'CONTACTS'; contactIds: string[]; sourceId?: never }
