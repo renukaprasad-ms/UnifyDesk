@@ -195,13 +195,21 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     }
 
     let active = true
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
+    const current = () =>
+      active &&
+      isWorkspaceEpochCurrent(
+        token,
+        workspaceScopeRef.current.companyId,
+        workspaceScopeRef.current.epoch,
+      )
     setLocalLoading(true)
     setError(null)
 
     channelApi
       .list(companyId, channelType)
       .then(async (items) => {
-        if (!active) return
+        if (!current()) return
 
         const connected = items.filter((item) => item.status === 'ACTIVE')
         setLocalConnections(connected)
@@ -216,21 +224,21 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
           }),
         )
 
-        if (active) setSenders(Object.fromEntries(senderEntries))
+        if (current()) setSenders(Object.fromEntries(senderEntries))
       })
       .catch((requestError) => {
-        if (active) {
+        if (current()) {
           setError(apiErrorMessage(requestError, `Unable to load connected ${meta.label}`))
         }
       })
       .finally(() => {
-        if (active) setLocalLoading(false)
+        if (current()) setLocalLoading(false)
       })
 
     return () => {
       active = false
     }
-  }, [broadcastMode, channelType, companyId, meta.label])
+  }, [broadcastMode, channelType, companyId, meta.label, workspaceEpoch])
 
   useEffect(() => {
     if (!companyId || !broadcastMode || channelType === 'WHATSAPP') {
@@ -240,24 +248,32 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     }
 
     let active = true
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
+    const current = () =>
+      active &&
+      isWorkspaceEpochCurrent(
+        token,
+        workspaceScopeRef.current.companyId,
+        workspaceScopeRef.current.epoch,
+      )
     setBroadcastSenderLoading(true)
     setError(null)
     broadcastApi
       .senders(companyId)
       .then((items) => {
-        if (active) setBroadcastSenders(items)
+        if (current()) setBroadcastSenders(items)
       })
       .catch((requestError) => {
-        if (active) setError(apiErrorMessage(requestError, 'Unable to load Broadcast senders'))
+        if (current()) setError(apiErrorMessage(requestError, 'Unable to load Broadcast senders'))
       })
       .finally(() => {
-        if (active) setBroadcastSenderLoading(false)
+        if (current()) setBroadcastSenderLoading(false)
       })
 
     return () => {
       active = false
     }
-  }, [broadcastMode, channelType, companyId])
+  }, [broadcastMode, channelType, companyId, workspaceEpoch])
 
   useEffect(() => {
     if (!companyId || !broadcastMode) return
