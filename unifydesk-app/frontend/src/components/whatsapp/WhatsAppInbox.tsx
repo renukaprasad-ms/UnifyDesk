@@ -423,6 +423,7 @@ export default function WhatsAppInbox() {
       return
     }
 
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
     setSending(true)
     try {
       const result = await whatsappApi.send(companyId, selectedConversationId, {
@@ -431,11 +432,13 @@ export default function WhatsAppInbox() {
         text: text.trim(),
         replyToMessageId: replyTo?.id,
       })
+      if (!isCurrentScope(token)) return
       rememberResult(result)
       setText('')
       setReplyTo(null)
       await refresh()
     } catch (requestError) {
+      if (!isCurrentScope(token)) return
       const message = apiErrorMessage(requestError, 'Unable to send WhatsApp message')
       const templateRequired =
         axios.isAxiosError<ApiResponse<never>>(requestError) &&
@@ -446,7 +449,7 @@ export default function WhatsAppInbox() {
       }
       snackbar.error(message)
     } finally {
-      setSending(false)
+      if (isCurrentScope(token)) setSending(false)
     }
   }
 
@@ -461,6 +464,7 @@ export default function WhatsAppInbox() {
       return
     }
 
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
     setSending(true)
     try {
       const result = await whatsappApi.send(companyId, selectedConversationId, {
@@ -469,15 +473,18 @@ export default function WhatsAppInbox() {
         templateId: selectedTemplate.id,
         parameters,
       })
+      if (!isCurrentScope(token)) return
       rememberResult(result)
       setSelectedTemplate(null)
       setParameters({ header: [], body: [], buttons: [] })
       if (composer?.freeFormAllowed) setTemplateMode(false)
       await refresh()
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to send WhatsApp template'))
+      if (isCurrentScope(token)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to send WhatsApp template'))
+      }
     } finally {
-      setSending(false)
+      if (isCurrentScope(token)) setSending(false)
     }
   }
 
@@ -490,11 +497,15 @@ export default function WhatsAppInbox() {
       snackbar.warning('WhatsApp attachments support JPEG, PNG, WebP images and PDF documents.')
       return
     }
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
     setUploading(true)
     try {
       const upload = await mediaApi.initiateUpload(file, 'WHATSAPP_MEDIA', companyId)
+      if (!isCurrentScope(token)) return
       await mediaApi.uploadFileToStorage(upload, file)
+      if (!isCurrentScope(token)) return
       await mediaApi.completeUpload(upload.mediaId)
+      if (!isCurrentScope(token)) return
 
       const result = await whatsappApi.send(companyId, selectedConversationId, {
         clientRequestId: crypto.randomUUID(),
@@ -503,14 +514,17 @@ export default function WhatsAppInbox() {
         caption: text.trim() || undefined,
         replyToMessageId: replyTo?.id,
       })
+      if (!isCurrentScope(token)) return
       rememberResult(result)
       setText('')
       setReplyTo(null)
       await refresh()
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to send WhatsApp attachment'))
+      if (isCurrentScope(token)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to send WhatsApp attachment'))
+      }
     } finally {
-      setUploading(false)
+      if (isCurrentScope(token)) setUploading(false)
     }
   }
 
@@ -523,15 +537,19 @@ export default function WhatsAppInbox() {
     ) {
       return
     }
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
     setSyncingTemplates(true)
     try {
       const result = await whatsappApi.syncTemplates(companyId, selectedConnectionId)
+      if (!isCurrentScope(token)) return
       snackbar.success(`Synced ${result.synced} templates; ${result.approved} approved.`)
       await loadTemplates()
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to sync WhatsApp templates'))
+      if (isCurrentScope(token)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to sync WhatsApp templates'))
+      }
     } finally {
-      setSyncingTemplates(false)
+      if (isCurrentScope(token)) setSyncingTemplates(false)
     }
   }
 
@@ -690,6 +708,15 @@ export default function WhatsAppInbox() {
                       to={createContactHref(contactParticipant)}
                     >
                       Add to contacts
+                    </Link>
+                  )}
+                {contactParticipant?.contactResolution === 'AMBIGUOUS' &&
+                  can(PERMISSIONS.CONTACT_READ) && (
+                    <Link
+                      className="secondary-button shrink-0 px-3"
+                      to={`/contacts?q=${encodeURIComponent(contactParticipant.address)}`}
+                    >
+                      Review contacts
                     </Link>
                   )}
               </header>
