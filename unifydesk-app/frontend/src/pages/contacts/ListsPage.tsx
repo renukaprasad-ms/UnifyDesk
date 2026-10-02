@@ -7,10 +7,20 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
-import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import {
+  selectSelectedCompanyId,
+  selectWorkspaceEpoch,
+} from '../../store/workspace/workspaceSlice'
+import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
+import type { WorkspaceEpochToken } from '../../features/workspace/workspaceEpoch'
 
 export default function ListsPage() {
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
+  const { capture: captureScope, isCurrent: scopeIsCurrent } = useWorkspaceEpochScope(
+    companyId,
+    workspaceEpoch,
+  )
   const { can } = useIam()
   const [items, setItems] = useState<ListSummary[]>([])
   const [name, setName] = useState('')
@@ -18,42 +28,45 @@ export default function ListsPage() {
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
 
-  const load = async () => {
-    if (!companyId) {
-      setItems([])
-      setLoading(false)
-      return
-    }
-
+  const load = async (scope: WorkspaceEpochToken | null = captureScope()) => {
+    if (!companyId || !scopeIsCurrent(scope)) return
     setLoading(true)
     setError('')
     try {
-      setItems((await contactsApi.lists(companyId)).filter((item) => item.status !== 'ARCHIVED'))
+      const nextItems = await contactsApi.lists(companyId)
+      if (!scopeIsCurrent(scope)) return
+      setItems(nextItems.filter((item) => item.status !== 'ARCHIVED'))
     } catch (loadError) {
-      setError(apiErrorMessage(loadError, 'Unable to load Lists.'))
+      if (scopeIsCurrent(scope)) {
+        setError(apiErrorMessage(loadError, 'Unable to load Lists.'))
+      }
     } finally {
-      setLoading(false)
+      if (scopeIsCurrent(scope)) setLoading(false)
     }
   }
 
   useEffect(() => {
-    void load()
-  }, [companyId])
+    void load(captureScope())
+  }, [captureScope, companyId, scopeIsCurrent, workspaceEpoch])
 
   const create = async (event: FormEvent) => {
     event.preventDefault()
     if (!companyId || !name.trim() || creating) return
 
+    const scope = captureScope()
     setCreating(true)
     setError('')
     try {
       await contactsApi.createList(companyId, { name: name.trim() })
+      if (!scopeIsCurrent(scope)) return
       setName('')
-      await load()
+      await load(scope)
     } catch (createError) {
-      setError(apiErrorMessage(createError, 'Unable to create List.'))
+      if (scopeIsCurrent(scope)) {
+        setError(apiErrorMessage(createError, 'Unable to create List.'))
+      }
     } finally {
-      setCreating(false)
+      if (scopeIsCurrent(scope)) setCreating(false)
     }
   }
 
