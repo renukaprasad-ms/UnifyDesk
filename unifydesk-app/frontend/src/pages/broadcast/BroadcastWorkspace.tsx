@@ -64,10 +64,8 @@ import {
   selectSelectedCompanyId,
   selectWorkspaceEpoch,
 } from '../../store/workspace/workspaceSlice'
-import {
-  isWorkspaceEpochCurrent,
-  workspaceEpochToken,
-} from '../../features/workspace/workspaceEpoch'
+import { workspaceEpochToken } from '../../features/workspace/workspaceEpoch'
+import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 
 const channelFromPath = (pathname: string): ChannelType => {
   if (pathname.endsWith('/email')) return 'EMAIL'
@@ -172,16 +170,14 @@ export default function BroadcastWorkspace() {
   const dispatch = useAppDispatch()
   const companyId = useAppSelector(selectSelectedCompanyId)
   const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
-  const workspaceScopeRef = useRef({ companyId, epoch: workspaceEpoch })
-  workspaceScopeRef.current = { companyId, epoch: workspaceEpoch }
+  const { isCurrent: isWorkspaceTokenCurrent } = useWorkspaceEpochScope(
+    companyId,
+    workspaceEpoch,
+  )
   const isCurrentScope = useCallback(
     (capturedCompanyId: string, capturedEpoch: number) =>
-      isWorkspaceEpochCurrent(
-        workspaceEpochToken(capturedCompanyId, capturedEpoch),
-        workspaceScopeRef.current.companyId,
-        workspaceScopeRef.current.epoch,
-      ),
-    [],
+      isWorkspaceTokenCurrent(workspaceEpochToken(capturedCompanyId, capturedEpoch)),
+    [isWorkspaceTokenCurrent],
   )
   const broadcast = useAppSelector((state) => state.broadcast)
   const { can } = useIam()
@@ -400,7 +396,7 @@ export default function BroadcastWorkspace() {
     setComposeManagedPreview(null)
     setComposeTemplateVariables({})
     setComposeTemplateId('')
-  }, [companyId])
+  }, [companyId, workspaceEpoch])
 
   useEffect(() => {
     if (!companyId) return
