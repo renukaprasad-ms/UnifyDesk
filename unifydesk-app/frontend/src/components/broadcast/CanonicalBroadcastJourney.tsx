@@ -45,6 +45,17 @@ const exclusionLabels: Record<RecipientExclusionReason, string> = {
 
 const channelLabel = (channel: ChannelType) => (channel === 'WHATSAPP' ? 'WhatsApp' : channel)
 
+export const buildAudienceSelector = (
+  sourceType: 'CONTACT_LIST' | 'SEGMENT' | 'CONTACTS',
+  sourceId: string,
+  contactIds: Iterable<string>,
+): AudienceSelector | null => {
+  if (sourceType === 'CONTACT_LIST') return sourceId ? { sourceType, sourceId } : null
+  if (sourceType === 'SEGMENT') return sourceId ? { sourceType, sourceId } : null
+  const ids = Array.from(contactIds)
+  return ids.length > 0 ? { sourceType: 'CONTACTS', contactIds: ids } : null
+}
+
 const blankWhatsAppParameters = (template: WhatsAppTemplate): WhatsAppTemplateParameters => {
   const counts = templateVariableCounts(template)
   return {
@@ -102,11 +113,10 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const selector = useMemo<AudienceSelector | null>(() => {
-    if (sourceType === 'CONTACT_LIST') return sourceId ? { sourceType, sourceId } : null
-    if (sourceType === 'SEGMENT') return sourceId ? { sourceType, sourceId } : null
-    return contactIds.size > 0 ? { sourceType: 'CONTACTS', contactIds: Array.from(contactIds) } : null
-  }, [contactIds, sourceId, sourceType])
+  const selector = useMemo(
+    () => buildAudienceSelector(sourceType, sourceId, contactIds),
+    [contactIds, sourceId, sourceType],
+  )
 
   const selectedReadiness = readiness?.senders.find((item) => item.senderId === senderId) ?? null
   const readySenders = readiness?.senders.filter((item) => item.state === 'READY') ?? []
