@@ -172,7 +172,7 @@ function EmailInboxView() {
   })
 
   const connections =
-    inbox.connectionsCompanyId === companyId
+    inbox.connectionsCompanyId === companyId && inbox.connectionsEpoch === workspaceEpoch
       ? inbox.connections.filter(
           (connection) =>
             connection.status === 'ACTIVE' && connection.capabilities.includes('INBOX'),
