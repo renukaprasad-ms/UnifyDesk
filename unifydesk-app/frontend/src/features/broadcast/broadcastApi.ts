@@ -17,6 +17,7 @@ import type {
   ConnectMsg91EmailInput,
   ConnectMsg91Input,
   ConnectSendGridInput,
+  CreateAudienceBroadcastMessageInput,
   CreateBroadcastGroupInput,
   CreateBroadcastMessageInput,
   Page,
@@ -199,6 +200,14 @@ export const broadcastApi = {
   async createMessage(companyId: string, groupId: string, input: CreateBroadcastMessageInput) {
     const response = await apiClient.post<ApiResponse<BroadcastMessage>>(
       `/api/v1/companies/${companyId}/broadcast/groups/${groupId}/messages`,
+      input,
+    )
+    return unwrap(response.data)
+  },
+
+  async createAudienceMessage(companyId: string, input: CreateAudienceBroadcastMessageInput) {
+    const response = await apiClient.post<ApiResponse<BroadcastMessage>>(
+      `/api/v1/companies/${companyId}/broadcast/audiences/messages`,
       input,
     )
     return unwrap(response.data)
