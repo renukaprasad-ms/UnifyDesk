@@ -1,5 +1,13 @@
 package com.messaging.managedsms.events;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.messaging.common.id.IdGenerator;
+import com.messaging.contacts.consent.ConsentTypes.Channel;
+import com.messaging.contacts.consent.ConsentTypes.PreferenceSource;
+import com.messaging.contacts.consent.ConsentTypes.SuppressionReason;
+import com.messaging.contacts.core.domain.ContactTypes.IdentityType;
+import com.messaging.contacts.integration.TrustedProviderSuppressionBridge;
 import com.messaging.managedsms.metering.ManagedSmsUsageService;
 import com.messaging.managedsms.runtime.ManagedSmsRuntimeRepository;
 import java.sql.Timestamp;
@@ -14,9 +22,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class ManagedSmsDeliveryProjectionService {
 
   private final JdbcTemplate jdbcTemplate;
+  private final ObjectMapper objectMapper;
   private final ManagedSmsRuntimeRepository runtimeRepository;
   private final ManagedSmsUsageService usageService;
   private final ManagedSmsRecipientStateService recipientStateService;
+  private final TrustedProviderSuppressionBridge contactSuppressionBridge;
 
   @Transactional
   public void apply(ManagedSmsProviderEvent event) {
@@ -133,6 +143,8 @@ public class ManagedSmsDeliveryProjectionService {
       }
     }
 
+    convergeSuppression(event, correlation);
+
     recipientStateService.confirmAccepted(
         correlation.companyId(),
         correlation.runId(),
@@ -159,6 +171,61 @@ public class ManagedSmsDeliveryProjectionService {
         event.providerRequestId(),
         category,
         event.credit());
+  }
+
+  private void convergeSuppression(
+      ManagedSmsProviderEvent event,
+      ManagedSmsRuntimeRepository.CorrelationRuntime correlation) {
+    if (event.type() != ManagedSmsProviderEventType.REJECTED || !isNdnc(event)) {
+      return;
+    }
+
+    jdbcTemplate.update(
+        """
+        insert into broadcast_suppressions(
+          id,company_id,channel_type,normalized_destination,reason,
+          source_recipient_id,active,created_at,updated_at)
+        select ?,r.company_id,'SMS',r.normalized_destination,'UNSUBSCRIBED',
+               r.id,true,now(),now()
+        from broadcast_recipients r
+        where r.company_id=? and r.id=?
+        on conflict (company_id,channel_type,normalized_destination)
+        do update set
+          active=true,
+          reason=case
+            when broadcast_suppressions.reason in ('COMPLAINT','UNSUBSCRIBED')
+              then broadcast_suppressions.reason
+            else excluded.reason
+          end,
+          source_recipient_id=excluded.source_recipient_id,
+          updated_at=now()
+        """,
+        IdGenerator.nextId(),
+        correlation.companyId(),
+        correlation.recipientId());
+
+    contactSuppressionBridge.suppressRecipient(
+        correlation.companyId(),
+        correlation.recipientId(),
+        IdentityType.PHONE,
+        Channel.SMS,
+        SuppressionReason.DND,
+        PreferenceSource.MANAGED_SMS_EVENT,
+        "msg91:" + event.eventKey(),
+        event.eventAt(),
+        "managed-sms:" + event.eventKey());
+  }
+
+  private boolean isNdnc(ManagedSmsProviderEvent event) {
+    try {
+      JsonNode payload = objectMapper.readTree(event.payloadJson());
+      String status =
+          ManagedSmsEventInboxService.text(
+              payload, "upperCaseEventName", "eventName", "event", "desc", "status");
+      return status != null && "NDNC".equalsIgnoreCase(status.trim());
+    } catch (Exception exception) {
+      throw new IllegalStateException("Invalid managed SMS provider event payload", exception);
+    }
   }
 
   private String limit(String value) {
