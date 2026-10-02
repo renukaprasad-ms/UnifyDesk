@@ -93,10 +93,10 @@ export const fetchEmailConnections = createAsyncThunk<
     ),
   }),
   {
-    condition: ({ companyId, force }, { getState }) => {
+    condition: ({ companyId, epoch, force }, { getState }) => {
       const state = getState().inbox
       if (force) return true
-      if (state.connectionsCompanyId !== companyId) return true
+      if (state.connectionsCompanyId !== companyId || state.connectionsEpoch !== epoch) return true
       return state.connectionsStatus === 'idle' || state.connectionsStatus === 'error'
     },
   },
@@ -132,9 +132,11 @@ export const fetchInboxConversations = createAsyncThunk<
     page: await inboxApi.conversations(companyId, page, 30, connectionId, folder),
   }),
   {
-    condition: ({ companyId, connectionId, folder, append = false, force }, { getState }) => {
+    condition: ({ companyId, epoch, connectionId, folder, append = false, force }, { getState }) => {
       const state = getState().inbox
-      const sameScope = currentScopeKey(state) === scopeKey(companyId, connectionId, folder)
+      const sameScope =
+        currentScopeKey(state) === scopeKey(companyId, connectionId, folder) &&
+        state.scopeEpoch === epoch
       if (force) return true
       if (!sameScope) return true
       if (append) return !state.loadingMore
@@ -156,10 +158,14 @@ export const fetchInboxConversationDetail = createAsyncThunk<
     detail: await inboxApi.conversationDetail(companyId, conversationId),
   }),
   {
-    condition: ({ companyId, conversationId, force }, { getState }) => {
+    condition: ({ companyId, epoch, conversationId, force }, { getState }) => {
       const state = getState().inbox
       if (force) return true
-      if (state.detailCompanyId !== companyId || state.detailConversationId !== conversationId) {
+      if (
+        state.detailCompanyId !== companyId ||
+        state.detailEpoch !== epoch ||
+        state.detailConversationId !== conversationId
+      ) {
         return true
       }
       return state.detailStatus === 'idle' || state.detailStatus === 'error'
