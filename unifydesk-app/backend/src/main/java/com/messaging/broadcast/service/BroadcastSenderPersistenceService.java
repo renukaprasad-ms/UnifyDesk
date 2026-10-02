@@ -68,10 +68,7 @@ public class BroadcastSenderPersistenceService {
     SenderIdentity identity = new SenderIdentity();
     identity.setId(senderId);
     identity.setConnection(channelConnection);
-    identity.setIdentityType(
-        connection.getProvider().channelType() == ChannelType.SMS
-            ? SenderIdentityType.SMS_HEADER
-            : SenderIdentityType.EMAIL_ADDRESS);
+    identity.setIdentityType(senderIdentityType(connection.getProvider().channelType()));
     identity.setValue(savedSender.getFromAddress());
     identity.setExternalId(senderId.toString());
     identity.setStatus(SenderIdentityStatus.ACTIVE);
@@ -134,10 +131,7 @@ public class BroadcastSenderPersistenceService {
       SenderIdentity restored = new SenderIdentity();
       restored.setId(savedSender.getId());
       restored.setConnection(savedChannelConnection);
-      restored.setIdentityType(
-          connection.getProvider().channelType() == ChannelType.SMS
-              ? SenderIdentityType.SMS_HEADER
-              : SenderIdentityType.EMAIL_ADDRESS);
+      restored.setIdentityType(senderIdentityType(connection.getProvider().channelType()));
       restored.setExternalId(savedSender.getId().toString());
       identities.add(restored);
     }
@@ -157,6 +151,14 @@ public class BroadcastSenderPersistenceService {
     return BroadcastSenderResponse.from(savedSender, savedConnection);
   }
 
+  private SenderIdentityType senderIdentityType(ChannelType channelType) {
+    return switch (channelType) {
+      case EMAIL -> SenderIdentityType.EMAIL_ADDRESS;
+      case SMS -> SenderIdentityType.SMS_HEADER;
+      case WHATSAPP -> SenderIdentityType.PHONE_NUMBER;
+    };
+  }
+
   private ProviderType channelProvider(BroadcastSenderProvider provider) {
     return switch (provider) {
       case AMAZON_SES -> ProviderType.AMAZON_SES;
@@ -164,6 +166,7 @@ public class BroadcastSenderPersistenceService {
       case SENDGRID -> ProviderType.SENDGRID;
       case MSG91_EMAIL -> ProviderType.MSG91_EMAIL;
       case MSG91_SMS -> ProviderType.MSG91_SMS;
+      case META_WHATSAPP -> ProviderType.META_WHATSAPP;
       case GMAIL, MICROSOFT, IMAP_SMTP, SMTP ->
           throw new IllegalArgumentException(
               "Mailbox provider cannot be used for new Broadcast senders: " + provider);

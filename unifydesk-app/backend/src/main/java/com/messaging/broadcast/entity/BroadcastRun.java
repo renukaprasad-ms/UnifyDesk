@@ -71,6 +71,18 @@ public class BroadcastRun {
   @Column(name = "provider_template_id_snapshot", length = 255)
   private String providerTemplateIdSnapshot;
 
+  @Column(name = "whatsapp_template_id_snapshot")
+  private Long whatsAppTemplateIdSnapshot;
+
+  @Column(name = "whatsapp_template_name_snapshot", length = 512)
+  private String whatsAppTemplateNameSnapshot;
+
+  @Column(name = "whatsapp_template_language_snapshot", length = 64)
+  private String whatsAppTemplateLanguageSnapshot;
+
+  @Column(name = "whatsapp_template_components_json_snapshot", columnDefinition = "text")
+  private String whatsAppTemplateComponentsJsonSnapshot;
+
   @Column(name = "snapshot_cursor_member_id")
   private Long snapshotCursorMemberId;
 

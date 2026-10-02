@@ -60,30 +60,28 @@ public class AudienceSnapshotService {
   public AudienceSnapshotRepository.Snapshot createForBroadcast(
       long companyId, SourceType sourceType, long sourceId, Channel channel, Purpose purpose) {
     SourceDescriptor source = sourceResolver.describe(companyId, sourceType, sourceId);
-    return repository.create(
-        IdGenerator.nextId(),
-        companyId,
-        sourceType.name(),
-        sourceId,
-        source.sourceVersion(),
-        source.filterHash(),
-        channel,
-        purpose,
-        null);
+    AudienceSnapshotRepository.Snapshot snapshot =
+        repository.create(
+            IdGenerator.nextId(),
+            companyId,
+            sourceType.name(),
+            sourceId,
+            source.sourceVersion(),
+            source.filterHash(),
+            channel,
+            purpose,
+            null);
+    sourceResolver.captureCandidates(companyId, source, snapshot.id());
+    return snapshot;
   }
 
   @Transactional
   public boolean processBatch(long companyId, long snapshotId) {
     AudienceSnapshotRepository.Snapshot snapshot = repository.requireForUpdate(companyId, snapshotId);
     if (!"PREPARING".equals(snapshot.status())) return false;
-    SourceDescriptor source =
-        new SourceDescriptor(
-            SourceType.valueOf(snapshot.sourceType()),
-            snapshot.sourceId(),
-            snapshot.sourceVersion(),
-            snapshot.filterHash());
     List<Long> candidates =
-        sourceResolver.page(companyId, source, snapshot.cursor(), properties.boundedBatchSize());
+        repository.pageCandidates(
+            companyId, snapshot.id(), snapshot.cursor(), properties.boundedBatchSize());
     if (candidates.isEmpty()) {
       repository.ready(companyId, snapshotId);
       if (snapshot.asyncJobId() != null)
@@ -136,6 +134,10 @@ public class AudienceSnapshotService {
 
   public AudienceSnapshotRepository.Snapshot get(long companyId, long snapshotId) {
     return repository.require(companyId, snapshotId);
+  }
+
+  public long candidateCount(long companyId, long snapshotId) {
+    return repository.candidateCount(companyId, snapshotId);
   }
 
   public void fail(long companyId, long snapshotId) {

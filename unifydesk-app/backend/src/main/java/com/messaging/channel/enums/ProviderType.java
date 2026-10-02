@@ -11,7 +11,10 @@ public enum ProviderType {
   AMAZON_SES(ChannelType.EMAIL, ChannelConnectionCapability.BROADCAST),
   AZURE_EMAIL(ChannelType.EMAIL, ChannelConnectionCapability.BROADCAST),
   SENDGRID(ChannelType.EMAIL, ChannelConnectionCapability.BROADCAST),
-  META_WHATSAPP(ChannelType.WHATSAPP, ChannelConnectionCapability.INBOX),
+  META_WHATSAPP(
+      ChannelType.WHATSAPP,
+      ChannelConnectionCapability.INBOX,
+      ChannelConnectionCapability.BROADCAST),
   MSG91_EMAIL(ChannelType.EMAIL, ChannelConnectionCapability.BROADCAST),
   MSG91_SMS(ChannelType.SMS, ChannelConnectionCapability.BROADCAST);
 
