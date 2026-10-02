@@ -40,7 +40,15 @@ import { apiErrorMessage } from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
 import { useSnackbar } from '../feedback/SnackbarProvider'
 import { useAppSelector } from '../../store/hooks'
-import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import {
+  selectSelectedCompanyId,
+  selectWorkspaceEpoch,
+} from '../../store/workspace/workspaceSlice'
+import {
+  isWorkspaceEpochCurrent,
+  workspaceEpochToken,
+  type WorkspaceEpochToken,
+} from '../../features/workspace/workspaceEpoch'
 import { templateVariableCounts } from './whatsappTemplateUtils'
 
 type WhatsAppInboxMessage = InboxMessage
@@ -106,6 +114,18 @@ const messageStatus = (
 
 export default function WhatsAppInbox() {
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
+  const workspaceScopeRef = useRef({ companyId, epoch: workspaceEpoch })
+  workspaceScopeRef.current = { companyId, epoch: workspaceEpoch }
+  const isCurrentScope = useCallback(
+    (token: WorkspaceEpochToken | null) =>
+      isWorkspaceEpochCurrent(
+        token,
+        workspaceScopeRef.current.companyId,
+        workspaceScopeRef.current.epoch,
+      ),
+    [],
+  )
   const { can } = useIam()
   const snackbar = useSnackbar()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -158,10 +178,12 @@ export default function WhatsAppInbox() {
       setConnections([])
       return
     }
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
     try {
       const items = (await channelApi.list(companyId, 'WHATSAPP')).filter(
         (item) => item.status === 'ACTIVE' && item.capabilities.includes('INBOX'),
       )
+      if (!isCurrentScope(token)) return
       setConnections(items)
       if (!selectedConnectionId && items[0]) {
         const params = new URLSearchParams(searchParams)
@@ -170,22 +192,27 @@ export default function WhatsAppInbox() {
         setSearchParams(params, { replace: true })
       }
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to load WhatsApp connections'))
+      if (isCurrentScope(token)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load WhatsApp connections'))
+      }
     }
-  }, [can, companyId, searchParams, selectedConnectionId, setSearchParams])
+  }, [can, companyId, isCurrentScope, searchParams, selectedConnectionId, setSearchParams, workspaceEpoch])
 
   const loadConversations = useCallback(async () => {
     if (!companyId || !selectedConnectionId || !can(PERMISSIONS.WHATSAPP_READ)) return
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
     setLoading(true)
     try {
       const page = await inboxApi.conversations(companyId, 0, 50, selectedConnectionId, 'INBOX')
-      setConversations(page.items)
+      if (isCurrentScope(token)) setConversations(page.items)
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to load WhatsApp chats'))
+      if (isCurrentScope(token)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load WhatsApp chats'))
+      }
     } finally {
-      setLoading(false)
+      if (isCurrentScope(token)) setLoading(false)
     }
-  }, [can, companyId, selectedConnectionId])
+  }, [can, companyId, isCurrentScope, selectedConnectionId, workspaceEpoch])
 
   const loadDetail = useCallback(async () => {
     if (!companyId || !selectedConversationId || !can(PERMISSIONS.WHATSAPP_READ)) {
@@ -194,6 +221,7 @@ export default function WhatsAppInbox() {
       return
     }
 
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
     setDetailLoading(true)
     setComposerLoading(true)
     try {
@@ -203,6 +231,7 @@ export default function WhatsAppInbox() {
           ? whatsappApi.composer(companyId, selectedConversationId)
           : Promise.resolve(null),
       ])
+      if (!isCurrentScope(token)) return
       const nextMessages = detail.messages as WhatsAppInboxMessage[]
       setMessages(nextMessages)
       const durableMessageIds = new Set(
@@ -226,12 +255,16 @@ export default function WhatsAppInbox() {
       setComposer(state)
       setTemplateMode(Boolean(state?.templateRequired))
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to load WhatsApp conversation'))
+      if (isCurrentScope(token)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load WhatsApp conversation'))
+      }
     } finally {
-      setDetailLoading(false)
-      setComposerLoading(false)
+      if (isCurrentScope(token)) {
+        setDetailLoading(false)
+        setComposerLoading(false)
+      }
     }
-  }, [can, companyId, selectedConversationId])
+  }, [can, companyId, isCurrentScope, selectedConversationId, workspaceEpoch])
 
   const loadTemplates = useCallback(async () => {
     if (
@@ -242,13 +275,18 @@ export default function WhatsAppInbox() {
       setTemplates([])
       return
     }
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
     try {
       const items = await whatsappApi.templates(companyId, selectedConnectionId)
-      setTemplates(items.filter((item) => item.status === 'APPROVED'))
+      if (isCurrentScope(token)) {
+        setTemplates(items.filter((item) => item.status === 'APPROVED'))
+      }
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to load WhatsApp templates'))
+      if (isCurrentScope(token)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load WhatsApp templates'))
+      }
     }
-  }, [can, companyId, selectedConnectionId])
+  }, [can, companyId, isCurrentScope, selectedConnectionId, workspaceEpoch])
 
   useEffect(() => {
     void loadConnections()
@@ -274,12 +312,14 @@ export default function WhatsAppInbox() {
 
   useEffect(() => {
     if (!companyId || !selectedConnectionId || !selectedConversationId) return
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
 
     return realtimeClient.subscribe<InboxWhatsAppStatusChangedEvent>(
       'inbox.whatsapp.status.changed',
       (event) => {
         const change = event.payload
         if (
+          !isCurrentScope(token) ||
           !change ||
           change.connectionId !== selectedConnectionId ||
           change.conversationId !== selectedConversationId
@@ -296,6 +336,7 @@ export default function WhatsAppInbox() {
             messageIds: [change.messageId],
           })
           .then((snapshot) => {
+            if (!isCurrentScope(token)) return
             const refreshedMessage = snapshot.messages.find(
               (message) => message.id === change.messageId,
             )
@@ -322,11 +363,11 @@ export default function WhatsAppInbox() {
             }
           })
           .catch(() => {
-            void loadDetail()
+            if (isCurrentScope(token)) void loadDetail()
           })
       },
     )
-  }, [companyId, loadDetail, selectedConnectionId, selectedConversationId])
+  }, [companyId, isCurrentScope, loadDetail, selectedConnectionId, selectedConversationId, workspaceEpoch])
 
   useEffect(() => {
     if (!selectedConversationId) return
