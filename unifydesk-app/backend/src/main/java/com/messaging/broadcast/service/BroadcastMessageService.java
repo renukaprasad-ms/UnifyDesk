@@ -165,7 +165,7 @@ public class BroadcastMessageService {
     if (!request.scheduledAt().isAfter(Instant.now())) {
       throw new BadRequestException("Broadcast schedule time must be in the future");
     }
-    freezeCanonicalAudience(message);
+    freezeCanonicalAudience(message, request.expectedSourceDescriptor());
     message.setScheduledAt(request.scheduledAt());
     message.setStatus(BroadcastMessageStatus.SCHEDULED);
     return response(messageRepository.save(message));
@@ -173,9 +173,17 @@ public class BroadcastMessageService {
 
   @Transactional
   public BroadcastMessageResponse sendNow(Long companyId, Long broadcastId) {
+    return sendNow(companyId, broadcastId, null);
+  }
+
+  @Transactional
+  public BroadcastMessageResponse sendNow(
+      Long companyId,
+      Long broadcastId,
+      BroadcastExpectedSourceDescriptor expectedSourceDescriptor) {
     BroadcastMessage message = require(companyId, broadcastId);
     requireModernSender(companyId, message);
-    freezeCanonicalAudience(message);
+    freezeCanonicalAudience(message, expectedSourceDescriptor);
     messageRepository.save(message);
     launchService.launch(companyId, broadcastId);
     return response(require(companyId, broadcastId));
@@ -369,9 +377,12 @@ public class BroadcastMessageService {
     return sender;
   }
 
-  private void freezeCanonicalAudience(BroadcastMessage message) {
+  private void freezeCanonicalAudience(
+      BroadcastMessage message,
+      BroadcastExpectedSourceDescriptor expectedSourceDescriptor) {
     if (message.getGroupId() != null) return;
-    BroadcastAudienceFreezeService.FrozenAudience frozen = audienceFreezeService.freeze(message);
+    BroadcastAudienceFreezeService.FrozenAudience frozen =
+        audienceFreezeService.freeze(message, expectedSourceDescriptor);
     if (frozen == null || frozen.candidateCount() <= 0) {
       throw new BadRequestException("Broadcast audience has no active recipients");
     }

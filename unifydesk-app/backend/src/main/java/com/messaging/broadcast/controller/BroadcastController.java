@@ -211,12 +211,19 @@ public class BroadcastController {
 
   @PostMapping("/messages/{broadcastId}/send")
   public ResponseEntity<ApiResponse<BroadcastMessageResponse>> send(
-      @PathVariable Long companyId, @PathVariable Long broadcastId) {
+      @PathVariable Long companyId,
+      @PathVariable Long broadcastId,
+      @RequestBody(required = false) SendBroadcastRequest request) {
     require(companyId, CompanyPermissionKeys.BROADCAST_SEND);
     return ResponseEntity.status(HttpStatus.ACCEPTED)
         .body(
             ApiResponse.success(
-                202, messageService.sendNow(companyId, broadcastId), "Broadcast queued"));
+                202,
+                messageService.sendNow(
+                    companyId,
+                    broadcastId,
+                    request == null ? null : request.expectedSourceDescriptor()),
+                "Broadcast queued"));
   }
 
   @PostMapping("/messages/{broadcastId}/schedule")

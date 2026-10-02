@@ -60,19 +60,32 @@ public class AudienceSnapshotService {
   @Transactional
   public AudienceSnapshotRepository.Snapshot createForBroadcast(
       long companyId, SourceType sourceType, long sourceId, Channel channel, Purpose purpose) {
-    SourceDescriptor source = sourceResolver.describe(companyId, sourceType, sourceId);
+    return createForBroadcast(
+        companyId,
+        sourceResolver.describeForBroadcast(companyId, sourceType, sourceId),
+        channel,
+        purpose);
+  }
+
+  @Transactional
+  public AudienceSnapshotRepository.Snapshot createForBroadcast(
+      long companyId,
+      BroadcastSourceState sourceState,
+      Channel channel,
+      Purpose purpose) {
+    SourceDescriptor source = sourceState.source();
     AudienceSnapshotRepository.Snapshot snapshot =
         repository.create(
             IdGenerator.nextId(),
             companyId,
-            sourceType.name(),
-            sourceId,
+            source.type().name(),
+            source.id(),
             source.sourceVersion(),
             source.filterHash(),
             channel,
             purpose,
             null);
-    sourceResolver.captureCandidates(companyId, source, snapshot.id());
+    sourceResolver.captureCandidates(companyId, sourceState, snapshot.id());
     return snapshot;
   }
 

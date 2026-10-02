@@ -103,5 +103,54 @@ class BroadcastAudiencePreviewServiceTests {
         .isEqualTo(result.eligibleCount() + result.excludedCount());
     assertThat(result.sampleEligible().getFirst().maskedDestination())
         .doesNotContain("9876543210");
+    assertThat(result.sourceDescriptor().sourceVersion()).isEqualTo("selection-hash");
+    assertThat(result.sourceDescriptor().contactSelectionHash()).isEqualTo("selection-hash");
   }
+  @Test
+  void segmentPreviewReturnsAuthoritativeFilterVersionAndHash() {
+    AudienceSourceResolver sourceResolver = mock(AudienceSourceResolver.class);
+    ContactAudienceSelectionService selections = mock(ContactAudienceSelectionService.class);
+    ContactEligibilityService eligibility = mock(ContactEligibilityService.class);
+    BroadcastSenderService senders = mock(BroadcastSenderService.class);
+    BroadcastChannelReadinessService readiness = mock(BroadcastChannelReadinessService.class);
+    BroadcastAudiencePreviewService service =
+        new BroadcastAudiencePreviewService(
+            sourceResolver, selections, eligibility, senders, readiness);
+
+    BroadcastSender sender = new BroadcastSender();
+    sender.setId(55L);
+    sender.setProvider(BroadcastSenderProvider.AMAZON_SES);
+    when(senders.requireActive(7L, 55L)).thenReturn(sender);
+    AudienceSourceResolver.SourceDescriptor source =
+        new AudienceSourceResolver.SourceDescriptor(
+            AudienceSourceResolver.SourceType.SEGMENT, 77L, "9", "filter-hash");
+    when(sourceResolver.describeForBroadcast(7L, AudienceSourceResolver.SourceType.SEGMENT, 77L))
+        .thenReturn(new AudienceSourceResolver.BroadcastSourceState(source, 3, null));
+    when(sourceResolver.page(7L, source, 0L, 500)).thenReturn(List.of());
+    when(readiness.sender(7L, 55L))
+        .thenReturn(
+            new SenderReadiness(
+                "55",
+                "Email",
+                "sender@example.com",
+                SenderState.READY,
+                null,
+                new Capabilities(true, true, false, false, false, false)));
+
+    BroadcastAudiencePreviewResponse result =
+        service.preview(
+            7L,
+            new BroadcastAudiencePreviewRequest(
+                BroadcastAudienceSourceType.SEGMENT,
+                77L,
+                null,
+                ChannelType.EMAIL,
+                55L));
+
+    assertThat(result.sourceDescriptor().sourceId()).isEqualTo("77");
+    assertThat(result.sourceDescriptor().sourceVersion()).isEqualTo("9");
+    assertThat(result.sourceDescriptor().filterVersion()).isEqualTo(3);
+    assertThat(result.sourceDescriptor().filterHash()).isEqualTo("filter-hash");
+  }
+
 }

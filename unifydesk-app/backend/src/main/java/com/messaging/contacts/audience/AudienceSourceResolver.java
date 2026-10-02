@@ -20,6 +20,11 @@ public class AudienceSourceResolver {
   private final ObjectMapper objectMapper;
 
   public SourceDescriptor describe(long companyId, SourceType type, long sourceId) {
+    return describeForBroadcast(companyId, type, sourceId).source();
+  }
+
+  public BroadcastSourceState describeForBroadcast(
+      long companyId, SourceType type, long sourceId) {
     return switch (type) {
       case LIST ->
           jdbcTemplate
@@ -29,8 +34,14 @@ public class AudienceSourceResolver {
                   where company_id = ? and id = ? and status = 'ACTIVE'
                   """,
                   (rs, rowNum) ->
-                      new SourceDescriptor(
-                          type, rs.getLong("id"), Long.toString(rs.getLong("version")), null),
+                      new BroadcastSourceState(
+                          new SourceDescriptor(
+                              type,
+                              rs.getLong("id"),
+                              Long.toString(rs.getLong("version")),
+                              null),
+                          null,
+                          null),
                   companyId,
                   sourceId)
               .stream()
@@ -38,8 +49,11 @@ public class AudienceSourceResolver {
               .orElseThrow(this::notFound);
       case SEGMENT -> {
         SegmentRepository.SegmentRow segment = segmentRepository.require(companyId, sourceId);
-        yield new SourceDescriptor(
-            type, sourceId, Long.toString(segment.version()), segment.filterHash());
+        yield new BroadcastSourceState(
+            new SourceDescriptor(
+                type, sourceId, Long.toString(segment.version()), segment.filterHash()),
+            segment.filterVersion(),
+            null);
       }
       case CONTACTS ->
           jdbcTemplate
@@ -49,12 +63,14 @@ public class AudienceSourceResolver {
                   from contact_audience_selections
                   where company_id = ? and id = ?
                   """,
-                  (rs, rowNum) ->
-                      new SourceDescriptor(
-                          type,
-                          rs.getLong("id"),
-                          rs.getString("selection_hash"),
-                          rs.getString("selection_hash")),
+                  (rs, rowNum) -> {
+                    String selectionHash = rs.getString("selection_hash");
+                    return new BroadcastSourceState(
+                        new SourceDescriptor(
+                            type, rs.getLong("id"), selectionHash, selectionHash),
+                        null,
+                        selectionHash);
+                  },
                   companyId,
                   sourceId)
               .stream()
@@ -161,6 +177,20 @@ public class AudienceSourceResolver {
    */
   public long captureCandidates(
       long companyId, SourceDescriptor source, long snapshotId) {
+    return captureCandidates(companyId, source, null, snapshotId);
+  }
+
+  public long captureCandidates(
+      long companyId, BroadcastSourceState sourceState, long snapshotId) {
+    return captureCandidates(
+        companyId, sourceState.source(), sourceState.filterVersion(), snapshotId);
+  }
+
+  private long captureCandidates(
+      long companyId,
+      SourceDescriptor source,
+      Integer expectedSegmentFilterVersion,
+      long snapshotId) {
     switch (source.type()) {
       case LIST -> {
         lockList(companyId, source);
@@ -180,7 +210,8 @@ public class AudienceSourceResolver {
             source.id());
       }
       case SEGMENT -> {
-        SegmentRepository.SegmentRow segment = lockSegment(companyId, source);
+        SegmentRepository.SegmentRow segment =
+            lockSegment(companyId, source, expectedSegmentFilterVersion);
         SegmentCompiler.CompiledSegment compiled = compile(companyId, segment);
         MapSqlParameterSource params = new MapSqlParameterSource();
         new LinkedHashMap<>(compiled.parameters()).forEach(params::addValue);
@@ -258,7 +289,7 @@ public class AudienceSourceResolver {
   }
 
   private SegmentRepository.SegmentRow lockSegment(
-      long companyId, SourceDescriptor source) {
+      long companyId, SourceDescriptor source, Integer expectedFilterVersion) {
     jdbcTemplate
         .query(
             """
@@ -275,6 +306,9 @@ public class AudienceSourceResolver {
         .orElseThrow(this::notFound);
     SegmentRepository.SegmentRow segment = segmentRepository.require(companyId, source.id());
     requireFrozenSegment(source, segment);
+    if (expectedFilterVersion != null && segment.filterVersion() != expectedFilterVersion) {
+      changed();
+    }
     return segment;
   }
 
@@ -342,7 +376,7 @@ public class AudienceSourceResolver {
   }
 
   private void changed() {
-    throw new IllegalStateException("Audience source changed after snapshot freeze");
+    throw new SourceChangedException();
   }
 
   private com.messaging.common.exception.NotFoundException notFound() {
@@ -357,4 +391,13 @@ public class AudienceSourceResolver {
 
   public record SourceDescriptor(
       SourceType type, long id, String sourceVersion, String filterHash) {}
+
+  public record BroadcastSourceState(
+      SourceDescriptor source, Integer filterVersion, String contactSelectionHash) {}
+
+  public static final class SourceChangedException extends IllegalStateException {
+    public SourceChangedException() {
+      super("Audience source changed after snapshot freeze");
+    }
+  }
 }
