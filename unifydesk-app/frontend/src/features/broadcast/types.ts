@@ -226,9 +226,18 @@ export type ChannelReadiness = {
 
 export type RecipientResolutionSample = {
   contactId?: string | null
-  displayName?: string | null
-  destination?: string | null
-  reason?: RecipientExclusionReason | null
+  maskedDestination?: string | null
+  reason?: string | null
+}
+
+export type AudienceSourceDescriptor = {
+  sourceType: BroadcastAudienceSourceType
+  sourceId?: string | null
+  sourceVersion?: string | null
+  filterVersion?: number | null
+  filterHash?: string | null
+  contactSelectionHash?: string | null
+  resolvedAt: string
 }
 
 export type RecipientResolutionPreview = {
@@ -238,17 +247,17 @@ export type RecipientResolutionPreview = {
   selectedCount: number
   eligibleCount: number
   excludedCount: number
+  sourceDescriptor: AudienceSourceDescriptor
   exclusions: Partial<Record<RecipientExclusionReason, number>>
   sampleEligible: RecipientResolutionSample[]
   sampleExcluded: RecipientResolutionSample[]
-  senderReadiness?: ChannelReadiness | null
+  senderReadiness?: SenderReadiness | null
   computedAt: string
 }
 
 export type CreateAudienceBroadcastMessageInput = CreateBroadcastMessageInput & {
   channelType: ChannelType
   whatsappTemplateId?: string | null
-  whatsappTemplateLanguage?: string | null
   whatsappTemplateParameters?: {
     header: string[]
     body: string[]
