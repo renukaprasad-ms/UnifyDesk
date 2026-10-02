@@ -9,6 +9,8 @@ import type {
   RecipientResolutionPreview,
 } from '../../features/broadcast/types'
 import { contactsApi } from '../../features/contacts/contactsApi'
+import { PERMISSIONS } from '../../features/iam/permissions'
+import { useIam } from '../../features/iam/useIam'
 import type { ContactSummary, ListSummary, SegmentDefinition } from '../../features/contacts/types'
 import type { ChannelType } from '../../features/channel/types'
 import { whatsappApi } from '../../features/whatsapp/whatsappApi'
@@ -81,6 +83,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   const epoch = useAppSelector(selectWorkspaceEpoch)
   const currentScopeRef = useRef({ companyId, epoch })
   currentScopeRef.current = { companyId, epoch }
+  const { can } = useIam()
   const [searchParams, setSearchParams] = useSearchParams()
   const [lists, setLists] = useState<ListSummary[]>([])
   const [segments, setSegments] = useState<SegmentDefinition[]>([])
@@ -148,7 +151,9 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     preview!.eligibleCount > 0 &&
     Boolean(selectedReadiness && selectedReadiness.state === 'READY') &&
     !busy &&
-    contentReady
+    contentReady &&
+    can(PERMISSIONS.BROADCAST_CREATE) &&
+    can(PERMISSIONS.BROADCAST_SEND)
 
   useEffect(() => {
     if (!companyId) return
@@ -236,7 +241,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   }, [setSearchParams, sourceId, sourceType])
 
   const runPreview = async () => {
-    if (!companyId || !selector) return
+    if (!companyId || !selector || !senderId) return
     const token = workspaceEpochToken(companyId, epoch)
     setPreviewing(true)
     setError('')
@@ -244,8 +249,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
       const result = await broadcastApi.previewAudience(companyId, {
         selector,
         channel,
-        purpose: 'MARKETING',
-        senderId: senderId || null,
+        senderId,
       })
       if (scopeIsCurrent(token)) setPreview(result)
     } catch (requestError) {
@@ -288,8 +292,6 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
         bodyText: channel === 'WHATSAPP' ? null : body.trim() || null,
         templateId: templateId || null,
         whatsappTemplateId: channel === 'WHATSAPP' ? templateId : null,
-        whatsappTemplateLanguage:
-          channel === 'WHATSAPP' ? selectedWhatsappTemplate?.language ?? null : null,
         whatsappTemplateParameters: channel === 'WHATSAPP' ? whatsappParameters : null,
       })
       if (!scopeIsCurrent(token)) return
