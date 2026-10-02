@@ -6,6 +6,7 @@ import BulkActionsBar from '../../components/contacts/BulkActionsBar'
 import ExportJobButton from '../../components/contacts/ExportJobButton'
 import {
   DEFAULT_CONTACT_EXPORT_FIELDS,
+  emptyContactDraft,
   parseContactSearchStatus,
   toCreateContactInput,
 } from '../../features/contacts/contactModel'
@@ -30,7 +31,10 @@ export default function ContactsPage() {
   const [search, setSearch] = useState(params.get('q') ?? '')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [allMatching, setAllMatching] = useState(false)
-  const [creating, setCreating] = useState(false)
+  const createFromInbox = params.get('new') === '1'
+  const createEmail = params.get('email') ?? ''
+  const createPhone = params.get('phone') ?? ''
+  const [creating, setCreating] = useState(createFromInbox)
   const [saving, setSaving] = useState(false)
   const [tags, setTags] = useState<TagSummary[]>([])
   const [lists, setLists] = useState<ListSummary[]>([])
@@ -420,7 +424,18 @@ export default function ContactsPage() {
           open={creating}
           title="Create contact"
           saving={saving}
-          onClose={() => setCreating(false)}
+          onClose={() => {
+            setCreating(false)
+            if (createFromInbox) {
+              setParams((current) => {
+                const next = new URLSearchParams(current)
+                next.delete('new')
+                next.delete('email')
+                next.delete('phone')
+                return next
+              }, { replace: true })
+            }
+          }}
           onSubmit={(draft) => {
             if (!companyId) return
             setSaving(true)
