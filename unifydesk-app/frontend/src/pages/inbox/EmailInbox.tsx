@@ -1468,6 +1468,16 @@ function EmailInboxView() {
                       <span className="hidden sm:inline">Add to contacts</span>
                     </Link>
                   )}
+                {contactParticipant?.contactResolution === 'AMBIGUOUS' &&
+                  can(PERMISSIONS.CONTACT_READ) && (
+                    <Link
+                      className="secondary-button shrink-0 gap-2 px-3"
+                      to={`/contacts?q=${encodeURIComponent(contactParticipant.address)}`}
+                    >
+                      <FiUsers aria-hidden="true" />
+                      <span className="hidden sm:inline">Review contacts</span>
+                    </Link>
+                  )}
                 {selectedConversation &&
                   selectedFolder === 'INBOX' &&
                   can(PERMISSIONS.EMAIL_MODIFY) && (
