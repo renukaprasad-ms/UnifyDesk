@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { useLocation, useSearchParams } from 'react-router'
+import { Link, useLocation, useSearchParams } from 'react-router'
 import {
   FiArrowLeft,
   FiCheckCircle,
@@ -31,6 +31,7 @@ import type {
   InboxConversation,
   InboxEmailChangedEvent,
   InboxMessage,
+  InboxParticipant,
 } from '../../features/inbox/types'
 import { realtimeClient } from '../../features/realtime/realtimeClient'
 import { apiErrorMessage } from '../../lib/api/apiClient'
@@ -87,6 +88,13 @@ const replySubject = (subject?: string | null) => {
 const forwardSubject = (subject?: string | null) => {
   const value = subject?.trim() || ''
   return /^fwd?:/i.test(value) ? value : `Fwd: ${value || '(no subject)'}`
+}
+
+const createContactHref = (participant: InboxParticipant) => {
+  const params = new URLSearchParams({ new: '1' })
+  if (participant.participantType === 'EMAIL_ADDRESS') params.set('email', participant.address)
+  else params.set('phone', participant.address)
+  return `/contacts?${params.toString()}`
 }
 
 const defaultSyncRange = () => {
@@ -193,6 +201,19 @@ function EmailInboxView() {
     }
     return selectedConnection?.externalAccountId ?? undefined
   }, [connections, selectedConnection, selectedConversation])
+
+  const contactParticipant = useMemo(() => {
+    if (!selectedConversation) return null
+    const otherParticipants = selectedConversation.participants.filter(
+      (participant) => participant.address.toLowerCase() !== ownAddress?.toLowerCase(),
+    )
+    return (
+      otherParticipants.find((participant) => participant.contactId) ??
+      otherParticipants.find((participant) => participant.contactResolution !== 'AMBIGUOUS') ??
+      otherParticipants[0] ??
+      null
+    )
+  }, [ownAddress, selectedConversation])
 
   const loadConversations = useCallback(
     async (page = 0, append = false, force = false) => {
@@ -1390,6 +1411,27 @@ function EmailInboxView() {
                     {selectedConversation && ownAddress ? ` · ${ownAddress}` : ''}
                   </p>
                 </div>
+                {contactParticipant?.contactId && can(PERMISSIONS.CONTACT_READ) && (
+                  <Link
+                    className="secondary-button shrink-0 gap-2 px-3"
+                    to={`/contacts/${contactParticipant.contactId}`}
+                  >
+                    <FiUsers aria-hidden="true" />
+                    <span className="hidden sm:inline">View contact</span>
+                  </Link>
+                )}
+                {contactParticipant &&
+                  !contactParticipant.contactId &&
+                  contactParticipant.contactResolution !== 'AMBIGUOUS' &&
+                  can(PERMISSIONS.CONTACT_CREATE) && (
+                    <Link
+                      className="secondary-button shrink-0 gap-2 px-3"
+                      to={createContactHref(contactParticipant)}
+                    >
+                      <FiUsers aria-hidden="true" />
+                      <span className="hidden sm:inline">Add to contacts</span>
+                    </Link>
+                  )}
                 {selectedConversation &&
                   selectedFolder === 'INBOX' &&
                   can(PERMISSIONS.EMAIL_MODIFY) && (
