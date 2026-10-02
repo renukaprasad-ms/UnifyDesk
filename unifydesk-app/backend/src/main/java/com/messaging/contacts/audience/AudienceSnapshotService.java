@@ -53,6 +53,7 @@ public class AudienceSnapshotService {
             channel,
             purpose,
             Long.parseLong(job.jobId()));
+    sourceResolver.captureCandidates(companyId, source, snapshot.id());
     return new SnapshotJob(snapshot, job);
   }
 
