@@ -16,7 +16,7 @@ Commit:
 
 `test(contacts): keep segment conditions after preview`
 
-This exact SHA is the source baseline for the audit.
+This exact SHA is the source baseline for the audit. `dev` later moved during the audit to `3a12d84e4aecd31f3c067b6af6f998e173992d24` for unrelated Cloudflare frontend-hosting configuration; the frozen runtime audit baseline was intentionally not moved.
 
 ## Previous remediation lineage
 
@@ -57,7 +57,27 @@ GitHub returned no workflow run for:
 
 `850ce7ad2874d20070067d46d8604ddc2bdd2c99`
 
-The repository now contains an executable `Checks` workflow using GitHub-hosted `ubuntu-latest`, but presence of the workflow is not execution evidence.
+The repository contains an executable `Checks` workflow using GitHub-hosted `ubuntu-latest`, but presence of the workflow is not execution evidence.
+
+## Audit-PR CI evidence
+
+PR #249 triggered `Checks` workflow run:
+
+`37008691423`
+
+Result reported by GitHub:
+
+**FAILURE — runner/step execution evidence absent**
+
+All five jobs were reported `failure`, but their job payloads contained `steps = null`:
+
+- database
+- email-provider
+- frontend
+- backend
+- website
+
+This is not evidence that application tests/build steps ran and failed. It is classified as an **environment/CI execution blocker**, consistent with the previous no-runner/no-step evidence, until GitHub Actions actually allocates a runner and exposes executed steps/logs.
 
 ## Provider execution
 
@@ -115,8 +135,9 @@ Closed as superseded without merging:
 
 Reasons:
 
-1. exact-head CI has not executed;
-2. SES, MSG91 and Meta test-provider chains have not executed;
-3. Provider-4 Gmail/Microsoft/SMTP requirement conflicts with current canonical Broadcast source.
+1. exact frozen SHA has no executed CI evidence;
+2. audit PR CI terminated without step execution evidence;
+3. SES, MSG91 and Meta test-provider chains have not executed;
+4. Provider-4 Gmail/Microsoft/SMTP requirement conflicts with current canonical Broadcast source.
 
 This is not a rollback of prior source QA acceptance. It is the correct runtime-verification classification.
