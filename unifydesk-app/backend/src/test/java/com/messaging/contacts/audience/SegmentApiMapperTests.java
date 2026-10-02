@@ -21,7 +21,6 @@ import com.messaging.contacts.audience.SegmentFilter.TextValue;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.TextNode;
 
 class SegmentApiMapperTests {
 
@@ -41,11 +40,11 @@ class SegmentApiMapperTests {
                 new Predicate(
                     new Field(FieldKind.BUILTIN_CONTACT, "displayName", null),
                     SegmentOperator.CONTAINS,
-                    TextNode.valueOf("acme")),
+                    objectMapper.valueToTree("acme")),
                 new Predicate(
                     new Field(FieldKind.TAG, "tagId", null),
                     SegmentOperator.HAS_TAG,
-                    TextNode.valueOf("123"))));
+                    objectMapper.valueToTree("123"))));
 
     SegmentFilter domain = mapper.toDomain(44L, 1, filter);
     GroupNode root = assertInstanceOf(GroupNode.class, domain.root());
@@ -68,7 +67,7 @@ class SegmentApiMapperTests {
         new Predicate(
             new Field(FieldKind.BUILTIN_CONTACT, "displayName", null),
             SegmentOperator.EQ,
-            TextNode.valueOf("Acme"));
+            objectMapper.valueToTree("Acme"));
 
     SegmentFilter domain = mapper.toDomain(1L, 1, filter);
     PredicateNode root = assertInstanceOf(PredicateNode.class, domain.root());
@@ -104,7 +103,7 @@ class SegmentApiMapperTests {
                 new Predicate(
                     new Field(FieldKind.CUSTOM_FIELD, "customField", "77"),
                     SegmentOperator.EQ,
-                    TextNode.valueOf("gold"))));
+                    objectMapper.valueToTree("gold"))));
 
     SegmentFilter domain = mapper.toDomain(9L, 1, filter);
     PredicateNode predicate =
