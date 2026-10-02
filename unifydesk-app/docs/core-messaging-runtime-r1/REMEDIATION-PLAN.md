@@ -21,6 +21,23 @@ The prior `CMR1-AUDIT-001` requirement/scope mismatch is therefore **RESOLVED BY
 
 No B1/B2/F1 implementation assignment is created for mailbox-backed Broadcast.
 
+## Current runtime finding status
+
+No production source defect has been proven in the regenerated executable round yet.
+
+Current blocking evidence is environmental:
+
+- exact source SHA is frozen at `f2760fe0a11ad571f984636a65304a64b77459ac`;
+- GitHub Actions run `37011044661` reaches attempt 2 but all jobs have `steps = null`;
+- this execution session has no authenticated k3s/server channel to prove the deployed backend image/build is the frozen SHA;
+- public `api.unifydesk.in` cannot be resolved/reached from this execution environment.
+
+Therefore:
+
+`NO WORKERS REQUIRED`
+
+Do not create B1/B2/F1 remediation work until executable runtime evidence demonstrates a genuine source defect.
+
 ## Environment/provider blockers
 
 These do not justify source changes:
@@ -35,7 +52,7 @@ Classify them as environment/provider blockers or NOT EXECUTED after checking th
 
 ## Next execution sequence
 
-1. Run exact-head CI for `850ce7ad2874d20070067d46d8604ddc2bdd2c99` or, if this documentation PR is merged first, freeze the resulting production SHA and run the same matrix there.
+1. Prove the deployed k3s/backend build is exactly `f2760fe0a11ad571f984636a65304a64b77459ac`; CI is already classified BLOCKED because no steps execute.
 2. Inspect deployed backend environment variable **names/presence only**, never secret values.
 3. Execute Contact import + consent + List/Segment + Preview/freeze tests.
 4. Execute Managed Email end-to-end first.
