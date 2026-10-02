@@ -175,23 +175,14 @@ export default function BroadcastWorkspace() {
   const workspaceScopeRef = useRef({ companyId, epoch: workspaceEpoch })
   workspaceScopeRef.current = { companyId, epoch: workspaceEpoch }
   const isCurrentScope = useCallback(
-    (token: WorkspaceEpochToken | null) =>
+    (capturedCompanyId: string, capturedEpoch: number) =>
       isWorkspaceEpochCurrent(
-        token,
+        workspaceEpochToken(capturedCompanyId, capturedEpoch),
         workspaceScopeRef.current.companyId,
         workspaceScopeRef.current.epoch,
       ),
     [],
   )
-  const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
-  const currentScopeRef = useRef({ companyId, epoch: workspaceEpoch })
-  currentScopeRef.current = { companyId, epoch: workspaceEpoch }
-  const scopeIsCurrent = (capturedCompanyId: string, capturedEpoch: number) =>
-    isWorkspaceEpochCurrent(
-      workspaceEpochToken(capturedCompanyId, capturedEpoch),
-      currentScopeRef.current.companyId,
-      currentScopeRef.current.epoch,
-    )
   const broadcast = useAppSelector((state) => state.broadcast)
   const { can } = useIam()
   const snackbar = useSnackbar()
@@ -425,9 +416,9 @@ export default function BroadcastWorkspace() {
     const capturedEpoch = workspaceEpoch
     try {
       const nextSenders = await broadcastApi.senders(companyId)
-      if (scopeIsCurrent(capturedCompanyId, capturedEpoch)) setSenders(nextSenders)
+      if (isCurrentScope(capturedCompanyId, capturedEpoch)) setSenders(nextSenders)
     } catch (requestError) {
-      if (scopeIsCurrent(capturedCompanyId, capturedEpoch)) {
+      if (isCurrentScope(capturedCompanyId, capturedEpoch)) {
         snackbar.error(apiErrorMessage(requestError, 'Unable to load Broadcast senders'))
       }
     }
@@ -571,7 +562,6 @@ export default function BroadcastWorkspace() {
           await dispatch(
             fetchBroadcastHistory({
               companyId,
-              epoch: workspaceEpoch,
               epoch: workspaceEpoch,
               groupId: selectedGroupId,
               force: true,
@@ -1114,7 +1104,6 @@ export default function BroadcastWorkspace() {
     void dispatch(
       fetchBroadcastHistory({
         companyId,
-        epoch: workspaceEpoch,
         epoch: workspaceEpoch,
         groupId: selectedGroupId,
         page: broadcast.historyPage + 1,
