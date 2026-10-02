@@ -125,6 +125,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const selectedSenderId = search.get('senderId')
   const selectedConversationId = search.get('conversationId')
   const selectedGroupId = search.get('groupId')
+  const legacyBroadcastMode = search.get('legacy') === '1' || Boolean(selectedGroupId)
   const selectedFolder = search.get('folder') === 'SENT' ? 'SENT' : 'INBOX'
 
   const emailMode = mode === 'inbox' && channelType === 'EMAIL'
@@ -444,7 +445,13 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   }
 
   useEffect(() => {
-    if (!desktop || !broadcastMode || selectedGroupId || broadcastGroups.length === 0) {
+    if (
+      !desktop ||
+      !broadcastMode ||
+      !legacyBroadcastMode ||
+      selectedGroupId ||
+      broadcastGroups.length === 0
+    ) {
       return
     }
 
@@ -458,6 +465,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     broadcastGroups,
     broadcastMode,
     desktop,
+    legacyBroadcastMode,
     location.pathname,
     location.search,
     navigate,
@@ -467,6 +475,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
   const selectBroadcastGroup = (groupId: string) => {
     const params = new URLSearchParams(location.search)
     params.set('groupId', groupId)
+    params.set('legacy', '1')
     params.delete('broadcastId')
     params.delete('compose')
     params.delete('newGroup')
@@ -478,6 +487,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     if (channelType === 'WHATSAPP') return
     const params = new URLSearchParams(location.search)
     params.set('newGroup', '1')
+    params.set('legacy', '1')
     params.delete('broadcastId')
     navigate({ pathname: location.pathname, search: `?${params.toString()}` })
     onNavigate()
@@ -789,17 +799,21 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
         </div>
       )}
 
-      {broadcastMode && (
-        <div className="mt-4 flex items-center gap-2">
+      {broadcastMode && legacyBroadcastMode && (
+        <div className="mt-4">
           <button
             type="button"
-            className="primary-button min-w-0 flex-1 gap-2"
+            className="secondary-button w-full gap-2"
             disabled={channelType === 'WHATSAPP' || !can(PERMISSIONS.BROADCAST_CREATE)}
             onClick={createBroadcastGroup}
           >
             <FiPlus aria-hidden="true" />
-            <span>New group</span>
+            <span>New legacy group</span>
           </button>
+          <p className="mt-2 px-1 text-[10px] leading-4 text-slate-500">
+            Legacy groups are kept for existing history. New Broadcasts should use Contacts, Lists
+            or Segments.
+          </p>
         </div>
       )}
 
@@ -854,6 +868,27 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
               onSelect={(conversation) => selectConversation(conversation.id)}
               onLoadMore={loadMoreConversations}
             />
+          </div>
+        ) : broadcastMode && !legacyBroadcastMode ? (
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-5">
+            <p className="text-xs font-semibold text-slate-800">Canonical audience</p>
+            <p className="mt-1 text-[11px] leading-5 text-slate-600">
+              Choose Contacts, a List or a Segment in the Broadcast composer. Recipient eligibility
+              is resolved server-side before launch.
+            </p>
+            {channelType !== 'WHATSAPP' && (
+              <button
+                type="button"
+                className="secondary-button mt-3 w-full"
+                onClick={() => {
+                  const params = new URLSearchParams(location.search)
+                  params.set('legacy', '1')
+                  navigate({ pathname: location.pathname, search: `?${params.toString()}` })
+                }}
+              >
+                View legacy group history
+              </button>
+            )}
           </div>
         ) : broadcastMode ? (
           <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 pb-2">
