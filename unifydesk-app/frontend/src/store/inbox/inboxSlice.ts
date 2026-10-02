@@ -14,8 +14,10 @@ type RequestStatus = 'idle' | 'loading' | 'ready' | 'error'
 type InboxState = {
   connections: ChannelConnection[]
   connectionsCompanyId: string | null
+  connectionsEpoch: number
   connectionsStatus: RequestStatus
   scopeCompanyId: string | null
+  scopeEpoch: number
   scopeConnectionId: string | null
   scopeFolder: 'INBOX' | 'SENT'
   conversations: InboxConversation[]
@@ -25,6 +27,7 @@ type InboxState = {
   conversationsStatus: RequestStatus
   loadingMore: boolean
   detailCompanyId: string | null
+  detailEpoch: number
   detailConversationId: string | null
   selectedConversation: InboxConversation | null
   messages: InboxMessage[]
@@ -34,8 +37,10 @@ type InboxState = {
 const initialState: InboxState = {
   connections: [],
   connectionsCompanyId: null,
+  connectionsEpoch: 0,
   connectionsStatus: 'idle',
   scopeCompanyId: null,
+  scopeEpoch: 0,
   scopeConnectionId: null,
   scopeFolder: 'INBOX',
   conversations: [],
@@ -45,6 +50,7 @@ const initialState: InboxState = {
   conversationsStatus: 'idle',
   loadingMore: false,
   detailCompanyId: null,
+  detailEpoch: 0,
   detailConversationId: null,
   selectedConversation: null,
   messages: [],
@@ -74,13 +80,14 @@ const sortMessages = (items: InboxMessage[]) =>
   })
 
 export const fetchEmailConnections = createAsyncThunk<
-  { companyId: string; connections: ChannelConnection[] },
-  { companyId: string; force?: boolean },
+  { companyId: string; epoch: number; connections: ChannelConnection[] },
+  { companyId: string; epoch: number; force?: boolean },
   { state: { inbox: InboxState } }
 >(
   'inbox/fetchEmailConnections',
-  async ({ companyId }) => ({
+  async ({ companyId, epoch }) => ({
     companyId,
+    epoch,
     connections: (await channelApi.list(companyId, 'EMAIL')).filter((connection) =>
       connection.capabilities.includes('INBOX'),
     ),
@@ -98,6 +105,7 @@ export const fetchEmailConnections = createAsyncThunk<
 export const fetchInboxConversations = createAsyncThunk<
   {
     companyId: string
+    epoch: number
     connectionId: string
     folder: 'INBOX' | 'SENT'
     append: boolean
@@ -105,6 +113,7 @@ export const fetchInboxConversations = createAsyncThunk<
   },
   {
     companyId: string
+    epoch: number
     connectionId: string
     folder: 'INBOX' | 'SENT'
     page?: number
@@ -114,8 +123,9 @@ export const fetchInboxConversations = createAsyncThunk<
   { state: { inbox: InboxState } }
 >(
   'inbox/fetchConversations',
-  async ({ companyId, connectionId, folder, page = 0, append = false }) => ({
+  async ({ companyId, epoch, connectionId, folder, page = 0, append = false }) => ({
     companyId,
+    epoch,
     connectionId,
     folder,
     append,
@@ -134,13 +144,14 @@ export const fetchInboxConversations = createAsyncThunk<
 )
 
 export const fetchInboxConversationDetail = createAsyncThunk<
-  { companyId: string; conversationId: string; detail: InboxConversationDetail },
-  { companyId: string; conversationId: string; force?: boolean },
+  { companyId: string; epoch: number; conversationId: string; detail: InboxConversationDetail },
+  { companyId: string; epoch: number; conversationId: string; force?: boolean },
   { state: { inbox: InboxState } }
 >(
   'inbox/fetchConversationDetail',
-  async ({ companyId, conversationId }) => ({
+  async ({ companyId, epoch, conversationId }) => ({
     companyId,
+    epoch,
     conversationId,
     detail: await inboxApi.conversationDetail(companyId, conversationId),
   }),
@@ -171,11 +182,15 @@ const inboxSlice = createSlice({
     applyRealtimeSnapshot(
       state,
       action: PayloadAction<{
+        companyId: string
+        epoch: number
         connectionId: string
         snapshot: InboxRealtimeSnapshot
       }>,
     ) {
-      const { connectionId, snapshot } = action.payload
+      const { companyId, epoch, connectionId, snapshot } = action.payload
+
+      if (state.scopeCompanyId !== companyId || state.scopeEpoch !== epoch) return
 
       if (state.scopeConnectionId === connectionId) {
         const byId = new Map(state.conversations.map((item) => [item.id, item]))
@@ -236,26 +251,38 @@ const inboxSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchEmailConnections.pending, (state, action) => {
-        if (state.connectionsCompanyId !== action.meta.arg.companyId) {
+        if (
+          state.connectionsCompanyId !== action.meta.arg.companyId ||
+          state.connectionsEpoch !== action.meta.arg.epoch
+        ) {
           state.connections = []
         }
         state.connectionsCompanyId = action.meta.arg.companyId
+        state.connectionsEpoch = action.meta.arg.epoch
         state.connectionsStatus = 'loading'
       })
       .addCase(fetchEmailConnections.fulfilled, (state, action) => {
-        if (state.connectionsCompanyId !== action.payload.companyId) return
+        if (
+          state.connectionsCompanyId !== action.payload.companyId ||
+          state.connectionsEpoch !== action.payload.epoch
+        ) return
         state.connections = action.payload.connections
         state.connectionsStatus = 'ready'
       })
       .addCase(fetchEmailConnections.rejected, (state, action) => {
         if (action.meta.condition) return
+        if (
+          state.connectionsCompanyId !== action.meta.arg.companyId ||
+          state.connectionsEpoch !== action.meta.arg.epoch
+        ) return
         state.connectionsStatus = 'error'
       })
       .addCase(fetchInboxConversations.pending, (state, action) => {
-        const { companyId, connectionId, folder, append = false } = action.meta.arg
+        const { companyId, epoch, connectionId, folder, append = false } = action.meta.arg
         const nextKey = scopeKey(companyId, connectionId, folder)
-        if (currentScopeKey(state) !== nextKey) {
+        if (currentScopeKey(state) !== nextKey || state.scopeEpoch !== epoch) {
           state.scopeCompanyId = companyId
+          state.scopeEpoch = epoch
           state.scopeConnectionId = connectionId
           state.scopeFolder = folder
           state.conversations = []
@@ -267,8 +294,11 @@ const inboxSlice = createSlice({
         else state.conversationsStatus = 'loading'
       })
       .addCase(fetchInboxConversations.fulfilled, (state, action) => {
-        const { companyId, connectionId, folder, append, page } = action.payload
-        if (currentScopeKey(state) !== scopeKey(companyId, connectionId, folder)) return
+        const { companyId, epoch, connectionId, folder, append, page } = action.payload
+        if (
+          currentScopeKey(state) !== scopeKey(companyId, connectionId, folder) ||
+          state.scopeEpoch !== epoch
+        ) return
 
         if (append) {
           const byId = new Map(state.conversations.map((item) => [item.id, item]))
@@ -286,22 +316,33 @@ const inboxSlice = createSlice({
       })
       .addCase(fetchInboxConversations.rejected, (state, action) => {
         if (action.meta.condition) return
+        if (
+          currentScopeKey(state) !==
+            scopeKey(action.meta.arg.companyId, action.meta.arg.connectionId, action.meta.arg.folder) ||
+          state.scopeEpoch !== action.meta.arg.epoch
+        ) return
         state.conversationsStatus = 'error'
         state.loadingMore = false
       })
       .addCase(fetchInboxConversationDetail.pending, (state, action) => {
-        const { companyId, conversationId } = action.meta.arg
-        if (state.detailCompanyId !== companyId || state.detailConversationId !== conversationId) {
+        const { companyId, epoch, conversationId } = action.meta.arg
+        if (
+          state.detailCompanyId !== companyId ||
+          state.detailEpoch !== epoch ||
+          state.detailConversationId !== conversationId
+        ) {
           state.selectedConversation = null
           state.messages = []
         }
         state.detailCompanyId = companyId
+        state.detailEpoch = epoch
         state.detailConversationId = conversationId
         state.detailStatus = 'loading'
       })
       .addCase(fetchInboxConversationDetail.fulfilled, (state, action) => {
         if (
           state.detailCompanyId !== action.payload.companyId ||
+          state.detailEpoch !== action.payload.epoch ||
           state.detailConversationId !== action.payload.conversationId
         ) {
           return
@@ -312,6 +353,11 @@ const inboxSlice = createSlice({
       })
       .addCase(fetchInboxConversationDetail.rejected, (state, action) => {
         if (action.meta.condition) return
+        if (
+          state.detailCompanyId !== action.meta.arg.companyId ||
+          state.detailEpoch !== action.meta.arg.epoch ||
+          state.detailConversationId !== action.meta.arg.conversationId
+        ) return
         state.detailStatus = 'error'
       })
   },
