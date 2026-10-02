@@ -234,6 +234,7 @@ export type RecipientResolutionSample = {
 export type RecipientResolutionPreview = {
   channel: ChannelType
   purpose: string
+  sourceDescriptor?: string | null
   selectedCount: number
   eligibleCount: number
   excludedCount: number
@@ -282,7 +283,7 @@ export type BroadcastMessageSummary = {
 }
 
 export type BroadcastMessage = Omit<BroadcastMessageSummary, 'bodyPreview'> & {
-  bodyText: string
+  bodyText?: string | null
   templateVariables?: Record<string, string>
 }
 
@@ -316,7 +317,7 @@ export type BroadcastRecipient = {
 export type BroadcastProgressEvent = {
   runId: string
   broadcastId: string
-  groupId: string
+  groupId?: string | null
   status: BroadcastRunStatus
   stats: BroadcastStats
   progressPercent: number
