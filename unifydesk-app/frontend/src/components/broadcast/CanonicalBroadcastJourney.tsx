@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { broadcastApi } from '../../features/broadcast/broadcastApi'
+import {
+  broadcastApi,
+  isBroadcastAudiencePreviewStale,
+} from '../../features/broadcast/broadcastApi'
 import type {
   AudienceSelector,
   BroadcastSender,
@@ -25,10 +28,7 @@ import {
   selectSelectedCompanyId,
   selectWorkspaceEpoch,
 } from '../../store/workspace/workspaceSlice'
-import {
-  isWorkspaceEpochCurrent,
-  workspaceEpochToken,
-} from '../../features/workspace/workspaceEpoch'
+import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 import { templateVariableCounts } from '../whatsapp/whatsappTemplateUtils'
 import { managedSmsApi } from '../../features/managedSms/managedSmsApi'
 import {
@@ -163,8 +163,11 @@ export const canonicalSmsContentReady = ({
 export default function CanonicalBroadcastJourney({ channel, onCreated }: Props) {
   const companyId = useAppSelector(selectSelectedCompanyId)
   const epoch = useAppSelector(selectWorkspaceEpoch)
-  const currentScopeRef = useRef({ companyId, epoch })
-  currentScopeRef.current = { companyId, epoch }
+  const { capture: captureScope, isCurrent: scopeIsCurrent } = useWorkspaceEpochScope(
+    companyId,
+    epoch,
+  )
+  const journeyScopeKey = `${companyId ?? 'no-workspace'}:${epoch}:${channel}`
   const { can } = useIam()
   const [searchParams, setSearchParams] = useSearchParams()
   const [lists, setLists] = useState<ListSummary[]>([])
@@ -181,8 +184,10 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   const [contactIds, setContactIds] = useState<Set<string>>(new Set())
   const [readiness, setReadiness] = useState<ChannelReadiness | null>(null)
   const [broadcastSenders, setBroadcastSenders] = useState<BroadcastSender[]>([])
+  const [catalogScopeKey, setCatalogScopeKey] = useState<string | null>(null)
   const [senderId, setSenderId] = useState('')
   const [preview, setPreview] = useState<RecipientResolutionPreview | null>(null)
+  const [previewOwnerKey, setPreviewOwnerKey] = useState<string | null>(null)
   const [previewing, setPreviewing] = useState(false)
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
@@ -211,9 +216,17 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     [contactIds, sourceId, sourceType],
   )
 
-  const selectedReadiness = readiness?.senders.find((item) => item.senderId === senderId) ?? null
-  const readySenders = readiness?.senders.filter((item) => item.state === 'READY') ?? []
-  const selectedBroadcastSender = broadcastSenders.find((item) => item.id === senderId) ?? null
+  const catalogIsCurrent = catalogScopeKey === journeyScopeKey
+  const currentLists = catalogIsCurrent ? lists : []
+  const currentSegments = catalogIsCurrent ? segments : []
+  const currentContacts = catalogIsCurrent ? contacts : []
+  const currentReadiness = catalogIsCurrent ? readiness : null
+  const currentBroadcastSenders = catalogIsCurrent ? broadcastSenders : []
+  const selectedReadiness =
+    currentReadiness?.senders.find((item) => item.senderId === senderId) ?? null
+  const readySenders = currentReadiness?.senders.filter((item) => item.state === 'READY') ?? []
+  const selectedBroadcastSender =
+    currentBroadcastSenders.find((item) => item.id === senderId) ?? null
   const selectedWhatsappTemplate = whatsappTemplates.find((item) => item.id === templateId) ?? null
   const whatsappParametersReady = [
     ...whatsappParameters.header,
@@ -239,15 +252,10 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     () => managedSmsVariableErrors(selectedManagedSmsTemplate, managedSmsTemplateVariables),
     [managedSmsTemplateVariables, selectedManagedSmsTemplate],
   )
-  const scopeIsCurrent = useCallback(
-    (token: ReturnType<typeof workspaceEpochToken>) =>
-      isWorkspaceEpochCurrent(
-        token,
-        currentScopeRef.current.companyId,
-        currentScopeRef.current.epoch,
-      ),
-    [],
-  )
+  const previewRequestKey = `${journeyScopeKey}:${senderId}:${
+    selector ? JSON.stringify(selector) : 'no-audience'
+  }`
+  const currentPreview = previewOwnerKey === previewRequestKey ? preview : null
   const contentReady =
     channel === 'WHATSAPP'
       ? Boolean(selectedWhatsappTemplate && whatsappParametersReady)
@@ -263,9 +271,10 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
             preview: managedSmsPreview,
           })
   const canLaunch =
+    catalogIsCurrent &&
     Boolean(selector) &&
-    Boolean(preview) &&
-    preview!.eligibleCount > 0 &&
+    Boolean(currentPreview) &&
+    currentPreview!.eligibleCount > 0 &&
     Boolean(selectedReadiness && selectedReadiness.state === 'READY') &&
     !busy &&
     contentReady &&
@@ -274,7 +283,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
 
   useEffect(() => {
     if (!companyId) return
-    const token = workspaceEpochToken(companyId, epoch)
+    const token = captureScope()
     setLoading(true)
     setError('')
     Promise.all([
@@ -291,6 +300,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
         setContacts(contactPage.items)
         setReadiness(nextReadiness)
         setBroadcastSenders(nextSenders)
+        setCatalogScopeKey(journeyScopeKey)
         const firstReady = nextReadiness.senders.find((item) => item.state === 'READY')
         setSenderId((current) =>
           current && nextReadiness.senders.some((item) => item.senderId === current)
@@ -306,10 +316,11 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
       .finally(() => {
         if (scopeIsCurrent(token)) setLoading(false)
       })
-  }, [channel, companyId, epoch, scopeIsCurrent])
+  }, [captureScope, channel, companyId, epoch, journeyScopeKey, scopeIsCurrent])
 
   useEffect(() => {
     setPreview(null)
+    setPreviewOwnerKey(null)
   }, [selector, senderId, channel])
 
   useEffect(() => {
@@ -325,7 +336,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
       return
     }
 
-    const token = workspaceEpochToken(companyId, epoch)
+    const token = captureScope()
     setWhatsappTemplates([])
     void whatsappApi
       .templates(companyId, selectedBroadcastSender.channelConnectionId)
@@ -342,6 +353,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     channel,
     companyId,
     epoch,
+    captureScope,
     scopeIsCurrent,
     selectedBroadcastSender?.channelConnectionId,
     senderId,
@@ -360,7 +372,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     }
 
     let active = true
-    const token = workspaceEpochToken(companyId, epoch)
+    const token = captureScope()
     setManagedSmsLoading(true)
     Promise.all([managedSmsApi.headers(companyId), managedSmsApi.templates(companyId)])
       .then(([nextHeaders, nextTemplates]) => {
@@ -385,7 +397,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     return () => {
       active = false
     }
-  }, [companyId, epoch, scopeIsCurrent, senderId, usesManagedSms])
+  }, [captureScope, companyId, epoch, scopeIsCurrent, senderId, usesManagedSms])
 
   useEffect(() => {
     setManagedSmsPreview(null)
@@ -399,7 +411,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     }
 
     let active = true
-    const token = workspaceEpochToken(companyId, epoch)
+    const token = captureScope()
     const timer = window.setTimeout(() => {
       if (!scopeIsCurrent(token)) return
       void managedSmsApi
@@ -432,6 +444,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     managedSmsHeader,
     managedSmsTemplateId,
     managedSmsTemplateVariables,
+    captureScope,
     scopeIsCurrent,
     usesManagedSms,
   ])
@@ -447,8 +460,17 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   }, [setSearchParams, sourceId, sourceType])
 
   const runPreview = async () => {
-    if (!companyId || !selector || !senderId) return
-    const token = workspaceEpochToken(companyId, epoch)
+    if (
+      !companyId ||
+      !selector ||
+      !senderId ||
+      !catalogIsCurrent ||
+      selectedReadiness?.state !== 'READY'
+    ) {
+      return
+    }
+    const token = captureScope()
+    const requestKey = previewRequestKey
     setPreviewing(true)
     setError('')
     try {
@@ -457,7 +479,10 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
         channel,
         senderId,
       })
-      if (scopeIsCurrent(token)) setPreview(result)
+      if (scopeIsCurrent(token)) {
+        setPreview(result)
+        setPreviewOwnerKey(requestKey)
+      }
     } catch (requestError) {
       if (scopeIsCurrent(token)) {
         setError(apiErrorMessage(requestError, 'Unable to preview recipient eligibility.'))
@@ -468,18 +493,19 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   }
 
   const launch = async () => {
-    if (!companyId || !selector || !preview || !senderId || !canLaunch) return
+    if (!companyId || !selector || !currentPreview || !senderId || !canLaunch) return
+    const confirmedPreview = currentPreview
 
     const action = scheduledAt ? 'schedule' : 'send'
     if (
       !window.confirm(
-        `${action === 'send' ? 'Send' : 'Schedule'} to ${preview.eligibleCount.toLocaleString()} eligible recipients? The audience shown here will be frozen for this Broadcast; consent and suppression are still rechecked at send time.`,
+        `${action === 'send' ? 'Send' : 'Schedule'} to ${confirmedPreview.eligibleCount.toLocaleString()} eligible recipients? The audience shown here will be frozen for this Broadcast; consent and suppression are still rechecked at send time.`,
       )
     ) {
       return
     }
 
-    const token = workspaceEpochToken(companyId, epoch)
+    const token = captureScope()
     setBusy(true)
     setError('')
     try {
@@ -512,14 +538,31 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
         if (Number.isNaN(scheduledDate.getTime()) || scheduledDate.getTime() <= Date.now()) {
           throw new Error('Schedule time must be in the future')
         }
-        launched = await broadcastApi.schedule(companyId, draft.id, scheduledDate.toISOString())
+        launched = await broadcastApi.schedule(
+          companyId,
+          draft.id,
+          scheduledDate.toISOString(),
+          confirmedPreview.sourceDescriptor,
+        )
       } else {
-        launched = await broadcastApi.send(companyId, draft.id)
+        launched = await broadcastApi.send(
+          companyId,
+          draft.id,
+          confirmedPreview.sourceDescriptor,
+        )
       }
       if (scopeIsCurrent(token)) onCreated(launched.id)
     } catch (requestError) {
       if (scopeIsCurrent(token)) {
-        setError(apiErrorMessage(requestError, 'Unable to launch Broadcast.'))
+        if (isBroadcastAudiencePreviewStale(requestError)) {
+          setPreview(null)
+          setPreviewOwnerKey(null)
+          setError(
+            'The audience changed since this preview. Preview eligible recipients again before sending or scheduling.',
+          )
+        } else {
+          setError(apiErrorMessage(requestError, 'Unable to launch Broadcast.'))
+        }
       }
     } finally {
       if (scopeIsCurrent(token)) setBusy(false)
@@ -543,7 +586,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
               </p>
             </div>
             <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-              {sourceLabel(selector, lists, segments)}
+              {sourceLabel(selector, currentLists, currentSegments)}
             </span>
           </div>
 
@@ -582,7 +625,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                   aria-label="Audience"
                 >
                   <option value="">Choose {sourceType === 'CONTACT_LIST' ? 'a List' : 'a Segment'}</option>
-                  {(sourceType === 'CONTACT_LIST' ? lists : segments).map((item) => (
+                  {(sourceType === 'CONTACT_LIST' ? currentLists : currentSegments).map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name} ({(sourceType === 'CONTACT_LIST' ? (item as ListSummary).memberCount : (item as SegmentDefinition).count ?? 0).toLocaleString()})
                     </option>
@@ -590,7 +633,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                 </select>
               ) : (
                 <div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-slate-200">
-                  {contacts.map((contact) => (
+                  {currentContacts.map((contact) => (
                     <label key={contact.id} className="flex cursor-pointer items-center gap-3 border-b border-slate-100 px-3 py-2 last:border-b-0">
                       <input
                         type="checkbox"
@@ -621,10 +664,10 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">2. Channel readiness</p>
               <div className="mt-2 rounded-xl border border-slate-200 p-3">
                 <p className="text-sm font-semibold text-slate-900">
-                  {readiness?.configuration?.replaceAll('_', ' ') ?? (loading ? 'Loading…' : 'Unavailable')}
+                  {currentReadiness?.configuration?.replaceAll('_', ' ') ?? (loading ? 'Loading…' : 'Unavailable')}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {readiness?.nextAction || (readySenders.length ? 'Choose a ready sender.' : 'No ready sender is available.')}
+                  {currentReadiness?.nextAction || (readySenders.length ? 'Choose a ready sender.' : 'No ready sender is available.')}
                 </p>
                 <select
                   className="form-input mt-3"
@@ -633,7 +676,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                   aria-label="Ready sender"
                 >
                   <option value="">Choose sender</option>
-                  {readiness?.senders.map((sender) => (
+                  {currentReadiness?.senders.map((sender) => (
                     <option key={sender.senderId} value={sender.senderId} disabled={sender.state !== 'READY'}>
                       {sender.label} — {sender.state.replaceAll('_', ' ')}
                     </option>
@@ -653,32 +696,38 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
           <button
             type="button"
             className="secondary-button mt-4"
-            disabled={!selector || !senderId || previewing}
+            disabled={
+              !catalogIsCurrent ||
+              !selector ||
+              !senderId ||
+              selectedReadiness?.state !== 'READY' ||
+              previewing
+            }
             onClick={() => void runPreview()}
           >
             {previewing ? 'Checking eligibility…' : 'Preview eligible recipients'}
           </button>
         </section>
 
-        {preview && (
+        {currentPreview && (
           <section className="panel p-4 sm:p-5" aria-label="Recipient eligibility preview">
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Selected</p><strong className="text-xl">{preview.selectedCount.toLocaleString()}</strong></div>
-              <div className="rounded-xl bg-emerald-50 p-3"><p className="text-xs text-emerald-700">Eligible</p><strong className="text-xl text-emerald-800">{preview.eligibleCount.toLocaleString()}</strong></div>
-              <div className="rounded-xl bg-amber-50 p-3"><p className="text-xs text-amber-700">Excluded</p><strong className="text-xl text-amber-800">{preview.excludedCount.toLocaleString()}</strong></div>
+              <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Selected</p><strong className="text-xl">{currentPreview.selectedCount.toLocaleString()}</strong></div>
+              <div className="rounded-xl bg-emerald-50 p-3"><p className="text-xs text-emerald-700">Eligible</p><strong className="text-xl text-emerald-800">{currentPreview.eligibleCount.toLocaleString()}</strong></div>
+              <div className="rounded-xl bg-amber-50 p-3"><p className="text-xs text-amber-700">Excluded</p><strong className="text-xl text-amber-800">{currentPreview.excludedCount.toLocaleString()}</strong></div>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {Object.entries(preview.exclusions).filter(([, count]) => Number(count) > 0).map(([reason, count]) => (
+              {Object.entries(currentPreview.exclusions).filter(([, count]) => Number(count) > 0).map(([reason, count]) => (
                 <div key={reason} className="rounded-lg border border-slate-200 px-3 py-2 text-xs">
                   <span className="font-semibold text-slate-800">{exclusionLabels[reason as RecipientExclusionReason]}</span>
                   <span className="float-right text-slate-500">{Number(count).toLocaleString()}</span>
                 </div>
               ))}
             </div>
-            {preview.selectedCount !== preview.eligibleCount + preview.excludedCount && (
+            {currentPreview.selectedCount !== currentPreview.eligibleCount + currentPreview.excludedCount && (
               <p className="mt-3 text-xs font-semibold text-rose-700">Preview counts are inconsistent. Refresh before sending.</p>
             )}
-            {preview.eligibleCount === 0 && (
+            {currentPreview.eligibleCount === 0 && (
               <p className="mt-3 text-sm font-semibold text-amber-700">No eligible recipients. Resolve exclusions before sending.</p>
             )}
           </section>
