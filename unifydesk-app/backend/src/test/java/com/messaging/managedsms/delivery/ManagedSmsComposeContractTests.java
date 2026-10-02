@@ -13,6 +13,7 @@ import com.messaging.broadcast.repository.*;
 import com.messaging.broadcast.service.*;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.contacts.audience.AudienceSourceResolver;
+import com.messaging.contacts.audience.ContactAudienceSelectionService;
 import com.messaging.emailtemplate.service.EmailTemplateService;
 import com.messaging.managedsms.runtime.ManagedSmsTemplateService;
 import java.util.Map;
@@ -35,6 +36,11 @@ class ManagedSmsComposeContractTests {
     EmailTemplateService emailTemplates = mock(EmailTemplateService.class);
     ManagedSmsTemplateService smsTemplates = mock(ManagedSmsTemplateService.class);
     AudienceSourceResolver audienceSourceResolver = mock(AudienceSourceResolver.class);
+    ContactAudienceSelectionService contactAudienceSelectionService =
+        mock(ContactAudienceSelectionService.class);
+    BroadcastAudienceFreezeService audienceFreezeService = mock(BroadcastAudienceFreezeService.class);
+    BroadcastWhatsAppTemplateService whatsAppTemplateService =
+        mock(BroadcastWhatsAppTemplateService.class);
 
     BroadcastGroup group = new BroadcastGroup();
     group.setId(100L);
@@ -82,6 +88,9 @@ class ManagedSmsComposeContractTests {
             emailTemplates,
             smsTemplates,
             audienceSourceResolver,
+            contactAudienceSelectionService,
+            audienceFreezeService,
+            whatsAppTemplateService,
             new ObjectMapper());
 
     service.create(
