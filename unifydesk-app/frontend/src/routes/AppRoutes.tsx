@@ -105,7 +105,7 @@ const AppRoutes = () => (
             <Route path="/notifications" element={<NotificationsPage />} />
 
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.WHATSAPP_READ]} />}>
-              <Route path="inbox/social-media" element={<PlaceholderPage />} />
+              <Route path="inbox/social-media" element={<EmailInbox />} />
             </Route>
             <Route element={<PermissionRoute anyOf={[PERMISSIONS.SMS_READ]} />}>
               <Route path="inbox/sms" element={<PlaceholderPage />} />
