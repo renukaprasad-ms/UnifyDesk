@@ -2,17 +2,21 @@
 
 ## Exact baseline
 
-`dev@850ce7ad2874d20070067d46d8604ddc2bdd2c99`
+`dev@f2760fe0a11ad571f984636a65304a64b77459ac`
 
-The baseline was resolved live from GitHub before this audit. The frozen commit is:
+The original source audit began at `850ce7ad2874d20070067d46d8604ddc2bdd2c99`. After MAIN's Provider-4 decision was recorded and PR #249 was merged, the executable runtime production baseline was frozen at:
 
-`test(contacts): keep segment conditions after preview`
+`f2760fe0a11ad571f984636a65304a64b77459ac`
+
+Commit:
+
+`Merge PR #249: Core Messaging runtime/provider verification R1 audit`
 
 The previous final source-remediation production SHA was:
 
 `353069f922040be922ec353961386fb962d8d187`
 
-GitHub compare reports the frozen runtime baseline is 21 commits ahead and 0 behind that remediation SHA.
+The executable frozen runtime baseline includes the accepted Core Messaging remediation lineage plus the later runtime fixes and the merged runtime-verification documentation. Runtime/provider claims must be tied to this exact SHA.
 
 ## Post-QA production deltas reviewed
 
@@ -102,7 +106,7 @@ Provider delivery/read states can exist in provider-specific projections and mus
 - email-provider Spotless/test/package;
 - website build.
 
-GitHub returned no workflow run for the exact frozen SHA during this audit. Classification: **NOT EXECUTED**.
+Frozen production SHA `f2760fe0a11ad571f984636a65304a64b77459ac` triggered `Checks` run `37011044661`. Attempts 1 and 2 both terminated before any job step/log existed. Classification: **BLOCKED — CI execution environment**.
 
 ## Runtime-secret visibility limitation
 
