@@ -4,19 +4,27 @@
 
 2026-10-02
 
-## Frozen SHA resolution
+## Frozen executable baseline
 
-**PASS**
+**PASS — baseline freeze**
 
-Live GitHub `dev` resolved to:
+Live GitHub `dev` was inspected at the start of this regenerated execution round.
 
-`850ce7ad2874d20070067d46d8604ddc2bdd2c99`
+Exact frozen production SHA:
+
+`f2760fe0a11ad571f984636a65304a64b77459ac`
 
 Commit:
 
-`test(contacts): keep segment conditions after preview`
+`Merge PR #249: Core Messaging runtime/provider verification R1 audit`
 
-This exact SHA is the source baseline for the audit. `dev` later moved during the audit to `3a12d84e4aecd31f3c067b6af6f998e173992d24` for unrelated Cloudflare frontend-hosting configuration; the frozen runtime audit baseline was intentionally not moved.
+Remote branch policy was also inspected. Only the intended long-lived branches existed before the temporary evidence branch was recreated:
+
+- `dev`
+- `UAT`
+- `prod`
+
+Historical PR #250 was confirmed closed/unmerged and its old branch absent. Its old branch head is not used as runtime truth.
 
 ## Previous remediation lineage
 
@@ -51,33 +59,63 @@ Reviewed current source confirms:
 
 ## CI on exact frozen SHA
 
-**NOT EXECUTED**
+**BLOCKED — CI execution environment**
 
-GitHub returned no workflow run for:
+Exact frozen SHA:
 
-`850ce7ad2874d20070067d46d8604ddc2bdd2c99`
+`f2760fe0a11ad571f984636a65304a64b77459ac`
 
-The repository contains an executable `Checks` workflow using GitHub-hosted `ubuntu-latest`, but presence of the workflow is not execution evidence.
+GitHub Actions run:
 
-## Audit-PR CI evidence
+`37011044661`
 
-PR #249 triggered `Checks` workflow run:
+Current run attempt:
 
-`37008691423`
+`2`
 
-Result reported by GitHub:
+Observed result:
 
-**FAILURE — runner/step execution evidence absent**
+- backend: `failure`, `steps = null`
+- database: `failure`, `steps = null`
+- frontend: `failure`, `steps = null`
+- email-provider: `failure`, `steps = null`
+- website: `failure`, `steps = null`
 
-All five jobs were reported `failure`, but their job payloads contained `steps = null`:
+No Maven, npm, database migration or packaging step actually executed. This is not valid application PASS evidence and not valid application-code FAIL evidence.
 
-- database
-- email-provider
-- frontend
-- backend
-- website
+## Phase 0 deployment proof
 
-This is not evidence that application tests/build steps ran and failed. It is classified as an **environment/CI execution blocker**, consistent with the previous no-runner/no-step evidence, until GitHub Actions actually allocates a runner and exposes executed steps/logs.
+**BLOCKED — authenticated runtime access unavailable in this execution session**
+
+Required proof is that the deployed k3s backend/container is running the exact frozen SHA `f2760fe0a11ad571f984636a65304a64b77459ac`.
+
+Current evidence obtained:
+
+- GitHub source SHA frozen: yes;
+- live branch policy checked: yes;
+- GitHub CI execution attempt inspected: yes;
+- public `api.unifydesk.in` build/health proof from this tool environment: unavailable;
+- authenticated `kubectl`/server shell: unavailable in this execution session;
+- deployed image/build SHA: not yet proven.
+
+Because Phase 0 is not proven, Contacts/consent/audience/provider mutations are not started and are not labeled PASS.
+
+## Internal journey execution status
+
+- CMR1-001 Workspace isolation: **NOT EXECUTED**
+- CMR1-002 Contact import: **NOT EXECUTED**
+- CMR1-003 Email consent: **NOT EXECUTED**
+- CMR1-004 SMS consent: **NOT EXECUTED**
+- CMR1-005 WhatsApp consent: **NOT EXECUTED**
+- CMR1-006 duplicate-import semantics: **NOT EXECUTED**
+- CMR1-007 List Preview: **NOT EXECUTED**
+- CMR1-008 Segment Validate/Preview: **NOT EXECUTED**
+- CMR1-009 stale Preview rejection: **NOT EXECUTED**
+- CMR1-010 immutable freeze: **NOT EXECUTED**
+- CMR1-011 send-time eligibility recheck: **NOT EXECUTED**
+- CMR1-013 zero-pending/all-skipped finalization: **NOT EXECUTED**
+
+These remain pending behind Phase 0 deployment proof.
 
 ## Provider execution
 
@@ -120,9 +158,9 @@ Gmail/Microsoft/SMTP mailbox transports are not Provider-4 targets for this roun
 
 ## Environment / credential evidence
 
-**NOT EXECUTED**
+**BLOCKED — runtime access gate**
 
-Repository source proves the backend consumes the Kubernetes `messaging-env` Secret. It does not expose live values. No claim is made here about which provider secrets are currently mounted.
+Repository source proves the backend consumes the Kubernetes `messaging-env` Secret. The current execution session does not have an authenticated shell/Kubernetes channel to inspect environment-variable names/presence in the deployed backend. No claim is made about which provider secrets or AWS runtime credentials are currently mounted. Secret values must never be written into this evidence.
 
 ## Stale PR housekeeping
 
@@ -140,9 +178,10 @@ Closed as superseded without merging:
 
 Reasons:
 
-1. exact frozen SHA has no executed CI evidence;
-2. audit PR CI terminated without step execution evidence;
-3. SES, MSG91 and Meta test-provider chains have not executed;
-4. Provider-4 Amazon SES/SendGrid/Azure Email/MSG91 Email regression has not yet executed.
+1. deployed k3s/runtime SHA has not yet been proven equal to `f2760fe0a11ad571f984636a65304a64b77459ac`;
+2. exact-head CI is blocked before application steps execute;
+3. Contacts -> consent -> audience runtime execution has not yet run;
+4. SES, MSG91 and Meta provider chains have not executed;
+5. Provider-4 Amazon SES/SendGrid/Azure Email/MSG91 Email regression has not yet executed.
 
 This is not a rollback of prior source QA acceptance. It is the correct runtime-verification classification.
