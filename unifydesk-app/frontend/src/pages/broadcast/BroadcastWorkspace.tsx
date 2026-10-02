@@ -806,7 +806,7 @@ export default function BroadcastWorkspace() {
         setComposeSenderId(message.senderId ?? '')
         setComposeTemplateId(message.managedSmsTemplateId ?? message.sourceTemplateId ?? '')
         setComposeSubject(message.subject ?? '')
-        setComposeBody(message.bodyText)
+        setComposeBody(message.bodyText ?? '')
         setComposeTemplateVariables(message.templateVariables ?? {})
         setComposeScheduleAt(
           message.scheduledAt ? new Date(message.scheduledAt).toISOString().slice(0, 16) : '',
