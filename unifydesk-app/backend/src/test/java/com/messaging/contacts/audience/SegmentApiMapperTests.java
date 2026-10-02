@@ -6,8 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.TextNode;
 import com.messaging.contacts.audience.SegmentApiModel.Field;
 import com.messaging.contacts.audience.SegmentApiModel.Group;
 import com.messaging.contacts.audience.SegmentApiModel.Predicate;
@@ -22,6 +20,8 @@ import com.messaging.contacts.audience.SegmentFilter.SegmentOperator;
 import com.messaging.contacts.audience.SegmentFilter.TextValue;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.TextNode;
 
 class SegmentApiMapperTests {
 
