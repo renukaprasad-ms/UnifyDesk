@@ -60,7 +60,7 @@ const summaryFromMessage = (message: BroadcastMessage): BroadcastMessageSummary 
   legacyConnectionId: message.legacyConnectionId,
   runId: message.runId,
   subject: message.subject,
-  bodyPreview: message.bodyText.slice(0, 240),
+  bodyPreview: message.bodyText?.slice(0, 240) ?? '',
   status: message.status,
   scheduledAt: message.scheduledAt,
   createdAt: message.createdAt,
