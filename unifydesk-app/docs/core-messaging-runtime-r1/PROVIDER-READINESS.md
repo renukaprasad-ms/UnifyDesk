@@ -34,11 +34,17 @@ Platform AWS workload/default credentials are required for Managed Email. Custom
 - SNS endpoint reachable.
 - Cloudflare credentials only where automatic hosted/customer-domain DNS provisioning is under test.
 
-### Current audit classification
+### Current executable classification
 
-**NOT EXECUTED.** Source is present; live secret/resource state was not accessible through the repository connector.
+**BLOCKED AT PHASE 0 / RUNTIME ACCESS.**
 
-Do not convert this into PASS until an actual SES message ID and actual SNS event evidence are captured.
+The source is present, but this execution session cannot yet prove that the deployed k3s backend is the frozen SHA or safely inspect runtime environment-variable names/presence. No Managed Email readiness API, AWS runtime identity check, SES send, or SNS event has been executed in this regenerated round.
+
+Do not convert this into PASS until:
+1. deployed SHA is proven;
+2. Managed Email runtime readiness is executed;
+3. an actual SES provider message ID is persisted for the controlled test recipient;
+4. actual SNS/provider event evidence is captured for delivery-state claims.
 
 ## Provider 2 — UnifyDesk Managed SMS / MSG91
 
