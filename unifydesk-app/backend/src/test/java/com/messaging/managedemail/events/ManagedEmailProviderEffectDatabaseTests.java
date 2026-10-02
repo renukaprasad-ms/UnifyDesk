@@ -155,7 +155,7 @@ class ManagedEmailProviderEffectDatabaseTests {
             jdbc.queryForObject(
                 "select status from managed_email_provider_effects", String.class))
         .isEqualTo("PENDING");
-    verify(suppression, times(1)).hardBounce(runtime, event.eventTimestamp());
+    verify(suppression, times(1)).hardBounce(runtime, event);
   }
 
   @Test
