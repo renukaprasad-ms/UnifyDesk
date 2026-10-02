@@ -67,6 +67,7 @@ export const useContacts = (companyId: string | null, epoch: number, query: Cont
   const loadMore = async () => {
     if (!companyId || !hasMore || !nextCursor || loadingMore) return
     const scope = captureScope()
+    if (!scopeIsCurrent(scope)) return
     setLoadingMore(true)
     setError('')
     try {
@@ -87,6 +88,7 @@ export const useContacts = (companyId: string | null, epoch: number, query: Cont
   const refresh = async () => {
     if (!companyId) return
     const scope = captureScope()
+    if (!scopeIsCurrent(scope)) return
     setLoading(true)
     setError('')
     try {
