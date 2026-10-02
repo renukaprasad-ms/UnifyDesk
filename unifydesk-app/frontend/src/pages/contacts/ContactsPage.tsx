@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import ContactsNav from '../../components/contacts/ContactsNav'
 import ContactFormDialog from '../../components/contacts/ContactFormDialog'
@@ -43,6 +43,13 @@ export default function ContactsPage() {
   const createFromInbox = params.get('new') === '1'
   const createEmail = params.get('email') ?? ''
   const createPhone = params.get('phone') ?? ''
+  const initialContactDraft = useMemo(
+    () =>
+      createFromInbox
+        ? { ...emptyContactDraft, email: createEmail, phone: createPhone }
+        : undefined,
+    [createEmail, createFromInbox, createPhone],
+  )
   const [creating, setCreating] = useState(createFromInbox)
   const [saving, setSaving] = useState(false)
   const [tags, setTags] = useState<TagSummary[]>([])
@@ -436,6 +443,7 @@ export default function ContactsPage() {
         <ContactFormDialog
           open={creating}
           title="Create contact"
+          initial={initialContactDraft}
           saving={saving}
           onClose={() => {
             setCreating(false)
