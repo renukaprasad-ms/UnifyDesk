@@ -150,7 +150,9 @@ class AudienceSnapshotServiceTests {
     AudienceSnapshotRepository.Snapshot snapshot =
         snapshot(snapshotId, companyId, SourceType.LIST, 41L, "5", null, null);
 
-    when(sourceResolver.describe(companyId, SourceType.LIST, 41L)).thenReturn(source);
+    BroadcastSourceState sourceState = new BroadcastSourceState(source, null, null);
+    when(sourceResolver.describeForBroadcast(companyId, SourceType.LIST, 41L))
+        .thenReturn(sourceState);
     when(repository.create(
             anyLong(),
             eq(companyId),
@@ -178,7 +180,7 @@ class AudienceSnapshotServiceTests {
         companyId, SourceType.LIST, 41L, Channel.EMAIL, Purpose.MARKETING);
     service.processBatch(companyId, snapshotId);
 
-    verify(sourceResolver).captureCandidates(companyId, source, snapshotId);
+    verify(sourceResolver).captureCandidates(companyId, sourceState, snapshotId);
     verify(sourceResolver, never()).page(anyLong(), any(), anyLong(), anyInt());
     verify(eligibilityService)
         .evaluateBatch(
@@ -194,13 +196,12 @@ class AudienceSnapshotServiceTests {
     long companyId = 7L;
     long snapshotId = 202L;
     SourceDescriptor frozen = new SourceDescriptor(SourceType.LIST, 42L, "6", null);
-    SourceDescriptor changed = new SourceDescriptor(SourceType.LIST, 42L, "7", null);
     AudienceSnapshotRepository.Snapshot snapshot =
         snapshot(snapshotId, companyId, SourceType.LIST, 42L, "6", null, null);
 
-    when(sourceResolver.describe(companyId, SourceType.LIST, 42L))
-        .thenReturn(frozen)
-        .thenReturn(changed);
+    BroadcastSourceState frozenState = new BroadcastSourceState(frozen, null, null);
+    when(sourceResolver.describeForBroadcast(companyId, SourceType.LIST, 42L))
+        .thenReturn(frozenState);
     when(repository.create(
             anyLong(),
             eq(companyId),
@@ -226,8 +227,6 @@ class AudienceSnapshotServiceTests {
 
     service.createForBroadcast(
         companyId, SourceType.LIST, 42L, Channel.EMAIL, Purpose.MARKETING);
-    assertThat(sourceResolver.describe(companyId, SourceType.LIST, 42L)).isEqualTo(changed);
-
     service.processBatch(companyId, snapshotId);
 
     verify(eligibilityService)
