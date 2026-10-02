@@ -23,20 +23,27 @@ vi.mock('../../features/contacts/contactsApi', () => ({
   },
 }))
 
-vi.mock('../../features/broadcast/broadcastApi', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../features/broadcast/broadcastApi')>()
-  return {
-    ...actual,
-    broadcastApi: {
-      channelReadiness: vi.fn(),
-      senders: vi.fn(),
-      previewAudience: vi.fn(),
-      createAudienceMessage: vi.fn(),
-      send: vi.fn(),
-      schedule: vi.fn(),
-    },
-  }
-}))
+vi.mock('../../features/broadcast/broadcastApi', () => ({
+  broadcastApi: {
+    channelReadiness: vi.fn(),
+    senders: vi.fn(),
+    previewAudience: vi.fn(),
+    createAudienceMessage: vi.fn(),
+    send: vi.fn(),
+    schedule: vi.fn(),
+  },
+  isBroadcastAudiencePreviewStale: (error: unknown) => {
+    const candidate = error as {
+      isAxiosError?: boolean
+      response?: { status?: number; data?: { error_message?: string } }
+    }
+    return (
+      candidate.isAxiosError === true &&
+      candidate.response?.status === 409 &&
+      candidate.response.data?.error_message === 'BROADCAST_AUDIENCE_PREVIEW_STALE'
+    )
+  },
+})))
 
 vi.mock('../../features/whatsapp/whatsappApi', () => ({
   whatsappApi: { templates: vi.fn() },
@@ -278,7 +285,7 @@ describe('CanonicalBroadcastJourney workspace epoch remediation', () => {
     expect(await screen.findByRole('option', { name: /A2 List/ })).toBeInTheDocument()
 
     await act(async () => {
-      gate.resolve()
+      gate.resolve(undefined)
       await gate.promise
     })
 
