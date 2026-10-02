@@ -247,7 +247,6 @@ export type AudienceSourceDescriptor = {
 export type RecipientResolutionPreview = {
   channel: ChannelType
   purpose: string
-  sourceDescriptor?: string | null
   selectedCount: number
   eligibleCount: number
   excludedCount: number
