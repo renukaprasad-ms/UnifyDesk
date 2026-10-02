@@ -83,6 +83,12 @@ spring:
         heartbeat.interval.ms: ${KAFKA_HEARTBEAT_INTERVAL_MS:15000}
 
 app:
+  recipient-action:
+    encryption-key: ${APP_RECIPIENT_ACTION_KEY:}
+    token-ttl: ${APP_RECIPIENT_ACTION_TOKEN_TTL:365d}
+    clock-skew: ${APP_RECIPIENT_ACTION_CLOCK_SKEW:5m}
+    frontend-base-url: ${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}
+    public-api-base-url: ${APP_PUBLIC_API_BASE_URL:https://api.unifydesk.in}
   notification-platform:
     frontend-base-url: ${APP_NOTIFICATION_FRONTEND_BASE_URL:${APP_FRONTEND_BASE_URL:https://app.unifydesk.in}}
     core:
