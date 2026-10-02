@@ -3,6 +3,11 @@ package com.messaging.managedemail.events;
 import com.messaging.broadcast.enums.BroadcastRecipientStatus;
 import com.messaging.broadcast.service.BroadcastStatsService;
 import com.messaging.channel.enums.ChannelType;
+import com.messaging.contacts.consent.ConsentTypes.Channel;
+import com.messaging.contacts.consent.ConsentTypes.PreferenceSource;
+import com.messaging.contacts.consent.ConsentTypes.SuppressionReason;
+import com.messaging.contacts.core.domain.ContactTypes.IdentityType;
+import com.messaging.contacts.integration.TrustedProviderSuppressionBridge;
 import com.messaging.managedemail.runtime.ManagedEmailIdGenerator;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
 import java.sql.Timestamp;
@@ -20,17 +25,44 @@ public class ManagedEmailSuppressionFeedbackService {
   private final JdbcTemplate jdbcTemplate;
   private final BroadcastStatsService statsService;
   private final ManagedEmailIdGenerator idGenerator;
+  private final TrustedProviderSuppressionBridge contactSuppressionBridge;
 
   @Transactional
   public void hardBounce(
-      ManagedEmailRuntimeRepository.ManagedRecipientRuntime runtime, Instant eventAt) {
+      ManagedEmailRuntimeRepository.ManagedRecipientRuntime runtime,
+      ManagedEmailProviderEvent event) {
     upsertSuppression(runtime, "HARD_BOUNCE");
-    transitionBounce(runtime, eventAt);
+    convergeContactSuppression(runtime, event, SuppressionReason.HARD_BOUNCE);
+    transitionBounce(runtime, event.eventTimestamp());
   }
 
   @Transactional
-  public void complaint(ManagedEmailRuntimeRepository.ManagedRecipientRuntime runtime) {
+  public void complaint(
+      ManagedEmailRuntimeRepository.ManagedRecipientRuntime runtime,
+      ManagedEmailProviderEvent event) {
     upsertSuppression(runtime, "COMPLAINT");
+    convergeContactSuppression(runtime, event, SuppressionReason.COMPLAINT);
+  }
+
+  private void convergeContactSuppression(
+      ManagedEmailRuntimeRepository.ManagedRecipientRuntime runtime,
+      ManagedEmailProviderEvent event,
+      SuppressionReason reason) {
+    contactSuppressionBridge.suppressRecipient(
+        runtime.companyId(),
+        runtime.recipientId(),
+        IdentityType.EMAIL,
+        Channel.EMAIL,
+        reason,
+        PreferenceSource.MANAGED_EMAIL_EVENT,
+        "sns:" + event.snsMessageId(),
+        event.eventTimestamp(),
+        "managed-email:"
+            + event.snsMessageId()
+            + ":"
+            + event.type().name()
+            + ":"
+            + runtime.recipientId());
   }
 
   private void upsertSuppression(
