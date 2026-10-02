@@ -1,8 +1,5 @@
 package com.messaging.contacts.audience;
 
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.NullNode;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.contacts.audience.SegmentApiModel.ContactSample;
 import com.messaging.contacts.audience.SegmentApiModel.Field;
@@ -38,6 +35,9 @@ import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.NullNode;
 
 @Component
 @RequiredArgsConstructor
