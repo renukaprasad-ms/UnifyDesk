@@ -46,7 +46,14 @@ import {
   fetchInboxConversations,
 } from '../../store/inbox/inboxSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import {
+  selectSelectedCompanyId,
+  selectWorkspaceEpoch,
+} from '../../store/workspace/workspaceSlice'
+import {
+  isWorkspaceEpochCurrent,
+  workspaceEpochToken,
+} from '../../features/workspace/workspaceEpoch'
 
 const messageTitle = (message: InboxMessage) =>
   message.subject || message.snippet || (message.direction === 'OUTBOUND' ? 'Sent email' : 'Email')
@@ -107,6 +114,9 @@ const defaultSyncRange = () => {
 function EmailInboxView() {
   const dispatch = useAppDispatch()
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
+  const workspaceScopeRef = useRef({ companyId, epoch: workspaceEpoch })
+  workspaceScopeRef.current = { companyId, epoch: workspaceEpoch }
   const inbox = useAppSelector((state) => state.inbox)
   const { can } = useIam()
   const snackbar = useSnackbar()
@@ -170,6 +180,7 @@ function EmailInboxView() {
       : []
   const sameConversationScope =
     inbox.scopeCompanyId === companyId &&
+    inbox.scopeEpoch === workspaceEpoch &&
     inbox.scopeConnectionId === selectedConnectionId &&
     inbox.scopeFolder === selectedFolder
   const conversations = sameConversationScope ? inbox.conversations : []
@@ -180,6 +191,7 @@ function EmailInboxView() {
   const totalElements = sameConversationScope ? inbox.conversationTotalElements : 0
   const detailSelected =
     inbox.detailCompanyId === companyId &&
+    inbox.detailEpoch === workspaceEpoch &&
     inbox.detailConversationId === selectedConversationId
   const selectedConversation = detailSelected ? inbox.selectedConversation : null
   const messages = detailSelected ? inbox.messages : []
@@ -222,6 +234,7 @@ function EmailInboxView() {
         await dispatch(
           fetchInboxConversations({
             companyId,
+            epoch: workspaceEpoch,
             connectionId: selectedConnectionId,
             folder: selectedFolder,
             page,
@@ -233,7 +246,7 @@ function EmailInboxView() {
         snackbar.error(apiErrorMessage(requestError, 'Unable to load email inbox'))
       }
     },
-    [companyId, dispatch, selectedConnectionId, selectedFolder],
+    [companyId, dispatch, selectedConnectionId, selectedFolder, workspaceEpoch],
   )
 
   const refreshInbox = useCallback(
@@ -242,6 +255,7 @@ function EmailInboxView() {
       await dispatch(
         fetchInboxConversations({
           companyId,
+          epoch: workspaceEpoch,
           connectionId: selectedConnectionId,
           folder: selectedFolder,
           force: true,
@@ -251,6 +265,7 @@ function EmailInboxView() {
         await dispatch(
           fetchInboxConversationDetail({
             companyId,
+            epoch: workspaceEpoch,
             conversationId: selectedConversationId,
             force: true,
           }),
@@ -263,24 +278,26 @@ function EmailInboxView() {
       selectedConnectionId,
       selectedConversationId,
       selectedFolder,
+      workspaceEpoch,
     ],
   )
 
   useEffect(() => {
     if (!companyId) return
-    void dispatch(fetchEmailConnections({ companyId }))
-  }, [companyId, dispatch])
+    void dispatch(fetchEmailConnections({ companyId, epoch: workspaceEpoch }))
+  }, [companyId, dispatch, workspaceEpoch])
 
   useEffect(() => {
     if (!companyId || !selectedConnectionId) return
     void dispatch(
       fetchInboxConversations({
         companyId,
+        epoch: workspaceEpoch,
         connectionId: selectedConnectionId,
         folder: selectedFolder,
       }),
     )
-  }, [companyId, dispatch, selectedConnectionId, selectedFolder])
+  }, [companyId, dispatch, selectedConnectionId, selectedFolder, workspaceEpoch])
 
   useEffect(() => {
     setMobileConversationOpen(Boolean(selectedConversationId))
@@ -346,9 +363,9 @@ function EmailInboxView() {
     params.delete('microsoft')
     setSearchParams(params, { replace: true })
     if (companyId) {
-      void dispatch(fetchEmailConnections({ companyId, force: true }))
+      void dispatch(fetchEmailConnections({ companyId, epoch: workspaceEpoch, force: true }))
     }
-  }, [companyId, dispatch, searchParams, setSearchParams])
+  }, [companyId, dispatch, searchParams, setSearchParams, workspaceEpoch])
 
   useEffect(() => {
     if (!companyId || !selectedConversationId) {
@@ -359,12 +376,13 @@ function EmailInboxView() {
     void dispatch(
       fetchInboxConversationDetail({
         companyId,
+        epoch: workspaceEpoch,
         conversationId: selectedConversationId,
       }),
     ).unwrap().catch((requestError) => {
       snackbar.error(apiErrorMessage(requestError, 'Unable to load conversation'))
     })
-  }, [companyId, dispatch, selectedConversationId])
+  }, [companyId, dispatch, selectedConversationId, workspaceEpoch])
 
   const trackedSyncJobs = useMemo(() => Object.values(syncJobs), [syncJobs])
   const activeSyncJobs = useMemo(
@@ -394,6 +412,13 @@ function EmailInboxView() {
   useEffect(() => {
     if (!companyId || !selectedConnectionId) return
 
+    const token = workspaceEpochToken(companyId, workspaceEpoch)
+    const current = () =>
+      isWorkspaceEpochCurrent(
+        token,
+        workspaceScopeRef.current.companyId,
+        workspaceScopeRef.current.epoch,
+      )
     const batch = realtimeBatchRef.current
 
     const flush = async () => {
@@ -405,6 +430,7 @@ function EmailInboxView() {
       batch.messageIds.clear()
       batch.fullRefresh = false
 
+      if (!current()) return
       if (fullRefresh) {
         await refreshInbox(true)
         return
@@ -419,9 +445,19 @@ function EmailInboxView() {
           conversationIds,
           messageIds: selectedConversationId ? messageIds : [],
         })
-        dispatch(applyRealtimeSnapshot({ connectionId: selectedConnectionId, snapshot }))
+        if (!current()) return
+        dispatch(
+          applyRealtimeSnapshot({
+            companyId,
+            epoch: workspaceEpoch,
+            connectionId: selectedConnectionId,
+            snapshot,
+          }),
+        )
       } catch (requestError) {
-        snackbar.error(apiErrorMessage(requestError, 'Unable to apply realtime inbox update'))
+        if (current()) {
+          snackbar.error(apiErrorMessage(requestError, 'Unable to apply realtime inbox update'))
+        }
       }
     }
 
