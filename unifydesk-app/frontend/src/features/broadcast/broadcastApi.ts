@@ -221,23 +221,34 @@ export const broadcastApi = {
     input: {
       selector: AudienceSelector
       channel: ChannelType
-      purpose?: 'MARKETING'
-      senderId?: string | null
+      senderId: string
     },
   ) {
+    const source =
+      input.selector.sourceType === 'CONTACT_LIST'
+        ? { sourceType: 'LIST' as const, sourceId: input.selector.sourceId }
+        : input.selector.sourceType === 'SEGMENT'
+          ? { sourceType: 'SEGMENT' as const, sourceId: input.selector.sourceId }
+          : { sourceType: 'CONTACTS' as const, contactIds: input.selector.contactIds }
+
     const response = await apiClient.post<ApiResponse<RecipientResolutionPreview>>(
       `/api/v1/companies/${companyId}/broadcast/audiences/preview`,
-      { ...input, purpose: input.purpose ?? 'MARKETING' },
+      {
+        ...source,
+        channelType: input.channel,
+        senderId: input.senderId,
+      },
     )
     return unwrap(response.data)
   },
 
   async channelReadiness(companyId: string, channel: ChannelType) {
-    const response = await apiClient.get<ApiResponse<ChannelReadiness>>(
+    const response = await apiClient.get<ApiResponse<ChannelReadiness[]>>(
       `/api/v1/companies/${companyId}/broadcast/readiness`,
-      { params: { channel } },
     )
-    return unwrap(response.data)
+    const readiness = unwrap(response.data).find((item) => item.channel === channel)
+    if (!readiness) throw new Error(`No readiness state returned for ${channel}`)
+    return readiness
   },
 
   async updateMessage(companyId: string, broadcastId: string, input: CreateBroadcastMessageInput) {
