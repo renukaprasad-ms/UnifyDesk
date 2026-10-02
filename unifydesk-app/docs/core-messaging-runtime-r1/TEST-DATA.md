@@ -1,5 +1,34 @@
 # Test Data
 
+## Phase 1 smoke fixture
+
+Before the 1,000-contact fixture, use this small deterministic set so Contacts -> consent -> audience -> freeze can be reconciled manually.
+
+Use a current valid **past** ISO-8601 `consent_occurred_at` when executing. The examples below use `2026-10-01T12:00:00Z` for the current verification date.
+
+| external_id | display_name | email | phone | email_marketing_consent | sms_marketing_consent | whatsapp_marketing_consent | consent_evidence | expected purpose |
+|---|---|---|---|---|---|---|---|---|
+| CMR1-001 | Runtime Email Opted In A | cmr1.email.a@example.com | +919900000001 | YES | UNKNOWN | UNKNOWN | runtime-r1-explicit-consent | eligible Email fixture |
+| CMR1-002 | Runtime Email Opted In B | cmr1.email.b@example.com | +919900000002 | YES | UNKNOWN | UNKNOWN | runtime-r1-explicit-consent | second eligible fixture |
+| CMR1-003 | Runtime Email Unknown | cmr1.email.unknown@example.com | +919900000003 | UNKNOWN | UNKNOWN | UNKNOWN |  | consent-required fixture |
+| CMR1-004 | Runtime Email Opted Out | cmr1.email.optout@example.com | +919900000004 | NO | UNKNOWN | UNKNOWN | runtime-r1-explicit-preference | opted-out fixture |
+| CMR1-005 | Runtime SMS Opted In | cmr1.sms@example.com | +919900000005 | UNKNOWN | YES | UNKNOWN | runtime-r1-explicit-consent | SMS fixture |
+| CMR1-006 | Runtime WhatsApp Opted In | cmr1.wa@example.com | +919900000006 | UNKNOWN | UNKNOWN | YES | runtime-r1-explicit-consent | WhatsApp fixture |
+| CMR1-007 | Runtime Invalid Identity | not-an-email |  | YES | UNKNOWN | UNKNOWN | runtime-r1-explicit-consent | invalid-row fixture |
+
+For ordinary field mappings map only the Contact columns needed for identity/name. Leave the three consent columns out of ordinary field mapping and configure them under **Advanced: import marketing consent**.
+
+For the first import use `SKIP`. Record the invalid-row outcome rather than fixing the row before evidence is captured.
+
+For duplicate/consent semantics:
+
+1. re-import an existing exact Contact with `SKIP` after changing its Email consent value;
+2. prove the existing Contact is reused and imported consent is not applied;
+3. re-import the same exact Contact with `MERGE_EXACT`;
+4. prove the intended consent state/evidence is then applied.
+
+Do not infer any consent state from email/phone presence alone.
+
 ## Canonical 1,000-contact fixture
 
 Use deterministic identifiers so every result can be reconciled back to the CSV row.
