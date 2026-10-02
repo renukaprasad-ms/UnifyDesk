@@ -50,6 +50,7 @@ describe('inboxSlice realtime updates', () => {
       state,
       fetchInboxConversations.pending('request-1', {
         companyId: 'company-1',
+        epoch: 1,
         connectionId: 'connection-1',
         folder: 'INBOX',
       }),
@@ -60,6 +61,7 @@ describe('inboxSlice realtime updates', () => {
       fetchInboxConversations.fulfilled(
         {
           companyId: 'company-1',
+          epoch: 1,
           connectionId: 'connection-1',
           folder: 'INBOX',
           append: false,
@@ -74,6 +76,7 @@ describe('inboxSlice realtime updates', () => {
         'request-1',
         {
           companyId: 'company-1',
+          epoch: 1,
           connectionId: 'connection-1',
           folder: 'INBOX',
         },
@@ -84,6 +87,7 @@ describe('inboxSlice realtime updates', () => {
       state,
       fetchInboxConversationDetail.pending('request-2', {
         companyId: 'company-1',
+        epoch: 1,
         conversationId: 'conversation-1',
       }),
     )
@@ -93,6 +97,7 @@ describe('inboxSlice realtime updates', () => {
       fetchInboxConversationDetail.fulfilled(
         {
           companyId: 'company-1',
+          epoch: 1,
           conversationId: 'conversation-1',
           detail: {
             conversation: conversation('conversation-1', 'Old preview', 0),
@@ -102,6 +107,7 @@ describe('inboxSlice realtime updates', () => {
         'request-2',
         {
           companyId: 'company-1',
+          epoch: 1,
           conversationId: 'conversation-1',
         },
       ),
@@ -110,6 +116,8 @@ describe('inboxSlice realtime updates', () => {
     state = inboxReducer(
       state,
       applyRealtimeSnapshot({
+        companyId: 'company-1',
+        epoch: 1,
         connectionId: 'connection-1',
         snapshot: {
           conversations: [conversation('conversation-1', 'New preview', 1)],
@@ -131,11 +139,13 @@ describe('inboxSlice realtime updates', () => {
     state = {
       ...state,
       scopeCompanyId: 'company-1',
+      scopeEpoch: 1,
       scopeConnectionId: 'connection-1',
       scopeFolder: 'INBOX',
       conversations: [conversation('conversation-1', 'Preview', 1)],
       conversationTotalElements: 1,
       detailCompanyId: 'company-1',
+      detailEpoch: 1,
       detailConversationId: 'conversation-1',
       selectedConversation: conversation('conversation-1', 'Preview', 1),
       messages: [message('message-1', 'Old message'), message('message-2', 'Delete me')],
@@ -144,6 +154,8 @@ describe('inboxSlice realtime updates', () => {
     state = inboxReducer(
       state,
       applyRealtimeSnapshot({
+        companyId: 'company-1',
+        epoch: 1,
         connectionId: 'connection-1',
         snapshot: {
           conversations: [],
@@ -157,4 +169,35 @@ describe('inboxSlice realtime updates', () => {
     expect(state.messages.map((item) => item.id)).toEqual(['message-1'])
     expect(state.conversations).toHaveLength(1)
   })
+  it('ignores an A1 realtime snapshot after returning to company A in a new epoch', () => {
+    let state = inboxReducer(undefined, { type: 'init' })
+    state = {
+      ...state,
+      scopeCompanyId: 'company-a',
+      scopeEpoch: 3,
+      scopeConnectionId: 'connection-a',
+      scopeFolder: 'INBOX',
+      conversations: [conversation('conversation-a2', 'Current A2', 0)],
+      conversationTotalElements: 1,
+    }
+
+    state = inboxReducer(
+      state,
+      applyRealtimeSnapshot({
+        companyId: 'company-a',
+        epoch: 1,
+        connectionId: 'connection-a',
+        snapshot: {
+          conversations: [conversation('stale-a1', 'Stale A1', 9)],
+          messages: [],
+          missingConversationIds: [],
+          missingMessageIds: [],
+        },
+      }),
+    )
+
+    expect(state.scopeEpoch).toBe(3)
+    expect(state.conversations.map((item) => item.id)).toEqual(['conversation-a2'])
+  })
+
 })
