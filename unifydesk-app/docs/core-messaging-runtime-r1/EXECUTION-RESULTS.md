@@ -4,19 +4,21 @@
 
 2026-10-02
 
-## Frozen SHA resolution
+## Frozen production SHA
 
-**PASS**
+**PASS — freeze completed**
 
-Live GitHub `dev` resolved to:
+MAIN's Provider-4 decision was recorded in PR #249, the matrix was updated to Amazon SES / SendGrid / Azure Communication Services Email / MSG91 Email, and PR #249 was merged.
 
-`850ce7ad2874d20070067d46d8604ddc2bdd2c99`
+Resulting live `dev` SHA:
+
+`f2760fe0a11ad571f984636a65304a64b77459ac`
 
 Commit:
 
-`test(contacts): keep segment conditions after preview`
+`Merge PR #249: Core Messaging runtime/provider verification R1 audit`
 
-This exact SHA is the source baseline for the audit. `dev` later moved during the audit to `3a12d84e4aecd31f3c067b6af6f998e173992d24` for unrelated Cloudflare frontend-hosting configuration; the frozen runtime audit baseline was intentionally not moved.
+This is the exact production baseline for executable runtime/provider verification.
 
 ## Previous remediation lineage
 
@@ -49,35 +51,47 @@ Reviewed current source confirms:
 - send-time Contact eligibility/destination recheck remains present.
 - zero-pending terminal Notification remains present.
 
-## CI on exact frozen SHA
+## CI execution on frozen production SHA
 
-**NOT EXECUTED**
+**BLOCKED — execution environment**
 
-GitHub returned no workflow run for:
+Frozen SHA `f2760fe0a11ad571f984636a65304a64b77459ac` triggered GitHub Actions run:
 
-`850ce7ad2874d20070067d46d8604ddc2bdd2c99`
+`37011044661`
 
-The repository contains an executable `Checks` workflow using GitHub-hosted `ubuntu-latest`, but presence of the workflow is not execution evidence.
+Attempt 1 completed as `failure`. All five jobs had no executable step list:
 
-## Audit-PR CI evidence
+- backend: `steps = null`
+- database: `steps = null`
+- frontend: `steps = null`
+- email-provider: `steps = null`
+- website: `steps = null`
 
-PR #249 triggered `Checks` workflow run:
+The failed jobs were explicitly re-run.
 
-`37008691423`
+Attempt 2 again completed as `failure` with the same condition: every job had `steps = null`, and job-log retrieval produced no log blob.
 
-Result reported by GitHub:
+Therefore CMR1-035 is classified **BLOCKED**. No Maven/npm/database test actually ran, so this must not be described as an application test failure.
 
-**FAILURE — runner/step execution evidence absent**
+## Live runtime execution start — Contacts -> consent -> audience -> Managed Email/SES
 
-All five jobs were reported `failure`, but their job payloads contained `steps = null`:
+Execution has started at the environment gate.
 
-- database
-- email-provider
-- frontend
-- backend
-- website
+The current ChatGPT execution environment has no authenticated shell/terminal connection to the deployed UnifyDesk k3s server and cannot reach the private authenticated API path. Public URL access from this tool environment also did not provide a usable runtime channel. Therefore no Contact/consent/provider mutation has been performed from this evidence branch.
 
-This is not evidence that application tests/build steps ran and failed. It is classified as an **environment/CI execution blocker**, consistent with the previous no-runner/no-step evidence, until GitHub Actions actually allocates a runner and exposes executed steps/logs.
+Current phase results:
+
+- deployment of exact frozen SHA to k3s: **NOT VERIFIED**
+- backend runtime secret-name/presence check: **NOT EXECUTED**
+- CMR1-002 Contact import: **NOT EXECUTED**
+- CMR1-003 Email consent import: **NOT EXECUTED**
+- CMR1-007/008 audience Preview: **NOT EXECUTED**
+- CMR1-009/010 Preview/freeze binding: **NOT EXECUTED**
+- CMR1-014 Managed Email readiness: **NOT EXECUTED**
+- CMR1-015 SES acceptance: **NOT EXECUTED**
+- CMR1-016 SES delivery event: **NOT EXECUTED**
+
+No item above is promoted to PASS from source review.
 
 ## Provider execution
 
