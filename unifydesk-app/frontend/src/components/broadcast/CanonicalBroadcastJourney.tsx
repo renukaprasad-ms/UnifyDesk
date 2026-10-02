@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import type {
@@ -127,19 +127,28 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     ...whatsappParameters.body,
     ...whatsappParameters.buttons,
   ].every((value) => value.trim().length > 0)
-  const scopeIsCurrent = (token: ReturnType<typeof workspaceEpochToken>) =>
-    isWorkspaceEpochCurrent(
-      token,
-      currentScopeRef.current.companyId,
-      currentScopeRef.current.epoch,
-    )
+  const scopeIsCurrent = useCallback(
+    (token: ReturnType<typeof workspaceEpochToken>) =>
+      isWorkspaceEpochCurrent(
+        token,
+        currentScopeRef.current.companyId,
+        currentScopeRef.current.epoch,
+      ),
+    [],
+  )
+  const contentReady =
+    channel === 'WHATSAPP'
+      ? Boolean(selectedWhatsappTemplate && whatsappParametersReady)
+      : channel === 'EMAIL'
+        ? Boolean(subject.trim() && body.trim())
+        : Boolean(body.trim())
   const canLaunch =
     Boolean(selector) &&
     Boolean(preview) &&
     preview!.eligibleCount > 0 &&
     Boolean(selectedReadiness && selectedReadiness.state === 'READY') &&
     !busy &&
-    (channel !== 'WHATSAPP' || Boolean(selectedWhatsappTemplate && whatsappParametersReady))
+    contentReady
 
   useEffect(() => {
     if (!companyId) return
@@ -175,7 +184,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
       .finally(() => {
         if (scopeIsCurrent(token)) setLoading(false)
       })
-  }, [channel, companyId, epoch])
+  }, [channel, companyId, epoch, scopeIsCurrent])
 
   useEffect(() => {
     setPreview(null)
@@ -207,7 +216,14 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
           setError(apiErrorMessage(requestError, 'Unable to load approved WhatsApp templates.'))
         }
       })
-  }, [channel, companyId, epoch, selectedBroadcastSender?.connectionId, senderId])
+  }, [
+    channel,
+    companyId,
+    epoch,
+    scopeIsCurrent,
+    selectedBroadcastSender?.connectionId,
+    senderId,
+  ])
 
   useEffect(() => {
     if (!sourceId) return
@@ -278,9 +294,16 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
       })
       if (!scopeIsCurrent(token)) return
 
-      const launched = scheduledAt
-        ? await broadcastApi.schedule(companyId, draft.id, new Date(scheduledAt).toISOString())
-        : await broadcastApi.send(companyId, draft.id)
+      let launched
+      if (scheduledAt) {
+        const scheduledDate = new Date(scheduledAt)
+        if (Number.isNaN(scheduledDate.getTime()) || scheduledDate.getTime() <= Date.now()) {
+          throw new Error('Schedule time must be in the future')
+        }
+        launched = await broadcastApi.schedule(companyId, draft.id, scheduledDate.toISOString())
+      } else {
+        launched = await broadcastApi.send(companyId, draft.id)
+      }
       if (scopeIsCurrent(token)) onCreated(launched.id)
     } catch (requestError) {
       if (scopeIsCurrent(token)) {
@@ -533,7 +556,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs leading-5 text-slate-500">
-              “Sent” means accepted by the provider unless this sender reports final delivery. Delivered/Read are shown only when supported by provider events.
+              Accepted means the provider accepted the request. Delivered/Read are shown only when supported by provider events.
             </p>
             <button type="button" className="primary-button" disabled={!canLaunch} onClick={() => void launch()}>
               {busy ? 'Starting…' : scheduledAt ? 'Schedule Broadcast' : 'Send Broadcast'}
