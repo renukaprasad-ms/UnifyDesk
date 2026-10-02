@@ -2,7 +2,7 @@ package com.messaging.contacts.audience;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.messaging.contacts.audience.SegmentFilter.FieldKind;
 import com.messaging.contacts.audience.SegmentFilter.GroupOperator;
 import com.messaging.contacts.audience.SegmentFilter.SegmentOperator;
