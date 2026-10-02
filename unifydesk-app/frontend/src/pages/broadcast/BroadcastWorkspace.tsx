@@ -405,7 +405,7 @@ export default function BroadcastWorkspace() {
   useEffect(() => {
     if (!companyId) return
     void dispatch(fetchBroadcastGroups({ companyId, epoch: workspaceEpoch, channelType }))
-  }, [channelType, companyId, dispatch])
+  }, [channelType, companyId, dispatch, workspaceEpoch])
 
   const refreshSenders = useCallback(async () => {
     if (!companyId) {
@@ -447,7 +447,7 @@ export default function BroadcastWorkspace() {
   useEffect(() => {
     if (!companyId || !selectedGroupId) return
     void dispatch(fetchBroadcastHistory({ companyId, epoch: workspaceEpoch, groupId: selectedGroupId }))
-  }, [companyId, dispatch, selectedGroupId])
+  }, [companyId, dispatch, selectedGroupId, workspaceEpoch])
 
   useEffect(() => {
     if (!companyId || !selectedBroadcastId) {
