@@ -22,8 +22,28 @@ const sender = (overrides: Partial<SenderReadiness['capabilities']> = {}): Sende
     freeFormSessionSupported: false,
     ...overrides,
   },
-})
+  it('keeps exclusion reasons single-column until the small-screen breakpoint', () => {
+    const preview: RecipientResolutionPreview = {
+      channel: 'SMS',
+      purpose: 'MARKETING',
+      selectedCount: 2,
+      eligibleCount: 1,
+      excludedCount: 1,
+      exclusions: { OPTED_OUT: 1 },
+      sampleEligible: [],
+      sampleExcluded: [],
+      computedAt: new Date(0).toISOString(),
+    }
 
+    render(<AudienceResolutionPreviewCard preview={preview} loading={false} />)
+
+    const reason = screen.getByText('Opted out')
+    const reasonsGrid = reason.closest('.grid')
+    expect(reasonsGrid?.className).toContain('sm:grid-cols-2')
+    expect(reasonsGrid?.className).not.toContain('grid-cols-2 ')
+  })
+
+})
 describe('Broadcast journey cards', () => {
   it('renders selected, eligible, excluded and actionable exclusion reasons', () => {
     const preview: RecipientResolutionPreview = {
