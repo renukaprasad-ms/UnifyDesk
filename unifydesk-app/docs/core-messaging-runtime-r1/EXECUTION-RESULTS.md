@@ -105,13 +105,18 @@ No actual test-WABA send/webhook/inbound message was executed through the reposi
 
 The initiative handoff records current provider onboarding ineligibility.
 
-### Gmail / Microsoft / SMTP canonical Broadcast
+### Provider-4 direct bulk Email
 
-**FAIL — current source/scope mismatch**
+**SCOPE DECISION RECORDED / NOT EXECUTED**
 
-Modern canonical Broadcast rejects these mailbox providers through `BroadcastSenderProvider.supports()` and `BroadcastLaunchService`.
+MAIN resolved Provider-4 regression scope to the modern supported customer-managed bulk Email providers:
 
-This failure is distinct from provider credential readiness.
+- Amazon SES
+- SendGrid
+- Azure Communication Services Email
+- MSG91 Email
+
+Gmail/Microsoft/SMTP mailbox transports are not Provider-4 targets for this round. No mailbox-provider source remediation is required by this decision.
 
 ## Environment / credential evidence
 
@@ -138,6 +143,6 @@ Reasons:
 1. exact frozen SHA has no executed CI evidence;
 2. audit PR CI terminated without step execution evidence;
 3. SES, MSG91 and Meta test-provider chains have not executed;
-4. Provider-4 Gmail/Microsoft/SMTP requirement conflicts with current canonical Broadcast source.
+4. Provider-4 Amazon SES/SendGrid/Azure Email/MSG91 Email regression has not yet executed.
 
 This is not a rollback of prior source QA acceptance. It is the correct runtime-verification classification.
