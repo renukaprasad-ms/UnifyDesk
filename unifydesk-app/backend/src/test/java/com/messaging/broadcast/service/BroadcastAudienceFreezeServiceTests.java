@@ -45,6 +45,58 @@ class BroadcastAudienceFreezeServiceTests {
     verify(snapshots).createForBroadcast(7L, state, Channel.EMAIL, Purpose.MARKETING);
   }
 
+
+  @Test
+  void unchangedSegmentDescriptorFreezesAuthoritativeVersionAndFilter() {
+    AudienceSnapshotService snapshots = mock(AudienceSnapshotService.class);
+    AudienceSourceResolver sources = mock(AudienceSourceResolver.class);
+    BroadcastAudienceFreezeService service = new BroadcastAudienceFreezeService(snapshots, sources);
+    BroadcastSourceState state =
+        new BroadcastSourceState(
+            new SourceDescriptor(SourceType.SEGMENT, 33L, "8", "filter-hash"), 3, null);
+    AudienceSnapshotRepository.Snapshot snapshot =
+        snapshot(302L, "SEGMENT", 33L, "8", "filter-hash");
+    when(sources.describeForBroadcast(7L, SourceType.SEGMENT, 33L)).thenReturn(state);
+    when(snapshots.createForBroadcast(7L, state, Channel.EMAIL, Purpose.MARKETING))
+        .thenReturn(snapshot);
+    when(snapshots.candidateCount(7L, 302L)).thenReturn(12L);
+
+    BroadcastExpectedSourceDescriptor expected =
+        new BroadcastExpectedSourceDescriptor(
+            BroadcastAudienceSourceType.SEGMENT,
+            "33",
+            "8",
+            3,
+            "filter-hash",
+            null,
+            Instant.now());
+
+    assertThat(
+            service.freeze(message(BroadcastAudienceSourceType.SEGMENT, 33L), expected)
+                .candidateCount())
+        .isEqualTo(12L);
+    verify(snapshots).createForBroadcast(7L, state, Channel.EMAIL, Purpose.MARKETING);
+  }
+
+  @Test
+  void sourceDriftDetectedDuringCandidateCaptureReturnsSameConflict() {
+    AudienceSnapshotService snapshots = mock(AudienceSnapshotService.class);
+    AudienceSourceResolver sources = mock(AudienceSourceResolver.class);
+    BroadcastAudienceFreezeService service = new BroadcastAudienceFreezeService(snapshots, sources);
+    BroadcastSourceState state =
+        new BroadcastSourceState(new SourceDescriptor(SourceType.LIST, 22L, "5", null), null, null);
+    when(sources.describeForBroadcast(7L, SourceType.LIST, 22L)).thenReturn(state);
+    when(snapshots.createForBroadcast(7L, state, Channel.EMAIL, Purpose.MARKETING))
+        .thenThrow(new AudienceSourceResolver.SourceChangedException());
+
+    assertThatThrownBy(
+            () ->
+                service.freeze(
+                    message(BroadcastAudienceSourceType.LIST, 22L), listExpected("5")))
+        .isInstanceOf(ConflictException.class)
+        .hasMessage(BroadcastAudienceFreezeService.STALE_PREVIEW);
+  }
+
   @Test
   void staleListVersionIsRejectedBeforeSnapshotCreation() {
     AudienceSnapshotService snapshots = mock(AudienceSnapshotService.class);
