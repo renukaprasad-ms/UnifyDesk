@@ -116,6 +116,56 @@ public class NotificationEventRecorder {
         occurredAt == null ? Instant.now() : occurredAt);
   }
 
+  @Transactional(propagation = Propagation.MANDATORY)
+  public long recordBroadcastCompleted(
+      long runId,
+      long broadcastId,
+      long companyId,
+      String channel,
+      Instant occurredAt) {
+    return record(
+        "broadcast.completed:" + runId,
+        "broadcast.completed",
+        companyId,
+        null,
+        "COMPANY_PERMISSION",
+        null,
+        "broadcast.read",
+        "BROADCAST_RUN",
+        Long.toString(runId),
+        null,
+        Map.of(
+            "runId", Long.toString(runId),
+            "broadcastId", Long.toString(broadcastId),
+            "channel", channel),
+        occurredAt == null ? Instant.now() : occurredAt);
+  }
+
+  @Transactional(propagation = Propagation.MANDATORY)
+  public long recordBroadcastFailed(
+      long runId,
+      long broadcastId,
+      long companyId,
+      String channel,
+      Instant occurredAt) {
+    return record(
+        "broadcast.failed:" + runId,
+        "broadcast.failed",
+        companyId,
+        null,
+        "COMPANY_PERMISSION",
+        null,
+        "broadcast.read",
+        "BROADCAST_RUN",
+        Long.toString(runId),
+        null,
+        Map.of(
+            "runId", Long.toString(runId),
+            "broadcastId", Long.toString(broadcastId),
+            "channel", channel),
+        occurredAt == null ? Instant.now() : occurredAt);
+  }
+
   private long record(
       String eventKey,
       String eventType,

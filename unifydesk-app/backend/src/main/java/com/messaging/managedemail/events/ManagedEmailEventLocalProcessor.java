@@ -37,14 +37,14 @@ public class ManagedEmailEventLocalProcessor {
               event.providerMessageId());
       case BOUNCE -> {
         if (event.hardBounce()) {
-          suppressionService.hardBounce(runtime, event.eventTimestamp());
+          suppressionService.hardBounce(runtime, event);
           reputationService.evaluate(runtime.companyId());
           providerEffectRepository.ensureTenantSuppressionScheduled(
               event, runtime, SuppressionListReason.BOUNCE);
         }
       }
       case COMPLAINT -> {
-        suppressionService.complaint(runtime);
+        suppressionService.complaint(runtime, event);
         reputationService.evaluate(runtime.companyId());
         providerEffectRepository.ensureTenantSuppressionScheduled(
             event, runtime, SuppressionListReason.COMPLAINT);

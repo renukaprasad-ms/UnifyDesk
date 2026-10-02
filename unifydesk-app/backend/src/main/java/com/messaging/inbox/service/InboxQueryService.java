@@ -45,6 +45,7 @@ public class InboxQueryService {
   private final InboxMessageAttachmentRepository attachmentRepository;
   private final ChannelConnectionRepository connectionRepository;
   private final JdbcTemplate jdbcTemplate;
+  private final InboxParticipantContactLinkService contactLinkService;
 
   @Transactional(readOnly = true)
   public InboxPageResponse<InboxConversationResponse> listConversations(
@@ -208,6 +209,9 @@ public class InboxQueryService {
     if (conversations.isEmpty()) return List.of();
 
     List<Long> conversationIds = conversations.stream().map(InboxConversation::getId).toList();
+    long companyId = conversations.getFirst().getCompanyId();
+    Map<InboxParticipantContactLinkService.LinkKey, InboxParticipantContactLinkService.Link>
+        contactLinks = contactLinkService.loadForConversations(companyId, conversationIds);
     Map<Long, List<InboxParticipantResponse>> participants = new HashMap<>();
 
     participantRepository
@@ -217,10 +221,12 @@ public class InboxQueryService {
                 participants
                     .computeIfAbsent(participant.getConversation().getId(), ignored -> new ArrayList<>())
                     .add(
-                        new InboxParticipantResponse(
+                        participantResponse(
+                            participant.getConversation().getId(),
                             participant.getAddress(),
                             participant.getDisplayName(),
-                            participant.getParticipantType())));
+                            participant.getParticipantType(),
+                            contactLinks)));
 
     return conversations.stream()
         .map(
@@ -237,6 +243,26 @@ public class InboxQueryService {
                     conversation.getStatus(),
                     List.copyOf(participants.getOrDefault(conversation.getId(), List.of()))))
         .toList();
+  }
+
+  private InboxParticipantResponse participantResponse(
+      long conversationId,
+      String address,
+      String displayName,
+      com.messaging.inbox.enums.InboxParticipantType participantType,
+      Map<InboxParticipantContactLinkService.LinkKey, InboxParticipantContactLinkService.Link>
+          contactLinks) {
+    InboxParticipantContactLinkService.Link link =
+        contactLinkService.find(contactLinks, conversationId, participantType, address);
+    return new InboxParticipantResponse(
+        address,
+        displayName,
+        participantType,
+        link == null || link.contactId() == null ? null : Long.toString(link.contactId()),
+        link == null || link.contactIdentityId() == null
+            ? null
+            : Long.toString(link.contactIdentityId()),
+        link == null ? null : link.resolution().name());
   }
 
   private List<InboxMessageResponse> messages(List<InboxMessage> messages) {

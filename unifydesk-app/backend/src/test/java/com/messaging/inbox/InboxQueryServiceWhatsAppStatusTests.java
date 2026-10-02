@@ -20,6 +20,7 @@ import com.messaging.inbox.repository.InboxConversationRepository;
 import com.messaging.inbox.repository.InboxMessageAttachmentRepository;
 import com.messaging.inbox.repository.InboxMessageRepository;
 import com.messaging.inbox.repository.InboxParticipantRepository;
+import com.messaging.inbox.service.InboxParticipantContactLinkService;
 import com.messaging.inbox.service.InboxQueryService;
 import java.sql.ResultSet;
 import java.time.Instant;
@@ -92,7 +93,8 @@ class InboxQueryServiceWhatsAppStatusTests {
             messages,
             attachments,
             connections,
-            new ReadStatusJdbcTemplate());
+            new ReadStatusJdbcTemplate(),
+            mock(InboxParticipantContactLinkService.class));
 
     var detail = service.getConversationDetail(10L, 40L);
 
@@ -161,7 +163,8 @@ class InboxQueryServiceWhatsAppStatusTests {
             messages,
             attachments,
             mock(ChannelConnectionRepository.class),
-            new EmptyStatusJdbcTemplate());
+            new EmptyStatusJdbcTemplate(),
+            mock(InboxParticipantContactLinkService.class));
 
     var listed = service.listMessages(10L, 41L);
 
