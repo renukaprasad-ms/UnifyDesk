@@ -7,7 +7,6 @@ import com.messaging.channel.enums.ChannelType;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.contacts.audience.AudienceSnapshotRepository;
-import com.messaging.contacts.audience.AudienceSnapshotService;
 import com.messaging.emailtemplate.entity.EmailTemplateProviderBinding;
 import com.messaging.emailtemplate.service.EmailTemplateProviderBindingService;
 import com.messaging.managedemail.delivery.ManagedEmailLaunchGuard;

@@ -27,6 +27,8 @@ class BroadcastChannelReadinessServiceTests {
     BroadcastChannelReadinessService service =
         new BroadcastChannelReadinessService(senderService, projections, channelConnections);
 
+    when(channelConnections.findByCompanyIdOrderByCreatedAtDesc(7L)).thenReturn(List.of());
+    when(projections.findByCompanyId(7L)).thenReturn(List.of());
     when(senderService.list(7L))
         .thenReturn(
             List.of(
