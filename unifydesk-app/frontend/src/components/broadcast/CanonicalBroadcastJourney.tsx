@@ -200,7 +200,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
       channel !== 'WHATSAPP' ||
       !companyId ||
       !senderId ||
-      !selectedBroadcastSender?.connectionId
+      !selectedBroadcastSender?.channelConnectionId
     ) {
       setWhatsappTemplates([])
       setTemplateId('')
@@ -211,7 +211,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     const token = workspaceEpochToken(companyId, epoch)
     setWhatsappTemplates([])
     void whatsappApi
-      .templates(companyId, selectedBroadcastSender.connectionId)
+      .templates(companyId, selectedBroadcastSender.channelConnectionId)
       .then((items) => {
         if (!scopeIsCurrent(token)) return
         setWhatsappTemplates(items.filter((item) => item.status === 'APPROVED'))
@@ -226,7 +226,7 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     companyId,
     epoch,
     scopeIsCurrent,
-    selectedBroadcastSender?.connectionId,
+    selectedBroadcastSender?.channelConnectionId,
     senderId,
   ])
 
