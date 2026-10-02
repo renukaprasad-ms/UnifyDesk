@@ -1,8 +1,8 @@
 package com.messaging.contacts.audience;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.NullNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.NullNode;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.contacts.audience.SegmentApiModel.ContactSample;
 import com.messaging.contacts.audience.SegmentApiModel.Field;
