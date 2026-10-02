@@ -43,8 +43,9 @@ class RecipientActionTokenServiceTests {
   void tamperedTokenIsRejected() {
     RecipientActionTokenService service = service(NOW, key((byte) 3), Duration.ofDays(30));
     String token = service.issue(1L, 2L, 3L);
-    char replacement = token.charAt(token.length() - 1) == 'A' ? 'B' : 'A';
-    String tampered = token.substring(0, token.length() - 1) + replacement;
+    int index = token.length() / 2;
+    char replacement = token.charAt(index) == 'A' ? 'B' : 'A';
+    String tampered = token.substring(0, index) + replacement + token.substring(index + 1);
 
     assertThatThrownBy(() -> service.validate(tampered))
         .isInstanceOf(InvalidRecipientActionException.class);

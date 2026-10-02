@@ -71,7 +71,7 @@ public class RecipientActionTokenService {
       byte[] packed =
           ByteBuffer.allocate(iv.length + encrypted.length).put(iv).put(encrypted).array();
       return Base64.getUrlEncoder().withoutPadding().encodeToString(packed);
-    } catch (GeneralSecurityException | RuntimeException | java.io.IOException exception) {
+    } catch (GeneralSecurityException | java.io.IOException exception) {
       throw new IllegalStateException("Unable to issue recipient action token", exception);
     }
   }

@@ -21,6 +21,7 @@ import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DelegatingDataSource;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -53,7 +54,7 @@ class ContactPreferenceOrderingPostgresTests {
   void staleImportIsHistoricalOnlyAfterNewerRecipientOptOut() {
     TestDatabase db = migratedDatabase();
     seed(db.jdbc());
-    ContactPreferenceRepository repository = new ContactPreferenceRepository(db.jdbc());
+    ContactPreferenceRepository repository = new ContactPreferenceRepository(db.jdbc(), new NamedParameterJdbcTemplate(db.jdbc()));
 
     apply(db, repository, command(PreferenceState.OPTED_IN, T1, "initial"));
     apply(db, repository, command(PreferenceState.OPTED_OUT, T2, "unsubscribe"));

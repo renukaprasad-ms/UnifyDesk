@@ -100,7 +100,8 @@ public class EmailTemplateProviderBindingService {
 
     if (binding.getProviderTemplateId() != null
         && !binding.getProviderTemplateId().isBlank()
-        && binding.getContentHash().equals(published.contentHash())) {
+        && binding.getContentHash().equals(published.contentHash())
+        && slug.equals(binding.getProviderTemplateSlug())) {
       return refreshInternal(binding, connection);
     }
 
@@ -330,7 +331,7 @@ public class EmailTemplateProviderBindingService {
         contentHash == null || contentHash.length() < 8
             ? "content"
             : contentHash.substring(0, 8).toLowerCase();
-    return "messaging-" + templateId + "-v" + version + "-" + suffix;
+    return "messaging-" + templateId + "-v" + version + "-" + suffix + "-u1";
   }
 
   private String msg91BroadcastHtml(String html) {
