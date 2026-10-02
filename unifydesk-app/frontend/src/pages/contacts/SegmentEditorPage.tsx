@@ -21,12 +21,21 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
-import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import {
+  selectSelectedCompanyId,
+  selectWorkspaceEpoch,
+} from '../../store/workspace/workspaceSlice'
+import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 
 export default function SegmentEditorPage() {
   const { segmentId } = useParams()
   const creating = !segmentId || segmentId === 'new'
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
+  const { capture: captureScope, isCurrent: scopeIsCurrent } = useWorkspaceEpochScope(
+    companyId,
+    workspaceEpoch,
+  )
   const { can } = useIam()
   const navigate = useNavigate()
 
@@ -45,6 +54,7 @@ export default function SegmentEditorPage() {
 
   useEffect(() => {
     if (!companyId) return
+    const scope = captureScope()
 
     Promise.all([
       contactsApi.customFields(companyId),
@@ -52,28 +62,34 @@ export default function SegmentEditorPage() {
       contactsApi.lists(companyId),
     ])
       .then(([nextFields, nextTags, nextLists]) => {
+        if (!scopeIsCurrent(scope)) return
         setCustomFields(nextFields.filter((field) => field.status === 'ACTIVE'))
         setTags(nextTags)
         setLists(nextLists.filter((list) => list.status !== 'ARCHIVED'))
       })
       .catch((loadError) => {
-        setServerErrors([apiErrorMessage(loadError, 'Unable to load Segment field metadata.')])
+        if (scopeIsCurrent(scope)) {
+          setServerErrors([apiErrorMessage(loadError, 'Unable to load Segment field metadata.')])
+        }
       })
 
     if (!creating && segmentId) {
       contactsApi
         .getSegment(companyId, segmentId)
         .then((segment) => {
+          if (!scopeIsCurrent(scope)) return
           setName(segment.name)
           setDescription(segment.description ?? '')
           setFilter(segment.normalizedFilter ?? segment.filter)
           setSegmentVersion(segment.version)
         })
         .catch((loadError) => {
-          setServerErrors([apiErrorMessage(loadError, 'Unable to load Segment.')])
+          if (scopeIsCurrent(scope)) {
+            setServerErrors([apiErrorMessage(loadError, 'Unable to load Segment.')])
+          }
         })
     }
-  }, [companyId, segmentId, creating])
+  }, [captureScope, companyId, creating, scopeIsCurrent, segmentId, workspaceEpoch])
 
   const fields = segmentFields(
     customFields,
@@ -89,10 +105,12 @@ export default function SegmentEditorPage() {
 
   const runPreview = async () => {
     if (!companyId || !validate()) return
+    const scope = captureScope()
 
     setServerErrors([])
     try {
       const validation = await contactsApi.validateSegment(companyId, filter)
+      if (!scopeIsCurrent(scope)) return
       if (!validation.valid) {
         setServerErrors(validation.errors?.map((item) => item.message) ?? ['Segment is invalid.'])
         return
@@ -100,19 +118,24 @@ export default function SegmentEditorPage() {
 
       const normalized = validation.normalizedFilter ?? filter
       setFilter(normalized)
-      setPreview(await contactsApi.previewSegment(companyId, normalized, 20))
+      const nextPreview = await contactsApi.previewSegment(companyId, normalized, 20)
+      if (scopeIsCurrent(scope)) setPreview(nextPreview)
     } catch (previewError) {
-      setServerErrors([apiErrorMessage(previewError, 'Unable to preview Segment.')])
+      if (scopeIsCurrent(scope)) {
+        setServerErrors([apiErrorMessage(previewError, 'Unable to preview Segment.')])
+      }
     }
   }
 
   const save = async () => {
     if (!companyId || !canModify || !name.trim() || !validate()) return
+    const scope = captureScope()
 
     setSaving(true)
     setServerErrors([])
     try {
       const validation = await contactsApi.validateSegment(companyId, filter)
+      if (!scopeIsCurrent(scope)) return
       if (!validation.valid) {
         setServerErrors(validation.errors?.map((item) => item.message) ?? ['Segment is invalid.'])
         return
@@ -134,6 +157,7 @@ export default function SegmentEditorPage() {
               version: segmentVersion,
             })
 
+      if (!scopeIsCurrent(scope)) return
       if (!saved) {
         setServerErrors(['Segment version is unavailable. Reload this Segment before saving.'])
         return
@@ -142,9 +166,11 @@ export default function SegmentEditorPage() {
       setSegmentVersion(saved.version)
       navigate('/contacts/segments/' + saved.id, { replace: true })
     } catch (saveError) {
+      if (!scopeIsCurrent(scope)) return
       if (!creating && segmentId && isContactVersionConflict(saveError)) {
         try {
           const latest = await contactsApi.getSegment(companyId, segmentId)
+          if (!scopeIsCurrent(scope)) return
           setName(latest.name)
           setDescription(latest.description ?? '')
           setFilter(latest.normalizedFilter ?? latest.filter)
@@ -154,15 +180,17 @@ export default function SegmentEditorPage() {
             'This Segment changed after you opened it. The latest version has been reloaded; review it before saving again.',
           ])
         } catch {
-          setServerErrors([
-            'This Segment changed after you opened it. Reload the page before saving again.',
-          ])
+          if (scopeIsCurrent(scope)) {
+            setServerErrors([
+              'This Segment changed after you opened it. Reload the page before saving again.',
+            ])
+          }
         }
       } else {
         setServerErrors([apiErrorMessage(saveError, 'Unable to save Segment.')])
       }
     } finally {
-      setSaving(false)
+      if (scopeIsCurrent(scope)) setSaving(false)
     }
   }
 
@@ -172,14 +200,19 @@ export default function SegmentEditorPage() {
       return
     }
 
+    const scope = captureScope()
     setSaving(true)
     try {
       await contactsApi.archiveSegment(companyId, segmentId)
-      navigate('/contacts/segments', { replace: true })
+      if (scopeIsCurrent(scope)) {
+        navigate('/contacts/segments', { replace: true })
+      }
     } catch (archiveError) {
-      setServerErrors([apiErrorMessage(archiveError, 'Unable to archive Segment.')])
+      if (scopeIsCurrent(scope)) {
+        setServerErrors([apiErrorMessage(archiveError, 'Unable to archive Segment.')])
+      }
     } finally {
-      setSaving(false)
+      if (scopeIsCurrent(scope)) setSaving(false)
     }
   }
 

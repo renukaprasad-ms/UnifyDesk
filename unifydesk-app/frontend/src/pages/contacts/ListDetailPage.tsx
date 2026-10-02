@@ -9,11 +9,21 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
-import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import {
+  selectSelectedCompanyId,
+  selectWorkspaceEpoch,
+} from '../../store/workspace/workspaceSlice'
+import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
+import type { WorkspaceEpochToken } from '../../features/workspace/workspaceEpoch'
 
 export default function ListDetailPage() {
   const { listId = '' } = useParams()
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
+  const { capture: captureScope, isCurrent: scopeIsCurrent } = useWorkspaceEpochScope(
+    companyId,
+    workspaceEpoch,
+  )
   const { can } = useIam()
   const navigate = useNavigate()
   const [list, setList] = useState<ListSummary | null>(null)
@@ -27,14 +37,18 @@ export default function ListDetailPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
-  const load = async (reset = true) => {
-    if (!companyId) return
+  const load = async (
+    reset = true,
+    scope: WorkspaceEpochToken | null = captureScope(),
+  ) => {
+    if (!companyId || !scopeIsCurrent(scope)) return false
     setError('')
     try {
       const [detail, page] = await Promise.all([
         contactsApi.getList(companyId, listId),
         contactsApi.listMembers(companyId, listId, reset ? null : cursor),
       ])
+      if (!scopeIsCurrent(scope)) return false
       setList(detail)
       setName(detail.name)
       setDescription(detail.description ?? '')
@@ -48,27 +62,38 @@ export default function ListDetailPage() {
       )
       setCursor(page.nextCursor)
       setHasMore(page.hasMore)
+      return true
     } catch (loadError) {
-      setError(apiErrorMessage(loadError, 'Unable to load List.'))
+      if (scopeIsCurrent(scope)) {
+        setError(apiErrorMessage(loadError, 'Unable to load List.'))
+      }
+      return false
     }
   }
 
   useEffect(() => {
-    void load()
-  }, [companyId, listId])
+    void load(true, captureScope())
+  }, [captureScope, companyId, listId, workspaceEpoch])
 
   const action = async (work: () => Promise<void>, success: string) => {
+    const scope = captureScope()
+    if (!scopeIsCurrent(scope)) return false
     setBusy(true)
     setError('')
     setNotice('')
     try {
       await work()
+      if (!scopeIsCurrent(scope)) return false
       setNotice(success)
-      await load()
+      await load(true, scope)
+      return scopeIsCurrent(scope)
     } catch (actionError) {
-      setError(apiErrorMessage(actionError, 'Unable to update List.'))
+      if (scopeIsCurrent(scope)) {
+        setError(apiErrorMessage(actionError, 'Unable to update List.'))
+      }
+      return false
     } finally {
-      setBusy(false)
+      if (scopeIsCurrent(scope)) setBusy(false)
     }
   }
 
@@ -88,11 +113,11 @@ export default function ListDetailPage() {
       )
       return
     }
-    await action(
+    const changed = await action(
       () => contactsApi.addListMembers(companyId, listId, ids).then(() => undefined),
       'List members added.',
     )
-    setMemberIds('')
+    if (changed) setMemberIds('')
   }
 
   return (
@@ -138,14 +163,23 @@ export default function ListDetailPage() {
                       )
                     )
                       return
+                    const scope = captureScope()
                     setBusy(true)
                     contactsApi
                       .archiveList(companyId, listId)
-                      .then(() => navigate('/contacts/lists', { replace: true }))
-                      .catch((archiveError) =>
-                        setError(apiErrorMessage(archiveError, 'Unable to archive List.')),
-                      )
-                      .finally(() => setBusy(false))
+                      .then(() => {
+                        if (scopeIsCurrent(scope)) {
+                          navigate('/contacts/lists', { replace: true })
+                        }
+                      })
+                      .catch((archiveError) => {
+                        if (scopeIsCurrent(scope)) {
+                          setError(apiErrorMessage(archiveError, 'Unable to archive List.'))
+                        }
+                      })
+                      .finally(() => {
+                        if (scopeIsCurrent(scope)) setBusy(false)
+                      })
                   }}
                 >
                   Archive List
@@ -297,7 +331,7 @@ export default function ListDetailPage() {
           <button
             className="secondary-button mt-4"
             disabled={busy}
-            onClick={() => void load(false)}
+            onClick={() => void load(false, captureScope())}
           >
             Load more
           </button>

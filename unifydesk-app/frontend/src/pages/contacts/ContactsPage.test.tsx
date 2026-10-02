@@ -68,7 +68,11 @@ const renderPage = (entry = '/contacts') =>
 describe('ContactsPage Round-2 remediation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useAppSelector).mockReturnValue('company-1')
+    vi.mocked(useAppSelector).mockImplementation((selector) =>
+      selector({
+        workspace: { companies: [], selectedCompanyId: 'company-1', epoch: 1 },
+      } as never),
+    )
     vi.mocked(useIam).mockReturnValue(iam)
     vi.mocked(useContacts).mockReturnValue(contactsState)
     vi.mocked(contactsApi.tags).mockResolvedValue([])
@@ -114,10 +118,10 @@ describe('ContactsPage Round-2 remediation', () => {
 
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/contacts'))
 
-    for (const [, query] of vi.mocked(useContacts).mock.calls) {
+    for (const [, , query] of vi.mocked(useContacts).mock.calls) {
       expect(query.status).not.toBe('DELETED')
     }
-    expect(vi.mocked(useContacts).mock.calls.at(-1)?.[1].status).toBeUndefined()
+    expect(vi.mocked(useContacts).mock.calls.at(-1)?.[2].status).toBeUndefined()
   })
 
   it('preserves the supported MERGED status from URL state', () => {
@@ -125,6 +129,7 @@ describe('ContactsPage Round-2 remediation', () => {
 
     expect(vi.mocked(useContacts)).toHaveBeenCalledWith(
       'company-1',
+      1,
       expect.objectContaining({ status: 'MERGED' }),
     )
   })

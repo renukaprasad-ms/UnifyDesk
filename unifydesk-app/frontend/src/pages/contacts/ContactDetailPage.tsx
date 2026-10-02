@@ -25,7 +25,12 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
-import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import {
+  selectSelectedCompanyId,
+  selectWorkspaceEpoch,
+} from '../../store/workspace/workspaceSlice'
+import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
+import type { WorkspaceEpochToken } from '../../features/workspace/workspaceEpoch'
 
 const channels: CommunicationPreference['channel'][] = ['EMAIL', 'SMS', 'WHATSAPP']
 
@@ -42,6 +47,11 @@ const asDraft = (contact: ContactDetail): ContactFormDraft => ({
 export default function ContactDetailPage() {
   const { contactId = '' } = useParams()
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
+  const { capture: captureScope, isCurrent: scopeIsCurrent } = useWorkspaceEpochScope(
+    companyId,
+    workspaceEpoch,
+  )
   const { can } = useIam()
   const [contact, setContact] = useState<ContactDetail | null>(null)
   const [preferences, setPreferences] = useState<CommunicationPreference[]>([])
@@ -61,8 +71,8 @@ export default function ContactDetailPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
-  const load = async () => {
-    if (!companyId || !contactId) return
+  const load = async (scope: WorkspaceEpochToken | null = captureScope()) => {
+    if (!companyId || !contactId || !scopeIsCurrent(scope)) return
     setLoading(true)
     setError('')
     try {
@@ -74,6 +84,7 @@ export default function ContactDetailPage() {
           .activity(companyId, contactId)
           .catch(() => ({ items: [], nextCursor: null, hasMore: false })),
       ])
+      if (!scopeIsCurrent(scope)) return
 
       setContact(detail)
       setTagOptions(tags)
@@ -87,50 +98,59 @@ export default function ContactDetailPage() {
           contactsApi.preferences(companyId, contactId),
           contactsApi.suppressions(companyId, contactId),
         ])
+        if (!scopeIsCurrent(scope)) return
         setPreferences(preferenceItems)
         setSuppressions(suppressionItems)
-      } else {
+      } else if (scopeIsCurrent(scope)) {
         setPreferences([])
         setSuppressions([])
       }
     } catch (loadError) {
-      setError(apiErrorMessage(loadError, 'Contact not found.'))
+      if (scopeIsCurrent(scope)) {
+        setError(apiErrorMessage(loadError, 'Contact not found.'))
+      }
     } finally {
-      setLoading(false)
+      if (scopeIsCurrent(scope)) setLoading(false)
     }
   }
 
   useEffect(() => {
-    void load()
-  }, [companyId, contactId])
+    void load(captureScope())
+  }, [captureScope, companyId, contactId, workspaceEpoch])
 
   const mutate = async (
     action: () => Promise<void>,
     success: string,
     options?: { versioned?: boolean },
   ) => {
+    const scope = captureScope()
+    if (!scopeIsCurrent(scope)) return false
     setBusy(true)
     setError('')
     setNotice('')
     try {
       await action()
+      if (!scopeIsCurrent(scope)) return false
       setNotice(success)
-      await load()
-      return true
+      await load(scope)
+      return scopeIsCurrent(scope)
     } catch (actionError) {
+      if (!scopeIsCurrent(scope)) return false
       if (options?.versioned && isContactVersionConflict(actionError)) {
         setEditing(false)
-        await load()
-        setError(
-          'This Contact changed after you opened it. The latest version has been reloaded; review the changes and try again.',
-        )
+        await load(scope)
+        if (scopeIsCurrent(scope)) {
+          setError(
+            'This Contact changed after you opened it. The latest version has been reloaded; review the changes and try again.',
+          )
+        }
         return false
       }
 
       setError(apiErrorMessage(actionError, 'Unable to update Contact.'))
       return false
     } finally {
-      setBusy(false)
+      if (scopeIsCurrent(scope)) setBusy(false)
     }
   }
 
@@ -139,9 +159,11 @@ export default function ContactDetailPage() {
       return
     }
 
+    const scope = captureScope()
     setActivityLoadingMore(true)
     try {
       const page = await contactsApi.activity(companyId, contactId, activityCursor)
+      if (!scopeIsCurrent(scope)) return
       setActivity((current) => [
         ...current,
         ...page.items.filter((next) => !current.some((existing) => existing.id === next.id)),
@@ -149,9 +171,11 @@ export default function ContactDetailPage() {
       setActivityCursor(page.nextCursor)
       setActivityHasMore(page.hasMore)
     } catch (activityError) {
-      setError(apiErrorMessage(activityError, 'Unable to load more Contact activity.'))
+      if (scopeIsCurrent(scope)) {
+        setError(apiErrorMessage(activityError, 'Unable to load more Contact activity.'))
+      }
     } finally {
-      setActivityLoadingMore(false)
+      if (scopeIsCurrent(scope)) setActivityLoadingMore(false)
     }
   }
 

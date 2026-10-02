@@ -1,8 +1,10 @@
+import axios from 'axios'
 import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
 import type { ChannelType } from '../channel/types'
 import type {
   AudienceSelector,
+  AudienceSourceDescriptor,
   BroadcastGroup,
   BroadcastMember,
   BroadcastMemberImportResult,
@@ -274,17 +276,30 @@ export const broadcastApi = {
     return unwrap(response.data)
   },
 
-  async send(companyId: string, broadcastId: string) {
+  async send(
+    companyId: string,
+    broadcastId: string,
+    expectedSourceDescriptor?: AudienceSourceDescriptor,
+  ) {
     const response = await apiClient.post<ApiResponse<BroadcastMessage>>(
       `/api/v1/companies/${companyId}/broadcast/messages/${broadcastId}/send`,
+      expectedSourceDescriptor ? { expectedSourceDescriptor } : undefined,
     )
     return unwrap(response.data)
   },
 
-  async schedule(companyId: string, broadcastId: string, scheduledAt: string) {
+  async schedule(
+    companyId: string,
+    broadcastId: string,
+    scheduledAt: string,
+    expectedSourceDescriptor?: AudienceSourceDescriptor,
+  ) {
     const response = await apiClient.post<ApiResponse<BroadcastMessage>>(
       `/api/v1/companies/${companyId}/broadcast/messages/${broadcastId}/schedule`,
-      { scheduledAt },
+      {
+        scheduledAt,
+        ...(expectedSourceDescriptor ? { expectedSourceDescriptor } : {}),
+      },
     )
     return unwrap(response.data)
   },
@@ -310,3 +325,9 @@ export const broadcastApi = {
     return unwrap(response.data)
   },
 }
+
+
+export const isBroadcastAudiencePreviewStale = (error: unknown) =>
+  axios.isAxiosError<ApiResponse<never>>(error) &&
+  error.response?.status === 409 &&
+  error.response.data?.error_message === 'BROADCAST_AUDIENCE_PREVIEW_STALE'

@@ -7,10 +7,19 @@ import { PERMISSIONS } from '../../features/iam/permissions'
 import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
-import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import {
+  selectSelectedCompanyId,
+  selectWorkspaceEpoch,
+} from '../../store/workspace/workspaceSlice'
+import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 
 export default function SegmentsPage() {
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
+  const { capture: captureScope, isCurrent: scopeIsCurrent } = useWorkspaceEpochScope(
+    companyId,
+    workspaceEpoch,
+  )
   const { can } = useIam()
   const [items, setItems] = useState<SegmentDefinition[]>([])
   const [loading, setLoading] = useState(true)
@@ -23,16 +32,24 @@ export default function SegmentsPage() {
       return
     }
 
+    const scope = captureScope()
     setLoading(true)
     setError('')
     contactsApi
       .segments(companyId)
-      .then((segments) =>
-        setItems(segments.filter((segment) => !segment.archived && segment.status !== 'ARCHIVED')),
-      )
-      .catch((loadError) => setError(apiErrorMessage(loadError, 'Unable to load Segments.')))
-      .finally(() => setLoading(false))
-  }, [companyId])
+      .then((segments) => {
+        if (!scopeIsCurrent(scope)) return
+        setItems(segments.filter((segment) => !segment.archived && segment.status !== 'ARCHIVED'))
+      })
+      .catch((loadError) => {
+        if (scopeIsCurrent(scope)) {
+          setError(apiErrorMessage(loadError, 'Unable to load Segments.'))
+        }
+      })
+      .finally(() => {
+        if (scopeIsCurrent(scope)) setLoading(false)
+      })
+  }, [captureScope, companyId, scopeIsCurrent, workspaceEpoch])
 
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
