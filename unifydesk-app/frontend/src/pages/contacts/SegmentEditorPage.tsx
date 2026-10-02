@@ -117,7 +117,6 @@ export default function SegmentEditorPage() {
       }
 
       const normalized = validation.normalizedFilter ?? filter
-      setFilter(normalized)
       const nextPreview = await contactsApi.previewSegment(companyId, normalized, 20)
       if (scopeIsCurrent(scope)) setPreview(nextPreview)
     } catch (previewError) {
