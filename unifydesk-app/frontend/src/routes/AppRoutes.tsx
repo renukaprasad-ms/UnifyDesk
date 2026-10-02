@@ -148,7 +148,14 @@ const AppRoutes = () => (
               <Route path="contacts/lists/:listId" element={<WorkspaceEpochBoundary><ListDetailPage /></WorkspaceEpochBoundary>} />
               <Route path="contacts/segments" element={<WorkspaceEpochBoundary><SegmentsPage /></WorkspaceEpochBoundary>} />
               <Route path="contacts/segments/:segmentId" element={<WorkspaceEpochBoundary><SegmentEditorPage /></WorkspaceEpochBoundary>} />
-              <Route path="contacts/:contactId" element={<ContactDetailPage />} />
+              <Route
+                path="contacts/:contactId"
+                element={
+                  <WorkspaceEpochBoundary>
+                    <ContactDetailPage />
+                  </WorkspaceEpochBoundary>
+                }
+              />
             </Route>
             <Route
               element={
