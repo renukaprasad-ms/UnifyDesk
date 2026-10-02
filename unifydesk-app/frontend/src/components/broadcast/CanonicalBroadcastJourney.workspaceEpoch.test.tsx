@@ -43,7 +43,7 @@ vi.mock('../../features/broadcast/broadcastApi', () => ({
       candidate.response.data?.error_message === 'BROADCAST_AUDIENCE_PREVIEW_STALE'
     )
   },
-})))
+}))
 
 vi.mock('../../features/whatsapp/whatsappApi', () => ({
   whatsappApi: { templates: vi.fn() },
