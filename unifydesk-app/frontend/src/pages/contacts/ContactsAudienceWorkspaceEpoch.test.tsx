@@ -1,4 +1,5 @@
 import { act, render, screen } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import WorkspaceEpochBoundary from '../../components/workspace/WorkspaceEpochBoundary'
@@ -87,7 +88,7 @@ const memberPage = (name: string) => ({
   hasMore: false,
 })
 
-const wrap = (child: React.ReactNode, entry: string, routePath: string) => (
+const wrap = (child: ReactNode, entry: string, routePath: string) => (
   <MemoryRouter initialEntries={[entry]}>
     <WorkspaceEpochBoundary>
       <Routes>
