@@ -5,6 +5,7 @@ import static org.mockito.Mockito.*;
 
 import com.messaging.broadcast.enums.BroadcastRecipientStatus;
 import com.messaging.broadcast.service.BroadcastStatsService;
+import com.messaging.contacts.integration.TrustedProviderSuppressionBridge;
 import com.messaging.managedemail.runtime.ManagedEmailIdGenerator;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
 import java.sql.Timestamp;
@@ -109,7 +110,10 @@ class ManagedEmailDeliveryProjectionServiceDatabaseTests {
     ManagedEmailIdGenerator ids = mock(ManagedEmailIdGenerator.class);
     when(ids.nextId()).thenReturn(1001L, 1002L, 1003L);
     projection = new ManagedEmailDeliveryProjectionService(jdbc);
-    suppression = new ManagedEmailSuppressionFeedbackService(jdbc, stats, ids);
+    TrustedProviderSuppressionBridge contactSuppressionBridge =
+        mock(TrustedProviderSuppressionBridge.class);
+    suppression =
+        new ManagedEmailSuppressionFeedbackService(jdbc, stats, ids, contactSuppressionBridge);
   }
 
   @Test
@@ -134,8 +138,13 @@ class ManagedEmailDeliveryProjectionServiceDatabaseTests {
   @Test
   void lateDeliveryDoesNotClearComplaintOrHardBounce() {
     ManagedEmailRuntimeRepository.ManagedRecipientRuntime runtime = runtime();
-    Instant bounceAt = Instant.parse("2026-09-26T07:02:00Z");
-    suppression.hardBounce(runtime, bounceAt);
+    ManagedEmailProviderEvent bounce =
+        event(
+            ManagedEmailProviderEventType.BOUNCE,
+            "sns-bounce",
+            "hash-b",
+            "2026-09-26T07:02:00Z");
+    suppression.hardBounce(runtime, bounce);
     projection.apply(
         event(ManagedEmailProviderEventType.COMPLAINT, "sns-complaint", "hash-c", "2026-09-26T07:03:00Z"),
         runtime);
