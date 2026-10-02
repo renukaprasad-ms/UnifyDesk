@@ -122,6 +122,87 @@ Positive control:
 
 Do not infer consent from identity existence.
 
+## Phase C2 — recipient Email unsubscribe and preference ordering
+
+Do not proceed to provider PASS until backend remediation for CMR1-RUNTIME-001A/001B is integrated and a new production SHA is frozen/deployed.
+
+Required execution after remediation:
+
+### Recipient action
+
+1. send/render a canonical Email MARKETING Broadcast to an opted-in Contact;
+2. obtain the recipient-visible unsubscribe action from the actual rendered message;
+3. execute it without workspace authentication;
+4. verify current `EMAIL / MARKETING = OPTED_OUT`;
+5. verify immutable event provenance is `CONTACT_ACTION / CONTACT`;
+6. repeat the same action;
+7. verify success-equivalent response and deterministic idempotency.
+
+### Historical import replay
+
+Execute T1/T2/T3 from `TEST-DATA.md`.
+
+After T3:
+
+- current projection remains `OPTED_OUT`;
+- historical import event is retained according to policy;
+- Preview reports the Contact excluded as `OPTED_OUT`.
+
+### Valid re-consent
+
+Execute T4 with strictly later `occurredAt`.
+
+Expected:
+
+- current projection becomes `OPTED_IN` if evidence/policy is valid;
+- previous immutable opt-out remains in history;
+- active non-liftable suppression, if any, still makes eligibility ineligible.
+
+### Cross-tenant/token tests
+
+Tamper token and attempt cross-subject substitution.
+
+Expected:
+
+- no unauthorized preference mutation;
+- generic safe response;
+- no existence disclosure.
+
+### Frozen-audience race
+
+1. Preview/freeze while opted in.
+2. recipient unsubscribes.
+3. continue dispatch.
+
+Expected:
+
+- frozen snapshot still contains the Contact;
+- current preference is `OPTED_OUT`;
+- `BroadcastDeliveryService` recheck returns ineligible;
+- recipient -> `SKIPPED`;
+- deterministic `CONTACT_OPTED_OUT`-style reason according to actual state service mapping;
+- Email transport invocation count = 0;
+- provider message ID = null;
+- final Broadcast counters remain consistent.
+
+### Message compliance metadata
+
+For actual Email MARKETING sends verify:
+
+- visible unsubscribe link in text;
+- visible unsubscribe link in HTML;
+- `List-Unsubscribe`;
+- `List-Unsubscribe-Post: List-Unsubscribe=One-Click` for transports supporting the custom-header path;
+- no raw Contact/company/identity IDs exposed in action URL;
+- no action token/key logged.
+
+Provider-specific assertions:
+
+- SES: capture `SendEmailRequest.content().simple().headers()`;
+- SendGrid: capture JSON `headers`;
+- Azure: capture `EmailMessage.getHeaders()`;
+- MSG91 Email: capture actual supported provider/template adaptation and separately prove canonical UnifyDesk preference mutation.
+
 ## Phase D — List
 
 Current List APIs:
