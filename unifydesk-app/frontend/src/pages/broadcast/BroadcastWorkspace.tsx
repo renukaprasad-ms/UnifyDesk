@@ -39,6 +39,7 @@ import type {
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useSnackbar } from '../../components/feedback/SnackbarProvider'
 import BroadcastSenderProviderMeta from '../../components/managed-email/BroadcastSenderProviderMeta'
+import CanonicalBroadcastJourney from '../../components/broadcast/CanonicalBroadcastJourney'
 import { managedSmsApi } from '../../features/managedSms/managedSmsApi'
 import {
   isManagedSmsSender,
@@ -1081,40 +1082,13 @@ export default function BroadcastWorkspace() {
     )
   }
 
-  if (channelType === 'WHATSAPP') {
-    return (
-      <section className="channel-workspace-page">
-        <div className="channel-workspace-toolbar">
-          <div className="min-w-0">
-            <p className="eyebrow">BROADCAST</p>
-            <p className="mt-1 text-xs font-semibold text-slate-700">{channelLabel}</p>
-          </div>
-        </div>
-        <div className="channel-workspace-body">
-          <main className="channel-message-surface flex items-center justify-center px-6 text-center">
-            <div className="max-w-md py-14">
-              <FiSend className="mx-auto text-4xl text-slate-300" aria-hidden="true" />
-              <h1 className="mt-4 text-base font-bold text-slate-900">
-                {channelLabel} Broadcast is coming next
-              </h1>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                The production broadcast engine is live for email first. The same reusable group and
-                execution model is ready for {channelLabel.toLowerCase()} transport later.
-              </p>
-            </div>
-          </main>
-        </div>
-      </section>
-    )
-  }
-
   return (
     <section className="channel-workspace-page">
       <div className="channel-workspace-toolbar">
         <div className="min-w-0">
           <p className="eyebrow">BROADCAST</p>
           <p className="mt-1 truncate text-xs font-semibold text-slate-700">
-            {selectedGroup?.name ?? `${channelLabel} groups`}
+            {selectedGroup?.name ?? `Create ${channelLabel} Broadcast`}
           </p>
         </div>
 
@@ -1156,41 +1130,18 @@ export default function BroadcastWorkspace() {
               <FiSend aria-hidden="true" />
               <span className="inbox-action-label">New broadcast</span>
             </button>
-          ) : (
-            <button type="button" className="primary-button gap-2" onClick={openNewGroup}>
+          ) : channelType !== 'WHATSAPP' && can(PERMISSIONS.BROADCAST_CREATE) ? (
+            <button type="button" className="secondary-button gap-2" onClick={openNewGroup}>
               <FiUsers aria-hidden="true" />
-              <span className="inbox-action-label">New group</span>
+              <span className="inbox-action-label">Legacy group</span>
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
       <div className="channel-workspace-body">
         <main className="channel-message-surface">
-          {!selectedGroupId ? (
-            <div className="flex min-h-[calc(100dvh-210px)] items-center justify-center px-6 text-center">
-              <div className="max-w-md">
-                <FiUsers className="mx-auto text-4xl text-slate-300" aria-hidden="true" />
-                <h1 className="mt-4 text-base font-bold text-slate-900">
-                  Create a reusable broadcast group
-                </h1>
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Save recipients once, reuse the same group for future broadcasts, and keep every
-                  send with its own immutable recipient snapshot and delivery history.
-                </p>
-                {can(PERMISSIONS.BROADCAST_CREATE) && (
-                  <button
-                    type="button"
-                    className="primary-button mt-5 gap-2"
-                    onClick={openNewGroup}
-                  >
-                    <FiUsers aria-hidden="true" />
-                    Create group
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : selectedBroadcastId ? (
+          {selectedBroadcastId ? (
             <BroadcastDetail
               message={selectedMessage}
               sender={
@@ -1208,6 +1159,11 @@ export default function BroadcastWorkspace() {
               onEdit={(id) => openComposer(id)}
               onAction={(action, id) => void runAction(action, id)}
               onRecipientsPage={(page) => void loadRecipientsPage(page)}
+            />
+          ) : !selectedGroupId ? (
+            <CanonicalBroadcastJourney
+              channel={channelType}
+              onCreated={(id) => updateSearch({ broadcastId: id, groupId: null, compose: null })}
             />
           ) : (
             <div className="channel-message-scroll min-h-[calc(100dvh-214px)] p-4 sm:p-5">
