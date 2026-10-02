@@ -2,6 +2,7 @@ import apiClient from '../../lib/api/apiClient'
 import type { ApiResponse } from '../../lib/api/types'
 import type { ChannelType } from '../channel/types'
 import type {
+  AudienceSelector,
   BroadcastGroup,
   BroadcastMember,
   BroadcastMemberImportResult,
@@ -17,10 +18,12 @@ import type {
   ConnectMsg91EmailInput,
   ConnectMsg91Input,
   ConnectSendGridInput,
+  ChannelReadiness,
   CreateAudienceBroadcastMessageInput,
   CreateBroadcastGroupInput,
   CreateBroadcastMessageInput,
   Page,
+  RecipientResolutionPreview,
   UpsertBroadcastSetupSessionInput,
 } from './types'
 
@@ -209,6 +212,31 @@ export const broadcastApi = {
     const response = await apiClient.post<ApiResponse<BroadcastMessage>>(
       `/api/v1/companies/${companyId}/broadcast/audiences/messages`,
       input,
+    )
+    return unwrap(response.data)
+  },
+
+
+  async previewAudience(
+    companyId: string,
+    input: {
+      selector: AudienceSelector
+      channel: ChannelType
+      purpose?: 'MARKETING'
+      senderId?: string | null
+    },
+  ) {
+    const response = await apiClient.post<ApiResponse<RecipientResolutionPreview>>(
+      `/api/v1/companies/${companyId}/broadcast/audiences/preview`,
+      { ...input, purpose: input.purpose ?? 'MARKETING' },
+    )
+    return unwrap(response.data)
+  },
+
+  async channelReadiness(companyId: string, channel: ChannelType) {
+    const response = await apiClient.get<ApiResponse<ChannelReadiness>>(
+      `/api/v1/companies/${companyId}/broadcast/readiness`,
+      { params: { channel } },
     )
     return unwrap(response.data)
   },
