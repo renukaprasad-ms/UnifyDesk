@@ -39,6 +39,7 @@ class ManagedSmsExistingProviderRegressionTests {
     ManagedEmailProviderBudgetService budget = mock(ManagedEmailProviderBudgetService.class);
     BroadcastSmsTransport transport = mock(BroadcastSmsTransport.class);
     ContactEligibilityService contactEligibility = mock(ContactEligibilityService.class);
+    BroadcastWhatsAppDeliveryService whatsAppDelivery = mock(BroadcastWhatsAppDeliveryService.class);
 
     BroadcastRun run = new BroadcastRun();
     run.setId(60L);
@@ -92,7 +93,8 @@ class ManagedSmsExistingProviderRegressionTests {
             reconciler,
             suppression,
             budget,
-            contactEligibility);
+            contactEligibility,
+            whatsAppDelivery);
 
     service.deliver(run, connection, sender, recipient);
 
@@ -106,6 +108,7 @@ class ManagedSmsExistingProviderRegressionTests {
         reconciler,
         suppression,
         budget,
-        contactEligibility);
+        contactEligibility,
+        whatsAppDelivery);
   }
 }
