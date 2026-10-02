@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { broadcastApi } from '../../features/broadcast/broadcastApi'
 import type {
   AudienceSelector,
+  BroadcastSender,
   ChannelReadiness,
   RecipientExclusionReason,
   RecipientResolutionPreview,
@@ -10,6 +11,11 @@ import type {
 import { contactsApi } from '../../features/contacts/contactsApi'
 import type { ContactSummary, ListSummary, SegmentDefinition } from '../../features/contacts/types'
 import type { ChannelType } from '../../features/channel/types'
+import { whatsappApi } from '../../features/whatsapp/whatsappApi'
+import type {
+  WhatsAppTemplate,
+  WhatsAppTemplateParameters,
+} from '../../features/whatsapp/types'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import {
@@ -20,6 +26,7 @@ import {
   isWorkspaceEpochCurrent,
   workspaceEpochToken,
 } from '../../features/workspace/workspaceEpoch'
+import { templateVariableCounts } from '../whatsapp/whatsappTemplateUtils'
 
 type Props = {
   channel: ChannelType
@@ -38,6 +45,15 @@ const exclusionLabels: Record<RecipientExclusionReason, string> = {
 
 const channelLabel = (channel: ChannelType) => (channel === 'WHATSAPP' ? 'WhatsApp' : channel)
 
+const blankWhatsAppParameters = (template: WhatsAppTemplate): WhatsAppTemplateParameters => {
+  const counts = templateVariableCounts(template)
+  return {
+    header: Array.from({ length: counts.header }, () => ''),
+    body: Array.from({ length: counts.body }, () => ''),
+    buttons: Array.from({ length: counts.buttons }, () => ''),
+  }
+}
+
 const sourceLabel = (selector: AudienceSelector | null, lists: ListSummary[], segments: SegmentDefinition[]) => {
   if (!selector) return 'Choose an audience'
   if (selector.sourceType === 'CONTACT_LIST') {
@@ -52,6 +68,8 @@ const sourceLabel = (selector: AudienceSelector | null, lists: ListSummary[], se
 export default function CanonicalBroadcastJourney({ channel, onCreated }: Props) {
   const companyId = useAppSelector(selectSelectedCompanyId)
   const epoch = useAppSelector(selectWorkspaceEpoch)
+  const currentScopeRef = useRef({ companyId, epoch })
+  currentScopeRef.current = { companyId, epoch }
   const [searchParams, setSearchParams] = useSearchParams()
   const [lists, setLists] = useState<ListSummary[]>([])
   const [segments, setSegments] = useState<SegmentDefinition[]>([])
@@ -66,13 +84,19 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   const [sourceId, setSourceId] = useState(searchParams.get('audienceId') ?? '')
   const [contactIds, setContactIds] = useState<Set<string>>(new Set())
   const [readiness, setReadiness] = useState<ChannelReadiness | null>(null)
+  const [broadcastSenders, setBroadcastSenders] = useState<BroadcastSender[]>([])
   const [senderId, setSenderId] = useState('')
   const [preview, setPreview] = useState<RecipientResolutionPreview | null>(null)
   const [previewing, setPreviewing] = useState(false)
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [templateId, setTemplateId] = useState('')
-  const [templateVariables, setTemplateVariables] = useState('')
+  const [whatsappTemplates, setWhatsappTemplates] = useState<WhatsAppTemplate[]>([])
+  const [whatsappParameters, setWhatsappParameters] = useState<WhatsAppTemplateParameters>({
+    header: [],
+    body: [],
+    buttons: [],
+  })
   const [scheduledAt, setScheduledAt] = useState('')
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -86,13 +110,26 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
 
   const selectedReadiness = readiness?.senders.find((item) => item.senderId === senderId) ?? null
   const readySenders = readiness?.senders.filter((item) => item.state === 'READY') ?? []
+  const selectedBroadcastSender = broadcastSenders.find((item) => item.id === senderId) ?? null
+  const selectedWhatsappTemplate = whatsappTemplates.find((item) => item.id === templateId) ?? null
+  const whatsappParametersReady = [
+    ...whatsappParameters.header,
+    ...whatsappParameters.body,
+    ...whatsappParameters.buttons,
+  ].every((value) => value.trim().length > 0)
+  const scopeIsCurrent = (token: ReturnType<typeof workspaceEpochToken>) =>
+    isWorkspaceEpochCurrent(
+      token,
+      currentScopeRef.current.companyId,
+      currentScopeRef.current.epoch,
+    )
   const canLaunch =
     Boolean(selector) &&
     Boolean(preview) &&
     preview!.eligibleCount > 0 &&
     Boolean(selectedReadiness && selectedReadiness.state === 'READY') &&
     !busy &&
-    (channel !== 'WHATSAPP' || Boolean(templateId))
+    (channel !== 'WHATSAPP' || Boolean(selectedWhatsappTemplate && whatsappParametersReady))
 
   useEffect(() => {
     if (!companyId) return
@@ -104,13 +141,15 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
       contactsApi.segments(companyId),
       contactsApi.list(companyId, { size: 50, sort: 'UPDATED_DESC' }),
       broadcastApi.channelReadiness(companyId, channel),
+      broadcastApi.senders(companyId),
     ])
-      .then(([nextLists, nextSegments, contactPage, nextReadiness]) => {
-        if (!isWorkspaceEpochCurrent(token, companyId, epoch)) return
+      .then(([nextLists, nextSegments, contactPage, nextReadiness, nextSenders]) => {
+        if (!scopeIsCurrent(token)) return
         setLists(nextLists.filter((item) => item.status !== 'ARCHIVED'))
         setSegments(nextSegments.filter((item) => item.status !== 'ARCHIVED' && !item.archived))
         setContacts(contactPage.items)
         setReadiness(nextReadiness)
+        setBroadcastSenders(nextSenders)
         const firstReady = nextReadiness.senders.find((item) => item.state === 'READY')
         setSenderId((current) =>
           current && nextReadiness.senders.some((item) => item.senderId === current)
@@ -119,18 +158,46 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
         )
       })
       .catch((requestError) => {
-        if (isWorkspaceEpochCurrent(token, companyId, epoch)) {
+        if (scopeIsCurrent(token)) {
           setError(apiErrorMessage(requestError, 'Unable to load Broadcast readiness.'))
         }
       })
       .finally(() => {
-        if (isWorkspaceEpochCurrent(token, companyId, epoch)) setLoading(false)
+        if (scopeIsCurrent(token)) setLoading(false)
       })
   }, [channel, companyId, epoch])
 
   useEffect(() => {
     setPreview(null)
   }, [selector, senderId, channel])
+
+  useEffect(() => {
+    if (
+      channel !== 'WHATSAPP' ||
+      !companyId ||
+      !senderId ||
+      !selectedBroadcastSender?.connectionId
+    ) {
+      setWhatsappTemplates([])
+      setTemplateId('')
+      setWhatsappParameters({ header: [], body: [], buttons: [] })
+      return
+    }
+
+    const token = workspaceEpochToken(companyId, epoch)
+    setWhatsappTemplates([])
+    void whatsappApi
+      .templates(companyId, selectedBroadcastSender.connectionId)
+      .then((items) => {
+        if (!scopeIsCurrent(token)) return
+        setWhatsappTemplates(items.filter((item) => item.status === 'APPROVED'))
+      })
+      .catch((requestError) => {
+        if (scopeIsCurrent(token)) {
+          setError(apiErrorMessage(requestError, 'Unable to load approved WhatsApp templates.'))
+        }
+      })
+  }, [channel, companyId, epoch, selectedBroadcastSender?.connectionId, senderId])
 
   useEffect(() => {
     if (!sourceId) return
@@ -154,13 +221,13 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
         purpose: 'MARKETING',
         senderId: senderId || null,
       })
-      if (isWorkspaceEpochCurrent(token, companyId, epoch)) setPreview(result)
+      if (scopeIsCurrent(token)) setPreview(result)
     } catch (requestError) {
-      if (isWorkspaceEpochCurrent(token, companyId, epoch)) {
+      if (scopeIsCurrent(token)) {
         setError(apiErrorMessage(requestError, 'Unable to preview recipient eligibility.'))
       }
     } finally {
-      if (isWorkspaceEpochCurrent(token, companyId, epoch)) setPreviewing(false)
+      if (scopeIsCurrent(token)) setPreviewing(false)
     }
   }
 
@@ -180,16 +247,6 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     setBusy(true)
     setError('')
     try {
-      let parsedVariables: Record<string, string> | undefined
-      if (templateVariables.trim()) {
-        parsedVariables = Object.fromEntries(
-          templateVariables
-            .split('\n')
-            .map((line) => line.split('=', 2).map((item) => item.trim()))
-            .filter(([key, value]) => key && value),
-        )
-      }
-
       const source =
         selector.sourceType === 'CONTACT_LIST'
           ? { sourceType: 'LIST' as const, sourceId: selector.sourceId }
@@ -204,20 +261,23 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
         subject: channel === 'EMAIL' ? subject.trim() || null : null,
         bodyText: channel === 'WHATSAPP' ? null : body.trim() || null,
         templateId: templateId || null,
-        templateVariables: parsedVariables,
+        whatsappTemplateId: channel === 'WHATSAPP' ? templateId : null,
+        whatsappTemplateLanguage:
+          channel === 'WHATSAPP' ? selectedWhatsappTemplate?.language ?? null : null,
+        whatsappTemplateParameters: channel === 'WHATSAPP' ? whatsappParameters : null,
       })
-      if (!isWorkspaceEpochCurrent(token, companyId, epoch)) return
+      if (!scopeIsCurrent(token)) return
 
       const launched = scheduledAt
         ? await broadcastApi.schedule(companyId, draft.id, new Date(scheduledAt).toISOString())
         : await broadcastApi.send(companyId, draft.id)
-      if (isWorkspaceEpochCurrent(token, companyId, epoch)) onCreated(launched.id)
+      if (scopeIsCurrent(token)) onCreated(launched.id)
     } catch (requestError) {
-      if (isWorkspaceEpochCurrent(token, companyId, epoch)) {
+      if (scopeIsCurrent(token)) {
         setError(apiErrorMessage(requestError, 'Unable to launch Broadcast.'))
       }
     } finally {
-      if (isWorkspaceEpochCurrent(token, companyId, epoch)) setBusy(false)
+      if (scopeIsCurrent(token)) setBusy(false)
     }
   }
 
@@ -391,14 +451,62 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
             {channel === 'WHATSAPP' ? (
               <>
                 <label className="text-xs font-semibold text-slate-700">
-                  Approved template ID
-                  <input className="form-input mt-1" value={templateId} onChange={(event) => setTemplateId(event.target.value)} placeholder="Choose an approved template from your WhatsApp setup" />
+                  Approved WhatsApp template
+                  <select
+                    className="form-input mt-1"
+                    value={templateId}
+                    onChange={(event) => {
+                      const nextId = event.target.value
+                      setTemplateId(nextId)
+                      const template = whatsappTemplates.find((item) => item.id === nextId)
+                      setWhatsappParameters(
+                        template
+                          ? blankWhatsAppParameters(template)
+                          : { header: [], body: [], buttons: [] },
+                      )
+                    }}
+                  >
+                    <option value="">Choose approved template</option>
+                    {whatsappTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} · {template.language}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="mt-1 block font-normal text-slate-500">
+                    Only templates currently synced as APPROVED are available. Free-form Inbox session rules do not apply to Broadcast.
+                  </span>
                 </label>
-                <label className="text-xs font-semibold text-slate-700">
-                  Template variables
-                  <textarea className="form-input mt-1 min-h-24" value={templateVariables} onChange={(event) => setTemplateVariables(event.target.value)} placeholder={"body.1=Renuka\nbody.2=Friday"} />
-                  <span className="mt-1 block font-normal text-slate-500">One key=value per line. Broadcasts require an approved template; free-form Inbox session rules do not apply.</span>
-                </label>
+                {selectedWhatsappTemplate && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {(['header', 'body', 'buttons'] as const).flatMap((section) =>
+                      whatsappParameters[section].map((value, index) => (
+                        <label
+                          key={`${section}-${index}`}
+                          className="text-xs font-semibold text-slate-700"
+                        >
+                          {section === 'body'
+                            ? 'Body'
+                            : section === 'header'
+                              ? 'Header'
+                              : 'Button'} variable {index + 1}
+                          <input
+                            className="form-input mt-1"
+                            value={value}
+                            onChange={(event) =>
+                              setWhatsappParameters((current) => ({
+                                ...current,
+                                [section]: current[section].map((item, itemIndex) =>
+                                  itemIndex === index ? event.target.value : item,
+                                ),
+                              }))
+                            }
+                          />
+                        </label>
+                      )),
+                    )}
+                  </div>
+                )}
               </>
             ) : (
               <label className="text-xs font-semibold text-slate-700">
