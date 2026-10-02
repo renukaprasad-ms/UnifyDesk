@@ -129,6 +129,63 @@ describe('SegmentEditorPage', () => {
     )
   })
 
+  it('preserves the user-edited condition after server validation normalizes the preview AST', async () => {
+    vi.mocked(contactsApi.validateSegment).mockResolvedValue({
+      valid: true,
+      normalizedFilter: {
+        type: 'group',
+        op: 'OR',
+        children: [
+          {
+            type: 'predicate',
+            field: { kind: 'BUILTIN_CONTACT', key: 'organization' },
+            operator: 'EQ',
+            value: 'SERVER_NORMALIZED',
+          },
+        ],
+      },
+      filterHash: 'hash-normalized',
+      costClass: 'LOW',
+    })
+    vi.mocked(contactsApi.previewSegment).mockResolvedValue({
+      sample: [],
+      count: 0,
+      countState: 'EXACT',
+      countComputedAt: '2026-10-02T00:00:00Z',
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/contacts/segments/new']}>
+        <Routes>
+          <Route path="/contacts/segments/new" element={<SegmentEditorPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const value = await screen.findByLabelText('Value')
+    fireEvent.change(value, { target: { value: '50' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Validate & preview' }))
+
+    await waitFor(() => expect(contactsApi.previewSegment).toHaveBeenCalledTimes(1))
+
+    expect(screen.getByLabelText('Value')).toHaveValue('50')
+    expect(screen.getByLabelText('Group operator')).toHaveValue('AND')
+    expect(screen.getByLabelText('Operator')).toHaveValue('CONTAINS')
+    expect(contactsApi.previewSegment).toHaveBeenCalledWith(
+      'company-1',
+      expect.objectContaining({
+        op: 'OR',
+        children: [
+          expect.objectContaining({
+            operator: 'EQ',
+            value: 'SERVER_NORMALIZED',
+          }),
+        ],
+      }),
+      20,
+    )
+  })
+
   it('renders backend count state and bounded preview sample', async () => {
     vi.mocked(contactsApi.validateSegment).mockResolvedValue({
       valid: true,
