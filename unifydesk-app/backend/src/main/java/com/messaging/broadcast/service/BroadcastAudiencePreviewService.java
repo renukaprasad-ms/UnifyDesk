@@ -4,6 +4,7 @@ import com.messaging.broadcast.dto.BroadcastAudiencePreviewRequest;
 import com.messaging.broadcast.dto.BroadcastAudiencePreviewResponse;
 import com.messaging.broadcast.dto.BroadcastAudiencePreviewResponse.ExclusionReason;
 import com.messaging.broadcast.dto.BroadcastAudiencePreviewResponse.RecipientSample;
+import com.messaging.broadcast.dto.BroadcastExpectedSourceDescriptor;
 import com.messaging.broadcast.entity.BroadcastSender;
 import com.messaging.contacts.audience.AudienceSourceResolver;
 import com.messaging.contacts.audience.ContactAudienceSelectionService;
@@ -64,7 +65,10 @@ public class BroadcastAudiencePreviewService {
       selected += selection.duplicateCount();
       descriptor =
           new AudienceSourceResolver.SourceDescriptor(
-              AudienceSourceResolver.SourceType.CONTACTS, 0L, "1", selection.selectionHash());
+              AudienceSourceResolver.SourceType.CONTACTS,
+              0L,
+              selection.selectionHash(),
+              selection.selectionHash());
       for (int from = 0; from < selection.contactIds().size(); from += BATCH_SIZE) {
         List<Long> batch =
             selection.contactIds().subList(
@@ -118,7 +122,7 @@ public class BroadcastAudiencePreviewService {
     return new BroadcastAudiencePreviewResponse(
         request.channelType(),
         Purpose.MARKETING.name(),
-        new BroadcastAudiencePreviewResponse.SourceDescriptor(
+        new BroadcastExpectedSourceDescriptor(
             request.sourceType(),
             request.sourceType()
                     == com.messaging.broadcast.enums.BroadcastAudienceSourceType.CONTACTS
