@@ -52,6 +52,7 @@ public class BroadcastAudiencePreviewService {
     long selected = 0;
     long eligible = 0;
     AudienceSourceResolver.SourceDescriptor descriptor;
+    Integer filterVersion = null;
     String contactSelectionHash = null;
 
     if (request.sourceType() == com.messaging.broadcast.enums.BroadcastAudienceSourceType.CONTACTS) {
@@ -92,7 +93,10 @@ public class BroadcastAudiencePreviewService {
       }
       AudienceSourceResolver.SourceType type =
           AudienceSourceResolver.SourceType.valueOf(request.sourceType().name());
-      descriptor = sourceResolver.describe(companyId, type, request.sourceId());
+      AudienceSourceResolver.BroadcastSourceState sourceState =
+          sourceResolver.describeForBroadcast(companyId, type, request.sourceId());
+      descriptor = sourceState.source();
+      filterVersion = sourceState.filterVersion();
       long cursor = 0;
       while (true) {
         List<Long> batch = sourceResolver.page(companyId, descriptor, cursor, BATCH_SIZE);
@@ -129,10 +133,7 @@ public class BroadcastAudiencePreviewService {
                 ? null
                 : Long.toString(descriptor.id()),
             descriptor.sourceVersion(),
-            request.sourceType()
-                    == com.messaging.broadcast.enums.BroadcastAudienceSourceType.SEGMENT
-                ? 1
-                : null,
+            filterVersion,
             request.sourceType()
                     == com.messaging.broadcast.enums.BroadcastAudienceSourceType.SEGMENT
                 ? descriptor.filterHash()
