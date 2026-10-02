@@ -65,7 +65,7 @@ const broadcastLinks: WorkspaceLink[] = [
     permission: PERMISSIONS.BROADCAST_READ,
   },
   {
-    label: 'Social media',
+    label: 'WhatsApp',
     to: '/broadcast/social-media',
     icon: <FiSend />,
     permission: PERMISSIONS.BROADCAST_READ,
@@ -221,8 +221,6 @@ export default function AppSidebar({
             </span>
           )}
         </NavLink>
-        {renderSection('broadcast', 'Broadcast', <FiRadio aria-hidden="true" />, broadcastLinks)}
-        {renderSection('inbox', 'Inbox', <FiInbox aria-hidden="true" />, inboxLinks)}
         {hasWorkspacePermission(PERMISSIONS.CONTACT_READ) && (
           <NavLink
             to="/contacts"
@@ -234,6 +232,8 @@ export default function AppSidebar({
             <span className="sidebar-copy">Contacts</span>
           </NavLink>
         )}
+        {renderSection('broadcast', 'Broadcast', <FiRadio aria-hidden="true" />, broadcastLinks)}
+        {renderSection('inbox', 'Inbox', <FiInbox aria-hidden="true" />, inboxLinks)}
         {hasWorkspacePermission(PERMISSIONS.ADS_READ) && (
           <NavLink
             to="/ad-center"
