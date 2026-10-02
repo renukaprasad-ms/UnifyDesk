@@ -3,6 +3,7 @@ package com.messaging.broadcast.service;
 import com.messaging.broadcast.dto.BroadcastExpectedSourceDescriptor;
 import com.messaging.broadcast.entity.BroadcastMessage;
 import com.messaging.common.exception.ConflictException;
+import com.messaging.common.exception.NotFoundException;
 import com.messaging.contacts.audience.AudienceSnapshotRepository;
 import com.messaging.contacts.audience.AudienceSnapshotService;
 import com.messaging.contacts.audience.AudienceSourceResolver;
@@ -48,7 +49,7 @@ public class BroadcastAudienceFreezeService {
                 current,
                 Channel.valueOf(message.getChannelType().name()),
                 Purpose.MARKETING);
-      } catch (SourceChangedException changedDuringCapture) {
+      } catch (SourceChangedException | NotFoundException changedDuringCapture) {
         throw stalePreview();
       }
     }
@@ -72,9 +73,14 @@ public class BroadcastAudienceFreezeService {
     }
 
     SourceType sourceType = SourceType.valueOf(message.getAudienceSourceType().name());
-    BroadcastSourceState current =
-        sourceResolver.describeForBroadcast(
-            message.getCompanyId(), sourceType, message.getAudienceSourceId());
+    BroadcastSourceState current;
+    try {
+      current =
+          sourceResolver.describeForBroadcast(
+              message.getCompanyId(), sourceType, message.getAudienceSourceId());
+    } catch (NotFoundException sourceMissing) {
+      throw stalePreview();
+    }
 
     if (sourceType == SourceType.CONTACTS) {
       if (expected.contactSelectionHash() == null
