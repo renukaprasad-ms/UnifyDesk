@@ -5,6 +5,7 @@ import type {
   AudienceSelector,
   BroadcastSender,
   ChannelReadiness,
+  CreateAudienceBroadcastMessageInput,
   RecipientExclusionReason,
   RecipientResolutionPreview,
 } from '../../features/broadcast/types'
@@ -29,6 +30,18 @@ import {
   workspaceEpochToken,
 } from '../../features/workspace/workspaceEpoch'
 import { templateVariableCounts } from '../whatsapp/whatsappTemplateUtils'
+import { managedSmsApi } from '../../features/managedSms/managedSmsApi'
+import {
+  isManagedSmsSender,
+  managedSmsTemplateReadyForHeader,
+  managedSmsVariableErrors,
+} from '../../features/managedSms/composePolicy'
+import { managedSmsErrorMessage } from '../../features/managedSms/copy'
+import type {
+  ManagedSmsHeader,
+  ManagedSmsPreview,
+  ManagedSmsTemplate,
+} from '../../features/managedSms/types'
 
 type Props = {
   channel: ChannelType
@@ -78,6 +91,75 @@ const sourceLabel = (selector: AudienceSelector | null, lists: ListSummary[], se
   return `${selector.contactIds.length} selected Contacts`
 }
 
+type CanonicalAudienceSource =
+  | { sourceType: 'LIST' | 'SEGMENT'; sourceId: string }
+  | { sourceType: 'CONTACTS'; contactIds: string[] }
+
+export const buildCanonicalBroadcastPayload = ({
+  source,
+  channel,
+  senderId,
+  subject,
+  body,
+  whatsappTemplateId,
+  whatsappTemplateParameters,
+  managedSmsTemplateId,
+  templateVariables,
+}: {
+  source: CanonicalAudienceSource
+  channel: ChannelType
+  senderId: string
+  subject: string
+  body: string
+  whatsappTemplateId?: string | null
+  whatsappTemplateParameters: WhatsAppTemplateParameters
+  managedSmsTemplateId?: string | null
+  templateVariables?: Record<string, string>
+}): CreateAudienceBroadcastMessageInput => {
+  const usesManagedSms = channel === 'SMS' && Boolean(managedSmsTemplateId)
+  return {
+    ...source,
+    channelType: channel,
+    senderId,
+    subject: channel === 'EMAIL' ? subject.trim() || null : null,
+    bodyText: channel === 'WHATSAPP' || usesManagedSms ? null : body.trim() || null,
+    templateId: null,
+    managedSmsTemplateId: usesManagedSms ? managedSmsTemplateId : null,
+    templateVariables: usesManagedSms ? templateVariables : undefined,
+    whatsappTemplateId: channel === 'WHATSAPP' ? whatsappTemplateId || null : null,
+    whatsappTemplateParameters:
+      channel === 'WHATSAPP' ? whatsappTemplateParameters : null,
+  }
+}
+
+export const canonicalSmsContentReady = ({
+  sender,
+  body,
+  managedSmsHeaderId,
+  templates,
+  managedSmsTemplateId,
+  templateVariables,
+  preview,
+}: {
+  sender?: Pick<BroadcastSender, 'provider' | 'managementMode'> | null
+  body: string
+  managedSmsHeaderId?: string | null
+  templates: ManagedSmsTemplate[]
+  managedSmsTemplateId: string
+  templateVariables: Record<string, string>
+  preview?: ManagedSmsPreview | null
+}) => {
+  if (!isManagedSmsSender(sender)) return Boolean(body.trim())
+  if (!managedSmsHeaderId || !managedSmsTemplateId) return false
+  const selected = templates.find((template) => template.id === managedSmsTemplateId)
+  return Boolean(
+    selected &&
+      managedSmsTemplateReadyForHeader(selected, managedSmsHeaderId) &&
+      Object.keys(managedSmsVariableErrors(selected, templateVariables)).length === 0 &&
+      (preview?.validationErrors.length ?? 0) === 0,
+  )
+}
+
 export default function CanonicalBroadcastJourney({ channel, onCreated }: Props) {
   const companyId = useAppSelector(selectSelectedCompanyId)
   const epoch = useAppSelector(selectWorkspaceEpoch)
@@ -111,6 +193,14 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     body: [],
     buttons: [],
   })
+  const [managedSmsHeaders, setManagedSmsHeaders] = useState<ManagedSmsHeader[]>([])
+  const [managedSmsTemplates, setManagedSmsTemplates] = useState<ManagedSmsTemplate[]>([])
+  const [managedSmsTemplateId, setManagedSmsTemplateId] = useState('')
+  const [managedSmsTemplateVariables, setManagedSmsTemplateVariables] = useState<
+    Record<string, string>
+  >({})
+  const [managedSmsPreview, setManagedSmsPreview] = useState<ManagedSmsPreview | null>(null)
+  const [managedSmsLoading, setManagedSmsLoading] = useState(false)
   const [scheduledAt, setScheduledAt] = useState('')
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -130,6 +220,25 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
     ...whatsappParameters.body,
     ...whatsappParameters.buttons,
   ].every((value) => value.trim().length > 0)
+  const usesManagedSms = channel === 'SMS' && isManagedSmsSender(selectedBroadcastSender)
+  const managedSmsHeader = usesManagedSms
+    ? managedSmsHeaders.find((item) => item.header === selectedBroadcastSender?.fromAddress) ?? null
+    : null
+  const availableManagedSmsTemplates = useMemo(
+    () =>
+      managedSmsHeader
+        ? managedSmsTemplates.filter((template) =>
+            managedSmsTemplateReadyForHeader(template, managedSmsHeader.id),
+          )
+        : [],
+    [managedSmsHeader, managedSmsTemplates],
+  )
+  const selectedManagedSmsTemplate =
+    managedSmsTemplates.find((template) => template.id === managedSmsTemplateId) ?? null
+  const managedSmsVariableValidation = useMemo(
+    () => managedSmsVariableErrors(selectedManagedSmsTemplate, managedSmsTemplateVariables),
+    [managedSmsTemplateVariables, selectedManagedSmsTemplate],
+  )
   const scopeIsCurrent = useCallback(
     (token: ReturnType<typeof workspaceEpochToken>) =>
       isWorkspaceEpochCurrent(
@@ -144,7 +253,15 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
       ? Boolean(selectedWhatsappTemplate && whatsappParametersReady)
       : channel === 'EMAIL'
         ? Boolean(subject.trim() && body.trim())
-        : Boolean(body.trim())
+        : canonicalSmsContentReady({
+            sender: selectedBroadcastSender,
+            body,
+            managedSmsHeaderId: managedSmsHeader?.id,
+            templates: managedSmsTemplates,
+            managedSmsTemplateId,
+            templateVariables: managedSmsTemplateVariables,
+            preview: managedSmsPreview,
+          })
   const canLaunch =
     Boolean(selector) &&
     Boolean(preview) &&
@@ -231,6 +348,95 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
   ])
 
   useEffect(() => {
+    setManagedSmsHeaders([])
+    setManagedSmsTemplates([])
+    setManagedSmsTemplateId('')
+    setManagedSmsTemplateVariables({})
+    setManagedSmsPreview(null)
+
+    if (!companyId || !usesManagedSms) {
+      setManagedSmsLoading(false)
+      return
+    }
+
+    let active = true
+    const token = workspaceEpochToken(companyId, epoch)
+    setManagedSmsLoading(true)
+    Promise.all([managedSmsApi.headers(companyId), managedSmsApi.templates(companyId)])
+      .then(([nextHeaders, nextTemplates]) => {
+        if (!active || !scopeIsCurrent(token)) return
+        setManagedSmsHeaders(nextHeaders)
+        setManagedSmsTemplates(nextTemplates)
+      })
+      .catch((requestError) => {
+        if (active && scopeIsCurrent(token)) {
+          setError(
+            managedSmsErrorMessage(
+              requestError,
+              'Unable to load Managed SMS Headers and templates.',
+            ),
+          )
+        }
+      })
+      .finally(() => {
+        if (active && scopeIsCurrent(token)) setManagedSmsLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [companyId, epoch, scopeIsCurrent, senderId, usesManagedSms])
+
+  useEffect(() => {
+    setManagedSmsPreview(null)
+    if (
+      !companyId ||
+      !usesManagedSms ||
+      !managedSmsHeader ||
+      !managedSmsTemplateId
+    ) {
+      return
+    }
+
+    let active = true
+    const token = workspaceEpochToken(companyId, epoch)
+    const timer = window.setTimeout(() => {
+      if (!scopeIsCurrent(token)) return
+      void managedSmsApi
+        .previewTemplate(companyId, managedSmsTemplateId, {
+          headerId: managedSmsHeader.id,
+          variables: managedSmsTemplateVariables,
+        })
+        .then((nextPreview) => {
+          if (active && scopeIsCurrent(token)) setManagedSmsPreview(nextPreview)
+        })
+        .catch((requestError) => {
+          if (!active || !scopeIsCurrent(token)) return
+          setManagedSmsPreview(null)
+          setError(
+            managedSmsErrorMessage(
+              requestError,
+              'Unable to preview this Managed SMS template.',
+            ),
+          )
+        })
+    }, 250)
+
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+    }
+  }, [
+    companyId,
+    epoch,
+    managedSmsHeader,
+    managedSmsTemplateId,
+    managedSmsTemplateVariables,
+    scopeIsCurrent,
+    usesManagedSms,
+  ])
+
+  useEffect(() => {
     if (!sourceId) return
     setSearchParams((current) => {
       const next = new URLSearchParams(current)
@@ -284,16 +490,20 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
             ? { sourceType: 'SEGMENT' as const, sourceId: selector.sourceId }
             : { sourceType: 'CONTACTS' as const, contactIds: selector.contactIds }
 
-      const draft = await broadcastApi.createAudienceMessage(companyId, {
-        ...source,
-        channelType: channel,
-        senderId,
-        subject: channel === 'EMAIL' ? subject.trim() || null : null,
-        bodyText: channel === 'WHATSAPP' ? null : body.trim() || null,
-        templateId: templateId || null,
-        whatsappTemplateId: channel === 'WHATSAPP' ? templateId : null,
-        whatsappTemplateParameters: channel === 'WHATSAPP' ? whatsappParameters : null,
-      })
+      const draft = await broadcastApi.createAudienceMessage(
+        companyId,
+        buildCanonicalBroadcastPayload({
+          source,
+          channel,
+          senderId,
+          subject,
+          body,
+          whatsappTemplateId: templateId,
+          whatsappTemplateParameters: whatsappParameters,
+          managedSmsTemplateId: usesManagedSms ? managedSmsTemplateId : null,
+          templateVariables: usesManagedSms ? managedSmsTemplateVariables : undefined,
+        }),
+      )
       if (!scopeIsCurrent(token)) return
 
       let launched
@@ -543,6 +753,126 @@ export default function CanonicalBroadcastJourney({ channel, onCreated }: Props)
                   </div>
                 )}
               </>
+            ) : channel === 'SMS' && usesManagedSms ? (
+              <div className="grid gap-3">
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
+                  <p className="text-xs font-bold text-slate-900">Approved template required</p>
+                  <p className="mt-1 text-[11px] leading-5 text-slate-600">
+                    Managed SMS sends the exact DLT-approved template for this Header. The message
+                    body cannot be edited freely.
+                  </p>
+                </div>
+
+                {!managedSmsHeader ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-800">
+                    This sender is not linked to a ready managed Header. Refresh Managed SMS setup
+                    from Company Connections.
+                  </div>
+                ) : (
+                  <>
+                    <label className="text-xs font-semibold text-slate-700">
+                      Managed SMS template
+                      <select
+                        className="form-input mt-1"
+                        value={managedSmsTemplateId}
+                        disabled={managedSmsLoading}
+                        onChange={(event) => {
+                          const nextId = event.target.value
+                          setManagedSmsTemplateId(nextId)
+                          setManagedSmsPreview(null)
+                          const template = managedSmsTemplates.find((item) => item.id === nextId)
+                          const nextVariables: Record<string, string> = {}
+                          for (const variable of template?.activeVersion?.variables ?? []) {
+                            const current = managedSmsTemplateVariables[variable.key]
+                            if (current) nextVariables[variable.key] = current
+                          }
+                          setManagedSmsTemplateVariables(nextVariables)
+                        }}
+                      >
+                        <option value="">
+                          {managedSmsLoading ? 'Loading templates…' : 'Choose ready template'}
+                        </option>
+                        {availableManagedSmsTemplates.map((template) => (
+                          <option key={template.id} value={template.id}>
+                            {template.name} · {template.messageCategory.toLowerCase()}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {!managedSmsLoading && availableManagedSmsTemplates.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-[11px] leading-5 text-slate-500">
+                        No READY managed templates are approved for Header{' '}
+                        <strong>{managedSmsHeader.header}</strong>. Finish template verification in
+                        Company Connections before sending.
+                      </div>
+                    )}
+
+                    {selectedManagedSmsTemplate?.activeVersion && (
+                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <p className="text-xs font-bold text-slate-900">Template variables</p>
+                        <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                          Enter only the declared values. Fixed template text stays locked.
+                        </p>
+                        {selectedManagedSmsTemplate.activeVersion.variables.length === 0 ? (
+                          <p className="mt-3 text-[11px] text-slate-400">
+                            This approved template has no variables.
+                          </p>
+                        ) : (
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            {selectedManagedSmsTemplate.activeVersion.variables.map((variable) => (
+                              <label
+                                key={variable.key}
+                                className="text-[11px] font-semibold text-slate-700"
+                              >
+                                {variable.key}
+                                <input
+                                  className="form-input mt-1.5"
+                                  value={managedSmsTemplateVariables[variable.key] ?? ''}
+                                  maxLength={variable.maxLength}
+                                  onChange={(event) =>
+                                    setManagedSmsTemplateVariables((current) => ({
+                                      ...current,
+                                      [variable.key]: event.target.value,
+                                    }))
+                                  }
+                                  placeholder={`Up to ${variable.maxLength} characters`}
+                                />
+                                {managedSmsVariableValidation[variable.key] && (
+                                  <span className="mt-1 block text-[10px] font-medium text-rose-600">
+                                    {managedSmsVariableValidation[variable.key]}
+                                  </span>
+                                )}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {selectedManagedSmsTemplate && (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                          Message preview
+                        </p>
+                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                          {managedSmsPreview?.renderedBody ||
+                            managedSmsPreview?.bodyText ||
+                            selectedManagedSmsTemplate.activeVersion?.bodyText ||
+                            'Enter the required variables to preview this message.'}
+                        </p>
+                        {(managedSmsPreview?.validationErrors.length ?? 0) > 0 && (
+                          <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
+                            {managedSmsPreview?.validationErrors
+                              .map((item) => item.message)
+                              .join(' · ')}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             ) : (
               <label className="text-xs font-semibold text-slate-700">
                 Message
