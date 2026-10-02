@@ -60,7 +60,14 @@ import {
   upsertBroadcastGroup,
 } from '../../store/broadcast/broadcastSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import {
+  selectSelectedCompanyId,
+  selectWorkspaceEpoch,
+} from '../../store/workspace/workspaceSlice'
+import {
+  isWorkspaceEpochCurrent,
+  workspaceEpochToken,
+} from '../../features/workspace/workspaceEpoch'
 
 const channelFromPath = (pathname: string): ChannelType => {
   if (pathname.endsWith('/email')) return 'EMAIL'
@@ -99,7 +106,7 @@ const statusBadge = (status: BroadcastMessageStatus) => {
 }
 
 const recipientStatusLabel = (status: BroadcastRecipientStatus) => {
-  if (status === 'ACCEPTED_BY_PROVIDER') return 'Sent'
+  if (status === 'ACCEPTED_BY_PROVIDER') return 'Accepted'
   if (status === 'RETRY') return 'Retrying'
   return status
     .toLowerCase()
@@ -164,6 +171,15 @@ const emptyPage = <T,>(): Page<T> => ({
 export default function BroadcastWorkspace() {
   const dispatch = useAppDispatch()
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
+  const currentScopeRef = useRef({ companyId, epoch: workspaceEpoch })
+  currentScopeRef.current = { companyId, epoch: workspaceEpoch }
+  const scopeIsCurrent = (capturedCompanyId: string, capturedEpoch: number) =>
+    isWorkspaceEpochCurrent(
+      workspaceEpochToken(capturedCompanyId, capturedEpoch),
+      currentScopeRef.current.companyId,
+      currentScopeRef.current.epoch,
+    )
   const broadcast = useAppSelector((state) => state.broadcast)
   const { can } = useIam()
   const snackbar = useSnackbar()
@@ -180,12 +196,16 @@ export default function BroadcastWorkspace() {
   const editBroadcastId = searchParams.get('editBroadcastId')
 
   const groups =
-    broadcast.groupsCompanyId === companyId && broadcast.groupsChannelType === channelType
+    broadcast.groupsCompanyId === companyId &&
+    broadcast.groupsEpoch === workspaceEpoch &&
+    broadcast.groupsChannelType === channelType
       ? broadcast.groups
       : []
   const selectedGroup = groups.find((group) => group.id === selectedGroupId) ?? null
   const history =
-    broadcast.historyCompanyId === companyId && broadcast.historyGroupId === selectedGroupId
+    broadcast.historyCompanyId === companyId &&
+    broadcast.historyEpoch === workspaceEpoch &&
+    broadcast.historyGroupId === selectedGroupId
       ? broadcast.messages
       : []
 
@@ -239,8 +259,8 @@ export default function BroadcastWorkspace() {
           (channelType === 'SMS'
             ? sender.provider === 'MSG91_SMS'
             : channelType === 'EMAIL'
-              ? sender.provider !== 'MSG91_SMS'
-              : false),
+              ? sender.provider !== 'MSG91_SMS' && sender.provider !== 'META_WHATSAPP'
+              : sender.provider === 'META_WHATSAPP'),
       ),
     [channelType, senders],
   )
@@ -358,17 +378,17 @@ export default function BroadcastWorkspace() {
   const refreshGroups = useCallback(
     async (force = true) => {
       if (!companyId) return
-      await dispatch(fetchBroadcastGroups({ companyId, channelType, force }))
+      await dispatch(fetchBroadcastGroups({ companyId, epoch: workspaceEpoch, channelType, force }))
     },
-    [channelType, companyId, dispatch],
+    [channelType, companyId, dispatch, workspaceEpoch],
   )
 
   const refreshHistory = useCallback(
     async (force = true) => {
       if (!companyId || !selectedGroupId) return
-      await dispatch(fetchBroadcastHistory({ companyId, groupId: selectedGroupId, force }))
+      await dispatch(fetchBroadcastHistory({ companyId, epoch: workspaceEpoch, groupId: selectedGroupId, force }))
     },
-    [companyId, dispatch, selectedGroupId],
+    [companyId, dispatch, selectedGroupId, workspaceEpoch],
   )
 
   useEffect(() => {
@@ -381,20 +401,25 @@ export default function BroadcastWorkspace() {
 
   useEffect(() => {
     if (!companyId) return
-    void dispatch(fetchBroadcastGroups({ companyId, channelType }))
+    void dispatch(fetchBroadcastGroups({ companyId, epoch: workspaceEpoch, channelType }))
   }, [channelType, companyId, dispatch])
 
   const refreshSenders = useCallback(async () => {
-    if (!companyId || channelType === 'WHATSAPP') {
+    if (!companyId) {
       setSenders([])
       return
     }
+    const capturedCompanyId = companyId
+    const capturedEpoch = workspaceEpoch
     try {
-      setSenders(await broadcastApi.senders(companyId))
+      const nextSenders = await broadcastApi.senders(companyId)
+      if (scopeIsCurrent(capturedCompanyId, capturedEpoch)) setSenders(nextSenders)
     } catch (requestError) {
-      snackbar.error(apiErrorMessage(requestError, 'Unable to load Broadcast senders'))
+      if (scopeIsCurrent(capturedCompanyId, capturedEpoch)) {
+        snackbar.error(apiErrorMessage(requestError, 'Unable to load Broadcast senders'))
+      }
     }
-  }, [channelType, companyId])
+  }, [channelType, companyId, workspaceEpoch])
 
   useEffect(() => {
     void refreshSenders()
@@ -418,7 +443,7 @@ export default function BroadcastWorkspace() {
 
   useEffect(() => {
     if (!companyId || !selectedGroupId) return
-    void dispatch(fetchBroadcastHistory({ companyId, groupId: selectedGroupId }))
+    void dispatch(fetchBroadcastHistory({ companyId, epoch: workspaceEpoch, groupId: selectedGroupId }))
   }, [companyId, dispatch, selectedGroupId])
 
   useEffect(() => {
@@ -534,6 +559,7 @@ export default function BroadcastWorkspace() {
           await dispatch(
             fetchBroadcastHistory({
               companyId,
+              epoch: workspaceEpoch,
               groupId: selectedGroupId,
               force: true,
             }),
@@ -1075,6 +1101,7 @@ export default function BroadcastWorkspace() {
     void dispatch(
       fetchBroadcastHistory({
         companyId,
+        epoch: workspaceEpoch,
         groupId: selectedGroupId,
         page: broadcast.historyPage + 1,
         append: true,
@@ -2061,7 +2088,7 @@ function BroadcastHistoryCard({
             <span>{formatDate(message.scheduledAt || message.createdAt)}</span>
             {message.stats.total > 0 && (
               <>
-                <span>Sent {message.stats.accepted.toLocaleString()}</span>
+                <span>Accepted {message.stats.accepted.toLocaleString()}</span>
                 <span>Failed {message.stats.failed.toLocaleString()}</span>
                 <span>Bounced {message.stats.bounced.toLocaleString()}</span>
               </>
@@ -2241,7 +2268,7 @@ function BroadcastDetail({
           <>
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
               <StatCard label="Total" value={message.stats.total} />
-              <StatCard label="Sent" value={message.stats.accepted} />
+              <StatCard label="Accepted" value={message.stats.accepted} />
               <StatCard label="Failed" value={message.stats.failed} />
               <StatCard label="Bounced" value={message.stats.bounced} />
               <StatCard label="Unknown" value={message.stats.unknown} />
@@ -2253,7 +2280,7 @@ function BroadcastDetail({
                 <div>
                   <p className="text-sm font-bold text-slate-900">Recipients</p>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    Provider acceptance is shown as Sent. Bounces can update later from delivery
+                    Provider acceptance is shown as Accepted. Delivery and bounce status update only when provider events are available
                     reports.
                   </p>
                 </div>
