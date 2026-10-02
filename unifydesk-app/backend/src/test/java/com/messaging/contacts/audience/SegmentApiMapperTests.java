@@ -6,8 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.TextNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.TextNode;
 import com.messaging.contacts.audience.SegmentApiModel.Field;
 import com.messaging.contacts.audience.SegmentApiModel.Group;
 import com.messaging.contacts.audience.SegmentApiModel.Predicate;
