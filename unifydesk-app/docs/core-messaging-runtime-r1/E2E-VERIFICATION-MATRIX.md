@@ -2,6 +2,8 @@
 
 ## Classification rules
 
+MAIN Provider-4 decision: regression scope is the modern supported customer-managed bulk Email providers — **Amazon SES, SendGrid, Azure Communication Services Email, and MSG91 Email**. Gmail/Microsoft/SMTP mailbox transports are not part of Provider-4 runtime verification in this round.
+
 `PASS` requires executable evidence. `FAIL` means the required runtime/source behavior is violated. `BLOCKED` means a dependency prevents execution. `NOT EXECUTED` means no execution evidence exists yet.
 
 | ID | Journey stage | Provider/channel | Preconditions | Test/action | Expected API / durable state | Provider/event expectation | User-visible result | Executable evidence to capture | Current result |
@@ -36,10 +38,11 @@
 | CMR1-028 | Inbox -> Contact link | Email/WhatsApp | canonical Contact with exact identity | ingest inbound participant | `inbox_participant_contact_links` -> `MATCHED` with Contact/identity IDs | N/A | View Contact navigation works | link row + DTO/UI | NOT EXECUTED |
 | CMR1-029 | Unknown Inbox participant | Email/WhatsApp | no matching Contact | ingest inbound participant | link stays UNMATCHED/AMBIGUOUS; no implicit Contact | N/A | explicit Create/Review action | DB + Contacts count | NOT EXECUTED |
 | CMR1-030 | Broadcast terminal Notification | all | successful/partial/failed runs | finalize | deterministic `broadcast.completed:<runId>` or `broadcast.failed:<runId>` event once | N/A | in-app notification materializes | notification_events + delivery evidence | NOT EXECUTED |
-| CMR1-031 | Direct Gmail Broadcast | Gmail | current canonical Broadcast source | attempt modern sender/launch | current source rejects provider via `supports()` | no request | cannot launch canonical Broadcast | source + API reproduction | FAIL: current source/scope mismatch |
-| CMR1-032 | Direct Microsoft Broadcast | Microsoft | current canonical Broadcast source | attempt modern sender/launch | current source rejects provider via `supports()` | no request | cannot launch canonical Broadcast | source + API reproduction | FAIL: current source/scope mismatch |
-| CMR1-033 | Direct SMTP Broadcast | SMTP/IMAP_SMTP | current canonical Broadcast source | attempt modern sender/launch | current source rejects provider via `supports()` | no request | cannot launch canonical Broadcast | source + API reproduction | FAIL: current source/scope mismatch |
-| CMR1-034 | CI matrix | N/A | exact frozen SHA | run `Checks` workflow | all defined jobs execute | N/A | release evidence available | workflow run/jobs/logs | NOT EXECUTED |
+| CMR1-031 | Direct bulk Email regression | Amazon SES (customer-managed) | active customer-managed SES Broadcast sender + opted-in Contact | Preview -> freeze -> send | canonical audience/consent/suppression path preserved; recipient reaches provider acceptance truthfully | SES send request + provider message ID | accepted/sent, not falsely Delivered | API + recipient/provider ID evidence | NOT EXECUTED |
+| CMR1-032 | Direct bulk Email regression | SendGrid | active SendGrid Broadcast sender + opted-in Contact | Preview -> freeze -> send | canonical audience/consent/suppression path preserved; recipient reaches provider acceptance truthfully | SendGrid send request + provider message ID | accepted/sent; delivery only if supported event evidence exists | API + recipient/provider ID evidence | NOT EXECUTED |
+| CMR1-033 | Direct bulk Email regression | Azure Communication Services Email | active Azure Email Broadcast sender + opted-in Contact | Preview -> freeze -> send | canonical audience/consent/suppression path preserved; recipient reaches provider acceptance truthfully | Azure Email send request + provider message ID | accepted/sent; delivery only if supported event evidence exists | API + recipient/provider ID evidence | NOT EXECUTED |
+| CMR1-034 | Direct bulk Email regression | MSG91 Email | active MSG91 Email sender + published/synced template binding + opted-in Contact | Preview -> freeze -> send | canonical audience/consent/suppression path preserved; provider template binding snapshot retained | MSG91 Email request + provider message ID | accepted/sent; delivery only if supported event evidence exists | API + binding/recipient/provider ID evidence | NOT EXECUTED |
+| CMR1-035 | CI matrix | N/A | exact frozen SHA | run `Checks` workflow | all defined jobs execute | N/A | release evidence available | workflow run/jobs/logs | NOT EXECUTED |
 
 ## Required DB questions per run
 
