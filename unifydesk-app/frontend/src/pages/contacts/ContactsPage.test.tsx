@@ -68,7 +68,11 @@ const renderPage = (entry = '/contacts') =>
 describe('ContactsPage Round-2 remediation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useAppSelector).mockReturnValue('company-1')
+    vi.mocked(useAppSelector).mockImplementation((selector) =>
+      selector({
+        workspace: { companies: [], selectedCompanyId: 'company-1', epoch: 1 },
+      } as never),
+    )
     vi.mocked(useIam).mockReturnValue(iam)
     vi.mocked(useContacts).mockReturnValue(contactsState)
     vi.mocked(contactsApi.tags).mockResolvedValue([])
@@ -125,7 +129,7 @@ describe('ContactsPage Round-2 remediation', () => {
 
     expect(vi.mocked(useContacts)).toHaveBeenCalledWith(
       'company-1',
-      'company-1',
+      1,
       expect.objectContaining({ status: 'MERGED' }),
     )
   })
