@@ -34,7 +34,14 @@ import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { fetchEmailConnections, fetchInboxConversations } from '../../store/inbox/inboxSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import {
+  selectSelectedCompanyId,
+  selectWorkspaceEpoch,
+} from '../../store/workspace/workspaceSlice'
+import {
+  isWorkspaceEpochCurrent,
+  workspaceEpochToken,
+} from '../../features/workspace/workspaceEpoch'
 
 type ChannelContextSidebarProps = {
   mode: 'inbox' | 'broadcast'
@@ -93,6 +100,9 @@ const emailProviderIcon = (providerType: string) => {
 export default function ChannelContextSidebar({ mode, onNavigate }: ChannelContextSidebarProps) {
   const dispatch = useAppDispatch()
   const companyId = useAppSelector(selectSelectedCompanyId)
+  const workspaceEpoch = useAppSelector(selectWorkspaceEpoch)
+  const workspaceScopeRef = useRef({ companyId, epoch: workspaceEpoch })
+  workspaceScopeRef.current = { companyId, epoch: workspaceEpoch }
   const inbox = useAppSelector((state) => state.inbox)
   const broadcast = useAppSelector((state) => state.broadcast)
   const { can } = useIam()
@@ -160,8 +170,8 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     if (broadcastMode) return
     if (channelType !== 'EMAIL') return
     if (!companyId) return
-    void dispatch(fetchEmailConnections({ companyId }))
-  }, [broadcastMode, channelType, companyId, dispatch])
+    void dispatch(fetchEmailConnections({ companyId, epoch: workspaceEpoch }))
+  }, [broadcastMode, channelType, companyId, dispatch, workspaceEpoch])
 
   useEffect(() => {
     if (broadcastMode) {
@@ -262,11 +272,12 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     void dispatch(
       fetchInboxConversations({
         companyId,
+        epoch: workspaceEpoch,
         connectionId: selectedConnectionId,
         folder: selectedFolder,
       }),
     )
-  }, [companyId, dispatch, emailMode, selectedConnectionId, selectedFolder])
+  }, [companyId, dispatch, emailMode, selectedConnectionId, selectedFolder, workspaceEpoch])
 
   const identities = useMemo<IdentityItem[]>(() => {
     if (broadcastMode && channelType !== 'WHATSAPP') {
@@ -509,6 +520,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
     void dispatch(
       fetchInboxConversations({
         companyId,
+        epoch: workspaceEpoch,
         connectionId: selectedConnectionId,
         folder: selectedFolder,
         page: conversationPage + 1,
@@ -635,7 +647,7 @@ export default function ChannelContextSidebar({ mode, onNavigate }: ChannelConte
                         onError={setError}
                         onConnected={() => {
                           setMenuOpen(false)
-                          void dispatch(fetchEmailConnections({ companyId, force: true }))
+                          void dispatch(fetchEmailConnections({ companyId, epoch: workspaceEpoch, force: true }))
                         }}
                       />
                     )}
