@@ -40,7 +40,7 @@ Source review is supporting evidence only. It is not promoted to runtime/provide
 - Exact frozen SHA has no GitHub Actions workflow run returned by GitHub at audit time: current executable CI result is **NOT EXECUTED**.
 - Real SES/MSG91/Meta provider execution was not available through this repository audit and remains **NOT EXECUTED/BLOCKED pending runtime assets**.
 - Meta customer Embedded Signup remains separately **BLOCKED BY META** per the initiative handoff.
-- Gmail/Microsoft/IMAP-SMTP/SMTP are historical `BroadcastSenderProvider` values and are intentionally rejected by the modern Broadcast sender contract. Provider-4 regression against those mailbox providers is therefore a current source/scope mismatch, not a credential-only blocker.
+- MAIN resolved Provider-4 scope: runtime regression covers the supported customer-managed bulk Email providers — Amazon SES, SendGrid, Azure Communication Services Email and MSG91 Email. Gmail/Microsoft/IMAP-SMTP/SMTP mailbox transports are not Provider-4 targets in this round.
 
 ## Documents
 
