@@ -174,6 +174,7 @@ const inboxSlice = createSlice({
     clearInboxState: () => initialState,
     clearConversationDetail(state) {
       state.detailCompanyId = null
+      state.detailEpoch = 0
       state.detailConversationId = null
       state.selectedConversation = null
       state.messages = []
