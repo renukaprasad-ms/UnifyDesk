@@ -11,6 +11,7 @@ import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.broadcast.enums.BroadcastSenderStatus;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.meta.runtime.MetaWhatsAppControlPlaneProjectionRepository;
+import com.messaging.channel.repository.ChannelConnectionRepository;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -22,8 +23,9 @@ class BroadcastChannelReadinessServiceTests {
     BroadcastSenderService senderService = mock(BroadcastSenderService.class);
     MetaWhatsAppControlPlaneProjectionRepository projections =
         mock(MetaWhatsAppControlPlaneProjectionRepository.class);
+    ChannelConnectionRepository channelConnections = mock(ChannelConnectionRepository.class);
     BroadcastChannelReadinessService service =
-        new BroadcastChannelReadinessService(senderService, projections);
+        new BroadcastChannelReadinessService(senderService, projections, channelConnections);
 
     when(senderService.list(7L))
         .thenReturn(

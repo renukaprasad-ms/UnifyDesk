@@ -1,6 +1,5 @@
 package com.messaging.broadcast.service;
 
-import com.messaging.broadcast.dto.BroadcastChannelReadinessResponse;
 import com.messaging.broadcast.dto.BroadcastChannelReadinessResponse.Availability;
 import com.messaging.broadcast.dto.BroadcastChannelReadinessResponse.Capabilities;
 import com.messaging.broadcast.dto.BroadcastChannelReadinessResponse.ChannelReadiness;
@@ -10,8 +9,12 @@ import com.messaging.broadcast.dto.BroadcastChannelReadinessResponse.SenderState
 import com.messaging.broadcast.dto.BroadcastSenderResponse;
 import com.messaging.broadcast.enums.BroadcastSenderManagementMode;
 import com.messaging.broadcast.enums.BroadcastSenderProvider;
+import com.messaging.channel.entity.ChannelConnection;
+import com.messaging.channel.enums.ChannelConnectionCapability;
+import com.messaging.channel.enums.ChannelConnectionStatus;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.meta.runtime.MetaWhatsAppControlPlaneProjectionRepository;
+import com.messaging.channel.repository.ChannelConnectionRepository;
 import com.messaging.common.exception.NotFoundException;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -26,11 +29,25 @@ public class BroadcastChannelReadinessService {
 
   private final BroadcastSenderService senderService;
   private final MetaWhatsAppControlPlaneProjectionRepository whatsAppProjectionRepository;
+  private final ChannelConnectionRepository channelConnectionRepository;
 
   public List<ChannelReadiness> readiness(long companyId) {
     List<BroadcastSenderResponse> senders = senderService.list(companyId);
+    List<ChannelConnection> broadcastConnections =
+        channelConnectionRepository.findByCompanyIdOrderByCreatedAtDesc(companyId).stream()
+            .filter(
+                connection ->
+                    connection
+                        .getProviderType()
+                        .supportsCapability(ChannelConnectionCapability.BROADCAST))
+            .toList();
+    List<MetaWhatsAppControlPlaneProjectionRepository.Projection> whatsAppProjections =
+        whatsAppProjectionRepository.findByCompanyId(companyId);
+
     Map<ChannelType, List<SenderReadiness>> byChannel = new EnumMap<>(ChannelType.class);
-    for (ChannelType channel : ChannelType.values()) byChannel.put(channel, new ArrayList<>());
+    for (ChannelType channel : ChannelType.values()) {
+      byChannel.put(channel, new ArrayList<>());
+    }
 
     for (BroadcastSenderResponse sender : senders) {
       ChannelType channel = sender.provider().channelType();
@@ -55,21 +72,30 @@ public class BroadcastChannelReadinessService {
       List<SenderReadiness> channelSenders = List.copyOf(byChannel.get(channel));
       boolean anyReady =
           channelSenders.stream().anyMatch(sender -> sender.state() == SenderState.READY);
+      List<ChannelConnection> channelConnections =
+          broadcastConnections.stream()
+              .filter(connection -> connection.getChannelType() == channel)
+              .toList();
+
       Configuration configuration;
       if (anyReady) {
-        configuration = Configuration.READY;
-      } else if (!channelSenders.isEmpty()) {
-        configuration = Configuration.ACTION_REQUIRED;
-      } else if (channel == ChannelType.WHATSAPP
-          && !whatsAppProjectionRepository.findByCompanyId(companyId).isEmpty()) {
-        boolean disconnected =
-            whatsAppProjectionRepository.findByCompanyId(companyId).stream()
-                .allMatch(projection -> "DISCONNECTED".equals(projection.productState()));
-        configuration =
-            disconnected ? Configuration.DISCONNECTED : Configuration.ACTION_REQUIRED;
-      } else {
+        boolean degradedWhatsApp =
+            channel == ChannelType.WHATSAPP
+                && whatsAppProjections.stream()
+                    .anyMatch(
+                        projection ->
+                            "DEGRADED".equals(projection.productState())
+                                && projection.usableForSend());
+        configuration = degradedWhatsApp ? Configuration.DEGRADED : Configuration.READY;
+      } else if (channelConnections.isEmpty()) {
         configuration = Configuration.NOT_CONFIGURED;
+      } else if (channelConnections.stream()
+          .allMatch(connection -> connection.getStatus() == ChannelConnectionStatus.DISCONNECTED)) {
+        configuration = Configuration.DISCONNECTED;
+      } else {
+        configuration = Configuration.ACTION_REQUIRED;
       }
+
       result.add(
           new ChannelReadiness(
               channel,
