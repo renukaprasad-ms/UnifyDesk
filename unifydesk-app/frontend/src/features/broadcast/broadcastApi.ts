@@ -19,11 +19,8 @@ import type {
   ConnectMsg91Input,
   ConnectSendGridInput,
   ChannelReadiness,
-  AudienceSelector,
-  ChannelReadiness,
   CreateAudienceBroadcastMessageInput,
   CreateBroadcastGroupInput,
-  RecipientResolutionPreview,
   CreateBroadcastMessageInput,
   Page,
   RecipientResolutionPreview,
@@ -211,30 +208,6 @@ export const broadcastApi = {
     return unwrap(response.data)
   },
 
-  async previewAudience(
-    companyId: string,
-    input: {
-      selector: AudienceSelector
-      channel: ChannelType
-      purpose: 'MARKETING'
-      senderId?: string | null
-    },
-  ) {
-    const response = await apiClient.post<ApiResponse<RecipientResolutionPreview>>(
-      `/api/v1/companies/${companyId}/broadcast/audiences/preview`,
-      input,
-    )
-    return unwrap(response.data)
-  },
-
-  async readiness(companyId: string, channel: ChannelType) {
-    const response = await apiClient.get<ApiResponse<ChannelReadiness>>(
-      `/api/v1/companies/${companyId}/broadcast/readiness`,
-      { params: { channel } },
-    )
-    return unwrap(response.data)
-  },
-
   async createAudienceMessage(companyId: string, input: CreateAudienceBroadcastMessageInput) {
     const response = await apiClient.post<ApiResponse<BroadcastMessage>>(
       `/api/v1/companies/${companyId}/broadcast/audiences/messages`,
@@ -242,7 +215,6 @@ export const broadcastApi = {
     )
     return unwrap(response.data)
   },
-
 
   async previewAudience(
     companyId: string,
