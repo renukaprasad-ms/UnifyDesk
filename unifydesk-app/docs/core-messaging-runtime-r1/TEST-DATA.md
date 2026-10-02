@@ -29,6 +29,52 @@ For duplicate/consent semantics:
 
 Do not infer any consent state from email/phone presence alone.
 
+## Recipient unsubscribe / precedence fixtures
+
+Use a single deterministic Email Contact with an active canonical EMAIL identity.
+
+Required event sequence fixture:
+
+```text
+T1 = 2026-10-02T10:00:00Z  IMPORT         OPTED_IN
+T2 = 2026-10-02T12:00:00Z  CONTACT_ACTION OPTED_OUT
+T3 = 2026-10-02T10:00:00Z  IMPORT         OPTED_IN  (replayed later)
+T4 = 2026-10-02T15:00:00Z  approved source OPTED_IN (valid re-consent)
+```
+
+Assertions:
+
+- after T1: effective state `OPTED_IN`;
+- after T2: effective state `OPTED_OUT`;
+- after T3: event may exist, but effective state must remain `OPTED_OUT`;
+- after T4: effective state may become `OPTED_IN` if policy/evidence is valid and no active suppression blocks eligibility.
+
+Duplicate recipient action:
+
+- execute the exact same unsubscribe action twice;
+- final state remains `OPTED_OUT`;
+- harmful duplicate side effects are absent;
+- event/idempotency result is deterministic.
+
+Token isolation fixtures:
+
+- mutate one ciphertext/base64url character;
+- use a token for another browser/session;
+- attempt to substitute any exposed Contact/company/identity value if the UI/API provides such inputs;
+- attempt another channel/purpose if request parameters exist.
+
+No token test may require exposing raw token payload or key material in logs/evidence.
+
+Frozen-audience fixture:
+
+1. Contact is `OPTED_IN`.
+2. Preview/freeze includes the Contact.
+3. Recipient performs the Contact action and becomes `OPTED_OUT`.
+4. Dispatch continues.
+5. recipient must become `SKIPPED`;
+6. transport invocation count remains zero;
+7. provider message ID remains null.
+
 ## Canonical 1,000-contact fixture
 
 Use deterministic identifiers so every result can be reconciled back to the CSV row.
