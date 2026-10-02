@@ -1,5 +1,36 @@
 # State Transitions
 
+## Contact Email marketing preference
+
+Canonical effective projection:
+
+`UNKNOWN | OPTED_IN | OPTED_OUT`
+
+Recipient unsubscribe target transition:
+
+`EMAIL / MARKETING -> OPTED_OUT`
+
+with immutable event provenance:
+
+- `source = CONTACT_ACTION`
+- `actorType = CONTACT`
+- recipient-specific source reference
+- occurred-at timestamp
+- idempotency key
+
+Event history is append-only through the application repository path.
+
+Effective projection must be event-time ordered, not ingestion ordered:
+
+- strictly newer valid preference evidence may change current state;
+- strictly older evidence is historical only and must not regress current state;
+- equal-time conflicts require deterministic safety ordering;
+- valid later re-consent may move `OPTED_OUT -> OPTED_IN` if no separate active suppression blocks eligibility.
+
+Current frozen source does **not** enforce this event-time ordering yet; `ContactPreferenceRepository.apply()` currently updates the projection for every newly inserted event.
+
+Recipient unsubscribe does not itself create/lift provider/legal suppression. Preference and suppression remain distinct.
+
 ## Core Broadcast message
 
 Actual enum:
