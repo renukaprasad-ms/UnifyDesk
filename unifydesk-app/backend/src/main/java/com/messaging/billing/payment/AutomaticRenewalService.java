@@ -40,7 +40,7 @@ public class AutomaticRenewalService {
     Instant now = Instant.now();
     store.discoverDue(now);
     for (AutomaticRenewalStore.Job job :
-        store.claimDue(now, properties.getRenewalClaimSeconds())) {
+        store.claimDue(now, properties.getAutomaticRenewalClaimSeconds())) {
       processClaimed(job);
     }
   }
