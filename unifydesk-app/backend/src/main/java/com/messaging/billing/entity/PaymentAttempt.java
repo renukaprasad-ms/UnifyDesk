@@ -42,6 +42,12 @@ public class PaymentAttempt {
   @Column(name = "provider_payment_id", length = 255)
   private String providerPaymentId;
 
+  @Column(name = "provider_command_id", length = 255)
+  private String providerCommandId;
+
+  @Column(name = "provider_submission_state", nullable = false, length = 32)
+  private String providerSubmissionState = "NOT_SUBMITTED";
+
   @Column(name = "failure_category", length = 80)
   private String failureCategory;
 
