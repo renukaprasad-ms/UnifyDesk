@@ -214,6 +214,24 @@ class SubscriptionChangeServiceTests {
   }
 
   @Test
+  void paidUpgradeConsumesCanonicalInvoiceOnlyThroughConfirmationBoundary() {
+    SubscriptionChange change = prior(10L, "upgrade-paid", SubscriptionChangeType.UPGRADE, 31L);
+    change.setStatus(SubscriptionChangeStatus.PENDING_PAYMENT);
+    change.setAmountDue(new BigDecimal("500.00"));
+    when(changeRepository.findByIdForUpdate(change.getId())).thenReturn(Optional.of(change));
+    when(lifecycleService.requireForUpdate(40L)).thenReturn(current);
+    when(changeRepository.saveAndFlush(change)).thenReturn(change);
+
+    var response = service.applyConfirmedUpgrade(change.getId(), 900L, now);
+
+    verify(upgradeInvoiceService).assertPaidCanonicalInvoice(change, 900L);
+    verify(billingPeriodService).ensurePlatformPeriod(current);
+    assertEquals(SubscriptionChangeStatus.APPLIED, response.status());
+    assertEquals("900", response.invoiceId());
+    assertEquals(targetPlan, current.getPlan());
+  }
+
+  @Test
   void downgradeIsScheduledExactlyAtCurrentBoundary() {
     commonNewCommandStubs("down-1");
     when(planChangeClassifier.classify(currentPlan, currentPrice, targetPlan, targetPrice))
@@ -239,6 +257,9 @@ class SubscriptionChangeServiceTests {
     assertEquals(1, service.applyDueDowngrades(periodEnd));
     assertEquals(SubscriptionChangeStatus.APPLIED, change.getStatus());
     assertEquals(targetPlan, current.getPlan());
+    assertEquals(periodEnd, current.getCurrentPeriodStart());
+    assertEquals(Instant.parse("2026-12-01T00:00:00Z"), current.getCurrentPeriodEnd());
+    verify(billingPeriodService).ensurePlatformPeriod(current);
     assertEquals(0, service.applyDueDowngrades(periodEnd));
 
     verify(lifecycleService, times(1))
