@@ -44,6 +44,8 @@ public class SubscriptionChangeService {
   private final SubscriptionLifecycleService lifecycleService;
   private final UpgradeProrationCalculator prorationCalculator;
   private final PlanChangeClassifier planChangeClassifier;
+  private final BillingPeriodService billingPeriodService;
+  private final UpgradeInvoiceService upgradeInvoiceService;
 
   @Transactional
   public SubscriptionChangeResponse requestUpgrade(
@@ -72,7 +74,7 @@ public class SubscriptionChangeService {
     }
 
     Plan target = requireTarget(companyId, targetPlanId, requestedAt);
-    PlanPrice targetPrice = requirePrice(target, targetPlanPriceId);
+    PlanPrice targetPrice = requirePrice(target, targetPlanPriceId, requestedAt);
     PlanChangeDirection direction =
         planChangeClassifier.classify(current.getPlan(), currentPrice, target, targetPrice);
     if (direction != PlanChangeDirection.UPGRADE) {
@@ -151,7 +153,9 @@ public class SubscriptionChangeService {
     }
 
     Plan target = requireTarget(companyId, targetPlanId, requestedAt);
-    PlanPrice targetPrice = requirePrice(target, targetPlanPriceId);
+    // Downgrade pricing is frozen for the time the target plan actually becomes effective.
+    PlanPrice targetPrice =
+        requirePrice(target, targetPlanPriceId, current.getCurrentPeriodEnd());
     PlanChangeDirection direction =
         planChangeClassifier.classify(current.getPlan(), currentPrice, target, targetPrice);
     if (direction != PlanChangeDirection.DOWNGRADE) {
@@ -202,11 +206,12 @@ public class SubscriptionChangeService {
     if (change.getStatus() != SubscriptionChangeStatus.PENDING_PAYMENT) {
       throw new ConflictException("Upgrade is not awaiting payment confirmation");
     }
-    if (change.getAmountDue() != null
-        && change.getAmountDue().signum() > 0
-        && invoiceId == null) {
-      throw new ConflictException(
-          "A paid upgrade cannot be applied without confirmed financial evidence");
+    if (change.getAmountDue() != null && change.getAmountDue().signum() > 0) {
+      if (invoiceId == null) {
+        throw new ConflictException(
+            "A paid upgrade cannot be applied without confirmed financial evidence");
+      }
+      upgradeInvoiceService.assertPaidCanonicalInvoice(change, invoiceId);
     }
 
     CompanySubscription subscription =
@@ -215,6 +220,9 @@ public class SubscriptionChangeService {
       throw new ConflictException("Subscription is not active");
     }
     assertSubscriptionStillMatches(change, subscription);
+
+    // Freeze the pre-upgrade platform-period snapshot before changing the commercial plan.
+    billingPeriodService.ensurePlatformPeriod(subscription);
 
     Plan fromPlan = subscription.getPlan();
     subscription.setPlan(change.getToPlan());
@@ -257,6 +265,7 @@ public class SubscriptionChangeService {
       subscription.setBillingAnchor(change.getEffectiveAt());
       subscription.setCurrentPeriodEnd(
           nextBoundary(change.getEffectiveAt(), targetPrice.getBillingCycle()));
+      billingPeriodService.ensurePlatformPeriod(subscription);
 
       change.setStatus(SubscriptionChangeStatus.APPLIED);
       change.setAppliedAt(now);
@@ -291,7 +300,7 @@ public class SubscriptionChangeService {
     return plan;
   }
 
-  private PlanPrice requirePrice(Plan plan, Long priceId) {
+  private PlanPrice requirePrice(Plan plan, Long priceId, Instant pricingAt) {
     PlanPrice price =
         planPriceRepository
             .findById(priceId)
@@ -301,6 +310,13 @@ public class SubscriptionChangeService {
     }
     if (!"INR".equalsIgnoreCase(price.getCurrency())) {
       throw new BadRequestException("Billing R1 supports INR only");
+    }
+    if (pricingAt == null
+        || price.getEffectiveFrom() == null
+        || price.getEffectiveFrom().isAfter(pricingAt)
+        || (price.getEffectiveTo() != null && !pricingAt.isBefore(price.getEffectiveTo()))) {
+      throw new BadRequestException(
+          "Plan price is not effective at the canonical subscription-change pricing time");
     }
     return price;
   }
