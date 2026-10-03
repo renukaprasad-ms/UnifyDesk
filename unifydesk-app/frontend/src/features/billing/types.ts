@@ -11,18 +11,14 @@ export type PaymentPolicy = 'CASHFREE' | 'COMPED' | 'OFFLINE_CONTRACT'
 export type SubscriptionChangeType = 'UPGRADE' | 'DOWNGRADE' | 'REACTIVATION'
 export type SubscriptionChangeStatus =
   | 'REQUESTED'
-  | 'PAYMENT_PENDING'
+  | 'PENDING_PAYMENT'
   | 'SCHEDULED'
   | 'APPLIED'
   | 'CANCELLED'
   | 'FAILED'
 export type PaymentStatus = 'CREATED' | 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
 
-export type Entitlement = {
-  entitlementId: string
-  key: string
-  value: string
-}
+export type Entitlement = { entitlementId: string; key: string; value: string }
 
 export type PlanPrice = {
   planPriceId: string
@@ -72,10 +68,7 @@ export type CompanySubscription = {
   externalContractReference?: string | null
 }
 
-export type CompanyPlanDetails = {
-  subscription: CompanySubscription | null
-  plan: Plan | null
-}
+export type CompanyPlanDetails = { subscription: CompanySubscription | null; plan: Plan | null }
 
 export type SubscriptionChange = {
   changeId: string
@@ -112,12 +105,7 @@ export type InvoiceIdentity = {
   taxRegistration?: string | null
 }
 
-export type CheckoutCustomer = {
-  name?: string | null
-  email: string
-  phone: string
-}
-
+export type CheckoutCustomer = { name?: string | null; email: string; phone: string }
 export type InitialCheckoutInput = {
   planId: string
   planPriceId: string
@@ -125,13 +113,11 @@ export type InitialCheckoutInput = {
   invoiceIdentity?: InvoiceIdentity | null
   customer: CheckoutCustomer
 }
-
 export type UpgradeCheckoutInput = {
   changeId: string
   quoteReference: string
   customer: CheckoutCustomer
 }
-
 export type CheckoutResponse = {
   paymentId: string
   invoiceId: string
