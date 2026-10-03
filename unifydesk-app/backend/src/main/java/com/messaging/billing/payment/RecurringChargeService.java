@@ -131,28 +131,21 @@ public class RecurringChargeService {
     }
 
     chargeStore.bindRemote(prepared.attemptId(), remote);
-    if ("SUCCESS".equalsIgnoreCase(remote.status())) {
-      confirmationService.confirmSuccessByPaymentId(
-          prepared.paymentId(),
-          remote.providerPaymentId(),
-          prepared.amount(),
-          prepared.currency(),
-          remote.providerCreatedAt());
-      return;
-    }
-
     PaymentAttemptStatus status =
-        "PENDING".equalsIgnoreCase(remote.status())
-            || "INITIALIZED".equalsIgnoreCase(remote.status())
-            ? PaymentAttemptStatus.PENDING
-            : PaymentAttemptStatus.FAILED;
-    confirmationService.recordFailureByPaymentId(
-        prepared.paymentId(),
+        "SUCCESS".equalsIgnoreCase(remote.status())
+            ? PaymentAttemptStatus.SUCCEEDED
+            : ("PENDING".equalsIgnoreCase(remote.status())
+                    || "INITIALIZED".equalsIgnoreCase(remote.status())
+                ? PaymentAttemptStatus.PENDING
+                : PaymentAttemptStatus.FAILED);
+    confirmationService.confirmRecurringAttempt(
+        prepared.providerCommandId(),
+        prepared.providerSubscriptionId(),
         remote.providerPaymentId(),
         prepared.amount(),
         prepared.currency(),
-        remote.failureCode(),
         status,
+        remote.failureCode(),
         remote.providerCreatedAt());
   }
 }
