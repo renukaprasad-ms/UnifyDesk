@@ -5,6 +5,12 @@ export type PendingBillingCheckout = {
   paymentId: string
   invoiceId: string
   recurringAuthorizationActionUrl?: string | null
+  /**
+   * Authoritative pre-checkout subscription baseline. For a valid INITIAL checkout this is null,
+   * because the backend refuses initial paid checkout while a current subscription exists.
+   */
+  previousSubscriptionId: string | null
+  /** Diagnostic/session-lifecycle metadata only. Never use this browser timestamp as payment truth. */
   createdAt: string
 }
 
@@ -25,6 +31,7 @@ export const readPendingBillingCheckout = (): PendingBillingCheckout | null => {
       (value.kind !== 'INITIAL' && value.kind !== 'UPGRADE') ||
       typeof value.paymentId !== 'string' ||
       typeof value.invoiceId !== 'string' ||
+      (value.previousSubscriptionId !== null && typeof value.previousSubscriptionId !== 'string') ||
       typeof value.createdAt !== 'string'
     ) {
       return null

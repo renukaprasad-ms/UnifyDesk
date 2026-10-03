@@ -1,5 +1,11 @@
 import type { PendingBillingCheckout } from './pendingCheckout'
-import type { CompanyPlanDetails, CompanySubscription, Plan, PlanPrice, SubscriptionChange } from './types'
+import type {
+  CompanyPlanDetails,
+  CompanySubscription,
+  Plan,
+  PlanPrice,
+  SubscriptionChange,
+} from './types'
 
 export const customerVisiblePlans = (plans: Plan[]) =>
   plans.filter((plan) => plan.visibility !== 'INTERNAL')
@@ -28,9 +34,7 @@ export const downgradePlanPrices = (plan: Plan, currentPeriodEnd?: string | null
   return activePlanPrices(plan, boundary)
 }
 
-export const subscribedPlanPrice = (
-  details: CompanyPlanDetails | null,
-): PlanPrice | null => {
+export const subscribedPlanPrice = (details: CompanyPlanDetails | null): PlanPrice | null => {
   const id = details?.subscription?.planPriceId
   if (!id || !details?.plan) return null
   return details.plan.prices.find((price) => price.planPriceId === id) ?? null
@@ -43,7 +47,9 @@ export const money = (amount: number | null | undefined, currency = 'INR') => {
   if (amount === null || amount === undefined) return '—'
   try {
     return new Intl.NumberFormat('en-IN', {
-      style: 'currency', currency, maximumFractionDigits: 2,
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 2,
     }).format(amount)
   } catch {
     return `${currency} ${amount}`
@@ -52,12 +58,18 @@ export const money = (amount: number | null | undefined, currency = 'INR') => {
 
 export const subscriptionStatusMessage = (subscription: CompanySubscription) => {
   switch (subscription.status) {
-    case 'PAST_DUE': return 'Payment overdue — service is in the billing grace period.'
-    case 'SUSPENDED': return 'Billing is unresolved. Some paid operations are restricted.'
-    case 'TRIALING': return 'This workspace is currently in its trial period.'
-    case 'CANCELLED': return 'This subscription has been cancelled.'
-    case 'EXPIRED': return 'This subscription has reached its scheduled end.'
-    default: return 'Your platform subscription is active.'
+    case 'PAST_DUE':
+      return 'Payment overdue — service is in the billing grace period.'
+    case 'SUSPENDED':
+      return 'Billing is unresolved. Some paid operations are restricted.'
+    case 'TRIALING':
+      return 'This workspace is currently in its trial period.'
+    case 'CANCELLED':
+      return 'This subscription has been cancelled.'
+    case 'EXPIRED':
+      return 'This subscription has reached its scheduled end.'
+    default:
+      return 'Your platform subscription is active.'
   }
 }
 
@@ -67,17 +79,23 @@ export const upgradeQuoteRows = (change: SubscriptionChange) => [
   ['Amount due', change.amountDue],
 ] as const
 
+/**
+ * Bounded return-page fallback for INITIAL checkout only.
+ *
+ * The return URL and provider/browser state are never payment proof. A valid initial checkout is
+ * prepared from an authoritative baseline with no current subscription. A later active target
+ * subscription therefore represents the backend state transition that F1 can safely observe.
+ * UPGRADE deliberately remains unconfirmed until a normalized backend payment read exists.
+ */
 export const paymentReturnConfirmed = (
   details: CompanyPlanDetails,
   context: PendingBillingCheckout | null,
+  currentCompanyId: string | null,
 ) => {
-  if (!context || !details.subscription || details.subscription.planId !== context.targetPlanId) return false
-  if (!['ACTIVE', 'TRIALING'].includes(details.subscription.status)) return false
-  // With no normalized payment-status GET, never infer an upgrade payment from an already-active plan.
-  if (context.kind === 'UPGRADE') return false
-  const checkoutCreatedAt = new Date(context.createdAt).getTime()
-  const subscriptionStartedAt = new Date(details.subscription.startedAt).getTime()
-  return Number.isFinite(checkoutCreatedAt) && Number.isFinite(subscriptionStartedAt) && subscriptionStartedAt >= checkoutCreatedAt
+  if (!context || !currentCompanyId || context.companyId !== currentCompanyId) return false
+  if (context.kind !== 'INITIAL' || context.previousSubscriptionId !== null) return false
+  if (!details.subscription || details.subscription.planId !== context.targetPlanId) return false
+  return ['ACTIVE', 'TRIALING'].includes(details.subscription.status)
 }
 
 export const DOWNGRADE_BOUNDARY_COPY =

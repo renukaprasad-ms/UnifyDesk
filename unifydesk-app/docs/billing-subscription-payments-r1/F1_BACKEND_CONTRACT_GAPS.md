@@ -10,11 +10,11 @@ F1 did not add or alter backend production code. These frontend requirements can
 
 **Missing:** normalized Payment, PaymentAttempt, invoice settlement and recurring-authorization state after a Cashfree redirect, including failed/cancelled/action-required states.
 
-**Existing contracts inspected:** checkout creation POSTs under `/api/v1/companies/{companyId}/billing/payments/*` and `GET /api/v1/companies/{companyId}/plan`. The payment controller has no customer GET endpoint. Company plan state can prove activation but cannot distinguish payment failure, provider-pending payment, attempt history, or current recurring authorization.
+**Existing contracts inspected:** checkout creation POSTs under `/api/v1/companies/{companyId}/billing/payments/*` and `GET /api/v1/companies/{companyId}/plan`. The payment controller has no customer GET endpoint. Company plan state can prove an INITIAL subscription activation transition from a captured no-subscription baseline, but cannot distinguish payment failure, provider-pending payment, attempt history, current recurring authorization, or conclusively correlate a paid UPGRADE from plan state alone.
 
 **Smallest addition:** company-authorized GET keyed by local paymentId or invoiceId returning logical Payment status, attempts, invoice status, and normalized recurring-authorization state/action without raw provider secrets.
 
-**F1 fallback:** ignore redirect/query-string success signals and bounded-poll company plan state. Render confirmed only when backend subscription truth matches the stored target plan; otherwise stop after a bounded window and remain pending/unknown.
+**F1 fallback:** ignore redirect/query-string success signals and bounded-poll company plan state. For INITIAL checkout only, capture the authoritative pre-checkout subscription baseline; B1 refuses initial paid checkout while a current subscription exists, so a later active target subscription can be correlated to the no-subscription baseline without comparing browser and server clocks. UPGRADE return remains pending/informational because the frozen contracts cannot prove paid-upgrade settlement from plan state alone.
 
 ## GAP-2 — Customer invoice history and invoice lines
 
