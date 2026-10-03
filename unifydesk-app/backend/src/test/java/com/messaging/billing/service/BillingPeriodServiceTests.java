@@ -2,6 +2,7 @@ package com.messaging.billing.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -15,6 +16,7 @@ import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.enums.BillingPeriodKind;
 import com.messaging.billing.enums.BillingPeriodStatus;
 import com.messaging.billing.repository.BillingPeriodRepository;
+import com.messaging.common.exception.ConflictException;
 import com.messaging.company.entity.Company;
 import com.messaging.company.repository.CompanyRepository;
 import java.math.BigDecimal;
@@ -62,6 +64,37 @@ class BillingPeriodServiceTests {
     assertEquals(price, result.getPlanPrice());
     assertEquals(new BigDecimal("100.00"), result.getPlatformAmountSnapshot());
     assertEquals("INR", result.getCurrencySnapshot());
+  }
+
+  @Test
+  void incompatibleExistingPlatformSnapshotFailsClosed() {
+    Company company = company(1L);
+    Plan plan = plan(2L);
+    PlanPrice price = price(3L, plan);
+    CompanySubscription subscription = subscription(4L, company, plan, price);
+
+    BillingPeriod existing = period(5L, company, BillingPeriodKind.PLATFORM);
+    existing.setStartAt(subscription.getCurrentPeriodStart());
+    existing.setEndAt(subscription.getCurrentPeriodEnd());
+    Plan differentPlan = plan(99L);
+    existing.setSubscription(subscription);
+    existing.setPlan(differentPlan);
+    existing.setPlanPrice(price);
+    existing.setPlatformAmountSnapshot(new BigDecimal("100.00"));
+    existing.setCurrencySnapshot("INR");
+
+    when(companyRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(company));
+    when(periodRepository.findByCompanyIdAndKindAndStartAtAndEndAt(
+            1L,
+            BillingPeriodKind.PLATFORM,
+            subscription.getCurrentPeriodStart(),
+            subscription.getCurrentPeriodEnd()))
+        .thenReturn(Optional.of(existing));
+
+    assertThrows(
+        ConflictException.class, () -> service.ensurePlatformPeriod(subscription));
+
+    verify(periodRepository, never()).saveAndFlush(any(BillingPeriod.class));
   }
 
   @Test
