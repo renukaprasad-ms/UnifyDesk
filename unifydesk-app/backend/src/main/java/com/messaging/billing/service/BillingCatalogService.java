@@ -406,7 +406,14 @@ public class BillingCatalogService {
     }
 
     Instant now = Instant.now();
-    closeCurrentSubscriptions(companyId, now);
+    CompanySubscription current = subscriptionLifecycleService.currentOptional(companyId).orElse(null);
+    if (current != null) {
+      if (current.getPlan().getId().equals(plan.getId())) {
+        return toSubscriptionResponse(current);
+      }
+      throw new ConflictException(
+          "A current subscription already exists; use the upgrade or downgrade contract");
+    }
 
     CompanySubscription subscription = new CompanySubscription();
     subscription.setCompany(company);
@@ -458,7 +465,13 @@ public class BillingCatalogService {
     }
 
     Instant now = Instant.now();
-    closeCurrentSubscriptions(companyId, now);
+    if (subscriptionLifecycleService.currentOptional(companyId).isPresent()) {
+      subscriptionLifecycleService.cancelImmediately(
+          companyId,
+          actorUserId,
+          "Superseded by manual grant: " + request.reason().trim(),
+          now);
+    }
     CompanySubscription subscription = new CompanySubscription();
     subscription.setCompany(company);
     subscription.setPlan(plan);
@@ -522,7 +535,7 @@ public class BillingCatalogService {
 
   @Transactional
   public void cancelForCompanyDeletion(Long companyId) {
-    closeCurrentSubscriptions(companyId, Instant.now());
+    subscriptionLifecycleService.cancelForCompanyDeletion(companyId, Instant.now());
   }
 
   @Transactional
@@ -565,25 +578,6 @@ public class BillingCatalogService {
             () ->
                 subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
                     companyId, SubscriptionStatus.TRIALING));
-  }
-
-  private void closeCurrentSubscriptions(Long companyId, Instant now) {
-    subscriptionRepository.findByCompanyIdOrderByStartedAtDesc(companyId).stream()
-        .filter(
-            subscription ->
-                subscription.getStatus() == SubscriptionStatus.ACTIVE
-                    || subscription.getStatus() == SubscriptionStatus.TRIALING
-                    || subscription.getStatus() == SubscriptionStatus.PAST_DUE
-                    || subscription.getStatus() == SubscriptionStatus.SUSPENDED)
-        .forEach(
-            subscription -> {
-              subscription.setStatus(SubscriptionStatus.CANCELLED);
-              subscription.setCancelledAt(now);
-              subscription.setEndsAt(now);
-              subscription.setCancelAtPeriodEnd(false);
-              subscriptionRepository.save(subscription);
-            });
-    subscriptionRepository.flush();
   }
 
   private void transitionPlan(Plan plan, PlanStatus target) {
@@ -944,7 +938,11 @@ public class BillingCatalogService {
   }
 
   private String normalizeCurrency(String value) {
-    return value.trim().toUpperCase(Locale.ROOT);
+    String currency = value.trim().toUpperCase(Locale.ROOT);
+    if (!"INR".equals(currency)) {
+      throw new BadRequestException("Billing R1 supports INR only");
+    }
+    return currency;
   }
 
   private String normalizeCountry(String value) {
