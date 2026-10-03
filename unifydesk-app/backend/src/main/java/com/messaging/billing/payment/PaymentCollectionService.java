@@ -90,7 +90,9 @@ public class PaymentCollectionService {
         payment.paymentSessionId(),
         payment.amount(),
         payment.currency(),
-        payment.status());
+        payment.status(),
+        null,
+        null);
   }
 
   private String required(String value) {
@@ -107,5 +109,21 @@ public class PaymentCollectionService {
       String paymentSessionId,
       BigDecimal amount,
       String currency,
-      PaymentStatus status) {}
+      PaymentStatus status,
+      String recurringAuthorizationSessionId,
+      String recurringAuthorizationActionUrl) {
+
+    public CheckoutResult withRecurringAuthorization(String sessionId, String actionUrl) {
+      return new CheckoutResult(
+          paymentId,
+          invoiceId,
+          providerOrderId,
+          paymentSessionId,
+          amount,
+          currency,
+          status,
+          sessionId,
+          actionUrl);
+    }
+  }
 }
