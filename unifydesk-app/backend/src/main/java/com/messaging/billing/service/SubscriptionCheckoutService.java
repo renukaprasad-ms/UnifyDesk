@@ -19,6 +19,7 @@ import com.messaging.billing.enums.SubscriptionTransitionType;
 import com.messaging.billing.repository.CompanySubscriptionRepository;
 import com.messaging.billing.repository.PlanPriceRepository;
 import com.messaging.billing.repository.PlanRepository;
+import com.messaging.billing.repository.InvoiceRepository;
 import com.messaging.billing.repository.SubscriptionCheckoutIntentRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ConflictException;
@@ -52,6 +53,7 @@ public class SubscriptionCheckoutService {
   private final SubscriptionCheckoutIntentRepository intentRepository;
   private final CompanyRepository companyRepository;
   private final PlanRepository planRepository;
+  private final InvoiceRepository invoiceRepository;
   private final PlanPriceRepository planPriceRepository;
   private final CompanySubscriptionRepository subscriptionRepository;
   private final PlanEligibilityService eligibilityService;
@@ -137,8 +139,6 @@ public class SubscriptionCheckoutService {
           "Initial platform invoice conflicts with the immutable PlanPrice snapshot");
     }
 
-    intent.setInvoiceIdNotAvailable();
-    intent.setInvoice(null);
     return bindInvoiceAndReturn(intent, invoice);
   }
 
@@ -265,8 +265,12 @@ public class SubscriptionCheckoutService {
   private SubscriptionCheckoutIntentResponse bindInvoiceAndReturn(
       SubscriptionCheckoutIntent intent, InvoiceResponse invoice) {
     var invoiceEntity =
-        new com.messaging.billing.entity.Invoice();
-    invoiceEntity.setId(Long.parseLong(invoice.invoiceId()));
+        invoiceRepository
+            .findByIdForUpdate(Long.parseLong(invoice.invoiceId()))
+            .orElseThrow(() -> new NotFoundException("Canonical checkout invoice not found"));
+    if (!invoiceEntity.getBillingPeriod().getId().equals(intent.getBillingPeriod().getId())) {
+      throw new ConflictException("Checkout invoice does not belong to the intent billing period");
+    }
     intent.setInvoice(invoiceEntity);
     intent = intentRepository.saveAndFlush(intent);
     return toResponse(intent, invoice);
@@ -366,14 +370,16 @@ public class SubscriptionCheckoutService {
     if (intent.getInvoice() == null) {
       throw new ConflictException("Checkout intent has no canonical invoice");
     }
-    return toResponse(
-        intent,
-        invoiceService
-            .invoices(intent.getCompany().getId())
-            .stream()
-            .filter(i -> i.invoiceId().equals(intent.getInvoice().getId().toString()))
-            .findFirst()
-            .orElseThrow(() -> new ConflictException("Checkout invoice cannot be resolved")));
+    InvoiceResponse invoice =
+        invoiceService.createOrResolvePlatformInvoice(
+            intent.getCompany().getId(),
+            intent.getBillingPeriod().getId(),
+            null,
+            intent.getRequestedAt());
+    if (!invoice.invoiceId().equals(intent.getInvoice().getId().toString())) {
+      throw new ConflictException("Checkout intent invoice binding conflicts with billing period");
+    }
+    return toResponse(intent, invoice);
   }
 
   private SubscriptionCheckoutIntentResponse toResponse(
