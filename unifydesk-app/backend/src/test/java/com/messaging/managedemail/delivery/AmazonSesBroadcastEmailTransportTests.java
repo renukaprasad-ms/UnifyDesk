@@ -8,6 +8,7 @@ import com.messaging.broadcast.entity.BroadcastSender;
 import com.messaging.broadcast.entity.BroadcastSenderConnection;
 import com.messaging.broadcast.transport.AmazonSesBroadcastEmailTransport;
 import com.messaging.broadcast.transport.BroadcastEmailCommand;
+import com.messaging.broadcast.transport.BroadcastEmailComplianceMetadata;
 import jakarta.mail.internet.InternetAddress;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -41,6 +42,37 @@ class AmazonSesBroadcastEmailTransportTests {
         .containsEntry("ud_domain_id", "40")
         .containsEntry("ud_recipient_id", "70")
         .containsEntry("ud_correlation", "corr-70");
+  }
+
+  @Test
+  void simpleMessageContainsStandardOneClickHeaders() {
+    Fixture fixture = fixture(true);
+    BroadcastEmailCommand command =
+        new BroadcastEmailCommand(
+            "recipient@example.test",
+            "Subject",
+            "Text",
+            "<p>Text</p>",
+            null,
+            Map.of(),
+            "<id@example.test>",
+            "corr-70",
+            10L,
+            60L,
+            20L,
+            70L,
+            new BroadcastEmailComplianceMetadata(
+                "https://app.example/unsubscribe?token=token",
+                "https://api.example/unsubscribe/token"));
+
+    fixture.transport.send(connection(), sender(), command);
+
+    Map<String, String> headers =
+        captured(fixture.client).content().simple().headers().stream()
+            .collect(Collectors.toMap(header -> header.name(), header -> header.value()));
+    assertThat(headers)
+        .containsEntry("List-Unsubscribe", "<https://api.example/unsubscribe/token>")
+        .containsEntry("List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
   }
 
   @Test

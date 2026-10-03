@@ -38,6 +38,7 @@ public class BroadcastDeliveryService {
   private final BroadcastRetryPolicy retryPolicy;
   private final BroadcastDeliveryStateService stateService;
   private final BroadcastTemplateRenderer templateRenderer;
+  private final BroadcastEmailComplianceService emailComplianceService;
   private final ManagedEmailDeliveryGuard managedEmailDeliveryGuard;
   private final ManagedEmailRateLimiter managedEmailRateLimiter;
   private final ManagedEmailUsageService managedEmailUsageService;
@@ -152,6 +153,8 @@ public class BroadcastDeliveryService {
         return;
       }
 
+      BroadcastEmailComplianceService.CompliantContent compliant =
+          emailComplianceService.apply(rendered, recipient);
       BroadcastEmailResult result =
           emailTransportRegistry
               .require(run.getProviderType())
@@ -160,13 +163,18 @@ public class BroadcastDeliveryService {
                   sender,
                   new BroadcastEmailCommand(
                       recipient.getDestination(),
-                      rendered.subject(),
-                      rendered.bodyText(),
-                      rendered.bodyHtml(),
+                      compliant.subject(),
+                      compliant.bodyText(),
+                      compliant.bodyHtml(),
                       run.getProviderTemplateIdSnapshot(),
-                      rendered.templateVariables(),
+                      compliant.templateVariables(),
                       recipient.getInternetMessageId(),
-                      recipient.getProviderCorrelationId()));
+                      recipient.getProviderCorrelationId(),
+                      null,
+                      null,
+                      null,
+                      null,
+                      compliant.compliance()));
       stateService.accepted(attempt, result);
     } catch (BroadcastTransportException exception) {
       handleTransportException(attempt, exception);
@@ -256,6 +264,8 @@ public class BroadcastDeliveryService {
         return;
       }
 
+      BroadcastEmailComplianceService.CompliantContent compliant =
+          emailComplianceService.apply(rendered, recipient);
       BroadcastEmailResult result =
           emailTransportRegistry
               .require(run.getProviderType())
@@ -264,17 +274,18 @@ public class BroadcastDeliveryService {
                   sender,
                   new BroadcastEmailCommand(
                       recipient.getDestination(),
-                      rendered.subject(),
-                      rendered.bodyText(),
-                      rendered.bodyHtml(),
+                      compliant.subject(),
+                      compliant.bodyText(),
+                      compliant.bodyHtml(),
                       run.getProviderTemplateIdSnapshot(),
-                      rendered.templateVariables(),
+                      compliant.templateVariables(),
                       recipient.getInternetMessageId(),
                       recipient.getProviderCorrelationId(),
                       run.getCompanyId(),
                       run.getId(),
                       sender.getId(),
-                      recipient.getId()));
+                      recipient.getId(),
+                      compliant.compliance()));
       stateService.accepted(attempt, result);
       safeCommit(run, recipient, attempt, result);
       try {

@@ -3,6 +3,7 @@ package com.messaging.broadcast.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.messaging.broadcast.entity.BroadcastDeliveryAttempt;
@@ -18,6 +19,33 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class BroadcastDeliveryStateServiceTests {
+
+  @Test
+  void skippedRecipientTransitionsStatsWithoutProviderAcceptance() {
+    BroadcastRecipientRepository recipientRepository = mock(BroadcastRecipientRepository.class);
+    BroadcastDeliveryAttemptRepository attemptRepository =
+        mock(BroadcastDeliveryAttemptRepository.class);
+    BroadcastStatsService statsService = mock(BroadcastStatsService.class);
+    BroadcastDeliveryStateService service =
+        new BroadcastDeliveryStateService(
+            recipientRepository, attemptRepository, statsService);
+
+    BroadcastRecipient recipient = new BroadcastRecipient();
+    recipient.setId(10L);
+    recipient.setRunId(20L);
+    recipient.setStatus(BroadcastRecipientStatus.PROCESSING);
+    when(recipientRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(recipient));
+
+    service.skipProcessing(10L, "CONTACT_OPTED_OUT", "Contact opted out");
+
+    assertThat(recipient.getStatus()).isEqualTo(BroadcastRecipientStatus.SKIPPED);
+    assertThat(recipient.getProviderMessageId()).isNull();
+    assertThat(recipient.getAcceptedAt()).isNull();
+    verify(statsService)
+        .transition(
+            20L, BroadcastRecipientStatus.PROCESSING, BroadcastRecipientStatus.SKIPPED);
+    verifyNoInteractions(attemptRepository);
+  }
 
   @Test
   void acceptedResultDoesNotErasePreGeneratedInternetMessageId() {

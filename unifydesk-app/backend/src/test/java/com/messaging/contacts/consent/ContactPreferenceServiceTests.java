@@ -88,6 +88,29 @@ class ContactPreferenceServiceTests {
   }
 
   @Test
+  void contactActionOwnsRecipientOptOutProvenance() {
+    when(repository.apply(any())).thenReturn(null);
+
+    service.setFromContactAction(
+        1L,
+        2L,
+        3L,
+        "email-unsubscribe:v1:action",
+        "Recipient unsubscribed",
+        Instant.now(),
+        "contact-action:action");
+
+    ArgumentCaptor<PreferenceCommand> command = ArgumentCaptor.forClass(PreferenceCommand.class);
+    verify(repository).apply(command.capture());
+    assertEquals(Channel.EMAIL, command.getValue().channel());
+    assertEquals(Purpose.MARKETING, command.getValue().purpose());
+    assertEquals(PreferenceState.OPTED_OUT, command.getValue().state());
+    assertEquals(PreferenceSource.CONTACT_ACTION, command.getValue().source());
+    assertEquals(ActorType.CONTACT, command.getValue().actorType());
+    assertEquals("2", command.getValue().actorId());
+  }
+
+  @Test
   void importMutationUsesTrustedImportProvenance() {
     when(repository.apply(any())).thenReturn(null);
 

@@ -1,0 +1,73 @@
+package com.messaging.broadcast.azure;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.messaging.broadcast.config.BroadcastProperties;
+import com.messaging.broadcast.entity.BroadcastSender;
+import com.messaging.broadcast.transport.BroadcastEmailCommand;
+import com.messaging.broadcast.transport.BroadcastEmailComplianceMetadata;
+import com.messaging.common.credential.CredentialCipher;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
+class AzureEmailGatewayComplianceTests {
+
+  @Test
+  void messageContainsStandardOneClickHeaders() {
+    AzureEmailGateway gateway =
+        new AzureEmailGateway(
+            mock(CredentialCipher.class), new ObjectMapper(), new BroadcastProperties());
+
+    var message = gateway.buildMessage(sender(), command());
+
+    assertThat(message.getHeaders())
+        .containsEntry("List-Unsubscribe", "<https://api.example/unsubscribe/token>")
+        .containsEntry("List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
+  }
+
+  @Test
+  void messageWithoutComplianceMetadataDoesNotInventHeaders() {
+    AzureEmailGateway gateway =
+        new AzureEmailGateway(
+            mock(CredentialCipher.class), new ObjectMapper(), new BroadcastProperties());
+    BroadcastEmailCommand command =
+        new BroadcastEmailCommand(
+            "recipient@example.test",
+            "Subject",
+            "Text",
+            "<p>Text</p>",
+            null,
+            Map.of(),
+            null,
+            "corr");
+
+    assertThat(gateway.buildMessage(sender(), command).getHeaders()).isNullOrEmpty();
+  }
+
+  private BroadcastSender sender() {
+    BroadcastSender sender = new BroadcastSender();
+    sender.setFromAddress("sender@example.test");
+    return sender;
+  }
+
+  private BroadcastEmailCommand command() {
+    return new BroadcastEmailCommand(
+        "recipient@example.test",
+        "Subject",
+        "Text",
+        "<p>Text</p>",
+        null,
+        Map.of(),
+        null,
+        "corr",
+        null,
+        null,
+        null,
+        null,
+        new BroadcastEmailComplianceMetadata(
+            "https://app.example/unsubscribe?token=token",
+            "https://api.example/unsubscribe/token"));
+  }
+}
