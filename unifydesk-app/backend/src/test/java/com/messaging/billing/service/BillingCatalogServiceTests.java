@@ -15,6 +15,7 @@ import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.entity.Plan;
 import com.messaging.billing.entity.PlanPrice;
 import com.messaging.billing.enums.BillingCycle;
+import com.messaging.billing.enums.PaymentPolicy;
 import com.messaging.billing.enums.PlanStatus;
 import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.enums.SubscriptionStatus;
@@ -81,6 +82,63 @@ class BillingCatalogServiceTests {
     assertEquals(current.getId().toString(), response.subscriptionId());
     assertEquals(plan.getId().toString(), response.planId());
     verify(subscriptionRepository, never()).saveAndFlush(any(CompanySubscription.class));
+  }
+
+  @Test
+  void providerConfirmedPaidActivationFreezesCashfreeSubscriptionContract() {
+    long companyId = 10L;
+    Instant confirmedAt = Instant.parse("2026-10-03T06:00:00Z");
+    Instant periodEnd = Instant.parse("2026-11-03T06:00:00Z");
+    Company company = company(companyId);
+    Plan plan = plan(20L, "GROWTH");
+    plan.setBillingCycle(BillingCycle.MONTHLY);
+    plan.setBasePrice(new BigDecimal("999.00"));
+
+    PlanPrice price = new PlanPrice();
+    price.setId(30L);
+    price.setPlan(plan);
+    price.setBillingCycle(BillingCycle.MONTHLY);
+    price.setAmount(new BigDecimal("999.00"));
+    price.setCurrency("INR");
+    price.setEffectiveFrom(confirmedAt.minusSeconds(60));
+    price.setStatus(RateCardStatus.ACTIVE);
+
+    when(companyRepository.findByIdForUpdate(companyId)).thenReturn(Optional.of(company));
+    when(subscriptionLifecycleService.currentOptional(companyId)).thenReturn(Optional.empty());
+    when(planRepository.findById(plan.getId())).thenReturn(Optional.of(plan));
+    when(planPriceRepository.findById(price.getId())).thenReturn(Optional.of(price));
+    when(subscriptionRepository.saveAndFlush(any(CompanySubscription.class)))
+        .thenAnswer(
+            invocation -> {
+              CompanySubscription saved = invocation.getArgument(0);
+              saved.setId(40L);
+              return saved;
+            });
+
+    CompanySubscriptionResponse response =
+        billingCatalogService.activateProviderConfirmedSubscription(
+            companyId,
+            77L,
+            new AssignSubscriptionRequest(
+                plan.getId().toString(),
+                price.getId().toString(),
+                SubscriptionStatus.ACTIVE,
+                confirmedAt,
+                null,
+                null,
+                periodEnd),
+            confirmedAt);
+
+    assertEquals("40", response.subscriptionId());
+    assertEquals(PaymentPolicy.CASHFREE, response.paymentPolicy());
+    assertEquals(confirmedAt, response.currentPeriodStart());
+    assertEquals(periodEnd, response.currentPeriodEnd());
+    verify(subscriptionLifecycleService)
+        .recordCreated(
+            any(CompanySubscription.class),
+            org.mockito.ArgumentMatchers.eq(77L),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.any());
   }
 
   @Test
