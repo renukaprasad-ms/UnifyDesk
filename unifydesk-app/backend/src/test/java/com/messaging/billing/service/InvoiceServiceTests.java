@@ -13,6 +13,7 @@ import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.entity.Invoice;
 import com.messaging.billing.entity.InvoiceLineItem;
 import com.messaging.billing.entity.Plan;
+import com.messaging.billing.entity.PlanPrice;
 import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.enums.BillingPeriodKind;
 import com.messaging.billing.enums.BillingPeriodStatus;
@@ -54,6 +55,64 @@ class InvoiceServiceTests {
 
     assertEquals("20", response.invoiceId());
     verify(invoiceRepository, never()).saveAndFlush(any(Invoice.class));
+  }
+
+  @Test
+  void canonicalPlatformInvoiceReplayReturnsSameInvoiceForSameServicePeriod() {
+    BillingPeriod period = platformPeriod(10L);
+    Invoice existing = invoice(20L, period, InvoiceStatus.OPEN);
+    existing.setSubtotal(new BigDecimal("100.00"));
+    existing.setTotal(new BigDecimal("100.00"));
+    existing.setAmountDue(new BigDecimal("100.00"));
+    existing.setServicePeriodStart(period.getStartAt());
+    existing.setServicePeriodEnd(period.getEndAt());
+
+    InvoiceLineItem line = new InvoiceLineItem();
+    line.setId(30L);
+    line.setInvoice(existing);
+    line.setLineType(InvoiceLineType.PLATFORM_PLAN);
+    line.setAmount(new BigDecimal("100.00"));
+    line.setServicePeriodStart(period.getStartAt());
+    line.setServicePeriodEnd(period.getEndAt());
+    line.setIdempotencyKey("PLATFORM_PERIOD:10");
+
+    when(periodRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(period));
+    when(invoiceRepository.findByBillingPeriodId(10L)).thenReturn(Optional.of(existing));
+    when(lineRepository.findByInvoiceIdAndIdempotencyKey(20L, "PLATFORM_PERIOD:10"))
+        .thenReturn(Optional.of(line));
+
+    var replay =
+        service.createOrResolvePlatformInvoice(1L, 10L, null, Instant.parse("2026-10-01T00:00:00Z"));
+
+    assertEquals("20", replay.invoiceId());
+    assertEquals(new BigDecimal("100.00"), replay.amountDue());
+    verify(invoiceRepository, never()).saveAndFlush(any(Invoice.class));
+    verify(lineRepository, never()).saveAndFlush(any(InvoiceLineItem.class));
+  }
+
+  @Test
+  void closingPrepaidPlatformPeriodDoesNotCreateSecondPlatformInvoiceOrLine() {
+    Instant now = Instant.parse("2026-11-01T00:00:00Z");
+    BillingPeriod period = platformPeriod(10L);
+    period.setStatus(BillingPeriodStatus.CLOSING);
+
+    Invoice paid = invoice(20L, period, InvoiceStatus.PAID);
+    paid.setSubtotal(new BigDecimal("100.00"));
+    paid.setTotal(new BigDecimal("100.00"));
+    paid.setAmountDue(BigDecimal.ZERO);
+    paid.setPaidAt(Instant.parse("2026-10-01T00:05:00Z"));
+    paid.setFinalizedAt(Instant.parse("2026-10-01T00:00:00Z"));
+    paid.setServicePeriodStart(period.getStartAt());
+    paid.setServicePeriodEnd(period.getEndAt());
+
+    when(periodRepository.findClosingForUpdate(100)).thenReturn(List.of(period));
+    when(invoiceRepository.findByBillingPeriodId(10L)).thenReturn(Optional.of(paid));
+    when(lineRepository.countByInvoiceId(20L)).thenReturn(1L);
+
+    assertEquals(1, service.recoverClosingPeriods(now));
+    assertEquals(BillingPeriodStatus.FINALIZED, period.getStatus());
+    verify(invoiceRepository, never()).saveAndFlush(any(Invoice.class));
+    verify(lineRepository, never()).saveAndFlush(any(InvoiceLineItem.class));
   }
 
   @Test
@@ -194,11 +253,19 @@ class InvoiceServiceTests {
     BillingPeriod period = basePeriod(id, BillingPeriodKind.PLATFORM);
     Plan plan = new Plan();
     plan.setId(2L);
+    PlanPrice price = new PlanPrice();
+    price.setId(4L);
+    price.setPlan(plan);
+    price.setBillingCycle(BillingCycle.MONTHLY);
+    price.setAmount(new BigDecimal("100.00"));
+    price.setCurrency("INR");
     CompanySubscription subscription = new CompanySubscription();
     subscription.setId(3L);
     subscription.setPlan(plan);
+    subscription.setPlanPrice(price);
     subscription.setCompany(period.getCompany());
     period.setPlan(plan);
+    period.setPlanPrice(price);
     period.setSubscription(subscription);
     period.setPlatformAmountSnapshot(new BigDecimal("100.00"));
     period.setCurrencySnapshot("INR");
