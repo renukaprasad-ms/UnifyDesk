@@ -450,6 +450,9 @@ public class BillingCatalogService {
       Long actorUserId,
       AssignSubscriptionRequest request,
       Instant confirmedAt) {
+    if (confirmedAt == null) {
+      throw new BadRequestException("Provider-confirmed activation time is required");
+    }
     Company company =
         companyRepository
             .findByIdForUpdate(companyId)
