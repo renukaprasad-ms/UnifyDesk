@@ -24,6 +24,7 @@ import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.repository.PlanPriceRepository;
 import com.messaging.billing.repository.PlanRepository;
 import com.messaging.billing.repository.SubscriptionChangeRepository;
+import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ConflictException;
 import com.messaging.company.entity.Company;
 import com.messaging.company.repository.CompanyRepository;
@@ -48,6 +49,8 @@ class SubscriptionChangeServiceTests {
   @Mock private SubscriptionLifecycleService lifecycleService;
   @Mock private UpgradeProrationCalculator prorationCalculator;
   @Mock private PlanChangeClassifier planChangeClassifier;
+  @Mock private BillingPeriodService billingPeriodService;
+  @Mock private UpgradeInvoiceService upgradeInvoiceService;
 
   @InjectMocks private SubscriptionChangeService service;
 
@@ -70,6 +73,81 @@ class SubscriptionChangeServiceTests {
     currentPrice = price(21L, currentPlan, "1000");
     targetPrice = price(31L, targetPlan, "2000");
     current = subscription(40L, company, currentPlan, currentPrice);
+  }
+
+  @Test
+  void expiredUpgradeTargetPriceIsRejected() {
+    targetPrice.setEffectiveFrom(now.minusSeconds(3600));
+    targetPrice.setEffectiveTo(now);
+
+    commonNewCommandStubs("expired-upgrade");
+
+    assertThrows(
+        BadRequestException.class,
+        () -> service.requestUpgrade(10L, 30L, 31L, "expired-upgrade", 99L, now));
+
+    verify(planChangeClassifier, never()).classify(any(), any(), any(), any());
+  }
+
+  @Test
+  void futureUpgradeTargetPriceIsRejected() {
+    targetPrice.setEffectiveFrom(now.plusSeconds(1));
+
+    commonNewCommandStubs("future-upgrade");
+
+    assertThrows(
+        BadRequestException.class,
+        () -> service.requestUpgrade(10L, 30L, 31L, "future-upgrade", 99L, now));
+  }
+
+  @Test
+  void currentUpgradeTargetPriceIsAcceptedAtInclusiveStartBoundary() {
+    targetPrice.setEffectiveFrom(now);
+    targetPrice.setEffectiveTo(now.plusSeconds(3600));
+    commonNewCommandStubs("valid-upgrade");
+    when(planChangeClassifier.classify(currentPlan, currentPrice, targetPlan, targetPrice))
+        .thenReturn(PlanChangeDirection.UPGRADE);
+    when(prorationCalculator.quote(
+            currentPrice.getAmount(),
+            targetPrice.getAmount(),
+            BillingCycle.MONTHLY,
+            current.getCurrentPeriodStart(),
+            current.getCurrentPeriodEnd(),
+            now,
+            "INR"))
+        .thenReturn(quote("500.00"));
+    stubSaveAssigningId();
+
+    assertEquals(
+        SubscriptionChangeStatus.PENDING_PAYMENT,
+        service.requestUpgrade(10L, 30L, 31L, "valid-upgrade", 99L, now).status());
+  }
+
+  @Test
+  void downgradePriceIsValidatedAtEffectiveBoundaryNotRequestTime() {
+    targetPrice.setEffectiveFrom(periodEnd);
+    targetPrice.setEffectiveTo(periodEnd.plusSeconds(3600));
+    commonNewCommandStubs("future-at-request-valid-at-boundary");
+    when(planChangeClassifier.classify(currentPlan, currentPrice, targetPlan, targetPrice))
+        .thenReturn(PlanChangeDirection.DOWNGRADE);
+    stubSaveAssigningId();
+
+    var result =
+        service.scheduleDowngrade(
+            10L, 30L, 31L, "future-at-request-valid-at-boundary", 99L, now);
+
+    assertEquals(periodEnd, result.effectiveAt());
+  }
+
+  @Test
+  void downgradePriceUsesHalfOpenEffectiveEndBoundary() {
+    targetPrice.setEffectiveFrom(now.minusSeconds(3600));
+    targetPrice.setEffectiveTo(periodEnd);
+    commonNewCommandStubs("end-exclusive");
+
+    assertThrows(
+        BadRequestException.class,
+        () -> service.scheduleDowngrade(10L, 30L, 31L, "end-exclusive", 99L, now));
   }
 
   @Test
@@ -320,6 +398,7 @@ class SubscriptionChangeServiceTests {
     value.setAmount(new BigDecimal(amount));
     value.setCurrency("INR");
     value.setStatus(RateCardStatus.ACTIVE);
+    value.setEffectiveFrom(now == null ? Instant.parse("2026-01-01T00:00:00Z") : now.minusSeconds(86400));
     return value;
   }
 
