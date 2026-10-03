@@ -89,8 +89,8 @@ app:
       base-url: ${APP_BILLING_CASHFREE_BASE_URL:https://sandbox.cashfree.com}
       client-id: ${APP_BILLING_CASHFREE_CLIENT_ID:}
       client-secret: ${APP_BILLING_CASHFREE_CLIENT_SECRET:}
-      payments-api-version: ${APP_BILLING_CASHFREE_PAYMENTS_API_VERSION:2026-01-01}
-      subscriptions-api-version: ${APP_BILLING_CASHFREE_SUBSCRIPTIONS_API_VERSION:2026-01-01}
+      payments-api-version: ${APP_BILLING_CASHFREE_PAYMENTS_API_VERSION:2025-01-01}
+      subscriptions-api-version: ${APP_BILLING_CASHFREE_SUBSCRIPTIONS_API_VERSION:2025-01-01}
       return-url: ${APP_BILLING_CASHFREE_RETURN_URL:https://app.unifydesk.in/billing/payment-return}
       notify-url: ${APP_BILLING_CASHFREE_NOTIFY_URL:https://api.unifydesk.in/api/v1/webhooks/cashfree}
       reconciliation-interval-ms: ${APP_BILLING_CASHFREE_RECONCILIATION_INTERVAL_MS:300000}
