@@ -27,6 +27,7 @@ import ForgotPassword from '../pages/auth/ForgotPassword'
 import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
 import ResetPassword from '../pages/auth/ResetPassword'
+import EmailUnsubscribePage from '../pages/unsubscribe/EmailUnsubscribePage'
 import VerifyOtp from '../pages/auth/VerifyOtp'
 import CompanyConnections from '../pages/company/CompanyConnections'
 import CompanyDetails from '../pages/company/CompanyDetails'
@@ -71,6 +72,8 @@ import WorkspaceEpochBoundary from '../components/workspace/WorkspaceEpochBounda
 
 const AppRoutes = () => (
   <Routes>
+    <Route path="/unsubscribe" element={<EmailUnsubscribePage />} />
+
     <Route element={<AuthLayout />}>
       <Route path="/invite/:token" element={<InviteAccept />} />
       <Route element={<GuestRoute />}>

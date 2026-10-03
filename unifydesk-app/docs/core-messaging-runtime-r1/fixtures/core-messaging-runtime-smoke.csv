@@ -1,0 +1,8 @@
+external_id,display_name,email,phone,email_marketing_consent,sms_marketing_consent,whatsapp_marketing_consent,consent_evidence,consent_occurred_at
+CMR1-001,Runtime Email Opted In A,cmr1.email.a@example.com,+919900000001,YES,UNKNOWN,UNKNOWN,runtime-r1-explicit-consent,2026-10-01T12:00:00Z
+CMR1-002,Runtime Email Opted In B,cmr1.email.b@example.com,+919900000002,YES,UNKNOWN,UNKNOWN,runtime-r1-explicit-consent,2026-10-01T12:00:00Z
+CMR1-003,Runtime Email Unknown,cmr1.email.unknown@example.com,+919900000003,UNKNOWN,UNKNOWN,UNKNOWN,,2026-10-01T12:00:00Z
+CMR1-004,Runtime Email Opted Out,cmr1.email.optout@example.com,+919900000004,NO,UNKNOWN,UNKNOWN,runtime-r1-explicit-preference,2026-10-01T12:00:00Z
+CMR1-005,Runtime SMS Opted In,cmr1.sms@example.com,+919900000005,UNKNOWN,YES,UNKNOWN,runtime-r1-explicit-consent,2026-10-01T12:00:00Z
+CMR1-006,Runtime WhatsApp Opted In,cmr1.wa@example.com,+919900000006,UNKNOWN,UNKNOWN,YES,runtime-r1-explicit-consent,2026-10-01T12:00:00Z
+CMR1-007,Runtime Invalid Identity,not-an-email,,YES,UNKNOWN,UNKNOWN,runtime-r1-explicit-consent,2026-10-01T12:00:00Z

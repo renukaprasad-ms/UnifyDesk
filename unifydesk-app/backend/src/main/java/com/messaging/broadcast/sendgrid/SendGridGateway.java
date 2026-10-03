@@ -69,30 +69,7 @@ public class SendGridGateway {
     String apiKey = apiKey(connection);
     SendGridRegion region = SendGridRegion.fromStoredValue(connection.getRegion());
 
-    ObjectNode payload = objectMapper.createObjectNode();
-    var personalizations = payload.putArray("personalizations");
-    ObjectNode personalization = personalizations.addObject();
-    personalization.putArray("to").addObject().put("email", command.recipient());
-    personalization
-        .putObject("custom_args")
-        .put("messaging_correlation_id", command.correlationId());
-
-    ObjectNode from = payload.putObject("from");
-    from.put("email", sender.getFromAddress());
-    if (sender.getDisplayName() != null && !sender.getDisplayName().isBlank()) {
-      from.put("name", sender.getDisplayName());
-    }
-
-    if (sender.getReplyToAddress() != null && !sender.getReplyToAddress().isBlank()) {
-      payload.putObject("reply_to").put("email", sender.getReplyToAddress());
-    }
-
-    payload.put("subject", command.subject() == null ? "" : command.subject());
-    var content = payload.putArray("content");
-    content.addObject().put("type", "text/plain").put("value", command.bodyText());
-    if (command.bodyHtml() != null && !command.bodyHtml().isBlank()) {
-      content.addObject().put("type", "text/html").put("value", command.bodyHtml());
-    }
+    ObjectNode payload = buildPayload(sender, command);
 
     HttpRequest request =
         requestBuilder(region, apiKey, "/v3/mail/send")
@@ -131,6 +108,38 @@ public class SendGridGateway {
           "SendGrid send outcome could not be confirmed",
           exception);
     }
+  }
+
+  ObjectNode buildPayload(BroadcastSender sender, BroadcastEmailCommand command) {
+    ObjectNode payload = objectMapper.createObjectNode();
+    var personalizations = payload.putArray("personalizations");
+    ObjectNode personalization = personalizations.addObject();
+    personalization.putArray("to").addObject().put("email", command.recipient());
+    personalization
+        .putObject("custom_args")
+        .put("messaging_correlation_id", command.correlationId());
+
+    ObjectNode from = payload.putObject("from");
+    from.put("email", sender.getFromAddress());
+    if (sender.getDisplayName() != null && !sender.getDisplayName().isBlank()) {
+      from.put("name", sender.getDisplayName());
+    }
+
+    if (sender.getReplyToAddress() != null && !sender.getReplyToAddress().isBlank()) {
+      payload.putObject("reply_to").put("email", sender.getReplyToAddress());
+    }
+
+    payload.put("subject", command.subject() == null ? "" : command.subject());
+    var content = payload.putArray("content");
+    content.addObject().put("type", "text/plain").put("value", command.bodyText());
+    if (command.bodyHtml() != null && !command.bodyHtml().isBlank()) {
+      content.addObject().put("type", "text/html").put("value", command.bodyHtml());
+    }
+    if (command.compliance() != null) {
+      ObjectNode headers = payload.putObject("headers");
+      command.compliance().standardOneClickHeaders().forEach(headers::put);
+    }
+    return payload;
   }
 
   private JsonNode getForInspection(

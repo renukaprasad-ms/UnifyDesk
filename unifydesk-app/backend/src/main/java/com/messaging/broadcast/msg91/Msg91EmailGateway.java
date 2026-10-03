@@ -194,31 +194,7 @@ public class Msg91EmailGateway {
           null);
     }
 
-    ObjectNode payload = objectMapper.createObjectNode();
-    ObjectNode recipient = payload.putArray("recipients").addObject();
-    ObjectNode to = recipient.putArray("to").addObject();
-    to.put("email", command.recipient());
-    if (command.correlationId() != null && !command.correlationId().isBlank()) {
-      to.put("CRQID", command.correlationId());
-    }
-
-    ObjectNode variables = recipient.putObject("variables");
-    Map<String, String> templateVariables =
-        command.templateVariables() == null ? Map.of() : command.templateVariables();
-    templateVariables.forEach(variables::put);
-
-    ObjectNode from = payload.putObject("from");
-    from.put("email", sender.getFromAddress());
-    if (sender.getDisplayName() != null && !sender.getDisplayName().isBlank()) {
-      from.put("name", sender.getDisplayName());
-    }
-
-    payload.put("domain", config.domain());
-    payload.put("template_id", command.providerTemplateId());
-
-    if (sender.getReplyToAddress() != null && !sender.getReplyToAddress().isBlank()) {
-      payload.putArray("reply_to").addObject().put("email", sender.getReplyToAddress());
-    }
+    ObjectNode payload = buildSendPayload(sender, command, config);
 
     HttpRequest request =
         HttpRequest.newBuilder(SEND_URI)
@@ -264,6 +240,38 @@ public class Msg91EmailGateway {
           "MSG91 Email send outcome could not be confirmed",
           exception);
     }
+  }
+
+  ObjectNode buildSendPayload(
+      BroadcastSender sender,
+      BroadcastEmailCommand command,
+      Msg91EmailProviderConfig config) {
+    ObjectNode payload = objectMapper.createObjectNode();
+    ObjectNode recipient = payload.putArray("recipients").addObject();
+    ObjectNode to = recipient.putArray("to").addObject();
+    to.put("email", command.recipient());
+    if (command.correlationId() != null && !command.correlationId().isBlank()) {
+      to.put("CRQID", command.correlationId());
+    }
+
+    ObjectNode variables = recipient.putObject("variables");
+    Map<String, String> templateVariables =
+        command.templateVariables() == null ? Map.of() : command.templateVariables();
+    templateVariables.forEach(variables::put);
+
+    ObjectNode from = payload.putObject("from");
+    from.put("email", sender.getFromAddress());
+    if (sender.getDisplayName() != null && !sender.getDisplayName().isBlank()) {
+      from.put("name", sender.getDisplayName());
+    }
+
+    payload.put("domain", config.domain());
+    payload.put("template_id", command.providerTemplateId());
+
+    if (sender.getReplyToAddress() != null && !sender.getReplyToAddress().isBlank()) {
+      payload.putArray("reply_to").addObject().put("email", sender.getReplyToAddress());
+    }
+    return payload;
   }
 
   private void verifyCredentials(String authKey) {

@@ -30,6 +30,8 @@ class ManagedSmsExistingProviderRegressionTests {
     BroadcastRetryPolicy retryPolicy = mock(BroadcastRetryPolicy.class);
     BroadcastDeliveryStateService state = mock(BroadcastDeliveryStateService.class);
     BroadcastTemplateRenderer renderer = mock(BroadcastTemplateRenderer.class);
+    BroadcastEmailComplianceService emailCompliance =
+        mock(BroadcastEmailComplianceService.class);
     ManagedEmailDeliveryGuard managedGuard = mock(ManagedEmailDeliveryGuard.class);
     ManagedEmailRateLimiter managedRate = mock(ManagedEmailRateLimiter.class);
     ManagedEmailUsageService emailUsage = mock(ManagedEmailUsageService.class);
@@ -87,6 +89,7 @@ class ManagedSmsExistingProviderRegressionTests {
             retryPolicy,
             state,
             renderer,
+            emailCompliance,
             managedGuard,
             managedRate,
             emailUsage,
@@ -108,6 +111,7 @@ class ManagedSmsExistingProviderRegressionTests {
         reconciler,
         suppression,
         budget,
+        emailCompliance,
         contactEligibility,
         whatsAppDelivery);
   }
