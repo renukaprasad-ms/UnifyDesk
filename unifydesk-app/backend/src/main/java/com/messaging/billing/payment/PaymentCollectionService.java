@@ -1,32 +1,25 @@
 package com.messaging.billing.payment;
 
-import com.messaging.billing.entity.Invoice;
-import com.messaging.billing.entity.Payment;
-import com.messaging.billing.enums.InvoiceStatus;
 import com.messaging.billing.enums.PaymentPurpose;
 import com.messaging.billing.enums.PaymentStatus;
-import com.messaging.billing.repository.InvoiceRepository;
-import com.messaging.billing.repository.PaymentRepository;
 import com.messaging.common.exception.BadRequestException;
-import com.messaging.common.exception.ConflictException;
 import java.math.BigDecimal;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientResponseException;
 
 @Service
 @RequiredArgsConstructor
 public class PaymentCollectionService {
 
-  private static final String R1_CURRENCY = "INR";
-
-  private final PaymentRepository paymentRepository;
-  private final InvoiceRepository invoiceRepository;
+  private final PaymentCollectionStore store;
   private final PaymentProviderGateway gateway;
   private final CashfreeProperties cashfreeProperties;
 
-  @Transactional
+  /**
+   * Durable orchestration boundary:
+   * local intent commit -> remote provider call -> local provider result commit.
+   */
   public CheckoutResult createOrResolve(
       Long companyId,
       Long invoiceId,
@@ -37,104 +30,67 @@ public class PaymentCollectionService {
       Long subscriptionId,
       PaymentProviderGateway.Customer customer) {
     String key = required(idempotencyKey);
-    var prior = paymentRepository.findByCompanyIdAndIdempotencyKey(companyId, key);
-    if (prior.isPresent()) {
-      assertSame(
-          prior.get(),
-          invoiceId,
-          purpose,
-          checkoutIntentId,
-          subscriptionChangeId,
-          subscriptionId);
-      return toResult(prior.get(), null);
+    PaymentCollectionStore.Prepared prepared =
+        store.prepare(
+            companyId,
+            invoiceId,
+            purpose,
+            key,
+            checkoutIntentId,
+            subscriptionChangeId,
+            subscriptionId);
+
+    if (prepared.paymentSessionId() != null && !prepared.paymentSessionId().isBlank()) {
+      return toResult(prepared);
     }
 
-    Invoice invoice =
-        invoiceRepository
-            .findByIdForUpdate(invoiceId)
-            .orElseThrow(() -> new BadRequestException("Invoice not found"));
-    if (!invoice.getCompany().getId().equals(companyId)) {
-      throw new BadRequestException("Invoice does not belong to the company");
+    try {
+      PaymentProviderGateway.Checkout checkout;
+      if (prepared.newlyCreated()) {
+        checkout = createRemote(prepared, customer);
+      } else {
+        checkout = recoverOrCreateIfDefinitelyAbsent(prepared, customer);
+      }
+      return toResult(store.acceptProviderOrder(prepared.paymentId(), checkout));
+    } catch (RuntimeException exception) {
+      store.markProviderOrderAmbiguous(prepared.paymentId());
+      throw exception;
     }
-    if (invoice.getStatus() != InvoiceStatus.OPEN || invoice.getAmountDue().signum() <= 0) {
-      throw new ConflictException("Only a positive open canonical invoice can be collected");
-    }
-    if (!R1_CURRENCY.equalsIgnoreCase(invoice.getCurrency())) {
-      throw new ConflictException("Billing R1 collections require INR");
-    }
-
-    var invoicePayment = paymentRepository.findByInvoiceId(invoiceId);
-    if (invoicePayment.isPresent()) {
-      assertSame(
-          invoicePayment.get(),
-          invoiceId,
-          purpose,
-          checkoutIntentId,
-          subscriptionChangeId,
-          subscriptionId);
-      return toResult(invoicePayment.get(), null);
-    }
-
-    Payment payment = new Payment();
-    payment.setCompany(invoice.getCompany());
-    payment.setInvoice(invoice);
-    payment.setPurpose(purpose);
-    payment.setAmount(invoice.getAmountDue());
-    payment.setCurrency(invoice.getCurrency());
-    payment.setIdempotencyKey(key);
-    payment.setProvider("CASHFREE");
-    payment.setCheckoutIntentId(checkoutIntentId);
-    payment.setSubscriptionChangeId(subscriptionChangeId);
-    payment.setSubscriptionId(subscriptionId);
-    payment = paymentRepository.saveAndFlush(payment);
-
-    String providerOrderId = "UD-" + payment.getId();
-    payment.setProviderOrderId(providerOrderId);
-    payment = paymentRepository.saveAndFlush(payment);
-
-    PaymentProviderGateway.Checkout checkout =
-        gateway.createOrder(
-            providerOrderId,
-            payment.getAmount(),
-            payment.getCurrency(),
-            customer,
-            cashfreeProperties.getReturnUrl(),
-            cashfreeProperties.getNotifyUrl(),
-            "order:" + payment.getId());
-    if (!providerOrderId.equals(checkout.orderId())) {
-      throw new ConflictException("Cashfree returned a conflicting order identity");
-    }
-    payment.setStatus(PaymentStatus.PENDING);
-    payment = paymentRepository.saveAndFlush(payment);
-    return toResult(payment, checkout.paymentSessionId());
   }
 
-  private CheckoutResult toResult(Payment payment, String sessionId) {
+  private PaymentProviderGateway.Checkout recoverOrCreateIfDefinitelyAbsent(
+      PaymentCollectionStore.Prepared prepared, PaymentProviderGateway.Customer customer) {
+    try {
+      return gateway.fetchOrder(prepared.providerOrderId());
+    } catch (RestClientResponseException exception) {
+      if (exception.getStatusCode().value() != 404) throw exception;
+      // A provider 404 is a definitive absence signal. Re-submit with the same order identity
+      // and the same deterministic idempotency key; never generate a second provider identity.
+      return createRemote(prepared, customer);
+    }
+  }
+
+  private PaymentProviderGateway.Checkout createRemote(
+      PaymentCollectionStore.Prepared prepared, PaymentProviderGateway.Customer customer) {
+    return gateway.createOrder(
+        prepared.providerOrderId(),
+        prepared.amount(),
+        prepared.currency(),
+        customer,
+        cashfreeProperties.getReturnUrl(),
+        cashfreeProperties.getNotifyUrl(),
+        ProviderIdempotency.key("order", prepared.paymentId()));
+  }
+
+  private CheckoutResult toResult(PaymentCollectionStore.Prepared payment) {
     return new CheckoutResult(
-        payment.getId(),
-        payment.getInvoice().getId(),
-        payment.getProviderOrderId(),
-        sessionId,
-        payment.getAmount(),
-        payment.getCurrency(),
-        payment.getStatus());
-  }
-
-  private void assertSame(
-      Payment payment,
-      Long invoiceId,
-      PaymentPurpose purpose,
-      Long checkoutIntentId,
-      Long subscriptionChangeId,
-      Long subscriptionId) {
-    if (!payment.getInvoice().getId().equals(invoiceId)
-        || payment.getPurpose() != purpose
-        || !Objects.equals(payment.getCheckoutIntentId(), checkoutIntentId)
-        || !Objects.equals(payment.getSubscriptionChangeId(), subscriptionChangeId)
-        || !Objects.equals(payment.getSubscriptionId(), subscriptionId)) {
-      throw new ConflictException(
-          "Payment idempotency key was reused for a materially different financial command");
-    }
+        payment.paymentId(),
+        payment.invoiceId(),
+        payment.providerOrderId(),
+        payment.paymentSessionId(),
+        payment.amount(),
+        payment.currency(),
+        payment.status());
   }
 
   private String required(String value) {
