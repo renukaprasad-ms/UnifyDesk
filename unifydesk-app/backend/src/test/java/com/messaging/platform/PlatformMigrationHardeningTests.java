@@ -6,7 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
@@ -22,10 +24,10 @@ class PlatformMigrationHardeningTests {
   private static final String ADMIN_URL = "jdbc:postgresql://127.0.0.1:55432/postgres";
   private static final String USER = "test";
   private static final String PASSWORD = "test";
-  private static final MigrationVersion CURRENT_HEAD = MigrationVersion.fromVersion("83");
+  private static final MigrationVersion CURRENT_HEAD = MigrationVersion.fromVersion("87");
 
   @Test
-  void cleanDatabaseMigratesToV83AndHibernateValidatesSchema() throws Exception {
+  void cleanDatabaseMigratesToV87AndHibernateValidatesSchema() throws Exception {
     withDatabase(
         "platform_clean",
         url -> {
@@ -38,7 +40,7 @@ class PlatformMigrationHardeningTests {
   }
 
   @Test
-  void representativeV79DatabaseUpgradesToV83() throws Exception {
+  void representativeV79DatabaseUpgradesToV87() throws Exception {
     withDatabase(
         "platform_from79",
         url -> {
@@ -81,6 +83,43 @@ class PlatformMigrationHardeningTests {
           assertThat(adoption.info().current().getVersion()).isEqualTo(CURRENT_HEAD);
           assertThat(baselineVersion(url)).isEqualTo("1");
           validateHibernateSchema(url);
+        });
+  }
+
+  @Test
+  void billingCommercialCoreDatabaseConstraintsArePresent() throws Exception {
+    withDatabase(
+        "billing_r1_constraints",
+        url -> {
+          Flyway flyway = flyway(url, null, false, "0");
+          flyway.migrate();
+
+          Set<String> constraints = new HashSet<>();
+          try (Connection connection = DriverManager.getConnection(url, USER, PASSWORD);
+              var statement =
+                  connection.prepareStatement(
+                      """
+                      select conname
+                      from pg_constraint
+                      where conname in (
+                        'uk_subscription_changes_company_idempotency',
+                        'uk_invoices_billing_period',
+                        'uk_invoice_line_items_idempotency',
+                        'uk_billing_period_company_kind_range'
+                      )
+                      """);
+              var resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+              constraints.add(resultSet.getString(1));
+            }
+          }
+
+          assertThat(constraints)
+              .containsExactlyInAnyOrder(
+                  "uk_subscription_changes_company_idempotency",
+                  "uk_invoices_billing_period",
+                  "uk_invoice_line_items_idempotency",
+                  "uk_billing_period_company_kind_range");
         });
   }
 

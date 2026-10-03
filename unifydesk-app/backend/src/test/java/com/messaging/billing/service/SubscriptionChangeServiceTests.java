@@ -73,7 +73,7 @@ class SubscriptionChangeServiceTests {
 
   @Test
   void lowerPlanCannotUseUpgradePath() {
-    commonNewCommandStubs();
+    commonNewCommandStubs("same-key");
     when(planChangeClassifier.classify(currentPlan, currentPrice, targetPlan, targetPrice))
         .thenReturn(PlanChangeDirection.DOWNGRADE);
 
@@ -86,7 +86,7 @@ class SubscriptionChangeServiceTests {
 
   @Test
   void higherPlanCannotUseDowngradePath() {
-    commonNewCommandStubs();
+    commonNewCommandStubs("same-key");
     when(planChangeClassifier.classify(currentPlan, currentPrice, targetPlan, targetPrice))
         .thenReturn(PlanChangeDirection.UPGRADE);
 
@@ -99,7 +99,7 @@ class SubscriptionChangeServiceTests {
 
   @Test
   void positiveDueUpgradeRemainsPaymentGated() {
-    commonNewCommandStubs();
+    commonNewCommandStubs("upgrade-1");
     when(planChangeClassifier.classify(currentPlan, currentPrice, targetPlan, targetPrice))
         .thenReturn(PlanChangeDirection.UPGRADE);
     when(prorationCalculator.quote(
@@ -136,7 +136,7 @@ class SubscriptionChangeServiceTests {
 
   @Test
   void downgradeIsScheduledExactlyAtCurrentBoundary() {
-    commonNewCommandStubs();
+    commonNewCommandStubs("down-1");
     when(planChangeClassifier.classify(currentPlan, currentPrice, targetPlan, targetPrice))
         .thenReturn(PlanChangeDirection.DOWNGRADE);
     stubSaveAssigningId();
@@ -214,13 +214,9 @@ class SubscriptionChangeServiceTests {
     verify(changeRepository).findByCompanyIdAndIdempotencyKey(11L, "shared-key");
   }
 
-  private void commonNewCommandStubs() {
+  private void commonNewCommandStubs(String key) {
     when(companyRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(company));
-    when(changeRepository.findByCompanyIdAndIdempotencyKey(10L, "same-key"))
-        .thenReturn(Optional.empty());
-    when(changeRepository.findByCompanyIdAndIdempotencyKey(10L, "upgrade-1"))
-        .thenReturn(Optional.empty());
-    when(changeRepository.findByCompanyIdAndIdempotencyKey(10L, "down-1"))
+    when(changeRepository.findByCompanyIdAndIdempotencyKey(10L, key))
         .thenReturn(Optional.empty());
     when(lifecycleService.currentForUpdate(10L)).thenReturn(current);
     when(planRepository.findById(30L)).thenReturn(Optional.of(targetPlan));
