@@ -3,9 +3,12 @@ package com.messaging.billing.service;
 import com.messaging.billing.dto.BillingPeriodResponse;
 import com.messaging.billing.entity.BillingPeriod;
 import com.messaging.billing.entity.CompanySubscription;
+import com.messaging.billing.entity.Plan;
+import com.messaging.billing.entity.PlanPrice;
 import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.enums.BillingPeriodKind;
 import com.messaging.billing.enums.BillingPeriodStatus;
+import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.repository.BillingPeriodRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ConflictException;
@@ -85,10 +88,26 @@ public class BillingPeriodService {
    */
   @Transactional
   public BillingPeriod ensurePlatformPeriodSnapshot(
-      Company company, com.messaging.billing.entity.Plan plan, com.messaging.billing.entity.PlanPrice price,
-      Instant start, Instant end) {
+      Company company, Plan plan, PlanPrice price, Instant start, Instant end) {
     if (company == null || plan == null || price == null) {
       throw new BadRequestException("Platform period snapshot requires company, plan and price");
+    }
+    if (!price.getPlan().getId().equals(plan.getId()) || price.getStatus() != RateCardStatus.ACTIVE) {
+      throw new BadRequestException("Platform period PlanPrice does not belong to the plan");
+    }
+    if (!"INR".equalsIgnoreCase(price.getCurrency())) {
+      throw new BadRequestException("Billing R1 supports INR only");
+    }
+    if (start == null
+        || price.getEffectiveFrom() == null
+        || price.getEffectiveFrom().isAfter(start)
+        || (price.getEffectiveTo() != null && !start.isBefore(price.getEffectiveTo()))) {
+      throw new BadRequestException("Platform period PlanPrice is not effective at period start");
+    }
+    Instant canonicalEnd = nextBoundary(start, price.getBillingCycle());
+    if (canonicalEnd == null || !canonicalEnd.equals(end)) {
+      throw new BadRequestException(
+          "Prepaid platform period must follow the selected PlanPrice billing cycle");
     }
     Company locked =
         companyRepository
@@ -227,8 +246,8 @@ public class BillingPeriodService {
 
   private void assertCompatibleCommercialSnapshot(
       BillingPeriod period,
-      com.messaging.billing.entity.Plan plan,
-      com.messaging.billing.entity.PlanPrice price,
+      Plan plan,
+      PlanPrice price,
       BigDecimal amount,
       String currency) {
     if (period.getPlan() != null && !period.getPlan().getId().equals(plan.getId())) {
@@ -245,6 +264,15 @@ public class BillingPeriodService {
         && !period.getCurrencySnapshot().equalsIgnoreCase(currency)) {
       throw new ConflictException("Billing period currency snapshot is immutable");
     }
+  }
+
+  private Instant nextBoundary(Instant start, BillingCycle cycle) {
+    ZonedDateTime utc = start.atZone(ZoneOffset.UTC);
+    return switch (cycle) {
+      case MONTHLY -> utc.plusMonths(1).toInstant();
+      case YEARLY -> utc.plusYears(1).toInstant();
+      case FREE -> null;
+    };
   }
 
   private BillingPeriod ensure(
