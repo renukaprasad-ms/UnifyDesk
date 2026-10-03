@@ -154,19 +154,21 @@ class AutomaticRenewalStore {
   }
 
   @Transactional(readOnly = true)
-  boolean hasUnresolvedRecurringAttempt(Long paymentId) {
-    Integer count =
-        jdbcTemplate.queryForObject(
+  Long latestUnresolvedRecurringAttempt(Long paymentId) {
+    List<Long> ids =
+        jdbcTemplate.queryForList(
             """
-            select count(*)
+            select id
               from payment_attempts
              where payment_id=?
                and provider_command_id is not null
                and status in ('CREATED', 'PENDING')
+             order by attempt_no desc
+             limit 1
             """,
-            Integer.class,
+            Long.class,
             paymentId);
-    return count != null && count > 0;
+    return ids.isEmpty() ? null : ids.getFirst();
   }
 
   @Transactional(readOnly = true)
@@ -191,7 +193,7 @@ class AutomaticRenewalStore {
         update payment_renewal_jobs
            set status='RETRY',
                attempt_count=attempt_count+1,
-               next_attempt_at=null,
+               next_attempt_at=?,
                last_error_category=?,
                claim_token=null,
                claimed_until=null,
@@ -213,7 +215,7 @@ class AutomaticRenewalStore {
                invoice_id=coalesce(invoice_id, ?),
                payment_id=coalesce(payment_id, ?),
                attempt_count=attempt_count+1,
-               next_attempt_at=?,
+               next_attempt_at=null,
                last_error_category=?,
                claim_token=null,
                claimed_until=null,
