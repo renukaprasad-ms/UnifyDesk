@@ -133,7 +133,7 @@ class BillingCatalogServiceTests {
     PlanPrice price = paidPrice(30L, plan, "999.00");
     price.setEffectiveTo(start);
 
-    when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+    when(companyRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(company));
     when(planRepository.findById(20L)).thenReturn(Optional.of(plan));
     when(planPriceRepository.findById(30L)).thenReturn(Optional.of(price));
 
