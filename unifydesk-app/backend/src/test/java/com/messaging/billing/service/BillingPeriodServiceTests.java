@@ -95,6 +95,21 @@ class BillingPeriodServiceTests {
   }
 
   @Test
+  void prepaidPlatformSnapshotRejectsCallerControlledPeriodEnd() {
+    Company company = company(1L);
+    Plan plan = plan(2L);
+    PlanPrice price = price(3L, plan);
+    Instant start = Instant.parse("2026-10-03T06:00:00Z");
+    Instant shortened = Instant.parse("2026-10-20T06:00:00Z");
+
+    assertThrows(
+        com.messaging.common.exception.BadRequestException.class,
+        () -> service.ensurePlatformPeriodSnapshot(company, plan, price, start, shortened));
+
+    verify(periodRepository, never()).saveAndFlush(any(BillingPeriod.class));
+  }
+
+  @Test
   void prepaidPlatformPeriodBindsActivatedSubscriptionWithoutRewritingSnapshot() {
     Company company = company(1L);
     Plan plan = plan(2L);
