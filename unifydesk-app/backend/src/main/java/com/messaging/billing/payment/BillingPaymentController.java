@@ -75,7 +75,9 @@ public class BillingPaymentController {
             result.paymentSessionId(),
             result.amount(),
             result.currency(),
-            result.status().name());
+            result.status().name(),
+            result.recurringAuthorizationSessionId(),
+            result.recurringAuthorizationActionUrl());
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(ApiResponse.success(HttpStatus.CREATED.value(), body, "Payment checkout prepared"));
   }
@@ -128,5 +130,7 @@ public class BillingPaymentController {
       String paymentSessionId,
       BigDecimal amount,
       String currency,
-      String status) {}
+      String status,
+      String recurringAuthorizationSessionId,
+      String recurringAuthorizationActionUrl) {}
 }
