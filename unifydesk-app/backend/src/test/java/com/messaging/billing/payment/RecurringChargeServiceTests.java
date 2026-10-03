@@ -3,6 +3,7 @@ package com.messaging.billing.payment;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import com.messaging.billing.enums.PaymentAttemptStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -57,13 +58,14 @@ class RecurringChargeServiceTests {
             eq(scheduledAt),
             anyString());
     verify(confirmations)
-        .recordFailureByPaymentId(
-            eq(30L),
+        .confirmRecurringAttempt(
+            eq("UDC-41"),
+            eq("UDS-77"),
             eq("cf-pay-1"),
             eq(new BigDecimal("499.00")),
             eq("INR"),
+            eq(PaymentAttemptStatus.PENDING),
             isNull(),
-            any(),
             isNull());
   }
 
@@ -90,8 +92,15 @@ class RecurringChargeServiceTests {
         .chargeAuthorizedSubscription(anyString(), anyString(), any(), any(), anyString());
     verify(gateway, times(1)).fetchSubscriptionPayment("UDS-77", "UDC-41");
     verify(confirmations)
-        .confirmSuccessByPaymentId(
-            30L, "cf-pay-1", new BigDecimal("499.00"), "INR", null);
+        .confirmRecurringAttempt(
+            eq("UDC-41"),
+            eq("UDS-77"),
+            eq("cf-pay-1"),
+            eq(new BigDecimal("499.00")),
+            eq("INR"),
+            eq(PaymentAttemptStatus.SUCCEEDED),
+            isNull(),
+            isNull());
   }
 
   private RecurringAuthorizationStore.Prepared activeAuthorization() {
@@ -99,9 +108,11 @@ class RecurringChargeServiceTests {
         90L,
         10L,
         77L,
+        null,
         "UDS-77",
         "subs-session",
         "UDA-90",
+        "cf-auth-1",
         "ACTIVE",
         new BigDecimal("999.00"),
         "INR",
@@ -115,7 +126,7 @@ class RecurringChargeServiceTests {
         10L,
         77L,
         "UDS-77",
-        "UD-30",
+        null,
         "UDC-41",
         null,
         new BigDecimal("499.00"),
