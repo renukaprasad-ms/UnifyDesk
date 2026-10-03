@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useLocation } from 'react-router'
 import { workspaceApi } from '../workspace/workspaceApi'
 import { authApi } from './authApi'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
@@ -14,9 +15,13 @@ import { selectCompany, setCompanies } from '../../store/workspace/workspaceSlic
 export default function AuthBootstrap({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch()
   const bootstrapped = useAppSelector(selectAuthBootstrapped)
+  const location = useLocation()
+  const publicRecipientAction = location.pathname === '/unsubscribe'
 
   useEffect(() => {
     let active = true
+
+    if (publicRecipientAction) return
 
     const bootstrap = async () => {
       try {
@@ -45,7 +50,9 @@ export default function AuthBootstrap({ children }: { children: React.ReactNode 
     return () => {
       active = false
     }
-  }, [dispatch])
+  }, [dispatch, publicRecipientAction])
+
+  if (publicRecipientAction) return children
 
   if (!bootstrapped) {
     return (
