@@ -17,6 +17,11 @@ import org.hibernate.annotations.Immutable;
 @Immutable
 @Table(
     name = "invoice_line_items",
+    uniqueConstraints = {
+      @UniqueConstraint(
+          name = "uk_invoice_line_items_idempotency",
+          columnNames = {"invoice_id", "idempotency_key"})
+    },
     indexes = {@Index(name = "idx_invoice_line_items_invoice", columnList = "invoice_id")})
 public class InvoiceLineItem {
   @Id private Long id;
@@ -58,6 +63,9 @@ public class InvoiceLineItem {
 
   @Column(name = "source_reference", length = 255)
   private String sourceReference;
+
+  @Column(name = "idempotency_key", nullable = false, length = 255)
+  private String idempotencyKey;
 
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;

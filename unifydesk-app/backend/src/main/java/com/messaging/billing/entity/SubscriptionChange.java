@@ -18,7 +18,9 @@ import lombok.Setter;
 @Table(
     name = "subscription_changes",
     uniqueConstraints = {
-      @UniqueConstraint(name = "uk_subscription_changes_idempotency", columnNames = "idempotency_key")
+      @UniqueConstraint(
+          name = "uk_subscription_changes_company_idempotency",
+          columnNames = {"company_id", "idempotency_key"})
     },
     indexes = {
       @Index(name = "idx_subscription_changes_due", columnList = "status,effective_at"),

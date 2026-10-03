@@ -6,6 +6,7 @@ import com.messaging.billing.enums.BillingPeriodStatus;
 import com.messaging.common.id.IdGenerator;
 import com.messaging.company.entity.Company;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -24,7 +25,8 @@ import lombok.Setter;
     },
     indexes = {
       @Index(name = "idx_billing_period_due", columnList = "status,end_at"),
-      @Index(name = "idx_billing_period_company", columnList = "company_id,kind,start_at")
+      @Index(name = "idx_billing_period_company", columnList = "company_id,kind,start_at"),
+      @Index(name = "idx_billing_period_closing", columnList = "status,end_at,id")
     })
 public class BillingPeriod {
   @Id private Long id;
@@ -40,6 +42,24 @@ public class BillingPeriod {
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 32)
   private BillingCycle cadence;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "subscription_id")
+  private CompanySubscription subscription;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "plan_id")
+  private Plan plan;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "plan_price_id")
+  private PlanPrice planPrice;
+
+  @Column(name = "platform_amount_snapshot", precision = 19, scale = 6)
+  private BigDecimal platformAmountSnapshot;
+
+  @Column(name = "currency_snapshot", length = 3)
+  private String currencySnapshot;
 
   @Column(name = "start_at", nullable = false)
   private Instant startAt;

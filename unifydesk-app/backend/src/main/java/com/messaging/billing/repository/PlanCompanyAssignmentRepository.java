@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface PlanCompanyAssignmentRepository extends JpaRepository<PlanCompanyAssignment, Long> {
+
   @Query(
       """
       select case when count(a) > 0 then true else false end
@@ -20,6 +21,27 @@ public interface PlanCompanyAssignmentRepository extends JpaRepository<PlanCompa
       """)
   boolean isActive(
       @Param("planId") Long planId, @Param("companyId") Long companyId, @Param("at") Instant at);
+
+  @Query(
+      value =
+          """
+          select exists (
+            select 1
+            from plan_company_assignments a
+            where a.plan_id = :planId
+              and a.company_id = :companyId
+              and a.revoked_at is null
+              and a.effective_from <
+                  coalesce(cast(:effectiveTo as timestamptz), 'infinity'::timestamptz)
+              and coalesce(a.effective_to, 'infinity'::timestamptz) > :effectiveFrom
+          )
+          """,
+      nativeQuery = true)
+  boolean hasOverlappingActiveWindow(
+      @Param("planId") Long planId,
+      @Param("companyId") Long companyId,
+      @Param("effectiveFrom") Instant effectiveFrom,
+      @Param("effectiveTo") Instant effectiveTo);
 
   @Query(
       """

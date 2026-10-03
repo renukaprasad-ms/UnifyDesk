@@ -16,7 +16,10 @@ import lombok.Setter;
 @Entity
 @Table(
     name = "invoices",
-    uniqueConstraints = {@UniqueConstraint(name = "uk_invoices_number", columnNames = "invoice_number")},
+    uniqueConstraints = {
+      @UniqueConstraint(name = "uk_invoices_number", columnNames = "invoice_number"),
+      @UniqueConstraint(name = "uk_invoices_billing_period", columnNames = "billing_period_id")
+    },
     indexes = {
       @Index(name = "idx_invoices_company_time", columnList = "company_id,created_at"),
       @Index(name = "idx_invoices_period", columnList = "billing_period_id")
