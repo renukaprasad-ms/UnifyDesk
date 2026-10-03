@@ -10,7 +10,7 @@ public record SubscriptionCheckoutIntentResponse(
     String planId,
     String planPriceId,
     String billingPeriodId,
-    String invoiceId,
+    InvoiceResponse invoice,
     String subscriptionId,
     SubscriptionCheckoutIntentStatus status,
     String currency,
