@@ -37,35 +37,36 @@ public class SystemBillingBootstrapService {
             FREE_PLAN_CODE,
             FREE_PLAN_VERSION);
 
-    if (existing.isEmpty()) {
-      jdbcTemplate.update(
-          """
-          insert into plans
-            (id, code, name, description, status, billing_cycle, base_price, currency,
-             version, created_at, updated_at)
-          values (?, ?, 'Free', 'Default system plan for new workspaces', 'PUBLISHED',
-                  'FREE', 0, 'INR', ?, now(), now())
-          on conflict (code, version) do nothing
-          """,
-          IdGenerator.nextId(),
-          FREE_PLAN_CODE,
-          FREE_PLAN_VERSION);
-      existing =
-          jdbcTemplate.queryForList(
-              "select id from plans where code = ? and version = ? limit 1",
-              Long.class,
-              FREE_PLAN_CODE,
-              FREE_PLAN_VERSION);
+    if (!existing.isEmpty()) {
+      // Published commercial versions are immutable. Startup must never rewrite price,
+      // entitlements, visibility, or other commercial terms of an existing version.
+      return existing.getFirst();
     }
+
+    jdbcTemplate.update(
+        """
+        insert into plans
+          (id, code, name, description, status, billing_cycle, base_price, currency,
+           version, created_at, updated_at)
+        values (?, ?, 'Free', 'Default system plan for new workspaces', 'PUBLISHED',
+                'FREE', 0, 'INR', ?, now(), now())
+        on conflict (code, version) do nothing
+        """,
+        IdGenerator.nextId(),
+        FREE_PLAN_CODE,
+        FREE_PLAN_VERSION);
+    existing =
+        jdbcTemplate.queryForList(
+            "select id from plans where code = ? and version = ? limit 1",
+            Long.class,
+            FREE_PLAN_CODE,
+            FREE_PLAN_VERSION);
 
     if (existing.isEmpty()) {
       throw new IllegalStateException("Unable to create system FREE plan");
     }
 
     Long planId = existing.getFirst();
-
-    // Published commercial versions are immutable. Bootstrap may create missing seed state,
-    // but it must never rewrite an existing published plan on application restart.
     ensureFreePrice(planId);
     ensureDefaultEntitlements(planId);
     return planId;
