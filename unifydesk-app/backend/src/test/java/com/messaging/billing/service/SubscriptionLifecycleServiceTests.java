@@ -2,12 +2,15 @@ package com.messaging.billing.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.entity.Plan;
+import com.messaging.billing.entity.PlanPrice;
+import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.entity.SubscriptionTransition;
 import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.enums.SubscriptionTransitionType;
@@ -15,6 +18,7 @@ import com.messaging.billing.repository.CompanySubscriptionRepository;
 import com.messaging.billing.repository.SubscriptionTransitionRepository;
 import com.messaging.company.entity.Company;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -29,8 +33,60 @@ class SubscriptionLifecycleServiceTests {
 
   @Mock private CompanySubscriptionRepository subscriptionRepository;
   @Mock private SubscriptionTransitionRepository transitionRepository;
+  @Mock private BillingPeriodService billingPeriodService;
 
   @InjectMocks private SubscriptionLifecycleService service;
+
+  @Test
+  void activatingSubscriptionEnsuresCanonicalPlatformPeriod() {
+    CompanySubscription subscription = subscription(10L, SubscriptionStatus.ACTIVE);
+    subscription.setCurrentPeriodEnd(Instant.parse("2026-11-01T00:00:00Z"));
+
+    service.recordCreated(
+        subscription, 77L, "activated", SubscriptionTransitionType.CREATED);
+
+    verify(billingPeriodService).ensurePlatformPeriod(subscription);
+    verify(transitionRepository).save(any(SubscriptionTransition.class));
+  }
+
+  @Test
+  void confirmedRenewalAdvancesDeterministicallyAndEnsuresNextPeriod() {
+    Instant confirmedAt = Instant.parse("2026-11-01T00:01:00Z");
+    CompanySubscription subscription = subscription(10L, SubscriptionStatus.ACTIVE);
+    subscription.setCurrentPeriodEnd(Instant.parse("2026-11-01T00:00:00Z"));
+    subscription.getPlan().setBillingCycle(BillingCycle.MONTHLY);
+    subscription.getPlan().setBasePrice(new java.math.BigDecimal("100.00"));
+    subscription.getPlan().setCurrency("INR");
+
+    when(subscriptionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(subscription));
+    when(subscriptionRepository.saveAndFlush(subscription)).thenReturn(subscription);
+
+    List<String> ensuredRanges = new ArrayList<>();
+    doAnswer(
+            invocation -> {
+              CompanySubscription value = invocation.getArgument(0);
+              ensuredRanges.add(
+                  value.getCurrentPeriodStart() + "->" + value.getCurrentPeriodEnd());
+              return null;
+            })
+        .when(billingPeriodService)
+        .ensurePlatformPeriod(subscription);
+
+    CompanySubscription renewed =
+        service.renewAfterConfirmedCollection(10L, confirmedAt);
+
+    assertEquals(
+        Instant.parse("2026-11-01T00:00:00Z"), renewed.getCurrentPeriodStart());
+    assertEquals(
+        Instant.parse("2026-12-01T00:00:00Z"), renewed.getCurrentPeriodEnd());
+    assertEquals(SubscriptionStatus.ACTIVE, renewed.getStatus());
+    assertEquals(
+        List.of(
+            "2026-10-01T00:00:00Z->2026-11-01T00:00:00Z",
+            "2026-11-01T00:00:00Z->2026-12-01T00:00:00Z"),
+        ensuredRanges);
+    verify(billingPeriodService, times(2)).ensurePlatformPeriod(subscription);
+  }
 
   @Test
   void pastDueSuspensionUsesClaimedRowsAndReplayConverges() {
