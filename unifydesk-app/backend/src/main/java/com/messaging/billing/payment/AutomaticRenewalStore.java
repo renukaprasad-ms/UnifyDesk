@@ -191,7 +191,7 @@ class AutomaticRenewalStore {
         update payment_renewal_jobs
            set status='RETRY',
                attempt_count=attempt_count+1,
-               next_attempt_at=?,
+               next_attempt_at=null,
                last_error_category=?,
                claim_token=null,
                claimed_until=null,
@@ -223,7 +223,6 @@ class AutomaticRenewalStore {
         status,
         invoiceId,
         paymentId,
-        Timestamp.from(Instant.parse("9999-12-31T00:00:00Z")),
         errorCategory,
         job.id(),
         job.claimToken());
