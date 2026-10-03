@@ -40,6 +40,7 @@ public class SubscriptionLifecycleService {
   private final CompanySubscriptionRepository subscriptionRepository;
   private final SubscriptionTransitionRepository transitionRepository;
   private final BillingPeriodService billingPeriodService;
+  private final InvoiceService invoiceService;
 
   @Transactional(readOnly = true)
   public CompanySubscription current(Long companyId) {
@@ -214,15 +215,18 @@ public class SubscriptionLifecycleService {
   }
 
   /**
-   * B1-owned post-collection renewal boundary for B2.
+   * B1-owned paid-renewal application boundary for B2.
    *
-   * <p>B2 calls this only after verified renewal collection. The current period snapshot is frozen
-   * first; then the subscription advances deterministically from the old currentPeriodEnd and the
-   * next PLATFORM BillingPeriod is created with the current immutable plan/price snapshot.
+   * <p>B2 may call this only after verified provider payment truth has marked the exact canonical
+   * renewal invoice PAID. The invoice's immutable PLATFORM BillingPeriod is the sole source of the
+   * next plan-price/service-period snapshot.
    */
   @Transactional
   public CompanySubscription renewAfterConfirmedCollection(
-      Long subscriptionId, Instant confirmedAt) {
+      Long subscriptionId, Long invoiceId, Instant confirmedAt) {
+    if (confirmedAt == null) {
+      throw new BadRequestException("Provider-confirmed renewal time is required");
+    }
     CompanySubscription subscription = requireForUpdate(subscriptionId);
     if (subscription.getStatus() != SubscriptionStatus.ACTIVE
         && subscription.getStatus() != SubscriptionStatus.PAST_DUE
@@ -235,24 +239,40 @@ public class SubscriptionLifecycleService {
       throw new BadRequestException("Subscription has no valid platform period to renew");
     }
 
-    billingPeriodService.ensurePlatformPeriod(subscription);
+    var nextPeriod =
+        invoiceService.requirePaidCanonicalPlatformInvoice(
+            subscription.getCompany().getId(), invoiceId);
+    if (nextPeriod.getPlan() == null
+        || !nextPeriod.getPlan().getId().equals(subscription.getPlan().getId())
+        || nextPeriod.getPlanPrice() == null
+        || nextPeriod.getPlatformAmountSnapshot() == null
+        || !nextPeriod.getStartAt().equals(subscription.getCurrentPeriodEnd())) {
+      throw new ConflictException(
+          "Paid renewal invoice does not match the subscription's canonical next period");
+    }
+    if (nextPeriod.getSubscription() != null
+        && !nextPeriod.getSubscription().getId().equals(subscription.getId())) {
+      throw new ConflictException("Renewal period is already bound to another subscription");
+    }
 
-    Instant nextStart = subscription.getCurrentPeriodEnd();
-    BillingCycle cycle = billingCycle(subscription);
-    Instant nextEnd = nextBoundary(nextStart, cycle);
-    if (nextEnd == null) {
-      throw new BadRequestException("FREE subscriptions do not require paid renewal collection");
+    // Idempotent replay after the transition returns the same active subscription.
+    if (subscription.getCurrentPeriodStart().equals(nextPeriod.getStartAt())
+        && subscription.getCurrentPeriodEnd().equals(nextPeriod.getEndAt())
+        && subscription.getPlanPrice() != null
+        && subscription.getPlanPrice().getId().equals(nextPeriod.getPlanPrice().getId())) {
+      return subscription;
     }
 
     SubscriptionStatus previousStatus = subscription.getStatus();
-    subscription.setCurrentPeriodStart(nextStart);
-    subscription.setCurrentPeriodEnd(nextEnd);
-    subscription.setBillingAnchor(nextStart);
+    subscription.setPlanPrice(nextPeriod.getPlanPrice());
+    subscription.setCurrentPeriodStart(nextPeriod.getStartAt());
+    subscription.setCurrentPeriodEnd(nextPeriod.getEndAt());
+    subscription.setBillingAnchor(nextPeriod.getStartAt());
     subscription.setStatus(SubscriptionStatus.ACTIVE);
     subscription.setGraceEndsAt(null);
     CompanySubscription saved = subscriptionRepository.saveAndFlush(subscription);
 
-    billingPeriodService.ensurePlatformPeriod(saved);
+    billingPeriodService.bindPlatformPeriodToSubscription(nextPeriod.getId(), saved);
     record(
         saved,
         previousStatus,
@@ -410,20 +430,6 @@ public class SubscriptionLifecycleService {
         && subscription.getCurrentPeriodEnd() != null) {
       billingPeriodService.ensurePlatformPeriod(subscription);
     }
-  }
-
-  private BillingCycle billingCycle(CompanySubscription subscription) {
-    PlanPrice price = subscription.getPlanPrice();
-    return price == null ? subscription.getPlan().getBillingCycle() : price.getBillingCycle();
-  }
-
-  private Instant nextBoundary(Instant start, BillingCycle cycle) {
-    ZonedDateTime utc = start.atZone(ZoneOffset.UTC);
-    return switch (cycle) {
-      case MONTHLY -> utc.plusMonths(1).toInstant();
-      case YEARLY -> utc.plusYears(1).toInstant();
-      case FREE -> null;
-    };
   }
 
   private void record(
