@@ -16,7 +16,8 @@ end
 where service_ownership is null;
 
 update usage_events
-set billing_sku = 'MANAGED_SMS_SEGMENT'
+set billing_sku = 'MANAGED_SMS_SEGMENT',
+    unit = 'SEGMENT'
 where service_ownership = 'MANAGED'
   and source_type = 'MANAGED_SMS'
   and billing_sku is null;

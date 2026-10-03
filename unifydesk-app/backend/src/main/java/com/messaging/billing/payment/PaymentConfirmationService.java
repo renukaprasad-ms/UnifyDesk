@@ -12,10 +12,14 @@ import com.messaging.billing.service.SubscriptionChangeService;
 import com.messaging.billing.service.SubscriptionCheckoutService;
 import com.messaging.billing.service.SubscriptionLifecycleService;
 import com.messaging.common.exception.ConflictException;
+import com.messaging.common.id.IdGenerator;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +33,7 @@ public class PaymentConfirmationService {
   private final SubscriptionCheckoutService checkoutService;
   private final SubscriptionChangeService changeService;
   private final SubscriptionLifecycleService lifecycleService;
-  private final DunningService dunningService;
+  private final JdbcTemplate jdbcTemplate;
 
   @Transactional
   public void confirmSuccess(
@@ -61,7 +65,7 @@ public class PaymentConfirmationService {
 
     invoiceService.markPaidConfirmed(payment.getInvoice().getId(), confirmedAt);
     applyLifecycle(payment, confirmedAt);
-    dunningService.complete(payment.getId());
+    completeDunning(payment.getId());
   }
 
   @Transactional
@@ -95,7 +99,7 @@ public class PaymentConfirmationService {
         && attemptStatus != PaymentAttemptStatus.PENDING) {
       Instant failedAt = providerCreatedAt == null ? Instant.now() : providerCreatedAt;
       lifecycleService.markPastDue(payment.getSubscriptionId(), failedAt);
-      dunningService.schedule(
+      scheduleDunning(
           payment.getCompany().getId(),
           payment.getSubscriptionId(),
           payment.getInvoice().getId(),
@@ -193,4 +197,30 @@ public class PaymentConfirmationService {
     }
     attemptRepository.saveAndFlush(attempt);
   }
+  private void scheduleDunning(
+      Long companyId, Long subscriptionId, Long invoiceId, Long paymentId, Instant failedAt) {
+    jdbcTemplate.update(
+        """
+        insert into payment_dunning_jobs (
+          id, company_id, subscription_id, invoice_id, payment_id, status,
+          attempt_count, next_attempt_at, grace_ends_at, created_at, updated_at
+        ) values (?, ?, ?, ?, ?, 'ACTIVE', 1, ?, ?, now(), now())
+        on conflict (invoice_id) do nothing
+        """,
+        IdGenerator.nextId(),
+        companyId,
+        subscriptionId,
+        invoiceId,
+        paymentId,
+        Timestamp.from(failedAt.plus(Duration.ofDays(2))),
+        Timestamp.from(failedAt.plus(Duration.ofDays(7))));
+  }
+
+  private void completeDunning(Long paymentId) {
+    jdbcTemplate.update(
+        "update payment_dunning_jobs set status='RECOVERED', next_attempt_at=null, updated_at=now() "
+            + "where payment_id=? and status='ACTIVE'",
+        paymentId);
+  }
+
 }
