@@ -245,7 +245,7 @@ public class InvoiceService {
     BigDecimal tax = BigDecimal.ZERO;
     for (InvoiceLineItem line : lineRepository.findByInvoiceIdOrderByCreatedAtAsc(invoice.getId())) {
       switch (line.getLineType()) {
-        case PLATFORM_PLAN, MANAGED_USAGE, PRIOR_PERIOD_USAGE_ADJUSTMENT ->
+        case PLATFORM_PLAN, PLATFORM_UPGRADE, MANAGED_USAGE, PRIOR_PERIOD_USAGE_ADJUSTMENT ->
             subtotal = subtotal.add(line.getAmount());
         case DISCOUNT -> discount = discount.add(line.getAmount().abs());
         case CREDIT -> credit = credit.add(line.getAmount().abs());
