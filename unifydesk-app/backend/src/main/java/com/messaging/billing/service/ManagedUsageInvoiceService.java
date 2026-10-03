@@ -82,7 +82,7 @@ public class ManagedUsageInvoiceService {
 
     int count = 0;
     for (UsageRow row : rows) {
-      boolean priorPeriod = row.originalPeriodId() != target.id();
+      boolean priorPeriod = !row.originalPeriodId().equals(target.id());
       String lineKey = "USAGE_EVENT:" + row.id();
       invoiceService.addLine(
           invoiceId,
