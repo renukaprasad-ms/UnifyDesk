@@ -2,23 +2,24 @@ package com.messaging.billing.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.messaging.billing.entity.BillingPeriod;
 import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.entity.Plan;
 import com.messaging.billing.entity.PlanPrice;
-import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.entity.SubscriptionTransition;
+import com.messaging.billing.enums.BillingCycle;
+import com.messaging.billing.enums.BillingPeriodKind;
+import com.messaging.billing.enums.BillingPeriodStatus;
 import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.enums.SubscriptionTransitionType;
 import com.messaging.billing.repository.CompanySubscriptionRepository;
 import com.messaging.billing.repository.SubscriptionTransitionRepository;
 import com.messaging.company.entity.Company;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,7 @@ class SubscriptionLifecycleServiceTests {
   @Mock private CompanySubscriptionRepository subscriptionRepository;
   @Mock private SubscriptionTransitionRepository transitionRepository;
   @Mock private BillingPeriodService billingPeriodService;
+  @Mock private InvoiceService invoiceService;
 
   @InjectMocks private SubscriptionLifecycleService service;
 
@@ -50,43 +52,92 @@ class SubscriptionLifecycleServiceTests {
   }
 
   @Test
-  void confirmedRenewalAdvancesDeterministicallyAndEnsuresNextPeriod() {
+  void confirmedRenewalRequiresCanonicalPaidInvoiceAndBindsNextPeriod() {
     Instant confirmedAt = Instant.parse("2026-11-01T00:01:00Z");
     CompanySubscription subscription = subscription(10L, SubscriptionStatus.ACTIVE);
     subscription.setCurrentPeriodEnd(Instant.parse("2026-11-01T00:00:00Z"));
-    subscription.getPlan().setBillingCycle(BillingCycle.MONTHLY);
-    subscription.getPlan().setBasePrice(new java.math.BigDecimal("100.00"));
-    subscription.getPlan().setCurrency("INR");
+
+    PlanPrice currentPrice = new PlanPrice();
+    currentPrice.setId(20L);
+    currentPrice.setPlan(subscription.getPlan());
+    currentPrice.setBillingCycle(BillingCycle.MONTHLY);
+    currentPrice.setAmount(new java.math.BigDecimal("100.00"));
+    currentPrice.setCurrency("INR");
+    subscription.setPlanPrice(currentPrice);
+
+    PlanPrice renewalPrice = new PlanPrice();
+    renewalPrice.setId(21L);
+    renewalPrice.setPlan(subscription.getPlan());
+    renewalPrice.setBillingCycle(BillingCycle.MONTHLY);
+    renewalPrice.setAmount(new java.math.BigDecimal("120.00"));
+    renewalPrice.setCurrency("INR");
+
+    BillingPeriod next = new BillingPeriod();
+    next.setId(30L);
+    next.setCompany(subscription.getCompany());
+    next.setKind(BillingPeriodKind.PLATFORM);
+    next.setCadence(BillingCycle.MONTHLY);
+    next.setPlan(subscription.getPlan());
+    next.setPlanPrice(renewalPrice);
+    next.setPlatformAmountSnapshot(new java.math.BigDecimal("120.00"));
+    next.setCurrencySnapshot("INR");
+    next.setStartAt(Instant.parse("2026-11-01T00:00:00Z"));
+    next.setEndAt(Instant.parse("2026-12-01T00:00:00Z"));
+    next.setStatus(BillingPeriodStatus.OPEN);
 
     when(subscriptionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(subscription));
+    when(invoiceService.requirePaidCanonicalPlatformInvoice(1L, 900L)).thenReturn(next);
     when(subscriptionRepository.saveAndFlush(subscription)).thenReturn(subscription);
 
-    List<String> ensuredRanges = new ArrayList<>();
-    doAnswer(
-            invocation -> {
-              CompanySubscription value = invocation.getArgument(0);
-              ensuredRanges.add(
-                  value.getCurrentPeriodStart() + "->" + value.getCurrentPeriodEnd());
-              return null;
-            })
-        .when(billingPeriodService)
-        .ensurePlatformPeriod(subscription);
-
     CompanySubscription renewed =
-        service.renewAfterConfirmedCollection(10L, confirmedAt);
+        service.renewAfterConfirmedCollection(10L, 900L, confirmedAt);
 
-    assertEquals(
-        Instant.parse("2026-11-01T00:00:00Z"), renewed.getCurrentPeriodStart());
-    assertEquals(
-        Instant.parse("2026-12-01T00:00:00Z"), renewed.getCurrentPeriodEnd());
+    assertEquals(next.getStartAt(), renewed.getCurrentPeriodStart());
+    assertEquals(next.getEndAt(), renewed.getCurrentPeriodEnd());
+    assertEquals(renewalPrice, renewed.getPlanPrice());
     assertEquals(SubscriptionStatus.ACTIVE, renewed.getStatus());
-    assertEquals(
-        List.of(
-            "2026-10-01T00:00:00Z->2026-11-01T00:00:00Z",
-            "2026-11-01T00:00:00Z->2026-12-01T00:00:00Z"),
-        ensuredRanges);
-    verify(billingPeriodService, times(2)).ensurePlatformPeriod(subscription);
+    verify(billingPeriodService).bindPlatformPeriodToSubscription(30L, subscription);
+    verify(transitionRepository).save(any(SubscriptionTransition.class));
   }
+
+  @Test
+  void confirmedRenewalReplayReturnsSamePeriodWithoutSecondTransition() {
+    Instant confirmedAt = Instant.parse("2026-11-01T00:01:00Z");
+    CompanySubscription subscription = subscription(10L, SubscriptionStatus.ACTIVE);
+
+    PlanPrice price = new PlanPrice();
+    price.setId(21L);
+    price.setPlan(subscription.getPlan());
+    price.setBillingCycle(BillingCycle.MONTHLY);
+    price.setAmount(new java.math.BigDecimal("120.00"));
+    price.setCurrency("INR");
+    subscription.setPlanPrice(price);
+    subscription.setCurrentPeriodStart(Instant.parse("2026-11-01T00:00:00Z"));
+    subscription.setCurrentPeriodEnd(Instant.parse("2026-12-01T00:00:00Z"));
+
+    BillingPeriod next = new BillingPeriod();
+    next.setId(30L);
+    next.setCompany(subscription.getCompany());
+    next.setKind(BillingPeriodKind.PLATFORM);
+    next.setPlan(subscription.getPlan());
+    next.setPlanPrice(price);
+    next.setPlatformAmountSnapshot(price.getAmount());
+    next.setCurrencySnapshot("INR");
+    next.setStartAt(subscription.getCurrentPeriodStart());
+    next.setEndAt(subscription.getCurrentPeriodEnd());
+    next.setSubscription(subscription);
+
+    when(subscriptionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(subscription));
+    when(invoiceService.requirePaidCanonicalPlatformInvoice(1L, 900L)).thenReturn(next);
+
+    CompanySubscription replay =
+        service.renewAfterConfirmedCollection(10L, 900L, confirmedAt);
+
+    assertEquals(subscription, replay);
+    verify(subscriptionRepository, org.mockito.Mockito.never()).saveAndFlush(any());
+    verify(transitionRepository, org.mockito.Mockito.never()).save(any());
+  }
+
 
   @Test
   void pastDueSuspensionUsesClaimedRowsAndReplayConverges() {
