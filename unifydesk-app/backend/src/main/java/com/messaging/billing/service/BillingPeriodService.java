@@ -77,6 +77,74 @@ public class BillingPeriodService {
     return period;
   }
 
+  /**
+   * Creates/resolves the immutable PLATFORM financial period before a subscription exists.
+   *
+   * <p>Used by B1 checkout/renewal invoice contracts. B2 must never derive platform period dates or
+   * amounts itself.
+   */
+  @Transactional
+  public BillingPeriod ensurePlatformPeriodSnapshot(
+      Company company, com.messaging.billing.entity.Plan plan, com.messaging.billing.entity.PlanPrice price,
+      Instant start, Instant end) {
+    if (company == null || plan == null || price == null) {
+      throw new BadRequestException("Platform period snapshot requires company, plan and price");
+    }
+    Company locked =
+        companyRepository
+            .findByIdForUpdate(company.getId())
+            .orElseThrow(() -> new NotFoundException("Company not found"));
+    BillingPeriod period =
+        ensure(locked, BillingPeriodKind.PLATFORM, price.getBillingCycle(), start, end);
+    assertCompatibleCommercialSnapshot(period, plan, price, price.getAmount(), price.getCurrency());
+    if (period.getPlan() == null
+        || period.getPlanPrice() == null
+        || period.getPlatformAmountSnapshot() == null
+        || period.getCurrencySnapshot() == null) {
+      period.setPlan(plan);
+      period.setPlanPrice(price);
+      period.setPlatformAmountSnapshot(price.getAmount());
+      period.setCurrencySnapshot(price.getCurrency());
+      period = periodRepository.saveAndFlush(period);
+    }
+    return period;
+  }
+
+  /**
+   * Binds a pre-created/prepaid PLATFORM period to the activated subscription without rewriting its
+   * immutable commercial snapshot.
+   */
+  @Transactional
+  public BillingPeriod bindPlatformPeriodToSubscription(
+      Long periodId, CompanySubscription subscription) {
+    BillingPeriod period =
+        periodRepository
+            .findByIdForUpdate(periodId)
+            .orElseThrow(() -> new NotFoundException("Billing period not found"));
+    if (period.getKind() != BillingPeriodKind.PLATFORM) {
+      throw new BadRequestException("Only PLATFORM periods can bind a subscription");
+    }
+    if (!period.getCompany().getId().equals(subscription.getCompany().getId())
+        || !period.getStartAt().equals(subscription.getCurrentPeriodStart())
+        || !period.getEndAt().equals(subscription.getCurrentPeriodEnd())) {
+      throw new ConflictException("Platform period does not match subscription service range");
+    }
+    BigDecimal amount =
+        subscription.getPlanPrice() == null
+            ? subscription.getPlan().getBasePrice()
+            : subscription.getPlanPrice().getAmount();
+    String currency =
+        subscription.getPlanPrice() == null
+            ? subscription.getPlan().getCurrency()
+            : subscription.getPlanPrice().getCurrency();
+    assertCompatiblePlatformSnapshot(period, subscription, amount, currency);
+    if (period.getSubscription() == null) {
+      period.setSubscription(subscription);
+      return periodRepository.saveAndFlush(period);
+    }
+    return period;
+  }
+
   @Transactional
   public BillingPeriod ensureManagedUsagePeriod(Long companyId, Instant occurredAt) {
     Company company =
@@ -145,6 +213,28 @@ public class BillingPeriodService {
     if (period.getPlanPrice() != null
         && (subscription.getPlanPrice() == null
             || !period.getPlanPrice().getId().equals(subscription.getPlanPrice().getId()))) {
+      throw new ConflictException("Billing period is already bound to another plan price");
+    }
+    if (period.getPlatformAmountSnapshot() != null
+        && period.getPlatformAmountSnapshot().compareTo(amount) != 0) {
+      throw new ConflictException("Billing period financial snapshot is immutable");
+    }
+    if (period.getCurrencySnapshot() != null
+        && !period.getCurrencySnapshot().equalsIgnoreCase(currency)) {
+      throw new ConflictException("Billing period currency snapshot is immutable");
+    }
+  }
+
+  private void assertCompatibleCommercialSnapshot(
+      BillingPeriod period,
+      com.messaging.billing.entity.Plan plan,
+      com.messaging.billing.entity.PlanPrice price,
+      BigDecimal amount,
+      String currency) {
+    if (period.getPlan() != null && !period.getPlan().getId().equals(plan.getId())) {
+      throw new ConflictException("Billing period is already bound to another plan");
+    }
+    if (period.getPlanPrice() != null && !period.getPlanPrice().getId().equals(price.getId())) {
       throw new ConflictException("Billing period is already bound to another plan price");
     }
     if (period.getPlatformAmountSnapshot() != null
