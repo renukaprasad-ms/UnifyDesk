@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class SubscriptionLifecycleService {
 
   public static final Duration PAST_DUE_GRACE = Duration.ofDays(7);
+  private static final int CLAIM_BATCH_SIZE = 100;
 
   private static final List<SubscriptionStatus> CURRENT_STATUSES =
       List.of(
@@ -47,10 +48,24 @@ public class SubscriptionLifecycleService {
         companyId, CURRENT_STATUSES);
   }
 
+  @Transactional
+  public CompanySubscription currentForUpdate(Long companyId) {
+    return subscriptionRepository
+        .findCurrentForUpdate(companyId)
+        .orElseThrow(() -> new NotFoundException("Company subscription not found"));
+  }
+
   @Transactional(readOnly = true)
   public CompanySubscription require(Long subscriptionId) {
     return subscriptionRepository
         .findById(subscriptionId)
+        .orElseThrow(() -> new NotFoundException("Company subscription not found"));
+  }
+
+  @Transactional
+  public CompanySubscription requireForUpdate(Long subscriptionId) {
+    return subscriptionRepository
+        .findByIdForUpdate(subscriptionId)
         .orElseThrow(() -> new NotFoundException("Company subscription not found"));
   }
 
@@ -76,7 +91,7 @@ public class SubscriptionLifecycleService {
 
   @Transactional
   public CompanySubscription scheduleCancellation(Long companyId, Long actorUserId) {
-    CompanySubscription subscription = current(companyId);
+    CompanySubscription subscription = currentForUpdate(companyId);
     if (subscription.getStatus() != SubscriptionStatus.ACTIVE
         && subscription.getStatus() != SubscriptionStatus.TRIALING) {
       throw new ConflictException("Only active or trial subscriptions can be scheduled to cancel");
@@ -87,6 +102,7 @@ public class SubscriptionLifecycleService {
     if (subscription.isCancelAtPeriodEnd()) {
       return subscription;
     }
+
     subscription.setCancelAtPeriodEnd(true);
     subscription.setCancellationEffectiveAt(subscription.getCurrentPeriodEnd());
     CompanySubscription saved = subscriptionRepository.saveAndFlush(subscription);
@@ -111,11 +127,7 @@ public class SubscriptionLifecycleService {
     if (reason == null || reason.isBlank()) {
       throw new BadRequestException("Immediate cancellation requires a reason");
     }
-    CompanySubscription subscription = current(companyId);
-    if (subscription.getStatus() == SubscriptionStatus.CANCELLED
-        || subscription.getStatus() == SubscriptionStatus.EXPIRED) {
-      return subscription;
-    }
+    CompanySubscription subscription = currentForUpdate(companyId);
     SubscriptionStatus previous = subscription.getStatus();
     subscription.setStatus(SubscriptionStatus.CANCELLED);
     subscription.setCancelAtPeriodEnd(false);
@@ -141,10 +153,11 @@ public class SubscriptionLifecycleService {
 
   @Transactional
   public void cancelForCompanyDeletion(Long companyId, Instant occurredAt) {
-    CompanySubscription subscription = currentOptional(companyId).orElse(null);
-    if (subscription == null) {
+    Optional<CompanySubscription> locked = subscriptionRepository.findCurrentForUpdate(companyId);
+    if (locked.isEmpty()) {
       return;
     }
+    CompanySubscription subscription = locked.get();
     SubscriptionStatus previous = subscription.getStatus();
     subscription.setStatus(SubscriptionStatus.CANCELLED);
     subscription.setCancelAtPeriodEnd(false);
@@ -169,7 +182,7 @@ public class SubscriptionLifecycleService {
 
   @Transactional
   public CompanySubscription markPastDue(Long subscriptionId, Instant occurredAt) {
-    CompanySubscription subscription = require(subscriptionId);
+    CompanySubscription subscription = requireForUpdate(subscriptionId);
     if (subscription.getStatus() == SubscriptionStatus.PAST_DUE) {
       return subscription;
     }
@@ -196,7 +209,7 @@ public class SubscriptionLifecycleService {
 
   @Transactional
   public CompanySubscription recover(Long subscriptionId, Instant occurredAt) {
-    CompanySubscription subscription = require(subscriptionId);
+    CompanySubscription subscription = requireForUpdate(subscriptionId);
     if (subscription.getStatus() == SubscriptionStatus.ACTIVE) {
       return subscription;
     }
@@ -249,9 +262,12 @@ public class SubscriptionLifecycleService {
   @Transactional
   public int applyDueLifecycle(Instant now) {
     int changed = 0;
+
     for (CompanySubscription subscription :
-        subscriptionRepository.findByStatusAndGraceEndsAtLessThanEqual(
-            SubscriptionStatus.PAST_DUE, now)) {
+        subscriptionRepository.findPastDueForUpdate(now, CLAIM_BATCH_SIZE)) {
+      if (subscription.getStatus() != SubscriptionStatus.PAST_DUE) {
+        continue;
+      }
       subscription.setStatus(SubscriptionStatus.SUSPENDED);
       subscriptionRepository.save(subscription);
       record(
@@ -268,9 +284,13 @@ public class SubscriptionLifecycleService {
           now);
       changed++;
     }
+    subscriptionRepository.flush();
+
     for (CompanySubscription subscription :
-        subscriptionRepository.findByStatusAndTrialEndsAtLessThanEqual(
-            SubscriptionStatus.TRIALING, now)) {
+        subscriptionRepository.findExpiredTrialsForUpdate(now, CLAIM_BATCH_SIZE)) {
+      if (subscription.getStatus() != SubscriptionStatus.TRIALING) {
+        continue;
+      }
       subscription.setStatus(SubscriptionStatus.EXPIRED);
       subscription.setEndsAt(now);
       subscriptionRepository.save(subscription);
@@ -288,18 +308,25 @@ public class SubscriptionLifecycleService {
           now);
       changed++;
     }
+    subscriptionRepository.flush();
+
     for (CompanySubscription subscription :
-        subscriptionRepository
-            .findByStatusAndCancelAtPeriodEndTrueAndCurrentPeriodEndLessThanEqual(
-                SubscriptionStatus.ACTIVE, now)) {
+        subscriptionRepository.findDueCancellationsForUpdate(now, CLAIM_BATCH_SIZE)) {
+      if (!subscription.isCancelAtPeriodEnd()
+          || (subscription.getStatus() != SubscriptionStatus.ACTIVE
+              && subscription.getStatus() != SubscriptionStatus.TRIALING)) {
+        continue;
+      }
+      SubscriptionStatus previous = subscription.getStatus();
+      Instant effectiveAt = subscription.getCurrentPeriodEnd();
       subscription.setStatus(SubscriptionStatus.EXPIRED);
       subscription.setCancelAtPeriodEnd(false);
-      subscription.setEndsAt(subscription.getCurrentPeriodEnd());
-      subscription.setCancellationEffectiveAt(subscription.getCurrentPeriodEnd());
+      subscription.setEndsAt(effectiveAt);
+      subscription.setCancellationEffectiveAt(effectiveAt);
       subscriptionRepository.save(subscription);
       record(
           subscription,
-          SubscriptionStatus.ACTIVE,
+          previous,
           SubscriptionStatus.EXPIRED,
           subscription.getPlan(),
           subscription.getPlan(),
@@ -308,7 +335,7 @@ public class SubscriptionLifecycleService {
           "Cancellation reached period boundary",
           subscription.getPaymentPolicy(),
           subscription.getExternalContractReference(),
-          subscription.getCurrentPeriodEnd());
+          effectiveAt);
       changed++;
     }
     subscriptionRepository.flush();

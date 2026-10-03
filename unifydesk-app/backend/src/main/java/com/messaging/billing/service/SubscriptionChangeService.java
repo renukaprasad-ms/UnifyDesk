@@ -7,6 +7,7 @@ import com.messaging.billing.entity.Plan;
 import com.messaging.billing.entity.PlanPrice;
 import com.messaging.billing.entity.SubscriptionChange;
 import com.messaging.billing.enums.BillingCycle;
+import com.messaging.billing.enums.PlanChangeDirection;
 import com.messaging.billing.enums.PlanStatus;
 import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.enums.SubscriptionChangeStatus;
@@ -19,6 +20,8 @@ import com.messaging.billing.repository.SubscriptionChangeRepository;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ConflictException;
 import com.messaging.common.exception.NotFoundException;
+import com.messaging.company.repository.CompanyRepository;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -31,12 +34,16 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SubscriptionChangeService {
 
+  private static final int CLAIM_BATCH_SIZE = 100;
+
   private final SubscriptionChangeRepository changeRepository;
   private final PlanRepository planRepository;
   private final PlanPriceRepository planPriceRepository;
+  private final CompanyRepository companyRepository;
   private final PlanEligibilityService eligibilityService;
   private final SubscriptionLifecycleService lifecycleService;
   private final UpgradeProrationCalculator prorationCalculator;
+  private final PlanChangeClassifier planChangeClassifier;
 
   @Transactional
   public SubscriptionChangeResponse requestUpgrade(
@@ -46,21 +53,31 @@ public class SubscriptionChangeService {
       String idempotencyKey,
       Long requestedByUserId,
       Instant requestedAt) {
-    CompanySubscription current = lifecycleService.current(companyId);
+    lockCompany(companyId);
+    String key = validateIdempotencyKey(idempotencyKey);
+    var prior = changeRepository.findByCompanyIdAndIdempotencyKey(companyId, key);
+    if (prior.isPresent()) {
+      assertSameCommand(
+          prior.get(), targetPlanId, targetPlanPriceId, SubscriptionChangeType.UPGRADE);
+      return toResponse(prior.get());
+    }
+
+    CompanySubscription current = lifecycleService.currentForUpdate(companyId);
     if (current.getStatus() != SubscriptionStatus.ACTIVE) {
       throw new ConflictException("Only an active subscription can be upgraded");
     }
-    Plan target = requireTarget(companyId, targetPlanId, requestedAt);
-    PlanPrice targetPrice = requirePrice(target, targetPlanPriceId);
     PlanPrice currentPrice = current.getPlanPrice();
     if (currentPrice == null) {
       throw new BadRequestException("Current subscription has no price snapshot");
     }
-    validateIdempotencyKey(idempotencyKey);
-    var prior = changeRepository.findByIdempotencyKey(idempotencyKey);
-    if (prior.isPresent()) {
-      assertSamePayload(prior.get(), current, target, SubscriptionChangeType.UPGRADE);
-      return toResponse(prior.get());
+
+    Plan target = requireTarget(companyId, targetPlanId, requestedAt);
+    PlanPrice targetPrice = requirePrice(target, targetPlanPriceId);
+    PlanChangeDirection direction =
+        planChangeClassifier.classify(current.getPlan(), currentPrice, target, targetPrice);
+    if (direction != PlanChangeDirection.UPGRADE) {
+      throw new ConflictException(
+          "Selected target is not an authoritative upgrade; use the canonical change contract");
     }
 
     UpgradeProrationQuote quote =
@@ -73,9 +90,16 @@ public class SubscriptionChangeService {
             requestedAt,
             "INR");
 
-    SubscriptionChange change = baseChange(
-        current, target, targetPrice, SubscriptionChangeType.UPGRADE, idempotencyKey,
-        requestedByUserId, requestedAt, requestedAt);
+    SubscriptionChange change =
+        baseChange(
+            current,
+            target,
+            targetPrice,
+            SubscriptionChangeType.UPGRADE,
+            key,
+            requestedByUserId,
+            requestedAt,
+            requestedAt);
     change.setStatus(SubscriptionChangeStatus.PENDING_PAYMENT);
     change.setCurrentPriceSnapshot(quote.currentPrice());
     change.setTargetPriceSnapshot(quote.targetPrice());
@@ -86,9 +110,11 @@ public class SubscriptionChangeService {
     change.setNetAmount(quote.netAmount());
     change.setAmountDue(quote.amountDue());
     change.setCreditAmount(quote.creditAmount());
+
     SubscriptionChange saved = changeRepository.saveAndFlush(change);
     saved.setQuoteReference("UPG-" + saved.getId());
     saved = changeRepository.saveAndFlush(saved);
+
     if (quote.amountDue().signum() == 0) {
       return applyConfirmedUpgrade(saved.getId(), null, requestedAt);
     }
@@ -103,66 +129,93 @@ public class SubscriptionChangeService {
       String idempotencyKey,
       Long requestedByUserId,
       Instant requestedAt) {
-    CompanySubscription current = lifecycleService.current(companyId);
+    lockCompany(companyId);
+    String key = validateIdempotencyKey(idempotencyKey);
+    var prior = changeRepository.findByCompanyIdAndIdempotencyKey(companyId, key);
+    if (prior.isPresent()) {
+      assertSameCommand(
+          prior.get(), targetPlanId, targetPlanPriceId, SubscriptionChangeType.DOWNGRADE);
+      return toResponse(prior.get());
+    }
+
+    CompanySubscription current = lifecycleService.currentForUpdate(companyId);
     if (current.getStatus() != SubscriptionStatus.ACTIVE) {
       throw new ConflictException("Only an active subscription can be downgraded");
     }
     if (current.getCurrentPeriodEnd() == null) {
       throw new BadRequestException("Downgrade requires a current billing-period boundary");
     }
+    PlanPrice currentPrice = current.getPlanPrice();
+    if (currentPrice == null) {
+      throw new BadRequestException("Current subscription has no price snapshot");
+    }
+
     Plan target = requireTarget(companyId, targetPlanId, requestedAt);
     PlanPrice targetPrice = requirePrice(target, targetPlanPriceId);
-    validateIdempotencyKey(idempotencyKey);
-    var prior = changeRepository.findByIdempotencyKey(idempotencyKey);
-    if (prior.isPresent()) {
-      assertSamePayload(prior.get(), current, target, SubscriptionChangeType.DOWNGRADE);
-      return toResponse(prior.get());
+    PlanChangeDirection direction =
+        planChangeClassifier.classify(current.getPlan(), currentPrice, target, targetPrice);
+    if (direction != PlanChangeDirection.DOWNGRADE) {
+      throw new ConflictException(
+          "Selected target is not an authoritative downgrade; use the canonical change contract");
     }
+
     SubscriptionChange change =
         baseChange(
             current,
             target,
             targetPrice,
             SubscriptionChangeType.DOWNGRADE,
-            idempotencyKey,
+            key,
             requestedByUserId,
             requestedAt,
             current.getCurrentPeriodEnd());
     change.setStatus(SubscriptionChangeStatus.SCHEDULED);
-    change.setCurrentPriceSnapshot(
-        current.getPlanPrice() == null ? null : current.getPlanPrice().getAmount());
+    change.setCurrentPriceSnapshot(currentPrice.getAmount());
     change.setTargetPriceSnapshot(targetPrice.getAmount());
     change.setCurrentPeriodStart(current.getCurrentPeriodStart());
     change.setCurrentPeriodEnd(current.getCurrentPeriodEnd());
-    change.setNetAmount(java.math.BigDecimal.ZERO);
-    change.setAmountDue(java.math.BigDecimal.ZERO);
-    change.setCreditAmount(java.math.BigDecimal.ZERO);
+    change.setNetAmount(BigDecimal.ZERO);
+    change.setAmountDue(BigDecimal.ZERO);
+    change.setCreditAmount(BigDecimal.ZERO);
+
     SubscriptionChange saved = changeRepository.saveAndFlush(change);
     saved.setQuoteReference("DNG-" + saved.getId());
     return toResponse(changeRepository.saveAndFlush(saved));
   }
 
   /**
-   * B2 calls this only after its provider/payment truth confirms the required upgrade amount.
+   * B2 calls this only after provider/payment truth confirms the required upgrade amount.
    */
   @Transactional
   public SubscriptionChangeResponse applyConfirmedUpgrade(
       Long changeId, Long invoiceId, Instant confirmedAt) {
-    SubscriptionChange change = require(changeId);
+    SubscriptionChange change =
+        changeRepository
+            .findByIdForUpdate(changeId)
+            .orElseThrow(() -> new NotFoundException("Subscription change not found"));
     if (change.getChangeType() != SubscriptionChangeType.UPGRADE) {
       throw new BadRequestException("Subscription change is not an upgrade");
     }
     if (change.getStatus() == SubscriptionChangeStatus.APPLIED) {
       return toResponse(change);
     }
-    if (change.getStatus() != SubscriptionChangeStatus.PENDING_PAYMENT
-        && change.getStatus() != SubscriptionChangeStatus.SCHEDULED) {
-      throw new ConflictException("Upgrade is not applicable from its current state");
+    if (change.getStatus() != SubscriptionChangeStatus.PENDING_PAYMENT) {
+      throw new ConflictException("Upgrade is not awaiting payment confirmation");
     }
-    CompanySubscription subscription = change.getSubscription();
+    if (change.getAmountDue() != null
+        && change.getAmountDue().signum() > 0
+        && invoiceId == null) {
+      throw new ConflictException(
+          "A paid upgrade cannot be applied without confirmed financial evidence");
+    }
+
+    CompanySubscription subscription =
+        lifecycleService.requireForUpdate(change.getSubscription().getId());
     if (subscription.getStatus() != SubscriptionStatus.ACTIVE) {
       throw new ConflictException("Subscription is not active");
     }
+    assertSubscriptionStillMatches(change, subscription);
+
     Plan fromPlan = subscription.getPlan();
     subscription.setPlan(change.getToPlan());
     subscription.setPlanPrice(change.getToPlanPrice());
@@ -174,6 +227,7 @@ public class SubscriptionChangeService {
         change.getRequestedByUserId(),
         "Provider-confirmed upgrade applied",
         confirmedAt);
+
     change.setInvoiceId(invoiceId);
     change.setAppliedAt(confirmedAt);
     change.setStatus(SubscriptionChangeStatus.APPLIED);
@@ -184,23 +238,26 @@ public class SubscriptionChangeService {
   public int applyDueDowngrades(Instant now) {
     int count = 0;
     List<SubscriptionChange> due =
-        changeRepository.findByStatusAndEffectiveAtLessThanEqualOrderByEffectiveAtAsc(
-            SubscriptionChangeStatus.SCHEDULED, now);
+        changeRepository.findDueDowngradesForUpdate(now, CLAIM_BATCH_SIZE);
     for (SubscriptionChange change : due) {
-      if (change.getChangeType() != SubscriptionChangeType.DOWNGRADE) {
+      CompanySubscription subscription =
+          lifecycleService.requireForUpdate(change.getSubscription().getId());
+      if (subscription.getStatus() != SubscriptionStatus.ACTIVE
+          || !subscriptionMatches(change, subscription)) {
+        change.setStatus(SubscriptionChangeStatus.FAILED);
+        changeRepository.save(change);
         continue;
       }
-      CompanySubscription subscription = change.getSubscription();
-      if (subscription.getStatus() != SubscriptionStatus.ACTIVE) {
-        continue;
-      }
+
       Plan fromPlan = subscription.getPlan();
       PlanPrice targetPrice = change.getToPlanPrice();
       subscription.setPlan(change.getToPlan());
       subscription.setPlanPrice(targetPrice);
       subscription.setCurrentPeriodStart(change.getEffectiveAt());
       subscription.setBillingAnchor(change.getEffectiveAt());
-      subscription.setCurrentPeriodEnd(nextBoundary(change.getEffectiveAt(), targetPrice.getBillingCycle()));
+      subscription.setCurrentPeriodEnd(
+          nextBoundary(change.getEffectiveAt(), targetPrice.getBillingCycle()));
+
       change.setStatus(SubscriptionChangeStatus.APPLIED);
       change.setAppliedAt(now);
       lifecycleService.recordPlanChange(
@@ -216,6 +273,12 @@ public class SubscriptionChangeService {
     }
     changeRepository.flush();
     return count;
+  }
+
+  private void lockCompany(Long companyId) {
+    companyRepository
+        .findByIdForUpdate(companyId)
+        .orElseThrow(() -> new NotFoundException("Company not found"));
   }
 
   private Plan requireTarget(Long companyId, Long planId, Instant at) {
@@ -262,35 +325,50 @@ public class SubscriptionChangeService {
     change.setRequestedAt(requestedAt);
     change.setRequestedByUserId(actor);
     change.setEffectiveAt(effectiveAt);
-    change.setIdempotencyKey(idempotencyKey.trim());
+    change.setIdempotencyKey(idempotencyKey);
     change.setCurrency("INR");
     change.setTargetPriceSnapshot(targetPrice.getAmount());
     return change;
   }
 
-  private void assertSamePayload(
+  private void assertSameCommand(
       SubscriptionChange prior,
-      CompanySubscription current,
-      Plan target,
+      Long targetPlanId,
+      Long targetPlanPriceId,
       SubscriptionChangeType type) {
-    if (!prior.getCompany().getId().equals(current.getCompany().getId())
-        || !prior.getSubscription().getId().equals(current.getId())
-        || !prior.getToPlan().getId().equals(target.getId())
+    if (!prior.getToPlan().getId().equals(targetPlanId)
+        || !prior.getToPlanPrice().getId().equals(targetPlanPriceId)
         || prior.getChangeType() != type) {
-      throw new ConflictException("Idempotency key was already used for a different change");
+      throw new ConflictException(
+          "Idempotency key was already used for a materially different subscription change");
     }
   }
 
-  private void validateIdempotencyKey(String key) {
+  private void assertSubscriptionStillMatches(
+      SubscriptionChange change, CompanySubscription subscription) {
+    if (!subscriptionMatches(change, subscription)) {
+      throw new ConflictException(
+          "Subscription changed after quote creation; upgrade cannot be applied");
+    }
+  }
+
+  private boolean subscriptionMatches(
+      SubscriptionChange change, CompanySubscription subscription) {
+    if (!subscription.getPlan().getId().equals(change.getFromPlan().getId())) {
+      return false;
+    }
+    Long expectedPriceId =
+        change.getFromPlanPrice() == null ? null : change.getFromPlanPrice().getId();
+    Long actualPriceId =
+        subscription.getPlanPrice() == null ? null : subscription.getPlanPrice().getId();
+    return java.util.Objects.equals(expectedPriceId, actualPriceId);
+  }
+
+  private String validateIdempotencyKey(String key) {
     if (key == null || key.isBlank() || key.length() > 255) {
       throw new BadRequestException("A valid idempotency key is required");
     }
-  }
-
-  private SubscriptionChange require(Long id) {
-    return changeRepository
-        .findById(id)
-        .orElseThrow(() -> new NotFoundException("Subscription change not found"));
+    return key.trim();
   }
 
   private Instant nextBoundary(Instant start, BillingCycle cycle) {
