@@ -45,8 +45,20 @@ public class Refund {
   @Column(name = "provider_refund_id", length = 255)
   private String providerRefundId;
 
+  @Column(name = "provider_refund_reference", length = 255)
+  private String providerRefundReference;
+
+  @Column(name = "provider_operation_state", nullable = false, length = 32)
+  private String providerOperationState = "CREATE_PENDING";
+
   @Column(name = "provider_status", length = 64)
   private String providerStatus;
+
+  @Column(name = "provider_created_at")
+  private Instant providerCreatedAt;
+
+  @Column(name = "provider_processed_at")
+  private Instant providerProcessedAt;
 
   @Column(name = "retention_until", nullable = false, insertable = false, updatable = false)
   private Instant retentionUntil;
