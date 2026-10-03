@@ -29,6 +29,8 @@ create table subscription_checkout_intents (
     unique (billing_period_id),
   constraint uk_subscription_checkout_intents_invoice
     unique (invoice_id),
+  constraint uk_subscription_checkout_intents_subscription
+    unique (subscription_id),
   constraint fk_subscription_checkout_intents_company
     foreign key (company_id) references companies(id),
   constraint fk_subscription_checkout_intents_plan
