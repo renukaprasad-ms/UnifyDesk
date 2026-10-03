@@ -67,6 +67,7 @@ public class SubscriptionChangeService {
         prorationCalculator.quote(
             currentPrice.getAmount(),
             targetPrice.getAmount(),
+            targetPrice.getBillingCycle(),
             current.getCurrentPeriodStart(),
             current.getCurrentPeriodEnd(),
             requestedAt,
@@ -75,10 +76,7 @@ public class SubscriptionChangeService {
     SubscriptionChange change = baseChange(
         current, target, targetPrice, SubscriptionChangeType.UPGRADE, idempotencyKey,
         requestedByUserId, requestedAt, requestedAt);
-    change.setStatus(
-        quote.amountDue().signum() > 0
-            ? SubscriptionChangeStatus.PENDING_PAYMENT
-            : SubscriptionChangeStatus.SCHEDULED);
+    change.setStatus(SubscriptionChangeStatus.PENDING_PAYMENT);
     change.setCurrentPriceSnapshot(quote.currentPrice());
     change.setTargetPriceSnapshot(quote.targetPrice());
     change.setCurrentPeriodStart(quote.currentPeriodStart());
@@ -90,7 +88,11 @@ public class SubscriptionChangeService {
     change.setCreditAmount(quote.creditAmount());
     SubscriptionChange saved = changeRepository.saveAndFlush(change);
     saved.setQuoteReference("UPG-" + saved.getId());
-    return toResponse(changeRepository.saveAndFlush(saved));
+    saved = changeRepository.saveAndFlush(saved);
+    if (quote.amountDue().signum() == 0) {
+      return applyConfirmedUpgrade(saved.getId(), null, requestedAt);
+    }
+    return toResponse(saved);
   }
 
   @Transactional
