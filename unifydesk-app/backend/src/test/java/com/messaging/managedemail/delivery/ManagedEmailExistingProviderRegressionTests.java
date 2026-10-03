@@ -34,6 +34,8 @@ class ManagedEmailExistingProviderRegressionTests {
     BroadcastRetryPolicy retryPolicy = mock(BroadcastRetryPolicy.class);
     BroadcastDeliveryStateService state = mock(BroadcastDeliveryStateService.class);
     BroadcastTemplateRenderer renderer = mock(BroadcastTemplateRenderer.class);
+    BroadcastEmailComplianceService emailCompliance =
+        mock(BroadcastEmailComplianceService.class);
     ManagedEmailDeliveryGuard managedGuard = mock(ManagedEmailDeliveryGuard.class);
     ManagedEmailRateLimiter managedRate = mock(ManagedEmailRateLimiter.class);
     ManagedEmailUsageService usage = mock(ManagedEmailUsageService.class);
@@ -77,6 +79,16 @@ class ManagedEmailExistingProviderRegressionTests {
         .thenReturn(
             new BroadcastTemplateRenderer.RenderedContent(
                 "Subject", "Body", null, List.of(), false, Map.of()));
+    when(emailCompliance.apply(any(), eq(recipient)))
+        .thenReturn(
+            new BroadcastEmailComplianceService.CompliantContent(
+                "Subject",
+                "Body",
+                null,
+                Map.of(),
+                new BroadcastEmailComplianceMetadata(
+                    "https://app.unifydesk.in/unsubscribe?token=test",
+                    "https://api.unifydesk.in/api/v1/public/recipient-actions/email/unsubscribe/test")));
     BroadcastDeliveryStateService.AttemptContext attempt =
         new BroadcastDeliveryStateService.AttemptContext(70L, 60L, 80L, 1);
     when(state.begin(70L, provider)).thenReturn(attempt);
@@ -94,6 +106,7 @@ class ManagedEmailExistingProviderRegressionTests {
             retryPolicy,
             state,
             renderer,
+            emailCompliance,
             managedGuard,
             managedRate,
             usage,
