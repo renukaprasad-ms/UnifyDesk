@@ -1,6 +1,6 @@
 # B2 Provider Verification Notes
 
-B2 source implementation pins Cashfree Payments/Subscriptions API version `2025-01-01`.
+B2 source implementation pins Cashfree Payments/Subscriptions API version `2026-01-01`.
 
 ## Implemented source contracts
 
@@ -16,8 +16,7 @@ B2 source implementation pins Cashfree Payments/Subscriptions API version `2025-
 ## Provider verification still required
 
 The repository has no Cashfree sandbox credentials or merchant rail enablement available to this worker.
-Cashfree documents that ON_DEMAND subscriptions require the merchant to raise recurring charges and that
-`POST /pg/subscriptions/pay` supports AUTH/CHARGE. The merchant-enabled rail, exact CHARGE request/response
+Cashfree's current API reference documents ON_DEMAND subscriptions and `POST /pg/subscriptions/pay` with AUTH/CHARGE under API version `2026-01-01`. The merchant-enabled rail, exact CHARGE request/response
 behavior, mandate authorization, retry constraints, cancellation/expiry, and webhook identities must be
 executed in Cashfree sandbox before production enablement.
 

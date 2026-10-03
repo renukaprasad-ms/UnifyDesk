@@ -179,8 +179,8 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
         || blank(properties.getClientSecret())) {
       throw new ConflictException("Cashfree provider is not configured");
     }
-    if (!"2025-01-01".equals(properties.getApiVersion())) {
-      throw new ConflictException("Cashfree API version must remain pinned to 2025-01-01");
+    if (!"2026-01-01".equals(properties.getApiVersion())) {
+      throw new ConflictException("Cashfree API version must remain pinned to 2026-01-01");
     }
   }
 

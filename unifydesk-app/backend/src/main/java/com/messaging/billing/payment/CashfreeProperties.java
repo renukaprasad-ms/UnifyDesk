@@ -10,7 +10,7 @@ public class CashfreeProperties {
   private String baseUrl = "https://sandbox.cashfree.com";
   private String clientId;
   private String clientSecret;
-  private String apiVersion = "2025-01-01";
+  private String apiVersion = "2026-01-01";
   private String returnUrl = "https://app.unifydesk.in/billing/payment-return";
   private String notifyUrl = "https://api.unifydesk.in/api/v1/webhooks/cashfree";
 
