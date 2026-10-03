@@ -1,8 +1,10 @@
 package com.messaging.billing.entity;
 
 import com.messaging.billing.enums.BillingCategory;
+import com.messaging.billing.enums.BillingSku;
 import com.messaging.billing.enums.CommunicationDirection;
 import com.messaging.billing.enums.PricingSource;
+import com.messaging.billing.enums.ServiceOwnership;
 import com.messaging.billing.enums.UsageUnit;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.ProviderType;
@@ -25,7 +27,10 @@ import lombok.Setter;
         @UniqueConstraint(name = "uk_usage_events_idempotency", columnNames = "idempotency_key"),
     indexes = {
       @Index(name = "idx_usage_events_company_time", columnList = "company_id,occurred_at"),
-      @Index(name = "idx_usage_events_channel", columnList = "channel")
+      @Index(name = "idx_usage_events_channel", columnList = "channel"),
+      @Index(
+          name = "idx_usage_events_financial_period",
+          columnList = "company_id,service_ownership,billing_period_id,occurred_at")
     })
 public class UsageEvent {
 
@@ -37,6 +42,21 @@ public class UsageEvent {
 
   @Column(name = "plan_id")
   private Long planIdSnapshot;
+
+  @Column(name = "subscription_id_snapshot")
+  private Long subscriptionIdSnapshot;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "billing_period_id")
+  private BillingPeriod billingPeriod;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "service_ownership", nullable = false, length = 32)
+  private ServiceOwnership serviceOwnership;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "billing_sku", length = 64)
+  private BillingSku billingSku;
 
   @Column(name = "rate_card_id")
   private Long rateCardIdSnapshot;
@@ -53,6 +73,9 @@ public class UsageEvent {
 
   @Column(name = "source_id", nullable = false, length = 160)
   private String sourceId;
+
+  @Column(name = "provider_reference", length = 255)
+  private String providerReference;
 
   @Column(name = "idempotency_key", nullable = false, length = 255)
   private String idempotencyKey;
