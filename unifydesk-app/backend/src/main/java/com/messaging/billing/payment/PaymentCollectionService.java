@@ -58,6 +58,17 @@ public class PaymentCollectionService {
     }
   }
 
+  public CheckoutResult prepareRecurringRenewal(
+      Long companyId, Long invoiceId, Long subscriptionId) {
+    PaymentCollectionStore.Prepared prepared =
+        store.prepareRecurringRenewal(
+            companyId,
+            invoiceId,
+            "payment:renewal:auto:" + invoiceId,
+            subscriptionId);
+    return toResult(prepared);
+  }
+
   private PaymentProviderGateway.Checkout recoverOrCreateIfDefinitelyAbsent(
       PaymentCollectionStore.Prepared prepared, PaymentProviderGateway.Customer customer) {
     try {
