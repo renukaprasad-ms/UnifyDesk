@@ -32,8 +32,8 @@ public class DunningService {
         """
         insert into payment_dunning_jobs (
           id, company_id, subscription_id, invoice_id, payment_id, status,
-          attempt_count, next_attempt_at, grace_ends_at, created_at, updated_at
-        ) values (?, ?, ?, ?, ?, 'ACTIVE', 1, ?, ?, now(), now())
+          attempt_count, dunning_stage, next_attempt_at, grace_ends_at, created_at, updated_at
+        ) values (?, ?, ?, ?, ?, 'ACTIVE', 1, 'DUE_FAILED', ?, ?, now(), now())
         on conflict (invoice_id) do nothing
         """,
         IdGenerator.nextId(),
@@ -78,7 +78,8 @@ public class DunningService {
                updated_at = now()
           from due
          where j.id = due.id
-        returning j.id, j.subscription_id, j.payment_id, j.attempt_count, j.grace_ends_at
+        returning j.id, j.subscription_id, j.payment_id, j.attempt_count,
+                  j.dunning_stage, j.grace_ends_at, j.claim_token
         """,
         (rs, rowNum) ->
             new Job(
@@ -86,7 +87,9 @@ public class DunningService {
                 rs.getLong("subscription_id"),
                 rs.getLong("payment_id"),
                 rs.getInt("attempt_count"),
-                rs.getTimestamp("grace_ends_at").toInstant()),
+                Stage.valueOf(rs.getString("dunning_stage")),
+                rs.getTimestamp("grace_ends_at").toInstant(),
+                rs.getString("claim_token")),
         token,
         claimSeconds);
   }
@@ -95,51 +98,104 @@ public class DunningService {
     Instant now = Instant.now();
     if (!now.isBefore(job.graceEndsAt())) {
       lifecycleService.applyDueLifecycle(now);
-      finish(job.id(), "EXHAUSTED", null, job.attemptCount());
+      finish(job, "EXHAUSTED", job.attemptCount());
       return;
     }
 
     try {
-      // First establish truth for prior one-time and recurring attempts.
       reconciliationService.reconcile(job.paymentId());
       reconcileLatestRecurring(job.paymentId());
 
       if (paymentStatus(job.paymentId()) == PaymentStatus.SUCCEEDED) {
-        finish(job.id(), "RECOVERED", null, job.attemptCount());
+        finish(job, "RECOVERED", job.attemptCount());
         return;
       }
 
       if (hasUnresolvedRecurringAttempt(job.paymentId())) {
-        // Never launch a second charge while the prior charge is ambiguous/pending.
-        release(job, nextObservation(now, job.graceEndsAt()), job.attemptCount());
+        release(job, job.stage(), nextObservation(now, job.graceEndsAt()), job.attemptCount());
         return;
       }
 
-      // A retry is a new append-only PaymentAttempt against the same Payment/invoice and
-      // recurring authorization. RecurringChargeService uses exactly Payment.amount/invoice truth.
+      // If a prior invocation already launched this stage's retry and crashed/returned ambiguous,
+      // reconciliation above establishes its definitive failure before the stage advances.
+      if (retryAlreadyLaunched(job)) {
+        advanceAfterDefinitiveFailure(job, now, job.attemptCount());
+        return;
+      }
+
       int beforeCommands = countRecurringCommands(job.paymentId());
       try {
-        recurringChargeService.charge(job.paymentId(), now);
+        recurringChargeService.charge(job.paymentId(), retryScheduleTime(job));
       } catch (RuntimeException chargeFailure) {
         int afterCommands = countRecurringCommands(job.paymentId());
         int count = job.attemptCount() + (afterCommands > beforeCommands ? 1 : 0);
-        release(job, nextRetryBoundary(job, now, count), count);
+        if (hasUnresolvedRecurringAttempt(job.paymentId()) || afterCommands == beforeCommands) {
+          release(job, job.stage(), nextObservation(now, job.graceEndsAt()), count);
+        } else {
+          advanceAfterDefinitiveFailure(job, now, count);
+        }
         return;
       }
+
       int afterCommands = countRecurringCommands(job.paymentId());
       int count = job.attemptCount() + (afterCommands > beforeCommands ? 1 : 0);
 
-      if (paymentStatus(job.paymentId()) == PaymentStatus.SUCCEEDED) {
-        finish(job.id(), "RECOVERED", null, count);
+      if (paymentStatus(job.paymentId()) == PaymentStatus.SUCCEEEDED) {
+        finish(job, "RECOVERED", count);
+        return;
+      }
+      if (hasUnresolvedRecurringAttempt(job.paymentId()) {
+        release(job, job.stage(), nextObservation(now, job.graceEndsAt()), count);
+        return;
+      }
+      if (afterCommands > beforeCommands) {
+        advanceAfterDefinitiveFailure(job, now, count);
         return;
       }
 
-      release(job, nextRetryBoundary(job, now, count), count);
+      release(job, job.stage(), nextObservation(now, job.graceEndsAt()), count);
     } catch (RuntimeException ignored) {
-      // Reconciliation itself was inconclusive. Keep the same financial command and observe
-      // again; do not count a retry unless a new recurring command was actually persisted.
-      release(job, nextObservation(now, job.graceEndsAt()), job.attemptCount());
+      release(
+          job,
+          job.stage(),
+          nextObservation(now, job.graceEndsAt()),
+          job.attemptCount());
     }
+  }
+
+  private boolean retryAlreadyLaunched(Job job) {
+    return switch (job.stage()) {
+      case DUE_FAILED -> job.attemptCount() >= 2;
+      case D2_FAILED -> job.attemptCount() >= 3;
+      case D5_FAILED -> true;
+    };
+  }
+
+  private void advanceAfterDefinitiveFailure(Job job, Instant now, int count) {
+    switch (job.stage()) {
+      case DUE_FAILED ->
+          release(job, Stage.D2_FAILED, notBefore(dayFive(job), now), count);
+      case D2_FAILED ->
+          release(job, Stage.D5_FAILED, job.graceEndsAt(), count);
+      case D5_FAILED ->
+          release(job, Stage.D5_FAILED, job.graceEndsAt(), count);
+    }
+  }
+
+  private Instant retryScheduleTime(Job job) {
+    return switch (job.stage()) {
+      case DUE_FAILED -> job.graceEndsAt().minus(Duration.ofDays(5)); // D+2
+      case D2_FAILED -> job.graceEndsAt().minus(Duration.ofDays(2)); // D+5
+      case D5_FAILED -> job.graceEndsAt(); // no further financial attempt before D+7
+    };
+  }
+
+  private Instant dayFive(Job job) {
+    return job.graceEndsAt().minus(Duration.ofDays(2));
+  }
+
+  private Instant notBefore(Instant target, Instant now) {
+    return target.isAfter(now) ? target : now;
   }
 
   private void reconcileLatestRecurring(Long paymentId) {
@@ -160,7 +216,7 @@ public class DunningService {
       try {
         recurringChargeService.reconcileAttempt(ids.getFirst());
       } catch (RuntimeException ignored) {
-        // Keep the same attempt recoverable; no new provider identity is minted.
+        // Keep the same durable command recoverable; no new provider identity is minted.
       }
     }
   }
@@ -196,48 +252,47 @@ public class DunningService {
     return PaymentStatus.valueOf(value);
   }
 
-  private Instant dayFiveTarget(Job job) {
-    return job.graceEndsAt().minus(Duration.ofDays(2));
-  }
-
-  private Instant nextRetryBoundary(Job job, Instant now, int count) {
-    if (count <= 1) {
-      Instant dayFive = dayFiveTarget(job);
-      return dayFive.isAfter(now) ? dayFive : job.graceEndsAt();
-    }
-    return job.graceEndsAt();
-  }
-
   private Instant nextObservation(Instant now, Instant graceEnd) {
     Instant candidate = now.plus(Duration.ofHours(1));
     return candidate.isBefore(graceEnd) ? candidate : graceEnd;
   }
 
-  private void release(Job job, Instant next, int count) {
+  private void release(Job job, Stage stage, Instant next, int count) {
     jdbcTemplate.update(
         """
         update payment_dunning_jobs
-           set status='ACTIVE', attempt_count=?, next_attempt_at=?,
-               claim_token=null, claimed_until=null, updated_at=now()
-         where id=? and status='CLAIMED'
+           set status='ACTIVE',
+               attempt_count=?,
+               dunning_stage=?,
+               next_attempt_at=?,
+               claim_token=null,
+               claimed_until=null,
+               updated_at=now()
+         where id=? and status='CLAIMED' and claim_token=?
         """,
         count,
+        stage.name(),
         Timestamp.from(next),
-        job.id());
+        job.id(),
+        job.claimToken());
   }
 
-  private void finish(Long id, String status, Instant next, int count) {
+  private void finish(Job job, String status, int count) {
     jdbcTemplate.update(
         """
         update payment_dunning_jobs
-           set status=?, attempt_count=?, next_attempt_at=?,
-               claim_token=null, claimed_until=null, updated_at=now()
-         where id=? and status='CLAIMED'
+           set status=?,
+               attempt_count=?,
+               next_attempt_at=null,
+               claim_token=null,
+               claimed_until=null,
+               updated_at=now()
+         where id=? and status='CLAIMED' and claim_token=?
         """,
         status,
         count,
-        next == null ? null : Timestamp.from(next),
-        id);
+        job.id(),
+        job.claimToken());
   }
 
   public void complete(Long paymentId) {
@@ -251,6 +306,18 @@ public class DunningService {
         paymentId);
   }
 
+  enum Stage {
+    DUE_FAILED,
+    D2_FAILED,
+    D5_FAILED
+  }
+
   private record Job(
-      Long id, Long subscriptionId, Long paymentId, int attemptCount, Instant graceEndsAt) {}
+      Long id,
+      Long subscriptionId,
+      Long paymentId,
+      int attemptCount,
+      Stage stage,
+      Instant graceEndsAt,
+      String claimToken) {}
 }
