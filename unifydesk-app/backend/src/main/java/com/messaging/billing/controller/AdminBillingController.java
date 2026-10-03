@@ -209,13 +209,13 @@ public class AdminBillingController {
 
   @PostMapping("/companies/{companyId}/subscription/cancel")
   public ResponseEntity<ApiResponse<CompanySubscriptionResponse>> cancelCompanySubscription(
-      @PathVariable Long companyId, @RequestParam(defaultValue = "false") boolean atPeriodEnd) {
+      @PathVariable Long companyId, @RequestParam(defaultValue = "true") boolean atPeriodEnd) {
     requireSuperAdmin();
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
             billingCatalogService.cancelSubscription(companyId, atPeriodEnd),
-            "Company subscription updated"));
+            "Company subscription cancellation scheduled"));
   }
 
   private void requireSuperAdmin() {
