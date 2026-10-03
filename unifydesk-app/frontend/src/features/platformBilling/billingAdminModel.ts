@@ -1,11 +1,30 @@
-import type { BillingPlan, CreateCompanyRateOverrideInput, CreatePlanPriceInput, CreateRateCardInput, PlanPrice } from './types'
+import type {
+  BillingPlan,
+  CreateCompanyRateOverrideInput,
+  CreatePlanPriceInput,
+  CreateRateCardInput,
+  PlanPrice,
+} from './types'
 
-export const requiredInstant = (value: string, label: string) => {
+const pad2 = (value: number) => String(value).padStart(2, '0')
+
+/** Convert an absolute backend Instant into the browser-local wall clock expected by datetime-local. */
+export const instantToLocalDateTime = (value?: string | null) => {
+  if (!value) return ''
+  const instant = new Date(value)
+  if (Number.isNaN(instant.getTime())) return ''
+  return `${instant.getFullYear()}-${pad2(instant.getMonth() + 1)}-${pad2(instant.getDate())}T${pad2(instant.getHours())}:${pad2(instant.getMinutes())}`
+}
+
+/** Convert a browser-local datetime-local value into the canonical backend ISO Instant. */
+export const localDateTimeToInstant = (value: string, label: string) => {
   if (!value.trim()) throw new Error(`${label} is required.`)
   const instant = new Date(value)
   if (Number.isNaN(instant.getTime())) throw new Error(`${label} is invalid.`)
   return instant.toISOString()
 }
+
+export const requiredInstant = localDateTimeToInstant
 
 export const optionalInstant = (value: string) => {
   if (!value.trim()) return null
