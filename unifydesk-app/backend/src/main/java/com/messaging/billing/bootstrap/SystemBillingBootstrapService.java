@@ -63,20 +63,9 @@ public class SystemBillingBootstrapService {
     }
 
     Long planId = existing.getFirst();
-    jdbcTemplate.update(
-        """
-        update plans
-        set name = 'Free',
-            description = coalesce(description, 'Default system plan for new workspaces'),
-            status = 'PUBLISHED',
-            billing_cycle = 'FREE',
-            base_price = 0,
-            currency = 'INR',
-            updated_at = now()
-        where id = ?
-        """,
-        planId);
 
+    // Published commercial versions are immutable. Bootstrap may create missing seed state,
+    // but it must never rewrite an existing published plan on application restart.
     ensureFreePrice(planId);
     ensureDefaultEntitlements(planId);
     return planId;
