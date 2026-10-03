@@ -18,11 +18,11 @@ class RecurringAuthorizationServiceTests {
     RecurringAuthorizationService service =
         new RecurringAuthorizationService(store, gateway, properties);
 
-    var initial = prepared(90L, 77L, null, "UDS-77", null, null, "CREATE_PENDING", true);
+    var initial = prepared(90L, 77L, null, "UDS-77", null, null, "CREATE_PENDING", new BigDecimal("999.00"), true);
     var withSession =
-        prepared(90L, 77L, null, "UDS-77", "subs-session", null, "PENDING_AUTH", false);
+        prepared(90L, 77L, null, "UDS-77", "subs-session", null, "PENDING_AUTH", new BigDecimal("999.00"), false);
     var active =
-        prepared(90L, 77L, null, "UDS-77", "subs-session", "cf-auth-1", "ACTIVE", false);
+        prepared(90L, 77L, null, "UDS-77", "subs-session", "cf-auth-1", "ACTIVE", new BigDecimal("999.00"), false);
 
     when(store.prepare(10L, 77L, new BigDecimal("999.00"), "INR")).thenReturn(initial);
     when(gateway.createRecurringAuthorization(
@@ -88,9 +88,9 @@ class RecurringAuthorizationServiceTests {
         new RecurringAuthorizationService(store, gateway, properties);
 
     var initial =
-        prepared(91L, null, 555L, "UDS-I-555", null, null, "CREATE_PENDING", true);
+        prepared(91L, null, 555L, "UDS-I-555", null, null, "CREATE_PENDING", new BigDecimal("499.00"), true);
     var active =
-        prepared(91L, null, 555L, "UDS-I-555", "subs-session", "cf-auth-2", "ACTIVE", false);
+        prepared(91L, null, 555L, "UDS-I-555", "subs-session", "cf-auth-2", "ACTIVE", new BigDecimal("499.00"), false);
     when(store.prepareInitial(10L, 555L, new BigDecimal("499.00"), "INR"))
         .thenReturn(initial)
         .thenReturn(active);
@@ -131,6 +131,7 @@ class RecurringAuthorizationServiceTests {
       String sessionId,
       String providerAuthorizationPaymentId,
       String status,
+      BigDecimal maxAmount,
       boolean newlyCreated) {
     return new RecurringAuthorizationStore.Prepared(
         id,
@@ -142,7 +143,7 @@ class RecurringAuthorizationServiceTests {
         "UDA-" + id,
         providerAuthorizationPaymentId,
         status,
-        new BigDecimal("999.00"),
+        maxAmount,
         "INR",
         newlyCreated);
   }
