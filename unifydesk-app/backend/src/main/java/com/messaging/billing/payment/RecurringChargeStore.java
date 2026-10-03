@@ -2,6 +2,7 @@ package com.messaging.billing.payment;
 
 import com.messaging.billing.entity.Payment;
 import com.messaging.billing.entity.PaymentAttempt;
+import com.messaging.billing.enums.InvoiceStatus;
 import com.messaging.billing.enums.PaymentAttemptStatus;
 import com.messaging.billing.enums.PaymentPurpose;
 import com.messaging.billing.enums.PaymentStatus;
@@ -37,6 +38,12 @@ class RecurringChargeStore {
     }
     if (payment.getStatus() == PaymentStatus.SUCCEEDED) {
       return paymentOnly(payment, true);
+    }
+    if (payment.getInvoice().getStatus() != InvoiceStatus.OPEN
+        || payment.getInvoice().getAmountDue().compareTo(payment.getAmount()) != 0
+        || !payment.getInvoice().getCurrency().equalsIgnoreCase(payment.getCurrency())) {
+      throw new ConflictException(
+          "Recurring charge must use the exact unpaid canonical invoice amount");
     }
 
     List<PaymentAttempt> history =
