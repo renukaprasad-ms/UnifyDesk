@@ -17,6 +17,7 @@ public class BillingPaymentOrchestrator {
   private final SubscriptionCheckoutService checkoutService;
   private final UpgradeInvoiceService upgradeInvoiceService;
   private final PaymentCollectionService collectionService;
+  private final RecurringAuthorizationService recurringAuthorizationService;
 
   public PaymentCollectionService.CheckoutResult initialCheckout(
       Long companyId,
@@ -68,14 +69,29 @@ public class BillingPaymentOrchestrator {
     InvoiceResponse invoice =
         checkoutService.createOrResolveRenewalInvoice(
             companyId, subscriptionId, Instant.now(), identity);
-    return collectionService.createOrResolve(
-        companyId,
-        Long.valueOf(invoice.invoiceId()),
-        PaymentPurpose.RENEWAL,
-        "payment:renewal:" + invoice.invoiceId() + ":" + commandKey,
-        null,
-        null,
-        subscriptionId,
-        customer);
+
+    // Pre-due preparation may establish/refresh recurring authorization, but it does not
+    // advance the subscription lifecycle. The exact charge still comes from this invoice.
+    var authorization =
+        recurringAuthorizationService.prepareOrResolve(
+            companyId,
+            subscriptionId,
+            invoice.amountDue(),
+            invoice.currency(),
+            customer);
+
+    var checkout =
+        collectionService.createOrResolve(
+            companyId,
+            Long.valueOf(invoice.invoiceId()),
+            PaymentPurpose.RENEWAL,
+            "payment:renewal:" + invoice.invoiceId() + ":" + commandKey,
+            null,
+            null,
+            subscriptionId,
+            customer);
+    recurringAuthorizationService.bindPayment(authorization.authorizationId(), checkout.paymentId());
+    return checkout.withRecurringAuthorization(
+        authorization.subscriptionSessionId(), authorization.actionUrl());
   }
 }
