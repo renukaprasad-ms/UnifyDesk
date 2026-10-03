@@ -2,6 +2,8 @@ package com.messaging.billing.service;
 
 import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.entity.Plan;
+import com.messaging.billing.entity.PlanPrice;
+import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.entity.SubscriptionTransition;
 import com.messaging.billing.enums.PaymentPolicy;
 import com.messaging.billing.enums.SubscriptionStatus;
@@ -13,6 +15,8 @@ import com.messaging.common.exception.ConflictException;
 import com.messaging.common.exception.NotFoundException;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +39,7 @@ public class SubscriptionLifecycleService {
 
   private final CompanySubscriptionRepository subscriptionRepository;
   private final SubscriptionTransitionRepository transitionRepository;
+  private final BillingPeriodService billingPeriodService;
 
   @Transactional(readOnly = true)
   public CompanySubscription current(Long companyId) {
@@ -75,6 +80,7 @@ public class SubscriptionLifecycleService {
       Long actorUserId,
       String reason,
       SubscriptionTransitionType type) {
+    ensureCurrentPlatformPeriodIfPresent(subscription);
     record(
         subscription,
         null,
@@ -204,6 +210,61 @@ public class SubscriptionLifecycleService {
         saved.getPaymentPolicy(),
         saved.getExternalContractReference(),
         occurredAt);
+    return saved;
+  }
+
+  /**
+   * B1-owned post-collection renewal boundary for B2.
+   *
+   * <p>B2 calls this only after verified renewal collection. The current period snapshot is frozen
+   * first; then the subscription advances deterministically from the old currentPeriodEnd and the
+   * next PLATFORM BillingPeriod is created with the current immutable plan/price snapshot.
+   */
+  @Transactional
+  public CompanySubscription renewAfterConfirmedCollection(
+      Long subscriptionId, Instant confirmedAt) {
+    CompanySubscription subscription = requireForUpdate(subscriptionId);
+    if (subscription.getStatus() != SubscriptionStatus.ACTIVE
+        && subscription.getStatus() != SubscriptionStatus.PAST_DUE
+        && subscription.getStatus() != SubscriptionStatus.SUSPENDED) {
+      throw new ConflictException("Subscription is not eligible for confirmed renewal");
+    }
+    if (subscription.getCurrentPeriodStart() == null
+        || subscription.getCurrentPeriodEnd() == null
+        || !subscription.getCurrentPeriodEnd().isAfter(subscription.getCurrentPeriodStart())) {
+      throw new BadRequestException("Subscription has no valid platform period to renew");
+    }
+
+    billingPeriodService.ensurePlatformPeriod(subscription);
+
+    Instant nextStart = subscription.getCurrentPeriodEnd();
+    BillingCycle cycle = billingCycle(subscription);
+    Instant nextEnd = nextBoundary(nextStart, cycle);
+    if (nextEnd == null) {
+      throw new BadRequestException("FREE subscriptions do not require paid renewal collection");
+    }
+
+    SubscriptionStatus previousStatus = subscription.getStatus();
+    subscription.setCurrentPeriodStart(nextStart);
+    subscription.setCurrentPeriodEnd(nextEnd);
+    subscription.setBillingAnchor(nextStart);
+    subscription.setStatus(SubscriptionStatus.ACTIVE);
+    subscription.setGraceEndsAt(null);
+    CompanySubscription saved = subscriptionRepository.saveAndFlush(subscription);
+
+    billingPeriodService.ensurePlatformPeriod(saved);
+    record(
+        saved,
+        previousStatus,
+        SubscriptionStatus.ACTIVE,
+        saved.getPlan(),
+        saved.getPlan(),
+        SubscriptionTransitionType.RENEWED,
+        null,
+        "Provider-confirmed renewal collection",
+        saved.getPaymentPolicy(),
+        saved.getExternalContractReference(),
+        confirmedAt);
     return saved;
   }
 
@@ -340,6 +401,29 @@ public class SubscriptionLifecycleService {
     }
     subscriptionRepository.flush();
     return changed;
+  }
+
+  private void ensureCurrentPlatformPeriodIfPresent(CompanySubscription subscription) {
+    if ((subscription.getStatus() == SubscriptionStatus.ACTIVE
+            || subscription.getStatus() == SubscriptionStatus.TRIALING)
+        && subscription.getCurrentPeriodStart() != null
+        && subscription.getCurrentPeriodEnd() != null) {
+      billingPeriodService.ensurePlatformPeriod(subscription);
+    }
+  }
+
+  private BillingCycle billingCycle(CompanySubscription subscription) {
+    PlanPrice price = subscription.getPlanPrice();
+    return price == null ? subscription.getPlan().getBillingCycle() : price.getBillingCycle();
+  }
+
+  private Instant nextBoundary(Instant start, BillingCycle cycle) {
+    ZonedDateTime utc = start.atZone(ZoneOffset.UTC);
+    return switch (cycle) {
+      case MONTHLY -> utc.plusMonths(1).toInstant();
+      case YEARLY -> utc.plusYears(1).toInstant();
+      case FREE -> null;
+    };
   }
 
   private void record(
