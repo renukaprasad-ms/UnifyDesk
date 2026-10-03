@@ -15,6 +15,7 @@ import java.util.Base64;
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -31,6 +32,7 @@ public class RecipientActionTokenService {
   private final ObjectMapper objectMapper;
   private final Clock clock;
 
+  @Autowired
   public RecipientActionTokenService(
       RecipientActionProperties properties, ObjectMapper objectMapper) {
     this(properties, objectMapper, Clock.systemUTC());
