@@ -357,24 +357,48 @@ public class BillingCatalogService {
   @Transactional
   public CompanyRateOverrideResponse updateCompanyRateOverride(
       Long overrideId, UpdateCompanyRateOverrideRequest request) {
-    CompanyRateOverride override =
+    CompanyRateOverride current =
         companyRateOverrideRepository
             .findById(overrideId)
             .orElseThrow(() -> new NotFoundException("Company rate override not found"));
 
-    Instant from =
-        request.effectiveFrom() == null ? override.getEffectiveFrom() : request.effectiveFrom();
-    Instant to = request.effectiveTo() == null ? override.getEffectiveTo() : request.effectiveTo();
-    validatePeriod(from, to);
-    assertNoOverlappingOverride(override, from, to);
+    Instant revisionFrom = request.effectiveFrom() == null ? Instant.now() : request.effectiveFrom();
+    if (current.getEffectiveFrom() == null || !revisionFrom.isAfter(current.getEffectiveFrom())) {
+      throw new BadRequestException(
+          "Rate override revisions must start after the prior revision effective time");
+    }
+    if (current.getEffectiveTo() != null && !revisionFrom.isBefore(current.getEffectiveTo())) {
+      throw new BadRequestException("Rate override revision is outside the prior effective range");
+    }
 
-    if (request.price() != null) override.setPrice(request.price());
-    if (request.currency() != null) override.setCurrency(normalizeCurrency(request.currency()));
-    override.setEffectiveFrom(from);
-    override.setEffectiveTo(to);
-    if (request.status() != null) override.setStatus(request.status());
-    if (request.reason() != null) override.setReason(normalizeOptional(request.reason()));
-    return toCompanyRateOverrideResponse(companyRateOverrideRepository.saveAndFlush(override));
+    Instant revisionTo =
+        request.effectiveTo() == null ? current.getEffectiveTo() : request.effectiveTo();
+    validatePeriod(revisionFrom, revisionTo);
+
+    current.setEffectiveTo(revisionFrom);
+    current.setSupersededAt(Instant.now());
+    companyRateOverrideRepository.saveAndFlush(current);
+
+    CompanyRateOverride next = new CompanyRateOverride();
+    next.setCompany(current.getCompany());
+    next.setChannel(current.getChannel());
+    next.setProvider(current.getProvider());
+    next.setBillingCategory(current.getBillingCategory());
+    next.setDirection(current.getDirection());
+    next.setCountry(current.getCountry());
+    next.setCarrier(current.getCarrier());
+    next.setUnit(current.getUnit());
+    next.setPrice(request.price() == null ? current.getPrice() : request.price());
+    next.setCurrency(
+        request.currency() == null ? current.getCurrency() : normalizeCurrency(request.currency()));
+    next.setEffectiveFrom(revisionFrom);
+    next.setEffectiveTo(revisionTo);
+    next.setStatus(request.status() == null ? current.getStatus() : request.status());
+    next.setCreatedByUserId(current.getCreatedByUserId());
+    next.setReason(
+        request.reason() == null ? current.getReason() : normalizeOptional(request.reason()));
+    next.setSupersedesOverrideId(current.getId());
+    return toCompanyRateOverrideResponse(companyRateOverrideRepository.saveAndFlush(next));
   }
 
   @Transactional

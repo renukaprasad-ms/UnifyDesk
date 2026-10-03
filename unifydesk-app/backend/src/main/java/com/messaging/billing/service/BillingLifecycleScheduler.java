@@ -13,6 +13,7 @@ public class BillingLifecycleScheduler {
   private final SubscriptionChangeService subscriptionChangeService;
   private final BillingPeriodService billingPeriodService;
   private final InvoiceService invoiceService;
+  private final ManagedUsageInvoiceService managedUsageInvoiceService;
 
   @Scheduled(
       fixedDelayString = "${app.billing.lifecycle.poll-interval-ms:60000}",
@@ -22,6 +23,7 @@ public class BillingLifecycleScheduler {
     subscriptionLifecycleService.applyDueLifecycle(now);
     subscriptionChangeService.applyDueDowngrades(now);
     billingPeriodService.markDueClosing(now);
+    managedUsageInvoiceService.materializeClosingPeriods();
     invoiceService.recoverClosingPeriods(now);
   }
 }
