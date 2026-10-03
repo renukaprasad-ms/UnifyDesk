@@ -278,3 +278,110 @@ Reasons:
 5. Provider-4 Amazon SES/SendGrid/Azure Email/MSG91 Email regression has not yet executed.
 
 This is not a rollback of prior source QA acceptance. It is the correct runtime-verification classification.
+
+
+## 2026-10-03 remediation integration re-freeze
+
+L1 re-checked live `dev` before integration and confirmed it was still exactly:
+
+`f2760fe0a11ad571f984636a65304a64b77459ac`
+
+Worker heads were also re-checked and had not moved:
+
+- B2 PR #253: `ca2a2b1ee73b902b9f57c6d9b2eb9a782674a47b`
+- F1 PR #252: `acd808e48de169184af50c93db307e65faee2dc5`
+
+L1 source review accepted both remediations.
+
+Integration lineage:
+
+- PR #253 merged to `dev` as `c0bb643021622f4cd68711753692d3027ddb1bff`.
+- PR #252 was integrated at L1 with a two-parent merge commit preserving F1 head lineage after GitHub recalculated the PR against the moved `dev`.
+- Resulting integrated `dev` SHA:
+
+`f94b303c3a33fe114dbe33162cdbad8dbab14d91`
+
+This SHA is now the Runtime R1 executable verification baseline.
+
+### CMR1-RUNTIME-001A source remediation
+
+**INTEGRATED — runtime proof still required**
+
+Integrated source now contains:
+
+- AES-256-GCM recipient action tokens with dedicated `APP_RECIPIENT_ACTION_KEY`;
+- public `POST /api/v1/public/recipient-actions/email/unsubscribe/{token}`;
+- canonical `EMAIL / MARKETING / OPTED_OUT / CONTACT_ACTION / CONTACT` preference mutation;
+- public frontend `/unsubscribe` route with auth bootstrap bypass limited to that route;
+- visible Broadcast unsubscribe content;
+- SES/SendGrid/Azure one-click header adaptation;
+- MSG91 template-variable adaptation without invented header capability;
+- send-time canonical Contact eligibility recheck before provider transport.
+
+No executable recipient click/provider send is claimed PASS yet.
+
+### CMR1-RUNTIME-001B source remediation
+
+**INTEGRATED — runtime proof still required**
+
+Effective preference projection now compares event occurrence time rather than ingestion order:
+
+- newer events may replace the projection;
+- older events remain immutable history only;
+- equal timestamps use deterministic fail-closed ordering `OPTED_OUT > UNKNOWN > OPTED_IN`;
+- genuinely later valid re-consent may become effective.
+
+Runtime stale-import and re-consent sequences are still NOT EXECUTED.
+
+### Build/test status after integration
+
+Latest worker-head GitHub Actions runs were inspected:
+
+- F1 head run `37092513807`: all jobs returned `steps = null`.
+- B2 head run `37025876168`: all jobs returned `steps = null`.
+
+Therefore Maven/npm/Spotless/package results remain:
+
+**BLOCKED — CI execution environment / NOT EXECUTED**
+
+No PASS is claimed from those runs.
+
+This L1 execution session has repository/API integration access but no authenticated checkout/shell capable of executing the repository build locally and no authenticated k3s runtime channel.
+
+### Deployment/configuration requirement
+
+`APP_RECIPIENT_ACTION_KEY` is mandatory before Broadcast unsubscribe tokens can be issued.
+
+Requirements:
+
+- dedicated only to recipient actions;
+- Base64 encoded;
+- decoded value exactly 32 bytes for AES-256-GCM;
+- supplied through deployment secret configuration;
+- never committed or logged.
+
+The current k3s backend imports `messaging-env` through `envFrom`, and `k8s.sh` builds that Secret from `.env`. No hard-coded manifest secret value is required.
+
+Production defaults remain:
+
+- `APP_FRONTEND_BASE_URL=https://app.unifydesk.in`
+- `APP_PUBLIC_API_BASE_URL=https://api.unifydesk.in`
+
+### Remaining executable Runtime R1 evidence
+
+The following remain NOT EXECUTED/BLOCKED against `f94b303c3a33fe114dbe33162cdbad8dbab14d91`:
+
+1. deployed SHA proof;
+2. real public unsubscribe page/action;
+3. duplicate unsubscribe idempotency;
+4. stale historical import after newer opt-out;
+5. genuinely later re-consent;
+6. Preview -> Freeze -> Unsubscribe -> Dispatch race proving SKIPPED and no provider message id;
+7. actual outbound visible unsubscribe content;
+8. SES provider request/header proof;
+9. SendGrid provider request/header proof;
+10. Azure Email provider request/header proof;
+11. MSG91 Email provider-template variable/capability proof;
+12. broader Managed Email/SES, Managed SMS and Meta runtime/provider cases.
+
+SEC/QA handoff remains blocked until the required executable Runtime R1 evidence is recorded.
