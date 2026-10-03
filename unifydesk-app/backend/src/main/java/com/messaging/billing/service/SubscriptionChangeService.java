@@ -163,7 +163,7 @@ public class SubscriptionChangeService {
     }
     Plan fromPlan = subscription.getPlan();
     subscription.setPlan(change.getToPlan());
-    subscription.setPlanPrice(requirePrice(change.getToPlan(), change.getTargetPriceSnapshot()));
+    subscription.setPlanPrice(change.getToPlanPrice());
     lifecycleService.recordPlanChange(
         subscription,
         fromPlan,
@@ -193,7 +193,7 @@ public class SubscriptionChangeService {
         continue;
       }
       Plan fromPlan = subscription.getPlan();
-      PlanPrice targetPrice = findPriceForPlanAndAmount(change.getToPlan(), change.getTargetPriceSnapshot());
+      PlanPrice targetPrice = change.getToPlanPrice();
       subscription.setPlan(change.getToPlan());
       subscription.setPlanPrice(targetPrice);
       subscription.setCurrentPeriodStart(change.getEffectiveAt());
@@ -240,19 +240,6 @@ public class SubscriptionChangeService {
     return price;
   }
 
-  private PlanPrice requirePrice(Plan plan, java.math.BigDecimal amount) {
-    return findPriceForPlanAndAmount(plan, amount);
-  }
-
-  private PlanPrice findPriceForPlanAndAmount(Plan plan, java.math.BigDecimal amount) {
-    return planPriceRepository
-        .findByPlanIdAndStatusOrderByEffectiveFromDesc(plan.getId(), RateCardStatus.ACTIVE)
-        .stream()
-        .filter(price -> price.getAmount().compareTo(amount) == 0)
-        .findFirst()
-        .orElseThrow(() -> new NotFoundException("Target plan price snapshot is no longer resolvable"));
-  }
-
   private SubscriptionChange baseChange(
       CompanySubscription current,
       Plan target,
@@ -267,6 +254,8 @@ public class SubscriptionChangeService {
     change.setSubscription(current);
     change.setFromPlan(current.getPlan());
     change.setToPlan(target);
+    change.setFromPlanPrice(current.getPlanPrice());
+    change.setToPlanPrice(targetPrice);
     change.setChangeType(type);
     change.setRequestedAt(requestedAt);
     change.setRequestedByUserId(actor);
