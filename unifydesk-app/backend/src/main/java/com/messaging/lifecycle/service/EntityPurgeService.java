@@ -248,11 +248,6 @@ public class EntityPurgeService {
         companyId)) return false;
 
     if (!drain(
-        "delete from company_rate_overrides where ctid in "
-            + "(select ctid from company_rate_overrides where company_id = ? limit ?)",
-        companyId)) return false;
-
-    if (!drain(
         "delete from company_storage_usage where ctid in "
             + "(select ctid from company_storage_usage where company_id = ? limit ?)",
         companyId)) return false;

@@ -110,7 +110,8 @@ public class ManagedSmsDeliveryCoordinator {
             attempt.attemptNo(),
             result.providerRequestId(),
             runtime.messageCategory(),
-            null);
+            null,
+            result.acceptedAt());
       } catch (RuntimeException exception) {
         log.warn(
             "managed_sms_usage_commit_deferred companyId={} runId={} recipientId={}",

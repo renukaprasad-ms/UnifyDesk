@@ -27,7 +27,8 @@ public class ManagedEmailUsageReconciler {
                    event.run_id,
                    event.idempotency_key,
                    recipient.status,
-                   recipient.provider_message_id
+                   recipient.provider_message_id,
+                   recipient.accepted_at
               from managed_email_usage_events event
               join broadcast_recipients recipient
                 on recipient.id = event.recipient_id
@@ -53,7 +54,10 @@ public class ManagedEmailUsageReconciler {
                     resultSet.getLong("run_id"),
                     resultSet.getString("idempotency_key"),
                     resultSet.getString("status"),
-                    resultSet.getString("provider_message_id")),
+                    resultSet.getString("provider_message_id"),
+                    resultSet.getTimestamp("accepted_at") == null
+                        ? null
+                        : resultSet.getTimestamp("accepted_at").toInstant()),
             java.sql.Timestamp.from(staleBefore),
             limit);
 
@@ -67,7 +71,8 @@ public class ManagedEmailUsageReconciler {
             reservation.recipientId(),
             reservation.runId(),
             attemptNo,
-            reservation.providerMessageId());
+            reservation.providerMessageId(),
+            reservation.acceptedAt());
         reconciled++;
       } else if ("FAILED".equals(reservation.status())
           || "SKIPPED".equals(reservation.status())) {
@@ -97,5 +102,6 @@ public class ManagedEmailUsageReconciler {
       Long runId,
       String key,
       String status,
-      String providerMessageId) {}
+      String providerMessageId,
+      Instant acceptedAt) {}
 }

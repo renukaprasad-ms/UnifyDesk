@@ -1,7 +1,9 @@
 package com.messaging.managedsms.metering;
 
 import com.messaging.billing.enums.BillingCategory;
+import com.messaging.billing.enums.BillingSku;
 import com.messaging.billing.enums.CommunicationDirection;
+import com.messaging.billing.enums.ServiceOwnership;
 import com.messaging.billing.enums.UsageUnit;
 import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.billing.service.EntitlementService;
@@ -27,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ManagedSmsUsageService {
 
   public static final String MONTHLY_ENTITLEMENT = "MANAGED_SMS_SEGMENTS_MONTHLY";
+  public static final String FINANCIAL_QUANTITY_SOURCE = "MANAGED_SMS_LOCAL_SEGMENT_ESTIMATE";
 
   private final JdbcTemplate jdbcTemplate;
   private final EntitlementService entitlementService;
@@ -81,18 +84,41 @@ public class ManagedSmsUsageService {
       String providerRequestId,
       String messageCategory,
       BigDecimal providerCredit) {
+    commit(
+        companyId,
+        runId,
+        recipientId,
+        attemptNo,
+        providerRequestId,
+        messageCategory,
+        providerCredit,
+        Instant.now());
+  }
+
+  @Transactional
+  public void commit(
+      Long companyId,
+      Long runId,
+      Long recipientId,
+      int attemptNo,
+      String providerRequestId,
+      String messageCategory,
+      BigDecimal providerCredit,
+      Instant acceptedAt) {
     Reservation reservation = lockReservation(companyId, runId, recipientId, attemptNo);
     if (reservation == null) {
       throw new IllegalStateException("Managed SMS usage reservation ownership mismatch");
     }
     if ("COMMITTED".equals(reservation.state()) || "RELEASED".equals(reservation.state())) return;
 
-    String billingKey =
-        "managed-sms:recipient:" + recipientId + ":attempt:" + attemptNo + ":accepted";
+    String billingKey = "managed-sms:recipient:" + recipientId + ":accepted";
     usageBillingService.record(
         companyId,
-        "MANAGED_SMS",
+        ServiceOwnership.MANAGED,
+        BillingSku.MANAGED_SMS_SEGMENT,
+        FINANCIAL_QUANTITY_SOURCE,
         recipientId.toString(),
+        providerRequestId,
         billingKey,
         ChannelType.SMS,
         ProviderType.MSG91_SMS,
@@ -100,9 +126,9 @@ public class ManagedSmsUsageService {
         CommunicationDirection.OUTBOUND,
         "IN",
         null,
-        UsageUnit.MESSAGE,
+        UsageUnit.SEGMENT,
         reservation.segments(),
-        Instant.now());
+        acceptedAt == null ? Instant.now() : acceptedAt);
 
     int updated =
         jdbcTemplate.update(

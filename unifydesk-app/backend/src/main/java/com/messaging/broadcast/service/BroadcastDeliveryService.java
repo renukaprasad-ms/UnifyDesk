@@ -388,7 +388,8 @@ public class BroadcastDeliveryService {
           recipient.getId(),
           run.getId(),
           attempt.attemptNo(),
-          result.providerMessageId());
+          result.providerMessageId(),
+          result.acceptedAt());
     } catch (RuntimeException exception) {
       log.warn(
           "managed_email_usage_commit_deferred companyId={} runId={} recipientId={}",

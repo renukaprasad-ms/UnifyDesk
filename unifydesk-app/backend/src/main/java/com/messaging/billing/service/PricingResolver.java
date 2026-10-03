@@ -13,6 +13,7 @@ import com.messaging.billing.enums.UsageUnit;
 import com.messaging.billing.repository.CompanyRateOverrideRepository;
 import com.messaging.billing.repository.CompanySubscriptionRepository;
 import com.messaging.billing.repository.RateCardRepository;
+import com.messaging.billing.repository.SubscriptionTransitionRepository;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.ProviderType;
 import com.messaging.common.exception.NotFoundException;
@@ -20,17 +21,36 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 public class PricingResolver {
 
   private final CompanyRateOverrideRepository overrideRepository;
   private final CompanySubscriptionRepository subscriptionRepository;
+  private final SubscriptionTransitionRepository transitionRepository;
   private final RateCardRepository rateCardRepository;
+
+  @Autowired
+  public PricingResolver(
+      CompanyRateOverrideRepository overrideRepository,
+      CompanySubscriptionRepository subscriptionRepository,
+      SubscriptionTransitionRepository transitionRepository,
+      RateCardRepository rateCardRepository) {
+    this.overrideRepository = overrideRepository;
+    this.subscriptionRepository = subscriptionRepository;
+    this.transitionRepository = transitionRepository;
+    this.rateCardRepository = rateCardRepository;
+  }
+
+  PricingResolver(
+      CompanyRateOverrideRepository overrideRepository,
+      CompanySubscriptionRepository subscriptionRepository,
+      RateCardRepository rateCardRepository) {
+    this(overrideRepository, subscriptionRepository, null, rateCardRepository);
+  }
 
   @Transactional(readOnly = true)
   public ResolvedPrice resolve(
@@ -47,10 +67,13 @@ public class PricingResolver {
     if (!provider.supports(channel)) {
       throw new IllegalArgumentException(provider + " does not support channel " + channel);
     }
+    if (occurredAt == null) {
+      throw new IllegalArgumentException("Financial usage occurrence time is required");
+    }
 
-    Instant at = occurredAt == null ? Instant.now() : occurredAt;
     String normalizedCountry = normalizeCountry(country);
     String normalizedCarrier = normalizeOptional(carrier);
+    CommercialContext context = effectiveCommercialContext(companyId, occurredAt);
 
     List<CompanyRateOverride> overrides =
         overrideRepository.findByCompanyIdAndStatus(companyId, RateCardStatus.ACTIVE).stream()
@@ -73,7 +96,7 @@ public class PricingResolver {
                         normalizedCountry,
                         normalizedCarrier,
                         unit,
-                        at))
+                        occurredAt))
             .sorted(
                 Comparator.comparingInt(
                         (CompanyRateOverride rule) ->
@@ -87,8 +110,6 @@ public class PricingResolver {
                         CompanyRateOverride::getEffectiveFrom, Comparator.reverseOrder()))
             .toList();
 
-    CompanySubscription subscription = effectiveSubscription(companyId);
-
     if (!overrides.isEmpty()) {
       CompanyRateOverride rule = overrides.getFirst();
       return new ResolvedPrice(
@@ -96,13 +117,12 @@ public class PricingResolver {
           rule.getCurrency(),
           PricingSource.COMPANY_OVERRIDE,
           rule.getId().toString(),
-          subscription.getPlan().getId().toString());
+          context.planId().toString(),
+          context.subscriptionId() == null ? null : context.subscriptionId().toString());
     }
 
     List<RateCard> planRates =
-        rateCardRepository
-            .findByPlanIdAndStatus(subscription.getPlan().getId(), RateCardStatus.ACTIVE)
-            .stream()
+        rateCardRepository.findByPlanIdAndStatus(context.planId(), RateCardStatus.ACTIVE).stream()
             .filter(
                 rule ->
                     matches(
@@ -122,7 +142,7 @@ public class PricingResolver {
                         normalizedCountry,
                         normalizedCarrier,
                         unit,
-                        at))
+                        occurredAt))
             .sorted(
                 Comparator.comparingInt(
                         (RateCard rule) ->
@@ -146,17 +166,34 @@ public class PricingResolver {
         rule.getCurrency(),
         PricingSource.PLAN_RATE,
         rule.getId().toString(),
-        subscription.getPlan().getId().toString());
+        context.planId().toString(),
+        context.subscriptionId() == null ? null : context.subscriptionId().toString());
   }
 
-  private CompanySubscription effectiveSubscription(Long companyId) {
-    return subscriptionRepository
-        .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(companyId, SubscriptionStatus.ACTIVE)
-        .or(
-            () ->
-                subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
-                    companyId, SubscriptionStatus.TRIALING))
-        .orElseThrow(() -> new NotFoundException("Company subscription not found"));
+  private CommercialContext effectiveCommercialContext(Long companyId, Instant occurredAt) {
+    if (transitionRepository != null) {
+      var transition =
+          transitionRepository
+              .findFirstByCompanyIdAndOccurredAtLessThanEqualAndToPlanIsNotNullOrderByOccurredAtDescIdDesc(
+                  companyId, occurredAt);
+      if (transition.isPresent()) {
+        return new CommercialContext(
+            transition.get().getToPlan().getId(), transition.get().getSubscription().getId());
+      }
+    }
+
+    CompanySubscription fallback =
+        subscriptionRepository
+            .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(companyId, SubscriptionStatus.ACTIVE)
+            .or(
+                () ->
+                    subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+                        companyId, SubscriptionStatus.TRIALING))
+            .orElseThrow(() -> new NotFoundException("Company subscription not found"));
+    if (fallback.getStartedAt() != null && fallback.getStartedAt().isAfter(occurredAt)) {
+      throw new NotFoundException("No subscription context existed at usage occurrence time");
+    }
+    return new CommercialContext(fallback.getPlan().getId(), fallback.getId());
   }
 
   private boolean matches(
@@ -202,4 +239,6 @@ public class PricingResolver {
   private String normalizeOptional(String value) {
     return value == null || value.isBlank() ? null : value.trim();
   }
+
+  private record CommercialContext(Long planId, Long subscriptionId) {}
 }
