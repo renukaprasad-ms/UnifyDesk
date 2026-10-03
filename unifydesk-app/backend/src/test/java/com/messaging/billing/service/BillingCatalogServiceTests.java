@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.messaging.billing.bootstrap.SystemEntitlementCatalogInitializer;
+import com.messaging.billing.dto.AdminGrantSubscriptionRequest;
 import com.messaging.billing.dto.AssignSubscriptionRequest;
 import com.messaging.billing.dto.CompanySubscriptionResponse;
 import com.messaging.billing.dto.UpsertEntitlementRequest;
@@ -26,6 +27,7 @@ import com.messaging.billing.repository.PlanEntitlementRepository;
 import com.messaging.billing.repository.PlanPriceRepository;
 import com.messaging.billing.repository.PlanRepository;
 import com.messaging.billing.repository.RateCardRepository;
+import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.ConflictException;
 import com.messaging.company.entity.Company;
 import com.messaging.company.repository.CompanyRepository;
@@ -53,6 +55,7 @@ class BillingCatalogServiceTests {
   @Mock private SystemEntitlementCatalogInitializer entitlementCatalogInitializer;
   @Mock private PlanEligibilityService planEligibilityService;
   @Mock private SubscriptionLifecycleService subscriptionLifecycleService;
+  @Mock private SubscriptionCheckoutService subscriptionCheckoutService;
 
   @InjectMocks private BillingCatalogService billingCatalogService;
 
@@ -85,61 +88,183 @@ class BillingCatalogServiceTests {
   }
 
   @Test
-  void providerConfirmedPaidActivationFreezesCashfreeSubscriptionContract() {
-    long companyId = 10L;
+  void providerConfirmedPaidActivationDelegatesOnlyToCanonicalCheckoutContract() {
     Instant confirmedAt = Instant.parse("2026-10-03T06:00:00Z");
-    Instant periodEnd = Instant.parse("2026-11-03T06:00:00Z");
-    Company company = company(companyId);
-    Plan plan = plan(20L, "GROWTH");
-    plan.setBillingCycle(BillingCycle.MONTHLY);
-    plan.setBasePrice(new BigDecimal("999.00"));
-
-    PlanPrice price = new PlanPrice();
-    price.setId(30L);
-    price.setPlan(plan);
-    price.setBillingCycle(BillingCycle.MONTHLY);
-    price.setAmount(new BigDecimal("999.00"));
-    price.setCurrency("INR");
-    price.setEffectiveFrom(confirmedAt.minusSeconds(60));
-    price.setStatus(RateCardStatus.ACTIVE);
-
-    when(companyRepository.findByIdForUpdate(companyId)).thenReturn(Optional.of(company));
-    when(subscriptionLifecycleService.currentOptional(companyId)).thenReturn(Optional.empty());
-    when(planRepository.findById(plan.getId())).thenReturn(Optional.of(plan));
-    when(planPriceRepository.findById(price.getId())).thenReturn(Optional.of(price));
-    when(subscriptionRepository.saveAndFlush(any(CompanySubscription.class)))
-        .thenAnswer(
-            invocation -> {
-              CompanySubscription saved = invocation.getArgument(0);
-              saved.setId(40L);
-              return saved;
-            });
+    CompanySubscriptionResponse expected =
+        new CompanySubscriptionResponse(
+            "40",
+            "10",
+            "20",
+            "30",
+            "GROWTH",
+            "Growth",
+            SubscriptionStatus.ACTIVE,
+            confirmedAt,
+            null,
+            confirmedAt,
+            Instant.parse("2026-11-03T06:00:00Z"),
+            confirmedAt,
+            null,
+            null,
+            false,
+            null,
+            null,
+            PaymentPolicy.CASHFREE,
+            null);
+    when(subscriptionCheckoutService.activateConfirmedInitialCheckout(
+            10L, 60L, 50L, confirmedAt))
+        .thenReturn(expected);
 
     CompanySubscriptionResponse response =
         billingCatalogService.activateProviderConfirmedSubscription(
-            companyId,
-            77L,
-            new AssignSubscriptionRequest(
-                plan.getId().toString(),
-                price.getId().toString(),
-                SubscriptionStatus.ACTIVE,
-                confirmedAt,
-                null,
-                null,
-                periodEnd),
-            confirmedAt);
+            10L, 60L, 50L, confirmedAt);
 
-    assertEquals("40", response.subscriptionId());
-    assertEquals(PaymentPolicy.CASHFREE, response.paymentPolicy());
-    assertEquals(confirmedAt, response.currentPeriodStart());
-    assertEquals(periodEnd, response.currentPeriodEnd());
-    verify(subscriptionLifecycleService)
-        .recordCreated(
-            any(CompanySubscription.class),
-            org.mockito.ArgumentMatchers.eq(77L),
-            org.mockito.ArgumentMatchers.anyString(),
-            org.mockito.ArgumentMatchers.any());
+    assertEquals(expected, response);
+    verify(subscriptionCheckoutService)
+        .activateConfirmedInitialCheckout(10L, 60L, 50L, confirmedAt);
+    verify(subscriptionRepository, never()).saveAndFlush(any(CompanySubscription.class));
   }
+
+  @Test
+  void expiredManualGrantPlanPriceIsRejected() {
+    Instant start = Instant.parse("2026-10-03T06:00:00Z");
+    Company company = company(10L);
+    Plan plan = paidPlan(20L, "GROWTH");
+    PlanPrice price = paidPrice(30L, plan, "999.00");
+    price.setEffectiveTo(start);
+
+    when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+    when(planRepository.findById(20L)).thenReturn(Optional.of(plan));
+    when(planPriceRepository.findById(30L)).thenReturn(Optional.of(price));
+
+    assertThrows(
+        BadRequestException.class,
+        () ->
+            billingCatalogService.grantSubscription(
+                10L, 77L, grantRequest(plan, price, PaymentPolicy.COMPED, start, null)));
+  }
+
+  @Test
+  void futureManualGrantPlanPriceIsRejected() {
+    Instant start = Instant.parse("2026-10-03T06:00:00Z");
+    Company company = company(10L);
+    Plan plan = paidPlan(20L, "GROWTH");
+    PlanPrice price = paidPrice(30L, plan, "999.00");
+    price.setEffectiveFrom(start.plusSeconds(1));
+
+    when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+    when(planRepository.findById(20L)).thenReturn(Optional.of(plan));
+    when(planPriceRepository.findById(30L)).thenReturn(Optional.of(price));
+
+    assertThrows(
+        BadRequestException.class,
+        () ->
+            billingCatalogService.grantSubscription(
+                10L, 77L, grantRequest(plan, price, PaymentPolicy.COMPED, start, null)));
+  }
+
+  @Test
+  void nonInrManualGrantPlanPriceIsRejected() {
+    Instant start = Instant.parse("2026-10-03T06:00:00Z");
+    Company company = company(10L);
+    Plan plan = paidPlan(20L, "GROWTH");
+    PlanPrice price = paidPrice(30L, plan, "999.00");
+    price.setCurrency("USD");
+
+    when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+    when(planRepository.findById(20L)).thenReturn(Optional.of(plan));
+    when(planPriceRepository.findById(30L)).thenReturn(Optional.of(price));
+
+    assertThrows(
+        BadRequestException.class,
+        () ->
+            billingCatalogService.grantSubscription(
+                10L, 77L, grantRequest(plan, price, PaymentPolicy.COMPED, start, null)));
+  }
+
+  @Test
+  void wrongPlanManualGrantPriceIsRejected() {
+    Instant start = Instant.parse("2026-10-03T06:00:00Z");
+    Company company = company(10L);
+    Plan plan = paidPlan(20L, "GROWTH");
+    Plan other = paidPlan(21L, "OTHER");
+    PlanPrice price = paidPrice(30L, other, "999.00");
+
+    when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+    when(planRepository.findById(20L)).thenReturn(Optional.of(plan));
+    when(planPriceRepository.findById(30L)).thenReturn(Optional.of(price));
+
+    assertThrows(
+        BadRequestException.class,
+        () ->
+            billingCatalogService.grantSubscription(
+                10L, 77L, grantRequest(plan, price, PaymentPolicy.COMPED, start, null)));
+  }
+
+  @Test
+  void compedGrantKeepsRealCommercialPriceAndDerivesPeriod() {
+    Instant start = Instant.parse("2026-10-03T06:00:00Z");
+    Company company = company(10L);
+    Plan plan = paidPlan(20L, "GROWTH");
+    PlanPrice price = paidPrice(30L, plan, "999.00");
+
+    when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+    when(planRepository.findById(20L)).thenReturn(Optional.of(plan));
+    when(planPriceRepository.findById(30L)).thenReturn(Optional.of(price));
+    when(subscriptionLifecycleService.currentOptional(10L)).thenReturn(Optional.empty());
+    when(subscriptionRepository.saveAndFlush(any(CompanySubscription.class)))
+        .thenAnswer(
+            invocation -> {
+              CompanySubscription value = invocation.getArgument(0);
+              value.setId(40L);
+              return value;
+            });
+
+    CompanySubscriptionResponse response =
+        billingCatalogService.grantSubscription(
+            10L, 77L, grantRequest(plan, price, PaymentPolicy.COMPED, start, null));
+
+    assertEquals("30", response.planPriceId());
+    assertEquals(PaymentPolicy.COMPED, response.paymentPolicy());
+    assertEquals(start, response.currentPeriodStart());
+    assertEquals(Instant.parse("2026-11-03T06:00:00Z"), response.currentPeriodEnd());
+    verify(subscriptionCheckoutService, never())
+        .activateConfirmedInitialCheckout(any(), any(), any(), any());
+  }
+
+  @Test
+  void offlineContractKeepsRealCommercialPriceAndExplicitBoundedPeriod() {
+    Instant start = Instant.parse("2026-10-03T06:00:00Z");
+    Instant contractEnd = Instant.parse("2027-01-03T06:00:00Z");
+    Company company = company(10L);
+    Plan plan = paidPlan(20L, "GROWTH");
+    PlanPrice price = paidPrice(30L, plan, "999.00");
+
+    when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+    when(planRepository.findById(20L)).thenReturn(Optional.of(plan));
+    when(planPriceRepository.findById(30L)).thenReturn(Optional.of(price));
+    when(subscriptionLifecycleService.currentOptional(10L)).thenReturn(Optional.empty());
+    when(subscriptionRepository.saveAndFlush(any(CompanySubscription.class)))
+        .thenAnswer(
+            invocation -> {
+              CompanySubscription value = invocation.getArgument(0);
+              value.setId(41L);
+              return value;
+            });
+
+    CompanySubscriptionResponse response =
+        billingCatalogService.grantSubscription(
+            10L,
+            77L,
+            grantRequest(plan, price, PaymentPolicy.OFFLINE_CONTRACT, start, contractEnd));
+
+    assertEquals("30", response.planPriceId());
+    assertEquals(PaymentPolicy.OFFLINE_CONTRACT, response.paymentPolicy());
+    assertEquals(contractEnd, response.currentPeriodEnd());
+    verify(subscriptionCheckoutService, never())
+        .activateConfirmedInitialCheckout(any(), any(), any(), any());
+  }
+
 
   @Test
   void publishedPlanEntitlementsAreImmutable() {
@@ -188,6 +313,44 @@ class BillingCatalogServiceTests {
                     targetPlan.getId().toString(), null, null, null, null, null, null)));
 
     verify(subscriptionRepository, never()).saveAndFlush(any(CompanySubscription.class));
+  }
+
+  private Plan paidPlan(Long id, String code) {
+    Plan plan = plan(id, code);
+    plan.setBillingCycle(BillingCycle.MONTHLY);
+    plan.setBasePrice(new BigDecimal("999.00"));
+    return plan;
+  }
+
+  private PlanPrice paidPrice(Long id, Plan plan, String amount) {
+    PlanPrice price = new PlanPrice();
+    price.setId(id);
+    price.setPlan(plan);
+    price.setBillingCycle(BillingCycle.MONTHLY);
+    price.setAmount(new BigDecimal(amount));
+    price.setCurrency("INR");
+    price.setEffectiveFrom(Instant.parse("2026-01-01T00:00:00Z"));
+    price.setStatus(RateCardStatus.ACTIVE);
+    return price;
+  }
+
+  private AdminGrantSubscriptionRequest grantRequest(
+      Plan plan,
+      PlanPrice price,
+      PaymentPolicy policy,
+      Instant start,
+      Instant periodEnd) {
+    return new AdminGrantSubscriptionRequest(
+        plan.getId().toString(),
+        price.getId().toString(),
+        SubscriptionStatus.ACTIVE,
+        start,
+        null,
+        null,
+        periodEnd,
+        policy,
+        "Commercial grant",
+        policy == PaymentPolicy.OFFLINE_CONTRACT ? "contract-123" : null);
   }
 
   private Plan plan(Long id, String code) {
