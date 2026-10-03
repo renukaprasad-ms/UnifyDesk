@@ -31,15 +31,29 @@ public class BillingPaymentOrchestrator {
     SubscriptionCheckoutIntentResponse intent =
         checkoutService.createOrResolveInitialCheckout(
             companyId, planId, planPriceId, commandKey, actorUserId, now, identity);
-    return collectionService.createOrResolve(
-        companyId,
-        Long.valueOf(intent.invoice().invoiceId()),
-        PaymentPurpose.INITIAL_SUBSCRIPTION,
-        "payment:initial:" + intent.intentId(),
-        Long.valueOf(intent.intentId()),
-        null,
-        null,
-        customer);
+    var checkout =
+        collectionService.createOrResolve(
+            companyId,
+            Long.valueOf(intent.invoice().invoiceId()),
+            PaymentPurpose.INITIAL_SUBSCRIPTION,
+            "payment:initial:" + intent.intentId(),
+            Long.valueOf(intent.intentId()),
+            null,
+            null,
+            customer);
+
+    // The initial one-time payment and the future mandate are distinct provider actions.
+    // Pre-bind the mandate to the durable B1 checkout intent; activation binds it to the
+    // resulting CompanySubscription only after provider-confirmed initial payment truth.
+    var authorization =
+        recurringAuthorizationService.prepareForInitialCheckout(
+            companyId,
+            Long.valueOf(intent.intentId()),
+            intent.invoice().amountDue(),
+            intent.invoice().currency(),
+            customer);
+    return checkout.withRecurringAuthorization(
+        authorization.subscriptionSessionId(), authorization.actionUrl());
   }
 
   public PaymentCollectionService.CheckoutResult upgrade(
