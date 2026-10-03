@@ -35,6 +35,43 @@ class PaymentCollectionStore {
       Long checkoutIntentId,
       Long subscriptionChangeId,
       Long subscriptionId) {
+    return prepareInternal(
+        companyId,
+        invoiceId,
+        purpose,
+        idempotencyKey,
+        checkoutIntentId,
+        subscriptionChangeId,
+        subscriptionId,
+        true);
+  }
+
+  @Transactional
+  Prepared prepareRecurringRenewal(
+      Long companyId,
+      Long invoiceId,
+      String idempotencyKey,
+      Long subscriptionId) {
+    return prepareInternal(
+        companyId,
+        invoiceId,
+        PaymentPurpose.RENEWAL,
+        idempotencyKey,
+        null,
+        null,
+        subscriptionId,
+        false);
+  }
+
+  private Prepared prepareInternal(
+      Long companyId,
+      Long invoiceId,
+      PaymentPurpose purpose,
+      String idempotencyKey,
+      Long checkoutIntentId,
+      Long subscriptionChangeId,
+      Long subscriptionId,
+      boolean createProviderOrder) {
     var prior = paymentRepository.findByCompanyIdAndIdempotencyKey(companyId, idempotencyKey);
     if (prior.isPresent()) {
       assertSame(
@@ -82,8 +119,17 @@ class PaymentCollectionStore {
     payment.setCurrency(invoice.getCurrency());
     payment.setIdempotencyKey(idempotencyKey);
     payment.setProvider("CASHFREE");
-    payment.setProviderOrderId("UD-" + payment.getId());
-    payment.setProviderOrderState("CREATE_PENDING");
+    if (createProviderOrder) {
+      payment.setProviderOrderId("UD-" + payment.getId());
+      payment.setProviderOrderState("CREATE_PENDING");
+    } else {
+      // Automatic recurring renewal uses Cashfree Subscription CHARGE rather than a one-time PG
+      // order. Keeping provider_order_id null prevents the one-time-order reconciler from
+      // inventing an unrelated provider order for this logical renewal Payment.
+      payment.setProviderOrderId(null);
+      payment.setProviderOrderState("NOT_REQUIRED");
+      payment.setStatus(PaymentStatus.PENDING);
+    }
     payment.setCheckoutIntentId(checkoutIntentId);
     payment.setSubscriptionChangeId(subscriptionChangeId);
     payment.setSubscriptionId(subscriptionId);
