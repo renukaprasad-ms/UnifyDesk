@@ -43,6 +43,14 @@ public class SubscriptionChange {
   @JoinColumn(name = "to_plan_id", nullable = false)
   private Plan toPlan;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "from_plan_price_id")
+  private PlanPrice fromPlanPrice;
+
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "to_plan_price_id", nullable = false)
+  private PlanPrice toPlanPrice;
+
   @Enumerated(EnumType.STRING)
   @Column(name = "change_type", nullable = false, length = 32)
   private SubscriptionChangeType changeType;
