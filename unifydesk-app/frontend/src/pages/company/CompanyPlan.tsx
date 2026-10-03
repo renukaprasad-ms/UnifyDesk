@@ -1,201 +1,41 @@
-import { useEffect, useState } from 'react'
-import { FiCheck, FiCreditCard, FiRefreshCw } from 'react-icons/fi'
-import { billingApi } from '../../features/billing/billingApi'
-import type { CompanyPlanDetails } from '../../features/billing/types'
-import { storageApi } from '../../features/storage/storageApi'
-import type { StorageUsage } from '../../features/storage/types'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { FiAlertTriangle, FiArrowRight, FiCheck, FiCreditCard, FiRefreshCw, FiX } from 'react-icons/fi'
+import { PERMISSIONS } from '../../features/iam/permissions'
+import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
-import { selectSelectedCompany } from '../../store/workspace/workspaceSlice'
+import { selectSelectedCompany, selectWorkspaceEpoch } from '../../store/workspace/workspaceSlice'
+import { billingApi } from '../../features/billing/billingApi'
+import { CANCELLATION_COPY, DOWNGRADE_BOUNDARY_COPY, MANAGED_SERVICES_COPY, activePlanPrices, customerVisiblePlans, defaultPlanPrice, money, subscriptionStatusMessage, upgradeQuoteRows } from '../../features/billing/billingModel'
+import { launchCashfreeCheckout } from '../../features/billing/cashfreeCheckout'
+import { savePendingBillingCheckout } from '../../features/billing/pendingCheckout'
+import type { CheckoutCustomer, CheckoutResponse, CompanyPlanDetails, Plan, PlanPrice, SubscriptionChange } from '../../features/billing/types'
+import { useWorkspaceEpochScope } from '../../features/workspace/useWorkspaceEpochScope'
 
-const entitlementLabel = (key: string, value: string) => {
-  const labels: Record<string, string> = {
-    MAX_WORKSPACE_USERS: `${value} workspace users`,
-    BROADCAST_BATCH_LIMIT: `${value} recipients per broadcast`,
-    EMAIL_TEMPLATE_LIMIT: `${value} email templates`,
-    SOCIAL_TEMPLATE_LIMIT: `${value} social media templates`,
-    AUTO_REPLY_ENABLED: value === 'true' ? 'Auto reply included' : 'Auto reply not included',
-    USER_SIGNATURE_ENABLED:
-      value === 'true' ? 'User signature included' : 'User signature not included',
-    STORAGE_GB: `${value} GiB workspace storage`,
-  }
-  return labels[key] ?? `${key.replaceAll('_', ' ').toLowerCase()}: ${value}`
-}
+const entitlementLabel=(key:string,value:string)=>({MAX_WORKSPACE_USERS:`${value} workspace users`,BROADCAST_BATCH_LIMIT:`${value} recipients per broadcast`,BROADCAST_RECIPIENTS_PER_MONTH:`${value} broadcast recipients per month`,CONTACT_LIMIT:`${value} contacts`,EMAIL_ACCOUNTS:`${value} email connections`,WHATSAPP_NUMBERS:`${value} WhatsApp numbers`,SMS_ACCOUNTS:`${value} SMS connections`,STORAGE_GB:`${value} GiB workspace storage`}[key]??`${key.replaceAll('_',' ').toLowerCase()}: ${value}`)
+const date=(value?:string|null)=>value?new Date(value).toLocaleDateString('en-IN',{dateStyle:'medium'}):'—'
+const idempotencyKey=(prefix:string)=>`${prefix}:${crypto.randomUUID()}`
+type ChangeMode='INITIAL'|'UPGRADE'|'DOWNGRADE'
+type ChangeDraft={plan:Plan;price:PlanPrice;mode:ChangeMode;commandKey:string}
+const statusClass:Record<string,string>={ACTIVE:'bg-emerald-50 text-emerald-700',TRIALING:'bg-indigo-50 text-indigo-700',PAST_DUE:'bg-amber-50 text-amber-800',SUSPENDED:'bg-rose-50 text-rose-700',CANCELLED:'bg-slate-100 text-slate-600',EXPIRED:'bg-slate-100 text-slate-600'}
 
-const storageTypeLabel: Record<string, string> = {
-  MESSAGE: 'Messages',
-  MESSAGE_ATTACHMENT: 'Message attachments',
-  EMAIL_ATTACHMENT: 'Email attachments',
-  WHATSAPP_MEDIA: 'WhatsApp media',
-  SMS_ATTACHMENT: 'SMS attachments',
-  TEMPLATE_MEDIA: 'Template media',
-  COMPANY_MEDIA: 'Company media',
-  CONTACT_DATA: 'Contacts',
-  AD_CREATIVE: 'Ad creatives',
-  EXPORT: 'Exports',
-  OTHER: 'Other',
-}
-
-const formatBytes = (bytes: number) => {
-  if (bytes < 0) return 'Unlimited'
-  if (bytes === 0) return '0 B'
-  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
-  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-  return `${(bytes / 1024 ** index).toFixed(index >= 3 ? 2 : 1)} ${units[index]}`
-}
-
-export default function CompanyPlan() {
-  const selectedCompany = useAppSelector(selectSelectedCompany)
-  const [details, setDetails] = useState<CompanyPlanDetails | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [storage, setStorage] = useState<StorageUsage | null>(null)
-  const [error, setError] = useState('')
-
-  const loadPlan = async () => {
-    if (!selectedCompany) return
-    setError('')
-    setLoading(true)
-    try {
-      const [planDetails, storageUsage] = await Promise.all([
-        billingApi.companyPlan(selectedCompany.companyId),
-        storageApi.usage(selectedCompany.companyId).catch(() => null),
-      ])
-      setDetails(planDetails)
-      setStorage(storageUsage)
-    } catch (loadError) {
-      setError(apiErrorMessage(loadError, 'Unable to load company plan'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    void loadPlan()
-  }, [selectedCompany?.companyId])
-
-  const plan = details?.plan
-  const subscription = details?.subscription
-
-  return (
-    <section className="px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="eyebrow">Company</p>
-            <h1 className="mt-2 text-2xl font-bold text-slate-950">Plan details</h1>
-          </div>
-          <button type="button" className="secondary-button inline-flex" onClick={loadPlan}>
-            <FiRefreshCw aria-hidden="true" />
-            <span className="ml-2">Refresh</span>
-          </button>
-        </div>
-        {error && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-        {loading ? (
-          <div className="panel mt-5 p-6 text-sm font-semibold text-slate-500">Loading plan</div>
-        ) : plan && subscription ? (
-          <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_320px]">
-            <article className="panel p-6">
-              <div className="flex items-start gap-4">
-                <span className="security-icon">
-                  <FiCreditCard aria-hidden="true" />
-                </span>
-                <div>
-                  <p className="text-xs font-semibold uppercase text-indigo-500">{plan.code}</p>
-                  <h2 className="mt-1 text-2xl font-bold text-slate-950">{plan.name}</h2>
-                  <p className="mt-3 text-3xl font-bold text-slate-950">
-                    {Number(plan.basePrice) === 0
-                      ? 'Free'
-                      : `${plan.currency} ${plan.basePrice}/${plan.billingCycle.toLowerCase()}`}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                {plan.entitlements.map((entitlement) => (
-                  <div
-                    key={entitlement.entitlementId}
-                    className="flex gap-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-700"
-                  >
-                    <FiCheck aria-hidden="true" className="mt-0.5 shrink-0 text-indigo-500" />
-                    {entitlementLabel(entitlement.key, entitlement.value)}
-                  </div>
-                ))}
-              </div>
-            </article>
-            <aside className="panel p-5">
-              <h3 className="text-base font-bold text-slate-950">Subscription</h3>
-              <dl className="mt-4 grid gap-3 text-sm">
-                <div>
-                  <dt className="text-xs font-semibold text-slate-500">Status</dt>
-                  <dd className="mt-1 font-semibold text-slate-950">{subscription.status}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-semibold text-slate-500">Started</dt>
-                  <dd className="mt-1 text-slate-700">
-                    {new Date(subscription.startedAt).toLocaleDateString()}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-semibold text-slate-500">Ends</dt>
-                  <dd className="mt-1 text-slate-700">
-                    {subscription.endsAt
-                      ? new Date(subscription.endsAt).toLocaleDateString()
-                      : 'No end date'}
-                  </dd>
-                </div>
-              </dl>
-              {storage && (
-                <div className="mt-6 border-t border-slate-100 pt-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-bold text-slate-950">Storage</h3>
-                    <span className="text-xs font-semibold text-slate-500">
-                      {storage.usedPercent.toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-indigo-500"
-                      style={{ width: `${Math.min(storage.usedPercent, 100)}%` }}
-                    />
-                  </div>
-                  <p className="mt-2 text-xs text-slate-500">
-                    {formatBytes(storage.usedBytes)} used of {formatBytes(storage.limitBytes)}
-                  </p>
-                  {storage.reservedBytes > 0 && (
-                    <p className="mt-1 text-[11px] text-slate-400">
-                      {formatBytes(storage.reservedBytes)} reserved by pending uploads
-                    </p>
-                  )}
-                  {storage.breakdown.length > 0 && (
-                    <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
-                      {storage.breakdown.map((item) => (
-                        <div
-                          key={item.type}
-                          className="flex items-center justify-between gap-3 text-xs"
-                        >
-                          <span className="text-slate-500">
-                            {storageTypeLabel[item.type] ?? item.type}
-                          </span>
-                          <span className="font-semibold text-slate-700">
-                            {formatBytes(item.usedBytes + item.reservedBytes)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </aside>
-          </div>
-        ) : (
-          <div className="panel mt-5 p-6 text-sm font-semibold text-slate-500">
-            No active plan found
-          </div>
-        )}
-      </div>
-    </section>
-  )
+export default function CompanyPlan(){
+ const selectedCompany=useAppSelector(selectSelectedCompany);const epoch=useAppSelector(selectWorkspaceEpoch);const {can}=useIam();const {capture:captureScope,isCurrent:scopeIsCurrent}=useWorkspaceEpochScope(selectedCompany?.companyId,epoch)
+ const [details,setDetails]=useState<CompanyPlanDetails|null>(null);const [plans,setPlans]=useState<Plan[]>([]);const [loading,setLoading]=useState(true);const [refreshing,setRefreshing]=useState(false);const [error,setError]=useState('');const [notice,setNotice]=useState('');const [draft,setDraft]=useState<ChangeDraft|null>(null);const [quote,setQuote]=useState<SubscriptionChange|null>(null);const [checkout,setCheckout]=useState<CheckoutResponse|null>(null);const [customer,setCustomer]=useState<CheckoutCustomer>({name:selectedCompany?.name??'',email:selectedCompany?.businessEmail??'',phone:''});const [mutationPending,setMutationPending]=useState(false);const [cancelOpen,setCancelOpen]=useState(false);const requestRef=useRef(0);const companyId=selectedCompany?.companyId??null
+ const load=async(background=false)=>{if(!companyId){setDetails(null);setPlans([]);setLoading(false);return}const requestId=++requestRef.current;const scope=captureScope();background?setRefreshing(true):setLoading(true);setError('');try{const [planDetails,eligible]=await Promise.all([billingApi.companyPlan(companyId).catch(()=>({subscription:null,plan:null})),billingApi.eligiblePlans(companyId)]);if(requestRef.current!==requestId||!scopeIsCurrent(scope))return;setDetails(planDetails);setPlans(customerVisiblePlans(eligible))}catch(loadError){if(requestRef.current===requestId&&scopeIsCurrent(scope))setError(apiErrorMessage(loadError,'Unable to load Billing.'))}finally{if(requestRef.current===requestId&&scopeIsCurrent(scope)){setLoading(false);setRefreshing(false)}}}
+ useEffect(()=>{setDraft(null);setQuote(null);setCheckout(null);setCancelOpen(false);setNotice('');setCustomer({name:selectedCompany?.name??'',email:selectedCompany?.businessEmail??'',phone:''});void load()},[companyId,epoch])
+ const currentPlan=details?.plan??null;const subscription=details?.subscription??null;const canModify=can(PERMISSIONS.BILLING_SUBSCRIPTION_MODIFY);const canCancel=can(PERMISSIONS.BILLING_SUBSCRIPTION_CANCEL);const availablePlans=useMemo(()=>plans.filter((plan)=>plan.status==='PUBLISHED'),[plans])
+ const beginChange=(plan:Plan,mode:ChangeMode,price?:PlanPrice)=>{const selectedPrice=price??defaultPlanPrice(plan);if(!selectedPrice){setError('This plan has no currently effective price.');return}setError('');setNotice('');setQuote(null);setCheckout(null);setDraft({plan,price:selectedPrice,mode,commandKey:idempotencyKey(mode.toLowerCase())})}
+ const prepareCheckout=async(event:React.FormEvent)=>{event.preventDefault();if(!companyId||!draft||draft.mode==='DOWNGRADE'||mutationPending)return;const scope=captureScope();setMutationPending(true);setError('');try{if(draft.mode==='INITIAL'){const prepared=await billingApi.initialCheckout(companyId,{planId:draft.plan.planId,planPriceId:draft.price.planPriceId,idempotencyKey:draft.commandKey,invoiceIdentity:{companyName:selectedCompany?.name??null,businessEmail:selectedCompany?.businessEmail??null,country:selectedCompany?.country??null},customer:{name:customer.name?.trim()||null,email:customer.email.trim(),phone:customer.phone.trim()}});if(!scopeIsCurrent(scope))return;setCheckout(prepared);return}let currentQuote=quote;if(!currentQuote){currentQuote=await billingApi.requestUpgrade(companyId,{targetPlanId:draft.plan.planId,targetPlanPriceId:draft.price.planPriceId,idempotencyKey:draft.commandKey});if(!scopeIsCurrent(scope))return;setQuote(currentQuote);return}if(!currentQuote.quoteReference)throw new Error('Backend upgrade quote did not include a quote reference');const prepared=await billingApi.upgradeCheckout(companyId,{changeId:currentQuote.changeId,quoteReference:currentQuote.quoteReference,customer:{name:customer.name?.trim()||null,email:customer.email.trim(),phone:customer.phone.trim()}});if(!scopeIsCurrent(scope))return;setCheckout(prepared)}catch(e){if(scopeIsCurrent(scope))setError(apiErrorMessage(e,'Unable to prepare Billing checkout.'))}finally{if(scopeIsCurrent(scope))setMutationPending(false)}}
+ const pay=async()=>{if(!companyId||!draft||!checkout||mutationPending)return;const scope=captureScope();setMutationPending(true);setError('');try{savePendingBillingCheckout({companyId,targetPlanId:draft.plan.planId,kind:draft.mode,paymentId:checkout.paymentId,invoiceId:checkout.invoiceId,recurringAuthorizationActionUrl:checkout.recurringAuthorizationActionUrl,createdAt:new Date().toISOString()});if(!scopeIsCurrent(scope))return;if(!checkout.paymentSessionId)throw new Error('Backend checkout did not include a payment session');await launchCashfreeCheckout(checkout.paymentSessionId)}catch(e){if(scopeIsCurrent(scope))setError(e instanceof Error?e.message:'Unable to open the payment checkout.')}finally{if(scopeIsCurrent(scope))setMutationPending(false)}}
+ const scheduleDowngrade=async()=>{if(!companyId||!draft||draft.mode!=='DOWNGRADE'||mutationPending)return;const scope=captureScope();setMutationPending(true);setError('');try{const change=await billingApi.scheduleDowngrade(companyId,{targetPlanId:draft.plan.planId,targetPlanPriceId:draft.price.planPriceId,idempotencyKey:draft.commandKey});if(!scopeIsCurrent(scope))return;setNotice(`Downgrade scheduled${change.effectiveAt?` for ${date(change.effectiveAt)}`:' for the next billing boundary'}.`);setDraft(null);await load(true)}catch(e){if(scopeIsCurrent(scope))setError(apiErrorMessage(e,'Unable to schedule downgrade.'))}finally{if(scopeIsCurrent(scope))setMutationPending(false)}}
+ const cancelAtPeriodEnd=async()=>{if(!companyId||mutationPending)return;const scope=captureScope();setMutationPending(true);setError('');try{const updated=await billingApi.cancelAtPeriodEnd(companyId);if(!scopeIsCurrent(scope))return;setDetails((current)=>current?{...current,subscription:updated}:current);setNotice(`Cancellation scheduled${updated.cancellationEffectiveAt?` for ${date(updated.cancellationEffectiveAt)}`:' at period end'}.`);setCancelOpen(false)}catch(e){if(scopeIsCurrent(scope))setError(apiErrorMessage(e,'Unable to schedule cancellation.'))}finally{if(scopeIsCurrent(scope))setMutationPending(false)}}
+ if(!selectedCompany)return <section className="px-4 py-8 sm:px-6 lg:px-8"><div className="panel mx-auto max-w-5xl p-8 text-center text-sm text-slate-500">Select a workspace to view Billing.</div></section>
+ return <section className="px-4 py-6 sm:px-6 lg:px-8"><div className="mx-auto max-w-6xl"><header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="eyebrow">Company</p><h1 className="mt-2 text-2xl font-bold text-slate-950">Billing</h1><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">Manage the platform subscription. Managed Services usage is billed separately.</p></div><button type="button" className="secondary-button inline-flex items-center gap-2 self-start sm:self-auto" disabled={refreshing||loading} onClick={()=>void load(true)}><FiRefreshCw className={refreshing?'animate-spin':''}/>Refresh</button></header>
+ {(error||notice)&&<div className={`mt-5 rounded-xl border px-4 py-3 text-sm font-medium ${error?'border-red-200 bg-red-50 text-red-700':'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{error||notice}</div>}
+ {loading?<div className="panel mt-6 p-8 text-sm font-semibold text-slate-500">Loading Billing…</div>:<><div className="mt-6 grid gap-5 lg:grid-cols-[1fr_340px]"><article className="panel p-5 sm:p-6"><div className="flex items-start gap-3"><span className="security-icon"><FiCreditCard/></span><div className="min-w-0 flex-1"><p className="text-xs font-semibold uppercase tracking-wide text-indigo-500">Current subscription</p>{currentPlan&&subscription?<><div className="mt-2 flex flex-wrap items-center gap-2"><h2 className="text-2xl font-bold text-slate-950">{currentPlan.name}</h2><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${statusClass[subscription.status]??'bg-slate-100 text-slate-600'}`}>{subscription.status.replaceAll('_',' ')}</span></div><p className="mt-2 text-sm text-slate-600">{subscriptionStatusMessage(subscription)}</p></>:<><h2 className="mt-2 text-xl font-bold text-slate-950">No active plan</h2><p className="mt-2 text-sm text-slate-500">Choose an eligible platform plan below.</p></>}</div></div>{currentPlan&&subscription&&<div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3"><div className="rounded-xl bg-slate-50 p-4"><p className="text-[11px] font-semibold uppercase text-slate-500">Platform price</p><p className="mt-1 text-base font-bold text-slate-950">{money(currentPlan.basePrice,currentPlan.currency)}</p></div><div className="rounded-xl bg-slate-50 p-4"><p className="text-[11px] font-semibold uppercase text-slate-500">Current period</p><p className="mt-1 text-sm font-bold text-slate-950">{date(subscription.currentPeriodStart)} – {date(subscription.currentPeriodEnd)}</p></div><div className="rounded-xl bg-slate-50 p-4"><p className="text-[11px] font-semibold uppercase text-slate-500">Payment policy</p><p className="mt-1 text-sm font-bold text-slate-950">{subscription.paymentPolicy.replaceAll('_',' ')}</p></div></div>}{subscription?.status==='PAST_DUE'&&<div className="mt-5 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><FiAlertTriangle/><div><p className="font-bold">Payment is overdue. Automatic retries are in progress.</p><p className="mt-1 text-xs">Resolve the outstanding invoice before the grace period ends{subscription.graceEndsAt?` on ${date(subscription.graceEndsAt)}`:''}.</p></div></div>}</article><aside className="panel p-5"><h2 className="text-sm font-bold text-slate-950">Managed Services</h2><p className="mt-2 text-xs leading-5 text-slate-500">{MANAGED_SERVICES_COPY}</p><div className="mt-4 space-y-3"><div className="rounded-lg border border-slate-100 p-3"><p className="text-sm font-semibold">Managed Email</p><p className="mt-1 text-xs text-slate-500">PAYG · message-based usage</p></div><div className="rounded-lg border border-slate-100 p-3"><p className="text-sm font-semibold">Managed SMS</p><p className="mt-1 text-xs text-slate-500">PAYG · estimated billable SMS segments</p></div></div>{subscription&&canCancel&&!subscription.cancelAtPeriodEnd&&!['CANCELLED','EXPIRED'].includes(subscription.status)&&<button type="button" className="mt-5 text-xs font-semibold text-rose-600" onClick={()=>setCancelOpen(true)}>Cancel subscription at period end</button>}</aside></div>
+ <section className="mt-7"><h2 className="text-lg font-bold text-slate-950">Eligible platform plans</h2><p className="mt-1 text-sm text-slate-500">Only plans returned by the company Billing catalog are shown. Managed Services usage is not included in these prices.</p>{availablePlans.length===0?<div className="panel mt-4 p-8 text-center text-sm text-slate-500">No eligible plans are currently available.</div>:<div className="mt-4 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">{availablePlans.map((plan)=>{const prices=activePlanPrices(plan);const current=currentPlan?.planId===plan.planId;return <article key={plan.planId} className="panel flex min-w-0 flex-col p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-wide text-indigo-500">{plan.visibility==='PRIVATE'?'Assigned private plan':'Platform plan'}</p><h3 className="mt-1 text-lg font-bold text-slate-950">{plan.name}</h3><p className="mt-1 text-xs text-slate-500">{plan.code} · v{plan.version}</p></div>{current&&<span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">CURRENT</span>}</div><div className="mt-4 space-y-2">{prices.map((price)=><div key={price.planPriceId} className="rounded-lg bg-slate-50 px-3 py-2"><p className="text-sm font-bold">{money(price.amount,price.currency)}</p><p className="text-[11px] text-slate-500">{price.billingCycle.toLowerCase()}</p></div>)}</div><div className="mt-4 space-y-2 text-xs text-slate-600">{plan.entitlements.slice(0,5).map((ent)=><div key={ent.entitlementId} className="flex gap-2"><FiCheck className="mt-0.5 shrink-0 text-indigo-500"/><span>{entitlementLabel(ent.key,ent.value)}</span></div>)}</div>{!current&&canModify&&prices.length>0&&<div className="mt-5 flex flex-wrap gap-2">{!subscription?prices.map((price)=>Number(price.amount)===0?<button key={price.planPriceId} type="button" className="secondary-button text-xs" disabled={mutationPending} onClick={async()=>{if(!companyId)return;const scope=captureScope();setMutationPending(true);try{await billingApi.selectPlan(companyId,plan.planId);if(scopeIsCurrent(scope))await load(true)}catch(e){if(scopeIsCurrent(scope))setError(apiErrorMessage(e,'Unable to select plan.'))}finally{if(scopeIsCurrent(scope))setMutationPending(false)}}}>Select free plan</button>:<button key={price.planPriceId} type="button" className="primary-button text-xs" onClick={()=>beginChange(plan,'INITIAL',price)}>Choose {price.billingCycle.toLowerCase()}</button>):<><button type="button" className="primary-button text-xs" onClick={()=>beginChange(plan,'UPGRADE')}>Upgrade now</button><button type="button" className="secondary-button text-xs" onClick={()=>beginChange(plan,'DOWNGRADE')}>Schedule downgrade</button></>}</div>}</article>})}</div>}</section></>}</div>
+ {draft&&<div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 sm:items-center sm:p-4"><div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl bg-white shadow-xl sm:max-w-xl sm:rounded-2xl"><div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5"><div><p className="text-xs font-semibold uppercase text-indigo-500">{draft.mode}</p><h2 className="mt-1 text-xl font-bold">{draft.plan.name}</h2></div><button type="button" className="p-2" onClick={()=>setDraft(null)}><FiX/></button></div>{draft.mode==='DOWNGRADE'?<div className="p-5"><div className="rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">{DOWNGRADE_BOUNDARY_COPY}</div><button type="button" className="primary-button mt-5" disabled={mutationPending} onClick={()=>void scheduleDowngrade()}>Confirm downgrade at boundary</button></div>:checkout?<div className="p-5"><p className="text-sm text-slate-600">Checkout is prepared from the backend invoice. The amount below is not calculated in the browser.</p><div className="mt-4 rounded-xl bg-slate-50 p-4"><p className="text-xs font-semibold uppercase text-slate-500">Amount due</p><p className="mt-1 text-2xl font-bold">{money(checkout.amount,checkout.currency)}</p></div>{checkout.recurringAuthorizationActionUrl&&<div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900"><p className="font-bold">Automatic renewal setup requires one more authorization step.</p><p className="mt-1 text-xs">Initial payment success does not imply authorization success.</p></div>}<button type="button" className="primary-button mt-5 w-full justify-center gap-2" onClick={()=>void pay()}>Continue to pay {money(checkout.amount,checkout.currency)}<FiArrowRight/></button></div>:<form className="p-5" onSubmit={prepareCheckout}>{draft.mode==='UPGRADE'&&quote&&<div className="mb-5 rounded-xl border border-slate-200 p-4"><p className="text-sm font-bold">Backend proration quote</p>{upgradeQuoteRows(quote).map(([label,amount])=><div key={label} className="mt-2 flex justify-between text-sm"><span>{label}</span><strong>{money(amount,quote.currency??draft.price.currency)}</strong></div>)}</div>}<div className="grid gap-4 sm:grid-cols-2"><label className="text-xs font-semibold sm:col-span-2">Billing contact name<input className="form-input mt-1.5" value={customer.name??''} onChange={(e)=>setCustomer({...customer,name:e.target.value})}/></label><label className="text-xs font-semibold">Billing email<input className="form-input mt-1.5" type="email" required value={customer.email} onChange={(e)=>setCustomer({...customer,email:e.target.value})}/></label><label className="text-xs font-semibold">Phone<input className="form-input mt-1.5" required value={customer.phone} onChange={(e)=>setCustomer({...customer,phone:e.target.value})}/></label></div><button className="primary-button mt-5 w-full justify-center" disabled={mutationPending}>{draft.mode==='UPGRADE'&&!quote?'Get backend upgrade quote':'Prepare backend checkout'}</button></form>}</div></div>}
+ {cancelOpen&&subscription&&<div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 sm:items-center sm:p-4"><div className="w-full rounded-t-2xl bg-white p-5 shadow-xl sm:max-w-lg sm:rounded-2xl"><h2 className="text-xl font-bold">Confirm scheduled cancellation</h2><p className="mt-4 text-sm leading-6 text-slate-600">{CANCELLATION_COPY}</p><div className="mt-6 flex gap-2 justify-end"><button className="secondary-button" onClick={()=>setCancelOpen(false)}>Keep subscription</button><button className="primary-button" onClick={()=>void cancelAtPeriodEnd()}>Cancel at period end</button></div></div></div>}
+ </section>
 }
