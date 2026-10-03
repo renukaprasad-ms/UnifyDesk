@@ -378,6 +378,12 @@ public class BillingCatalogService {
   @Transactional
   public CompanySubscriptionResponse assignSubscription(
       Long companyId, AssignSubscriptionRequest request) {
+    return assignSubscription(companyId, null, request);
+  }
+
+  @Transactional
+  public CompanySubscriptionResponse assignSubscription(
+      Long companyId, Long actorUserId, AssignSubscriptionRequest request) {
     Company company =
         companyRepository
             .findById(companyId)
@@ -427,7 +433,7 @@ public class BillingCatalogService {
     subscription.setEndsAt(request.endsAt());
     CompanySubscription saved = subscriptionRepository.saveAndFlush(subscription);
     subscriptionLifecycleService.recordCreated(
-        saved, null, "Zero-cost subscription activated", SubscriptionTransitionType.CREATED);
+        saved, actorUserId, "Zero-cost subscription activated", SubscriptionTransitionType.CREATED);
     return toSubscriptionResponse(saved);
   }
 
@@ -502,6 +508,12 @@ public class BillingCatalogService {
   @Transactional
   public CompanySubscriptionResponse selectFreeSubscription(
       Long companyId, AssignSubscriptionRequest request) {
+    return selectFreeSubscription(companyId, null, request);
+  }
+
+  @Transactional
+  public CompanySubscriptionResponse selectFreeSubscription(
+      Long companyId, Long actorUserId, AssignSubscriptionRequest request) {
     Plan plan = getPlan(parseId(request.planId(), "Plan not found"));
     if (plan.getStatus() != PlanStatus.PUBLISHED) {
       throw new BadRequestException("Plan is not available");
@@ -530,7 +542,7 @@ public class BillingCatalogService {
             request.endsAt(),
             request.trialEndsAt(),
             request.currentPeriodEnd());
-    return assignSubscription(companyId, resolvedRequest);
+    return assignSubscription(companyId, actorUserId, resolvedRequest);
   }
 
   @Transactional
@@ -540,11 +552,18 @@ public class BillingCatalogService {
 
   @Transactional
   public CompanySubscriptionResponse cancelSubscription(Long companyId, boolean atPeriodEnd) {
+    return cancelSubscription(companyId, null, atPeriodEnd);
+  }
+
+  @Transactional
+  public CompanySubscriptionResponse cancelSubscription(
+      Long companyId, Long actorUserId, boolean atPeriodEnd) {
     if (!atPeriodEnd) {
       throw new BadRequestException(
           "Customer immediate cancellation is not supported; cancellation is period-end only");
     }
-    return toSubscriptionResponse(subscriptionLifecycleService.scheduleCancellation(companyId, null));
+    return toSubscriptionResponse(
+        subscriptionLifecycleService.scheduleCancellation(companyId, actorUserId));
   }
 
   @Transactional

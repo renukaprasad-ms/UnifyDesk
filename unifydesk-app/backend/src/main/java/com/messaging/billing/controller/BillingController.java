@@ -59,7 +59,8 @@ public class BillingController {
         .body(
             ApiResponse.success(
                 HttpStatus.CREATED.value(),
-                billingCatalogService.selectFreeSubscription(companyId, request),
+                billingCatalogService.selectFreeSubscription(
+                    companyId, currentUserService.currentUserId(), request),
                 "Company subscription selected"));
   }
 
@@ -102,7 +103,8 @@ public class BillingController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            billingCatalogService.cancelSubscription(companyId, atPeriodEnd),
+            billingCatalogService.cancelSubscription(
+                companyId, currentUserService.currentUserId(), atPeriodEnd),
             "Subscription cancellation scheduled"));
   }
 

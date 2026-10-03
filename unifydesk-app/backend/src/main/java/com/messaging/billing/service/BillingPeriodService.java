@@ -12,6 +12,7 @@ import com.messaging.common.exception.ConflictException;
 import com.messaging.common.exception.NotFoundException;
 import com.messaging.company.entity.Company;
 import com.messaging.company.repository.CompanyRepository;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -24,31 +25,59 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class BillingPeriodService {
 
+  private static final int CLAIM_BATCH_SIZE = 100;
+
   private final BillingPeriodRepository periodRepository;
   private final CompanyRepository companyRepository;
 
   @Transactional
   public BillingPeriod ensurePlatformPeriod(CompanySubscription subscription) {
     if (subscription.getCurrentPeriodStart() == null || subscription.getCurrentPeriodEnd() == null) {
-      throw new BadRequestException("Platform billing period requires exact service-period timestamps");
+      throw new BadRequestException(
+          "Platform billing period requires exact service-period timestamps");
     }
+
+    Company company =
+        companyRepository
+            .findByIdForUpdate(subscription.getCompany().getId())
+            .orElseThrow(() -> new NotFoundException("Company not found"));
+
     BillingCycle cadence =
         subscription.getPlanPrice() == null
             ? subscription.getPlan().getBillingCycle()
             : subscription.getPlanPrice().getBillingCycle();
-    return ensure(
-        subscription.getCompany(),
-        BillingPeriodKind.PLATFORM,
-        cadence,
-        subscription.getCurrentPeriodStart(),
-        subscription.getCurrentPeriodEnd());
+    BigDecimal amount =
+        subscription.getPlanPrice() == null
+            ? subscription.getPlan().getBasePrice()
+            : subscription.getPlanPrice().getAmount();
+    String currency =
+        subscription.getPlanPrice() == null
+            ? subscription.getPlan().getCurrency()
+            : subscription.getPlanPrice().getCurrency();
+
+    BillingPeriod period =
+        ensure(
+            company,
+            BillingPeriodKind.PLATFORM,
+            cadence,
+            subscription.getCurrentPeriodStart(),
+            subscription.getCurrentPeriodEnd());
+    if (period.getSubscription() == null) {
+      period.setSubscription(subscription);
+      period.setPlan(subscription.getPlan());
+      period.setPlanPrice(subscription.getPlanPrice());
+      period.setPlatformAmountSnapshot(amount);
+      period.setCurrencySnapshot(currency);
+      period = periodRepository.saveAndFlush(period);
+    }
+    return period;
   }
 
   @Transactional
   public BillingPeriod ensureManagedUsagePeriod(Long companyId, Instant occurredAt) {
     Company company =
         companyRepository
-            .findById(companyId)
+            .findByIdForUpdate(companyId)
             .orElseThrow(() -> new NotFoundException("Company not found"));
     ZonedDateTime instant = occurredAt.atZone(ZoneOffset.UTC);
     Instant start =
@@ -60,9 +89,10 @@ public class BillingPeriodService {
   @Transactional
   public int markDueClosing(Instant now) {
     int changed = 0;
-    for (BillingPeriod period :
-        periodRepository.findByStatusAndEndAtLessThanEqualOrderByEndAtAsc(
-            BillingPeriodStatus.OPEN, now)) {
+    for (BillingPeriod period : periodRepository.findDueOpenForUpdate(now, CLAIM_BATCH_SIZE)) {
+      if (period.getStatus() != BillingPeriodStatus.OPEN) {
+        continue;
+      }
       period.setStatus(BillingPeriodStatus.CLOSING);
       periodRepository.save(period);
       changed++;
@@ -75,7 +105,7 @@ public class BillingPeriodService {
   public BillingPeriod finalizePeriod(Long periodId, Instant finalizedAt) {
     BillingPeriod period =
         periodRepository
-            .findById(periodId)
+            .findByIdForUpdate(periodId)
             .orElseThrow(() -> new NotFoundException("Billing period not found"));
     if (period.getStatus() == BillingPeriodStatus.FINALIZED) {
       return period;

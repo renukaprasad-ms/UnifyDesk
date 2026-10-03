@@ -31,7 +31,9 @@ public class PlanAssignmentService {
   public PlanAssignmentResponse assign(
       Long planId, Long companyId, Long actorUserId, PlanAssignmentRequest request) {
     Plan plan =
-        planRepository.findById(planId).orElseThrow(() -> new NotFoundException("Plan not found"));
+        planRepository
+            .findByIdForUpdate(planId)
+            .orElseThrow(() -> new NotFoundException("Plan not found"));
     if (plan.getStatus() != PlanStatus.PUBLISHED || plan.getVisibility() != PlanVisibility.PRIVATE) {
       throw new BadRequestException("Only published PRIVATE plans can be assigned to companies");
     }
@@ -39,13 +41,16 @@ public class PlanAssignmentService {
         companyRepository
             .findById(companyId)
             .orElseThrow(() -> new NotFoundException("Company not found"));
+
     Instant from =
         request.effectiveFrom() == null ? Instant.now() : request.effectiveFrom();
-    if (request.effectiveTo() != null && !request.effectiveTo().isAfter(from)) {
+    Instant to = request.effectiveTo();
+    if (to != null && !to.isAfter(from)) {
       throw new BadRequestException("Assignment effectiveTo must be after effectiveFrom");
     }
-    if (assignmentRepository.isActive(planId, companyId, from)) {
-      throw new ConflictException("Company already has an active assignment for this plan");
+    if (assignmentRepository.hasOverlappingActiveWindow(planId, companyId, from, to)) {
+      throw new ConflictException(
+          "Private-plan assignment overlaps an existing active/effective window");
     }
 
     PlanCompanyAssignment assignment = new PlanCompanyAssignment();
@@ -53,7 +58,7 @@ public class PlanAssignmentService {
     assignment.setCompany(company);
     assignment.setAssignedByUserId(actorUserId);
     assignment.setEffectiveFrom(from);
-    assignment.setEffectiveTo(request.effectiveTo());
+    assignment.setEffectiveTo(to);
     assignment.setReason(normalize(request.reason()));
     return toResponse(assignmentRepository.saveAndFlush(assignment));
   }

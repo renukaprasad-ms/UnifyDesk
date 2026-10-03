@@ -203,7 +203,8 @@ public class AdminBillingController {
         .body(
             ApiResponse.success(
                 HttpStatus.CREATED.value(),
-                billingCatalogService.assignSubscription(companyId, request),
+                billingCatalogService.assignSubscription(
+                    companyId, currentUserService.currentUserId(), request),
                 "Company subscription assigned"));
   }
 
@@ -214,7 +215,8 @@ public class AdminBillingController {
     return ResponseEntity.ok(
         ApiResponse.success(
             HttpStatus.OK.value(),
-            billingCatalogService.cancelSubscription(companyId, atPeriodEnd),
+            billingCatalogService.cancelSubscription(
+                companyId, currentUserService.currentUserId(), atPeriodEnd),
             "Company subscription cancellation scheduled"));
   }
 

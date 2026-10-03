@@ -22,6 +22,6 @@ public class BillingLifecycleScheduler {
     subscriptionLifecycleService.applyDueLifecycle(now);
     subscriptionChangeService.applyDueDowngrades(now);
     billingPeriodService.markDueClosing(now);
-    invoiceService.finalizeReadyClosingPeriods(now);
+    invoiceService.recoverClosingPeriods(now);
   }
 }

@@ -17,4 +17,5 @@ public record InvoiceLineRequest(
     Instant servicePeriodEnd,
     Instant originalServicePeriodStart,
     Instant originalServicePeriodEnd,
-    @Size(max = 255) String sourceReference) {}
+    @Size(max = 255) String sourceReference,
+    @NotBlank @Size(max = 255) String idempotencyKey) {}
