@@ -117,20 +117,28 @@ public class DunningService {
 
       // A retry is a new append-only PaymentAttempt against the same Payment/invoice and
       // recurring authorization. RecurringChargeService uses exactly Payment.amount/invoice truth.
-      recurringChargeService.charge(job.paymentId(), now);
-      int count = job.attemptCount() + 1;
+      int beforeCommands = countRecurringCommands(job.paymentId());
+      try {
+        recurringChargeService.charge(job.paymentId(), now);
+      } catch (RuntimeException chargeFailure) {
+        int afterCommands = countRecurringCommands(job.paymentId());
+        int count = job.attemptCount() + (afterCommands > beforeCommands ? 1 : 0);
+        release(job, nextRetryBoundary(job, now, count), count);
+        return;
+      }
+      int afterCommands = countRecurringCommands(job.paymentId());
+      int count = job.attemptCount() + (afterCommands > beforeCommands ? 1 : 0);
 
       if (paymentStatus(job.paymentId()) == PaymentStatus.SUCCEEDED) {
         finish(job.id(), "RECOVERED", null, count);
         return;
       }
 
-      Instant next = count == 2 ? dayFiveTarget(job) : job.graceEndsAt();
-      release(job, next, count);
+      release(job, nextRetryBoundary(job, now, count), count);
     } catch (RuntimeException ignored) {
-      int count = job.attemptCount() + (hasRecurringCommand(job.paymentId()) ? 1 : 0);
-      Instant next = count <= 2 ? dayFiveTarget(job) : job.graceEndsAt();
-      release(job, next, count);
+      // Reconciliation itself was inconclusive. Keep the same financial command and observe
+      // again; do not count a retry unless a new recurring command was actually persisted.
+      release(job, nextObservation(now, job.graceEndsAt()), job.attemptCount());
     }
   }
 
@@ -172,13 +180,13 @@ public class DunningService {
     return count != null && count > 0;
   }
 
-  private boolean hasRecurringCommand(Long paymentId) {
+  private int countRecurringCommands(Long paymentId) {
     Integer count =
         jdbcTemplate.queryForObject(
             "select count(*) from payment_attempts where payment_id = ? and provider_command_id is not null",
             Integer.class,
             paymentId);
-    return count != null && count > 0;
+    return count == null ? 0 : count;
   }
 
   private PaymentStatus paymentStatus(Long paymentId) {
@@ -190,6 +198,14 @@ public class DunningService {
 
   private Instant dayFiveTarget(Job job) {
     return job.graceEndsAt().minus(Duration.ofDays(2));
+  }
+
+  private Instant nextRetryBoundary(Job job, Instant now, int count) {
+    if (count <= 1) {
+      Instant dayFive = dayFiveTarget(job);
+      return dayFive.isAfter(now) ? dayFive : job.graceEndsAt();
+    }
+    return job.graceEndsAt();
   }
 
   private Instant nextObservation(Instant now, Instant graceEnd) {
