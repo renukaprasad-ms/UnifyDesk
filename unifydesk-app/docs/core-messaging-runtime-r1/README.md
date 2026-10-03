@@ -18,8 +18,9 @@ Current executable runtime production baseline:
 
 - Repository: `renukaprasad-ms/UnifyDesk`
 - Branch inspected live: `dev`
-- Exact frozen SHA: `f2760fe0a11ad571f984636a65304a64b77459ac`
-- Commit: `Merge PR #249: Core Messaging runtime/provider verification R1 audit`
+- Initial frozen SHA: `f2760fe0a11ad571f984636a65304a64b77459ac`
+- Current post-remediation frozen SHA: `f94b303c3a33fe114dbe33162cdbad8dbab14d91`
+- Integrated remediations: B2 PR #253 + F1 PR #252
 - Temporary evidence branch: `review/core-messaging-runtime-r1-execution`
 
 Do not substitute moving `dev` or the evidence-branch head for the production SHA being tested.
@@ -43,7 +44,7 @@ Source review is supporting evidence only. It is not promoted to runtime/provide
   - Segment HTTP wire model/mapper use Jackson 3 `tools.jackson.*` types.
   - Inbox -> Contacts prefill is present.
   - Segment Preview uses the server-normalized AST without replacing editor-visible filter state.
-- Exact frozen production SHA has GitHub Actions run `37011044661`; attempt 2 still ends before executable steps (`steps = null`), so CI is **BLOCKED by the execution environment**.
+- Initial baseline GitHub Actions run `37011044661` and latest worker-head runs still end before executable steps (`steps = null`), so CI/build verification remains **BLOCKED by the execution environment**. No application PASS/FAIL is inferred from those jobs.
 - Real SES/MSG91/Meta provider execution was not available through this repository audit and remains **NOT EXECUTED/BLOCKED pending runtime assets**.
 - Meta customer Embedded Signup remains separately **BLOCKED BY META** per the initiative handoff.
 - MAIN resolved Provider-4 scope: runtime regression covers the supported customer-managed bulk Email providers — Amazon SES, SendGrid, Azure Communication Services Email and MSG91 Email. Gmail/Microsoft/IMAP-SMTP/SMTP mailbox transports are not Provider-4 targets in this round.
@@ -67,3 +68,12 @@ The following stale PRs were inspected against modern `dev` and closed as supers
 - #197 — superseded Contacts/Audience architecture.
 - #218 — superseded Contacts import mapping work.
 - #244 — superseded original Core Messaging QA; final remediation verification was #248 and was merged.
+
+
+## Integrated Runtime R1 remediation status
+
+CMR1-RUNTIME-001A and CMR1-RUNTIME-001B are source-integrated in `dev` at:
+
+`f94b303c3a33fe114dbe33162cdbad8dbab14d91`
+
+Runtime/provider verification must now resume from this exact SHA. SEC/QA handoff is not yet allowed because unsubscribe, stale-import, frozen-audience race and provider execution evidence remain NOT EXECUTED/BLOCKED.
