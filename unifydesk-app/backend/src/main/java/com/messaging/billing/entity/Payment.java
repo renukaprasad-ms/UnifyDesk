@@ -60,6 +60,18 @@ public class Payment {
   @Column(name = "provider_subscription_id", length = 255)
   private String providerSubscriptionId;
 
+  @Column(name = "provider_order_state", nullable = false, length = 32)
+  private String providerOrderState = "CREATE_PENDING";
+
+  @Column(name = "provider_order_status", length = 64)
+  private String providerOrderStatus;
+
+  @Column(name = "provider_checkout_session_id", length = 2048)
+  private String providerCheckoutSessionId;
+
+  @Column(name = "lifecycle_applied_at")
+  private Instant lifecycleAppliedAt;
+
   @Column(name = "checkout_intent_id")
   private Long checkoutIntentId;
 
