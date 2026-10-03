@@ -99,6 +99,9 @@ app:
       webhook-retry-base-seconds: ${APP_BILLING_CASHFREE_WEBHOOK_RETRY_BASE_SECONDS:300}
       webhook-claim-seconds: ${APP_BILLING_CASHFREE_WEBHOOK_CLAIM_SECONDS:120}
       dunning-claim-seconds: ${APP_BILLING_CASHFREE_DUNNING_CLAIM_SECONDS:300}
+      automatic-renewal-claim-seconds: ${APP_BILLING_CASHFREE_AUTOMATIC_RENEWAL_CLAIM_SECONDS:300}
+      automatic-renewal-interval-ms: ${APP_BILLING_CASHFREE_AUTOMATIC_RENEWAL_INTERVAL_MS:300000}
+      automatic-renewal-initial-delay-ms: ${APP_BILLING_CASHFREE_AUTOMATIC_RENEWAL_INITIAL_DELAY_MS:60000}
   recipient-action:
     encryption-key: ${APP_RECIPIENT_ACTION_KEY:}
     token-ttl: ${APP_RECIPIENT_ACTION_TOKEN_TTL:365d}
