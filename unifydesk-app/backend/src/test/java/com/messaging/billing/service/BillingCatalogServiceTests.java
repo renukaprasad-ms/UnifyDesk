@@ -115,7 +115,7 @@ class BillingCatalogServiceTests {
   }
 
   @Test
-  void switchingPlansFlushesCancelledSubscriptionBeforeInsert() {
+  void directPlanReplacementIsRejectedInFavorOfChangeContract() {
     long companyId = 10L;
     Company company = company(companyId);
     Plan oldPlan = plan(20L, "FREE");
@@ -125,31 +125,17 @@ class BillingCatalogServiceTests {
 
     when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
     when(planRepository.findById(targetPlan.getId())).thenReturn(Optional.of(targetPlan));
-    when(subscriptionRepository.findByCompanyIdOrderByStartedAtDesc(companyId))
-        .thenReturn(List.of(current));
-    when(subscriptionRepository.save(any(CompanySubscription.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0));
-    when(subscriptionRepository.saveAndFlush(any(CompanySubscription.class)))
-        .thenAnswer(
-            invocation -> {
-              CompanySubscription created = invocation.getArgument(0);
-              if (created.getId() == null) created.setId(50L);
-              return created;
-            });
+    when(subscriptionLifecycleService.currentOptional(companyId)).thenReturn(Optional.of(current));
 
-    CompanySubscriptionResponse response =
-        billingCatalogService.assignSubscription(
-            companyId,
-            new AssignSubscriptionRequest(
-                targetPlan.getId().toString(), null, null, null, null, null, null));
+    assertThrows(
+        ConflictException.class,
+        () ->
+            billingCatalogService.assignSubscription(
+                companyId,
+                new AssignSubscriptionRequest(
+                    targetPlan.getId().toString(), null, null, null, null, null, null)));
 
-    assertEquals(targetPlan.getId().toString(), response.planId());
-    assertEquals(SubscriptionStatus.CANCELLED, current.getStatus());
-
-    InOrder order = inOrder(subscriptionRepository);
-    order.verify(subscriptionRepository).save(current);
-    order.verify(subscriptionRepository).flush();
-    order.verify(subscriptionRepository).saveAndFlush(any(CompanySubscription.class));
+    verify(subscriptionRepository, never()).saveAndFlush(any(CompanySubscription.class));
   }
 
   private Plan plan(Long id, String code) {
