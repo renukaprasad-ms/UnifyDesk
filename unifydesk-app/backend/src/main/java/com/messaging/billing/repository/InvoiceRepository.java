@@ -14,6 +14,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
   Optional<Invoice> findByBillingPeriodId(Long billingPeriodId);
 
+  Optional<Invoice> findBySubscriptionChangeId(Long subscriptionChangeId);
+
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select i from Invoice i where i.id = :id")
   Optional<Invoice> findByIdForUpdate(@Param("id") Long id);
