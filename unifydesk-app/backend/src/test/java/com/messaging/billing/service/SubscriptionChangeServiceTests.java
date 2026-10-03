@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -146,6 +147,31 @@ class SubscriptionChangeServiceTests {
     assertEquals(SubscriptionChangeStatus.SCHEDULED, response.status());
     assertEquals(periodEnd, response.effectiveAt());
     assertEquals(20L, current.getPlan().getId());
+  }
+
+  @Test
+  void scheduledDowngradeClaimReplayConvergesOnce() {
+    SubscriptionChange change = prior(10L, "down-due", SubscriptionChangeType.DOWNGRADE, 31L);
+    change.setStatus(SubscriptionChangeStatus.SCHEDULED);
+    change.setEffectiveAt(periodEnd);
+    when(changeRepository.findDueDowngradesForUpdate(periodEnd, 100))
+        .thenReturn(java.util.List.of(change), java.util.List.of());
+    when(lifecycleService.requireForUpdate(40L)).thenReturn(current);
+
+    assertEquals(1, service.applyDueDowngrades(periodEnd));
+    assertEquals(SubscriptionChangeStatus.APPLIED, change.getStatus());
+    assertEquals(targetPlan, current.getPlan());
+    assertEquals(0, service.applyDueDowngrades(periodEnd));
+
+    verify(lifecycleService, times(1))
+        .recordPlanChange(
+            any(CompanySubscription.class),
+            any(Plan.class),
+            any(Plan.class),
+            any(),
+            any(),
+            any(),
+            any());
   }
 
   @Test

@@ -62,7 +62,11 @@ public class BillingPeriodService {
             cadence,
             subscription.getCurrentPeriodStart(),
             subscription.getCurrentPeriodEnd());
-    if (period.getSubscription() == null) {
+    assertCompatiblePlatformSnapshot(period, subscription, amount, currency);
+    if (period.getSubscription() == null
+        || period.getPlan() == null
+        || period.getPlatformAmountSnapshot() == null
+        || period.getCurrencySnapshot() == null) {
       period.setSubscription(subscription);
       period.setPlan(subscription.getPlan());
       period.setPlanPrice(subscription.getPlanPrice());
@@ -123,6 +127,34 @@ public class BillingPeriodService {
     return periodRepository.findByCompanyIdOrderByStartAtDesc(companyId).stream()
         .map(this::toResponse)
         .toList();
+  }
+
+  private void assertCompatiblePlatformSnapshot(
+      BillingPeriod period,
+      CompanySubscription subscription,
+      BigDecimal amount,
+      String currency) {
+    if (period.getSubscription() != null
+        && !period.getSubscription().getId().equals(subscription.getId())) {
+      throw new ConflictException("Billing period is already bound to another subscription");
+    }
+    if (period.getPlan() != null
+        && !period.getPlan().getId().equals(subscription.getPlan().getId())) {
+      throw new ConflictException("Billing period is already bound to another plan");
+    }
+    if (period.getPlanPrice() != null
+        && (subscription.getPlanPrice() == null
+            || !period.getPlanPrice().getId().equals(subscription.getPlanPrice().getId()))) {
+      throw new ConflictException("Billing period is already bound to another plan price");
+    }
+    if (period.getPlatformAmountSnapshot() != null
+        && period.getPlatformAmountSnapshot().compareTo(amount) != 0) {
+      throw new ConflictException("Billing period financial snapshot is immutable");
+    }
+    if (period.getCurrencySnapshot() != null
+        && !period.getCurrencySnapshot().equalsIgnoreCase(currency)) {
+      throw new ConflictException("Billing period currency snapshot is immutable");
+    }
   }
 
   private BillingPeriod ensure(
