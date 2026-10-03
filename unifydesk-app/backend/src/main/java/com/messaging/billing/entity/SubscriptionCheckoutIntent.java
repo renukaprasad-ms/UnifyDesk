@@ -25,7 +25,10 @@ import lombok.Setter;
           columnNames = "billing_period_id"),
       @UniqueConstraint(
           name = "uk_subscription_checkout_intents_invoice",
-          columnNames = "invoice_id")
+          columnNames = "invoice_id"),
+      @UniqueConstraint(
+          name = "uk_subscription_checkout_intents_subscription",
+          columnNames = "subscription_id")
     },
     indexes = {
       @Index(
