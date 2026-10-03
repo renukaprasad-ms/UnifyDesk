@@ -81,7 +81,7 @@ class RefundStore {
   Prepared applyRemote(Long refundId, PaymentProviderGateway.RemoteRefund remote) {
     Refund refund =
         refundRepository
-            .findById(refundId)
+            .findByIdForUpdate(refundId)
             .orElseThrow(() -> new ConflictException("Refund intent no longer exists"));
     if (!refund.getProviderRefundId().equals(remote.refundId())) {
       throw new ConflictException("Provider returned a conflicting refund identity");
@@ -110,7 +110,7 @@ class RefundStore {
   @Transactional
   void markAmbiguous(Long refundId) {
     refundRepository
-        .findById(refundId)
+        .findByIdForUpdate(refundId)
         .ifPresent(
             refund -> {
               if (refund.getStatus() != RefundStatus.SUCCEEDED) {
