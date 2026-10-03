@@ -2,7 +2,7 @@
 
 ## CompanySubscription
 
-Recommended R1 states:
+Frozen R1 states:
 
 - `TRIALING`
 - `ACTIVE`
@@ -11,55 +11,67 @@ Recommended R1 states:
 - `CANCELLED`
 - `EXPIRED`
 
-Do not add `CANCEL_AT_PERIOD_END` as a state; retain it as a flag plus effective timestamp.
+`cancelAtPeriodEnd` remains scheduling metadata, not a state.
 
-Do not add a separate `GRACE_PERIOD` state. Use `PAST_DUE + graceEndsAt`; this preserves the failure reason while making grace a policy window.
+Grace is represented as:
 
-### Transitions
+`PAST_DUE + graceEndsAt`
 
-| From | To | Trigger | Payment dependency | Entitlements |
-|---|---|---|---|---|
-| none | TRIALING | eligible trial starts | none | trial policy |
-| none/TRIALING | ACTIVE | free activation or required payment confirmed | provider/server authoritative where paid | full plan |
-| ACTIVE | ACTIVE | successful renewal | confirmed collection if required | full plan |
-| ACTIVE | PAST_DUE | renewal collection fails/uncertain past due point | failed/unpaid invoice | MAIN-defined grace behavior |
-| PAST_DUE | ACTIVE | successful recovery | confirmed collection | full plan |
-| PAST_DUE | SUSPENDED | grace expires/retry policy exhausted | invoice unpaid | restricted; no destructive deletion |
-| SUSPENDED | ACTIVE | recovery/reactivation | confirmed payment/policy | full plan |
-| TRIALING | EXPIRED | trial ends without paid activation | no payment | restricted |
-| ACTIVE/PAST_DUE/SUSPENDED | CANCELLED | explicit immediate cancellation | policy dependent | restricted |
-| ACTIVE | EXPIRED | period-end cancellation/non-renewing term ends | no next renewal | restricted |
-| EXPIRED/CANCELLED | ACTIVE | explicit reactivation/new subscription | eligibility + payment as required | full plan |
+with a frozen R1 grace window of 7 days.
 
-Every transition records actor/trigger/idempotency key/from/to/effectiveAt/provider or invoice reference.
+### Core transitions
+
+| From | To | Trigger | Entitlement/payment behavior |
+|---|---|---|---|
+| none | TRIALING | eligible trial | trial policy |
+| none/TRIALING | ACTIVE | free activation, valid admin grant or confirmed required payment | full target entitlement |
+| ACTIVE | ACTIVE | successful renewal | preserve entitlement |
+| ACTIVE | ACTIVE | paid upgrade confirmed | apply target plan immediately after successful required payment |
+| ACTIVE | ACTIVE | scheduled downgrade boundary | switch to lower plan; preserve existing over-limit resources |
+| ACTIVE | PAST_DUE | renewal/collection due-date failure | start 7-day grace |
+| PAST_DUE | ACTIVE | confirmed recovery | restore normal financial/resource expansion behavior |
+| PAST_DUE | SUSPENDED | unresolved after grace | restrict according to suspension policy; keep tenant/data |
+| SUSPENDED | ACTIVE | confirmed recovery/reactivation | no tenant recreation |
+| ACTIVE | EXPIRED | cancel-at-period-end reaches boundary | stop entitlement according to expiry policy |
+| ACTIVE/PAST_DUE/SUSPENDED | CANCELLED | explicit SUPER_ADMIN immediate cancellation | audited; refund/credit separate |
+| TRIALING | EXPIRED | trial ends without activation | expire |
+
+### PAST_DUE grace behavior
+
+During the 7-day grace:
+
+- preserve data;
+- preserve read/inbound visibility;
+- do not destructively remove configuration;
+- block new Managed-Service financial exposure;
+- block net-new entitlement-consuming resource expansion where appropriate.
+
+Target collection schedule:
+
+- initial due-date attempt;
+- retry approximately day 2;
+- retry approximately day 5;
+- unresolved after grace -> SUSPENDED.
+
+Exact retry mechanics must respect the verified pinned Cashfree rail contract.
 
 ## Invoice
 
-Recommended states:
+States:
 
 - DRAFT
 - OPEN
 - PAID
 - VOID
-- UNCOLLECTIBLE (optional operational/accounting terminal state)
+- UNCOLLECTIBLE where explicitly used.
 
-`OVERDUE` is derived from OPEN + dueAt rather than required as a persisted state.
+Finalized/open amount and line snapshots are immutable.
 
-Transitions:
-
-`DRAFT -> OPEN -> PAID`
-
-`DRAFT -> VOID`
-
-`OPEN -> VOID` only when accounting policy permits; otherwise issue a credit note.
-
-`OPEN -> UNCOLLECTIBLE` only through explicit policy/admin action.
-
-Finalized/open invoice amounts and line items are immutable.
+Late usage never reopens a finalized invoice.
 
 ## Payment
 
-Payment aggregate:
+Aggregate:
 
 - CREATED
 - PENDING
@@ -67,9 +79,7 @@ Payment aggregate:
 - FAILED
 - CANCELLED
 
-A Payment can represent a collection intent while `PaymentAttempt` preserves retries.
-
-PaymentAttempt states:
+Attempt:
 
 - CREATED
 - PENDING
@@ -79,7 +89,7 @@ PaymentAttempt states:
 - CANCELLED
 - EXPIRED
 
-`SUCCEEDED` is terminal for an attempt. Out-of-order failure events must never overwrite a recorded provider-confirmed success.
+A stale/out-of-order failure cannot overwrite confirmed success.
 
 ## Refund
 
@@ -87,6 +97,6 @@ PaymentAttempt states:
 - PENDING
 - SUCCEEDED
 - FAILED
-- CANCELLED where provider supports cancellation/status.
+- CANCELLED where supported.
 
-Refund retries use a stable internal refund id/idempotency key and retain provider attempts/events.
+Refund lifecycle is independent of cancellation lifecycle.

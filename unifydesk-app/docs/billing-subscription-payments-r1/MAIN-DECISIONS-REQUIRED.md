@@ -1,80 +1,94 @@
-# MAIN Decisions Required
+# MAIN Decisions — R1 Freeze
 
-Architecture can proceed without guessing these commercial policies only after MAIN chooses them.
+The primary Billing R1 product decisions are now resolved and frozen.
 
-## D1 — Upgrade charging
+## Frozen decisions
 
-Choose one default:
+### Commercial model
 
-A. immediate prorated difference (recommended SaaS default);
-B. immediate full difference;
-C. next-period charge but delayed entitlement upgrade;
-D. no proration with another explicit rule.
+- Platform subscription and Managed Services are separate.
+- Managed Email and Managed SMS are PAYG.
+- No included Managed Email/SMS allowance in R1.
+- Only MANAGED ownership is Managed-Service billable.
+- CUSTOMER_OWNED traffic is not Managed-Service PAYG.
 
-Architecture rule regardless: increased paid entitlements activate only after the required charge is provider-confirmed.
+### Plan visibility
 
-## D2 — Downgrade
+- PUBLIC
+- PRIVATE
+- INTERNAL
 
-Recommended default: effective next billing period.
+PRIVATE requires explicit company assignment and backend enforcement.
+INTERNAL is never customer-discoverable.
 
-Confirm over-limit behavior after downgrade:
-- preserve all existing resources;
-- block net-new creation until below limit;
-- no automatic deletion.
+### Upgrade
 
-## D3 — Cancellation
+- Immediate after any required payment is provider-confirmed.
+- Deterministic unused-period proration.
+- No frontend-redirect activation.
 
-Choose customer default:
-- cancel at period end (recommended);
-- whether immediate cancellation is customer-accessible or admin-only;
-- refund/credit behavior for immediate cancellation.
+### Downgrade
 
-## D4 — Dunning
+- Effective next platform billing-period boundary.
+- Preserve existing over-limit resources.
+- Prevent net-new entitlement expansion while over limit.
+- No automatic deletion.
 
-Define:
-- retry cadence/count;
-- grace duration;
-- which read/write/send actions remain in PAST_DUE;
-- when SUSPENDED occurs;
-- manual reactivation requirements.
+### Cancellation
 
-## D5 — Billing cadence
+- Customer default: cancel at period end.
+- Immediate cancellation: SUPER_ADMIN-only, explicit/audited, reason required.
+- Refund/credit separate.
 
-Confirm how PAYG invoices interact with YEARLY platform plans:
-- monthly managed-usage invoice plus annual platform renewal (recommended), or
-- align usage to platform renewal cadence.
+### Dunning
 
-## D6 — Taxes / GST
+- Due-date failure -> PAST_DUE.
+- 7-day grace.
+- Target retries around day 2 and day 5.
+- Unresolved after grace -> SUSPENDED.
+- Recovery -> ACTIVE without tenant recreation.
+- Grace preserves data/read/inbound visibility and blocks new managed financial exposure/net-new entitlement expansion as appropriate.
 
-Define R1 tax engine scope:
-- whether UnifyDesk initially invoices only INR/India;
-- GST registration/tax calculation/invoice fields;
-- B2B GSTIN handling;
-- place-of-supply policy;
-- credit-note requirements.
+### Cadence
 
-Tax/legal policy should be separately reviewed before production invoicing.
+- Managed-Service PAYG closes monthly.
+- YEARLY platform fee still renews yearly.
 
-## D7 — Included usage
+### Currency
 
-Decide whether any plan version has included Managed Email/SMS allowance in R1. Architecture supports it but no allowance/prices are assumed.
+- R1 customer billing = INR.
 
-## D8 — INTERNAL visibility
+### Late usage
 
-Recommendation: include INTERNAL in the visibility enum now because it is low-cost and prevents misuse of PUBLIC/PRIVATE for migration/support/testing. Confirm.
+- Finalized periods/invoices immutable.
+- Late legitimate usage appears next invoice as explicit prior-period adjustment.
 
-## D9 — Late usage
+### Manual grants
 
-Recommended: finalized period remains immutable; late accepted usage is shown as a prior-period adjustment on the next invoice. Confirm whether supplemental invoice is preferred.
+- SUPER_ADMIN may use COMPED or OFFLINE_CONTRACT.
+- Actor/reason/effective period/payment policy required.
+- Optional contract/reference.
+- Never fabricate Cashfree success.
 
-## D10 — Currency
+### Cashfree
 
-Recommendation: R1 product policy = INR only even though Cashfree PG supports broader currencies. Expand later after tax/rail policy.
+UnifyDesk owns commercial/subscription/invoice/usage truth.
+Cashfree is collection/authorization rail.
+Prefer recurring authorization/on-demand exact invoice collection where merchant/rail supports it.
+Provider-confirmed server state is authoritative.
 
-## D11 — Manual admin subscription grant
+### Financial retention
 
-Decide whether SUPER_ADMIN may intentionally grant a paid plan without provider payment (e.g. comped/internal contract). If yes, require an explicit grant reason and payment policy enum; do not reuse normal customer checkout activation.
+R1 must technically support at least 8-year financial retention capability and legal hold.
 
-## D12 — Financial retention
+## Remaining production-readiness validations
 
-Define retention duration and legal/accounting requirements for invoices, payments, provider events, usage, refunds and company tombstones. Current operational company purge must be aligned to this policy.
+These are not open product-model choices for worker implementation:
+
+1. Confirm actual GST registration, tax rates, place-of-supply and invoice/credit-note legal requirements before production launch.
+2. Confirm final legal/accounting retention period; implementation must already support >=8 years.
+3. Execute Cashfree sandbox/provider verification for the pinned API versions and merchant-enabled rails.
+4. Validate exact provider retry/mandate behavior and adapt scheduler execution without changing the frozen UnifyDesk state-machine policy.
+5. Execute runtime verification of Managed Email/SMS usage and payment flows after final SEC/QA.
+
+Any change to the frozen product decisions requires explicit MAIN re-open/revision.

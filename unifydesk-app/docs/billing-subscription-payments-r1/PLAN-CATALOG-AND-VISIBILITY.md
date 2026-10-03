@@ -1,34 +1,50 @@
 # Plan Catalog and Visibility
 
-## Plan version model
+## Existing version model
 
-Do **not** add a separate `PlanVersion` table in R1. Existing `Plan` already has unique `(code, version)`, and `PlanPrice`, `PlanEntitlement`, and `RateCard` are plan-row scoped.
+Existing `Plan(code, version)` rows are the canonical plan-version model.
 
-Canonical interpretation:
+Do not add a duplicate PlanVersion table.
 
-- `Plan.code` = plan family identifier;
-- each `Plan` row = immutable commercial version;
+Interpretation:
+
+- `code` identifies the plan family;
+- each `Plan` row is a commercial version;
 - DRAFT may be edited;
 - PUBLISHED is frozen;
-- RETIRED remains queryable for historical subscriptions but is not newly selectable.
+- RETIRED remains available for history but not new customer selection.
 
-Required remediation: published entitlements must become immutable exactly like prices/rate cards.
+R1 remediation must make PUBLISHED entitlements immutable as well as prices/rate cards.
 
-## Visibility
+## Visibility enum
 
-Add a visibility field:
+Frozen R1 values:
 
-- `PUBLIC` — discoverable to eligible companies.
-- `PRIVATE` — discoverable/selectable only with active assignment.
-- `INTERNAL` — recommended reserved scope for development/migration/support/admin-only subscriptions.
+- `PUBLIC`
+- `PRIVATE`
+- `INTERNAL`
 
-INTERNAL is justified because current bootstrap/admin flows need a non-customer catalog scope and using PRIVATE assignments for staff/migration plans would conflate commercial contracts with operational plans.
+### PUBLIC
 
-Customer-facing discovery must always exclude INTERNAL.
+Visible to eligible companies through the normal plan catalog.
+
+### PRIVATE
+
+Visible/selectable only when an active `PlanCompanyAssignment` exists for the requesting company.
+
+Backend selection must re-check the assignment even when a plan ID is submitted directly.
+
+A guessed PRIVATE plan ID must fail closed.
+
+### INTERNAL
+
+Never returned from customer-facing discovery.
+
+May be used by authorized platform operations for staff testing, support, migration or internal commercial handling.
 
 ## PlanCompanyAssignment
 
-Recommended relation:
+Canonical relation:
 
 ```
 plan_company_assignments
@@ -42,38 +58,39 @@ plan_company_assignments
 - revoked_at
 - revoked_by_user_id
 - reason
-unique active(plan_id, company_id)
 ```
 
-Assignment is to the immutable plan version (`plan_id`), not a raw company id column on `Plan`.
+Assignment targets an immutable plan version.
 
-Benefits:
+One PRIVATE plan version may be assigned to multiple companies.
 
-- one private plan version can be assigned to multiple companies;
-- eligibility has an audit trail;
-- guessed IDs fail backend authorization;
-- a new plan version is not accidentally exposed to prior assignees unless explicitly assigned/cloned.
+## Discovery predicate
 
-## Discovery contract
-
-Company-visible catalog =
+Customer-visible plan catalog:
 
 ```
-PUBLISHED PUBLIC plans
+PUBLISHED PUBLIC
 UNION
-PUBLISHED PRIVATE plans with active PlanCompanyAssignment(companyId)
+PUBLISHED PRIVATE with active assignment for companyId
 ```
 
-Never return INTERNAL plans and never return another company's PRIVATE plan.
-
-The same eligibility predicate must be rechecked during subscription creation; frontend hiding is insufficient.
+Never include INTERNAL plans.
 
 ## Assignment removal
 
-Removing eligibility prevents new selection. It must not silently invalidate an already-active subscription. Existing subscription remains valid until an explicit plan-change/cancellation policy acts.
+Removing/revoking a PRIVATE assignment:
 
-## Historical stability
+- prevents future discovery/selection;
+- does not silently cancel or destroy an already-valid active subscription;
+- requires a separate explicit subscription lifecycle operation to alter an active subscriber.
 
-A published plan version must not be edited in any financially or entitlement-material way. Create a new version and schedule/apply a subscription change instead.
+## Historical safety
 
-Legacy mutable display metadata should also be treated cautiously: invoice line descriptions and all financial numbers must be snapshotted at finalization.
+Once PUBLISHED, material commercial terms are immutable:
+
+- platform price;
+- entitlements;
+- rate cards;
+- visibility semantics affecting eligibility.
+
+Changes use a new plan version.

@@ -1,29 +1,31 @@
 # Gap Matrix
 
-| ID | Area | Severity | State | Required R1 action |
-|---|---|---:|---|---|
-| BSP-R1-001 | Published entitlements mutable | HIGH | NEEDS REMEDIATION | Make PUBLISHED plan version commercially immutable. |
-| BSP-R1-002 | No plan visibility/private assignment | HIGH | MISSING | Add visibility + PlanCompanyAssignment + backend eligibility. |
-| BSP-R1-003 | Paid plan can be manually activated by admin without payment | HIGH | NEEDS REMEDIATION | Separate authorized manual admin grant from normal paid activation; paid customer flow requires payment policy. |
-| BSP-R1-004 | Subscription lifecycle not state-machine driven | HIGH | PARTIAL | Add transition service/history/jobs. |
-| BSP-R1-005 | PAST_DUE loses entitlement resolution | HIGH | NEEDS REMEDIATION | Add explicit grace/suspension entitlement policy. |
-| BSP-R1-006 | No immutable financial BillingPeriod | HIGH | MISSING | Add open/close/finalized period domain. |
-| BSP-R1-007 | No Invoice/line-item lifecycle | CRITICAL | MISSING | Add immutable finalization and source snapshots. |
-| BSP-R1-008 | No Payment/PaymentAttempt | CRITICAL | MISSING | Add separate collection model. |
-| BSP-R1-009 | No Cashfree integration/webhook reconciliation | CRITICAL | MISSING | Add provider adapter, durable inbox, reconciliation. |
-| BSP-R1-010 | Usage has no MANAGED vs CUSTOMER_OWNED dimension | CRITICAL | NEEDS REMEDIATION | Add ownership/SKU and fail-safe rating eligibility. |
-| BSP-R1-011 | Managed Email not financially rated | HIGH | PARTIAL | Bridge accepted usage to UsageEvent exactly once. |
-| BSP-R1-012 | Historical usage rating uses current subscription | CRITICAL | NEEDS REMEDIATION | Resolve subscription effective at occurredAt. |
-| BSP-R1-013 | Company rate override can mutate/gets purged | HIGH | NEEDS REMEDIATION | Immutable revisions + retention/audit policy. |
-| BSP-R1-014 | Managed SMS quantity/provider truth | MEDIUM | RUNTIME VERIFICATION REQUIRED | Verify actual segment billing and provider duplicate behavior. |
-| BSP-R1-015 | Broadcast entitlement coverage incomplete | HIGH | PARTIAL | Authoritative backend guards for plan Broadcast keys. |
-| BSP-R1-016 | Email template entitlement not enforced in service | MEDIUM | PARTIAL | Enforce at create path. |
-| BSP-R1-017 | Ad Center/general feature gating not represented in entitlement catalog | MEDIUM | PRODUCT DECISION REQUIRED | Decide which modules are paid gates; add explicit boolean entitlements if desired. |
-| BSP-R1-018 | Cancel-at-period-end has no audited executor | HIGH | PARTIAL | Restart-safe transition job. |
-| BSP-R1-019 | Upgrade/downgrade/proration absent | HIGH | MISSING | SubscriptionChange + quotes/payment gate/scheduling. |
-| BSP-R1-020 | Refund/credit/adjustment absent | HIGH | MISSING | Separate provider Refund and accounting credit model. |
-| BSP-R1-021 | Dunning/retry/grace/suspension absent | HIGH | MISSING | Policy-driven jobs + reconciliation. |
-| BSP-R1-022 | Company UI lacks checkout/usage/invoices/payments | MEDIUM | PARTIAL | F1 flow after backend contracts. |
-| BSP-R1-023 | Platform UI lacks visibility/private assignment | HIGH | PARTIAL | Admin plan scope/assignment controls. |
-| BSP-R1-024 | Frontend billing provider enums are stale vs runtime providers | MEDIUM | NEEDS REMEDIATION | Align canonical provider/SKU DTOs; do not hard-code old Gmail/Microsoft/SMTP billing assumptions. |
-| BSP-R1-025 | Runtime/provider evidence absent | HIGH | BLOCKED / NOT EXECUTED | Execute source tests and Cashfree sandbox verification before release. |
+| ID | Area | State after MAIN freeze | R1 action |
+|---|---|---|---|
+| BSP-R1-001 | Published entitlements mutable | NEEDS REMEDIATION | Make PUBLISHED plan versions immutable. |
+| BSP-R1-002 | No PUBLIC/PRIVATE/INTERNAL visibility | MISSING | Add visibility + PlanCompanyAssignment + backend eligibility. |
+| BSP-R1-003 | Paid manual activation lacks explicit policy | NEEDS REMEDIATION | Add CASHFREE/COMPED/OFFLINE_CONTRACT policy and immutable audit. |
+| BSP-R1-004 | Subscription lifecycle incomplete | PARTIAL | Add canonical state machine/history. |
+| BSP-R1-005 | PAST_DUE handling | NEEDS REMEDIATION | 7-day grace + restriction policy + recovery. |
+| BSP-R1-006 | BillingPeriod | MISSING | Add platform/managed financial periods; managed PAYG monthly. |
+| BSP-R1-007 | Invoice/line items | MISSING | Add immutable INR invoice lifecycle/tax snapshots. |
+| BSP-R1-008 | Payment/attempt | MISSING | Add append-only attempts and provider refs. |
+| BSP-R1-009 | Cashfree integration | MISSING | Add provider adapter/webhook/reconciliation. |
+| BSP-R1-010 | MANAGED vs CUSTOMER_OWNED usage | NEEDS REMEDIATION | Add explicit ownership and bill only MANAGED. |
+| BSP-R1-011 | Managed Email financial rating | PARTIAL | Bridge accepted usage to UsageEvent exactly once. |
+| BSP-R1-012 | Historical subscription pricing | NEEDS REMEDIATION | Resolve subscription effective at occurredAt. |
+| BSP-R1-013 | CompanyRateOverride historical safety | NEEDS REMEDIATION | Immutable/effective-dated revision + retention. |
+| BSP-R1-014 | Managed SMS provider truth | PROVIDER/RUNTIME VERIFICATION REQUIRED | Verify authoritative segment quantity and duplicate behavior. |
+| BSP-R1-015 | Broadcast entitlement coverage | PARTIAL | Add authoritative backend guards. |
+| BSP-R1-016 | Template/module entitlement coverage | PARTIAL | Add authoritative backend enforcement where catalog-gated. |
+| BSP-R1-017 | Upgrade | MISSING | Immediate after confirmed payment + deterministic proration. |
+| BSP-R1-018 | Downgrade | MISSING | Schedule at next platform boundary; preserve excess resources. |
+| BSP-R1-019 | Cancellation executor | PARTIAL | Customer period-end + audited SUPER_ADMIN immediate path. |
+| BSP-R1-020 | Refund/credit | MISSING | Separate explicit financial operations. |
+| BSP-R1-021 | Dunning | MISSING | Due failure -> PAST_DUE; day ~2/~5 retries; day 7 unresolved -> SUSPENDED. |
+| BSP-R1-022 | Company billing UI | PARTIAL | Plans/checkout/subscription/usage/invoices/payments. |
+| BSP-R1-023 | Platform billing UI | PARTIAL | Visibility/assignments/manual-grant/payment inspection. |
+| BSP-R1-024 | Provider/billing DTO drift | NEEDS REMEDIATION | Align runtime/provider/SKU contracts. |
+| BSP-R1-025 | Financial retention | NEEDS REMEDIATION | Preserve financial history; provision >=8-year capability/legal hold. |
+| BSP-R1-026 | GST/tax production policy | PRODUCTION-READINESS VALIDATION REQUIRED | Keep immutable tax/address snapshots; validate legal rules before launch. |
+| BSP-R1-027 | Cashfree sandbox/provider evidence | PROVIDER VERIFICATION REQUIRED | Execute after integrated SEC/QA-complete code. |

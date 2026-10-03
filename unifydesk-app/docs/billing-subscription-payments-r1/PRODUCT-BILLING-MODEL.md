@@ -1,60 +1,91 @@
 # Product Billing Model
 
-## 1. Platform subscription
+## Platform subscription
 
-A recurring plan price buys SaaS access and entitlements. Examples of entitlement dimensions include seats, Broadcast limits, connected channels, domains, feature gates, reporting and automation.
+Plans such as Starter, Growth, Pro and Business primarily purchase platform entitlements and SaaS limits.
 
-The plan fee does not imply bundled Managed Email/SMS usage unless an explicit included-usage allowance is configured.
+Examples:
 
-## 2. Managed services PAYG
+- seats/users;
+- Broadcast limits;
+- connected-channel limits;
+- domain limits;
+- feature access;
+- reporting/automation/module access.
 
-Financial model:
+The platform subscription price is not a bundle of Managed Email/SMS provider cost in R1.
+
+## Managed Services PAYG
+
+Managed Services are separate usage charges.
+
+R1 billing composition:
 
 ```
 platform subscription fee
-+ Managed Email billable usage
-+ Managed SMS billable usage
-+ future managed-channel billable usage
-- credits / discounts
-+ taxes
-= amount due
++ Managed Email PAYG
++ Managed SMS PAYG
++ explicit future managed-channel PAYG
++/- adjustments / credits
++ applicable taxes
+= invoice amount
 ```
 
-No example unit price in product discussions is a canonical price. Pricing remains catalog data controlled by MAIN/admin configuration.
+There is no free included Managed Email/SMS allowance in R1.
 
-## 3. Customer-owned providers
+## Service ownership boundary
 
-Traffic using customer-owned/direct provider credentials is **not** Managed Service PAYG by default.
-
-Runtime already has a useful distinction in Broadcast sender connections:
-
-- `MESSAGING_MANAGED`
-- `CUSTOMER_MANAGED`
-
-Billing R1 should normalize this into a financial field such as:
+Canonical field:
 
 `serviceOwnership = MANAGED | CUSTOMER_OWNED`
 
-Only MANAGED usage is eligible for managed-service rating unless a future, separately named commercial fee says otherwise.
+Only `MANAGED` is eligible for Managed-Service PAYG.
 
-Provider name alone must never determine ownership.
+Customer-owned/direct provider credentials remain upstream-billed to the customer and must not be charged as UnifyDesk Managed-Service usage by default.
 
-## 4. Private plan vs rate override
+Provider name is not ownership.
 
-Use a PRIVATE plan when platform price/entitlements differ.
+The runtime's existing sender management distinction should map into this financial ownership field.
 
-Use `CompanyRateOverride` when the company remains on a normal platform plan but has negotiated managed-service rates.
+## Public, private and internal plans
 
-Do not clone a plan merely to express a usage unit-rate negotiation.
+- PUBLIC: normal customer catalog.
+- PRIVATE: assigned explicitly to one or more companies.
+- INTERNAL: support/migration/staff/development/admin-only use; never customer-discoverable.
 
-## 5. Included managed usage
+## Private plan vs CompanyRateOverride
 
-Architecture may support an allowance without making it mandatory:
+A PRIVATE plan changes platform price/entitlements.
 
-- plan version defines an allowance by managed usage SKU/unit;
-- rated usage remains immutable;
-- invoice calculation applies allowance deterministically to the financial billing period;
-- overage uses the resolved effective rate;
-- allowance consumption is never implemented by deleting or rewriting usage events.
+A CompanyRateOverride changes negotiated Managed-Service unit pricing while the company remains on its existing platform plan.
 
-MAIN must decide which plans, if any, include usage.
+These remain separate concepts.
+
+## Manual commercial grants
+
+SUPER_ADMIN may grant a paid/private plan without Cashfree only through an explicit payment policy:
+
+- `COMPED`
+- `OFFLINE_CONTRACT`
+
+Required audit fields:
+
+- actor;
+- reason;
+- effective period;
+- payment policy;
+- optional external contract/reference.
+
+Such a grant must not fabricate a successful Cashfree payment.
+
+## Currency
+
+R1 customer invoicing policy is INR-only.
+
+Currency remains explicit in domain contracts for correctness and future extensibility, but multi-currency product behavior is not exposed in R1.
+
+## Tax
+
+The architecture is GST/tax-ready with immutable invoice identity/address/tax snapshots.
+
+No unverified GST rate, registration, place-of-supply or legal rule is hard-coded into the architecture.

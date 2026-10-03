@@ -1,79 +1,83 @@
 # Usage Metering and Rating
 
-## Existing good foundation
+## Financial eligibility
 
-`UsageEvent` already stores:
+Every usage event must carry:
+
+`serviceOwnership = MANAGED | CUSTOMER_OWNED`
+
+Only MANAGED events can be rated as UnifyDesk Managed-Service PAYG.
+
+CUSTOMER_OWNED traffic may still be operationally measured but must not become Managed-Service invoice usage.
+
+## R1 managed usage products
+
+- Managed Email: PAYG.
+- Managed SMS: PAYG.
+- Future managed channels: PAYG only after explicit product/pricing enablement.
+
+R1 has no free included Managed Email/SMS allowance.
+
+## Existing UsageEvent foundation
+
+Retain atomic immutable financial events with:
 
 - company;
-- plan snapshot;
-- pricing-source/rule snapshot;
-- source type/id;
-- unique idempotency key;
-- channel/provider/category/direction/unit/quantity;
-- unit price/total/currency snapshots;
-- occurred/created timestamps.
+- source identity;
+- idempotency key;
+- occurrence time;
+- service ownership;
+- stable billing SKU;
+- channel/provider/category/direction/unit;
+- quantity;
+- subscription/plan snapshot;
+- pricing rule snapshot;
+- unit price/total/currency snapshot.
 
-`UsageBillingService` uses insert-time idempotency and handles uniqueness races.
+## Historical pricing
 
-`PricingResolver` correctly prefers company override over plan rate.
+Resolve the subscription effective at `occurredAt`, not simply today's ACTIVE subscription.
 
-## Required remediation
+Then resolve:
 
-### Managed vs direct
+1. effective CompanyRateOverride;
+2. otherwise effective plan RateCard;
+3. otherwise fail closed/no billable price.
 
-Add explicit `serviceOwnership` and a stable billing SKU. Never infer managed status from provider type.
+CompanyRateOverride history must be immutable/effective-dated once financially used.
 
-Runtime source of truth should be the connection/sender ownership already represented as `MESSAGING_MANAGED` vs `CUSTOMER_MANAGED`.
+## Managed Email
 
-### Historical subscription
+Provider-accepted Managed Email usage must bridge into canonical UsageEvent exactly once.
 
-Pricing must resolve the subscription effective at `occurredAt`, not simply the current ACTIVE/TRIALING row. A late event from an old period must not use today's plan.
+Keep operational reservation/reconciliation logic separate from financial invoice aggregation.
 
-Introduce repository/query semantics:
+## Managed SMS
 
-```
-subscription.startedAt <= occurredAt
-AND (subscription.endsAt IS NULL OR occurredAt < subscription.endsAt)
-```
+Provider-accepted Managed SMS must enter canonical UsageEvent exactly once.
 
-with unambiguous non-overlap.
+R1 still requires runtime verification that billed quantity reflects authoritative segment quantity and provider duplicate/retry behavior.
 
-### Rate history
+## Financial periods
 
-Published plan rate cards are already protected from edit. Company rate overrides need equivalent immutable/effective-dated revision behavior after they have affected billing. Never rewrite a historical negotiated rate used by financial events.
+Managed PAYG period cadence is monthly for all companies, including YEARLY platform subscribers.
 
-### Managed Email
+Use explicit UTC instant boundaries.
 
-Accepted Managed Email must bridge from its operational quota ledger into a canonical rated UsageEvent exactly once. Preserve the existing reservation/reconciliation mechanics; do not replace them with invoice counters.
+## Finalization and late usage
 
-### Managed SMS
+Once BillingPeriod/Invoice is finalized, it is immutable.
 
-Keep provider-accepted commit semantics, but verify that billable quantity is the authoritative segment quantity rather than only a pre-send estimate. Persist provider request/result evidence needed for audit.
+Late legitimate usage is placed on the next invoice using a line type such as:
 
-### Duplicate provider events
+`PRIOR_PERIOD_USAGE_ADJUSTMENT`
 
-Use business identity + provider event/payment/message identifiers. Provider duplicate events must converge on one financial usage effect.
+The adjustment must identify the original service period.
 
-### Late events / finalized periods
+Never silently recompute the previous invoice.
 
-A UsageEvent may arrive late, but a FINALIZED BillingPeriod/Invoice is immutable. Canonical policy options:
+## Included allowance
 
-- include late event in next invoice as prior-period adjustment (recommended);
-- issue supplemental invoice/credit note;
-- never mutate finalized historical totals.
+No included allowance is implemented for R1.
 
-MAIN must approve the late-usage commercial presentation.
-
-## Aggregation
-
-Financial truth remains atomic immutable UsageEvents. Aggregation tables/materialized summaries are derived acceleration only.
-
-Invoice generation stores aggregation snapshots/line-item source references so the final invoice can be reproduced without using today's rates.
-
-## Included allowances
-
-If a plan includes managed usage, apply allowance during period rating/invoice generation:
-
-`billable_overage = max(0, eligible_managed_quantity - included_quantity)`
-
-Do not mark underlying UsageEvents as free/paid by destructive mutation; preserve allocation records or invoice calculation snapshots.
+The model may remain extensible, but R1 invoice/rating code should not introduce unnecessary allowance allocation complexity.

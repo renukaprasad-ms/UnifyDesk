@@ -1,55 +1,101 @@
-# End-to-End Flow
+# End-to-End Billing Flow
 
-## New paid subscription
+## Paid new subscription
 
 1. Company requests an eligible plan version.
-2. Backend re-checks PUBLIC/PRIVATE eligibility and price effectiveness.
-3. Create an idempotent subscription-change/checkout intent.
-4. Create draft invoice/quote from immutable plan-price snapshot.
-5. Create Cashfree order/subscription/mandate through provider adapter as required.
-6. Customer authorizes payment/mandate.
-7. Browser return is informational only.
-8. Server verifies signed webhook and/or reconciles provider state.
-9. Record immutable `PaymentAttempt`; mark payment success only from provider-confirmed state.
-10. Finalize/mark invoice paid according to collection model.
-11. Activate the CompanySubscription and entitlements atomically in local DB.
-12. Emit auditable subscription-change event.
+2. Backend re-checks PUBLIC/PRIVATE eligibility.
+3. Resolve immutable effective PlanPrice.
+4. Create an idempotent subscription/checkout intent.
+5. Build invoice/quote snapshot in INR.
+6. Create required Cashfree authorization/order/subscription operation.
+7. Customer completes provider flow.
+8. Frontend redirect remains informational only.
+9. Verified webhook and/or provider reconciliation confirms payment/authorization.
+10. Record PaymentAttempt and Payment truth.
+11. Activate CompanySubscription and entitlements.
+12. Record immutable transition/audit history.
 
-## Managed usage
+## Paid upgrade
 
-1. Messaging runtime determines `MANAGED` vs `CUSTOMER_OWNED` from canonical connection ownership.
-2. Provider-accepted billable event is deduplicated.
-3. Persist immutable raw/accounting usage identity.
-4. Resolve the subscription/plan effective at occurrence time.
-5. Resolve CompanyRateOverride first, otherwise plan RateCard.
-6. Snapshot price/rule/currency/ownership into `UsageEvent`.
-7. Billing-period close includes only eligible MANAGED events in the defined period.
-8. Apply included allowance if configured.
-9. Produce immutable invoice line items/usage-detail references.
+R1 policy:
 
-CUSTOMER_OWNED usage may still be operationally measured, but it must have zero managed-service financial treatment unless a future explicit fee model is introduced.
+- upgrade becomes effective immediately only after required upgrade payment is confirmed;
+- deterministic proration is applied for the unused portion of the current platform service period;
+- quote/invoice terms are snapshotted;
+- retries use a stable idempotency identity;
+- no entitlement increase occurs from frontend redirect state.
 
-## Renewal
+Canonical proration principle:
 
-1. Create next financial period/invoice idempotently.
-2. Collect required amount through active authorization.
-3. Provider success updates PaymentAttempt/Payment.
-4. Successful collection renews period and keeps subscription ACTIVE.
-5. Failure moves to PAST_DUE and starts policy-driven dunning.
-6. Reconciliation repairs missed/delayed webhook outcomes.
+```
+upgrade_due =
+prorated target platform charge for remaining current service period
+- prorated unused current platform charge
+```
 
-## Upgrade
+Use the exact service-period timestamps and immutable price snapshots. Round monetary results only according to the invoice currency's minor-unit rule.
 
-Recommended technical flow: quote -> payment required -> provider-confirmed success -> apply target plan. Increased entitlements do not activate before required collection succeeds.
+Cross-cycle edge cases must use the same deterministic quote contract and be covered by B1 tests rather than ad-hoc UI calculations.
 
 ## Downgrade
 
-Schedule target plan for next period. Do not delete resources. If existing resource counts exceed new limits after effective time, retain existing resources but block net-new creation according to entitlement policy.
+1. Validate target-plan eligibility.
+2. Create a scheduled SubscriptionChange.
+3. Effective time = next platform billing-period boundary.
+4. Continue current entitlements until then.
+5. At boundary, switch to target plan.
+6. Existing resources above a lower limit remain.
+7. No automatic deletion occurs.
+8. Net-new entitlement-consuming resource creation is blocked while already above the new limit.
+
+## Managed-Service usage
+
+1. Runtime determines `MANAGED` vs `CUSTOMER_OWNED`.
+2. Only MANAGED events can enter Managed-Service financial rating.
+3. Accepted/provider-confirmed billable usage is deduplicated.
+4. Resolve subscription effective at occurrence time.
+5. Resolve company override, otherwise plan rate.
+6. Snapshot price/rule/currency/ownership into UsageEvent.
+7. Managed PAYG financial period closes monthly.
+8. No R1 included allowance is applied.
+9. Invoice includes rated monthly managed usage.
+
+## YEARLY platform plan
+
+Platform fee renews yearly.
+
+Managed-Service PAYG still uses monthly financial periods/invoices.
+
+Do not defer managed usage billing until the yearly platform renewal.
+
+## Renewal and dunning
+
+1. Raise/finalize due invoice.
+2. Attempt provider collection.
+3. If confirmed successful, remain ACTIVE.
+4. If due-date collection fails, transition ACTIVE -> PAST_DUE.
+5. Grace window = 7 days.
+6. Target retries: approximately day 2 and day 5 after initial failure.
+7. During grace, preserve data/read/inbound state but block new Managed-Service exposure and appropriate net-new entitlement expansion.
+8. If unresolved after grace, transition PAST_DUE -> SUSPENDED.
+9. Confirmed later payment transitions PAST_DUE/SUSPENDED -> ACTIVE without tenant recreation.
 
 ## Cancellation
 
-Cancel-at-period-end is a flag/scheduled action, not a pseudo-state. Immediate cancellation, if allowed, is an explicit command with separate refund/credit policy. Provider mandate cancellation and local subscription cancellation are separate operations that must reconcile.
+Customer default = cancel at period end.
+
+SUPER_ADMIN may perform immediate cancellation only through an explicit audited operation containing actor and reason.
+
+Refund/credit is a separate financial operation and is never implied by cancellation.
+
+## Late usage
+
+Finalized BillingPeriod and Invoice are immutable.
+
+Legitimate late usage is carried to the next invoice as an explicit prior-period adjustment.
+
+Never reopen or silently rewrite finalized history.
 
 ## Company deletion
 
-Stop future collection/sending immediately, cancel future subscription activity, but preserve required financial records. Tenant purge must not destructively remove invoice/payment/refund/usage/rating lineage required by retention policy.
+Stop future collection/sending and operational access as policy requires, but preserve required financial history, legal-hold data and audit lineage.

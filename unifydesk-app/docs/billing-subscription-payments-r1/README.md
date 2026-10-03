@@ -1,47 +1,97 @@
 # UnifyDesk Billing, Subscription & Payments R1
 
-## Status
+## Architecture freeze status
 
-Architecture/source-audit round only. No B1/B2/F1 implementation has started.
+MAIN has reviewed and accepted the L1 audit/architecture direction.
 
-- Frozen audited source SHA: `23527be323a87643246dabf046639458d0c44788`
-- `dev` was compared to the frozen SHA at audit start and was identical (0 ahead / 0 behind).
-- Source execution evidence for this audit: **BLOCKED — EXECUTION ENVIRONMENT**. Existing source tests were inspected but were not executed by L1.
-- Cashfree sandbox/live flows: **NOT EXECUTED — PROVIDER VERIFICATION REQUIRED**.
+- Audited production baseline: `23527be323a87643246dabf046639458d0c44788`
+- Architecture PR: `#254`
+- This PR remains documentation-only.
+- No B1/B2/F1 implementation has started.
+- Cashfree sandbox/runtime/provider execution remains **PROVIDER VERIFICATION REQUIRED**.
 
-## Frozen product model
+## Frozen R1 commercial model
 
-UnifyDesk billing has two commercial layers:
+UnifyDesk Billing R1 has two distinct commercial layers:
 
-1. **Platform subscription** — recurring SaaS plan price for entitlements/limits.
-2. **Managed services PAYG** — usage-based charges only for UnifyDesk-managed provider traffic.
+1. **Platform Subscription**
+   - recurring SaaS fee;
+   - buys platform entitlements/limits such as seats, Broadcast limits, connected channels, domains and feature access.
 
-Customer-owned/direct provider traffic is not Managed Service PAYG by default.
+2. **Managed Services PAYG**
+   - separate usage-based billing;
+   - Managed Email is PAYG;
+   - Managed SMS is PAYG;
+   - future managed channels are PAYG only where explicitly enabled.
 
-Public plans are generally discoverable. Private plans require explicit company assignment. Negotiated managed-service rates remain separate from private plans through `CompanyRateOverride`.
+R1 includes **no free Managed Email/SMS allowance inside plans**.
 
-## Source conclusion
+Only usage with:
 
-The repository already contains meaningful billing foundations: versioned plan rows, prices, entitlements, company subscriptions, rate cards, company rate overrides, immutable-rated usage events, managed SMS metering, managed email quota accounting, admin/company billing APIs, and billing UI.
+`serviceOwnership = MANAGED`
 
-It does **not** yet contain a complete financial lifecycle. Invoice/payment/Cashfree/mandate/refund/dunning/billing-period orchestration is absent, published entitlements are mutable, private-plan isolation is absent, and historical rating/managed-vs-direct guarantees need remediation.
+is eligible for UnifyDesk Managed-Service PAYG.
 
-## Documents
+`CUSTOMER_OWNED` provider traffic must not be charged as UnifyDesk Managed-Service usage.
 
-- [CURRENT-ARCHITECTURE.md](CURRENT-ARCHITECTURE.md)
-- [CURRENT-STATE-AUDIT.md](CURRENT-STATE-AUDIT.md)
-- [PRODUCT-BILLING-MODEL.md](PRODUCT-BILLING-MODEL.md)
-- [PLAN-CATALOG-AND-VISIBILITY.md](PLAN-CATALOG-AND-VISIBILITY.md)
-- [END-TO-END-FLOW.md](END-TO-END-FLOW.md)
-- [CANONICAL-CONTRACTS.md](CANONICAL-CONTRACTS.md)
-- [STATE-MACHINES.md](STATE-MACHINES.md)
-- [CASHFREE-CAPABILITY-MATRIX.md](CASHFREE-CAPABILITY-MATRIX.md)
-- [USAGE-METERING-AND-RATING.md](USAGE-METERING-AND-RATING.md)
-- [SECURITY-AND-IDEMPOTENCY.md](SECURITY-AND-IDEMPOTENCY.md)
-- [GAP-MATRIX.md](GAP-MATRIX.md)
-- [WORK-BREAKDOWN.md](WORK-BREAKDOWN.md)
-- [MAIN-DECISIONS-REQUIRED.md](MAIN-DECISIONS-REQUIRED.md)
+## Frozen R1 plan visibility
 
-## Architecture rule
+- `PUBLIC`
+- `PRIVATE`
+- `INTERNAL`
 
-No worker may reinterpret the commercial model from implementation convenience. Financial records must be append-only or immutable after finalization, external-provider state must be reconciled, and backend authorization/enforcement is authoritative.
+PRIVATE plan discovery/selection requires explicit company assignment and backend eligibility checks.
+INTERNAL plans are never customer-discoverable.
+Removing a private-plan assignment does not silently invalidate an already-valid subscription.
+
+## Frozen lifecycle policy
+
+- Paid upgrades: immediate only after required payment is provider-confirmed; deterministic proration applies.
+- Downgrades: effective next platform billing-period boundary.
+- Customer cancellation: cancel at period end.
+- Immediate cancellation: SUPER_ADMIN-only, explicit, audited, reason required.
+- Renewal collection failure: `ACTIVE -> PAST_DUE` with a 7-day grace window.
+- Target retries: due-date failure, then approximately day 2 and day 5; unresolved after grace -> `SUSPENDED`.
+- Managed-Service PAYG closes monthly even when the platform plan is yearly.
+- R1 customer invoicing currency: INR.
+- Finalized billing periods/invoices are immutable; late usage goes to the next invoice as an explicit prior-period adjustment.
+- SUPER_ADMIN may grant paid/private plans outside Cashfree only through explicit audited policies such as `COMPED` or `OFFLINE_CONTRACT`.
+- Financial history must support long-lived retention and legal hold; R1 must be technically capable of at least 8 years of retention.
+
+## Cashfree boundary
+
+UnifyDesk owns:
+
+- subscription state;
+- billing periods;
+- invoice calculation/truth;
+- entitlement state;
+- usage rating.
+
+Cashfree is the external authorization/collection rail.
+
+Frontend redirects are never payment truth.
+Verified provider webhook/reconciliation is authoritative.
+
+## Required execution sequence
+
+```
+MAIN/L1 architecture freeze
+-> merge PR #254
+-> freeze resulting dev SHA
+-> B1
+-> L1 integration
+-> freeze new dev SHA
+-> B2
+-> L1 integration
+-> freeze new dev SHA
+-> F1
+-> L1 integration
+-> integrated exact production SHA
+-> SEC/QA
+-> remediation if required
+-> final SEC/QA
+-> Cashfree/runtime/provider verification
+```
+
+Workers never branch from another worker branch or PR.

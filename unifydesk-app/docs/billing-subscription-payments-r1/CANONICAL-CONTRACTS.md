@@ -1,127 +1,152 @@
 # Canonical Contracts
 
-## Core catalog
+## Plan
 
-### Plan
+Existing Plan row remains the immutable commercial version.
 
-Existing `Plan` remains the version entity.
+Add:
 
-Add/standardize:
+- `visibility: PUBLIC | PRIVATE | INTERNAL`.
 
-- `visibility: PUBLIC | PRIVATE | INTERNAL`;
-- published immutability for price, entitlements, rate cards and material commercial metadata.
+PUBLISHED rows are immutable for material commercial terms.
 
-### PlanCompanyAssignment
+## PlanCompanyAssignment
 
-Explicit plan-version eligibility relation for PRIVATE plans.
+Explicit PRIVATE-plan eligibility relation.
 
-### PlanPrice
+A company must have an active assignment both to discover and to newly select a PRIVATE plan.
 
-Existing effective-dated row retained. Subscription must bind a specific effective `planPriceId` for paid plans.
+## CompanySubscription
 
-### PlanEntitlement
+Recommended persisted states:
 
-Published rows immutable. Optional future allowance definitions should be separate from generic UI/feature entitlements unless semantics are precise.
+- TRIALING
+- ACTIVE
+- PAST_DUE
+- SUSPENDED
+- CANCELLED
+- EXPIRED
 
-## Subscription
+Add/retain:
 
-Extend `CompanySubscription` with at least:
+- startedAt;
+- currentPeriodStart/currentPeriodEnd;
+- billing/renewal anchor;
+- trialEndsAt;
+- cancelAtPeriodEnd;
+- cancellation effective timestamp;
+- graceEndsAt;
+- paymentPolicy;
+- optional external contract reference for non-Cashfree grants.
 
-- explicit renewal/billing anchor;
-- `graceEndsAt` where policy uses grace;
-- provider authorization/subscription reference via separate provider-reference entity, not secret-bearing free text;
-- pending scheduled plan change via separate `SubscriptionChange`;
-- immutable transition/audit history.
+Payment policy values should at minimum distinguish:
 
-Recommended `SubscriptionChange`:
+- `CASHFREE`
+- `COMPED`
+- `OFFLINE_CONTRACT`
 
-- id, company/subscription, fromPlanId, toPlanId;
+Do not synthesize provider payment rows for COMPED/OFFLINE_CONTRACT.
+
+## SubscriptionChange
+
+Fields:
+
+- id;
+- companyId/subscriptionId;
+- fromPlanId;
+- toPlanId;
 - type UPGRADE/DOWNGRADE/REACTIVATION;
 - requestedAt/requestedBy;
 - effectiveAt;
 - quote/invoice reference;
-- status REQUESTED/AWAITING_PAYMENT/SCHEDULED/APPLIED/CANCELLED/FAILED;
-- idempotencyKey.
+- status;
+- idempotencyKey;
+- proration snapshot for upgrade where applicable.
+
+Upgrade application depends on confirmed required payment.
+Downgrade applies at next platform billing-period boundary.
 
 ## BillingPeriod
 
-Create durable financial periods:
+Financial periods are explicit and immutable after finalization.
 
-- id, companyId;
+Fields:
+
+- companyId;
+- kind: PLATFORM | MANAGED_USAGE;
+- cadence;
 - startAt/endAt as UTC instants using half-open `[start,end)`;
-- kind/cadence;
 - status OPEN/CLOSING/FINALIZED;
-- finalizedAt;
-- idempotency key/unique company+kind+start.
+- finalizedAt.
 
-Finalized periods are immutable. Late usage goes to an explicit adjustment/next-period policy; it never silently rewrites a finalized invoice.
+Managed-Service periods are monthly even when platform cadence is yearly.
 
-## Invoice
+## Invoice / InvoiceLineItem
 
-`Invoice`:
+Invoice stores immutable snapshots for:
 
-- company/subscription/billingPeriod;
-- invoice number;
+- company identity;
+- billing address;
+- tax identifiers required by configured tax policy;
 - currency;
-- status;
-- subtotal/discount/credit/tax/total/amountDue snapshots;
-- issued/finalized/due/paid/void timestamps;
-- immutable billing-address/tax identity snapshot as needed.
+- subtotal;
+- discounts/credits/adjustments;
+- taxes;
+- total;
+- amount due;
+- service periods;
+- finalization/due/payment timestamps.
 
-`InvoiceLineItem`:
+R1 invoice currency exposed to customers is INR.
 
-- type PLATFORM_PLAN, MANAGED_USAGE, DISCOUNT, CREDIT, ADJUSTMENT, TAX (tax model can be extended);
-- description snapshot;
-- quantity/unit/unitPrice/amount/currency;
-- source refs (plan price, usage aggregation/rating snapshot);
-- service period start/end.
+Line types include:
 
-Finalized lines are never recomputed using current catalog data.
+- PLATFORM_PLAN;
+- MANAGED_USAGE;
+- PRIOR_PERIOD_USAGE_ADJUSTMENT;
+- DISCOUNT;
+- CREDIT;
+- MANUAL_ADJUSTMENT;
+- TAX.
 
-## Payment
+R1 has no included managed-usage allowance line/calculation.
 
-Separate invoice from collection.
+## Payment / PaymentAttempt
 
-`Payment` = collection aggregate tied to invoice/amount/currency/provider.
+Payment is separate from Invoice.
 
-`PaymentAttempt` = each provider attempt, append-only:
+Each attempt is append-only.
 
-- attempt number;
-- provider refs/order/payment id;
-- status;
-- requested/confirmed amounts;
-- error code/category snapshot;
-- timestamps.
+One invoice may have multiple failed/pending attempts before a successful attempt.
 
-A failed attempt is retained when a later attempt succeeds.
-
-## Provider events
-
-`PaymentProviderEvent` is a durable inbox:
-
-- provider;
-- provider event identity when supplied;
-- event type;
-- raw payload hash and protected raw payload/selected payload fields per retention policy;
-- signature verification result;
-- receivedAt/providerCreatedAt;
-- processing state/attempt count/last error;
-- linked payment/subscription/refund refs.
+Frontend redirects cannot mark an attempt successful.
 
 ## Refund / credit
 
-Provider refund and accounting credit are separate concepts.
+Refund is provider money movement.
 
-`Refund` references a successful payment and has provider lifecycle/attempt identity.
+Credit/credit note is an accounting operation.
 
-`CreditNote` or immutable invoice credit/adjustment captures the accounting reason. A refund must not mutate the original successful PaymentAttempt.
+Cancellation does not automatically imply either.
 
-## Usage ownership
+## Service ownership
 
-Add an explicit financial dimension:
+Every financial usage event must carry:
 
 `serviceOwnership = MANAGED | CUSTOMER_OWNED`
 
-and preferably a stable `billingSku` such as `MANAGED_EMAIL_OUTBOUND` / `MANAGED_SMS_SEGMENT`.
+Only MANAGED is eligible for Managed-Service PAYG.
 
-Rate resolution must fail closed for an unknown managed SKU; CUSTOMER_OWNED is excluded from managed-service rating by policy.
+Prefer a stable `billingSku` independent of provider naming.
+
+## Manual admin grant audit
+
+For COMPED/OFFLINE_CONTRACT grants persist:
+
+- actor;
+- reason;
+- effective period;
+- paymentPolicy;
+- optional contract/reference.
+
+This audit record is immutable.

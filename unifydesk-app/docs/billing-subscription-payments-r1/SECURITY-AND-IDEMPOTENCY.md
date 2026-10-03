@@ -1,74 +1,89 @@
 # Security and Idempotency
 
-## Tenant isolation
+## Private-plan tenant isolation
 
-All company-scoped billing reads/mutations must authorize company membership/permission or SUPER_ADMIN scope.
+Customer discovery must return only:
 
-PRIVATE plan controls must be enforced in repository/service predicates and subscription command validation:
+- eligible PUBLIC plans;
+- PRIVATE plans assigned to the requesting company.
 
-- other tenants cannot discover;
-- guessed plan IDs fail;
-- assignment/removal requires platform authorization;
-- active subscriptions are not invalidated by silent assignment removal.
+INTERNAL plans never appear.
+
+A direct/guessed PRIVATE plan ID is re-authorized at subscription/change time and must fail if assignment is absent.
+
+Assignment revocation prevents future selection but does not silently destroy an existing subscription.
 
 ## Financial authorization
 
-Company checkout APIs never accept authoritative price/amount/plan entitlement values from frontend. Client submits identifiers and an idempotency key; backend resolves eligible immutable commercial data.
+Frontend never supplies authoritative amounts, rates, taxes or entitlement values.
 
-SUPER_ADMIN manual adjustments/refunds/private-plan assignments require explicit permission and immutable actor/reason audit.
+Backend resolves all commercial terms from immutable catalog/snapshot state.
 
-## Idempotency requirements
+SUPER_ADMIN-only operations requiring explicit audit include:
 
-At minimum stable idempotency keys/unique constraints for:
+- immediate cancellation;
+- COMPED/OFFLINE_CONTRACT grant;
+- manual financial adjustment/credit;
+- refund;
+- private-plan assignment changes.
 
-- subscription creation/change/reactivation;
-- checkout/order creation;
-- mandate/subscription creation;
-- upgrade/downgrade/cancellation;
-- billing-period create/close;
-- invoice generate/finalize;
-- payment create;
+## Idempotency
+
+Stable idempotency is required for:
+
+- subscription creation;
+- SubscriptionChange;
+- upgrade quote/charge/application;
+- downgrade scheduling/application;
+- cancellation;
+- provider order/subscription/mandate creation;
+- billing-period generation/close;
+- invoice generation/finalization;
+- payment creation/attempt;
 - recurring charge;
-- provider webhook ingest/effect;
+- webhook ingest/effect;
 - refund;
 - credit/adjustment;
 - usage ingestion.
 
-The same key with a materially different payload is a conflict, not a second operation.
+Same key + materially different payload = conflict.
 
-## External calls
+## Dunning and financial exposure
 
-Cashfree cannot join a local DB transaction. Use durable state machines/outbox-style orchestration:
+During PAST_DUE grace:
 
-1. persist local operation intent;
-2. execute provider call with stable provider/idempotency identity where supported;
-3. persist response/reference;
-4. recover ambiguous timeouts through provider reconciliation;
-5. never blindly retry a charge with a new identity.
+- no destructive tenant/data operations;
+- block new MANAGED financial exposure;
+- block appropriate net-new entitlement-consuming resources.
 
-## Webhooks
+Confirmed recovery restores ACTIVE state without tenant recreation.
 
-- public endpoint;
-- raw-body capture;
-- signature verification before parsing effects;
-- secrets never logged;
-- raw payload access restricted and retained only as policy permits;
-- durable provider-event inbox;
-- duplicate/out-of-order safe;
-- verify amount/currency/company/payment ownership before applying;
-- server-side provider reconciliation is authoritative;
-- frontend redirect never activates paid entitlements.
+## Webhook security
 
-## Money state
+- use exact raw request body;
+- verify signature before financial state mutation;
+- durable event inbox;
+- provider-event dedupe;
+- monotonic/out-of-order-safe transitions;
+- amount/currency/object ownership checks;
+- no secrets/payment-sensitive payloads in logs;
+- reconciliation for ambiguous outcomes.
 
-Use database numeric/decimal values; never floating-point money.
-
-Invoice/payment/refund currencies must match their intended operation.
-
-A success event cannot be downgraded by a later stale failure event.
+Frontend redirect is not payment truth.
 
 ## Financial retention
 
-Company deletion keeps company tombstone/id needed for financial lineage. Purge must preserve invoices, payments, attempts, refunds, provider events needed by retention policy, subscriptions, usage events, and rate/override snapshots or immutable references.
+Normal company deletion must not purge required:
 
-Current deletion of `company_rate_overrides` should be remediated or replaced by fully self-contained immutable historical snapshots before deletion can be considered safe.
+- subscriptions and transition history;
+- billing periods;
+- invoices/line items;
+- payments/attempts;
+- refunds/credits;
+- provider events;
+- UsageEvents and rating lineage;
+- immutable plan/rate/override snapshots required for audit.
+
+R1 must be technically capable of retaining financial history for at least 8 years and supporting legal hold.
+
+Final legal/accounting retention duration remains production-readiness validation.
