@@ -1,0 +1,145 @@
+package com.messaging.billing.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.messaging.billing.entity.BillingPeriod;
+import com.messaging.billing.entity.CompanySubscription;
+import com.messaging.billing.entity.Plan;
+import com.messaging.billing.entity.PlanPrice;
+import com.messaging.billing.enums.BillingCycle;
+import com.messaging.billing.enums.BillingPeriodKind;
+import com.messaging.billing.enums.BillingPeriodStatus;
+import com.messaging.billing.repository.BillingPeriodRepository;
+import com.messaging.company.entity.Company;
+import com.messaging.company.repository.CompanyRepository;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+class BillingPeriodServiceTests {
+
+  @Mock private BillingPeriodRepository periodRepository;
+  @Mock private CompanyRepository companyRepository;
+
+  @InjectMocks private BillingPeriodService service;
+
+  @Test
+  void platformPeriodReplayReturnsCanonicalRowAndBackfillsFinancialSnapshot() {
+    Company company = company(1L);
+    Plan plan = plan(2L);
+    PlanPrice price = price(3L, plan);
+    CompanySubscription subscription = subscription(4L, company, plan, price);
+    BillingPeriod existing = period(5L, company, BillingPeriodKind.PLATFORM);
+    existing.setStartAt(subscription.getCurrentPeriodStart());
+    existing.setEndAt(subscription.getCurrentPeriodEnd());
+
+    when(companyRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(company));
+    when(periodRepository.findByCompanyIdAndKindAndStartAtAndEndAt(
+            1L,
+            BillingPeriodKind.PLATFORM,
+            subscription.getCurrentPeriodStart(),
+            subscription.getCurrentPeriodEnd()))
+        .thenReturn(Optional.of(existing));
+    when(periodRepository.saveAndFlush(existing)).thenReturn(existing);
+
+    BillingPeriod result = service.ensurePlatformPeriod(subscription);
+
+    assertSame(existing, result);
+    assertEquals(subscription, result.getSubscription());
+    assertEquals(plan, result.getPlan());
+    assertEquals(price, result.getPlanPrice());
+    assertEquals(new BigDecimal("100.00"), result.getPlatformAmountSnapshot());
+    assertEquals("INR", result.getCurrencySnapshot());
+  }
+
+  @Test
+  void managedUsagePeriodReplayDoesNotInsertDuplicate() {
+    Company company = company(1L);
+    Instant occurredAt = Instant.parse("2026-10-12T12:00:00Z");
+    Instant start = Instant.parse("2026-10-01T00:00:00Z");
+    Instant end = Instant.parse("2026-11-01T00:00:00Z");
+    BillingPeriod existing = period(5L, company, BillingPeriodKind.MANAGED_USAGE);
+    existing.setStartAt(start);
+    existing.setEndAt(end);
+
+    when(companyRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(company));
+    when(periodRepository.findByCompanyIdAndKindAndStartAtAndEndAt(
+            1L, BillingPeriodKind.MANAGED_USAGE, start, end))
+        .thenReturn(Optional.of(existing));
+
+    assertSame(existing, service.ensureManagedUsagePeriod(1L, occurredAt));
+    verify(periodRepository, never()).saveAndFlush(any(BillingPeriod.class));
+  }
+
+  @Test
+  void duePeriodClaimReplayConverges() {
+    Instant now = Instant.parse("2026-11-01T00:00:00Z");
+    BillingPeriod period = period(5L, company(1L), BillingPeriodKind.PLATFORM);
+    period.setStatus(BillingPeriodStatus.OPEN);
+    when(periodRepository.findDueOpenForUpdate(now, 100))
+        .thenReturn(List.of(period), List.of());
+
+    assertEquals(1, service.markDueClosing(now));
+    assertEquals(BillingPeriodStatus.CLOSING, period.getStatus());
+    assertEquals(0, service.markDueClosing(now));
+  }
+
+  private Company company(Long id) {
+    Company company = new Company();
+    company.setId(id);
+    return company;
+  }
+
+  private Plan plan(Long id) {
+    Plan plan = new Plan();
+    plan.setId(id);
+    plan.setBillingCycle(BillingCycle.MONTHLY);
+    plan.setBasePrice(new BigDecimal("100.00"));
+    plan.setCurrency("INR");
+    return plan;
+  }
+
+  private PlanPrice price(Long id, Plan plan) {
+    PlanPrice price = new PlanPrice();
+    price.setId(id);
+    price.setPlan(plan);
+    price.setBillingCycle(BillingCycle.MONTHLY);
+    price.setAmount(new BigDecimal("100.00"));
+    price.setCurrency("INR");
+    return price;
+  }
+
+  private CompanySubscription subscription(
+      Long id, Company company, Plan plan, PlanPrice price) {
+    CompanySubscription subscription = new CompanySubscription();
+    subscription.setId(id);
+    subscription.setCompany(company);
+    subscription.setPlan(plan);
+    subscription.setPlanPrice(price);
+    subscription.setCurrentPeriodStart(Instant.parse("2026-10-01T00:00:00Z"));
+    subscription.setCurrentPeriodEnd(Instant.parse("2026-11-01T00:00:00Z"));
+    return subscription;
+  }
+
+  private BillingPeriod period(Long id, Company company, BillingPeriodKind kind) {
+    BillingPeriod period = new BillingPeriod();
+    period.setId(id);
+    period.setCompany(company);
+    period.setKind(kind);
+    period.setCadence(BillingCycle.MONTHLY);
+    period.setStatus(BillingPeriodStatus.OPEN);
+    return period;
+  }
+}

@@ -135,11 +135,13 @@ public class InvoiceService {
         if (!hasPlatformSnapshot(period)) {
           continue;
         }
-        ensurePlatformLine(invoice, period);
+        if (invoice.getStatus() == InvoiceStatus.DRAFT) {
+          ensurePlatformLine(invoice, period);
+        }
       }
 
       long lineCount = lineRepository.countByInvoiceId(invoice.getId());
-      if (invoice.getStatus() == InvoiceStatus.DRAFT && lineCount == 0) {
+      if (lineCount == 0) {
         continue;
       }
       if (invoice.getStatus() == InvoiceStatus.DRAFT) {
