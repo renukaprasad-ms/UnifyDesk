@@ -56,6 +56,8 @@ class BillingCatalogServiceTests {
   @Mock private CompanySubscriptionRepository subscriptionRepository;
   @Mock private CompanyRepository companyRepository;
   @Mock private SystemEntitlementCatalogInitializer entitlementCatalogInitializer;
+  @Mock private PlanEligibilityService planEligibilityService;
+  @Mock private SubscriptionLifecycleService subscriptionLifecycleService;
 
   @InjectMocks private BillingCatalogService billingCatalogService;
 
@@ -88,36 +90,15 @@ class BillingCatalogServiceTests {
   }
 
   @Test
-  void publishedPlanEntitlementsRemainEditable() {
+  void publishedPlanEntitlementsAreImmutable() {
     Plan plan = plan(20L, "FREE");
-    EntitlementDefinition definition = new EntitlementDefinition();
-    definition.setId(30L);
-    definition.setKey("EMAIL_ACCOUNTS");
-    definition.setName("Email accounts");
-    definition.setValueType(EntitlementValueType.INTEGER);
-    definition.setCategory(EntitlementCategory.CHANNEL);
-    definition.setDefaultValue("0");
-    definition.setActive(true);
-
     when(planRepository.findById(plan.getId())).thenReturn(Optional.of(plan));
-    when(entitlementDefinitionRepository.findByKey("EMAIL_ACCOUNTS"))
-        .thenReturn(Optional.of(definition));
-    when(entitlementRepository.findByPlanIdAndKey(plan.getId(), "EMAIL_ACCOUNTS"))
-        .thenReturn(Optional.empty());
-    when(entitlementRepository.saveAndFlush(any(PlanEntitlement.class)))
-        .thenAnswer(
-            invocation -> {
-              PlanEntitlement entitlement = invocation.getArgument(0);
-              entitlement.setId(40L);
-              return entitlement;
-            });
 
-    var response =
-        billingCatalogService.upsertEntitlement(
-            plan.getId(), new UpsertEntitlementRequest("EMAIL_ACCOUNTS", "3"));
-
-    assertEquals("EMAIL_ACCOUNTS", response.key());
-    assertEquals("3", response.value());
+    assertThrows(
+        ConflictException.class,
+        () ->
+            billingCatalogService.upsertEntitlement(
+                plan.getId(), new UpsertEntitlementRequest("EMAIL_ACCOUNTS", "3")));
   }
 
   @Test
