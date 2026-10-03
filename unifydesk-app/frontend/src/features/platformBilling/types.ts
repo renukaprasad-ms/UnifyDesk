@@ -11,11 +11,10 @@ export type ProviderType = 'GMAIL' | 'MICROSOFT' | 'IMAP_SMTP' | 'SMTP' | 'AMAZO
 export type BillingCategory = 'SMS_PROMOTIONAL' | 'SMS_TRANSACTIONAL' | 'SMS_OTP' | 'WHATSAPP_MARKETING' | 'WHATSAPP_UTILITY' | 'WHATSAPP_AUTHENTICATION' | 'WHATSAPP_SERVICE' | 'EMAIL_OUTBOUND' | 'EMAIL_INBOUND'
 export type CommunicationDirection = 'INBOUND' | 'OUTBOUND'
 export type UsageUnit = 'MESSAGE' | 'SEGMENT' | 'CONVERSATION' | 'CLICK' | 'IMPRESSION'
-
 export type PlanPrice = { planPriceId:string; planId:string; billingCycle:BillingCycle; amount:number; currency:string; effectiveFrom?:string|null; effectiveTo?:string|null; status:RateCardStatus }
 export type PlanEntitlement = { entitlementId:string; key:string; value:string }
 export type BillingPlan = { planId:string; code:string; name:string; description?:string|null; status:PlanStatus; visibility:PlanVisibility; billingCycle:BillingCycle; basePrice:number; currency:string; version:number; prices:PlanPrice[]; entitlements:PlanEntitlement[] }
-export type CreateBillingPlanInput = { code:string; name:string; description?:string; billingCycle:BillingCycle; basePrice:number; currency:string; version:number; visibility:PlanVisibility }
+export type CreateBillingPlanInput = { code:string; name:string; description?:string; billingCycle:BillingCycle; basePrice:number; currency:string; version:number; visibility?:PlanVisibility }
 export type UpdateBillingPlanInput = Partial<Pick<BillingPlan,'name'|'description'|'billingCycle'|'basePrice'|'currency'|'status'|'visibility'>>
 export type EntitlementDefinition = { entitlementDefinitionId:string; key:string; name:string; description?:string|null; valueType:EntitlementValueType; category:EntitlementCategory; defaultValue:string; active:boolean }
 export type CreatePlanPriceInput = { billingCycle:BillingCycle; amount:number; currency:string; effectiveFrom:string; effectiveTo?:string|null }
