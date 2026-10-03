@@ -82,6 +82,18 @@ public class CompanyRateOverride {
   @Column(length = 500)
   private String reason;
 
+  @Column(name = "supersedes_override_id")
+  private Long supersedesOverrideId;
+
+  @Column(name = "superseded_at")
+  private Instant supersededAt;
+
+  @Column(name = "retention_until", nullable = false, insertable = false, updatable = false)
+  private Instant retentionUntil;
+
+  @Column(name = "legal_hold", nullable = false)
+  private boolean legalHold;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 

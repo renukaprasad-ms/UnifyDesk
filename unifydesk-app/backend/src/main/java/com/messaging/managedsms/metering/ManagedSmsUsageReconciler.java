@@ -1,6 +1,7 @@
 package com.messaging.managedsms.metering;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -20,7 +21,7 @@ public class ManagedSmsUsageReconciler {
         jdbcTemplate.query(
             """
             select u.company_id, u.run_id, u.recipient_id, u.attempt_no,
-                   r.provider_message_id, h.message_category, u.provider_credit_snapshot
+                   r.provider_message_id, r.accepted_at, h.message_category, u.provider_credit_snapshot
               from managed_sms_usage_reservations u
               join broadcast_recipients r
                 on r.id = u.recipient_id and r.company_id = u.company_id
@@ -40,6 +41,9 @@ public class ManagedSmsUsageReconciler {
                     rs.getLong("recipient_id"),
                     rs.getInt("attempt_no"),
                     rs.getString("provider_message_id"),
+                    rs.getTimestamp("accepted_at") == null
+                        ? null
+                        : rs.getTimestamp("accepted_at").toInstant(),
                     rs.getString("message_category"),
                     rs.getBigDecimal("provider_credit_snapshot")));
     for (Row row : rows) {
@@ -50,7 +54,8 @@ public class ManagedSmsUsageReconciler {
           row.attemptNo(),
           row.providerMessageId(),
           row.messageCategory(),
-          row.credit());
+          row.credit(),
+          row.acceptedAt());
     }
   }
 
@@ -60,6 +65,7 @@ public class ManagedSmsUsageReconciler {
       Long recipientId,
       int attemptNo,
       String providerMessageId,
+      Instant acceptedAt,
       String messageCategory,
       BigDecimal credit) {}
 }
