@@ -12,7 +12,22 @@ Commit:
 
 `Merge PR #249: Core Messaging runtime/provider verification R1 audit`
 
-This is the only production SHA to which new executable evidence in this round may be attributed unless L1 later integrates a narrow production remediation and deliberately re-freezes.
+This was the initial executable baseline. L1 later integrated the narrow unsubscribe/consent-ordering remediation and deliberately re-froze Runtime R1.
+
+## Current post-remediation executable baseline
+
+Integrated `dev` SHA:
+
+`f94b303c3a33fe114dbe33162cdbad8dbab14d91`
+
+Integration lineage:
+
+- B2 PR #253 head: `ca2a2b1ee73b902b9f57c6d9b2eb9a782674a47b`
+- B2 merge commit: `c0bb643021622f4cd68711753692d3027ddb1bff`
+- F1 PR #252 head: `acd808e48de169184af50c93db307e65faee2dc5`
+- final L1 integration merge: `f94b303c3a33fe114dbe33162cdbad8dbab14d91`
+
+All new executable evidence after remediation must be attributed to this exact SHA.
 
 Historical source-audit baseline:
 
