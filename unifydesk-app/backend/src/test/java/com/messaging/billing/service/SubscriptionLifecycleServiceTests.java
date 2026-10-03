@@ -1,6 +1,7 @@
 package com.messaging.billing.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -18,6 +19,7 @@ import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.enums.SubscriptionTransitionType;
 import com.messaging.billing.repository.CompanySubscriptionRepository;
 import com.messaging.billing.repository.SubscriptionTransitionRepository;
+import com.messaging.common.exception.ConflictException;
 import com.messaging.company.entity.Company;
 import java.time.Instant;
 import java.util.List;
@@ -98,6 +100,26 @@ class SubscriptionLifecycleServiceTests {
     assertEquals(SubscriptionStatus.ACTIVE, renewed.getStatus());
     verify(billingPeriodService).bindPlatformPeriodToSubscription(30L, subscription);
     verify(transitionRepository).save(any(SubscriptionTransition.class));
+  }
+
+  @Test
+  void confirmedRenewalRejectsUnpaidInvoiceBeforeMutatingSubscription() {
+    CompanySubscription subscription = subscription(10L, SubscriptionStatus.ACTIVE);
+    subscription.setCurrentPeriodEnd(Instant.parse("2026-11-01T00:00:00Z"));
+
+    when(subscriptionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(subscription));
+    when(invoiceService.requirePaidCanonicalPlatformInvoice(1L, 900L))
+        .thenThrow(new ConflictException("not paid"));
+
+    assertThrows(
+        ConflictException.class,
+        () ->
+            service.renewAfterConfirmedCollection(
+                10L, 900L, Instant.parse("2026-11-01T00:01:00Z")));
+
+    verify(subscriptionRepository, org.mockito.Mockito.never()).saveAndFlush(any());
+    verify(billingPeriodService, org.mockito.Mockito.never())
+        .bindPlatformPeriodToSubscription(any(), any());
   }
 
   @Test
