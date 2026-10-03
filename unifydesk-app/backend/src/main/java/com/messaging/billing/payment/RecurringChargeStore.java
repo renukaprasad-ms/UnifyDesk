@@ -80,7 +80,7 @@ class RecurringChargeStore {
       Long attemptId, PaymentProviderGateway.RemoteSubscriptionPayment remote) {
     PaymentAttempt attempt =
         attemptRepository
-            .findById(attemptId)
+            .findByIdForUpdate(attemptId)
             .orElseThrow(() -> new ConflictException("Recurring payment attempt not found"));
     Payment payment =
         paymentRepository
@@ -89,8 +89,26 @@ class RecurringChargeStore {
     if (!attempt.getProviderCommandId().equals(remote.paymentId())) {
       throw new ConflictException("Provider returned a conflicting recurring payment identity");
     }
-    attempt.setProviderPaymentId(remote.providerPaymentId());
-    attempt.setProviderCreatedAt(remote.providerCreatedAt());
+    if (remote.providerPaymentId() != null && !remote.providerPaymentId().isBlank()) {
+      if (attempt.getProviderPaymentId() != null
+          && !attempt.getProviderPaymentId().equals(remote.providerPaymentId())) {
+        throw new ConflictException("Recurring command has a conflicting provider payment identity");
+      }
+      attemptRepository
+          .findByProviderPaymentId(remote.providerPaymentId())
+          .filter(other -> !other.getId().equals(attempt.getId()))
+          .ifPresent(
+              other -> {
+                throw new ConflictException(
+                    "Provider payment identity is already bound to another recurring attempt");
+              });
+      if (attempt.getProviderPaymentId() == null) {
+        attempt.setProviderPaymentId(remote.providerPaymentId());
+      }
+    }
+    if (attempt.getProviderCreatedAt() == null) {
+      attempt.setProviderCreatedAt(remote.providerCreatedAt());
+    }
     attempt.setProviderSubmissionState("CONFIRMED");
     attemptRepository.saveAndFlush(attempt);
     return snapshot(payment, attempt, false, false);
