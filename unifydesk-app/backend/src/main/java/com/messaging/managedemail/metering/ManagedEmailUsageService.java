@@ -1,7 +1,15 @@
 package com.messaging.managedemail.metering;
 
+import com.messaging.billing.enums.BillingCategory;
+import com.messaging.billing.enums.BillingSku;
+import com.messaging.billing.enums.CommunicationDirection;
+import com.messaging.billing.enums.ServiceOwnership;
+import com.messaging.billing.enums.UsageUnit;
 import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.billing.service.EntitlementService;
+import com.messaging.billing.service.UsageBillingService;
+import com.messaging.channel.enums.ChannelType;
+import com.messaging.channel.enums.ProviderType;
 import com.messaging.managedemail.runtime.ManagedEmailIdGenerator;
 import java.sql.Date;
 import java.time.Instant;
@@ -22,6 +30,7 @@ public class ManagedEmailUsageService {
   private final JdbcTemplate jdbcTemplate;
   private final EntitlementService entitlementService;
   private final ManagedEmailIdGenerator idGenerator;
+  private final UsageBillingService usageBillingService;
 
   @Transactional(readOnly = true)
   public boolean canReserve(Long companyId, long units) {
@@ -82,6 +91,17 @@ public class ManagedEmailUsageService {
       Long runId,
       int attemptNo,
       String providerMessageId) {
+    commit(companyId, recipientId, runId, attemptNo, providerMessageId, Instant.now());
+  }
+
+  @Transactional
+  public void commit(
+      Long companyId,
+      Long recipientId,
+      Long runId,
+      int attemptNo,
+      String providerMessageId,
+      Instant acceptedAt) {
     String reserveKey = reserveKey(recipientId, attemptNo);
     LocalDate period = reservationPeriod(reserveKey);
     if (period == null) return;
@@ -118,6 +138,24 @@ public class ManagedEmailUsageService {
           companyId,
           Date.valueOf(period));
     }
+
+    usageBillingService.record(
+        companyId,
+        ServiceOwnership.MANAGED,
+        BillingSku.MANAGED_EMAIL_OUTBOUND,
+        "MANAGED_EMAIL",
+        recipientId.toString(),
+        providerMessageId,
+        "managed-email:recipient:" + recipientId + ":accepted",
+        ChannelType.EMAIL,
+        ProviderType.AMAZON_SES,
+        BillingCategory.EMAIL_OUTBOUND,
+        CommunicationDirection.OUTBOUND,
+        null,
+        null,
+        UsageUnit.MESSAGE,
+        1,
+        acceptedAt == null ? Instant.now() : acceptedAt);
   }
 
   @Transactional
