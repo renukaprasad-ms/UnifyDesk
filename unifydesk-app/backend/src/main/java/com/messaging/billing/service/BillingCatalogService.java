@@ -386,6 +386,7 @@ public class BillingCatalogService {
     if (plan.getStatus() != PlanStatus.PUBLISHED) {
       throw new BadRequestException("Only published plans can be assigned");
     }
+    planEligibilityService.assertCustomerEligible(companyId, plan, Instant.now());
 
     PlanPrice planPrice = null;
     if (request.planPriceId() != null && !request.planPriceId().isBlank()) {
@@ -437,6 +438,9 @@ public class BillingCatalogService {
     Plan plan = getPlan(parseId(request.planId(), "Plan not found"));
     if (plan.getStatus() != PlanStatus.PUBLISHED) {
       throw new BadRequestException("Only published plans can be granted");
+    }
+    if (plan.getVisibility() == PlanVisibility.PRIVATE) {
+      planEligibilityService.assertCustomerEligible(companyId, plan, Instant.now());
     }
     PlanPrice planPrice = null;
     if (request.planPriceId() != null && !request.planPriceId().isBlank()) {
