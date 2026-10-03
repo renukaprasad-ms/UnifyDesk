@@ -1,6 +1,7 @@
 package com.messaging.billing.service;
 
 import com.messaging.billing.bootstrap.SystemEntitlementCatalogInitializer;
+import com.messaging.billing.dto.AdminGrantSubscriptionRequest;
 import com.messaging.billing.dto.AssignSubscriptionRequest;
 import com.messaging.billing.dto.CompanyPlanDetailsResponse;
 import com.messaging.billing.dto.CompanyRateOverrideResponse;
@@ -27,10 +28,14 @@ import com.messaging.billing.entity.PlanEntitlement;
 import com.messaging.billing.entity.PlanPrice;
 import com.messaging.billing.entity.RateCard;
 import com.messaging.billing.enums.BillingCategory;
+import com.messaging.billing.enums.BillingCycle;
+import com.messaging.billing.enums.PaymentPolicy;
 import com.messaging.billing.enums.EntitlementValueType;
 import com.messaging.billing.enums.PlanStatus;
+import com.messaging.billing.enums.PlanVisibility;
 import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.enums.SubscriptionStatus;
+import com.messaging.billing.enums.SubscriptionTransitionType;
 import com.messaging.billing.repository.CompanyRateOverrideRepository;
 import com.messaging.billing.repository.CompanySubscriptionRepository;
 import com.messaging.billing.repository.EntitlementDefinitionRepository;
@@ -66,6 +71,9 @@ public class BillingCatalogService {
   private final CompanySubscriptionRepository subscriptionRepository;
   private final CompanyRepository companyRepository;
   private final SystemEntitlementCatalogInitializer entitlementCatalogInitializer;
+  private final PlanEligibilityService planEligibilityService;
+  private final SubscriptionLifecycleService subscriptionLifecycleService;
+  private final SubscriptionCheckoutService subscriptionCheckoutService;
 
   @Transactional
   public PlanResponse createPlan(CreatePlanRequest request) {
@@ -84,6 +92,8 @@ public class BillingCatalogService {
     plan.setCurrency(normalizeCurrency(request.currency()));
     plan.setVersion(version);
     plan.setStatus(PlanStatus.DRAFT);
+    plan.setVisibility(
+        request.visibility() == null ? PlanVisibility.PUBLIC : request.visibility());
     planRepository.saveAndFlush(plan);
 
     PlanPrice price = new PlanPrice();
@@ -108,7 +118,12 @@ public class BillingCatalogService {
 
   @Transactional(readOnly = true)
   public List<PlanResponse> activePlans() {
-    return planRepository.findByStatus(PlanStatus.PUBLISHED).stream()
+    return planEligibilityService.publicPlans().stream().map(this::toPlanResponse).toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<PlanResponse> eligiblePlans(Long companyId) {
+    return planEligibilityService.eligiblePlans(companyId, Instant.now()).stream()
         .map(this::toPlanResponse)
         .toList();
   }
@@ -117,18 +132,24 @@ public class BillingCatalogService {
   public PlanResponse updatePlan(Long planId, UpdatePlanRequest request) {
     Plan plan = getPlan(planId);
 
-    if (request.name() != null && !request.name().isBlank()) plan.setName(request.name().trim());
-    if (request.description() != null)
-      plan.setDescription(normalizeOptional(request.description()));
-
-    if (request.billingCycle() != null
+    if ((request.name() != null && !request.name().isBlank())
+        || request.description() != null
+        || request.billingCycle() != null
         || request.basePrice() != null
-        || request.currency() != null) {
+        || request.currency() != null
+        || request.visibility() != null) {
       assertDraft(plan);
+      if (request.name() != null && !request.name().isBlank()) plan.setName(request.name().trim());
+      if (request.description() != null) {
+        plan.setDescription(normalizeOptional(request.description()));
+      }
       if (request.billingCycle() != null) plan.setBillingCycle(request.billingCycle());
       if (request.basePrice() != null) plan.setBasePrice(request.basePrice());
       if (request.currency() != null && !request.currency().isBlank()) {
         plan.setCurrency(normalizeCurrency(request.currency()));
+      }
+      if (request.visibility() != null) {
+        plan.setVisibility(request.visibility());
       }
     }
 
@@ -359,6 +380,12 @@ public class BillingCatalogService {
   @Transactional
   public CompanySubscriptionResponse assignSubscription(
       Long companyId, AssignSubscriptionRequest request) {
+    return assignSubscription(companyId, null, request);
+  }
+
+  @Transactional
+  public CompanySubscriptionResponse assignSubscription(
+      Long companyId, Long actorUserId, AssignSubscriptionRequest request) {
     Company company =
         companyRepository
             .findById(companyId)
@@ -367,6 +394,7 @@ public class BillingCatalogService {
     if (plan.getStatus() != PlanStatus.PUBLISHED) {
       throw new BadRequestException("Only published plans can be assigned");
     }
+    planEligibilityService.assertCustomerEligible(companyId, plan, Instant.now());
 
     PlanPrice planPrice = null;
     if (request.planPriceId() != null && !request.planPriceId().isBlank()) {
@@ -379,9 +407,21 @@ public class BillingCatalogService {
         throw new BadRequestException("Plan price does not belong to the selected plan");
       }
     }
+    if ((planPrice != null && planPrice.getAmount().compareTo(BigDecimal.ZERO) > 0)
+        || plan.getBasePrice().compareTo(BigDecimal.ZERO) > 0) {
+      throw new BadRequestException(
+          "Paid subscriptions require provider confirmation or an explicit manual grant");
+    }
 
     Instant now = Instant.now();
-    closeCurrentSubscriptions(companyId, now);
+    CompanySubscription current = subscriptionLifecycleService.currentOptional(companyId).orElse(null);
+    if (current != null) {
+      if (current.getPlan().getId().equals(plan.getId())) {
+        return toSubscriptionResponse(current);
+      }
+      throw new ConflictException(
+          "A current subscription already exists; use the upgrade or downgrade contract");
+    }
 
     CompanySubscription subscription = new CompanySubscription();
     subscription.setCompany(company);
@@ -393,16 +433,141 @@ public class BillingCatalogService {
     subscription.setCurrentPeriodEnd(request.currentPeriodEnd());
     subscription.setTrialEndsAt(request.trialEndsAt());
     subscription.setEndsAt(request.endsAt());
-    return toSubscriptionResponse(subscriptionRepository.saveAndFlush(subscription));
+    CompanySubscription saved = subscriptionRepository.saveAndFlush(subscription);
+    subscriptionLifecycleService.recordCreated(
+        saved, actorUserId, "Zero-cost subscription activated", SubscriptionTransitionType.CREATED);
+    return toSubscriptionResponse(saved);
+  }
+
+  /**
+   * B1 -> B2 initial-paid activation contract.
+   *
+   * <p>B2 first creates/resolves the checkout through SubscriptionCheckoutService, collects that
+   * exact finalized invoice, records verified provider truth, then calls this method. Plan, price
+   * and service-period values are never accepted again from the caller after payment.
+   */
+  @Transactional
+  public CompanySubscriptionResponse activateProviderConfirmedSubscription(
+      Long companyId, Long checkoutIntentId, Long invoiceId, Instant confirmedAt) {
+    return subscriptionCheckoutService.activateConfirmedInitialCheckout(
+        companyId, checkoutIntentId, invoiceId, confirmedAt);
+  }
+
+  @Transactional
+  public CompanySubscriptionResponse grantSubscription(
+      Long companyId, Long actorUserId, AdminGrantSubscriptionRequest request) {
+    if (request.paymentPolicy() == PaymentPolicy.CASHFREE) {
+      throw new BadRequestException(
+          "CASHFREE activation requires provider-confirmed payment truth");
+    }
+
+    Instant now = Instant.now();
+    Instant grantStart = request.startedAt() == null ? now : request.startedAt();
+    Company company =
+        companyRepository
+            .findByIdForUpdate(companyId)
+            .orElseThrow(() -> new NotFoundException("Company not found"));
+    Plan plan = getPlan(parseId(request.planId(), "Plan not found"));
+    if (plan.getStatus() != PlanStatus.PUBLISHED) {
+      throw new BadRequestException("Only published plans can be granted");
+    }
+    if (plan.getVisibility() == PlanVisibility.PRIVATE) {
+      planEligibilityService.assertCustomerEligible(companyId, plan, grantStart);
+    }
+
+    PlanPrice planPrice = null;
+    if (request.planPriceId() != null && !request.planPriceId().isBlank()) {
+      planPrice =
+          planPriceRepository
+              .findById(parseId(request.planPriceId(), "Plan price not found"))
+              .orElseThrow(() -> new NotFoundException("Plan price not found"));
+      if (!planPrice.getPlan().getId().equals(plan.getId())
+          || planPrice.getStatus() != RateCardStatus.ACTIVE) {
+        throw new BadRequestException("Plan price does not belong to the selected plan");
+      }
+      if (!"INR".equalsIgnoreCase(planPrice.getCurrency())) {
+        throw new BadRequestException("Billing R1 supports INR only");
+      }
+      if (planPrice.getEffectiveFrom() == null
+          || planPrice.getEffectiveFrom().isAfter(grantStart)
+          || (planPrice.getEffectiveTo() != null
+              && !grantStart.isBefore(planPrice.getEffectiveTo()))) {
+        throw new BadRequestException(
+            "Plan price is not effective at the canonical manual-grant start time");
+      }
+    }
+    if (plan.getBasePrice().compareTo(BigDecimal.ZERO) > 0 && planPrice == null) {
+      throw new BadRequestException("Paid manual grants require an explicit plan price");
+    }
+
+    Instant periodEnd = request.currentPeriodEnd();
+    if (planPrice != null && planPrice.getBillingCycle() != BillingCycle.FREE) {
+      Instant canonicalEnd = nextPlatformBoundary(grantStart, planPrice.getBillingCycle());
+      if (request.paymentPolicy() == PaymentPolicy.OFFLINE_CONTRACT
+          && request.currentPeriodEnd() != null) {
+        if (!request.currentPeriodEnd().isAfter(grantStart)) {
+          throw new BadRequestException("Offline contract period end must be after its start");
+        }
+        periodEnd = request.currentPeriodEnd();
+      } else {
+        if (request.currentPeriodEnd() != null
+            && !request.currentPeriodEnd().equals(canonicalEnd)) {
+          throw new BadRequestException(
+              "COMPED platform period must follow the selected PlanPrice billing cycle");
+        }
+        periodEnd = canonicalEnd;
+      }
+    }
+
+    if (subscriptionLifecycleService.currentOptional(companyId).isPresent()) {
+      subscriptionLifecycleService.cancelImmediately(
+          companyId,
+          actorUserId,
+          "Superseded by manual grant: " + request.reason().trim(),
+          now);
+    }
+
+    CompanySubscription subscription = new CompanySubscription();
+    subscription.setCompany(company);
+    subscription.setPlan(plan);
+    subscription.setPlanPrice(planPrice);
+    SubscriptionStatus status =
+        request.status() == null ? SubscriptionStatus.ACTIVE : request.status();
+    if (status != SubscriptionStatus.ACTIVE && status != SubscriptionStatus.TRIALING) {
+      throw new BadRequestException("Manual grants may start only ACTIVE or TRIALING");
+    }
+    subscription.setStatus(status);
+    subscription.setStartedAt(grantStart);
+    subscription.setCurrentPeriodStart(grantStart);
+    subscription.setCurrentPeriodEnd(periodEnd);
+    subscription.setTrialEndsAt(request.trialEndsAt());
+    subscription.setEndsAt(request.endsAt());
+    subscription.setPaymentPolicy(request.paymentPolicy());
+    subscription.setExternalContractReference(
+        normalizeOptional(request.externalContractReference()));
+    CompanySubscription saved = subscriptionRepository.saveAndFlush(subscription);
+    subscriptionLifecycleService.recordCreated(
+        saved,
+        actorUserId,
+        request.reason().trim(),
+        SubscriptionTransitionType.ADMIN_GRANTED);
+    return toSubscriptionResponse(saved);
   }
 
   @Transactional
   public CompanySubscriptionResponse selectFreeSubscription(
       Long companyId, AssignSubscriptionRequest request) {
+    return selectFreeSubscription(companyId, null, request);
+  }
+
+  @Transactional
+  public CompanySubscriptionResponse selectFreeSubscription(
+      Long companyId, Long actorUserId, AssignSubscriptionRequest request) {
     Plan plan = getPlan(parseId(request.planId(), "Plan not found"));
     if (plan.getStatus() != PlanStatus.PUBLISHED) {
       throw new BadRequestException("Plan is not available");
     }
+    planEligibilityService.assertCustomerEligible(companyId, plan, Instant.now());
 
     PlanPrice freePrice =
         planPriceRepository
@@ -426,26 +591,36 @@ public class BillingCatalogService {
             request.endsAt(),
             request.trialEndsAt(),
             request.currentPeriodEnd());
-    return assignSubscription(companyId, resolvedRequest);
+    return assignSubscription(companyId, actorUserId, resolvedRequest);
   }
 
   @Transactional
   public void cancelForCompanyDeletion(Long companyId) {
-    closeCurrentSubscriptions(companyId, Instant.now());
+    subscriptionLifecycleService.cancelForCompanyDeletion(companyId, Instant.now());
   }
 
   @Transactional
   public CompanySubscriptionResponse cancelSubscription(Long companyId, boolean atPeriodEnd) {
-    CompanySubscription subscription = effectiveSubscription(companyId);
-    if (atPeriodEnd && subscription.getCurrentPeriodEnd() != null) {
-      subscription.setCancelAtPeriodEnd(true);
-    } else {
-      Instant now = Instant.now();
-      subscription.setStatus(SubscriptionStatus.CANCELLED);
-      subscription.setCancelledAt(now);
-      subscription.setEndsAt(now);
+    return cancelSubscription(companyId, null, atPeriodEnd);
+  }
+
+  @Transactional
+  public CompanySubscriptionResponse cancelSubscription(
+      Long companyId, Long actorUserId, boolean atPeriodEnd) {
+    if (!atPeriodEnd) {
+      throw new BadRequestException(
+          "Customer immediate cancellation is not supported; cancellation is period-end only");
     }
-    return toSubscriptionResponse(subscriptionRepository.saveAndFlush(subscription));
+    return toSubscriptionResponse(
+        subscriptionLifecycleService.scheduleCancellation(companyId, actorUserId));
+  }
+
+  @Transactional
+  public CompanySubscriptionResponse cancelImmediatelyByAdmin(
+      Long companyId, Long actorUserId, String reason) {
+    return toSubscriptionResponse(
+        subscriptionLifecycleService.cancelImmediately(
+            companyId, actorUserId, reason, Instant.now()));
   }
 
   @Transactional(readOnly = true)
@@ -461,8 +636,7 @@ public class BillingCatalogService {
   }
 
   private CompanySubscription effectiveSubscription(Long companyId) {
-    return currentEffectiveSubscription(companyId)
-        .orElseThrow(() -> new NotFoundException("Company subscription not found"));
+    return subscriptionLifecycleService.current(companyId);
   }
 
   private java.util.Optional<CompanySubscription> currentEffectiveSubscription(Long companyId) {
@@ -472,24 +646,6 @@ public class BillingCatalogService {
             () ->
                 subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
                     companyId, SubscriptionStatus.TRIALING));
-  }
-
-  private void closeCurrentSubscriptions(Long companyId, Instant now) {
-    subscriptionRepository.findByCompanyIdOrderByStartedAtDesc(companyId).stream()
-        .filter(
-            subscription ->
-                subscription.getStatus() == SubscriptionStatus.ACTIVE
-                    || subscription.getStatus() == SubscriptionStatus.TRIALING
-                    || subscription.getStatus() == SubscriptionStatus.PAST_DUE)
-        .forEach(
-            subscription -> {
-              subscription.setStatus(SubscriptionStatus.CANCELLED);
-              subscription.setCancelledAt(now);
-              subscription.setEndsAt(now);
-              subscription.setCancelAtPeriodEnd(false);
-              subscriptionRepository.save(subscription);
-            });
-    subscriptionRepository.flush();
   }
 
   private void transitionPlan(Plan plan, PlanStatus target) {
@@ -521,9 +677,7 @@ public class BillingCatalogService {
   }
 
   private void assertEntitlementsMutable(Plan plan) {
-    if (plan.getStatus() == PlanStatus.RETIRED) {
-      throw new ConflictException("Retired plan limits and features cannot be changed");
-    }
+    assertDraft(plan);
   }
 
   private void validateRateDimensions(
@@ -738,6 +892,7 @@ public class BillingCatalogService {
         plan.getName(),
         plan.getDescription(),
         plan.getStatus(),
+        plan.getVisibility(),
         plan.getBillingCycle(),
         plan.getBasePrice(),
         plan.getCurrency(),
@@ -832,9 +987,23 @@ public class BillingCatalogService {
         subscription.getEndsAt(),
         subscription.getCurrentPeriodStart(),
         subscription.getCurrentPeriodEnd(),
+        subscription.getBillingAnchor(),
         subscription.getTrialEndsAt(),
+        subscription.getGraceEndsAt(),
         subscription.isCancelAtPeriodEnd(),
-        subscription.getCancelledAt());
+        subscription.getCancelledAt(),
+        subscription.getCancellationEffectiveAt(),
+        subscription.getPaymentPolicy(),
+        subscription.getExternalContractReference());
+  }
+
+  private Instant nextPlatformBoundary(Instant start, BillingCycle cycle) {
+    var utc = start.atZone(java.time.ZoneOffset.UTC);
+    return switch (cycle) {
+      case MONTHLY -> utc.plusMonths(1).toInstant();
+      case YEARLY -> utc.plusYears(1).toInstant();
+      case FREE -> null;
+    };
   }
 
   private String normalizeCode(String value) {
@@ -846,7 +1015,11 @@ public class BillingCatalogService {
   }
 
   private String normalizeCurrency(String value) {
-    return value.trim().toUpperCase(Locale.ROOT);
+    String currency = value.trim().toUpperCase(Locale.ROOT);
+    if (!"INR".equals(currency)) {
+      throw new BadRequestException("Billing R1 supports INR only");
+    }
+    return currency;
   }
 
   private String normalizeCountry(String value) {

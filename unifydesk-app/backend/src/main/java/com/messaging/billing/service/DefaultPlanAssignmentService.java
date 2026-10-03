@@ -8,6 +8,7 @@ import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.enums.PlanStatus;
 import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.enums.SubscriptionStatus;
+import com.messaging.billing.enums.SubscriptionTransitionType;
 import com.messaging.billing.repository.CompanySubscriptionRepository;
 import com.messaging.billing.repository.PlanPriceRepository;
 import com.messaging.billing.repository.PlanRepository;
@@ -28,6 +29,7 @@ public class DefaultPlanAssignmentService {
   private final PlanPriceRepository planPriceRepository;
   private final CompanySubscriptionRepository subscriptionRepository;
   private final SystemBillingBootstrapService billingBootstrapService;
+  private final SubscriptionLifecycleService subscriptionLifecycleService;
 
   @Transactional
   public void assignToNewCompany(Company company) {
@@ -62,7 +64,9 @@ public class DefaultPlanAssignmentService {
     subscription.setStartedAt(now);
     subscription.setCurrentPeriodStart(now);
     subscription.setCancelAtPeriodEnd(false);
-    subscriptionRepository.saveAndFlush(subscription);
+    CompanySubscription saved = subscriptionRepository.saveAndFlush(subscription);
+    subscriptionLifecycleService.recordCreated(
+        saved, null, "Default FREE plan assigned", SubscriptionTransitionType.CREATED);
   }
 
   private boolean hasEffectiveSubscription(Long companyId) {
@@ -76,6 +80,10 @@ public class DefaultPlanAssignmentService {
         || subscriptionRepository
             .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
                 companyId, SubscriptionStatus.PAST_DUE)
+            .isPresent()
+        || subscriptionRepository
+            .findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+                companyId, SubscriptionStatus.SUSPENDED)
             .isPresent();
   }
 }
