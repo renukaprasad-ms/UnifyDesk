@@ -67,6 +67,58 @@ class BillingPeriodServiceTests {
   }
 
   @Test
+  void preActivationPlatformSnapshotFreezesPlanPriceAmountAndRange() {
+    Company company = company(1L);
+    Plan plan = plan(2L);
+    PlanPrice price = price(3L, plan);
+    Instant start = Instant.parse("2026-10-03T06:00:00Z");
+    Instant end = Instant.parse("2026-11-03T06:00:00Z");
+    BillingPeriod existing = period(5L, company, BillingPeriodKind.PLATFORM);
+    existing.setStartAt(start);
+    existing.setEndAt(end);
+
+    when(companyRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(company));
+    when(periodRepository.findByCompanyIdAndKindAndStartAtAndEndAt(
+            1L, BillingPeriodKind.PLATFORM, start, end))
+        .thenReturn(Optional.of(existing));
+    when(periodRepository.saveAndFlush(existing)).thenReturn(existing);
+
+    BillingPeriod result =
+        service.ensurePlatformPeriodSnapshot(company, plan, price, start, end);
+
+    assertEquals(plan, result.getPlan());
+    assertEquals(price, result.getPlanPrice());
+    assertEquals(new BigDecimal("100.00"), result.getPlatformAmountSnapshot());
+    assertEquals("INR", result.getCurrencySnapshot());
+    assertEquals(null, result.getSubscription());
+  }
+
+  @Test
+  void prepaidPlatformPeriodBindsActivatedSubscriptionWithoutRewritingSnapshot() {
+    Company company = company(1L);
+    Plan plan = plan(2L);
+    PlanPrice price = price(3L, plan);
+    CompanySubscription subscription = subscription(4L, company, plan, price);
+    BillingPeriod period = period(5L, company, BillingPeriodKind.PLATFORM);
+    period.setPlan(plan);
+    period.setPlanPrice(price);
+    period.setPlatformAmountSnapshot(new BigDecimal("100.00"));
+    period.setCurrencySnapshot("INR");
+    period.setStartAt(subscription.getCurrentPeriodStart());
+    period.setEndAt(subscription.getCurrentPeriodEnd());
+
+    when(periodRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(period));
+    when(periodRepository.saveAndFlush(period)).thenReturn(period);
+
+    BillingPeriod bound = service.bindPlatformPeriodToSubscription(5L, subscription);
+
+    assertEquals(subscription, bound.getSubscription());
+    assertEquals(plan, bound.getPlan());
+    assertEquals(price, bound.getPlanPrice());
+    assertEquals(new BigDecimal("100.00"), bound.getPlatformAmountSnapshot());
+  }
+
+  @Test
   void incompatibleExistingPlatformSnapshotFailsClosed() {
     Company company = company(1L);
     Plan plan = plan(2L);
