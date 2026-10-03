@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
+/** Provider-neutral money movement boundary. All remote calls must be invoked outside local DB transactions. */
 public interface PaymentProviderGateway {
 
   Checkout createOrder(
@@ -15,12 +16,16 @@ public interface PaymentProviderGateway {
       String notifyUrl,
       String idempotencyKey);
 
+  Checkout fetchOrder(String orderId);
+
   List<RemotePayment> fetchOrderPayments(String orderId);
 
   RemoteRefund createRefund(
       String orderId, String refundId, BigDecimal amount, String note, String idempotencyKey);
 
-  OnDemandSubscription createOnDemandSubscription(
+  RemoteRefund fetchRefund(String orderId, String refundId);
+
+  RecurringAuthorization createRecurringAuthorization(
       String subscriptionId,
       BigDecimal maxAmount,
       String currency,
@@ -28,7 +33,27 @@ public interface PaymentProviderGateway {
       String returnUrl,
       String idempotencyKey);
 
-  OnDemandSubscription fetchSubscription(String subscriptionId);
+  RecurringAuthorization fetchRecurringAuthorization(String subscriptionId);
+
+  RemoteSubscriptionPayment authorizeRecurringSubscription(
+      String subscriptionId,
+      String subscriptionSessionId,
+      String paymentId,
+      AuthorizationMethod method,
+      String idempotencyKey);
+
+  RemoteSubscriptionPayment chargeAuthorizedSubscription(
+      String subscriptionId,
+      String paymentId,
+      BigDecimal amount,
+      Instant scheduledAt,
+      String idempotencyKey);
+
+  RemoteSubscriptionPayment fetchSubscriptionPayment(String subscriptionId, String paymentId);
+
+  enum AuthorizationMethod {
+    HOSTED_UPI_LINK
+  }
 
   record Customer(String id, String name, String email, String phone) {}
 
@@ -42,8 +67,28 @@ public interface PaymentProviderGateway {
       Instant providerCreatedAt,
       String errorCode) {}
 
-  record RemoteRefund(String providerRefundId, String status) {}
+  record RemoteRefund(
+      String refundId,
+      String providerReference,
+      String status,
+      BigDecimal amount,
+      String currency,
+      Instant providerCreatedAt,
+      Instant providerProcessedAt) {}
 
-  record OnDemandSubscription(
-      String subscriptionId, String subscriptionSessionId, String authorizationStatus) {}
+  record RecurringAuthorization(
+      String subscriptionId,
+      String subscriptionSessionId,
+      String authorizationStatus,
+      String providerSubscriptionReference) {}
+
+  record RemoteSubscriptionPayment(
+      String paymentId,
+      String providerPaymentId,
+      String status,
+      BigDecimal amount,
+      String currency,
+      Instant providerCreatedAt,
+      String actionUrl,
+      String failureCode) {}
 }
