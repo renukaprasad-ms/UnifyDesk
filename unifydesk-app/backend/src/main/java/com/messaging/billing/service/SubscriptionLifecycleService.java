@@ -245,10 +245,9 @@ public class SubscriptionLifecycleService {
     if (nextPeriod.getPlan() == null
         || !nextPeriod.getPlan().getId().equals(subscription.getPlan().getId())
         || nextPeriod.getPlanPrice() == null
-        || nextPeriod.getPlatformAmountSnapshot() == null
-        || !nextPeriod.getStartAt().equals(subscription.getCurrentPeriodEnd())) {
+        || nextPeriod.getPlatformAmountSnapshot() == null) {
       throw new ConflictException(
-          "Paid renewal invoice does not match the subscription's canonical next period");
+          "Paid renewal invoice does not match the subscription's commercial snapshot");
     }
     if (nextPeriod.getSubscription() != null
         && !nextPeriod.getSubscription().getId().equals(subscription.getId())) {
@@ -261,6 +260,10 @@ public class SubscriptionLifecycleService {
         && subscription.getPlanPrice() != null
         && subscription.getPlanPrice().getId().equals(nextPeriod.getPlanPrice().getId())) {
       return subscription;
+    }
+    if (!nextPeriod.getStartAt().equals(subscription.getCurrentPeriodEnd())) {
+      throw new ConflictException(
+          "Paid renewal invoice does not start at the subscription's canonical next boundary");
     }
 
     SubscriptionStatus previousStatus = subscription.getStatus();
