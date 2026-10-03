@@ -9,6 +9,7 @@ import com.messaging.billing.repository.CompanySubscriptionRepository;
 import com.messaging.billing.repository.EntitlementDefinitionRepository;
 import com.messaging.billing.repository.PlanEntitlementRepository;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,15 @@ public class EntitlementService {
 
   @Transactional(readOnly = true)
   public void assertWithinLimit(Long companyId, String key, long currentUsage) {
+    CompanySubscription subscription =
+        effectiveSubscription(companyId)
+            .orElseThrow(() -> new PlanEntitlementException("Company has no active plan"));
+    if (subscription.getStatus() == SubscriptionStatus.PAST_DUE
+        || subscription.getStatus() == SubscriptionStatus.SUSPENDED) {
+      throw new PlanEntitlementException(
+          "Net-new entitlement expansion is blocked while subscription is "
+              + subscription.getStatus());
+    }
     long limit = integerValue(companyId, key);
     if (limit >= 0 && currentUsage >= limit) {
       throw new PlanEntitlementException(
@@ -36,9 +46,7 @@ public class EntitlementService {
   public long integerValue(Long companyId, String key) {
     String raw = resolvedValue(companyId, key);
     String normalized = raw.trim().toLowerCase(Locale.ROOT);
-    if (normalized.equals("unlimited") || normalized.equals("-1")) {
-      return -1;
-    }
+    if (normalized.equals("unlimited") || normalized.equals("-1")) return -1;
     try {
       return Long.parseLong(normalized);
     } catch (NumberFormatException exception) {
@@ -90,8 +98,19 @@ public class EntitlementService {
         subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
             companyId, SubscriptionStatus.ACTIVE);
     if (active.isPresent()) return active;
-    return subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
-        companyId, SubscriptionStatus.TRIALING);
+    Optional<CompanySubscription> trial =
+        subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+            companyId, SubscriptionStatus.TRIALING);
+    if (trial.isPresent()) return trial;
+    Optional<CompanySubscription> pastDue =
+        subscriptionRepository.findFirstByCompanyIdAndStatusOrderByStartedAtDesc(
+            companyId, SubscriptionStatus.PAST_DUE);
+    if (pastDue.isPresent()
+        && pastDue.get().getGraceEndsAt() != null
+        && pastDue.get().getGraceEndsAt().isAfter(Instant.now())) {
+      return pastDue;
+    }
+    return Optional.empty();
   }
 
   private String normalizeKey(String key) {
