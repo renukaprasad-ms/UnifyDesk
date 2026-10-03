@@ -140,6 +140,32 @@ public class InvoiceService {
     return toResponse(finalizeLocked(invoice, dueAt));
   }
 
+  /**
+   * Provider-neutral B1 confirmation boundary for prepaid PLATFORM invoices.
+   *
+   * <p>B2 may call a lifecycle transition only after it has recorded verified provider truth and
+   * this contract confirms the exact UnifyDesk invoice is PAID.
+   */
+  @Transactional
+  public BillingPeriod requirePaidCanonicalPlatformInvoice(Long companyId, Long invoiceId) {
+    Invoice invoice =
+        invoiceRepository
+            .findByIdForUpdate(invoiceId)
+            .orElseThrow(() -> new NotFoundException("Invoice not found"));
+    if (!invoice.getCompany().getId().equals(companyId)) {
+      throw new BadRequestException("Invoice does not belong to the company");
+    }
+    BillingPeriod period = invoice.getBillingPeriod();
+    if (period == null || period.getKind() != BillingPeriodKind.PLATFORM) {
+      throw new BadRequestException("Invoice is not a platform subscription invoice");
+    }
+    assertCanonicalPlatformInvoice(invoice, period);
+    if (invoice.getStatus() != InvoiceStatus.PAID || invoice.getPaidAt() == null) {
+      throw new ConflictException("Platform invoice has not crossed the confirmed payment boundary");
+    }
+    return period;
+  }
+
   @Transactional
   public InvoiceResponse markPaidConfirmed(Long invoiceId, Instant paidAt) {
     Invoice invoice =
