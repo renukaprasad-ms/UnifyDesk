@@ -79,6 +79,8 @@ create table if not exists subscription_changes (
   subscription_id bigint not null,
   from_plan_id bigint not null,
   to_plan_id bigint not null,
+  from_plan_price_id bigint,
+  to_plan_price_id bigint not null,
   change_type varchar(32) not null,
   status varchar(32) not null,
   requested_at timestamp(6) with time zone not null,
@@ -108,6 +110,8 @@ create table if not exists subscription_changes (
   constraint fk_subscription_changes_subscription foreign key (subscription_id) references company_subscriptions(id),
   constraint fk_subscription_changes_from_plan foreign key (from_plan_id) references plans(id),
   constraint fk_subscription_changes_to_plan foreign key (to_plan_id) references plans(id),
+  constraint fk_subscription_changes_from_price foreign key (from_plan_price_id) references plan_prices(id),
+  constraint fk_subscription_changes_to_price foreign key (to_plan_price_id) references plan_prices(id),
   constraint ck_subscription_changes_currency check (currency = 'INR')
 );
 create index if not exists idx_subscription_changes_due
