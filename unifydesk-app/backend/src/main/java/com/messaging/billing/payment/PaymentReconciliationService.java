@@ -4,7 +4,6 @@ import com.messaging.billing.entity.Payment;
 import com.messaging.billing.enums.PaymentAttemptStatus;
 import com.messaging.billing.enums.PaymentStatus;
 import com.messaging.billing.repository.PaymentRepository;
-import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -17,6 +16,7 @@ public class PaymentReconciliationService {
 
   private final JdbcTemplate jdbcTemplate;
   private final PaymentRepository paymentRepository;
+  private final PaymentCollectionStore collectionStore;
   private final PaymentProviderGateway gateway;
   private final PaymentConfirmationService confirmationService;
 
@@ -35,12 +35,27 @@ public class PaymentReconciliationService {
              limit 100
             """,
             Long.class);
-    for (Long id : ids) reconcile(id);
+    for (Long id : ids) {
+      try {
+        reconcile(id);
+      } catch (RuntimeException ignored) {
+        // Durable local identity remains recoverable on the next reconciliation pass.
+      }
+    }
   }
 
   public void reconcile(Long paymentId) {
     Payment payment = paymentRepository.findById(paymentId).orElse(null);
     if (payment == null || payment.getStatus() == PaymentStatus.SUCCEEDED) return;
+
+    if (payment.getProviderCheckoutSessionId() == null
+        || "AMBIGUOUS".equals(payment.getProviderOrderState())
+        || "CREATE_PENDING".equals(payment.getProviderOrderState())) {
+      var order = gateway.fetchOrder(payment.getProviderOrderId());
+      collectionStore.acceptProviderOrder(paymentId, order);
+      payment = paymentRepository.findById(paymentId).orElse(payment);
+    }
+
     var remote = gateway.fetchOrderPayments(payment.getProviderOrderId());
     for (var attempt : remote) {
       if ("SUCCESS".equalsIgnoreCase(attempt.status())) {
@@ -54,16 +69,27 @@ public class PaymentReconciliationService {
       }
     }
     for (var attempt : remote) {
-      if ("PENDING".equalsIgnoreCase(attempt.status())) {
-        confirmationService.recordFailure(
-            payment.getProviderOrderId(),
-            attempt.providerPaymentId(),
-            attempt.amount(),
-            attempt.currency(),
-            attempt.errorCode(),
-            PaymentAttemptStatus.PENDING,
-            attempt.providerCreatedAt());
-      }
+      PaymentAttemptStatus status = map(attempt.status());
+      if (status == null) continue;
+      confirmationService.recordFailure(
+          payment.getProviderOrderId(),
+          attempt.providerPaymentId(),
+          attempt.amount(),
+          attempt.currency(),
+          attempt.errorCode(),
+          status,
+          attempt.providerCreatedAt());
     }
+  }
+
+  private PaymentAttemptStatus map(String status) {
+    if (status == null) return null;
+    return switch (status.toUpperCase(java.util.Locale.ROOT)) {
+      case "PENDING" -> PaymentAttemptStatus.PENDING;
+      case "FAILED" -> PaymentAttemptStatus.FAILED;
+      case "USER_DROPPED" -> PaymentAttemptStatus.USER_DROPPED;
+      case "CANCELLED" -> PaymentAttemptStatus.CANCELLED;
+      default -> null;
+    };
   }
 }
