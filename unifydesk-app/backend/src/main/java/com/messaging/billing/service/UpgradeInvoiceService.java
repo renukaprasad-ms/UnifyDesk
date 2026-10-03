@@ -58,6 +58,7 @@ public class UpgradeInvoiceService {
     var existing = invoiceRepository.findBySubscriptionChangeId(changeId);
     if (existing.isPresent()) {
       assertCanonicalSnapshot(existing.get(), change);
+      bindChangeInvoice(change, existing.get());
       return toResponse(existing.get());
     }
 
@@ -105,6 +106,7 @@ public class UpgradeInvoiceService {
             .findByIdForUpdate(invoice.getId())
             .orElseThrow(() -> new NotFoundException("Upgrade invoice not found after finalization"));
     assertCanonicalSnapshot(canonical, change);
+    bindChangeInvoice(change, canonical);
     return toResponse(canonical);
   }
 
@@ -122,6 +124,17 @@ public class UpgradeInvoiceService {
     if (invoice.getStatus() != InvoiceStatus.PAID || invoice.getPaidAt() == null) {
       throw new ConflictException(
           "Upgrade invoice has not crossed the confirmed payment boundary");
+    }
+  }
+
+  private void bindChangeInvoice(SubscriptionChange change, Invoice invoice) {
+    if (change.getInvoiceId() != null && !change.getInvoiceId().equals(invoice.getId())) {
+      throw new ConflictException(
+          "Subscription change is already bound to a different financial invoice");
+    }
+    if (change.getInvoiceId() == null) {
+      change.setInvoiceId(invoice.getId());
+      changeRepository.saveAndFlush(change);
     }
   }
 
