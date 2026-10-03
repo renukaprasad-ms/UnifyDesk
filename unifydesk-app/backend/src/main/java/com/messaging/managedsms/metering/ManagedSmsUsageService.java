@@ -115,7 +115,7 @@ public class ManagedSmsUsageService {
         companyId,
         ServiceOwnership.MANAGED,
         BillingSku.MANAGED_SMS_SEGMENT,
-        "MANAGED_SMS",
+        "MANAGED_SMS_LOCAL_SEGMENT_ESTIMATE",
         recipientId.toString(),
         providerRequestId,
         billingKey,
