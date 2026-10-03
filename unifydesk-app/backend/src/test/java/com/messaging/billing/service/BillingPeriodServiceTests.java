@@ -15,6 +15,7 @@ import com.messaging.billing.entity.PlanPrice;
 import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.enums.BillingPeriodKind;
 import com.messaging.billing.enums.BillingPeriodStatus;
+import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.repository.BillingPeriodRepository;
 import com.messaging.common.exception.ConflictException;
 import com.messaging.company.entity.Company;
@@ -203,6 +204,8 @@ class BillingPeriodServiceTests {
     price.setBillingCycle(BillingCycle.MONTHLY);
     price.setAmount(new BigDecimal("100.00"));
     price.setCurrency("INR");
+    price.setEffectiveFrom(Instant.parse("2026-01-01T00:00:00Z"));
+    price.setStatus(RateCardStatus.ACTIVE);
     return price;
   }
 
