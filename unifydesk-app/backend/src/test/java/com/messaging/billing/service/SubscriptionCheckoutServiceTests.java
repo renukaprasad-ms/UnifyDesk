@@ -511,7 +511,9 @@ class SubscriptionCheckoutServiceTests {
         BigDecimal.ZERO,
         new BigDecimal(amount),
         new BigDecimal(amount),
-        requestedAt,
+        periodId == 40L
+            ? requestedAt
+            : Instant.parse("2026-11-03T06:00:00Z"),
         periodId == 40L
             ? Instant.parse("2026-11-03T06:00:00Z")
             : Instant.parse("2026-12-03T06:00:00Z"),
