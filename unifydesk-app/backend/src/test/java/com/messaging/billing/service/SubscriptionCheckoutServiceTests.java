@@ -122,6 +122,27 @@ class SubscriptionCheckoutServiceTests {
   }
 
   @Test
+  void initialPaidCheckoutRejectsPriceNotYetEffective() {
+    monthlyPrice.setEffectiveFrom(requestedAt.plusSeconds(1));
+
+    when(companyRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(company));
+    when(intentRepository.findByCompanyIdAndIdempotencyKey(10L, "future-price"))
+        .thenReturn(Optional.empty());
+    when(lifecycleService.currentOptional(10L)).thenReturn(Optional.empty());
+    when(planRepository.findById(20L)).thenReturn(Optional.of(plan));
+    when(planPriceRepository.findById(30L)).thenReturn(Optional.of(monthlyPrice));
+
+    assertThrows(
+        BadRequestException.class,
+        () ->
+            service.createOrResolveInitialCheckout(
+                10L, 20L, 30L, "future-price", 77L, requestedAt, identity()));
+
+    verify(billingPeriodService, never())
+        .ensurePlatformPeriodSnapshot(any(), any(), any(), any(), any());
+  }
+
+  @Test
   void initialPaidCheckoutDerivesYearlyPeriod() {
     PlanPrice yearly = price(31L, plan, BillingCycle.YEARLY, "9999.00");
     BillingPeriod period =
@@ -348,6 +369,48 @@ class SubscriptionCheckoutServiceTests {
     assertEquals(new BigDecimal("1099.00"), invoice.amountDue());
     assertEquals(
         Instant.parse("2026-11-03T06:00:00Z"), invoice.servicePeriodStart());
+    verify(subscriptionRepository, never()).saveAndFlush(any(CompanySubscription.class));
+  }
+
+  @Test
+  void renewalPreparationReplayConvergesOnSameCanonicalInvoice() {
+    CompanySubscription subscription = subscription(80L, company, plan, monthlyPrice);
+    subscription.setCurrentPeriodStart(Instant.parse("2026-10-03T06:00:00Z"));
+    subscription.setCurrentPeriodEnd(Instant.parse("2026-11-03T06:00:00Z"));
+    PlanPrice renewalPrice = price(32L, plan, BillingCycle.MONTHLY, "1099.00");
+    renewalPrice.setEffectiveFrom(Instant.parse("2026-11-01T00:00:00Z"));
+    BillingPeriod next =
+        period(
+            41L,
+            company,
+            plan,
+            renewalPrice,
+            Instant.parse("2026-11-03T06:00:00Z"),
+            Instant.parse("2026-12-03T06:00:00Z"));
+    InvoiceResponse canonical = invoiceResponse(51L, 10L, 41L, "1099.00");
+
+    when(companyRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(company));
+    when(subscriptionRepository.findByIdForUpdate(80L)).thenReturn(Optional.of(subscription));
+    when(planPriceRepository.findByPlanIdAndStatusOrderByEffectiveFromDesc(
+            20L, RateCardStatus.ACTIVE))
+        .thenReturn(List.of(renewalPrice));
+    when(billingPeriodService.ensurePlatformPeriodSnapshot(
+            company,
+            plan,
+            renewalPrice,
+            Instant.parse("2026-11-03T06:00:00Z"),
+            Instant.parse("2026-12-03T06:00:00Z")))
+        .thenReturn(next);
+    when(invoiceService.createOrResolvePlatformInvoice(10L, 41L, identity(), requestedAt))
+        .thenReturn(canonical);
+
+    InvoiceResponse first =
+        service.createOrResolveRenewalInvoice(10L, 80L, requestedAt, identity());
+    InvoiceResponse replay =
+        service.createOrResolveRenewalInvoice(10L, 80L, requestedAt, identity());
+
+    assertEquals(first.invoiceId(), replay.invoiceId());
+    assertEquals("51", replay.invoiceId());
     verify(subscriptionRepository, never()).saveAndFlush(any(CompanySubscription.class));
   }
 
