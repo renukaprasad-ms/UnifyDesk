@@ -5,11 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import com.messaging.billing.dto.CompanySubscriptionResponse;
 import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.entity.Invoice;
 import com.messaging.billing.entity.Payment;
 import com.messaging.billing.entity.PaymentAttempt;
 import com.messaging.billing.enums.PaymentAttemptStatus;
+import com.messaging.billing.enums.PaymentPolicy;
 import com.messaging.billing.enums.PaymentPurpose;
 import com.messaging.billing.enums.PaymentStatus;
 import com.messaging.billing.enums.SubscriptionStatus;
@@ -37,6 +39,7 @@ class PaymentConfirmationServiceTests {
   private SubscriptionCheckoutService checkout;
   private SubscriptionChangeService changes;
   private SubscriptionLifecycleService lifecycle;
+  private RecurringAuthorizationService recurringAuthorizations;
   private JdbcTemplate jdbc;
   private PaymentConfirmationService service;
 
@@ -48,12 +51,21 @@ class PaymentConfirmationServiceTests {
     checkout = mock(SubscriptionCheckoutService.class);
     changes = mock(SubscriptionChangeService.class);
     lifecycle = mock(SubscriptionLifecycleService.class);
+    recurringAuthorizations = mock(RecurringAuthorizationService.class);
     jdbc = mock(JdbcTemplate.class);
     service =
         new PaymentConfirmationService(
-            payments, attempts, invoices, checkout, changes, lifecycle, jdbc);
+            payments,
+            attempts,
+            invoices,
+            checkout,
+            changes,
+            lifecycle,
+            recurringAuthorizations,
+            jdbc);
     when(attempts.findByPaymentIdOrderByAttemptNoAsc(anyLong())).thenReturn(List.of());
     when(attempts.saveAndFlush(any(PaymentAttempt.class))).thenAnswer(i -> i.getArgument(0));
+    when(payments.saveAndFlush(any(Payment.class))).thenAnswer(i -> i.getArgument(0));
   }
 
   @Test
@@ -118,7 +130,7 @@ class PaymentConfirmationServiceTests {
   }
 
   @Test
-  void dueRenewalFailureMarksPastDueAndSchedulesDunning() {
+  void dueRenewalFailureMarksPastDueAtCanonicalBoundaryAndSchedulesDunning() {
     Instant boundary = Instant.parse("2026-10-10T00:00:00Z");
     Payment payment = renewal(PaymentStatus.PENDING, boundary);
     CompanySubscription subscription = new CompanySubscription();
@@ -133,7 +145,7 @@ class PaymentConfirmationServiceTests {
         "INR",
         "DECLINED",
         PaymentAttemptStatus.FAILED,
-        boundary);
+        Instant.parse("2026-10-10T03:00:00Z"));
 
     verify(lifecycle).markPastDue(77L, boundary);
     verify(jdbc).update(contains("payment_dunning_jobs"), any(Object[].class));
@@ -169,6 +181,109 @@ class PaymentConfirmationServiceTests {
 
     verify(lifecycle)
         .renewAfterConfirmedCollection(77L, 20L, Instant.parse("2026-10-10T00:00:01Z"));
+  }
+
+  @Test
+  void recurringWebhookFirstThenHttpReplayConvergesOnOneCommandAttemptAndOneLifecycle() {
+    Instant boundary = Instant.parse("2026-10-10T00:00:00Z");
+    Payment payment = renewal(PaymentStatus.PENDING, boundary);
+    payment.setProviderSubscriptionId("UDS-77");
+    PaymentAttempt attempt = recurringAttempt(payment);
+    when(payments.findByIdForUpdate(1L)).thenReturn(Optional.of(payment));
+    when(attempts.findByProviderCommandIdForUpdate("UDC-41"))
+        .thenReturn(Optional.of(attempt));
+    when(attempts.findByProviderPaymentId("cf-rec-1")).thenReturn(Optional.empty());
+    CompanySubscription subscription = new CompanySubscription();
+    subscription.setStatus(SubscriptionStatus.ACTIVE);
+    when(lifecycle.require(77L)).thenReturn(subscription);
+
+    service.confirmRecurringAttempt(
+        "UDC-41",
+        "UDS-77",
+        "cf-rec-1",
+        payment.getAmount(),
+        "INR",
+        PaymentAttemptStatus.SUCCEEDED,
+        null,
+        boundary);
+    // Synchronous HTTP response replay.
+    service.confirmRecurringAttempt(
+        "UDC-41",
+        "UDS-77",
+        "cf-rec-1",
+        payment.getAmount(),
+        "INR",
+        PaymentAttemptStatus.SUCCEEDED,
+        null,
+        boundary);
+    // Stale provider failure after success must not regress either object.
+    service.confirmRecurringAttempt(
+        "UDC-41",
+        "UDS-77",
+        "cf-rec-1",
+        payment.getAmount(),
+        "INR",
+        PaymentAttemptStatus.FAILED,
+        "STALE_FAILURE",
+        boundary.plusSeconds(30));
+
+    assertEquals(PaymentAttemptStatus.SUCCEEDED, attempt.getStatus());
+    assertEquals("cf-rec-1", attempt.getProviderPaymentId());
+    assertEquals(PaymentStatus.SUCCEEDED, payment.getStatus());
+    verify(attempts, never()).findByPaymentIdOrderByAttemptNoAsc(1L);
+    verify(lifecycle, times(1)).renewAfterConfirmedCollection(77L, 20L, boundary);
+  }
+
+  @Test
+  void confirmedInitialPaymentBindsPreparedMandateToActivatedSubscription() {
+    Instant confirmedAt = Instant.parse("2026-10-03T00:00:00Z");
+    Payment payment = payment(PaymentStatus.PENDING, PaymentPurpose.INITIAL_SUBSCRIPTION);
+    payment.setCheckoutIntentId(555L);
+    when(payments.findByIdForUpdate(1L)).thenReturn(Optional.of(payment));
+    when(attempts.findByProviderPaymentId("cf-initial-1")).thenReturn(Optional.empty());
+    when(checkout.activateConfirmedInitialCheckout(10L, 555L, 20L, confirmedAt))
+        .thenReturn(subscriptionResponse("77"));
+
+    service.confirmSuccessByPaymentId(
+        1L, "cf-initial-1", payment.getAmount(), "INR", confirmedAt);
+
+    verify(recurringAuthorizations).bindInitialActivation(10L, 555L, 77L);
+  }
+
+  private PaymentAttempt recurringAttempt(Payment payment) {
+    PaymentAttempt attempt = new PaymentAttempt();
+    attempt.setId(41L);
+    attempt.setPayment(payment);
+    attempt.setAttemptNo(1);
+    attempt.setProviderCommandId("UDC-41");
+    attempt.setProviderSubmissionState("CREATE_PENDING");
+    attempt.setStatus(PaymentAttemptStatus.CREATED);
+    attempt.setAmount(payment.getAmount());
+    attempt.setCurrency("INR");
+    return attempt;
+  }
+
+  private CompanySubscriptionResponse subscriptionResponse(String subscriptionId) {
+    return new CompanySubscriptionResponse(
+        subscriptionId,
+        "10",
+        "100",
+        "200",
+        "PRO",
+        "Pro",
+        SubscriptionStatus.ACTIVE,
+        Instant.parse("2026-10-03T00:00:00Z"),
+        null,
+        Instant.parse("2026-10-03T00:00:00Z"),
+        Instant.parse("2026-11-03T00:00:00Z"),
+        Instant.parse("2026-10-03T00:00:00Z"),
+        null,
+        null,
+        false,
+        null,
+        null,
+        PaymentPolicy.CASHFREE,
+        null);
   }
 
   private Payment renewal(PaymentStatus status, Instant boundary) {
