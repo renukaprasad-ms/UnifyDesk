@@ -28,6 +28,7 @@ import com.messaging.billing.entity.PlanEntitlement;
 import com.messaging.billing.entity.PlanPrice;
 import com.messaging.billing.entity.RateCard;
 import com.messaging.billing.enums.BillingCategory;
+import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.enums.PaymentPolicy;
 import com.messaging.billing.enums.EntitlementValueType;
 import com.messaging.billing.enums.PlanStatus;
@@ -500,7 +501,7 @@ public class BillingCatalogService {
     }
 
     Instant periodEnd = request.currentPeriodEnd();
-    if (planPrice != null && planPrice.getBillingCycle() != com.messaging.billing.enums.BillingCycle.FREE) {
+    if (planPrice != null && planPrice.getBillingCycle() != BillingCycle.FREE) {
       Instant canonicalEnd = nextPlatformBoundary(grantStart, planPrice.getBillingCycle());
       if (request.paymentPolicy() == PaymentPolicy.OFFLINE_CONTRACT
           && request.currentPeriodEnd() != null) {
@@ -996,8 +997,7 @@ public class BillingCatalogService {
         subscription.getExternalContractReference());
   }
 
-  private Instant nextPlatformBoundary(
-      Instant start, com.messaging.billing.enums.BillingCycle cycle) {
+  private Instant nextPlatformBoundary(Instant start, BillingCycle cycle) {
     var utc = start.atZone(java.time.ZoneOffset.UTC);
     return switch (cycle) {
       case MONTHLY -> utc.plusMonths(1).toInstant();
