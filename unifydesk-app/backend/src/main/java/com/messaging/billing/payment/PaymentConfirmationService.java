@@ -264,16 +264,20 @@ public class PaymentConfirmationService {
 
   private void markPastDueAndSchedule(
       Payment payment, Instant occurredAt, String failureCategory) {
+    Instant boundary = renewalBoundary(payment);
+    Instant effectiveAt = boundary == null ? occurredAt : boundary;
     var subscription = lifecycleService.require(payment.getSubscriptionId());
     if (subscription.getStatus() == SubscriptionStatus.ACTIVE) {
-      lifecycleService.markPastDue(payment.getSubscriptionId(), occurredAt);
+      // The R1 grace clock is anchored to the canonical renewal boundary, not to a late
+      // scheduler/provider callback timestamp.
+      lifecycleService.markPastDue(payment.getSubscriptionId(), effectiveAt);
     }
     scheduleDunning(
         payment.getCompany().getId(),
         payment.getSubscriptionId(),
         payment.getInvoice().getId(),
         payment.getId(),
-        renewalBoundary(payment),
+        effectiveAt,
         failureCategory);
   }
 
