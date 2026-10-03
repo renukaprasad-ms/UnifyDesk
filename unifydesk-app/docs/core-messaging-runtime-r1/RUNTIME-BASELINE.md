@@ -1,18 +1,41 @@
 # Runtime Baseline
 
-## Exact baseline
+## Exact executable baseline
 
-`dev@850ce7ad2874d20070067d46d8604ddc2bdd2c99`
+Live GitHub `dev` was inspected again at the start of executable verification.
 
-The baseline was resolved live from GitHub before this audit. The frozen commit is:
+Frozen production SHA:
 
-`test(contacts): keep segment conditions after preview`
+`f2760fe0a11ad571f984636a65304a64b77459ac`
 
-The previous final source-remediation production SHA was:
+Commit:
+
+`Merge PR #249: Core Messaging runtime/provider verification R1 audit`
+
+This was the initial executable baseline. L1 later integrated the narrow unsubscribe/consent-ordering remediation and deliberately re-froze Runtime R1.
+
+## Current post-remediation executable baseline
+
+Integrated `dev` SHA:
+
+`f94b303c3a33fe114dbe33162cdbad8dbab14d91`
+
+Integration lineage:
+
+- B2 PR #253 head: `ca2a2b1ee73b902b9f57c6d9b2eb9a782674a47b`
+- B2 merge commit: `c0bb643021622f4cd68711753692d3027ddb1bff`
+- F1 PR #252 head: `acd808e48de169184af50c93db307e65faee2dc5`
+- final L1 integration merge: `f94b303c3a33fe114dbe33162cdbad8dbab14d91`
+
+All new executable evidence after remediation must be attributed to this exact SHA.
+
+Historical source-audit baseline:
+
+`850ce7ad2874d20070067d46d8604ddc2bdd2c99`
+
+Previous final source-remediation production SHA:
 
 `353069f922040be922ec353961386fb962d8d187`
-
-GitHub compare reports the frozen runtime baseline is 21 commits ahead and 0 behind that remediation SHA.
 
 ## Post-QA production deltas reviewed
 
@@ -102,7 +125,11 @@ Provider delivery/read states can exist in provider-specific projections and mus
 - email-provider Spotless/test/package;
 - website build.
 
-GitHub returned no workflow run for the exact frozen SHA during this audit. Classification: **NOT EXECUTED**.
+GitHub Actions run `37011044661` exists for exact frozen SHA `f2760fe0a11ad571f984636a65304a64b77459ac`.
+
+The run reached attempt 2 and completed with conclusion `failure`, but every job returned `steps = null` and no runner-executed application steps were available. Classification: **BLOCKED — CI execution environment**. This is neither application PASS nor application-code FAIL.
+
+Deployment proof is also currently **BLOCKED** from this execution session: there is no authenticated shell/Kubernetes channel available here to prove the live k3s backend is running the frozen SHA, and the public API does not expose a usable build-SHA endpoint to this tool environment. Provider/data mutation must not begin until the deployed build is tied to the frozen SHA.
 
 ## Runtime-secret visibility limitation
 
