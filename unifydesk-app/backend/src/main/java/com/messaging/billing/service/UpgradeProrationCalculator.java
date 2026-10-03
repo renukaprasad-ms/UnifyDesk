@@ -1,11 +1,14 @@
 package com.messaging.billing.service;
 
 import com.messaging.billing.dto.UpgradeProrationQuote;
+import com.messaging.billing.enums.BillingCycle;
 import com.messaging.common.exception.BadRequestException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
+
 import org.springframework.stereotype.Component;
 
 @Component
@@ -16,6 +19,7 @@ public class UpgradeProrationCalculator {
   public UpgradeProrationQuote quote(
       BigDecimal currentPrice,
       BigDecimal targetPrice,
+      BillingCycle targetCycle,
       Instant currentPeriodStart,
       Instant currentPeriodEnd,
       Instant effectiveAt,
@@ -23,8 +27,8 @@ public class UpgradeProrationCalculator {
     if (!"INR".equalsIgnoreCase(currency)) {
       throw new BadRequestException("Billing R1 supports INR only");
     }
-    if (currentPrice == null || targetPrice == null) {
-      throw new BadRequestException("Both current and target prices are required");
+    if (currentPrice == null || targetPrice == null || targetCycle == null) {
+      throw new BadRequestException("Current price, target price, and target cadence are required");
     }
     if (currentPeriodStart == null
         || currentPeriodEnd == null
@@ -35,15 +39,32 @@ public class UpgradeProrationCalculator {
       throw new BadRequestException("Upgrade effective time must fall inside the current period");
     }
 
-    BigDecimal fullNanos = BigDecimal.valueOf(Duration.between(currentPeriodStart, currentPeriodEnd).toNanos());
-    BigDecimal remainingNanos = BigDecimal.valueOf(Duration.between(effectiveAt, currentPeriodEnd).toNanos());
-    BigDecimal fraction = remainingNanos.divide(fullNanos, 18, RoundingMode.HALF_UP);
+    BigDecimal remainingNanos =
+        BigDecimal.valueOf(Duration.between(effectiveAt, currentPeriodEnd).toNanos());
+    BigDecimal currentPeriodNanos =
+        BigDecimal.valueOf(Duration.between(currentPeriodStart, currentPeriodEnd).toNanos());
 
-    BigDecimal targetCharge = money(targetPrice.multiply(fraction));
-    BigDecimal currentCredit = money(currentPrice.multiply(fraction));
+    Instant targetReferenceEnd =
+        switch (targetCycle) {
+          case MONTHLY -> currentPeriodStart.atZone(ZoneOffset.UTC).plusMonths(1).toInstant();
+          case YEARLY -> currentPeriodStart.atZone(ZoneOffset.UTC).plusYears(1).toInstant();
+          case FREE -> currentPeriodEnd;
+        };
+    BigDecimal targetPeriodNanos =
+        BigDecimal.valueOf(Duration.between(currentPeriodStart, targetReferenceEnd).toNanos());
+
+    BigDecimal currentFraction =
+        remainingNanos.divide(currentPeriodNanos, 18, RoundingMode.HALF_UP);
+    BigDecimal targetFraction =
+        remainingNanos.divide(targetPeriodNanos, 18, RoundingMode.HALF_UP);
+
+    BigDecimal targetCharge = money(targetPrice.multiply(targetFraction));
+    BigDecimal currentCredit = money(currentPrice.multiply(currentFraction));
     BigDecimal net = money(targetCharge.subtract(currentCredit));
-    BigDecimal amountDue = net.max(BigDecimal.ZERO).setScale(INR_MINOR_SCALE, RoundingMode.HALF_UP);
-    BigDecimal creditAmount = net.min(BigDecimal.ZERO).abs().setScale(INR_MINOR_SCALE, RoundingMode.HALF_UP);
+    BigDecimal amountDue =
+        net.max(BigDecimal.ZERO).setScale(INR_MINOR_SCALE, RoundingMode.HALF_UP);
+    BigDecimal creditAmount =
+        net.min(BigDecimal.ZERO).abs().setScale(INR_MINOR_SCALE, RoundingMode.HALF_UP);
 
     return new UpgradeProrationQuote(
         "INR",
