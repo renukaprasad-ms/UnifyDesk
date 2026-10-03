@@ -465,7 +465,7 @@ public class BillingCatalogService {
     Instant grantStart = request.startedAt() == null ? now : request.startedAt();
     Company company =
         companyRepository
-            .findById(companyId)
+            .findByIdForUpdate(companyId)
             .orElseThrow(() -> new NotFoundException("Company not found"));
     Plan plan = getPlan(parseId(request.planId(), "Plan not found"));
     if (plan.getStatus() != PlanStatus.PUBLISHED) {
