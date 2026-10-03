@@ -14,6 +14,7 @@ import com.messaging.common.exception.NotFoundException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,9 +37,14 @@ public class SubscriptionLifecycleService {
 
   @Transactional(readOnly = true)
   public CompanySubscription current(Long companyId) {
-    return subscriptionRepository
-        .findFirstByCompanyIdAndStatusInOrderByStartedAtDesc(companyId, CURRENT_STATUSES)
+    return currentOptional(companyId)
         .orElseThrow(() -> new NotFoundException("Company subscription not found"));
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<CompanySubscription> currentOptional(Long companyId) {
+    return subscriptionRepository.findFirstByCompanyIdAndStatusInOrderByStartedAtDesc(
+        companyId, CURRENT_STATUSES);
   }
 
   @Transactional(readOnly = true)
@@ -131,6 +137,34 @@ public class SubscriptionLifecycleService {
         saved.getExternalContractReference(),
         occurredAt);
     return saved;
+  }
+
+  @Transactional
+  public void cancelForCompanyDeletion(Long companyId, Instant occurredAt) {
+    CompanySubscription subscription = currentOptional(companyId).orElse(null);
+    if (subscription == null) {
+      return;
+    }
+    SubscriptionStatus previous = subscription.getStatus();
+    subscription.setStatus(SubscriptionStatus.CANCELLED);
+    subscription.setCancelAtPeriodEnd(false);
+    subscription.setGraceEndsAt(null);
+    subscription.setCancelledAt(occurredAt);
+    subscription.setCancellationEffectiveAt(occurredAt);
+    subscription.setEndsAt(occurredAt);
+    CompanySubscription saved = subscriptionRepository.saveAndFlush(subscription);
+    record(
+        saved,
+        previous,
+        SubscriptionStatus.CANCELLED,
+        saved.getPlan(),
+        saved.getPlan(),
+        SubscriptionTransitionType.COMPANY_DELETION_CANCELLED,
+        null,
+        "Company deletion requested",
+        saved.getPaymentPolicy(),
+        saved.getExternalContractReference(),
+        occurredAt);
   }
 
   @Transactional
