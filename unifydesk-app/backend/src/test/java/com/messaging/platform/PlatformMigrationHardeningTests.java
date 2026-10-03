@@ -24,10 +24,10 @@ class PlatformMigrationHardeningTests {
   private static final String ADMIN_URL = "jdbc:postgresql://127.0.0.1:55432/postgres";
   private static final String USER = "test";
   private static final String PASSWORD = "test";
-  private static final MigrationVersion CURRENT_HEAD = MigrationVersion.fromVersion("88");
+  private static final MigrationVersion CURRENT_HEAD = MigrationVersion.fromVersion("89");
 
   @Test
-  void cleanDatabaseMigratesToV88AndHibernateValidatesSchema() throws Exception {
+  void cleanDatabaseMigratesToV89AndHibernateValidatesSchema() throws Exception {
     withDatabase(
         "platform_clean",
         url -> {
@@ -40,7 +40,7 @@ class PlatformMigrationHardeningTests {
   }
 
   @Test
-  void representativeV79DatabaseUpgradesToV88() throws Exception {
+  void representativeV79DatabaseUpgradesToV89() throws Exception {
     withDatabase(
         "platform_from79",
         url -> {
@@ -106,7 +106,11 @@ class PlatformMigrationHardeningTests {
                         'uk_invoices_billing_period',
                         'uk_invoice_line_items_idempotency',
                         'uk_billing_period_company_kind_range',
-                        'uk_invoices_subscription_change'
+                        'uk_invoices_subscription_change',
+                        'uk_subscription_checkout_intents_company_idempotency',
+                        'uk_subscription_checkout_intents_billing_period',
+                        'uk_subscription_checkout_intents_invoice',
+                        'uk_subscription_checkout_intents_subscription'
                       )
                       """);
               var resultSet = statement.executeQuery()) {
@@ -121,7 +125,11 @@ class PlatformMigrationHardeningTests {
                   "uk_invoices_billing_period",
                   "uk_invoice_line_items_idempotency",
                   "uk_billing_period_company_kind_range",
-                  "uk_invoices_subscription_change");
+                  "uk_invoices_subscription_change",
+                  "uk_subscription_checkout_intents_company_idempotency",
+                  "uk_subscription_checkout_intents_billing_period",
+                  "uk_subscription_checkout_intents_invoice",
+                  "uk_subscription_checkout_intents_subscription");
         });
   }
 
