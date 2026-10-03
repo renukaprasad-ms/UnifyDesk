@@ -5,13 +5,15 @@ export const EMAIL_UNSUBSCRIBE_ENDPOINT = '/api/v1/public/recipient-actions/emai
 
 export const unsubscribeApi = {
   async unsubscribe(token: string) {
+    const config: ApiRequestConfig = {
+      _skipAuthRefresh: true,
+      _skipErrorSnackbar: true,
+    }
+
     await apiClient.post<ApiResponse<void>>(
       `${EMAIL_UNSUBSCRIBE_ENDPOINT}/${encodeURIComponent(token)}`,
       undefined,
-      {
-        _skipAuthRefresh: true,
-        _skipErrorSnackbar: true,
-      } satisfies ApiRequestConfig,
+      config,
     )
   },
 }
