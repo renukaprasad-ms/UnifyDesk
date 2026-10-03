@@ -2,52 +2,33 @@ package com.messaging.billing.payment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import com.messaging.billing.entity.Invoice;
-import com.messaging.billing.entity.Payment;
-import com.messaging.billing.enums.InvoiceStatus;
 import com.messaging.billing.enums.PaymentPurpose;
-import com.messaging.billing.repository.InvoiceRepository;
-import com.messaging.billing.repository.PaymentRepository;
-import com.messaging.common.exception.ConflictException;
-import com.messaging.company.entity.Company;
+import com.messaging.billing.enums.PaymentStatus;
 import java.math.BigDecimal;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class PaymentCollectionServiceTests {
 
   @Test
-  void collectsExactCanonicalOpenInvoiceAndReusesOneLogicalPayment() {
-    PaymentRepository payments = mock(PaymentRepository.class);
-    InvoiceRepository invoices = mock(InvoiceRepository.class);
+  void durableIntentIsPreparedBeforeProviderCallAndSessionIsPersisted() {
+    PaymentCollectionStore store = mock(PaymentCollectionStore.class);
     PaymentProviderGateway gateway = mock(PaymentProviderGateway.class);
-    CashfreeProperties properties = new CashfreeProperties();
-    properties.setReturnUrl("https://app.unifydesk.in/return");
-    properties.setNotifyUrl("https://api.unifydesk.in/api/v1/webhooks/cashfree");
-    PaymentCollectionService service =
-        new PaymentCollectionService(payments, invoices, gateway, properties);
+    CashfreeProperties properties = properties();
+    PaymentCollectionService service = new PaymentCollectionService(store, gateway, properties);
 
-    Company company = new Company();
-    company.setId(10L);
-    Invoice invoice = new Invoice();
-    invoice.setId(20L);
-    invoice.setCompany(company);
-    invoice.setStatus(InvoiceStatus.OPEN);
-    invoice.setAmountDue(new BigDecimal("499.00"));
-    invoice.setCurrency("INR");
-    when(invoices.findByIdForUpdate(20L)).thenReturn(Optional.of(invoice));
-    when(payments.findByCompanyIdAndIdempotencyKey(10L, "checkout-1"))
-        .thenReturn(Optional.empty());
-    when(payments.findByInvoiceId(20L)).thenReturn(Optional.empty());
-    when(payments.saveAndFlush(any(Payment.class)))
-        .thenAnswer(
-            i -> {
-              Payment value = i.getArgument(0);
-              if (value.getId() == null) value.setId(30L);
-              return value;
-            });
+    var prepared = prepared(true, null, "CREATE_PENDING");
+    when(store.prepare(
+            eq(10L),
+            eq(20L),
+            eq(PaymentPurpose.INITIAL_SUBSCRIPTION),
+            eq("checkout-1"),
+            eq(40L),
+            isNull(),
+            isNull()))
+        .thenReturn(prepared);
     when(gateway.createOrder(
             eq("UD-30"),
             eq(new BigDecimal("499.00")),
@@ -55,9 +36,14 @@ class PaymentCollectionServiceTests {
             any(),
             anyString(),
             anyString(),
-            eq("order:30")))
+            anyString()))
         .thenReturn(new PaymentProviderGateway.Checkout("UD-30", "session-1", "ACTIVE"));
+    when(store.acceptProviderOrder(eq(30L), any()))
+        .thenReturn(prepared(false, "session-1", "CONFIRMED"));
 
+    var customer =
+        new PaymentProviderGateway.Customer(
+            "company-10", "Acme", "billing@example.com", "9999999999");
     var result =
         service.createOrResolve(
             10L,
@@ -67,47 +53,95 @@ class PaymentCollectionServiceTests {
             40L,
             null,
             null,
-            new PaymentProviderGateway.Customer(
-                "company-10", "Acme", "billing@example.com", "9999999999"));
+            customer);
 
-    assertEquals(new BigDecimal("499.00"), result.amount());
-    assertEquals("INR", result.currency());
-    verify(gateway, times(1))
+    assertEquals("session-1", result.paymentSessionId());
+    InOrder order = inOrder(store, gateway);
+    order.verify(store).prepare(anyLong(), anyLong(), any(), anyString(), any(), any(), any());
+    order.verify(gateway)
         .createOrder(anyString(), any(), anyString(), any(), anyString(), anyString(), anyString());
+    order.verify(store).acceptProviderOrder(eq(30L), any());
   }
 
   @Test
-  void rejectsNonInrInvoice() {
-    PaymentRepository payments = mock(PaymentRepository.class);
-    InvoiceRepository invoices = mock(InvoiceRepository.class);
+  void providerTimeoutPreservesAmbiguousIntentAndReplayDoesNotCreateSecondOrder() {
+    PaymentCollectionStore store = mock(PaymentCollectionStore.class);
     PaymentProviderGateway gateway = mock(PaymentProviderGateway.class);
-    CashfreeProperties properties = new CashfreeProperties();
     PaymentCollectionService service =
-        new PaymentCollectionService(payments, invoices, gateway, properties);
+        new PaymentCollectionService(store, gateway, properties());
+    var customer =
+        new PaymentProviderGateway.Customer(
+            "company-10", "Acme", "billing@example.com", "9999999999");
 
-    Company company = new Company();
-    company.setId(10L);
-    Invoice invoice = new Invoice();
-    invoice.setId(20L);
-    invoice.setCompany(company);
-    invoice.setStatus(InvoiceStatus.OPEN);
-    invoice.setAmountDue(BigDecimal.TEN);
-    invoice.setCurrency("USD");
-    when(payments.findByCompanyIdAndIdempotencyKey(10L, "k")).thenReturn(Optional.empty());
-    when(invoices.findByIdForUpdate(20L)).thenReturn(Optional.of(invoice));
+    when(store.prepare(anyLong(), anyLong(), any(), anyString(), any(), any(), any()))
+        .thenReturn(prepared(true, null, "CREATE_PENDING"))
+        .thenReturn(prepared(false, null, "AMBIGUOUS"));
+    when(gateway.createOrder(anyString(), any(), anyString(), any(), anyString(), anyString(), anyString()))
+        .thenThrow(new RuntimeException("timeout"));
+    when(gateway.fetchOrder("UD-30"))
+        .thenReturn(new PaymentProviderGateway.Checkout("UD-30", "recovered-session", "ACTIVE"));
+    when(store.acceptProviderOrder(eq(30L), any()))
+        .thenReturn(prepared(false, "recovered-session", "CONFIRMED"));
 
     assertThrows(
-        ConflictException.class,
+        RuntimeException.class,
         () ->
             service.createOrResolve(
-                10L,
-                20L,
-                PaymentPurpose.RENEWAL,
-                "k",
-                null,
-                null,
-                50L,
-                new PaymentProviderGateway.Customer("c", "Acme", "x@y.com", "9999999999")));
+                10L, 20L, PaymentPurpose.RENEWAL, "k", null, null, 50L, customer));
+
+    var replay =
+        service.createOrResolve(
+            10L, 20L, PaymentPurpose.RENEWAL, "k", null, null, 50L, customer);
+
+    assertEquals("recovered-session", replay.paymentSessionId());
+    verify(store).markProviderOrderAmbiguous(30L);
+    verify(gateway, times(1))
+        .createOrder(anyString(), any(), anyString(), any(), anyString(), anyString(), anyString());
+    verify(gateway, times(1)).fetchOrder("UD-30");
+  }
+
+  @Test
+  void exactReplayWithPersistedSessionDoesNotCallProvider() {
+    PaymentCollectionStore store = mock(PaymentCollectionStore.class);
+    PaymentProviderGateway gateway = mock(PaymentProviderGateway.class);
+    PaymentCollectionService service =
+        new PaymentCollectionService(store, gateway, properties());
+    when(store.prepare(anyLong(), anyLong(), any(), anyString(), any(), any(), any()))
+        .thenReturn(prepared(false, "same-session", "CONFIRMED"));
+
+    var result =
+        service.createOrResolve(
+            10L,
+            20L,
+            PaymentPurpose.RENEWAL,
+            "k",
+            null,
+            null,
+            50L,
+            new PaymentProviderGateway.Customer("c", "Acme", "x@y.com", "9999999999"));
+
+    assertEquals("same-session", result.paymentSessionId());
     verifyNoInteractions(gateway);
+  }
+
+  private CashfreeProperties properties() {
+    CashfreeProperties properties = new CashfreeProperties();
+    properties.setReturnUrl("https://app.unifydesk.in/return");
+    properties.setNotifyUrl("https://api.unifydesk.in/api/v1/webhooks/cashfree");
+    return properties;
+  }
+
+  private PaymentCollectionStore.Prepared prepared(
+      boolean newlyCreated, String session, String providerState) {
+    return new PaymentCollectionStore.Prepared(
+        30L,
+        20L,
+        "UD-30",
+        session,
+        new BigDecimal("499.00"),
+        "INR",
+        PaymentStatus.PENDING,
+        providerState,
+        newlyCreated);
   }
 }
