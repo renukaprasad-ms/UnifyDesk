@@ -53,7 +53,7 @@ public class CashfreeWebhookService {
             body,
             Timestamp.from(verifiedAt == null ? Instant.now() : verifiedAt));
     if (inserted == 0) return;
-    processAndRecord(id, body, hash);
+    claimOne(id).ifPresent(this::processAndRecord);
   }
 
   @Scheduled(
@@ -61,7 +61,7 @@ public class CashfreeWebhookService {
       initialDelayString = "${app.billing.cashfree.webhook-retry-initial-delay-ms:60000}")
   public void retryDueEvents() {
     for (Claimed event : claimDue()) {
-      processAndRecord(event.id(), event.rawPayload(), event.payloadHash());
+      processAndRecord(event);
     }
   }
 
@@ -76,7 +76,8 @@ public class CashfreeWebhookService {
            where signature_verified_at is not null
              and next_attempt_at <= now()
              and (
-               processing_status = 'RETRY'
+               processing_status = 'RECEIVED'
+               or processing_status = 'RETRY'
                or (processing_status = 'PROCESSING' and claimed_until < now())
              )
            order by next_attempt_at, id
@@ -89,18 +90,49 @@ public class CashfreeWebhookService {
                claimed_until=now() + (? * interval '1 second')
           from due
          where e.id=due.id
-        returning e.id, e.raw_payload, e.payload_hash
+        returning e.id, e.raw_payload, e.payload_hash, e.claim_token
         """,
         (rs, rowNum) ->
             new Claimed(
                 rs.getLong("id"),
                 rs.getString("raw_payload"),
-                rs.getString("payload_hash")),
+                rs.getString("payload_hash"),
+                rs.getString("claim_token")),
         token,
         leaseSeconds);
   }
 
-  private void processAndRecord(long eventId, String body, String expectedHash) {
+  private java.util.Optional<Claimed> claimOne(long eventId) {
+    String token = UUID.randomUUID().toString();
+    long leaseSeconds = Math.max(30L, properties.getWebhookClaimSeconds());
+    List<Claimed> rows =
+        jdbcTemplate.query(
+            """
+            update payment_provider_events
+               set processing_status='PROCESSING',
+                   claim_token=?,
+                   claimed_until=now() + (? * interval '1 second')
+             where id=?
+               and signature_verified_at is not null
+               and processing_status='RECEIVED'
+            returning id, raw_payload, payload_hash, claim_token
+            """,
+            (rs, rowNum) ->
+                new Claimed(
+                    rs.getLong("id"),
+                    rs.getString("raw_payload"),
+                    rs.getString("payload_hash"),
+                    rs.getString("claim_token")),
+            token,
+            leaseSeconds,
+            eventId);
+    return rows.stream().findFirst();
+  }
+
+  private void processAndRecord(Claimed event) {
+    long eventId = event.id();
+    String body = event.rawPayload();
+    String expectedHash = event.payloadHash();
     try {
       String actualHash = sha256(body.getBytes(StandardCharsets.UTF_8));
       if (!MessageDigest.isEqual(
@@ -125,7 +157,7 @@ public class CashfreeWebhookService {
                  last_error_category=null,
                  claim_token=null,
                  claimed_until=null
-           where id=?
+           where id=? and processing_status='PROCESSING' and claim_token=?
           """,
           correlation.paymentId(),
           correlation.refundId(),
@@ -134,9 +166,10 @@ public class CashfreeWebhookService {
           correlation.providerCreatedAt() == null
               ? null
               : Timestamp.from(correlation.providerCreatedAt()),
-          eventId);
+          eventId,
+          event.claimToken());
     } catch (RuntimeException exception) {
-      fail(eventId, exception);
+      fail(event, exception);
     }
   }
 
@@ -286,19 +319,19 @@ public class CashfreeWebhookService {
 
     BigDecimal amount = decimal(data, "payment_amount");
     String currency = text(data, "payment_currency");
-    if ("SUCCESS".equalsIgnoreCase(status)) {
-      confirmationService.confirmSuccessByPaymentId(
-          paymentId, providerPaymentId, amount, currency, createdAt);
-    } else {
-      confirmationService.recordFailureByPaymentId(
-          paymentId,
-          providerPaymentId,
-          amount,
-          currency,
-          text(data.path("failure_details"), "failure_reason"),
-          paymentStatus(status),
-          createdAt);
-    }
+    PaymentAttemptStatus attemptStatus =
+        "SUCCESS".equalsIgnoreCase(status)
+            ? PaymentAttemptStatus.SUCCEEDED
+            : paymentStatus(status);
+    confirmationService.confirmRecurringAttempt(
+        commandId,
+        subscriptionId,
+        providerPaymentId,
+        amount,
+        currency,
+        attemptStatus,
+        text(data.path("failure_details"), "failure_reason"),
+        createdAt);
     return new Correlation(
         paymentId,
         null,
@@ -318,13 +351,21 @@ public class CashfreeWebhookService {
     };
   }
 
-  private void fail(long eventId, RuntimeException exception) {
+  private void fail(Claimed event, RuntimeException exception) {
     Integer attempts =
         jdbcTemplate.queryForObject(
-            "select attempt_count from payment_provider_events where id=?",
+            """
+            select attempt_count
+              from payment_provider_events
+             where id=? and processing_status='PROCESSING' and claim_token=?
+            """,
             Integer.class,
-            eventId);
-    int nextAttempt = (attempts == null ? 0 : attempts) + 1;
+            event.id(),
+            event.claimToken());
+    if (attempts == null) {
+      return;
+    }
+    int nextAttempt = attempts + 1;
     int max = Math.max(1, properties.getWebhookMaxAttempts());
     if (nextAttempt >= max) {
       jdbcTemplate.update(
@@ -336,11 +377,12 @@ public class CashfreeWebhookService {
                  last_error_category=?,
                  claim_token=null,
                  claimed_until=null
-           where id=?
+           where id=? and processing_status='PROCESSING' and claim_token=?
           """,
           nextAttempt,
           exception.getClass().getSimpleName(),
-          eventId);
+          event.id(),
+          event.claimToken());
       return;
     }
     long base = Math.max(1L, properties.getWebhookRetryBaseSeconds());
@@ -354,12 +396,13 @@ public class CashfreeWebhookService {
                last_error_category=?,
                claim_token=null,
                claimed_until=null
-         where id=?
+         where id=? and processing_status='PROCESSING' and claim_token=?
         """,
         nextAttempt,
         seconds,
         exception.getClass().getSimpleName(),
-        eventId);
+        event.id(),
+        event.claimToken());
   }
 
   private Long localPaymentId(String providerOrderId) {
@@ -407,7 +450,7 @@ public class CashfreeWebhookService {
     }
   }
 
-  private record Claimed(long id, String rawPayload, String payloadHash) {}
+  private record Claimed(long id, String rawPayload, String payloadHash, String claimToken) {}
 
   private record Correlation(
       Long paymentId,
