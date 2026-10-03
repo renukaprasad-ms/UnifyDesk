@@ -437,6 +437,83 @@ public class BillingCatalogService {
     return toSubscriptionResponse(saved);
   }
 
+  /**
+   * B1-owned activation boundary for B2 after provider-confirmed initial paid collection.
+   *
+   * <p>This method does not call Cashfree. B2 owns provider truth and may invoke this only after
+   * verified financial confirmation. The immutable effective PlanPrice and first PLATFORM
+   * BillingPeriod are bound here.
+   */
+  @Transactional
+  public CompanySubscriptionResponse activateProviderConfirmedSubscription(
+      Long companyId,
+      Long actorUserId,
+      AssignSubscriptionRequest request,
+      Instant confirmedAt) {
+    Company company =
+        companyRepository
+            .findByIdForUpdate(companyId)
+            .orElseThrow(() -> new NotFoundException("Company not found"));
+    if (subscriptionLifecycleService.currentOptional(companyId).isPresent()) {
+      throw new ConflictException(
+          "A current subscription already exists; use the upgrade or renewal contract");
+    }
+
+    Plan plan = getPlan(parseId(request.planId(), "Plan not found"));
+    if (plan.getStatus() != PlanStatus.PUBLISHED) {
+      throw new BadRequestException("Only published plans can be activated");
+    }
+    planEligibilityService.assertCustomerEligible(companyId, plan, confirmedAt);
+
+    if (request.planPriceId() == null || request.planPriceId().isBlank()) {
+      throw new BadRequestException("Provider-confirmed paid activation requires a plan price");
+    }
+    PlanPrice price =
+        planPriceRepository
+            .findById(parseId(request.planPriceId(), "Plan price not found"))
+            .orElseThrow(() -> new NotFoundException("Plan price not found"));
+    if (!price.getPlan().getId().equals(plan.getId()) || price.getStatus() != RateCardStatus.ACTIVE) {
+      throw new BadRequestException("Plan price does not belong to the selected plan");
+    }
+    if (!"INR".equalsIgnoreCase(price.getCurrency())) {
+      throw new BadRequestException("Billing R1 supports INR only");
+    }
+    if (price.getEffectiveFrom() == null
+        || price.getEffectiveFrom().isAfter(confirmedAt)
+        || (price.getEffectiveTo() != null && !confirmedAt.isBefore(price.getEffectiveTo()))) {
+      throw new BadRequestException("Plan price is not effective at confirmed activation time");
+    }
+    if (price.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+      throw new BadRequestException("Paid activation requires a positive platform price");
+    }
+    if (request.currentPeriodEnd() == null) {
+      throw new BadRequestException("Paid activation requires the first platform period end");
+    }
+
+    Instant startedAt = request.startedAt() == null ? confirmedAt : request.startedAt();
+    if (!request.currentPeriodEnd().isAfter(startedAt)) {
+      throw new BadRequestException("Paid activation requires a non-empty platform period");
+    }
+
+    CompanySubscription subscription = new CompanySubscription();
+    subscription.setCompany(company);
+    subscription.setPlan(plan);
+    subscription.setPlanPrice(price);
+    subscription.setStatus(SubscriptionStatus.ACTIVE);
+    subscription.setStartedAt(startedAt);
+    subscription.setCurrentPeriodStart(startedAt);
+    subscription.setCurrentPeriodEnd(request.currentPeriodEnd());
+    subscription.setEndsAt(request.endsAt());
+    subscription.setPaymentPolicy(PaymentPolicy.CASHFREE);
+    CompanySubscription saved = subscriptionRepository.saveAndFlush(subscription);
+    subscriptionLifecycleService.recordCreated(
+        saved,
+        actorUserId,
+        "Provider-confirmed paid subscription activated",
+        SubscriptionTransitionType.CREATED);
+    return toSubscriptionResponse(saved);
+  }
+
   @Transactional
   public CompanySubscriptionResponse grantSubscription(
       Long companyId, Long actorUserId, AdminGrantSubscriptionRequest request) {
