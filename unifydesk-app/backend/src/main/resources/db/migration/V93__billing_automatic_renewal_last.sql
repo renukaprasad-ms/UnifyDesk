@@ -52,7 +52,7 @@ create table payment_renewal_jobs (
   invoice_id bigint,
   payment_id bigint,
   attempt_count integer not null default 0,
-  next_attempt_at timestamp(6) with time zone not null,
+  next_attempt_at timestamp(6) with time zone,
   last_error_category varchar(80),
   claim_token varchar(64),
   claimed_until timestamp(6) with time zone,
