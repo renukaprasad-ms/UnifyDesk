@@ -34,6 +34,7 @@ public class PaymentConfirmationService {
   private final SubscriptionCheckoutService checkoutService;
   private final SubscriptionChangeService changeService;
   private final SubscriptionLifecycleService lifecycleService;
+  private final RecurringAuthorizationService recurringAuthorizationService;
   private final JdbcTemplate jdbcTemplate;
 
   @Transactional
@@ -70,23 +71,7 @@ public class PaymentConfirmationService {
         PaymentAttemptStatus.SUCCEEDED,
         null,
         providerCreatedAt);
-
-    Instant confirmedAt = providerCreatedAt == null ? Instant.now() : providerCreatedAt;
-    if (payment.getStatus() != PaymentStatus.SUCCEEDED) {
-      payment.setStatus(PaymentStatus.SUCCEEDED);
-      payment.setSucceededAt(confirmedAt);
-      paymentRepository.saveAndFlush(payment);
-      invoiceService.markPaidConfirmed(payment.getInvoice().getId(), confirmedAt);
-    }
-
-    if (payment.getLifecycleAppliedAt() == null) {
-      if (payment.getPurpose() != PaymentPurpose.RENEWAL || renewalDue(payment, confirmedAt)) {
-        applyLifecycle(payment, confirmedAt);
-        payment.setLifecycleAppliedAt(confirmedAt);
-        paymentRepository.saveAndFlush(payment);
-      }
-    }
-    completeDunning(payment.getId());
+    applyConfirmedSuccess(payment, providerCreatedAt);
   }
 
   @Transactional
@@ -132,33 +117,87 @@ public class PaymentConfirmationService {
         attemptStatus,
         failureCategory,
         providerCreatedAt);
+    applyNonSuccess(payment, attemptStatus, providerCreatedAt);
+  }
 
-    // Success is terminal for the logical payment: stale/out-of-order failures cannot regress it.
-    if (payment.getStatus() == PaymentStatus.SUCCEEDED) return;
-
-    payment.setStatus(
-        attemptStatus == PaymentAttemptStatus.PENDING
-            ? PaymentStatus.PENDING
-            : PaymentStatus.FAILED);
-    paymentRepository.saveAndFlush(payment);
-
-    if (payment.getPurpose() == PaymentPurpose.RENEWAL
-        && payment.getSubscriptionId() != null
-        && attemptStatus != PaymentAttemptStatus.PENDING) {
-      Instant failedAt = providerCreatedAt == null ? Instant.now() : providerCreatedAt;
-      if (renewalDue(payment, failedAt)) {
-        var subscription = lifecycleService.require(payment.getSubscriptionId());
-        if (subscription.getStatus() == SubscriptionStatus.ACTIVE) {
-          lifecycleService.markPastDue(payment.getSubscriptionId(), failedAt);
-        }
-        scheduleDunning(
-            payment.getCompany().getId(),
-            payment.getSubscriptionId(),
-            payment.getInvoice().getId(),
-            payment.getId(),
-            renewalBoundary(payment));
-      }
+  /**
+   * Command-first recurring confirmation boundary.
+   *
+   * <p>The durable recurring PaymentAttempt already exists before provider I/O. Both synchronous
+   * HTTP responses and recurring webhooks must converge on that attempt by provider_command_id
+   * before providerPaymentId is considered.
+   */
+  @Transactional
+  public void confirmRecurringAttempt(
+      String commandId,
+      String providerSubscriptionId,
+      String providerPaymentId,
+      BigDecimal amount,
+      String currency,
+      PaymentAttemptStatus status,
+      String failureCategory,
+      Instant providerCreatedAt) {
+    if (commandId == null || commandId.isBlank()) {
+      throw new ConflictException("Recurring provider command identity is required");
     }
+    PaymentAttempt attempt =
+        attemptRepository
+            .findByProviderCommandIdForUpdate(commandId)
+            .orElseThrow(() -> new ConflictException("Recurring provider command is not bound locally"));
+    Payment payment =
+        paymentRepository
+            .findByIdForUpdate(attempt.getPayment().getId())
+            .orElseThrow(() -> new ConflictException("Recurring payment disappeared"));
+
+    if (payment.getPurpose() != PaymentPurpose.RENEWAL
+        || payment.getSubscriptionId() == null
+        || payment.getProviderSubscriptionId() == null
+        || providerSubscriptionId == null
+        || !payment.getProviderSubscriptionId().equals(providerSubscriptionId)) {
+      throw new ConflictException("Recurring provider command does not match payment ownership");
+    }
+    validateFinancialIdentity(payment, amount, currency);
+    if (attempt.getAmount().compareTo(payment.getAmount()) != 0
+        || !attempt.getCurrency().equalsIgnoreCase(payment.getCurrency())) {
+      throw new ConflictException("Recurring attempt financial identity conflicts with payment");
+    }
+
+    bindProviderPaymentIdentity(attempt, providerPaymentId, status);
+    transitionAttempt(attempt, status, failureCategory, providerCreatedAt);
+    attempt.setProviderSubmissionState("CONFIRMED");
+    attemptRepository.saveAndFlush(attempt);
+
+    if (status == PaymentAttemptStatus.SUCCEEDED) {
+      applyConfirmedSuccess(payment, providerCreatedAt);
+    } else {
+      applyNonSuccess(payment, status, providerCreatedAt);
+    }
+  }
+
+  /**
+   * Due boundary fallback when no ACTIVE recurring authorization exists. This records no provider
+   * attempt because no provider collection command was launched.
+   */
+  @Transactional
+  public void markRenewalDueUncollectible(
+      Long paymentId, Instant dueBoundary, String failureCategory) {
+    Payment payment =
+        paymentRepository
+            .findByIdForUpdate(paymentId)
+            .orElseThrow(() -> new ConflictException("Renewal payment not found"));
+    if (payment.getPurpose() != PaymentPurpose.RENEWAL || payment.getSubscriptionId() == null) {
+      throw new ConflictException("Payment is not a recurring renewal");
+    }
+    if (payment.getStatus() == PaymentStatus.SUCCEEDED || !renewalDue(payment, dueBoundary)) {
+      return;
+    }
+
+    payment.setStatus(PaymentStatus.FAILED);
+    paymentRepository.saveAndFlush(payment);
+    markPastDueAndSchedule(
+        payment,
+        dueBoundary == null ? Instant.now() : dueBoundary,
+        failureCategory == null ? "RECURRING_AUTHORIZATION_NOT_ACTIVE" : failureCategory);
   }
 
   @Transactional
@@ -179,14 +218,71 @@ public class PaymentConfirmationService {
     completeDunning(payment.getId());
   }
 
+  private void applyConfirmedSuccess(Payment payment, Instant providerCreatedAt) {
+    Instant confirmedAt = providerCreatedAt == null ? Instant.now() : providerCreatedAt;
+    if (payment.getStatus() != PaymentStatus.SUCCEEDED) {
+      payment.setStatus(PaymentStatus.SUCCEEDED);
+      payment.setSucceededAt(confirmedAt);
+      paymentRepository.saveAndFlush(payment);
+      invoiceService.markPaidConfirmed(payment.getInvoice().getId(), confirmedAt);
+    }
+
+    if (payment.getLifecycleAppliedAt() == null) {
+      if (payment.getPurpose() != PaymentPurpose.RENEWAL || renewalDue(payment, confirmedAt)) {
+        applyLifecycle(payment, confirmedAt);
+        payment.setLifecycleAppliedAt(confirmedAt);
+        paymentRepository.saveAndFlush(payment);
+      }
+    }
+    completeDunning(payment.getId());
+  }
+
+  private void applyNonSuccess(
+      Payment payment, PaymentAttemptStatus attemptStatus, Instant providerCreatedAt) {
+    // Success is terminal for the logical payment: stale/out-of-order failures cannot regress it.
+    if (payment.getStatus() == PaymentStatus.SUCCEEDED) {
+      return;
+    }
+
+    payment.setStatus(
+        attemptStatus == PaymentAttemptStatus.PENDING
+                || attemptStatus == PaymentAttemptStatus.CREATED
+            ? PaymentStatus.PENDING
+            : PaymentStatus.FAILED);
+    paymentRepository.saveAndFlush(payment);
+
+    if (payment.getPurpose() == PaymentPurpose.RENEWAL
+        && payment.getSubscriptionId() != null
+        && attemptStatus != PaymentAttemptStatus.PENDING
+        && attemptStatus != PaymentAttemptStatus.CREATED) {
+      Instant failedAt = providerCreatedAt == null ? Instant.now() : providerCreatedAt;
+      if (renewalDue(payment, failedAt)) {
+        markPastDueAndSchedule(payment, failedAt, "RENEWAL_COLLECTION_FAILED");
+      }
+    }
+  }
+
+  private void markPastDueAndSchedule(
+      Payment payment, Instant occurredAt, String failureCategory) {
+    var subscription = lifecycleService.require(payment.getSubscriptionId());
+    if (subscription.getStatus() == SubscriptionStatus.ACTIVE) {
+      lifecycleService.markPastDue(payment.getSubscriptionId(), occurredAt);
+    }
+    scheduleDunning(
+        payment.getCompany().getId(),
+        payment.getSubscriptionId(),
+        payment.getInvoice().getId(),
+        payment.getId(),
+        renewalBoundary(payment),
+        failureCategory);
+  }
+
   private boolean renewalDue(Payment payment, Instant at) {
     Instant boundary = renewalBoundary(payment);
     return boundary != null && at != null && !at.isBefore(boundary);
   }
 
   private Instant renewalBoundary(Payment payment) {
-    // The next invoice service-period start is the current subscription period end.
-    // It is the canonical B1 renewal boundary even when an invoice is prepared early.
     return payment.getInvoice().getServicePeriodStart();
   }
 
@@ -196,11 +292,16 @@ public class PaymentConfirmationService {
         if (payment.getCheckoutIntentId() == null) {
           throw new ConflictException("Initial payment has no canonical checkout intent");
         }
-        checkoutService.activateConfirmedInitialCheckout(
+        var activated =
+            checkoutService.activateConfirmedInitialCheckout(
+                payment.getCompany().getId(),
+                payment.getCheckoutIntentId(),
+                payment.getInvoice().getId(),
+                confirmedAt);
+        recurringAuthorizationService.bindInitialActivation(
             payment.getCompany().getId(),
             payment.getCheckoutIntentId(),
-            payment.getInvoice().getId(),
-            confirmedAt);
+            Long.valueOf(activated.subscriptionId()));
       }
       case UPGRADE -> {
         if (payment.getSubscriptionChangeId() == null) {
@@ -236,6 +337,57 @@ public class PaymentConfirmationService {
     }
   }
 
+  private void bindProviderPaymentIdentity(
+      PaymentAttempt attempt, String providerPaymentId, PaymentAttemptStatus status) {
+    String normalized =
+        providerPaymentId == null || providerPaymentId.isBlank()
+            ? null
+            : providerPaymentId.trim();
+    if (status == PaymentAttemptStatus.SUCCEEDED && normalized == null) {
+      throw new ConflictException("Successful recurring payment has no provider payment identity");
+    }
+    if (normalized == null) {
+      return;
+    }
+    if (attempt.getProviderPaymentId() != null
+        && !attempt.getProviderPaymentId().equals(normalized)) {
+      throw new ConflictException("Recurring command returned a conflicting provider payment identity");
+    }
+    var other = attemptRepository.findByProviderPaymentId(normalized);
+    if (other.isPresent() && !other.get().getId().equals(attempt.getId())) {
+      throw new ConflictException("Provider payment identity is already bound to another attempt");
+    }
+    if (attempt.getProviderPaymentId() == null) {
+      attempt.setProviderPaymentId(normalized);
+    }
+  }
+
+  private void transitionAttempt(
+      PaymentAttempt attempt,
+      PaymentAttemptStatus status,
+      String failureCategory,
+      Instant providerCreatedAt) {
+    if (attempt.getStatus() == PaymentAttemptStatus.SUCCEEDED) {
+      return;
+    }
+    if (status == PaymentAttemptStatus.SUCCEEDED) {
+      attempt.setStatus(PaymentAttemptStatus.SUCCEEDED);
+      attempt.setFailureCategory(null);
+      attempt.setResolvedAt(Instant.now());
+    } else if (attempt.getStatus() == PaymentAttemptStatus.CREATED
+        || (attempt.getStatus() == PaymentAttemptStatus.PENDING
+            && status != PaymentAttemptStatus.PENDING)) {
+      attempt.setStatus(status);
+      attempt.setFailureCategory(failureCategory);
+      if (status != PaymentAttemptStatus.PENDING && status != PaymentAttemptStatus.CREATED) {
+        attempt.setResolvedAt(Instant.now());
+      }
+    }
+    if (attempt.getProviderCreatedAt() == null) {
+      attempt.setProviderCreatedAt(providerCreatedAt);
+    }
+  }
+
   private void ensureAttempt(
       Payment payment,
       String providerPaymentId,
@@ -251,23 +403,7 @@ public class PaymentConfirmationService {
             || !prior.getCurrency().equalsIgnoreCase(payment.getCurrency())) {
           throw new ConflictException("Provider payment identity conflicts with local payment");
         }
-        if (prior.getStatus() == PaymentAttemptStatus.SUCCEEDED) return;
-        if (status == PaymentAttemptStatus.SUCCEEDED) {
-          prior.setStatus(status);
-          prior.setFailureCategory(null);
-          prior.setResolvedAt(Instant.now());
-        } else if (prior.getStatus() == PaymentAttemptStatus.CREATED
-            || (prior.getStatus() == PaymentAttemptStatus.PENDING
-                && status != PaymentAttemptStatus.PENDING)) {
-          prior.setStatus(status);
-          prior.setFailureCategory(failureCategory);
-          if (status != PaymentAttemptStatus.PENDING) {
-            prior.setResolvedAt(Instant.now());
-          }
-        }
-        if (prior.getProviderCreatedAt() == null) {
-          prior.setProviderCreatedAt(providerCreatedAt);
-        }
+        transitionAttempt(prior, status, failureCategory, providerCreatedAt);
         attemptRepository.saveAndFlush(prior);
         return;
       }
@@ -298,18 +434,19 @@ public class PaymentConfirmationService {
       Long subscriptionId,
       Long invoiceId,
       Long paymentId,
-      Instant dueBoundary) {
+      Instant dueBoundary,
+      String failureCategory) {
     Instant base = dueBoundary == null ? Instant.now() : dueBoundary;
     jdbcTemplate.update(
         """
         insert into payment_dunning_jobs (
           id, company_id, subscription_id, invoice_id, payment_id, status,
-          attempt_count, next_attempt_at, grace_ends_at, created_at, updated_at
-        ) values (?, ?, ?, ?, ?, 'ACTIVE', 1, ?, ?, now(), now())
+          attempt_count, dunning_stage, next_attempt_at, grace_ends_at, created_at, updated_at
+        ) values (?, ?, ?, ?, ?, 'ACTIVE', 1, 'DUE_FAILED', ?, ?, now(), now())
         on conflict (invoice_id) do update
           set status = case
                          when payment_dunning_jobs.status = 'RECOVERED' then 'RECOVERED'
-                         else 'ACTIVE'
+                         else payment_dunning_jobs.status
                        end,
               next_attempt_at = case
                                   when payment_dunning_jobs.status = 'RECOVERED'
