@@ -2,8 +2,6 @@ package com.messaging.billing.service;
 
 import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.entity.Plan;
-import com.messaging.billing.entity.PlanPrice;
-import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.entity.SubscriptionTransition;
 import com.messaging.billing.enums.PaymentPolicy;
 import com.messaging.billing.enums.SubscriptionStatus;
@@ -15,8 +13,6 @@ import com.messaging.common.exception.ConflictException;
 import com.messaging.common.exception.NotFoundException;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -291,6 +287,11 @@ public class SubscriptionLifecycleService {
     return saved;
   }
 
+  /**
+   * Existing B1 recovery contract for B2 after verified late payment/recovery truth.
+   *
+   * <p>This state recovery never manufactures provider success; B2 owns provider evidence.
+   */
   @Transactional
   public CompanySubscription recover(Long subscriptionId, Instant occurredAt) {
     CompanySubscription subscription = requireForUpdate(subscriptionId);
