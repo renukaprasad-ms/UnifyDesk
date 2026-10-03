@@ -1,7 +1,6 @@
 package com.messaging.billing.payment;
 
 import com.messaging.billing.enums.RefundStatus;
-import com.messaging.billing.repository.RefundRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -13,7 +12,6 @@ import org.springframework.stereotype.Service;
 public class RefundReconciliationService {
 
   private final JdbcTemplate jdbcTemplate;
-  private final RefundRepository refundRepository;
   private final RefundStore store;
   private final PaymentProviderGateway gateway;
 
@@ -42,11 +40,26 @@ public class RefundReconciliationService {
   }
 
   public void reconcile(Long refundId) {
-    var refund = refundRepository.findById(refundId).orElse(null);
-    if (refund == null || refund.getStatus() == RefundStatus.SUCCEEDED) return;
-    var remote =
-        gateway.fetchRefund(
-            refund.getPayment().getProviderOrderId(), refund.getProviderRefundId());
+    List<Row> rows =
+        jdbcTemplate.query(
+            """
+            select r.status, r.provider_refund_id, p.provider_order_id
+              from refunds r
+              join payments p on p.id = r.payment_id
+             where r.id = ?
+            """,
+            (rs, rowNum) ->
+                new Row(
+                    RefundStatus.valueOf(rs.getString("status")),
+                    rs.getString("provider_refund_id"),
+                    rs.getString("provider_order_id")),
+            refundId);
+    if (rows.isEmpty() || rows.getFirst().status() == RefundStatus.SUCCEEDED) return;
+    Row row = rows.getFirst();
+    var remote = gateway.fetchRefund(row.providerOrderId(), row.providerRefundId());
     store.applyRemote(refundId, remote);
   }
+
+  private record Row(
+      RefundStatus status, String providerRefundId, String providerOrderId) {}
 }
