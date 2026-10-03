@@ -141,7 +141,7 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
     body.put("payment_id", paymentId);
     body.put("payment_type", "AUTH");
     body.put("subscription_session_id", subscriptionSessionId);
-    body.put("payment_method", Map.of("upi", Map.of("channel", "link")));
+    body.put("payment_method", Map.of("UPI", Map.of("channel", "link")));
     return subscriptionPayment(
         subscriptionsPost("/pg/subscriptions/pay", body, idempotencyKey), paymentId);
   }
