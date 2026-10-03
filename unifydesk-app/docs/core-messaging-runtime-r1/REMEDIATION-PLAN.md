@@ -23,7 +23,7 @@ No B1/B2/F1 implementation assignment is created for mailbox-backed Broadcast.
 
 ## Current runtime finding status
 
-No production source defect has been proven in the regenerated executable round yet.
+CMR1-RUNTIME-001A and CMR1-RUNTIME-001B were proven as source defects, remediated by B2 PR #253 and F1 PR #252, reviewed by L1, and integrated.
 
 Current blocking evidence is environmental:
 
@@ -32,11 +32,11 @@ Current blocking evidence is environmental:
 - this execution session has no authenticated k3s/server channel to prove the deployed backend image/build is the frozen SHA;
 - public `api.unifydesk.in` cannot be resolved/reached from this execution environment.
 
-Therefore:
+Current worker status:
 
-`WORKERS REQUIRED: B2 + F1`
+`WORKERS REQUIRED: NONE`
 
-Do not create B1/B2/F1 remediation work until executable runtime evidence demonstrates a genuine source defect.
+Do not create another remediation worker unless executable runtime verification against the new integrated SHA exposes a new source defect.
 
 ## CMR1-RUNTIME-001A — Recipient-facing Email marketing unsubscribe action missing
 
@@ -183,3 +183,17 @@ Do not hand off a runtime PASS until:
 - provider PASS claims contain real provider IDs/events;
 - no NOT EXECUTED item is mislabeled PASS;
 - any remediation has been integrated and re-frozen.
+
+
+## L1 integration result
+
+Worker heads:
+
+- B2: `ca2a2b1ee73b902b9f57c6d9b2eb9a782674a47b`
+- F1: `acd808e48de169184af50c93db307e65faee2dc5`
+
+Integrated Runtime R1 baseline:
+
+`f94b303c3a33fe114dbe33162cdbad8dbab14d91`
+
+Next action is executable runtime verification, not another feature/remediation round.
