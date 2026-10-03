@@ -50,6 +50,39 @@ public class InvoiceService {
     return toResponse(ensureDraftForLockedPeriod(period, identity));
   }
 
+  /**
+   * B1-owned canonical platform invoice contract for initial checkout and renewal.
+   *
+   * <p>The amount comes only from the immutable PLATFORM BillingPeriod snapshot. B2 collects the
+   * finalized invoice amount and must not add/recalculate platform lines.
+   */
+  @Transactional
+  public InvoiceResponse createOrResolvePlatformInvoice(
+      Long companyId, Long billingPeriodId, InvoiceIdentitySnapshot identity, Instant dueAt) {
+    BillingPeriod period =
+        periodRepository
+            .findByIdForUpdate(billingPeriodId)
+            .orElseThrow(() -> new NotFoundException("Billing period not found"));
+    if (!period.getCompany().getId().equals(companyId)) {
+      throw new BadRequestException("Billing period does not belong to the company");
+    }
+    if (period.getKind() != BillingPeriodKind.PLATFORM
+        || period.getPlan() == null
+        || period.getPlanPrice() == null
+        || period.getPlatformAmountSnapshot() == null
+        || !R1_CURRENCY.equalsIgnoreCase(period.getCurrencySnapshot())) {
+      throw new ConflictException("Platform period has no canonical commercial snapshot");
+    }
+
+    Invoice invoice = ensureDraftForLockedPeriod(period, identity);
+    if (invoice.getStatus() == InvoiceStatus.DRAFT) {
+      ensurePlatformLine(invoice, period);
+      invoice = finalizeLocked(invoice, dueAt);
+    }
+    assertCanonicalPlatformInvoice(invoice, period);
+    return toResponse(invoice);
+  }
+
   @Transactional
   public InvoiceResponse addLine(Long invoiceId, InvoiceLineRequest request) {
     Invoice invoice = requireDraftForUpdate(invoiceId);
@@ -231,10 +264,42 @@ public class InvoiceService {
   }
 
   private boolean hasPlatformSnapshot(BillingPeriod period) {
-    return period.getSubscription() != null
-        && period.getPlan() != null
+    return period.getPlan() != null
+        && period.getPlanPrice() != null
         && period.getPlatformAmountSnapshot() != null
         && R1_CURRENCY.equalsIgnoreCase(period.getCurrencySnapshot());
+  }
+
+  private void assertCanonicalPlatformInvoice(Invoice invoice, BillingPeriod period) {
+    if (invoice.getBillingPeriod() == null
+        || !invoice.getBillingPeriod().getId().equals(period.getId())
+        || !invoice.getCompany().getId().equals(period.getCompany().getId())
+        || !R1_CURRENCY.equalsIgnoreCase(invoice.getCurrency())
+        || !Objects.equals(invoice.getServicePeriodStart(), period.getStartAt())
+        || !Objects.equals(invoice.getServicePeriodEnd(), period.getEndAt())) {
+      throw new ConflictException("Platform invoice conflicts with its immutable billing period");
+    }
+    if (invoice.getStatus() == InvoiceStatus.DRAFT) {
+      throw new ConflictException("Canonical platform invoice is not finalized");
+    }
+    var line =
+        lineRepository
+            .findByInvoiceIdAndIdempotencyKey(invoice.getId(), "PLATFORM_PERIOD:" + period.getId())
+            .orElseThrow(() -> new ConflictException("Canonical platform invoice line is missing"));
+    if (line.getLineType() != InvoiceLineType.PLATFORM_PLAN
+        || line.getAmount().compareTo(period.getPlatformAmountSnapshot()) != 0
+        || !Objects.equals(line.getServicePeriodStart(), period.getStartAt())
+        || !Objects.equals(line.getServicePeriodEnd(), period.getEndAt())) {
+      throw new ConflictException("Platform invoice line conflicts with the period snapshot");
+    }
+    BigDecimal expected = money(period.getPlatformAmountSnapshot());
+    if (invoice.getStatus() == InvoiceStatus.PAID) {
+      if (invoice.getTotal().compareTo(expected) != 0 || invoice.getPaidAt() == null) {
+        throw new ConflictException("Paid platform invoice conflicts with period amount");
+      }
+    } else if (invoice.getAmountDue().compareTo(expected) != 0) {
+      throw new ConflictException("Platform invoice amount due conflicts with period amount");
+    }
   }
 
   private Invoice finalizeLocked(Invoice invoice, Instant finalizedAt) {
