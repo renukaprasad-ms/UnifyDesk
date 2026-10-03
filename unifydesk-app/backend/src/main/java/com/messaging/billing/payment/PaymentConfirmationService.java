@@ -29,6 +29,7 @@ public class PaymentConfirmationService {
   private final SubscriptionCheckoutService checkoutService;
   private final SubscriptionChangeService changeService;
   private final SubscriptionLifecycleService lifecycleService;
+  private final DunningService dunningService;
 
   @Transactional
   public void confirmSuccess(
@@ -60,6 +61,7 @@ public class PaymentConfirmationService {
 
     invoiceService.markPaidConfirmed(payment.getInvoice().getId(), confirmedAt);
     applyLifecycle(payment, confirmedAt);
+    dunningService.complete(payment.getId());
   }
 
   @Transactional
@@ -91,7 +93,14 @@ public class PaymentConfirmationService {
     if (payment.getPurpose() == PaymentPurpose.RENEWAL
         && payment.getSubscriptionId() != null
         && attemptStatus != PaymentAttemptStatus.PENDING) {
-      lifecycleService.markPastDue(payment.getSubscriptionId(), Instant.now());
+      Instant failedAt = providerCreatedAt == null ? Instant.now() : providerCreatedAt;
+      lifecycleService.markPastDue(payment.getSubscriptionId(), failedAt);
+      dunningService.schedule(
+          payment.getCompany().getId(),
+          payment.getSubscriptionId(),
+          payment.getInvoice().getId(),
+          payment.getId(),
+          failedAt);
     }
   }
 

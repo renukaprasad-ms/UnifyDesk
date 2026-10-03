@@ -13,7 +13,6 @@ import java.util.HexFormat;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -23,7 +22,6 @@ public class CashfreeWebhookService {
   private final ObjectMapper objectMapper;
   private final PaymentConfirmationService confirmationService;
 
-  @Transactional
   public void receive(byte[] rawBody) {
     String body = new String(rawBody, StandardCharsets.UTF_8);
     JsonNode root = read(body);
