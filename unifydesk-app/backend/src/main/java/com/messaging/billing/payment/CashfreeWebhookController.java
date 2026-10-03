@@ -20,7 +20,7 @@ public class CashfreeWebhookController {
     if (!verifier.verify(rawBody, timestamp, signature)) {
       return ResponseEntity.status(401).build();
     }
-    webhookService.receive(rawBody);
+    webhookService.receiveVerified(rawBody, java.time.Instant.now());
     return ResponseEntity.ok().build();
   }
 }
