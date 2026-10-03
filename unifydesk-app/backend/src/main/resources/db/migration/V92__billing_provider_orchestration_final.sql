@@ -7,6 +7,10 @@ alter table payments
   add column provider_checkout_session_id varchar(2048),
   add column lifecycle_applied_at timestamp(6) with time zone;
 
+update payments
+   set lifecycle_applied_at = coalesce(succeeded_at, updated_at)
+ where status = 'SUCCEEDED';
+
 alter table payment_attempts
   add column provider_command_id varchar(255),
   add column provider_submission_state varchar(32) not null default 'NOT_SUBMITTED';
