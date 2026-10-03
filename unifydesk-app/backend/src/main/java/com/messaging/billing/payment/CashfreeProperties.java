@@ -18,6 +18,7 @@ public class CashfreeProperties {
   private long webhookRetryBaseSeconds = 300L;
   private long webhookClaimSeconds = 120L;
   private long dunningClaimSeconds = 300L;
+  private long automaticRenewalClaimSeconds = 300L;
 
   public boolean isEnabled() { return enabled; }
   public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -43,4 +44,6 @@ public class CashfreeProperties {
   public void setWebhookClaimSeconds(long webhookClaimSeconds) { this.webhookClaimSeconds = webhookClaimSeconds; }
   public long getDunningClaimSeconds() { return dunningClaimSeconds; }
   public void setDunningClaimSeconds(long dunningClaimSeconds) { this.dunningClaimSeconds = dunningClaimSeconds; }
+  public long getAutomaticRenewalClaimSeconds() { return automaticRenewalClaimSeconds; }
+  public void setAutomaticRenewalClaimSeconds(long automaticRenewalClaimSeconds) { this.automaticRenewalClaimSeconds = automaticRenewalClaimSeconds; }
 }
