@@ -18,11 +18,14 @@ import lombok.Setter;
     name = "invoices",
     uniqueConstraints = {
       @UniqueConstraint(name = "uk_invoices_number", columnNames = "invoice_number"),
-      @UniqueConstraint(name = "uk_invoices_billing_period", columnNames = "billing_period_id")
+      @UniqueConstraint(name = "uk_invoices_billing_period", columnNames = "billing_period_id"),
+      @UniqueConstraint(
+          name = "uk_invoices_subscription_change", columnNames = "subscription_change_id")
     },
     indexes = {
       @Index(name = "idx_invoices_company_time", columnList = "company_id,created_at"),
-      @Index(name = "idx_invoices_period", columnList = "billing_period_id")
+      @Index(name = "idx_invoices_period", columnList = "billing_period_id"),
+      @Index(name = "idx_invoices_subscription_change", columnList = "subscription_change_id")
     })
 public class Invoice {
   @Id private Long id;
@@ -34,6 +37,13 @@ public class Invoice {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "billing_period_id")
   private BillingPeriod billingPeriod;
+
+  @OneToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "subscription_change_id")
+  private SubscriptionChange subscriptionChange;
+
+  @Column(name = "source_reference", length = 160)
+  private String sourceReference;
 
   @Column(name = "invoice_number", nullable = false, length = 80)
   private String invoiceNumber;
