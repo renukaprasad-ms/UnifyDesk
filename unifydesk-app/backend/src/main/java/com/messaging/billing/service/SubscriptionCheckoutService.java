@@ -134,7 +134,7 @@ public class SubscriptionCheckoutService {
         invoiceService.createOrResolvePlatformInvoice(
             companyId, period.getId(), identity, requestedAt);
     if (invoice.total().compareTo(price.getAmount()) != 0
-        || invoice.amountDue().compareTo(price.getAmount().setScale(2)) != 0) {
+        || invoice.amountDue().compareTo(price.getAmount()) != 0) {
       throw new ConflictException(
           "Initial platform invoice conflicts with the immutable PlanPrice snapshot");
     }
