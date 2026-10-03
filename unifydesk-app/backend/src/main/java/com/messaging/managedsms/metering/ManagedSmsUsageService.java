@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ManagedSmsUsageService {
 
   public static final String MONTHLY_ENTITLEMENT = "MANAGED_SMS_SEGMENTS_MONTHLY";
+  public static final String FINANCIAL_QUANTITY_SOURCE = "MANAGED_SMS_LOCAL_SEGMENT_ESTIMATE";
 
   private final JdbcTemplate jdbcTemplate;
   private final EntitlementService entitlementService;
@@ -115,7 +116,7 @@ public class ManagedSmsUsageService {
         companyId,
         ServiceOwnership.MANAGED,
         BillingSku.MANAGED_SMS_SEGMENT,
-        "MANAGED_SMS_LOCAL_SEGMENT_ESTIMATE",
+        FINANCIAL_QUANTITY_SOURCE,
         recipientId.toString(),
         providerRequestId,
         billingKey,
