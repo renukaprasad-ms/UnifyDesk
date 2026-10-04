@@ -60,6 +60,29 @@ class ManagedEmailDeliveryMeteringTests {
   }
 
   @Test
+  void pastDueRaceAfterReservationBlocksProviderAndReleasesReservation() {
+    Fixture fixture = fixture();
+    doThrow(
+            new com.messaging.billing.exception.PlanEntitlementException(
+                ManagedFinancialExposureGuard.BLOCKED))
+        .when(fixture.exposure)
+        .assertAllowed(10L);
+
+    fixture.service.deliver(
+        fixture.run, fixture.connection, fixture.sender, fixture.recipient);
+
+    verify(fixture.budget).reserveForSend(fixture.runtime, 70L, 60L, 1);
+    verify(fixture.usage).release(10L, 70L, 60L, 1);
+    verifyNoInteractions(fixture.transport);
+    verify(fixture.state)
+        .retry(
+            any(),
+            eq(ManagedFinancialExposureGuard.BLOCKED),
+            eq("Managed Email billing status does not permit new provider spend"),
+            any());
+  }
+
+  @Test
   void providerAcceptanceCommitsReservation() {
     Fixture fixture = fixture();
     when(fixture.transport.send(any(), any(), any()))
@@ -211,6 +234,7 @@ class ManagedEmailDeliveryMeteringTests {
         usage,
         managedRate,
         budget,
+        exposure,
         suppressionGate,
         transport,
         runtime,
@@ -226,6 +250,7 @@ class ManagedEmailDeliveryMeteringTests {
       ManagedEmailUsageService usage,
       ManagedEmailRateLimiter managedRate,
       ManagedEmailProviderBudgetService budget,
+      ManagedFinancialExposureGuard exposure,
       ManagedEmailSuppressionGate suppressionGate,
       BroadcastEmailTransport transport,
       ManagedEmailRuntimeRepository.ManagedSenderRuntime runtime,
