@@ -174,6 +174,37 @@ class AutomaticRenewalStore {
   }
 
   @Transactional(readOnly = true)
+  boolean zeroDueBoundaryAlreadyApplied(Job job) {
+    if (job.invoiceId() == null || job.paymentId() != null) {
+      return false;
+    }
+    Integer count =
+        jdbcTemplate.queryForObject(
+            """
+            select count(*)
+              from invoices i
+              join billing_periods bp on bp.id = i.billing_period_id
+              join company_subscriptions s on s.id = bp.subscription_id
+             where i.id = ?
+               and i.company_id = ?
+               and bp.subscription_id = ?
+               and bp.start_at = ?
+               and i.status = 'OPEN'
+               and i.amount_due = 0
+               and s.current_period_start = bp.start_at
+               and s.current_period_end is not distinct from bp.end_at
+               and s.plan_id = bp.plan_id
+               and s.plan_price_id = bp.plan_price_id
+            """,
+            Integer.class,
+            job.invoiceId(),
+            job.companyId(),
+            job.subscriptionId(),
+            Timestamp.from(job.dueBoundary()));
+    return count != null && count == 1;
+  }
+
+  @Transactional(readOnly = true)
   PaymentStatus paymentStatus(Long paymentId) {
     String value =
         jdbcTemplate.queryForObject(
