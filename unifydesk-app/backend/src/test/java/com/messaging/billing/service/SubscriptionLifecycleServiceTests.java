@@ -298,6 +298,40 @@ class SubscriptionLifecycleServiceTests {
   }
 
   @Test
+  void alreadyPaidOldPlanInvoiceCannotSilentlyActivateFreeTarget() {
+    Instant boundary = Instant.parse("2026-11-01T00:00:00Z");
+    CompanySubscription subscription = subscription(10L, SubscriptionStatus.ACTIVE);
+    subscription.setCurrentPeriodEnd(boundary);
+    PlanPrice currentPrice = priced(20L, subscription.getPlan(), "120.00");
+    subscription.setPlanPrice(currentPrice);
+
+    Plan targetPlan = new Plan();
+    targetPlan.setId(3L);
+    PlanPrice freePrice = priced(21L, targetPlan, "0.00");
+    freePrice.setBillingCycle(BillingCycle.FREE);
+
+    Plan oldPlan = subscription.getPlan();
+    PlanPrice oldPaidPrice = priced(22L, oldPlan, "120.00");
+    BillingPeriod paidOldPeriod = paidPeriod(subscription, oldPlan, oldPaidPrice, boundary);
+    SubscriptionChange downgrade =
+        scheduledDowngrade(subscription, targetPlan, freePrice, boundary);
+
+    when(subscriptionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(subscription));
+    when(invoiceService.requirePaidCanonicalPlatformInvoice(1L, 903L)).thenReturn(paidOldPeriod);
+    when(boundaryChangeService.resolveScheduledDowngradeForBoundary(subscription, boundary))
+        .thenReturn(Optional.of(downgrade));
+
+    assertThrows(
+        ConflictException.class,
+        () -> service.renewAfterConfirmedCollection(10L, 903L, boundary.plusSeconds(1)));
+
+    assertEquals(oldPlan, subscription.getPlan());
+    assertEquals(currentPrice, subscription.getPlanPrice());
+    verify(subscriptionRepository, org.mockito.Mockito.never()).saveAndFlush(any());
+    verify(boundaryChangeService, org.mockito.Mockito.never()).markApplied(any(), any(), any());
+  }
+
+  @Test
   void confirmedRenewalRejectsUnpaidInvoiceBeforeMutatingSubscription() {
     CompanySubscription subscription = subscription(10L, SubscriptionStatus.ACTIVE);
     subscription.setCurrentPeriodEnd(Instant.parse("2026-11-01T00:00:00Z"));
