@@ -157,14 +157,15 @@ public class SubscriptionChangeService {
     Plan fromPlan = subscription.getPlan();
     if (fromOpenEndedFree) {
       PlanPrice targetPrice = change.getToPlanPrice();
-      if (targetPrice.getBillingCycle() == BillingCycle.FREE || targetPrice.getAmount().signum() <= 0) throw new ConflictException("FREE upgrade activation requires a positive paid target");
-      Instant paidEnd = nextBoundary(confirmedAt, targetPrice.getBillingCycle());
-      BillingPeriod targetPeriod = billingPeriodService.ensurePlatformPeriodSnapshot(subscription.getCompany(), change.getToPlan(), targetPrice, confirmedAt, paidEnd);
+      Instant paidStart = change.getCurrentPeriodStart();
+      Instant paidEnd = change.getCurrentPeriodEnd();
+      assertCanonicalFreeToPaidPeriod(change, targetPrice, paidStart, paidEnd);
+      BillingPeriod targetPeriod = billingPeriodService.ensurePlatformPeriodSnapshot(subscription.getCompany(), change.getToPlan(), targetPrice, paidStart, paidEnd);
       subscription.setPlan(change.getToPlan());
       subscription.setPlanPrice(targetPrice);
-      subscription.setCurrentPeriodStart(confirmedAt);
+      subscription.setCurrentPeriodStart(paidStart);
       subscription.setCurrentPeriodEnd(paidEnd);
-      subscription.setBillingAnchor(confirmedAt);
+      subscription.setBillingAnchor(paidStart);
       billingPeriodService.bindPlatformPeriodToSubscription(targetPeriod.getId(), subscription);
     } else {
       billingPeriodService.ensurePlatformPeriod(subscription);
@@ -228,6 +229,37 @@ public class SubscriptionChangeService {
       throw new ConflictException("Owned renewal boundary has inconsistent commercial truth");
     }
     return new DowngradeScheduleSource(renewalOwner.getPlan(), renewalOwner.getPlanPrice(), renewalOwner.getStartAt(), renewalOwner.getEndAt(), renewalOwner.getEndAt());
+  }
+
+  private void assertCanonicalFreeToPaidPeriod(
+      SubscriptionChange change, PlanPrice targetPrice, Instant paidStart, Instant paidEnd) {
+    if (paidStart == null || paidEnd == null || !paidEnd.isAfter(paidStart)) {
+      throw new ConflictException("FREE upgrade has an invalid immutable paid service period");
+    }
+    BillingCycle cycle = targetPrice == null ? null : targetPrice.getBillingCycle();
+    if ((cycle != BillingCycle.MONTHLY && cycle != BillingCycle.YEARLY)
+        || targetPrice.getAmount() == null
+        || targetPrice.getAmount().signum() <= 0) {
+      throw new ConflictException("FREE upgrade activation requires a positive MONTHLY or YEARLY target");
+    }
+    if (change.getToPlan() == null
+        || targetPrice.getPlan() == null
+        || !targetPrice.getPlan().getId().equals(change.getToPlan().getId())
+        || targetPrice.getStatus() != RateCardStatus.ACTIVE
+        || !"INR".equalsIgnoreCase(targetPrice.getCurrency())
+        || !"INR".equalsIgnoreCase(change.getCurrency())
+        || change.getTargetPriceSnapshot() == null
+        || change.getTargetPriceSnapshot().compareTo(targetPrice.getAmount()) != 0) {
+      throw new ConflictException("FREE upgrade target financial snapshot is inconsistent");
+    }
+    FinancialEffectiveTime.assertStoredActiveRange(targetPrice.getEffectiveFrom(), targetPrice.getEffectiveTo(), "PlanPrice");
+    if (!FinancialEffectiveTime.includes(targetPrice.getEffectiveFrom(), targetPrice.getEffectiveTo(), paidStart)) {
+      throw new ConflictException("FREE upgrade target price is not effective at the immutable paid service-period start");
+    }
+    Instant expectedEnd = nextBoundary(paidStart, cycle);
+    if (!paidEnd.equals(expectedEnd)) {
+      throw new ConflictException("FREE upgrade immutable paid service period does not match target cadence");
+    }
   }
 
   private void lockCompany(Long companyId) { companyRepository.findByIdForUpdate(companyId).orElseThrow(() -> new NotFoundException("Company not found")); }
