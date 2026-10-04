@@ -98,6 +98,8 @@ app:
       webhook-max-attempts: ${APP_BILLING_CASHFREE_WEBHOOK_MAX_ATTEMPTS:8}
       webhook-retry-base-seconds: ${APP_BILLING_CASHFREE_WEBHOOK_RETRY_BASE_SECONDS:300}
       webhook-claim-seconds: ${APP_BILLING_CASHFREE_WEBHOOK_CLAIM_SECONDS:120}
+      webhook-max-age-seconds: ${APP_BILLING_CASHFREE_WEBHOOK_MAX_AGE_SECONDS:300}
+      webhook-future-skew-seconds: ${APP_BILLING_CASHFREE_WEBHOOK_FUTURE_SKEW_SECONDS:60}
       dunning-claim-seconds: ${APP_BILLING_CASHFREE_DUNNING_CLAIM_SECONDS:300}
       automatic-renewal-claim-seconds: ${APP_BILLING_CASHFREE_AUTOMATIC_RENEWAL_CLAIM_SECONDS:300}
       automatic-renewal-interval-ms: ${APP_BILLING_CASHFREE_AUTOMATIC_RENEWAL_INTERVAL_MS:60000}
