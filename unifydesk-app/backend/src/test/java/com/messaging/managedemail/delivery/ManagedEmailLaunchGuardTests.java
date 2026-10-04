@@ -21,6 +21,44 @@ import org.junit.jupiter.api.Test;
 class ManagedEmailLaunchGuardTests {
 
   @Test
+  void activeManagedEmailLaunchIsAllowedThroughFinancialBoundary() {
+    Fixture fixture = fixture();
+    when(fixture.runtime.findSenderRuntime(10L, 20L))
+        .thenReturn(Optional.of(runtime(true, true, "ACTIVE", "ACTIVE")));
+
+    fixture.guard.validateLaunch(10L, fixture.sender, fixture.connection, 1);
+
+    verify(fixture.exposure).assertAllowed(10L);
+    verify(fixture.usage).canReserve(10L, 1);
+  }
+
+  @Test
+  void blockedBillingStatusRejectsManagedEmailBeforeReservationChecks() {
+    Fixture fixture = fixture();
+    doThrow(new com.messaging.billing.exception.PlanEntitlementException(
+            ManagedFinancialExposureGuard.BLOCKED))
+        .when(fixture.exposure)
+        .assertAllowed(10L);
+
+    assertThatThrownBy(
+            () -> fixture.guard.validateLaunch(10L, fixture.sender, fixture.connection, 1))
+        .isInstanceOf(com.messaging.billing.exception.PlanEntitlementException.class)
+        .hasMessage(ManagedFinancialExposureGuard.BLOCKED);
+
+    verifyNoInteractions(fixture.runtime, fixture.usage);
+  }
+
+  @Test
+  void customerOwnedEmailDoesNotUseManagedFinancialExposureGuard() {
+    Fixture fixture = fixture();
+    fixture.connection.setManagementMode(BroadcastSenderManagementMode.CUSTOMER_MANAGED);
+
+    fixture.guard.validateLaunch(10L, fixture.sender, fixture.connection, 1);
+
+    verifyNoInteractions(fixture.exposure, fixture.runtime, fixture.usage);
+  }
+
+  @Test
   void globalKillSwitchRejectsManagedLaunch() {
     Fixture fixture = fixture();
     fixture.properties.setSendingEnabled(false);
@@ -94,6 +132,8 @@ class ManagedEmailLaunchGuardTests {
             budget),
         runtime,
         properties,
+        exposure,
+        usage,
         connection,
         sender);
   }
@@ -151,6 +191,8 @@ class ManagedEmailLaunchGuardTests {
       ManagedEmailLaunchGuard guard,
       ManagedEmailRuntimeRepository runtime,
       ManagedEmailRuntimeProperties properties,
+      ManagedFinancialExposureGuard exposure,
+      ManagedEmailUsageService usage,
       BroadcastSenderConnection connection,
       BroadcastSender sender) {}
 }
