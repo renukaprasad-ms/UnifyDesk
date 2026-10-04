@@ -4,6 +4,7 @@ import com.messaging.billing.dto.InvoiceResponse;
 import com.messaging.billing.enums.PaymentStatus;
 import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.service.SubscriptionCheckoutService;
+import com.messaging.billing.service.SubscriptionLifecycleService;
 import com.messaging.common.exception.ConflictException;
 import java.time.Duration;
 import java.time.Instant;
@@ -31,6 +32,7 @@ public class AutomaticRenewalService {
   private final RecurringAuthorizationService authorizationService;
   private final RecurringChargeService chargeService;
   private final PaymentConfirmationService confirmationService;
+  private final SubscriptionLifecycleService lifecycleService;
   private final CashfreeProperties properties;
 
   @Scheduled(
@@ -96,6 +98,17 @@ public class AutomaticRenewalService {
           || !invoice.servicePeriodStart().equals(job.dueBoundary())) {
         throw new ConflictException(
             "Automatic renewal invoice does not match the claimed renewal boundary");
+      }
+
+      if (invoice.amountDue().signum() == 0) {
+        if (paymentId != null) {
+          throw new ConflictException(
+              "Zero-due boundary is already bound to provider payment state");
+        }
+        store.bindFinancialObjects(job, invoiceId, null);
+        lifecycleService.applyZeroDueBoundaryTransition(job.subscriptionId(), invoiceId, now);
+        store.finish(job, "ZERO_DUE_APPLIED", invoiceId, null, null);
+        return;
       }
 
       PaymentCollectionService.CheckoutResult payment =
