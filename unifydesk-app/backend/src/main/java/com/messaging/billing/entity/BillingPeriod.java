@@ -64,7 +64,7 @@ public class BillingPeriod {
   @Column(name = "start_at", nullable = false)
   private Instant startAt;
 
-  @Column(name = "end_at", nullable = false)
+  @Column(name = "end_at")
   private Instant endAt;
 
   @Enumerated(EnumType.STRING)
