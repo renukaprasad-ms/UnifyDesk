@@ -16,6 +16,7 @@ import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.entity.Invoice;
 import com.messaging.billing.entity.Plan;
 import com.messaging.billing.entity.PlanPrice;
+import com.messaging.billing.entity.SubscriptionChange;
 import com.messaging.billing.entity.SubscriptionCheckoutIntent;
 import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.enums.BillingPeriodKind;
@@ -372,6 +373,57 @@ class SubscriptionCheckoutServiceTests {
     assertEquals(
         Instant.parse("2026-11-03T06:00:00Z"), invoice.servicePeriodStart());
     verify(subscriptionRepository, never()).saveAndFlush(any(CompanySubscription.class));
+  }
+
+  @Test
+  void renewalPreparationUsesScheduledDowngradeTargetCommercialSnapshot() {
+    CompanySubscription subscription = subscription(80L, company, plan, monthlyPrice);
+    Instant boundary = Instant.parse("2026-11-03T06:00:00Z");
+    subscription.setCurrentPeriodStart(requestedAt);
+    subscription.setCurrentPeriodEnd(boundary);
+
+    Plan targetPlan = plan(21L);
+    PlanPrice targetPrice = price(33L, targetPlan, BillingCycle.MONTHLY, "699.00");
+    targetPrice.setEffectiveFrom(boundary);
+    BillingPeriod targetPeriod =
+        period(
+            42L,
+            company,
+            targetPlan,
+            targetPrice,
+            boundary,
+            Instant.parse("2026-12-03T06:00:00Z"));
+    SubscriptionChange downgrade = new SubscriptionChange();
+    downgrade.setToPlan(targetPlan);
+    downgrade.setToPlanPrice(targetPrice);
+
+    when(companyRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(company));
+    when(subscriptionRepository.findByIdForUpdate(80L)).thenReturn(Optional.of(subscription));
+    when(boundaryChangeService.resolveScheduledDowngradeForBoundary(subscription, boundary))
+        .thenReturn(Optional.of(downgrade));
+    when(billingPeriodService.ensurePlatformPeriodSnapshot(
+            company,
+            targetPlan,
+            targetPrice,
+            boundary,
+            Instant.parse("2026-12-03T06:00:00Z")))
+        .thenReturn(targetPeriod);
+    when(invoiceService.createOrResolvePlatformInvoice(10L, 42L, identity(), requestedAt))
+        .thenReturn(invoiceResponse(52L, 10L, 42L, "699.00"));
+
+    InvoiceResponse invoice =
+        service.createOrResolveRenewalInvoice(10L, 80L, requestedAt, identity());
+
+    assertEquals("52", invoice.invoiceId());
+    verify(billingPeriodService)
+        .ensurePlatformPeriodSnapshot(
+            company,
+            targetPlan,
+            targetPrice,
+            boundary,
+            Instant.parse("2026-12-03T06:00:00Z"));
+    verify(planPriceRepository, never())
+        .findByPlanIdAndStatusOrderByEffectiveFromDesc(any(), any());
   }
 
   @Test
