@@ -15,6 +15,7 @@ import com.messaging.billing.entity.SubscriptionTransition;
 import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.enums.BillingPeriodKind;
 import com.messaging.billing.enums.BillingPeriodStatus;
+import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.enums.SubscriptionTransitionType;
 import com.messaging.billing.repository.CompanySubscriptionRepository;
@@ -66,6 +67,8 @@ class SubscriptionLifecycleServiceTests {
     currentPrice.setBillingCycle(BillingCycle.MONTHLY);
     currentPrice.setAmount(new java.math.BigDecimal("100.00"));
     currentPrice.setCurrency("INR");
+    currentPrice.setEffectiveFrom(Instant.parse("2026-01-01T00:00:00Z"));
+    currentPrice.setStatus(RateCardStatus.ACTIVE);
     subscription.setPlanPrice(currentPrice);
 
     PlanPrice renewalPrice = new PlanPrice();
@@ -74,6 +77,8 @@ class SubscriptionLifecycleServiceTests {
     renewalPrice.setBillingCycle(BillingCycle.MONTHLY);
     renewalPrice.setAmount(new java.math.BigDecimal("120.00"));
     renewalPrice.setCurrency("INR");
+    renewalPrice.setEffectiveFrom(Instant.parse("2026-01-01T00:00:00Z"));
+    renewalPrice.setStatus(RateCardStatus.ACTIVE);
 
     BillingPeriod next = new BillingPeriod();
     next.setId(30L);
@@ -134,6 +139,8 @@ class SubscriptionLifecycleServiceTests {
     price.setBillingCycle(BillingCycle.MONTHLY);
     price.setAmount(new java.math.BigDecimal("120.00"));
     price.setCurrency("INR");
+    price.setEffectiveFrom(Instant.parse("2026-01-01T00:00:00Z"));
+    price.setStatus(RateCardStatus.ACTIVE);
     subscription.setPlanPrice(price);
     subscription.setCurrentPeriodStart(Instant.parse("2026-11-01T00:00:00Z"));
     subscription.setCurrentPeriodEnd(Instant.parse("2026-12-01T00:00:00Z"));
