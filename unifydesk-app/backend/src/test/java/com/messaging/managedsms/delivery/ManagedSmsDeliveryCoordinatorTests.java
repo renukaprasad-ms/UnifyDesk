@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.broadcast.entity.*;
 import com.messaging.broadcast.enums.BroadcastSenderProvider;
 import com.messaging.broadcast.service.BroadcastDeliveryStateService;
@@ -103,6 +104,7 @@ class ManagedSmsDeliveryCoordinatorTests {
     ManagedSmsDeliveryGuard guard = mock(ManagedSmsDeliveryGuard.class);
     ManagedSmsRateLimiter rate = mock(ManagedSmsRateLimiter.class);
     ManagedSmsUsageService usage = mock(ManagedSmsUsageService.class);
+    ManagedFinancialExposureGuard exposure = mock(ManagedFinancialExposureGuard.class);
     ManagedSmsSegmentCalculator segments = mock(ManagedSmsSegmentCalculator.class);
     ManagedSmsTemplateService templates = mock(ManagedSmsTemplateService.class);
     ManagedSmsCorrelationService correlations = mock(ManagedSmsCorrelationService.class);
@@ -147,6 +149,7 @@ class ManagedSmsDeliveryCoordinatorTests {
             guard,
             rate,
             usage,
+            exposure,
             segments,
             templates,
             correlations,
