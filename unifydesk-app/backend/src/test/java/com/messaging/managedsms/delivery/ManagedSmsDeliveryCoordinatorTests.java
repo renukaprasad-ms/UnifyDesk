@@ -41,6 +41,28 @@ class ManagedSmsDeliveryCoordinatorTests {
   }
 
   @Test
+  void pastDueRaceAfterReservationBlocksMsg91AndReleasesReservation() {
+    Fixture f = fixture();
+    doThrow(
+            new com.messaging.billing.exception.PlanEntitlementException(
+                ManagedFinancialExposureGuard.BLOCKED))
+        .when(f.exposure)
+        .assertAllowed(10L);
+
+    f.service.deliver(f.run, f.connection, f.sender, f.recipient);
+
+    verify(f.usage).reserve(10L, 60L, 70L, 1, 1);
+    verify(f.usage).release(10L, 60L, 70L, 1);
+    verifyNoInteractions(f.gateway);
+    verify(f.state)
+        .retry(
+            f.attempt,
+            ManagedFinancialExposureGuard.BLOCKED,
+            "Managed SMS billing status does not permit new provider spend",
+            any());
+  }
+
+  @Test
   void providerAcceptanceCommitsUsageOnceAtAcceptanceBoundary() {
     Fixture f = fixture();
     when(f.gateway.send(any(), anyString(), anyMap(), anyList(), anyString()))
@@ -163,6 +185,7 @@ class ManagedSmsDeliveryCoordinatorTests {
         correlations,
         gateway,
         usage,
+        exposure,
         state,
         retry,
         run,
@@ -225,6 +248,7 @@ class ManagedSmsDeliveryCoordinatorTests {
       ManagedSmsCorrelationService correlations,
       ManagedMsg91Gateway gateway,
       ManagedSmsUsageService usage,
+      ManagedFinancialExposureGuard exposure,
       BroadcastDeliveryStateService state,
       BroadcastRetryPolicy retry,
       BroadcastRun run,
