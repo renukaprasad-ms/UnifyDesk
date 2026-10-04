@@ -33,7 +33,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class FreeToPaidSubscriptionChangeTests {
-
   private SubscriptionChangeRepository changes;
   private PlanRepository plans;
   private PlanPriceRepository prices;
@@ -46,7 +45,6 @@ class FreeToPaidSubscriptionChangeTests {
   private BillingPeriodRepository periodRepository;
   private UpgradeInvoiceService upgradeInvoices;
   private SubscriptionChangeService service;
-
   private Company company;
   private Plan freePlan;
   private Plan paidPlan;
@@ -71,7 +69,6 @@ class FreeToPaidSubscriptionChangeTests {
     service = new SubscriptionChangeService(
         changes, plans, prices, companies, eligibility, lifecycle, proration, classifier,
         periods, periodRepository, upgradeInvoices);
-
     company = new Company();
     company.setId(10L);
     freePlan = plan(20L);
@@ -95,19 +92,35 @@ class FreeToPaidSubscriptionChangeTests {
     when(lifecycle.currentForUpdate(10L)).thenReturn(subscription);
     when(plans.findById(30L)).thenReturn(Optional.of(paidPlan));
     when(prices.findById(31L)).thenReturn(Optional.of(paidPrice));
-    when(classifier.classify(freePlan, freePrice, paidPlan, paidPrice)).thenReturn(PlanChangeDirection.UPGRADE);
-    UpgradeProrationQuote quote = new UpgradeProrationQuote(
-        "INR", requestedAt, requestedAt, Instant.parse("2026-11-04T06:00:00Z"),
-        new BigDecimal("0.00"), new BigDecimal("999.00"), new BigDecimal("999.00"),
-        new BigDecimal("0.00"), new BigDecimal("999.00"), new BigDecimal("999.00"),
-        new BigDecimal("0.00"));
-    when(proration.quoteFromFree(BigDecimal.ZERO, new BigDecimal("999.00"), BillingCycle.MONTHLY, requestedAt, "INR"))
+    when(classifier.classify(freePlan, freePrice, paidPlan, paidPrice))
+        .thenReturn(PlanChangeDirection.UPGRADE);
+    UpgradeProrationQuote quote =
+        new UpgradeProrationQuote(
+            "INR",
+            requestedAt,
+            requestedAt,
+            Instant.parse("2026-11-04T06:00:00Z"),
+            new BigDecimal("0.00"),
+            new BigDecimal("999.00"),
+            new BigDecimal("999.00"),
+            new BigDecimal("0.00"),
+            new BigDecimal("999.00"),
+            new BigDecimal("999.00"),
+            new BigDecimal("0.00"));
+    when(proration.quoteFromFree(
+            new BigDecimal("0.00"),
+            new BigDecimal("999.00"),
+            BillingCycle.MONTHLY,
+            requestedAt,
+            "INR"))
         .thenReturn(quote);
-    when(changes.saveAndFlush(any(SubscriptionChange.class))).thenAnswer(invocation -> {
-      SubscriptionChange value = invocation.getArgument(0);
-      if (value.getId() == null) value.setId(700L);
-      return value;
-    });
+    when(changes.saveAndFlush(any(SubscriptionChange.class)))
+        .thenAnswer(
+            invocation -> {
+              SubscriptionChange value = invocation.getArgument(0);
+              if (value.getId() == null) value.setId(700L);
+              return value;
+            });
 
     var result = service.requestUpgrade(10L, 30L, 31L, "free-paid", 99L, requestedAt);
 
@@ -134,7 +147,6 @@ class FreeToPaidSubscriptionChangeTests {
     period.setPlanPrice(paidPrice);
     period.setPlatformAmountSnapshot(paidPrice.getAmount());
     period.setCurrencySnapshot("INR");
-
     when(changes.findByIdForUpdate(700L)).thenReturn(Optional.of(change));
     when(lifecycle.requireForUpdate(40L)).thenReturn(subscription);
     when(periods.ensurePlatformPeriodSnapshot(company, paidPlan, paidPrice, confirmedAt, paidEnd))
@@ -145,7 +157,8 @@ class FreeToPaidSubscriptionChangeTests {
     var replay = service.applyConfirmedUpgrade(700L, 900L, confirmedAt.plusSeconds(10));
 
     verify(upgradeInvoices, times(1)).assertPaidCanonicalInvoice(change, 900L);
-    verify(periods, times(1)).ensurePlatformPeriodSnapshot(company, paidPlan, paidPrice, confirmedAt, paidEnd);
+    verify(periods, times(1))
+        .ensurePlatformPeriodSnapshot(company, paidPlan, paidPrice, confirmedAt, paidEnd);
     verify(periods, times(1)).bindPlatformPeriodToSubscription(800L, subscription);
     assertEquals(SubscriptionChangeStatus.APPLIED, applied.status());
     assertEquals(SubscriptionChangeStatus.APPLIED, replay.status());
@@ -171,13 +184,13 @@ class FreeToPaidSubscriptionChangeTests {
     change.setIdempotencyKey("free-paid");
     change.setQuoteReference("UPG-700");
     change.setCurrency("INR");
-    change.setCurrentPriceSnapshot(BigDecimal.ZERO);
+    change.setCurrentPriceSnapshot(new BigDecimal("0.00"));
     change.setTargetPriceSnapshot(paidPrice.getAmount());
     change.setTargetProratedCharge(paidPrice.getAmount());
-    change.setUnusedCurrentCredit(BigDecimal.ZERO);
+    change.setUnusedCurrentCredit(new BigDecimal("0.00"));
     change.setNetAmount(paidPrice.getAmount());
     change.setAmountDue(paidPrice.getAmount());
-    change.setCreditAmount(BigDecimal.ZERO);
+    change.setCreditAmount(new BigDecimal("0.00"));
     return change;
   }
 
