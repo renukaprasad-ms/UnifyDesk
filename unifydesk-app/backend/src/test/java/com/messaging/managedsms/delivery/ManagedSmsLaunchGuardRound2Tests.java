@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.broadcast.entity.BroadcastMessage;
 import com.messaging.broadcast.entity.BroadcastSender;
 import com.messaging.broadcast.entity.BroadcastSenderConnection;
@@ -37,6 +38,7 @@ class ManagedSmsLaunchGuardRound2Tests {
             mock(ManagedSmsTemplateService.class),
             safety,
             mock(ManagedSmsUsageService.class),
+            mock(ManagedFinancialExposureGuard.class),
             mock(ManagedSmsSegmentCalculator.class),
             new ObjectMapper());
 
