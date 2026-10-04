@@ -260,7 +260,7 @@ public class SubscriptionCheckoutService {
     if (scheduledDowngrade.isPresent()) {
       renewalPlan = scheduledDowngrade.get().getToPlan();
       renewalPrice = scheduledDowngrade.get().getToPlanPrice();
-      assertPaidBoundaryPrice(renewalPlan, renewalPrice, nextStart);
+      assertBoundaryPrice(renewalPlan, renewalPrice, nextStart);
     } else {
       renewalPrice = resolveEffectivePrice(renewalPlan, currentCycle, nextStart);
     }
@@ -364,7 +364,7 @@ public class SubscriptionCheckoutService {
     }
   }
 
-  private void assertPaidBoundaryPrice(Plan plan, PlanPrice price, Instant at) {
+  private void assertBoundaryPrice(Plan plan, PlanPrice price, Instant at) {
     if (price == null
         || !price.getPlan().getId().equals(plan.getId())
         || price.getStatus() != RateCardStatus.ACTIVE) {
@@ -377,11 +377,6 @@ public class SubscriptionCheckoutService {
       throw new ConflictException(
           "Scheduled downgrade target PlanPrice is invalid at the renewal boundary");
     }
-    if (price.getBillingCycle() == BillingCycle.FREE
-        || price.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-      throw new ConflictException(
-          "Automatic paid renewal requires a positive non-FREE target PlanPrice");
-    }
   }
 
   private Instant nextBoundary(Instant start, BillingCycle cycle) {
@@ -389,7 +384,7 @@ public class SubscriptionCheckoutService {
     return switch (cycle) {
       case MONTHLY -> utc.plusMonths(1).toInstant();
       case YEARLY -> utc.plusYears(1).toInstant();
-      case FREE -> throw new BadRequestException("FREE has no paid platform boundary");
+      case FREE -> null;
     };
   }
 
