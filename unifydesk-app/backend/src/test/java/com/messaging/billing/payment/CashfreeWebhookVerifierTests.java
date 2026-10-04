@@ -84,11 +84,15 @@ class CashfreeWebhookVerifierTests {
   void invalidFreshnessConfigurationFailsClosed() throws Exception {
     properties.setWebhookMaxAgeSeconds(0);
     assertSignedRejected(NOW);
+    properties.setWebhookMaxAgeSeconds(-1);
+    assertSignedRejected(NOW);
     properties.setWebhookMaxAgeSeconds(3601);
     assertSignedRejected(NOW);
 
     properties.setWebhookMaxAgeSeconds(300);
     properties.setWebhookFutureSkewSeconds(0);
+    assertSignedRejected(NOW);
+    properties.setWebhookFutureSkewSeconds(-1);
     assertSignedRejected(NOW);
     properties.setWebhookFutureSkewSeconds(601);
     assertSignedRejected(NOW);
