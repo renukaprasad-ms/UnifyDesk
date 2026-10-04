@@ -143,6 +143,8 @@ public class AutomaticRenewalService {
       }
 
       store.release(job, now.plus(PROVIDER_OBSERVATION_DELAY), "COLLECTION_NOT_TERMINAL");
+    } catch (ConflictException exception) {
+      store.finish(job, "CONFLICT", invoiceId, paymentId, "COMMERCIAL_BOUNDARY_CONFLICT");
     } catch (RuntimeException exception) {
       if (paymentId != null) {
         try {
