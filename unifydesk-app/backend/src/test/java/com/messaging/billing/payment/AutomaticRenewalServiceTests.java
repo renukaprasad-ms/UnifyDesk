@@ -123,6 +123,24 @@ class AutomaticRenewalServiceTests {
   }
 
   @Test
+  void replayAfterCommittedZeroDueTransitionFinishesSameDurableJobSuccessfully() {
+    Instant boundary = Instant.parse("2026-10-10T00:00:00Z");
+    var job = job(boundary, 20L, null);
+    when(store.subscription(job))
+        .thenReturn(
+            new AutomaticRenewalStore.SubscriptionSnapshot(
+                SubscriptionStatus.ACTIVE, null, false, "CASHFREE"));
+    when(store.zeroDueBoundaryAlreadyApplied(job)).thenReturn(true);
+
+    service.processClaimed(job);
+
+    verify(store).finish(job, "ZERO_DUE_APPLIED", 20L, null, null);
+    verify(checkoutService, never()).createOrResolveRenewalInvoice(anyLong(), anyLong(), any(), any());
+    verify(collectionService, never()).prepareRecurringRenewal(anyLong(), anyLong(), anyLong());
+    verify(lifecycleService, never()).applyZeroDueBoundaryTransition(anyLong(), anyLong(), any());
+  }
+
+  @Test
   void commercialBoundaryConflictIsTerminalAndAuditable() {
     Instant boundary = Instant.parse("2026-10-10T00:00:00Z");
     var job = job(boundary, 20L, 30L);
