@@ -225,7 +225,7 @@ public class SubscriptionLifecycleService {
     if (confirmedAt == null) {
       throw new BadRequestException("Provider-confirmed renewal time is required");
     }
-    CompanySubscription subscription = requireRenewableForUpdate(subscriptionId);
+    CompanySubscription subscription = requireBoundaryEligibleForUpdate(subscriptionId);
     var nextPeriod =
         invoiceService.requirePaidCanonicalPlatformInvoice(
             subscription.getCompany().getId(), invoiceId);
@@ -246,7 +246,7 @@ public class SubscriptionLifecycleService {
     if (occurredAt == null) {
       throw new BadRequestException("Zero-due boundary time is required");
     }
-    CompanySubscription subscription = requireRenewableForUpdate(subscriptionId);
+    CompanySubscription subscription = requireBoundaryEligibleForUpdate(subscriptionId);
     var nextPeriod =
         invoiceService.requireZeroDueCanonicalPlatformInvoice(
             subscription.getCompany().getId(), invoiceId);
@@ -254,17 +254,12 @@ public class SubscriptionLifecycleService {
         subscription, nextPeriod, invoiceId, occurredAt, true, "Zero-due scheduled downgrade");
   }
 
-  private CompanySubscription requireRenewableForUpdate(Long subscriptionId) {
+  private CompanySubscription requireBoundaryEligibleForUpdate(Long subscriptionId) {
     CompanySubscription subscription = requireForUpdate(subscriptionId);
     if (subscription.getStatus() != SubscriptionStatus.ACTIVE
         && subscription.getStatus() != SubscriptionStatus.PAST_DUE
         && subscription.getStatus() != SubscriptionStatus.SUSPENDED) {
       throw new ConflictException("Subscription is not eligible for renewal boundary application");
-    }
-    if (subscription.getCurrentPeriodStart() == null
-        || subscription.getCurrentPeriodEnd() == null
-        || !subscription.getCurrentPeriodEnd().isAfter(subscription.getCurrentPeriodStart())) {
-      throw new BadRequestException("Subscription has no valid platform period to renew");
     }
     return subscription;
   }
@@ -292,6 +287,11 @@ public class SubscriptionLifecycleService {
         && subscription.getPlanPrice() != null
         && subscription.getPlanPrice().getId().equals(nextPeriod.getPlanPrice().getId())) {
       return subscription;
+    }
+    if (subscription.getCurrentPeriodStart() == null
+        || subscription.getCurrentPeriodEnd() == null
+        || !subscription.getCurrentPeriodEnd().isAfter(subscription.getCurrentPeriodStart())) {
+      throw new BadRequestException("Subscription has no valid platform period to renew");
     }
     if (!nextPeriod.getStartAt().equals(subscription.getCurrentPeriodEnd())) {
       throw new ConflictException(
