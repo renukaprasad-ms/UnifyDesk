@@ -7,6 +7,7 @@ import com.messaging.billing.enums.ServiceOwnership;
 import com.messaging.billing.enums.UsageUnit;
 import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.billing.service.EntitlementService;
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.billing.service.UsageBillingService;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.ProviderType;
@@ -34,6 +35,7 @@ public class ManagedSmsUsageService {
   private final JdbcTemplate jdbcTemplate;
   private final EntitlementService entitlementService;
   private final UsageBillingService usageBillingService;
+  private final ManagedFinancialExposureGuard financialExposureGuard;
 
   @Transactional(readOnly = true)
   public boolean canReserve(Long companyId, long segments) {
@@ -49,6 +51,7 @@ public class ManagedSmsUsageService {
     if (estimatedSegments <= 0) {
       throw new IllegalArgumentException("Managed SMS segment reservation must be positive");
     }
+    financialExposureGuard.assertAllowed(companyId);
     requireRecipientTuple(companyId, runId, recipientId);
     String key = reserveKey(recipientId, attemptNo);
     if (exists(companyId, runId, recipientId, attemptNo, key)) return;
