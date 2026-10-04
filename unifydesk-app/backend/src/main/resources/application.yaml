@@ -104,9 +104,6 @@ app:
       automatic-renewal-claim-seconds: ${APP_BILLING_CASHFREE_AUTOMATIC_RENEWAL_CLAIM_SECONDS:300}
       automatic-renewal-interval-ms: ${APP_BILLING_CASHFREE_AUTOMATIC_RENEWAL_INTERVAL_MS:60000}
       automatic-renewal-initial-delay-ms: ${APP_BILLING_CASHFREE_AUTOMATIC_RENEWAL_INITIAL_DELAY_MS:60000}
-      automatic-renewal-claim-seconds: ${APP_BILLING_CASHFREE_AUTOMATIC_RENEWAL_CLAIM_SECONDS:300}
-      automatic-renewal-interval-ms: ${APP_BILLING_CASHFREE_AUTOMATIC_RENEWAL_INTERVAL_MS:300000}
-      automatic-renewal-initial-delay-ms: ${APP_BILLING_CASHFREE_AUTOMATIC_RENEWAL_INITIAL_DELAY_MS:60000}
   recipient-action:
     encryption-key: ${APP_RECIPIENT_ACTION_KEY:}
     token-ttl: ${APP_RECIPIENT_ACTION_TOKEN_TTL:365d}
