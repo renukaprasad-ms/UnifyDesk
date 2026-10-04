@@ -102,16 +102,12 @@ public class BillingController {
   public ResponseEntity<ApiResponse<CompanySubscriptionResponse>> cancelSubscription(
       @PathVariable Long companyId, @RequestParam(defaultValue = "true") boolean atPeriodEnd) {
     requireSubscriptionCancel(companyId);
-    var cancelled =
+    CompanySubscriptionResponse cancelled =
         customerCancellationService.cancel(
             companyId, currentUserService.currentUserId(), atPeriodEnd);
     return ResponseEntity.ok(
         ApiResponse.success(
-            HttpStatus.OK.value(),
-            billingCatalogService.toSubscriptionResponse(cancelled),
-            cancelled.getCurrentPeriodEnd() == null
-                ? "FREE subscription cancelled"
-                : "Subscription cancellation scheduled"));
+            HttpStatus.OK.value(), cancelled, "Subscription cancellation accepted"));
   }
 
   @GetMapping("/companies/{companyId}/plan")
