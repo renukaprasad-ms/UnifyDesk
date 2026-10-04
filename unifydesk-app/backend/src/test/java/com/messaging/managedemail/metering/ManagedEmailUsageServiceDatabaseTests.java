@@ -6,6 +6,8 @@ import static org.mockito.Mockito.*;
 
 import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.billing.service.EntitlementService;
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
+import com.messaging.billing.service.UsageBillingService;
 import com.messaging.managedemail.runtime.ManagedEmailIdGenerator;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -86,7 +88,13 @@ class ManagedEmailUsageServiceDatabaseTests {
     ManagedEmailIdGenerator ids = mock(ManagedEmailIdGenerator.class);
     AtomicLong sequence = new AtomicLong(1000);
     when(ids.nextId()).thenAnswer(invocation -> sequence.incrementAndGet());
-    usage = new ManagedEmailUsageService(jdbc, entitlement, ids);
+    usage =
+        new ManagedEmailUsageService(
+            jdbc,
+            entitlement,
+            ids,
+            mock(UsageBillingService.class),
+            mock(ManagedFinancialExposureGuard.class));
   }
 
   @Test
