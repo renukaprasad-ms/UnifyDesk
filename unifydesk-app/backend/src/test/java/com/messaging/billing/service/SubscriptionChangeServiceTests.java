@@ -390,6 +390,8 @@ class SubscriptionChangeServiceTests {
     change.setChangeType(type);
     change.setStatus(SubscriptionChangeStatus.PENDING_PAYMENT);
     change.setRequestedAt(now);
+    change.setCurrentPeriodStart(current.getCurrentPeriodStart());
+    change.setCurrentPeriodEnd(current.getCurrentPeriodEnd());
     change.setEffectiveAt(now);
     change.setIdempotencyKey(key);
     change.setCurrency("INR");
