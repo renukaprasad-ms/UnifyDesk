@@ -95,6 +95,38 @@ class BillingPeriodServiceTests {
   }
 
   @Test
+  void preCreatedOldPlanBoundaryCannotBeRewrittenForScheduledDowngrade() {
+    Company company = company(1L);
+    Plan oldPlan = plan(2L);
+    Plan targetPlan = plan(3L);
+    PlanPrice oldPrice = price(20L, oldPlan);
+    PlanPrice targetPrice = price(30L, targetPlan);
+    Instant start = Instant.parse("2026-11-01T00:00:00Z");
+    Instant end = Instant.parse("2026-12-01T00:00:00Z");
+
+    BillingPeriod oldBoundary = period(5L, company, BillingPeriodKind.PLATFORM);
+    oldBoundary.setStartAt(start);
+    oldBoundary.setEndAt(end);
+    oldBoundary.setPlan(oldPlan);
+    oldBoundary.setPlanPrice(oldPrice);
+    oldBoundary.setPlatformAmountSnapshot(oldPrice.getAmount());
+    oldBoundary.setCurrencySnapshot("INR");
+
+    when(companyRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(company));
+    when(periodRepository.findByCompanyIdAndKindAndStartAt(
+            1L, BillingPeriodKind.PLATFORM, start))
+        .thenReturn(List.of(oldBoundary));
+
+    assertThrows(
+        ConflictException.class,
+        () -> service.ensurePlatformPeriodSnapshot(company, targetPlan, targetPrice, start, end));
+
+    assertEquals(oldPlan, oldBoundary.getPlan());
+    assertEquals(oldPrice, oldBoundary.getPlanPrice());
+    verify(periodRepository, never()).saveAndFlush(any(BillingPeriod.class));
+  }
+
+  @Test
   void prepaidPlatformSnapshotRejectsCallerControlledPeriodEnd() {
     Company company = company(1L);
     Plan plan = plan(2L);
