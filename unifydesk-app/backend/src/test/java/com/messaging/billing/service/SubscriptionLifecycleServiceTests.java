@@ -38,6 +38,7 @@ class SubscriptionLifecycleServiceTests {
   @Mock private SubscriptionTransitionRepository transitionRepository;
   @Mock private BillingPeriodService billingPeriodService;
   @Mock private InvoiceService invoiceService;
+  @Mock private SubscriptionBoundaryChangeService boundaryChangeService;
 
   @InjectMocks private SubscriptionLifecycleService service;
 
