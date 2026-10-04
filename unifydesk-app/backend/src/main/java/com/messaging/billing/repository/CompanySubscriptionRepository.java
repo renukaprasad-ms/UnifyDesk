@@ -20,6 +20,8 @@ public interface CompanySubscriptionRepository extends JpaRepository<CompanySubs
   Optional<CompanySubscription> findFirstByCompanyIdAndStatusInOrderByStartedAtDesc(
       Long companyId, Collection<SubscriptionStatus> statuses);
 
+  Optional<CompanySubscription> findFirstByCompanyIdOrderByStartedAtDescIdDesc(Long companyId);
+
   List<CompanySubscription> findByCompanyIdOrderByStartedAtDesc(Long companyId);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
