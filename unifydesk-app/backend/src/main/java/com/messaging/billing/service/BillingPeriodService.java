@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -105,7 +106,11 @@ public class BillingPeriodService {
       throw new BadRequestException("Platform period PlanPrice is not effective at period start");
     }
     Instant canonicalEnd = nextBoundary(start, price.getBillingCycle());
-    if (canonicalEnd == null || !canonicalEnd.equals(end)) {
+    if (price.getBillingCycle() == BillingCycle.FREE) {
+      if (end != null) {
+        throw new BadRequestException("FREE platform period must be open-ended");
+      }
+    } else if (canonicalEnd == null || !canonicalEnd.equals(end)) {
       throw new BadRequestException(
           "Prepaid platform period must follow the selected PlanPrice billing cycle");
     }
@@ -125,7 +130,7 @@ public class BillingPeriodService {
       period = ensure(locked, BillingPeriodKind.PLATFORM, price.getBillingCycle(), start, end);
     } else {
       period = existingBoundary.getFirst();
-      if (!period.getEndAt().equals(end)) {
+      if (!Objects.equals(period.getEndAt(), end)) {
         throw new ConflictException(
             "A different immutable PLATFORM period already owns this commercial boundary");
       }
@@ -160,7 +165,7 @@ public class BillingPeriodService {
     }
     if (!period.getCompany().getId().equals(subscription.getCompany().getId())
         || !period.getStartAt().equals(subscription.getCurrentPeriodStart())
-        || !period.getEndAt().equals(subscription.getCurrentPeriodEnd())) {
+        || !Objects.equals(period.getEndAt(), subscription.getCurrentPeriodEnd())) {
       throw new ConflictException("Platform period does not match subscription service range");
     }
     BigDecimal amount =
@@ -292,22 +297,45 @@ public class BillingPeriodService {
 
   private BillingPeriod ensure(
       Company company, BillingPeriodKind kind, BillingCycle cadence, Instant start, Instant end) {
-    if (start == null || end == null || !end.isAfter(start)) {
-      throw new BadRequestException("Billing periods use non-empty half-open [start,end) ranges");
+    if (start == null
+        || (cadence == BillingCycle.FREE && end != null)
+        || (cadence != BillingCycle.FREE && (end == null || !end.isAfter(start)))) {
+      throw new BadRequestException(
+          "Billing periods require [start,end), except FREE which is open-ended");
     }
-    return periodRepository
-        .findByCompanyIdAndKindAndStartAtAndEndAt(company.getId(), kind, start, end)
-        .orElseGet(
-            () -> {
-              BillingPeriod period = new BillingPeriod();
-              period.setCompany(company);
-              period.setKind(kind);
-              period.setCadence(cadence);
-              period.setStartAt(start);
-              period.setEndAt(end);
-              period.setStatus(BillingPeriodStatus.OPEN);
-              return periodRepository.saveAndFlush(period);
-            });
+
+    if (cadence == BillingCycle.FREE) {
+      List<BillingPeriod> existing =
+          periodRepository.findByCompanyIdAndKindAndStartAt(company.getId(), kind, start);
+      if (existing.size() > 1) {
+        throw new ConflictException(
+            "Multiple open-ended billing periods exist for the same commercial boundary");
+      }
+      if (!existing.isEmpty()) {
+        BillingPeriod period = existing.getFirst();
+        if (period.getEndAt() != null || period.getCadence() != BillingCycle.FREE) {
+          throw new ConflictException(
+              "A different immutable billing period already owns this boundary");
+        }
+        return period;
+      }
+    } else {
+      var existing =
+          periodRepository.findByCompanyIdAndKindAndStartAtAndEndAt(
+              company.getId(), kind, start, end);
+      if (existing.isPresent()) {
+        return existing.get();
+      }
+    }
+
+    BillingPeriod period = new BillingPeriod();
+    period.setCompany(company);
+    period.setKind(kind);
+    period.setCadence(cadence);
+    period.setStartAt(start);
+    period.setEndAt(end);
+    period.setStatus(BillingPeriodStatus.OPEN);
+    return periodRepository.saveAndFlush(period);
   }
 
   private BillingPeriodResponse toResponse(BillingPeriod period) {
