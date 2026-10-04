@@ -2,17 +2,32 @@ package com.messaging.billing.payment;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Base64;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 public class CashfreeWebhookVerifier {
 
+  private static final long MAX_CONFIGURED_PAST_AGE_SECONDS = 3600L;
+  private static final long MAX_CONFIGURED_FUTURE_SKEW_SECONDS = 600L;
+
   private final CashfreeProperties properties;
+  private final Clock clock;
+
+  @Autowired
+  public CashfreeWebhookVerifier(CashfreeProperties properties) {
+    this(properties, Clock.systemUTC());
+  }
+
+  CashfreeWebhookVerifier(CashfreeProperties properties, Clock clock) {
+    this.properties = properties;
+    this.clock = clock;
+  }
 
   public boolean verify(byte[] rawBody, String timestamp, String signature) {
     if (rawBody == null
@@ -21,7 +36,8 @@ public class CashfreeWebhookVerifier {
         || signature == null
         || signature.isBlank()
         || properties.getClientSecret() == null
-        || properties.getClientSecret().isBlank()) {
+        || properties.getClientSecret().isBlank()
+        || !isFresh(timestamp)) {
       return false;
     }
     try {
@@ -34,6 +50,30 @@ public class CashfreeWebhookVerifier {
       byte[] supplied = Base64.getDecoder().decode(signature);
       return MessageDigest.isEqual(expected, supplied);
     } catch (Exception exception) {
+      return false;
+    }
+  }
+
+  private boolean isFresh(String timestamp) {
+    long maxAgeSeconds = properties.getWebhookMaxAgeSeconds();
+    long futureSkewSeconds = properties.getWebhookFutureSkewSeconds();
+    if (maxAgeSeconds <= 0
+        || maxAgeSeconds > MAX_CONFIGURED_PAST_AGE_SECONDS
+        || futureSkewSeconds <= 0
+        || futureSkewSeconds > MAX_CONFIGURED_FUTURE_SKEW_SECONDS) {
+      return false;
+    }
+
+    try {
+      // Cashfree's x-webhook-timestamp is the epoch-millisecond string that is also signed verbatim.
+      if (!timestamp.chars().allMatch(Character::isDigit)) {
+        return false;
+      }
+      Instant webhookAt = Instant.ofEpochMilli(Long.parseLong(timestamp));
+      Instant now = clock.instant();
+      return !webhookAt.isBefore(now.minusSeconds(maxAgeSeconds))
+          && !webhookAt.isAfter(now.plusSeconds(futureSkewSeconds));
+    } catch (RuntimeException exception) {
       return false;
     }
   }
