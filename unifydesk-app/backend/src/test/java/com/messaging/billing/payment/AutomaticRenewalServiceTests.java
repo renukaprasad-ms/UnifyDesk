@@ -8,6 +8,7 @@ import com.messaging.billing.enums.InvoiceStatus;
 import com.messaging.billing.enums.PaymentStatus;
 import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.service.SubscriptionCheckoutService;
+import com.messaging.common.exception.ConflictException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -71,6 +72,25 @@ class AutomaticRenewalServiceTests {
     verify(chargeService).charge(30L, boundary);
     verify(confirmationService).applyDeferredRenewal(eq(30L), any());
     verify(store).finish(job, "RECOVERED", 20L, 30L, null);
+  }
+
+  @Test
+  void commercialBoundaryConflictIsTerminalAndAuditable() {
+    Instant boundary = Instant.parse("2026-10-10T00:00:00Z");
+    var job = job(boundary, 20L, 30L);
+    when(store.paymentStatus(30L)).thenReturn(PaymentStatus.PENDING);
+    when(store.subscription(job))
+        .thenReturn(
+            new AutomaticRenewalStore.SubscriptionSnapshot(
+                SubscriptionStatus.ACTIVE, boundary, false, "CASHFREE"));
+    when(checkoutService.createOrResolveRenewalInvoice(eq(10L), eq(77L), any(), isNull()))
+        .thenThrow(new ConflictException("old-plan boundary already owns financial truth"));
+
+    service.processClaimed(job);
+
+    verify(store).finish(job, "CONFLICT", 20L, 30L, "COMMERCIAL_BOUNDARY_CONFLICT");
+    verify(collectionService, never()).prepareRecurringRenewal(anyLong(), anyLong(), anyLong());
+    verify(confirmationService, never()).applyDeferredRenewal(anyLong(), any());
   }
 
   @Test
