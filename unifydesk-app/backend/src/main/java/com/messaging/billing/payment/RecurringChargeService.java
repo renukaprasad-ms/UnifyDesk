@@ -44,6 +44,15 @@ public class RecurringChargeService {
         chargeStore.prepare(paymentId, authorization.providerSubscriptionId());
     if (prepared.logicalSucceeded()) return;
 
+    // This is the final local commercial gate before any provider read/submit for the recurring
+    // command. A stale command is terminalized locally and never reaches Cashfree.
+    try {
+      chargeStore.assertCommerciallyCurrent(prepared, scheduledAt);
+    } catch (ConflictException conflict) {
+      chargeStore.markCommercialConflict(prepared.attemptId());
+      throw conflict;
+    }
+
     try {
       PaymentProviderGateway.RemoteSubscriptionPayment remote =
           prepared.newlyCreated()

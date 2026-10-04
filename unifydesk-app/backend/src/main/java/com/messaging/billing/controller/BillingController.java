@@ -8,6 +8,7 @@ import com.messaging.billing.dto.RequestUpgradeRequest;
 import com.messaging.billing.dto.ScheduleDowngradeRequest;
 import com.messaging.billing.dto.SubscriptionChangeResponse;
 import com.messaging.billing.service.BillingCatalogService;
+import com.messaging.billing.service.CustomerSubscriptionCancellationService;
 import com.messaging.billing.service.SubscriptionChangeService;
 import com.messaging.common.exception.BadRequestException;
 import com.messaging.common.exception.NotFoundException;
@@ -30,6 +31,7 @@ public class BillingController {
 
   private final BillingCatalogService billingCatalogService;
   private final SubscriptionChangeService subscriptionChangeService;
+  private final CustomerSubscriptionCancellationService customerCancellationService;
   private final CompanyAuthorizationService companyAuthorizationService;
   private final CurrentUserService currentUserService;
 
@@ -100,12 +102,12 @@ public class BillingController {
   public ResponseEntity<ApiResponse<CompanySubscriptionResponse>> cancelSubscription(
       @PathVariable Long companyId, @RequestParam(defaultValue = "true") boolean atPeriodEnd) {
     requireSubscriptionCancel(companyId);
+    CompanySubscriptionResponse cancelled =
+        customerCancellationService.cancel(
+            companyId, currentUserService.currentUserId(), atPeriodEnd);
     return ResponseEntity.ok(
         ApiResponse.success(
-            HttpStatus.OK.value(),
-            billingCatalogService.cancelSubscription(
-                companyId, currentUserService.currentUserId(), atPeriodEnd),
-            "Subscription cancellation scheduled"));
+            HttpStatus.OK.value(), cancelled, "Subscription cancellation accepted"));
   }
 
   @GetMapping("/companies/{companyId}/plan")

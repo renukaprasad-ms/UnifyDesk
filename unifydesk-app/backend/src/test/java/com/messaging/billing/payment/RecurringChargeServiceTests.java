@@ -1,9 +1,11 @@
 package com.messaging.billing.payment;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import com.messaging.billing.enums.PaymentAttemptStatus;
+import com.messaging.common.exception.ConflictException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -50,6 +52,7 @@ class RecurringChargeServiceTests {
 
     service.charge(30L, scheduledAt);
 
+    verify(charges).assertCommerciallyCurrent(prepared, scheduledAt);
     verify(gateway)
         .chargeAuthorizedSubscription(
             eq("UDS-77"),
@@ -67,6 +70,23 @@ class RecurringChargeServiceTests {
             eq(PaymentAttemptStatus.PENDING),
             isNull(),
             isNull());
+  }
+
+  @Test
+  void staleCommercialStateNeverCallsCashfreeAndTerminalizesLocalCommand() {
+    Instant scheduledAt = Instant.parse("2026-10-10T00:00:00Z");
+    var prepared = prepared(true);
+    when(charges.prepare(30L, "UDS-77")).thenReturn(prepared);
+    doThrow(new ConflictException("stale commercial state"))
+        .when(charges)
+        .assertCommerciallyCurrent(prepared, scheduledAt);
+
+    assertThrows(ConflictException.class, () -> service.charge(30L, scheduledAt));
+
+    verify(charges).markCommercialConflict(41L);
+    verifyNoInteractions(gateway);
+    verifyNoInteractions(confirmations);
+    verify(charges, never()).markAmbiguous(anyLong());
   }
 
   @Test

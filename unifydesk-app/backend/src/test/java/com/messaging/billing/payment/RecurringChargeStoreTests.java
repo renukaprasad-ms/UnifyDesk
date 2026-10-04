@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 class RecurringChargeStoreTests {
 
@@ -24,7 +25,8 @@ class RecurringChargeStoreTests {
   void httpResponseAfterWebhookSuccessBindsSameCommandAttemptWithoutCreatingAnotherAttempt() {
     PaymentRepository payments = mock(PaymentRepository.class);
     PaymentAttemptRepository attempts = mock(PaymentAttemptRepository.class);
-    RecurringChargeStore store = new RecurringChargeStore(payments, attempts);
+    JdbcTemplate jdbc = mock(JdbcTemplate.class);
+    RecurringChargeStore store = new RecurringChargeStore(payments, attempts, jdbc);
 
     Payment payment = renewalPayment();
     PaymentAttempt attempt = recurringAttempt(payment);
