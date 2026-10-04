@@ -50,6 +50,8 @@ class SubscriptionBoundaryChangeServiceTests {
     CompanySubscription subscription =
         subscription(staleBoundary, Instant.parse("2026-12-01T00:00:00Z"));
     SubscriptionChange stale = change(subscription, originalStart, staleBoundary);
+    stale.getToPlanPrice().setAmount(BigDecimal.ZERO);
+    stale.getToPlanPrice().setBillingCycle(BillingCycle.FREE);
 
     when(repository.findScheduledDowngradesUpToBoundaryForUpdate(
             40L, subscription.getCurrentPeriodEnd()))
