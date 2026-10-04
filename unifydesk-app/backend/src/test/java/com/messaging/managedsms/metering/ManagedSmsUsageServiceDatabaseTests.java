@@ -23,6 +23,7 @@ class ManagedSmsUsageServiceDatabaseTests {
   private TransactionTemplate transaction;
   private EntitlementService entitlement;
   private UsageBillingService billing;
+  private ManagedFinancialExposureGuard exposure;
   private ManagedSmsUsageService usage;
 
   @BeforeAll
@@ -95,9 +96,26 @@ class ManagedSmsUsageServiceDatabaseTests {
 
     entitlement = mock(EntitlementService.class);
     billing = mock(UsageBillingService.class);
+    exposure = mock(ManagedFinancialExposureGuard.class);
     usage =
         new ManagedSmsUsageService(
-            jdbc, entitlement, billing, mock(ManagedFinancialExposureGuard.class));
+            jdbc, entitlement, billing, exposure);
+  }
+
+  @Test
+  void blockedBillingStatusCreatesNoManagedSmsReservation() {
+    doThrow(new PlanEntitlementException(ManagedFinancialExposureGuard.BLOCKED))
+        .when(exposure)
+        .assertAllowed(10L);
+
+    assertThatThrownBy(() -> usage.reserve(10L, 60L, 70L, 1, 1))
+        .isInstanceOf(PlanEntitlementException.class)
+        .hasMessage(ManagedFinancialExposureGuard.BLOCKED);
+
+    assertThat(
+            jdbc.queryForObject("select count(*) from managed_sms_usage_reservations", Long.class))
+        .isZero();
+    verifyNoInteractions(billing);
   }
 
   @Test
