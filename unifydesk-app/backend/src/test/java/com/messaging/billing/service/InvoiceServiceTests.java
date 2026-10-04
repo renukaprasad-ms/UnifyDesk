@@ -116,6 +116,60 @@ class InvoiceServiceTests {
   }
 
   @Test
+  void zeroDuePlatformInvoiceIsCanonicalWithoutPaidStatus() {
+    BillingPeriod period = platformPeriod(10L);
+    period.setPlatformAmountSnapshot(BigDecimal.ZERO);
+    period.getPlanPrice().setAmount(BigDecimal.ZERO);
+    Invoice invoice = invoice(20L, period, InvoiceStatus.OPEN);
+    invoice.setTotal(BigDecimal.ZERO);
+    invoice.setAmountDue(BigDecimal.ZERO);
+    invoice.setServicePeriodStart(period.getStartAt());
+    invoice.setServicePeriodEnd(period.getEndAt());
+
+    InvoiceLineItem line = new InvoiceLineItem();
+    line.setId(30L);
+    line.setInvoice(invoice);
+    line.setLineType(InvoiceLineType.PLATFORM_PLAN);
+    line.setAmount(BigDecimal.ZERO);
+    line.setServicePeriodStart(period.getStartAt());
+    line.setServicePeriodEnd(period.getEndAt());
+    line.setIdempotencyKey("PLATFORM_PERIOD:10");
+
+    when(invoiceRepository.findByIdForUpdate(20L)).thenReturn(Optional.of(invoice));
+    when(lineRepository.findByInvoiceIdAndIdempotencyKey(20L, "PLATFORM_PERIOD:10"))
+        .thenReturn(Optional.of(line));
+
+    assertEquals(period, service.requireZeroDueCanonicalPlatformInvoice(1L, 20L));
+  }
+
+  @Test
+  void nonZeroPlatformInvoiceCannotUseZeroDueBoundary() {
+    BillingPeriod period = platformPeriod(10L);
+    Invoice invoice = invoice(20L, period, InvoiceStatus.OPEN);
+    invoice.setTotal(new BigDecimal("100.00"));
+    invoice.setAmountDue(new BigDecimal("100.00"));
+    invoice.setServicePeriodStart(period.getStartAt());
+    invoice.setServicePeriodEnd(period.getEndAt());
+
+    InvoiceLineItem line = new InvoiceLineItem();
+    line.setId(30L);
+    line.setInvoice(invoice);
+    line.setLineType(InvoiceLineType.PLATFORM_PLAN);
+    line.setAmount(new BigDecimal("100.00"));
+    line.setServicePeriodStart(period.getStartAt());
+    line.setServicePeriodEnd(period.getEndAt());
+    line.setIdempotencyKey("PLATFORM_PERIOD:10");
+
+    when(invoiceRepository.findByIdForUpdate(20L)).thenReturn(Optional.of(invoice));
+    when(lineRepository.findByInvoiceIdAndIdempotencyKey(20L, "PLATFORM_PERIOD:10"))
+        .thenReturn(Optional.of(line));
+
+    assertThrows(
+        ConflictException.class,
+        () -> service.requireZeroDueCanonicalPlatformInvoice(1L, 20L));
+  }
+
+  @Test
   void exactInvoiceLineReplayDoesNotDuplicateCharge() {
     BillingPeriod period = platformPeriod(10L);
     Invoice invoice = invoice(20L, period, InvoiceStatus.DRAFT);
