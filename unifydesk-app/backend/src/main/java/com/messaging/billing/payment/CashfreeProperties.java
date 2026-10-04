@@ -17,6 +17,8 @@ public class CashfreeProperties {
   private int webhookMaxAttempts = 8;
   private long webhookRetryBaseSeconds = 300L;
   private long webhookClaimSeconds = 120L;
+  private long webhookMaxAgeSeconds = 300L;
+  private long webhookFutureSkewSeconds = 60L;
   private long dunningClaimSeconds = 300L;
   private long automaticRenewalClaimSeconds = 300L;
 
@@ -42,6 +44,10 @@ public class CashfreeProperties {
   public void setWebhookRetryBaseSeconds(long webhookRetryBaseSeconds) { this.webhookRetryBaseSeconds = webhookRetryBaseSeconds; }
   public long getWebhookClaimSeconds() { return webhookClaimSeconds; }
   public void setWebhookClaimSeconds(long webhookClaimSeconds) { this.webhookClaimSeconds = webhookClaimSeconds; }
+  public long getWebhookMaxAgeSeconds() { return webhookMaxAgeSeconds; }
+  public void setWebhookMaxAgeSeconds(long webhookMaxAgeSeconds) { this.webhookMaxAgeSeconds = webhookMaxAgeSeconds; }
+  public long getWebhookFutureSkewSeconds() { return webhookFutureSkewSeconds; }
+  public void setWebhookFutureSkewSeconds(long webhookFutureSkewSeconds) { this.webhookFutureSkewSeconds = webhookFutureSkewSeconds; }
   public long getDunningClaimSeconds() { return dunningClaimSeconds; }
   public void setDunningClaimSeconds(long dunningClaimSeconds) { this.dunningClaimSeconds = dunningClaimSeconds; }
   public long getAutomaticRenewalClaimSeconds() { return automaticRenewalClaimSeconds; }

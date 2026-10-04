@@ -3,6 +3,7 @@ package com.messaging.managedemail.delivery;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.broadcast.entity.BroadcastRecipient;
 import com.messaging.broadcast.entity.BroadcastRun;
 import com.messaging.broadcast.entity.BroadcastSender;
@@ -43,6 +44,7 @@ class ManagedEmailExistingProviderRegressionTests {
         mock(ManagedEmailPostAcceptanceReconciler.class);
     ManagedEmailSuppressionGate suppressionGate = mock(ManagedEmailSuppressionGate.class);
     ManagedEmailProviderBudgetService budget = mock(ManagedEmailProviderBudgetService.class);
+    ManagedFinancialExposureGuard exposure = mock(ManagedFinancialExposureGuard.class);
     BroadcastEmailTransport transport = mock(BroadcastEmailTransport.class);
     ContactEligibilityService contactEligibility = mock(ContactEligibilityService.class);
     BroadcastWhatsAppDeliveryService whatsAppDelivery = mock(BroadcastWhatsAppDeliveryService.class);
@@ -113,6 +115,7 @@ class ManagedEmailExistingProviderRegressionTests {
             reconciler,
             suppressionGate,
             budget,
+            exposure,
             contactEligibility,
             whatsAppDelivery);
 
@@ -128,6 +131,7 @@ class ManagedEmailExistingProviderRegressionTests {
         reconciler,
         suppressionGate,
         budget,
+        exposure,
         contactEligibility,
         whatsAppDelivery);
   }

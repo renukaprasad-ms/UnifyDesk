@@ -3,6 +3,7 @@ package com.messaging.managedemail.delivery;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.managedemail.metering.ManagedEmailUsageService;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeProperties;
 import com.messaging.managedemail.runtime.ManagedEmailRuntimeRepository;
@@ -184,7 +185,8 @@ class ManagedEmailProviderBudgetServiceDatabaseTests {
   }
 
   private ManagedEmailProviderBudgetService service() {
-    return new ManagedEmailProviderBudgetService(jdbc, usage, properties);
+    return new ManagedEmailProviderBudgetService(
+        jdbc, usage, properties, mock(ManagedFinancialExposureGuard.class));
   }
 
   private void insertCommit(long id, long recipientId, Instant at) {

@@ -3,6 +3,7 @@ package com.messaging.managedsms.delivery;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.billing.exception.PlanEntitlementException;
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.broadcast.entity.BroadcastRecipient;
 import com.messaging.broadcast.entity.BroadcastRun;
 import com.messaging.broadcast.entity.BroadcastSender;
@@ -32,6 +33,7 @@ public class ManagedSmsDeliveryCoordinator {
   private final ManagedSmsDeliveryGuard deliveryGuard;
   private final ManagedSmsRateLimiter rateLimiter;
   private final ManagedSmsUsageService usageService;
+  private final ManagedFinancialExposureGuard financialExposureGuard;
   private final ManagedSmsSegmentCalculator segmentCalculator;
   private final ManagedSmsTemplateService templateService;
   private final ManagedSmsCorrelationService correlationService;
@@ -85,6 +87,7 @@ public class ManagedSmsDeliveryCoordinator {
           correlationService.create(
               run.getCompanyId(), run.getId(), recipient.getId(), attempt.attemptNo());
 
+      financialExposureGuard.assertAllowed(run.getCompanyId());
       providerSubmissionStarted = true;
       ManagedSmsSendResult result =
           gateway.send(
@@ -120,10 +123,18 @@ public class ManagedSmsDeliveryCoordinator {
             recipient.getId());
       }
     } catch (PlanEntitlementException exception) {
+      if (reserved) {
+        usageService.release(
+            run.getCompanyId(), run.getId(), recipient.getId(), attempt.attemptNo());
+      }
+      boolean exposureBlocked =
+          ManagedFinancialExposureGuard.BLOCKED.equals(exception.getMessage());
       stateService.retry(
           attempt,
-          "MANAGED_SMS_LIMIT_REACHED",
-          "Managed SMS usage limit reached",
+          exposureBlocked ? ManagedFinancialExposureGuard.BLOCKED : "MANAGED_SMS_LIMIT_REACHED",
+          exposureBlocked
+              ? "Managed SMS billing status does not permit new provider spend"
+              : "Managed SMS usage limit reached",
           Instant.now().plusSeconds(60));
     } catch (BadRequestException exception) {
       if (reserved) {
