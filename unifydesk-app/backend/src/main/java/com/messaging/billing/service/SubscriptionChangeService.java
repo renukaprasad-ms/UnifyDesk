@@ -37,7 +37,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class SubscriptionChangeService {
-
   private static final int CLAIM_BATCH_SIZE = 100;
 
   private final SubscriptionChangeRepository changeRepository;
@@ -54,12 +53,8 @@ public class SubscriptionChangeService {
 
   @Transactional
   public SubscriptionChangeResponse requestUpgrade(
-      Long companyId,
-      Long targetPlanId,
-      Long targetPlanPriceId,
-      String idempotencyKey,
-      Long requestedByUserId,
-      Instant requestedAt) {
+      Long companyId, Long targetPlanId, Long targetPlanPriceId, String idempotencyKey,
+      Long requestedByUserId, Instant requestedAt) {
     lockCompany(companyId);
     String key = validateIdempotencyKey(idempotencyKey);
     var prior = changeRepository.findByCompanyIdAndIdempotencyKey(companyId, key);
@@ -67,52 +62,24 @@ public class SubscriptionChangeService {
       assertSameCommand(prior.get(), targetPlanId, targetPlanPriceId, SubscriptionChangeType.UPGRADE);
       return toResponse(prior.get());
     }
-
     CompanySubscription current = lifecycleService.currentForUpdate(companyId);
-    if (current.getStatus() != SubscriptionStatus.ACTIVE) {
-      throw new ConflictException("Only an active subscription can be upgraded");
-    }
+    if (current.getStatus() != SubscriptionStatus.ACTIVE) throw new ConflictException("Only an active subscription can be upgraded");
     PlanPrice currentPrice = current.getPlanPrice();
-    if (currentPrice == null) {
-      throw new BadRequestException("Current subscription has no price snapshot");
-    }
+    if (currentPrice == null) throw new BadRequestException("Current subscription has no price snapshot");
 
     Plan target = requireTarget(companyId, targetPlanId, requestedAt);
     PlanPrice targetPrice = requirePrice(target, targetPlanPriceId, requestedAt);
-    PlanChangeDirection direction =
-        planChangeClassifier.classify(current.getPlan(), currentPrice, target, targetPrice);
-    if (direction != PlanChangeDirection.UPGRADE) {
-      throw new ConflictException(
-          "Selected target is not an authoritative upgrade; use the canonical change contract");
+    if (planChangeClassifier.classify(current.getPlan(), currentPrice, target, targetPrice) != PlanChangeDirection.UPGRADE) {
+      throw new ConflictException("Selected target is not an authoritative upgrade; use the canonical change contract");
     }
+    boolean openEndedFree = currentPrice.getBillingCycle() == BillingCycle.FREE
+        && currentPrice.getAmount().compareTo(BigDecimal.ZERO) == 0
+        && current.getCurrentPeriodEnd() == null;
+    UpgradeProrationQuote quote = openEndedFree
+        ? prorationCalculator.quoteFromFree(currentPrice.getAmount(), targetPrice.getAmount(), targetPrice.getBillingCycle(), requestedAt, "INR")
+        : prorationCalculator.quote(currentPrice.getAmount(), targetPrice.getAmount(), targetPrice.getBillingCycle(), current.getCurrentPeriodStart(), current.getCurrentPeriodEnd(), requestedAt, "INR");
 
-    boolean openEndedFree =
-        currentPrice.getBillingCycle() == BillingCycle.FREE
-            && currentPrice.getAmount().compareTo(BigDecimal.ZERO) == 0
-            && current.getCurrentPeriodEnd() == null;
-    UpgradeProrationQuote quote =
-        openEndedFree
-            ? prorationCalculator.quoteFromFree(
-                currentPrice.getAmount(), targetPrice.getAmount(), targetPrice.getBillingCycle(), requestedAt, "INR")
-            : prorationCalculator.quote(
-                currentPrice.getAmount(),
-                targetPrice.getAmount(),
-                targetPrice.getBillingCycle(),
-                current.getCurrentPeriodStart(),
-                current.getCurrentPeriodEnd(),
-                requestedAt,
-                "INR");
-
-    SubscriptionChange change =
-        baseChange(
-            current,
-            target,
-            targetPrice,
-            SubscriptionChangeType.UPGRADE,
-            key,
-            requestedByUserId,
-            requestedAt,
-            requestedAt);
+    SubscriptionChange change = baseChange(current, target, targetPrice, SubscriptionChangeType.UPGRADE, key, requestedByUserId, requestedAt, requestedAt);
     change.setStatus(SubscriptionChangeStatus.PENDING_PAYMENT);
     change.setCurrentPriceSnapshot(quote.currentPrice());
     change.setTargetPriceSnapshot(quote.targetPrice());
@@ -123,24 +90,17 @@ public class SubscriptionChangeService {
     change.setNetAmount(quote.netAmount());
     change.setAmountDue(quote.amountDue());
     change.setCreditAmount(quote.creditAmount());
-
     SubscriptionChange saved = changeRepository.saveAndFlush(change);
     saved.setQuoteReference("UPG-" + saved.getId());
     saved = changeRepository.saveAndFlush(saved);
-    if (quote.amountDue().signum() == 0) {
-      return applyConfirmedUpgrade(saved.getId(), null, requestedAt);
-    }
+    if (quote.amountDue().signum() == 0) return applyConfirmedUpgrade(saved.getId(), null, requestedAt);
     return toResponse(saved);
   }
 
   @Transactional
   public SubscriptionChangeResponse scheduleDowngrade(
-      Long companyId,
-      Long targetPlanId,
-      Long targetPlanPriceId,
-      String idempotencyKey,
-      Long requestedByUserId,
-      Instant requestedAt) {
+      Long companyId, Long targetPlanId, Long targetPlanPriceId, String idempotencyKey,
+      Long requestedByUserId, Instant requestedAt) {
     lockCompany(companyId);
     String key = validateIdempotencyKey(idempotencyKey);
     var prior = changeRepository.findByCompanyIdAndIdempotencyKey(companyId, key);
@@ -148,39 +108,18 @@ public class SubscriptionChangeService {
       assertSameCommand(prior.get(), targetPlanId, targetPlanPriceId, SubscriptionChangeType.DOWNGRADE);
       return toResponse(prior.get());
     }
-
     CompanySubscription current = lifecycleService.currentForUpdate(companyId);
-    if (current.getStatus() != SubscriptionStatus.ACTIVE) {
-      throw new ConflictException("Only an active subscription can be downgraded");
-    }
-    if (requestedAt == null || current.getCurrentPeriodEnd() == null) {
-      throw new BadRequestException("Downgrade requires a future current billing-period boundary");
-    }
-    PlanPrice currentPrice = current.getPlanPrice();
-    if (currentPrice == null) {
-      throw new BadRequestException("Current subscription has no price snapshot");
-    }
+    if (current.getStatus() != SubscriptionStatus.ACTIVE) throw new ConflictException("Only an active subscription can be downgraded");
+    if (requestedAt == null || current.getCurrentPeriodEnd() == null) throw new BadRequestException("Downgrade requires a future current billing-period boundary");
+    if (current.getPlanPrice() == null) throw new BadRequestException("Current subscription has no price snapshot");
 
     DowngradeScheduleSource schedule = resolveDowngradeScheduleSource(current, requestedAt);
     Plan target = requireTarget(companyId, targetPlanId, requestedAt);
     PlanPrice targetPrice = requirePrice(target, targetPlanPriceId, schedule.effectiveAt());
-    PlanChangeDirection direction =
-        planChangeClassifier.classify(schedule.fromPlan(), schedule.fromPlanPrice(), target, targetPrice);
-    if (direction != PlanChangeDirection.DOWNGRADE) {
-      throw new ConflictException(
-          "Selected target is not an authoritative downgrade; use the canonical change contract");
+    if (planChangeClassifier.classify(schedule.fromPlan(), schedule.fromPlanPrice(), target, targetPrice) != PlanChangeDirection.DOWNGRADE) {
+      throw new ConflictException("Selected target is not an authoritative downgrade; use the canonical change contract");
     }
-
-    SubscriptionChange change =
-        baseChange(
-            current,
-            target,
-            targetPrice,
-            SubscriptionChangeType.DOWNGRADE,
-            key,
-            requestedByUserId,
-            requestedAt,
-            schedule.effectiveAt());
+    SubscriptionChange change = baseChange(current, target, targetPrice, SubscriptionChangeType.DOWNGRADE, key, requestedByUserId, requestedAt, schedule.effectiveAt());
     change.setFromPlan(schedule.fromPlan());
     change.setFromPlanPrice(schedule.fromPlanPrice());
     change.setStatus(SubscriptionChangeStatus.SCHEDULED);
@@ -191,54 +130,36 @@ public class SubscriptionChangeService {
     change.setNetAmount(BigDecimal.ZERO);
     change.setAmountDue(BigDecimal.ZERO);
     change.setCreditAmount(BigDecimal.ZERO);
-
     SubscriptionChange saved = changeRepository.saveAndFlush(change);
     saved.setQuoteReference("DNG-" + saved.getId());
     return toResponse(changeRepository.saveAndFlush(saved));
   }
 
   @Transactional
-  public SubscriptionChangeResponse applyConfirmedUpgrade(
-      Long changeId, Long invoiceId, Instant confirmedAt) {
-    SubscriptionChange change =
-        changeRepository.findByIdForUpdate(changeId)
-            .orElseThrow(() -> new NotFoundException("Subscription change not found"));
-    if (change.getChangeType() != SubscriptionChangeType.UPGRADE) {
-      throw new BadRequestException("Subscription change is not an upgrade");
-    }
+  public SubscriptionChangeResponse applyConfirmedUpgrade(Long changeId, Long invoiceId, Instant confirmedAt) {
+    SubscriptionChange change = changeRepository.findByIdForUpdate(changeId).orElseThrow(() -> new NotFoundException("Subscription change not found"));
+    if (change.getChangeType() != SubscriptionChangeType.UPGRADE) throw new BadRequestException("Subscription change is not an upgrade");
     if (change.getStatus() == SubscriptionChangeStatus.APPLIED) return toResponse(change);
-    if (change.getStatus() != SubscriptionChangeStatus.PENDING_PAYMENT) {
-      throw new ConflictException("Upgrade is not awaiting payment confirmation");
-    }
+    if (change.getStatus() != SubscriptionChangeStatus.PENDING_PAYMENT) throw new ConflictException("Upgrade is not awaiting payment confirmation");
     if (confirmedAt == null) throw new BadRequestException("Confirmed upgrade time is required");
     if (change.getAmountDue() != null && change.getAmountDue().signum() > 0) {
-      if (invoiceId == null) {
-        throw new ConflictException("A paid upgrade cannot be applied without confirmed financial evidence");
-      }
+      if (invoiceId == null) throw new ConflictException("A paid upgrade cannot be applied without confirmed financial evidence");
       upgradeInvoiceService.assertPaidCanonicalInvoice(change, invoiceId);
     }
-
     CompanySubscription subscription = lifecycleService.requireForUpdate(change.getSubscription().getId());
-    if (subscription.getStatus() != SubscriptionStatus.ACTIVE) {
-      throw new ConflictException("Subscription is not active");
-    }
+    if (subscription.getStatus() != SubscriptionStatus.ACTIVE) throw new ConflictException("Subscription is not active");
     assertSubscriptionStillMatches(change, subscription);
 
-    boolean fromOpenEndedFree =
-        change.getFromPlanPrice() != null
-            && change.getFromPlanPrice().getBillingCycle() == BillingCycle.FREE
-            && change.getFromPlanPrice().getAmount().compareTo(BigDecimal.ZERO) == 0
-            && subscription.getCurrentPeriodEnd() == null;
+    boolean fromOpenEndedFree = change.getFromPlanPrice() != null
+        && change.getFromPlanPrice().getBillingCycle() == BillingCycle.FREE
+        && change.getFromPlanPrice().getAmount().compareTo(BigDecimal.ZERO) == 0
+        && subscription.getCurrentPeriodEnd() == null;
     Plan fromPlan = subscription.getPlan();
     if (fromOpenEndedFree) {
       PlanPrice targetPrice = change.getToPlanPrice();
-      if (targetPrice.getBillingCycle() == BillingCycle.FREE || targetPrice.getAmount().signum() <= 0) {
-        throw new ConflictException("FREE upgrade activation requires a positive paid target");
-      }
+      if (targetPrice.getBillingCycle() == BillingCycle.FREE || targetPrice.getAmount().signum() <= 0) throw new ConflictException("FREE upgrade activation requires a positive paid target");
       Instant paidEnd = nextBoundary(confirmedAt, targetPrice.getBillingCycle());
-      BillingPeriod targetPeriod =
-          billingPeriodService.ensurePlatformPeriodSnapshot(
-              subscription.getCompany(), change.getToPlan(), targetPrice, confirmedAt, paidEnd);
+      BillingPeriod targetPeriod = billingPeriodService.ensurePlatformPeriodSnapshot(subscription.getCompany(), change.getToPlan(), targetPrice, confirmedAt, paidEnd);
       subscription.setPlan(change.getToPlan());
       subscription.setPlanPrice(targetPrice);
       subscription.setCurrentPeriodStart(confirmedAt);
@@ -250,15 +171,7 @@ public class SubscriptionChangeService {
       subscription.setPlan(change.getToPlan());
       subscription.setPlanPrice(change.getToPlanPrice());
     }
-
-    lifecycleService.recordPlanChange(
-        subscription,
-        fromPlan,
-        change.getToPlan(),
-        SubscriptionTransitionType.UPGRADED,
-        change.getRequestedByUserId(),
-        fromOpenEndedFree ? "Provider-confirmed FREE to paid upgrade applied" : "Provider-confirmed upgrade applied",
-        confirmedAt);
+    lifecycleService.recordPlanChange(subscription, fromPlan, change.getToPlan(), SubscriptionTransitionType.UPGRADED, change.getRequestedByUserId(), fromOpenEndedFree ? "Provider-confirmed FREE to paid upgrade applied" : "Provider-confirmed upgrade applied", confirmedAt);
     change.setInvoiceId(invoiceId);
     change.setAppliedAt(confirmedAt);
     change.setStatus(SubscriptionChangeStatus.APPLIED);
@@ -268,8 +181,7 @@ public class SubscriptionChangeService {
   @Transactional
   public int applyDueDowngrades(Instant now) {
     int count = 0;
-    List<SubscriptionChange> due = changeRepository.findDueDowngradesForUpdate(now, CLAIM_BATCH_SIZE);
-    for (SubscriptionChange change : due) {
+    for (SubscriptionChange change : changeRepository.findDueDowngradesForUpdate(now, CLAIM_BATCH_SIZE)) {
       CompanySubscription subscription = lifecycleService.requireForUpdate(change.getSubscription().getId());
       if (subscription.getStatus() != SubscriptionStatus.ACTIVE || !downgradeBoundaryMatches(change, subscription)) {
         change.setStatus(SubscriptionChangeStatus.FAILED);
@@ -277,7 +189,6 @@ public class SubscriptionChangeService {
         continue;
       }
       if (subscription.getPaymentPolicy() == PaymentPolicy.CASHFREE) continue;
-
       Plan fromPlan = subscription.getPlan();
       PlanPrice targetPrice = change.getToPlanPrice();
       subscription.setPlan(change.getToPlan());
@@ -288,14 +199,7 @@ public class SubscriptionChangeService {
       billingPeriodService.ensurePlatformPeriod(subscription);
       change.setStatus(SubscriptionChangeStatus.APPLIED);
       change.setAppliedAt(now);
-      lifecycleService.recordPlanChange(
-          subscription,
-          fromPlan,
-          change.getToPlan(),
-          SubscriptionTransitionType.DOWNGRADED,
-          change.getRequestedByUserId(),
-          "Scheduled downgrade reached billing boundary",
-          change.getEffectiveAt());
+      lifecycleService.recordPlanChange(subscription, fromPlan, change.getToPlan(), SubscriptionTransitionType.DOWNGRADED, change.getRequestedByUserId(), "Scheduled downgrade reached billing boundary", change.getEffectiveAt());
       changeRepository.save(change);
       count++;
     }
@@ -303,51 +207,30 @@ public class SubscriptionChangeService {
     return count;
   }
 
-  private DowngradeScheduleSource resolveDowngradeScheduleSource(
-      CompanySubscription current, Instant requestedAt) {
+  private DowngradeScheduleSource resolveDowngradeScheduleSource(CompanySubscription current, Instant requestedAt) {
     Instant boundary = current.getCurrentPeriodEnd();
-    List<BillingPeriod> owned =
-        billingPeriodRepository.findByCompanyIdAndKindAndStartAt(
-            current.getCompany().getId(), BillingPeriodKind.PLATFORM, boundary);
-    if (owned.size() > 1) {
-      throw new ConflictException("Multiple PLATFORM periods claim the subscription renewal boundary");
+    if (current.getPaymentPolicy() != PaymentPolicy.CASHFREE) {
+      if (!requestedAt.isBefore(boundary)) throw new ConflictException("Downgrade request must precede its effective boundary");
+      return new DowngradeScheduleSource(current.getPlan(), current.getPlanPrice(), current.getCurrentPeriodStart(), boundary, boundary);
     }
+    List<BillingPeriod> owned = billingPeriodRepository.findByCompanyIdAndKindAndStartAt(current.getCompany().getId(), BillingPeriodKind.PLATFORM, boundary);
+    if (owned.size() > 1) throw new ConflictException("Multiple PLATFORM periods claim the subscription renewal boundary");
     if (owned.isEmpty()) {
-      if (!requestedAt.isBefore(boundary)) {
-        throw new ConflictException("Downgrade request must precede its effective boundary");
-      }
-      return new DowngradeScheduleSource(
-          current.getPlan(), current.getPlanPrice(), current.getCurrentPeriodStart(), boundary, boundary);
+      if (!requestedAt.isBefore(boundary)) throw new ConflictException("Downgrade request must precede its effective boundary");
+      return new DowngradeScheduleSource(current.getPlan(), current.getPlanPrice(), current.getCurrentPeriodStart(), boundary, boundary);
     }
-
     BillingPeriod renewalOwner = owned.getFirst();
-    if (renewalOwner.getPlan() == null
-        || renewalOwner.getPlanPrice() == null
-        || renewalOwner.getPlatformAmountSnapshot() == null
-        || renewalOwner.getEndAt() == null
-        || !renewalOwner.getEndAt().isAfter(renewalOwner.getStartAt())) {
+    if (renewalOwner.getPlan() == null || renewalOwner.getPlanPrice() == null || renewalOwner.getPlatformAmountSnapshot() == null || renewalOwner.getEndAt() == null || !renewalOwner.getEndAt().isAfter(renewalOwner.getStartAt())) {
       throw new ConflictException("Owned renewal boundary has no safe next commercial boundary for a downgrade");
     }
-    if (!requestedAt.isBefore(renewalOwner.getEndAt())) {
-      throw new ConflictException("Downgrade request must precede the next valid future boundary");
-    }
-    if (renewalOwner.getPlanPrice().getPlan() == null
-        || !renewalOwner.getPlanPrice().getPlan().getId().equals(renewalOwner.getPlan().getId())
-        || renewalOwner.getPlatformAmountSnapshot().compareTo(renewalOwner.getPlanPrice().getAmount()) != 0) {
+    if (!requestedAt.isBefore(renewalOwner.getEndAt())) throw new ConflictException("Downgrade request must precede the next valid future boundary");
+    if (renewalOwner.getPlanPrice().getPlan() == null || !renewalOwner.getPlanPrice().getPlan().getId().equals(renewalOwner.getPlan().getId()) || renewalOwner.getPlatformAmountSnapshot().compareTo(renewalOwner.getPlanPrice().getAmount()) != 0) {
       throw new ConflictException("Owned renewal boundary has inconsistent commercial truth");
     }
-    return new DowngradeScheduleSource(
-        renewalOwner.getPlan(),
-        renewalOwner.getPlanPrice(),
-        renewalOwner.getStartAt(),
-        renewalOwner.getEndAt(),
-        renewalOwner.getEndAt());
+    return new DowngradeScheduleSource(renewalOwner.getPlan(), renewalOwner.getPlanPrice(), renewalOwner.getStartAt(), renewalOwner.getEndAt(), renewalOwner.getEndAt());
   }
 
-  private void lockCompany(Long companyId) {
-    companyRepository.findByIdForUpdate(companyId)
-        .orElseThrow(() -> new NotFoundException("Company not found"));
-  }
+  private void lockCompany(Long companyId) { companyRepository.findByIdForUpdate(companyId).orElseThrow(() -> new NotFoundException("Company not found")); }
 
   private Plan requireTarget(Long companyId, Long planId, Instant at) {
     Plan plan = planRepository.findById(planId).orElseThrow(() -> new NotFoundException("Plan not found"));
@@ -357,28 +240,15 @@ public class SubscriptionChangeService {
   }
 
   private PlanPrice requirePrice(Plan plan, Long priceId, Instant pricingAt) {
-    PlanPrice price = planPriceRepository.findById(priceId)
-        .orElseThrow(() -> new NotFoundException("Plan price not found"));
-    if (!price.getPlan().getId().equals(plan.getId()) || price.getStatus() != RateCardStatus.ACTIVE) {
-      throw new BadRequestException("Plan price does not belong to the selected plan");
-    }
+    PlanPrice price = planPriceRepository.findById(priceId).orElseThrow(() -> new NotFoundException("Plan price not found"));
+    if (!price.getPlan().getId().equals(plan.getId()) || price.getStatus() != RateCardStatus.ACTIVE) throw new BadRequestException("Plan price does not belong to the selected plan");
     if (!"INR".equalsIgnoreCase(price.getCurrency())) throw new BadRequestException("Billing R1 supports INR only");
     FinancialEffectiveTime.assertStoredActiveRange(price.getEffectiveFrom(), price.getEffectiveTo(), "PlanPrice");
-    if (!FinancialEffectiveTime.includes(price.getEffectiveFrom(), price.getEffectiveTo(), pricingAt)) {
-      throw new BadRequestException("Plan price is not effective at the canonical subscription-change pricing time");
-    }
+    if (!FinancialEffectiveTime.includes(price.getEffectiveFrom(), price.getEffectiveTo(), pricingAt)) throw new BadRequestException("Plan price is not effective at the canonical subscription-change pricing time");
     return price;
   }
 
-  private SubscriptionChange baseChange(
-      CompanySubscription current,
-      Plan target,
-      PlanPrice targetPrice,
-      SubscriptionChangeType type,
-      String idempotencyKey,
-      Long actor,
-      Instant requestedAt,
-      Instant effectiveAt) {
+  private SubscriptionChange baseChange(CompanySubscription current, Plan target, PlanPrice targetPrice, SubscriptionChangeType type, String idempotencyKey, Long actor, Instant requestedAt, Instant effectiveAt) {
     SubscriptionChange change = new SubscriptionChange();
     change.setCompany(current.getCompany());
     change.setSubscription(current);
@@ -396,19 +266,12 @@ public class SubscriptionChangeService {
     return change;
   }
 
-  private void assertSameCommand(
-      SubscriptionChange prior, Long targetPlanId, Long targetPlanPriceId, SubscriptionChangeType type) {
-    if (!prior.getToPlan().getId().equals(targetPlanId)
-        || !prior.getToPlanPrice().getId().equals(targetPlanPriceId)
-        || prior.getChangeType() != type) {
-      throw new ConflictException("Idempotency key was already used for a materially different subscription change");
-    }
+  private void assertSameCommand(SubscriptionChange prior, Long targetPlanId, Long targetPlanPriceId, SubscriptionChangeType type) {
+    if (!prior.getToPlan().getId().equals(targetPlanId) || !prior.getToPlanPrice().getId().equals(targetPlanPriceId) || prior.getChangeType() != type) throw new ConflictException("Idempotency key was already used for a materially different subscription change");
   }
 
   private void assertSubscriptionStillMatches(SubscriptionChange change, CompanySubscription subscription) {
-    if (!subscriptionMatches(change, subscription)) {
-      throw new ConflictException("Subscription changed after quote creation; upgrade cannot be applied");
-    }
+    if (!subscriptionMatches(change, subscription)) throw new ConflictException("Subscription changed after quote creation; upgrade cannot be applied");
   }
 
   private boolean subscriptionMatches(SubscriptionChange change, CompanySubscription subscription) {
@@ -426,44 +289,18 @@ public class SubscriptionChangeService {
   }
 
   private String validateIdempotencyKey(String key) {
-    if (key == null || key.isBlank() || key.length() > 255) {
-      throw new BadRequestException("A valid idempotency key is required");
-    }
+    if (key == null || key.isBlank() || key.length() > 255) throw new BadRequestException("A valid idempotency key is required");
     return key.trim();
   }
 
   private Instant nextBoundary(Instant start, BillingCycle cycle) {
     ZonedDateTime utc = start.atZone(ZoneOffset.UTC);
-    return switch (cycle) {
-      case MONTHLY -> utc.plusMonths(1).toInstant();
-      case YEARLY -> utc.plusYears(1).toInstant();
-      case FREE -> null;
-    };
+    return switch (cycle) { case MONTHLY -> utc.plusMonths(1).toInstant(); case YEARLY -> utc.plusYears(1).toInstant(); case FREE -> null; };
   }
 
-  private record DowngradeScheduleSource(
-      Plan fromPlan, PlanPrice fromPlanPrice, Instant periodStart, Instant periodEnd, Instant effectiveAt) {}
+  private record DowngradeScheduleSource(Plan fromPlan, PlanPrice fromPlanPrice, Instant periodStart, Instant periodEnd, Instant effectiveAt) {}
 
   private SubscriptionChangeResponse toResponse(SubscriptionChange change) {
-    return new SubscriptionChangeResponse(
-        change.getId().toString(),
-        change.getCompany().getId().toString(),
-        change.getSubscription().getId().toString(),
-        change.getFromPlan().getId().toString(),
-        change.getToPlan().getId().toString(),
-        change.getChangeType(),
-        change.getStatus(),
-        change.getRequestedAt(),
-        change.getEffectiveAt(),
-        change.getQuoteReference(),
-        change.getInvoiceId() == null ? null : change.getInvoiceId().toString(),
-        change.getCurrency(),
-        change.getCurrentPriceSnapshot(),
-        change.getTargetPriceSnapshot(),
-        change.getTargetProratedCharge(),
-        change.getUnusedCurrentCredit(),
-        change.getNetAmount(),
-        change.getAmountDue(),
-        change.getCreditAmount());
+    return new SubscriptionChangeResponse(change.getId().toString(), change.getCompany().getId().toString(), change.getSubscription().getId().toString(), change.getFromPlan().getId().toString(), change.getToPlan().getId().toString(), change.getChangeType(), change.getStatus(), change.getRequestedAt(), change.getEffectiveAt(), change.getQuoteReference(), change.getInvoiceId() == null ? null : change.getInvoiceId().toString(), change.getCurrency(), change.getCurrentPriceSnapshot(), change.getTargetPriceSnapshot(), change.getTargetProratedCharge(), change.getUnusedCurrentCredit(), change.getNetAmount(), change.getAmountDue(), change.getCreditAmount());
   }
 }
