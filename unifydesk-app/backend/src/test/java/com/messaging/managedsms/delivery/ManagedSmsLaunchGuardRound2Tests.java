@@ -4,7 +4,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.messaging.billing.entity.CompanySubscription;
+import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.service.ManagedFinancialExposureGuard;
+import com.messaging.billing.service.SubscriptionLifecycleService;
 import com.messaging.broadcast.entity.BroadcastMessage;
 import com.messaging.broadcast.entity.BroadcastSender;
 import com.messaging.broadcast.entity.BroadcastSenderConnection;
@@ -74,6 +77,61 @@ class ManagedSmsLaunchGuardRound2Tests {
             guard.validateLaunch(10L, message, sender, connection, 1L))
         .isSameAs(runtime);
     verify(exposure).assertAllowed(10L);
+    verify(usage).canReserve(10L, 1L);
+  }
+
+  @Test
+  void trialingManagedSmsLaunchRemainsAllowed() {
+    ManagedSmsRuntimeRepository runtimeRepository = mock(ManagedSmsRuntimeRepository.class);
+    ManagedSmsProviderSafetyService safety = mock(ManagedSmsProviderSafetyService.class);
+    ManagedSmsUsageService usage = mock(ManagedSmsUsageService.class);
+    ManagedSmsSegmentCalculator segments = mock(ManagedSmsSegmentCalculator.class);
+    ManagedSmsTemplateService templateService = mock(ManagedSmsTemplateService.class);
+    SubscriptionLifecycleService lifecycle = mock(SubscriptionLifecycleService.class);
+    CompanySubscription trial = new CompanySubscription();
+    trial.setStatus(SubscriptionStatus.TRIALING);
+    when(lifecycle.currentOptional(10L)).thenReturn(Optional.of(trial));
+    ManagedFinancialExposureGuard exposure = new ManagedFinancialExposureGuard(lifecycle);
+
+    BroadcastMessage message = new BroadcastMessage();
+    message.setSourceTemplateId(43L);
+    message.setSourceTemplateVersion(1L);
+    message.setBodyText("Code 123");
+    message.setTemplateVariablesJson("{\"code\":\"123\"}");
+
+    BroadcastSenderConnection connection = new BroadcastSenderConnection();
+    connection.setId(30L);
+    connection.setManagementMode(BroadcastSenderManagementMode.MESSAGING_MANAGED);
+    connection.setProvider(BroadcastSenderProvider.MSG91_SMS);
+    BroadcastSender sender = new BroadcastSender();
+    sender.setId(20L);
+    sender.setProvider(BroadcastSenderProvider.MSG91_SMS);
+
+    ManagedSmsRuntimeRepository.ManagedTemplateRuntime runtime = activeRuntime();
+    when(runtimeRepository.findTemplateForLaunch(10L, 20L, 43L, 1L))
+        .thenReturn(Optional.of(runtime));
+    when(safety.isAvailable("client-a")).thenReturn(true);
+    when(templateService.render(anyString(), anyString(), anyString(), anyString(), anyMap()))
+        .thenReturn(
+            new ManagedSmsTemplateService.RenderedTemplate(
+                "Code 123", Map.of("code", "123"), java.util.List.of()));
+    when(segments.segments("Code 123")).thenReturn(1);
+    when(usage.canReserve(10L, 1L)).thenReturn(true);
+
+    ManagedSmsLaunchGuard guard =
+        new ManagedSmsLaunchGuard(
+            runtimeRepository,
+            configuredProperties(),
+            templateService,
+            safety,
+            usage,
+            exposure,
+            segments,
+            new ObjectMapper());
+
+    org.assertj.core.api.Assertions.assertThat(
+            guard.validateLaunch(10L, message, sender, connection, 1L))
+        .isSameAs(runtime);
     verify(usage).canReserve(10L, 1L);
   }
 
