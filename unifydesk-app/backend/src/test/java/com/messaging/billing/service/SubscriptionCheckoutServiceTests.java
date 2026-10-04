@@ -59,6 +59,7 @@ class SubscriptionCheckoutServiceTests {
   @Mock private BillingPeriodService billingPeriodService;
   @Mock private InvoiceService invoiceService;
   @Mock private SubscriptionLifecycleService lifecycleService;
+  @Mock private SubscriptionBoundaryChangeService boundaryChangeService;
 
   private SubscriptionCheckoutService service;
   private Company company;
@@ -79,7 +80,8 @@ class SubscriptionCheckoutServiceTests {
             eligibilityService,
             billingPeriodService,
             invoiceService,
-            lifecycleService);
+            lifecycleService,
+            boundaryChangeService);
     requestedAt = Instant.parse("2026-10-03T06:00:00Z");
     company = company(10L);
     plan = plan(20L);
