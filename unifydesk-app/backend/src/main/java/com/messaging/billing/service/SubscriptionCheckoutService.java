@@ -60,6 +60,7 @@ public class SubscriptionCheckoutService {
   private final BillingPeriodService billingPeriodService;
   private final InvoiceService invoiceService;
   private final SubscriptionLifecycleService lifecycleService;
+  private final SubscriptionBoundaryChangeService boundaryChangeService;
 
   /**
    * Initial paid-subscription contract for B2.
@@ -247,17 +248,27 @@ public class SubscriptionCheckoutService {
     }
 
     Instant nextStart = subscription.getCurrentPeriodEnd();
-    BillingCycle cycle = subscription.getPlanPrice().getBillingCycle();
-    if (cycle == BillingCycle.FREE) {
+    BillingCycle currentCycle = subscription.getPlanPrice().getBillingCycle();
+    if (currentCycle == BillingCycle.FREE) {
       throw new BadRequestException("FREE subscriptions do not require paid renewal");
     }
-    PlanPrice renewalPrice =
-        resolveEffectivePrice(subscription.getPlan(), cycle, nextStart);
-    Instant nextEnd = nextBoundary(nextStart, cycle);
+
+    Plan renewalPlan = subscription.getPlan();
+    PlanPrice renewalPrice;
+    var scheduledDowngrade =
+        boundaryChangeService.resolveScheduledDowngradeForBoundary(subscription, nextStart);
+    if (scheduledDowngrade.isPresent()) {
+      renewalPlan = scheduledDowngrade.get().getToPlan();
+      renewalPrice = scheduledDowngrade.get().getToPlanPrice();
+      assertBoundaryPrice(renewalPlan, renewalPrice, nextStart);
+    } else {
+      renewalPrice = resolveEffectivePrice(renewalPlan, currentCycle, nextStart);
+    }
+    Instant nextEnd = nextBoundary(nextStart, renewalPrice.getBillingCycle());
 
     BillingPeriod period =
         billingPeriodService.ensurePlatformPeriodSnapshot(
-            subscription.getCompany(), subscription.getPlan(), renewalPrice, nextStart, nextEnd);
+            subscription.getCompany(), renewalPlan, renewalPrice, nextStart, nextEnd);
     return invoiceService.createOrResolvePlatformInvoice(
         companyId, period.getId(), identity, requestedAt);
   }
@@ -315,13 +326,21 @@ public class SubscriptionCheckoutService {
   }
 
   private PlanPrice resolveEffectivePrice(Plan plan, BillingCycle cycle, Instant at) {
-    List<PlanPrice> matches =
+    List<PlanPrice> candidates =
         planPriceRepository
-            .findByPlanIdAndStatusOrderByEffectiveFromDesc(plan.getId(), RateCardStatus.ACTIVE)
-            .stream()
+            .findByPlanIdAndStatusOrderByEffectiveFromDesc(plan.getId(), RateCardStatus.ACTIVE);
+    candidates.forEach(
+        price ->
+            FinancialEffectiveTime.assertStoredActiveRange(
+                price.getEffectiveFrom(), price.getEffectiveTo(), "PlanPrice"));
+    List<PlanPrice> matches =
+        candidates.stream()
             .filter(price -> price.getBillingCycle() == cycle)
             .filter(price -> R1_CURRENCY.equalsIgnoreCase(price.getCurrency()))
-            .filter(price -> isEffective(price, at))
+            .filter(
+                price ->
+                    FinancialEffectiveTime.includes(
+                        price.getEffectiveFrom(), price.getEffectiveTo(), at))
             .sorted(Comparator.comparing(PlanPrice::getEffectiveFrom).reversed())
             .toList();
     if (matches.isEmpty()) {
@@ -334,20 +353,30 @@ public class SubscriptionCheckoutService {
   }
 
   private void assertEffectiveInrPrice(PlanPrice price, Instant at) {
+    FinancialEffectiveTime.assertStoredActiveRange(
+        price.getEffectiveFrom(), price.getEffectiveTo(), "PlanPrice");
     if (!R1_CURRENCY.equalsIgnoreCase(price.getCurrency())) {
       throw new BadRequestException("Billing R1 supports INR only");
     }
-    if (!isEffective(price, at)) {
+    if (!FinancialEffectiveTime.includes(price.getEffectiveFrom(), price.getEffectiveTo(), at)) {
       throw new BadRequestException(
           "Plan price is not effective at the canonical commercial pricing time");
     }
   }
 
-  private boolean isEffective(PlanPrice price, Instant at) {
-    return at != null
-        && price.getEffectiveFrom() != null
-        && !price.getEffectiveFrom().isAfter(at)
-        && (price.getEffectiveTo() == null || at.isBefore(price.getEffectiveTo()));
+  private void assertBoundaryPrice(Plan plan, PlanPrice price, Instant at) {
+    if (price == null
+        || !price.getPlan().getId().equals(plan.getId())
+        || price.getStatus() != RateCardStatus.ACTIVE) {
+      throw new ConflictException("Scheduled downgrade target PlanPrice is no longer canonical");
+    }
+    FinancialEffectiveTime.assertStoredActiveRange(
+        price.getEffectiveFrom(), price.getEffectiveTo(), "PlanPrice");
+    if (!R1_CURRENCY.equalsIgnoreCase(price.getCurrency())
+        || !FinancialEffectiveTime.includes(price.getEffectiveFrom(), price.getEffectiveTo(), at)) {
+      throw new ConflictException(
+          "Scheduled downgrade target PlanPrice is invalid at the renewal boundary");
+    }
   }
 
   private Instant nextBoundary(Instant start, BillingCycle cycle) {
@@ -355,7 +384,7 @@ public class SubscriptionCheckoutService {
     return switch (cycle) {
       case MONTHLY -> utc.plusMonths(1).toInstant();
       case YEARLY -> utc.plusYears(1).toInstant();
-      case FREE -> throw new BadRequestException("FREE has no paid platform boundary");
+      case FREE -> null;
     };
   }
 

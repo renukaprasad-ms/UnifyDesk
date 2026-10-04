@@ -11,15 +11,23 @@ import com.messaging.billing.bootstrap.SystemEntitlementCatalogInitializer;
 import com.messaging.billing.dto.AdminGrantSubscriptionRequest;
 import com.messaging.billing.dto.AssignSubscriptionRequest;
 import com.messaging.billing.dto.CompanySubscriptionResponse;
+import com.messaging.billing.dto.CreateCompanyRateOverrideRequest;
+import com.messaging.billing.dto.CreatePlanPriceRequest;
+import com.messaging.billing.dto.CreateRateCardRequest;
 import com.messaging.billing.dto.UpsertEntitlementRequest;
 import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.entity.Plan;
 import com.messaging.billing.entity.PlanPrice;
 import com.messaging.billing.enums.BillingCycle;
+import com.messaging.billing.enums.BillingCategory;
+import com.messaging.billing.enums.CommunicationDirection;
 import com.messaging.billing.enums.PaymentPolicy;
 import com.messaging.billing.enums.PlanStatus;
 import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.enums.SubscriptionStatus;
+import com.messaging.billing.enums.UsageUnit;
+import com.messaging.channel.enums.ChannelType;
+import com.messaging.channel.enums.ProviderType;
 import com.messaging.billing.repository.CompanyRateOverrideRepository;
 import com.messaging.billing.repository.CompanySubscriptionRepository;
 import com.messaging.billing.repository.EntitlementDefinitionRepository;
@@ -85,6 +93,119 @@ class BillingCatalogServiceTests {
     assertEquals(current.getId().toString(), response.subscriptionId());
     assertEquals(plan.getId().toString(), response.planId());
     verify(subscriptionRepository, never()).saveAndFlush(any(CompanySubscription.class));
+  }
+
+  @Test
+  void createPlanPriceRejectsNullEffectiveFromAtServiceBoundary() {
+    Plan draft = plan(20L, "DRAFT");
+    draft.setStatus(PlanStatus.DRAFT);
+    when(planRepository.findById(20L)).thenReturn(Optional.of(draft));
+
+    assertThrows(
+        BadRequestException.class,
+        () ->
+            billingCatalogService.createPlanPrice(
+                20L,
+                new CreatePlanPriceRequest(
+                    BillingCycle.MONTHLY, new BigDecimal("999.00"), "INR", null, null)));
+
+    verify(planPriceRepository, never()).saveAndFlush(any(PlanPrice.class));
+  }
+
+  @Test
+  void createRateCardRejectsNullEffectiveFromAtServiceBoundary() {
+    Plan draft = plan(20L, "DRAFT");
+    draft.setStatus(PlanStatus.DRAFT);
+    when(planRepository.findById(20L)).thenReturn(Optional.of(draft));
+
+    assertThrows(
+        BadRequestException.class,
+        () ->
+            billingCatalogService.createRateCard(
+                new CreateRateCardRequest(
+                    "20",
+                    ChannelType.SMS,
+                    ProviderType.MSG91_SMS,
+                    "IN",
+                    null,
+                    BillingCategory.SMS_PROMOTIONAL,
+                    CommunicationDirection.OUTBOUND,
+                    UsageUnit.MESSAGE,
+                    new BigDecimal("0.10"),
+                    "INR",
+                    null,
+                    null)));
+
+    verify(rateCardRepository, never()).saveAndFlush(any());
+  }
+
+  @Test
+  void createCompanyRateOverrideRejectsNullEffectiveFromAtServiceBoundary() {
+    Company company = company(10L);
+    when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+
+    assertThrows(
+        BadRequestException.class,
+        () ->
+            billingCatalogService.createCompanyRateOverride(
+                10L,
+                77L,
+                new CreateCompanyRateOverrideRequest(
+                    ChannelType.SMS,
+                    ProviderType.MSG91_SMS,
+                    BillingCategory.SMS_PROMOTIONAL,
+                    CommunicationDirection.OUTBOUND,
+                    "IN",
+                    null,
+                    UsageUnit.MESSAGE,
+                    new BigDecimal("0.09"),
+                    "INR",
+                    null,
+                    null,
+                    "test")));
+
+    verify(companyRateOverrideRepository, never()).saveAndFlush(any());
+  }
+
+  @Test
+  void zeroCostSelectionRejectsMalformedFutureExpiredAndNonInrPrices() {
+    long companyId = 10L;
+    Instant selection = Instant.parse("2026-10-03T06:00:00Z");
+    Plan plan = plan(20L, "FREE");
+    PlanPrice malformed = freePrice(30L, plan);
+    malformed.setEffectiveFrom(null);
+    when(planRepository.findById(20L)).thenReturn(Optional.of(plan));
+    when(planPriceRepository.findByPlanIdAndStatusOrderByEffectiveFromDesc(
+            20L, RateCardStatus.ACTIVE))
+        .thenReturn(List.of(malformed));
+
+    assertThrows(
+        ConflictException.class,
+        () ->
+            billingCatalogService.selectFreeSubscription(
+                companyId,
+                new AssignSubscriptionRequest(
+                    "20", null, null, selection, null, null, null)));
+
+    PlanPrice future = freePrice(31L, plan);
+    future.setEffectiveFrom(selection.plusSeconds(1));
+    PlanPrice expired = freePrice(32L, plan);
+    expired.setEffectiveFrom(selection.minusSeconds(3600));
+    expired.setEffectiveTo(selection);
+    PlanPrice usd = freePrice(33L, plan);
+    usd.setEffectiveFrom(selection.minusSeconds(3600));
+    usd.setCurrency("USD");
+    when(planPriceRepository.findByPlanIdAndStatusOrderByEffectiveFromDesc(
+            20L, RateCardStatus.ACTIVE))
+        .thenReturn(List.of(future, expired, usd));
+
+    assertThrows(
+        BadRequestException.class,
+        () ->
+            billingCatalogService.selectFreeSubscription(
+                companyId,
+                new AssignSubscriptionRequest(
+                    "20", null, null, selection, null, null, null)));
   }
 
   @Test

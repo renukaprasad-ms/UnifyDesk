@@ -21,6 +21,6 @@ public record CreateCompanyRateOverrideRequest(
     @NotNull UsageUnit unit,
     @NotNull @DecimalMin("0.000000") BigDecimal price,
     @NotNull @Size(min = 3, max = 3) String currency,
-    Instant effectiveFrom,
+    @NotNull Instant effectiveFrom,
     Instant effectiveTo,
     @Size(max = 500) String reason) {}

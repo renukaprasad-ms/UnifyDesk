@@ -8,6 +8,8 @@ import com.messaging.billing.enums.InvoiceStatus;
 import com.messaging.billing.enums.PaymentStatus;
 import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.service.SubscriptionCheckoutService;
+import com.messaging.billing.service.SubscriptionLifecycleService;
+import com.messaging.common.exception.ConflictException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -22,6 +24,7 @@ class AutomaticRenewalServiceTests {
   private RecurringAuthorizationService authorizationService;
   private RecurringChargeService chargeService;
   private PaymentConfirmationService confirmationService;
+  private SubscriptionLifecycleService lifecycleService;
   private CashfreeProperties properties;
   private AutomaticRenewalService service;
 
@@ -33,6 +36,7 @@ class AutomaticRenewalServiceTests {
     authorizationService = mock(RecurringAuthorizationService.class);
     chargeService = mock(RecurringChargeService.class);
     confirmationService = mock(PaymentConfirmationService.class);
+    lifecycleService = mock(SubscriptionLifecycleService.class);
     properties = new CashfreeProperties();
     properties.setAutomaticRenewalClaimSeconds(120L);
     service =
@@ -43,6 +47,7 @@ class AutomaticRenewalServiceTests {
             authorizationService,
             chargeService,
             confirmationService,
+            lifecycleService,
             properties);
   }
 
@@ -71,6 +76,87 @@ class AutomaticRenewalServiceTests {
     verify(chargeService).charge(30L, boundary);
     verify(confirmationService).applyDeferredRenewal(eq(30L), any());
     verify(store).finish(job, "RECOVERED", 20L, 30L, null);
+  }
+
+  @Test
+  void zeroDueBoundaryAppliesWithoutCashfreeCollectionOrFakePayment() {
+    Instant boundary = Instant.parse("2026-10-10T00:00:00Z");
+    var job = job(boundary, null, null);
+    when(store.subscription(job))
+        .thenReturn(
+            new AutomaticRenewalStore.SubscriptionSnapshot(
+                SubscriptionStatus.ACTIVE, boundary, false, "CASHFREE"));
+    when(checkoutService.createOrResolveRenewalInvoice(eq(10L), eq(77L), any(), isNull()))
+        .thenReturn(zeroDueInvoice(boundary));
+
+    service.processClaimed(job);
+
+    verify(store).bindFinancialObjects(job, 20L, null);
+    verify(lifecycleService).applyZeroDueBoundaryTransition(eq(77L), eq(20L), any());
+    verify(store).finish(job, "ZERO_DUE_APPLIED", 20L, null, null);
+    verify(collectionService, never()).prepareRecurringRenewal(anyLong(), anyLong(), anyLong());
+    verify(authorizationService, never()).refreshBound(anyLong(), anyLong());
+    verify(authorizationService, never()).bindPayment(anyLong(), anyLong());
+    verify(chargeService, never()).charge(anyLong(), any());
+    verify(confirmationService, never()).applyDeferredRenewal(anyLong(), any());
+    verify(confirmationService, never())
+        .markRenewalDueUncollectible(anyLong(), any(), anyString());
+  }
+
+  @Test
+  void zeroDueBoundaryWithExistingPaymentFailsClosed() {
+    Instant boundary = Instant.parse("2026-10-10T00:00:00Z");
+    var job = job(boundary, 20L, 30L);
+    when(store.paymentStatus(30L)).thenReturn(PaymentStatus.PENDING);
+    when(store.subscription(job))
+        .thenReturn(
+            new AutomaticRenewalStore.SubscriptionSnapshot(
+                SubscriptionStatus.ACTIVE, boundary, false, "CASHFREE"));
+    when(checkoutService.createOrResolveRenewalInvoice(eq(10L), eq(77L), any(), isNull()))
+        .thenReturn(zeroDueInvoice(boundary));
+
+    service.processClaimed(job);
+
+    verify(store).finish(job, "CONFLICT", 20L, 30L, "COMMERCIAL_BOUNDARY_CONFLICT");
+    verify(lifecycleService, never()).applyZeroDueBoundaryTransition(anyLong(), anyLong(), any());
+    verify(collectionService, never()).prepareRecurringRenewal(anyLong(), anyLong(), anyLong());
+  }
+
+  @Test
+  void replayAfterCommittedZeroDueTransitionFinishesSameDurableJobSuccessfully() {
+    Instant boundary = Instant.parse("2026-10-10T00:00:00Z");
+    var job = job(boundary, 20L, null);
+    when(store.subscription(job))
+        .thenReturn(
+            new AutomaticRenewalStore.SubscriptionSnapshot(
+                SubscriptionStatus.ACTIVE, null, false, "CASHFREE"));
+    when(store.zeroDueBoundaryAlreadyApplied(job)).thenReturn(true);
+
+    service.processClaimed(job);
+
+    verify(store).finish(job, "ZERO_DUE_APPLIED", 20L, null, null);
+    verify(checkoutService, never()).createOrResolveRenewalInvoice(anyLong(), anyLong(), any(), any());
+    verify(collectionService, never()).prepareRecurringRenewal(anyLong(), anyLong(), anyLong());
+    verify(lifecycleService, never()).applyZeroDueBoundaryTransition(anyLong(), anyLong(), any());
+  }
+
+  @Test
+  void commercialBoundaryConflictIsTerminalAndAuditable() {
+    Instant boundary = Instant.parse("2026-10-10T00:00:00Z");
+    var job = job(boundary, 20L, 30L);
+    when(store.paymentStatus(30L)).thenReturn(PaymentStatus.PENDING);
+    when(store.subscription(job))
+        .thenReturn(
+            new AutomaticRenewalStore.SubscriptionSnapshot(
+                SubscriptionStatus.ACTIVE, boundary, false, "CASHFREE"));
+    when(checkoutService.createOrResolveRenewalInvoice(eq(10L), eq(77L), any(), isNull()))
+        .thenThrow(new ConflictException("old-plan boundary already owns financial truth"));
+
+    service.processClaimed(job);
+
+    verify(store).finish(job, "CONFLICT", 20L, 30L, "COMMERCIAL_BOUNDARY_CONFLICT");
+    verify(collectionService, never()).prepareRecurringRenewal(anyLong(), anyLong(), anyLong());
+    verify(confirmationService, never()).applyDeferredRenewal(anyLong(), any());
   }
 
   @Test
@@ -148,6 +234,28 @@ class AutomaticRenewalServiceTests {
         new BigDecimal("499.00"),
         boundary,
         boundary.plusSeconds(30L * 24L * 3600L),
+        boundary.minusSeconds(60),
+        boundary,
+        null);
+  }
+
+  private InvoiceResponse zeroDueInvoice(Instant boundary) {
+    return new InvoiceResponse(
+        "20",
+        "10",
+        "200",
+        "INV-20",
+        InvoiceStatus.OPEN,
+        "INR",
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        boundary,
+        null,
         boundary.minusSeconds(60),
         boundary,
         null);

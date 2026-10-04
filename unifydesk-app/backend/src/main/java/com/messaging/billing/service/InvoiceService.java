@@ -166,6 +166,34 @@ public class InvoiceService {
     return period;
   }
 
+  /**
+   * B1-owned zero-due platform boundary. A finalized zero-value invoice is valid financial truth
+   * without manufacturing provider payment success.
+   */
+  @Transactional
+  public BillingPeriod requireZeroDueCanonicalPlatformInvoice(Long companyId, Long invoiceId) {
+    Invoice invoice =
+        invoiceRepository
+            .findByIdForUpdate(invoiceId)
+            .orElseThrow(() -> new NotFoundException("Invoice not found"));
+    if (!invoice.getCompany().getId().equals(companyId)) {
+      throw new BadRequestException("Invoice does not belong to the company");
+    }
+    BillingPeriod period = invoice.getBillingPeriod();
+    if (period == null || period.getKind() != BillingPeriodKind.PLATFORM) {
+      throw new BadRequestException("Invoice is not a platform subscription invoice");
+    }
+    assertCanonicalPlatformInvoice(invoice, period);
+    if (invoice.getTotal().compareTo(BigDecimal.ZERO) != 0
+        || invoice.getAmountDue().compareTo(BigDecimal.ZERO) != 0) {
+      throw new ConflictException("Platform invoice is not a zero-due commercial boundary");
+    }
+    if (invoice.getStatus() != InvoiceStatus.OPEN) {
+      throw new ConflictException("Zero-due platform invoice must remain finalized OPEN");
+    }
+    return period;
+  }
+
   @Transactional
   public InvoiceResponse markPaidConfirmed(Long invoiceId, Instant paidAt) {
     Invoice invoice =

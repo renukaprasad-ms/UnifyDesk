@@ -11,5 +11,5 @@ public record CreatePlanPriceRequest(
     @NotNull BillingCycle billingCycle,
     @NotNull @DecimalMin("0.000000") BigDecimal amount,
     @NotNull @Size(min = 3, max = 3) String currency,
-    Instant effectiveFrom,
+    @NotNull Instant effectiveFrom,
     Instant effectiveTo) {}

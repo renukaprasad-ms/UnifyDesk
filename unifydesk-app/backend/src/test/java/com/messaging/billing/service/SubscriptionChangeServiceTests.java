@@ -14,6 +14,7 @@ import com.messaging.billing.entity.Plan;
 import com.messaging.billing.entity.PlanPrice;
 import com.messaging.billing.entity.SubscriptionChange;
 import com.messaging.billing.enums.BillingCycle;
+import com.messaging.billing.enums.PaymentPolicy;
 import com.messaging.billing.enums.PlanChangeDirection;
 import com.messaging.billing.enums.PlanStatus;
 import com.messaging.billing.enums.PlanVisibility;
@@ -274,6 +275,39 @@ class SubscriptionChangeServiceTests {
   }
 
   @Test
+  void cashfreeDowngradeWorkerCannotAdvancePaidBoundaryBeforeRenewalSettlement() {
+    SubscriptionChange change = prior(10L, "paid-down", SubscriptionChangeType.DOWNGRADE, 31L);
+    change.setStatus(SubscriptionChangeStatus.SCHEDULED);
+    change.setEffectiveAt(periodEnd);
+    current.setPaymentPolicy(PaymentPolicy.CASHFREE);
+    when(changeRepository.findDueDowngradesForUpdate(periodEnd, 100))
+        .thenReturn(java.util.List.of(change));
+    when(lifecycleService.requireForUpdate(40L)).thenReturn(current);
+
+    assertEquals(0, service.applyDueDowngrades(periodEnd));
+    assertEquals(SubscriptionChangeStatus.SCHEDULED, change.getStatus());
+    assertEquals(currentPlan, current.getPlan());
+    assertEquals(Instant.parse("2026-10-01T00:00:00Z"), current.getCurrentPeriodStart());
+    verify(billingPeriodService, never()).ensurePlatformPeriod(any());
+  }
+
+  @Test
+  void staleDowngradeAfterBoundaryAdvanceFailsClosed() {
+    SubscriptionChange change = prior(10L, "stale-down", SubscriptionChangeType.DOWNGRADE, 31L);
+    change.setStatus(SubscriptionChangeStatus.SCHEDULED);
+    change.setEffectiveAt(periodEnd);
+    current.setCurrentPeriodStart(periodEnd);
+    current.setCurrentPeriodEnd(Instant.parse("2026-12-01T00:00:00Z"));
+    when(changeRepository.findDueDowngradesForUpdate(current.getCurrentPeriodEnd(), 100))
+        .thenReturn(java.util.List.of(change));
+    when(lifecycleService.requireForUpdate(40L)).thenReturn(current);
+
+    assertEquals(0, service.applyDueDowngrades(current.getCurrentPeriodEnd()));
+    assertEquals(SubscriptionChangeStatus.FAILED, change.getStatus());
+    verify(billingPeriodService, never()).ensurePlatformPeriod(any());
+  }
+
+  @Test
   void exactIdempotentReplayReturnsOriginalChange() {
     SubscriptionChange prior = prior(10L, "replay", SubscriptionChangeType.UPGRADE, 31L);
     when(companyRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(company));
@@ -390,6 +424,8 @@ class SubscriptionChangeServiceTests {
     change.setChangeType(type);
     change.setStatus(SubscriptionChangeStatus.PENDING_PAYMENT);
     change.setRequestedAt(now);
+    change.setCurrentPeriodStart(current.getCurrentPeriodStart());
+    change.setCurrentPeriodEnd(current.getCurrentPeriodEnd());
     change.setEffectiveAt(now);
     change.setIdempotencyKey(key);
     change.setCurrency("INR");

@@ -2,6 +2,7 @@ package com.messaging.billing.payment;
 
 import com.messaging.billing.enums.PaymentStatus;
 import com.messaging.billing.enums.SubscriptionStatus;
+import com.messaging.common.exception.ConflictException;
 import com.messaging.common.id.IdGenerator;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -131,18 +132,76 @@ class AutomaticRenewalStore {
 
   @Transactional
   void bindFinancialObjects(Job job, Long invoiceId, Long paymentId) {
-    jdbcTemplate.update(
-        """
-        update payment_renewal_jobs
-           set invoice_id=coalesce(invoice_id, ?),
-               payment_id=coalesce(payment_id, ?),
-               updated_at=now()
-         where id=? and status='CLAIMED' and claim_token=?
-        """,
-        invoiceId,
-        paymentId,
-        job.id(),
-        job.claimToken());
+    List<BoundFinancialObjects> rows =
+        jdbcTemplate.query(
+            """
+            select invoice_id, payment_id
+              from payment_renewal_jobs
+             where id=? and status='CLAIMED' and claim_token=?
+             for update
+            """,
+            (rs, rowNum) ->
+                new BoundFinancialObjects(
+                    nullableLong(rs, "invoice_id"), nullableLong(rs, "payment_id")),
+            job.id(),
+            job.claimToken());
+    if (rows.size() != 1) {
+      throw new ConflictException("Renewal job claim is no longer authoritative");
+    }
+    BoundFinancialObjects current = rows.getFirst();
+    if ((current.invoiceId() != null && !current.invoiceId().equals(invoiceId))
+        || (current.paymentId() != null && !current.paymentId().equals(paymentId))) {
+      throw new ConflictException(
+          "Renewal job is already bound to different immutable financial objects");
+    }
+
+    int updated =
+        jdbcTemplate.update(
+            """
+            update payment_renewal_jobs
+               set invoice_id=?,
+                   payment_id=?,
+                   updated_at=now()
+             where id=? and status='CLAIMED' and claim_token=?
+            """,
+            invoiceId,
+            paymentId,
+            job.id(),
+            job.claimToken());
+    if (updated != 1) {
+      throw new ConflictException("Renewal job claim was lost before financial binding");
+    }
+  }
+
+  @Transactional(readOnly = true)
+  boolean zeroDueBoundaryAlreadyApplied(Job job) {
+    if (job.invoiceId() == null || job.paymentId() != null) {
+      return false;
+    }
+    Integer count =
+        jdbcTemplate.queryForObject(
+            """
+            select count(*)
+              from invoices i
+              join billing_periods bp on bp.id = i.billing_period_id
+              join company_subscriptions s on s.id = bp.subscription_id
+             where i.id = ?
+               and i.company_id = ?
+               and bp.subscription_id = ?
+               and bp.start_at = ?
+               and i.status = 'OPEN'
+               and i.amount_due = 0
+               and s.current_period_start = bp.start_at
+               and s.current_period_end is not distinct from bp.end_at
+               and s.plan_id = bp.plan_id
+               and s.plan_price_id = bp.plan_price_id
+            """,
+            Integer.class,
+            job.invoiceId(),
+            job.companyId(),
+            job.subscriptionId(),
+            Timestamp.from(job.dueBoundary()));
+    return count != null && count == 1;
   }
 
   @Transactional(readOnly = true)
@@ -246,6 +305,8 @@ class AutomaticRenewalStore {
       Long paymentId,
       int attemptCount,
       String claimToken) {}
+
+  private record BoundFinancialObjects(Long invoiceId, Long paymentId) {}
 
   record SubscriptionSnapshot(
       SubscriptionStatus status,

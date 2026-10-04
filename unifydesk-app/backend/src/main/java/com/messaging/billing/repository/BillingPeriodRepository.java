@@ -16,6 +16,9 @@ public interface BillingPeriodRepository extends JpaRepository<BillingPeriod, Lo
   Optional<BillingPeriod> findByCompanyIdAndKindAndStartAtAndEndAt(
       Long companyId, BillingPeriodKind kind, Instant startAt, Instant endAt);
 
+  List<BillingPeriod> findByCompanyIdAndKindAndStartAt(
+      Long companyId, BillingPeriodKind kind, Instant startAt);
+
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select p from BillingPeriod p where p.id = :id")
   Optional<BillingPeriod> findByIdForUpdate(@Param("id") Long id);

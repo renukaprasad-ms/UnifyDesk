@@ -16,6 +16,7 @@ import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.entity.Invoice;
 import com.messaging.billing.entity.Plan;
 import com.messaging.billing.entity.PlanPrice;
+import com.messaging.billing.entity.SubscriptionChange;
 import com.messaging.billing.entity.SubscriptionCheckoutIntent;
 import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.enums.BillingPeriodKind;
@@ -59,6 +60,7 @@ class SubscriptionCheckoutServiceTests {
   @Mock private BillingPeriodService billingPeriodService;
   @Mock private InvoiceService invoiceService;
   @Mock private SubscriptionLifecycleService lifecycleService;
+  @Mock private SubscriptionBoundaryChangeService boundaryChangeService;
 
   private SubscriptionCheckoutService service;
   private Company company;
@@ -79,7 +81,8 @@ class SubscriptionCheckoutServiceTests {
             eligibilityService,
             billingPeriodService,
             invoiceService,
-            lifecycleService);
+            lifecycleService,
+            boundaryChangeService);
     requestedAt = Instant.parse("2026-10-03T06:00:00Z");
     company = company(10L);
     plan = plan(20L);
@@ -370,6 +373,165 @@ class SubscriptionCheckoutServiceTests {
     assertEquals(
         Instant.parse("2026-11-03T06:00:00Z"), invoice.servicePeriodStart());
     verify(subscriptionRepository, never()).saveAndFlush(any(CompanySubscription.class));
+  }
+
+  @Test
+  void renewalPreparationUsesScheduledDowngradeTargetCommercialSnapshot() {
+    CompanySubscription subscription = subscription(80L, company, plan, monthlyPrice);
+    Instant boundary = Instant.parse("2026-11-03T06:00:00Z");
+    subscription.setCurrentPeriodStart(requestedAt);
+    subscription.setCurrentPeriodEnd(boundary);
+
+    Plan targetPlan = plan(21L);
+    PlanPrice targetPrice = price(33L, targetPlan, BillingCycle.MONTHLY, "699.00");
+    targetPrice.setEffectiveFrom(boundary);
+    BillingPeriod targetPeriod =
+        period(
+            42L,
+            company,
+            targetPlan,
+            targetPrice,
+            boundary,
+            Instant.parse("2026-12-03T06:00:00Z"));
+    SubscriptionChange downgrade = new SubscriptionChange();
+    downgrade.setToPlan(targetPlan);
+    downgrade.setToPlanPrice(targetPrice);
+
+    when(companyRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(company));
+    when(subscriptionRepository.findByIdForUpdate(80L)).thenReturn(Optional.of(subscription));
+    when(boundaryChangeService.resolveScheduledDowngradeForBoundary(subscription, boundary))
+        .thenReturn(Optional.of(downgrade));
+    when(billingPeriodService.ensurePlatformPeriodSnapshot(
+            company,
+            targetPlan,
+            targetPrice,
+            boundary,
+            Instant.parse("2026-12-03T06:00:00Z")))
+        .thenReturn(targetPeriod);
+    when(invoiceService.createOrResolvePlatformInvoice(10L, 42L, identity(), requestedAt))
+        .thenReturn(invoiceResponse(52L, 10L, 42L, "699.00"));
+
+    InvoiceResponse invoice =
+        service.createOrResolveRenewalInvoice(10L, 80L, requestedAt, identity());
+
+    assertEquals("52", invoice.invoiceId());
+    verify(billingPeriodService)
+        .ensurePlatformPeriodSnapshot(
+            company,
+            targetPlan,
+            targetPrice,
+            boundary,
+            Instant.parse("2026-12-03T06:00:00Z"));
+    verify(planPriceRepository, never())
+        .findByPlanIdAndStatusOrderByEffectiveFromDesc(any(), any());
+  }
+
+  @Test
+  void paidMonthlyToFreeDowngradePreparesOpenEndedZeroDueTargetInvoice() {
+    CompanySubscription subscription = subscription(80L, company, plan, monthlyPrice);
+    Instant boundary = Instant.parse("2026-11-03T06:00:00Z");
+    subscription.setCurrentPeriodStart(requestedAt);
+    subscription.setCurrentPeriodEnd(boundary);
+
+    Plan targetPlan = plan(22L);
+    targetPlan.setBillingCycle(BillingCycle.FREE);
+    targetPlan.setBasePrice(BigDecimal.ZERO);
+    PlanPrice targetPrice = price(34L, targetPlan, BillingCycle.FREE, "0.00");
+    targetPrice.setEffectiveFrom(boundary);
+    BillingPeriod targetPeriod = period(43L, company, targetPlan, targetPrice, boundary, null);
+    SubscriptionChange downgrade = new SubscriptionChange();
+    downgrade.setToPlan(targetPlan);
+    downgrade.setToPlanPrice(targetPrice);
+
+    when(companyRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(company));
+    when(subscriptionRepository.findByIdForUpdate(80L)).thenReturn(Optional.of(subscription));
+    when(boundaryChangeService.resolveScheduledDowngradeForBoundary(subscription, boundary))
+        .thenReturn(Optional.of(downgrade));
+    when(billingPeriodService.ensurePlatformPeriodSnapshot(
+            company, targetPlan, targetPrice, boundary, null))
+        .thenReturn(targetPeriod);
+    InvoiceResponse zeroInvoice =
+        new InvoiceResponse(
+            "53",
+            "10",
+            "43",
+            "INV-53",
+            InvoiceStatus.OPEN,
+            "INR",
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            boundary,
+            null,
+            requestedAt,
+            requestedAt,
+            null);
+    when(invoiceService.createOrResolvePlatformInvoice(10L, 43L, identity(), requestedAt))
+        .thenReturn(zeroInvoice);
+
+    InvoiceResponse invoice =
+        service.createOrResolveRenewalInvoice(10L, 80L, requestedAt, identity());
+
+    assertEquals(BigDecimal.ZERO, invoice.amountDue());
+    assertEquals(null, invoice.servicePeriodEnd());
+    verify(billingPeriodService)
+        .ensurePlatformPeriodSnapshot(company, targetPlan, targetPrice, boundary, null);
+  }
+
+  @Test
+  void paidMonthlyToZeroCostMonthlyDowngradeKeepsMonthlyTargetPeriod() {
+    CompanySubscription subscription = subscription(80L, company, plan, monthlyPrice);
+    Instant boundary = Instant.parse("2026-11-03T06:00:00Z");
+    subscription.setCurrentPeriodStart(requestedAt);
+    subscription.setCurrentPeriodEnd(boundary);
+
+    Plan targetPlan = plan(23L);
+    PlanPrice targetPrice = price(35L, targetPlan, BillingCycle.MONTHLY, "0.00");
+    targetPrice.setEffectiveFrom(boundary);
+    Instant end = Instant.parse("2026-12-03T06:00:00Z");
+    BillingPeriod targetPeriod = period(44L, company, targetPlan, targetPrice, boundary, end);
+    SubscriptionChange downgrade = new SubscriptionChange();
+    downgrade.setToPlan(targetPlan);
+    downgrade.setToPlanPrice(targetPrice);
+
+    when(companyRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(company));
+    when(subscriptionRepository.findByIdForUpdate(80L)).thenReturn(Optional.of(subscription));
+    when(boundaryChangeService.resolveScheduledDowngradeForBoundary(subscription, boundary))
+        .thenReturn(Optional.of(downgrade));
+    when(billingPeriodService.ensurePlatformPeriodSnapshot(
+            company, targetPlan, targetPrice, boundary, end))
+        .thenReturn(targetPeriod);
+    when(invoiceService.createOrResolvePlatformInvoice(10L, 44L, identity(), requestedAt))
+        .thenReturn(
+            new InvoiceResponse(
+                "54",
+                "10",
+                "44",
+                "INV-54",
+                InvoiceStatus.OPEN,
+                "INR",
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                boundary,
+                end,
+                requestedAt,
+                requestedAt,
+                null));
+
+    InvoiceResponse invoice =
+        service.createOrResolveRenewalInvoice(10L, 80L, requestedAt, identity());
+
+    assertEquals(BigDecimal.ZERO, invoice.amountDue());
+    assertEquals(end, invoice.servicePeriodEnd());
   }
 
   @Test

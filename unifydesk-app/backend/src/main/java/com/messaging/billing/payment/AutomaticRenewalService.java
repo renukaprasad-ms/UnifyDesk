@@ -4,6 +4,7 @@ import com.messaging.billing.dto.InvoiceResponse;
 import com.messaging.billing.enums.PaymentStatus;
 import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.service.SubscriptionCheckoutService;
+import com.messaging.billing.service.SubscriptionLifecycleService;
 import com.messaging.common.exception.ConflictException;
 import java.time.Duration;
 import java.time.Instant;
@@ -31,6 +32,7 @@ public class AutomaticRenewalService {
   private final RecurringAuthorizationService authorizationService;
   private final RecurringChargeService chargeService;
   private final PaymentConfirmationService confirmationService;
+  private final SubscriptionLifecycleService lifecycleService;
   private final CashfreeProperties properties;
 
   @Scheduled(
@@ -69,6 +71,10 @@ public class AutomaticRenewalService {
         store.finish(job, "SKIPPED", invoiceId, paymentId, "SUBSCRIPTION_MISSING");
         return;
       }
+      if (store.zeroDueBoundaryAlreadyApplied(job)) {
+        store.finish(job, "ZERO_DUE_APPLIED", invoiceId, null, null);
+        return;
+      }
       if (subscription.status() == SubscriptionStatus.PAST_DUE
           && paymentId != null
           && store.hasDunning(paymentId)) {
@@ -88,10 +94,25 @@ public class AutomaticRenewalService {
           checkoutService.createOrResolveRenewalInvoice(
               job.companyId(), job.subscriptionId(), now, null);
       invoiceId = Long.valueOf(invoice.invoiceId());
+      if (job.invoiceId() != null && !job.invoiceId().equals(invoiceId)) {
+        throw new ConflictException(
+            "Renewal job is already bound to a different immutable invoice");
+      }
       if (invoice.servicePeriodStart() == null
           || !invoice.servicePeriodStart().equals(job.dueBoundary())) {
         throw new ConflictException(
             "Automatic renewal invoice does not match the claimed renewal boundary");
+      }
+
+      if (invoice.amountDue().signum() == 0) {
+        if (paymentId != null) {
+          throw new ConflictException(
+              "Zero-due boundary is already bound to provider payment state");
+        }
+        store.bindFinancialObjects(job, invoiceId, null);
+        lifecycleService.applyZeroDueBoundaryTransition(job.subscriptionId(), invoiceId, now);
+        store.finish(job, "ZERO_DUE_APPLIED", invoiceId, null, null);
+        return;
       }
 
       PaymentCollectionService.CheckoutResult payment =
@@ -143,6 +164,8 @@ public class AutomaticRenewalService {
       }
 
       store.release(job, now.plus(PROVIDER_OBSERVATION_DELAY), "COLLECTION_NOT_TERMINAL");
+    } catch (ConflictException exception) {
+      store.finish(job, "CONFLICT", invoiceId, paymentId, "COMMERCIAL_BOUNDARY_CONFLICT");
     } catch (RuntimeException exception) {
       if (paymentId != null) {
         try {

@@ -3,6 +3,7 @@ package com.messaging.billing.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -11,10 +12,13 @@ import com.messaging.billing.entity.BillingPeriod;
 import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.entity.Plan;
 import com.messaging.billing.entity.PlanPrice;
+import com.messaging.billing.entity.SubscriptionChange;
 import com.messaging.billing.entity.SubscriptionTransition;
 import com.messaging.billing.enums.BillingCycle;
 import com.messaging.billing.enums.BillingPeriodKind;
 import com.messaging.billing.enums.BillingPeriodStatus;
+import com.messaging.billing.enums.RateCardStatus;
+import com.messaging.billing.enums.SubscriptionChangeStatus;
 import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.enums.SubscriptionTransitionType;
 import com.messaging.billing.repository.CompanySubscriptionRepository;
@@ -38,6 +42,7 @@ class SubscriptionLifecycleServiceTests {
   @Mock private SubscriptionTransitionRepository transitionRepository;
   @Mock private BillingPeriodService billingPeriodService;
   @Mock private InvoiceService invoiceService;
+  @Mock private SubscriptionBoundaryChangeService boundaryChangeService;
 
   @InjectMocks private SubscriptionLifecycleService service;
 
@@ -65,6 +70,8 @@ class SubscriptionLifecycleServiceTests {
     currentPrice.setBillingCycle(BillingCycle.MONTHLY);
     currentPrice.setAmount(new java.math.BigDecimal("100.00"));
     currentPrice.setCurrency("INR");
+    currentPrice.setEffectiveFrom(Instant.parse("2026-01-01T00:00:00Z"));
+    currentPrice.setStatus(RateCardStatus.ACTIVE);
     subscription.setPlanPrice(currentPrice);
 
     PlanPrice renewalPrice = new PlanPrice();
@@ -73,6 +80,8 @@ class SubscriptionLifecycleServiceTests {
     renewalPrice.setBillingCycle(BillingCycle.MONTHLY);
     renewalPrice.setAmount(new java.math.BigDecimal("120.00"));
     renewalPrice.setCurrency("INR");
+    renewalPrice.setEffectiveFrom(Instant.parse("2026-01-01T00:00:00Z"));
+    renewalPrice.setStatus(RateCardStatus.ACTIVE);
 
     BillingPeriod next = new BillingPeriod();
     next.setId(30L);
@@ -100,6 +109,226 @@ class SubscriptionLifecycleServiceTests {
     assertEquals(SubscriptionStatus.ACTIVE, renewed.getStatus());
     verify(billingPeriodService).bindPlatformPeriodToSubscription(30L, subscription);
     verify(transitionRepository).save(any(SubscriptionTransition.class));
+  }
+
+  @Test
+  void providerConfirmedRenewalAtomicallyAppliesScheduledDowngradeTarget() {
+    Instant boundary = Instant.parse("2026-11-01T00:00:00Z");
+    Instant confirmedAt = boundary.plusSeconds(1);
+    CompanySubscription subscription = subscription(10L, SubscriptionStatus.ACTIVE);
+    subscription.setCurrentPeriodEnd(boundary);
+    PlanPrice currentPrice = priced(20L, subscription.getPlan(), "120.00");
+    subscription.setPlanPrice(currentPrice);
+
+    Plan targetPlan = new Plan();
+    targetPlan.setId(3L);
+    PlanPrice targetPrice = priced(21L, targetPlan, "80.00");
+    BillingPeriod next = paidPeriod(subscription, targetPlan, targetPrice, boundary);
+
+    SubscriptionChange downgrade = new SubscriptionChange();
+    downgrade.setId(88L);
+    downgrade.setSubscription(subscription);
+    downgrade.setFromPlan(subscription.getPlan());
+    downgrade.setFromPlanPrice(currentPrice);
+    downgrade.setToPlan(targetPlan);
+    downgrade.setToPlanPrice(targetPrice);
+    downgrade.setCurrentPeriodStart(subscription.getCurrentPeriodStart());
+    downgrade.setCurrentPeriodEnd(boundary);
+    downgrade.setEffectiveAt(boundary);
+    downgrade.setStatus(SubscriptionChangeStatus.SCHEDULED);
+    downgrade.setRequestedByUserId(77L);
+
+    when(subscriptionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(subscription));
+    when(invoiceService.requirePaidCanonicalPlatformInvoice(1L, 900L)).thenReturn(next);
+    when(boundaryChangeService.resolveScheduledDowngradeForBoundary(subscription, boundary))
+        .thenReturn(Optional.of(downgrade));
+    when(subscriptionRepository.saveAndFlush(subscription)).thenReturn(subscription);
+
+    CompanySubscription renewed =
+        service.renewAfterConfirmedCollection(10L, 900L, confirmedAt);
+
+    assertEquals(targetPlan, renewed.getPlan());
+    assertEquals(targetPrice, renewed.getPlanPrice());
+    assertEquals(boundary, renewed.getCurrentPeriodStart());
+    verify(boundaryChangeService).markApplied(downgrade, 900L, confirmedAt);
+    verify(billingPeriodService).bindPlatformPeriodToSubscription(next.getId(), subscription);
+  }
+
+  @Test
+  void zeroDueFreeDowngradeAppliesWithoutPaidInvoiceAndIsReplaySafe() {
+    Instant boundary = Instant.parse("2026-11-01T00:00:00Z");
+    Instant occurredAt = boundary.plusSeconds(1);
+    CompanySubscription subscription = subscription(10L, SubscriptionStatus.ACTIVE);
+    subscription.setCurrentPeriodEnd(boundary);
+    PlanPrice currentPrice = priced(20L, subscription.getPlan(), "120.00");
+    subscription.setPlanPrice(currentPrice);
+
+    Plan targetPlan = new Plan();
+    targetPlan.setId(3L);
+    PlanPrice targetPrice = priced(21L, targetPlan, "0.00");
+    targetPrice.setBillingCycle(BillingCycle.FREE);
+    BillingPeriod next = paidPeriod(subscription, targetPlan, targetPrice, boundary);
+    next.setCadence(BillingCycle.FREE);
+    next.setEndAt(null);
+
+    SubscriptionChange downgrade =
+        scheduledDowngrade(subscription, targetPlan, targetPrice, boundary);
+
+    when(subscriptionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(subscription));
+    when(invoiceService.requireZeroDueCanonicalPlatformInvoice(1L, 900L)).thenReturn(next);
+    when(boundaryChangeService.resolveScheduledDowngradeForBoundary(subscription, boundary))
+        .thenReturn(Optional.of(downgrade));
+    when(subscriptionRepository.saveAndFlush(subscription)).thenReturn(subscription);
+
+    CompanySubscription applied =
+        service.applyZeroDueBoundaryTransition(10L, 900L, occurredAt);
+
+    assertEquals(targetPlan, applied.getPlan());
+    assertEquals(targetPrice, applied.getPlanPrice());
+    assertEquals(boundary, applied.getCurrentPeriodStart());
+    assertEquals(null, applied.getCurrentPeriodEnd());
+    verify(boundaryChangeService).markApplied(downgrade, 900L, occurredAt);
+    verify(billingPeriodService).bindPlatformPeriodToSubscription(30L, subscription);
+    verify(transitionRepository).save(any(SubscriptionTransition.class));
+
+    CompanySubscription replay =
+        service.applyZeroDueBoundaryTransition(10L, 900L, occurredAt.plusSeconds(1));
+
+    assertEquals(subscription, replay);
+    verify(boundaryChangeService, times(1)).markApplied(downgrade, 900L, occurredAt);
+    verify(transitionRepository, times(1)).save(any(SubscriptionTransition.class));
+  }
+
+  @Test
+  void zeroDueNonFreeDowngradeKeepsCanonicalMonthlyPeriod() {
+    Instant boundary = Instant.parse("2026-11-01T00:00:00Z");
+    CompanySubscription subscription = subscription(10L, SubscriptionStatus.ACTIVE);
+    subscription.setCurrentPeriodEnd(boundary);
+    PlanPrice currentPrice = priced(20L, subscription.getPlan(), "120.00");
+    subscription.setPlanPrice(currentPrice);
+
+    Plan targetPlan = new Plan();
+    targetPlan.setId(3L);
+    PlanPrice targetPrice = priced(21L, targetPlan, "0.00");
+    BillingPeriod next = paidPeriod(subscription, targetPlan, targetPrice, boundary);
+    SubscriptionChange downgrade =
+        scheduledDowngrade(subscription, targetPlan, targetPrice, boundary);
+
+    when(subscriptionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(subscription));
+    when(invoiceService.requireZeroDueCanonicalPlatformInvoice(1L, 901L)).thenReturn(next);
+    when(boundaryChangeService.resolveScheduledDowngradeForBoundary(subscription, boundary))
+        .thenReturn(Optional.of(downgrade));
+    when(subscriptionRepository.saveAndFlush(subscription)).thenReturn(subscription);
+
+    CompanySubscription applied =
+        service.applyZeroDueBoundaryTransition(10L, 901L, boundary.plusSeconds(1));
+
+    assertEquals(targetPlan, applied.getPlan());
+    assertEquals(targetPrice, applied.getPlanPrice());
+    assertEquals(next.getEndAt(), applied.getCurrentPeriodEnd());
+    verify(boundaryChangeService).markApplied(eq(downgrade), eq(901L), any());
+  }
+
+  @Test
+  void paidConfirmationCannotBeUsedToActivateZeroDueTarget() {
+    Instant boundary = Instant.parse("2026-11-01T00:00:00Z");
+    CompanySubscription subscription = subscription(10L, SubscriptionStatus.ACTIVE);
+    subscription.setCurrentPeriodEnd(boundary);
+    PlanPrice currentPrice = priced(20L, subscription.getPlan(), "120.00");
+    subscription.setPlanPrice(currentPrice);
+
+    Plan targetPlan = new Plan();
+    targetPlan.setId(3L);
+    PlanPrice targetPrice = priced(21L, targetPlan, "0.00");
+    BillingPeriod next = paidPeriod(subscription, targetPlan, targetPrice, boundary);
+    SubscriptionChange downgrade =
+        scheduledDowngrade(subscription, targetPlan, targetPrice, boundary);
+
+    when(subscriptionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(subscription));
+    when(invoiceService.requirePaidCanonicalPlatformInvoice(1L, 902L)).thenReturn(next);
+    when(boundaryChangeService.resolveScheduledDowngradeForBoundary(subscription, boundary))
+        .thenReturn(Optional.of(downgrade));
+
+    assertThrows(
+        ConflictException.class,
+        () -> service.renewAfterConfirmedCollection(10L, 902L, boundary.plusSeconds(1)));
+
+    verify(subscriptionRepository, org.mockito.Mockito.never()).saveAndFlush(any());
+    verify(boundaryChangeService, org.mockito.Mockito.never()).markApplied(any(), any(), any());
+  }
+
+  @Test
+  void wrongPlanPaidInvoiceCannotActivateScheduledDowngrade() {
+    Instant boundary = Instant.parse("2026-11-01T00:00:00Z");
+    CompanySubscription subscription = subscription(10L, SubscriptionStatus.ACTIVE);
+    subscription.setCurrentPeriodEnd(boundary);
+    PlanPrice currentPrice = priced(20L, subscription.getPlan(), "120.00");
+    subscription.setPlanPrice(currentPrice);
+
+    Plan targetPlan = new Plan();
+    targetPlan.setId(3L);
+    PlanPrice targetPrice = priced(21L, targetPlan, "80.00");
+    Plan oldPlan = subscription.getPlan();
+    PlanPrice oldRenewalPrice = priced(22L, oldPlan, "120.00");
+    BillingPeriod wrong = paidPeriod(subscription, oldPlan, oldRenewalPrice, boundary);
+
+    SubscriptionChange downgrade = new SubscriptionChange();
+    downgrade.setId(88L);
+    downgrade.setSubscription(subscription);
+    downgrade.setFromPlan(oldPlan);
+    downgrade.setFromPlanPrice(currentPrice);
+    downgrade.setToPlan(targetPlan);
+    downgrade.setToPlanPrice(targetPrice);
+    downgrade.setCurrentPeriodStart(subscription.getCurrentPeriodStart());
+    downgrade.setCurrentPeriodEnd(boundary);
+    downgrade.setEffectiveAt(boundary);
+    downgrade.setStatus(SubscriptionChangeStatus.SCHEDULED);
+
+    when(subscriptionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(subscription));
+    when(invoiceService.requirePaidCanonicalPlatformInvoice(1L, 900L)).thenReturn(wrong);
+    when(boundaryChangeService.resolveScheduledDowngradeForBoundary(subscription, boundary))
+        .thenReturn(Optional.of(downgrade));
+
+    assertThrows(
+        ConflictException.class,
+        () -> service.renewAfterConfirmedCollection(10L, 900L, boundary.plusSeconds(1)));
+
+    verify(subscriptionRepository, org.mockito.Mockito.never()).saveAndFlush(any());
+    verify(boundaryChangeService, org.mockito.Mockito.never()).markApplied(any(), any(), any());
+  }
+
+  @Test
+  void alreadyPaidOldPlanInvoiceCannotSilentlyActivateFreeTarget() {
+    Instant boundary = Instant.parse("2026-11-01T00:00:00Z");
+    CompanySubscription subscription = subscription(10L, SubscriptionStatus.ACTIVE);
+    subscription.setCurrentPeriodEnd(boundary);
+    PlanPrice currentPrice = priced(20L, subscription.getPlan(), "120.00");
+    subscription.setPlanPrice(currentPrice);
+
+    Plan targetPlan = new Plan();
+    targetPlan.setId(3L);
+    PlanPrice freePrice = priced(21L, targetPlan, "0.00");
+    freePrice.setBillingCycle(BillingCycle.FREE);
+
+    Plan oldPlan = subscription.getPlan();
+    PlanPrice oldPaidPrice = priced(22L, oldPlan, "120.00");
+    BillingPeriod paidOldPeriod = paidPeriod(subscription, oldPlan, oldPaidPrice, boundary);
+    SubscriptionChange downgrade =
+        scheduledDowngrade(subscription, targetPlan, freePrice, boundary);
+
+    when(subscriptionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(subscription));
+    when(invoiceService.requirePaidCanonicalPlatformInvoice(1L, 903L)).thenReturn(paidOldPeriod);
+    when(boundaryChangeService.resolveScheduledDowngradeForBoundary(subscription, boundary))
+        .thenReturn(Optional.of(downgrade));
+
+    assertThrows(
+        ConflictException.class,
+        () -> service.renewAfterConfirmedCollection(10L, 903L, boundary.plusSeconds(1)));
+
+    assertEquals(oldPlan, subscription.getPlan());
+    assertEquals(currentPrice, subscription.getPlanPrice());
+    verify(subscriptionRepository, org.mockito.Mockito.never()).saveAndFlush(any());
+    verify(boundaryChangeService, org.mockito.Mockito.never()).markApplied(any(), any(), any());
   }
 
   @Test
@@ -133,6 +362,8 @@ class SubscriptionLifecycleServiceTests {
     price.setBillingCycle(BillingCycle.MONTHLY);
     price.setAmount(new java.math.BigDecimal("120.00"));
     price.setCurrency("INR");
+    price.setEffectiveFrom(Instant.parse("2026-01-01T00:00:00Z"));
+    price.setStatus(RateCardStatus.ACTIVE);
     subscription.setPlanPrice(price);
     subscription.setCurrentPeriodStart(Instant.parse("2026-11-01T00:00:00Z"));
     subscription.setCurrentPeriodEnd(Instant.parse("2026-12-01T00:00:00Z"));
@@ -230,6 +461,52 @@ class SubscriptionLifecycleServiceTests {
     assertEquals(1, service.applyDueLifecycle(boundary));
     assertEquals(SubscriptionStatus.EXPIRED, subscription.getStatus());
     assertEquals(boundary, subscription.getEndsAt());
+  }
+
+  private SubscriptionChange scheduledDowngrade(
+      CompanySubscription subscription, Plan targetPlan, PlanPrice targetPrice, Instant boundary) {
+    SubscriptionChange change = new SubscriptionChange();
+    change.setId(88L);
+    change.setSubscription(subscription);
+    change.setFromPlan(subscription.getPlan());
+    change.setFromPlanPrice(subscription.getPlanPrice());
+    change.setToPlan(targetPlan);
+    change.setToPlanPrice(targetPrice);
+    change.setCurrentPeriodStart(subscription.getCurrentPeriodStart());
+    change.setCurrentPeriodEnd(boundary);
+    change.setEffectiveAt(boundary);
+    change.setStatus(SubscriptionChangeStatus.SCHEDULED);
+    change.setRequestedByUserId(77L);
+    return change;
+  }
+
+  private PlanPrice priced(Long id, Plan plan, String amount) {
+    PlanPrice price = new PlanPrice();
+    price.setId(id);
+    price.setPlan(plan);
+    price.setBillingCycle(BillingCycle.MONTHLY);
+    price.setAmount(new java.math.BigDecimal(amount));
+    price.setCurrency("INR");
+    price.setEffectiveFrom(Instant.parse("2026-01-01T00:00:00Z"));
+    price.setStatus(RateCardStatus.ACTIVE);
+    return price;
+  }
+
+  private BillingPeriod paidPeriod(
+      CompanySubscription subscription, Plan plan, PlanPrice price, Instant start) {
+    BillingPeriod period = new BillingPeriod();
+    period.setId(30L);
+    period.setCompany(subscription.getCompany());
+    period.setKind(BillingPeriodKind.PLATFORM);
+    period.setCadence(BillingCycle.MONTHLY);
+    period.setPlan(plan);
+    period.setPlanPrice(price);
+    period.setPlatformAmountSnapshot(price.getAmount());
+    period.setCurrencySnapshot("INR");
+    period.setStartAt(start);
+    period.setEndAt(start.atZone(java.time.ZoneOffset.UTC).plusMonths(1).toInstant());
+    period.setStatus(BillingPeriodStatus.OPEN);
+    return period;
   }
 
   private CompanySubscription subscription(Long id, SubscriptionStatus status) {

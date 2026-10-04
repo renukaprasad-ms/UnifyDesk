@@ -214,15 +214,19 @@ public class PricingResolver {
       String carrier,
       UsageUnit unit,
       Instant at) {
-    return ruleChannel == channel
-        && ruleProvider == provider
-        && ruleCategory == category
-        && ruleDirection == direction
-        && ruleUnit == unit
-        && (ruleCountry == null || ruleCountry.equalsIgnoreCase(country))
-        && (ruleCarrier == null || ruleCarrier.equalsIgnoreCase(carrier))
-        && !from.isAfter(at)
-        && (to == null || to.isAfter(at));
+    boolean dimensionsMatch =
+        ruleChannel == channel
+            && ruleProvider == provider
+            && ruleCategory == category
+            && ruleDirection == direction
+            && ruleUnit == unit
+            && (ruleCountry == null || ruleCountry.equalsIgnoreCase(country))
+            && (ruleCarrier == null || ruleCarrier.equalsIgnoreCase(carrier));
+    if (!dimensionsMatch) {
+      return false;
+    }
+    FinancialEffectiveTime.assertStoredActiveRange(from, to, "pricing rule");
+    return FinancialEffectiveTime.includes(from, to, at);
   }
 
   private int specificity(String ruleCountry, String ruleCarrier, String country, String carrier) {

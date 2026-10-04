@@ -168,6 +168,7 @@ class BillingCatalogAuditTests {
     price.setBillingCycle(BillingCycle.MONTHLY);
     price.setAmount(amount);
     price.setCurrency("INR");
+    price.setEffectiveFrom(Instant.parse("2026-01-01T00:00:00Z"));
     price.setStatus(RateCardStatus.ACTIVE);
     return price;
   }

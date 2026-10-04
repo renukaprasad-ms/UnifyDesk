@@ -22,18 +22,36 @@ public interface SubscriptionChangeRepository extends JpaRepository<Subscription
   @Query(
       value =
           """
-          select *
-          from subscription_changes
-          where status = 'SCHEDULED'
-            and change_type = 'DOWNGRADE'
-            and effective_at <= :now
-          order by effective_at asc, id asc
-          for update skip locked
+          select sc.*
+          from subscription_changes sc
+          join company_subscriptions s on s.id = sc.subscription_id
+          where sc.status = 'SCHEDULED'
+            and sc.change_type = 'DOWNGRADE'
+            and sc.effective_at <= :now
+            and coalesce(s.payment_policy, '') <> 'CASHFREE'
+          order by sc.effective_at asc, sc.id asc
+          for update of sc skip locked
           limit :limit
           """,
       nativeQuery = true)
   List<SubscriptionChange> findDueDowngradesForUpdate(
       @Param("now") Instant now, @Param("limit") int limit);
+
+  @Query(
+      value =
+          """
+          select *
+          from subscription_changes
+          where subscription_id = :subscriptionId
+            and change_type = 'DOWNGRADE'
+            and status = 'SCHEDULED'
+            and effective_at <= :boundary
+          order by effective_at asc, id asc
+          for update
+          """,
+      nativeQuery = true)
+  List<SubscriptionChange> findScheduledDowngradesUpToBoundaryForUpdate(
+      @Param("subscriptionId") Long subscriptionId, @Param("boundary") Instant boundary);
 
   List<SubscriptionChange> findByCompanyIdOrderByRequestedAtDesc(Long companyId);
 }
