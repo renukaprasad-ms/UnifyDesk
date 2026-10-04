@@ -11,8 +11,11 @@ import com.messaging.billing.repository.PaymentRepository;
 import com.messaging.common.exception.ConflictException;
 import com.messaging.common.id.IdGenerator;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +25,7 @@ class RecurringChargeStore {
 
   private final PaymentRepository paymentRepository;
   private final PaymentAttemptRepository attemptRepository;
+  private final JdbcTemplate jdbcTemplate;
 
   @Transactional
   Prepared prepare(Long paymentId, String providerSubscriptionId) {
@@ -58,7 +62,8 @@ class RecurringChargeStore {
     if (latestRecurring != null
         && (latestRecurring.getStatus() == PaymentAttemptStatus.CREATED
             || latestRecurring.getStatus() == PaymentAttemptStatus.PENDING)
-        && !"FAILED".equals(latestRecurring.getProviderSubmissionState())) {
+        && !"FAILED".equals(latestRecurring.getProviderSubmissionState())
+        && !"COMMERCIAL_CONFLICT".equals(latestRecurring.getProviderSubmissionState())) {
       return snapshot(payment, latestRecurring, false, false);
     }
 
@@ -75,9 +80,81 @@ class RecurringChargeStore {
     return snapshot(payment, attempt, true, false);
   }
 
+  /**
+   * Final fail-closed commercial guard immediately before Cashfree CHARGE. It proves that the
+   * immutable Payment/Invoice/PLATFORM period still agrees with the locked subscription boundary
+   * and with the accepted scheduled downgrade, if one owns that exact boundary.
+   */
+  @Transactional(readOnly = true)
+  void assertCommerciallyCurrent(Prepared prepared, Instant boundary) {
+    if (prepared == null || prepared.attemptId() == null || boundary == null) {
+      throw new ConflictException("Recurring commercial boundary identity is required");
+    }
+    Integer matches =
+        jdbcTemplate.queryForObject(
+            """
+            select count(*)
+              from payments p
+              join invoices i on i.id = p.invoice_id
+              join billing_periods bp on bp.id = i.billing_period_id
+              join company_subscriptions s on s.id = p.subscription_id
+              left join subscription_changes sc
+                on sc.subscription_id = s.id
+               and sc.change_type = 'DOWNGRADE'
+               and sc.status = 'SCHEDULED'
+               and sc.effective_at = bp.start_at
+             where p.id = ?
+               and p.company_id = ?
+               and p.subscription_id = ?
+               and p.purpose = 'RENEWAL'
+               and p.status <> 'SUCCEEDED'
+               and i.status = 'OPEN'
+               and bp.kind = 'PLATFORM'
+               and bp.start_at = ?
+               and bp.company_id = p.company_id
+               and bp.plan_id = coalesce(sc.to_plan_id, s.plan_id)
+               and bp.plan_price_id = coalesce(sc.to_plan_price_id, s.plan_price_id)
+               and bp.platform_amount_snapshot = p.amount
+               and i.amount_due = p.amount
+               and upper(i.currency) = upper(p.currency)
+               and not exists (
+                 select 1
+                   from subscription_changes stale
+                  where stale.subscription_id = s.id
+                    and stale.change_type = 'DOWNGRADE'
+                    and stale.status = 'SCHEDULED'
+                    and stale.effective_at < bp.start_at
+               )
+            """,
+            Integer.class,
+            prepared.paymentId(),
+            prepared.companyId(),
+            prepared.subscriptionId(),
+            Timestamp.from(boundary));
+    if (matches == null || matches != 1) {
+      throw new ConflictException(
+          "Recurring provider command no longer matches authoritative commercial state");
+    }
+  }
+
   @Transactional
-  Prepared bindRemote(
-      Long attemptId, PaymentProviderGateway.RemoteSubscriptionPayment remote) {
+  void markCommercialConflict(Long attemptId) {
+    PaymentAttempt attempt =
+        attemptRepository
+            .findByIdForUpdate(attemptId)
+            .orElseThrow(() -> new ConflictException("Recurring payment attempt not found"));
+    if (attempt.getStatus() == PaymentAttemptStatus.SUCCEEDED) {
+      throw new ConflictException("Successful provider attempt cannot be rewritten as conflict");
+    }
+    attempt.setStatus(PaymentAttemptStatus.CANCELLED);
+    attempt.setProviderSubmissionState("COMMERCIAL_CONFLICT");
+    attempt.setFailureCategory("COMMERCIAL_BOUNDARY_CONFLICT");
+    attempt.setResolvedAt(Instant.now());
+    attemptRepository.saveAndFlush(attempt);
+  }
+
+  @Transactional
+  Prepared bindRemote(Long attemptId, PaymentProviderGateway.RemoteSubscriptionPayment remote) {
     PaymentAttempt attempt =
         attemptRepository
             .findByIdForUpdate(attemptId)
@@ -120,7 +197,8 @@ class RecurringChargeStore {
         .findById(attemptId)
         .ifPresent(
             attempt -> {
-              if (attempt.getStatus() != PaymentAttemptStatus.SUCCEEDED) {
+              if (attempt.getStatus() != PaymentAttemptStatus.SUCCEEDED
+                  && !"COMMERCIAL_CONFLICT".equals(attempt.getProviderSubmissionState())) {
                 attempt.setProviderSubmissionState("AMBIGUOUS");
                 if (attempt.getStatus() == PaymentAttemptStatus.CREATED) {
                   attempt.setStatus(PaymentAttemptStatus.PENDING);
