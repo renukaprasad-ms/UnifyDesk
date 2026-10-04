@@ -1,6 +1,7 @@
 package com.messaging.billing.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -20,15 +21,18 @@ import com.messaging.billing.enums.RateCardStatus;
 import com.messaging.billing.enums.SubscriptionChangeStatus;
 import com.messaging.billing.enums.SubscriptionChangeType;
 import com.messaging.billing.enums.SubscriptionStatus;
+import com.messaging.billing.enums.SubscriptionTransitionType;
 import com.messaging.billing.repository.BillingPeriodRepository;
 import com.messaging.billing.repository.PlanPriceRepository;
 import com.messaging.billing.repository.PlanRepository;
 import com.messaging.billing.repository.SubscriptionChangeRepository;
+import com.messaging.common.exception.ConflictException;
 import com.messaging.company.entity.Company;
 import com.messaging.company.repository.CompanyRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -52,6 +56,7 @@ class FreeToPaidSubscriptionChangeTests {
   private PlanPrice paidPrice;
   private CompanySubscription subscription;
   private final Instant requestedAt = Instant.parse("2026-10-04T06:00:00Z");
+  private final Instant monthlyEnd = Instant.parse("2026-11-04T06:00:00Z");
 
   @BeforeEach
   void setUp() {
@@ -86,7 +91,147 @@ class FreeToPaidSubscriptionChangeTests {
   }
 
   @Test
-  void freeToPaidQuoteUsesFullTargetAmountAndLeavesSubscriptionFreeBeforePayment() {
+  void freeToPaidRequestFreezesQuotedMonthlyPeriodAndLeavesSubscriptionFreeBeforePayment() {
+    stubUpgradeRequest(BillingCycle.MONTHLY, "999.00", monthlyEnd);
+    AtomicReference<SubscriptionChange> saved = new AtomicReference<>();
+    when(changes.saveAndFlush(any(SubscriptionChange.class)))
+        .thenAnswer(
+            invocation -> {
+              SubscriptionChange value = invocation.getArgument(0);
+              if (value.getId() == null) value.setId(700L);
+              saved.set(value);
+              return value;
+            });
+
+    var result = service.requestUpgrade(10L, 30L, 31L, "free-paid", 99L, requestedAt);
+
+    assertEquals(new BigDecimal("999.00"), result.amountDue());
+    assertEquals(new BigDecimal("0.00"), result.unusedCurrentCredit());
+    assertEquals(requestedAt, saved.get().getCurrentPeriodStart());
+    assertEquals(monthlyEnd, saved.get().getCurrentPeriodEnd());
+    assertEquals(freePlan, subscription.getPlan());
+    assertEquals(null, subscription.getCurrentPeriodEnd());
+  }
+
+  @Test
+  void confirmedFreeToPaidCreatesAndBindsQuotedMonthlyPeriodExactlyOnce() {
+    Instant confirmedAt = Instant.parse("2026-10-04T06:05:00Z");
+    Instant replayAt = Instant.parse("2026-10-04T06:10:00Z");
+    SubscriptionChange change = upgradeChange(BillingCycle.MONTHLY, monthlyEnd);
+    BillingPeriod period = paidPeriod(BillingCycle.MONTHLY, requestedAt, monthlyEnd);
+    when(changes.findByIdForUpdate(700L)).thenReturn(Optional.of(change));
+    when(lifecycle.requireForUpdate(40L)).thenReturn(subscription);
+    when(periods.ensurePlatformPeriodSnapshot(company, paidPlan, paidPrice, requestedAt, monthlyEnd))
+        .thenReturn(period);
+    when(changes.saveAndFlush(change)).thenReturn(change);
+
+    var applied = service.applyConfirmedUpgrade(700L, 900L, confirmedAt);
+    var replay = service.applyConfirmedUpgrade(700L, 900L, replayAt);
+
+    verify(upgradeInvoices, times(1)).assertPaidCanonicalInvoice(change, 900L);
+    verify(periods, times(1))
+        .ensurePlatformPeriodSnapshot(company, paidPlan, paidPrice, requestedAt, monthlyEnd);
+    verify(periods, never())
+        .ensurePlatformPeriodSnapshot(company, paidPlan, paidPrice, confirmedAt, any());
+    verify(periods, times(1)).bindPlatformPeriodToSubscription(800L, subscription);
+    verify(lifecycle, times(1))
+        .recordPlanChange(
+            subscription,
+            freePlan,
+            paidPlan,
+            SubscriptionTransitionType.UPGRADED,
+            null,
+            "Provider-confirmed FREE to paid upgrade applied",
+            confirmedAt);
+    assertEquals(SubscriptionChangeStatus.APPLIED, applied.status());
+    assertEquals(SubscriptionChangeStatus.APPLIED, replay.status());
+    assertEquals(confirmedAt, change.getAppliedAt());
+    assertEquals(paidPlan, subscription.getPlan());
+    assertEquals(paidPrice, subscription.getPlanPrice());
+    assertEquals(requestedAt, subscription.getCurrentPeriodStart());
+    assertEquals(monthlyEnd, subscription.getCurrentPeriodEnd());
+    assertEquals(requestedAt, subscription.getBillingAnchor());
+  }
+
+  @Test
+  void confirmedFreeToPaidYearlyUsesQuotedPeriodNotConfirmationTime() {
+    Instant confirmedAt = Instant.parse("2026-10-04T06:05:00Z");
+    Instant yearlyEnd = Instant.parse("2027-10-04T06:00:00Z");
+    paidPrice.setBillingCycle(BillingCycle.YEARLY);
+    paidPrice.setAmount(new BigDecimal("9999.00"));
+    SubscriptionChange change = upgradeChange(BillingCycle.YEARLY, yearlyEnd);
+    BillingPeriod period = paidPeriod(BillingCycle.YEARLY, requestedAt, yearlyEnd);
+    when(changes.findByIdForUpdate(700L)).thenReturn(Optional.of(change));
+    when(lifecycle.requireForUpdate(40L)).thenReturn(subscription);
+    when(periods.ensurePlatformPeriodSnapshot(company, paidPlan, paidPrice, requestedAt, yearlyEnd))
+        .thenReturn(period);
+    when(changes.saveAndFlush(change)).thenReturn(change);
+
+    service.applyConfirmedUpgrade(700L, 900L, confirmedAt);
+
+    verify(upgradeInvoices).assertPaidCanonicalInvoice(change, 900L);
+    verify(periods).ensurePlatformPeriodSnapshot(company, paidPlan, paidPrice, requestedAt, yearlyEnd);
+    assertEquals(requestedAt, subscription.getCurrentPeriodStart());
+    assertEquals(yearlyEnd, subscription.getCurrentPeriodEnd());
+    assertEquals(requestedAt, subscription.getBillingAnchor());
+    assertEquals(confirmedAt, change.getAppliedAt());
+  }
+
+  @Test
+  void malformedFreeToPaidMissingQuotedStartFailsClosed() {
+    SubscriptionChange change = upgradeChange(BillingCycle.MONTHLY, monthlyEnd);
+    change.setCurrentPeriodStart(null);
+    stubConfirmation(change);
+
+    assertThrows(
+        ConflictException.class,
+        () -> service.applyConfirmedUpgrade(700L, 900L, requestedAt.plusSeconds(300)));
+
+    verify(periods, never()).ensurePlatformPeriodSnapshot(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void malformedFreeToPaidMissingQuotedEndFailsClosed() {
+    SubscriptionChange change = upgradeChange(BillingCycle.MONTHLY, monthlyEnd);
+    change.setCurrentPeriodEnd(null);
+    stubConfirmation(change);
+
+    assertThrows(
+        ConflictException.class,
+        () -> service.applyConfirmedUpgrade(700L, 900L, requestedAt.plusSeconds(300)));
+
+    verify(periods, never()).ensurePlatformPeriodSnapshot(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void malformedFreeToPaidNonIncreasingQuotedPeriodFailsClosed() {
+    SubscriptionChange change = upgradeChange(BillingCycle.MONTHLY, requestedAt);
+    stubConfirmation(change);
+
+    assertThrows(
+        ConflictException.class,
+        () -> service.applyConfirmedUpgrade(700L, 900L, requestedAt.plusSeconds(300)));
+
+    verify(periods, never()).ensurePlatformPeriodSnapshot(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void positiveDueFreeToPaidStillRequiresCanonicalPaidInvoice() {
+    SubscriptionChange change = upgradeChange(BillingCycle.MONTHLY, monthlyEnd);
+    when(changes.findByIdForUpdate(700L)).thenReturn(Optional.of(change));
+
+    assertThrows(
+        ConflictException.class,
+        () -> service.applyConfirmedUpgrade(700L, null, requestedAt.plusSeconds(300)));
+
+    verify(upgradeInvoices, never()).assertPaidCanonicalInvoice(any(), anyLong());
+    verify(lifecycle, never()).requireForUpdate(anyLong());
+    verify(periods, never()).ensurePlatformPeriodSnapshot(any(), any(), any(), any(), any());
+  }
+
+  private void stubUpgradeRequest(BillingCycle cycle, String amount, Instant periodEnd) {
+    paidPrice.setBillingCycle(cycle);
+    paidPrice.setAmount(new BigDecimal(amount));
     when(companies.findByIdForUpdate(10L)).thenReturn(Optional.of(company));
     when(changes.findByCompanyIdAndIdempotencyKey(10L, "free-paid")).thenReturn(Optional.empty());
     when(lifecycle.currentForUpdate(10L)).thenReturn(subscription);
@@ -99,76 +244,42 @@ class FreeToPaidSubscriptionChangeTests {
             "INR",
             requestedAt,
             requestedAt,
-            Instant.parse("2026-11-04T06:00:00Z"),
+            periodEnd,
             new BigDecimal("0.00"),
-            new BigDecimal("999.00"),
-            new BigDecimal("999.00"),
+            paidPrice.getAmount(),
+            paidPrice.getAmount(),
             new BigDecimal("0.00"),
-            new BigDecimal("999.00"),
-            new BigDecimal("999.00"),
+            paidPrice.getAmount(),
+            paidPrice.getAmount(),
             new BigDecimal("0.00"));
     when(proration.quoteFromFree(
-            new BigDecimal("0.00"),
-            new BigDecimal("999.00"),
-            BillingCycle.MONTHLY,
-            requestedAt,
-            "INR"))
+            new BigDecimal("0.00"), paidPrice.getAmount(), cycle, requestedAt, "INR"))
         .thenReturn(quote);
-    when(changes.saveAndFlush(any(SubscriptionChange.class)))
-        .thenAnswer(
-            invocation -> {
-              SubscriptionChange value = invocation.getArgument(0);
-              if (value.getId() == null) value.setId(700L);
-              return value;
-            });
-
-    var result = service.requestUpgrade(10L, 30L, 31L, "free-paid", 99L, requestedAt);
-
-    assertEquals(new BigDecimal("999.00"), result.amountDue());
-    assertEquals(new BigDecimal("0.00"), result.unusedCurrentCredit());
-    assertEquals(freePlan, subscription.getPlan());
-    assertEquals(null, subscription.getCurrentPeriodEnd());
   }
 
-  @Test
-  void confirmedFreeToPaidCreatesAndBindsCanonicalPaidPeriodExactlyOnce() {
-    Instant confirmedAt = Instant.parse("2026-10-04T06:05:00Z");
-    Instant paidEnd = Instant.parse("2026-11-04T06:05:00Z");
-    SubscriptionChange change = upgradeChange();
+  private void stubConfirmation(SubscriptionChange change) {
+    when(changes.findByIdForUpdate(700L)).thenReturn(Optional.of(change));
+    when(lifecycle.requireForUpdate(40L)).thenReturn(subscription);
+  }
+
+  private BillingPeriod paidPeriod(BillingCycle cycle, Instant start, Instant end) {
     BillingPeriod period = new BillingPeriod();
     period.setId(800L);
     period.setCompany(company);
     period.setKind(BillingPeriodKind.PLATFORM);
-    period.setCadence(BillingCycle.MONTHLY);
-    period.setStartAt(confirmedAt);
-    period.setEndAt(paidEnd);
+    period.setCadence(cycle);
+    period.setStartAt(start);
+    period.setEndAt(end);
     period.setStatus(BillingPeriodStatus.OPEN);
     period.setPlan(paidPlan);
     period.setPlanPrice(paidPrice);
     period.setPlatformAmountSnapshot(paidPrice.getAmount());
     period.setCurrencySnapshot("INR");
-    when(changes.findByIdForUpdate(700L)).thenReturn(Optional.of(change));
-    when(lifecycle.requireForUpdate(40L)).thenReturn(subscription);
-    when(periods.ensurePlatformPeriodSnapshot(company, paidPlan, paidPrice, confirmedAt, paidEnd))
-        .thenReturn(period);
-    when(changes.saveAndFlush(change)).thenReturn(change);
-
-    var applied = service.applyConfirmedUpgrade(700L, 900L, confirmedAt);
-    var replay = service.applyConfirmedUpgrade(700L, 900L, confirmedAt.plusSeconds(10));
-
-    verify(upgradeInvoices, times(1)).assertPaidCanonicalInvoice(change, 900L);
-    verify(periods, times(1))
-        .ensurePlatformPeriodSnapshot(company, paidPlan, paidPrice, confirmedAt, paidEnd);
-    verify(periods, times(1)).bindPlatformPeriodToSubscription(800L, subscription);
-    assertEquals(SubscriptionChangeStatus.APPLIED, applied.status());
-    assertEquals(SubscriptionChangeStatus.APPLIED, replay.status());
-    assertEquals(paidPlan, subscription.getPlan());
-    assertEquals(paidPrice, subscription.getPlanPrice());
-    assertEquals(confirmedAt, subscription.getCurrentPeriodStart());
-    assertEquals(paidEnd, subscription.getCurrentPeriodEnd());
+    return period;
   }
 
-  private SubscriptionChange upgradeChange() {
+  private SubscriptionChange upgradeChange(BillingCycle cycle, Instant periodEnd) {
+    paidPrice.setBillingCycle(cycle);
     SubscriptionChange change = new SubscriptionChange();
     change.setId(700L);
     change.setCompany(company);
@@ -186,6 +297,8 @@ class FreeToPaidSubscriptionChangeTests {
     change.setCurrency("INR");
     change.setCurrentPriceSnapshot(new BigDecimal("0.00"));
     change.setTargetPriceSnapshot(paidPrice.getAmount());
+    change.setCurrentPeriodStart(requestedAt);
+    change.setCurrentPeriodEnd(periodEnd);
     change.setTargetProratedCharge(paidPrice.getAmount());
     change.setUnusedCurrentCredit(new BigDecimal("0.00"));
     change.setNetAmount(paidPrice.getAmount());
