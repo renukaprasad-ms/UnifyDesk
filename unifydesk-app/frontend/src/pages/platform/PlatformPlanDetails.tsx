@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FiArrowLeft, FiArchive, FiCheck, FiPlus, FiSave } from 'react-icons/fi'
+import { FiArrowLeft, FiArchive, FiCheck, FiPlus, FiSave, FiTrash2 } from 'react-icons/fi'
 import { useNavigate, useParams } from 'react-router'
 import { adminBillingApi } from '../../features/platformBilling/adminBillingApi'
+import {
+  buildPlanPriceInput,
+  buildRateCardInput,
+  instantToLocalDateTime,
+} from '../../features/platformBilling/billingAdminModel'
 import type {
   BillingCategory,
   BillingCycle,
@@ -12,53 +17,63 @@ import type {
   CreateRateCardInput,
   EntitlementDefinition,
   PlanPrice,
+  PlanVisibility,
   ProviderType,
   RateCard,
+  RateCardStatus,
   UsageUnit,
 } from '../../features/platformBilling/types'
 
 type Tab = 'overview' | 'pricing' | 'entitlements' | 'usage'
 
 const providersByChannel: Record<ChannelType, ProviderType[]> = {
-  EMAIL: ['GMAIL', 'MICROSOFT', 'SMTP'],
+  EMAIL: ['AMAZON_SES', 'SENDGRID', 'AZURE_EMAIL', 'MSG91_EMAIL', 'GMAIL', 'MICROSOFT', 'IMAP_SMTP', 'SMTP'],
   WHATSAPP: ['META_WHATSAPP'],
-  SMS: ['MSG91'],
+  SMS: ['MSG91_SMS'],
 }
 
 const categoriesByChannel: Record<ChannelType, BillingCategory[]> = {
   EMAIL: ['EMAIL_OUTBOUND', 'EMAIL_INBOUND'],
-  WHATSAPP: [
-    'WHATSAPP_MARKETING',
-    'WHATSAPP_UTILITY',
-    'WHATSAPP_AUTHENTICATION',
-    'WHATSAPP_SERVICE',
-  ],
+  WHATSAPP: ['WHATSAPP_MARKETING', 'WHATSAPP_UTILITY', 'WHATSAPP_AUTHENTICATION', 'WHATSAPP_SERVICE'],
   SMS: ['SMS_PROMOTIONAL', 'SMS_TRANSACTIONAL', 'SMS_OTP'],
 }
 
-const blankPrice: CreatePlanPriceInput = { billingCycle: 'MONTHLY', amount: 0, currency: 'INR' }
-const blankRate = (planId: string): CreateRateCardInput => ({
+export const PLATFORM_RATE_USAGE_UNITS: UsageUnit[] = [
+  'MESSAGE',
+  'SEGMENT',
+  'CONVERSATION',
+  'CLICK',
+  'IMPRESSION',
+]
+
+export const defaultUsageUnitForChannel = (channel: ChannelType): UsageUnit =>
+  channel === 'SMS' ? 'SEGMENT' : 'MESSAGE'
+
+const blankPrice = {
+  billingCycle: 'MONTHLY' as BillingCycle,
+  amount: 0,
+  currency: 'INR',
+}
+
+const blankRate = (planId: string) => ({
   planId,
-  channel: 'SMS',
-  provider: 'MSG91',
-  billingCategory: 'SMS_TRANSACTIONAL',
-  direction: 'OUTBOUND',
-  unit: 'MESSAGE',
+  channel: 'SMS' as ChannelType,
+  provider: 'MSG91_SMS' as ProviderType,
+  billingCategory: 'SMS_TRANSACTIONAL' as BillingCategory,
+  direction: 'OUTBOUND' as CommunicationDirection,
+  unit: 'SEGMENT' as UsageUnit,
   price: 0,
   currency: 'INR',
+  country: '',
+  carrier: '',
 })
 
-const money = (amount: number, currency: string) => {
-  try {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: 6,
-    }).format(amount)
-  } catch {
-    return `${currency} ${amount}`
-  }
-}
+const money = (amount: number, currency: string) =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 6,
+  }).format(amount)
 
 export default function PlatformPlanDetails() {
   const { planId = '' } = useParams()
@@ -71,15 +86,24 @@ export default function PlatformPlanDetails() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [priceForm, setPriceForm] = useState(blankPrice)
+  const [priceFrom, setPriceFrom] = useState('')
+  const [priceTo, setPriceTo] = useState('')
+  const [editingPriceId, setEditingPriceId] = useState<string | null>(null)
+  const [priceStatus, setPriceStatus] = useState<RateCardStatus>('ACTIVE')
+  const [rateForm, setRateForm] = useState(() => blankRate(planId))
+  const [rateFrom, setRateFrom] = useState('')
+  const [rateTo, setRateTo] = useState('')
+  const [editingRateId, setEditingRateId] = useState<string | null>(null)
+  const [rateStatus, setRateStatus] = useState<RateCardStatus>('ACTIVE')
   const [entitlementValues, setEntitlementValues] = useState<Record<string, string>>({})
-  const [priceForm, setPriceForm] = useState<CreatePlanPriceInput>(blankPrice)
-  const [rateForm, setRateForm] = useState<CreateRateCardInput>(() => blankRate(planId))
   const [overview, setOverview] = useState({
     name: '',
     description: '',
     billingCycle: 'MONTHLY' as BillingCycle,
     basePrice: 0,
     currency: 'INR',
+    visibility: 'PUBLIC' as PlanVisibility,
   })
 
   const load = async () => {
@@ -96,7 +120,7 @@ export default function PlatformPlanDetails() {
       const current = plans.find((item) => item.planId === planId)
       if (!current) throw new Error('Plan not found')
       setPlan(current)
-      setDefinitions(defs.filter((definition) => definition.active))
+      setDefinitions(defs.filter((item) => item.active))
       setPrices(loadedPrices)
       setRateCards(loadedRates)
       setOverview({
@@ -105,14 +129,16 @@ export default function PlatformPlanDetails() {
         billingCycle: current.billingCycle,
         basePrice: current.basePrice,
         currency: current.currency,
+        visibility: current.visibility,
       })
-      const values: Record<string, string> = {}
-      defs.forEach((definition) => {
-        values[definition.key] =
-          current.entitlements.find((item) => item.key === definition.key)?.value ??
-          definition.defaultValue
-      })
-      setEntitlementValues(values)
+      setEntitlementValues(
+        Object.fromEntries(
+          defs.map((definition) => [
+            definition.key,
+            current.entitlements.find((item) => item.key === definition.key)?.value ?? definition.defaultValue,
+          ]),
+        ),
+      )
       setPriceForm((value) => ({ ...value, currency: current.currency }))
       setRateForm((value) => ({ ...value, planId, currency: current.currency }))
     } catch (cause) {
@@ -126,23 +152,24 @@ export default function PlatformPlanDetails() {
     void load()
   }, [planId])
 
-  const entitlementsByCategory = useMemo(() => {
-    return definitions.reduce<Record<string, EntitlementDefinition[]>>((groups, definition) => {
-      ;(groups[definition.category] ??= []).push(definition)
+  const mutable = plan?.status === 'DRAFT'
+  const entitlementsByCategory = useMemo(
+    () => definitions.reduce<Record<string, EntitlementDefinition[]>>((groups, item) => {
+      ;(groups[item.category] ??= []).push(item)
       return groups
-    }, {})
-  }, [definitions])
+    }, {}),
+    [definitions],
+  )
 
   const saveOverview = async (event: React.FormEvent) => {
     event.preventDefault()
+    if (!mutable) return
     setSaving(true)
-    setError('')
     try {
       await adminBillingApi.updatePlan(planId, {
+        ...overview,
         name: overview.name.trim(),
         description: overview.description.trim(),
-        billingCycle: overview.billingCycle,
-        basePrice: overview.basePrice,
         currency: overview.currency.toUpperCase(),
       })
       await load()
@@ -155,38 +182,119 @@ export default function PlatformPlanDetails() {
 
   const setStatus = async (status: 'PUBLISHED' | 'RETIRED') => {
     setSaving(true)
-    setError('')
     try {
       await adminBillingApi.updatePlan(planId, { status })
       await load()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to update plan status')
+      setError(cause instanceof Error ? cause.message : 'Unable to update status')
     } finally {
       setSaving(false)
     }
   }
 
-  const addPrice = async (event: React.FormEvent) => {
+  const resetPrice = () => {
+    setEditingPriceId(null)
+    setPriceForm({ ...blankPrice, currency: plan?.currency ?? 'INR' })
+    setPriceFrom('')
+    setPriceTo('')
+    setPriceStatus('ACTIVE')
+  }
+
+  const editPrice = (price: PlanPrice) => {
+    setEditingPriceId(price.planPriceId)
+    setPriceForm({
+      billingCycle: price.billingCycle,
+      amount: price.amount,
+      currency: price.currency,
+    })
+    setPriceFrom(instantToLocalDateTime(price.effectiveFrom))
+    setPriceTo(instantToLocalDateTime(price.effectiveTo))
+    setPriceStatus(price.status)
+  }
+
+  const savePrice = async (event: React.FormEvent) => {
     event.preventDefault()
+    if (!mutable) return
     setSaving(true)
     setError('')
     try {
-      await adminBillingApi.createPlanPrice(planId, {
-        ...priceForm,
-        currency: priceForm.currency.toUpperCase(),
-      })
-      setPriceForm({ ...blankPrice, currency: plan?.currency ?? 'INR' })
+      const input: CreatePlanPriceInput = buildPlanPriceInput(priceForm, priceFrom, priceTo)
+      if (editingPriceId) {
+        await adminBillingApi.updatePlanPrice(editingPriceId, {
+          amount: input.amount,
+          currency: input.currency,
+          effectiveFrom: input.effectiveFrom,
+          effectiveTo: input.effectiveTo,
+          status: priceStatus,
+        })
+      } else {
+        await adminBillingApi.createPlanPrice(planId, input)
+      }
+      resetPrice()
       await load()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to create price')
+      setError(cause instanceof Error ? cause.message : 'Unable to save price')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const resetRate = () => {
+    setEditingRateId(null)
+    setRateForm({ ...blankRate(planId), currency: plan?.currency ?? 'INR' })
+    setRateFrom('')
+    setRateTo('')
+    setRateStatus('ACTIVE')
+  }
+
+  const editRate = (rate: RateCard) => {
+    setEditingRateId(rate.rateCardId)
+    setRateForm({
+      planId: rate.planId,
+      channel: rate.channel,
+      provider: rate.provider,
+      billingCategory: rate.billingCategory,
+      direction: rate.direction,
+      unit: rate.unit,
+      price: rate.price,
+      currency: rate.currency,
+      country: rate.country ?? '',
+      carrier: rate.carrier ?? '',
+    })
+    setRateFrom(instantToLocalDateTime(rate.effectiveFrom))
+    setRateTo(instantToLocalDateTime(rate.effectiveTo))
+    setRateStatus(rate.status)
+  }
+
+  const saveRate = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!mutable) return
+    setSaving(true)
+    setError('')
+    try {
+      const input: CreateRateCardInput = buildRateCardInput(rateForm, rateFrom, rateTo)
+      if (editingRateId) {
+        await adminBillingApi.updateRateCard(editingRateId, {
+          price: input.price,
+          effectiveFrom: input.effectiveFrom,
+          effectiveTo: input.effectiveTo,
+          status: rateStatus,
+        })
+      } else {
+        await adminBillingApi.createRateCard(input)
+      }
+      resetRate()
+      await load()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to save rate')
     } finally {
       setSaving(false)
     }
   }
 
   const saveEntitlement = async (definition: EntitlementDefinition) => {
+    if (!mutable) return
     setSaving(true)
-    setError('')
     try {
       await adminBillingApi.saveEntitlement(
         planId,
@@ -201,28 +309,8 @@ export default function PlatformPlanDetails() {
     }
   }
 
-  const saveAllEntitlements = async () => {
-    setSaving(true)
-    setError('')
-    try {
-      await Promise.all(
-        definitions.map((definition) =>
-          adminBillingApi.saveEntitlement(
-            planId,
-            definition.key,
-            entitlementValues[definition.key] ?? definition.defaultValue,
-          ),
-        ),
-      )
-      await load()
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to save plan limits and features')
-    } finally {
-      setSaving(false)
-    }
-  }
-
   const removeEntitlement = async (key: string) => {
+    if (!mutable) return
     const current = plan?.entitlements.find((item) => item.key === key)
     if (!current) return
     setSaving(true)
@@ -236,113 +324,68 @@ export default function PlatformPlanDetails() {
     }
   }
 
-  const addRate = async (event: React.FormEvent) => {
-    event.preventDefault()
-    setSaving(true)
-    setError('')
-    try {
-      await adminBillingApi.createRateCard({
-        ...rateForm,
-        country: rateForm.country?.trim().toUpperCase() || undefined,
-        carrier: rateForm.carrier?.trim() || undefined,
-        currency: rateForm.currency.toUpperCase(),
-      })
-      setRateForm(blankRate(planId))
-      await load()
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to create rate card')
-    } finally {
-      setSaving(false)
-    }
-  }
+  const changeRateChannel = (channel: ChannelType) =>
+    setRateForm((current) => ({
+      ...current,
+      channel,
+      provider: providersByChannel[channel][0],
+      billingCategory: categoriesByChannel[channel][0],
+      unit: defaultUsageUnitForChannel(channel),
+    }))
 
-  const changeRateChannel = (channel: ChannelType) => {
-    const provider = providersByChannel[channel][0]
-    const billingCategory = categoriesByChannel[channel][0]
-    setRateForm((current) => ({ ...current, channel, provider, billingCategory }))
-  }
-
-  if (loading)
-    return (
-      <div className="p-4 sm:p-6 lg:p-8 text-sm font-medium text-slate-500">
-        Loading plan configuration…
-      </div>
-    )
-  if (!plan)
-    return (
-      <div className="p-4 sm:p-6 lg:p-8 text-sm font-medium text-red-600">
-        {error || 'Plan not found'}
-      </div>
-    )
+  if (loading) return <div className="p-6 text-sm text-slate-500">Loading plan configuration…</div>
+  if (!plan) return <div className="p-6 text-red-600">{error || 'Plan not found'}</div>
 
   return (
     <section className="p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
         <button
-          type="button"
-          className="mb-5 inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-indigo-500"
+          className="mb-5 inline-flex items-center gap-2 text-xs font-semibold text-slate-500"
           onClick={() => navigate('/platform/plans')}
         >
-          <FiArrowLeft />
-          Back to plans
+          <FiArrowLeft /> Back to plans
         </button>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+
+        <header className="flex flex-col gap-4 lg:flex-row lg:justify-between">
           <div>
-            <p className="eyebrow">
-              {plan.code} · VERSION {plan.version}
-            </p>
-            <h1 className="mt-2 text-2xl font-bold text-slate-950">{plan.name}</h1>
-            <p className="mt-1 max-w-2xl text-sm text-slate-500">
-              {plan.description || 'No plan description yet.'}
-            </p>
+            <p className="eyebrow">{plan.code} · VERSION {plan.version}</p>
+            <h1 className="mt-2 text-2xl font-bold">{plan.name}</h1>
+            <p className="mt-1 text-sm text-slate-500">{plan.description || 'No plan description yet.'}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-bold text-slate-600">
-              {plan.status}
-            </span>
+          <div>
             {plan.status === 'DRAFT' && (
-              <button
-                type="button"
-                className="primary-button gap-2"
-                disabled={saving}
-                onClick={() => void setStatus('PUBLISHED')}
-              >
-                <FiCheck />
-                Publish
+              <button className="primary-button gap-2" onClick={() => void setStatus('PUBLISHED')}>
+                <FiCheck /> Publish
               </button>
             )}
             {plan.status === 'PUBLISHED' && (
-              <button
-                type="button"
-                className="secondary-button gap-2 text-rose-600"
-                disabled={saving}
-                onClick={() => void setStatus('RETIRED')}
-              >
-                <FiArchive />
-                Retire
+              <button className="secondary-button gap-2" onClick={() => void setStatus('RETIRED')}>
+                <FiArchive /> Retire
               </button>
             )}
           </div>
-        </div>
+        </header>
 
+        {!mutable && (
+          <div className="mt-5 rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900">
+            Published commercial terms are immutable. Create a new plan version to change commercial terms.
+          </div>
+        )}
         {error && (
-          <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {error}
           </div>
         )}
 
         <div className="mt-7 flex overflow-x-auto border-b border-slate-200">
-          {(
-            [
-              ['overview', 'Overview'],
-              ['pricing', 'Subscription pricing'],
-              ['entitlements', 'Limits & features'],
-              ['usage', 'Channel pricing'],
-            ] as const
-          ).map(([key, label]) => (
+          {([
+            ['overview', 'Overview'],
+            ['pricing', 'Subscription pricing'],
+            ['entitlements', 'Limits & features'],
+            ['usage', 'Managed-Service pricing'],
+          ] as const).map(([key, label]) => (
             <button
               key={key}
-              type="button"
               className={`settings-tab whitespace-nowrap ${tab === key ? 'is-active' : ''}`}
               onClick={() => setTab(key)}
             >
@@ -353,495 +396,140 @@ export default function PlatformPlanDetails() {
 
         {tab === 'overview' && (
           <form onSubmit={saveOverview} className="panel mt-6 p-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="text-xs font-semibold text-slate-600">
+            <fieldset disabled={!mutable || saving} className="grid gap-4 md:grid-cols-2">
+              <label className="text-xs font-semibold">
                 Name
-                <input
-                  className="form-input mt-1.5"
-                  value={overview.name}
-                  onChange={(e) => setOverview({ ...overview, name: e.target.value })}
-                  required
-                />
+                <input className="form-input mt-1.5" value={overview.name} onChange={(e) => setOverview({ ...overview, name: e.target.value })} />
               </label>
-              <label className="text-xs font-semibold text-slate-600">
-                Default billing cycle
-                <select
-                  className="form-input mt-1.5"
-                  value={overview.billingCycle}
-                  onChange={(e) =>
-                    setOverview({ ...overview, billingCycle: e.target.value as BillingCycle })
-                  }
-                >
-                  <option value="FREE">Free</option>
-                  <option value="MONTHLY">Monthly</option>
-                  <option value="YEARLY">Yearly</option>
+              <label className="text-xs font-semibold">
+                Visibility
+                <select className="form-input mt-1.5" value={overview.visibility} onChange={(e) => setOverview({ ...overview, visibility: e.target.value as PlanVisibility })}>
+                  <option>PUBLIC</option><option>PRIVATE</option><option>INTERNAL</option>
                 </select>
               </label>
-              <label className="text-xs font-semibold text-slate-600">
+              <label className="text-xs font-semibold">
+                Cycle
+                <select className="form-input mt-1.5" value={overview.billingCycle} onChange={(e) => setOverview({ ...overview, billingCycle: e.target.value as BillingCycle })}>
+                  <option>FREE</option><option>MONTHLY</option><option>YEARLY</option>
+                </select>
+              </label>
+              <label className="text-xs font-semibold">
                 Base price
-                <input
-                  className="form-input mt-1.5"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={overview.basePrice}
-                  onChange={(e) => setOverview({ ...overview, basePrice: Number(e.target.value) })}
-                />
+                <input className="form-input mt-1.5" type="number" value={overview.basePrice} onChange={(e) => setOverview({ ...overview, basePrice: Number(e.target.value) })} />
               </label>
-              <label className="text-xs font-semibold text-slate-600">
+              <label className="text-xs font-semibold">
                 Currency
-                <input
-                  className="form-input mt-1.5"
-                  minLength={3}
-                  maxLength={3}
-                  value={overview.currency}
-                  onChange={(e) =>
-                    setOverview({ ...overview, currency: e.target.value.toUpperCase() })
-                  }
-                />
+                <input className="form-input mt-1.5" value={overview.currency} onChange={(e) => setOverview({ ...overview, currency: e.target.value })} />
               </label>
-              <label className="text-xs font-semibold text-slate-600 md:col-span-2">
+              <label className="text-xs font-semibold md:col-span-2">
                 Description
-                <textarea
-                  className="form-input mt-1.5"
-                  maxLength={500}
-                  value={overview.description}
-                  onChange={(e) => setOverview({ ...overview, description: e.target.value })}
-                />
+                <textarea className="form-input mt-1.5" value={overview.description} onChange={(e) => setOverview({ ...overview, description: e.target.value })} />
               </label>
-            </div>
-            <div className="mt-5 flex justify-end">
-              <button className="primary-button gap-2" disabled={saving}>
-                <FiSave />
-                Save overview
-              </button>
-            </div>
+            </fieldset>
+            {mutable && <button className="primary-button mt-5 gap-2"><FiSave /> Save draft</button>}
           </form>
         )}
 
         {tab === 'pricing' && (
-          <div className="mt-6 grid gap-6 xl:grid-cols-[360px_1fr]">
-            <form onSubmit={addPrice} className="panel h-fit p-5">
-              <h2 className="text-sm font-bold text-slate-950">Add subscription price</h2>
-              <p className="mt-1 text-xs text-slate-500">
-                Keep monthly and yearly prices as separate effective price records.
-              </p>
-              <div className="mt-5 space-y-4">
-                <label className="block text-xs font-semibold text-slate-600">
-                  Cycle
-                  <select
-                    className="form-input mt-1.5"
-                    value={priceForm.billingCycle}
-                    onChange={(e) =>
-                      setPriceForm({ ...priceForm, billingCycle: e.target.value as BillingCycle })
-                    }
-                  >
-                    <option value="FREE">Free</option>
-                    <option value="MONTHLY">Monthly</option>
-                    <option value="YEARLY">Yearly</option>
+          <div className="mt-6 grid gap-6 xl:grid-cols-[380px_1fr]">
+            <form className="panel p-5" onSubmit={savePrice}>
+              <h2 className="font-bold">{editingPriceId ? 'Edit subscription price' : 'Add subscription price'}</h2>
+              <fieldset disabled={!mutable || saving} className="mt-4 space-y-3">
+                <select className="form-input" disabled={Boolean(editingPriceId)} value={priceForm.billingCycle} onChange={(e) => setPriceForm({ ...priceForm, billingCycle: e.target.value as BillingCycle })}>
+                  <option>FREE</option><option>MONTHLY</option><option>YEARLY</option>
+                </select>
+                <input className="form-input" type="number" min="0" value={priceForm.amount} onChange={(e) => setPriceForm({ ...priceForm, amount: Number(e.target.value) })} />
+                <input className="form-input" maxLength={3} value={priceForm.currency} onChange={(e) => setPriceForm({ ...priceForm, currency: e.target.value.toUpperCase() })} />
+                <label className="block text-xs font-semibold">Effective from *<input required type="datetime-local" className="form-input mt-1" value={priceFrom} onChange={(e) => setPriceFrom(e.target.value)} /></label>
+                <label className="block text-xs font-semibold">Effective to<input type="datetime-local" className="form-input mt-1" value={priceTo} onChange={(e) => setPriceTo(e.target.value)} /></label>
+                {editingPriceId && (
+                  <select className="form-input" value={priceStatus} onChange={(e) => setPriceStatus(e.target.value as RateCardStatus)}>
+                    <option>ACTIVE</option><option>ARCHIVED</option>
                   </select>
-                </label>
-                <label className="block text-xs font-semibold text-slate-600">
-                  Amount
-                  <input
-                    className="form-input mt-1.5"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={priceForm.amount}
-                    onChange={(e) => setPriceForm({ ...priceForm, amount: Number(e.target.value) })}
-                    required
-                  />
-                </label>
-                <label className="block text-xs font-semibold text-slate-600">
-                  Currency
-                  <input
-                    className="form-input mt-1.5"
-                    minLength={3}
-                    maxLength={3}
-                    value={priceForm.currency}
-                    onChange={(e) =>
-                      setPriceForm({ ...priceForm, currency: e.target.value.toUpperCase() })
-                    }
-                    required
-                  />
-                </label>
-              </div>
-              <button className="primary-button mt-5 w-full gap-2" disabled={saving}>
-                <FiPlus />
-                Add price
-              </button>
-            </form>
-            <div className="panel overflow-hidden">
-              <div className="border-b border-slate-100 px-5 py-4">
-                <h2 className="text-sm font-bold text-slate-950">Effective prices</h2>
-              </div>
-              {prices.length === 0 ? (
-                <p className="px-5 py-10 text-center text-sm text-slate-500">
-                  No subscription prices configured.
-                </p>
-              ) : (
-                prices.map((price) => (
-                  <div
-                    key={price.planPriceId}
-                    className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 last:border-0 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div>
-                      <p className="font-bold text-slate-950">{price.billingCycle}</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {price.status} ·{' '}
-                        {price.effectiveFrom
-                          ? `from ${new Date(price.effectiveFrom).toLocaleDateString()}`
-                          : 'effective immediately'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold text-slate-900">
-                        {money(price.amount, price.currency)}
-                      </span>
-                      {price.status === 'ACTIVE' && (
-                        <button
-                          type="button"
-                          className="text-xs font-semibold text-rose-600"
-                          onClick={async () => {
-                            await adminBillingApi.updatePlanPrice(price.planPriceId, {
-                              status: 'ARCHIVED',
-                            })
-                            await load()
-                          }}
-                        >
-                          Archive
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))
+                )}
+              </fieldset>
+              {mutable && (
+                <div className="mt-4 flex gap-2">
+                  <button className="primary-button gap-2"><FiSave /> {editingPriceId ? 'Update price' : 'Add price'}</button>
+                  {editingPriceId && <button type="button" className="secondary-button" onClick={resetPrice}>Cancel</button>}
+                </div>
               )}
+            </form>
+            <div className="panel">
+              {prices.map((price) => (
+                <div key={price.planPriceId} className="flex items-center justify-between gap-4 border-b p-4">
+                  <span>{price.billingCycle} · {price.status}<small className="block text-slate-500">{price.effectiveFrom ?? 'Missing effective start'} → {price.effectiveTo ?? 'open'}</small></span>
+                  <div className="flex items-center gap-3"><strong>{money(price.amount, price.currency)}</strong>{mutable && <button type="button" className="secondary-button" onClick={() => editPrice(price)}>Edit</button>}</div>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
         {tab === 'entitlements' && (
-          <div className="mt-6 space-y-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-slate-950">Limits & features</h2>
-                <p className="mt-1 text-xs text-slate-500">
-                  Update multiple plan limits, then save the entire catalogue at once.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="primary-button gap-2 self-start sm:self-auto"
-                disabled={saving || definitions.length === 0}
-                onClick={() => void saveAllEntitlements()}
-              >
-                <FiSave />
-                {saving ? 'Saving...' : 'Save all'}
-              </button>
-            </div>
-
+          <div className="mt-6 space-y-5">
             {Object.entries(entitlementsByCategory).map(([category, items]) => (
-              <div key={category} className="panel overflow-hidden">
-                <div className="border-b border-slate-100 px-5 py-4">
-                  <h2 className="text-sm font-bold text-slate-950">
-                    {category.replaceAll('_', ' ')}
-                  </h2>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Plan limits and feature switches are sourced from the entitlement catalogue.
-                  </p>
-                </div>
-                <div className="divide-y divide-slate-100">
-                  {items.map((definition) => {
-                    const assigned = plan.entitlements.some((item) => item.key === definition.key)
-                    const value = entitlementValues[definition.key] ?? definition.defaultValue
-                    return (
-                      <div
-                        key={definition.key}
-                        className="grid gap-4 px-5 py-4 lg:grid-cols-[1fr_260px_auto] lg:items-center"
-                      >
-                        <div>
-                          <p className="text-sm font-bold text-slate-900">{definition.name}</p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {definition.description || definition.key}
-                          </p>
-                          <p className="mt-1 text-[10px] font-mono text-slate-400">
-                            {definition.key}
-                          </p>
-                        </div>
-                        {definition.valueType === 'BOOLEAN' ? (
-                          <select
-                            className="form-input"
-                            value={value}
-                            onChange={(e) =>
-                              setEntitlementValues({
-                                ...entitlementValues,
-                                [definition.key]: e.target.value,
-                              })
-                            }
-                          >
-                            <option value="true">Enabled</option>
-                            <option value="false">Disabled</option>
-                          </select>
-                        ) : (
-                          <input
-                            className="form-input"
-                            type={
-                              definition.valueType === 'INTEGER' ||
-                              definition.valueType === 'DECIMAL'
-                                ? 'number'
-                                : 'text'
-                            }
-                            step={definition.valueType === 'DECIMAL' ? '0.000001' : undefined}
-                            value={value}
-                            onChange={(e) =>
-                              setEntitlementValues({
-                                ...entitlementValues,
-                                [definition.key]: e.target.value,
-                              })
-                            }
-                          />
-                        )}
+              <div key={category} className="panel">
+                <h2 className="border-b p-4 font-bold">{category}</h2>
+                {items.map((definition) => {
+                  const assigned = plan.entitlements.some((item) => item.key === definition.key)
+                  return (
+                    <div key={definition.key} className="grid gap-3 border-b p-4 lg:grid-cols-[1fr_260px_auto]">
+                      <div><strong>{definition.name}</strong><p className="text-xs text-slate-500">{definition.description || definition.key}</p></div>
+                      <input disabled={!mutable} className="form-input" value={entitlementValues[definition.key] ?? definition.defaultValue} onChange={(e) => setEntitlementValues({ ...entitlementValues, [definition.key]: e.target.value })} />
+                      {mutable && (
                         <div className="flex gap-2">
-                          <button
-                            type="button"
-                            className="secondary-button"
-                            disabled={saving}
-                            onClick={() => void saveEntitlement(definition)}
-                          >
-                            Save
-                          </button>
-                          {assigned && (
-                            <button
-                              type="button"
-                              className="px-2 text-xs font-semibold text-rose-600"
-                              disabled={saving}
-                              onClick={() => void removeEntitlement(definition.key)}
-                            >
-                              Remove
-                            </button>
-                          )}
+                          <button type="button" className="secondary-button" onClick={() => void saveEntitlement(definition)}>Save</button>
+                          {assigned && <button type="button" className="secondary-button text-rose-600" onClick={() => void removeEntitlement(definition.key)}><FiTrash2 /> Remove</button>}
                         </div>
-                      </div>
-                    )
-                  })}
-                </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             ))}
           </div>
         )}
 
         {tab === 'usage' && (
-          <div className="mt-6 grid gap-6 xl:grid-cols-[380px_1fr]">
-            <form onSubmit={addRate} className="panel h-fit p-5">
-              <h2 className="text-sm font-bold text-slate-950">Add channel rate</h2>
-              <p className="mt-1 text-xs text-slate-500">
-                Configure what this plan charges for provider usage by channel, category and
-                direction.
-              </p>
-              <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
-                <label className="text-xs font-semibold text-slate-600">
-                  Channel
-                  <select
-                    className="form-input mt-1.5"
-                    value={rateForm.channel}
-                    onChange={(e) => changeRateChannel(e.target.value as ChannelType)}
-                  >
-                    <option value="SMS">SMS</option>
-                    <option value="WHATSAPP">WhatsApp</option>
-                    <option value="EMAIL">Email</option>
-                  </select>
-                </label>
-                <label className="text-xs font-semibold text-slate-600">
-                  Provider
-                  <select
-                    className="form-input mt-1.5"
-                    value={rateForm.provider}
-                    onChange={(e) =>
-                      setRateForm({ ...rateForm, provider: e.target.value as ProviderType })
-                    }
-                  >
-                    {providersByChannel[rateForm.channel].map((provider) => (
-                      <option key={provider} value={provider}>
-                        {provider}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-xs font-semibold text-slate-600">
-                  Category
-                  <select
-                    className="form-input mt-1.5"
-                    value={rateForm.billingCategory}
-                    onChange={(e) =>
-                      setRateForm({
-                        ...rateForm,
-                        billingCategory: e.target.value as BillingCategory,
-                      })
-                    }
-                  >
-                    {categoriesByChannel[rateForm.channel].map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-xs font-semibold text-slate-600">
-                  Direction
-                  <select
-                    className="form-input mt-1.5"
-                    value={rateForm.direction}
-                    onChange={(e) =>
-                      setRateForm({
-                        ...rateForm,
-                        direction: e.target.value as CommunicationDirection,
-                      })
-                    }
-                  >
-                    <option value="OUTBOUND">Outbound</option>
-                    <option value="INBOUND">Inbound</option>
-                  </select>
-                </label>
-                <label className="text-xs font-semibold text-slate-600">
-                  Unit
-                  <select
-                    className="form-input mt-1.5"
-                    value={rateForm.unit}
-                    onChange={(e) =>
-                      setRateForm({ ...rateForm, unit: e.target.value as UsageUnit })
-                    }
-                  >
-                    <option value="MESSAGE">Message</option>
-                    <option value="CONVERSATION">Conversation</option>
-                    <option value="CLICK">Click</option>
-                    <option value="IMPRESSION">Impression</option>
-                  </select>
-                </label>
-                <label className="text-xs font-semibold text-slate-600">
-                  Price
-                  <input
-                    className="form-input mt-1.5"
-                    type="number"
-                    min="0"
-                    step="0.000001"
-                    value={rateForm.price}
-                    onChange={(e) => setRateForm({ ...rateForm, price: Number(e.target.value) })}
-                    required
-                  />
-                </label>
-                <label className="text-xs font-semibold text-slate-600">
-                  Currency
-                  <input
-                    className="form-input mt-1.5"
-                    minLength={3}
-                    maxLength={3}
-                    value={rateForm.currency}
-                    onChange={(e) =>
-                      setRateForm({ ...rateForm, currency: e.target.value.toUpperCase() })
-                    }
-                    required
-                  />
-                </label>
-                <label className="text-xs font-semibold text-slate-600">
-                  Country
-                  <input
-                    className="form-input mt-1.5"
-                    maxLength={2}
-                    placeholder="IN"
-                    value={rateForm.country ?? ''}
-                    onChange={(e) => setRateForm({ ...rateForm, country: e.target.value })}
-                  />
-                </label>
-                <label className="text-xs font-semibold text-slate-600">
-                  Carrier
-                  <input
-                    className="form-input mt-1.5"
-                    placeholder="Optional"
-                    value={rateForm.carrier ?? ''}
-                    onChange={(e) => setRateForm({ ...rateForm, carrier: e.target.value })}
-                  />
-                </label>
-              </div>
-              <button className="primary-button mt-5 w-full gap-2" disabled={saving}>
-                <FiPlus />
-                Add rate card
-              </button>
-            </form>
-            <div className="panel overflow-hidden">
-              <div className="border-b border-slate-100 px-5 py-4">
-                <h2 className="text-sm font-bold text-slate-950">Channel rate cards</h2>
-                <p className="mt-1 text-xs text-slate-500">
-                  More specific country/carrier rates can coexist with generic provider rates.
-                </p>
-              </div>
-              {rateCards.length === 0 ? (
-                <p className="px-5 py-10 text-center text-sm text-slate-500">
-                  No usage pricing configured.
-                </p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="mobile-card-table w-full min-w-[760px] text-left text-sm">
-                    <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
-                      <tr>
-                        <th className="px-4 py-3">Route</th>
-                        <th className="px-4 py-3">Category</th>
-                        <th className="px-4 py-3">Price</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rateCards.map((rate) => (
-                        <tr key={rate.rateCardId} className="border-t border-slate-100">
-                          <td className="px-4 py-4" data-label="Route">
-                            <p className="font-bold text-slate-900">
-                              {rate.channel} · {rate.provider}
-                            </p>
-                            <p className="mt-1 text-xs text-slate-500">
-                              {rate.country || 'ALL'}
-                              {rate.carrier ? ` · ${rate.carrier}` : ''} · {rate.direction}
-                            </p>
-                          </td>
-                          <td className="px-4 py-4 text-xs text-slate-600" data-label="Category">
-                            {rate.billingCategory}
-                            <br />
-                            per {rate.unit.toLowerCase()}
-                          </td>
-                          <td className="px-4 py-4 font-bold text-slate-900" data-label="Price">
-                            {money(rate.price, rate.currency)}
-                          </td>
-                          <td
-                            className="px-4 py-4 text-xs font-semibold text-slate-600"
-                            data-label="Status"
-                          >
-                            {rate.status}
-                          </td>
-                          <td
-                            className="mobile-action-cell px-4 py-4 text-right"
-                            data-label="Action"
-                          >
-                            {rate.status === 'ACTIVE' && (
-                              <button
-                                type="button"
-                                className="text-xs font-semibold text-rose-600"
-                                onClick={async () => {
-                                  await adminBillingApi.updateRateCard(rate.rateCardId, {
-                                    status: 'ARCHIVED',
-                                  })
-                                  await load()
-                                }}
-                              >
-                                Archive
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+          <div className="mt-6 grid gap-6 xl:grid-cols-[400px_1fr]">
+            <form className="panel p-5" onSubmit={saveRate}>
+              <h2 className="font-bold">{editingRateId ? 'Edit Managed-Service rate' : 'Add Managed-Service rate'}</h2>
+              <fieldset disabled={!mutable || saving} className="mt-4 space-y-3">
+                <select className="form-input" disabled={Boolean(editingRateId)} value={rateForm.channel} onChange={(e) => changeRateChannel(e.target.value as ChannelType)}><option>SMS</option><option>WHATSAPP</option><option>EMAIL</option></select>
+                <select className="form-input" disabled={Boolean(editingRateId)} value={rateForm.provider} onChange={(e) => setRateForm({ ...rateForm, provider: e.target.value as ProviderType })}>{providersByChannel[rateForm.channel].map((provider) => <option key={provider}>{provider}</option>)}</select>
+                <select className="form-input" disabled={Boolean(editingRateId)} value={rateForm.billingCategory} onChange={(e) => setRateForm({ ...rateForm, billingCategory: e.target.value as BillingCategory })}>{categoriesByChannel[rateForm.channel].map((category) => <option key={category}>{category}</option>)}</select>
+                <select className="form-input" disabled={Boolean(editingRateId)} value={rateForm.direction} onChange={(e) => setRateForm({ ...rateForm, direction: e.target.value as CommunicationDirection })}><option>OUTBOUND</option><option>INBOUND</option></select>
+                <select className="form-input" disabled={Boolean(editingRateId)} value={rateForm.unit} onChange={(e) => setRateForm({ ...rateForm, unit: e.target.value as UsageUnit })}>{PLATFORM_RATE_USAGE_UNITS.map((unit) => <option key={unit}>{unit}</option>)}</select>
+                <input className="form-input" disabled={Boolean(editingRateId)} placeholder="Country (optional)" value={rateForm.country ?? ''} onChange={(e) => setRateForm({ ...rateForm, country: e.target.value })} />
+                <input className="form-input" disabled={Boolean(editingRateId)} placeholder="Carrier (optional)" value={rateForm.carrier ?? ''} onChange={(e) => setRateForm({ ...rateForm, carrier: e.target.value })} />
+                <input className="form-input" type="number" min="0" value={rateForm.price} onChange={(e) => setRateForm({ ...rateForm, price: Number(e.target.value) })} />
+                <input className="form-input" disabled={Boolean(editingRateId)} maxLength={3} value={rateForm.currency} onChange={(e) => setRateForm({ ...rateForm, currency: e.target.value.toUpperCase() })} />
+                <label className="block text-xs font-semibold">Effective from *<input required type="datetime-local" className="form-input mt-1" value={rateFrom} onChange={(e) => setRateFrom(e.target.value)} /></label>
+                <label className="block text-xs font-semibold">Effective to<input type="datetime-local" className="form-input mt-1" value={rateTo} onChange={(e) => setRateTo(e.target.value)} /></label>
+                {editingRateId && <select className="form-input" value={rateStatus} onChange={(e) => setRateStatus(e.target.value as RateCardStatus)}><option>ACTIVE</option><option>ARCHIVED</option></select>}
+              </fieldset>
+              {mutable && (
+                <div className="mt-4 flex gap-2">
+                  <button className="primary-button gap-2"><FiSave /> {editingRateId ? 'Update rate' : 'Add rate'}</button>
+                  {editingRateId && <button type="button" className="secondary-button" onClick={resetRate}>Cancel</button>}
                 </div>
               )}
+            </form>
+            <div className="panel overflow-x-auto">
+              <table className="mobile-card-table w-full min-w-[650px] text-left text-sm">
+                <tbody>
+                  {rateCards.map((rate) => (
+                    <tr key={rate.rateCardId} className="border-b">
+                      <td className="p-4"><strong>{rate.channel} · {rate.provider}</strong><small className="block text-slate-500">{rate.country || 'all countries'} · {rate.carrier || 'all carriers'}</small></td>
+                      <td className="p-4">{rate.billingCategory} · {rate.direction}</td>
+                      <td className="p-4">{rate.unit}</td>
+                      <td className="p-4 font-bold">{money(rate.price, rate.currency)}</td>
+                      <td className="p-4">{mutable && <button type="button" className="secondary-button" onClick={() => editRate(rate)}>Edit</button>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
