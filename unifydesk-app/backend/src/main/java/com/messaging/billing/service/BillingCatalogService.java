@@ -426,16 +426,16 @@ public class BillingCatalogService {
     if (plan.getStatus() != PlanStatus.PUBLISHED) {
       throw new BadRequestException("Only published plans can be assigned");
     }
-    planEligibilityService.assertCustomerEligible(companyId, plan, Instant.now());
+    Instant selectionAt = request.startedAt() == null ? Instant.now() : request.startedAt();
+    planEligibilityService.assertCustomerEligible(companyId, plan, selectionAt);
 
-    Instant now = Instant.now();
     PlanPrice planPrice = null;
     if (request.planPriceId() != null && !request.planPriceId().isBlank()) {
       planPrice =
           planPriceRepository
               .findById(parseId(request.planPriceId(), "Plan price not found"))
               .orElseThrow(() -> new NotFoundException("Plan price not found"));
-      assertSelectablePlanPrice(planPrice, plan, now);
+      assertSelectablePlanPrice(planPrice, plan, selectionAt);
     }
     if ((planPrice != null && planPrice.getAmount().compareTo(BigDecimal.ZERO) > 0)
         || plan.getBasePrice().compareTo(BigDecimal.ZERO) > 0) {
@@ -457,7 +457,7 @@ public class BillingCatalogService {
     subscription.setPlan(plan);
     subscription.setPlanPrice(planPrice);
     subscription.setStatus(request.status() == null ? SubscriptionStatus.ACTIVE : request.status());
-    subscription.setStartedAt(request.startedAt() == null ? now : request.startedAt());
+    subscription.setStartedAt(selectionAt);
     subscription.setCurrentPeriodStart(subscription.getStartedAt());
     subscription.setCurrentPeriodEnd(request.currentPeriodEnd());
     subscription.setTrialEndsAt(request.trialEndsAt());
@@ -517,10 +517,10 @@ public class BillingCatalogService {
       if (!"INR".equalsIgnoreCase(planPrice.getCurrency())) {
         throw new BadRequestException("Billing R1 supports INR only");
       }
-      if (planPrice.getEffectiveFrom() == null
-          || planPrice.getEffectiveFrom().isAfter(grantStart)
-          || (planPrice.getEffectiveTo() != null
-              && !grantStart.isBefore(planPrice.getEffectiveTo()))) {
+      FinancialEffectiveTime.assertStoredActiveRange(
+          planPrice.getEffectiveFrom(), planPrice.getEffectiveTo(), "PlanPrice");
+      if (!FinancialEffectiveTime.includes(
+          planPrice.getEffectiveFrom(), planPrice.getEffectiveTo(), grantStart)) {
         throw new BadRequestException(
             "Plan price is not effective at the canonical manual-grant start time");
       }
