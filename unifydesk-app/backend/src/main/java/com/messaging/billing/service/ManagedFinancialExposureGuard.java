@@ -1,9 +1,7 @@
 package com.messaging.billing.service;
 
-import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.exception.PlanEntitlementException;
-import com.messaging.billing.repository.CompanySubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,8 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
  * Authoritative billing-status boundary for new UnifyDesk-paid Managed Service exposure.
  *
  * <p>Generic entitlements intentionally remain available for allowed PAST_DUE grace behavior. This
- * guard is narrower: only an ACTIVE platform subscription may create new Managed Email/SMS provider
- * spend in Billing R1.
+ * guard is narrower: the canonical current subscription may create new Managed Email/SMS provider
+ * spend only while ACTIVE or TRIALING. PAST_DUE and SUSPENDED remain current subscription states
+ * but are explicitly blocked from new Managed-Service financial exposure.
  */
 @Service
 @RequiredArgsConstructor
@@ -21,17 +20,20 @@ public class ManagedFinancialExposureGuard {
 
   public static final String BLOCKED = "MANAGED_FINANCIAL_EXPOSURE_BLOCKED";
 
-  private final CompanySubscriptionRepository subscriptionRepository;
+  private final SubscriptionLifecycleService subscriptionLifecycleService;
 
   @Transactional(readOnly = true)
   public boolean isAllowed(Long companyId) {
     if (companyId == null) {
       return false;
     }
-    return subscriptionRepository
-        .findFirstByCompanyIdOrderByStartedAtDescIdDesc(companyId)
-        .map(CompanySubscription::getStatus)
-        .filter(SubscriptionStatus.ACTIVE::equals)
+    return subscriptionLifecycleService
+        .currentOptional(companyId)
+        .map(subscription -> subscription.getStatus())
+        .filter(
+            status ->
+                status == SubscriptionStatus.ACTIVE
+                    || status == SubscriptionStatus.TRIALING)
         .isPresent();
   }
 
