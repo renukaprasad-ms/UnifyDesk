@@ -157,7 +157,6 @@ public class BroadcastDeliveryService {
 
       BroadcastEmailComplianceService.CompliantContent compliant =
           emailComplianceService.apply(rendered, recipient);
-      managedFinancialExposureGuard.assertAllowed(run.getCompanyId());
       BroadcastEmailResult result =
           emailTransportRegistry
               .require(run.getProviderType())
@@ -275,6 +274,7 @@ public class BroadcastDeliveryService {
 
       BroadcastEmailComplianceService.CompliantContent compliant =
           emailComplianceService.apply(rendered, recipient);
+      managedFinancialExposureGuard.assertAllowed(run.getCompanyId());
       BroadcastEmailResult result =
           emailTransportRegistry
               .require(run.getProviderType())
