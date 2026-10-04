@@ -4,7 +4,6 @@ import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.billing.repository.CompanySubscriptionRepository;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,12 +28,11 @@ public class ManagedFinancialExposureGuard {
     if (companyId == null) {
       return false;
     }
-    List<CompanySubscription> subscriptions =
-        subscriptionRepository.findByCompanyIdOrderByStartedAtDesc(companyId);
-    if (subscriptions.isEmpty()) {
-      return false;
-    }
-    return subscriptions.getFirst().getStatus() == SubscriptionStatus.ACTIVE;
+    return subscriptionRepository
+        .findFirstByCompanyIdOrderByStartedAtDescIdDesc(companyId)
+        .map(CompanySubscription::getStatus)
+        .filter(SubscriptionStatus.ACTIVE::equals)
+        .isPresent();
   }
 
   @Transactional(readOnly = true)
