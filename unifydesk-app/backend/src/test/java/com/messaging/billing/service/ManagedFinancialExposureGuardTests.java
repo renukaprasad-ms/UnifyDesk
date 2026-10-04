@@ -2,18 +2,13 @@ package com.messaging.billing.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import com.messaging.billing.entity.CompanySubscription;
 import com.messaging.billing.enums.SubscriptionStatus;
 import com.messaging.billing.exception.PlanEntitlementException;
-import com.messaging.billing.repository.CompanySubscriptionRepository;
-import com.messaging.billing.repository.SubscriptionTransitionRepository;
-import java.util.Collection;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
 class ManagedFinancialExposureGuardTests {
 
@@ -62,35 +57,17 @@ class ManagedFinancialExposureGuardTests {
   }
 
   @Test
-  void canonicalSelectorExcludesTerminalHistoryAndKeepsCurrentValidSubscription() {
-    CompanySubscriptionRepository subscriptions = mock(CompanySubscriptionRepository.class);
-    SubscriptionLifecycleService canonicalLifecycle =
-        new SubscriptionLifecycleService(
-            subscriptions,
-            mock(SubscriptionTransitionRepository.class),
-            mock(BillingPeriodService.class),
-            mock(InvoiceService.class));
+  void delegatesCurrentSubscriptionSelectionToLifecycleExactlyOnce() {
+    SubscriptionLifecycleService canonicalLifecycle = mock(SubscriptionLifecycleService.class);
     ManagedFinancialExposureGuard canonicalGuard =
         new ManagedFinancialExposureGuard(canonicalLifecycle);
-
     CompanySubscription active = subscription(SubscriptionStatus.ACTIVE);
-    when(subscriptions.findFirstByCompanyIdAndStatusInOrderByStartedAtDesc(eq(10L), anyCollection()))
-        .thenReturn(Optional.of(active));
+    when(canonicalLifecycle.currentOptional(10L)).thenReturn(Optional.of(active));
 
     assertThat(canonicalGuard.isAllowed(10L)).isTrue();
 
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<Collection<SubscriptionStatus>> statuses =
-        ArgumentCaptor.forClass(Collection.class);
-    verify(subscriptions)
-        .findFirstByCompanyIdAndStatusInOrderByStartedAtDesc(eq(10L), statuses.capture());
-    assertThat(statuses.getValue())
-        .containsExactly(
-            SubscriptionStatus.ACTIVE,
-            SubscriptionStatus.TRIALING,
-            SubscriptionStatus.PAST_DUE,
-            SubscriptionStatus.SUSPENDED)
-        .doesNotContain(SubscriptionStatus.CANCELLED, SubscriptionStatus.EXPIRED);
+    verify(canonicalLifecycle, times(1)).currentOptional(10L);
+    verifyNoMoreInteractions(canonicalLifecycle);
   }
 
   private void current(SubscriptionStatus status) {
