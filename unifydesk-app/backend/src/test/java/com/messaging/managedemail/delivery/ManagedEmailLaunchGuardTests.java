@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 import com.messaging.billing.service.EntitlementService;
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.broadcast.entity.BroadcastSender;
 import com.messaging.broadcast.entity.BroadcastSenderConnection;
 import com.messaging.broadcast.enums.BroadcastSenderManagementMode;
@@ -66,6 +67,7 @@ class ManagedEmailLaunchGuardTests {
     ManagedEmailRuntimeRepository runtime = mock(ManagedEmailRuntimeRepository.class);
     EntitlementService entitlement = mock(EntitlementService.class);
     ManagedEmailUsageService usage = mock(ManagedEmailUsageService.class);
+    ManagedFinancialExposureGuard exposure = mock(ManagedFinancialExposureGuard.class);
     ManagedEmailProviderBudgetService budget = mock(ManagedEmailProviderBudgetService.class);
     ManagedEmailRuntimeProperties properties = properties();
     when(entitlement.booleanValue(10L, "MANAGED_EMAIL_ENABLED")).thenReturn(true);
@@ -86,6 +88,7 @@ class ManagedEmailLaunchGuardTests {
             runtime,
             properties,
             entitlement,
+            exposure,
             usage,
             new ManagedEmailAddressPolicy(),
             budget),
