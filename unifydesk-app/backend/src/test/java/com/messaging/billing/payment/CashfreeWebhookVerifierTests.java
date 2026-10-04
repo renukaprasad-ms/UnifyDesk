@@ -34,33 +34,38 @@ class CashfreeWebhookVerifierTests {
 
   @Test
   void validFreshTimestampAndSignatureAreAccepted() throws Exception {
-    assertSignedAccepted(NOW.minusSeconds(30));
+    assertSignedMillisAccepted(NOW.minusSeconds(30));
+    assertSignedSecondsAccepted(NOW.minusSeconds(30));
   }
 
   @Test
   void malformedTimestampIsRejectedEvenWhenSigned() throws Exception {
-    String timestamp = "not-an-epoch-millis";
+    String timestamp = "not-a-numeric-epoch";
     assertFalse(verifier.verify(body, timestamp, sign(properties.getClientSecret(), timestamp, body)));
   }
 
   @Test
   void tooOldValidlySignedTimestampIsRejected() throws Exception {
-    assertSignedRejected(NOW.minusSeconds(301));
+    assertSignedMillisRejected(NOW.minusSeconds(301));
+    assertSignedSecondsRejected(NOW.minusSeconds(301));
   }
 
   @Test
   void excessivelyFutureValidlySignedTimestampIsRejected() throws Exception {
-    assertSignedRejected(NOW.plusSeconds(61));
+    assertSignedMillisRejected(NOW.plusSeconds(61));
+    assertSignedSecondsRejected(NOW.plusSeconds(61));
   }
 
   @Test
   void exactPastBoundaryIsAccepted() throws Exception {
-    assertSignedAccepted(NOW.minusSeconds(300));
+    assertSignedMillisAccepted(NOW.minusSeconds(300));
+    assertSignedSecondsAccepted(NOW.minusSeconds(300));
   }
 
   @Test
   void exactFutureSkewBoundaryIsAccepted() throws Exception {
-    assertSignedAccepted(NOW.plusSeconds(60));
+    assertSignedMillisAccepted(NOW.plusSeconds(60));
+    assertSignedSecondsAccepted(NOW.plusSeconds(60));
   }
 
   @Test
@@ -81,30 +86,69 @@ class CashfreeWebhookVerifierTests {
   }
 
   @Test
+  void signatureUsesExactOriginalTimestampString() throws Exception {
+    String timestamp = "0" + Long.toString(NOW.getEpochSecond());
+    String signature = sign(properties.getClientSecret(), timestamp, body);
+
+    assertTrue(verifier.verify(body, timestamp, signature));
+    assertFalse(
+        verifier.verify(
+            body,
+            Long.toString(NOW.getEpochSecond()),
+            signature));
+  }
+
+  @Test
+  void numericOverflowIsRejected() throws Exception {
+    String timestamp = "999999999999999999999999999999999999";
+    assertFalse(verifier.verify(body, timestamp, sign(properties.getClientSecret(), timestamp, body)));
+  }
+
+  @Test
+  void implausibleEpochValueIsRejected() throws Exception {
+    String timestamp = "1";
+    assertFalse(verifier.verify(body, timestamp, sign(properties.getClientSecret(), timestamp, body)));
+  }
+
+  @Test
   void invalidFreshnessConfigurationFailsClosed() throws Exception {
     properties.setWebhookMaxAgeSeconds(0);
-    assertSignedRejected(NOW);
+    assertSignedMillisRejected(NOW);
     properties.setWebhookMaxAgeSeconds(-1);
-    assertSignedRejected(NOW);
+    assertSignedMillisRejected(NOW);
     properties.setWebhookMaxAgeSeconds(3601);
-    assertSignedRejected(NOW);
+    assertSignedMillisRejected(NOW);
 
     properties.setWebhookMaxAgeSeconds(300);
     properties.setWebhookFutureSkewSeconds(0);
-    assertSignedRejected(NOW);
+    assertSignedMillisRejected(NOW);
     properties.setWebhookFutureSkewSeconds(-1);
-    assertSignedRejected(NOW);
+    assertSignedMillisRejected(NOW);
     properties.setWebhookFutureSkewSeconds(601);
-    assertSignedRejected(NOW);
+    assertSignedMillisRejected(NOW);
   }
 
-  private void assertSignedAccepted(Instant at) throws Exception {
-    String timestamp = Long.toString(at.toEpochMilli());
+  private void assertSignedMillisAccepted(Instant at) throws Exception {
+    assertTimestampAccepted(Long.toString(at.toEpochMilli()));
+  }
+
+  private void assertSignedSecondsAccepted(Instant at) throws Exception {
+    assertTimestampAccepted(Long.toString(at.getEpochSecond()));
+  }
+
+  private void assertSignedMillisRejected(Instant at) throws Exception {
+    assertTimestampRejected(Long.toString(at.toEpochMilli()));
+  }
+
+  private void assertSignedSecondsRejected(Instant at) throws Exception {
+    assertTimestampRejected(Long.toString(at.getEpochSecond()));
+  }
+
+  private void assertTimestampAccepted(String timestamp) throws Exception {
     assertTrue(verifier.verify(body, timestamp, sign(properties.getClientSecret(), timestamp, body)));
   }
 
-  private void assertSignedRejected(Instant at) throws Exception {
-    String timestamp = Long.toString(at.toEpochMilli());
+  private void assertTimestampRejected(String timestamp) throws Exception {
     assertFalse(verifier.verify(body, timestamp, sign(properties.getClientSecret(), timestamp, body)));
   }
 
