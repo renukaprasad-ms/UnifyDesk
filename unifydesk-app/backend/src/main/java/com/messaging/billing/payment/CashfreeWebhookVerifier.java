@@ -64,17 +64,29 @@ public class CashfreeWebhookVerifier {
       return false;
     }
 
+    if (!timestamp.chars().allMatch(Character::isDigit)) {
+      return false;
+    }
+
     try {
-      // Cashfree's x-webhook-timestamp is the epoch-millisecond string that is also signed verbatim.
-      if (!timestamp.chars().allMatch(Character::isDigit)) {
-        return false;
-      }
-      Instant webhookAt = Instant.ofEpochMilli(Long.parseLong(timestamp));
+      long numeric = Long.parseLong(timestamp);
       Instant now = clock.instant();
-      return !webhookAt.isBefore(now.minusSeconds(maxAgeSeconds))
-          && !webhookAt.isAfter(now.plusSeconds(futureSkewSeconds));
+      Instant oldest = now.minusSeconds(maxAgeSeconds);
+      Instant newest = now.plusSeconds(futureSkewSeconds);
+
+      boolean secondsFresh = isWithin(Instant.ofEpochSecond(numeric), oldest, newest);
+      boolean millisFresh = isWithin(Instant.ofEpochMilli(numeric), oldest, newest);
+
+      // The pinned Cashfree material used by Billing R1 specifies the signed timestamp header
+      // but does not pin its numeric unit. Accept only a representation that independently lands
+      // inside the configured freshness window. Exactly one representation must match.
+      return secondsFresh ^ millisFresh;
     } catch (RuntimeException exception) {
       return false;
     }
+  }
+
+  private boolean isWithin(Instant value, Instant oldest, Instant newest) {
+    return !value.isBefore(oldest) && !value.isAfter(newest);
   }
 }
