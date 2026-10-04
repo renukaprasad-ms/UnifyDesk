@@ -77,6 +77,13 @@ Cashfree webhook verification must use:
 - `x-webhook-signature`;
 - server-side signature verification before any event is persisted as verified/processed.
 
+The pinned official Webhook Verification page passes `x-webhook-timestamp` into Cashfree's
+signature verifier but does not specify whether the numeric header is epoch seconds or epoch
+milliseconds. Billing R1 therefore keeps the original timestamp string unchanged for HMAC input and
+treats freshness parsing as a separate fail-closed step: numeric epoch-seconds and epoch-milliseconds
+representations are recognized only when exactly one interpretation lands inside the configured
+freshness window.
+
 UnifyDesk persists the verified raw body and hash, then claims `RECEIVED`, due `RETRY`, or expired `PROCESSING` rows with a durable claim/lease.
 
 ## Implemented source contracts
