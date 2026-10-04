@@ -7,6 +7,7 @@ import com.messaging.billing.entity.Plan;
 import com.messaging.billing.entity.PlanPrice;
 import com.messaging.billing.entity.SubscriptionChange;
 import com.messaging.billing.enums.BillingCycle;
+import com.messaging.billing.enums.PaymentPolicy;
 import com.messaging.billing.enums.PlanChangeDirection;
 import com.messaging.billing.enums.PlanStatus;
 import com.messaging.billing.enums.RateCardStatus;
@@ -251,9 +252,12 @@ public class SubscriptionChangeService {
       CompanySubscription subscription =
           lifecycleService.requireForUpdate(change.getSubscription().getId());
       if (subscription.getStatus() != SubscriptionStatus.ACTIVE
-          || !subscriptionMatches(change, subscription)) {
+          || !downgradeBoundaryMatches(change, subscription)) {
         change.setStatus(SubscriptionChangeStatus.FAILED);
         changeRepository.save(change);
+        continue;
+      }
+      if (subscription.getPaymentPolicy() == PaymentPolicy.CASHFREE) {
         continue;
       }
 
@@ -378,6 +382,16 @@ public class SubscriptionChangeService {
     Long actualPriceId =
         subscription.getPlanPrice() == null ? null : subscription.getPlanPrice().getId();
     return java.util.Objects.equals(expectedPriceId, actualPriceId);
+  }
+
+  private boolean downgradeBoundaryMatches(
+      SubscriptionChange change, CompanySubscription subscription) {
+    return subscriptionMatches(change, subscription)
+        && java.util.Objects.equals(
+            change.getCurrentPeriodStart(), subscription.getCurrentPeriodStart())
+        && java.util.Objects.equals(
+            change.getCurrentPeriodEnd(), subscription.getCurrentPeriodEnd())
+        && java.util.Objects.equals(change.getEffectiveAt(), subscription.getCurrentPeriodEnd());
   }
 
   private String validateIdempotencyKey(String key) {
