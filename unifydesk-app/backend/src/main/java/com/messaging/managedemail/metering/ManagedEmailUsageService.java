@@ -7,6 +7,7 @@ import com.messaging.billing.enums.ServiceOwnership;
 import com.messaging.billing.enums.UsageUnit;
 import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.billing.service.EntitlementService;
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.billing.service.UsageBillingService;
 import com.messaging.channel.enums.ChannelType;
 import com.messaging.channel.enums.ProviderType;
@@ -31,6 +32,7 @@ public class ManagedEmailUsageService {
   private final EntitlementService entitlementService;
   private final ManagedEmailIdGenerator idGenerator;
   private final UsageBillingService usageBillingService;
+  private final ManagedFinancialExposureGuard financialExposureGuard;
 
   @Transactional(readOnly = true)
   public boolean canReserve(Long companyId, long units) {
@@ -43,6 +45,7 @@ public class ManagedEmailUsageService {
 
   @Transactional
   public void reserve(Long companyId, Long recipientId, Long runId, int attemptNo) {
+    financialExposureGuard.assertAllowed(companyId);
     LocalDate period = periodStart(Instant.now());
     ensurePeriod(companyId, period);
     UsageRow row = lockRow(companyId, period);
