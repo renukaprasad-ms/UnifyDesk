@@ -114,6 +114,7 @@ class ManagedSmsExistingProviderRegressionTests {
         reconciler,
         suppression,
         budget,
+        exposure,
         emailCompliance,
         contactEligibility,
         whatsAppDelivery);
