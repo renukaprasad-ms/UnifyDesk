@@ -2,6 +2,7 @@ package com.messaging.managedemail.delivery;
 
 import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.billing.service.EntitlementService;
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.broadcast.entity.BroadcastSender;
 import com.messaging.broadcast.entity.BroadcastSenderConnection;
 import com.messaging.broadcast.enums.BroadcastSenderManagementMode;
@@ -22,6 +23,7 @@ public class ManagedEmailLaunchGuard {
   private final ManagedEmailRuntimeRepository runtimeRepository;
   private final ManagedEmailRuntimeProperties properties;
   private final EntitlementService entitlementService;
+  private final ManagedFinancialExposureGuard financialExposureGuard;
   private final ManagedEmailUsageService usageService;
   private final ManagedEmailAddressPolicy addressPolicy;
   private final ManagedEmailProviderBudgetService providerBudgetService;
@@ -34,6 +36,7 @@ public class ManagedEmailLaunchGuard {
     if (connection.getManagementMode() != BroadcastSenderManagementMode.MESSAGING_MANAGED) {
       return;
     }
+    financialExposureGuard.assertAllowed(companyId);
     if (sender.getProvider() != BroadcastSenderProvider.AMAZON_SES
         || connection.getProvider() != BroadcastSenderProvider.AMAZON_SES) {
       throw new BadRequestException("MANAGED_EMAIL_PROVIDER_MISMATCH");
