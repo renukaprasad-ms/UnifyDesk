@@ -98,10 +98,10 @@ public class BillingPeriodService {
     if (!"INR".equalsIgnoreCase(price.getCurrency())) {
       throw new BadRequestException("Billing R1 supports INR only");
     }
+    FinancialEffectiveTime.assertStoredActiveRange(
+        price.getEffectiveFrom(), price.getEffectiveTo(), "PlanPrice");
     if (start == null
-        || price.getEffectiveFrom() == null
-        || price.getEffectiveFrom().isAfter(start)
-        || (price.getEffectiveTo() != null && !start.isBefore(price.getEffectiveTo()))) {
+        || !FinancialEffectiveTime.includes(price.getEffectiveFrom(), price.getEffectiveTo(), start)) {
       throw new BadRequestException("Platform period PlanPrice is not effective at period start");
     }
     Instant canonicalEnd = nextBoundary(start, price.getBillingCycle());
@@ -113,8 +113,23 @@ public class BillingPeriodService {
         companyRepository
             .findByIdForUpdate(company.getId())
             .orElseThrow(() -> new NotFoundException("Company not found"));
-    BillingPeriod period =
-        ensure(locked, BillingPeriodKind.PLATFORM, price.getBillingCycle(), start, end);
+    List<BillingPeriod> existingBoundary =
+        periodRepository.findByCompanyIdAndKindAndStartAt(
+            locked.getId(), BillingPeriodKind.PLATFORM, start);
+    if (existingBoundary.size() > 1) {
+      throw new ConflictException(
+          "Multiple PLATFORM billing periods exist for the same commercial boundary");
+    }
+    BillingPeriod period;
+    if (existingBoundary.isEmpty()) {
+      period = ensure(locked, BillingPeriodKind.PLATFORM, price.getBillingCycle(), start, end);
+    } else {
+      period = existingBoundary.getFirst();
+      if (!period.getEndAt().equals(end)) {
+        throw new ConflictException(
+            "A different immutable PLATFORM period already owns this commercial boundary");
+      }
+    }
     assertCompatibleCommercialSnapshot(period, plan, price, price.getAmount(), price.getCurrency());
     if (period.getPlan() == null
         || period.getPlanPrice() == null
