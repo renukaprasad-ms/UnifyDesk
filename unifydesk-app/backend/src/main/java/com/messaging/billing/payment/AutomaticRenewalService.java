@@ -71,6 +71,10 @@ public class AutomaticRenewalService {
         store.finish(job, "SKIPPED", invoiceId, paymentId, "SUBSCRIPTION_MISSING");
         return;
       }
+      if (store.zeroDueBoundaryAlreadyApplied(job)) {
+        store.finish(job, "ZERO_DUE_APPLIED", invoiceId, null, null);
+        return;
+      }
       if (subscription.status() == SubscriptionStatus.PAST_DUE
           && paymentId != null
           && store.hasDunning(paymentId)) {
