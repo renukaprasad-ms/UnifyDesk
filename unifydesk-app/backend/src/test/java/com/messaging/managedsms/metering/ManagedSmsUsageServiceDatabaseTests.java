@@ -7,6 +7,7 @@ import static org.mockito.Mockito.*;
 
 import com.messaging.billing.exception.PlanEntitlementException;
 import com.messaging.billing.service.EntitlementService;
+import com.messaging.billing.service.ManagedFinancialExposureGuard;
 import com.messaging.billing.service.UsageBillingService;
 import java.util.concurrent.*;
 import org.junit.jupiter.api.*;
@@ -94,7 +95,9 @@ class ManagedSmsUsageServiceDatabaseTests {
 
     entitlement = mock(EntitlementService.class);
     billing = mock(UsageBillingService.class);
-    usage = new ManagedSmsUsageService(jdbc, entitlement, billing);
+    usage =
+        new ManagedSmsUsageService(
+            jdbc, entitlement, billing, mock(ManagedFinancialExposureGuard.class));
   }
 
   @Test
