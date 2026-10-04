@@ -88,6 +88,10 @@ public class AutomaticRenewalService {
           checkoutService.createOrResolveRenewalInvoice(
               job.companyId(), job.subscriptionId(), now, null);
       invoiceId = Long.valueOf(invoice.invoiceId());
+      if (job.invoiceId() != null && !job.invoiceId().equals(invoiceId)) {
+        throw new ConflictException(
+            "Renewal job is already bound to a different immutable invoice");
+      }
       if (invoice.servicePeriodStart() == null
           || !invoice.servicePeriodStart().equals(job.dueBoundary())) {
         throw new ConflictException(
