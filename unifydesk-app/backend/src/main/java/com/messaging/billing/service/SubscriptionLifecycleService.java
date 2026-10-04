@@ -225,33 +225,69 @@ public class SubscriptionLifecycleService {
     if (confirmedAt == null) {
       throw new BadRequestException("Provider-confirmed renewal time is required");
     }
+    CompanySubscription subscription = requireRenewableForUpdate(subscriptionId);
+    var nextPeriod =
+        invoiceService.requirePaidCanonicalPlatformInvoice(
+            subscription.getCompany().getId(), invoiceId);
+    return applyBoundaryTransition(
+        subscription, nextPeriod, invoiceId, confirmedAt, false, "Provider-confirmed renewal");
+  }
+
+  /**
+   * B1-owned zero-due commercial boundary.
+   *
+   * <p>This path applies a scheduled downgrade whose canonical target requires no provider
+   * collection. It deliberately consumes a finalized zero-value invoice without marking it PAID
+   * and without creating a Payment.
+   */
+  @Transactional
+  public CompanySubscription applyZeroDueBoundaryTransition(
+      Long subscriptionId, Long invoiceId, Instant occurredAt) {
+    if (occurredAt == null) {
+      throw new BadRequestException("Zero-due boundary time is required");
+    }
+    CompanySubscription subscription = requireRenewableForUpdate(subscriptionId);
+    var nextPeriod =
+        invoiceService.requireZeroDueCanonicalPlatformInvoice(
+            subscription.getCompany().getId(), invoiceId);
+    return applyBoundaryTransition(
+        subscription, nextPeriod, invoiceId, occurredAt, true, "Zero-due scheduled downgrade");
+  }
+
+  private CompanySubscription requireRenewableForUpdate(Long subscriptionId) {
     CompanySubscription subscription = requireForUpdate(subscriptionId);
     if (subscription.getStatus() != SubscriptionStatus.ACTIVE
         && subscription.getStatus() != SubscriptionStatus.PAST_DUE
         && subscription.getStatus() != SubscriptionStatus.SUSPENDED) {
-      throw new ConflictException("Subscription is not eligible for confirmed renewal");
+      throw new ConflictException("Subscription is not eligible for renewal boundary application");
     }
     if (subscription.getCurrentPeriodStart() == null
         || subscription.getCurrentPeriodEnd() == null
         || !subscription.getCurrentPeriodEnd().isAfter(subscription.getCurrentPeriodStart())) {
       throw new BadRequestException("Subscription has no valid platform period to renew");
     }
+    return subscription;
+  }
 
-    var nextPeriod =
-        invoiceService.requirePaidCanonicalPlatformInvoice(
-            subscription.getCompany().getId(), invoiceId);
+  private CompanySubscription applyBoundaryTransition(
+      CompanySubscription subscription,
+      com.messaging.billing.entity.BillingPeriod nextPeriod,
+      Long invoiceId,
+      Instant occurredAt,
+      boolean zeroDue,
+      String reasonPrefix) {
     if (nextPeriod.getPlan() == null
         || nextPeriod.getPlanPrice() == null
         || nextPeriod.getPlatformAmountSnapshot() == null) {
-      throw new ConflictException("Paid renewal invoice has no canonical commercial snapshot");
+      throw new ConflictException("Boundary invoice has no canonical commercial snapshot");
     }
     if (nextPeriod.getSubscription() != null
         && !nextPeriod.getSubscription().getId().equals(subscription.getId())) {
-      throw new ConflictException("Renewal period is already bound to another subscription");
+      throw new ConflictException("Boundary period is already bound to another subscription");
     }
 
     if (subscription.getCurrentPeriodStart().equals(nextPeriod.getStartAt())
-        && subscription.getCurrentPeriodEnd().equals(nextPeriod.getEndAt())
+        && java.util.Objects.equals(subscription.getCurrentPeriodEnd(), nextPeriod.getEndAt())
         && subscription.getPlan().getId().equals(nextPeriod.getPlan().getId())
         && subscription.getPlanPrice() != null
         && subscription.getPlanPrice().getId().equals(nextPeriod.getPlanPrice().getId())) {
@@ -259,12 +295,16 @@ public class SubscriptionLifecycleService {
     }
     if (!nextPeriod.getStartAt().equals(subscription.getCurrentPeriodEnd())) {
       throw new ConflictException(
-          "Paid renewal invoice does not start at the subscription's canonical next boundary");
+          "Boundary invoice does not start at the subscription's canonical next boundary");
     }
 
     var scheduledDowngrade =
         boundaryChangeService.resolveScheduledDowngradeForBoundary(
             subscription, nextPeriod.getStartAt());
+    if (zeroDue && scheduledDowngrade.isEmpty()) {
+      throw new ConflictException("Zero-due boundary requires an exact scheduled downgrade");
+    }
+
     Plan fromPlan = subscription.getPlan();
     Plan targetPlan =
         scheduledDowngrade.map(change -> change.getToPlan()).orElse(subscription.getPlan());
@@ -274,7 +314,7 @@ public class SubscriptionLifecycleService {
     if (!nextPeriod.getPlan().getId().equals(targetPlan.getId())
         || !nextPeriod.getPlanPrice().getId().equals(targetPrice.getId())) {
       throw new ConflictException(
-          "Paid renewal invoice does not match the authoritative boundary commercial state");
+          "Boundary invoice does not match the authoritative commercial state");
     }
     FinancialEffectiveTime.assertStoredActiveRange(
         targetPrice.getEffectiveFrom(), targetPrice.getEffectiveTo(), "PlanPrice");
@@ -284,7 +324,17 @@ public class SubscriptionLifecycleService {
         || !FinancialEffectiveTime.includes(
             targetPrice.getEffectiveFrom(), targetPrice.getEffectiveTo(), nextPeriod.getStartAt())) {
       throw new ConflictException(
-          "Paid renewal target PlanPrice is invalid at the canonical boundary");
+          "Boundary target PlanPrice is invalid at the canonical boundary");
+    }
+
+    boolean targetRequiresNoPayment =
+        targetPrice.getBillingCycle() == com.messaging.billing.enums.BillingCycle.FREE
+            || targetPrice.getAmount().compareTo(java.math.BigDecimal.ZERO) == 0;
+    if (zeroDue != targetRequiresNoPayment) {
+      throw new ConflictException(
+          zeroDue
+              ? "Zero-due boundary target requires provider collection"
+              : "Paid renewal cannot activate a zero-due target through payment confirmation");
     }
 
     SubscriptionStatus previousStatus = subscription.getStatus();
@@ -300,7 +350,7 @@ public class SubscriptionLifecycleService {
     billingPeriodService.bindPlatformPeriodToSubscription(nextPeriod.getId(), saved);
     if (scheduledDowngrade.isPresent()) {
       var change = scheduledDowngrade.get();
-      boundaryChangeService.markApplied(change, invoiceId, confirmedAt);
+      boundaryChangeService.markApplied(change, invoiceId, occurredAt);
       record(
           saved,
           previousStatus,
@@ -309,10 +359,10 @@ public class SubscriptionLifecycleService {
           targetPlan,
           SubscriptionTransitionType.DOWNGRADED,
           change.getRequestedByUserId(),
-          "Provider-confirmed renewal collection applied scheduled downgrade",
+          reasonPrefix + " applied scheduled downgrade",
           saved.getPaymentPolicy(),
           saved.getExternalContractReference(),
-          confirmedAt);
+          occurredAt);
     } else {
       record(
           saved,
@@ -322,10 +372,10 @@ public class SubscriptionLifecycleService {
           targetPlan,
           SubscriptionTransitionType.RENEWED,
           null,
-          "Provider-confirmed renewal collection",
+          reasonPrefix,
           saved.getPaymentPolicy(),
           saved.getExternalContractReference(),
-          confirmedAt);
+          occurredAt);
     }
     return saved;
   }
