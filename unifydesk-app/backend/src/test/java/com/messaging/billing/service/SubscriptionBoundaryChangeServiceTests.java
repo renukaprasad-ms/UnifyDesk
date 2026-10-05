@@ -64,6 +64,23 @@ class SubscriptionBoundaryChangeServiceTests {
                 subscription, subscription.getCurrentPeriodEnd()));
   }
 
+  @Test
+  void impossibleDuplicateExactBoundaryStateStillFailsClosed() {
+    Instant start = Instant.parse("2026-10-01T00:00:00Z");
+    Instant boundary = Instant.parse("2026-11-01T00:00:00Z");
+    CompanySubscription subscription = subscription(start, boundary);
+    SubscriptionChange first = change(subscription, start, boundary);
+    SubscriptionChange second = change(subscription, start, boundary);
+    second.setId(51L);
+
+    when(repository.findScheduledDowngradesUpToBoundaryForUpdate(40L, boundary))
+        .thenReturn(List.of(first, second));
+
+    assertThrows(
+        ConflictException.class,
+        () -> service.resolveScheduledDowngradeForBoundary(subscription, boundary));
+  }
+
   private CompanySubscription subscription(Instant start, Instant end) {
     Plan current = plan(20L);
     PlanPrice price = price(21L, current);
