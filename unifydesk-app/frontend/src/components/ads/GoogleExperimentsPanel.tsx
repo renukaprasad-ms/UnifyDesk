@@ -496,11 +496,9 @@ export default function GoogleExperimentsPanel({
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-bold text-slate-950">{experiment.name}</h3>
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${statusClass(experiment.status)}`}
-                      >
+                      <StatusBadge status={experiment.status}>
                         {pretty(experiment.status)}
-                      </span>
+                      </StatusBadge>
                       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
                         {pretty(experiment.type)}
                       </span>
