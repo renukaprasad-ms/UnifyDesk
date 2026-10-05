@@ -73,6 +73,7 @@ export default function ContactDetailPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [pendingPreferenceState, setPendingPreferenceState] = useState<CommunicationPreference['state'] | null>(null)
+  const [suppressionToLift, setSuppressionToLift] = useState<Suppression | null>(null)
 
   const load = async (scope: WorkspaceEpochToken | null = captureScope()) => {
     if (!companyId || !contactId || !scopeIsCurrent(scope)) return
@@ -472,25 +473,7 @@ export default function ContactDetailPage() {
                         <button
                           className="secondary-button"
                           disabled={busy}
-                          onClick={() => {
-                            if (
-                              !window.confirm(
-                                'Lift this suppression? This action is recorded for audit.',
-                              )
-                            ) {
-                              return
-                            }
-                            void mutate(
-                              () =>
-                                contactsApi
-                                  .liftSuppression(companyId, contactId, item.id, {
-                                    reason: 'Lifted by workspace user after review',
-                                    idempotencyKey: createIdempotencyKey(),
-                                  })
-                                  .then(() => undefined),
-                              'Suppression lifted.',
-                            )
-                          }}
+                          onClick={() => setSuppressionToLift(item)}
                         >
                           Lift suppression
                         </button>
@@ -606,6 +589,29 @@ export default function ContactDetailPage() {
           working={busy}
           onCancel={() => setPendingPreferenceState(null)}
           onConfirm={() => pendingPreferenceState && void changePreference(pendingPreferenceState)}
+        />
+        <ConfirmDialog
+          open={Boolean(suppressionToLift)}
+          title="Lift this suppression?"
+          description="This changes the contact's sending eligibility and will be recorded for audit."
+          confirmLabel="Yes, lift suppression"
+          cancelLabel="No, keep suppression"
+          tone="warning"
+          working={busy}
+          onCancel={() => setSuppressionToLift(null)}
+          onConfirm={() => {
+            if (!suppressionToLift || !companyId) return
+            void mutate(
+              () =>
+                contactsApi
+                  .liftSuppression(companyId, contactId, suppressionToLift.id, {
+                    reason: 'Lifted by workspace user after review',
+                    idempotencyKey: createIdempotencyKey(),
+                  })
+                  .then(() => undefined),
+              'Suppression lifted.',
+            ).finally(() => setSuppressionToLift(null))
+          }}
         />
     </section>
   )
