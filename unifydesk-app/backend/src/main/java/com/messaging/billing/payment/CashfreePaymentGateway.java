@@ -3,6 +3,7 @@ package com.messaging.billing.payment;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.messaging.common.exception.ConflictException;
+import com.messaging.common.exception.ServiceUnavailableException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 @Component
 @RequiredArgsConstructor
@@ -255,19 +257,25 @@ public class CashfreePaymentGateway implements PaymentProviderGateway {
 
   private JsonNode post(String path, Object body, String idempotencyKey, String apiVersion) {
     assertConfigured(apiVersion);
-    String response =
-        client()
-            .post()
-            .uri(path)
-            .contentType(MediaType.APPLICATION_JSON)
-            .header("x-client-id", properties.getClientId())
-            .header("x-client-secret", properties.getClientSecret())
-            .header("x-api-version", apiVersion)
-            .header("x-idempotency-key", idempotencyKey)
-            .body(body)
-            .retrieve()
-            .body(String.class);
-    return read(response);
+    try {
+      String response =
+          client()
+              .post()
+              .uri(path)
+              .contentType(MediaType.APPLICATION_JSON)
+              .header("x-client-id", properties.getClientId())
+              .header("x-client-secret", properties.getClientSecret())
+              .header("x-api-version", apiVersion)
+              .header("x-idempotency-key", idempotencyKey)
+              .body(body)
+              .retrieve()
+              .body(String.class);
+      return read(response);
+    } catch (RestClientResponseException exception) {
+      throw new ServiceUnavailableException(
+          "Cashfree rejected the payment request. Please retry or check provider configuration.",
+          exception);
+    }
   }
 
   private JsonNode get(String path, String apiVersion) {
