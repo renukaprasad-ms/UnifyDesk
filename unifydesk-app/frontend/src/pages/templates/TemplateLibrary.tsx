@@ -17,6 +17,7 @@ import { useIam } from '../../features/iam/useIam'
 import { apiErrorMessage } from '../../lib/api/apiClient'
 import { useAppSelector } from '../../store/hooks'
 import { selectSelectedCompanyId } from '../../store/workspace/workspaceSlice'
+import { CardSkeleton } from '../../components/ui/Skeleton'
 
 export default function TemplateLibrary() {
   const companyId = useAppSelector(selectSelectedCompanyId)
@@ -182,7 +183,9 @@ export default function TemplateLibrary() {
         </div>
 
         {loading ? (
-          <div className="py-20 text-center text-sm text-slate-500">Loading email templates…</div>
+          <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => <CardSkeleton key={index} rows={4} />)}
+          </div>
         ) : tab === 'gallery' ? (
           <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {catalog.map((item) => (
